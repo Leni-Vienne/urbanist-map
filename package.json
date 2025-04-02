@@ -6,12 +6,10 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@primeuix/themes": "^1.0.0",
+    "@primeuix/themes": "^1.0.1",
     "leaflet": "^1.9.4",
-    "leaflet-distortableimage": "^0.21.9",
     "leaflet-distortableimage-updated": "^2.0.5",
     "leaflet-toolbar": "^0.4.0-alpha.2",
-    "lodash": "^4.17.21",
     "primevue": "^4.3.3",
     "vue": "^3.5.13"
   },
@@ -19,11 +17,9 @@
     "@primevue/auto-import-resolver": "^4.3.3",
     "@types/bun": "^1.2.8",
     "@types/leaflet": "^1.9.17",
-    "@types/lodash": "^4.17.16",
     "@vitejs/plugin-vue": "^5.2.3",
-    "typescript": "~5.8.2",
     "unplugin-vue-components": "^28.4.1",
-    "vite": "^6.2.3",
+    "vite": "^6.2.4",
     "vite-plugin-vue-devtools": "^7.7.2"
   }
 }

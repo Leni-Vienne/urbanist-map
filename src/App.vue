@@ -3,19 +3,9 @@
     <div id="viewerDiv" style="height: 70vh; width: 70vw;"></div>
     <div>
       <input type="file" @change="onImageUpload" accept="image/png, image/jpeg" />
-      <label>
-        Corners (Lat, Lng):
-        <div v-for="(corner, index) in corners" :key="index">
-          Corner {{ index + 1 }}:
-          <input type="number" v-model="corner.lat" step="0.0001" @input="debouncedUpdateOverlay(false)" />,
-          <input type="number" v-model="corner.lng" step="0.0001" @input="debouncedUpdateOverlay(false)" />
-        </div>
-      </label>
       <div class="card flex justify-center">
         <div class="w-56">
-          <InputNumber v-model.number="opacity" class="w-full mb-4" @change="debouncedUpdateOverlay(false)" />
-          <br>Opacity : <br>
-          <Slider v-model.number="opacity" class="w-full mb-4" @change="debouncedUpdateOverlay(false)" />
+          <Button @click="saveImageAndPosition">Save image</Button>
         </div>
       </div>
     </div>
@@ -28,15 +18,14 @@ import 'leaflet-toolbar';
 import 'leaflet-distortableimage-updated'; // using "-updated" to prevent "WebSocket connection to 'ws://localhost:8081/ws' failed:" error
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-toolbar/dist/leaflet.toolbar.css';
-import "leaflet-distortableimage/dist/leaflet.distortableimage.css";
-import { onMounted, ref } from 'vue';
-import { debounce } from 'lodash';
+import "leaflet-distortableimage-updated/dist/leaflet.distortableimage.css";
+import { onMounted, ref, onUnmounted } from 'vue';
 
 const map = ref<L.Map | null>(null);
 const overlay = ref<L.ImageOverlay | null>(null);
-const corners = ref<{ lat: number, lng: number }[]>([]);
 const imageUrl = ref<string | null>(null);
-const opacity = ref<number>(50);
+const history = ref<{ lat: number, lng: number }[][]>([]);
+const redoStack = ref<{ lat: number, lng: number }[][]>([]);
 
 onMounted(() => {
   const savedPosition = localStorage.getItem('mapPosition');
@@ -56,11 +45,19 @@ onMounted(() => {
     }
   ).addTo(map.value);
 
-  
-
   map.value.on('moveend', saveMapPosition);
   map.value.on('zoomend', saveMapPosition);
+
+  window.addEventListener('keydown', handleKeyDown);
 });
+
+function handleKeyDown(event: KeyboardEvent) {
+  if (event.ctrlKey && event.key === 'z') {
+    undo();
+  } else if (event.ctrlKey && event.key === 'y') {
+    redo();
+  }
+}
 
 function saveMapPosition() {
   if (map.value) {
@@ -85,26 +82,47 @@ async function addOverlay() {
     const img = new Image();
     img.onload = async () => {
       overlay.value = await L.distortableImageOverlay(imageUrl.value, {
-        opacity: opacity.value / 100,
       }).addTo(map.value);
+
+      // Listen for image move events and save to history
+      overlay.value.on('edit', saveToHistory);
     };
-    await Promise.all(img.src = imageUrl.value);
-    updateOverlay();
+    img.src = imageUrl.value; // Set the image source
   }
 }
 
-function updateOverlay() {
+function saveToHistory() {
   if (overlay.value) {
-    if (corners.value.length === 0) {
-      corners.value = overlay.value.getCorners();
-    }
+    // creates a deep copy of the corners, otherwise the history will all be a reference to the same object
+    const currentState = JSON.parse(JSON.stringify(overlay.value.getCorners()));
+    history.value.push(currentState);
+  }
+  redoStack.value = [];
+}
 
-    overlay.value.setCorners(corners.value);
-    overlay.value.setOpacity(opacity.value / 100);
+function undo() {
+  if (history.value.length > 1 && overlay.value) {
+    redoStack.value.push(history.value.pop()!);
+    overlay.value.setCorners(history.value[history.value.length - 1]);
   }
 }
 
-const debouncedUpdateOverlay = debounce(updateOverlay, 300);
+function redo() {
+  if (redoStack.value.length > 0 && overlay.value) {
+    history.value.push(redoStack.value.pop()!);
+    overlay.value.setCorners(history.value[history.value.length - 1]);
+  }
+}
+
+async function saveImageAndPosition() {
+  if (overlay.value) {
+    const corners = overlay.value.getCorners();
+  }
+}
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeyDown);
+});
 </script>
 
 <style scoped>
