@@ -8,6 +8,11 @@
           <Button @click="saveImageAndPosition">Save image</Button>
         </div>
       </div>
+      <div class="card flex justify-center">
+        <div class="w-56">
+          <Button @click="toggleEditMode">{{ isEditMode ? 'Switch to View Mode' : 'Switch to Edit Mode' }}</Button>
+        </div>
+      </div>
     </div>
   </main>
 </template>
@@ -19,6 +24,7 @@ import 'leaflet-distortableimage-updated'; // using "-updated" to prevent "WebSo
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-toolbar/dist/leaflet.toolbar.css';
 import "leaflet-distortableimage-updated/dist/leaflet.distortableimage.css";
+import './assets/style.css' // must be imported otherwise it's overwritten by leaflet's default css
 import { onMounted, ref, onUnmounted } from 'vue';
 
 const map = ref<L.Map | null>(null);
@@ -26,6 +32,7 @@ const overlay = ref<L.ImageOverlay | null>(null);
 const imageUrl = ref<string | null>(null);
 const history = ref<{ lat: number, lng: number }[][]>([]);
 const redoStack = ref<{ lat: number, lng: number }[][]>([]);
+const isEditMode = ref<boolean>(true); // Track edit mode
 
 onMounted(() => {
   const savedPosition = localStorage.getItem('mapPosition');
@@ -82,6 +89,7 @@ async function addOverlay() {
     const img = new Image();
     img.onload = async () => {
       overlay.value = await L.distortableImageOverlay(imageUrl.value, {
+        editable: isEditMode.value // Set editable based on current mode
       }).addTo(map.value);
 
       // Listen for image move events and save to history
@@ -117,6 +125,17 @@ function redo() {
 async function saveImageAndPosition() {
   if (overlay.value) {
     const corners = overlay.value.getCorners();
+  }
+}
+
+function toggleEditMode() {
+  isEditMode.value = !isEditMode.value;
+  if (overlay.value) {
+    if (isEditMode.value) {
+      overlay.value.editing.enable();
+    } else {
+      overlay.value.editing.disable();
+    }
   }
 }
 
