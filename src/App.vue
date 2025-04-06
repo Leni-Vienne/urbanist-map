@@ -25,10 +25,10 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet-toolbar/dist/leaflet.toolbar.css';
 import "leaflet-distortableimage-updated/dist/leaflet.distortableimage.css";
 import './assets/style.css' // must be imported otherwise it's overwritten by leaflet's default css
-import { onMounted, ref, onUnmounted } from 'vue';
+import { onMounted, ref, onUnmounted, shallowRef  } from 'vue';
 
-const map = ref<L.Map | null>(null);
-const overlay = ref<L.ImageOverlay | null>(null);
+const map = shallowRef <L.Map | null>(null); // shallowRef is used to avoid reactivity issues with Leaflet, see https://stackoverflow.com/a/73588115/12498040
+const overlay = shallowRef<L.ImageOverlay | null>(null);
 const imageUrl = ref<string | null>(null);
 const history = ref<{ lat: number, lng: number }[][]>([]);
 const redoStack = ref<{ lat: number, lng: number }[][]>([]);
@@ -38,7 +38,7 @@ onMounted(() => {
   const savedPosition = localStorage.getItem('mapPosition');
   const initialView = savedPosition ? JSON.parse(savedPosition) : { center: [48.845, 2.424], zoom: 10 };
 
-  map.value = L.map("viewerDiv", { keyboard: false }).setView(initialView.center, initialView.zoom);
+  map.value = L.map("viewerDiv").setView(initialView.center, initialView.zoom);
 
   if (!map.value) throw new Error('No map element found');
 
@@ -46,7 +46,7 @@ onMounted(() => {
     'https://data.geopf.fr/wmts?service=WMTS&request=GetTile&version=1.0.0&tilematrixset=PM&tilematrix={z}&tilecol={x}&tilerow={y}&layer=ORTHOIMAGERY.ORTHOPHOTOS&format=image/jpeg&style=normal',
     {
       minZoom: 0,
-      maxZoom: 18,
+      maxZoom: 19, // TODO cannot go to 20 with data.geopf.fr, I need to search why
       tileSize: 256,
       attribution: "IGN-F/Géoportail"
     }
@@ -90,10 +90,11 @@ async function addOverlay() {
     img.onload = async () => {
       overlay.value = await L.distortableImageOverlay(imageUrl.value, {
         editable: isEditMode.value // Set editable based on current mode
-      }).addTo(map.value);
+      }).addTo(map.value); // Add overlay to the map
 
       // Listen for image move events and save to history
       overlay.value.on('edit', saveToHistory);
+
     };
     img.src = imageUrl.value; // Set the image source
   }
