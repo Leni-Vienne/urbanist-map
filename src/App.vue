@@ -31,19 +31,20 @@ import "leaflet-distortableimage-updated/dist/leaflet.distortableimage.css";
 import './assets/style.css' // must be imported otherwise it's overwritten by leaflet's default css
 import { onMounted, ref, onUnmounted, shallowRef } from 'vue';
 
-const map = shallowRef<L.Map | null>(null); // shallowRef is used to avoid reactivity issues with Leaflet, see https://stackoverflow.com/a/73588115/12498040
-const overlays = shallowRef<{
-  id: string,
-  overlay: L.ImageOverlay,
-  history: { lat: number, lng: number }[][],
-  redoStack: { lat: number, lng: number }[][],
-  isNewImage: boolean
-}[]>([]); // Store overlays with their properties
-const selectedOverlay = ref<string | null>(null); // Track the ID of the currently selected overlay
-const imageUrl = ref<string | null>(null);
-const isEditMode = ref<boolean>(true); // Track edit mode
+interface overlayObject {
+  id: string;
+  overlay: L.ImageOverlay;
+  marker: L.Marker; // Add marker property
+  history: { lat: number, lng: number }[][];
+  redoStack: { lat: number, lng: number }[][];
+  isNewImage: boolean;
+}
 
-const testOverlay = shallowRef<L.ImageOverlay | null>(null); // Track the test overlay
+const map = shallowRef<L.Map | null>(null); // shallowRef is used to avoid reactivity issues with Leaflet, see https://stackoverflow.com/a/73588115/12498040
+const overlays = shallowRef<Record<string, overlayObject>>({}); // Store overlays as a Record
+const idSelectedOverlay = ref<string | null>(null); // Track the ID of the currently selected overlay
+const imageUrl = ref<string | null>(null);
+const isEditMode = ref<boolean>(true);
 
 onMounted(() => {
   const savedPosition = localStorage.getItem('mapPosition');
@@ -89,68 +90,90 @@ async function onImageUpload(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (file) {
     imageUrl.value = URL.createObjectURL(file);
-    await addOverlay(true); // Pass true to indicate it's a new image
+    await addOverlay();
   }
 }
 
-// Étape 1 : Créer une classe pour l'action
 const CustomAction = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       html: '<img src="https://cdn-icons-png.flaticon.com/512/25/25231.png" alt="Custom Icon" style="width: 20px; height: 20px;" />', // Icône provenant d'Internet
-      tooltip: 'Custom Action', // Infobulle
+      tooltip: 'Custom Action',
     },
   },
   addHooks: function () {
-    alert('Custom action triggered!'); // Logique de l'action
+    alert('Custom action triggered!');
   },
 });
 
-// Étape 2 : Ajouter l'action à l'overlay
-async function createOverlay(imageUrl: string, isEditable: boolean, overlayObject?: { id: string, history: { lat: number, lng: number }[][], redoStack: { lat: number, lng: number }[][] }) {
+async function createOverlay(imageUrl: string, overlayObject?: overlayObject ) {
   if (!map.value) return null;
 
-  const newOverlay = await L.distortableImageOverlay(imageUrl, {
-    editable: isEditable,
-    actions: [L.OpacityAction, CustomAction], // Ajout de l'action personnalisée
+  const newOverlay = await new L.distortableImageOverlay(imageUrl, {
+    editable: isEditMode.value,
   }).addTo(map.value);
 
   if (overlayObject) {
     overlayObject.overlay = newOverlay;
 
-    // Reattach event listeners
-    newOverlay.on('edit', () => saveToHistory(overlayObject));
-    newOverlay.on('dragend', () => saveToHistory(overlayObject));
+    newOverlay.on('edit', () => {
+      saveToHistory(overlayObject);
+      updateMarkerPosition(overlayObject);
+    });
+    newOverlay.on('dragend', () => {
+      saveToHistory(overlayObject);
+      updateMarkerPosition(overlayObject);
+    });
     newOverlay.on('select', () => {
-      selectedOverlay.value = overlayObject.id;
+      idSelectedOverlay.value = overlayObject.id;
+    });
+
+    //allows to access corners of the image on load since newOverlay.on('load') doesn't work, credit to https://github.com/publiclab/Leaflet.DistortableImage/issues/953#issuecomment-1262298228
+    L.DomEvent.on(newOverlay.getElement(), 'load', () => {
+      if (overlayObject.isNewImage) {
+        saveToHistory(overlayObject);
+        overlayObject.marker = createMarker(overlayObject);
+      } else {
+        // for the modified image to keep the same position as before
+        overlayObject.overlay.setCorners(overlayObject.history.at(-1));
+      }
+      // isNewImage must be updated there otherwise it is set to false too early
+      overlayObject.isNewImage = false
     });
   }
-
   return newOverlay;
 }
 
-async function addOverlay(isNewImage: boolean) {
+function createMarker(overlayObject: overlayObject) {
+  const bounds = overlayObject.overlay.getBounds();
+  const center = bounds.getCenter();
+  const marker = L.marker(center).addTo(map.value);
+  return marker;
+}
+
+function updateMarkerPosition(overlayObject: overlayObject) {
+  const bounds = overlayObject.overlay.getBounds();
+  const center = bounds.getCenter();
+  overlayObject.marker.setLatLng(center);
+}
+
+async function addOverlay() {
   if (!map.value || !imageUrl.value) return;
 
   const id = crypto.randomUUID();
   const overlayObject = {
     id,
-    overlay: null as unknown as L.ImageOverlay,
+    overlay: null as L.ImageOverlay,
+    marker: null as L.Marker,
     history: [],
     redoStack: [],
-    isNewImage
+    isNewImage: true
   };
 
-  const newOverlay = await createOverlay(imageUrl.value, isEditMode.value, overlayObject);
+  const newOverlay = await createOverlay(imageUrl.value, overlayObject);
   if (!newOverlay) return;
 
-  if (isNewImage) {
-    newOverlay.once('update', () => {
-      saveToHistory(overlayObject);
-    });
-  }
-
-  overlays.value.push(overlayObject);
+  overlays.value[id] = overlayObject;
 }
 
 function saveToHistory(overlayObject: { id: string, overlay: L.ImageOverlay, history: { lat: number, lng: number }[][], redoStack: { lat: number, lng: number }[][] }) {
@@ -160,65 +183,57 @@ function saveToHistory(overlayObject: { id: string, overlay: L.ImageOverlay, his
 }
 
 function undo() {
-  if (!selectedOverlay.value) return;
+  if (!idSelectedOverlay.value) return;
 
-  const overlayObject = overlays.value.find(o => o.id === selectedOverlay.value);
+  const overlayObject = overlays.value[idSelectedOverlay.value];
   if (!overlayObject) return;
 
   const { history, redoStack, overlay } = overlayObject;
   if (history.length <= 1) return;
 
-  const lastState = history.pop()!; // Remove the last state
-  redoStack.push(lastState); // Push it to the redo stack
+  const lastState = history.pop()!;
+  redoStack.push(lastState);
 
-  // Apply the previous state
   const previousState = history[history.length - 1];
   overlay.setCorners(previousState);
 }
 
 function redo() {
-  if (!selectedOverlay.value) return;
+  if (!idSelectedOverlay.value) return;
 
-  const overlayObject = overlays.value.find(o => o.id === selectedOverlay.value);
+  const overlayObject = overlays.value[idSelectedOverlay.value];
   if (!overlayObject) return;
 
   const { history, redoStack, overlay } = overlayObject;
   if (redoStack.length === 0) return;
 
-  const nextState = redoStack.pop()!; // Remove the next state
-  history.push(nextState); // Push it to the history stack
+  const nextState = redoStack.pop()!;
+  history.push(nextState);
 
-  // Apply the next state
   overlay.setCorners(nextState);
 }
 
 async function saveImageAndPosition() {
-  if (!selectedOverlay.value) return;
+  if (!idSelectedOverlay.value) return;
 
-  const overlayObject = overlays.value.find(o => o.id === selectedOverlay.value);
-  if (!overlayObject) return;
-
-  const corners = overlayObject.overlay.getCorners();
 }
 
 function toggleEditMode() {
   isEditMode.value = !isEditMode.value;
-  if (!selectedOverlay.value) return
 
-  const overlayObject = overlays.value.find(o => o.id === selectedOverlay.value);
-  if (!overlayObject) return
-
-  if (isEditMode.value) {
-    overlayObject.overlay.editing.enable();
-  } else {
-    overlayObject.overlay.editing.disable();
-  }
+  Object.values(overlays.value).forEach(overlayObject => {
+    if (isEditMode.value) {
+      overlayObject.overlay.editing.enable();
+    } else {
+      overlayObject.overlay.editing.disable();
+    }
+  });
 }
 
 async function removeWhitePixels() {
-  if (!selectedOverlay.value) return; // Only act on the selected overlay
+  if (!idSelectedOverlay.value) return;
 
-  const overlayObject = overlays.value.find(o => o.id === selectedOverlay.value);
+  const overlayObject = overlays.value[idSelectedOverlay.value];
   if (!overlayObject) return;
 
   const { overlay } = overlayObject;
@@ -249,13 +264,12 @@ async function removeWhitePixels() {
     }
 
     ctx.putImageData(imageData, 0, 0);
-    const updatedImageUrl = canvas.toDataURL(); // Get the updated image URL
+    const updatedImageUrl = canvas.toDataURL();
 
-    // Update the selected overlay with the modified image
-    map.value?.removeLayer(overlay);
-    await createOverlay(updatedImageUrl, isEditMode.value, overlayObject);
+    map.value.removeLayer(overlay);
+    await createOverlay(updatedImageUrl, overlayObject);
   };
-  img.src = overlay.getElement().src; // Get the source of the selected overlay
+  img.src = overlay.getElement().src; // what is actually updating the image
 }
 
 onUnmounted(() => {
@@ -306,7 +320,8 @@ header {
   height: 100%;
 }
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   width: 100%;
