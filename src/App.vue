@@ -1,7 +1,6 @@
 <template>
-  <main>
-    <div id="viewerDiv" style="height: 70vh; width: 70vw;"></div>
-    <div>
+  <div id="viewerDiv" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;">
+    <div class="map-buttons">
       <input type="file" @change="onImageUpload" accept="image/png, image/jpeg" />
       <div class="card flex justify-center">
         <div class="w-56">
@@ -19,7 +18,7 @@
         </div>
       </div>
     </div>
-  </main>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -94,11 +93,26 @@ async function onImageUpload(event: Event) {
   }
 }
 
+// Étape 1 : Créer une classe pour l'action
+const CustomAction = L.Toolbar2.Action.extend({
+  options: {
+    toolbarIcon: {
+      html: '<img src="https://cdn-icons-png.flaticon.com/512/25/25231.png" alt="Custom Icon" style="width: 20px; height: 20px;" />', // Icône provenant d'Internet
+      tooltip: 'Custom Action', // Infobulle
+    },
+  },
+  addHooks: function () {
+    alert('Custom action triggered!'); // Logique de l'action
+  },
+});
+
+// Étape 2 : Ajouter l'action à l'overlay
 async function createOverlay(imageUrl: string, isEditable: boolean, overlayObject?: { id: string, history: { lat: number, lng: number }[][], redoStack: { lat: number, lng: number }[][] }) {
   if (!map.value) return null;
 
   const newOverlay = await L.distortableImageOverlay(imageUrl, {
-    editable: isEditable
+    editable: isEditable,
+    actions: [L.OpacityAction, CustomAction], // Ajout de l'action personnalisée
   }).addTo(map.value);
 
   if (overlayObject) {
@@ -275,5 +289,28 @@ header {
     place-items: flex-start;
     flex-wrap: wrap;
   }
+}
+
+.map-buttons {
+  position: absolute;
+  top: 80px;
+  left: 10px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#viewerDiv {
+  width: 100%;
+  height: 100%;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 </style>
