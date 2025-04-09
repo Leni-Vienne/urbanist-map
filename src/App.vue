@@ -4,17 +4,17 @@
       <input type="file" @change="onImageUpload" accept="image/png, image/jpeg" />
       <div class="card flex justify-center">
         <div class="w-56">
-          <Button @click="saveImageAndPosition">Save image</Button>
-        </div>
-      </div>
-      <div class="card flex justify-center">
-        <div class="w-56">
           <Button @click="toggleEditMode">{{ isEditMode ? 'Switch to View Mode' : 'Switch to Edit Mode' }}</Button>
         </div>
       </div>
       <div class="card flex justify-center">
         <div class="w-56">
           <Button @click="removeWhitePixels">Remove White Pixels</Button>
+        </div>
+      </div>
+      <div class="card flex justify-center">
+        <div class="w-56">
+          <Button @click="clearLocalStorage">Clear Local Storage</Button>
         </div>
       </div>
     </div>
@@ -46,7 +46,7 @@ const idSelectedOverlay = ref<string | null>(null); // Track the ID of the curre
 const imageUrl = ref<string | null>(null);
 const isEditMode = ref<boolean>(true);
 
-onMounted(() => {
+onMounted(async () => {
   const savedPosition = localStorage.getItem('mapPosition');
   const initialView = savedPosition ? JSON.parse(savedPosition) : { center: [48.845, 2.424], zoom: 10 };
 
@@ -68,7 +68,31 @@ onMounted(() => {
   map.value.on('zoomend', saveMapPosition);
 
   window.addEventListener('keydown', handleKeyDown);
+
+  await getOverlaysFromLocalStorage();
 });
+
+async function getOverlaysFromLocalStorage() {
+  const savedOverlays = localStorage.getItem('overlays');
+  if (!savedOverlays) return;
+
+  const parsedOverlays = JSON.parse(savedOverlays);
+  parsedOverlays.forEach(async (savedOverlay: { id: string, imageUrl: string, corners: { lat: number, lng: number }[] }) => {
+    const overlayObject = {
+      id: savedOverlay.id,
+      overlay: null as L.ImageOverlay,
+      marker: null as L.Marker,
+      history: [savedOverlay.corners], // Initialize history with saved corners
+      redoStack: [],
+      isNewImage: false, // Set to false since it's loaded from storage
+    };
+    const newOverlay = await createOverlay(savedOverlay.imageUrl, overlayObject);
+
+    overlayObject.overlay = newOverlay!; // Set the overlay property to the created overlay
+    
+    overlays.value[savedOverlay.id] = overlayObject;
+  });
+}
 
 function handleKeyDown(event: KeyboardEvent) {
   if (event.ctrlKey && event.key === 'z') {
@@ -78,19 +102,15 @@ function handleKeyDown(event: KeyboardEvent) {
   }
 }
 
-function saveMapPosition() {
-  if (map.value) {
-    const center = map.value.getCenter();
-    const zoom = map.value.getZoom();
-    localStorage.setItem('mapPosition', JSON.stringify({ center: [center.lat, center.lng], zoom }));
-  }
-}
-
 async function onImageUpload(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (file) {
-    imageUrl.value = URL.createObjectURL(file);
-    await addOverlay();
+    const reader = new FileReader();
+    reader.onload = async () => {
+      imageUrl.value = reader.result as string; // Store base64 string
+      await addOverlay();
+    };
+    reader.readAsDataURL(file); // Convert file to base64
   }
 }
 
@@ -106,10 +126,10 @@ const CustomAction = L.Toolbar2.Action.extend({
   },
 });
 
-async function createOverlay(imageUrl: string, overlayObject?: overlayObject ) {
+async function createOverlay(imageUrl: string, overlayObject?: overlayObject) {
   if (!map.value) return null;
 
-  const newOverlay = await new L.distortableImageOverlay(imageUrl, {
+  const newOverlay = L.distortableImageOverlay(imageUrl, {
     editable: isEditMode.value,
   }).addTo(map.value);
 
@@ -118,10 +138,12 @@ async function createOverlay(imageUrl: string, overlayObject?: overlayObject ) {
 
     newOverlay.on('edit', () => {
       saveToHistory(overlayObject);
+      saveImageAndPosition();
       updateMarkerPosition(overlayObject);
     });
     newOverlay.on('dragend', () => {
       saveToHistory(overlayObject);
+      saveImageAndPosition();
       updateMarkerPosition(overlayObject);
     });
     newOverlay.on('select', () => {
@@ -157,6 +179,31 @@ function updateMarkerPosition(overlayObject: overlayObject) {
   overlayObject.marker.setLatLng(center);
 }
 
+function saveMapPosition() {
+  if (map.value) {
+    const center = map.value.getCenter();
+    const zoom = map.value.getZoom();
+    localStorage.setItem('mapPosition', JSON.stringify({ center: [center.lat, center.lng], zoom }));
+  }
+}
+
+async function saveImageAndPosition() {
+  const savedOverlays = Object.values(overlays.value).map(overlayObject => ({
+    id: overlayObject.id,
+    imageUrl: overlayObject.overlay.getElement().src, // Save only the image URL
+    corners: overlayObject.overlay.getCorners(), // Save only the corners
+    history: overlayObject.history, // Save history for undo/redo
+    redoStack: overlayObject.redoStack, // Save redo stack for undo/redo
+  }));
+  localStorage.setItem('overlays', JSON.stringify(savedOverlays));
+}
+
+function saveToHistory(overlayObject: { id: string, overlay: L.ImageOverlay, history: { lat: number, lng: number }[][], redoStack: { lat: number, lng: number }[][] }) {
+  const currentState = JSON.parse(JSON.stringify(overlayObject.overlay.getCorners()));
+  overlayObject.history.push(currentState);
+  overlayObject.redoStack = []; // Clear redo stack for this overlay
+}
+
 async function addOverlay() {
   if (!map.value || !imageUrl.value) return;
 
@@ -174,12 +221,6 @@ async function addOverlay() {
   if (!newOverlay) return;
 
   overlays.value[id] = overlayObject;
-}
-
-function saveToHistory(overlayObject: { id: string, overlay: L.ImageOverlay, history: { lat: number, lng: number }[][], redoStack: { lat: number, lng: number }[][] }) {
-  const currentState = JSON.parse(JSON.stringify(overlayObject.overlay.getCorners()));
-  overlayObject.history.push(currentState);
-  overlayObject.redoStack = []; // Clear redo stack for this overlay
 }
 
 function undo() {
@@ -213,17 +254,12 @@ function redo() {
   overlay.setCorners(nextState);
 }
 
-async function saveImageAndPosition() {
-  if (!idSelectedOverlay.value) return;
-
-}
-
 function toggleEditMode() {
   isEditMode.value = !isEditMode.value;
 
   Object.values(overlays.value).forEach(overlayObject => {
     if (isEditMode.value) {
-      overlayObject.overlay.editing.enable();
+      overlayObject.overlay.editing.enable(); // editable = true doesn't work
     } else {
       overlayObject.overlay.editing.disable();
     }
@@ -270,6 +306,11 @@ async function removeWhitePixels() {
     await createOverlay(updatedImageUrl, overlayObject);
   };
   img.src = overlay.getElement().src; // what is actually updating the image
+}
+
+function clearLocalStorage() {
+  localStorage.clear();
+  alert('Local storage cleared!');
 }
 
 onUnmounted(() => {
