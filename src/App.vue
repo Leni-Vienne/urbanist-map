@@ -29,10 +29,10 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet-toolbar/dist/leaflet.toolbar.css';
 import "leaflet-distortableimage-updated/dist/leaflet.distortableimage.css";
 import './assets/style.css' // must be imported otherwise it's overwritten by leaflet's default css
-import { onMounted, ref, onUnmounted, shallowRef } from 'vue';
+import { onMounted, ref, onUnmounted, shallowRef, watch } from 'vue';
 import { openDB } from 'idb'; // Import the idb library
 
-interface overlayObject {
+type overlayObject = {
   id: string;
   overlay: L.ImageOverlay;
   marker: L.Marker;
@@ -80,6 +80,45 @@ async function initializeMap() {
   map.value.on('moveend', saveMapPosition);
   map.value.on('zoomend', saveMapPosition);
 }
+
+const centerTool = L.Toolbar2.Action.extend({
+  options: {
+    toolbarIcon: {
+      html: '<span>Center Map</span>',
+      tooltip: 'Center map on the selected overlay',
+    },
+  },
+  addHooks: function () {
+    if (!idSelectedOverlay.value) {
+      alert('No overlay selected!');
+      return;
+    }
+    const overlayObject = overlays.value[idSelectedOverlay.value];
+    if (overlayObject) {
+      const bounds = overlayObject.overlay.getBounds();
+      map.value?.fitBounds(bounds);
+    }
+  },
+})
+
+const revertTool = L.Toolbar2.Action.extend({
+  options: {
+    toolbarIcon: {
+      html: '<span>Revert</span>',
+      tooltip: 'Revert overlay to last saved state',
+    },
+  },
+  addHooks: function () {
+    if (!idSelectedOverlay.value) {
+      alert('No overlay selected!');
+      return;
+    }
+    undo();
+  },
+})
+
+const editTools = [revertTool, L.ScaleAction, L.DistortAction, L.RotateAction]
+const viewTools = [centerTool, L.OpacityAction]
 
 async function getSavedMapPosition() {
   if (!db) return null;
@@ -149,23 +188,12 @@ async function onImageUpload(event: Event) {
   reader.readAsDataURL(file); // Convert file to base64
 }
 
-const CustomAction = L.Toolbar2.Action.extend({
-  options: {
-    toolbarIcon: {
-      html: '<img src="https://cdn-icons-png.flaticon.com/512/25/25231.png" alt="Custom Icon" style="width: 20px; height: 20px;" />', // Icône provenant d'Internet
-      tooltip: 'Custom Action',
-    },
-  },
-  addHooks: function () {
-    alert('Custom action triggered!');
-  },
-});
-
 async function createOverlay(imageUrl: string, overlayObject?: overlayObject) {
   if (!map.value || !overlayObject) return null;
 
   const newOverlay = L.distortableImageOverlay(imageUrl, {
-    editable: isEditMode.value,
+    editable: true,
+    actions: [revertTool, L.ScaleAction, L.DistortAction, L.RotateAction],
   }).addTo(map.value);
 
   overlayObject.overlay = newOverlay;
@@ -312,15 +340,19 @@ function redo() {
 
 function toggleEditMode() {
   isEditMode.value = !isEditMode.value;
-  Object.values(overlays.value).forEach(toggleOverlayEditMode);
-}
 
-function toggleOverlayEditMode(overlayObject: overlayObject) {
-  if (isEditMode.value) {
-    overlayObject.overlay.editing.enable();
-  } else {
-    overlayObject.overlay.editing.disable();
-  }
+  // adding and removing tools is finicky (tools are often removed from the arrays) but this way works
+  Object.values(overlays.value).forEach((overlayObject) => {
+    const editing = overlayObject.overlay.editing;
+
+    if (isEditMode.value) {
+      viewTools.forEach((tool) => editing.removeTool(tool));
+      editTools.forEach((tool) => editing.addTool(tool));
+    } else {
+      editTools.forEach((tool) => editing.removeTool(tool));
+      viewTools.forEach((tool) => editing.addTool(tool));
+    }
+  });
 }
 
 async function removeWhitePixels() {
