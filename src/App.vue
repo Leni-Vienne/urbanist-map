@@ -81,45 +81,6 @@ async function initializeMap() {
   map.value.on('zoomend', saveMapPosition);
 }
 
-const centerTool = L.Toolbar2.Action.extend({
-  options: {
-    toolbarIcon: {
-      html: '<span>Center Map</span>',
-      tooltip: 'Center map on the selected overlay',
-    },
-  },
-  addHooks: function () {
-    if (!idSelectedOverlay.value) {
-      alert('No overlay selected!');
-      return;
-    }
-    const overlayObject = overlays.value[idSelectedOverlay.value];
-    if (overlayObject) {
-      const bounds = overlayObject.overlay.getBounds();
-      map.value?.fitBounds(bounds);
-    }
-  },
-})
-
-const revertTool = L.Toolbar2.Action.extend({
-  options: {
-    toolbarIcon: {
-      html: '<span>Revert</span>',
-      tooltip: 'Revert overlay to last saved state',
-    },
-  },
-  addHooks: function () {
-    if (!idSelectedOverlay.value) {
-      alert('No overlay selected!');
-      return;
-    }
-    undo();
-  },
-})
-
-const editTools = [revertTool, L.ScaleAction, L.DistortAction, L.RotateAction]
-const viewTools = [centerTool, L.OpacityAction]
-
 async function getSavedMapPosition() {
   if (!db) return null;
   const savedPosition = await db.get('mapPosition', 'position');
@@ -188,12 +149,69 @@ async function onImageUpload(event: Event) {
   reader.readAsDataURL(file); // Convert file to base64
 }
 
+const centerTool = L.Toolbar2.Action.extend({
+  options: {
+    toolbarIcon: {
+      html: '<span>Center Map</span>',
+      tooltip: 'Center map on the selected overlay',
+    },
+  },
+  addHooks: function () {
+    if (!idSelectedOverlay.value) {
+      alert('No overlay selected!');
+      return;
+    }
+    const overlayObject = overlays.value[idSelectedOverlay.value];
+    if (overlayObject) {
+      const bounds = overlayObject.overlay.getBounds();
+      map.value?.fitBounds(bounds);
+    }
+  },
+})
+
+const undoTool = L.Toolbar2.Action.extend({
+  options: {
+    toolbarIcon: {
+      html: '<span>Undo</span>',
+      tooltip: 'Revert overlay to last saved state',
+    },
+  },
+  addHooks: function () {
+    undo();
+  },
+})
+
+const redoTool = L.Toolbar2.Action.extend({
+  options: {
+    toolbarIcon: {
+      html: '<span>Redo</span>',
+      tooltip: 'Redo overlay to last saved state',
+    },
+  },
+  addHooks: function () {
+    redo();
+  },
+})
+
+// all actions (not all in docs) : L.DistortAction, L.FreeRotateAction, L.OpacityAction, L.DeleteAction, L.StackAction, L.EditAction, L.RotateAction, L.ScaleAction, L.TranslateAction, L.OpacitiesAction, L.GeolocateAction, L.RestoreAction, L.UnlockAction
+// L.EditAction is empty
+// L.TranslateAction crashes
+// L.UnlockAction is useless
+// L.GeolocateAction crashes "ReferenceError: EXIF is not defined"
+// L.RestoreAction undistorts the image
+// L.OpacitiesAction works well!
+const editTools = [undoTool, redoTool, L.DistortAction, L.FreeRotateAction, L.OpacityAction, L.OpacitiesAction, L.DeleteAction, L.StackAction]
+const viewTools = [centerTool, L.OpacityAction, L.OpacitiesAction, L.StackAction]
+
+
 async function createOverlay(imageUrl: string, overlayObject?: overlayObject) {
   if (!map.value || !overlayObject) return null;
 
   const newOverlay = L.distortableImageOverlay(imageUrl, {
     editable: true,
-    actions: [revertTool, L.ScaleAction, L.DistortAction, L.RotateAction],
+    //actions: editTools,
+    // can't use the editTools array since switch to view mode and back will empty it...
+    actions: [undoTool, redoTool, L.DistortAction, L.FreeRotateAction, L.OpacityAction, L.OpacitiesAction, L.DeleteAction, L.StackAction]
   }).addTo(map.value);
 
   overlayObject.overlay = newOverlay;
