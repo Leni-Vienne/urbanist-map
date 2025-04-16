@@ -33,10 +33,6 @@
       </div>
     </div>
   </div>
-  <div id="custom-popup" class="custom-popup">
-    👋 Hello depuis la div au-dessus de la toolbar !
-    <button onclick="document.getElementById('custom-popup').style.display = 'none'">Fermer</button>
-  </div>
 </template>
 
 <script setup lang="ts">
@@ -53,10 +49,6 @@ import { openDB } from 'idb'; // Import the idb library
 import { infoTool } from "./components/infoTool";
 
 const visible = ref(false);
-
-const toggle = (event) => {
-  op.value.toggle(event);
-}
 
 type overlayObject = {
   id: string;
@@ -258,6 +250,7 @@ async function createOverlay(imageUrl: string, overlayObject?: overlayObject) {
   });
   newOverlay.on('select', () => {
     idSelectedOverlay.value = overlayObject.id;
+    convertTagToDiv()
   });
 
   // allows to access the corners of the image on load since newOverlay.on('load') doesn't work
@@ -276,6 +269,21 @@ async function createOverlay(imageUrl: string, overlayObject?: overlayObject) {
     overlayObject.alreadyStored = true
   });
   return newOverlay;
+}
+
+/**
+ * Convert the "more-info-popup" <a> tag to a div so that the links are clickable
+ */
+function convertTagToDiv() {
+  let before = document.getElementsByClassName("more-info-popup")[0]
+  if (!before) {
+    return;
+  }
+  var after = document.createElement('div');
+  after.innerHTML = before.innerHTML;
+  after.className = "leaflet-toolbar-icon more-info-popup"; // so that links are clickable
+
+  before.parentNode.replaceChild(after, before);
 }
 
 function createMarker(overlayObject: overlayObject) {
@@ -476,7 +484,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-
 header {
   line-height: 1.5;
 }

@@ -1,4 +1,27 @@
 /* fixes the leaflet toolbar being transparent */
-.leaflet-toolbar-0 > li > .leaflet-toolbar-icon {
-    background-color: white !important;
-  }
+.leaflet-toolbar-0>li>.leaflet-toolbar-icon {
+  background-color: white !important;
+}
+
+.more-info-popup {
+  box-sizing: border-box !important;
+  display: block !important;
+  width: 200px !important;
+  height: 30px !important;
+  line-height: 30px !important;
+  padding: 0 !important;
+  text-align: center !important;
+  text-decoration: none !important;
+  background-color: white;
+  border: transparent !important;
+  font-size: 12px !important;
+  font-weight: bold !important;
+  color: black;
+  float: none !important;
+  margin: auto !important;
+  z-index: 900 !important;
+  user-select: text !important;
+  cursor: default !important;
+  translate: 0px -60px;
+  border-radius: 4px 4px 4px 4px !important;
+}
