@@ -3,6 +3,14 @@
     <div class="map-buttons">
       <input type="file" @change="onImageUpload" accept="image/png, image/jpeg" />
       <div class="card flex justify-center">
+        <Drawer v-model:visible="visible" header="Drawer" :dismissableMask="true">
+          <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et
+            dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex
+            ea commodo consequat.</p>
+        </Drawer>
+        <Button icon="pi pi-bars" @click="visible = true" />
+      </div>
+      <div class="card flex justify-center">
         <div class="w-56">
           <Button @click="toggleEditMode">{{ isEditMode ? 'Switch to View Mode' : 'Switch to Edit Mode' }}</Button>
         </div>
@@ -17,7 +25,17 @@
           <Button @click="clearIndexedDB">Clear Local Storage</Button>
         </div>
       </div>
+      <div v-if="idSelectedOverlay" class="card flex justify-center">
+        <div class="w-56">
+          <input type="text" v-model="overlays[idSelectedOverlay].overlay.tooltipText" @input="updateTooltipText"
+            placeholder="Enter tooltip text" />
+        </div>
+      </div>
     </div>
+  </div>
+  <div id="custom-popup" class="custom-popup">
+    👋 Hello depuis la div au-dessus de la toolbar !
+    <button onclick="document.getElementById('custom-popup').style.display = 'none'">Fermer</button>
   </div>
 </template>
 
@@ -29,8 +47,16 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet-toolbar/dist/leaflet.toolbar.css';
 import "leaflet-distortableimage-updated/dist/leaflet.distortableimage.css";
 import './assets/style.css' // must be imported otherwise it's overwritten by leaflet's default css
-import { onMounted, ref, onUnmounted, shallowRef, watch } from 'vue';
+import 'primeicons/primeicons.css'
+import { onMounted, ref, onUnmounted, shallowRef } from 'vue';
 import { openDB } from 'idb'; // Import the idb library
+import { infoTool } from "./components/infoTool";
+
+const visible = ref(false);
+
+const toggle = (event) => {
+  op.value.toggle(event);
+}
 
 type overlayObject = {
   id: string;
@@ -40,6 +66,7 @@ type overlayObject = {
   redoStack: { lat: number, lng: number }[][];
   alreadyLoaded: boolean; // Track if the overlay is already loaded in the page
   alreadyStored: boolean; // Track if the overlay is already stored in IndexedDB
+  tooltipText: string; // Add tooltipText property
 }
 
 const map = shallowRef<L.Map | null>(null); // shallowRef is used to avoid reactivity issues with Leaflet, see https://stackoverflow.com/a/73588115/12498040
@@ -48,6 +75,7 @@ const idSelectedOverlay = ref<string | null>(null); // Track the ID of the curre
 const imageUrl = ref<string | null>(null);
 const isEditMode = ref<boolean>(true);
 let db: IDBDatabase | null = null;
+const op = ref();
 
 onMounted(async () => {
   await initializeDatabase();
@@ -117,7 +145,7 @@ async function fetchSavedOverlays() {
   return await store.getAll();
 }
 
-function createOverlayObject(savedOverlay: { id: string, imageUrl: string, corners: { lat: number, lng: number }[] }) {
+function createOverlayObject(savedOverlay: { id: string, imageUrl: string, corners: { lat: number, lng: number }[], tooltipText?: string }) {
   return {
     id: savedOverlay.id,
     overlay: null as L.ImageOverlay,
@@ -125,7 +153,8 @@ function createOverlayObject(savedOverlay: { id: string, imageUrl: string, corne
     history: [savedOverlay.corners],
     redoStack: [],
     alreadyLoaded: false,
-    alreadyStored: true
+    alreadyStored: true,
+    tooltipText: savedOverlay.tooltipText || '' // Initialize tooltipText
   };
 }
 
@@ -172,8 +201,8 @@ const centerTool = L.Toolbar2.Action.extend({
 const undoTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
-      html: '<span>Undo</span>',
-      tooltip: 'Revert overlay to last saved state',
+      html: '<span class="pi pi-undo"></span>',
+      tooltip: 'Undo',
     },
   },
   addHooks: function () {
@@ -184,8 +213,8 @@ const undoTool = L.Toolbar2.Action.extend({
 const redoTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
-      html: '<span>Redo</span>',
-      tooltip: 'Redo overlay to last saved state',
+      html: '<i class="pi pi-redo"></i>',
+      tooltip: 'Redo',
     },
   },
   addHooks: function () {
@@ -209,9 +238,10 @@ async function createOverlay(imageUrl: string, overlayObject?: overlayObject) {
 
   const newOverlay = L.distortableImageOverlay(imageUrl, {
     editable: true,
+    tooltipText: overlayObject.tooltipText,
     //actions: editTools,
     // can't use the editTools array since switch to view mode and back will empty it...
-    actions: [undoTool, redoTool, L.DistortAction, L.FreeRotateAction, L.OpacityAction, L.OpacitiesAction, L.DeleteAction, L.StackAction]
+    actions: [infoTool, undoTool, redoTool, L.DistortAction, L.FreeRotateAction, L.OpacityAction, L.OpacitiesAction, L.DeleteAction, L.StackAction]
   }).addTo(map.value);
 
   overlayObject.overlay = newOverlay;
@@ -282,12 +312,13 @@ async function saveImageAndPosition() {
     corners: overlayObject.overlay.getCorners(),
     history: overlayObject.history,
     redoStack: overlayObject.redoStack,
+    tooltipText: overlayObject.tooltipText // Save tooltipText
   }));
 
   await saveOverlaysToDB(savedOverlays);
 }
 
-async function saveOverlaysToDB(overlays: { id: string, imageUrl: string, corners: { lat: number, lng: number }[], history: { lat: number, lng: number }[][], redoStack: { lat: number, lng: number }[][] }[]) {
+async function saveOverlaysToDB(overlays: { id: string, imageUrl: string, corners: { lat: number, lng: number }[], history: { lat: number, lng: number }[][], redoStack: { lat: number, lng: number }[][], tooltipText: string }[]) {
   const transaction = db.transaction('overlays', 'readwrite');
   const store = transaction.objectStore('overlays');
   for (const overlay of overlays) {
@@ -312,7 +343,8 @@ async function addOverlay() {
     history: [],
     redoStack: [],
     alreadyLoaded: false,
-    alreadyStored: false // Set to false since it's a new overlay
+    alreadyStored: false, // Set to false since it's a new overlay
+    tooltipText: '' // Initialize tooltipText
   };
 
   const newOverlay = await createOverlay(imageUrl.value, overlayObject);
@@ -429,12 +461,22 @@ function clearIndexedDB() {
   alert('IndexedDB cleared!');
 }
 
+function updateTooltipText() {
+  if (!idSelectedOverlay.value) return;
+
+  const overlayObject = overlays.value[idSelectedOverlay.value];
+  if (!overlayObject) return;
+
+  //overlayObject.overlay.bindTooltip(overlayObject.tooltipText, { permanent: true, direction: 'top' }).openTooltip();
+}
+
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
 });
 </script>
 
 <style scoped>
+
 header {
   line-height: 1.5;
 }
