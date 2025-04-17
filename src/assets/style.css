@@ -7,7 +7,7 @@
   box-sizing: border-box !important;
   display: block !important;
   width: 200px !important;
-  height: 30px !important;
+  height: auto !important;
   line-height: 30px !important;
   padding: 0 !important;
   text-align: center !important;
@@ -15,13 +15,12 @@
   background-color: white;
   border: transparent !important;
   font-size: 12px !important;
-  font-weight: bold !important;
   color: black;
   float: none !important;
   margin: auto !important;
   z-index: 900 !important;
   user-select: text !important;
   cursor: default !important;
-  translate: 0px -60px;
+  translate: 0px calc(-100% - 30px); /* Adjusted to keep the bottom fixed */
   border-radius: 4px 4px 4px 4px !important;
 }

@@ -46,7 +46,7 @@ import './assets/style.css' // must be imported otherwise it's overwritten by le
 import 'primeicons/primeicons.css'
 import { onMounted, ref, onUnmounted, shallowRef } from 'vue';
 import { openDB } from 'idb'; // Import the idb library
-import { infoTool } from "./components/infoTool";
+//import { infoTool } from "./components/infoTool";
 
 const visible = ref(false);
 
@@ -214,6 +214,52 @@ const redoTool = L.Toolbar2.Action.extend({
   },
 })
 
+/**
+ * Toolbar icon and subtoolbar heavily inspired by the L.OpacitiesAction action.
+ * opens a div where text can be displayed, links clicked, etc.
+ * can probably be way simplified, but this works for now.
+ */
+const infoTool = L.Toolbar2.Action.extend({
+  options: {
+    toolbarIcon: {
+      className: 'pi pi-info-circle',
+    },
+    /* Use L.Toolbar2 for sub-toolbars. A sub-toolbar is,
+     * by definition, contained inside another toolbar, so it
+     * doesn't need the additional styling and behavior of a
+     * L.Toolbar2.Control or L.Toolbar2.Popup.
+     */
+    subToolbar: new L.Toolbar2({
+      // must be in an array otherwise it won't work
+      actions: [L.EditAction.extend({
+        options: {
+          toolbarIcon: {
+            html: `<label for="project_name">Project name</label><input type="text" id="project_name"></input><br><br>`, // Will be dynamically updated
+            tooltip: "Info",
+            className: "more-info-popup",
+          },
+        },
+      })],
+    })
+  },
+  addHooks() {
+    console.log("dans hook")*
+    convertTagToDiv()
+    const link = this._link;
+    if (L.DomUtil.hasClass(link, "subtoolbar_enabled")) {
+      L.DomUtil.removeClass(link, "subtoolbar_enabled");
+      setTimeout(() => {
+        this.options.subToolbar._hide();
+      }, 100);
+    } else {
+      L.DomUtil.addClass(link, "subtoolbar_enabled");
+    }
+
+    L.IconUtil.toggleXlink(link, "information", "close");
+    L.IconUtil.toggleTitle(link, "Close", "About");
+  },
+});
+
 // all actions (not all in docs) : L.DistortAction, L.FreeRotateAction, L.OpacityAction, L.DeleteAction, L.StackAction, L.EditAction, L.RotateAction, L.ScaleAction, L.TranslateAction, L.OpacitiesAction, L.GeolocateAction, L.RestoreAction, L.UnlockAction
 // L.EditAction is empty
 // L.TranslateAction crashes
@@ -231,9 +277,21 @@ async function createOverlay(imageUrl: string, overlayObject?: overlayObject) {
   const newOverlay = L.distortableImageOverlay(imageUrl, {
     editable: true,
     tooltipText: overlayObject.tooltipText,
+    keyboard: false,
     //actions: editTools,
     // can't use the editTools array since switch to view mode and back will empty it...
-    actions: [infoTool, undoTool, redoTool, L.DistortAction, L.FreeRotateAction, L.OpacityAction, L.OpacitiesAction, L.DeleteAction, L.StackAction]
+    actions: [
+      //infoTool.extend({ _overlayObject: overlayObject }), // Pass overlayObject to infoTool
+      infoTool,
+      undoTool,
+      redoTool,
+      L.DistortAction,
+      L.FreeRotateAction,
+      L.OpacityAction,
+      L.OpacitiesAction,
+      L.DeleteAction,
+      L.StackAction,
+    ],
   }).addTo(map.value);
 
   overlayObject.overlay = newOverlay;
@@ -250,7 +308,7 @@ async function createOverlay(imageUrl: string, overlayObject?: overlayObject) {
   });
   newOverlay.on('select', () => {
     idSelectedOverlay.value = overlayObject.id;
-    convertTagToDiv()
+    //convertTagToDiv()
   });
 
   // allows to access the corners of the image on load since newOverlay.on('load') doesn't work
