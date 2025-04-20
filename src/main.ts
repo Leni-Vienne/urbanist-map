@@ -3,10 +3,11 @@ import { createApp } from 'vue';
 import PrimeVue from 'primevue/config';
 import Aura from '@primeuix/themes/aura';
 
-createApp(App)
-.use(PrimeVue, {
+const app = createApp(App)
+app.use(PrimeVue, {
     theme: {
         preset: Aura
     }
 })
-.mount('#app');
+
+app.mount('#app');

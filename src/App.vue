@@ -63,14 +63,16 @@ import 'leaflet-distortableimage-updated'; // using "-updated" to prevent "WebSo
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-toolbar/dist/leaflet.toolbar.css';
 import "leaflet-distortableimage-updated/dist/leaflet.distortableimage.css";
-import './assets/style.css' // must be imported otherwise it's overwritten by leaflet's default css
+import './assets/style.css' // must be imported after leaflet's css otherwise it's overwritten by leaflet's default css
 import 'primeicons/primeicons.css'
-import { onMounted, ref, onUnmounted, shallowRef } from 'vue';
-import { openDB } from 'idb'; // Import the idb library
+import { getCurrentInstance, onMounted, ref, shallowRef } from 'vue';
+import { createVNode, render } from 'vue';
+import { DBSchema, openDB, IDBPDatabase } from 'idb';
+import InfoPopup from './components/InfoPopup.vue';
 
 const visible = ref(false);
 
-type overlayObject = {
+export type overlayObject = {
   id: string;
   overlay: L.ImageOverlay;
   marker: L.Marker;
@@ -81,25 +83,48 @@ type overlayObject = {
   tooltipText: string; // Add tooltipText property
 }
 
+type mapPosition = {
+  key: string;
+  value: {
+    center: number[];
+    zoom: number;
+  };
+}
+
+interface MyDB extends DBSchema {
+  mapPosition: {
+    key: string;
+    value: mapPosition
+  };
+  overlays: {
+    key: string;
+    value: overlayObject;
+  }
+}
+
 const map = shallowRef<L.Map | null>(null); // shallowRef is used to avoid reactivity issues with Leaflet, see https://stackoverflow.com/a/73588115/12498040
 const overlays = shallowRef<Record<string, overlayObject>>({}); // Store overlays as a Record
 const idSelectedOverlay = ref<string | null>(null); // Track the ID of the currently selected overlay
 const imageUrl = ref<string | null>(null);
 const isEditMode = ref<boolean>(true);
-let db: IDBDatabase | null = null;
-const ctrlKeyPressed = ref(false); // to track if the control key is pressed
+const app = getCurrentInstance()
+let db: IDBPDatabase<MyDB> | null = null;
 
 onMounted(async () => {
   await initializeDatabase();
   await initializeMap();
-
-  initializeKeyBinds();
-
   await getOverlaysFromIndexedDB();
 
+  window.addEventListener('keydown', (event) => {
+    if (event.ctrlKey && event.key === 'z') {
+      undo();
+    } else if (event.ctrlKey && event.key === 'y') {
+      redo();
+    }
+  }, true);
 
   // Call this after map and overlays are initialized
-  setTimeout(disableLeafletKeyboardEvents, 500);
+  disableLeafletKeyboardEvents()
 });
 
 async function initializeDatabase() {
@@ -127,36 +152,6 @@ async function initializeMap() {
   map.value.on('zoomend', saveMapPosition);
 }
 
-function initializeKeyBinds() {
-  window.addEventListener('keyup', (e) => {
-    if (e.key === 'Control') {
-      ctrlKeyPressed.value = false;
-    }
-  });
-
-  // when losing focus on the window, we set ctrlKeyPressed to false
-  window.addEventListener('blur', () => {
-    ctrlKeyPressed.value = false;
-  });
-
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'Control') {
-      ctrlKeyPressed.value = true;
-    }
-    if (ctrlKeyPressed.value && e.key === 'z') {
-      e.preventDefault(); // to prevent leaflet keybinds
-      undo();
-    } else if (ctrlKeyPressed.value && e.key === 'y') {
-      e.preventDefault(); // to prevent leaflet keybinds
-      redo();
-    } else {
-      if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
-        e.stopPropagation();
-      }
-    }
-  }, true);
-}
-
 async function getSavedMapPosition() {
   if (!db) return null;
   const savedPosition = await db.get('mapPosition', 'position');
@@ -164,6 +159,7 @@ async function getSavedMapPosition() {
 }
 
 function addTileLayer() {
+  if (!map.value) return;
   L.tileLayer(
     'https://data.geopf.fr/wmts?service=WMTS&request=GetTile&version=1.0.0&tilematrixset=PM&tilematrix={z}&tilecol={x}&tilerow={y}&layer=ORTHOIMAGERY.ORTHOPHOTOS&format=image/jpeg&style=normal',
     {
@@ -272,26 +268,22 @@ const infoTool = L.Toolbar2.Action.extend({
     toolbarIcon: {
       className: 'pi pi-info-circle',
     },
-    /* Use L.Toolbar2 for sub-toolbars. A sub-toolbar is,
-     * by definition, contained inside another toolbar, so it
-     * doesn't need the additional styling and behavior of a
-     * L.Toolbar2.Control or L.Toolbar2.Popup.
-     */
     subToolbar: new L.Toolbar2({
-      // must be in an array otherwise it won't work
       actions: [L.EditAction.extend({
         options: {
           toolbarIcon: {
-            html: `<label for="project_name">Project name</label><input type="text" id="project_name"></input><br><br>`, // Will be dynamically updated
+            html: `<div id="info-popup-container"></div>`,
             tooltip: "Info",
             className: "more-info-popup",
           },
         },
+        initialize: function () {
+          L.EditAction.prototype.initialize.apply(this, arguments);
+        }
       })],
     })
   },
   addHooks() {
-    convertTagToDiv()
     const link = this._link;
     if (L.DomUtil.hasClass(link, "subtoolbar_enabled")) {
       L.DomUtil.removeClass(link, "subtoolbar_enabled");
@@ -300,12 +292,65 @@ const infoTool = L.Toolbar2.Action.extend({
       }, 100);
     } else {
       L.DomUtil.addClass(link, "subtoolbar_enabled");
+      this._mountInfoPopup();
     }
 
     L.IconUtil.toggleXlink(link, "information", "close");
     L.IconUtil.toggleTitle(link, "Close", "About");
   },
+
+  _mountInfoPopup: function () {
+    setTimeout(() => {
+      if(!idSelectedOverlay.value) return;
+
+      const container = document.getElementById('info-popup-container');
+      if (!container) return;
+
+      container.innerHTML = '';
+
+      const popupElement = document.createElement('div');
+      container.appendChild(popupElement);
+
+      // Create and mount the InfoPopup component with event handlers
+      let vnode = createVNode(InfoPopup, {
+        overlayObject: overlays.value[idSelectedOverlay.value],
+        onProjectSubmit: handleProjectSubmit
+      });
+      vnode.appContext = app?.appContext ?? null
+      render(vnode, popupElement);
+    }, 10);
+  }
 });
+
+// Function to handle project data submitted from InfoPopup
+function handleProjectSubmit(projectData) {
+  console.log('Project data received:', projectData);
+  
+  // Update the overlay with project information
+  /*if (projectData.id && overlays.value[projectData.id]) {
+    // Store project information in the overlay object
+    const overlay = overlays.value[projectData.id];
+    overlay.projectInfo = {
+      name: projectData.projectName,
+      address: projectData.address,
+      startDate: projectData.startDate,
+      endDate: projectData.endDate,
+      budget: projectData.budget
+    };
+    
+    // Update tooltip text with project name
+    overlay.tooltipText = projectData.projectName;
+    
+    // Save to IndexedDB
+    saveImageAndPosition();
+    
+    // Close the info popup (optional)
+    const infoLink = document.querySelector('.pi-info-circle');
+    if (infoLink) {
+      infoLink.click();
+    }
+  }*/
+}
 
 // all actions (not all in docs) : L.DistortAction, L.FreeRotateAction, L.OpacityAction, L.DeleteAction, L.StackAction, L.EditAction, L.RotateAction, L.ScaleAction, L.TranslateAction, L.OpacitiesAction, L.GeolocateAction, L.RestoreAction, L.UnlockAction
 // L.EditAction is empty
@@ -327,9 +372,7 @@ async function createOverlay(imageUrl: string, overlayObject?: overlayObject) {
     keyboard: false,
     //actions: editTools,
     // can't use the editTools array since switch to view mode and back will empty it...
-    actions: [//infoTool.extend({ _overlayObject: overlayObject }), // Pass overlayObject to infoTool
-
-      //infoTool.extend({ _overlayObject: overlayObject }), // Pass overlayObject to infoTool
+    actions: [
       infoTool,
       undoTool,
       redoTool,
@@ -361,7 +404,6 @@ async function createOverlay(imageUrl: string, overlayObject?: overlayObject) {
   });
   newOverlay.on('select', () => {
     idSelectedOverlay.value = overlayObject.id;
-    //convertTagToDiv()
   });
 
   // allows to access the corners of the image on load since newOverlay.on('load') doesn't work
@@ -382,22 +424,8 @@ async function createOverlay(imageUrl: string, overlayObject?: overlayObject) {
   return newOverlay;
 }
 
-/**
- * Convert the "more-info-popup" <a> tag to a div so that the links are clickable
- */
-function convertTagToDiv() {
-  let before = document.getElementsByClassName("more-info-popup")[0]
-  if (!before) {
-    return;
-  }
-  var after = document.createElement('div');
-  after.innerHTML = before.innerHTML;
-  after.className = "leaflet-toolbar-icon more-info-popup"; // so that links are clickable
-
-  before.parentNode.replaceChild(after, before);
-}
-
 function createMarker(overlayObject: overlayObject) {
+  if (!map.value) return null;
   const bounds = overlayObject.overlay.getBounds();
   const center = bounds.getCenter();
   const marker = L.marker(center).addTo(map.value);
@@ -427,7 +455,7 @@ async function saveImageAndPosition() {
 
   const savedOverlays = Object.values(overlays.value).map(overlayObject => ({
     id: overlayObject.id,
-    imageUrl: overlayObject.overlay.getElement().src,
+    imageUrl: overlayObject.overlay.getElement()?.src,
     corners: overlayObject.overlay.getCorners(),
     history: overlayObject.history,
     redoStack: overlayObject.redoStack,
@@ -437,7 +465,8 @@ async function saveImageAndPosition() {
   await saveOverlaysToDB(savedOverlays);
 }
 
-async function saveOverlaysToDB(overlays: { id: string, imageUrl: string, corners: { lat: number, lng: number }[], history: { lat: number, lng: number }[][], redoStack: { lat: number, lng: number }[][], tooltipText: string }[]) {
+async function saveOverlaysToDB(overlays: overlayObject[]) {
+  if (!db) return;
   const transaction = db.transaction('overlays', 'readwrite');
   const store = transaction.objectStore('overlays');
   for (const overlay of overlays) {
@@ -534,7 +563,7 @@ async function removeWhitePixels() {
 
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
-  if (!ctx) return;
+  if (!ctx || !map.value) return;
 
   const img = new Image();
   img.onload = async () => {
@@ -627,10 +656,6 @@ function disableLeafletKeyboardEvents() {
     }
   });
 }
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', initializeKeyBinds);
-});
 
 </script>
 
