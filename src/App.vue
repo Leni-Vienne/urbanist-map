@@ -1,14 +1,28 @@
 <template>
-  <div id="viewerDiv" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;">
+  <div
+    id="viewerDiv"
+    style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;"
+  >
     <div class="map-buttons">
-      <input type="file" @change="onImageUpload" accept="image/png, image/jpeg" />
+      <input
+        type="file"
+        @change="onImageUpload"
+        accept="image/png, image/jpeg"
+      />
       <div class="card flex justify-center">
-        <Drawer v-model:visible="visible" header="Drawer" :dismissableMask="true">
+        <Drawer
+          v-model:visible="visible"
+          header="Drawer"
+          :dismissableMask="true"
+        >
           <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et
             dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex
             ea commodo consequat.</p>
         </Drawer>
-        <Button icon="pi pi-bars" @click="visible = true" />
+        <Button
+          icon="pi pi-bars"
+          @click="visible = true"
+        />
       </div>
       <div class="card flex justify-center">
         <div class="w-56">
@@ -25,10 +39,17 @@
           <Button @click="clearIndexedDB">Clear Local Storage</Button>
         </div>
       </div>
-      <div v-if="idSelectedOverlay" class="card flex justify-center">
+      <div
+        v-if="idSelectedOverlay"
+        class="card flex justify-center"
+      >
         <div class="w-56">
-          <input type="text" v-model="overlays[idSelectedOverlay].overlay.tooltipText" @input="updateTooltipText"
-            placeholder="Enter tooltip text" />
+          <input
+            type="text"
+            v-model="overlays[idSelectedOverlay].overlay.tooltipText"
+            @input="updateTooltipText"
+            placeholder="Enter tooltip text"
+          />
         </div>
       </div>
     </div>
@@ -46,7 +67,6 @@ import './assets/style.css' // must be imported otherwise it's overwritten by le
 import 'primeicons/primeicons.css'
 import { onMounted, ref, onUnmounted, shallowRef } from 'vue';
 import { openDB } from 'idb'; // Import the idb library
-//import { infoTool } from "./components/infoTool";
 
 const visible = ref(false);
 
@@ -67,13 +87,19 @@ const idSelectedOverlay = ref<string | null>(null); // Track the ID of the curre
 const imageUrl = ref<string | null>(null);
 const isEditMode = ref<boolean>(true);
 let db: IDBDatabase | null = null;
-const op = ref();
+const ctrlKeyPressed = ref(false); // to track if the control key is pressed
 
 onMounted(async () => {
   await initializeDatabase();
   await initializeMap();
-  window.addEventListener('keydown', handleKeyDown); // to handle undo/redo with ctrl+z and ctrl+y
+
+  initializeKeyBinds();
+
   await getOverlaysFromIndexedDB();
+
+
+  // Call this after map and overlays are initialized
+  setTimeout(disableLeafletKeyboardEvents, 500);
 });
 
 async function initializeDatabase() {
@@ -99,6 +125,36 @@ async function initializeMap() {
   addTileLayer();
   map.value.on('moveend', saveMapPosition);
   map.value.on('zoomend', saveMapPosition);
+}
+
+function initializeKeyBinds() {
+  window.addEventListener('keyup', (e) => {
+    if (e.key === 'Control') {
+      ctrlKeyPressed.value = false;
+    }
+  });
+
+  // when losing focus on the window, we set ctrlKeyPressed to false
+  window.addEventListener('blur', () => {
+    ctrlKeyPressed.value = false;
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Control') {
+      ctrlKeyPressed.value = true;
+    }
+    if (ctrlKeyPressed.value && e.key === 'z') {
+      e.preventDefault(); // to prevent leaflet keybinds
+      undo();
+    } else if (ctrlKeyPressed.value && e.key === 'y') {
+      e.preventDefault(); // to prevent leaflet keybinds
+      redo();
+    } else {
+      if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        e.stopPropagation();
+      }
+    }
+  }, true);
 }
 
 async function getSavedMapPosition() {
@@ -148,14 +204,6 @@ function createOverlayObject(savedOverlay: { id: string, imageUrl: string, corne
     alreadyStored: true,
     tooltipText: savedOverlay.tooltipText || '' // Initialize tooltipText
   };
-}
-
-function handleKeyDown(event: KeyboardEvent) {
-  if (event.ctrlKey && event.key === 'z') {
-    undo();
-  } else if (event.ctrlKey && event.key === 'y') {
-    redo();
-  }
 }
 
 async function onImageUpload(event: Event) {
@@ -243,7 +291,6 @@ const infoTool = L.Toolbar2.Action.extend({
     })
   },
   addHooks() {
-    console.log("dans hook")*
     convertTagToDiv()
     const link = this._link;
     if (L.DomUtil.hasClass(link, "subtoolbar_enabled")) {
@@ -280,7 +327,8 @@ async function createOverlay(imageUrl: string, overlayObject?: overlayObject) {
     keyboard: false,
     //actions: editTools,
     // can't use the editTools array since switch to view mode and back will empty it...
-    actions: [
+    actions: [//infoTool.extend({ _overlayObject: overlayObject }), // Pass overlayObject to infoTool
+
       //infoTool.extend({ _overlayObject: overlayObject }), // Pass overlayObject to infoTool
       infoTool,
       undoTool,
@@ -295,6 +343,11 @@ async function createOverlay(imageUrl: string, overlayObject?: overlayObject) {
   }).addTo(map.value);
 
   overlayObject.overlay = newOverlay;
+
+  // Explicitly disable keyboard handling on the overlay
+  if (newOverlay.editing && newOverlay.editing._disableKeyboard) {
+    newOverlay.editing._disableKeyboard();
+  }
 
   newOverlay.on('edit', () => {
     saveToHistory(overlayObject);
@@ -536,9 +589,49 @@ function updateTooltipText() {
   //overlayObject.overlay.bindTooltip(overlayObject.tooltipText, { permanent: true, direction: 'top' }).openTooltip();
 }
 
+// For a complete fix, we need to create a function that disables Leaflet's built-in keyboard handlers
+function disableLeafletKeyboardEvents() {
+  // Disable keyboard events on map container
+  if (map.value) {
+    // Remove keyboard handlers from map
+    map.value.keyboard.disable();
+
+    // Add event listeners to prevent key events from propagating to Leaflet
+    const mapContainer = map.value.getContainer();
+    if (mapContainer) {
+      ['keydown', 'keyup', 'keypress'].forEach(eventType => {
+        mapContainer.addEventListener(eventType, (e) => {
+          e.stopPropagation();
+        }, true);
+      });
+    }
+  }
+
+  // Disable keyboard events on all image overlays
+  Object.values(overlays.value).forEach(overlayObject => {
+    if (overlayObject.overlay && overlayObject.overlay.editing) {
+      // Disable any keyboard handlers in the editing instance
+      if (overlayObject.overlay.editing._disableKeyboard) {
+        overlayObject.overlay.editing._disableKeyboard();
+      }
+
+      // If the overlay has an element, prevent keyboard events on it
+      const element = overlayObject.overlay.getElement();
+      if (element) {
+        ['keydown', 'keyup', 'keypress'].forEach(eventType => {
+          element.addEventListener(eventType, (e) => {
+            e.stopPropagation();
+          }, true);
+        });
+      }
+    }
+  });
+}
+
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeyDown);
+  window.removeEventListener('keydown', initializeKeyBinds);
 });
+
 </script>
 
 <style scoped>
