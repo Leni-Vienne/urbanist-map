@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 /* fixes the leaflet toolbar being transparent */
 .leaflet-toolbar-0>li>.leaflet-toolbar-icon {
   background-color: white !important;

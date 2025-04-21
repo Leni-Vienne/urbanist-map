@@ -46,6 +46,37 @@
 
 <script setup lang="ts">
 import L from "leaflet";
+
+// Extend Leaflet namespace to include custom actions
+declare module "leaflet" {
+  const DistortAction: any;
+  const FreeRotateAction: any;
+  const OpacityAction: any;
+  const OpacitiesAction: any;
+  const DeleteAction: any;
+  const StackAction: any;
+  const Toolbar2: any;
+  const EditAction: any;
+
+  // Définition de l'interface pour DistortableImageOverlay
+  interface DistortableImageOverlay extends L.ImageOverlay {
+    editing: {
+      _disableKeyboard: () => void;
+      addTool: (tool: any) => void;
+      removeTool: (tool: any) => void;
+    };
+    getCorners: () => { lat: number, lng: number }[];
+    setCorners: (corners: { lat: number, lng: number }[]) => void;
+    bindTooltip: (content: string, options?: L.TooltipOptions) => this;
+    openTooltip: () => this;
+  }
+
+  // Ajout de la fonction distortableImageOverlay
+  function distortableImageOverlay(
+    imageUrl: string,
+    options?: any
+  ): DistortableImageOverlay;
+}
 import 'leaflet-toolbar';
 import 'leaflet-distortableimage-updated'; // using "-updated" to prevent "WebSocket connection to 'ws://localhost:8081/ws' failed:" error
 import 'leaflet/dist/leaflet.css';
@@ -53,6 +84,7 @@ import 'leaflet-toolbar/dist/leaflet.toolbar.css';
 import "leaflet-distortableimage-updated/dist/leaflet.distortableimage.css";
 import './assets/style.css' // must be imported after leaflet's css otherwise it's overwritten by leaflet's default css
 import 'primeicons/primeicons.css'
+
 import { getCurrentInstance, onMounted, ref, shallowRef } from 'vue';
 import { createVNode, render } from 'vue';
 import { DBSchema, openDB, IDBPDatabase } from 'idb';
@@ -65,7 +97,7 @@ const visible = ref(false);
 // Type pour les données à stocker dans IndexedDB
 export type StoredOverlayData = {
   id: string;
-  imageUrl?: string;
+  imageUrl: string;
   corners: { lat: number, lng: number }[];
   history: { lat: number, lng: number }[][];
   redoStack: { lat: number, lng: number }[][];
@@ -82,8 +114,8 @@ export type info = {
 
 // Type complet pour l'utilisation pendant l'exécution
 export type overlayObject = StoredOverlayData & {
-  overlay: L.ImageOverlay;
-  marker: L.Marker;
+  overlay: L.DistortableImageOverlay | null;
+  marker: L.Marker | null;
   alreadyLoaded: boolean; // Track if the overlay is already loaded in the page
   alreadyStored: boolean; // Track if the overlay is already stored in IndexedDB
 }
@@ -103,7 +135,7 @@ interface MyDB extends DBSchema {
   };
   overlays: {
     key: string;
-    value: overlayObject;
+    value: StoredOverlayData;
   }
 }
 
@@ -146,10 +178,17 @@ async function initializeDatabase() {
 }
 
 async function initializeMap() {
+  L.latLng
   const savedPosition = await getSavedMapPosition();
-  const initialView = savedPosition || { center: [48.845, 2.424], zoom: 10 };
+  if (!savedPosition) {
+    console.error('No saved map position found in IndexedDB.');
+    return;
+  }
 
-  map.value = L.map("viewerDiv").setView(initialView.center, initialView.zoom);
+  // to make setView() happy
+  const initialView: L.LatLngExpression = { lat: savedPosition?.center[0] || 48.8566, lng: savedPosition?.center[1] || 2.3522 };
+
+  map.value = L.map("viewerDiv").setView(initialView, savedPosition.zoom);
   if (!map.value) throw new Error('No map element found');
 
   addTileLayer();
@@ -189,6 +228,7 @@ async function getOverlaysFromIndexedDB() {
 }
 
 async function fetchSavedOverlays() {
+  if (!db) return [];
   const transaction = db.transaction('overlays', 'readonly');
   const store = transaction.objectStore('overlays');
   return await store.getAll();
@@ -296,13 +336,12 @@ const infoTool = L.Toolbar2.Action.extend({
       L.DomUtil.addClass(link, "subtoolbar_enabled");
 
       setTimeout(() => {
-        console.log("ici")
         if (!idSelectedOverlay.value) return;
 
+        // no idea why but we need to get the element by its class name and not by its id
         const popupElement = document.getElementsByClassName("more-info-popup")[0];
 
         if (!popupElement || popupElement.tagName !== 'A') {
-          console.log("dans return")
           return
         }
         const newDiv = document.createElement('div');
@@ -311,11 +350,9 @@ const infoTool = L.Toolbar2.Action.extend({
         if (popupElement.parentNode) {
           popupElement.parentNode.replaceChild(newDiv, popupElement);
         } else {
-          console.log("popupElement.parentNode is null !! ")
           return
         }
 
-        // 2. Créer et monter le vnode InfoPopup
         const vnode = createVNode(InfoPopup, {
           overlayObject: overlays.value[idSelectedOverlay.value],
           onProjectSubmit: handleProjectSubmit
@@ -325,38 +362,40 @@ const infoTool = L.Toolbar2.Action.extend({
       }, 10);
     }
 
-    L.IconUtil.toggleXlink(link, "information", "close");
-    L.IconUtil.toggleTitle(link, "Close", "About");
+    (L as any).IconUtil.toggleXlink(link, "information", "close");
+    (L as any).IconUtil.toggleTitle(link, "Close", "About");
   }
 });
 
 // Function to handle project data submitted from InfoPopup
 function handleProjectSubmit(projectInfo: info & { id: string }) {
-  console.log('Project data received:', projectInfo);
 
-  // Update the overlay with project information
-  if (projectInfo.id && overlays.value[projectInfo.id]) {
-    // Store project information in the overlay object
-    const overlay = overlays.value[projectInfo.id];
-    overlay.info = {
-      projectName: projectInfo.projectName,
-      address: projectInfo.address,
-      startDate: projectInfo.startDate,
-      endDate: projectInfo.endDate,
-      budget: projectInfo.budget
-    };
+  if (!projectInfo.id || !overlays.value[projectInfo.id]) {
+    console.error('Overlay not found for ID in handleProjectSumbit:', projectInfo.id);
+    return;
+  }
 
-    // Update tooltip text with project name
-    toast.add({ severity: 'success', summary: 'Success', detail: 'Message Content', life: 3000 });
+  const overlay = overlays.value[projectInfo.id];
+  overlay.info = {
+    projectName: projectInfo.projectName,
+    address: projectInfo.address,
+    startDate: projectInfo.startDate,
+    endDate: projectInfo.endDate,
+    budget: projectInfo.budget
+  };
 
-    // Save to IndexedDB
-    saveImageAndPosition();
+  updateTooltipText(); // Update tooltip text with project name
 
-    // Close the info popup (optional)
-    const infoLink = document.querySelector('.pi-info-circle');
-    if (infoLink) {
-      infoLink.click();
-    }
+  // Update tooltip text with project name
+  toast.add({ severity: 'success', summary: 'Success', detail: 'Message Content', life: 3000 });
+
+  // Save to IndexedDB
+  saveImageAndPosition();
+
+  // Close the info popup (optional)
+  const infoLink = document.querySelector('.pi-info-circle');
+  if (infoLink && infoLink instanceof HTMLElement) {
+    infoLink.click();
   }
 }
 
@@ -414,14 +453,25 @@ async function createOverlay(imageUrl: string, overlayObject?: overlayObject) {
 
   // allows to access the corners of the image on load since newOverlay.on('load') doesn't work
   // credit to https://github.com/publiclab/Leaflet.DistortableImage/issues/953#issuecomment-1262298228
-  L.DomEvent.on(newOverlay.getElement(), 'load', () => {
+
+  const element = newOverlay.getElement();
+  if (!element) {
+    console.error('Element not found for overlay:', overlayObject.id);
+    return null;
+  }
+  L.DomEvent.on(element, 'load', () => {
     if (overlayObject.alreadyStored || overlayObject.alreadyLoaded) {
-      overlayObject.overlay.setCorners(overlayObject.history.at(-1));
+      (overlayObject.overlay as any).setCorners(overlayObject.history.at(-1));
     }
 
     if (!overlayObject.alreadyLoaded) {
       saveToHistory(overlayObject);
-      overlayObject.marker = createMarker(overlayObject);
+      const marker = createMarker(overlayObject);
+      if (marker) {
+        overlayObject.marker = marker;
+      } else {
+        console.error('Failed to create marker for overlay:', overlayObject.id);
+      }
     }
 
     overlayObject.alreadyLoaded = true
@@ -431,7 +481,7 @@ async function createOverlay(imageUrl: string, overlayObject?: overlayObject) {
 }
 
 function createMarker(overlayObject: overlayObject) {
-  if (!map.value) return null;
+  if (!map.value || !overlayObject.overlay) return null;
   const bounds = overlayObject.overlay.getBounds();
   const center = bounds.getCenter();
   const marker = L.marker(center).addTo(map.value);
@@ -439,6 +489,8 @@ function createMarker(overlayObject: overlayObject) {
 }
 
 function updateMarkerPosition(overlayObject: overlayObject) {
+  if (!overlayObject.overlay || !overlayObject.marker) return;
+
   const bounds = overlayObject.overlay.getBounds();
   const center = bounds.getCenter();
   overlayObject.marker.setLatLng(center);
@@ -456,34 +508,34 @@ async function saveMapPosition() {
   await store.put(position);
 }
 
-async function saveImageAndPosition() {
+function saveImageAndPosition() {
   if (!db) return;
 
-  // Créer un tableau de StoredOverlayData à partir des overlayObject
-  const savedOverlays: StoredOverlayData[] = Object.values(overlays.value).map(overlayObj => ({
-    id: overlayObj.id,
-    imageUrl: overlayObj.overlay?.getElement()?.src,
-    corners: overlayObj.overlay?.getCorners() || [],
-    history: overlayObj.history,
-    redoStack: overlayObj.redoStack,
-    info: overlayObj.info || {
-      projectName: '',
-      address: '',
-      startDate: null,
-      endDate: null,
-      budget: 0
-    }
-  }));
+  // Create StoredOverlayData array from overlayObjects
+  const savedOverlays: StoredOverlayData[] = Object.values(overlays.value).map(overlayObj => {
+    // Vérifier que overlay existe
+    const element = overlayObj.overlay?.getElement();
+    return {
+      id: overlayObj.id,
+      imageUrl: element?.src || overlayObj.imageUrl, // Utiliser l'URL stockée si l'élément n'existe pas
+      corners: overlayObj.overlay?.getCorners() || [],
+      history: overlayObj.history,
+      redoStack: overlayObj.redoStack,
+      info: overlayObj.info || {
+        projectName: '',
+        address: '',
+        startDate: null,
+        endDate: null,
+        budget: 0
+      }
+    };
+  });
 
-  await saveOverlaysToDB(savedOverlays);
-}
-
-async function saveOverlaysToDB(overlays: StoredOverlayData[]) {
-  if (!db) return;
+  // Save overlays to IndexedDB
   const transaction = db.transaction('overlays', 'readwrite');
   const store = transaction.objectStore('overlays');
-  for (const overlay of overlays) {
-    await store.put(overlay);
+  for (const overlay of savedOverlays) {
+    store.put(overlay);
   }
 }
 
@@ -536,9 +588,10 @@ function undo() {
   redoStack.push(lastState);
 
   const previousState = history[history.length - 1];
-  overlay.setCorners(previousState);
+  (overlay as any).setCorners(previousState);
 
   updateMarkerPosition(overlayObject);
+  saveImageAndPosition();
 }
 
 function redo() {
@@ -553,9 +606,12 @@ function redo() {
   const nextState = redoStack.pop()!;
   history.push(nextState);
 
-  overlay.setCorners(nextState);
+  (overlay as any).setCorners(nextState);
 
   updateMarkerPosition(overlayObject);
+
+  // Persister les changements après un redo
+  saveImageAndPosition();
 }
 
 function toggleEditMode() {
@@ -563,7 +619,7 @@ function toggleEditMode() {
 
   // adding and removing tools is finicky (tools are often removed from the arrays) but this way works
   Object.values(overlays.value).forEach((overlayObject) => {
-    const editing = overlayObject.overlay.editing;
+    const editing = (overlayObject.overlay as any).editing;
 
     if (isEditMode.value) {
       viewTools.forEach((tool) => editing.removeTool(tool));
@@ -585,10 +641,12 @@ async function removeWhitePixels() {
 
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
-  if (!ctx || !map.value) return;
+  if (!ctx || !map.value || !overlay) return;
 
   const img = new Image();
   img.onload = async () => {
+    if (!map.value) return;
+
     canvas.width = img.width;
     canvas.height = img.height;
     ctx.drawImage(img, 0, 0);
@@ -614,7 +672,7 @@ async function removeWhitePixels() {
     map.value.removeLayer(overlay);
     await createOverlay(updatedImageUrl, overlayObject);
   };
-  img.src = overlay.getElement().src; // what is actually updating the image
+  img.src = (overlay as any).getElement().src; // what is actually updating the image
 }
 
 function clearIndexedDB() {
@@ -635,9 +693,10 @@ function updateTooltipText() {
   if (!idSelectedOverlay.value) return;
 
   const overlayObject = overlays.value[idSelectedOverlay.value];
-  if (!overlayObject) return;
+  if (!overlayObject || !overlayObject.overlay) return;
 
-  overlayObject.overlay.bindTooltip(overlayObject.info?.projectName, { permanent: true, direction: 'top' }).openTooltip();
+  const projectName = overlayObject.info?.projectName || 'No Project Name';
+  overlayObject.overlay.bindTooltip(projectName, { permanent: true, direction: 'top' }).openTooltip();
 }
 
 // For a complete fix, we need to create a function that disables Leaflet's built-in keyboard handlers
@@ -660,10 +719,10 @@ function disableLeafletKeyboardEvents() {
 
   // Disable keyboard events on all image overlays
   Object.values(overlays.value).forEach(overlayObject => {
-    if (overlayObject.overlay && overlayObject.overlay.editing) {
+    if (overlayObject.overlay && (overlayObject.overlay as any).editing) {
       // Disable any keyboard handlers in the editing instance
-      if (overlayObject.overlay.editing._disableKeyboard) {
-        overlayObject.overlay.editing._disableKeyboard();
+      if ((overlayObject.overlay as any).editing._disableKeyboard) {
+        (overlayObject.overlay as any)._disableKeyboard();
       }
 
       // If the overlay has an element, prevent keyboard events on it
@@ -682,33 +741,6 @@ function disableLeafletKeyboardEvents() {
 </script>
 
 <style scoped>
-header {
-  line-height: 1.5;
-}
-
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-}
-
 .map-buttons {
   position: absolute;
   top: 80px;
@@ -717,19 +749,5 @@ header {
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-
-#viewerDiv {
-  width: 100%;
-  height: 100%;
-}
-
-html,
-body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
 }
 </style>
