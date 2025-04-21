@@ -90,7 +90,6 @@ onMounted(() => {
     }
 });
 
-// Submit form function
 function submitForm() {
     console.log('Form submitted with data:', formData.value);
     emit('projectSubmit', {
@@ -103,27 +102,13 @@ function submitForm() {
 <style scoped>
 .info-popup-content {
     padding: 10px;
-    min-width: 300px;
-
-    display: block !important;
     width: 300px !important;
-    height: auto !important;
-    line-height: 30px !important;
-
-
-
     background-color: white;
-    border: transparent !important;
-
     color: black;
-
-
-    z-index: 900 !important;
-    user-select: text !important;
     cursor: default !important;
+     /* so that the popup div sits above the toolbar, no matter its height*/
     translate: 0px calc(-100% - 30px);
-    /* Adjusted to keep the bottom fixed */
-    border-radius: 4px 4px 4px 4px !important;
+    border-radius: 6px 6px 6px 6px !important;
 }
 
 .form-group {
