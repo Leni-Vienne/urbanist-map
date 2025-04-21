@@ -1,4 +1,5 @@
 <template>
+  <Toast />
   <div
     id="viewerDiv"
     style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;"
@@ -39,19 +40,6 @@
           <Button @click="clearIndexedDB">Clear Local Storage</Button>
         </div>
       </div>
-      <div
-        v-if="idSelectedOverlay"
-        class="card flex justify-center"
-      >
-        <div class="w-56">
-          <input
-            type="text"
-            v-model="overlays[idSelectedOverlay].overlay.tooltipText"
-            @input="updateTooltipText"
-            placeholder="Enter tooltip text"
-          />
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -69,18 +57,35 @@ import { getCurrentInstance, onMounted, ref, shallowRef } from 'vue';
 import { createVNode, render } from 'vue';
 import { DBSchema, openDB, IDBPDatabase } from 'idb';
 import InfoPopup from './components/InfoPopup.vue';
+import { useToast } from "primevue/usetoast";
 
+const toast = useToast();
 const visible = ref(false);
 
-export type overlayObject = {
+// Type pour les données à stocker dans IndexedDB
+export type StoredOverlayData = {
   id: string;
-  overlay: L.ImageOverlay;
-  marker: L.Marker;
+  imageUrl?: string;
+  corners: { lat: number, lng: number }[];
   history: { lat: number, lng: number }[][];
   redoStack: { lat: number, lng: number }[][];
+  info: info | null;
+}
+
+export type info = {
+  projectName: string;
+  address: string;
+  startDate: Date | null;
+  endDate: Date | null;
+  budget: number;
+}
+
+// Type complet pour l'utilisation pendant l'exécution
+export type overlayObject = StoredOverlayData & {
+  overlay: L.ImageOverlay;
+  marker: L.Marker;
   alreadyLoaded: boolean; // Track if the overlay is already loaded in the page
   alreadyStored: boolean; // Track if the overlay is already stored in IndexedDB
-  tooltipText: string; // Add tooltipText property
 }
 
 type mapPosition = {
@@ -189,16 +194,13 @@ async function fetchSavedOverlays() {
   return await store.getAll();
 }
 
-function createOverlayObject(savedOverlay: { id: string, imageUrl: string, corners: { lat: number, lng: number }[], tooltipText?: string }) {
+function createOverlayObject(savedOverlay: StoredOverlayData): overlayObject {
   return {
-    id: savedOverlay.id,
-    overlay: null as L.ImageOverlay,
-    marker: null as L.Marker,
-    history: [savedOverlay.corners],
-    redoStack: [],
+    ...savedOverlay,
+    overlay: null,
+    marker: null,
     alreadyLoaded: false,
     alreadyStored: true,
-    tooltipText: savedOverlay.tooltipText || '' // Initialize tooltipText
   };
 }
 
@@ -227,7 +229,7 @@ const centerTool = L.Toolbar2.Action.extend({
       return;
     }
     const overlayObject = overlays.value[idSelectedOverlay.value];
-    if (overlayObject) {
+    if (overlayObject && overlayObject.overlay) {
       const bounds = overlayObject.overlay.getBounds();
       map.value?.fitBounds(bounds);
     }
@@ -292,64 +294,70 @@ const infoTool = L.Toolbar2.Action.extend({
       }, 100);
     } else {
       L.DomUtil.addClass(link, "subtoolbar_enabled");
-      this._mountInfoPopup();
+
+      setTimeout(() => {
+        console.log("ici")
+        if (!idSelectedOverlay.value) return;
+
+        const popupElement = document.getElementsByClassName("more-info-popup")[0];
+
+        if (!popupElement || popupElement.tagName !== 'A') {
+          console.log("dans return")
+          return
+        }
+        const newDiv = document.createElement('div');
+        newDiv.className = "leaflet-toolbar-icon more-info-popup";
+        newDiv.id = "info-popup-container";
+        if (popupElement.parentNode) {
+          popupElement.parentNode.replaceChild(newDiv, popupElement);
+        } else {
+          console.log("popupElement.parentNode is null !! ")
+          return
+        }
+
+        // 2. Créer et monter le vnode InfoPopup
+        const vnode = createVNode(InfoPopup, {
+          overlayObject: overlays.value[idSelectedOverlay.value],
+          onProjectSubmit: handleProjectSubmit
+        });
+        vnode.appContext = app?.appContext ?? null;
+        render(vnode, newDiv);
+      }, 10);
     }
 
     L.IconUtil.toggleXlink(link, "information", "close");
     L.IconUtil.toggleTitle(link, "Close", "About");
-  },
-
-  _mountInfoPopup: function () {
-    setTimeout(() => {
-      if(!idSelectedOverlay.value) return;
-
-      const container = document.getElementById('info-popup-container');
-      if (!container) return;
-
-      container.innerHTML = '';
-
-      const popupElement = document.createElement('div');
-      container.appendChild(popupElement);
-
-      // Create and mount the InfoPopup component with event handlers
-      let vnode = createVNode(InfoPopup, {
-        overlayObject: overlays.value[idSelectedOverlay.value],
-        onProjectSubmit: handleProjectSubmit
-      });
-      vnode.appContext = app?.appContext ?? null
-      render(vnode, popupElement);
-    }, 10);
   }
 });
 
 // Function to handle project data submitted from InfoPopup
-function handleProjectSubmit(projectData) {
-  console.log('Project data received:', projectData);
-  
+function handleProjectSubmit(projectInfo: info & { id: string }) {
+  console.log('Project data received:', projectInfo);
+
   // Update the overlay with project information
-  /*if (projectData.id && overlays.value[projectData.id]) {
+  if (projectInfo.id && overlays.value[projectInfo.id]) {
     // Store project information in the overlay object
-    const overlay = overlays.value[projectData.id];
-    overlay.projectInfo = {
-      name: projectData.projectName,
-      address: projectData.address,
-      startDate: projectData.startDate,
-      endDate: projectData.endDate,
-      budget: projectData.budget
+    const overlay = overlays.value[projectInfo.id];
+    overlay.info = {
+      projectName: projectInfo.projectName,
+      address: projectInfo.address,
+      startDate: projectInfo.startDate,
+      endDate: projectInfo.endDate,
+      budget: projectInfo.budget
     };
-    
+
     // Update tooltip text with project name
-    overlay.tooltipText = projectData.projectName;
-    
+    toast.add({ severity: 'success', summary: 'Success', detail: 'Message Content', life: 3000 });
+
     // Save to IndexedDB
     saveImageAndPosition();
-    
+
     // Close the info popup (optional)
     const infoLink = document.querySelector('.pi-info-circle');
     if (infoLink) {
       infoLink.click();
     }
-  }*/
+  }
 }
 
 // all actions (not all in docs) : L.DistortAction, L.FreeRotateAction, L.OpacityAction, L.DeleteAction, L.StackAction, L.EditAction, L.RotateAction, L.ScaleAction, L.TranslateAction, L.OpacitiesAction, L.GeolocateAction, L.RestoreAction, L.UnlockAction
@@ -368,10 +376,8 @@ async function createOverlay(imageUrl: string, overlayObject?: overlayObject) {
 
   const newOverlay = L.distortableImageOverlay(imageUrl, {
     editable: true,
-    tooltipText: overlayObject.tooltipText,
+    tooltipText: overlayObject.info?.projectName,
     keyboard: false,
-    //actions: editTools,
-    // can't use the editTools array since switch to view mode and back will empty it...
     actions: [
       infoTool,
       undoTool,
@@ -453,19 +459,26 @@ async function saveMapPosition() {
 async function saveImageAndPosition() {
   if (!db) return;
 
-  const savedOverlays = Object.values(overlays.value).map(overlayObject => ({
-    id: overlayObject.id,
-    imageUrl: overlayObject.overlay.getElement()?.src,
-    corners: overlayObject.overlay.getCorners(),
-    history: overlayObject.history,
-    redoStack: overlayObject.redoStack,
-    tooltipText: overlayObject.tooltipText // Save tooltipText
+  // Créer un tableau de StoredOverlayData à partir des overlayObject
+  const savedOverlays: StoredOverlayData[] = Object.values(overlays.value).map(overlayObj => ({
+    id: overlayObj.id,
+    imageUrl: overlayObj.overlay?.getElement()?.src,
+    corners: overlayObj.overlay?.getCorners() || [],
+    history: overlayObj.history,
+    redoStack: overlayObj.redoStack,
+    info: overlayObj.info || {
+      projectName: '',
+      address: '',
+      startDate: null,
+      endDate: null,
+      budget: 0
+    }
   }));
 
   await saveOverlaysToDB(savedOverlays);
 }
 
-async function saveOverlaysToDB(overlays: overlayObject[]) {
+async function saveOverlaysToDB(overlays: StoredOverlayData[]) {
   if (!db) return;
   const transaction = db.transaction('overlays', 'readwrite');
   const store = transaction.objectStore('overlays');
@@ -474,7 +487,8 @@ async function saveOverlaysToDB(overlays: overlayObject[]) {
   }
 }
 
-function saveToHistory(overlayObject: { id: string, overlay: L.ImageOverlay, history: { lat: number, lng: number }[][], redoStack: { lat: number, lng: number }[][] }) {
+function saveToHistory(overlayObject: overlayObject) {
+  if (!overlayObject.overlay) return;
   const currentState = JSON.parse(JSON.stringify(overlayObject.overlay.getCorners()));
   overlayObject.history.push(currentState);
   overlayObject.redoStack = []; // Clear redo stack for this overlay
@@ -484,15 +498,23 @@ async function addOverlay() {
   if (!map.value || !imageUrl.value) return;
 
   const id = crypto.randomUUID();
-  const overlayObject = {
+  const overlayObject: overlayObject = {
     id,
-    overlay: null as L.ImageOverlay,
-    marker: null as L.Marker,
+    imageUrl: imageUrl.value,
+    overlay: null,
+    marker: null,
     history: [],
     redoStack: [],
     alreadyLoaded: false,
-    alreadyStored: false, // Set to false since it's a new overlay
-    tooltipText: '' // Initialize tooltipText
+    alreadyStored: false,
+    corners: [],
+    info: {
+      projectName: '',
+      address: '',
+      startDate: null,
+      endDate: null,
+      budget: 0
+    }
   };
 
   const newOverlay = await createOverlay(imageUrl.value, overlayObject);
@@ -615,7 +637,7 @@ function updateTooltipText() {
   const overlayObject = overlays.value[idSelectedOverlay.value];
   if (!overlayObject) return;
 
-  //overlayObject.overlay.bindTooltip(overlayObject.tooltipText, { permanent: true, direction: 'top' }).openTooltip();
+  overlayObject.overlay.bindTooltip(overlayObject.info?.projectName, { permanent: true, direction: 'top' }).openTooltip();
 }
 
 // For a complete fix, we need to create a function that disables Leaflet's built-in keyboard handlers
