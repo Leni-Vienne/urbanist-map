@@ -5,12 +5,14 @@
     style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;"
   >
     <div class="map-buttons">
+
       <input
         type="file"
         @change="onImageUpload"
         accept="image/png, image/jpeg"
       />
-      <div class="card flex justify-center">
+      <!--<FileUpload mode="basic" accept="image/png, image/jpeg" :maxFileSize="1000000" @upload="onImageUpload" />-->
+      <div class="card flex">
         <Drawer
           v-model:visible="visible"
           header="Drawer"
@@ -106,7 +108,7 @@ export type StoredOverlayData = {
 
 export type info = {
   projectName: string;
-  address: string;
+  sourceLink: string;
   startDate: Date | null;
   endDate: Date | null;
   budget: number;
@@ -118,6 +120,7 @@ export type overlayObject = StoredOverlayData & {
   marker: L.Marker | null;
   alreadyLoaded: boolean; // Track if the overlay is already loaded in the page
   alreadyStored: boolean; // Track if the overlay is already stored in IndexedDB
+  whitePixelsHidden: boolean; // Track if white pixels are hidden or visible
 }
 
 type mapPosition = {
@@ -241,6 +244,7 @@ function createOverlayObject(savedOverlay: StoredOverlayData): overlayObject {
     marker: null,
     alreadyLoaded: false,
     alreadyStored: true,
+    whitePixelsHidden: false,
   };
 }
 
@@ -291,7 +295,7 @@ const undoTool = L.Toolbar2.Action.extend({
 const redoTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
-      html: '<i class="pi pi-redo"></i>',
+      html: '<i class="pi pi-undo icon-flipped"></i>',
       tooltip: 'Redo',
     },
   },
@@ -299,6 +303,31 @@ const redoTool = L.Toolbar2.Action.extend({
     redo();
   },
 })
+
+const resetRatioTool = L.Toolbar2.Action.extend({
+  options: {
+    toolbarIcon: {
+      html: '<i class="pi pi-arrow-up-right-and-arrow-down-left-from-center"></i>',
+      tooltip: 'Reset image ratio',
+    },
+  },
+  addHooks: function () {
+    resetImageRatio();
+  },
+})
+
+const backgroundTool = L.Toolbar2.Action.extend({
+  options: {
+    toolbarIcon: {
+      html: '<i class="pi pi-eraser"></i>',
+      tooltip: 'Remove background',
+    },
+  },
+  addHooks: function () {
+    toggleWhitePixels()
+  },
+})
+
 
 /**
  * Toolbar icon and subtoolbar heavily inspired by the L.OpacitiesAction action.
@@ -355,7 +384,7 @@ const infoTool = L.Toolbar2.Action.extend({
 
         const vnode = createVNode(InfoPopup, {
           overlayObject: overlays.value[idSelectedOverlay.value],
-          onProjectSubmit: handleProjectSubmit
+          onProjectSubmit: handleProjectSubmit,
         });
         vnode.appContext = app?.appContext ?? null;
         render(vnode, newDiv);
@@ -378,7 +407,7 @@ function handleProjectSubmit(projectInfo: info & { id: string }) {
   const overlay = overlays.value[projectInfo.id];
   overlay.info = {
     projectName: projectInfo.projectName,
-    address: projectInfo.address,
+    sourceLink: projectInfo.sourceLink,
     startDate: projectInfo.startDate,
     endDate: projectInfo.endDate,
     budget: projectInfo.budget
@@ -406,12 +435,17 @@ function handleProjectSubmit(projectInfo: info & { id: string }) {
 // L.GeolocateAction crashes "ReferenceError: EXIF is not defined"
 // L.RestoreAction undistorts the image
 // L.OpacitiesAction works well!
-const editTools = [undoTool, redoTool, L.DistortAction, L.FreeRotateAction, L.OpacityAction, L.OpacitiesAction, L.DeleteAction, L.StackAction]
-const viewTools = [centerTool, L.OpacityAction, L.OpacitiesAction, L.StackAction]
+const editTools = [undoTool, redoTool, resetRatioTool, backgroundTool, L.DistortAction, L.FreeRotateAction, L.OpacityAction, L.OpacitiesAction, L.DeleteAction, L.StackAction]
+const viewTools = [centerTool, resetRatioTool, backgroundTool, L.OpacityAction, L.OpacitiesAction, L.StackAction]
 
 
 async function createOverlay(imageUrl: string, overlayObject?: overlayObject) {
   if (!map.value || !overlayObject) return null;
+
+  // Si c'est la première fois qu'on charge cette image, sauvegarder l'URL originale
+  if (!overlayObject.imageUrl) {
+    overlayObject.imageUrl = imageUrl;
+  }
 
   const newOverlay = L.distortableImageOverlay(imageUrl, {
     editable: true,
@@ -421,6 +455,8 @@ async function createOverlay(imageUrl: string, overlayObject?: overlayObject) {
       infoTool,
       undoTool,
       redoTool,
+      resetRatioTool,
+      backgroundTool,
       L.DistortAction,
       L.FreeRotateAction,
       L.OpacityAction,
@@ -523,7 +559,7 @@ function saveImageAndPosition() {
       redoStack: overlayObj.redoStack,
       info: overlayObj.info || {
         projectName: '',
-        address: '',
+        sourceLink: '',
         startDate: null,
         endDate: null,
         budget: 0
@@ -562,11 +598,12 @@ async function addOverlay() {
     corners: [],
     info: {
       projectName: '',
-      address: '',
+      sourceLink: '',
       startDate: null,
       endDate: null,
       budget: 0
-    }
+    },
+    whitePixelsHidden: false,
   };
 
   const newOverlay = await createOverlay(imageUrl.value, overlayObject);
@@ -675,6 +712,74 @@ async function removeWhitePixels() {
   img.src = (overlay as any).getElement().src; // what is actually updating the image
 }
 
+async function toggleWhitePixels() {
+  if (!idSelectedOverlay.value) return;
+
+  const overlayObject = overlays.value[idSelectedOverlay.value];
+  if (!overlayObject || !overlayObject.overlay) return;
+
+  // Toggle the state
+  overlayObject.whitePixelsHidden = !overlayObject.whitePixelsHidden;
+
+  // Préparer le canvas pour manipuler l'image
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (!ctx || !map.value) return;
+
+  const img = new Image();
+  img.onload = async () => {
+    if (!map.value || !overlayObject.overlay) return;
+
+    canvas.width = img.width;
+    canvas.height = img.height;
+    ctx.drawImage(img, 0, 0);
+
+    // Si le mode "masquer pixels blancs" est activé
+    if (overlayObject.whitePixelsHidden) {
+      // Rendre les pixels blancs transparents
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const alpha = data[i + 3];
+
+        // Vérifier si le pixel est blanc ou gris (mêmes valeurs RGB)
+        if (r === g && g === b && alpha > 0) {
+          data[i + 3] = 0; // Rendre transparent
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      const updatedImageUrl = canvas.toDataURL();
+      
+      // Remplacer l'overlay actuel avec l'image modifiée
+      map.value.removeLayer(overlayObject.overlay);
+      await createOverlay(updatedImageUrl, overlayObject);
+    } else {
+      // Restaurer l'image originale
+      if (overlayObject.imageUrl) {
+        map.value.removeLayer(overlayObject.overlay);
+        await createOverlay(overlayObject.imageUrl, overlayObject);
+      }
+    }
+    
+    // Notifier l'utilisateur
+    toast.add({ 
+      severity: 'info', 
+      summary: overlayObject.whitePixelsHidden ? 'Pixels blancs masqués' : 'Pixels blancs affichés', 
+      life: 2000 
+    });
+  };
+  
+  // Utiliser l'image originale pour le traitement
+  img.src = overlayObject.whitePixelsHidden ? 
+    (overlayObject.imageUrl || (overlayObject.overlay as any).getElement().src) : 
+    (overlayObject.overlay as any).getElement().src;
+}
+
 function clearIndexedDB() {
   if (!db) return;
 
@@ -687,6 +792,91 @@ function clearIndexedDB() {
   storeMapPosition.clear();
 
   alert('IndexedDB cleared!');
+}
+
+function resetImageRatio() {
+  if (!idSelectedOverlay.value) {
+    toast.add({ 
+      severity: 'warn', 
+      summary: 'No image selected', 
+      detail: 'Please select an image first', 
+      life: 3000 
+    });
+    return;
+  }
+
+  const overlayObject = overlays.value[idSelectedOverlay.value];
+  if (!overlayObject || !overlayObject.overlay) return;
+
+  // Create a new image to get the natural dimensions
+  const img = new Image();
+  img.onload = () => {
+    if (!overlayObject.overlay || !map.value) return;
+
+    // Get current corners and center point
+    const currentCorners = overlayObject.overlay.getCorners();
+    if (!currentCorners || currentCorners.length !== 4) return;
+    
+    // Calculate the center of the current image
+    const center = {
+      lat: (currentCorners[0].lat + currentCorners[2].lat) / 2,
+      lng: (currentCorners[0].lng + currentCorners[2].lng) / 2
+    };
+    
+    // Calculate current width and height in pixels
+    const bounds = overlayObject.overlay.getBounds();
+    const northEast = map.value.latLngToContainerPoint(bounds.getNorthEast());
+    const southWest = map.value.latLngToContainerPoint(bounds.getSouthWest());
+    const currentWidthPx = Math.abs(northEast.x - southWest.x);
+    const currentHeightPx = Math.abs(northEast.y - southWest.y);
+    
+    // Calculate the aspect ratio of the original image
+    const originalRatio = img.naturalWidth / img.naturalHeight;
+    
+    // Determine whether to adjust width or height based on current dimensions
+    let newWidth, newHeight;
+    if (currentWidthPx / currentHeightPx > originalRatio) {
+      // Current image is too wide, adjust width based on height
+      newHeight = currentHeightPx;
+      newWidth = newHeight * originalRatio;
+    } else {
+      // Current image is too tall, adjust height based on width
+      newWidth = currentWidthPx;
+      newHeight = newWidth / originalRatio;
+    }
+    
+    // Convert back to geo coordinates
+    const centerPoint = map.value.latLngToContainerPoint(center);
+    const halfWidth = newWidth / 2;
+    const halfHeight = newHeight / 2;
+    
+    // Create new corner points - IMPORTANT: En inversant les deux coins du bas pour corriger l'orientation
+    const newCorners = [
+      map.value.containerPointToLatLng([centerPoint.x - halfWidth, centerPoint.y - halfHeight]), // top-left
+      map.value.containerPointToLatLng([centerPoint.x + halfWidth, centerPoint.y - halfHeight]), // top-right
+      map.value.containerPointToLatLng([centerPoint.x - halfWidth, centerPoint.y + halfHeight]), // bottom-left - INVERSÉ
+      map.value.containerPointToLatLng([centerPoint.x + halfWidth, centerPoint.y + halfHeight])  // bottom-right - INVERSÉ
+    ];
+    
+    // Apply the new corners
+    overlayObject.overlay.setCorners(newCorners);
+    
+    // Save the changes to history
+    saveToHistory(overlayObject);
+    updateMarkerPosition(overlayObject);
+    saveImageAndPosition();
+    
+    toast.add({ 
+      severity: 'success', 
+      summary: 'Image ratio reset', 
+      detail: 'The image proportions have been restored', 
+      life: 3000 
+    });
+  };
+  
+  // Get the original image URL
+  img.src = overlayObject.imageUrl || 
+           (overlayObject.overlay.getElement() as HTMLImageElement).src;
 }
 
 function updateTooltipText() {

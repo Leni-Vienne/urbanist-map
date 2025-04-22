@@ -7,7 +7,12 @@ import ToastService from 'primevue/toastservice';
 const app = createApp(App)
 app.use(PrimeVue, {
     theme: {
-        preset: Aura
+        preset: Aura,
+        options: {
+            prefix: 'p',
+            darkModeSelector: 'light',
+            cssLayer: false
+        }
     }
 })
 app.use(ToastService);
