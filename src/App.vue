@@ -34,11 +34,6 @@
       </div>
       <div class="card flex justify-center">
         <div class="w-56">
-          <Button @click="removeWhitePixels">Remove White Pixels</Button>
-        </div>
-      </div>
-      <div class="card flex justify-center">
-        <div class="w-56">
           <Button @click="clearIndexedDB">Clear Local Storage</Button>
         </div>
       </div>
@@ -183,16 +178,25 @@ async function initializeDatabase() {
 async function initializeMap() {
   L.latLng
   const savedPosition = await getSavedMapPosition();
-  if (!savedPosition) {
-    console.error('No saved map position found in IndexedDB.');
-    return;
-  }
 
-  // to make setView() happy
-  const initialView: L.LatLngExpression = { lat: savedPosition?.center[0] || 48.8566, lng: savedPosition?.center[1] || 2.3522 };
+  // Default coordinates for Paris if no saved position is found
+  const defaultLat = 48.8566;
+  const defaultLng = 2.3522;
+  const defaultZoom = 13;
 
-  map.value = L.map("viewerDiv").setView(initialView, savedPosition.zoom);
+  // Use saved position or defaults
+  const center = savedPosition ? savedPosition.center : [defaultLat, defaultLng];
+  const zoom = savedPosition ? savedPosition.zoom : defaultZoom;
+
+  const initialView: L.LatLngExpression = { lat: center[0], lng: center[1] };
+
+  map.value = L.map("viewerDiv").setView(initialView, zoom);
   if (!map.value) throw new Error('No map element found');
+
+  // Save default position if none exists
+  if (!savedPosition) {
+    saveMapPosition();
+  }
 
   addTileLayer();
   map.value.on('moveend', saveMapPosition);
@@ -283,7 +287,7 @@ const centerTool = L.Toolbar2.Action.extend({
 const undoTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
-      html: '<span class="pi pi-undo"></span>',
+      className: "pi pi-undo",
       tooltip: 'Undo',
     },
   },
@@ -295,7 +299,7 @@ const undoTool = L.Toolbar2.Action.extend({
 const redoTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
-      html: '<i class="pi pi-undo icon-flipped"></i>',
+      className: "pi pi-undo icon-flipped",
       tooltip: 'Redo',
     },
   },
@@ -307,8 +311,8 @@ const redoTool = L.Toolbar2.Action.extend({
 const resetRatioTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
-      html: '<i class="pi pi-arrow-up-right-and-arrow-down-left-from-center"></i>',
-      tooltip: 'Reset image ratio',
+      className: "pi pi-arrow-up-right-and-arrow-down-left-from-center",
+      tooltip: 'Restore image ratio',
     },
   },
   addHooks: function () {
@@ -319,12 +323,12 @@ const resetRatioTool = L.Toolbar2.Action.extend({
 const backgroundTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
-      html: '<i class="pi pi-eraser"></i>',
-      tooltip: 'Remove background',
+      className: "pi pi-eraser",
+
     },
   },
-  addHooks: function () {
-    toggleWhitePixels()
+  addHooks: async function () {
+    await toggleWhitePixels();
   },
 })
 
@@ -343,7 +347,6 @@ const infoTool = L.Toolbar2.Action.extend({
       actions: [L.EditAction.extend({
         options: {
           toolbarIcon: {
-            html: `<div id="info-popup-container"></div>`,
             tooltip: "Info",
             className: "more-info-popup",
           },
@@ -358,9 +361,12 @@ const infoTool = L.Toolbar2.Action.extend({
     const link = this._link;
     if (L.DomUtil.hasClass(link, "subtoolbar_enabled")) {
       L.DomUtil.removeClass(link, "subtoolbar_enabled");
+
+      // this ime out allows the popup to be removed is the user clicks on the icon again
       setTimeout(() => {
         this.options.subToolbar._hide();
       }, 100);
+
     } else {
       L.DomUtil.addClass(link, "subtoolbar_enabled");
 
@@ -442,7 +448,7 @@ const viewTools = [centerTool, resetRatioTool, backgroundTool, L.OpacityAction, 
 async function createOverlay(imageUrl: string, overlayObject?: overlayObject) {
   if (!map.value || !overlayObject) return null;
 
-  // Si c'est la première fois qu'on charge cette image, sauvegarder l'URL originale
+  // if it's the first time we create the overlay, we need to set the imageUrl
   if (!overlayObject.imageUrl) {
     overlayObject.imageUrl = imageUrl;
   }
@@ -547,13 +553,12 @@ async function saveMapPosition() {
 function saveImageAndPosition() {
   if (!db) return;
 
-  // Create StoredOverlayData array from overlayObjects
   const savedOverlays: StoredOverlayData[] = Object.values(overlays.value).map(overlayObj => {
-    // Vérifier que overlay existe
+
     const element = overlayObj.overlay?.getElement();
     return {
       id: overlayObj.id,
-      imageUrl: element?.src || overlayObj.imageUrl, // Utiliser l'URL stockée si l'élément n'existe pas
+      imageUrl: element?.src || overlayObj.imageUrl,
       corners: overlayObj.overlay?.getCorners() || [],
       history: overlayObj.history,
       redoStack: overlayObj.redoStack,
@@ -646,8 +651,6 @@ function redo() {
   (overlay as any).setCorners(nextState);
 
   updateMarkerPosition(overlayObject);
-
-  // Persister les changements après un redo
   saveImageAndPosition();
 }
 
@@ -668,50 +671,6 @@ function toggleEditMode() {
   });
 }
 
-async function removeWhitePixels() {
-  if (!idSelectedOverlay.value) return;
-
-  const overlayObject = overlays.value[idSelectedOverlay.value];
-  if (!overlayObject) return;
-
-  const { overlay } = overlayObject;
-
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  if (!ctx || !map.value || !overlay) return;
-
-  const img = new Image();
-  img.onload = async () => {
-    if (!map.value) return;
-
-    canvas.width = img.width;
-    canvas.height = img.height;
-    ctx.drawImage(img, 0, 0);
-
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imageData.data;
-
-    for (let i = 0; i < data.length; i += 4) {
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-      const alpha = data[i + 3];
-
-      // Check if the pixel has the same red, green, and blue values
-      if (r === g && g === b && alpha > 0) {
-        data[i + 3] = 0; // Set alpha to 0 (make pixel transparent)
-      }
-    }
-
-    ctx.putImageData(imageData, 0, 0);
-    const updatedImageUrl = canvas.toDataURL();
-
-    map.value.removeLayer(overlay);
-    await createOverlay(updatedImageUrl, overlayObject);
-  };
-  img.src = (overlay as any).getElement().src; // what is actually updating the image
-}
-
 async function toggleWhitePixels() {
   if (!idSelectedOverlay.value) return;
 
@@ -721,7 +680,6 @@ async function toggleWhitePixels() {
   // Toggle the state
   overlayObject.whitePixelsHidden = !overlayObject.whitePixelsHidden;
 
-  // Préparer le canvas pour manipuler l'image
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   if (!ctx || !map.value) return;
@@ -734,9 +692,8 @@ async function toggleWhitePixels() {
     canvas.height = img.height;
     ctx.drawImage(img, 0, 0);
 
-    // Si le mode "masquer pixels blancs" est activé
     if (overlayObject.whitePixelsHidden) {
-      // Rendre les pixels blancs transparents
+
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
 
@@ -746,37 +703,35 @@ async function toggleWhitePixels() {
         const b = data[i + 2];
         const alpha = data[i + 3];
 
-        // Vérifier si le pixel est blanc ou gris (mêmes valeurs RGB)
+        // check if the pixel is a gray shade (which is likely a background pixel)
         if (r === g && g === b && alpha > 0) {
-          data[i + 3] = 0; // Rendre transparent
+          data[i + 3] = 0; // makes the pixel transparent
         }
       }
 
       ctx.putImageData(imageData, 0, 0);
       const updatedImageUrl = canvas.toDataURL();
-      
+
       // Remplacer l'overlay actuel avec l'image modifiée
       map.value.removeLayer(overlayObject.overlay);
       await createOverlay(updatedImageUrl, overlayObject);
-    } else {
+
+    } else if (overlayObject.imageUrl) {
       // Restaurer l'image originale
-      if (overlayObject.imageUrl) {
-        map.value.removeLayer(overlayObject.overlay);
-        await createOverlay(overlayObject.imageUrl, overlayObject);
-      }
+      map.value.removeLayer(overlayObject.overlay);
+      await createOverlay(overlayObject.imageUrl, overlayObject);
     }
-    
-    // Notifier l'utilisateur
-    toast.add({ 
-      severity: 'info', 
-      summary: overlayObject.whitePixelsHidden ? 'Pixels blancs masqués' : 'Pixels blancs affichés', 
-      life: 2000 
+
+    toast.add({
+      severity: 'info',
+      summary: overlayObject.whitePixelsHidden ? 'Background pixels have been hidden' : 'Background pixels are now visible',
+      life: 2000
     });
   };
-  
-  // Utiliser l'image originale pour le traitement
-  img.src = overlayObject.whitePixelsHidden ? 
-    (overlayObject.imageUrl || (overlayObject.overlay as any).getElement().src) : 
+
+  // Processing with the original image URL
+  img.src = overlayObject.whitePixelsHidden ?
+    (overlayObject.imageUrl || (overlayObject.overlay as any).getElement().src) :
     (overlayObject.overlay as any).getElement().src;
 }
 
@@ -796,11 +751,11 @@ function clearIndexedDB() {
 
 function resetImageRatio() {
   if (!idSelectedOverlay.value) {
-    toast.add({ 
-      severity: 'warn', 
-      summary: 'No image selected', 
-      detail: 'Please select an image first', 
-      life: 3000 
+    toast.add({
+      severity: 'warn',
+      summary: 'No image selected',
+      detail: 'Please select an image first',
+      life: 3000
     });
     return;
   }
@@ -816,25 +771,25 @@ function resetImageRatio() {
     // Get current corners and center point
     const currentCorners = overlayObject.overlay.getCorners();
     if (!currentCorners || currentCorners.length !== 4) return;
-    
+
     // Calculate the center of the current image
     const center = {
       lat: (currentCorners[0].lat + currentCorners[2].lat) / 2,
       lng: (currentCorners[0].lng + currentCorners[2].lng) / 2
     };
-    
+
     // Calculate current width and height in pixels
     const bounds = overlayObject.overlay.getBounds();
     const northEast = map.value.latLngToContainerPoint(bounds.getNorthEast());
     const southWest = map.value.latLngToContainerPoint(bounds.getSouthWest());
     const currentWidthPx = Math.abs(northEast.x - southWest.x);
     const currentHeightPx = Math.abs(northEast.y - southWest.y);
-    
+
     // Calculate the aspect ratio of the original image
     const originalRatio = img.naturalWidth / img.naturalHeight;
-    
+
     // Determine whether to adjust width or height based on current dimensions
-    let newWidth, newHeight;
+    let newWidth: number, newHeight: numer;
     if (currentWidthPx / currentHeightPx > originalRatio) {
       // Current image is too wide, adjust width based on height
       newHeight = currentHeightPx;
@@ -844,39 +799,39 @@ function resetImageRatio() {
       newWidth = currentWidthPx;
       newHeight = newWidth / originalRatio;
     }
-    
+
     // Convert back to geo coordinates
     const centerPoint = map.value.latLngToContainerPoint(center);
     const halfWidth = newWidth / 2;
     const halfHeight = newHeight / 2;
-    
+
     // Create new corner points - IMPORTANT: En inversant les deux coins du bas pour corriger l'orientation
     const newCorners = [
       map.value.containerPointToLatLng([centerPoint.x - halfWidth, centerPoint.y - halfHeight]), // top-left
       map.value.containerPointToLatLng([centerPoint.x + halfWidth, centerPoint.y - halfHeight]), // top-right
-      map.value.containerPointToLatLng([centerPoint.x - halfWidth, centerPoint.y + halfHeight]), // bottom-left - INVERSÉ
-      map.value.containerPointToLatLng([centerPoint.x + halfWidth, centerPoint.y + halfHeight])  // bottom-right - INVERSÉ
+      map.value.containerPointToLatLng([centerPoint.x - halfWidth, centerPoint.y + halfHeight]), // bottom-left
+      map.value.containerPointToLatLng([centerPoint.x + halfWidth, centerPoint.y + halfHeight])  // bottom-right
     ];
-    
+
     // Apply the new corners
     overlayObject.overlay.setCorners(newCorners);
-    
+
     // Save the changes to history
     saveToHistory(overlayObject);
     updateMarkerPosition(overlayObject);
     saveImageAndPosition();
-    
-    toast.add({ 
-      severity: 'success', 
-      summary: 'Image ratio reset', 
-      detail: 'The image proportions have been restored', 
-      life: 3000 
+
+    toast.add({
+      severity: 'success',
+      summary: 'Image ratio reset',
+      detail: 'The image proportions have been restored',
+      life: 3000
     });
   };
-  
+
   // Get the original image URL
-  img.src = overlayObject.imageUrl || 
-           (overlayObject.overlay.getElement() as HTMLImageElement).src;
+  img.src = overlayObject.imageUrl ||
+    (overlayObject.overlay.getElement() as HTMLImageElement).src;
 }
 
 function updateTooltipText() {
@@ -892,39 +847,23 @@ function updateTooltipText() {
 // For a complete fix, we need to create a function that disables Leaflet's built-in keyboard handlers
 function disableLeafletKeyboardEvents() {
   // Disable keyboard events on map container
-  if (map.value) {
-    // Remove keyboard handlers from map
-    map.value.keyboard.disable();
-
-    // Add event listeners to prevent key events from propagating to Leaflet
-    const mapContainer = map.value.getContainer();
-    if (mapContainer) {
-      ['keydown', 'keyup', 'keypress'].forEach(eventType => {
-        mapContainer.addEventListener(eventType, (e) => {
-          e.stopPropagation();
-        }, true);
-      });
-    }
+  if (!map.value) {
+    console.error('Map is not initialized yet!');
+    return;
   }
+  // Remove keyboard handlers from map so that arrow keys don't move the map
+  map.value.keyboard.disable();
 
-  // Disable keyboard events on all image overlays
-  Object.values(overlays.value).forEach(overlayObject => {
-    if (overlayObject.overlay && (overlayObject.overlay as any).editing) {
-      // Disable any keyboard handlers in the editing instance
-      if ((overlayObject.overlay as any).editing._disableKeyboard) {
-        (overlayObject.overlay as any)._disableKeyboard();
-      }
-
-      // If the overlay has an element, prevent keyboard events on it
-      const element = overlayObject.overlay.getElement();
-      if (element) {
-        ['keydown', 'keyup', 'keypress'].forEach(eventType => {
-          element.addEventListener(eventType, (e) => {
-            e.stopPropagation();
-          }, true);
-        });
-      }
-    }
+  // Add event listeners to prevent key events from propagating to Leaflet
+  const mapContainer = map.value.getContainer();
+  if (!mapContainer) {
+    console.error('Map container not found!');
+    return;
+  }
+  ['keydown', 'keyup', 'keypress'].forEach(eventType => {
+    mapContainer.addEventListener(eventType, (e: KeyboardEvent) => {
+      e.stopPropagation();
+    }, true);
   });
 }
 
