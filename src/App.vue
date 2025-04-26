@@ -5,7 +5,7 @@
     style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;"
   >
     <div class="map-buttons">
-
+      {{ idSelectedOverlay }}
       <input
         type="file"
         @change="onImageUpload"
@@ -47,6 +47,7 @@ import L from "leaflet";
 // Extend Leaflet namespace to include custom actions
 declare module "leaflet" {
   const DistortAction: any;
+  const RotateAction: any;
   const FreeRotateAction: any;
   const OpacityAction: any;
   const OpacitiesAction: any;
@@ -190,7 +191,7 @@ async function initializeMap() {
 
   const initialView: L.LatLngExpression = { lat: center[0], lng: center[1] };
 
-  map.value = L.map("viewerDiv").setView(initialView, zoom);
+  map.value = L.map("viewerDiv", { maxZoom: 22 }).setView(initialView, zoom);
   if (!map.value) throw new Error('No map element found');
 
   // Save default position if none exists
@@ -215,9 +216,11 @@ function addTileLayer() {
     'https://data.geopf.fr/wmts?service=WMTS&request=GetTile&version=1.0.0&tilematrixset=PM&tilematrix={z}&tilecol={x}&tilerow={y}&layer=ORTHOIMAGERY.ORTHOPHOTOS&format=image/jpeg&style=normal',
     {
       minZoom: 0,
-      maxZoom: 19, // TODO cannot go to 20 with data.geopf.fr, I need to search why
+      maxZoom: 22, // Allow zooming in further
+      maxNativeZoom: 19, // Tiles only exist up to 19, upscale after
       tileSize: 256,
-      attribution: "IGN-F/Géoportail"
+      attribution: "IGN-F/Géoportail",
+      noWrap: true
     }
   ).addTo(map.value);
 }
@@ -250,6 +253,103 @@ function createOverlayObject(savedOverlay: StoredOverlayData): overlayObject {
     alreadyStored: true,
     whitePixelsHidden: false,
   };
+}
+
+async function createOverlay(imageUrl: string, overlayObject?: overlayObject) {
+  if (!map.value || !overlayObject) return null;
+
+  // if it's the first time we create the overlay, we need to set the imageUrl
+  if (!overlayObject.imageUrl) {
+    overlayObject.imageUrl = imageUrl;
+  }
+
+  const newOverlay = L.distortableImageOverlay(imageUrl, {
+    editable: true,
+    tooltipText: overlayObject.info?.projectName,
+    keyboard: false,
+    actions: [
+      infoTool,
+      undoTool,
+      redoTool,
+      resetRatioTool,
+      backgroundTool,
+      L.DistortAction,
+      L.RotateAction,
+      L.FreeRotateAction,
+      L.OpacityAction,
+      L.OpacitiesAction,
+      customDeleteTool,
+      L.StackAction,
+    ],
+  }).addTo(map.value);
+
+  overlayObject.overlay = newOverlay;
+
+  setOverlayBorder(newOverlay.getElement(), isEditMode.value && idSelectedOverlay.value === overlayObject.id);
+
+
+  // Update border on selection
+  newOverlay.on('select', () => {
+    idSelectedOverlay.value = overlayObject.id;
+    updateAllOverlayBorders();
+  });
+
+  newOverlay.on('deselect', () => {
+    idSelectedOverlay.value = null;
+    updateAllOverlayBorders();
+  });
+
+  // Explicitly disable keyboard handling on the overlay
+  if (newOverlay.editing && newOverlay.editing._disableKeyboard) {
+    newOverlay.editing._disableKeyboard();
+  }
+
+  newOverlay.on('edit', () => {
+    saveToHistory(overlayObject);
+    saveImageAndPosition();
+    updateMarkerPosition(overlayObject);
+  });
+  newOverlay.on('dragend', () => {
+    saveToHistory(overlayObject);
+    saveImageAndPosition();
+    updateMarkerPosition(overlayObject);
+  });
+
+  // allows to access the corners of the image on load since newOverlay.on('load') doesn't work
+  // credit to https://github.com/publiclab/Leaflet.DistortableImage/issues/953#issuecomment-1262298228
+
+  const element = newOverlay.getElement();
+  if (!element) {
+    console.error('Element not found for overlay:', overlayObject.id);
+    return null;
+  }
+  L.DomEvent.on(element, 'load', () => {
+    if (overlayObject.alreadyStored || overlayObject.alreadyLoaded) {
+      (overlayObject.overlay as any).setCorners(overlayObject.history.at(-1));
+    }
+
+    if (!overlayObject.alreadyLoaded) {
+      saveToHistory(overlayObject);
+      const marker = createMarker(overlayObject);
+      if (marker) {
+        overlayObject.marker = marker;
+      } else {
+        console.error('Failed to create marker for overlay:', overlayObject.id);
+      }
+    }
+
+    overlayObject.alreadyLoaded = true
+    overlayObject.alreadyStored = true
+  });
+  return newOverlay;
+}
+
+function createMarker(overlayObject: overlayObject) {
+  if (!map.value || !overlayObject.overlay) return null;
+  const bounds = overlayObject.overlay.getBounds();
+  const center = bounds.getCenter();
+  const marker = L.marker(center).addTo(map.value);
+  return marker;
 }
 
 async function onImageUpload(event: Event) {
@@ -288,7 +388,7 @@ const undoTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       className: "pi pi-undo",
-      tooltip: 'Undo',
+      tooltip: 'Undo (control + z)',
     },
   },
   addHooks: function () {
@@ -300,7 +400,7 @@ const redoTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       className: "pi pi-undo icon-flipped",
-      tooltip: 'Redo',
+      tooltip: 'Redo (control + y)',
     },
   },
   addHooks: function () {
@@ -324,6 +424,7 @@ const backgroundTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       className: "pi pi-eraser",
+      tooltip: 'Toggle the background',
 
     },
   },
@@ -332,6 +433,35 @@ const backgroundTool = L.Toolbar2.Action.extend({
   },
 })
 
+const customDeleteTool = L.Toolbar2.Action.extend({
+  options: {
+    toolbarIcon: {
+      className: "pi pi-trash",
+      tooltip: "Delete this overlay",
+    },
+  },
+  addHooks: function () {
+    if (!idSelectedOverlay.value) {
+      toast.add({
+        severity: 'warn',
+        summary: 'No image selected',
+        detail: 'Please select an image first',
+        life: 3000
+      });
+      return;
+    }
+    // Confirm deletion
+    if (confirm('Are you sure you want to delete this overlay?')) {
+      deleteOverlay(idSelectedOverlay.value);
+      idSelectedOverlay.value = null;
+      toast.add({
+        severity: 'success',
+        summary: 'Overlay deleted',
+        life: 2000
+      });
+    }
+  },
+});
 
 /**
  * Toolbar icon and subtoolbar heavily inspired by the L.OpacitiesAction action.
@@ -441,93 +571,21 @@ function handleProjectSubmit(projectInfo: info & { id: string }) {
 // L.GeolocateAction crashes "ReferenceError: EXIF is not defined"
 // L.RestoreAction undistorts the image
 // L.OpacitiesAction works well!
-const editTools = [undoTool, redoTool, resetRatioTool, backgroundTool, L.DistortAction, L.FreeRotateAction, L.OpacityAction, L.OpacitiesAction, L.DeleteAction, L.StackAction]
+const editTools = [undoTool, redoTool, resetRatioTool, backgroundTool, L.DistortAction, L.RotateAction, L.FreeRotateAction, L.OpacityAction, L.OpacitiesAction, customDeleteTool, L.StackAction]
 const viewTools = [centerTool, resetRatioTool, backgroundTool, L.OpacityAction, L.OpacitiesAction, L.StackAction]
 
+const SELECTED_OVERLAY_OUTLINE = '8px solid #ffffff';
+const SELECTED_OVERLAY_OUTLINE_OFFSET = '-8px';
 
-async function createOverlay(imageUrl: string, overlayObject?: overlayObject) {
-  if (!map.value || !overlayObject) return null;
-
-  // if it's the first time we create the overlay, we need to set the imageUrl
-  if (!overlayObject.imageUrl) {
-    overlayObject.imageUrl = imageUrl;
+function setOverlayBorder(element: HTMLElement | null, isSelected: boolean) {
+  if (!element) return;
+  if (isSelected) {
+    element.style.outline = SELECTED_OVERLAY_OUTLINE;
+    element.style.outlineOffset = SELECTED_OVERLAY_OUTLINE_OFFSET;
+  } else {
+    element.style.outline = '';
+    element.style.outlineOffset = '';
   }
-
-  const newOverlay = L.distortableImageOverlay(imageUrl, {
-    editable: true,
-    tooltipText: overlayObject.info?.projectName,
-    keyboard: false,
-    actions: [
-      infoTool,
-      undoTool,
-      redoTool,
-      resetRatioTool,
-      backgroundTool,
-      L.DistortAction,
-      L.FreeRotateAction,
-      L.OpacityAction,
-      L.OpacitiesAction,
-      L.DeleteAction,
-      L.StackAction,
-    ],
-  }).addTo(map.value);
-
-  overlayObject.overlay = newOverlay;
-
-  // Explicitly disable keyboard handling on the overlay
-  if (newOverlay.editing && newOverlay.editing._disableKeyboard) {
-    newOverlay.editing._disableKeyboard();
-  }
-
-  newOverlay.on('edit', () => {
-    saveToHistory(overlayObject);
-    saveImageAndPosition();
-    updateMarkerPosition(overlayObject);
-  });
-  newOverlay.on('dragend', () => {
-    saveToHistory(overlayObject);
-    saveImageAndPosition();
-    updateMarkerPosition(overlayObject);
-  });
-  newOverlay.on('select', () => {
-    idSelectedOverlay.value = overlayObject.id;
-  });
-
-  // allows to access the corners of the image on load since newOverlay.on('load') doesn't work
-  // credit to https://github.com/publiclab/Leaflet.DistortableImage/issues/953#issuecomment-1262298228
-
-  const element = newOverlay.getElement();
-  if (!element) {
-    console.error('Element not found for overlay:', overlayObject.id);
-    return null;
-  }
-  L.DomEvent.on(element, 'load', () => {
-    if (overlayObject.alreadyStored || overlayObject.alreadyLoaded) {
-      (overlayObject.overlay as any).setCorners(overlayObject.history.at(-1));
-    }
-
-    if (!overlayObject.alreadyLoaded) {
-      saveToHistory(overlayObject);
-      const marker = createMarker(overlayObject);
-      if (marker) {
-        overlayObject.marker = marker;
-      } else {
-        console.error('Failed to create marker for overlay:', overlayObject.id);
-      }
-    }
-
-    overlayObject.alreadyLoaded = true
-    overlayObject.alreadyStored = true
-  });
-  return newOverlay;
-}
-
-function createMarker(overlayObject: overlayObject) {
-  if (!map.value || !overlayObject.overlay) return null;
-  const bounds = overlayObject.overlay.getBounds();
-  const center = bounds.getCenter();
-  const marker = L.marker(center).addTo(map.value);
-  return marker;
 }
 
 function updateMarkerPosition(overlayObject: overlayObject) {
@@ -554,11 +612,10 @@ function saveImageAndPosition() {
   if (!db) return;
 
   const savedOverlays: StoredOverlayData[] = Object.values(overlays.value).map(overlayObj => {
-
-    const element = overlayObj.overlay?.getElement();
+    // Always save the original imageUrl, not the possibly modified overlay element src
     return {
       id: overlayObj.id,
-      imageUrl: element?.src || overlayObj.imageUrl,
+      imageUrl: overlayObj.imageUrl, // <-- always the original
       corners: overlayObj.overlay?.getCorners() || [],
       history: overlayObj.history,
       redoStack: overlayObj.redoStack,
@@ -654,6 +711,15 @@ function redo() {
   saveImageAndPosition();
 }
 
+function updateAllOverlayBorders() {
+  Object.values(overlays.value).forEach((overlayObject) => {
+    setOverlayBorder(
+      overlayObject.overlay?.getElement() || null,
+      isEditMode.value && idSelectedOverlay.value === overlayObject.id
+    );
+  });
+}
+
 function toggleEditMode() {
   isEditMode.value = !isEditMode.value;
 
@@ -668,7 +734,18 @@ function toggleEditMode() {
       editTools.forEach((tool) => editing.removeTool(tool));
       viewTools.forEach((tool) => editing.addTool(tool));
     }
+
+    // Add or remove border depending on mode
+    const element = overlayObject.overlay?.getElement();
+    if (element) {
+      if (isEditMode.value) {
+        element.style.boxShadow = SELECTED_OVERLAY_OUTLINE;
+      } else {
+        element.style.boxShadow = '';
+      }
+    }
   });
+  updateAllOverlayBorders();
 }
 
 async function toggleWhitePixels() {
@@ -865,6 +942,29 @@ function disableLeafletKeyboardEvents() {
       e.stopPropagation();
     }, true);
   });
+}
+
+function deleteOverlay(id: string) {
+  const overlayObject = overlays.value[id];
+  if (!overlayObject) return;
+
+  // Remove overlay from map
+  if (overlayObject.overlay && map.value) {
+    map.value.removeLayer(overlayObject.overlay);
+  }
+  // Remove marker from map
+  if (overlayObject.marker && map.value) {
+    map.value.removeLayer(overlayObject.marker);
+  }
+  // Remove from overlays object
+  delete overlays.value[id];
+
+  // Remove from IndexedDB
+  if (db) {
+    const transaction = db.transaction('overlays', 'readwrite');
+    const store = transaction.objectStore('overlays');
+    store.delete(id);
+  }
 }
 
 </script>
