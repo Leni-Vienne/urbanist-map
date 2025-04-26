@@ -32,7 +32,6 @@
                         size="small"
                         required
                         view="year"
-                        selectionMode="range"
                     />
                 </FloatLabel>
                 <FloatLabel variant="in">
@@ -102,8 +101,8 @@
 
 <script setup lang="ts">
 import { ref, PropType, onMounted } from 'vue';
-import type { overlayObject } from '../App.vue'
-import { useToast } from 'primevue/usetoast';
+import type { overlayObject } from '../types'
+import { useToast } from '../composables/useToast';
 
 const toast = useToast();
 
@@ -131,7 +130,6 @@ const formData = ref({
 
 // Initialize form with existing data if available
 onMounted(() => {
-    console.log("dans onMounted", props.overlayObject);
     if (props.overlayObject && props.overlayObject.info) {
         formData.value = {
             projectName: props.overlayObject.info.projectName || '',
@@ -144,7 +142,6 @@ onMounted(() => {
 });
 
 function submitForm() {
-    console.log('Form submitted with data:', formData.value);
     emit('projectSubmit', {
         id: props.overlayObject.id,
         ...formData.value
@@ -172,6 +169,7 @@ function formatDate(date: Date | null): string {
 <style scoped>
 
 @import "tailwindcss";
+@import "tailwindcss-primeui";
 
 .info-popup-content {
     padding: 10px;
