@@ -5,7 +5,6 @@
     style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;"
   >
     <div class="map-buttons">
-      {{ idSelectedOverlay }}
       <input
         type="file"
         @change="onImageUpload"
@@ -285,18 +284,16 @@ async function createOverlay(imageUrl: string, overlayObject?: overlayObject) {
 
   overlayObject.overlay = newOverlay;
 
-  setOverlayBorder(newOverlay.getElement(), isEditMode.value && idSelectedOverlay.value === overlayObject.id);
-
-
   // Update border on selection
   newOverlay.on('select', () => {
+    setOverlayBorder(newOverlay.getElement(), true);
     idSelectedOverlay.value = overlayObject.id;
-    updateAllOverlayBorders();
   });
 
   newOverlay.on('deselect', () => {
+    setOverlayBorder(newOverlay.getElement(), false);
     idSelectedOverlay.value = null;
-    updateAllOverlayBorders();
+    console.log("fini !: ")
   });
 
   // Explicitly disable keyboard handling on the overlay
@@ -308,11 +305,13 @@ async function createOverlay(imageUrl: string, overlayObject?: overlayObject) {
     saveToHistory(overlayObject);
     saveImageAndPosition();
     updateMarkerPosition(overlayObject);
+    console.log("edit ")
   });
   newOverlay.on('dragend', () => {
     saveToHistory(overlayObject);
     saveImageAndPosition();
     updateMarkerPosition(overlayObject);
+    console.log("dragend")
   });
 
   // allows to access the corners of the image on load since newOverlay.on('load') doesn't work
@@ -399,7 +398,7 @@ const undoTool = L.Toolbar2.Action.extend({
 const redoTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
-      className: "pi pi-undo icon-flipped",
+      className: "pi pi-refresh",
       tooltip: 'Redo (control + y)',
     },
   },
@@ -577,7 +576,7 @@ const viewTools = [centerTool, resetRatioTool, backgroundTool, L.OpacityAction, 
 const SELECTED_OVERLAY_OUTLINE = '8px solid #ffffff';
 const SELECTED_OVERLAY_OUTLINE_OFFSET = '-8px';
 
-function setOverlayBorder(element: HTMLElement | null, isSelected: boolean) {
+function setOverlayBorder(element: HTMLImageElement | undefined, isSelected: boolean) {
   if (!element) return;
   if (isSelected) {
     element.style.outline = SELECTED_OVERLAY_OUTLINE;
@@ -711,15 +710,6 @@ function redo() {
   saveImageAndPosition();
 }
 
-function updateAllOverlayBorders() {
-  Object.values(overlays.value).forEach((overlayObject) => {
-    setOverlayBorder(
-      overlayObject.overlay?.getElement() || null,
-      isEditMode.value && idSelectedOverlay.value === overlayObject.id
-    );
-  });
-}
-
 function toggleEditMode() {
   isEditMode.value = !isEditMode.value;
 
@@ -745,7 +735,6 @@ function toggleEditMode() {
       }
     }
   });
-  updateAllOverlayBorders();
 }
 
 async function toggleWhitePixels() {
@@ -866,7 +855,7 @@ function resetImageRatio() {
     const originalRatio = img.naturalWidth / img.naturalHeight;
 
     // Determine whether to adjust width or height based on current dimensions
-    let newWidth: number, newHeight: numer;
+    let newWidth: number, newHeight: number;
     if (currentWidthPx / currentHeightPx > originalRatio) {
       // Current image is too wide, adjust width based on height
       newHeight = currentHeightPx;
@@ -937,9 +926,11 @@ function disableLeafletKeyboardEvents() {
     console.error('Map container not found!');
     return;
   }
+
+  // to prevent key presses (like 'A') from closing the InfoPopup. Casting to Event because addEventListener expects it
   ['keydown', 'keyup', 'keypress'].forEach(eventType => {
-    mapContainer.addEventListener(eventType, (e: KeyboardEvent) => {
-      e.stopPropagation();
+    mapContainer.addEventListener(eventType, (e: Event) => {
+      (e as KeyboardEvent).stopPropagation();
     }, true);
   });
 }

@@ -104,6 +104,7 @@
 import { ref, PropType, onMounted } from 'vue';
 import type { overlayObject } from '../App.vue'
 import { useToast } from 'primevue/usetoast';
+
 const toast = useToast();
 
 const props = defineProps({
@@ -169,6 +170,9 @@ function formatDate(date: Date | null): string {
 </script>
 
 <style scoped>
+
+@import "tailwindcss";
+
 .info-popup-content {
     padding: 10px;
     width: 270px !important;
