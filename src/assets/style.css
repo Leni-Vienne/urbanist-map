@@ -1,9 +1,10 @@
-@import "tailwindcss";
+
 @import "tailwindcss-primeui";
 
 /* fixes the leaflet toolbar being transparent */
 .leaflet-toolbar-0>li>.leaflet-toolbar-icon {
   background-color: white !important;
+  border-right: 1px solid lightgrey !important;
 }
 
 /* to flip any icon */
