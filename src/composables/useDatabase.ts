@@ -1,63 +1,127 @@
 import { openDB, IDBPDatabase } from 'idb';
-import { MyDB, StoredOverlayData, mapPosition } from '../types';
+import { MyDB, StoredOverlayData, MapPosition } from '../types';
 
 let db: IDBPDatabase<MyDB> | null = null;
 
-export async function initializeDatabase() {
-  db = await openDB('CityMapOverlayDB', 1, {
-    upgrade(upgradeDb) {
-      if (!upgradeDb.objectStoreNames.contains('overlays')) {
-        upgradeDb.createObjectStore('overlays', { keyPath: 'id' });
-      }
-      if (!upgradeDb.objectStoreNames.contains('mapPosition')) {
-        upgradeDb.createObjectStore('mapPosition', { keyPath: 'key' });
-      }
-    },
-  });
+/**
+ * Initialize the IndexedDB database
+ */
+export async function initializeDatabase(): Promise<void> {
+  try {
+    db = await openDB<MyDB>('CityMapOverlayDB', 1, {
+      upgrade(upgradeDb) {
+        if (!upgradeDb.objectStoreNames.contains('overlays')) {
+          upgradeDb.createObjectStore('overlays', { keyPath: 'id' });
+        }
+        if (!upgradeDb.objectStoreNames.contains('mapPosition')) {
+          upgradeDb.createObjectStore('mapPosition', { keyPath: 'key' });
+        }
+      },
+    });
+    console.log('Database initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize database:', error);
+    throw new Error('Database initialization failed');
+  }
 }
 
+/**
+ * Get the saved map position from the database
+ */
 export async function getSavedMapPosition() {
-  if (!db) return null;
-  const savedPosition = await db.get('mapPosition', 'position');
-  return savedPosition ? savedPosition.value : null;
+  if (!db) {
+    console.warn('Database not initialized when getting map position');
+    return null;
+  }
+  
+  try {
+    const savedPosition = await db.get('mapPosition', 'position');
+    return savedPosition ? savedPosition.value : null;
+  } catch (error) {
+    console.error('Error retrieving map position:', error);
+    return null;
+  }
 }
 
-export async function saveMapPosition(position: mapPosition) {
-  if (!db) return;
-  const transaction = db.transaction('mapPosition', 'readwrite');
-  const store = transaction.objectStore('mapPosition');
-  await store.put(position);
+/**
+ * Save the current map position to the database
+ */
+export async function saveMapPosition(position: MapPosition): Promise<void> {
+  if (!db) {
+    console.warn('Database not initialized when saving map position');
+    return;
+  }
+  
+  try {
+    await db.put('mapPosition', position);
+  } catch (error) {
+    console.error('Error saving map position:', error);
+  }
 }
 
-export async function saveOverlay(overlay: StoredOverlayData) {
-  if (!db) return;
-  const transaction = db.transaction('overlays', 'readwrite');
-  const store = transaction.objectStore('overlays');
-  await store.put(overlay);
+/**
+ * Save an overlay to the database
+ */
+export async function saveOverlay(overlay: StoredOverlayData): Promise<void> {
+  if (!db) {
+    console.warn('Database not initialized when saving overlay');
+    return;
+  }
+  
+  try {
+    await db.put('overlays', overlay);
+  } catch (error) {
+    console.error('Error saving overlay:', error);
+  }
 }
 
-export async function getAllOverlays() {
-  if (!db) return [];
-  const transaction = db.transaction('overlays', 'readonly');
-  const store = transaction.objectStore('overlays');
-  return await store.getAll();
+/**
+ * Get all overlays from the database
+ */
+export async function getAllOverlays(): Promise<StoredOverlayData[]> {
+  if (!db) {
+    console.warn('Database not initialized when getting all overlays');
+    return [];
+  }
+  
+  try {
+    return await db.getAll('overlays');
+  } catch (error) {
+    console.error('Error retrieving all overlays:', error);
+    return [];
+  }
 }
 
-export async function deleteOverlay(id: string) {
-  if (!db) return;
-  const transaction = db.transaction('overlays', 'readwrite');
-  const store = transaction.objectStore('overlays');
-  await store.delete(id);
+/**
+ * Delete an overlay from the database
+ */
+export async function deleteOverlay(id: string): Promise<void> {
+  if (!db) {
+    console.warn('Database not initialized when deleting overlay');
+    return;
+  }
+  
+  try {
+    await db.delete('overlays', id);
+  } catch (error) {
+    console.error('Error deleting overlay:', error);
+  }
 }
 
-export function clearDatabase() {
-  if (!db) return;
-
-  const transactionOverlays = db.transaction('overlays', 'readwrite');
-  const storeOverlays = transactionOverlays.objectStore('overlays');
-  storeOverlays.clear();
-
-  const transactionMapPosition = db.transaction('mapPosition', 'readwrite');
-  const storeMapPosition = transactionMapPosition.objectStore('mapPosition');
-  storeMapPosition.clear();
+/**
+ * Clear all data from the database
+ */
+export async function clearDatabase(): Promise<void> {
+  if (!db) {
+    console.warn('Database not initialized when clearing database');
+    return;
+  }
+  
+  try {
+    await db.clear('overlays');
+    await db.clear('mapPosition');
+    console.log('Database cleared successfully');
+  } catch (error) {
+    console.error('Error clearing database:', error);
+  }
 }

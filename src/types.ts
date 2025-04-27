@@ -3,6 +3,12 @@ import 'leaflet-toolbar';
 import 'leaflet-distortableimage-updated';
 import { DBSchema } from "idb";
 
+// Type for geographic coordinates
+export type LatLng = {
+  lat: number;
+  lng: number;
+};
+
 // Extend Leaflet namespace to include custom actions
 declare module "leaflet" {
   const DistortAction: any;
@@ -15,7 +21,7 @@ declare module "leaflet" {
   const Toolbar2: any;
   const EditAction: any;
 
-  // Définition de l'interface pour DistortableImageOverlay
+  // Definition for DistortableImageOverlay
   interface DistortableImageOverlay extends L.ImageOverlay {
     editing: {
       _disableKeyboard: () => void;
@@ -31,24 +37,16 @@ declare module "leaflet" {
   function distortableImageOverlay(imageUrl: string, options?: any): DistortableImageOverlay;
 }
 
+// Available image resolutions for an overlay
 export type ImageResolutions = {
   original: string;
   medium?: string;
   small?: string;
   thumbnail?: string;
-}
+};
 
-export type StoredOverlayData = {
-  id: string;
-  imageUrl: string;
-  imageResolutions?: ImageResolutions;
-  corners: { lat: number, lng: number }[];
-  history: { lat: number, lng: number }[][];
-  redoStack: { lat: number, lng: number }[][];
-  info: info | null;
-}
-
-export type info = {
+// Project information
+export interface ProjectInfo {
   projectName: string;
   sourceLink: string;
   startDate: Date | null;
@@ -56,7 +54,19 @@ export type info = {
   budget: number;
 }
 
-export type overlayObject = StoredOverlayData & {
+// Data that is stored in the database
+export interface StoredOverlayData {
+  id: string;
+  imageUrl: string;
+  imageResolutions?: ImageResolutions;
+  corners: { lat: number, lng: number }[];
+  history: { lat: number, lng: number }[][];
+  redoStack: { lat: number, lng: number }[][];
+  info: ProjectInfo | null;
+}
+
+// Extended overlay object with runtime properties
+export interface OverlayObject extends StoredOverlayData {
   overlay: L.DistortableImageOverlay | null;
   marker: L.Marker | null;
   alreadyLoaded: boolean;
@@ -65,7 +75,8 @@ export type overlayObject = StoredOverlayData & {
   currentResolution?: string;
 }
 
-export type mapPosition = {
+// Map position data structure
+export interface MapPosition {
   key: string;
   value: {
     center: number[];
@@ -73,13 +84,14 @@ export type mapPosition = {
   };
 }
 
+// Database schema definition
 export interface MyDB extends DBSchema {
   mapPosition: {
     key: string;
-    value: mapPosition
+    value: MapPosition;
   };
   overlays: {
     key: string;
     value: StoredOverlayData;
-  }
+  };
 }

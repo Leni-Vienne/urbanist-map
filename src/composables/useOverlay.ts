@@ -1,225 +1,193 @@
 import L from "leaflet";
 import 'leaflet-toolbar';
 import 'leaflet-distortableimage-updated';
-import { ref, shallowRef, watch } from 'vue';
-import { map, calculateScreenCoverage, debouncedUpdateMapSize } from './useMap';
+import { ref, shallowRef } from 'vue';
+import { map, calculateScreenCoverage } from './useMap';
 import { getAllOverlays, saveOverlay } from './useDatabase';
-import type { overlayObject, StoredOverlayData, info } from '../types';
+import type { OverlayObject, StoredOverlayData, LatLng } from '../types';
 import { editTools, viewTools, infoTool } from './useTools';
 import { getImageUrlForCoverage } from './useImageResizer';
+import { debounce, truncateString } from '../utils';
 
-export const overlays = shallowRef<Record<string, overlayObject>>({});
+export const overlays = shallowRef<Record<string, OverlayObject>>({});
 export const idSelectedOverlay = ref<string | null>(null);
 export const isEditMode = ref<boolean>(true);
 
 // Tracking of all markers, even for images not currently loaded
 export const allMarkers = shallowRef<Record<string, L.Marker>>({});
 
-// Debounce updateImageResolutionsForCoverage function
-const debouncedUpdateImageResolutions = (function() {
-  let timeout: number | undefined;
-  return function() {
-    clearTimeout(timeout);
-    timeout = setTimeout(updateImageResolutionsForCoverage, 250) as unknown as number;
-  };
-})();
+// Create debounced version of updateImageResolutionsForCoverage function
+const debouncedUpdateImageResolutions = debounce(updateImageResolutionsForCoverage, 250);
 
-export async function initializeOverlays() {
+/**
+ * Initialize overlays from database and set up event handlers
+ */
+export async function initializeOverlays(): Promise<void> {
   const savedOverlays = await getAllOverlays();
-  
+
   if (!map.value) return;
-  
+
   const mapBounds = map.value.getBounds();
-  
-  // Créer tous les marqueurs d'abord, même pour les images qui ne seront pas chargées
-  savedOverlays.forEach(async (savedOverlay) => {
-    const overlayBounds = getOverlayBounds(savedOverlay);
-    if (overlayBounds) {
-      // Si marqueur n'existe pas déjà
-      if (!allMarkers.value[savedOverlay.id] && map.value) {
-        const center = overlayBounds.getCenter();
-        const marker = L.marker(center, {
-          title: savedOverlay.info?.projectName || 'Overlay'
-        }).addTo(map.value);
-        
-        // Ajouter un événement de clic
-        marker.on('click', () => {
-          // Si l'overlay n'est pas chargé, le charger
-          if (!overlays.value[savedOverlay.id]) {
-            loadOverlayById(savedOverlay.id);
-          }
-          
-          // Si l'overlay est chargé, le sélectionner
-          if (overlays.value[savedOverlay.id] && overlays.value[savedOverlay.id].overlay) {
-            overlays.value[savedOverlay.id].overlay!.fire('select');
-          }
-        });
-        
-        allMarkers.value[savedOverlay.id] = marker;
-      }
-    }
-  });
-  
-  // Puis, charger uniquement les overlays qui prennent assez de place
-  savedOverlays.forEach(async (savedOverlay) => {
-    // Check if overlay is within current map bounds with enough coverage
-    if (isOverlayWithinBounds(savedOverlay, mapBounds)) {
-      const overlayObject = createOverlayObject(savedOverlay);
-      
-      // Create a bounds object from the overlay corners to calculate coverage
-      const overlayBounds = getOverlayBounds(savedOverlay);
-      if (overlayBounds) {
-        console.log(`Overlay ${savedOverlay.id} - Bounds: ${overlayBounds.toBBoxString()}`);
-        const coveragePercent = calculateScreenCoverage(overlayBounds);
-        
-        // Use the appropriate resolution based on screen coverage
-        const imageUrl = savedOverlay.imageResolutions 
-          ? getImageUrlForCoverage(savedOverlay.imageResolutions, coveragePercent)
-          : savedOverlay.imageUrl;
-        
-        const newOverlay = await createOverlay(imageUrl, overlayObject);
-        overlayObject.overlay = newOverlay!;
-        
-        // Associer le marqueur existant à l'overlay
-        overlayObject.marker = allMarkers.value[savedOverlay.id];
-        
-        overlays.value[savedOverlay.id] = overlayObject;
-      }
-    }
-  });
-  
-  // Add event listeners to load more overlays and update resolutions
+
+  // Create all markers first
+  createMarkersForOverlays(savedOverlays);
+
+  // Then load only overlays that are within the current view
+  loadOverlaysInMapBounds(savedOverlays, mapBounds);
+
+  // Set up event listeners
+  setupMapEventListeners();
+}
+
+/**
+ * Set up event listeners for map interactions
+ */
+function setupMapEventListeners(): void {
+  if (!map.value) return;
+
+  // Add event listeners for map interactions
   map.value.on('moveend', loadOverlaysInView);
   map.value.on('zoomend', debouncedUpdateImageResolutions);
-  
-  // Use the debounced function for resize event
-  window.removeEventListener('resize', updateImageResolutionsForCoverage); // Remove any existing listener
+
+  // Handle window resize
+  window.removeEventListener('resize', updateImageResolutionsForCoverage);
   window.addEventListener('resize', debouncedUpdateImageResolutions);
 }
 
-// Helper function to create a bounds object from overlay corners
+/**
+ * Create markers for all overlays
+ */
+function createMarkersForOverlays(savedOverlays: StoredOverlayData[]): void {
+  if (!map.value) return;
+
+  savedOverlays.forEach(savedOverlay => {
+    const overlayBounds = getOverlayBounds(savedOverlay);
+    if (!overlayBounds || allMarkers.value[savedOverlay.id]) return;
+
+    const center = overlayBounds.getCenter();
+    const marker = L.marker(center, {
+      title: savedOverlay.info?.projectName || 'Overlay'
+    }).addTo(map.value!);
+
+    allMarkers.value[savedOverlay.id] = marker;
+  });
+}
+
+/**
+ * Load overlays that are within the current map bounds
+ */
+function loadOverlaysInMapBounds(savedOverlays: StoredOverlayData[], mapBounds: L.LatLngBounds): void {
+  savedOverlays.forEach(async (savedOverlay) => {
+    // Check if overlay is within current map bounds
+    if (isOverlayWithinBounds(savedOverlay, mapBounds)) {
+      await loadOverlay(savedOverlay);
+    }
+  });
+}
+
+/**
+ * Load a single overlay and add it to the map
+ */
+async function loadOverlay(savedOverlay: StoredOverlayData): Promise<void> {
+  const overlayObject = createOverlayObject(savedOverlay);
+
+  // Create bounds object to calculate coverage
+  const overlayBounds = getOverlayBounds(savedOverlay);
+  if (!overlayBounds) return;
+
+  const coveragePercent = calculateScreenCoverage(overlayBounds);
+
+  // Use the appropriate resolution based on screen coverage
+  const imageUrl = savedOverlay.imageResolutions
+    ? getImageUrlForCoverage(savedOverlay.imageResolutions, coveragePercent)
+    : savedOverlay.imageUrl;
+
+  const newOverlay = await createOverlay(imageUrl, overlayObject);
+  if (!newOverlay) return;
+
+  overlayObject.overlay = newOverlay;
+  overlayObject.marker = allMarkers.value[savedOverlay.id];
+  overlays.value[savedOverlay.id] = overlayObject;
+}
+
+/**
+ * Helper function to create a bounds object from overlay corners
+ */
 function getOverlayBounds(overlay: StoredOverlayData): L.LatLngBounds | null {
-  // If no corners data or empty, return null
+  // If no corners data or not enough corners, return null
   if (!overlay.corners || overlay.corners.length < 2) {
     return null;
   }
-  
+
   // Create a bounds object from the overlay corners
   return L.latLngBounds(
     overlay.corners.map(corner => L.latLng(corner.lat, corner.lng))
   );
 }
 
-// Helper function to check if an overlay is within the current map bounds
-// We're removing the screen coverage threshold so overlays are always visible
+/**
+ * Helper function to check if an overlay is within the current map bounds
+ */
 function isOverlayWithinBounds(overlay: StoredOverlayData, bounds: L.LatLngBounds): boolean {
-  // If no corners data or empty, consider it visible (likely a new overlay)
-  if (!overlay.corners || overlay.corners.length === 0) {
-    return true;
-  }
-  
+  if (!overlay.corners || overlay.corners.length === 0) return true;
+
   const overlayBounds = getOverlayBounds(overlay);
   if (!overlayBounds) return true;
-  
+
   // Check if the overlay bounds intersect with the map bounds
-  if (!bounds.intersects(overlayBounds)) {
-    return false;
-  }
-  
-  // Always return true if the overlay intersects with the map bounds
-  // This ensures thumbnails are shown even when viewed from far away
-  return true;
+  return bounds.intersects(overlayBounds);
 }
 
-// Function to load overlays that come into view when panning/zooming
-async function loadOverlaysInView() {
+/**
+ * Function to load overlays that come into view when panning/zooming
+ */
+async function loadOverlaysInView(): Promise<void> {
   if (!map.value) return;
-  
+
   const currentBounds = map.value.getBounds();
   const savedOverlays = await getAllOverlays();
-  
+
   // Find overlays that aren't loaded yet but are now in view
   savedOverlays.forEach(async (savedOverlay) => {
     const isAlreadyLoaded = overlays.value[savedOverlay.id] !== undefined;
-    
+
     if (!isAlreadyLoaded && isOverlayWithinBounds(savedOverlay, currentBounds)) {
-      const overlayObject = createOverlayObject(savedOverlay);
-      
-      // Calculate coverage to determine appropriate resolution
-      const overlayBounds = getOverlayBounds(savedOverlay);
-      if (overlayBounds) {
-        const coveragePercent = calculateScreenCoverage(overlayBounds);
-        
-        // Use the appropriate resolution based on screen coverage
-        const imageUrl = savedOverlay.imageResolutions 
-          ? getImageUrlForCoverage(savedOverlay.imageResolutions, coveragePercent)
-          : savedOverlay.imageUrl;
-        
-        const newOverlay = await createOverlay(imageUrl, overlayObject);
-        overlayObject.overlay = newOverlay!;
-        overlays.value[savedOverlay.id] = overlayObject;
-      }
+      await loadOverlay(savedOverlay);
     }
   });
 }
 
-// Function to update overlay image resolutions based on screen coverage
-function updateImageResolutionsForCoverage() {
+/**
+ * Function to update overlay image resolutions based on screen coverage
+ */
+function updateImageResolutionsForCoverage(): void {
   if (!map.value) return;
-  
-  const currentBounds = map.value.getBounds();
-  
+
   Object.entries(overlays.value).forEach(([id, overlayObject]) => {
-    if (overlayObject.overlay) {
-      const bounds = overlayObject.overlay.getBounds();
-      const coveragePercent = calculateScreenCoverage(bounds);
-      
-      console.log(`Overlay ${id} - Coverage: ${coveragePercent.toFixed(2)}%`);
-      
-      // On supprime le mécanisme de visibilité qui cachait les overlays sous un certain seuil
-      // Les overlays resteront visibles quel que soit le niveau de zoom
-      // Seule leur résolution sera ajustée en fonction du zoom
-      
-      // Choix de la résolution optimale en fonction du pourcentage de couverture
-      if (overlayObject.imageResolutions) {
-        // Get the optimal resolution for this coverage
-        const bestResolutionUrl = getImageUrlForCoverage(overlayObject.imageResolutions, coveragePercent);
-        
-        // Si l'URL obtenue est vide, ne pas mettre à jour
-        if (!bestResolutionUrl) {
-          console.warn(`Overlay ${id} - Received empty URL for resolution, keeping current`);
-          return;
-        }
-        
-        // Tronquer les URLs pour l'affichage dans les logs
-        const currentUrlForLog = overlayObject.currentResolution ? 
-          (overlayObject.currentResolution.length > 30 ? 
-           overlayObject.currentResolution.substring(0, 30) + '...' : 
-           overlayObject.currentResolution) : 'none';
-           
-        const bestUrlForLog = bestResolutionUrl.length > 30 ? 
-          bestResolutionUrl.substring(0, 30) + '...' : bestResolutionUrl;
-        
-        console.log(`Overlay ${id} - Current resolution: ${currentUrlForLog}`);
-        console.log(`Overlay ${id} - Best resolution: ${bestUrlForLog}`);
-        
-        // Only update if the best resolution for current coverage is different from current
-        if (bestResolutionUrl !== overlayObject.currentResolution) {
-          console.log(`Overlay ${id} - Updating image resolution for coverage ${coveragePercent.toFixed(2)}%`);
-          updateOverlayImage(overlayObject, bestResolutionUrl);
-          overlayObject.currentResolution = bestResolutionUrl;
-        }
-      } else {
-        console.warn(`Overlay ${id} - No imageResolutions available`);
-      }
+    if (!overlayObject.overlay || !overlayObject.imageResolutions) return;
+
+    const bounds = overlayObject.overlay.getBounds();
+    const coveragePercent = calculateScreenCoverage(bounds);
+
+    // Get the optimal resolution for this coverage
+    const bestResolutionUrl = getImageUrlForCoverage(overlayObject.imageResolutions, coveragePercent);
+    if (!bestResolutionUrl) return;
+
+    // Only update if the best resolution is different from current
+    if (bestResolutionUrl !== overlayObject.currentResolution) {
+      updateOverlayImage(overlayObject, bestResolutionUrl);
+      overlayObject.currentResolution = bestResolutionUrl;
     }
   });
 }
 
-export function createOverlayObject(savedOverlay: StoredOverlayData): overlayObject {
-    return {
+/**
+ * Create a new overlay object from saved data
+ */
+export function createOverlayObject(savedOverlay: StoredOverlayData): OverlayObject {
+  return {
     ...savedOverlay,
-        overlay: null,
+    overlay: null,
     marker: null,
     alreadyLoaded: false,
     alreadyStored: true,
@@ -228,12 +196,16 @@ export function createOverlayObject(savedOverlay: StoredOverlayData): overlayObj
   };
 }
 
-export async function createOverlay(imageUrl: string, overlayObject?: overlayObject) {
+/**
+ * Create a Leaflet overlay on the map
+ */
+export async function createOverlay(imageUrl: string, overlayObject?: OverlayObject) {
   if (!map.value || !overlayObject) return null;
 
   if (!overlayObject.imageUrl) {
     overlayObject.imageUrl = imageUrl;
   }
+
   const newOverlay = L.distortableImageOverlay(imageUrl, {
     editable: true,
     tooltipText: overlayObject.info?.projectName,
@@ -246,21 +218,8 @@ export async function createOverlay(imageUrl: string, overlayObject?: overlayObj
 
   overlayObject.overlay = newOverlay;
 
-  // Update border on selection
-  newOverlay.on('select', () => {
-    setOverlayBorder(newOverlay.getElement(), true);
-    idSelectedOverlay.value = overlayObject.id;
-  });
-
-  newOverlay.on('deselect', () => {
-    setOverlayBorder(newOverlay.getElement(), false);
-    idSelectedOverlay.value = null;
-  });
-
-  // Explicitly disable keyboard handling on the overlay
-  if (newOverlay.editing && newOverlay.editing._disableKeyboard) {
-    newOverlay.editing._disableKeyboard();
-  }
+  // Set up event handlers
+  setupOverlayEventHandlers(newOverlay, overlayObject);
 
   const element = newOverlay.getElement();
   if (!element) {
@@ -268,103 +227,96 @@ export async function createOverlay(imageUrl: string, overlayObject?: overlayObj
     return null;
   }
 
+  // Set up load event handler
   L.DomEvent.on(element, 'load', () => {
-    // Priorité 1: Utiliser les coins directement si disponibles
-    if (overlayObject.corners && overlayObject.corners.length === 4) {
-      (overlayObject.overlay as any).setCorners(overlayObject.corners);
-    }
-    // Priorité 2: Utiliser l'historique si disponible
-    else if (overlayObject.alreadyStored || overlayObject.alreadyLoaded) {
-      if (overlayObject.history && overlayObject.history.length > 0) {
-        (overlayObject.overlay as any).setCorners(overlayObject.history.at(-1));
-      }
-    } 
-    // Priorité 3: Créer un nouvel historique si c'est un nouvel overlay
-    else {
-      // Save initial state to history
-      const initialState = (overlayObject.overlay as any).getCorners();
-      overlayObject.history = [initialState];
-      overlayObject.redoStack = [];
-    }
-
-    if (!overlayObject.alreadyLoaded) {
-      const marker = createMarker(overlayObject);
-      if (marker) {
-        overlayObject.marker = marker;
-      }
-    }
-
+    applyOverlayCorners(overlayObject);
+    updateMarkerPosition(overlayObject);
     overlayObject.alreadyLoaded = true;
     overlayObject.alreadyStored = true;
-  });
-
-  // Add event listeners for transformations
-  newOverlay.on('edit', () => {
-    saveToHistory(overlayObject);
-    updateMarkerPosition(overlayObject);
-    
-    // Sauvegarder également les coins actuels pour une persistance directe
-    overlayObject.corners = newOverlay.getCorners();
-  });
-
-  newOverlay.on('dragend', () => {
-    saveToHistory(overlayObject);
-    updateMarkerPosition(overlayObject);
-    
-    // Sauvegarder également les coins actuels pour une persistance directe
-    overlayObject.corners = newOverlay.getCorners();
   });
 
   return newOverlay;
 }
 
-export function createMarker(overlayObject: overlayObject) {
-  if (!map.value || !overlayObject.overlay) return null;
-  
-  // Si un marqueur existe déjà pour cet overlay, utilisez-le
-  if (allMarkers.value[overlayObject.id]) {
-    overlayObject.marker = allMarkers.value[overlayObject.id];
-    return overlayObject.marker;
-  }
-  
-  const bounds = overlayObject.overlay.getBounds();
-  const center = bounds.getCenter();
-  
-  // Créer un marqueur cliquable qui affiche le nom du projet
-  const marker = L.marker(center, {
-    title: overlayObject.info?.projectName || 'Overlay'
-  }).addTo(map.value);
-  
-  // Ajouter un événement de clic pour charger l'overlay s'il n'est pas déjà chargé
-  marker.on('click', () => {
-    // Si l'overlay n'est pas chargé, le charger
-    if (!overlays.value[overlayObject.id]) {
-      loadOverlayById(overlayObject.id);
-    }
-    
-    // Si l'overlay est chargé, le sélectionner
-    if (overlays.value[overlayObject.id] && overlays.value[overlayObject.id].overlay) {
-      overlays.value[overlayObject.id].overlay!.fire('select');
-    }
+/**
+ * Set up event handlers for an overlay
+ */
+function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayObject: OverlayObject): void {
+  // Update border on selection
+  overlay.on('select', () => {
+    setOverlayBorder(overlay.getElement(), true);
+    idSelectedOverlay.value = overlayObject.id;
   });
-  
-  // Stocker le marqueur dans la collection globale
-  allMarkers.value[overlayObject.id] = marker;
-  
-  return marker;
+
+  overlay.on('deselect', () => {
+    setOverlayBorder(overlay.getElement(), false);
+    idSelectedOverlay.value = null;
+  });
+
+  // Disable keyboard handling on the overlay
+  if (overlay.editing && overlay.editing._disableKeyboard) {
+    overlay.editing._disableKeyboard();
+  }
+
+  // Add event listeners for transformations
+  overlay.on('edit', () => {
+    saveToHistory(overlayObject);
+    updateMarkerPosition(overlayObject);
+    overlayObject.corners = overlay.getCorners();
+  });
+
+  overlay.on('dragend', () => {
+    saveToHistory(overlayObject);
+    updateMarkerPosition(overlayObject);
+    overlayObject.corners = overlay.getCorners();
+  });
 }
 
-export function updateMarkerPosition(overlayObject: overlayObject) {
+/**
+ * Helper function to apply the correct corners to an overlay
+ */
+function applyOverlayCorners(overlayObject: OverlayObject): void {
+  if (!overlayObject.overlay) return;
+
+  // Priority 1: Use corners directly if available
+  if (overlayObject.corners && overlayObject.corners.length === 4) {
+    overlayObject.overlay.setCorners(overlayObject.corners);
+  }
+  // Priority 2: Use history if available
+  else if ((overlayObject.alreadyStored || overlayObject.alreadyLoaded) &&
+    overlayObject.history && overlayObject.history.length > 0) {
+    const lastCorners = overlayObject.history.at(-1);
+    if (lastCorners) {
+        overlayObject.overlay.setCorners(lastCorners);
+    }
+  }
+  // Priority 3: Create new history for new overlay
+  else {
+    // Save initial state to history
+    const initialState = overlayObject.overlay.getCorners();
+    overlayObject.history = [initialState];
+    overlayObject.redoStack = [];
+  }
+}
+
+/**
+ * Update the marker position based on overlay center
+ */
+export function updateMarkerPosition(overlayObject: OverlayObject): void {
   if (!overlayObject.overlay || !overlayObject.marker) return;
   const bounds = overlayObject.overlay.getBounds();
   const center = bounds.getCenter();
   overlayObject.marker.setLatLng(center);
 }
 
+// Constants for overlay styling
 export const SELECTED_OVERLAY_OUTLINE = '8px solid #ffffff';
 export const SELECTED_OVERLAY_OUTLINE_OFFSET = '-8px';
 
-export function setOverlayBorder(element: HTMLImageElement | undefined, isSelected: boolean) {
+/**
+ * Set the border style of an overlay based on selection state
+ */
+export function setOverlayBorder(element: HTMLImageElement | undefined, isSelected: boolean): void {
   if (!element) return;
   if (isSelected) {
     element.style.outline = SELECTED_OVERLAY_OUTLINE;
@@ -375,17 +327,21 @@ export function setOverlayBorder(element: HTMLImageElement | undefined, isSelect
   }
 }
 
-export function saveToHistory(overlayObject: overlayObject) {
+/**
+ * Save the current state of an overlay to history
+ */
+export function saveToHistory(overlayObject: OverlayObject): void {
   if (!overlayObject.overlay) return;
+
+  // Create a deep copy of the current corners
   const currentState = JSON.parse(JSON.stringify(overlayObject.overlay.getCorners()));
   overlayObject.history.push(currentState);
   overlayObject.redoStack = [];
-  
-  // Mettre à jour directement les coins dans l'objet
+
+  // Update corners directly for persistence
   overlayObject.corners = overlayObject.overlay.getCorners();
-  
-  // Créer un objet sans les propriétés non sérialisables (overlay et marker)
-  // pour le sauvegarder dans la base de données
+
+  // Create a serializable object for database storage
   const savedOverlay: StoredOverlayData = {
     id: overlayObject.id,
     imageUrl: overlayObject.imageUrl,
@@ -395,16 +351,21 @@ export function saveToHistory(overlayObject: overlayObject) {
     redoStack: overlayObject.redoStack,
     info: overlayObject.info
   };
-  
-  // Sauvegarder dans la base de données
+
+  // Save to database
   saveOverlay(savedOverlay);
 }
 
-export function toggleEditMode() {
+/**
+ * Toggle edit mode for all overlays
+ */
+export function toggleEditMode(): void {
   isEditMode.value = !isEditMode.value;
 
   Object.values(overlays.value).forEach((overlayObject) => {
-    const editing = (overlayObject.overlay as any).editing;
+    if (!overlayObject.overlay) return;
+
+    const editing = overlayObject.overlay.editing;
 
     if (isEditMode.value) {
       viewTools.forEach((tool) => editing.removeTool(tool));
@@ -414,112 +375,81 @@ export function toggleEditMode() {
       viewTools.forEach((tool) => editing.addTool(tool));
     }
 
-    const element = overlayObject.overlay?.getElement();
+    const element = overlayObject.overlay.getElement();
     if (element) {
-      if (isEditMode.value) {
-        element.style.boxShadow = SELECTED_OVERLAY_OUTLINE;
-      } else {
-        element.style.boxShadow = '';
-      }
+      element.style.boxShadow = isEditMode.value ? SELECTED_OVERLAY_OUTLINE : '';
     }
   });
 }
 
-// Function to load a specific overlay by ID
-export async function loadOverlayById(id: string) {
+/**
+ * Load a specific overlay by ID
+ */
+export async function loadOverlayById(id: string): Promise<void> {
   if (!map.value) return;
-  
-  // Récupérer les données de l'overlay depuis la base de données
+
+  // Get overlay data from database
   const allOverlays = await getAllOverlays();
   const savedOverlay = allOverlays.find(overlay => overlay.id === id);
-  
+
   if (!savedOverlay) {
-    console.error(`Overlay avec ID ${id} non trouvé dans la base de données`);
+    console.error(`Overlay with ID ${id} not found in database`);
     return;
   }
-  
-  // Créer l'objet overlay
-  const overlayObject = createOverlayObject(savedOverlay);
-  
-  // S'assurer que les coins et l'historique sont correctement préservés
-  overlayObject.corners = savedOverlay.corners;
-  overlayObject.history = savedOverlay.history;
-  
-  // Calculer la couverture pour déterminer la résolution appropriée
-  const overlayBounds = getOverlayBounds(savedOverlay);
-  if (overlayBounds) {
-    const coveragePercent = calculateScreenCoverage(overlayBounds);
-    
-    // Utiliser la résolution appropriée en fonction de la couverture d'écran
-    const imageUrl = savedOverlay.imageResolutions 
-      ? getImageUrlForCoverage(savedOverlay.imageResolutions, coveragePercent)
-      : savedOverlay.imageUrl;
-    
-    const newOverlay = await createOverlay(imageUrl, overlayObject);
-    overlayObject.overlay = newOverlay!;
-    
-    // Utiliser les dernières coordonnées enregistrées
-    if (overlayObject.overlay && savedOverlay.corners && savedOverlay.corners.length > 0) {
-      // Appliquer les coins enregistrés
-      overlayObject.overlay.setCorners(savedOverlay.corners);
-    }
-    
-    overlays.value[savedOverlay.id] = overlayObject;
-    
-    // Mettre à jour la position du marqueur existant
-    if (allMarkers.value[id]) {
-      updateMarkerPosition(overlayObject);
-    }
-  }
+
+  await loadOverlay(savedOverlay);
 }
 
-// New function to update an overlay's image without recreating the overlay
-export function updateOverlayImage(overlayObject: overlayObject, newImageUrl: string) {
-  if (!overlayObject.overlay) {
-    console.error(`Cannot update image: overlay is null for ${overlayObject.id}`);
-    return;
-  }
-  
+/**
+ * Update an overlay's image without recreating the overlay
+ */
+export function updateOverlayImage(overlayObject: OverlayObject, newImageUrl: string): void {
+  if (!overlayObject.overlay) return;
+
   try {
-    // Approche 1: Mise à jour directe de l'attribut src
+    // Store current corners before changing the image
+    const currentCorners = overlayObject.overlay.getCorners();
+    
+    // Direct approach: Update the src attribute of the image element
     const imgElement = overlayObject.overlay.getElement();
     if (imgElement) {
-      console.log(`Updating image element src from ${imgElement.src.substring(0, 30)}... to ${newImageUrl.substring(0, 30)}...`);
-      
-      // Ajouter un écouteur pour confirmer le chargement de la nouvelle image
+      // Add event listeners to confirm image loading
       const onLoadListener = () => {
-        console.log(`New image successfully loaded: ${newImageUrl.substring(0, 30)}...`);
+        // Re-apply the corners when the new image is loaded
+        if (overlayObject.overlay && currentCorners) {
+          overlayObject.overlay.setCorners(currentCorners);
+        }
         imgElement.removeEventListener('load', onLoadListener);
       };
-      
+
       const onErrorListener = (error: any) => {
-        console.error(`Error loading new image: ${newImageUrl.substring(0, 30)}...`, error);
+        console.error(`Error loading new image for overlay ${overlayObject.id}`, error);
         imgElement.removeEventListener('error', onErrorListener);
       };
-      
+
       imgElement.addEventListener('load', onLoadListener);
       imgElement.addEventListener('error', onErrorListener);
-      
-      // Changer la source de l'image
+
+      // Change image source
       imgElement.src = newImageUrl;
-      
-      // Mettre à jour la résolution actuelle dans l'objet
+
+      // Update current resolution in the object
       overlayObject.currentResolution = newImageUrl;
       return;
-    } else {
-      console.error(`Cannot update image: imgElement is null for ${overlayObject.id}`);
     }
-    
-    // Approche 2 (fallback): Si la méthode directe ne fonctionne pas, essayer avec setUrl si disponible
+
+    // Fallback: Try using setUrl method if available
     if (typeof overlayObject.overlay.setUrl === 'function') {
-      console.log(`Falling back to setUrl method for ${overlayObject.id}`);
       overlayObject.overlay.setUrl(newImageUrl);
+      // Re-apply corners after changing URL
+      setTimeout(() => {
+        if (overlayObject.overlay && currentCorners) {
+          overlayObject.overlay.setCorners(currentCorners);
+        }
+      }, 50);
       overlayObject.currentResolution = newImageUrl;
-      return;
     }
-    
-    console.error(`Failed to update image for ${overlayObject.id}: no valid update method found`);
   } catch (error) {
-    console.error(`Error updating image for ${overlayObject.id}:`, error);
+    console.error(`Error updating image for overlay ${overlayObject.id}:`, error);
   }
 }

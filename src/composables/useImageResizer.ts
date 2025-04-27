@@ -1,10 +1,11 @@
 import type { ImageResolutions } from '../types';
+import { safeGet } from '../utils';
 
 // Define screen coverage thresholds for different resolutions (in percentage)
 export const COVERAGE_THRESHOLDS = {
-  HIGH: 15,       // Original resolution when overlay covers 15% or more of the screen
-  MEDIUM: 5,      // Medium resolution when overlay covers between 5-15% of the screen
-  LOW: 0.5,       // Small resolution when overlay covers between 0.5-5% of the screen
+  HIGH: 150,     // Original resolution when overlay covers 15% or more of the screen
+  MEDIUM: 0.5,   // Medium resolution when overlay covers between 5-15% of the screen
+  LOW: 0.1,      // Small resolution when overlay covers between 0.5-5% of the screen
   // Below 0.5% coverage, use thumbnail
 };
 
@@ -12,145 +13,130 @@ export const COVERAGE_THRESHOLDS = {
  * Get appropriate image URL based on how much screen the overlay covers
  */
 export function getImageUrlForCoverage(imageResolutions: ImageResolutions | undefined, coveragePercent: number): string {
-  console.log('Coverage Percent:', coveragePercent);
-  if (!imageResolutions) {
-    console.warn('No imageResolutions provided');
-    return '';
-  }
-
-  // If only original is available, use it regardless of coverage
+  if (!imageResolutions) return '';
+  
+  // Get original image URL with fallback to empty string
+  const original = imageResolutions.original || '';
+  
+  // If only original is available, use it
   if (!imageResolutions.medium && !imageResolutions.small && !imageResolutions.thumbnail) {
-    console.log('Only original resolution available, using it');
-    return imageResolutions.original;
+    return original;
   }
 
-  let selectedUrl = '';
+  // Select resolution based on coverage thresholds
   if (coveragePercent >= COVERAGE_THRESHOLDS.HIGH) {
-    selectedUrl = imageResolutions.original;
-    console.log('Using ORIGINAL resolution - coverage above', COVERAGE_THRESHOLDS.HIGH);
+    return original;
   } else if (coveragePercent >= COVERAGE_THRESHOLDS.MEDIUM) {
-    selectedUrl = imageResolutions.medium || imageResolutions.original;
-    console.log('Using MEDIUM resolution - coverage above', COVERAGE_THRESHOLDS.MEDIUM);
+    return imageResolutions.medium || original;
   } else if (coveragePercent >= COVERAGE_THRESHOLDS.LOW) {
-    selectedUrl = imageResolutions.small || imageResolutions.medium || imageResolutions.original;
-    console.log('Using SMALL resolution - coverage above', COVERAGE_THRESHOLDS.LOW);
+    return imageResolutions.small || imageResolutions.medium || original;
   } else {
-    selectedUrl = imageResolutions.thumbnail || imageResolutions.small || imageResolutions.medium || imageResolutions.original;
-    console.log('Using THUMBNAIL resolution - coverage below', COVERAGE_THRESHOLDS.LOW);
-  } /*{
-    console.log('too low, not loading anythign')
-  }*/
-
-  // Vérifier que l'URL n'est pas vide
-  if (!selectedUrl) {
-    console.warn('Selected URL is empty, falling back to original');
-    return imageResolutions.original;
+    return imageResolutions.thumbnail || imageResolutions.small || imageResolutions.medium || original;
   }
-
-  return selectedUrl;
 }
 
 /**
  * Generate lower resolution versions of an image
  */
 export async function generateImageResolutions(originalImageUrl: string): Promise<ImageResolutions> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      // Toujours stocker l'original
-      const resolutions: ImageResolutions = {
+  // Initialize with original URL
+  const resolutions: ImageResolutions = { original: originalImageUrl };
+
+  try {
+    const img = await loadImage(originalImageUrl);
+    
+    // Skip resizing for small images
+    if (img.width < 500 && img.height < 500) {
+      return {
         original: originalImageUrl,
+        medium: originalImageUrl,
+        small: originalImageUrl,
+        thumbnail: originalImageUrl
       };
+    }
 
-      // Éviter de générer des résolutions si l'image est déjà petite
-      if (img.width < 500 && img.height < 500) {
-        console.log('Image already small, skipping resizing', img.width, img.height);
-        // Utiliser l'image originale pour toutes les résolutions
-        resolutions.medium = originalImageUrl;
-        resolutions.small = originalImageUrl;
-        resolutions.thumbnail = originalImageUrl;
-        resolve(resolutions);
-        return;
-      }
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return resolutions;
 
-      try {
-        // Create canvas for resizing
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          console.error('Could not get canvas context');
-          resolve(resolutions);
-          return;
-        }
+    // Generate medium resolution (50% of original)
+    resolutions.medium = await generateResizedImage(
+      img, canvas, ctx, 
+      Math.floor(img.width * 0.5), 
+      Math.floor(img.height * 0.5), 
+      0.8
+    ) || originalImageUrl;
 
-        // Medium resolution (50% of original)
-        const mediumWidth = Math.floor(img.width * 0.5);
-        const mediumHeight = Math.floor(img.height * 0.5);
-        canvas.width = mediumWidth;
-        canvas.height = mediumHeight;
-        ctx.drawImage(img, 0, 0, mediumWidth, mediumHeight);
-        try {
-          resolutions.medium = canvas.toDataURL('image/jpeg', 0.8);
-          console.log('Generated medium resolution', mediumWidth, mediumHeight);
-        } catch (error) {
-          console.error('Error generating medium resolution', error);
-          resolutions.medium = originalImageUrl;
-        }
+    // Generate small resolution (25% of original)
+    resolutions.small = await generateResizedImage(
+      img, canvas, ctx, 
+      Math.floor(img.width * 0.25), 
+      Math.floor(img.height * 0.25), 
+      0.7
+    ) || originalImageUrl;
 
-        // Small resolution (25% of original)
-        const smallWidth = Math.floor(img.width * 0.25);
-        const smallHeight = Math.floor(img.height * 0.25);
-        canvas.width = smallWidth;
-        canvas.height = smallHeight;
-        ctx.drawImage(img, 0, 0, smallWidth, smallHeight);
-        try {
-          resolutions.small = canvas.toDataURL('image/jpeg', 0.7);
-          console.log('Generated small resolution', smallWidth, smallHeight);
-        } catch (error) {
-          console.error('Error generating small resolution', error);
-          resolutions.small = originalImageUrl;
-        }
+    // Generate thumbnail (10% of original or 100px width, whichever is smaller)
+    const thumbnailWidth = Math.min(Math.floor(img.width * 0.1), 100);
+    const thumbnailHeight = Math.floor((thumbnailWidth / img.width) * img.height);
+    resolutions.thumbnail = await generateResizedImage(
+      img, canvas, ctx, 
+      thumbnailWidth, 
+      thumbnailHeight, 
+      0.6
+    ) || originalImageUrl;
 
-        // Thumbnail (10% of original or 100px width, whichever is smaller)
-        const thumbnailWidth = Math.min(Math.floor(img.width * 0.1), 100);
-        const thumbnailHeight = Math.floor((thumbnailWidth / img.width) * img.height);
-        canvas.width = thumbnailWidth;
-        canvas.height = thumbnailHeight;
-        ctx.drawImage(img, 0, 0, thumbnailWidth, thumbnailHeight);
-        try {
-          resolutions.thumbnail = canvas.toDataURL('image/jpeg', 0.6);
-          console.log('Generated thumbnail resolution', thumbnailWidth, thumbnailHeight);
-        } catch (error) {
-          console.error('Error generating thumbnail resolution', error);
-          resolutions.thumbnail = originalImageUrl;
-        }
-
-        resolve(resolutions);
-      } catch (error) {
-        console.error('Error in image resizing process', error);
-        // En cas d'erreur, utiliser l'image originale pour toutes les résolutions
-        resolutions.medium = originalImageUrl;
-        resolutions.small = originalImageUrl;
-        resolutions.thumbnail = originalImageUrl;
-        resolve(resolutions);
-      }
+    return resolutions;
+  } catch (error) {
+    console.error('Error in image resizing process:', error);
+    return {
+      original: originalImageUrl,
+      medium: originalImageUrl,
+      small: originalImageUrl,
+      thumbnail: originalImageUrl
     };
+  }
+}
 
-    img.onerror = () => {
-      console.error('Error loading original image for resizing');
-      // If there's an error, just return the original
-      resolve({ original: originalImageUrl });
-    };
+/**
+ * Helper to load an image and return a promise
+ */
+function loadImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Failed to load image'));
+    
+    // Add timeout to prevent hanging
+    const timeout = setTimeout(() => {
+      reject(new Error('Image load timeout'));
+    }, 10000);
+    
+    img.src = url;
+  });
+}
 
-    // Ajouter un timeout pour éviter que l'image reste bloquée en chargement
-    setTimeout(() => {
-      if (!img.complete) {
-        console.error('Image load timeout');
-        resolve({ original: originalImageUrl });
-      }
-    }, 10000); // 10 secondes timeout
-
-    img.crossOrigin = 'anonymous'; // Nécessaire pour certaines images externes
-    img.src = originalImageUrl;
+/**
+ * Helper to generate a resized image from canvas
+ */
+function generateResizedImage(
+  img: HTMLImageElement, 
+  canvas: HTMLCanvasElement, 
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  quality: number
+): Promise<string | null> {
+  return new Promise((resolve) => {
+    try {
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    } catch (error) {
+      console.error(`Error generating ${width}x${height} resolution:`, error);
+      resolve(null);
+    }
   });
 }

@@ -7,7 +7,7 @@ import { overlays, idSelectedOverlay } from './useOverlay';
 import { undo, redo, resetImageRatio, toggleWhitePixels, deleteOverlay, updateOverlayInfo } from './useOverlayActions';
 import InfoPopup from '../components/InfoPopup.vue';
 import { useToast } from './useToast';
-import type { info } from '../types';
+import type { ProjectInfo } from '../types';
 
 const toast = useToast();
 
@@ -81,7 +81,7 @@ export const infoTool = L.Toolbar2.Action.extend({
   }
 });
 
-function handleProjectSubmit(projectInfo: info & { id: string }) {
+function handleProjectSubmit(projectInfo: ProjectInfo & { id: string }) {
   if (!projectInfo.id || !overlays.value[projectInfo.id]) {
     console.error('Overlay not found for ID:', projectInfo.id);
     return;
