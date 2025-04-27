@@ -3,19 +3,11 @@ import 'leaflet-toolbar';
 import 'leaflet-distortableimage-updated';
 import { ref, shallowRef } from 'vue';
 import { getSavedMapPosition, saveMapPosition } from './useDatabase';
-import type { mapPosition } from '../types';
+import type { MapPosition } from '../types';
+import { debounce } from '../utils';
 
 export const map = shallowRef<L.Map | null>(null);
 export const mapSize = ref({ width: 0, height: 0 });
-
-// Debounce function to handle resize events
-function debounce(func: Function, wait: number): (...args: any[]) => void {
-  let timeout: number | undefined;
-  return function(...args: any[]) {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait) as unknown as number;
-  };
-}
 
 // Create a debounced version of updateMapSize
 export const debouncedUpdateMapSize = debounce(function() {
@@ -64,34 +56,20 @@ export async function initializeMap() {
 
 // Calculate how much of the screen an overlay covers (as a percentage)
 export function calculateScreenCoverage(bounds: L.LatLngBounds): number {
-  if (!map.value) return 0;
-  
-  // Validate bounds object before using it
-  if (!bounds || !bounds.isValid || !bounds.isValid()) {
-    console.warn('Invalid bounds object passed to calculateScreenCoverage');
+  if (!map.value || !bounds?.isValid?.()) {
+    bounds && !bounds.isValid() && console.warn('Invalid bounds object passed to calculateScreenCoverage');
     return 0;
   }
   
   try {
-    // Get pixel coordinates of the overlay bounds
-    const northEast = map.value.latLngToContainerPoint(bounds.getNorthEast());
-    const southWest = map.value.latLngToContainerPoint(bounds.getSouthWest());
+    // Get pixel bounds and calculate area
+    const ne = map.value.latLngToContainerPoint(bounds.getNorthEast());
+    const sw = map.value.latLngToContainerPoint(bounds.getSouthWest());
+    const overlayArea = Math.abs(ne.x - sw.x) * Math.abs(ne.y - sw.y);
     
-    // Calculate overlay width and height in pixels
-    const overlayWidth = Math.abs(northEast.x - southWest.x);
-    const overlayHeight = Math.abs(northEast.y - southWest.y);
-    
-    // Calculate overlay area
-    const overlayArea = overlayWidth * overlayHeight;
-    
-    // Calculate viewport area
+    // Calculate and return coverage percentage
     const viewportArea = mapSize.value.width * mapSize.value.height;
-    
-    // Prevent division by zero
-    if (viewportArea === 0) return 0;
-    
-    // Calculate coverage as percentage
-    return (overlayArea / viewportArea) * 100;
+    return viewportArea > 0 ? (overlayArea / viewportArea) * 100 : 0;
   } catch (error) {
     console.error('Error calculating screen coverage:', error);
     return 0;
@@ -119,7 +97,7 @@ async function saveCurrentMapPosition() {
 
   const center = map.value.getCenter();
   const zoom = map.value.getZoom();
-  const position: mapPosition = { 
+  const position: MapPosition = { 
     key: 'position', 
     value: { 
       center: [center.lat, center.lng], 
