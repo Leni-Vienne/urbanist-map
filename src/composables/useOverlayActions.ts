@@ -1,7 +1,8 @@
-import { map } from './useMap';
-import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay } from './useOverlay';
-import { saveOverlay as saveOverlayToDb, deleteOverlay as deleteOverlayFromDb } from './useDatabase';
-import type { info } from '../types';
+import { map, calculateScreenCoverage } from './useMap';
+import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, updateOverlayImage } from './useOverlay';
+import { saveOverlay, deleteOverlay as deleteOverlayFromDb } from './useDatabase';
+import { generateImageResolutions, getImageUrlForCoverage } from './useImageResizer';
+import type { info, ImageResolutions } from '../types';
 import { useToast } from './useToast';
 
 const toast = await useToast();
@@ -10,9 +11,14 @@ export async function addOverlay(imageUrl: string) {
   if (!map.value) return;
 
   const id = crypto.randomUUID();
+  
+  // Generate different resolution versions of the image
+  const imageResolutions = await generateImageResolutions(imageUrl);
+  
   const overlayObject = {
     id,
     imageUrl,
+    imageResolutions,
     overlay: null,
     marker: null,
     history: [],
@@ -28,13 +34,30 @@ export async function addOverlay(imageUrl: string) {
       budget: 0
     },
     whitePixelsHidden: false,
+    currentResolution: imageUrl,
   };
 
+  // Default to original resolution for newly added images
+  // (screen coverage will be calculated after overlay is created)
   const newOverlay = await createOverlay(imageUrl, overlayObject);
   if (!newOverlay) return;
 
   overlays.value[id] = overlayObject;
-  updateTooltipText(); // Ajout de l'appel pour mettre à jour le tooltip
+  updateTooltipText();
+  
+  // Once the overlay is loaded and corners are set, update to appropriate resolution
+  setTimeout(() => {
+    if (overlayObject.overlay) {
+      const bounds = overlayObject.overlay.getBounds();
+      const coveragePercent = calculateScreenCoverage(bounds);
+      const appropriateImageUrl = getImageUrlForCoverage(imageResolutions, coveragePercent);
+      
+      if (appropriateImageUrl !== imageUrl) {
+        updateOverlayImage(overlayObject, appropriateImageUrl);
+        overlayObject.currentResolution = appropriateImageUrl;
+      }
+    }
+  }, 100);
 }
 
 export function undo() {
@@ -149,8 +172,8 @@ export async function toggleWhitePixels() {
     });
   };
 
-  img.src = overlayObject.whitePixelsHidden ?
-    (overlayObject.imageUrl || (overlayObject.overlay as any).getElement().src) :
+  img.src = overlayObject.whitePixelsHidden ? 
+    (overlayObject.imageUrl || (overlayObject.overlay as any).getElement().src) : 
     (overlayObject.overlay as any).getElement().src;
 }
 
@@ -237,23 +260,31 @@ export function updateTooltipText() {
 }
 
 export function saveImageAndPosition() {
-  const savedOverlays = Object.values(overlays.value).map(overlayObj => ({
+  const savedOverlays = Object.values(overlays.value).map(overlayObj => {
+    // S'assurer que nous utilisons les coordonnées les plus récentes
+    if (overlayObj.overlay) {
+      overlayObj.corners = overlayObj.overlay.getCorners();
+    }
+    
+    return {
       id: overlayObj.id,
       imageUrl: overlayObj.imageUrl,
-      corners: overlayObj.overlay?.getCorners() || [],
+      imageResolutions: overlayObj.imageResolutions,
+      corners: overlayObj.corners,
       history: overlayObj.history,
       redoStack: overlayObj.redoStack,
       info: overlayObj.info || {
-      projectName: '',
-      sourceLink: '',
-      startDate: null,
-      endDate: null,
-      budget: 0
-    }
-  }));
+        projectName: '',
+        sourceLink: '',
+        startDate: null,
+        endDate: null,
+        budget: 0
+      }
+    };
+  });
 
   savedOverlays.forEach(overlay => {
-    saveOverlayToDb(overlay);
+    saveOverlay(overlay);
   });
 }
 
