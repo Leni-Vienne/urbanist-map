@@ -31,9 +31,17 @@ declare module "leaflet" {
   function distortableImageOverlay(imageUrl: string, options?: any): DistortableImageOverlay;
 }
 
+export type ImageResolutions = {
+  original: string;
+  medium?: string;
+  small?: string;
+  thumbnail?: string;
+}
+
 export type StoredOverlayData = {
   id: string;
   imageUrl: string;
+  imageResolutions?: ImageResolutions;
   corners: { lat: number, lng: number }[];
   history: { lat: number, lng: number }[][];
   redoStack: { lat: number, lng: number }[][];
@@ -54,7 +62,8 @@ export type overlayObject = StoredOverlayData & {
   alreadyLoaded: boolean;
   alreadyStored: boolean;
   whitePixelsHidden: boolean;
-  }
+  currentResolution?: string;
+}
 
 export type mapPosition = {
   key: string;
