@@ -54,6 +54,19 @@ export interface ProjectInfo {
   budget: number;
 }
 
+// Project data that is stored in the database
+export interface Project {
+  id: string;
+  name: string;
+  description: string;
+  location: string;
+  startDate: Date | null;
+  endDate: Date | null;
+  budget: number;
+  overlayIds: string[];
+  color: string; // Color for visual grouping
+}
+
 // Data that is stored in the database
 export interface StoredOverlayData {
   id: string;
@@ -62,7 +75,9 @@ export interface StoredOverlayData {
   corners: { lat: number, lng: number }[];
   history: { lat: number, lng: number }[][];
   redoStack: { lat: number, lng: number }[][];
-  info: ProjectInfo | null;
+  projectId: string; // Required reference to project (no longer optional)
+  phase?: string; // Optional phase information (e.g., "planning", "foundation", etc.)
+  sequenceNumber?: number; // Optional sequence number for chronological ordering
 }
 
 // Extended overlay object with runtime properties
@@ -93,5 +108,9 @@ export interface MyDB extends DBSchema {
   overlays: {
     key: string;
     value: StoredOverlayData;
+  };
+  projects: {
+    key: string;
+    value: Project;
   };
 }

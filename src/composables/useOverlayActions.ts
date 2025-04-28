@@ -1,18 +1,30 @@
-import { map, calculateScreenCoverage } from './useMap';
+// Import Leaflet 
+import L from "leaflet";
+import { map, calculateScreenCoverage, onMapInitialized } from './useMap';
 import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, updateOverlayImage } from './useOverlay';
 import { saveOverlay, deleteOverlay as deleteOverlayFromDatabase } from './useDatabase';
 import { generateImageResolutions, getImageUrlForCoverage } from './useImageResizer';
 import type { ProjectInfo, ImageResolutions } from '../types';
 import { useToast } from './useToast';
 import { debounce } from '../utils';
+import { addOverlayToProjectWithId, projects } from './useProjects';
 
 const toast = useToast();
 
 /**
  * Add a new overlay to the map
  */
-export async function addOverlay(imageUrl: string) {
+export async function addOverlay(imageUrl: string, projectId: string) {
   if (!map.value) return;
+  if (!projectId) {
+    toast.add({
+      severity: 'error',
+      summary: 'Project Required',
+      detail: 'A project must be selected to add an overlay',
+      life: 3000
+    });
+    return;
+  }
 
   const id = crypto.randomUUID();
   
@@ -30,13 +42,7 @@ export async function addOverlay(imageUrl: string) {
     alreadyLoaded: false,
     alreadyStored: false,
     corners: [],
-    info: {
-      projectName: '',
-      sourceLink: '',
-      startDate: null,
-      endDate: null,
-      budget: 0
-    },
+    projectId, // Required project ID
     whitePixelsHidden: false,
     currentResolution: imageUrl,
   };
@@ -45,11 +51,60 @@ export async function addOverlay(imageUrl: string) {
   const newOverlay = await createOverlay(imageUrl, overlayObject);
   if (!newOverlay) return;
 
+  // Don't create the marker right away - will be created after image loads
+  // instead, set up a one-time listener for when the image is loaded
+  if (newOverlay && map.value) {
+    const imgElement = newOverlay.getElement();
+    if (imgElement) {
+      // We'll create the marker once the image is loaded
+      const onLoadHandler = () => {
+        // Now it's safe to get bounds
+        if (map.value && newOverlay) {
+          try {
+            const bounds = newOverlay.getBounds();
+            if (bounds) {
+              const center = bounds.getCenter();
+              const marker = L.marker(center, {
+                title: 'Overlay'
+              }).addTo(map.value);
+              
+              // Save the marker reference
+              overlayObject.marker = marker;
+              
+
+              // Update marker tooltip with project info if available
+              if (projectId && projects.value[projectId]) {
+                const project = projects.value[projectId];
+                const tooltipText = `${project.name}${overlayObject.phase ? ` - ${overlayObject.phase}` : ''}`;
+                marker.bindTooltip(tooltipText, { permanent: false }).openTooltip();
+              }
+            }
+          } catch (error) {
+            console.error('Error creating marker:', error);
+          }
+        }
+        
+        // Remove the listener after it's executed
+        imgElement.removeEventListener('load', onLoadHandler);
+      };
+      
+      // Add the load event listener
+      imgElement.addEventListener('load', onLoadHandler);
+      
+      // If the image is already loaded (from cache), create the marker immediately
+      if (imgElement.complete && imgElement.naturalWidth > 0) {
+        onLoadHandler();
+      }
+    }
+  }
+
   overlays.value[id] = overlayObject;
-  updateTooltipText();
   
   // Update to appropriate resolution once overlay is loaded
   setTimeout(updateOverlayToAppropriateResolution(overlayObject), 100);
+  
+  // Add overlay ID to the project
+  addOverlayToProjectWithId(projectId, id);
 }
 
 /**
@@ -59,14 +114,33 @@ function updateOverlayToAppropriateResolution(overlayObject) {
   return () => {
     if (!overlayObject.overlay || !overlayObject.imageResolutions) return;
     
-    const bounds = overlayObject.overlay.getBounds();
-    const coveragePercent = calculateScreenCoverage(bounds);
-    const appropriateImageUrl = getImageUrlForCoverage(overlayObject.imageResolutions, coveragePercent);
+    // Function to update the resolution
+    const updateResolution = () => {
+      // Skip processing if map isn't available
+      if (!map.value) return;
+      
+      // Check if overlay is within current map bounds before processing
+      const currentMapBounds = map.value.getBounds();
+      const overlayBounds = overlayObject.overlay.getBounds();
+      
+      // Skip resolution update if the overlay isn't visible
+      if (!currentMapBounds.intersects(overlayBounds)) {
+        return;
+      }
+      
+      const coveragePercent = calculateScreenCoverage(overlayBounds);
+      
+      const appropriateImageUrl = getImageUrlForCoverage(overlayObject.imageResolutions, coveragePercent);
+      
+      if (appropriateImageUrl && appropriateImageUrl !== overlayObject.currentResolution) {
+        updateOverlayImage(overlayObject, appropriateImageUrl);
+        overlayObject.currentResolution = appropriateImageUrl;
+      }
+    };
     
-    if (appropriateImageUrl && appropriateImageUrl !== overlayObject.currentResolution) {
-      updateOverlayImage(overlayObject, appropriateImageUrl);
-      overlayObject.currentResolution = appropriateImageUrl;
-    }
+    // Update now and also register for map initialized event
+    updateResolution();
+    onMapInitialized(updateResolution);
   };
 }
 
@@ -305,8 +379,17 @@ export function updateTooltipText() {
   const overlayObject = overlays.value[idSelectedOverlay.value];
   if (!overlayObject || !overlayObject.overlay) return;
 
-  const projectName = overlayObject.info?.projectName || 'No Project Name';
-  overlayObject.overlay.bindTooltip(projectName, { permanent: true, direction: 'top' }).openTooltip();
+  // Get project information from the projectId
+  if (overlayObject.projectId) {
+    const project = projects.value[overlayObject.projectId];
+    if (project) {
+      const tooltipText = `${project.name}${overlayObject.phase ? ` - ${overlayObject.phase}` : ''}`;
+      overlayObject.overlay!.bindTooltip(tooltipText, { permanent: true, direction: 'top' }).openTooltip();
+    }
+  } else {
+    // Fallback if no project (should not happen with new workflow)
+    overlayObject.overlay.bindTooltip('Overlay', { permanent: true, direction: 'top' }).openTooltip();
+  }
 }
 
 /**
@@ -327,13 +410,9 @@ export function saveImageAndPosition() {
       corners: overlayObj.corners,
       history: overlayObj.history,
       redoStack: overlayObj.redoStack,
-      info: overlayObj.info || {
-        projectName: '',
-        sourceLink: '',
-        startDate: null,
-        endDate: null,
-        budget: 0
-      }
+      projectId: overlayObj.projectId, // Save projectId (required field)
+      phase: overlayObj.phase,
+      sequenceNumber: overlayObj.sequenceNumber
     };
     
     saveOverlay(savedOverlay);
@@ -367,11 +446,14 @@ export function deleteOverlay(id: string) {
 /**
  * Update overlay information and metadata
  */
-export function updateOverlayInfo(id: string, info: ProjectInfo) {
+export function updateOverlayInfo(id: string, info: { phase?: string, sequenceNumber?: number }): void {
   const overlayObject = overlays.value[id];
   if (!overlayObject) return;
 
-  overlayObject.info = info;
+  // Update overlay with new metadata
+  overlayObject.phase = info.phase;
+  overlayObject.sequenceNumber = info.sequenceNumber;
+  
   updateTooltipText();
   saveImageAndPosition();
 }

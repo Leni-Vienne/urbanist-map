@@ -3,10 +3,10 @@ import { safeGet } from '../utils';
 
 // Define screen coverage thresholds for different resolutions (in percentage)
 export const COVERAGE_THRESHOLDS = {
-  HIGH: 150,     // Original resolution when overlay covers 15% or more of the screen
-  MEDIUM: 0.5,   // Medium resolution when overlay covers between 5-15% of the screen
-  LOW: 0.1,      // Small resolution when overlay covers between 0.5-5% of the screen
-  // Below 0.5% coverage, use thumbnail
+  HIGH: 150,    // Original resolution when overlay covers 100% or more of the screen (zoomed in)
+  MEDIUM: 0.5,   // Medium resolution when overlay covers between 50-100% of the screen
+  LOW: 0.1,      // Small resolution when overlay covers between 10-50% of the screen
+  // Below 10% coverage, use thumbnail
 };
 
 /**
