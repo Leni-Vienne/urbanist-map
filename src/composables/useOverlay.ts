@@ -2,12 +2,13 @@ import L from "leaflet";
 import 'leaflet-toolbar';
 import 'leaflet-distortableimage-updated';
 import { ref, shallowRef } from 'vue';
-import { map, calculateScreenCoverage } from './useMap';
+import { map, calculateScreenCoverage, onMapInitialized } from './useMap';
 import { getAllOverlays, saveOverlay } from './useDatabase';
 import type { OverlayObject, StoredOverlayData, LatLng } from '../types';
 import { editTools, viewTools, infoTool } from './useTools';
 import { getImageUrlForCoverage } from './useImageResizer';
 import { debounce, truncateString } from '../utils';
+import { applyProjectStyling, projects } from './useProjects';
 
 export const overlays = shallowRef<Record<string, OverlayObject>>({});
 export const idSelectedOverlay = ref<string | null>(null);
@@ -37,6 +38,12 @@ export async function initializeOverlays(): Promise<void> {
 
   // Set up event listeners
   setupMapEventListeners();
+
+  // Use the event-based approach for updating resolutions
+  onMapInitialized(() => {
+    // Update all overlays with appropriate resolutions once map is fully initialized
+    updateImageResolutionsForCoverage();
+  });
 }
 
 /**
@@ -66,7 +73,7 @@ function createMarkersForOverlays(savedOverlays: StoredOverlayData[]): void {
 
     const center = overlayBounds.getCenter();
     const marker = L.marker(center, {
-      title: savedOverlay.info?.projectName || 'Overlay'
+      title: 'Overlay'
     }).addTo(map.value!);
 
     allMarkers.value[savedOverlay.id] = marker;
@@ -162,11 +169,21 @@ async function loadOverlaysInView(): Promise<void> {
  */
 function updateImageResolutionsForCoverage(): void {
   if (!map.value) return;
+  
+  // Get current map bounds to check visibility
+  const currentMapBounds = map.value.getBounds();
 
   Object.entries(overlays.value).forEach(([id, overlayObject]) => {
     if (!overlayObject.overlay || !overlayObject.imageResolutions) return;
 
     const bounds = overlayObject.overlay.getBounds();
+    
+    // Skip resolution update for overlays that aren't visible on the map
+    if (!currentMapBounds.intersects(bounds)) {
+      return;
+    }
+    
+    // Only calculate coverage for visible overlays
     const coveragePercent = calculateScreenCoverage(bounds);
 
     // Get the optimal resolution for this coverage
@@ -208,7 +225,6 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
 
   const newOverlay = L.distortableImageOverlay(imageUrl, {
     editable: true,
-    tooltipText: overlayObject.info?.projectName,
     keyboard: false,
     actions: [
       infoTool,
@@ -217,6 +233,11 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
   }).addTo(map.value);
 
   overlayObject.overlay = newOverlay;
+
+  // Apply project styling if this overlay belongs to a project
+  if (overlayObject.projectId) {
+    applyProjectStyling(overlayObject, overlayObject.projectId!);
+  }
 
   // Set up event handlers
   setupOverlayEventHandlers(newOverlay, overlayObject);
@@ -233,6 +254,17 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
     updateMarkerPosition(overlayObject);
     overlayObject.alreadyLoaded = true;
     overlayObject.alreadyStored = true;
+    
+    // Set the tooltip after the overlay has loaded and corners have been applied
+    if (overlayObject.projectId) {
+      const project = projects.value[overlayObject.projectId!];
+      if (project && newOverlay) {
+        const tooltipText = `${project.name}${overlayObject.phase ? ` - ${overlayObject.phase}` : ''}`;
+        setTimeout(() => {
+          newOverlay.bindTooltip(tooltipText, { permanent: true, direction: 'top' }).openTooltip();
+        }, 100); // Small delay to ensure corners are fully applied
+      }
+    }
   });
 
   return newOverlay;
@@ -244,12 +276,10 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
 function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayObject: OverlayObject): void {
   // Update border on selection
   overlay.on('select', () => {
-    setOverlayBorder(overlay.getElement(), true);
     idSelectedOverlay.value = overlayObject.id;
   });
 
   overlay.on('deselect', () => {
-    setOverlayBorder(overlay.getElement(), false);
     idSelectedOverlay.value = null;
   });
 
@@ -309,24 +339,6 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
   overlayObject.marker.setLatLng(center);
 }
 
-// Constants for overlay styling
-export const SELECTED_OVERLAY_OUTLINE = '8px solid #ffffff';
-export const SELECTED_OVERLAY_OUTLINE_OFFSET = '-8px';
-
-/**
- * Set the border style of an overlay based on selection state
- */
-export function setOverlayBorder(element: HTMLImageElement | undefined, isSelected: boolean): void {
-  if (!element) return;
-  if (isSelected) {
-    element.style.outline = SELECTED_OVERLAY_OUTLINE;
-    element.style.outlineOffset = SELECTED_OVERLAY_OUTLINE_OFFSET;
-  } else {
-    element.style.outline = '';
-    element.style.outlineOffset = '';
-  }
-}
-
 /**
  * Save the current state of an overlay to history
  */
@@ -349,7 +361,9 @@ export function saveToHistory(overlayObject: OverlayObject): void {
     corners: overlayObject.corners,
     history: overlayObject.history,
     redoStack: overlayObject.redoStack,
-    info: overlayObject.info
+    projectId: overlayObject.projectId,
+    phase: overlayObject.phase,
+    sequenceNumber: overlayObject.sequenceNumber
   };
 
   // Save to database
@@ -375,10 +389,8 @@ export function toggleEditMode(): void {
       viewTools.forEach((tool) => editing.addTool(tool));
     }
 
-    const element = overlayObject.overlay.getElement();
-    if (element) {
-      element.style.boxShadow = isEditMode.value ? SELECTED_OVERLAY_OUTLINE : '';
-    }
+    // No longer applying any border or shadow for edit mode
+    // Project-specific styling will be handled by the project functionality
   });
 }
 
