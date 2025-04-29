@@ -2,7 +2,7 @@
 import L from "leaflet";
 import { map, calculateScreenCoverage, onMapInitialized } from './useMap';
 import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, updateOverlayImage } from './useOverlay';
-import { saveOverlay, deleteOverlay as deleteOverlayFromDatabase } from './useDatabase';
+import { saveOverlay, deleteOverlay as deleteOverlayFromDatabase, saveProject } from './useDatabase';
 import { generateImageResolutions, getImageUrlForCoverage } from './useImageResizer';
 import type { ProjectInfo, ImageResolutions } from '../types';
 import { useToast } from './useToast';
@@ -36,13 +36,15 @@ export async function addOverlay(imageUrl: string, projectId: string) {
     imageUrl,
     imageResolutions,
     overlay: null,
-    marker: null,
+    marker: null as L.Marker | null,
     history: [],
     redoStack: [],
     alreadyLoaded: false,
     alreadyStored: false,
     corners: [],
     projectId, // Required project ID
+    phase: undefined as string | undefined,
+    sequenceNumber: undefined as number | undefined,
     whitePixelsHidden: false,
     currentResolution: imageUrl,
   };
@@ -425,6 +427,14 @@ export function saveImageAndPosition() {
 export function deleteOverlay(id: string) {
   const overlayObject = overlays.value[id];
   if (!overlayObject) return;
+
+  // Remove from project if assigned
+  if (overlayObject.projectId && projects.value[overlayObject.projectId]) {
+    const project = projects.value[overlayObject.projectId];
+    project.overlayIds = project.overlayIds.filter(overlayId => overlayId !== id);
+    // Save updated project
+    saveProject(project);
+  }
 
   // Remove from map
   if (overlayObject.overlay && map.value) {

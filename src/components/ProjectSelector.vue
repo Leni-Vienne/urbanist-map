@@ -1,53 +1,90 @@
-// filepath: d:\Documents\Perso\prog\city-map-overlay\src\components\ProjectSelector.vue
 <template>
   <div class="project-selector">
-    <h3 class="text-xl font-bold mb-4">Select a Project</h3>
-    
-    <div v-if="projectList.length > 0" class="existing-projects mb-4">
-      <p class="mb-2">Choose an existing project:</p>
-      <div class="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
-        <div 
-          v-for="project in projectList" 
-          :key="project.id"
-          class="project-item flex items-center p-2 border rounded-md cursor-pointer hover:bg-gray-50"
-          :style="{
-            borderLeft: `6px solid ${project.color}`,
-            background: `linear-gradient(to right, ${project.color}10, transparent)`
-          }"
-          @click="selectProject(project.id)"
-        >
-          <div class="flex-1">
-            <span class="font-bold">{{ project.name }}</span>
-            <span class="text-sm text-gray-500 ml-2">({{ project.overlayIds.length }} overlays)</span>
-          </div>
-          <Button 
-            icon="pi pi-check" 
-            class="p-button-sm p-button-success" 
-            @click.stop="selectProject(project.id)"
-          />
-        </div>
+    <div v-if="projectList.length > 0">
+      <div class="flex gap-2">
+        <FloatLabel class="w-full md:w-56">
+          <label for="projectSelect">Project</label>
+          <Select
+            v-model="selectedProjectId"
+            inputId="projectSelect"
+            :options="projectList"
+            optionLabel="name"
+            optionValue="id"
+            placeholder="Select a project"
+            class="w-full"
+            :filter="true"
+            :showClear="true"
+            :loading="loading"
+            aria-labelledby="project-selector-label"
+          >
+            <template #value="{ value, placeholder }">
+              <div
+                v-if="value"
+                class="flex items-center"
+              >
+                <div
+                  class="color-circle mr-2"
+                  :style="{ backgroundColor: getProjectById(value)?.color || '#ccc' }"
+                ></div>
+                <div>&nbsp;&nbsp;{{ getProjectById(value)?.name }}</div>
+              </div>
+              <span v-else>{{ placeholder }}</span>
+            </template>
+
+            <template #option="{ option }">
+              <div class="flex items-center">
+                <div
+                  class="color-circle mr-2"
+                  :style="{ backgroundColor: option.color }"
+                ></div>
+                <div>
+                  <span>&nbsp;&nbsp;{{ option.name }}</span>
+                  <span class="text-sm text-gray-500 ml-2">({{ option.overlayIds.length }} overlays)</span>
+                </div>
+              </div>
+            </template>
+
+            <template #footer>
+              <div
+                v-if="projectList.length > 10"
+                class="py-2 px-3 text-xs text-gray-500 border-t"
+              >
+                {{ projectList.length }} projects available
+              </div>
+            </template>
+          </Select>
+        </FloatLabel>
+        &nbsp;
+        <Button
+          icon="pi pi-check"
+          class="p-button-primary"
+          @click="confirmProjectSelection"
+          :disabled="!selectedProjectId"
+          v-tooltip.top="'Confirm selection'"
+        />
       </div>
     </div>
-    
+    <Divider align="center">
+      <b>Or create a new project</b>
+    </Divider>
     <div class="create-new-project">
-      <p class="mb-2">Or create a new project:</p>
-      <form @submit.prevent="createAndSelectProject" class="flex flex-col gap-3">
-        <FloatLabel>
-          <InputText v-model="newProject.name" required />
-          <label>Project Name</label>
-        </FloatLabel>
-        
-        <FloatLabel>
-          <InputText v-model="newProject.location" />
-          <label>Location (optional)</label>
-        </FloatLabel>
-        
-        <div class="text-right mt-2">
-          <Button 
-            type="submit" 
-            label="Create Project" 
-            icon="pi pi-plus" 
+      <form @submit.prevent="createAndSelectProject">
+        <div class="flex gap-2">
+          <FloatLabel class="w-full">
+            <InputText
+              v-model="newProject.name"
+              required
+              class="w-full"
+            />
+            <label>Project Name</label>
+          </FloatLabel>
+          &nbsp;
+          <Button
+            type="submit"
+            icon="pi pi-plus"
             class="p-button-primary"
+            :disabled="newProject.name.length === 0"
+            v-tooltip.top="'Create project'"
           />
         </div>
       </form>
@@ -61,12 +98,20 @@ import { projects, createProject } from '../composables/useProjects';
 import { useToast } from '../composables/useToast';
 import type { Project } from '../types';
 
+// Import PrimeVue components
+import Select from 'primevue/select';
+import Button from 'primevue/button';
+import InputText from 'primevue/inputtext';
+import FloatLabel from 'primevue/floatlabel';
+
 const toast = useToast();
 
 // Define emit events
 const emit = defineEmits(['project-selected', 'cancel']);
 
 // Component state
+const selectedProjectId = ref('');
+const loading = ref(false);
 const newProject = ref({
   name: '',
   description: '',
@@ -82,8 +127,21 @@ const projectList = computed(() => {
 });
 
 // Methods
+function confirmProjectSelection() {
+  if (selectedProjectId.value) {
+    emit('project-selected', selectedProjectId.value);
+  }
+}
+
+// Remove the @change handler from the select component and replace with the confirm button
 function selectProject(projectId: string) {
-  emit('project-selected', projectId);
+  if (projectId) {
+    emit('project-selected', projectId);
+  }
+}
+
+function getProjectById(id: string): Project | undefined {
+  return projectList.value.find(project => project.id === id);
 }
 
 async function createAndSelectProject() {
@@ -96,8 +154,9 @@ async function createAndSelectProject() {
     });
     return;
   }
-  
+
   try {
+    loading.value = true;
     // Create new project
     const projectId = await createProject({
       name: newProject.value.name,
@@ -107,10 +166,10 @@ async function createAndSelectProject() {
       endDate: newProject.value.endDate,
       budget: newProject.value.budget
     });
-    
+
     // Select the newly created project
     selectProject(projectId);
-    
+
     toast.add({
       severity: 'success',
       summary: 'Project Created',
@@ -125,6 +184,8 @@ async function createAndSelectProject() {
       detail: 'Failed to create project',
       life: 3000
     });
+  } finally {
+    loading.value = false;
   }
 }
 
@@ -146,14 +207,22 @@ onMounted(() => {
   width: 100%;
   max-width: 400px;
   background-color: white;
-  border-radius: 8px;
 }
 
-.project-item {
-  transition: transform 0.2s ease;
+.color-circle {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
 }
 
-.project-item:hover {
-  transform: translateX(2px);
+/* Add custom styling for the Select component */
+:deep(.p-select-panel) {
+  max-width: 400px;
+}
+
+:deep(.p-select-items-wrapper) {
+  max-height: 250px;
 }
 </style>
