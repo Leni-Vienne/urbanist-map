@@ -223,7 +223,10 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
     overlayObject.imageUrl = imageUrl;
   }
 
-  const newOverlay = L.distortableImageOverlay(imageUrl, {
+  // Convertir l'image en PNG transparent avant de créer l'overlay
+  const pngImage = await convertToPNG(imageUrl);
+  
+  const newOverlay = L.distortableImageOverlay(pngImage || imageUrl, {
     editable: true,
     keyboard: false,
     actions: [
@@ -268,6 +271,54 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
   });
 
   return newOverlay;
+}
+
+// Fonction auxiliaire pour convertir une image en PNG avec transparence
+async function convertToPNG(imageUrl: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(null);
+        return;
+      }
+      
+      canvas.width = img.width;
+      canvas.height = img.height;
+      
+      // Remplir avec du blanc transparent
+      ctx.fillStyle = 'rgba(255, 255, 255, 0)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Dessiner l'image sur le canvas
+      ctx.drawImage(img, 0, 0);
+      
+      // Rendre les pixels blancs transparents
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        
+        // Si le pixel est proche du blanc, le rendre transparent
+        if (r > 240 && g > 240 && b > 240) {
+          data[i + 3] = 0; // Canal alpha à 0
+        }
+      }
+      
+      ctx.putImageData(imageData, 0, 0);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    
+    img.onerror = () => resolve(null);
+    img.src = imageUrl;
+  });
 }
 
 /**

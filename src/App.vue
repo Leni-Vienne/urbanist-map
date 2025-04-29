@@ -61,8 +61,6 @@
     header="Select Project for New Overlay"
     :modal="true"
     :style="{ width: '450px' }"
-    :closable="false"
-    :dismissableMask="false"
   >
     <ProjectSelector @project-selected="onProjectSelected" />
   </Dialog>
@@ -75,7 +73,7 @@ import "leaflet-distortableimage-updated/dist/leaflet.distortableimage.css";
 import './assets/style.css'
 import 'primeicons/primeicons.css'
 
-import { ref, onMounted, getCurrentInstance } from 'vue';
+import { ref, onMounted, getCurrentInstance, watch } from 'vue';
 import { initializeDatabase, clearDatabase } from './composables/useDatabase';
 import { initializeMap, disableLeafletKeyboardEvents } from './composables/useMap';
 import { initializeOverlays, isEditMode, toggleEditMode } from './composables/useOverlay';
@@ -165,6 +163,19 @@ function onImageUpload(event: Event) {
   
   // Show the project selector
   showProjectSelector.value = true;
+
+  // Watch for dialog close to cleanup if user cancels
+  const cleanup = watch(showProjectSelector, (isOpen) => {
+    if (!isOpen) {
+      // Clean up when dialog closes without selection
+      pendingImageFile.value = null;
+      // Reset file input
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+      // Remove the watcher since we don't need it anymore
+      cleanup();
+    }
+  });
 }
 
 // Handle project selection from the ProjectSelector component
