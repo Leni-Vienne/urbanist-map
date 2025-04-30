@@ -1,5 +1,4 @@
 import type { ImageResolutions } from '../types';
-import { safeGet } from '../utils';
 
 // Define screen coverage thresholds for different resolutions (in percentage)
 export const COVERAGE_THRESHOLDS = {
@@ -109,7 +108,7 @@ function loadImage(url: string): Promise<HTMLImageElement> {
     img.onerror = () => reject(new Error('Failed to load image'));
     
     // Add timeout to prevent hanging
-    const timeout = setTimeout(() => {
+    setTimeout(() => {
       reject(new Error('Image load timeout'));
     }, 10000);
     

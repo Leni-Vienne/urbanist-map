@@ -9,7 +9,7 @@ let db: IDBPDatabase<MyDB> | null = null;
 export async function initializeDatabase(): Promise<void> {
   try {
     db = await openDB<MyDB>('CityMapOverlayDB', 2, {
-      upgrade(upgradeDb, oldVersion, newVersion) {
+      upgrade(upgradeDb, oldVersion) {
         // Create stores if they don't exist
         if (!upgradeDb.objectStoreNames.contains('overlays')) {
           upgradeDb.createObjectStore('overlays', { keyPath: 'id' });
@@ -261,7 +261,7 @@ export async function removeOverlayFromProject(projectId: string, overlayId: str
     // Remove project reference from overlay
     const overlay = await db.get('overlays', overlayId);
     if (overlay && overlay.projectId === projectId) {
-      overlay.projectId = undefined;
+      overlay.projectId = ''; // Use empty string instead of undefined
       await db.put('overlays', overlay);
     }
   } catch (error) {

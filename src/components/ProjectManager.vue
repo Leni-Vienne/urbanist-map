@@ -242,7 +242,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, PropType } from 'vue';
 import { 
   projects, 
   createProject, 
@@ -384,8 +384,8 @@ async function saveProject() {
         project.name = editingProject.value.name || project.name;
         project.description = editingProject.value.description || project.description;
         project.location = editingProject.value.location || project.location;
-        project.startDate = editingProject.value.startDate;
-        project.endDate = editingProject.value.endDate;
+        project.startDate = editingProject.value.startDate ?? null;
+        project.endDate = editingProject.value.endDate ?? null;
         project.color = editingProject.value.color || project.color;
         
         // Update project in database
@@ -404,8 +404,8 @@ async function saveProject() {
         name: editingProject.value.name || 'New Project',
         description: editingProject.value.description || '',
         location: editingProject.value.location || '',
-        startDate: editingProject.value.startDate,
-        endDate: editingProject.value.endDate,
+        startDate: editingProject.value.startDate ?? null,
+        endDate: editingProject.value.endDate ?? null,
         budget: 0
       });
     }

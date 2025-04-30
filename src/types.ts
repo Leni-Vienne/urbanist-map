@@ -11,6 +11,7 @@ export type LatLng = {
 
 // Extend Leaflet namespace to include custom actions
 declare module "leaflet" {
+  // oxlint isn't happy about those but it avoids typescript errors due to leaflet distortableimage lacking types
   const DistortAction: any;
   const RotateAction: any;
   const FreeRotateAction: any;

@@ -170,12 +170,6 @@ const editingProject = ref(false);
 const selectedProjectId = ref<string | null>(null);
 const newProjectName = ref('');
 
-// Computed properties
-const truncatedLink = computed(() => {
-  if (!project.value?.sourceLink) return '';
-  return truncateString(project.value.sourceLink, 30);
-});
-
 // Format date for display
 function formatDate(date: Date | null): string {
   if (!date) return 'Not specified';
