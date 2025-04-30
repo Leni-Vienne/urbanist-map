@@ -4,10 +4,10 @@ import 'leaflet-distortableimage-updated';
 import { ref, shallowRef } from 'vue';
 import { map, calculateScreenCoverage, onMapInitialized } from './useMap';
 import { getAllOverlays, saveOverlay } from './useDatabase';
-import type { OverlayObject, StoredOverlayData, LatLng } from '../types';
+import type { OverlayObject, StoredOverlayData } from '../types';
 import { editTools, viewTools, infoTool } from './useTools';
 import { getImageUrlForCoverage } from './useImageResizer';
-import { debounce, truncateString } from '../utils';
+import { debounce } from '../utils';
 import { applyProjectStyling, projects } from './useProjects';
 
 export const overlays = shallowRef<Record<string, OverlayObject>>({});
@@ -173,7 +173,7 @@ function updateImageResolutionsForCoverage(): void {
   // Get current map bounds to check visibility
   const currentMapBounds = map.value.getBounds();
 
-  Object.entries(overlays.value).forEach(([id, overlayObject]) => {
+  Object.entries(overlays.value).forEach(([_id, overlayObject]) => {
     if (!overlayObject.overlay || !overlayObject.imageResolutions) return;
 
     const bounds = overlayObject.overlay.getBounds();

@@ -87,13 +87,8 @@ function handleProjectSubmit(projectInfo: ProjectInfo & { id: string }) {
     return;
   }
 
-  updateOverlayInfo(projectInfo.id, {
-    projectName: projectInfo.projectName,
-    sourceLink: projectInfo.sourceLink,
-    startDate: projectInfo.startDate,
-    endDate: projectInfo.endDate,
-    budget: projectInfo.budget
-  });
+  // Only pass the properties that are expected by updateOverlayInfo
+  updateOverlayInfo(projectInfo.id, {});
 
   toast.add({ severity: 'success', summary: 'Project info updated', life: 3000 });
 

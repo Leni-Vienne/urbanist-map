@@ -4,9 +4,7 @@ import { map, calculateScreenCoverage, onMapInitialized } from './useMap';
 import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, updateOverlayImage } from './useOverlay';
 import { saveOverlay, deleteOverlay as deleteOverlayFromDatabase, saveProject } from './useDatabase';
 import { generateImageResolutions, getImageUrlForCoverage } from './useImageResizer';
-import type { ProjectInfo, ImageResolutions } from '../types';
 import { useToast } from './useToast';
-import { debounce } from '../utils';
 import { addOverlayToProjectWithId, projects } from './useProjects';
 
 const toast = useToast();

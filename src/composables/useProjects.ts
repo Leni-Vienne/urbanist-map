@@ -1,4 +1,4 @@
-import { ref, shallowRef, computed } from 'vue';
+import { ref, shallowRef } from 'vue';
 import { 
   saveProject, 
   getAllProjects, 
@@ -192,7 +192,7 @@ export async function removeOverlayFromProjectWithId(projectId: string, overlayI
   // Update overlay
   if (overlays.value[overlayId]) {
     const overlayObject = overlays.value[overlayId];
-    //overlayObject.projectId = undefined;
+    overlayObject.projectId = ''; // Use empty string instead of undefined
     
     // Remove project styling
     removeProjectStyling(overlayObject);
@@ -311,7 +311,7 @@ export async function deleteProjectById(projectId: string): Promise<void> {
   for (const overlayId of project.overlayIds) {
     const overlayObject = overlays.value[overlayId];
     if (overlayObject) {
-      //overlayObject.projectId = undefined;
+      overlayObject.projectId = ''; // Set to empty string instead of undefined
       removeProjectStyling(overlayObject);
     }
   }

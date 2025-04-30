@@ -88,7 +88,7 @@ const toast = useToast();
 const projectMenu = ref();
 const showProjectManager = ref(false);
 const showProjectSelector = ref(false);
-const projectManagerMode = ref('list');
+const projectManagerMode = ref<'list' | 'edit' | 'view'>('list');
 const projectManagerAction = ref('');
 
 // Store pending file upload
