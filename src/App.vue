@@ -19,10 +19,17 @@
           v-tooltip.right="'Manage Projects'"
           class="p-button-rounded"
         />
-        <ContextMenu ref="projectMenu" id="project_menu" :model="projectMenuItems">
+        <ContextMenu
+          ref="projectMenu"
+          id="project_menu"
+          :model="projectMenuItems"
+        >
           <template #item="{ item, props }">
             <a v-bind="props.action">
-              <span :class="item.icon" class="mr-2"></span>
+              <span
+                :class="item.icon"
+                class="mr-2"
+              ></span>
               <span class="font-bold">{{ item.label }}</span>
             </a>
           </template>
@@ -40,7 +47,7 @@
       </div>
     </div>
   </div>
-  
+
   <!-- Project Manager Dialog -->
   <Dialog
     v-model:visible="showProjectManager"
@@ -49,12 +56,12 @@
     :style="{ width: '500px' }"
     :dismissableMask="true"
   >
-    <ProjectManager 
-      :initial-mode="projectManagerMode" 
-      :initial-action="projectManagerAction" 
+    <ProjectManager
+      :initial-mode="projectManagerMode"
+      :initial-action="projectManagerAction"
     />
   </Dialog>
-  
+
   <!-- Project Selector Dialog -->
   <Dialog
     v-model:visible="showProjectSelector"
@@ -73,7 +80,7 @@ import "leaflet-distortableimage-updated/dist/leaflet.distortableimage.css";
 import './assets/style.css'
 import 'primeicons/primeicons.css'
 
-import { ref, onMounted, getCurrentInstance, watch } from 'vue';
+import { ref, onMounted, getCurrentInstance } from 'vue';
 import { initializeDatabase, clearDatabase } from './composables/useDatabase';
 import { initializeMap, disableLeafletKeyboardEvents } from './composables/useMap';
 import { initializeOverlays, isEditMode, toggleEditMode } from './composables/useOverlay';
@@ -83,16 +90,14 @@ import { useToast } from './composables/useToast';
 import { setAppContext } from './composables/useTools';
 import ProjectManager from './components/ProjectManager.vue';
 import ProjectSelector from './components/ProjectSelector.vue';
+import { useProjectManagerDialog } from './composables/useProjectManagerDialog';
 
 const toast = useToast();
 const projectMenu = ref();
-const showProjectManager = ref(false);
 const showProjectSelector = ref(false);
-const projectManagerMode = ref<'list' | 'edit' | 'view'>('list');
-const projectManagerAction = ref('');
-
-// Store pending file upload
 const pendingImageFile = ref<File | null>(null);
+
+const { isVisible: showProjectManager, mode: projectManagerMode, action: projectManagerAction, openProjectManager } = useProjectManagerDialog();
 
 // Menu items for projects context menu
 const projectMenuItems = [
@@ -100,18 +105,14 @@ const projectMenuItems = [
     label: 'Manage Projects',
     icon: 'pi pi-fw pi-cog',
     command: () => {
-      projectManagerMode.value = 'list';
-      projectManagerAction.value = '';
-      showProjectManager.value = true;
+      openProjectManager('list');
     }
   },
   {
     label: 'Create New Project',
     icon: 'pi pi-fw pi-plus',
     command: () => {
-      projectManagerMode.value = 'edit';
-      projectManagerAction.value = 'create';
-      showProjectManager.value = true;
+      openProjectManager('edit', 'create');
     }
   },
   { separator: true },
@@ -119,9 +120,7 @@ const projectMenuItems = [
     label: 'View All Projects',
     icon: 'pi pi-fw pi-list',
     command: () => {
-      projectManagerMode.value = 'list';
-      projectManagerAction.value = '';
-      showProjectManager.value = true;
+      openProjectManager('list');
     }
   }
 ];
@@ -160,22 +159,9 @@ function onImageUpload(event: Event) {
 
   // Store the file temporarily
   pendingImageFile.value = file;
-  
-  // Show the project selector
-  showProjectSelector.value = true;
 
-  // Watch for dialog close to cleanup if user cancels
-  const cleanup = watch(showProjectSelector, (isOpen) => {
-    if (!isOpen) {
-      // Clean up when dialog closes without selection
-      pendingImageFile.value = null;
-      // Reset file input
-      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-      if (fileInput) fileInput.value = '';
-      // Remove the watcher since we don't need it anymore
-      cleanup();
-    }
-  });
+  // Show project selector
+  showProjectSelector.value = true;
 }
 
 // Handle project selection from the ProjectSelector component
@@ -192,16 +178,16 @@ async function onProjectSelected(projectId: string) {
   }
 
   const file = pendingImageFile.value;
-  
+
   const reader = new FileReader();
   reader.onload = async () => {
     const imageUrl = reader.result as string;
     await addOverlay(imageUrl, projectId);
-    
+
     // Clean up
     pendingImageFile.value = null;
     showProjectSelector.value = false;
-    
+
     // Reset file input
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     if (fileInput) fileInput.value = '';

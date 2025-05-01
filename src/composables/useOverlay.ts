@@ -71,9 +71,16 @@ function createMarkersForOverlays(savedOverlays: StoredOverlayData[]): void {
     const overlayBounds = getOverlayBounds(savedOverlay);
     if (!overlayBounds || allMarkers.value[savedOverlay.id]) return;
 
+    // Create marker title from project name and phase if available
+    let markerTitle = 'Overlay';
+    if (savedOverlay.projectId && projects.value[savedOverlay.projectId]) {
+      const project = projects.value[savedOverlay.projectId];
+      markerTitle = `${project.name}${savedOverlay.phase ? ` - ${savedOverlay.phase}` : ''}`;
+    }
+
     const center = overlayBounds.getCenter();
     const marker = L.marker(center, {
-      title: 'Overlay'
+      title: markerTitle
     }).addTo(map.value!);
 
     allMarkers.value[savedOverlay.id] = marker;
@@ -178,6 +185,11 @@ function updateImageResolutionsForCoverage(): void {
 
     const bounds = overlayObject.overlay.getBounds();
     
+    // Check if bounds are valid before using them
+    if (!bounds || !bounds.isValid()) {
+      return;
+    }
+    
     // Skip resolution update for overlays that aren't visible on the map
     if (!currentMapBounds.intersects(bounds)) {
       return;
@@ -223,10 +235,7 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
     overlayObject.imageUrl = imageUrl;
   }
 
-  // Convertir l'image en PNG transparent avant de créer l'overlay
-  const pngImage = await convertToPNG(imageUrl);
-  
-  const newOverlay = L.distortableImageOverlay(pngImage || imageUrl, {
+  const newOverlay = L.distortableImageOverlay(imageUrl, {
     editable: true,
     keyboard: false,
     actions: [
@@ -257,68 +266,9 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
     updateMarkerPosition(overlayObject);
     overlayObject.alreadyLoaded = true;
     overlayObject.alreadyStored = true;
-    
-    // Set the tooltip after the overlay has loaded and corners have been applied
-    if (overlayObject.projectId) {
-      const project = projects.value[overlayObject.projectId!];
-      if (project && newOverlay) {
-        const tooltipText = `${project.name}${overlayObject.phase ? ` - ${overlayObject.phase}` : ''}`;
-        setTimeout(() => {
-          newOverlay.bindTooltip(tooltipText, { permanent: true, direction: 'top' }).openTooltip();
-        }, 100); // Small delay to ensure corners are fully applied
-      }
-    }
   });
 
   return newOverlay;
-}
-
-// Fonction auxiliaire pour convertir une image en PNG avec transparence
-async function convertToPNG(imageUrl: string): Promise<string | null> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        resolve(null);
-        return;
-      }
-      
-      canvas.width = img.width;
-      canvas.height = img.height;
-      
-      // Remplir avec du blanc transparent
-      ctx.fillStyle = 'rgba(255, 255, 255, 0)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // Dessiner l'image sur le canvas
-      ctx.drawImage(img, 0, 0);
-      
-      // Rendre les pixels blancs transparents
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-      
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        
-        // Si le pixel est proche du blanc, le rendre transparent
-        if (r > 240 && g > 240 && b > 240) {
-          data[i + 3] = 0; // Canal alpha à 0
-        }
-      }
-      
-      ctx.putImageData(imageData, 0, 0);
-      resolve(canvas.toDataURL('image/png'));
-    };
-    
-    img.onerror = () => resolve(null);
-    img.src = imageUrl;
-  });
 }
 
 /**

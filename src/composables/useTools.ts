@@ -68,7 +68,7 @@ export const infoTool = L.Toolbar2.Action.extend({
         const vnode = createVNode(InfoPopup, {
           overlayObject: overlays.value[idSelectedOverlay.value],
           onProjectSubmit: handleProjectSubmit,
-        });
+        })
         if (appInstance) {
           vnode.appContext = appInstance.appContext;
         }
