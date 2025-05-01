@@ -3,68 +3,83 @@
     <h3 class="text-xl font-bold mb-4">Project Manager</h3>
 
     <!-- Project List -->
-    <div v-if="mode === 'list'" class="project-list">
+    <div
+      v-if="mode === 'list'"
+      class="project-list"
+    >
       <div class="flex flex-col gap-2 mb-4">
-        <div v-for="project in projectsList" :key="project.id" 
+        <div
+          v-for="project in projectsList"
+          :key="project.id"
           class="project-item flex justify-between items-center p-2 border rounded-md mb-2"
           :style="{
             borderLeft: `8px solid ${project.color}`,
             boxShadow: `0 3px 6px ${project.color}50`,
             background: `linear-gradient(to right, ${project.color}10, transparent)`
-          }">
+          }"
+        >
           <div class="flex flex-col">
             <span class="font-bold">{{ project.name }}</span>
             <span class="text-sm text-gray-500">{{ project.overlayIds.length }} overlays</span>
           </div>
           <div class="flex gap-2">
-            <Button 
-              icon="pi pi-eye" 
-              class="p-button-sm" 
+            <Button
+              icon="pi pi-eye"
+              class="p-button-sm"
               @click="viewProject(project.id)"
               v-tooltip.top="'View project overlays'"
             />
-            <Button 
-              icon="pi pi-pencil" 
-              class="p-button-sm p-button-secondary" 
+            <Button
+              icon="pi pi-pencil"
+              class="p-button-sm p-button-secondary"
               @click="editProject(project.id)"
               v-tooltip.top="'Edit project details'"
             />
-            <Button 
-              icon="pi pi-trash" 
-              class="p-button-sm p-button-danger" 
+            <Button
+              icon="pi pi-trash"
+              class="p-button-sm p-button-danger"
               @click="confirmDeleteProject(project.id)"
               v-tooltip.top="'Delete project'"
             />
           </div>
         </div>
       </div>
-      <Button 
-        label="Create New Project" 
-        icon="pi pi-plus" 
-        class="p-button-primary w-full" 
+      <Button
+        label="Create New Project"
+        icon="pi pi-plus"
+        class="p-button-primary w-full"
         @click="createNewProject()"
       />
     </div>
 
     <!-- Create/Edit Project Form -->
-    <div v-if="mode === 'edit'" class="project-form">
+    <div
+      v-if="mode === 'edit'"
+      class="project-form"
+    >
       <form @submit.prevent="saveProject">
         <div class="flex flex-col gap-3 mb-4">
           <FloatLabel>
-            <InputText v-model="editingProject.name" required />
+            <InputText
+              v-model="editingProject.name"
+              required
+            />
             <label>Project Name</label>
           </FloatLabel>
-          
+
           <FloatLabel>
-            <Textarea v-model="editingProject.description" rows="3" />
+            <Textarea
+              v-model="editingProject.description"
+              rows="3"
+            />
             <label>Description</label>
           </FloatLabel>
-          
+
           <FloatLabel>
             <InputText v-model="editingProject.location" />
             <label>Location</label>
           </FloatLabel>
-          
+
           <div class="flex gap-3">
             <div class="flex-1">
               <FloatLabel>
@@ -79,12 +94,12 @@
               </FloatLabel>
             </div>
           </div>
-          
+
           <div>
             <label>Project Color:</label>
             <div class="flex gap-2 mt-2">
-              <div 
-                v-for="color in availableColors" 
+              <div
+                v-for="color in availableColors"
                 :key="color"
                 class="color-swatch w-8 h-8 rounded-full cursor-pointer border-2"
                 :class="{ 'border-blue-500': editingProject.color === color, 'border-transparent': editingProject.color !== color }"
@@ -94,37 +109,46 @@
             </div>
           </div>
         </div>
-        
+
         <div class="flex gap-2 justify-between">
-          <Button 
-            type="button" 
-            label="Cancel" 
-            class="p-button-outlined" 
-            icon="pi pi-times" 
+          <Button
+            type="button"
+            label="Cancel"
+            class="p-button-outlined"
+            icon="pi pi-times"
             @click="mode = 'list'"
           />
-          <Button 
-            type="submit" 
-            label="Save Project" 
-            icon="pi pi-save" 
+          <Button
+            type="submit"
+            label="Save Project"
+            icon="pi pi-save"
           />
         </div>
       </form>
     </div>
 
     <!-- Project View Mode -->
-    <div v-if="mode === 'view' && currentProject" class="project-view">
+    <div
+      v-if="mode === 'view' && currentProject"
+      class="project-view"
+    >
       <div class="project-header mb-4">
-        <h4 class="text-lg font-bold" :style="{ color: currentProject.color }">
+        <h4
+          class="text-lg font-bold"
+          :style="{ color: currentProject.color }"
+        >
           {{ currentProject.name }}
         </h4>
-        <p v-if="currentProject.description" class="text-sm mb-2">
+        <p
+          v-if="currentProject.description"
+          class="text-sm mb-2"
+        >
           {{ currentProject.description }}
         </p>
         <div class="text-sm text-gray-600">
           <div v-if="currentProject.location">Location: {{ currentProject.location }}</div>
           <div v-if="currentProject.startDate">
-            Period: {{ formatDate(currentProject.startDate) }} - 
+            Period: {{ formatDate(currentProject.startDate) }} -
             {{ currentProject.endDate ? formatDate(currentProject.endDate) : 'Ongoing' }}
           </div>
         </div>
@@ -132,21 +156,27 @@
 
       <div class="project-overlays mb-4">
         <h5 class="font-bold mb-2">Project Overlays</h5>
-        <div v-if="projectOverlays.length === 0" class="text-center p-3 bg-gray-100 rounded-md">
+        <div
+          v-if="projectOverlays.length === 0"
+          class="text-center p-3 bg-gray-100 rounded-md"
+        >
           No overlays in this project yet
         </div>
-        <div v-else class="grid grid-cols-2 gap-2">
-          <div 
-            v-for="overlay in projectOverlays" 
+        <div
+          v-else
+          class="grid grid-cols-2 gap-2"
+        >
+          <div
+            v-for="overlay in projectOverlays"
             :key="overlay.id"
             class="overlay-item p-2 border rounded-md"
             :style="{ borderLeft: `4px solid ${currentProject.color}` }"
           >
             <div class="flex justify-between items-center">
               <span class="text-sm font-medium">{{ overlay.phase || 'Unnamed Overlay' }}</span>
-              <Button 
-                icon="pi pi-times" 
-                class="p-button-text p-button-sm p-button-danger" 
+              <Button
+                icon="pi pi-times"
+                class="p-button-text p-button-sm p-button-danger"
                 @click="removeFromProject(overlay.id)"
                 v-tooltip.top="'Remove from project'"
               />
@@ -161,53 +191,59 @@
       <div class="mb-4">
         <h5 class="font-bold mb-2">Actions</h5>
         <div class="grid grid-cols-2 gap-2">
-          <Button 
-            label="Add Overlay" 
-            icon="pi pi-plus" 
+          <Button
+            label="Add Overlay"
+            icon="pi pi-plus"
             class="p-button-outlined"
             @click="showAddOverlayDialog = true"
           />
-          <Button 
-            label="Highlight All" 
-            icon="pi pi-eye" 
+          <Button
+            label="Highlight All"
+            icon="pi pi-eye"
             class="p-button-outlined"
             @click="toggleHighlight"
           />
         </div>
       </div>
 
-      <Button 
-        label="Back to Projects" 
-        icon="pi pi-arrow-left" 
-        class="p-button-text w-full" 
+      <Button
+        label="Back to Projects"
+        icon="pi pi-arrow-left"
+        class="p-button-text w-full"
         @click="mode = 'list'"
       />
     </div>
 
     <!-- Dialog for adding overlays to project -->
-    <Dialog 
-      v-model:visible="showAddOverlayDialog" 
-      header="Add Overlay to Project" 
+    <Dialog
+      v-model:visible="showAddOverlayDialog"
+      header="Add Overlay to Project"
       :modal="true"
       :closable="true"
     >
       <div class="available-overlays">
         <h5 class="font-bold mb-2">Available Overlays</h5>
-        <div v-if="availableOverlays.length === 0" class="text-center p-3 bg-gray-100 rounded-md">
+        <div
+          v-if="availableOverlays.length === 0"
+          class="text-center p-3 bg-gray-100 rounded-md"
+        >
           No available overlays to add
         </div>
-        <div v-else class="flex flex-col gap-2 max-h-60 overflow-y-auto">
-          <div 
-            v-for="overlay in availableOverlays" 
+        <div
+          v-else
+          class="flex flex-col gap-2 max-h-60 overflow-y-auto"
+        >
+          <div
+            v-for="overlay in availableOverlays"
             :key="overlay.id"
             class="overlay-item p-2 border rounded-md cursor-pointer hover:bg-gray-50"
             @click="addToProject(overlay.id)"
           >
             <div class="flex justify-between items-center">
               <span class="text-sm font-medium">{{ overlay.phase || 'Unnamed Overlay' }}</span>
-              <Button 
-                icon="pi pi-plus" 
-                class="p-button-text p-button-sm p-button-success" 
+              <Button
+                icon="pi pi-plus"
+                class="p-button-text p-button-sm p-button-success"
                 @click.stop="addToProject(overlay.id)"
                 v-tooltip.top="'Add to project'"
               />
@@ -216,14 +252,19 @@
         </div>
       </div>
       <template #footer>
-        <Button label="Close" icon="pi pi-times" @click="showAddOverlayDialog = false" class="p-button-text" />
+        <Button
+          label="Close"
+          icon="pi pi-times"
+          @click="showAddOverlayDialog = false"
+          class="p-button-text"
+        />
       </template>
     </Dialog>
 
     <!-- Confirmation dialog for deleting project -->
-    <Dialog 
-      v-model:visible="showDeleteDialog" 
-      header="Confirm Deletion" 
+    <Dialog
+      v-model:visible="showDeleteDialog"
+      header="Confirm Deletion"
       :modal="true"
       :closable="true"
     >
@@ -234,8 +275,18 @@
         </p>
       </div>
       <template #footer>
-        <Button label="Cancel" icon="pi pi-times" @click="showDeleteDialog = false" class="p-button-text" />
-        <Button label="Delete" icon="pi pi-trash" @click="deleteProject" class="p-button-danger" />
+        <Button
+          label="Cancel"
+          icon="pi pi-times"
+          @click="showDeleteDialog = false"
+          class="p-button-text"
+        />
+        <Button
+          label="Delete"
+          icon="pi pi-trash"
+          @click="deleteProject"
+          class="p-button-danger"
+        />
       </template>
     </Dialog>
   </div>
@@ -243,15 +294,15 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, PropType } from 'vue';
-import { 
-  projects, 
-  createProject, 
-  getOverlaysForProject, 
-  addOverlayToProjectWithId, 
+import {
+  projects,
+  createProject,
+  getOverlaysForProject,
+  addOverlayToProjectWithId,
   removeOverlayFromProjectWithId,
   deleteProjectById,
   highlightProjectOverlays,
-  clearProjectHighlight 
+  clearProjectHighlight
 } from '../composables/useProjects';
 import { overlays } from '../composables/useOverlay';
 import { useToast } from '../composables/useToast';
@@ -343,6 +394,14 @@ watch(() => props.initialAction, (action) => {
   }
 }, { immediate: true });
 
+// Watch for initialAction that includes a projectId
+watch(props, async (newProps) => {
+  if (newProps.initialAction && newProps.initialAction.startsWith('view:')) {
+    const projectId = newProps.initialAction.split(':')[1];
+    await viewProject(projectId);
+  }
+}, { immediate: true });
+
 // Methods
 function createNewProject() {
   editingProject.value = {
@@ -360,7 +419,7 @@ function createNewProject() {
 function editProject(projectId: string) {
   const project = projects.value[projectId];
   if (!project) return;
-  
+
   editingProject.value = { ...project };
   mode.value = 'edit';
 }
@@ -375,7 +434,7 @@ async function saveProject() {
     });
     return;
   }
-  
+
   try {
     if (editingProject.value.id) {
       // Update existing project
@@ -387,10 +446,10 @@ async function saveProject() {
         project.startDate = editingProject.value.startDate ?? null;
         project.endDate = editingProject.value.endDate ?? null;
         project.color = editingProject.value.color || project.color;
-        
+
         // Update project in database
         await createProject(project);
-        
+
         toast.add({
           severity: 'success',
           summary: 'Project updated',
@@ -409,7 +468,7 @@ async function saveProject() {
         budget: 0
       });
     }
-    
+
     mode.value = 'list';
   } catch (error) {
     console.error('Error saving project:', error);
@@ -425,7 +484,7 @@ async function saveProject() {
 async function viewProject(projectId: string) {
   currentProjectId.value = projectId;
   mode.value = 'view';
-  
+
   try {
     projectOverlays.value = await getOverlaysForProject(projectId);
   } catch (error) {
@@ -435,34 +494,34 @@ async function viewProject(projectId: string) {
 
 async function addToProject(overlayId: string) {
   if (!currentProjectId.value) return;
-  
+
   await addOverlayToProjectWithId(currentProjectId.value, overlayId);
-  
+
   // Refresh overlays list
   projectOverlays.value = await getOverlaysForProject(currentProjectId.value);
-  
+
   // Close dialog
   showAddOverlayDialog.value = false;
 }
 
 async function removeFromProject(overlayId: string) {
   if (!currentProjectId.value) return;
-  
+
   await removeOverlayFromProjectWithId(currentProjectId.value, overlayId);
-  
+
   // Refresh overlays list
   projectOverlays.value = await getOverlaysForProject(currentProjectId.value);
 }
 
 function toggleHighlight() {
   if (!currentProjectId.value) return;
-  
+
   if (isHighlighted.value) {
     clearProjectHighlight(currentProjectId.value);
   } else {
     highlightProjectOverlays(currentProjectId.value);
   }
-  
+
   isHighlighted.value = !isHighlighted.value;
 }
 
@@ -473,12 +532,12 @@ function confirmDeleteProject(projectId: string) {
 
 async function deleteProject() {
   if (!projectToDelete.value) return;
-  
+
   await deleteProjectById(projectToDelete.value);
-  
+
   showDeleteDialog.value = false;
   projectToDelete.value = null;
-  
+
   if (mode.value === 'view' && currentProjectId.value === projectToDelete.value) {
     mode.value = 'list';
   }
@@ -501,6 +560,7 @@ watch(mode, (newMode) => {
 <style scoped>
 @import "tailwindcss";
 @import "tailwindcss-primeui";
+
 .project-manager {
   padding: 1rem;
   max-width: 500px;
@@ -522,9 +582,11 @@ watch(mode, (newMode) => {
   0% {
     box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
   }
+
   70% {
     box-shadow: 0 0 0 10px rgba(255, 255, 255, 0);
   }
+
   100% {
     box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
   }
