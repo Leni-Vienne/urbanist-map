@@ -43,6 +43,11 @@
             </span>
           </div>
 
+          <div v-if="project.sourceUrl" class="flex items-center mb-2">
+            <span class="font-semibold mr-2">Source:</span>
+            <a :href="project.sourceUrl" target="_blank" class="text-blue-600 hover:underline">{{ project.sourceUrl }}</a>
+          </div>
+
           <div class="flex items-center mb-2">
             <span class="font-semibold mr-2">Budget:</span>
             <span>{{ project.budget ? formatCurrency(project.budget) : 'Not specified' }}</span>
@@ -50,10 +55,10 @@
 
           <div class="mt-3">
             <Button
-              label="Manage Project"
-              icon="pi pi-cog"
+              label="Edit Project"
+              icon="pi pi-pencil"
               class="p-button-sm p-button-outlined p-button-info w-full"
-              @click="openProjectManagerForProject"
+              @click="openProjectManagerForEdit"
             />
           </div>
         </div>
@@ -165,10 +170,11 @@ async function applyProjectChange(projectId: string) {
   }
 }
 
-// Open project manager
-function openProjectManagerForProject() {
+// Open project manager for edit
+function openProjectManagerForEdit() {
   if (!project.value) return;
-  openProjectManager('view', `view:${project.value.id}`);
+  
+  openProjectManager('edit', project.value.id, project.value.name);
 }
 
 // Load current project data

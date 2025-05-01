@@ -1,29 +1,34 @@
 import { ref } from 'vue';
 
-export type ProjectManagerMode = 'list' | 'edit' | 'view';
+export type ProjectManagerMode = 'list' | 'edit' | 'view' | 'create';
 
-// Dialog state
+// Dialog visibility state
 const isVisible = ref(false);
-const mode = ref<ProjectManagerMode>('list');
-const action = ref('');
+const initialProjectName = ref('');
+const currentMode = ref<ProjectManagerMode>('list');
+const currentProjectId = ref<string>('');
 
 // Functions to control the dialog
-function openProjectManager(openMode: ProjectManagerMode = 'list', openAction: string = '') {
-    mode.value = openMode;
-    action.value = openAction;
+function openProjectManager(openMode: ProjectManagerMode = 'list', projectId: string = '', projectName: string = '') {
+    initialProjectName.value = projectName;
+    currentMode.value = openMode;
+    currentProjectId.value = projectId;
     isVisible.value = true;
 }
 
 function closeProjectManager() {
     isVisible.value = false;
+    initialProjectName.value = '';
+    // No need to change the route anymore
 }
 
 // Export the composable
 export function useProjectManagerDialog() {
     return {
         isVisible,
-        mode,
-        action,
+        initialProjectName,
+        currentMode,
+        currentProjectId,
         openProjectManager,
         closeProjectManager
     };

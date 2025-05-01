@@ -64,6 +64,7 @@ export interface Project {
   startDate: Date | null;
   endDate: Date | null;
   budget: number;
+  sourceUrl: string;
   overlayIds: string[];
   color: string; // Color for visual grouping
 }

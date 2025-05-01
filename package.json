@@ -16,7 +16,8 @@
     "primevue": "^4.3.3",
     "tailwindcss": "^4.1.4",
     "tailwindcss-primeui": "^0.6.1",
-    "vue": "^3.5.13"
+    "vue": "^3.5.13",
+    "vue-router": "4"
   },
   "devDependencies": {
     "@primevue/auto-import-resolver": "^4.3.3",

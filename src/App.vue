@@ -55,17 +55,20 @@
     :modal="true"
     :style="{ width: '500px' }"
     :dismissableMask="true"
+    @hide="closeProjectManager"
   >
-    <ProjectManager
-      :initial-mode="projectManagerMode"
-      :initial-action="projectManagerAction"
+    <ProjectList v-if="currentMode === 'list'" />
+    <ProjectEditor 
+      v-else 
+      :id="currentProjectId" 
+      :mode="currentMode" 
     />
   </Dialog>
 
   <!-- Project Selector Dialog -->
   <Dialog
     v-model:visible="showProjectSelector"
-    header="Select Project for New Overlay"
+    header="Select a project for the new overlay"
     :modal="true"
     :style="{ width: '450px' }"
   >
@@ -80,7 +83,7 @@ import "leaflet-distortableimage-updated/dist/leaflet.distortableimage.css";
 import './assets/style.css'
 import 'primeicons/primeicons.css'
 
-import { ref, onMounted, getCurrentInstance } from 'vue';
+import { ref, onMounted, getCurrentInstance, watch } from 'vue';
 import { initializeDatabase, clearDatabase } from './composables/useDatabase';
 import { initializeMap, disableLeafletKeyboardEvents } from './composables/useMap';
 import { initializeOverlays, isEditMode, toggleEditMode } from './composables/useOverlay';
@@ -88,16 +91,22 @@ import { initializeProjects } from './composables/useProjects';
 import { addOverlay, undo, redo } from './composables/useOverlayActions';
 import { useToast } from './composables/useToast';
 import { setAppContext } from './composables/useTools';
-import ProjectManager from './components/ProjectManager.vue';
-import ProjectSelector from './components/ProjectSelector.vue';
 import { useProjectManagerDialog } from './composables/useProjectManagerDialog';
+import ProjectSelector from './components/ProjectSelector.vue';
+import ProjectList from './components/ProjectList.vue';
+import ProjectEditor from './components/ProjectEditor.vue';
 
 const toast = useToast();
+const { 
+  isVisible: showProjectManager, 
+  closeProjectManager, 
+  currentMode,
+  currentProjectId,
+  openProjectManager 
+} = useProjectManagerDialog();
 const projectMenu = ref();
 const showProjectSelector = ref(false);
 const pendingImageFile = ref<File | null>(null);
-
-const { isVisible: showProjectManager, mode: projectManagerMode, action: projectManagerAction, openProjectManager } = useProjectManagerDialog();
 
 // Menu items for projects context menu
 const projectMenuItems = [
@@ -112,7 +121,7 @@ const projectMenuItems = [
     label: 'Create New Project',
     icon: 'pi pi-fw pi-plus',
     command: () => {
-      openProjectManager('edit', 'create');
+      openProjectManager('create');
     }
   },
   { separator: true },
@@ -194,6 +203,15 @@ async function onProjectSelected(projectId: string) {
   };
   reader.readAsDataURL(file);
 }
+
+// Watch for changes in showProjectSelector to reset file input when dialog closes,
+// otherwise we can't import the same file again, even if we cancel in between
+watch(showProjectSelector, (newVal) => {
+  if (!newVal) {
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  }
+});
 </script>
 
 <style scoped>

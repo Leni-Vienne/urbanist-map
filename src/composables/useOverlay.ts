@@ -284,11 +284,6 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
     idSelectedOverlay.value = null;
   });
 
-  // Disable keyboard handling on the overlay
-  if (overlay.editing && overlay.editing._disableKeyboard) {
-    overlay.editing._disableKeyboard();
-  }
-
   // Add event listeners for transformations
   overlay.on('edit', () => {
     saveToHistory(overlayObject);
@@ -389,9 +384,6 @@ export function toggleEditMode(): void {
       editTools.forEach((tool) => editing.removeTool(tool));
       viewTools.forEach((tool) => editing.addTool(tool));
     }
-
-    // No longer applying any border or shadow for edit mode
-    // Project-specific styling will be handled by the project functionality
   });
 }
 
