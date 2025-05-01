@@ -97,6 +97,7 @@
 import { ref, computed } from 'vue';
 import { projects, createProject } from '../composables/useProjects';
 import { useToast } from '../composables/useToast';
+import { useProjectManagerDialog } from '../composables/useProjectManagerDialog';
 import type { Project } from '../types';
 
 const props = defineProps({
@@ -125,6 +126,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'project-selected', 'project-created']);
 
 const toast = useToast();
+const { openProjectManager } = useProjectManagerDialog();
 const loading = ref(false);
 const selectedProjectId = ref(props.modelValue);
 const newProject = ref({
@@ -149,50 +151,10 @@ function confirmSelection() {
 }
 
 async function handleProjectCreation() {
-  if (!newProject.value.name) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Please enter a project name',
-      life: 3000
-    });
-    return;
-  }
-
-  try {
-    loading.value = true;
-    const projectId = await createProject({
-      name: newProject.value.name,
-      description: newProject.value.description,
-      location: newProject.value.location,
-      startDate: newProject.value.startDate,
-      endDate: newProject.value.endDate,
-      budget: newProject.value.budget
-    });
-
-    emit('project-created', projectId);
-    emit('project-selected', projectId);
-
-    toast.add({
-      severity: 'success',
-      summary: 'Project Created',
-      detail: `Project "${newProject.value.name}" has been created`,
-      life: 3000
-    });
-
-    // Reset form
-    newProject.value.name = '';
-  } catch (error) {
-    console.error('Error creating project:', error);
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to create project',
-      life: 3000
-    });
-  } finally {
-    loading.value = false;
-  }
+  // Open project manager with the typed name
+  openProjectManager('edit', 'create', newProject.value.name);
+  // Clear the input field after opening dialog
+  newProject.value.name = '';
 }
 </script>
 

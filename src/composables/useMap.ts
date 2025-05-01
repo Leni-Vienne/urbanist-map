@@ -163,8 +163,6 @@ export function disableLeafletKeyboardEvents() {
     console.error('Map is not initialized yet!');
     return;
   }
-  
-  map.value.keyboard.disable();
 
   const mapContainer = map.value.getContainer();
   if (!mapContainer) {
@@ -172,6 +170,8 @@ export function disableLeafletKeyboardEvents() {
     return;
   }
 
+  // to prevent keystrokes from InfoPopup to be intercepted by Leaflet
+  // unfortunately, it prevnts the user of the arrow keys to move the map (but there is prob a way around it)
   ['keydown', 'keyup', 'keypress'].forEach(eventType => {
     mapContainer.addEventListener(eventType, (e: Event) => {
       (e as KeyboardEvent).stopPropagation();
