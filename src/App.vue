@@ -51,7 +51,7 @@
   <!-- Project Manager Dialog -->
   <Dialog
     v-model:visible="showProjectManager"
-    header="Project Manager"
+    :header="projectManagerHeader"
     :modal="true"
     :style="{ width: '500px' }"
     :dismissableMask="true"
@@ -72,7 +72,7 @@
     :modal="true"
     :style="{ width: '450px' }"
   >
-    <ProjectSelector @project-selected="onProjectSelected" />
+    <ProjectPicker @project-selected="onProjectSelected" />
   </Dialog>
 </template>
 
@@ -83,7 +83,7 @@ import "leaflet-distortableimage-updated/dist/leaflet.distortableimage.css";
 import './assets/style.css'
 import 'primeicons/primeicons.css'
 
-import { ref, onMounted, getCurrentInstance, watch } from 'vue';
+import { ref, onMounted, getCurrentInstance, watch, computed } from 'vue';
 import { initializeDatabase, clearDatabase } from './composables/useDatabase';
 import { initializeMap, disableLeafletKeyboardEvents } from './composables/useMap';
 import { initializeOverlays, isEditMode, toggleEditMode } from './composables/useOverlay';
@@ -92,7 +92,7 @@ import { addOverlay, undo, redo } from './composables/useOverlayActions';
 import { useToast } from './composables/useToast';
 import { setAppContext } from './composables/useTools';
 import { useProjectManagerDialog } from './composables/useProjectManagerDialog';
-import ProjectSelector from './components/ProjectSelector.vue';
+import ProjectPicker from './components/ProjectPicker.vue';
 import ProjectList from './components/ProjectList.vue';
 import ProjectEditor from './components/ProjectEditor.vue';
 
@@ -107,6 +107,29 @@ const {
 const projectMenu = ref();
 const showProjectSelector = ref(false);
 const pendingImageFile = ref<File | null>(null);
+
+// Watch for changes in showProjectSelector to reset file input when dialog closes,
+// otherwise we can't import the same file again, even if we cancel in between
+watch(showProjectSelector, (newVal) => {
+  if (!newVal) {
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  }
+});
+
+// Computed property to get dynamic header for Project Manager Dialog
+const projectManagerHeader = computed(() => {
+  switch (currentMode.value) {
+    case 'list':
+      return 'Project Manager';
+    case 'create':
+      return 'Create New Project';
+    case 'edit':
+      return 'Edit Project';
+    default:
+      return 'Project Manager';
+  }
+});
 
 // Menu items for projects context menu
 const projectMenuItems = [
@@ -204,14 +227,6 @@ async function onProjectSelected(projectId: string) {
   reader.readAsDataURL(file);
 }
 
-// Watch for changes in showProjectSelector to reset file input when dialog closes,
-// otherwise we can't import the same file again, even if we cancel in between
-watch(showProjectSelector, (newVal) => {
-  if (!newVal) {
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    if (fileInput) fileInput.value = '';
-  }
-});
 </script>
 
 <style scoped>

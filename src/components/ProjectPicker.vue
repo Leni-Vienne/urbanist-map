@@ -1,4 +1,3 @@
-# New file
 <template>
   <div class="project-picker">
     <div
@@ -67,27 +66,15 @@
       </Divider>
 
       <div class="create-project">
-        <form @submit.prevent="handleProjectCreation">
-          <div class="flex gap-2">
-            <FloatLabel class="w-full">
-              <InputText
-                v-model="newProject.name"
-                required
-                class="w-full"
-              />
-              <label>Project Name</label>
-            </FloatLabel>
-            <slot name="create-actions">
-              <Button
-                type="submit"
-                icon="pi pi-plus"
-                class="p-button-primary"
-                :disabled="newProject.name.length === 0"
-                v-tooltip.top="'Create project'"
-              />
-            </slot>
-          </div>
-        </form>
+        <div class="flex">
+          <Button
+            icon="pi pi-plus"
+            label="New Project"
+            class="p-button-primary w-full"
+            @click="openNewProjectDialog"
+            v-tooltip.top="'Create a new project'"
+          />
+        </div>
       </div>
     </template>
   </div>
@@ -129,14 +116,6 @@ const toast = useToast();
 const { openProjectManager } = useProjectManagerDialog();
 const loading = ref(false);
 const selectedProjectId = ref(props.modelValue);
-const newProject = ref({
-  name: '',
-  description: '',
-  location: '',
-  startDate: null as Date | null,
-  endDate: null as Date | null,
-  budget: 0
-});
 
 const projectList = computed(() => Object.values(projects.value));
 
@@ -150,11 +129,9 @@ function confirmSelection() {
   }
 }
 
-async function handleProjectCreation() {
-  // Open project manager with the typed name
-  openProjectManager('edit', 'create', newProject.value.name);
-  // Clear the input field after opening dialog
-  newProject.value.name = '';
+function openNewProjectDialog() {
+  // Open project manager dialog in create mode
+  openProjectManager('create');
 }
 </script>
 

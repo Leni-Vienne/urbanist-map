@@ -131,6 +131,7 @@ function createNewProject() {
 </script>
 
 <style scoped>
+@import "tailwindcss";
 .project-list {
   padding: 1rem;
   max-width: 500px;

@@ -98,7 +98,7 @@
       &nbsp;
       <Button
         type="submit"
-        label="Save Project"
+        :label="mode === 'create' ? 'Create project' : 'Update project'"
         icon="pi pi-save"
       />
     </div>
@@ -250,7 +250,8 @@ import {
   addOverlayToProjectWithId,
   removeOverlayFromProjectWithId,
   highlightProjectOverlays,
-  clearProjectHighlight
+  clearProjectHighlight,
+  updateProject
 } from '../composables/useProjects';
 import { overlays } from '../composables/useOverlay';
 import { useToast } from '../composables/useToast';
@@ -263,7 +264,7 @@ const props = defineProps<{
 }>();
 
 const toast = useToast();
-const { initialProjectName, closeProjectManager, openProjectManager } = useProjectManagerDialog();
+const { initialProjectName, closeProjectManager, openProjectManager, previousMode } = useProjectManagerDialog();
 
 // Component state
 const mode = computed(() => props.mode);
@@ -315,6 +316,14 @@ const availableOverlays = computed(() => {
   });
 });
 
+// Cleanup on component unmount
+watch(() => mode.value, (newMode) => {
+  if (newMode !== 'view' && projectId.value && isHighlighted.value) {
+    clearProjectHighlight(projectId.value);
+    isHighlighted.value = false;
+  }
+});
+
 // Methods
 async function saveProject() {
   if (!editingProject.value.name) {
@@ -329,25 +338,22 @@ async function saveProject() {
 
   try {
     if (editingProject.value.id) {
-      // Update existing project
-      const project = projects.value[editingProject.value.id];
-      if (project) {
-        Object.assign(project, {
-          name: editingProject.value.name,
-          description: editingProject.value.description,
-          location: editingProject.value.location,
-          startDate: editingProject.value.startDate ?? null,
-          endDate: editingProject.value.endDate ?? null,
-          sourceUrl: editingProject.value.sourceUrl
-        });
-
-        await createProject(project);
-        toast.add({
-          severity: 'success',
-          summary: 'Project updated',
-          detail: `Project "${project.name}" has been updated`,
-          life: 3000
-        });
+      // Update existing project using the new updateProject function
+      await updateProject(editingProject.value.id, {
+        name: editingProject.value.name,
+        description: editingProject.value.description,
+        location: editingProject.value.location,
+        startDate: editingProject.value.startDate ?? null,
+        endDate: editingProject.value.endDate ?? null,
+        sourceUrl: editingProject.value.sourceUrl
+      });
+      
+      // If we came from the project list, go back to it
+      if (previousMode.value === 'list') {
+        openProjectManager('list');
+      } else {
+        // Otherwise just close the dialog
+        closeProjectManager();
       }
     } else {
       // Create new project
@@ -366,10 +372,10 @@ async function saveProject() {
         detail: `Project "${editingProject.value.name}" has been created`,
         life: 3000
       });
+      
+      // After creating, go back to the project list
+      openProjectManager('list');
     }
-    
-    // After successful save, go back to the project list
-    openProjectManager('list');
   } catch (error) {
     console.error('Error saving project:', error);
     toast.add({
@@ -418,13 +424,6 @@ function goBackToProjects() {
   closeProjectManager();
 }
 
-// Cleanup on component unmount
-watch(() => mode.value, (newMode) => {
-  if (newMode !== 'view' && projectId.value && isHighlighted.value) {
-    clearProjectHighlight(projectId.value);
-    isHighlighted.value = false;
-  }
-});
 </script>
 
 <style scoped>

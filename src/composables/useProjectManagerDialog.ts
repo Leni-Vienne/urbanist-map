@@ -6,10 +6,14 @@ export type ProjectManagerMode = 'list' | 'edit' | 'view' | 'create';
 const isVisible = ref(false);
 const initialProjectName = ref('');
 const currentMode = ref<ProjectManagerMode>('list');
+const previousMode = ref<ProjectManagerMode | null>(null);
 const currentProjectId = ref<string>('');
 
 // Functions to control the dialog
 function openProjectManager(openMode: ProjectManagerMode = 'list', projectId: string = '', projectName: string = '') {
+    // Store the current mode as previous before changing
+    previousMode.value = currentMode.value;
+    
     initialProjectName.value = projectName;
     currentMode.value = openMode;
     currentProjectId.value = projectId;
@@ -17,6 +21,7 @@ function openProjectManager(openMode: ProjectManagerMode = 'list', projectId: st
 }
 
 function closeProjectManager() {
+    console.log('Closing project manager dialog');
     isVisible.value = false;
     initialProjectName.value = '';
     // No need to change the route anymore
@@ -28,6 +33,7 @@ export function useProjectManagerDialog() {
         isVisible,
         initialProjectName,
         currentMode,
+        previousMode,
         currentProjectId,
         openProjectManager,
         closeProjectManager
