@@ -319,8 +319,10 @@ export async function deleteProjectById(projectId: string): Promise<void> {
   // Delete from database
   await deleteProject(projectId);
   
-  // Remove from local state
-  delete projects.value[projectId];
+  // Create a new object for projects.value to trigger reactivity with shallowRef
+  const updatedProjects = { ...projects.value };
+  delete updatedProjects[projectId];
+  projects.value = updatedProjects;
   
   // Clear selection if this was the selected project
   if (selectedProjectId.value === projectId) {
@@ -331,6 +333,35 @@ export async function deleteProjectById(projectId: string): Promise<void> {
     severity: 'info',
     summary: 'Project deleted',
     detail: `Project "${project.name}" has been deleted`,
+    life: 3000
+  });
+}
+
+/**
+ * Update an existing project
+ */
+export async function updateProject(projectId: string, projectData: Partial<Omit<Project, 'id' | 'overlayIds' | 'color'>>): Promise<void> {
+  const project = projects.value[projectId];
+  if (!project) {
+    toast.add({
+      severity: 'error',
+      summary: 'Project not found',
+      detail: 'The project to update could not be found',
+      life: 3000
+    });
+    return;
+  }
+  
+  // Update only the provided fields
+  Object.assign(project, projectData);
+  
+  // Save to database
+  await saveProject(project);
+  
+  toast.add({
+    severity: 'success',
+    summary: 'Project updated',
+    detail: `Project "${project.name}" has been updated`,
     life: 3000
   });
 }

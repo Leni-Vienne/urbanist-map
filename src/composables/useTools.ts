@@ -3,7 +3,7 @@ import 'leaflet-toolbar';
 import 'leaflet-distortableimage-updated';
 import { type ComponentInternalInstance, createVNode, render } from 'vue';
 import { map } from './useMap';
-import { overlays, idSelectedOverlay } from './useOverlay';
+import { overlays, idSelectedOverlay, isEditMode } from './useOverlay';
 import { undo, redo, resetImageRatio, toggleWhitePixels, deleteOverlay, updateOverlayInfo } from './useOverlayActions';
 import InfoPopup from '../components/InfoPopup.vue';
 import { useToast } from './useToast';
@@ -68,6 +68,7 @@ export const infoTool = L.Toolbar2.Action.extend({
         const vnode = createVNode(InfoPopup, {
           overlayObject: overlays.value[idSelectedOverlay.value],
           onProjectSubmit: handleProjectSubmit,
+          viewMode: !isEditMode.value
         })
         if (appInstance) {
           vnode.appContext = appInstance.appContext;

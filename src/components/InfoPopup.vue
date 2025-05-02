@@ -10,8 +10,11 @@
       v-else
       class="project-details"
     >
-      <!-- Project Selection Section - Always visible -->
-      <div class="project-selection mb-4">
+      <!-- Project Selection Section - Only visible in edit mode -->
+      <div 
+        v-if="!props.viewMode"
+        class="project-selection mb-4"
+      >
         <h3 class="text-lg font-bold mb-2">Project Assignment</h3>
         <div class="flex flex-col gap-2">
           <ProjectPicker
@@ -53,7 +56,7 @@
             <span>{{ project.budget ? formatCurrency(project.budget) : 'Not specified' }}</span>
           </div>
 
-          <div class="mt-3">
+          <div v-if="!props.viewMode" class="mt-3">
             <Button
               label="Edit Project"
               icon="pi pi-pencil"
@@ -98,6 +101,7 @@ import type { OverlayObject, Project } from '../types';
 const props = defineProps<{
   overlayObject: OverlayObject;
   onProjectSubmit?: (data: any) => void;
+  viewMode?: boolean;
 }>();
 
 const toast = useToast();
@@ -174,7 +178,30 @@ async function applyProjectChange(projectId: string) {
 function openProjectManagerForEdit() {
   if (!project.value) return;
   
+  // First close the info popup
+  closeInfoPopup();
+  
+  // Then open the project manager dialog
   openProjectManager('edit', project.value.id, project.value.name);
+}
+
+// Helper function to close the info popup
+function closeInfoPopup() {
+  // Try multiple ways to close the popup
+  const infoLink = document.querySelector('.leaflet-toolbar-0 .pi-info-circle');
+  if (infoLink && infoLink instanceof HTMLElement) {
+    infoLink.click();
+    return;
+  }
+  
+  // Fallback to other selectors
+  const infoButtons = document.querySelectorAll('.pi-info-circle');
+  for (const button of infoButtons) {
+    if (button instanceof HTMLElement) {
+      button.click();
+      return;
+    }
+  }
 }
 
 // Load current project data
@@ -205,6 +232,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+
 .info-popup {
   padding: 1rem;
   width: 420px;
