@@ -202,7 +202,6 @@ export const editTools = [
 
 export const viewTools = [
   centerTool,
-  resetRatioTool,
   backgroundTool,
   L.OpacityAction,
   L.OpacitiesAction,

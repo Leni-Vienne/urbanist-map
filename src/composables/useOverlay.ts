@@ -235,12 +235,13 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
     overlayObject.imageUrl = imageUrl;
   }
 
+  // Create the overlay with tools based on current mode
   const newOverlay = L.distortableImageOverlay(imageUrl, {
-    editable: true,
+    editable: isEditMode.value, // Will only be editable in edit mode
     keyboard: false,
     actions: [
       infoTool,
-      ...editTools
+      ...(isEditMode.value ? editTools : viewTools)
     ],
   }).addTo(map.value);
 
@@ -260,12 +261,45 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
     return null;
   }
 
+  // Apply view mode restrictions if needed
+  if (!isEditMode.value) {
+    // Add visual indicator
+    element.style.cursor = 'not-allowed';
+    
+    // Add event listeners that block movement but allow clicks
+    element.addEventListener('mousedown', blockMovementEvent, true);
+    element.addEventListener('touchstart', blockMovementEvent, true);
+    element.addEventListener('dragstart', blockMovementEvent, true);
+    
+    // Disable movement-related events but keep click events
+    if (newOverlay.off) {
+      newOverlay.off('mousedown');
+      newOverlay.off('touchstart');
+      newOverlay.off('dragstart');
+      newOverlay.off('drag');
+      newOverlay.off('dragend');
+      // Do NOT remove 'click' as we need it for toolbar
+    }
+  }
+
   // Set up load event handler
   L.DomEvent.on(element, 'load', () => {
     applyOverlayCorners(overlayObject);
     updateMarkerPosition(overlayObject);
     overlayObject.alreadyLoaded = true;
     overlayObject.alreadyStored = true;
+    
+    // Re-apply view mode if needed (extra protection to ensure immobility)
+    if (!isEditMode.value && overlayObject.overlay) {
+      const corners = overlayObject.overlay.getCorners();
+      if (corners && corners.length === 4) {
+        setTimeout(() => {
+          if (overlayObject.overlay) {
+            overlayObject.overlay.setCorners(corners);
+          }
+        }, 50);
+      }
+    }
   });
 
   return newOverlay;
@@ -376,15 +410,82 @@ export function toggleEditMode(): void {
     if (!overlayObject.overlay) return;
 
     const editing = overlayObject.overlay.editing;
+    const element = overlayObject.overlay.getElement();
 
     if (isEditMode.value) {
+      // Switch to edit mode
       viewTools.forEach((tool) => editing.removeTool(tool));
       editTools.forEach((tool) => editing.addTool(tool));
+      
+      // Enable editing capabilities
+      if (element) {
+        // Re-enable pointer events
+        element.style.pointerEvents = 'auto';
+        // Reset cursor
+        element.style.cursor = '';
+        
+        // Remove any movement blocking event handlers we added
+        element.removeEventListener('mousedown', blockMovementEvent, true);
+        element.removeEventListener('touchstart', blockMovementEvent, true);
+        element.removeEventListener('dragstart', blockMovementEvent, true);
+      }
     } else {
+      // Switch to view mode
       editTools.forEach((tool) => editing.removeTool(tool));
       viewTools.forEach((tool) => editing.addTool(tool));
+      
+      // Disable all editing capabilities while keeping click working
+      if (element) {
+        // Add visual indicator for view mode
+        element.style.cursor = 'not-allowed';
+        
+        // We'll keep pointer-events enabled so clicks work, but block specific events
+        // that would cause movement
+        element.addEventListener('mousedown', blockMovementEvent, true);
+        element.addEventListener('touchstart', blockMovementEvent, true);
+        element.addEventListener('dragstart', blockMovementEvent, true);
+      }
+      
+      // Remove drag-related events but keep click events working
+      if (overlayObject.overlay.off) {
+        overlayObject.overlay.off('mousedown');
+        overlayObject.overlay.off('touchstart');
+        overlayObject.overlay.off('dragstart');
+        overlayObject.overlay.off('drag');
+        overlayObject.overlay.off('dragend');
+        // Do NOT remove 'click' as we need it for toolbar
+      }
+      
+      // Store current state to preserve it
+      const corners = overlayObject.overlay.getCorners();
+      
+      // Re-apply corners to ensure position after disabling events
+      if (corners && corners.length === 4) {
+        setTimeout(() => {
+          if (overlayObject.overlay) {
+            overlayObject.overlay.setCorners(corners);
+          }
+        }, 0);
+      }
     }
   });
+}
+
+// Event handler that blocks movement events but allows click events
+function blockMovementEvent(e: Event) {
+  // Check if this is related to a toolbar click
+  const target = e.target as HTMLElement;
+  const isToolbarClick = target.closest('.leaflet-toolbar-icon') !== null;
+  
+  // Don't block if this is a toolbar click
+  if (isToolbarClick) {
+    return true;
+  }
+  
+  // Otherwise block movement events
+  e.stopPropagation();
+  e.preventDefault();
+  return false;
 }
 
 /**
