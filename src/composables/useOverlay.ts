@@ -1,6 +1,6 @@
 import L from "leaflet";
 import 'leaflet-toolbar';
-import 'leaflet-distortableimage-updated';
+import 'leaflet-distortableimage-updated'; // using "-updated" to prevent "WebSocket connection to 'ws://localhost:8081/ws' failed:" error
 import { ref, shallowRef } from 'vue';
 import { map, calculateScreenCoverage, onMapInitialized } from './useMap';
 import { getAllOverlays, saveOverlay } from './useDatabase';
@@ -21,7 +21,7 @@ export const allMarkers = shallowRef<Record<string, L.Marker>>({});
 const debouncedUpdateImageResolutions = debounce(updateImageResolutionsForCoverage, 250);
 
 /**
- * Initialize overlays from database and set up event handlers
+ * AI : Initialize overlays from database and set up event handlers
  */
 export async function initializeOverlays(): Promise<void> {
   const savedOverlays = await getAllOverlays();
@@ -30,40 +30,25 @@ export async function initializeOverlays(): Promise<void> {
 
   const mapBounds = map.value.getBounds();
 
-  // Create all markers first
   createMarkersForOverlays(savedOverlays);
-
-  // Then load only overlays that are within the current view
   loadOverlaysInMapBounds(savedOverlays, mapBounds);
-
-  // Set up event listeners
   setupMapEventListeners();
 
-  // Use the event-based approach for updating resolutions
   onMapInitialized(() => {
-    // Update all overlays with appropriate resolutions once map is fully initialized
     updateImageResolutionsForCoverage();
   });
 }
 
-/**
- * Set up event listeners for map interactions
- */
 function setupMapEventListeners(): void {
   if (!map.value) return;
 
-  // Add event listeners for map interactions
   map.value.on('moveend', loadOverlaysInView);
   map.value.on('zoomend', debouncedUpdateImageResolutions);
 
-  // Handle window resize
   window.removeEventListener('resize', updateImageResolutionsForCoverage);
   window.addEventListener('resize', debouncedUpdateImageResolutions);
 }
 
-/**
- * Create markers for all overlays
- */
 function createMarkersForOverlays(savedOverlays: StoredOverlayData[]): void {
   if (!map.value) return;
 
@@ -71,7 +56,6 @@ function createMarkersForOverlays(savedOverlays: StoredOverlayData[]): void {
     const overlayBounds = getOverlayBounds(savedOverlay);
     if (!overlayBounds || allMarkers.value[savedOverlay.id]) return;
 
-    // Create marker title from project name and phase if available
     let markerTitle = 'Overlay';
     if (savedOverlay.projectId && projects.value[savedOverlay.projectId]) {
       const project = projects.value[savedOverlay.projectId];
@@ -87,31 +71,22 @@ function createMarkersForOverlays(savedOverlays: StoredOverlayData[]): void {
   });
 }
 
-/**
- * Load overlays that are within the current map bounds
- */
 function loadOverlaysInMapBounds(savedOverlays: StoredOverlayData[], mapBounds: L.LatLngBounds): void {
   savedOverlays.forEach(async (savedOverlay) => {
-    // Check if overlay is within current map bounds
     if (isOverlayWithinBounds(savedOverlay, mapBounds)) {
       await loadOverlay(savedOverlay);
     }
   });
 }
 
-/**
- * Load a single overlay and add it to the map
- */
 async function loadOverlay(savedOverlay: StoredOverlayData): Promise<void> {
   const overlayObject = createOverlayObject(savedOverlay);
 
-  // Create bounds object to calculate coverage
   const overlayBounds = getOverlayBounds(savedOverlay);
   if (!overlayBounds) return;
 
   const coveragePercent = calculateScreenCoverage(overlayBounds);
 
-  // Use the appropriate resolution based on screen coverage
   const imageUrl = savedOverlay.imageResolutions
     ? getImageUrlForCoverage(savedOverlay.imageResolutions, coveragePercent)
     : savedOverlay.imageUrl;
@@ -124,44 +99,31 @@ async function loadOverlay(savedOverlay: StoredOverlayData): Promise<void> {
   overlays.value[savedOverlay.id] = overlayObject;
 }
 
-/**
- * Helper function to create a bounds object from overlay corners
- */
 function getOverlayBounds(overlay: StoredOverlayData): L.LatLngBounds | null {
-  // If no corners data or not enough corners, return null
   if (!overlay.corners || overlay.corners.length < 2) {
     return null;
   }
 
-  // Create a bounds object from the overlay corners
   return L.latLngBounds(
     overlay.corners.map(corner => L.latLng(corner.lat, corner.lng))
   );
 }
 
-/**
- * Helper function to check if an overlay is within the current map bounds
- */
 function isOverlayWithinBounds(overlay: StoredOverlayData, bounds: L.LatLngBounds): boolean {
   if (!overlay.corners || overlay.corners.length === 0) return true;
 
   const overlayBounds = getOverlayBounds(overlay);
   if (!overlayBounds) return true;
 
-  // Check if the overlay bounds intersect with the map bounds
   return bounds.intersects(overlayBounds);
 }
 
-/**
- * Function to load overlays that come into view when panning/zooming
- */
 async function loadOverlaysInView(): Promise<void> {
   if (!map.value) return;
 
   const currentBounds = map.value.getBounds();
   const savedOverlays = await getAllOverlays();
 
-  // Find overlays that aren't loaded yet but are now in view
   savedOverlays.forEach(async (savedOverlay) => {
     const isAlreadyLoaded = overlays.value[savedOverlay.id] !== undefined;
 
@@ -172,12 +134,11 @@ async function loadOverlaysInView(): Promise<void> {
 }
 
 /**
- * Function to update overlay image resolutions based on screen coverage
+ * AI : Function to update overlay image resolutions based on screen coverage
  */
 function updateImageResolutionsForCoverage(): void {
   if (!map.value) return;
   
-  // Get current map bounds to check visibility
   const currentMapBounds = map.value.getBounds();
 
   Object.entries(overlays.value).forEach(([_id, overlayObject]) => {
@@ -185,24 +146,18 @@ function updateImageResolutionsForCoverage(): void {
 
     const bounds = overlayObject.overlay.getBounds();
     
-    // Check if bounds are valid before using them
     if (!bounds || !bounds.isValid()) {
       return;
     }
     
-    // Skip resolution update for overlays that aren't visible on the map
     if (!currentMapBounds.intersects(bounds)) {
       return;
     }
     
-    // Only calculate coverage for visible overlays
     const coveragePercent = calculateScreenCoverage(bounds);
-
-    // Get the optimal resolution for this coverage
     const bestResolutionUrl = getImageUrlForCoverage(overlayObject.imageResolutions, coveragePercent);
     if (!bestResolutionUrl) return;
 
-    // Only update if the best resolution is different from current
     if (bestResolutionUrl !== overlayObject.currentResolution) {
       updateOverlayImage(overlayObject, bestResolutionUrl);
       overlayObject.currentResolution = bestResolutionUrl;
@@ -211,7 +166,7 @@ function updateImageResolutionsForCoverage(): void {
 }
 
 /**
- * Create a new overlay object from saved data
+ * AI : Create a new overlay object from saved data
  */
 export function createOverlayObject(savedOverlay: StoredOverlayData): OverlayObject {
   return {
@@ -226,7 +181,7 @@ export function createOverlayObject(savedOverlay: StoredOverlayData): OverlayObj
 }
 
 /**
- * Create a Leaflet overlay on the map
+ * AI : Create a Leaflet overlay on the map
  */
 export async function createOverlay(imageUrl: string, overlayObject?: OverlayObject) {
   if (!map.value || !overlayObject) return null;
@@ -235,9 +190,8 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
     overlayObject.imageUrl = imageUrl;
   }
 
-  // Create the overlay with tools based on current mode
   const newOverlay = L.distortableImageOverlay(imageUrl, {
-    editable: isEditMode.value, // Will only be editable in edit mode
+    editable: isEditMode.value,
     keyboard: false,
     actions: [
       infoTool,
@@ -247,12 +201,10 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
 
   overlayObject.overlay = newOverlay;
 
-  // Apply project styling if this overlay belongs to a project
   if (overlayObject.projectId) {
     applyProjectStyling(overlayObject, overlayObject.projectId!);
   }
 
-  // Set up event handlers
   setupOverlayEventHandlers(newOverlay, overlayObject);
 
   const element = newOverlay.getElement();
@@ -261,17 +213,13 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
     return null;
   }
 
-  // Apply view mode restrictions if needed
   if (!isEditMode.value) {
-    // Add visual indicator
     element.style.cursor = 'not-allowed';
     
-    // Add event listeners that block movement but allow clicks
     element.addEventListener('mousedown', blockMovementEvent, true);
     element.addEventListener('touchstart', blockMovementEvent, true);
     element.addEventListener('dragstart', blockMovementEvent, true);
     
-    // Disable movement-related events but keep click events
     if (newOverlay.off) {
       newOverlay.off('mousedown');
       newOverlay.off('touchstart');
@@ -282,14 +230,14 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
     }
   }
 
-  // Set up load event handler
+  // using 'element' allows to access the corners of the image on load while newOverlay.on('load') doesn't work
+  // credit to https://github.com/publiclab/Leaflet.DistortableImage/issues/953#issuecomment-1262298228
   L.DomEvent.on(element, 'load', () => {
     applyOverlayCorners(overlayObject);
     updateMarkerPosition(overlayObject);
     overlayObject.alreadyLoaded = true;
     overlayObject.alreadyStored = true;
     
-    // Re-apply view mode if needed (extra protection to ensure immobility)
     if (!isEditMode.value && overlayObject.overlay) {
       const corners = overlayObject.overlay.getCorners();
       if (corners && corners.length === 4) {
@@ -305,11 +253,7 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
   return newOverlay;
 }
 
-/**
- * Set up event handlers for an overlay
- */
 function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayObject: OverlayObject): void {
-  // Update border on selection
   overlay.on('select', () => {
     idSelectedOverlay.value = overlayObject.id;
   });
@@ -318,7 +262,6 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
     idSelectedOverlay.value = null;
   });
 
-  // Add event listeners for transformations
   overlay.on('edit', () => {
     saveToHistory(overlayObject);
     updateMarkerPosition(overlayObject);
@@ -333,7 +276,7 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
 }
 
 /**
- * Helper function to apply the correct corners to an overlay
+ * AI : Applies the correct corners to an overlay based on priority
  */
 function applyOverlayCorners(overlayObject: OverlayObject): void {
   if (!overlayObject.overlay) return;
@@ -352,7 +295,6 @@ function applyOverlayCorners(overlayObject: OverlayObject): void {
   }
   // Priority 3: Create new history for new overlay
   else {
-    // Save initial state to history
     const initialState = overlayObject.overlay.getCorners();
     overlayObject.history = [initialState];
     overlayObject.redoStack = [];
@@ -360,7 +302,7 @@ function applyOverlayCorners(overlayObject: OverlayObject): void {
 }
 
 /**
- * Update the marker position based on overlay center
+ * AI : Update the marker position based on overlay center
  */
 export function updateMarkerPosition(overlayObject: OverlayObject): void {
   if (!overlayObject.overlay || !overlayObject.marker) return;
@@ -370,20 +312,17 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
 }
 
 /**
- * Save the current state of an overlay to history
+ * AI : Save the current state of an overlay to history and database
  */
 export function saveToHistory(overlayObject: OverlayObject): void {
   if (!overlayObject.overlay) return;
 
-  // Create a deep copy of the current corners
   const currentState = JSON.parse(JSON.stringify(overlayObject.overlay.getCorners()));
   overlayObject.history.push(currentState);
   overlayObject.redoStack = [];
 
-  // Update corners directly for persistence
   overlayObject.corners = overlayObject.overlay.getCorners();
 
-  // Create a serializable object for database storage
   const savedOverlay: StoredOverlayData = {
     id: overlayObject.id,
     imageUrl: overlayObject.imageUrl,
@@ -396,12 +335,11 @@ export function saveToHistory(overlayObject: OverlayObject): void {
     sequenceNumber: overlayObject.sequenceNumber
   };
 
-  // Save to database
   saveOverlay(savedOverlay);
 }
 
 /**
- * Toggle edit mode for all overlays
+ * AI : Toggle edit mode for all overlays
  */
 export function toggleEditMode(): void {
   isEditMode.value = !isEditMode.value;
@@ -413,30 +351,24 @@ export function toggleEditMode(): void {
     const element = overlayObject.overlay.getElement();
 
     if (isEditMode.value) {
-      // Switch to edit mode
+      // adding and removing tools is finicky (tools are often removed from the arrays) but this way works
       viewTools.forEach((tool) => editing.removeTool(tool));
       editTools.forEach((tool) => editing.addTool(tool));
       
-      // Enable editing capabilities
       if (element) {
-        // Re-enable pointer events
         element.style.pointerEvents = 'auto';
-        // Reset cursor
         element.style.cursor = '';
         
-        // Remove any movement blocking event handlers we added
         element.removeEventListener('mousedown', blockMovementEvent, true);
         element.removeEventListener('touchstart', blockMovementEvent, true);
         element.removeEventListener('dragstart', blockMovementEvent, true);
       }
     } else {
-      // Switch to view mode
+      // adding and removing tools is finicky (tools are often removed from the arrays) but this way works
       editTools.forEach((tool) => editing.removeTool(tool));
       viewTools.forEach((tool) => editing.addTool(tool));
       
-      // Disable all editing capabilities while keeping click working
       if (element) {
-        // Add visual indicator for view mode
         element.style.cursor = 'not-allowed';
         
         // We'll keep pointer-events enabled so clicks work, but block specific events
@@ -446,7 +378,6 @@ export function toggleEditMode(): void {
         element.addEventListener('dragstart', blockMovementEvent, true);
       }
       
-      // Remove drag-related events but keep click events working
       if (overlayObject.overlay.off) {
         overlayObject.overlay.off('mousedown');
         overlayObject.overlay.off('touchstart');
@@ -456,10 +387,8 @@ export function toggleEditMode(): void {
         // Do NOT remove 'click' as we need it for toolbar
       }
       
-      // Store current state to preserve it
       const corners = overlayObject.overlay.getCorners();
       
-      // Re-apply corners to ensure position after disabling events
       if (corners && corners.length === 4) {
         setTimeout(() => {
           if (overlayObject.overlay) {
@@ -473,28 +402,24 @@ export function toggleEditMode(): void {
 
 // Event handler that blocks movement events but allows click events
 function blockMovementEvent(e: Event) {
-  // Check if this is related to a toolbar click
   const target = e.target as HTMLElement;
   const isToolbarClick = target.closest('.leaflet-toolbar-icon') !== null;
   
-  // Don't block if this is a toolbar click
   if (isToolbarClick) {
     return true;
   }
   
-  // Otherwise block movement events
   e.stopPropagation();
   e.preventDefault();
   return false;
 }
 
 /**
- * Load a specific overlay by ID
+ * AI : Load a specific overlay by ID from the database
  */
 export async function loadOverlayById(id: string): Promise<void> {
   if (!map.value) return;
 
-  // Get overlay data from database
   const allOverlays = await getAllOverlays();
   const savedOverlay = allOverlays.find(overlay => overlay.id === id);
 
@@ -507,21 +432,17 @@ export async function loadOverlayById(id: string): Promise<void> {
 }
 
 /**
- * Update an overlay's image without recreating the overlay
+ * AI : Update an overlay's image without recreating the overlay
  */
 export function updateOverlayImage(overlayObject: OverlayObject, newImageUrl: string): void {
   if (!overlayObject.overlay) return;
 
   try {
-    // Store current corners before changing the image
     const currentCorners = overlayObject.overlay.getCorners();
     
-    // Direct approach: Update the src attribute of the image element
     const imgElement = overlayObject.overlay.getElement();
     if (imgElement) {
-      // Add event listeners to confirm image loading
       const onLoadListener = () => {
-        // Re-apply the corners when the new image is loaded
         if (overlayObject.overlay && currentCorners) {
           overlayObject.overlay.setCorners(currentCorners);
         }
@@ -536,10 +457,7 @@ export function updateOverlayImage(overlayObject: OverlayObject, newImageUrl: st
       imgElement.addEventListener('load', onLoadListener);
       imgElement.addEventListener('error', onErrorListener);
 
-      // Change image source
       imgElement.src = newImageUrl;
-
-      // Update current resolution in the object
       overlayObject.currentResolution = newImageUrl;
       return;
     }
@@ -547,7 +465,6 @@ export function updateOverlayImage(overlayObject: OverlayObject, newImageUrl: st
     // Fallback: Try using setUrl method if available
     if (typeof overlayObject.overlay.setUrl === 'function') {
       overlayObject.overlay.setUrl(newImageUrl);
-      // Re-apply corners after changing URL
       setTimeout(() => {
         if (overlayObject.overlay && currentCorners) {
           overlayObject.overlay.setCorners(currentCorners);

@@ -1,11 +1,11 @@
 import type { ImageResolutions } from '../types';
 
-// Define screen coverage thresholds for different resolutions (in percentage)
+// AI : Define screen coverage thresholds for different resolutions (in percentage)
 export const COVERAGE_THRESHOLDS = {
-  HIGH: 150,    // Original resolution when overlay covers 100% or more of the screen (zoomed in)
-  MEDIUM: 0.5,   // Medium resolution when overlay covers between 50-100% of the screen
-  LOW: 0.1,      // Small resolution when overlay covers between 10-50% of the screen
-  // Below 10% coverage, use thumbnail
+  HIGH: 150,    // AI : Original resolution when overlay covers 100% or more of the screen (zoomed in)
+  MEDIUM: 0.5,   // AI : Medium resolution when overlay covers between 50-100% of the screen
+  LOW: 0.1,      // AI : Small resolution when overlay covers between 10-50% of the screen
+  // AI : Below 10% coverage, use thumbnail
 };
 
 /**
@@ -14,15 +14,15 @@ export const COVERAGE_THRESHOLDS = {
 export function getImageUrlForCoverage(imageResolutions: ImageResolutions | undefined, coveragePercent: number): string {
   if (!imageResolutions) return '';
   
-  // Get original image URL with fallback to empty string
+  // AI : Get original image URL with fallback to empty string
   const original = imageResolutions.original || '';
   
-  // If only original is available, use it
+  // AI : If only original is available, use it
   if (!imageResolutions.medium && !imageResolutions.small && !imageResolutions.thumbnail) {
     return original;
   }
 
-  // Select resolution based on coverage thresholds
+  // AI : Select resolution based on coverage thresholds
   if (coveragePercent >= COVERAGE_THRESHOLDS.HIGH) {
     return original;
   } else if (coveragePercent >= COVERAGE_THRESHOLDS.MEDIUM) {
@@ -38,13 +38,13 @@ export function getImageUrlForCoverage(imageResolutions: ImageResolutions | unde
  * Generate lower resolution versions of an image
  */
 export async function generateImageResolutions(originalImageUrl: string): Promise<ImageResolutions> {
-  // Initialize with original URL
+  // AI : Initialize with original URL
   const resolutions: ImageResolutions = { original: originalImageUrl };
 
   try {
     const img = await loadImage(originalImageUrl);
     
-    // Skip resizing for small images
+    // AI : Skip resizing for small images
     if (img.width < 500 && img.height < 500) {
       return {
         original: originalImageUrl,
@@ -58,7 +58,7 @@ export async function generateImageResolutions(originalImageUrl: string): Promis
     const ctx = canvas.getContext('2d');
     if (!ctx) return resolutions;
 
-    // Generate medium resolution (50% of original)
+    // AI : Generate medium resolution (50% of original)
     resolutions.medium = await generateResizedImage(
       img, canvas, ctx, 
       Math.floor(img.width * 0.5), 
@@ -66,7 +66,7 @@ export async function generateImageResolutions(originalImageUrl: string): Promis
       0.8
     ) || originalImageUrl;
 
-    // Generate small resolution (25% of original)
+    // AI : Generate small resolution (25% of original)
     resolutions.small = await generateResizedImage(
       img, canvas, ctx, 
       Math.floor(img.width * 0.25), 
@@ -74,7 +74,7 @@ export async function generateImageResolutions(originalImageUrl: string): Promis
       0.7
     ) || originalImageUrl;
 
-    // Generate thumbnail (10% of original or 100px width, whichever is smaller)
+    // AI : Generate thumbnail (10% of original or 100px width, whichever is smaller)
     const thumbnailWidth = Math.min(Math.floor(img.width * 0.1), 100);
     const thumbnailHeight = Math.floor((thumbnailWidth / img.width) * img.height);
     resolutions.thumbnail = await generateResizedImage(
@@ -97,7 +97,7 @@ export async function generateImageResolutions(originalImageUrl: string): Promis
 }
 
 /**
- * Helper to load an image and return a promise
+ * AI : Helper to load an image and return a promise
  */
 function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -107,7 +107,7 @@ function loadImage(url: string): Promise<HTMLImageElement> {
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error('Failed to load image'));
     
-    // Add timeout to prevent hanging
+    // AI : Add timeout to prevent hanging
     setTimeout(() => {
       reject(new Error('Image load timeout'));
     }, 10000);
@@ -117,7 +117,7 @@ function loadImage(url: string): Promise<HTMLImageElement> {
 }
 
 /**
- * Helper to generate a resized image from canvas
+ * AI : Helper to generate a resized image from canvas
  */
 function generateResizedImage(
   img: HTMLImageElement, 

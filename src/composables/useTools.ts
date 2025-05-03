@@ -50,7 +50,7 @@ export const infoTool = L.Toolbar2.Action.extend({
 
       setTimeout(() => {
         if (!idSelectedOverlay.value) return;
-
+        // no idea why but we need to get the element by its class name and not by its id
         const popupElement = document.getElementsByClassName("more-info-popup")[0];
 
         if (!popupElement || popupElement.tagName !== 'A') {
@@ -186,6 +186,13 @@ export const customDeleteTool = L.Toolbar2.Action.extend({
   },
 });
 
+// all actions (not all in docs) : L.DistortAction, L.FreeRotateAction, L.OpacityAction, L.DeleteAction, L.StackAction, L.EditAction, L.RotateAction, L.ScaleAction, L.TranslateAction, L.OpacitiesAction, L.GeolocateAction, L.RestoreAction, L.UnlockAction
+// L.EditAction is empty
+// L.TranslateAction crashes
+// L.UnlockAction is useless
+// L.GeolocateAction crashes "ReferenceError: EXIF is not defined"
+// L.RestoreAction undistorts the image, centers it on the camera and size it to an arbitrary size. Not great
+// L.OpacitiesAction works well!
 export const editTools = [
   undoTool,
   redoTool,

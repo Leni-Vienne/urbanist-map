@@ -1,15 +1,15 @@
 import L from "leaflet";
 import 'leaflet-toolbar';
-import 'leaflet-distortableimage-updated';
+import 'leaflet-distortableimage-updated'; // using "-updated" to prevent "WebSocket connection to 'ws://localhost:8081/ws' failed:" error
 import { DBSchema } from "idb";
 
-// Type for geographic coordinates
+// AI : Type for geographic coordinates
 export type LatLng = {
   lat: number;
   lng: number;
 };
 
-// Extend Leaflet namespace to include custom actions
+// AI : Extend Leaflet namespace to include custom actions
 declare module "leaflet" {
   // oxlint isn't happy about those but it avoids typescript errors due to leaflet distortableimage lacking types
   const DistortAction: any;
@@ -22,7 +22,7 @@ declare module "leaflet" {
   const Toolbar2: any;
   const EditAction: any;
 
-  // Definition for DistortableImageOverlay
+  // AI : Definition for DistortableImageOverlay
   interface DistortableImageOverlay extends L.ImageOverlay {
     editing: {
       _disableKeyboard: () => void;
@@ -38,7 +38,7 @@ declare module "leaflet" {
   function distortableImageOverlay(imageUrl: string, options?: any): DistortableImageOverlay;
 }
 
-// Available image resolutions for an overlay
+// AI : Available image resolutions for an overlay
 export type ImageResolutions = {
   original: string;
   medium?: string;
@@ -46,7 +46,7 @@ export type ImageResolutions = {
   thumbnail?: string;
 };
 
-// Project information
+// AI : Project information
 export interface ProjectInfo {
   projectName: string;
   sourceLink: string;
@@ -55,7 +55,7 @@ export interface ProjectInfo {
   budget: number;
 }
 
-// Project data that is stored in the database
+// AI : Project data that is stored in the database
 export interface Project {
   id: string;
   name: string;
@@ -66,10 +66,10 @@ export interface Project {
   budget: number;
   sourceUrl: string;
   overlayIds: string[];
-  color: string; // Color for visual grouping
+  color: string; // AI : Color for visual grouping
 }
 
-// Data that is stored in the database
+// AI : Data that is stored in the database
 export interface StoredOverlayData {
   id: string;
   imageUrl: string;
@@ -77,12 +77,12 @@ export interface StoredOverlayData {
   corners: { lat: number, lng: number }[];
   history: { lat: number, lng: number }[][];
   redoStack: { lat: number, lng: number }[][];
-  projectId: string; // Required reference to project (no longer optional)
-  phase?: string; // Optional phase information (e.g., "planning", "foundation", etc.)
-  sequenceNumber?: number; // Optional sequence number for chronological ordering
+  projectId: string; // AI : Required reference to project (no longer optional)
+  phase?: string; // AI : Optional phase information (e.g., "planning", "foundation", etc.)
+  sequenceNumber?: number; // AI : Optional sequence number for chronological ordering
 }
 
-// Extended overlay object with runtime properties
+// AI : Extended overlay object with runtime properties
 export interface OverlayObject extends StoredOverlayData {
   overlay: L.DistortableImageOverlay | null;
   marker: L.Marker | null;
@@ -92,7 +92,7 @@ export interface OverlayObject extends StoredOverlayData {
   currentResolution?: string;
 }
 
-// Map position data structure
+// AI : Map position data structure
 export interface MapPosition {
   key: string;
   value: {
@@ -101,7 +101,7 @@ export interface MapPosition {
   };
 }
 
-// Database schema definition
+// AI : Database schema definition
 export interface MyDB extends DBSchema {
   mapPosition: {
     key: string;

@@ -80,7 +80,7 @@
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-toolbar/dist/leaflet.toolbar.css';
 import "leaflet-distortableimage-updated/dist/leaflet.distortableimage.css";
-import './assets/style.css'
+import './assets/style.css' // must be imported after leaflet's css otherwise it's overwritten by leaflet's default css
 import 'primeicons/primeicons.css'
 
 import { ref, onMounted, getCurrentInstance, watch, computed } from 'vue';
@@ -117,7 +117,7 @@ watch(showProjectSelector, (newVal) => {
   }
 });
 
-// Computed property to get dynamic header for Project Manager Dialog
+// AI : Computed property to get dynamic header for Project Manager Dialog
 const projectManagerHeader = computed(() => {
   switch (currentMode.value) {
     case 'list':
@@ -131,7 +131,7 @@ const projectManagerHeader = computed(() => {
   }
 });
 
-// Menu items for projects context menu
+// AI : Menu items for projects context menu
 const projectMenuItems = [
   {
     label: 'Manage Projects',
@@ -157,7 +157,7 @@ const projectMenuItems = [
   }
 ];
 
-// Toggle project menu
+// AI : Toggle project menu
 function projectMenuToggle(event) {
   projectMenu.value.toggle(event);
 }
@@ -184,19 +184,19 @@ onMounted(async () => {
   disableLeafletKeyboardEvents();
 });
 
-// New image upload flow that requires project selection
+// AI : New image upload flow that requires project selection
 function onImageUpload(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (!file) return;
 
-  // Store the file temporarily
+  // AI : Store the file temporarily
   pendingImageFile.value = file;
 
-  // Show project selector
+  // AI : Show project selector
   showProjectSelector.value = true;
 }
 
-// Handle project selection from the ProjectSelector component
+// AI : Handle project selection from the ProjectSelector component
 async function onProjectSelected(projectId: string) {
   if (!pendingImageFile.value) {
     toast.add({
@@ -216,11 +216,11 @@ async function onProjectSelected(projectId: string) {
     const imageUrl = reader.result as string;
     await addOverlay(imageUrl, projectId);
 
-    // Clean up
+    // AI : Clean up
     pendingImageFile.value = null;
     showProjectSelector.value = false;
 
-    // Reset file input
+    // AI : Reset file input
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
   };

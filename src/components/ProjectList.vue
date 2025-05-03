@@ -80,11 +80,11 @@ import type { ProjectManagerMode } from '../composables/useProjectManagerDialog'
 const toast = useToast();
 const { openProjectManager } = useProjectManagerDialog();
 
-// Component state
+// AI : Component state
 const showDeleteDialog = ref(false);
 const projectToDelete = ref<string | null>(null);
 
-// Computed properties
+// AI : Computed properties
 const projectsList = computed(() => {
   return Object.values(projects.value);
 });

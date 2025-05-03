@@ -61,9 +61,6 @@ function generateRandomColor(): string {
   return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
 }
 
-/**
- * Initialize projects from database
- */
 export async function initializeProjects(): Promise<void> {
   try {
     const projectList = await getAllProjects();
@@ -81,9 +78,6 @@ export async function initializeProjects(): Promise<void> {
   }
 }
 
-/**
- * Create a new project
- */
 export async function createProject(projectData: Omit<Project, 'id' | 'overlayIds' | 'color'>): Promise<string> {
   const id = crypto.randomUUID();
   
@@ -107,9 +101,6 @@ export async function createProject(projectData: Omit<Project, 'id' | 'overlayId
   return id;
 }
 
-/**
- * Get overlays for a specific project
- */
 export async function getOverlaysForProject(projectId: string): Promise<OverlayObject[]> {
   const project = projects.value[projectId];
   if (!project) return [];
@@ -125,9 +116,6 @@ export async function getOverlaysForProject(projectId: string): Promise<OverlayO
   return projectOverlays;
 }
 
-/**
- * Add an overlay to a project
- */
 export async function addOverlayToProjectWithId(projectId: string, overlayId: string): Promise<void> {
   if (!projects.value[projectId]) {
     toast.add({
@@ -173,9 +161,6 @@ export async function addOverlayToProjectWithId(projectId: string, overlayId: st
   });
 }
 
-/**
- * Remove an overlay from a project
- */
 export async function removeOverlayFromProjectWithId(projectId: string, overlayId: string): Promise<void> {
   if (!projects.value[projectId]) {
     console.error('Project not found:', projectId);
@@ -206,9 +191,6 @@ export async function removeOverlayFromProjectWithId(projectId: string, overlayI
   });
 }
 
-/**
- * Apply project styling to an overlay
- */
 export function applyProjectStyling(overlayObject: OverlayObject, projectId: string): void {
   if (!overlayObject.overlay) return;
   
@@ -235,9 +217,6 @@ export function applyProjectStyling(overlayObject: OverlayObject, projectId: str
   }
 }
 
-/**
- * Remove project styling from an overlay
- */
 export function removeProjectStyling(overlayObject: OverlayObject): void {
   if (!overlayObject.overlay) return;
   
@@ -258,9 +237,6 @@ export function removeProjectStyling(overlayObject: OverlayObject): void {
   }
 }
 
-/**
- * Highlight all overlays in a project
- */
 export function highlightProjectOverlays(projectId: string): void {
   const project = projects.value[projectId];
   if (!project) return;
@@ -279,9 +255,6 @@ export function highlightProjectOverlays(projectId: string): void {
   }
 }
 
-/**
- * Clear highlight from all project overlays
- */
 export function clearProjectHighlight(projectId: string): void {
   const project = projects.value[projectId];
   if (!project) return;
@@ -297,9 +270,6 @@ export function clearProjectHighlight(projectId: string): void {
   }
 }
 
-/**
- * Delete a project but keep its overlays
- */
 export async function deleteProjectById(projectId: string): Promise<void> {
   const project = projects.value[projectId];
   if (!project) {
@@ -337,9 +307,6 @@ export async function deleteProjectById(projectId: string): Promise<void> {
   });
 }
 
-/**
- * Update an existing project
- */
 export async function updateProject(projectId: string, projectData: Partial<Omit<Project, 'id' | 'overlayIds' | 'color'>>): Promise<void> {
   const project = projects.value[projectId];
   if (!project) {

@@ -130,7 +130,7 @@ function confirmSelection() {
 }
 
 function openNewProjectDialog() {
-  // Open project manager dialog in create mode
+  // AI : Open project manager dialog in create mode
   openProjectManager('create');
 }
 </script>
