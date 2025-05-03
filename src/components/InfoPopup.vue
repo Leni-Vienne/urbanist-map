@@ -178,9 +178,6 @@ async function applyProjectChange(projectId: string) {
 function openProjectManagerForEdit() {
   if (!project.value) return;
   
-  // First close the info popup
-  closeInfoPopup();
-  
   // Then open the project manager dialog
   openProjectManager('edit', project.value.id, project.value.name);
 }
