@@ -266,7 +266,7 @@ const props = defineProps<{
 const toast = useToast();
 const { initialProjectName, closeProjectManager, openProjectManager, previousMode } = useProjectManagerDialog();
 
-// Component state
+// AI : Component state
 const mode = computed(() => props.mode);
 const projectId = computed(() => props.id || '');
 
@@ -284,7 +284,7 @@ const projectOverlays = ref<OverlayObject[]>([]);
 const showAddOverlayDialog = ref(false);
 const isHighlighted = ref(false);
 
-// Initialize component with route params
+// AI : Initialize component with route params
 watch([projectId, mode], async ([newId, newMode]) => {
   if (newMode === 'create') {
     editingProject.value = {
@@ -305,7 +305,7 @@ watch([projectId, mode], async ([newId, newMode]) => {
   }
 }, { immediate: true });
 
-// Computed properties
+// AI : Computed properties
 const currentProject = computed(() => {
   return projectId.value ? projects.value[projectId.value] : null;
 });
@@ -316,7 +316,7 @@ const availableOverlays = computed(() => {
   });
 });
 
-// Cleanup on component unmount
+// AI : Cleanup on component unmount
 watch(() => mode.value, (newMode) => {
   if (newMode !== 'view' && projectId.value && isHighlighted.value) {
     clearProjectHighlight(projectId.value);
@@ -324,7 +324,7 @@ watch(() => mode.value, (newMode) => {
   }
 });
 
-// Methods
+// AI : Methods
 async function saveProject() {
   if (!editingProject.value.name) {
     toast.add({
@@ -338,7 +338,7 @@ async function saveProject() {
 
   try {
     if (editingProject.value.id) {
-      // Update existing project using the new updateProject function
+      // AI : Update existing project using the new updateProject function
       await updateProject(editingProject.value.id, {
         name: editingProject.value.name,
         description: editingProject.value.description,
@@ -348,15 +348,15 @@ async function saveProject() {
         sourceUrl: editingProject.value.sourceUrl
       });
       
-      // If we came from the project list, go back to it
+      // AI : If we came from the project list, go back to it
       if (previousMode.value === 'list') {
         openProjectManager('list');
       } else {
-        // Otherwise just close the dialog
+        // AI : Otherwise just close the dialog
         closeProjectManager();
       }
     } else {
-      // Create new project
+      // AI : Create new project
       await createProject({
         name: editingProject.value.name,
         description: editingProject.value.description || '',
@@ -373,7 +373,7 @@ async function saveProject() {
         life: 3000
       });
       
-      // After creating, go back to the project list
+      // AI : After creating, go back to the project list
       openProjectManager('list');
     }
   } catch (error) {

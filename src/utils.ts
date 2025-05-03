@@ -1,4 +1,4 @@
-// Common utility functions for the application
+// AI : Common utility functions for the application
 
 /**
  * Creates a debounced function that delays invoking the provided function

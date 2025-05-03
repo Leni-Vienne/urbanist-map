@@ -1,4 +1,3 @@
-// Import Leaflet 
 import L from "leaflet";
 import { map, calculateScreenCoverage, onMapInitialized } from './useMap';
 import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, updateOverlayImage } from './useOverlay';
@@ -9,9 +8,6 @@ import { addOverlayToProjectWithId, projects } from './useProjects';
 
 const toast = useToast();
 
-/**
- * Add a new overlay to the map
- */
 export async function addOverlay(imageUrl: string, projectId: string) {
   if (!map.value) return;
   if (!projectId) {
@@ -26,7 +22,6 @@ export async function addOverlay(imageUrl: string, projectId: string) {
 
   const id = crypto.randomUUID();
   
-  // Generate different resolution versions of the image
   const imageResolutions = await generateImageResolutions(imageUrl);
   
   const overlayObject = {
@@ -40,25 +35,20 @@ export async function addOverlay(imageUrl: string, projectId: string) {
     alreadyLoaded: false,
     alreadyStored: false,
     corners: [],
-    projectId, // Required project ID
+    projectId,
     phase: undefined as string | undefined,
     sequenceNumber: undefined as number | undefined,
     whitePixelsHidden: false,
     currentResolution: imageUrl,
   };
 
-  // Create the overlay with original resolution initially
   const newOverlay = await createOverlay(imageUrl, overlayObject);
   if (!newOverlay) return;
 
-  // Don't create the marker right away - will be created after image loads
-  // instead, set up a one-time listener for when the image is loaded
   if (newOverlay && map.value) {
     const imgElement = newOverlay.getElement();
     if (imgElement) {
-      // We'll create the marker once the image is loaded
       const onLoadHandler = () => {
-        // Now it's safe to get bounds
         if (map.value && newOverlay) {
           try {
             const bounds = newOverlay.getBounds();
@@ -68,11 +58,8 @@ export async function addOverlay(imageUrl: string, projectId: string) {
                 title: 'Overlay'
               }).addTo(map.value);
               
-              // Save the marker reference
               overlayObject.marker = marker;
               
-
-              // Update marker tooltip with project info if available
               if (projectId && projects.value[projectId]) {
                 const project = projects.value[projectId];
                 const tooltipText = `${project.name}${overlayObject.phase ? ` - ${overlayObject.phase}` : ''}`;
@@ -84,14 +71,11 @@ export async function addOverlay(imageUrl: string, projectId: string) {
           }
         }
         
-        // Remove the listener after it's executed
         imgElement.removeEventListener('load', onLoadHandler);
       };
       
-      // Add the load event listener
       imgElement.addEventListener('load', onLoadHandler);
       
-      // If the image is already loaded (from cache), create the marker immediately
       if (imgElement.complete && imgElement.naturalWidth > 0) {
         onLoadHandler();
       }
@@ -100,30 +84,21 @@ export async function addOverlay(imageUrl: string, projectId: string) {
 
   overlays.value[id] = overlayObject;
   
-  // Update to appropriate resolution once overlay is loaded
   setTimeout(updateOverlayToAppropriateResolution(overlayObject), 100);
   
-  // Add overlay ID to the project
   addOverlayToProjectWithId(projectId, id);
 }
 
-/**
- * Update an overlay to its appropriate resolution based on screen coverage
- */
 function updateOverlayToAppropriateResolution(overlayObject) {
   return () => {
     if (!overlayObject.overlay || !overlayObject.imageResolutions) return;
     
-    // Function to update the resolution
     const updateResolution = () => {
-      // Skip processing if map isn't available
       if (!map.value) return;
       
-      // Check if overlay is within current map bounds before processing
       const currentMapBounds = map.value.getBounds();
       const overlayBounds = overlayObject.overlay.getBounds();
       
-      // Skip resolution update if the overlay isn't visible
       if (!currentMapBounds.intersects(overlayBounds)) {
         return;
       }
@@ -138,15 +113,11 @@ function updateOverlayToAppropriateResolution(overlayObject) {
       }
     };
     
-    // Update now and also register for map initialized event
     updateResolution();
     onMapInitialized(updateResolution);
   };
 }
 
-/**
- * Undo the last action on the selected overlay
- */
 export function undo() {
   if (!idSelectedOverlay.value) return;
 
@@ -164,11 +135,9 @@ export function undo() {
     return;
   }
 
-  // Move current state to redo stack
   const currentState = history.pop()!;
   redoStack.push(currentState);
 
-  // Apply previous state
   const previousState = history[history.length - 1];
   (overlay as any).setCorners(previousState);
 
@@ -176,9 +145,6 @@ export function undo() {
   saveImageAndPosition();
 }
 
-/**
- * Redo the last undone action on the selected overlay
- */
 export function redo() {
   if (!idSelectedOverlay.value) return;
 
@@ -196,20 +162,15 @@ export function redo() {
     return;
   }
 
-  // Get the next state from redo stack
   const nextState = redoStack.pop()!;
   history.push(nextState);
 
-  // Apply the state
   (overlay as any).setCorners(nextState);
 
   updateMarkerPosition(overlayObject);
   saveImageAndPosition();
 }
 
-/**
- * Toggle white pixels visibility for the selected overlay
- */
 export async function toggleWhitePixels() {
   if (!idSelectedOverlay.value) return;
 
@@ -222,19 +183,16 @@ export async function toggleWhitePixels() {
     const imgElement = overlayObject.overlay.getElement();
     if (!imgElement) return;
     
-    // Get source image either from original URL or current src
     const imgSrc = overlayObject.whitePixelsHidden ? 
       (overlayObject.imageUrl || imgElement.src) : 
       imgElement.src;
     
     if (overlayObject.whitePixelsHidden) {
-      // Process the image to hide white pixels
       const processedImage = await processImageToHideWhitePixels(imgSrc);
       if (processedImage) {
         imgElement.src = processedImage;
       }
     } else {
-      // Restore original image
       imgElement.src = overlayObject.imageUrl || overlayObject.currentResolution || '';
     }
     
@@ -250,9 +208,6 @@ export async function toggleWhitePixels() {
   }
 }
 
-/**
- * Process an image to make white pixels transparent
- */
 async function processImageToHideWhitePixels(imgSrc: string): Promise<string | null> {
   return new Promise((resolve) => {
     const img = new Image();
@@ -271,15 +226,16 @@ async function processImageToHideWhitePixels(imgSrc: string): Promise<string | n
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
       
-      // Make white pixels transparent
+      // AI : Make white pixels transparent
       for (let i = 0; i < data.length; i += 4) {
         const r = data[i];
         const g = data[i + 1];
         const b = data[i + 2];
         const alpha = data[i + 3];
         
+        // check if the pixel is a gray shade (which is likely a background pixel)
         if (r === g && g === b && alpha > 0) {
-          data[i + 3] = 0;
+          data[i + 3] = 0;  // makes the pixel transparent
         }
       }
       
@@ -292,9 +248,6 @@ async function processImageToHideWhitePixels(imgSrc: string): Promise<string | n
   });
 }
 
-/**
- * Reset the image ratio to its original proportions
- */
 export function resetImageRatio() {
   if (!idSelectedOverlay.value) {
     toast.add({
@@ -316,20 +269,19 @@ export function resetImageRatio() {
     const currentCorners = overlayObject.overlay.getCorners();
     if (!currentCorners || currentCorners.length !== 4) return;
 
-    // Calculate center point
     const center = {
       lat: (currentCorners[0].lat + currentCorners[2].lat) / 2,
       lng: (currentCorners[0].lng + currentCorners[2].lng) / 2
     };
 
-    // Calculate current dimensions in pixels
+    // AI : Calculate current dimensions in pixels
     const bounds = overlayObject.overlay.getBounds();
     const northEast = map.value.latLngToContainerPoint(bounds.getNorthEast());
     const southWest = map.value.latLngToContainerPoint(bounds.getSouthWest());
     const currentWidthPx = Math.abs(northEast.x - southWest.x);
     const currentHeightPx = Math.abs(northEast.y - southWest.y);
 
-    // Calculate new dimensions maintaining the original aspect ratio
+    // AI : Calculate new dimensions maintaining the original aspect ratio
     const originalRatio = img.naturalWidth / img.naturalHeight;
     let newWidth, newHeight;
     
@@ -341,7 +293,6 @@ export function resetImageRatio() {
       newHeight = newWidth / originalRatio;
     }
 
-    // Calculate new corners based on center point and new dimensions
     const centerPoint = map.value.latLngToContainerPoint(center);
     const halfWidth = newWidth / 2;
     const halfHeight = newHeight / 2;
@@ -353,7 +304,6 @@ export function resetImageRatio() {
       map.value.containerPointToLatLng([centerPoint.x + halfWidth, centerPoint.y + halfHeight])
     ];
 
-    // Apply new corners and save state
     overlayObject.overlay.setCorners(newCorners);
     saveToHistory(overlayObject);
     updateMarkerPosition(overlayObject);
@@ -370,16 +320,12 @@ export function resetImageRatio() {
   img.src = overlayObject.imageUrl || (overlayObject.overlay.getElement() as HTMLImageElement).src;
 }
 
-/**
- * Update the tooltip text for the selected overlay
- */
 export function updateTooltipText() {
   if (!idSelectedOverlay.value) return;
 
   const overlayObject = overlays.value[idSelectedOverlay.value];
   if (!overlayObject || !overlayObject.overlay) return;
 
-  // Get project information from the projectId
   if (overlayObject.projectId) {
     const project = projects.value[overlayObject.projectId];
     if (project) {
@@ -387,22 +333,16 @@ export function updateTooltipText() {
       overlayObject.overlay!.bindTooltip(tooltipText, { permanent: true, direction: 'top' }).openTooltip();
     }
   } else {
-    // Fallback if no project (should not happen with new workflow)
     overlayObject.overlay.bindTooltip('Overlay', { permanent: true, direction: 'top' }).openTooltip();
   }
 }
 
-/**
- * Save all overlays' positions and data to the database
- */
 export function saveImageAndPosition() {
   Object.values(overlays.value).forEach(overlayObj => {
-    // Ensure we use the most recent coordinates
     if (overlayObj.overlay) {
       overlayObj.corners = overlayObj.overlay.getCorners();
     }
     
-    // Create a serializable object for storage
     const savedOverlay = {
       id: overlayObj.id,
       imageUrl: overlayObj.imageUrl,
@@ -410,7 +350,7 @@ export function saveImageAndPosition() {
       corners: overlayObj.corners,
       history: overlayObj.history,
       redoStack: overlayObj.redoStack,
-      projectId: overlayObj.projectId, // Save projectId (required field)
+      projectId: overlayObj.projectId,
       phase: overlayObj.phase,
       sequenceNumber: overlayObj.sequenceNumber
     };
@@ -419,46 +359,33 @@ export function saveImageAndPosition() {
   });
 }
 
-/**
- * Delete an overlay from the map and database
- */
 export function deleteOverlay(id: string) {
   const overlayObject = overlays.value[id];
   if (!overlayObject) return;
 
-  // Remove from project if assigned
   if (overlayObject.projectId && projects.value[overlayObject.projectId]) {
     const project = projects.value[overlayObject.projectId];
     project.overlayIds = project.overlayIds.filter(overlayId => overlayId !== id);
-    // Save updated project
     saveProject(project);
   }
 
-  // Remove from map
   if (overlayObject.overlay && map.value) {
     map.value.removeLayer(overlayObject.overlay);
   }
   
-  // Remove marker
   if (overlayObject.marker && map.value) {
     map.value.removeLayer(overlayObject.marker);
   }
   
-  // Remove from state
   delete overlays.value[id];
 
-  // Remove from database using the imported function
   deleteOverlayFromDatabase(id);
 }
 
-/**
- * Update overlay information and metadata
- */
 export function updateOverlayInfo(id: string, info: { phase?: string, sequenceNumber?: number }): void {
   const overlayObject = overlays.value[id];
   if (!overlayObject) return;
 
-  // Update overlay with new metadata
   overlayObject.phase = info.phase;
   overlayObject.sequenceNumber = info.sequenceNumber;
   

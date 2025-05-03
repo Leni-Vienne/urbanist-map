@@ -10,7 +10,7 @@ export async function initializeDatabase(): Promise<void> {
   try {
     db = await openDB<MyDB>('CityMapOverlayDB', 2, {
       upgrade(upgradeDb, oldVersion) {
-        // Create stores if they don't exist
+        // AI : Create stores if they don't exist
         if (!upgradeDb.objectStoreNames.contains('overlays')) {
           upgradeDb.createObjectStore('overlays', { keyPath: 'id' });
         }
@@ -18,7 +18,7 @@ export async function initializeDatabase(): Promise<void> {
           upgradeDb.createObjectStore('mapPosition', { keyPath: 'key' });
         }
         
-        // Create projects store in version 2
+        // AI : Create projects store in version 2
         if (oldVersion < 2 && !upgradeDb.objectStoreNames.contains('projects')) {
           console.log('Creating projects object store');
           upgradeDb.createObjectStore('projects', { keyPath: 'id' });
@@ -127,7 +127,7 @@ export async function clearDatabase(): Promise<void> {
   try {
     await db.clear('overlays');
     await db.clear('mapPosition');
-    // Also clear projects store if it exists
+    // AI : Also clear projects store if it exists
     try {
       await db.clear('projects');
     } catch (error) {
@@ -221,13 +221,13 @@ export async function addOverlayToProject(projectId: string, overlayId: string):
       return;
     }
     
-    // Add overlay to project if not already included
+    // AI : Add overlay to project if not already included
     if (!project.overlayIds.includes(overlayId)) {
       project.overlayIds.push(overlayId);
       await db.put('projects', project);
     }
     
-    // Update overlay with project reference
+    // AI : Update overlay with project reference
     const overlay = await db.get('overlays', overlayId);
     if (overlay) {
       overlay.projectId = projectId;
@@ -254,14 +254,14 @@ export async function removeOverlayFromProject(projectId: string, overlayId: str
       return;
     }
     
-    // Remove overlay from project
+    // AI : Remove overlay from project
     project.overlayIds = project.overlayIds.filter(id => id !== overlayId);
     await db.put('projects', project);
     
-    // Remove project reference from overlay
+    // AI : Remove project reference from overlay
     const overlay = await db.get('overlays', overlayId);
     if (overlay && overlay.projectId === projectId) {
-      overlay.projectId = ''; // Use empty string instead of undefined
+      overlay.projectId = ''; // AI : Use empty string instead of undefined
       await db.put('overlays', overlay);
     }
   } catch (error) {

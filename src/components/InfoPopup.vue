@@ -111,13 +111,13 @@ const project = ref<Project | null>(null);
 const editingProject = ref(false);
 const selectedProjectId = ref<string | undefined>(props.overlayObject.projectId);
 
-// Format date for display
+// AI : Format date for display
 function formatDate(date: Date | null): string {
   if (!date) return 'Not specified';
   return new Date(date).toLocaleDateString();
 }
 
-// Format currency for display
+// AI : Format currency for display
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -126,29 +126,29 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
-// Start editing project assignment
+// AI : Start editing project assignment
 function startEditingProject() {
   selectedProjectId.value = props.overlayObject.projectId || undefined;
   editingProject.value = true;
 }
 
-// Apply project change to overlay
+// AI : Apply project change to overlay
 async function applyProjectChange(projectId: string) {
   try {
     const originalProjectId = props.overlayObject.projectId;
 
-    // If overlay already belongs to a project, remove it first
+    // AI : If overlay already belongs to a project, remove it first
     if (originalProjectId) {
       await removeOverlayFromProjectWithId(originalProjectId, props.overlayObject.id);
     }
 
-    // Add to the new project
+    // AI : Add to the new project
     await addOverlayToProjectWithId(projectId, props.overlayObject.id);
 
-    // Update local state
+    // AI : Update local state
     props.overlayObject.projectId = projectId;
 
-    // Refresh project data
+    // AI : Refresh project data
     await loadProjectData();
 
     toast.add({
@@ -158,10 +158,10 @@ async function applyProjectChange(projectId: string) {
       life: 3000
     });
 
-    // Close editing mode
+    // AI : Close editing mode
     editingProject.value = false;
 
-    // Update the tooltip text
+    // AI : Update the tooltip text
     updateTooltipText();
   } catch (error) {
     console.error('Error changing project:', error);
@@ -174,24 +174,24 @@ async function applyProjectChange(projectId: string) {
   }
 }
 
-// Open project manager for edit
+// AI : Open project manager for edit
 function openProjectManagerForEdit() {
   if (!project.value) return;
   
-  // Then open the project manager dialog
+  // AI : Then open the project manager dialog
   openProjectManager('edit', project.value.id, project.value.name);
 }
 
-// Helper function to close the info popup
+// AI : Helper function to close the info popup
 function closeInfoPopup() {
-  // Try multiple ways to close the popup
+  // AI : Try multiple ways to close the popup
   const infoLink = document.querySelector('.leaflet-toolbar-0 .pi-info-circle');
   if (infoLink && infoLink instanceof HTMLElement) {
     infoLink.click();
     return;
   }
   
-  // Fallback to other selectors
+  // AI : Fallback to other selectors
   const infoButtons = document.querySelectorAll('.pi-info-circle');
   for (const button of infoButtons) {
     if (button instanceof HTMLElement) {
@@ -201,7 +201,7 @@ function closeInfoPopup() {
   }
 }
 
-// Load current project data
+// AI : Load current project data
 async function loadProjectData() {
   try {
     if (props.overlayObject.projectId) {
@@ -215,10 +215,10 @@ async function loadProjectData() {
   }
 }
 
-// Initialize component
+// AI : Initialize component
 onMounted(async () => {
   try {
-    // Load current project data
+    // AI : Load current project data
     await loadProjectData();
   } catch (error) {
     console.error('Error initializing InfoPopup:', error);
@@ -237,6 +237,7 @@ onMounted(async () => {
   background-color: white;
   user-select: text;
   border-radius: 8px;
+  /* so that the popup sits above the toolbar, no matter its height*/
   translate: 0px calc(-100% - 32px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }

@@ -4,7 +4,7 @@ import PrimeVue from 'primevue/config';
 import Aura from '@primeuix/themes/aura';
 import ToastService from 'primevue/toastservice';
 
-// PrimeVue Components
+// AI : PrimeVue Components
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
 import FloatLabel from 'primevue/floatlabel';
@@ -27,7 +27,7 @@ app.use(PrimeVue, {
     }
 })
 
-// Register PrimeVue components
+// AI : Register PrimeVue components
 app.component('Button', Button);
 app.component('Dialog', Dialog);
 app.component('FloatLabel', FloatLabel);
