@@ -5,6 +5,7 @@ import { saveOverlay, deleteOverlay as deleteOverlayFromDatabase, saveProject } 
 import { generateImageResolutions, getImageUrlForCoverage } from './useImageResizer';
 import { useToast } from './useToast';
 import { addOverlayToProjectWithId, projects } from './useProjects';
+import type { StoredOverlayData } from '../types';
 
 const toast = useToast();
 
@@ -30,11 +31,11 @@ export async function addOverlay(imageUrl: string, projectId: string) {
     imageResolutions,
     overlay: null,
     marker: null as L.Marker | null,
-    history: [],
-    redoStack: [],
+    history: [] as { lat: number, lng: number }[][],
+    redoStack: [] as { lat: number, lng: number }[][],
     alreadyLoaded: false,
     alreadyStored: false,
-    corners: [],
+    corners: [] as { lat: number, lng: number }[],
     projectId,
     phase: undefined as string | undefined,
     sequenceNumber: undefined as number | undefined,
@@ -66,6 +67,31 @@ export async function addOverlay(imageUrl: string, projectId: string) {
                 const tooltipText = `${project.name}${overlayObject.phase ? ` - ${overlayObject.phase}` : ''}`;
                 marker.bindTooltip(tooltipText, { permanent: false }).openTooltip();
               }
+              
+              // AI : After the overlay is loaded and marker created, save its initial state to the database
+              if (newOverlay && overlayObject.overlay) {
+
+                // AI : Create initial history entry if not exists
+                if (!overlayObject.history.length) {
+                  overlayObject.history = [overlayObject.corners];
+                }
+                
+                // AI : Save the overlay to the database
+                const storedOverlay: StoredOverlayData = {
+                  id: overlayObject.id,
+                  imageUrl: overlayObject.imageUrl,
+                  imageResolutions: overlayObject.imageResolutions,
+                  corners: overlayObject.corners,
+                  history: overlayObject.history,
+                  redoStack: overlayObject.redoStack,
+                  projectId: overlayObject.projectId,
+                  phase: overlayObject.phase,
+                  sequenceNumber: overlayObject.sequenceNumber
+                };
+                
+                saveOverlay(storedOverlay);
+                console.log('AI: Saved new overlay to database:', storedOverlay.id);
+              }
             }
           } catch (error) {
             console.error('Error creating marker:', error);
@@ -87,7 +113,10 @@ export async function addOverlay(imageUrl: string, projectId: string) {
   
   setTimeout(updateOverlayToAppropriateResolution(overlayObject), 100);
   
-  addOverlayToProjectWithId(projectId, id);
+  await addOverlayToProjectWithId(projectId, id);
+  
+  // AI : Return the ID of the newly created overlay
+  return id;
 }
 
 function updateOverlayToAppropriateResolution(overlayObject) {
@@ -140,7 +169,7 @@ export function undo() {
   redoStack.push(currentState);
 
   const previousState = history[history.length - 1];
-  (overlay as any).setCorners(previousState);
+  (overlay as L.DistortableImageOverlay).setCorners(previousState);
 
   updateMarkerPosition(overlayObject);
   saveImageAndPosition();
@@ -166,7 +195,7 @@ export function redo() {
   const nextState = redoStack.pop()!;
   history.push(nextState);
 
-  (overlay as any).setCorners(nextState);
+  (overlay as L.DistortableImageOverlay).setCorners(nextState);
 
   updateMarkerPosition(overlayObject);
   saveImageAndPosition();
@@ -416,12 +445,11 @@ export function resetImageRatio() {
 }
 
 /**
- * AI : Navigates between overlays in the current project.
- * @param direction - The direction to navigate ('next' or 'previous')
- * Uses the order in the project's overlayIds array.
- * Automatically selects the overlay to open its toolbar.
+ * AI : Navigates between overlays in the current project based on direction
+ * @param direction - Either 'next' or 'previous' to determine navigation direction
+ * @returns boolean indicating whether navigation was successful
  */
-export function navigateOverlay(direction: 'next' | 'previous') {
+export function navigateOverlay(direction: 'next' | 'previous'): boolean {
   if (!map.value) {
     toast.add({
       severity: 'warn',
@@ -429,7 +457,7 @@ export function navigateOverlay(direction: 'next' | 'previous') {
       detail: 'Cannot navigate between overlays',
       life: 3000
     });
-    return;
+    return false;
   }
   
   // AI : If no overlay is selected, try to select the first/last overlay in any project
@@ -442,7 +470,7 @@ export function navigateOverlay(direction: 'next' | 'previous') {
         detail: 'Please create a project first',
         life: 3000
       });
-      return;
+      return false;
     }
     
     for (const projectId of projectIds) {
@@ -469,7 +497,7 @@ export function navigateOverlay(direction: 'next' | 'previous') {
             life: 3000
           });
         }
-        return;
+        return true;
       }
     }
     
@@ -479,15 +507,15 @@ export function navigateOverlay(direction: 'next' | 'previous') {
       detail: 'No overlays found in any project',
       life: 3000
     });
-    return;
+    return false;
   }
 
   const currentOverlay = overlays.value[idSelectedOverlay.value];
-  if (!currentOverlay || !currentOverlay.projectId) return;
+  if (!currentOverlay || !currentOverlay.projectId) return false;
   
   const projectId = currentOverlay.projectId;
   const project = projects.value[projectId];
-  if (!project || !project.overlayIds.length) return;
+  if (!project || !project.overlayIds.length) return false;
   
   // AI : Use the project's overlayIds directly without sorting
   const projectOverlayIds = project.overlayIds;
@@ -499,7 +527,7 @@ export function navigateOverlay(direction: 'next' | 'previous') {
       detail: 'No other overlays in this project',
       life: 3000
     });
-    return;
+    return false;
   }
   
   // AI : Find the current overlay's index
@@ -511,7 +539,7 @@ export function navigateOverlay(direction: 'next' | 'previous') {
   const newOverlayId = projectOverlayIds[newIndex];
   const newOverlay = overlays.value[newOverlayId];
   
-  if (!newOverlay) return;
+  if (!newOverlay) return false;
   
   // AI : Select and center the map on the new overlay
   idSelectedOverlay.value = newOverlayId;
@@ -535,6 +563,73 @@ export function navigateOverlay(direction: 'next' | 'previous') {
   } else if (newOverlay.marker) {
     map.value.setView(newOverlay.marker.getLatLng(), map.value.getZoom());
   }
+  
+  return true;
+}
+
+/**
+ * AI : Navigates directly to a specific overlay by ID
+ * @param overlayId - The ID of the overlay to navigate to
+ * @returns boolean indicating whether navigation was successful
+ */
+export function navigateToOverlay(overlayId: string): boolean {
+  if (!map.value) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Map not available',
+      detail: 'Cannot navigate to overlay',
+      life: 3000
+    });
+    return false;
+  }
+  
+  const targetOverlay = overlays.value[overlayId];
+  if (!targetOverlay) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Overlay not found',
+      detail: 'The requested overlay could not be found',
+      life: 3000
+    });
+    return false;
+  }
+  
+  // AI : Select the overlay
+  idSelectedOverlay.value = overlayId;
+  
+  if (targetOverlay.overlay) {
+    // AI : Click on the overlay to properly select it and open the toolbar
+    const element = targetOverlay.overlay.getElement();
+    if (element) {
+      element.click();
+    }
+    
+    // AI : Center and zoom the map to the overlay
+    const bounds = targetOverlay.overlay.getBounds();
+    map.value.fitBounds(bounds, { padding: [50, 50] });
+    
+    if (targetOverlay.phase) {
+      toast.add({
+        severity: 'info',
+        summary: 'Navigation',
+        detail: `Navigated to overlay: ${targetOverlay.phase}`,
+        life: 3000
+      });
+    }
+    return true;
+  } else if (targetOverlay.marker) {
+    // AI : If overlay is not loaded yet but marker exists, center on marker
+    map.value.setView(targetOverlay.marker.getLatLng(), map.value.getZoom());
+    return true;
+  }
+  
+  toast.add({
+    severity: 'warn',
+    summary: 'Navigation issue',
+    detail: 'The overlay exists but could not be shown on the map',
+    life: 3000
+  });
+  return false;
 }
 
 /**

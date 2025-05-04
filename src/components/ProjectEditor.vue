@@ -133,38 +133,12 @@
       </div>
     </div>
 
-    <div class="project-overlays mb-4">
-      <h5 class="font-bold mb-2">Project Overlays</h5>
-      <div
-        v-if="projectOverlays.length === 0"
-        class="text-center p-3 bg-gray-100 rounded-md"
-      >
-        No overlays in this project yet
-      </div>
-      <div
-        v-else
-        class="grid grid-cols-2 gap-2"
-      >
-        <div
-          v-for="overlay in projectOverlays"
-          :key="overlay.id"
-          class="overlay-item p-2 border rounded-md"
-        >
-          <div class="flex justify-between items-center">
-            <span class="text-sm font-medium">{{ overlay.phase || 'Unnamed Overlay' }}</span>
-            <Button
-              icon="pi pi-times"
-              class="p-button-text p-button-sm p-button-danger"
-              @click="removeFromProject(overlay.id)"
-              v-tooltip.top="'Remove from project'"
-            />
-          </div>
-          <div class="text-xs text-gray-500">
-            {{ overlay.phase || 'No phase' }}
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Using the new ProjectOverlaysList component -->
+    <ProjectOverlaysList 
+      :overlays="projectOverlays"
+      @remove-overlay="removeFromProject"
+      @view-overlay="viewOverlay"
+    />
 
     <div class="mb-4">
       <h5 class="font-bold mb-2">Actions</h5>
@@ -254,9 +228,11 @@ import {
   updateProject
 } from '../composables/useProjects';
 import { overlays } from '../composables/useOverlay';
+import { navigateToOverlay } from '../composables/useOverlayActions';
 import { useToast } from '../composables/useToast';
 import { useProjectManagerDialog } from '../composables/useProjectManagerDialog';
-import type { Project, OverlayObject } from '../types';
+import type { Project, OverlayObject, OverlayListItem } from '../types';
+import ProjectOverlaysList from './ProjectOverlaysList.vue';
 
 const props = defineProps<{
   id?: string;
@@ -264,7 +240,11 @@ const props = defineProps<{
 }>();
 
 const toast = useToast();
-const { initialProjectName, closeProjectManager, openProjectManager, previousMode, creatingFromList } = useProjectManagerDialog();
+const { 
+  initialProjectName, 
+  closeProjectManager, 
+  setLastCreatedProject 
+} = useProjectManagerDialog();
 
 // AI : Component state
 const mode = computed(() => props.mode);
@@ -280,7 +260,18 @@ const editingProject = ref<Partial<Project>>({
   overlayIds: [],
 });
 
-const projectOverlays = ref<OverlayObject[]>([]);
+// AI : Store the full overlay objects
+const fullProjectOverlays = ref<OverlayObject[]>([]);
+
+// AI : Simplified overlay items for the list component
+const projectOverlays = computed<OverlayListItem[]>(() => {
+  return fullProjectOverlays.value.map(overlay => ({
+    id: overlay.id,
+    phase: overlay.phase,
+    sequenceNumber: overlay.sequenceNumber
+  }));
+});
+
 const showAddOverlayDialog = ref(false);
 const isHighlighted = ref(false);
 
@@ -300,7 +291,7 @@ watch([projectId, mode], async ([newId, newMode]) => {
     if (newMode === 'edit') {
       editingProject.value = { ...projects.value[newId] };
     } else if (newMode === 'view') {
-      projectOverlays.value = await getOverlaysForProject(newId);
+      fullProjectOverlays.value = await getOverlaysForProject(newId);
     }
   }
 }, { immediate: true });
@@ -351,7 +342,7 @@ async function saveProject() {
       closeProjectManager(); // Close dialog or return to list depending on context
     } else {
       // AI : Create new project
-      await createProject({
+      const newProjectId = await createProject({
         name: editingProject.value.name,
         description: editingProject.value.description || '',
         location: editingProject.value.location || '',
@@ -360,6 +351,10 @@ async function saveProject() {
         budget: 0,
         sourceUrl: editingProject.value.sourceUrl || ''
       });
+      
+      // AI : Store the newly created project ID for auto-selection when returning to ProjectPicker
+      setLastCreatedProject(newProjectId);
+      
       toast.add({
         severity: 'success',
         summary: 'Project created',
@@ -387,7 +382,7 @@ async function addToProject(overlayId: string) {
   if (!projectId.value) return;
 
   await addOverlayToProjectWithId(projectId.value, overlayId);
-  projectOverlays.value = await getOverlaysForProject(projectId.value);
+  fullProjectOverlays.value = await getOverlaysForProject(projectId.value);
   showAddOverlayDialog.value = false;
 }
 
@@ -395,7 +390,40 @@ async function removeFromProject(overlayId: string) {
   if (!projectId.value) return;
 
   await removeOverlayFromProjectWithId(projectId.value, overlayId);
-  projectOverlays.value = await getOverlaysForProject(projectId.value);
+  fullProjectOverlays.value = await getOverlaysForProject(projectId.value);
+}
+
+async function viewOverlay(overlayId: string) {
+  if (!projectId.value) return;
+  
+  try {
+    // AI : Use the navigateToOverlay function to focus the map on the selected overlay
+    const overlay = overlays.value[overlayId];
+    if (overlay) {
+      // AI : Close the project manager dialog first
+      closeProjectManager();
+      
+      // AI : Navigate to the specific overlay on the map
+      const success = navigateToOverlay(overlayId);
+      
+      if (success) {
+        toast.add({
+          severity: 'info',
+          summary: 'Viewing Overlay',
+          detail: `Navigated to overlay ${overlay.phase || 'Unnamed Overlay'}`,
+          life: 3000
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error viewing overlay:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to navigate to overlay',
+      life: 3000
+    });
+  }
 }
 
 function toggleHighlight() {
