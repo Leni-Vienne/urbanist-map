@@ -264,7 +264,7 @@ const props = defineProps<{
 }>();
 
 const toast = useToast();
-const { initialProjectName, closeProjectManager, openProjectManager, previousMode } = useProjectManagerDialog();
+const { initialProjectName, closeProjectManager, openProjectManager, previousMode, creatingFromList } = useProjectManagerDialog();
 
 // AI : Component state
 const mode = computed(() => props.mode);
@@ -348,13 +348,7 @@ async function saveProject() {
         sourceUrl: editingProject.value.sourceUrl
       });
       
-      // AI : If we came from the project list, go back to it
-      if (previousMode.value === 'list') {
-        openProjectManager('list');
-      } else {
-        // AI : Otherwise just close the dialog
-        closeProjectManager();
-      }
+      closeProjectManager(); // Close dialog or return to list depending on context
     } else {
       // AI : Create new project
       await createProject({
@@ -373,8 +367,9 @@ async function saveProject() {
         life: 3000
       });
       
-      // AI : After creating, go back to the project list
-      openProjectManager('list');
+      // AI : Let the closeProjectManager function handle going back to the list
+      // if we were creating from the list
+      closeProjectManager();
     }
   } catch (error) {
     console.error('Error saving project:', error);

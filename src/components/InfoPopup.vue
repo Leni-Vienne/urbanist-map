@@ -15,7 +15,7 @@
         v-if="!props.viewMode"
         class="project-selection mb-4"
       >
-        <h3 class="text-lg font-bold mb-2">Project Assignment</h3>
+        <Divider align="left"><span class="font-bold">Project Assignment</span></Divider>
         <div class="flex flex-col gap-2">
           <ProjectPicker
             v-model="selectedProjectId"
@@ -31,8 +31,8 @@
         v-if="project"
         class="project-meta mb-4"
       >
-        <h3 class="text-lg font-bold mb-2">Project Information</h3>
-        <div class="info-content p-3 rounded-md bg-gray-50">
+        <Divider align="center"><b>Project Information</b></Divider>
+        <div class="p-3 rounded-md bg-gray-50">
           <div class="flex items-center mb-2">
             <span class="font-semibold mr-2">Location:</span>
             <span>{{ project.location || 'Not specified' }}</span>
@@ -69,8 +69,8 @@
 
       <!-- Image Information Section -->
       <div class="image-meta">
-        <h3 class="text-lg font-bold mb-2">Overlay Information</h3>
-        <div class="info-content p-3 rounded-md bg-gray-50">
+        <Divider align="center"><b>Overlay Information</b></Divider>
+        <div class="p-3 rounded-md bg-gray-50">
           <div class="flex items-center mb-2">
             <span class="font-semibold mr-2">ID:</span>
             <span class="font-mono text-sm">{{ props.overlayObject.id }}</span>
@@ -84,7 +84,14 @@
             <span>{{ props.overlayObject.sequenceNumber || 'Not specified' }}</span>
           </div>
           <div v-if="!props.viewMode" class="mt-3">
+            <Button
+              label="Edit Overlay"
+              icon="pi pi-pencil"
+              class="p-button-sm p-button-outlined p-button-info w-full"
+              @click="openOverlayEditor"
+            />
             <OverlayEditor 
+              ref="overlayEditorRef"
               :overlayObject="props.overlayObject" 
               @update="onOverlayUpdate"
             />
@@ -117,6 +124,7 @@ const loading = ref(true);
 const project = ref<Project | null>(null);
 const editingProject = ref(false);
 const selectedProjectId = ref<string | undefined>(props.overlayObject.projectId);
+const overlayEditorRef = ref<InstanceType<typeof OverlayEditor> | null>(null);
 
 // AI : Format date for display
 function formatDate(date: Date | null): string {
@@ -198,6 +206,11 @@ function openProjectManagerForEdit() {
   openProjectManager('edit', project.value.id, project.value.name);
 }
 
+// AI : Open the overlay editor dialog
+function openOverlayEditor() {
+  overlayEditorRef.value?.openDialog();
+}
+
 // AI : Helper function to close the info popup
 function closeInfoPopup() {
   // AI : Try multiple ways to close the popup
@@ -263,10 +276,6 @@ onMounted(async () => {
   justify-content: center;
   align-items: center;
   height: 200px;
-}
-
-.info-content {
-  border: 1px solid #e5e7eb;
 }
 
 </style>
