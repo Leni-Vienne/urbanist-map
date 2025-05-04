@@ -246,12 +246,5 @@ async function onProjectSelected(projectId: string) {
   transition: transform 0.2s ease;
 }
 
-/* Style for context menu items for better visibility */
-:deep(.p-menuitem-link) {
-  padding: 0.75rem 1rem !important;
-}
 
-:deep(.p-menuitem-icon) {
-  font-size: 1rem !important;
-}
 </style>
