@@ -1,37 +1,89 @@
 <template>
   <div>
-    <div class="flex flex-col gap-2 mb-4">
-      <div
-        v-for="project in projectsList"
-        :key="project.id"
-        class="project-item flex justify-between items-center p-2 border rounded-md mb-2"
-      >
-        <div class="flex flex-col">
-          <span class="font-bold">{{ project.name }}</span>
-          <span class="text-sm text-gray-500">{{ project.overlayIds.length }} overlays</span>
+    <DataTable 
+      :value="projectsList"
+      stripedRows
+      class="mb-4"
+      responsiveLayout="scroll"
+      :paginator="true" 
+      :rows="5"
+      :rowsPerPageOptions="[5, 10, 20]"
+      filterDisplay="menu"
+      :filters="filters"
+      v-model:sortField="sortField"
+      v-model:sortOrder="sortOrder"
+      :globalFilterFields="['name']"
+    >
+      <template #header>
+        <div class="flex justify-between">
+          <h3 class="text-lg font-semibold">Projects</h3>
+          <span class="p-input-icon-left">
+            <i class="pi pi-search" />
+            <InputText v-model="filters.global.value" placeholder="Search projects..." />
+          </span>
         </div>
-        <div class="flex gap-2">
-          <Button
-            icon="pi pi-eye"
-            class="p-button-sm"
-            @click="openProject(project.id, 'view')"
-            v-tooltip.top="'View project overlays'"
+      </template>
+
+      <Column field="name" header="Project Name" :sortable="true">
+        <template #body="{ data }">
+          <div class="flex items-center">
+            <div class="color-circle mr-2" :style="{ backgroundColor: data.color }"></div>
+            <div class="flex flex-col">
+              <span class="font-bold">{{ data.name }}</span>
+              <span class="text-sm text-gray-500">{{ data.overlayIds.length }} overlays</span>
+            </div>
+          </div>
+        </template>
+        <template #filter="{ filterModel, filterCallback }">
+          <InputText 
+            v-model="filterModel.value" 
+            type="text" 
+            @input="filterCallback()" 
+            class="p-column-filter" 
+            placeholder="Search by name"
           />
-          <Button
-            icon="pi pi-pencil"
-            class="p-button-sm p-button-secondary"
-            @click="openProject(project.id, 'edit')"
-            v-tooltip.top="'Edit project details'"
-          />
-          <Button
-            icon="pi pi-trash"
-            class="p-button-sm p-button-danger"
-            @click="confirmDeleteProject(project.id)"
-            v-tooltip.top="'Delete project'"
-          />
+        </template>
+      </Column>
+      
+      <Column field="location" header="Location" :sortable="true">
+        <template #body="{ data }">
+          <span>{{ data.location || 'Not specified' }}</span>
+        </template>
+      </Column>
+      
+      <Column header="Actions" :exportable="false" style="min-width: 100px">
+        <template #body="{ data }">
+          <div class="flex justify-center">
+            <Button 
+              icon="pi pi-ellipsis-v" 
+              class="p-button-rounded p-button-text" 
+              @click="toggleMenu($event, data)"
+              aria-haspopup="true" 
+              aria-controls="project_actions_menu"
+            />
+            <Menu 
+              ref="menu" 
+              id="project_actions_menu" 
+              :model="getMenuItems(data)" 
+              :popup="true"
+            />
+          </div>
+        </template>
+      </Column>
+      
+      <template #empty>
+        <div class="text-center p-4">
+          <p>No projects found. Create your first project to get started.</p>
         </div>
-      </div>
-    </div>
+      </template>
+      
+      <template #footer>
+        <div class="flex justify-between">
+          <div>{{ projectsList.length }} {{ projectsList.length === 1 ? 'project' : 'projects' }} total</div>
+        </div>
+      </template>
+    </DataTable>
+    
     <Button
       label="Create New Project"
       icon="pi pi-plus"
@@ -71,11 +123,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { projects, deleteProjectById } from '../composables/useProjects';
 import { useToast } from '../composables/useToast';
 import { useProjectManagerDialog } from '../composables/useProjectManagerDialog';
 import type { ProjectManagerMode } from '../composables/useProjectManagerDialog';
+import type { MenuItem } from 'primevue/menuitem';
 
 const toast = useToast();
 const { openProjectManager } = useProjectManagerDialog();
@@ -83,11 +136,67 @@ const { openProjectManager } = useProjectManagerDialog();
 // AI : Component state
 const showDeleteDialog = ref(false);
 const projectToDelete = ref<string | null>(null);
+const sortField = ref('name');
+const sortOrder = ref(1);
+const menu = ref();
+const filters = ref({
+  global: { value: null, matchMode: 'contains' },
+  name: { value: null, matchMode: 'startsWith' },
+  location: { value: null, matchMode: 'startsWith' }
+});
 
 // AI : Computed properties
 const projectsList = computed(() => {
   return Object.values(projects.value);
 });
+
+// AI : Initialize filter when component mounts
+onMounted(() => {
+  initFilters();
+});
+
+// AI : Initialize filters
+const initFilters = () => {
+  filters.value = {
+    global: { value: null, matchMode: 'contains' },
+    name: { value: null, matchMode: 'startsWith' },
+    location: { value: null, matchMode: 'startsWith' }
+  };
+};
+
+// AI : Generate menu items for a specific project
+function getMenuItems(project: any): MenuItem[] {
+  return [
+    {
+      label: 'View Project',
+      icon: 'pi pi-eye',
+      command: () => {
+        openProject(project.id, 'view');
+      }
+    },
+    {
+      label: 'Edit Project',
+      icon: 'pi pi-pencil',
+      command: () => {
+        openProject(project.id, 'edit');
+      }
+    },
+    { separator: true },
+    {
+      label: 'Delete Project',
+      icon: 'pi pi-trash',
+      className: 'p-error',
+      command: () => {
+        confirmDeleteProject(project.id);
+      }
+    }
+  ];
+}
+
+// AI : Toggle the popup menu
+function toggleMenu(event: Event, data: any) {
+  menu.value.toggle(event);
+}
 
 function confirmDeleteProject(projectId: string) {
   projectToDelete.value = projectId;
@@ -132,11 +241,36 @@ function createNewProject() {
 
 <style scoped>
 @import "tailwindcss";
+
 .project-list {
   padding: 1rem;
   max-width: 500px;
   background-color: white;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.color-circle {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+:deep(.p-datatable .p-datatable-header) {
+  background-color: transparent;
+  border: none;
+  padding-left: 0;
+}
+
+:deep(.p-column-filter) {
+  width: 100%;
+}
+
+/* AI : Style for the menu button */
+:deep(.p-button-rounded) {
+  width: 2.5rem;
+  height: 2.5rem;
 }
 </style>

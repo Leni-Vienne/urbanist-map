@@ -1,13 +1,6 @@
 // filepath: d:\Documents\Perso\prog\city-map-overlay\src\components\OverlayEditor.vue
 <template>
   <div>
-    <Button
-      label="Edit Overlay"
-      icon="pi pi-pencil"
-      class="p-button-sm p-button-outlined p-button-info w-full"
-      @click="openDialog"
-    />
-
     <!-- Edit Overlay Dialog -->
     <Dialog 
       v-model:visible="showDialog" 
@@ -135,6 +128,11 @@ function saveChanges() {
     });
   }
 }
+
+// AI : Expose the openDialog function to parent components
+defineExpose({
+  openDialog
+});
 </script>
 
 <style scoped>
