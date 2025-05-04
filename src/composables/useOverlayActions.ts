@@ -39,6 +39,7 @@ export async function addOverlay(imageUrl: string, projectId: string) {
     phase: undefined as string | undefined,
     sequenceNumber: undefined as number | undefined,
     whitePixelsHidden: false,
+    isFlipped: false, // AI : Add the missing isFlipped property
     currentResolution: imageUrl,
   };
 
@@ -266,55 +267,149 @@ export function resetImageRatio() {
   img.onload = () => {
     if (!overlayObject.overlay || !map.value) return;
 
+    // AI : Get current image state
     const currentCorners = overlayObject.overlay.getCorners();
     if (!currentCorners || currentCorners.length !== 4) return;
-
-    const center = {
-      lat: (currentCorners[0].lat + currentCorners[2].lat) / 2,
-      lng: (currentCorners[0].lng + currentCorners[2].lng) / 2
-    };
-
-    // AI : Calculate current dimensions in pixels
+    
+    // AI : Calculate the center and bounds
     const bounds = overlayObject.overlay.getBounds();
-    const northEast = map.value.latLngToContainerPoint(bounds.getNorthEast());
-    const southWest = map.value.latLngToContainerPoint(bounds.getSouthWest());
-    const currentWidthPx = Math.abs(northEast.x - southWest.x);
-    const currentHeightPx = Math.abs(northEast.y - southWest.y);
-
-    // AI : Calculate new dimensions maintaining the original aspect ratio
+    const center = bounds.getCenter();
+    
+    // AI : Calculate current width and height in pixels
+    const nw = map.value.latLngToContainerPoint(currentCorners[0]);
+    const ne = map.value.latLngToContainerPoint(currentCorners[1]);
+    const se = map.value.latLngToContainerPoint(currentCorners[3]);
+    const sw = map.value.latLngToContainerPoint(currentCorners[2]);
+    
+    // AI : Calculate distances between corners
+    const topEdge = nw.distanceTo(ne);
+    const rightEdge = ne.distanceTo(se);
+    const bottomEdge = sw.distanceTo(se);
+    const leftEdge = nw.distanceTo(sw);
+    
+    // AI : Use average for more accuracy
+    const currentWidth = (topEdge + bottomEdge) / 2;
+    const currentHeight = (leftEdge + rightEdge) / 2;
+    
+    // AI : Get the original aspect ratio
     const originalRatio = img.naturalWidth / img.naturalHeight;
+    
+    // AI : Determine new dimensions that maintain original ratio
+    // AI : Always scale down, never up
     let newWidth, newHeight;
     
-    if (currentWidthPx / currentHeightPx > originalRatio) {
-      newHeight = currentHeightPx;
-      newWidth = newHeight * originalRatio;
+    if (currentWidth / currentHeight > originalRatio) {
+      // AI : Width is too large relative to height
+      newHeight = currentHeight;
+      newWidth = currentHeight * originalRatio;
     } else {
-      newWidth = currentWidthPx;
-      newHeight = newWidth / originalRatio;
+      // AI : Height is too large relative to width
+      newWidth = currentWidth;
+      newHeight = currentWidth / originalRatio;
     }
-
-    const centerPoint = map.value.latLngToContainerPoint(center);
+    
+    // AI : Determine the current rotation by analyzing the corners
+    // AI : First, get vectors for the top and right edges
+    const topVector = {
+      x: ne.x - nw.x,
+      y: ne.y - nw.y
+    };
+    
+    // AI : Calculate rotation from the top edge
+    const angleRad = Math.atan2(topVector.y, topVector.x);
+    
+    // AI : Check for orientation consistency to prevent unintended flipping
+    // AI : By ensuring we preserve the original 'winding' of the corners
+    const isClockwise = (ne.x - nw.x) * (se.y - nw.y) - (ne.y - nw.y) * (se.x - nw.x) > 0;
+    
+    // AI : Create the new corners maintaining center and rotation
     const halfWidth = newWidth / 2;
     const halfHeight = newHeight / 2;
-
-    const newCorners = [
-      map.value.containerPointToLatLng([centerPoint.x - halfWidth, centerPoint.y - halfHeight]),
-      map.value.containerPointToLatLng([centerPoint.x + halfWidth, centerPoint.y - halfHeight]),
-      map.value.containerPointToLatLng([centerPoint.x - halfWidth, centerPoint.y + halfHeight]),
-      map.value.containerPointToLatLng([centerPoint.x + halfWidth, centerPoint.y + halfHeight])
+    
+    // AI : Convert center to pixel coordinates
+    const centerPoint = map.value.latLngToContainerPoint(center);
+    
+    // AI : Calculate the corner offsets based on rotation
+    const dx = [
+      -halfWidth * Math.cos(angleRad) - halfHeight * Math.sin(angleRad), // NW
+      halfWidth * Math.cos(angleRad) - halfHeight * Math.sin(angleRad),  // NE
+      -halfWidth * Math.cos(angleRad) + halfHeight * Math.sin(angleRad), // SW
+      halfWidth * Math.cos(angleRad) + halfHeight * Math.sin(angleRad)   // SE
     ];
-
+    
+    const dy = [
+      -halfWidth * Math.sin(angleRad) + halfHeight * Math.cos(angleRad), // NW
+      halfWidth * Math.sin(angleRad) + halfHeight * Math.cos(angleRad),  // NE
+      -halfWidth * Math.sin(angleRad) - halfHeight * Math.cos(angleRad), // SW
+      halfWidth * Math.sin(angleRad) - halfHeight * Math.cos(angleRad)   // SE
+    ];
+    
+    // AI : Create new corners in pixel coordinates
+    const newCornerPoints = [0, 1, 2, 3].map(i => {
+      return {
+        x: centerPoint.x + dx[i],
+        y: centerPoint.y + dy[i]
+      };
+    });
+    
+    // AI : Check if we need to reverse the order to maintain original orientation
+    const newIsClockwise = (newCornerPoints[1].x - newCornerPoints[0].x) * 
+                          (newCornerPoints[3].y - newCornerPoints[0].y) - 
+                          (newCornerPoints[1].y - newCornerPoints[0].y) * 
+                          (newCornerPoints[3].x - newCornerPoints[0].x) > 0;
+    
+    if (isClockwise !== newIsClockwise) {
+      // AI : Flip the order to maintain original orientation
+      newCornerPoints.reverse();
+    }
+    
+    // AI : Convert back to geographical coordinates
+    const newCorners = newCornerPoints.map(point => 
+      map.value!.containerPointToLatLng([point.x, point.y])
+    );
+    
+    // AI : Apply ratio-corrected corners
     overlayObject.overlay.setCorners(newCorners);
+    
+    // AI : If this is the second click, also mirror the image horizontally
+    if (overlayObject.isFlipped) {
+      overlayObject.isFlipped = false;
+      
+      // AI : Get the new corners after ratio correction
+      const currentRatioFixedCorners = overlayObject.overlay.getCorners();
+      
+      // AI : Swap NW with NE, and SW with SE corners for horizontal mirroring
+      // AI : The corners array is in order: NW, NE, SW, SE
+      const mirroredCorners = [
+        currentRatioFixedCorners[1], // NE becomes NW
+        currentRatioFixedCorners[0], // NW becomes NE
+        currentRatioFixedCorners[3], // SE becomes SW
+        currentRatioFixedCorners[2]  // SW becomes SE
+      ];
+      
+      // AI : Apply the mirrored corners
+      overlayObject.overlay.setCorners(mirroredCorners);
+      
+      toast.add({
+        severity: 'success',
+        summary: 'Image ratio reset and mirrored',
+        detail: 'Image has been reset to original ratio and mirrored horizontally',
+        life: 5000
+      });
+    } else {
+      overlayObject.isFlipped = true;
+      
+      toast.add({
+        severity: 'success',
+        summary: 'Image ratio reset',
+        detail: 'Click again to mirror the image horizontally',
+        life: 5000
+      });
+    }
+    
     saveToHistory(overlayObject);
     updateMarkerPosition(overlayObject);
     saveImageAndPosition();
-
-    toast.add({
-      severity: 'success',
-      summary: 'Image ratio reset',
-      detail: 'The image proportions have been restored',
-      life: 3000
-    });
   };
 
   img.src = overlayObject.imageUrl || (overlayObject.overlay.getElement() as HTMLImageElement).src;

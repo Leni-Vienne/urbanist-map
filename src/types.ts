@@ -89,6 +89,7 @@ export interface OverlayObject extends StoredOverlayData {
   alreadyLoaded: boolean;
   alreadyStored: boolean;
   whitePixelsHidden: boolean;
+  isFlipped: boolean; // AI : Track if the image has been flipped after ratio reset
   currentResolution?: string;
 }
 
