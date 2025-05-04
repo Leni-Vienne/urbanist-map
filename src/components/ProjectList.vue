@@ -64,7 +64,7 @@
             <Menu 
               ref="menu" 
               id="project_actions_menu" 
-              :model="getMenuItems(data)" 
+              :model="menuItems" 
               :popup="true"
             />
           </div>
@@ -144,6 +144,9 @@ const filters = ref({
   name: { value: null, matchMode: 'startsWith' },
   location: { value: null, matchMode: 'startsWith' }
 });
+// AI : Track the currently selected project for menu actions
+const selectedProjectId = ref<string>('');
+const menuItems = ref<MenuItem[]>([]);
 
 // AI : Computed properties
 const projectsList = computed(() => {
@@ -166,19 +169,22 @@ const initFilters = () => {
 
 // AI : Generate menu items for a specific project
 function getMenuItems(project: any): MenuItem[] {
+  // AI : Capture the project ID in a local constant to ensure it's correctly enclosed in the command closures
+  const projectId = project.id;
+  
   return [
     {
       label: 'View Project',
       icon: 'pi pi-eye',
       command: () => {
-        openProject(project.id, 'view');
+        openProject(projectId, 'view');
       }
     },
     {
       label: 'Edit Project',
       icon: 'pi pi-pencil',
       command: () => {
-        openProject(project.id, 'edit');
+        openProject(projectId, 'edit');
       }
     },
     { separator: true },
@@ -187,7 +193,7 @@ function getMenuItems(project: any): MenuItem[] {
       icon: 'pi pi-trash',
       className: 'p-error',
       command: () => {
-        confirmDeleteProject(project.id);
+        confirmDeleteProject(projectId);
       }
     }
   ];
@@ -195,6 +201,35 @@ function getMenuItems(project: any): MenuItem[] {
 
 // AI : Toggle the popup menu
 function toggleMenu(event: Event, data: any) {
+  // AI : Store the current project ID before toggling the menu
+  selectedProjectId.value = data.id;
+  // AI : Update menu items with the selected project
+  menuItems.value = [
+    {
+      label: 'View Project',
+      icon: 'pi pi-eye',
+      command: () => {
+        openProject(selectedProjectId.value, 'view');
+      }
+    },
+    {
+      label: 'Edit Project',
+      icon: 'pi pi-pencil',
+      command: () => {
+        openProject(selectedProjectId.value, 'edit');
+      }
+    },
+    { separator: true },
+    {
+      label: 'Delete Project',
+      icon: 'pi pi-trash',
+      className: 'p-error',
+      command: () => {
+        confirmDeleteProject(selectedProjectId.value);
+      }
+    }
+  ];
+  // AI : Toggle the menu without mutating the model prop
   menu.value.toggle(event);
 }
 
@@ -235,7 +270,7 @@ function openProject(projectId: string, mode: ProjectManagerMode) {
 }
 
 function createNewProject() {
-  openProjectManager('create');
+  openProjectManager('create', '', '', 'list');
 }
 </script>
 

@@ -82,6 +82,13 @@ export interface StoredOverlayData {
   sequenceNumber?: number; // AI : Optional sequence number for chronological ordering
 }
 
+// AI : Define a simplified version of overlay data for the list component
+export interface OverlayListItem {
+  id: string;
+  phase?: string;
+  sequenceNumber?: number;
+}
+
 // AI : Extended overlay object with runtime properties
 export interface OverlayObject extends StoredOverlayData {
   overlay: L.DistortableImageOverlay | null;

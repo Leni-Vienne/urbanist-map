@@ -81,7 +81,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { projects, createProject } from '../composables/useProjects';
 import { useToast } from '../composables/useToast';
 import { useProjectManagerDialog } from '../composables/useProjectManagerDialog';
@@ -113,11 +113,52 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'project-selected', 'project-created']);
 
 const toast = useToast();
-const { openProjectManager } = useProjectManagerDialog();
+const { openProjectManager, setFileUploadFlow, lastCreatedProjectId } = useProjectManagerDialog();
 const loading = ref(false);
 const selectedProjectId = ref(props.modelValue);
 
+// AI : Watch for changes in the lastCreatedProjectId to auto-select newly created projects
+watch(() => lastCreatedProjectId.value, (newProjectId) => {
+  if (newProjectId) {
+    selectedProjectId.value = newProjectId;
+    emit('update:modelValue', newProjectId);
+    
+    // AI : Automatically trigger project selection if we have a new project
+    emit('project-selected', newProjectId);
+  }
+});
+
 const projectList = computed(() => Object.values(projects.value));
+
+// AI : Watch for changes to the modelValue prop
+watch(() => props.modelValue, (newValue) => {
+  if (newValue !== selectedProjectId.value) {
+    selectedProjectId.value = newValue;
+  }
+});
+
+// AI : Watch for changes to the selectedProjectId ref and emit them
+watch(selectedProjectId, (newValue) => {
+  emit('update:modelValue', newValue);
+});
+
+// AI : Watch for changes in projects to select the most recently created project
+// This helps when a new project is created and we want to select it automatically
+watch(projectList, (newProjectList, oldProjectList) => {
+  // AI : If a new project was added, select it
+  if (newProjectList.length > oldProjectList.length) {
+    // AI : Find the newly added project (assuming only one was added)
+    const newProject = newProjectList.find(project => 
+      !oldProjectList.some(oldProject => oldProject.id === project.id)
+    );
+    
+    if (newProject) {
+      selectedProjectId.value = newProject.id;
+      emit('update:modelValue', newProject.id);
+      emit('project-selected', newProject.id);
+    }
+  }
+}, { deep: true });
 
 function getProjectById(id: string): Project | undefined {
   return projectList.value.find(project => project.id === id);
@@ -130,8 +171,9 @@ function confirmSelection() {
 }
 
 function openNewProjectDialog() {
-  // AI : Open project manager dialog in create mode
-  openProjectManager('create');
+  // AI : Open project manager dialog in create mode, indicating that we are coming from the picker
+  setFileUploadFlow(true);
+  openProjectManager('create', '', '', 'picker');
 }
 </script>
 

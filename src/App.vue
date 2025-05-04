@@ -98,11 +98,15 @@ import ProjectEditor from './components/ProjectEditor.vue';
 
 const toast = useToast();
 const { 
-  isVisible: showProjectManager, 
+  isVisible: showProjectManager,
   closeProjectManager, 
   currentMode,
   currentProjectId,
-  openProjectManager 
+  openProjectManager,
+  setFileUploadFlow,
+  inFileUploadFlow,
+  lastCreatedProjectId,
+  originContext
 } = useProjectManagerDialog();
 const projectMenu = ref();
 const showProjectSelector = ref(false);
@@ -110,7 +114,7 @@ const pendingImageFile = ref<File | null>(null);
 
 // Watch for changes in showProjectSelector to reset file input when dialog closes,
 // otherwise we can't import the same file again, even if we cancel in between
-watch(showProjectSelector, (newVal) => {
+watch(() => showProjectSelector.value, (newVal) => {
   if (!newVal) {
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
@@ -192,7 +196,8 @@ function onImageUpload(event: Event) {
   // AI : Store the file temporarily
   pendingImageFile.value = file;
 
-  // AI : Show project selector
+  // AI : Show project selector and set the file upload flow flag
+  setFileUploadFlow(true);
   showProjectSelector.value = true;
 }
 
@@ -226,6 +231,15 @@ async function onProjectSelected(projectId: string) {
   };
   reader.readAsDataURL(file);
 }
+
+// AI : Handle showing the project selector dialog again when project manager is closed
+watch(() => showProjectManager.value, (isVisible) => {
+  if (!isVisible && inFileUploadFlow.value && pendingImageFile.value) {
+    // AI : If we were in file upload flow and there's still a pending file,
+    // show the project picker again with the newly created project selected
+    showProjectSelector.value = true;
+  }
+});
 
 </script>
 

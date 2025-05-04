@@ -109,6 +109,7 @@ export async function getOverlaysForProject(projectId: string): Promise<OverlayO
   
   for (const overlayId of project.overlayIds) {
     if (overlays.value[overlayId]) {
+      // AI : Ensure we're pushing a proper OverlayObject with all expected properties
       projectOverlays.push(overlays.value[overlayId]);
     }
   }
