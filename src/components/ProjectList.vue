@@ -1,5 +1,5 @@
 <template>
-  <div class="project-list">
+  <div>
     <div class="flex flex-col gap-2 mb-4">
       <div
         v-for="project in projectsList"

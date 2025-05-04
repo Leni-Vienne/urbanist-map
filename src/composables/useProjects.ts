@@ -201,11 +201,8 @@ export function applyProjectStyling(overlayObject: OverlayObject, projectId: str
   if (!element) return;
   
   // Apply permanent and more noticeable project styling
-  // Thicker border with doubled opacity
-  element.style.borderLeft = `10px solid ${project.color}`;
-  element.style.borderRight = `10px solid ${project.color}`;
-  element.style.borderTop = `4px solid ${project.color}`;
-  element.style.borderBottom = `4px solid ${project.color}`;
+  // Using outline instead of individual borders for cleaner effect
+  element.style.outline = `4px solid ${project.color}`;
   
   // Add stronger glow effect for better visibility
   element.style.boxShadow = `0 0 15px ${project.color}80`; // 80 = 50% opacity for stronger effect
@@ -223,11 +220,8 @@ export function removeProjectStyling(overlayObject: OverlayObject): void {
   const element = overlayObject.overlay.getElement();
   if (!element) return;
   
-  // Remove all project styling
-  element.style.borderLeft = '';
-  element.style.borderRight = '';
-  element.style.borderTop = '';
-  element.style.borderBottom = '';
+  // Remove all project styling using outline instead of individual borders
+  element.style.outline = '';
   element.style.boxShadow = '';
   
   // Reset marker styling - only reset tooltip, no border or shadow

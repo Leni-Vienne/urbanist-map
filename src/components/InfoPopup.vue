@@ -76,12 +76,18 @@
             <span class="font-mono text-sm">{{ props.overlayObject.id }}</span>
           </div>
           <div class="flex items-center mb-2">
-            <span class="font-semibold mr-2">Phase:</span>
+            <span class="font-semibold mr-2">Name:</span>
             <span>{{ props.overlayObject.phase || 'Not specified' }}</span>
           </div>
           <div class="flex items-center mb-2">
             <span class="font-semibold mr-2">Sequence:</span>
             <span>{{ props.overlayObject.sequenceNumber || 'Not specified' }}</span>
+          </div>
+          <div v-if="!props.viewMode" class="mt-3">
+            <OverlayEditor 
+              :overlayObject="props.overlayObject" 
+              @update="onOverlayUpdate"
+            />
           </div>
         </div>
       </div>
@@ -96,6 +102,7 @@ import { updateTooltipText } from '../composables/useOverlayActions';
 import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId } from '../composables/useProjects';
 import { useProjectManagerDialog } from '../composables/useProjectManagerDialog';
 import ProjectPicker from './ProjectPicker.vue';
+import OverlayEditor from './OverlayEditor.vue';
 import type { OverlayObject, Project } from '../types';
 
 const props = defineProps<{
@@ -124,6 +131,15 @@ function formatCurrency(amount: number): string {
     currency: 'USD',
     maximumFractionDigits: 0
   }).format(amount);
+}
+
+// AI : Handle overlay update from the OverlayEditor component
+function onOverlayUpdate(overlayId: string, phase?: string, sequenceNumber?: number) {
+  // AI : Update the local data if needed
+  if (overlayId === props.overlayObject.id) {
+    props.overlayObject.phase = phase;
+    props.overlayObject.sequenceNumber = sequenceNumber;
+  }
 }
 
 // AI : Start editing project assignment
@@ -253,11 +269,4 @@ onMounted(async () => {
   border: 1px solid #e5e7eb;
 }
 
-.project-selection :deep(.p-inputtext) {
-  font-size: 0.875rem;
-}
-
-.project-selection :deep(.p-button) {
-  font-size: 0.875rem;
-}
 </style>
