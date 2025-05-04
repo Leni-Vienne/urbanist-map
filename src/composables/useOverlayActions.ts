@@ -415,6 +415,144 @@ export function resetImageRatio() {
   img.src = overlayObject.imageUrl || (overlayObject.overlay.getElement() as HTMLImageElement).src;
 }
 
+/**
+ * AI : Navigates between overlays in the current project.
+ * @param direction - The direction to navigate ('next' or 'previous')
+ * Uses the order in the project's overlayIds array.
+ * Automatically selects the overlay to open its toolbar.
+ */
+export function navigateOverlay(direction: 'next' | 'previous') {
+  if (!map.value) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Map not available',
+      detail: 'Cannot navigate between overlays',
+      life: 3000
+    });
+    return;
+  }
+  
+  // AI : If no overlay is selected, try to select the first/last overlay in any project
+  if (!idSelectedOverlay.value) {
+    const projectIds = Object.keys(projects.value);
+    if (projectIds.length === 0) {
+      toast.add({
+        severity: 'warn',
+        summary: 'No projects',
+        detail: 'Please create a project first',
+        life: 3000
+      });
+      return;
+    }
+    
+    for (const projectId of projectIds) {
+      const project = projects.value[projectId];
+      if (project.overlayIds.length > 0) {
+        // AI : Select first overlay for 'next', last overlay for 'previous'
+        const index = direction === 'next' ? 0 : project.overlayIds.length - 1;
+        idSelectedOverlay.value = project.overlayIds[index];
+        const overlay = overlays.value[idSelectedOverlay.value];
+        if (overlay && overlay.overlay) {
+          // AI : Click on the overlay to properly select it and open the toolbar
+          const element = overlay.overlay.getElement();
+          if (element) {
+            element.click();
+          }
+          
+          const bounds = overlay.overlay.getBounds();
+          map.value.fitBounds(bounds, { padding: [50, 50] });
+          
+          toast.add({
+            severity: 'info',
+            summary: 'Navigation',
+            detail: `Selected ${direction === 'next' ? 'first' : 'last'} overlay in project ${project.name}`,
+            life: 3000
+          });
+        }
+        return;
+      }
+    }
+    
+    toast.add({
+      severity: 'warn',
+      summary: 'No overlays',
+      detail: 'No overlays found in any project',
+      life: 3000
+    });
+    return;
+  }
+
+  const currentOverlay = overlays.value[idSelectedOverlay.value];
+  if (!currentOverlay || !currentOverlay.projectId) return;
+  
+  const projectId = currentOverlay.projectId;
+  const project = projects.value[projectId];
+  if (!project || !project.overlayIds.length) return;
+  
+  // AI : Use the project's overlayIds directly without sorting
+  const projectOverlayIds = project.overlayIds;
+  
+  if (projectOverlayIds.length <= 1) {
+    toast.add({
+      severity: 'info',
+      summary: 'Navigation',
+      detail: 'No other overlays in this project',
+      life: 3000
+    });
+    return;
+  }
+  
+  // AI : Find the current overlay's index
+  const currentIndex = projectOverlayIds.indexOf(idSelectedOverlay.value);
+  
+  // AI : Get the next/previous overlay (with wraparound)
+  const step = direction === 'next' ? 1 : -1;
+  const newIndex = (currentIndex + step + projectOverlayIds.length) % projectOverlayIds.length;
+  const newOverlayId = projectOverlayIds[newIndex];
+  const newOverlay = overlays.value[newOverlayId];
+  
+  if (!newOverlay) return;
+  
+  // AI : Select and center the map on the new overlay
+  idSelectedOverlay.value = newOverlayId;
+  
+  if (newOverlay.overlay) {
+    // AI : Click on the overlay to properly select it and open the toolbar
+    const element = newOverlay.overlay?.getElement();
+    if (element) {
+      element.click();
+    }
+    
+    const bounds = newOverlay.overlay.getBounds();
+    map.value.fitBounds(bounds, { padding: [50, 50] });
+    
+    toast.add({
+      severity: 'info',
+      summary: 'Navigation',
+      detail: `Moved to overlay ${newIndex + 1} of ${projectOverlayIds.length}${newOverlay.phase ? ` (${newOverlay.phase})` : ''}`,
+      life: 3000
+    });
+  } else if (newOverlay.marker) {
+    map.value.setView(newOverlay.marker.getLatLng(), map.value.getZoom());
+  }
+}
+
+/**
+ * AI : Centers the map view on the next overlay in the current project.
+ * Wrapper for navigateOverlay('next')
+ */
+export function goToNextOverlay() {
+  navigateOverlay('next');
+}
+
+/**
+ * AI : Centers the map view on the previous overlay in the current project.
+ * Wrapper for navigateOverlay('previous')
+ */
+export function goToPreviousOverlay() {
+  navigateOverlay('previous');
+}
+
 export function updateTooltipText() {
   if (!idSelectedOverlay.value) return;
 

@@ -4,7 +4,7 @@ import 'leaflet-distortableimage-updated';
 import { type ComponentInternalInstance, createVNode, render } from 'vue';
 import { map } from './useMap';
 import { overlays, idSelectedOverlay, isEditMode } from './useOverlay';
-import { undo, redo, resetImageRatio, toggleWhitePixels, deleteOverlay, updateOverlayInfo } from './useOverlayActions';
+import { undo, redo, resetImageRatio, toggleWhitePixels, deleteOverlay, updateOverlayInfo, goToNextOverlay, goToPreviousOverlay } from './useOverlayActions';
 import InfoPopup from '../components/InfoPopup.vue';
 import { useToast } from './useToast';
 import type { ProjectInfo } from '../types';
@@ -120,6 +120,38 @@ export const centerTool = L.Toolbar2.Action.extend({
   },
 });
 
+/**
+ * AI : Tool that navigates to the previous overlay in the current project
+ * Centers the camera on the previous overlay in sequence
+ */
+export const previousOverlayTool = L.Toolbar2.Action.extend({
+  options: {
+    toolbarIcon: {
+      className: "pi pi-arrow-left",
+      tooltip: 'Go to previous overlay',
+    },
+  },
+  addHooks: function () {
+    goToPreviousOverlay();
+  },
+});
+
+/**
+ * AI : Tool that navigates to the next overlay in the current project
+ * Centers the camera on the next overlay in sequence
+ */
+export const nextOverlayTool = L.Toolbar2.Action.extend({
+  options: {
+    toolbarIcon: {
+      className: "pi pi-arrow-right",
+      tooltip: 'Go to next overlay',
+    },
+  },
+  addHooks: function () {
+    goToNextOverlay();
+  },
+});
+
 export const undoTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
@@ -203,6 +235,8 @@ export const editTools = [
   L.FreeRotateAction,
   L.OpacityAction,
   L.OpacitiesAction,
+  previousOverlayTool,
+  nextOverlayTool,
   customDeleteTool,
   L.StackAction
 ];
@@ -212,5 +246,7 @@ export const viewTools = [
   backgroundTool,
   L.OpacityAction,
   L.OpacitiesAction,
+  previousOverlayTool,
+  nextOverlayTool,
   L.StackAction
 ];
