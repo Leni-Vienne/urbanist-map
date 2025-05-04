@@ -176,6 +176,7 @@ export function createOverlayObject(savedOverlay: StoredOverlayData): OverlayObj
     alreadyLoaded: false,
     alreadyStored: true,
     whitePixelsHidden: false,
+    isFlipped: false, // AI : Initialize as not flipped
     currentResolution: savedOverlay.imageUrl,
   };
 }
