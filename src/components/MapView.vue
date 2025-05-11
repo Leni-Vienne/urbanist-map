@@ -106,11 +106,17 @@ function onImageUpload(event: Event) {
 
 // AI : Process image after project selection
 async function onProjectSelected(projectId: string) {
+  await handleFileUpload(projectId);
+}
+
+// AI : Handle file upload by user
+async function handleFileUpload(projectId: string) {
   if (!pendingImageFile.value) {
+    console.warn('No image file to upload');
     toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'No image file to upload',
+      severity: 'warn',
+      summary: 'No file selected',
+      detail: 'Please select an image file to upload',
       life: 3000
     });
     showProjectSelector.value = false;
@@ -119,10 +125,21 @@ async function onProjectSelected(projectId: string) {
 
   const reader = new FileReader();
   reader.onload = async () => {
-    await addOverlay(reader.result as string, projectId);
+    const overlayId = await addOverlay(reader.result as string, projectId);
     pendingImageFile.value = null;
     showProjectSelector.value = false;
     
+    // Add success message
+    if (overlayId) {
+      toast.add({
+        severity: 'success',
+        summary: 'Overlay added',
+        detail: `Overlay has been added to project`,
+        life: 3000
+      });
+    }
+    
+    // Reset file input
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
   };

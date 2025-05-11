@@ -75,6 +75,8 @@ export interface Project {
   sourceUrl: string;
   overlayIds: string[];
   color: string; // AI : Color for visual grouping
+  createdAt: string; // AI : ISO string date of creation
+  updatedAt: string; // AI : ISO string date of last update
 }
 
 // AI : Data that is stored in the database

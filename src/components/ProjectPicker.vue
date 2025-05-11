@@ -120,11 +120,9 @@ const router = useRouter();
 
 // AI : Watch for changes in the lastCreatedProjectId to auto-select newly created projects
 watch(() => lastCreatedProjectId.value, (newProjectId) => {
-  if (newProjectId) {
+  if (newProjectId && newProjectId !== selectedProjectId.value) {
     selectedProjectId.value = newProjectId;
     emit('update:modelValue', newProjectId);
-    
-    // AI : Automatically trigger project selection if we have a new project
     emit('project-selected', newProjectId);
   }
 });
@@ -141,45 +139,6 @@ watch(() => props.modelValue, (newValue) => {
 // AI : Watch for changes to the selectedProjectId ref and emit them
 watch(selectedProjectId, (newValue) => {
   emit('update:modelValue', newValue);
-});
-
-// AI : Watch for changes in projects to select the most recently created project
-// This helps when a new project is created and we want to select it automatically
-watch(projectList, (newProjectList, oldProjectList) => {
-  // AI : If a new project was added, select it
-  if (newProjectList.length > oldProjectList.length) {
-    // AI : Find the newly added project (assuming only one was added)
-    const newProject = newProjectList.find(project => 
-      !oldProjectList.some(oldProject => oldProject.id === project.id)
-    );
-    
-    if (newProject) {
-      selectedProjectId.value = newProject.id;
-      emit('update:modelValue', newProject.id);
-      emit('project-selected', newProject.id);
-    }
-  }
-}, { deep: true });
-
-// AI : Watch for route changes to detect when returning from project creation
-watch(() => {
-  // First check if router and currentRoute exist
-  if (!router || !router.currentRoute) return null;
-  return router.currentRoute.value?.path;
-}, (newPath, oldPath) => {
-  if (!newPath || !oldPath) return;
-  
-  if (oldPath.includes('/projects/create') && !newPath.includes('/projects/create')) {
-    if (lastCreatedProjectId.value) {
-      setTimeout(() => {
-        if (lastCreatedProjectId.value) {
-          selectedProjectId.value = lastCreatedProjectId.value;
-          emit('update:modelValue', lastCreatedProjectId.value);
-          emit('project-selected', lastCreatedProjectId.value);
-        }
-      }, 50);
-    }
-  }
 });
 
 function getProjectById(id: string): Project | undefined {
