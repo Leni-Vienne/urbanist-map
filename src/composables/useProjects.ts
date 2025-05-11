@@ -1,4 +1,4 @@
-import { ref, shallowRef } from 'vue';
+import { ref } from 'vue';
 import { 
   saveProject, 
   getAllProjects, 
@@ -13,7 +13,7 @@ import type { Project, OverlayObject } from '@types';
 const toast = useToast();
 
 // Store for all projects
-export const projects = shallowRef<Record<string, Project>>({});
+export const projects = ref<Record<string, Project>>({});
 export const selectedProjectId = ref<string | null>(null);
 
 // Generate a vibrant color for a project that will stand out
@@ -94,13 +94,6 @@ export async function createProject(projectData: Omit<Project, 'id' | 'overlayId
   const updatedProjects = { ...projects.value };
   updatedProjects[id] = project;
   projects.value = updatedProjects;
-  
-  toast.add({
-    severity: 'success',
-    summary: 'Project created',
-    detail: `Project "${project.name}" has been created`,
-    life: 3000
-  });
   
   return id;
 }
@@ -342,11 +335,4 @@ export async function updateProject(projectId: string, projectData: Partial<Omit
   const updatedProjects = { ...projects.value };
   updatedProjects[projectId] = updatedProject;
   projects.value = updatedProjects;
-  
-  toast.add({
-    severity: 'success',
-    summary: 'Project updated',
-    detail: `Project "${updatedProject.name}" has been updated`,
-    life: 3000
-  });
 }

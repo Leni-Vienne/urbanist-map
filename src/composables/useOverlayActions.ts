@@ -1,10 +1,10 @@
 import L from "leaflet";
 import { map, calculateScreenCoverage, onMapInitialized } from './useMap';
 import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, updateOverlayImage } from './useOverlay';
-import { saveOverlay, deleteOverlay as deleteOverlayFromDatabase, saveProject } from './useDatabase';
+import { saveOverlay, deleteOverlay as deleteOverlayFromDatabase, saveProject, addOverlayToProject } from './useDatabase';
 import { generateImageResolutions, getImageUrlForCoverage } from './useImageResizer';
 import { useToast } from './useToast';
-import { addOverlayToProjectWithId, projects } from './useProjects';
+import { projects, applyProjectStyling } from './useProjects';
 import type { StoredOverlayData } from '@types';
 
 const toast = useToast();
@@ -51,9 +51,13 @@ export async function addOverlay(imageUrl: string, projectId: string) {
     setupOverlayImageLoad(newOverlay, overlayObject, projectId);
   }
   
-  // Schedule resolution update and add to project
-  setTimeout(updateOverlayToAppropriateResolution(overlayObject), 100);
-  await addOverlayToProjectWithId(projectId, id);
+  updateOverlayToAppropriateResolution(overlayObject)
+  
+  await addOverlayToProject(projectId, id);
+
+  if (projects.value[projectId]) {
+    applyProjectStyling(overlayObject, projectId);
+  }
   
   return id;
 }
@@ -654,8 +658,26 @@ export function deleteOverlay(id: string) {
 
   if (overlayObject.projectId && projects.value[overlayObject.projectId]) {
     const project = projects.value[overlayObject.projectId];
-    project.overlayIds = project.overlayIds.filter(overlayId => overlayId !== id);
-    saveProject(project);
+    // Create a clean copy with all required Project properties
+    const projectCopy = {
+      id: project.id,
+      name: project.name,
+      color: project.color,
+      description: project.description,
+      location: project.location || '',
+      startDate: project.startDate,
+      endDate: project.endDate,
+      budget: project.budget || 0,
+      sourceUrl: project.sourceUrl || '',
+      overlayIds: project.overlayIds.filter(overlayId => overlayId !== id),
+      createdAt: project.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    // Update local reference
+    project.overlayIds = projectCopy.overlayIds;
+    
+    saveProject(projectCopy);
   }
 
   if (overlayObject.overlay && map.value) {
