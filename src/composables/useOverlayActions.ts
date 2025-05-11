@@ -40,7 +40,7 @@ export async function addOverlay(imageUrl: string, projectId: string) {
     phase: undefined as string | undefined,
     sequenceNumber: undefined as number | undefined,
     whitePixelsHidden: false,
-    isFlipped: false, // AI : Add the missing isFlipped property
+    isFlipped: false,
     currentResolution: imageUrl,
   };
 
@@ -68,9 +68,11 @@ export async function addOverlay(imageUrl: string, projectId: string) {
                 marker.bindTooltip(tooltipText, { permanent: false }).openTooltip();
               }
               
-              // AI : After the overlay is loaded and marker created, save its initial state to the database
-              if (newOverlay && overlayObject.overlay) {
-
+              // AI : Get and save the corners now that the overlay is fully loaded
+              if (newOverlay) {
+                // AI : Store the corners in the overlay object
+                overlayObject.corners = newOverlay.getCorners();
+                
                 // AI : Create initial history entry if not exists
                 if (!overlayObject.history.length) {
                   overlayObject.history = [overlayObject.corners];
@@ -89,8 +91,8 @@ export async function addOverlay(imageUrl: string, projectId: string) {
                   sequenceNumber: overlayObject.sequenceNumber
                 };
                 
-                saveOverlay(storedOverlay);
-                console.log('AI: Saved new overlay to database:', storedOverlay.id);
+                  saveOverlay(storedOverlay);
+
               }
             }
           } catch (error) {
@@ -570,9 +572,10 @@ export function navigateOverlay(direction: 'next' | 'previous'): boolean {
 /**
  * AI : Navigates directly to a specific overlay by ID
  * @param overlayId - The ID of the overlay to navigate to
+ * @param centerMap - Whether to center the map on the overlay (defaults to true)
  * @returns boolean indicating whether navigation was successful
  */
-export function navigateToOverlay(overlayId: string): boolean {
+export function navigateToOverlay(overlayId: string, centerMap: boolean = true): boolean {
   if (!map.value) {
     toast.add({
       severity: 'warn',
@@ -597,6 +600,10 @@ export function navigateToOverlay(overlayId: string): boolean {
   // AI : Select the overlay
   idSelectedOverlay.value = overlayId;
   
+  // AI : Update URL to include overlay ID without triggering a navigation
+  // This makes the state bookmarkable and enables proper back button behavior
+  updateUrlWithOverlayId(overlayId);
+  
   if (targetOverlay.overlay) {
     // AI : Click on the overlay to properly select it and open the toolbar
     const element = targetOverlay.overlay.getElement();
@@ -604,21 +611,23 @@ export function navigateToOverlay(overlayId: string): boolean {
       element.click();
     }
     
-    // AI : Center and zoom the map to the overlay
-    const bounds = targetOverlay.overlay.getBounds();
-    map.value.fitBounds(bounds, { padding: [50, 50] });
-    
-    if (targetOverlay.phase) {
-      toast.add({
-        severity: 'info',
-        summary: 'Navigation',
-        detail: `Navigated to overlay: ${targetOverlay.phase}`,
-        life: 3000
-      });
+    // AI : Only center and zoom the map if centerMap is true
+    if (centerMap) {
+      const bounds = targetOverlay.overlay.getBounds();
+      map.value.fitBounds(bounds, { padding: [50, 50] });
+      
+      if (targetOverlay.phase) {
+        toast.add({
+          severity: 'info',
+          summary: 'Navigation',
+          detail: `Navigated to overlay: ${targetOverlay.phase}`,
+          life: 3000
+        });
+      }
     }
     return true;
-  } else if (targetOverlay.marker) {
-    // AI : If overlay is not loaded yet but marker exists, center on marker
+  } else if (targetOverlay.marker && centerMap) {
+    // AI : If overlay is not loaded yet but marker exists, center on marker only if centerMap is true
     map.value.setView(targetOverlay.marker.getLatLng(), map.value.getZoom());
     return true;
   }
@@ -630,6 +639,23 @@ export function navigateToOverlay(overlayId: string): boolean {
     life: 3000
   });
   return false;
+}
+
+/**
+ * AI : Updates the URL with the current overlay ID using path parameter
+ * @param overlayId - The ID of the overlay to include in the URL
+ */
+function updateUrlWithOverlayId(overlayId: string): void {
+  try {
+    // AI : Access the router from the global window object
+    const router = window.router;
+    if (!router) return;
+    
+    // AI : Update URL to use path parameter format /overlay/ID
+    router.replace(`/overlay/${overlayId}`);
+  } catch (error) {
+    console.error('AI: Error updating URL with overlay ID:', error);
+  }
 }
 
 /**

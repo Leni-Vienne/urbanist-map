@@ -6,27 +6,28 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@primeuix/themes": "^1.0.3",
-    "@tailwindcss/vite": "^4.1.5",
-    "idb": "^8.0.2",
+    "@primeuix/themes": "^1.1.1",
+    "@tailwindcss/vite": "^4.1.6",
+    "idb": "^8.0.3",
     "leaflet": "^1.9.4",
     "leaflet-distortableimage-updated": "^2.0.5",
     "leaflet-toolbar": "^0.4.0-alpha.2",
     "primeicons": "^7.0.0",
-    "primevue": "^4.3.3",
-    "tailwindcss": "^4.1.5",
+    "primevue": "^4.3.4",
+    "tailwindcss": "^4.1.6",
     "tailwindcss-primeui": "^0.6.1",
-    "vue": "^3.5.13"
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.1"
   },
   "devDependencies": {
-    "@primevue/auto-import-resolver": "^4.3.3",
-    "@types/bun": "^1.2.12",
+    "@primevue/auto-import-resolver": "^4.3.4",
+    "@types/bun": "^1.2.13",
     "@types/leaflet": "^1.9.17",
-    "@vitejs/plugin-vue": "^5.2.3",
+    "@vitejs/plugin-vue": "^5.2.4",
     "autoprefixer": "^10.4.21",
-    "oxlint": "^0.16.9",
+    "oxlint": "^0.16.10",
     "unplugin-vue-components": "^28.5.0",
-    "vite": "^6.3.4",
+    "vite": "^6.3.5",
     "vite-plugin-vue-devtools": "^7.7.6"
   }
 }

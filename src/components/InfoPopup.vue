@@ -104,10 +104,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useToast } from '../composables/useToast';
 import { updateTooltipText } from '../composables/useOverlayActions';
 import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId } from '../composables/useProjects';
-import { useProjectManagerDialog } from '../composables/useProjectManagerDialog';
+import { useRouterNavigation } from '../composables/useRouterNavigation';
 import ProjectPicker from './ProjectPicker.vue';
 import OverlayEditor from './OverlayEditor.vue';
 import type { OverlayObject, Project } from '../types';
@@ -119,7 +120,9 @@ const props = defineProps<{
 }>();
 
 const toast = useToast();
-const { openProjectManager } = useProjectManagerDialog();
+const router = useRouter();
+// AI : Pass the router instance to useRouterNavigation to prevent injection errors
+const { openProjectManager } = useRouterNavigation(router);
 const loading = ref(true);
 const project = ref<Project | null>(null);
 const editingProject = ref(false);
@@ -202,8 +205,12 @@ async function applyProjectChange(projectId: string) {
 function openProjectManagerForEdit() {
   if (!project.value) return;
   
-  // AI : Then open the project manager dialog
-  openProjectManager('edit', project.value.id, project.value.name);
+  // AI : Close the info popup before navigation to prevent history issues
+  closeInfoPopup();
+  
+  // AI : Navigate to project edit page
+  // The overlay URL parameter is preserved so going back returns to the same overlay
+  router.push(`/projects/${project.value.id}/edit`);
 }
 
 // AI : Open the overlay editor dialog

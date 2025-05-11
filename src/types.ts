@@ -38,6 +38,14 @@ declare module "leaflet" {
   function distortableImageOverlay(imageUrl: string, options?: any): DistortableImageOverlay;
 }
 
+// Type declarations for global interface extensions
+declare global {
+  interface Window {
+    router: any;
+    isUrlChangeFromClick: any;
+  }
+}
+
 // AI : Available image resolutions for an overlay
 export type ImageResolutions = {
   original: string;

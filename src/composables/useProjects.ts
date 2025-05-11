@@ -89,7 +89,11 @@ export async function createProject(projectData: Omit<Project, 'id' | 'overlayId
   };
   
   await saveProject(project);
-  projects.value[id] = project;
+  
+  // AI : Create a new object reference to ensure shallowRef reactivity triggers
+  const updatedProjects = { ...projects.value };
+  updatedProjects[id] = project;
+  projects.value = updatedProjects;
   
   toast.add({
     severity: 'success',
@@ -141,11 +145,18 @@ export async function addOverlayToProjectWithId(projectId: string, overlayId: st
   // Update database
   await addOverlayToProject(projectId, overlayId);
   
-  // Update local state
-  const project = projects.value[projectId];
+  // AI : Create new references to ensure reactivity with shallowRef
+  const updatedProjects = { ...projects.value };
+  const project = { ...updatedProjects[projectId] };
+  
+  // Update project with new overlay ID
   if (!project.overlayIds.includes(overlayId)) {
-    project.overlayIds.push(overlayId);
+    project.overlayIds = [...project.overlayIds, overlayId];
   }
+  
+  // Update projects collection with the modified project
+  updatedProjects[projectId] = project;
+  projects.value = updatedProjects;
   
   // Update overlay with project reference
   const overlayObject = overlays.value[overlayId];
@@ -171,9 +182,16 @@ export async function removeOverlayFromProjectWithId(projectId: string, overlayI
   // Update database
   await removeOverlayFromProject(projectId, overlayId);
   
-  // Update local state
-  const project = projects.value[projectId];
+  // AI : Create new references to ensure reactivity with shallowRef
+  const updatedProjects = { ...projects.value };
+  const project = { ...updatedProjects[projectId] };
+  
+  // Filter out the overlay ID from the project's overlay IDs
   project.overlayIds = project.overlayIds.filter(id => id !== overlayId);
+  
+  // Update projects collection with the modified project
+  updatedProjects[projectId] = project;
+  projects.value = updatedProjects;
   
   // Update overlay
   if (overlays.value[overlayId]) {
@@ -314,16 +332,21 @@ export async function updateProject(projectId: string, projectData: Partial<Omit
     return;
   }
   
-  // Update only the provided fields
-  Object.assign(project, projectData);
+  // AI : Create new project object with updated fields
+  const updatedProject = { ...project, ...projectData };
   
   // Save to database
-  await saveProject(project);
+  await saveProject(updatedProject);
+  
+  // AI : Create a new projects object reference to trigger shallowRef reactivity
+  const updatedProjects = { ...projects.value };
+  updatedProjects[projectId] = updatedProject;
+  projects.value = updatedProjects;
   
   toast.add({
     severity: 'success',
     summary: 'Project updated',
-    detail: `Project "${project.name}" has been updated`,
+    detail: `Project "${updatedProject.name}" has been updated`,
     life: 3000
   });
 }

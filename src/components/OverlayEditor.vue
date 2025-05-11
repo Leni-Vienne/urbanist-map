@@ -8,6 +8,12 @@
       :modal="true"
       :closable="true"
       class="edit-overlay-dialog"
+      :closeOnEscape="true"
+      :dismissableMask="true"
+      :draggable="false"
+      :resizable="false"
+      :appendTo="bodyElement"
+      :transitionOptions="{disabled:true}"
     >
       <div class="p-fluid">
         <div class="field mb-4">
@@ -58,6 +64,9 @@ import { ref } from 'vue';
 import { useToast } from '../composables/useToast';
 import { updateTooltipText, updateOverlayInfo } from '../composables/useOverlayActions';
 import type { OverlayObject } from '../types';
+
+// AI : Define document.body as a variable to avoid TypeScript errors
+const bodyElement = document.body;
 
 // AI : Define props for component
 const props = defineProps<{

@@ -19,5 +19,11 @@ export default defineConfig({
   ],
   build: {
     target: 'esnext',
+  },
+  // AI : Add resolver to use the Vue version with runtime compiler
+  resolve: {
+    alias: {
+      'vue': 'vue/dist/vue.esm-bundler.js'
+    }
   }
 })

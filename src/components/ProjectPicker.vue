@@ -82,9 +82,10 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { projects, createProject } from '../composables/useProjects';
 import { useToast } from '../composables/useToast';
-import { useProjectManagerDialog } from '../composables/useProjectManagerDialog';
+import { useRouterNavigation } from '../composables/useRouterNavigation';
 import type { Project } from '../types';
 
 const props = defineProps({
@@ -113,9 +114,10 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'project-selected', 'project-created']);
 
 const toast = useToast();
-const { openProjectManager, setFileUploadFlow, lastCreatedProjectId } = useProjectManagerDialog();
+const { openProjectManager, setFileUploadFlow, lastCreatedProjectId } = useRouterNavigation();
 const loading = ref(false);
 const selectedProjectId = ref(props.modelValue);
+const router = useRouter();
 
 // AI : Watch for changes in the lastCreatedProjectId to auto-select newly created projects
 watch(() => lastCreatedProjectId.value, (newProjectId) => {
@@ -160,6 +162,23 @@ watch(projectList, (newProjectList, oldProjectList) => {
   }
 }, { deep: true });
 
+// AI : Watch for route changes to detect when returning from project creation
+watch(() => router.currentRoute.value.path, (newPath, oldPath) => {
+  if (oldPath.includes('/projects/create') && !newPath.includes('/projects/create')) {
+    // AI : We're returning from project creation page, refresh the project list
+    if (lastCreatedProjectId.value) {
+      // AI : Add a small delay to ensure the project store is updated
+      setTimeout(() => {
+        if (lastCreatedProjectId.value) {  // Add null check here
+          selectedProjectId.value = lastCreatedProjectId.value;
+          emit('update:modelValue', lastCreatedProjectId.value);
+          emit('project-selected', lastCreatedProjectId.value);
+        }
+      }, 50);
+    }
+  }
+});
+
 function getProjectById(id: string): Project | undefined {
   return projectList.value.find(project => project.id === id);
 }
@@ -171,9 +190,8 @@ function confirmSelection() {
 }
 
 function openNewProjectDialog() {
-  // AI : Open project manager dialog in create mode, indicating that we are coming from the picker
-  setFileUploadFlow(true);
-  openProjectManager('create', '', '', 'picker');
+  // AI : Utiliser directement le router pour naviguer vers la page de création de projet
+  router.push('/projects/create');
 }
 </script>
 
