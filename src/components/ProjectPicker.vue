@@ -85,7 +85,7 @@ import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { projects, createProject } from '@composables/useProjects';
 import { useToast } from '@composables/useToast';
-import { useRouterNavigation } from '@composables/useRouterNavigation';
+import { lastCreatedProjectId } from '@composables/useRouterNavigation';
 import type { Project } from '@types';
 
 const props = defineProps({
@@ -108,21 +108,15 @@ const props = defineProps({
   hideCreate: {
     type: Boolean,
     default: false
-  },
-  externalRouter: {
-    type: Object,
-    default: null
   }
 });
 
 const emit = defineEmits(['update:modelValue', 'project-selected', 'project-created']);
 
 const toast = useToast();
-const { lastCreatedProjectId } = useRouterNavigation();
 const loading = ref(false);
 const selectedProjectId = ref(props.modelValue);
-// AI: Use external router if provided, otherwise try to use the injected router
-const router = props.externalRouter || useRouter();
+const router = useRouter();
 
 // AI : Watch for changes in the lastCreatedProjectId to auto-select newly created projects
 watch(() => lastCreatedProjectId.value, (newProjectId) => {

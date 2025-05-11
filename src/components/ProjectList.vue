@@ -127,13 +127,12 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { projects, deleteProjectById } from '@composables/useProjects';
 import { useToast } from '@composables/useToast';
-import { useRouterNavigation } from '@composables/useRouterNavigation';
+import { openProjectManager } from '@composables/useRouterNavigation';
 import type { ProjectManagerMode } from '@composables/useProjectManagerDialog';
 import type { MenuItem } from 'primevue/menuitem';
 
 const toast = useToast();
 const router = useRouter();
-const { openProjectManager } = useRouterNavigation();
 
 // AI : Component state
 const showDeleteDialog = ref(false);
