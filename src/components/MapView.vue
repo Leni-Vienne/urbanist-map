@@ -59,7 +59,6 @@ import { addOverlay, undo, redo, navigateToOverlay } from '@composables/useOverl
 import { useToast } from '@composables/useToast';
 import { setAppContext } from '@composables/useTools';
 import { clearDatabase } from '@composables/useDatabase';
-import { debounce } from '../utils';
 import ProjectPicker from '@components/ProjectPicker.vue';
 
 // AI : Core state variables
@@ -70,41 +69,20 @@ const showProjectSelector = ref(false);
 const pendingImageFile = ref<File | null>(null);
 const databaseInitialized = inject('databaseInitialized', ref(false));
 const isLoading = ref(true);
-const isUrlChangeFromClick = ref(false);
-const lastProcessedOverlayId = ref<string | null>(null);
-
-// AI : Expose click tracking for external access
-if (window) window.isUrlChangeFromClick = isUrlChangeFromClick;
 
 // AI : Hide buttons on non-root routes
 const isRouteActive = computed(() => route.path !== '/');
 
-// AI : Debounced navigation with protection against loops
-const debouncedNavigate = debounce((overlayId: string, centerMap: boolean) => {
-  if (lastProcessedOverlayId.value === overlayId) return;
-  
-  lastProcessedOverlayId.value = overlayId;
-  navigateToOverlay(overlayId, centerMap);
-  isUrlChangeFromClick.value = false;
-  
-  setTimeout(() => {
-    if (lastProcessedOverlayId.value === overlayId) {
-      lastProcessedOverlayId.value = null;
-    }
-  }, 500);
-}, 250);
-
-// AI : Watch for route parameter changes
+// AI : Watch for route parameter changes - direct navigation without debounce
 watch(() => route.params.id, (overlayId) => {
   if (overlayId && typeof overlayId === 'string' && !isLoading.value) {
-    debouncedNavigate(overlayId, !isUrlChangeFromClick.value);
+    //navigateToOverlay(overlayId, true);
   }
 }, { immediate: true });
 
 // AI : Handle legacy query parameters
 watch(() => route.query.overlay, (overlayId) => {
   if (overlayId && typeof overlayId === 'string' && !isLoading.value) {
-    isUrlChangeFromClick.value = true;
     router.replace(`/overlay/${overlayId}`);
   }
 }, { immediate: true });

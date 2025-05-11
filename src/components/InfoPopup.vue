@@ -22,7 +22,6 @@
             @project-selected="applyProjectChange"
             :hideSelector="false"
             :placeholder="project ? 'Change project' : 'Select a project'"
-            :externalRouter="router"
           />
         </div>
       </div>
@@ -105,11 +104,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
 import { useToast } from '@composables/useToast';
 import { updateTooltipText } from '@composables/useOverlayActions';
 import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId } from '@composables/useProjects';
-import { useRouterNavigation } from '@composables/useRouterNavigation';
+import { navigateToProjectEdit } from '@composables/useRouterNavigation';
 import ProjectPicker from './ProjectPicker.vue';
 import OverlayEditor from './OverlayEditor.vue';
 import type { OverlayObject, Project } from '@types';
@@ -121,9 +119,6 @@ const props = defineProps<{
 }>();
 
 const toast = useToast();
-const router = useRouter();
-// AI : Pass the router instance to useRouterNavigation to prevent injection errors
-const { openProjectManager } = useRouterNavigation(router);
 const loading = ref(true);
 const project = ref<Project | null>(null);
 const editingProject = ref(false);
@@ -206,36 +201,16 @@ async function applyProjectChange(projectId: string) {
 function openProjectManagerForEdit() {
   if (!project.value) return;
   
-  // AI : Close the info popup before navigation to prevent history issues
-  closeInfoPopup();
+  // AI : Store the project ID first
+  const projectId = project.value.id;
   
-  // AI : Navigate to project edit page
-  // The overlay URL parameter is preserved so going back returns to the same overlay
-  router.push(`/projects/${project.value.id}/edit`);
+  // AI : Navigate to project edit page using composable
+  navigateToProjectEdit(projectId);
 }
 
 // AI : Open the overlay editor dialog
 function openOverlayEditor() {
   overlayEditorRef.value?.openDialog();
-}
-
-// AI : Helper function to close the info popup
-function closeInfoPopup() {
-  // Try closing via primary selector first
-  const infoLink = document.querySelector('.leaflet-toolbar-0 .pi-info-circle');
-  if (infoLink && infoLink instanceof HTMLElement) {
-    infoLink.click();
-    return;
-  }
-  
-  // Fallback to other selectors - convert NodeList to Array
-  const infoButtons = Array.from(document.querySelectorAll('.pi-info-circle'));
-  infoButtons.forEach(button => {
-    if (button instanceof HTMLElement) {
-      button.click();
-      return;
-    }
-  });
 }
 
 // AI : Load current project data

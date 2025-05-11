@@ -512,6 +512,7 @@ function selectFirstOrLastOverlayInAnyProject(direction: 'next' | 'previous'): b
  * @returns boolean indicating whether navigation was successful
  */
 export function navigateToOverlay(overlayId: string, centerMap: boolean = true): boolean {
+  console.log("ici")
   if (!map.value) {
     toast.add({ severity: 'warn', summary: 'Map not available', detail: 'Cannot navigate to overlay', life: 3000 });
     return false;
@@ -519,6 +520,7 @@ export function navigateToOverlay(overlayId: string, centerMap: boolean = true):
   
   const targetOverlay = overlays.value[overlayId];
   if (!targetOverlay) {
+    console.trace('Overlay not found:', overlayId);
     toast.add({ severity: 'warn', summary: 'Overlay not found', detail: 'The requested overlay could not be found', life: 3000 });
     return false;
   }

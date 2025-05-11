@@ -1,14 +1,13 @@
 import L from "leaflet";
 import 'leaflet-toolbar';
 import 'leaflet-distortableimage-updated';
-import { type ComponentInternalInstance, createVNode, render, inject } from 'vue';
+import { type ComponentInternalInstance, createVNode, render } from 'vue';
 import { map } from './useMap';
 import { overlays, idSelectedOverlay, isEditMode } from './useOverlay';
 import { undo, redo, resetImageRatio, toggleWhitePixels, deleteOverlay, updateOverlayInfo, goToNextOverlay, goToPreviousOverlay } from './useOverlayActions';
 import InfoPopup from '@components/InfoPopup.vue';
 import { useToast } from './useToast';
 import type { ProjectInfo } from '@types';
-import PrimeVue from 'primevue/config';
 import { router } from '../router';
 
 const toast = useToast();

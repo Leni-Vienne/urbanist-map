@@ -42,7 +42,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { useRouterNavigation } from '@composables/useRouterNavigation';
+import { goBack } from '@composables/useRouterNavigation';
 
 // AI : Define document.body as a variable to avoid TypeScript errors
 const bodyElement = document.body;
@@ -57,7 +57,6 @@ const props = defineProps({
 const router = useRouter();
 const route = useRoute();
 const dialogVisible = ref(true);
-const { goBack } = useRouterNavigation(router);
 
 // AI : Track whether the back button was clicked
 const buttonClicked = ref(false);

@@ -261,7 +261,7 @@ import {
 import { overlays } from '@composables/useOverlay';
 import { navigateToOverlay } from '@composables/useOverlayActions';
 import { useToast } from '@composables/useToast';
-import { useRouterNavigation } from '@composables/useRouterNavigation';
+import { initialProjectName, setLastCreatedProject, goBack } from '@composables/useRouterNavigation';
 import type { Project, OverlayObject, OverlayListItem } from '@types';
 import ProjectOverlaysList from './ProjectOverlaysList.vue';
 
@@ -273,12 +273,6 @@ const props = defineProps<{
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
-// AI : Use the enhanced centralized navigation logic
-const { 
-  initialProjectName, 
-  setLastCreatedProject,
-  goBack
-} = useRouterNavigation(router);
 
 // AI : Component state
 const mode = computed(() => props.mode);
