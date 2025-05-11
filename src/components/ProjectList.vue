@@ -124,14 +124,16 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { projects, deleteProjectById } from '../composables/useProjects';
 import { useToast } from '../composables/useToast';
-import { useProjectManagerDialog } from '../composables/useProjectManagerDialog';
+import { useRouterNavigation } from '../composables/useRouterNavigation';
 import type { ProjectManagerMode } from '../composables/useProjectManagerDialog';
 import type { MenuItem } from 'primevue/menuitem';
 
 const toast = useToast();
-const { openProjectManager } = useProjectManagerDialog();
+const router = useRouter();
+const { openProjectManager } = useRouterNavigation();
 
 // AI : Component state
 const showDeleteDialog = ref(false);
@@ -263,26 +265,27 @@ async function deleteProject() {
 }
 
 function openProject(projectId: string, mode: ProjectManagerMode) {
-  const project = projects.value[projectId];
-  if (project) {
-    openProjectManager(mode, projectId, project.name);
+  // AI : Utiliser le router pour naviguer vers la vue projet appropriée
+  if (mode === 'view') {
+    router.push(`/projects/${projectId}`);
+  } else if (mode === 'edit') {
+    router.push(`/projects/${projectId}/edit`);
   }
 }
 
 function createNewProject() {
-  openProjectManager('create', '', '', 'list');
+  // AI : Utiliser le router pour naviguer vers la page de création de projet
+  router.push('/projects/create');
 }
 </script>
 
 <style scoped>
 @import "tailwindcss";
 
+/* Remove these styles as they're now handled by AppLayout */
 .project-list {
-  padding: 1rem;
-  max-width: 500px;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  max-width: 900px;
+  margin: 0 auto;
 }
 
 .color-circle {

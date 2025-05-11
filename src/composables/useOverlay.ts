@@ -1,7 +1,7 @@
 import L from "leaflet";
 import 'leaflet-toolbar';
 import 'leaflet-distortableimage-updated'; // using "-updated" to prevent "WebSocket connection to 'ws://localhost:8081/ws' failed:" error
-import { ref, shallowRef } from 'vue';
+import { ref, shallowRef, watch } from 'vue';
 import { map, calculateScreenCoverage, onMapInitialized } from './useMap';
 import { getAllOverlays, saveOverlay } from './useDatabase';
 import type { OverlayObject, StoredOverlayData } from '../types';
@@ -19,6 +19,29 @@ export const allMarkers = shallowRef<Record<string, L.Marker>>({});
 
 // Create debounced version of updateImageResolutionsForCoverage function
 const debouncedUpdateImageResolutions = debounce(updateImageResolutionsForCoverage, 250);
+
+// AI : Watch for changes in the overlays reactive reference to ensure persistent storage
+watch(overlays, (newOverlays) => {
+  // AI : Save all overlays whenever the overlay collection changes
+  Object.values(newOverlays).forEach(overlayObj => {
+    if (overlayObj && overlayObj.alreadyLoaded) {
+      const savedOverlay: StoredOverlayData = {
+        id: overlayObj.id,
+        imageUrl: overlayObj.imageUrl,
+        imageResolutions: overlayObj.imageResolutions,
+        corners: overlayObj.corners,
+        history: overlayObj.history,
+        redoStack: overlayObj.redoStack,
+        projectId: overlayObj.projectId,
+        phase: overlayObj.phase,
+        sequenceNumber: overlayObj.sequenceNumber
+      };
+      
+      saveOverlay(savedOverlay);
+      console.log('AI: Auto-saved overlay to database:', overlayObj.id);
+    }
+  });
+}, { deep: true });
 
 /**
  * AI : Initialize overlays from database and set up event handlers
@@ -256,11 +279,18 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
 
 function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayObject: OverlayObject): void {
   overlay.on('select', () => {
+    // AI : Simply update the selected overlay ID
     idSelectedOverlay.value = overlayObject.id;
+    
+    // AI : Update URL only, without moving the camera
+    updateUrlWithOverlayId(overlayObject.id);
   });
 
   overlay.on('deselect', () => {
     idSelectedOverlay.value = null;
+    
+    // AI : Clear overlay parameter from URL when deselected
+    clearOverlayFromUrl();
   });
 
   overlay.on('edit', () => {
@@ -274,6 +304,43 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
     updateMarkerPosition(overlayObject);
     overlayObject.corners = overlay.getCorners();
   });
+}
+
+/**
+ * AI : Updates the URL to use path parameter format for overlay selection
+ * @param overlayId - The ID of the overlay to include in the URL
+ */
+function updateUrlWithOverlayId(overlayId: string): void {
+  try {
+    // AI : Access the router from the global window object
+    const router = window.router;
+    if (!router) return;
+    
+    // AI : Set the flag to indicate URL change is from a direct overlay click
+    if (window.isUrlChangeFromClick !== undefined) {
+      window.isUrlChangeFromClick.value = true;
+    }
+    
+    // AI : Update URL to use path parameter format /overlay/ID instead of query parameter
+    router.replace(`/overlay/${overlayId}`);
+  } catch (error) {
+    console.error('AI: Error updating URL with overlay ID:', error);
+  }
+}
+
+/**
+ * AI : Removes the overlay path by navigating back to home
+ */
+function clearOverlayFromUrl(): void {
+  try {
+    const router = window.router;
+    if (!router) return;
+    
+    // AI : Navigate back to home when clearing overlay selection
+    router.replace('/');
+  } catch (error) {
+    console.error('AI: Error clearing overlay from URL:', error);
+  }
 }
 
 /**

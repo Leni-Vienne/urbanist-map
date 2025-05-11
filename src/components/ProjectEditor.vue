@@ -93,7 +93,7 @@
         label="Cancel"
         class="p-button-outlined"
         icon="pi pi-times"
-        @click="closeProjectManager"
+        @click="goBack()"
       />
       &nbsp;
       <Button
@@ -133,12 +133,35 @@
       </div>
     </div>
 
-    <!-- Using the new ProjectOverlaysList component -->
-    <ProjectOverlaysList 
-      :overlays="projectOverlays"
-      @remove-overlay="removeFromProject"
-      @view-overlay="viewOverlay"
-    />
+    <!-- AI : Display a summary of project overlays -->
+    <div class="mb-4">
+      <div class="flex justify-between items-center mb-2">
+        <h5 class="font-bold">Project Overlays</h5>
+        <span class="text-sm bg-gray-200 px-2 py-1 rounded-full">
+          {{ currentProject.overlayIds.length }} overlays
+        </span>
+      </div>
+      
+      <div 
+        v-if="currentProject.overlayIds.length === 0"
+        class="text-center p-3 bg-gray-100 rounded-md"
+      >
+        No overlays in this project yet
+      </div>
+      
+      <div 
+        v-else
+        class="text-center p-3 bg-gray-100 rounded-md"
+      >
+        This project contains {{ currentProject.overlayIds.length }} overlay{{ currentProject.overlayIds.length > 1 ? 's' : '' }}.
+        <Button
+          label="View All Overlays"
+          icon="pi pi-list"
+          class="p-button-text p-button-sm mt-2"
+          @click="viewAllOverlays"
+        />
+      </div>
+    </div>
 
     <div class="mb-4">
       <h5 class="font-bold mb-2">Actions</h5>
@@ -155,12 +178,19 @@
           class="p-button-outlined"
           @click="toggleHighlight"
         />
+        <Button
+          label="Edit Project"
+          icon="pi pi-pencil"
+          class="p-button-outlined p-button-info col-span-2"
+          @click="editFromView()"
+        />
       </div>
     </div>
 
     <Button
       label="Back to Projects"
       icon="pi pi-arrow-left"
+      title="salut"
       class="p-button-text w-full"
       @click="goBackToProjects"
     />
@@ -172,7 +202,7 @@
     header="Add Overlay to Project"
     :modal="true"
     :closable="true"
-    @hide="() => { showAddOverlayDialog = false; closeProjectManager(); }"
+    @hide="() => { showAddOverlayDialog = false; }"
   >
     <div class="available-overlays">
       <h5 class="font-bold mb-2">Available Overlays</h5>
@@ -208,7 +238,7 @@
       <Button
         label="Close"
         icon="pi pi-times"
-        @click="() => { showAddOverlayDialog = false; closeProjectManager(); }"
+        @click="() => { showAddOverlayDialog = false; }"
         class="p-button-text"
       />
     </template>
@@ -216,7 +246,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onBeforeUnmount } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import {
   projects,
   createProject,
@@ -230,7 +261,7 @@ import {
 import { overlays } from '../composables/useOverlay';
 import { navigateToOverlay } from '../composables/useOverlayActions';
 import { useToast } from '../composables/useToast';
-import { useProjectManagerDialog } from '../composables/useProjectManagerDialog';
+import { useRouterNavigation } from '../composables/useRouterNavigation';
 import type { Project, OverlayObject, OverlayListItem } from '../types';
 import ProjectOverlaysList from './ProjectOverlaysList.vue';
 
@@ -239,12 +270,15 @@ const props = defineProps<{
   mode: 'edit' | 'view' | 'create';
 }>();
 
+const router = useRouter();
+const route = useRoute();
 const toast = useToast();
+// AI : Use the enhanced centralized navigation logic
 const { 
   initialProjectName, 
-  closeProjectManager, 
-  setLastCreatedProject 
-} = useProjectManagerDialog();
+  setLastCreatedProject,
+  goBack
+} = useRouterNavigation(router);
 
 // AI : Component state
 const mode = computed(() => props.mode);
@@ -315,6 +349,14 @@ watch(() => mode.value, (newMode) => {
   }
 });
 
+// AI : Check if we came from a popup when mounting the component
+onBeforeUnmount(() => {
+  // AI : Make sure to clean up when leaving the editor
+  if (isHighlighted.value && projectId.value) {
+    clearProjectHighlight(projectId.value);
+  }
+});
+
 // AI : Methods
 async function saveProject() {
   if (!editingProject.value.name) {
@@ -339,7 +381,15 @@ async function saveProject() {
         sourceUrl: editingProject.value.sourceUrl
       });
       
-      closeProjectManager(); // Close dialog or return to list depending on context
+      toast.add({
+        severity: 'success',
+        summary: 'Project updated',
+        detail: `Project "${editingProject.value.name}" has been updated`,
+        life: 3000
+      });
+      
+      // AI : Navigate to the projects list after updating
+      router.push('/projects');
     } else {
       // AI : Create new project
       const newProjectId = await createProject({
@@ -355,6 +405,9 @@ async function saveProject() {
       // AI : Store the newly created project ID for auto-selection when returning to ProjectPicker
       setLastCreatedProject(newProjectId);
       
+      // AI : Force update the project list to ensure the new project appears in ProjectPicker
+      console.log('Created new project with ID:', newProjectId);
+      
       toast.add({
         severity: 'success',
         summary: 'Project created',
@@ -362,9 +415,8 @@ async function saveProject() {
         life: 3000
       });
       
-      // AI : Let the closeProjectManager function handle going back to the list
-      // if we were creating from the list
-      closeProjectManager();
+      // AI : Navigate to the view of the newly created project
+      router.push(`/projects/${newProjectId}`);
     }
   } catch (error) {
     console.error('Error saving project:', error);
@@ -400,20 +452,23 @@ async function viewOverlay(overlayId: string) {
     // AI : Use the navigateToOverlay function to focus the map on the selected overlay
     const overlay = overlays.value[overlayId];
     if (overlay) {
-      // AI : Close the project manager dialog first
-      closeProjectManager();
+      // AI : Navigate to the home page first (map view)
+      router.push('/');
       
-      // AI : Navigate to the specific overlay on the map
-      const success = navigateToOverlay(overlayId);
-      
-      if (success) {
-        toast.add({
-          severity: 'info',
-          summary: 'Viewing Overlay',
-          detail: `Navigated to overlay ${overlay.phase || 'Unnamed Overlay'}`,
-          life: 3000
-        });
-      }
+      // AI : Use a short timeout to ensure the map view is fully loaded
+      setTimeout(() => {
+        // AI : Navigate to the specific overlay on the map
+        const success = navigateToOverlay(overlayId);
+        
+        if (success) {
+          toast.add({
+            severity: 'info',
+            summary: 'Viewing Overlay',
+            detail: `Navigated to overlay ${overlay.phase || 'Unnamed Overlay'}`,
+            life: 3000
+          });
+        }
+      }, 100);
     }
   } catch (error) {
     console.error('Error viewing overlay:', error);
@@ -443,8 +498,29 @@ function formatDate(date: Date | null): string {
   return new Date(date).toLocaleDateString();
 }
 
+// AI : Use the simplified navigation composable with debug mode for diagnostics
 function goBackToProjects() {
-  closeProjectManager();
+  // AI : Simple logging for debugging
+  console.log('History:', {
+    length: window.history.length,
+    state: router.options?.history?.state
+  });
+  goBack();
+}
+
+function viewAllOverlays() {
+  if (projectId.value) {
+    // AI : Navigate to the overlays page for this project
+    router.push(`/projects/${projectId.value}/overlays`);
+  }
+}
+
+function editFromView() {
+  if (projectId.value) {
+    // AI : Use router.push to create a proper history entry
+    // This prevents infinite loops when navigating back
+    router.push(`/projects/${projectId.value}/edit`);
+  }
 }
 
 </script>
@@ -452,4 +528,15 @@ function goBackToProjects() {
 <style scoped>
 @import "tailwindcss";
 
+/* AI : Styles for the project editor mode */
+.project-editor {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* AI : Styles for the project view mode */
+.project-view {
+  max-width: 800px;
+  margin: 0 auto;
+}
 </style>
