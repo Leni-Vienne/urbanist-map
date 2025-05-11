@@ -8,7 +8,7 @@ import {
 } from './useDatabase';
 import { overlays } from './useOverlay';
 import { useToast } from './useToast';
-import type { Project, OverlayObject } from '../types';
+import type { Project, OverlayObject } from '@types';
 
 const toast = useToast();
 

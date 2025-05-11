@@ -4,7 +4,6 @@
     id="viewerDiv"
     class="map-container"
   >
-    <!-- AI : Loading overlay while database and map are initializing -->
     <div v-if="isLoading" class="loading-overlay">
       <div class="loading-content">
         <i class="pi pi-spin pi-spinner text-4xl"></i>
@@ -21,7 +20,7 @@
       <div class="card flex">
         <Button
           icon="pi pi-bars"
-          @click="openProjectsMenu"
+          @click="router.push('/projects')"
           aria-haspopup="true"
           aria-controls="project_menu"
           v-tooltip.right="'Manage Projects'"
@@ -41,7 +40,6 @@
     </div>
   </div>
 
-  <!-- Project Selector Dialog -->
   <Dialog
     v-model:visible="showProjectSelector"
     header="Select a project for the new overlay"
@@ -55,103 +53,63 @@
 <script setup lang="ts">
 import { ref, onMounted, getCurrentInstance, watch, computed, inject, onBeforeUnmount } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { initializeMap, disableLeafletKeyboardEvents } from '../composables/useMap';
-import { initializeOverlays, isEditMode, toggleEditMode } from '../composables/useOverlay';
-import { addOverlay, undo, redo, navigateToOverlay } from '../composables/useOverlayActions';
-import { useToast } from '../composables/useToast';
-import { setAppContext } from '../composables/useTools';
-import { clearDatabase } from '../composables/useDatabase';
+import { initializeMap, disableLeafletKeyboardEvents } from '@composables/useMap';
+import { initializeOverlays, isEditMode, toggleEditMode } from '@composables/useOverlay';
+import { addOverlay, undo, redo, navigateToOverlay } from '@composables/useOverlayActions';
+import { useToast } from '@composables/useToast';
+import { setAppContext } from '@composables/useTools';
+import { clearDatabase } from '@composables/useDatabase';
 import { debounce } from '../utils';
-import ProjectPicker from './ProjectPicker.vue';
-import { useProjectManagerDialog } from '../composables/useProjectManagerDialog';
+import ProjectPicker from '@components/ProjectPicker.vue';
 
-// AI : Get router instance
+// AI : Core state variables
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 const showProjectSelector = ref(false);
 const pendingImageFile = ref<File | null>(null);
-// AI : Get database initialization state from App.vue
 const databaseInitialized = inject('databaseInitialized', ref(false));
-// AI : Loading state to show while waiting for initialization
 const isLoading = ref(true);
-// AI : Flag to track if URL change was from a direct overlay click
 const isUrlChangeFromClick = ref(false);
-// AI : Track last processed overlay to prevent loops
 const lastProcessedOverlayId = ref<string | null>(null);
-// AI : Track timestamp of last navigation to prevent rapid changes
-const lastNavigationTimestamp = ref(Date.now());
-// AI : Navigation cooldown in milliseconds
-const NAVIGATION_COOLDOWN = 500;
-// AI : Get project manager dialog composable
-const { openProjectManager } = useProjectManagerDialog();
 
-// AI : Expose this flag to other components
-if (window) {
-  window.isUrlChangeFromClick = isUrlChangeFromClick;
-}
+// AI : Expose click tracking for external access
+if (window) window.isUrlChangeFromClick = isUrlChangeFromClick;
 
-// AI : Check if we're on a route where we should hide the map buttons
-const isRouteActive = computed(() => {
-  return route.path !== '/';
-});
+// AI : Hide buttons on non-root routes
+const isRouteActive = computed(() => route.path !== '/');
 
-// AI : Create a debounced version of navigation to prevent rapid camera movements
+// AI : Debounced navigation with protection against loops
 const debouncedNavigate = debounce((overlayId: string, centerMap: boolean) => {
-  // AI : Check if we're already processing this overlay to prevent loops
-  if (lastProcessedOverlayId.value === overlayId) {
-    console.log('AI: Skipping navigation - already processing this overlay');
-    return;
-  }
+  if (lastProcessedOverlayId.value === overlayId) return;
   
-  // AI : Check if we're navigating too quickly
-  const now = Date.now();
-  if (now - lastNavigationTimestamp.value < NAVIGATION_COOLDOWN) {
-    console.log('AI: Skipping navigation - too soon after last navigation');
-    return;
-  }
-  
-  // AI : Update tracking variables
   lastProcessedOverlayId.value = overlayId;
-  lastNavigationTimestamp.value = now;
-  
-  // AI : Navigate to the overlay
   navigateToOverlay(overlayId, centerMap);
-  
-  // AI : Reset the click flag after processing
   isUrlChangeFromClick.value = false;
   
-  // AI : Reset the processed ID after a delay
   setTimeout(() => {
     if (lastProcessedOverlayId.value === overlayId) {
       lastProcessedOverlayId.value = null;
     }
-  }, NAVIGATION_COOLDOWN);
+  }, 500);
 }, 250);
 
-// AI : Watch for route parameters for overlay selection
+// AI : Watch for route parameter changes
 watch(() => route.params.id, (overlayId) => {
   if (overlayId && typeof overlayId === 'string' && !isLoading.value) {
-    console.log('AI: URL overlay path parameter changed to:', overlayId);
-    
-    // AI : Use debounced navigation with anti-loop protection
     debouncedNavigate(overlayId, !isUrlChangeFromClick.value);
   }
 }, { immediate: true });
 
-// AI : Watch for legacy query parameters for backward compatibility
+// AI : Handle legacy query parameters
 watch(() => route.query.overlay, (overlayId) => {
   if (overlayId && typeof overlayId === 'string' && !isLoading.value) {
-    // AI : Redirect to the new path format
-    console.log('AI: Legacy query parameter detected, redirecting to path format');
-    
-    // AI : Set the flag to prevent centering when the URL is updated
     isUrlChangeFromClick.value = true;
     router.replace(`/overlay/${overlayId}`);
   }
 }, { immediate: true });
 
-// Watch for changes in showProjectSelector to reset file input when dialog closes
+// AI : Reset file input when dialog closes
 watch(() => showProjectSelector.value, (newVal) => {
   if (!newVal) {
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -159,25 +117,16 @@ watch(() => showProjectSelector.value, (newVal) => {
   }
 });
 
-// AI : Image upload flow with project selection
+// AI : Handle image upload
 function onImageUpload(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0];
-  if (!file) return;
-
-  // AI : Store the file temporarily
-  pendingImageFile.value = file;
-
-  // AI : Show project selector
-  showProjectSelector.value = true;
+  if (file) {
+    pendingImageFile.value = file;
+    showProjectSelector.value = true;
+  }
 }
 
-// AI : Open the projects manager
-function openProjectsMenu() {
-  // AI : Use router navigation to go to the projects page
-  router.push('/projects');
-}
-
-// AI : Handle project selection from the ProjectSelector component
+// AI : Process image after project selection
 async function onProjectSelected(projectId: string) {
   if (!pendingImageFile.value) {
     toast.add({
@@ -190,97 +139,37 @@ async function onProjectSelected(projectId: string) {
     return;
   }
 
-  const file = pendingImageFile.value;
-
   const reader = new FileReader();
   reader.onload = async () => {
-    const imageUrl = reader.result as string;
-    await addOverlay(imageUrl, projectId);
-
-    // AI : Clean up
+    await addOverlay(reader.result as string, projectId);
     pendingImageFile.value = null;
     showProjectSelector.value = false;
-
-    // AI : Reset file input
+    
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
   };
-  reader.readAsDataURL(file);
+  reader.readAsDataURL(pendingImageFile.value);
 }
 
-onMounted(async () => {
-  const app = getCurrentInstance();
-  if (app) {
-    setAppContext(app);
-  }
-
-  // AI : Wait for database to be initialized
-  if (!databaseInitialized.value) {
-    console.log('Waiting for database to be initialized before initializing map...');
-    isLoading.value = true;
-    
-    // AI : Watch for database initialization
-    const unwatch = watch(databaseInitialized, async (initialized) => {
-      if (initialized) {
-        console.log('Database now initialized, continuing map initialization');
-        unwatch(); // Stop watching once initialized
-        await initializeMapAndOverlays();
-        isLoading.value = false;
-        
-        // AI : Check for overlay ID in URL after initialization
-        if (route.query.overlay && typeof route.query.overlay === 'string') {
-          setTimeout(() => {
-            navigateToOverlay(route.query.overlay as string);
-          }, 100);
-        }
-      }
-    });
-  } else {
-    // AI : Database already initialized, proceed directly
-    console.log('Database already initialized, proceeding with map initialization');
-    await initializeMapAndOverlays();
-    isLoading.value = false;
-    
-    // AI : Check for overlay ID in URL after initialization
-    if (route.query.overlay && typeof route.query.overlay === 'string') {
-      setTimeout(() => {
-        navigateToOverlay(route.query.overlay as string);
-      }, 100);
-    }
-  }
-});
-
-// AI : Clean up when component is unmounted
-onBeforeUnmount(() => {
-  // AI : Remove event listeners
-  window.removeEventListener('keydown', handleKeyDown, true);
-});
-
-// AI : Handle keyboard shortcuts
+// AI : Keyboard shortcuts handler
 function handleKeyDown(event: KeyboardEvent) {
-  if (event.ctrlKey && event.key === 'z') {
-    undo();
-  } else if (event.ctrlKey && event.key === 'y') {
-    redo();
-  }
+  if (event.ctrlKey && event.key === 'z') undo();
+  else if (event.ctrlKey && event.key === 'y') redo();
 }
 
-// AI : Separate function to initialize map and overlays
+// AI : Initialize map and overlays
 async function initializeMapAndOverlays() {
   try {
-    console.log('Initializing map...');
     await initializeMap();
-    console.log('Map initialized');
-    
-    console.log('Initializing overlays...');
     await initializeOverlays();
-    console.log('Overlays initialized');
-    
-    // AI : Set up keyboard event listeners
     window.addEventListener('keydown', handleKeyDown, true);
-
     disableLeafletKeyboardEvents();
-    console.log('Map and overlays initialization complete');
+    
+    // Check for overlay ID in URL after initialization
+    const overlayId = route.params.id || route.query.overlay;
+    if (overlayId && typeof overlayId === 'string') {
+      setTimeout(() => navigateToOverlay(overlayId as string), 100);
+    }
   } catch (error) {
     console.error('Error initializing map and overlays:', error);
     toast.add({
@@ -291,6 +180,30 @@ async function initializeMapAndOverlays() {
     });
   }
 }
+
+onMounted(async () => {
+  const app = getCurrentInstance();
+  if (app) setAppContext(app);
+
+  if (!databaseInitialized.value) {
+    // Wait for database initialization
+    const unwatch = watch(databaseInitialized, async (initialized) => {
+      if (initialized) {
+        unwatch();
+        await initializeMapAndOverlays();
+        isLoading.value = false;
+      }
+    });
+  } else {
+    // Database already initialized
+    await initializeMapAndOverlays();
+    isLoading.value = false;
+  }
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleKeyDown, true);
+});
 </script>
 
 <style scoped>
@@ -300,7 +213,7 @@ async function initializeMapAndOverlays() {
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 1; /* AI : Ensure map stays behind dialogs */
+  z-index: 1;
 }
 
 .map-buttons {
@@ -324,13 +237,11 @@ async function initializeMapAndOverlays() {
   pointer-events: auto;
 }
 
-/* Add a slight hover effect for the project button */
 .p-button-rounded:hover {
   transform: scale(1.05);
   transition: transform 0.2s ease;
 }
 
-/* AI : Loading overlay styles */
 .loading-overlay {
   position: absolute;
   top: 0;

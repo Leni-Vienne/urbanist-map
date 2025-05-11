@@ -83,10 +83,10 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { projects, createProject } from '../composables/useProjects';
-import { useToast } from '../composables/useToast';
-import { useRouterNavigation } from '../composables/useRouterNavigation';
-import type { Project } from '../types';
+import { projects, createProject } from '@composables/useProjects';
+import { useToast } from '@composables/useToast';
+import { useRouterNavigation } from '@composables/useRouterNavigation';
+import type { Project } from '@types';
 
 const props = defineProps({
   modelValue: {
@@ -108,16 +108,21 @@ const props = defineProps({
   hideCreate: {
     type: Boolean,
     default: false
+  },
+  externalRouter: {
+    type: Object,
+    default: null
   }
 });
 
 const emit = defineEmits(['update:modelValue', 'project-selected', 'project-created']);
 
 const toast = useToast();
-const { openProjectManager, setFileUploadFlow, lastCreatedProjectId } = useRouterNavigation();
+const { lastCreatedProjectId } = useRouterNavigation();
 const loading = ref(false);
 const selectedProjectId = ref(props.modelValue);
-const router = useRouter();
+// AI: Use external router if provided, otherwise try to use the injected router
+const router = props.externalRouter || useRouter();
 
 // AI : Watch for changes in the lastCreatedProjectId to auto-select newly created projects
 watch(() => lastCreatedProjectId.value, (newProjectId) => {
@@ -163,13 +168,17 @@ watch(projectList, (newProjectList, oldProjectList) => {
 }, { deep: true });
 
 // AI : Watch for route changes to detect when returning from project creation
-watch(() => router.currentRoute.value.path, (newPath, oldPath) => {
+watch(() => {
+  // First check if router and currentRoute exist
+  if (!router || !router.currentRoute) return null;
+  return router.currentRoute.value?.path;
+}, (newPath, oldPath) => {
+  if (!newPath || !oldPath) return;
+  
   if (oldPath.includes('/projects/create') && !newPath.includes('/projects/create')) {
-    // AI : We're returning from project creation page, refresh the project list
     if (lastCreatedProjectId.value) {
-      // AI : Add a small delay to ensure the project store is updated
       setTimeout(() => {
-        if (lastCreatedProjectId.value) {  // Add null check here
+        if (lastCreatedProjectId.value) {
           selectedProjectId.value = lastCreatedProjectId.value;
           emit('update:modelValue', lastCreatedProjectId.value);
           emit('project-selected', lastCreatedProjectId.value);
@@ -190,7 +199,11 @@ function confirmSelection() {
 }
 
 function openNewProjectDialog() {
-  // AI : Utiliser directement le router pour naviguer vers la page de création de projet
+  // AI : Check if router exists before navigating
+  if (!router) {
+    console.error('Router not available for navigation');
+    return;
+  }
   router.push('/projects/create');
 }
 </script>

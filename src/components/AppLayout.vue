@@ -42,7 +42,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { useRouterNavigation } from '../composables/useRouterNavigation';
+import { useRouterNavigation } from '@composables/useRouterNavigation';
 
 // AI : Define document.body as a variable to avoid TypeScript errors
 const bodyElement = document.body;
@@ -77,6 +77,8 @@ watch(
   () => route.path,
   (newPath) => {
     // AI : Only show dialog for project routes
+    console.log("dans watch, newPath", newPath);
+    console.log("dans watch, dialogVisible", newPath.startsWith('/projects'));
     dialogVisible.value = newPath.startsWith('/projects');
   },
   { immediate: true }
@@ -84,12 +86,14 @@ watch(
 
 // AI : Handle back button click
 function handleBack() {
+  console.log("dans handleBack, buttonClicked", buttonClicked.value);
   buttonClicked.value = true;
   goBack(dialogVisible);
 }
 
 // AI : Handle dialog hide event (only triggered when clicking outside or pressing Escape)
 function onDialogHide() {
+  console.log("dans onDialogHide, buttonClicked", buttonClicked.value);
   if (!buttonClicked.value) {
     router.push('/');
   }

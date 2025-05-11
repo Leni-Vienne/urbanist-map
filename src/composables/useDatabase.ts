@@ -1,5 +1,5 @@
 import { openDB, IDBPDatabase } from 'idb';
-import { MyDB, StoredOverlayData, MapPosition, Project } from '../types';
+import { MyDB, StoredOverlayData, MapPosition, Project } from '@types';
 
 let db: IDBPDatabase<MyDB> | null = null;
 

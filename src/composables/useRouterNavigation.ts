@@ -23,6 +23,7 @@ export function useRouterNavigation(externalRouter?: Router) {
    * AI : Simple back navigation with safety check
    */
   function goBack(closeDialog?: any) {
+    console.log('goBack', closeDialog);
     if (!router) return;
     
     // AI : Close dialog if provided

@@ -77,11 +77,11 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { useToast } from '../composables/useToast';
-import { projects, getOverlaysForProject, removeOverlayFromProjectWithId } from '../composables/useProjects';
-import { overlays } from '../composables/useOverlay';
-import { navigateToOverlay } from '../composables/useOverlayActions';
-import type { OverlayListItem } from '../types';
+import { useToast } from '@composables/useToast';
+import { projects, getOverlaysForProject, removeOverlayFromProjectWithId } from '@composables/useProjects';
+import { overlays } from '@composables/useOverlay';
+import { navigateToOverlay } from '@composables/useOverlayActions';
+import type { OverlayListItem } from '@types';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
@@ -120,6 +120,7 @@ function goToProjectsList() {
 async function viewOverlay(overlayId: string) {
   try {
     // AI : Navigate to the home page first (map view)
+    console.log('dans viewOverlay, overlayId', overlayId);
     router.push('/');
     
     // AI : Use a short timeout to ensure the map view is fully loaded

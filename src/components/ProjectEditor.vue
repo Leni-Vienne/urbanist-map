@@ -257,12 +257,12 @@ import {
   highlightProjectOverlays,
   clearProjectHighlight,
   updateProject
-} from '../composables/useProjects';
-import { overlays } from '../composables/useOverlay';
-import { navigateToOverlay } from '../composables/useOverlayActions';
-import { useToast } from '../composables/useToast';
-import { useRouterNavigation } from '../composables/useRouterNavigation';
-import type { Project, OverlayObject, OverlayListItem } from '../types';
+} from '@composables/useProjects';
+import { overlays } from '@composables/useOverlay';
+import { navigateToOverlay } from '@composables/useOverlayActions';
+import { useToast } from '@composables/useToast';
+import { useRouterNavigation } from '@composables/useRouterNavigation';
+import type { Project, OverlayObject, OverlayListItem } from '@types';
 import ProjectOverlaysList from './ProjectOverlaysList.vue';
 
 const props = defineProps<{
@@ -309,6 +309,15 @@ const projectOverlays = computed<OverlayListItem[]>(() => {
 const showAddOverlayDialog = ref(false);
 const isHighlighted = ref(false);
 
+// AI : Computed properties
+const currentProject = computed(() => projectId.value ? projects.value[projectId.value] : null);
+
+const availableOverlays = computed(() => 
+  Object.values(overlays.value).filter(overlay => 
+    !overlay.projectId || overlay.projectId !== projectId.value
+  )
+);
+
 // AI : Initialize component with route params
 watch([projectId, mode], async ([newId, newMode]) => {
   if (newMode === 'create') {
@@ -322,26 +331,15 @@ watch([projectId, mode], async ([newId, newMode]) => {
       overlayIds: [],
     };
   } else if (newId && projects.value[newId]) {
-    if (newMode === 'edit') {
-      editingProject.value = { ...projects.value[newId] };
-    } else if (newMode === 'view') {
+    editingProject.value = newMode === 'edit' ? { ...projects.value[newId] } : editingProject.value;
+    
+    if (newMode === 'view') {
       fullProjectOverlays.value = await getOverlaysForProject(newId);
     }
   }
 }, { immediate: true });
 
-// AI : Computed properties
-const currentProject = computed(() => {
-  return projectId.value ? projects.value[projectId.value] : null;
-});
-
-const availableOverlays = computed(() => {
-  return Object.values(overlays.value).filter(overlay => {
-    return !overlay.projectId || overlay.projectId !== projectId.value;
-  });
-});
-
-// AI : Cleanup on component unmount
+// AI : Clean up highlight when mode changes or component unmounts
 watch(() => mode.value, (newMode) => {
   if (newMode !== 'view' && projectId.value && isHighlighted.value) {
     clearProjectHighlight(projectId.value);
@@ -349,9 +347,7 @@ watch(() => mode.value, (newMode) => {
   }
 });
 
-// AI : Check if we came from a popup when mounting the component
 onBeforeUnmount(() => {
-  // AI : Make sure to clean up when leaving the editor
   if (isHighlighted.value && projectId.value) {
     clearProjectHighlight(projectId.value);
   }
@@ -370,54 +366,34 @@ async function saveProject() {
   }
 
   try {
-    if (editingProject.value.id) {
-      // AI : Update existing project using the new updateProject function
-      await updateProject(editingProject.value.id, {
-        name: editingProject.value.name,
-        description: editingProject.value.description,
-        location: editingProject.value.location,
-        startDate: editingProject.value.startDate ?? null,
-        endDate: editingProject.value.endDate ?? null,
-        sourceUrl: editingProject.value.sourceUrl
-      });
-      
-      toast.add({
-        severity: 'success',
-        summary: 'Project updated',
-        detail: `Project "${editingProject.value.name}" has been updated`,
-        life: 3000
-      });
-      
-      // AI : Navigate to the projects list after updating
-      router.push('/projects');
+    const isExisting = !!editingProject.value.id;
+    const projectData = {
+      name: editingProject.value.name,
+      description: editingProject.value.description || '',
+      location: editingProject.value.location || '',
+      startDate: editingProject.value.startDate ?? null,
+      endDate: editingProject.value.endDate ?? null,
+      sourceUrl: editingProject.value.sourceUrl || '',
+      budget: 0 // AI: Ensure budget is always a number
+    };
+    
+    let projectId;
+    if (isExisting) {
+      await updateProject(editingProject.value.id!, projectData);
+      projectId = editingProject.value.id;
     } else {
-      // AI : Create new project
-      const newProjectId = await createProject({
-        name: editingProject.value.name,
-        description: editingProject.value.description || '',
-        location: editingProject.value.location || '',
-        startDate: editingProject.value.startDate ?? null,
-        endDate: editingProject.value.endDate ?? null,
-        budget: 0,
-        sourceUrl: editingProject.value.sourceUrl || ''
-      });
-      
-      // AI : Store the newly created project ID for auto-selection when returning to ProjectPicker
-      setLastCreatedProject(newProjectId);
-      
-      // AI : Force update the project list to ensure the new project appears in ProjectPicker
-      console.log('Created new project with ID:', newProjectId);
-      
-      toast.add({
-        severity: 'success',
-        summary: 'Project created',
-        detail: `Project "${editingProject.value.name}" has been created`,
-        life: 3000
-      });
-      
-      // AI : Navigate to the view of the newly created project
-      router.push(`/projects/${newProjectId}`);
+      projectId = await createProject(projectData);
+      setLastCreatedProject(projectId);
     }
+    
+    toast.add({
+      severity: 'success',
+      summary: isExisting ? 'Project updated' : 'Project created',
+      detail: `Project "${editingProject.value.name}" has been ${isExisting ? 'updated' : 'created'}`,
+      life: 3000
+    });
+    
+    router.push(isExisting ? '/projects' : `/projects/${projectId}`);
   } catch (error) {
     console.error('Error saving project:', error);
     toast.add({
@@ -426,7 +402,6 @@ async function saveProject() {
       detail: 'Failed to save project',
       life: 3000
     });
-    return;
   }
 }
 
@@ -434,7 +409,7 @@ async function addToProject(overlayId: string) {
   if (!projectId.value) return;
 
   await addOverlayToProjectWithId(projectId.value, overlayId);
-  fullProjectOverlays.value = await getOverlaysForProject(projectId.value);
+  refreshProjectOverlays();
   showAddOverlayDialog.value = false;
 }
 
@@ -442,55 +417,42 @@ async function removeFromProject(overlayId: string) {
   if (!projectId.value) return;
 
   await removeOverlayFromProjectWithId(projectId.value, overlayId);
-  fullProjectOverlays.value = await getOverlaysForProject(projectId.value);
+  refreshProjectOverlays();
 }
 
 async function viewOverlay(overlayId: string) {
   if (!projectId.value) return;
   
-  try {
-    // AI : Use the navigateToOverlay function to focus the map on the selected overlay
-    const overlay = overlays.value[overlayId];
-    if (overlay) {
-      // AI : Navigate to the home page first (map view)
-      router.push('/');
-      
-      // AI : Use a short timeout to ensure the map view is fully loaded
-      setTimeout(() => {
-        // AI : Navigate to the specific overlay on the map
-        const success = navigateToOverlay(overlayId);
-        
-        if (success) {
-          toast.add({
-            severity: 'info',
-            summary: 'Viewing Overlay',
-            detail: `Navigated to overlay ${overlay.phase || 'Unnamed Overlay'}`,
-            life: 3000
-          });
-        }
-      }, 100);
+  const overlay = overlays.value[overlayId];
+  if (!overlay) return;
+  
+  // AI: Navigate to map and focus on overlay
+  router.push('/');
+  setTimeout(() => {
+    if (navigateToOverlay(overlayId)) {
+      toast.add({
+        severity: 'info',
+        summary: 'Viewing Overlay',
+        detail: `Navigated to ${overlay.phase || 'Unnamed Overlay'}`,
+        life: 3000
+      });
     }
-  } catch (error) {
-    console.error('Error viewing overlay:', error);
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to navigate to overlay',
-      life: 3000
-    });
+  }, 100);
+}
+
+// AI: Helper function to refresh project overlays
+async function refreshProjectOverlays() {
+  if (projectId.value) {
+    fullProjectOverlays.value = await getOverlaysForProject(projectId.value);
   }
 }
 
 function toggleHighlight() {
   if (!projectId.value) return;
 
-  if (isHighlighted.value) {
-    clearProjectHighlight(projectId.value);
-  } else {
-    highlightProjectOverlays(projectId.value);
-  }
-
   isHighlighted.value = !isHighlighted.value;
+  const action = isHighlighted.value ? highlightProjectOverlays : clearProjectHighlight;
+  action(projectId.value);
 }
 
 function formatDate(date: Date | null): string {
@@ -498,27 +460,19 @@ function formatDate(date: Date | null): string {
   return new Date(date).toLocaleDateString();
 }
 
-// AI : Use the simplified navigation composable with debug mode for diagnostics
+// AI : Navigation methods
 function goBackToProjects() {
-  // AI : Simple logging for debugging
-  console.log('History:', {
-    length: window.history.length,
-    state: router.options?.history?.state
-  });
   goBack();
 }
 
 function viewAllOverlays() {
   if (projectId.value) {
-    // AI : Navigate to the overlays page for this project
     router.push(`/projects/${projectId.value}/overlays`);
   }
 }
 
 function editFromView() {
   if (projectId.value) {
-    // AI : Use router.push to create a proper history entry
-    // This prevents infinite loops when navigating back
     router.push(`/projects/${projectId.value}/edit`);
   }
 }
