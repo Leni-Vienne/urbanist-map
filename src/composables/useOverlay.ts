@@ -4,7 +4,7 @@ import 'leaflet-distortableimage-updated'; // using "-updated" to prevent "WebSo
 import { ref, shallowRef, watch } from 'vue';
 import { map, calculateScreenCoverage, onMapInitialized } from './useMap';
 import { getAllOverlays, saveOverlay } from './useDatabase';
-import type { OverlayObject, StoredOverlayData } from '../types';
+import type { OverlayObject, StoredOverlayData } from '@types';
 import { editTools, viewTools, infoTool } from './useTools';
 import { getImageUrlForCoverage } from './useImageResizer';
 import { debounce } from '../utils';
@@ -36,9 +36,8 @@ watch(overlays, (newOverlays) => {
         phase: overlayObj.phase,
         sequenceNumber: overlayObj.sequenceNumber
       };
-      
+
       saveOverlay(savedOverlay);
-      console.log('AI: Auto-saved overlay to database:', overlayObj.id);
     }
   });
 }, { deep: true });
@@ -161,22 +160,22 @@ async function loadOverlaysInView(): Promise<void> {
  */
 function updateImageResolutionsForCoverage(): void {
   if (!map.value) return;
-  
+
   const currentMapBounds = map.value.getBounds();
 
   Object.entries(overlays.value).forEach(([_id, overlayObject]) => {
     if (!overlayObject.overlay || !overlayObject.imageResolutions) return;
 
     const bounds = overlayObject.overlay.getBounds();
-    
+
     if (!bounds || !bounds.isValid()) {
       return;
     }
-    
+
     if (!currentMapBounds.intersects(bounds)) {
       return;
     }
-    
+
     const coveragePercent = calculateScreenCoverage(bounds);
     const bestResolutionUrl = getImageUrlForCoverage(overlayObject.imageResolutions, coveragePercent);
     if (!bestResolutionUrl) return;
@@ -239,11 +238,11 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
 
   if (!isEditMode.value) {
     element.style.cursor = 'not-allowed';
-    
+
     element.addEventListener('mousedown', blockMovementEvent, true);
     element.addEventListener('touchstart', blockMovementEvent, true);
     element.addEventListener('dragstart', blockMovementEvent, true);
-    
+
     if (newOverlay.off) {
       newOverlay.off('mousedown');
       newOverlay.off('touchstart');
@@ -261,7 +260,21 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
     updateMarkerPosition(overlayObject);
     overlayObject.alreadyLoaded = true;
     overlayObject.alreadyStored = true;
-    
+
+    // AI : Save overlay to database immediately after loading
+    const savedOverlay: StoredOverlayData = {
+      id: overlayObject.id,
+      imageUrl: overlayObject.imageUrl,
+      imageResolutions: overlayObject.imageResolutions,
+      corners: overlayObject.corners || overlayObject.overlay?.getCorners() || [],
+      history: overlayObject.history,
+      redoStack: overlayObject.redoStack,
+      projectId: overlayObject.projectId,
+      phase: overlayObject.phase,
+      sequenceNumber: overlayObject.sequenceNumber
+    };
+    saveOverlay(savedOverlay);
+
     if (!isEditMode.value && overlayObject.overlay) {
       const corners = overlayObject.overlay.getCorners();
       if (corners && corners.length === 4) {
@@ -281,14 +294,14 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
   overlay.on('select', () => {
     // AI : Simply update the selected overlay ID
     idSelectedOverlay.value = overlayObject.id;
-    
+
     // AI : Update URL only, without moving the camera
     updateUrlWithOverlayId(overlayObject.id);
   });
 
   overlay.on('deselect', () => {
     idSelectedOverlay.value = null;
-    
+
     // AI : Clear overlay parameter from URL when deselected
     clearOverlayFromUrl();
   });
@@ -315,12 +328,12 @@ function updateUrlWithOverlayId(overlayId: string): void {
     // AI : Access the router from the global window object
     const router = window.router;
     if (!router) return;
-    
+
     // AI : Set the flag to indicate URL change is from a direct overlay click
     if (window.isUrlChangeFromClick !== undefined) {
       window.isUrlChangeFromClick.value = true;
     }
-    
+
     // AI : Update URL to use path parameter format /overlay/ID instead of query parameter
     router.replace(`/overlay/${overlayId}`);
   } catch (error) {
@@ -336,8 +349,11 @@ function clearOverlayFromUrl(): void {
     const router = window.router;
     if (!router) return;
     
-    // AI : Navigate back to home when clearing overlay selection
-    router.replace('/');
+    // AI : Only navigate if we're on an overlay route
+    const currentPath = router.currentRoute.value.path;
+    if (currentPath.startsWith('/overlay/')) {
+      router.replace('/');
+    }
   } catch (error) {
     console.error('AI: Error clearing overlay from URL:', error);
   }
@@ -358,7 +374,7 @@ function applyOverlayCorners(overlayObject: OverlayObject): void {
     overlayObject.history && overlayObject.history.length > 0) {
     const lastCorners = overlayObject.history.at(-1);
     if (lastCorners) {
-        overlayObject.overlay.setCorners(lastCorners);
+      overlayObject.overlay.setCorners(lastCorners);
     }
   }
   // Priority 3: Create new history for new overlay
@@ -422,11 +438,11 @@ export function toggleEditMode(): void {
       // adding and removing tools is finicky (tools are often removed from the arrays) but this way works
       viewTools.forEach((tool) => editing.removeTool(tool));
       editTools.forEach((tool) => editing.addTool(tool));
-      
+
       if (element) {
         element.style.pointerEvents = 'auto';
         element.style.cursor = '';
-        
+
         element.removeEventListener('mousedown', blockMovementEvent, true);
         element.removeEventListener('touchstart', blockMovementEvent, true);
         element.removeEventListener('dragstart', blockMovementEvent, true);
@@ -435,17 +451,17 @@ export function toggleEditMode(): void {
       // adding and removing tools is finicky (tools are often removed from the arrays) but this way works
       editTools.forEach((tool) => editing.removeTool(tool));
       viewTools.forEach((tool) => editing.addTool(tool));
-      
+
       if (element) {
         element.style.cursor = 'not-allowed';
-        
+
         // We'll keep pointer-events enabled so clicks work, but block specific events
         // that would cause movement
         element.addEventListener('mousedown', blockMovementEvent, true);
         element.addEventListener('touchstart', blockMovementEvent, true);
         element.addEventListener('dragstart', blockMovementEvent, true);
       }
-      
+
       if (overlayObject.overlay.off) {
         overlayObject.overlay.off('mousedown');
         overlayObject.overlay.off('touchstart');
@@ -454,15 +470,11 @@ export function toggleEditMode(): void {
         overlayObject.overlay.off('dragend');
         // Do NOT remove 'click' as we need it for toolbar
       }
-      
+
       const corners = overlayObject.overlay.getCorners();
-      
-      if (corners && corners.length === 4) {
-        setTimeout(() => {
-          if (overlayObject.overlay) {
-            overlayObject.overlay.setCorners(corners);
-          }
-        }, 0);
+
+      if (corners && corners.length === 4 && overlayObject.overlay) {
+        overlayObject.overlay.setCorners(corners);
       }
     }
   });
@@ -472,11 +484,11 @@ export function toggleEditMode(): void {
 function blockMovementEvent(e: Event) {
   const target = e.target as HTMLElement;
   const isToolbarClick = target.closest('.leaflet-toolbar-icon') !== null;
-  
+
   if (isToolbarClick) {
     return true;
   }
-  
+
   e.stopPropagation();
   e.preventDefault();
   return false;
@@ -507,7 +519,7 @@ export function updateOverlayImage(overlayObject: OverlayObject, newImageUrl: st
 
   try {
     const currentCorners = overlayObject.overlay.getCorners();
-    
+
     const imgElement = overlayObject.overlay.getElement();
     if (imgElement) {
       const onLoadListener = () => {

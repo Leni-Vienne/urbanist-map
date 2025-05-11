@@ -5,120 +5,123 @@ import { saveOverlay, deleteOverlay as deleteOverlayFromDatabase, saveProject } 
 import { generateImageResolutions, getImageUrlForCoverage } from './useImageResizer';
 import { useToast } from './useToast';
 import { addOverlayToProjectWithId, projects } from './useProjects';
-import type { StoredOverlayData } from '../types';
+import type { StoredOverlayData } from '@types';
 
 const toast = useToast();
 
 export async function addOverlay(imageUrl: string, projectId: string) {
   if (!map.value) return;
   if (!projectId) {
-    toast.add({
-      severity: 'error',
-      summary: 'Project Required',
-      detail: 'A project must be selected to add an overlay',
-      life: 3000
-    });
+    toast.add({ severity: 'error', summary: 'Project Required', detail: 'A project must be selected to add an overlay', life: 3000 });
     return;
   }
 
   const id = crypto.randomUUID();
-  
   const imageResolutions = await generateImageResolutions(imageUrl);
   
+  // Create basic overlay object
   const overlayObject = {
     id,
     imageUrl,
     imageResolutions,
     overlay: null,
-    marker: null as L.Marker | null,
-    history: [] as { lat: number, lng: number }[][],
-    redoStack: [] as { lat: number, lng: number }[][],
+    marker: null,
+    history: [],
+    redoStack: [],
     alreadyLoaded: false,
     alreadyStored: false,
-    corners: [] as { lat: number, lng: number }[],
+    corners: [],
     projectId,
-    phase: undefined as string | undefined,
-    sequenceNumber: undefined as number | undefined,
+    phase: undefined,
+    sequenceNumber: undefined,
     whitePixelsHidden: false,
     isFlipped: false,
     currentResolution: imageUrl,
   };
 
+  // Create the overlay
   const newOverlay = await createOverlay(imageUrl, overlayObject);
   if (!newOverlay) return;
 
-  if (newOverlay && map.value) {
-    const imgElement = newOverlay.getElement();
-    if (imgElement) {
-      const onLoadHandler = () => {
-        if (map.value && newOverlay) {
-          try {
-            const bounds = newOverlay.getBounds();
-            if (bounds) {
-              const center = bounds.getCenter();
-              const marker = L.marker(center, {
-                title: 'Overlay'
-              }).addTo(map.value);
-              
-              overlayObject.marker = marker;
-              
-              if (projectId && projects.value[projectId]) {
-                const project = projects.value[projectId];
-                const tooltipText = `${project.name}${overlayObject.phase ? ` - ${overlayObject.phase}` : ''}`;
-                marker.bindTooltip(tooltipText, { permanent: false }).openTooltip();
-              }
-              
-              // AI : Get and save the corners now that the overlay is fully loaded
-              if (newOverlay) {
-                // AI : Store the corners in the overlay object
-                overlayObject.corners = newOverlay.getCorners();
-                
-                // AI : Create initial history entry if not exists
-                if (!overlayObject.history.length) {
-                  overlayObject.history = [overlayObject.corners];
-                }
-                
-                // AI : Save the overlay to the database
-                const storedOverlay: StoredOverlayData = {
-                  id: overlayObject.id,
-                  imageUrl: overlayObject.imageUrl,
-                  imageResolutions: overlayObject.imageResolutions,
-                  corners: overlayObject.corners,
-                  history: overlayObject.history,
-                  redoStack: overlayObject.redoStack,
-                  projectId: overlayObject.projectId,
-                  phase: overlayObject.phase,
-                  sequenceNumber: overlayObject.sequenceNumber
-                };
-                
-                  saveOverlay(storedOverlay);
-
-              }
-            }
-          } catch (error) {
-            console.error('Error creating marker:', error);
-          }
-        }
-        
-        imgElement.removeEventListener('load', onLoadHandler);
-      };
-      
-      imgElement.addEventListener('load', onLoadHandler);
-      
-      if (imgElement.complete && imgElement.naturalWidth > 0) {
-        onLoadHandler();
-      }
-    }
-  }
-
+  // Store reference and initialize
   overlays.value[id] = overlayObject;
   
-  setTimeout(updateOverlayToAppropriateResolution(overlayObject), 100);
+  // Add image load handler to create marker and save initial state
+  if (newOverlay && map.value) {
+    setupOverlayImageLoad(newOverlay, overlayObject, projectId);
+  }
   
+  // Schedule resolution update and add to project
+  setTimeout(updateOverlayToAppropriateResolution(overlayObject), 100);
   await addOverlayToProjectWithId(projectId, id);
   
-  // AI : Return the ID of the newly created overlay
   return id;
+}
+
+function setupOverlayImageLoad(overlay: L.DistortableImageOverlay, overlayObject: any, projectId: string) {
+  const imgElement = overlay.getElement();
+  if (!imgElement) return;
+  
+  const onLoadHandler = () => {
+    if (!map.value || !overlay) return;
+    
+    try {
+      createMarkerForOverlay(overlay, overlayObject, projectId);
+      saveOverlayInitialState(overlay, overlayObject);
+    } catch (error) {
+      console.error('Error in overlay image load handler:', error);
+    } finally {
+      imgElement.removeEventListener('load', onLoadHandler);
+    }
+  };
+  
+  imgElement.addEventListener('load', onLoadHandler);
+  
+  // If image is already loaded, call the handler immediately
+  if (imgElement.complete && imgElement.naturalWidth > 0) {
+    onLoadHandler();
+  }
+}
+
+function createMarkerForOverlay(overlay: L.DistortableImageOverlay, overlayObject: any, projectId: string) {
+  const bounds = overlay.getBounds();
+  if (!bounds || !map.value) return;
+  
+  const center = bounds.getCenter();
+  const marker = L.marker(center, { title: 'Overlay' }).addTo(map.value);
+  
+  overlayObject.marker = marker;
+  
+  if (projectId && projects.value[projectId]) {
+    const project = projects.value[projectId];
+    const tooltipText = `${project.name}${overlayObject.phase ? ` - ${overlayObject.phase}` : ''}`;
+    marker.bindTooltip(tooltipText, { permanent: false }).openTooltip();
+  }
+}
+
+function saveOverlayInitialState(overlay: L.DistortableImageOverlay, overlayObject: any) {
+  // Store the corners in the overlay object
+  overlayObject.corners = overlay.getCorners();
+  
+  // Create initial history entry if needed
+  if (!overlayObject.history.length) {
+    overlayObject.history = [overlayObject.corners];
+  }
+  
+  // Save the overlay to the database
+  const storedOverlay: StoredOverlayData = {
+    id: overlayObject.id,
+    imageUrl: overlayObject.imageUrl,
+    imageResolutions: overlayObject.imageResolutions,
+    corners: overlayObject.corners,
+    history: overlayObject.history,
+    redoStack: overlayObject.redoStack,
+    projectId: overlayObject.projectId,
+    phase: overlayObject.phase,
+    sequenceNumber: overlayObject.sequenceNumber
+  };
+  
+  saveOverlay(storedOverlay);
 }
 
 function updateOverlayToAppropriateResolution(overlayObject) {
@@ -151,53 +154,40 @@ function updateOverlayToAppropriateResolution(overlayObject) {
 }
 
 export function undo() {
-  if (!idSelectedOverlay.value) return;
-
-  const overlayObject = overlays.value[idSelectedOverlay.value];
-  if (!overlayObject) return;
-
-  const { history, redoStack, overlay } = overlayObject;
-  if (history.length <= 1) {
-    toast.add({
-      severity: 'warn',
-      summary: 'Cannot undo',
-      detail: 'No more actions to undo',
-      life: 3000
-    });
-    return;
-  }
-
-  const currentState = history.pop()!;
-  redoStack.push(currentState);
-
-  const previousState = history[history.length - 1];
-  (overlay as L.DistortableImageOverlay).setCorners(previousState);
-
-  updateMarkerPosition(overlayObject);
-  saveImageAndPosition();
+  applyHistoryAction('undo');
 }
 
 export function redo() {
+  applyHistoryAction('redo');
+}
+
+function applyHistoryAction(action: 'undo' | 'redo') {
   if (!idSelectedOverlay.value) return;
 
   const overlayObject = overlays.value[idSelectedOverlay.value];
   if (!overlayObject) return;
 
   const { history, redoStack, overlay } = overlayObject;
-  if (redoStack.length === 0) {
+  const isUndo = action === 'undo';
+  
+  const sourceStack = isUndo ? history : redoStack;
+  const targetStack = isUndo ? redoStack : history;
+  
+  if ((isUndo && history.length <= 1) || (!isUndo && redoStack.length === 0)) {
     toast.add({
       severity: 'warn',
-      summary: 'Cannot redo',
-      detail: 'No more actions to redo',
+      summary: `Cannot ${action}`,
+      detail: `No more actions to ${action}`,
       life: 3000
     });
     return;
   }
 
-  const nextState = redoStack.pop()!;
-  history.push(nextState);
+  const state = isUndo ? sourceStack.pop()! : sourceStack.pop()!;
+  targetStack.push(state);
 
-  (overlay as L.DistortableImageOverlay).setCorners(nextState);
+  const newState = isUndo ? sourceStack[sourceStack.length - 1] : state;
+  (overlay as L.DistortableImageOverlay).setCorners(newState);
 
   updateMarkerPosition(overlayObject);
   saveImageAndPosition();
@@ -282,168 +272,168 @@ async function processImageToHideWhitePixels(imgSrc: string): Promise<string | n
 
 export function resetImageRatio() {
   if (!idSelectedOverlay.value) {
-    toast.add({
-      severity: 'warn',
-      summary: 'No image selected',
-      detail: 'Please select an image first',
-      life: 3000
-    });
+    toast.add({ severity: 'warn', summary: 'No image selected', detail: 'Please select an image first', life: 3000 });
     return;
   }
 
   const overlayObject = overlays.value[idSelectedOverlay.value];
-  if (!overlayObject || !overlayObject.overlay) return;
+  if (!overlayObject?.overlay) return;
 
   const img = new Image();
   img.onload = () => {
     if (!overlayObject.overlay || !map.value) return;
-
-    // AI : Get current image state
+    
     const currentCorners = overlayObject.overlay.getCorners();
-    if (!currentCorners || currentCorners.length !== 4) return;
+    if (!currentCorners?.length || currentCorners.length !== 4) return;
     
-    // AI : Calculate the center and bounds
-    const bounds = overlayObject.overlay.getBounds();
-    const center = bounds.getCenter();
-    
-    // AI : Calculate current width and height in pixels
-    const nw = map.value.latLngToContainerPoint(currentCorners[0]);
-    const ne = map.value.latLngToContainerPoint(currentCorners[1]);
-    const se = map.value.latLngToContainerPoint(currentCorners[3]);
-    const sw = map.value.latLngToContainerPoint(currentCorners[2]);
-    
-    // AI : Calculate distances between corners
-    const topEdge = nw.distanceTo(ne);
-    const rightEdge = ne.distanceTo(se);
-    const bottomEdge = sw.distanceTo(se);
-    const leftEdge = nw.distanceTo(sw);
-    
-    // AI : Use average for more accuracy
-    const currentWidth = (topEdge + bottomEdge) / 2;
-    const currentHeight = (leftEdge + rightEdge) / 2;
-    
-    // AI : Get the original aspect ratio
-    const originalRatio = img.naturalWidth / img.naturalHeight;
-    
-    // AI : Determine new dimensions that maintain original ratio
-    // AI : Always scale down, never up
-    let newWidth, newHeight;
-    
-    if (currentWidth / currentHeight > originalRatio) {
-      // AI : Width is too large relative to height
-      newHeight = currentHeight;
-      newWidth = currentHeight * originalRatio;
-    } else {
-      // AI : Height is too large relative to width
-      newWidth = currentWidth;
-      newHeight = currentWidth / originalRatio;
-    }
-    
-    // AI : Determine the current rotation by analyzing the corners
-    // AI : First, get vectors for the top and right edges
-    const topVector = {
-      x: ne.x - nw.x,
-      y: ne.y - nw.y
-    };
-    
-    // AI : Calculate rotation from the top edge
-    const angleRad = Math.atan2(topVector.y, topVector.x);
-    
-    // AI : Check for orientation consistency to prevent unintended flipping
-    // AI : By ensuring we preserve the original 'winding' of the corners
-    const isClockwise = (ne.x - nw.x) * (se.y - nw.y) - (ne.y - nw.y) * (se.x - nw.x) > 0;
-    
-    // AI : Create the new corners maintaining center and rotation
-    const halfWidth = newWidth / 2;
-    const halfHeight = newHeight / 2;
-    
-    // AI : Convert center to pixel coordinates
-    const centerPoint = map.value.latLngToContainerPoint(center);
-    
-    // AI : Calculate the corner offsets based on rotation
-    const dx = [
-      -halfWidth * Math.cos(angleRad) - halfHeight * Math.sin(angleRad), // NW
-      halfWidth * Math.cos(angleRad) - halfHeight * Math.sin(angleRad),  // NE
-      -halfWidth * Math.cos(angleRad) + halfHeight * Math.sin(angleRad), // SW
-      halfWidth * Math.cos(angleRad) + halfHeight * Math.sin(angleRad)   // SE
-    ];
-    
-    const dy = [
-      -halfWidth * Math.sin(angleRad) + halfHeight * Math.cos(angleRad), // NW
-      halfWidth * Math.sin(angleRad) + halfHeight * Math.cos(angleRad),  // NE
-      -halfWidth * Math.sin(angleRad) - halfHeight * Math.cos(angleRad), // SW
-      halfWidth * Math.sin(angleRad) - halfHeight * Math.cos(angleRad)   // SE
-    ];
-    
-    // AI : Create new corners in pixel coordinates
-    const newCornerPoints = [0, 1, 2, 3].map(i => {
-      return {
-        x: centerPoint.x + dx[i],
-        y: centerPoint.y + dy[i]
-      };
-    });
-    
-    // AI : Check if we need to reverse the order to maintain original orientation
-    const newIsClockwise = (newCornerPoints[1].x - newCornerPoints[0].x) * 
-                          (newCornerPoints[3].y - newCornerPoints[0].y) - 
-                          (newCornerPoints[1].y - newCornerPoints[0].y) * 
-                          (newCornerPoints[3].x - newCornerPoints[0].x) > 0;
-    
-    if (isClockwise !== newIsClockwise) {
-      // AI : Flip the order to maintain original orientation
-      newCornerPoints.reverse();
-    }
-    
-    // AI : Convert back to geographical coordinates
-    const newCorners = newCornerPoints.map(point => 
-      map.value!.containerPointToLatLng([point.x, point.y])
+    const { originalRatio, newDimensions, cornersInfo } = calculateRatioFixParameters(
+      img.naturalWidth / img.naturalHeight,
+      currentCorners
     );
     
-    // AI : Apply ratio-corrected corners
-    overlayObject.overlay.setCorners(newCorners);
+    if (!cornersInfo) return;
     
-    // AI : If this is the second click, also mirror the image horizontally
-    if (overlayObject.isFlipped) {
-      overlayObject.isFlipped = false;
-      
-      // AI : Get the new corners after ratio correction
-      const currentRatioFixedCorners = overlayObject.overlay.getCorners();
-      
-      // AI : Swap NW with NE, and SW with SE corners for horizontal mirroring
-      // AI : The corners array is in order: NW, NE, SW, SE
-      const mirroredCorners = [
-        currentRatioFixedCorners[1], // NE becomes NW
-        currentRatioFixedCorners[0], // NW becomes NE
-        currentRatioFixedCorners[3], // SE becomes SW
-        currentRatioFixedCorners[2]  // SW becomes SE
-      ];
-      
-      // AI : Apply the mirrored corners
-      overlayObject.overlay.setCorners(mirroredCorners);
-      
-      toast.add({
-        severity: 'success',
-        summary: 'Image ratio reset and mirrored',
-        detail: 'Image has been reset to original ratio and mirrored horizontally',
-        life: 5000
-      });
-    } else {
-      overlayObject.isFlipped = true;
-      
-      toast.add({
-        severity: 'success',
-        summary: 'Image ratio reset',
-        detail: 'Click again to mirror the image horizontally',
-        life: 5000
-      });
-    }
+    applyImageRatioFix(overlayObject, cornersInfo, newDimensions);
+    handleFlipIfNeeded(overlayObject);
     
+    // Save state
     saveToHistory(overlayObject);
     updateMarkerPosition(overlayObject);
     saveImageAndPosition();
   };
 
   img.src = overlayObject.imageUrl || (overlayObject.overlay.getElement() as HTMLImageElement).src;
+}
+
+function calculateRatioFixParameters(originalRatio: number, currentCorners: any[]) {
+  if (!map.value) return {};
+  
+  // Convert corners to screen coordinates
+  const nw = map.value.latLngToContainerPoint(currentCorners[0]);
+  const ne = map.value.latLngToContainerPoint(currentCorners[1]);
+  const sw = map.value.latLngToContainerPoint(currentCorners[2]);
+  const se = map.value.latLngToContainerPoint(currentCorners[3]);
+  
+  // Calculate current dimensions
+  const topEdge = nw.distanceTo(ne);
+  const rightEdge = ne.distanceTo(se);
+  const bottomEdge = sw.distanceTo(se);
+  const leftEdge = nw.distanceTo(sw);
+  
+  const currentWidth = (topEdge + bottomEdge) / 2;
+  const currentHeight = (leftEdge + rightEdge) / 2;
+  
+  // Calculate new dimensions that maintain original ratio
+  let newWidth, newHeight;
+  if (currentWidth / currentHeight > originalRatio) {
+    newHeight = currentHeight;
+    newWidth = currentHeight * originalRatio;
+  } else {
+    newWidth = currentWidth;
+    newHeight = currentWidth / originalRatio;
+  }
+  
+  // Get rotation and center
+  const bounds = L.latLngBounds(currentCorners);
+  const center = bounds.getCenter();
+  const centerPoint = map.value.latLngToContainerPoint(center);
+  
+  const topVector = { x: ne.x - nw.x, y: ne.y - nw.y };
+  const angleRad = Math.atan2(topVector.y, topVector.x);
+  const isClockwise = (ne.x - nw.x) * (se.y - nw.y) - (ne.y - nw.y) * (se.x - nw.x) > 0;
+  
+  return { 
+    originalRatio, 
+    newDimensions: { width: newWidth, height: newHeight },
+    cornersInfo: { centerPoint, angleRad, isClockwise }
+  };
+}
+
+function applyImageRatioFix(overlayObject: any, cornersInfo: any, dimensions: any) {
+  if (!map.value || !overlayObject.overlay) return;
+  
+  const { centerPoint, angleRad, isClockwise } = cornersInfo;
+  const { width, height } = dimensions;
+  const halfWidth = width / 2;
+  const halfHeight = height / 2;
+  
+  // Calculate corner offsets
+  const cornerOffsets = calculateCornerOffsets(angleRad, halfWidth, halfHeight);
+  
+  // Create new corner points
+  const newCornerPoints = cornerOffsets.map(offset => ({
+    x: centerPoint.x + offset.dx,
+    y: centerPoint.y + offset.dy
+  }));
+  
+  // Check if we need to maintain orientation
+  const newIsClockwise = (newCornerPoints[1].x - newCornerPoints[0].x) * 
+                        (newCornerPoints[3].y - newCornerPoints[0].y) - 
+                        (newCornerPoints[1].y - newCornerPoints[0].y) * 
+                        (newCornerPoints[3].x - newCornerPoints[0].x) > 0;
+  
+  const finalPoints = isClockwise !== newIsClockwise ? 
+    [...newCornerPoints].reverse() : newCornerPoints;
+  
+  // Convert back to geographical coordinates and apply
+  const newCorners = finalPoints.map(point => 
+    map.value!.containerPointToLatLng([point.x, point.y])
+  );
+  
+  overlayObject.overlay.setCorners(newCorners);
+}
+
+function calculateCornerOffsets(angleRad: number, halfWidth: number, halfHeight: number) {
+  return [
+    // NW, NE, SW, SE corners
+    {
+      dx: -halfWidth * Math.cos(angleRad) - halfHeight * Math.sin(angleRad),
+      dy: -halfWidth * Math.sin(angleRad) + halfHeight * Math.cos(angleRad)
+    },
+    {
+      dx: halfWidth * Math.cos(angleRad) - halfHeight * Math.sin(angleRad),
+      dy: halfWidth * Math.sin(angleRad) + halfHeight * Math.cos(angleRad)
+    },
+    {
+      dx: -halfWidth * Math.cos(angleRad) + halfHeight * Math.sin(angleRad),
+      dy: -halfWidth * Math.sin(angleRad) - halfHeight * Math.cos(angleRad)
+    },
+    {
+      dx: halfWidth * Math.cos(angleRad) + halfHeight * Math.sin(angleRad),
+      dy: halfWidth * Math.sin(angleRad) - halfHeight * Math.cos(angleRad)
+    }
+  ];
+}
+
+function handleFlipIfNeeded(overlayObject: any) {
+  if (!overlayObject.overlay) return;
+  
+  if (overlayObject.isFlipped) {
+    // This is the second click, apply horizontal mirroring
+    overlayObject.isFlipped = false;
+    const corners = overlayObject.overlay.getCorners();
+    
+    // Swap corners for horizontal mirroring: NW<->NE and SW<->SE
+    const mirroredCorners = [corners[1], corners[0], corners[3], corners[2]];
+    overlayObject.overlay.setCorners(mirroredCorners);
+    
+    toast.add({
+      severity: 'success',
+      summary: 'Image ratio reset and mirrored',
+      detail: 'Image has been reset to original ratio and mirrored horizontally',
+      life: 5000
+    });
+  } else {
+    // First click, just set the flag for potential mirroring on next click
+    overlayObject.isFlipped = true;
+    
+    toast.add({
+      severity: 'success',
+      summary: 'Image ratio reset',
+      detail: 'Click again to mirror the image horizontally',
+      life: 5000
+    });
+  }
 }
 
 /**
@@ -453,120 +443,66 @@ export function resetImageRatio() {
  */
 export function navigateOverlay(direction: 'next' | 'previous'): boolean {
   if (!map.value) {
-    toast.add({
-      severity: 'warn',
-      summary: 'Map not available',
-      detail: 'Cannot navigate between overlays',
-      life: 3000
-    });
+    toast.add({ severity: 'warn', summary: 'Map not available', detail: 'Cannot navigate between overlays', life: 3000 });
     return false;
   }
   
-  // AI : If no overlay is selected, try to select the first/last overlay in any project
+  // Handle case when no overlay is selected
   if (!idSelectedOverlay.value) {
-    const projectIds = Object.keys(projects.value);
-    if (projectIds.length === 0) {
-      toast.add({
-        severity: 'warn',
-        summary: 'No projects',
-        detail: 'Please create a project first',
-        life: 3000
-      });
-      return false;
-    }
-    
-    for (const projectId of projectIds) {
-      const project = projects.value[projectId];
-      if (project.overlayIds.length > 0) {
-        // AI : Select first overlay for 'next', last overlay for 'previous'
-        const index = direction === 'next' ? 0 : project.overlayIds.length - 1;
-        idSelectedOverlay.value = project.overlayIds[index];
-        const overlay = overlays.value[idSelectedOverlay.value];
-        if (overlay && overlay.overlay) {
-          // AI : Click on the overlay to properly select it and open the toolbar
-          const element = overlay.overlay.getElement();
-          if (element) {
-            element.click();
-          }
-          
-          const bounds = overlay.overlay.getBounds();
-          map.value.fitBounds(bounds, { padding: [50, 50] });
-          
-          toast.add({
-            severity: 'info',
-            summary: 'Navigation',
-            detail: `Selected ${direction === 'next' ? 'first' : 'last'} overlay in project ${project.name}`,
-            life: 3000
-          });
-        }
-        return true;
-      }
-    }
-    
-    toast.add({
-      severity: 'warn',
-      summary: 'No overlays',
-      detail: 'No overlays found in any project',
-      life: 3000
-    });
-    return false;
+    return selectFirstOrLastOverlayInAnyProject(direction);
   }
 
   const currentOverlay = overlays.value[idSelectedOverlay.value];
-  if (!currentOverlay || !currentOverlay.projectId) return false;
+  if (!currentOverlay?.projectId) return false;
   
-  const projectId = currentOverlay.projectId;
-  const project = projects.value[projectId];
-  if (!project || !project.overlayIds.length) return false;
+  const project = projects.value[currentOverlay.projectId];
+  if (!project?.overlayIds.length) return false;
   
-  // AI : Use the project's overlayIds directly without sorting
+  // Use the project's overlayIds directly
   const projectOverlayIds = project.overlayIds;
   
   if (projectOverlayIds.length <= 1) {
-    toast.add({
-      severity: 'info',
-      summary: 'Navigation',
-      detail: 'No other overlays in this project',
-      life: 3000
-    });
+    toast.add({ severity: 'info', summary: 'Navigation', detail: 'No other overlays in this project', life: 3000 });
     return false;
   }
   
-  // AI : Find the current overlay's index
+  // Get the next/previous overlay (with wraparound)
   const currentIndex = projectOverlayIds.indexOf(idSelectedOverlay.value);
-  
-  // AI : Get the next/previous overlay (with wraparound)
   const step = direction === 'next' ? 1 : -1;
   const newIndex = (currentIndex + step + projectOverlayIds.length) % projectOverlayIds.length;
   const newOverlayId = projectOverlayIds[newIndex];
-  const newOverlay = overlays.value[newOverlayId];
   
-  if (!newOverlay) return false;
-  
-  // AI : Select and center the map on the new overlay
-  idSelectedOverlay.value = newOverlayId;
-  
-  if (newOverlay.overlay) {
-    // AI : Click on the overlay to properly select it and open the toolbar
-    const element = newOverlay.overlay?.getElement();
-    if (element) {
-      element.click();
-    }
-    
-    const bounds = newOverlay.overlay.getBounds();
-    map.value.fitBounds(bounds, { padding: [50, 50] });
-    
-    toast.add({
-      severity: 'info',
-      summary: 'Navigation',
-      detail: `Moved to overlay ${newIndex + 1} of ${projectOverlayIds.length}${newOverlay.phase ? ` (${newOverlay.phase})` : ''}`,
-      life: 3000
-    });
-  } else if (newOverlay.marker) {
-    map.value.setView(newOverlay.marker.getLatLng(), map.value.getZoom());
+  return selectAndCenterOverlay(newOverlayId, newIndex, projectOverlayIds.length);
+}
+
+function selectFirstOrLastOverlayInAnyProject(direction: 'next' | 'previous'): boolean {
+  const projectIds = Object.keys(projects.value);
+  if (!projectIds.length) {
+    toast.add({ severity: 'warn', summary: 'No projects', detail: 'Please create a project first', life: 3000 });
+    return false;
   }
   
-  return true;
+  for (const projectId of projectIds) {
+    const project = projects.value[projectId];
+    if (project.overlayIds.length > 0) {
+      // Select first overlay for 'next', last overlay for 'previous'
+      const index = direction === 'next' ? 0 : project.overlayIds.length - 1;
+      const overlayId = project.overlayIds[index];
+      
+      if (selectAndCenterOverlay(overlayId)) {
+        toast.add({
+          severity: 'info',
+          summary: 'Navigation',
+          detail: `Selected ${direction === 'next' ? 'first' : 'last'} overlay in project ${project.name}`,
+          life: 3000
+        });
+        return true;
+      }
+    }
+  }
+  
+  toast.add({ severity: 'warn', summary: 'No overlays', detail: 'No overlays found in any project', life: 3000 });
+  return false;
 }
 
 /**
@@ -577,58 +513,59 @@ export function navigateOverlay(direction: 'next' | 'previous'): boolean {
  */
 export function navigateToOverlay(overlayId: string, centerMap: boolean = true): boolean {
   if (!map.value) {
-    toast.add({
-      severity: 'warn',
-      summary: 'Map not available',
-      detail: 'Cannot navigate to overlay',
-      life: 3000
-    });
+    toast.add({ severity: 'warn', summary: 'Map not available', detail: 'Cannot navigate to overlay', life: 3000 });
     return false;
   }
   
   const targetOverlay = overlays.value[overlayId];
   if (!targetOverlay) {
-    toast.add({
-      severity: 'warn',
-      summary: 'Overlay not found',
-      detail: 'The requested overlay could not be found',
-      life: 3000
-    });
+    toast.add({ severity: 'warn', summary: 'Overlay not found', detail: 'The requested overlay could not be found', life: 3000 });
     return false;
   }
   
-  // AI : Select the overlay
+  // Select the overlay and update URL
   idSelectedOverlay.value = overlayId;
-  
-  // AI : Update URL to include overlay ID without triggering a navigation
-  // This makes the state bookmarkable and enables proper back button behavior
   updateUrlWithOverlayId(overlayId);
   
-  if (targetOverlay.overlay) {
-    // AI : Click on the overlay to properly select it and open the toolbar
-    const element = targetOverlay.overlay.getElement();
-    if (element) {
-      element.click();
-    }
+  return selectAndCenterOverlay(overlayId, undefined, undefined, centerMap);
+}
+
+function selectAndCenterOverlay(overlayId: string, index?: number, total?: number, centerMap: boolean = true): boolean {
+  const overlay = overlays.value[overlayId];
+  if (!overlay) return false;
+  
+  idSelectedOverlay.value = overlayId;
+  
+  if (overlay.overlay) {
+    // Click on the overlay to properly select it and open the toolbar
+    const element = overlay.overlay.getElement();
+    if (element) element.click();
     
-    // AI : Only center and zoom the map if centerMap is true
     if (centerMap) {
-      const bounds = targetOverlay.overlay.getBounds();
-      map.value.fitBounds(bounds, { padding: [50, 50] });
+      const bounds = overlay.overlay.getBounds();
+      map.value!.fitBounds(bounds, { padding: [10, 10] });
       
-      if (targetOverlay.phase) {
+      // Show appropriate toast message
+      if (index !== undefined && total !== undefined) {
         toast.add({
           severity: 'info',
           summary: 'Navigation',
-          detail: `Navigated to overlay: ${targetOverlay.phase}`,
+          detail: `Moved to overlay ${index + 1} of ${total}${overlay.phase ? ` (${overlay.phase})` : ''}`,
+          life: 3000
+        });
+      } else if (overlay.phase) {
+        toast.add({
+          severity: 'info',
+          summary: 'Navigation',
+          detail: `Navigated to overlay: ${overlay.phase}`,
           life: 3000
         });
       }
     }
     return true;
-  } else if (targetOverlay.marker && centerMap) {
-    // AI : If overlay is not loaded yet but marker exists, center on marker only if centerMap is true
-    map.value.setView(targetOverlay.marker.getLatLng(), map.value.getZoom());
+  } else if (overlay.marker && centerMap) {
+    // If overlay is not loaded yet but marker exists
+    map.value!.setView(overlay.marker.getLatLng(), map.value!.getZoom());
     return true;
   }
   
@@ -647,12 +584,8 @@ export function navigateToOverlay(overlayId: string, centerMap: boolean = true):
  */
 function updateUrlWithOverlayId(overlayId: string): void {
   try {
-    // AI : Access the router from the global window object
     const router = window.router;
-    if (!router) return;
-    
-    // AI : Update URL to use path parameter format /overlay/ID
-    router.replace(`/overlay/${overlayId}`);
+    if (router) router.replace(`/overlay/${overlayId}`);
   } catch (error) {
     console.error('AI: Error updating URL with overlay ID:', error);
   }

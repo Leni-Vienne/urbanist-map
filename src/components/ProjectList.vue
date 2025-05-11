@@ -125,10 +125,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { projects, deleteProjectById } from '../composables/useProjects';
-import { useToast } from '../composables/useToast';
-import { useRouterNavigation } from '../composables/useRouterNavigation';
-import type { ProjectManagerMode } from '../composables/useProjectManagerDialog';
+import { projects, deleteProjectById } from '@composables/useProjects';
+import { useToast } from '@composables/useToast';
+import { useRouterNavigation } from '@composables/useRouterNavigation';
+import type { ProjectManagerMode } from '@composables/useProjectManagerDialog';
 import type { MenuItem } from 'primevue/menuitem';
 
 const toast = useToast();

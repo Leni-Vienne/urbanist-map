@@ -1,20 +1,29 @@
 import L from "leaflet";
 import 'leaflet-toolbar';
 import 'leaflet-distortableimage-updated';
-import { type ComponentInternalInstance, createVNode, render } from 'vue';
+import { type ComponentInternalInstance, createVNode, render, inject } from 'vue';
 import { map } from './useMap';
 import { overlays, idSelectedOverlay, isEditMode } from './useOverlay';
 import { undo, redo, resetImageRatio, toggleWhitePixels, deleteOverlay, updateOverlayInfo, goToNextOverlay, goToPreviousOverlay } from './useOverlayActions';
-import InfoPopup from '../components/InfoPopup.vue';
+import InfoPopup from '@components/InfoPopup.vue';
 import { useToast } from './useToast';
-import type { ProjectInfo } from '../types';
+import type { ProjectInfo } from '@types';
+import PrimeVue from 'primevue/config';
+import { router } from '../router';
 
 const toast = useToast();
 
 let appInstance: ComponentInternalInstance | null = null;
+let primevueConfig: any = null;
 
 export function setAppContext(instance: ComponentInternalInstance) {
   appInstance = instance;
+  
+  try {
+    primevueConfig = instance.appContext.config.globalProperties.$primevue;
+  } catch (err) {
+    console.error('AI: Failed to store PrimeVue config', err);
+  }
 }
 
 export const infoTool = L.Toolbar2.Action.extend({
@@ -50,7 +59,6 @@ export const infoTool = L.Toolbar2.Action.extend({
 
       setTimeout(() => {
         if (!idSelectedOverlay.value) return;
-        // no idea why but we need to get the element by its class name and not by its id
         const popupElement = document.getElementsByClassName("more-info-popup")[0];
 
         if (!popupElement || popupElement.tagName !== 'A') {
@@ -70,9 +78,25 @@ export const infoTool = L.Toolbar2.Action.extend({
           onProjectSubmit: handleProjectSubmit,
           viewMode: !isEditMode.value
         })
+        
+        // AI : Ensure app context is available to the InfoPopup component
         if (appInstance) {
-          vnode.appContext = appInstance.appContext;
+          vnode.appContext = { ...appInstance.appContext };
+          
+          // AI : Explicitly provide router
+          if (!vnode.appContext.provides) {
+            vnode.appContext.provides = {};
+          }
+          vnode.appContext.provides[Symbol.for('router')] = router;
+          
+          // AI : Explicitly provide PrimeVue config
+          if (primevueConfig) {
+            vnode.appContext.config = vnode.appContext.config || {};
+            vnode.appContext.config.globalProperties = vnode.appContext.config.globalProperties || {};
+            vnode.appContext.config.globalProperties.$primevue = primevueConfig;
+          }
         }
+        
         render(vnode, newDiv);
       }, 10);
     }
@@ -88,12 +112,10 @@ function handleProjectSubmit(projectInfo: ProjectInfo & { id: string }) {
     return;
   }
 
-  // Only pass the properties that are expected by updateOverlayInfo
   updateOverlayInfo(projectInfo.id, {});
 
   toast.add({ severity: 'success', summary: 'Project info updated', life: 3000 });
 
-  // Close the info popup
   const infoLink = document.querySelector('.pi-info-circle');
   if (infoLink && infoLink instanceof HTMLElement) {
     infoLink.click();
@@ -120,10 +142,6 @@ export const centerTool = L.Toolbar2.Action.extend({
   },
 });
 
-/**
- * AI : Tool that navigates to the previous overlay in the current project
- * Centers the camera on the previous overlay in sequence
- */
 export const previousOverlayTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
@@ -136,10 +154,6 @@ export const previousOverlayTool = L.Toolbar2.Action.extend({
   },
 });
 
-/**
- * AI : Tool that navigates to the next overlay in the current project
- * Centers the camera on the next overlay in sequence
- */
 export const nextOverlayTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
@@ -218,13 +232,6 @@ export const customDeleteTool = L.Toolbar2.Action.extend({
   },
 });
 
-// all actions (not all in docs) : L.DistortAction, L.FreeRotateAction, L.OpacityAction, L.DeleteAction, L.StackAction, L.EditAction, L.RotateAction, L.ScaleAction, L.TranslateAction, L.OpacitiesAction, L.GeolocateAction, L.RestoreAction, L.UnlockAction
-// L.EditAction is empty
-// L.TranslateAction crashes
-// L.UnlockAction is useless
-// L.GeolocateAction crashes "ReferenceError: EXIF is not defined"
-// L.RestoreAction undistorts the image, centers it on the camera and size it to an arbitrary size. Not great
-// L.OpacitiesAction works well!
 export const editTools = [
   undoTool,
   redoTool,

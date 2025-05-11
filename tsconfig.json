@@ -1,0 +1,19 @@
+{
+    "compilerOptions": {
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "strictNullChecks": true,
+        "allowSyntheticDefaultImports": true,
+        "paths": {
+            "@composables/*": [
+                "./src/composables/*"
+            ],
+            "@components/*": [
+                "./src/components/*"
+            ],
+            "@types": [
+                "./src/types"
+            ],
+        }
+    }
+}

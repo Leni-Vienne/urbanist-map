@@ -22,6 +22,7 @@
             @project-selected="applyProjectChange"
             :hideSelector="false"
             :placeholder="project ? 'Change project' : 'Select a project'"
+            :externalRouter="router"
           />
         </div>
       </div>
@@ -105,13 +106,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useToast } from '../composables/useToast';
-import { updateTooltipText } from '../composables/useOverlayActions';
-import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId } from '../composables/useProjects';
-import { useRouterNavigation } from '../composables/useRouterNavigation';
+import { useToast } from '@composables/useToast';
+import { updateTooltipText } from '@composables/useOverlayActions';
+import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId } from '@composables/useProjects';
+import { useRouterNavigation } from '@composables/useRouterNavigation';
 import ProjectPicker from './ProjectPicker.vue';
 import OverlayEditor from './OverlayEditor.vue';
-import type { OverlayObject, Project } from '../types';
+import type { OverlayObject, Project } from '@types';
 
 const props = defineProps<{
   overlayObject: OverlayObject;
@@ -220,21 +221,21 @@ function openOverlayEditor() {
 
 // AI : Helper function to close the info popup
 function closeInfoPopup() {
-  // AI : Try multiple ways to close the popup
+  // Try closing via primary selector first
   const infoLink = document.querySelector('.leaflet-toolbar-0 .pi-info-circle');
   if (infoLink && infoLink instanceof HTMLElement) {
     infoLink.click();
     return;
   }
   
-  // AI : Fallback to other selectors
-  const infoButtons = document.querySelectorAll('.pi-info-circle');
-  for (const button of infoButtons) {
+  // Fallback to other selectors - convert NodeList to Array
+  const infoButtons = Array.from(document.querySelectorAll('.pi-info-circle'));
+  infoButtons.forEach(button => {
     if (button instanceof HTMLElement) {
       button.click();
       return;
     }
-  }
+  });
 }
 
 // AI : Load current project data

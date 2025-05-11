@@ -3,7 +3,7 @@ import 'leaflet-toolbar';
 import 'leaflet-distortableimage-updated'; // using "-updated" to prevent "WebSocket connection to 'ws://localhost:8081/ws' failed:" error
 import { ref, shallowRef } from 'vue';
 import { getSavedMapPosition, saveMapPosition } from './useDatabase';
-import type { MapPosition } from '../types';
+import type { MapPosition } from '@types';
 import { debounce } from '../utils';
 
 // shallowRef is used to avoid reactivity issues with Leaflet, see https://stackoverflow.com/a/73588115/12498040

@@ -1,4 +1,4 @@
-import type { ImageResolutions } from '../types';
+import type { ImageResolutions } from '@types';
 
 // AI : Define screen coverage thresholds for different resolutions (in percentage)
 export const COVERAGE_THRESHOLDS = {

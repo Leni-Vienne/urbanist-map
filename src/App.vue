@@ -16,9 +16,9 @@ import './assets/style.css' // must be imported after leaflet's css otherwise it
 import 'primeicons/primeicons.css'
 
 import { onMounted, provide, ref } from 'vue';
-import { initializeDatabase } from './composables/useDatabase';
-import { initializeProjects } from './composables/useProjects';
-import MapView from './components/MapView.vue';
+import { initializeDatabase } from '@composables/useDatabase';
+import { initializeProjects } from '@composables/useProjects';
+import MapView from '@components/MapView.vue';
 
 // AI : Create a ref to track database initialization state
 const databaseInitialized = ref(false);
