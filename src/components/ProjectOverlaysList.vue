@@ -120,7 +120,6 @@ function goToProjectsList() {
 async function viewOverlay(overlayId: string) {
   try {
     // AI : Navigate to the home page first (map view)
-    console.log('dans viewOverlay, overlayId', overlayId);
     router.push('/');
     
     // AI : Use a short timeout to ensure the map view is fully loaded

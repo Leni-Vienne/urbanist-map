@@ -52,6 +52,8 @@ export type ImageResolutions = {
   medium?: string;
   small?: string;
   thumbnail?: string;
+  originalWidth?: number; // AI: Original image width for resolution calculations
+  originalHeight?: number; // AI: Original image height for resolution calculations
 };
 
 // AI : Project information

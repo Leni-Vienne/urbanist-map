@@ -1,5 +1,5 @@
 import L from "leaflet";
-import { map, calculateScreenCoverage, onMapInitialized } from './useMap';
+import { map, onMapInitialized } from './useMap';
 import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, updateOverlayImage } from './useOverlay';
 import { saveOverlay, deleteOverlay as deleteOverlayFromDatabase, saveProject, addOverlayToProject } from './useDatabase';
 import { generateImageResolutions, getImageUrlForCoverage } from './useImageResizer';
@@ -135,16 +135,13 @@ function updateOverlayToAppropriateResolution(overlayObject) {
     const updateResolution = () => {
       if (!map.value) return;
       
-      const currentMapBounds = map.value.getBounds();
       const overlayBounds = overlayObject.overlay.getBounds();
       
-      if (!currentMapBounds.intersects(overlayBounds)) {
+      if (!overlayBounds || !overlayBounds.isValid()) {
         return;
       }
       
-      const coveragePercent = calculateScreenCoverage(overlayBounds);
-      
-      const appropriateImageUrl = getImageUrlForCoverage(overlayObject.imageResolutions, coveragePercent);
+      const appropriateImageUrl = getImageUrlForCoverage(overlayObject.imageResolutions, overlayBounds, map.value);
       
       if (appropriateImageUrl && appropriateImageUrl !== overlayObject.currentResolution) {
         updateOverlayImage(overlayObject, appropriateImageUrl);
@@ -516,7 +513,6 @@ function selectFirstOrLastOverlayInAnyProject(direction: 'next' | 'previous'): b
  * @returns boolean indicating whether navigation was successful
  */
 export function navigateToOverlay(overlayId: string, centerMap: boolean = true): boolean {
-  console.log("ici")
   if (!map.value) {
     toast.add({ severity: 'warn', summary: 'Map not available', detail: 'Cannot navigate to overlay', life: 3000 });
     return false;
