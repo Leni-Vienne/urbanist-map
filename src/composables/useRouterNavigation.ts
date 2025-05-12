@@ -18,8 +18,23 @@ export function goBack(closeDialog?: any) {
   if (window.history.length > 2 && router.options?.history?.state?.back) {
     router.back();
   } else {
-    router.push('/');
+    navigateWithCoordinates('/');
   }
+}
+
+// AI: Navigate while preserving map coordinates
+export function navigateWithCoordinates(path: string) {
+  const url = new URL(window.location.href);
+  const lat = url.searchParams.get('lat');
+  const lng = url.searchParams.get('lng');
+  const zoom = url.searchParams.get('zoom');
+  
+  const query: Record<string, string> = {};
+  if (lat) query.lat = lat;
+  if (lng) query.lng = lng;
+  if (zoom) query.zoom = zoom;
+  
+  router.push({ path, query });
 }
 
 /**
@@ -28,12 +43,13 @@ export function goBack(closeDialog?: any) {
 export function openProjectManager(mode = 'list', projectId = '', projectName = '') {
   initialProjectName.value = projectName;
   
+  let path = '/projects';
   switch (mode) {
-    case 'create': router.push('/projects/create'); break;
-    case 'edit': router.push(projectId ? `/projects/${projectId}/edit` : '/projects'); break;
-    case 'view': router.push(projectId ? `/projects/${projectId}` : '/projects'); break;
-    default: router.push('/projects');
+    case 'create': path = '/projects/create'; break;
+    case 'edit': path = projectId ? `/projects/${projectId}/edit` : '/projects'; break;
+    case 'view': path = projectId ? `/projects/${projectId}` : '/projects'; break;
   }
+  navigateWithCoordinates(path);
 }
 
 /**
@@ -41,7 +57,7 @@ export function openProjectManager(mode = 'list', projectId = '', projectName = 
  */
 export function navigateToProjectEdit(projectId: string) {
   if (!projectId) return;
-  router.push(`/projects/${projectId}/edit`);
+  navigateWithCoordinates(`/projects/${projectId}/edit`);
 }
 
 /**

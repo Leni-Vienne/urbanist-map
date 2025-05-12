@@ -55,9 +55,30 @@ export async function initializeMap() {
   const defaultLng = 2.3522;
   const defaultZoom = 13;
 
-  // AI : Use saved position or defaults
-  const center = savedPosition ? savedPosition.center : [defaultLat, defaultLng];
-  const zoom = savedPosition ? savedPosition.zoom : defaultZoom;
+  // AI : Check for coordinates in URL first
+  let urlCenter: [number, number] | null = null;
+  let urlZoom: number | null = null;
+  
+  try {
+    const url = new URL(window.location.href);
+    const lat = url.searchParams.get('lat');
+    const lng = url.searchParams.get('lng');
+    const zoom = url.searchParams.get('zoom');
+    
+    if (lat && lng) {
+      urlCenter = [parseFloat(lat), parseFloat(lng)];
+    }
+    
+    if (zoom) {
+      urlZoom = parseInt(zoom, 10);
+    }
+  } catch (error) {
+    console.error('Error parsing URL params:', error);
+  }
+  
+  // AI : Use URL params if present, then saved position, then defaults
+  const center = urlCenter || (savedPosition ? savedPosition.center : [defaultLat, defaultLng]);
+  const zoom = urlZoom || (savedPosition ? savedPosition.zoom : defaultZoom);
 
   const initialView: L.LatLngExpression = { lat: center[0], lng: center[1] };
 
@@ -153,7 +174,27 @@ async function saveCurrentMapPosition() {
     } 
   };
 
+  // Update URL with position without affecting history
+  updateUrlWithPosition(center.lat, center.lng, zoom);
+
   await saveMapPosition(position);
+}
+
+// AI : Update URL with map coordinates and zoom without affecting history
+export function updateUrlWithPosition(lat: number, lng: number, zoom: number): void {
+  try {
+    const url = new URL(window.location.href);
+    
+    // Set the map position query parameters
+    url.searchParams.set('lat', lat.toFixed(6));
+    url.searchParams.set('lng', lng.toFixed(6));
+    url.searchParams.set('zoom', zoom.toString());
+    
+    // Replace current URL without adding to history stack
+    window.history.replaceState(window.history.state, '', url.toString());
+  } catch (error) {
+    console.error('Error updating URL with map position:', error);
+  }
 }
 
 export function disableLeafletKeyboardEvents() {

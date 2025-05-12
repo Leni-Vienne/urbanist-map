@@ -20,7 +20,7 @@
       <div class="card flex">
         <Button
           icon="pi pi-bars"
-          @click="router.push('/projects')"
+          @click="navigateToProjects"
           aria-haspopup="true"
           aria-controls="project_menu"
           v-tooltip.right="'Manage Projects'"
@@ -59,9 +59,10 @@ import { addOverlay, undo, redo, navigateToOverlay } from '@composables/useOverl
 import { useToast } from '@composables/useToast';
 import { setAppContext } from '@composables/useTools';
 import { clearDatabase } from '@composables/useDatabase';
+import { navigateWithCoordinates } from '@composables/useRouterNavigation';
 import ProjectPicker from '@components/ProjectPicker.vue';
 
-// AI : Core state variables
+// AI: Core state variables
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
@@ -70,8 +71,13 @@ const pendingImageFile = ref<File | null>(null);
 const databaseInitialized = inject('databaseInitialized', ref(false));
 const isLoading = ref(true);
 
-// AI : Hide buttons on non-root routes
+// AI: Hide buttons on non-root routes
 const isRouteActive = computed(() => route.path !== '/');
+
+// Navigate to projects while preserving coordinates
+function navigateToProjects() {
+  navigateWithCoordinates('/projects');
+}
 
 // AI : Watch for route parameter changes - direct navigation without debounce
 watch(() => route.params.id, (overlayId) => {
@@ -159,12 +165,6 @@ async function initializeMapAndOverlays() {
     await initializeOverlays();
     window.addEventListener('keydown', handleKeyDown, true);
     disableLeafletKeyboardEvents();
-    
-    // Check for overlay ID in URL after initialization
-    const overlayId = route.params.id || route.query.overlay;
-    if (overlayId && typeof overlayId === 'string') {
-      setTimeout(() => navigateToOverlay(overlayId as string), 100);
-    }
   } catch (error) {
     console.error('Error initializing map and overlays:', error);
     toast.add({

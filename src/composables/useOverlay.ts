@@ -9,6 +9,7 @@ import { editTools, viewTools, infoTool } from './useTools';
 import { getImageUrlForCoverage } from './useImageResizer';
 import { debounce } from '../utils';
 import { applyProjectStyling, projects } from './useProjects';
+import { router } from '../router';
 
 export const overlays = shallowRef<Record<string, OverlayObject>>({});
 export const idSelectedOverlay = ref<string | null>(null);
@@ -325,15 +326,13 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
  */
 function updateUrlWithOverlayId(overlayId: string): void {
   try {
-    // AI : Access the router from the global window object
-    const router = window.router;
+    // Consistently use the globally exposed router
     if (!router) return;
 
     // AI : Set the flag to indicate URL change is from a direct overlay click
     if (window.isUrlChangeFromClick !== undefined) {
       window.isUrlChangeFromClick.value = true;
     }
-
     // AI : Update URL to use path parameter format /overlay/ID instead of query parameter
     router.replace(`/overlay/${overlayId}`);
   } catch (error) {
@@ -346,7 +345,7 @@ function updateUrlWithOverlayId(overlayId: string): void {
  */
 function clearOverlayFromUrl(): void {
   try {
-    const router = window.router;
+    // Consistently use the globally exposed router
     if (!router) return;
     
     // AI : Only navigate if we're on an overlay route
