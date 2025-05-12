@@ -1,7 +1,7 @@
 <template>
   <div class="project-picker">
     <div
-      v-if="!hideSelector && projectList.length > 0"
+      v-if="!hideSelector && projectList.length > 0 && isPrimeVueReady"
       class="mb-4"
     >
       <div class="flex gap-2">
@@ -81,12 +81,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import { useRouter } from 'vue-router';
-import { projects, createProject } from '@composables/useProjects';
+import { ref, computed, watch, onMounted } from 'vue';
+
+import { projects } from '@composables/useProjects';
 import { useToast } from '@composables/useToast';
 import { lastCreatedProjectId } from '@composables/useRouterNavigation';
+import { useProjectManagerDialog } from '@composables/useProjectManagerDialog';
 import type { Project } from '@types';
+
+// AI : Add isPrimeVueReady ref to track PrimeVue initialization
+const isPrimeVueReady = ref(false);
+
+// AI : Check if PrimeVue is initialized on component mount
+onMounted(() => {
+  // Use nextTick to ensure Vue has finished rendering
+  window.setTimeout(() => {
+    isPrimeVueReady.value = true;
+  }, 0);
+});
 
 const props = defineProps({
   modelValue: {
@@ -113,10 +125,8 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'project-selected', 'project-created']);
 
-const toast = useToast();
 const loading = ref(false);
 const selectedProjectId = ref(props.modelValue);
-const router = useRouter();
 
 // AI : Watch for changes in the lastCreatedProjectId to auto-select newly created projects
 watch(() => lastCreatedProjectId.value, (newProjectId) => {
@@ -151,13 +161,17 @@ function confirmSelection() {
   }
 }
 
+const { setFileUploadFlow } = useProjectManagerDialog();
+
 function openNewProjectDialog() {
-  // AI : Check if router exists before navigating
-  if (!router) {
-    console.error('Router not available for navigation');
+  if (!window.router) {
+    console.error('Global router not available for navigation');
     return;
   }
-  router.push('/projects/create');
+  
+  // AI : Set flag when creating from ProjectPicker
+  setFileUploadFlow(true);
+  window.router.push('/projects/create');
 }
 </script>
 

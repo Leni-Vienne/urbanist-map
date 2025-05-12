@@ -232,13 +232,13 @@ export const customDeleteTool = L.Toolbar2.Action.extend({
 });
 
 export const editTools = [
+  L.DistortAction,
+  L.FreeRotateAction,
+  L.RotateAction,
   undoTool,
   redoTool,
   resetRatioTool,
   backgroundTool,
-  L.DistortAction,
-  L.RotateAction,
-  L.FreeRotateAction,
   L.OpacityAction,
   L.OpacitiesAction,
   previousOverlayTool,

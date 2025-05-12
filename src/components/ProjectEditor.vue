@@ -262,6 +262,7 @@ import { overlays } from '@composables/useOverlay';
 import { navigateToOverlay } from '@composables/useOverlayActions';
 import { useToast } from '@composables/useToast';
 import { initialProjectName, setLastCreatedProject, goBack } from '@composables/useRouterNavigation';
+import { useProjectManagerDialog } from '@composables/useProjectManagerDialog';
 import type { Project, OverlayObject, OverlayListItem } from '@types';
 import ProjectOverlaysList from './ProjectOverlaysList.vue';
 
@@ -273,6 +274,7 @@ const props = defineProps<{
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
+const { inFileUploadFlow } = useProjectManagerDialog();
 
 // AI : Component state
 const mode = computed(() => props.mode);
@@ -368,7 +370,7 @@ async function saveProject() {
       startDate: editingProject.value.startDate ?? null,
       endDate: editingProject.value.endDate ?? null,
       sourceUrl: editingProject.value.sourceUrl || '',
-      budget: 0 // AI: Ensure budget is always a number
+      budget: 0
     };
     
     let projectId;
@@ -387,7 +389,12 @@ async function saveProject() {
       life: 3000
     });
     
-    router.push(isExisting ? '/projects' : `/projects/${projectId}`);
+    // AI: Check if creating during file upload flow and return to picker
+    if (!isExisting && inFileUploadFlow.value) {
+      router.back();
+    } else {
+      router.push(isExisting ? '/projects' : `/projects/${projectId}`);
+    }
   } catch (error) {
     console.error('Error saving project:', error);
     toast.add({
