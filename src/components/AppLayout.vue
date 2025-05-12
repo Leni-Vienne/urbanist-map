@@ -76,8 +76,6 @@ watch(
   () => route.path,
   (newPath) => {
     // AI : Only show dialog for project routes
-    console.log("dans watch, newPath", newPath);
-    console.log("dans watch, dialogVisible", newPath.startsWith('/projects'));
     dialogVisible.value = newPath.startsWith('/projects');
   },
   { immediate: true }

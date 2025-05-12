@@ -1,36 +1,38 @@
 import type { ImageResolutions } from '@types';
 
-// AI : Define screen coverage thresholds for different resolutions (in percentage)
-export const COVERAGE_THRESHOLDS = {
-  HIGH: 150,    // AI : Original resolution when overlay covers 100% or more of the screen (zoomed in)
-  MEDIUM: 0.5,   // AI : Medium resolution when overlay covers between 50-100% of the screen
-  LOW: 0.1,      // AI : Small resolution when overlay covers between 10-50% of the screen
-  // AI : Below 10% coverage, use thumbnail
-};
-
 /**
- * Get appropriate image URL based on how much screen the overlay covers
+ * AI: Get appropriate image URL based on display size
  */
-export function getImageUrlForCoverage(imageResolutions: ImageResolutions | undefined, coveragePercent: number): string {
-  if (!imageResolutions) return '';
+export function getImageUrlForCoverage(imageResolutions: ImageResolutions | undefined, bounds: L.LatLngBounds, map: L.Map | null): string {
+  if (!imageResolutions || !map || !bounds?.isValid?.()) return imageResolutions?.original || '';
   
-  // AI : Get original image URL with fallback to empty string
   const original = imageResolutions.original || '';
   
-  // AI : If only original is available, use it
+  // Use original if no other resolutions available
   if (!imageResolutions.medium && !imageResolutions.small && !imageResolutions.thumbnail) {
     return original;
   }
 
-  // AI : Select resolution based on coverage thresholds
-  if (coveragePercent >= COVERAGE_THRESHOLDS.HIGH) {
+  try {
+    // Calculate image display size in pixels
+    const ne = map.latLngToContainerPoint(bounds.getNorthEast());
+    const sw = map.latLngToContainerPoint(bounds.getSouthWest());
+    const displayWidth = Math.abs(ne.x - sw.x);
+    console.log('Display width:', displayWidth, 'original width:', imageResolutions.originalWidth, 'ratio:', displayWidth / (imageResolutions.originalWidth || 1));
+    // Use stored original dimensions
+    if (imageResolutions.originalWidth) {
+      const ratio = displayWidth / imageResolutions.originalWidth;
+      
+      // Select resolution based on % of original size needed
+      // 0.3 is a good ratio !
+      if (ratio > 0.3) return original;
+      if (ratio > 0.1) return imageResolutions.medium || original;
+      if (ratio > 0.05) return imageResolutions.small || imageResolutions.medium || original;
+      return imageResolutions.thumbnail || imageResolutions.small || imageResolutions.medium || original;
+    }
+  } catch (error) {
+    console.error('Error getting image resolution:', error);
     return original;
-  } else if (coveragePercent >= COVERAGE_THRESHOLDS.MEDIUM) {
-    return imageResolutions.medium || original;
-  } else if (coveragePercent >= COVERAGE_THRESHOLDS.LOW) {
-    return imageResolutions.small || imageResolutions.medium || original;
-  } else {
-    return imageResolutions.thumbnail || imageResolutions.small || imageResolutions.medium || original;
   }
 }
 
@@ -44,13 +46,19 @@ export async function generateImageResolutions(originalImageUrl: string): Promis
   try {
     const img = await loadImage(originalImageUrl);
     
+    // AI : Store original dimensions
+    resolutions.originalWidth = img.width;
+    resolutions.originalHeight = img.height;
+    
     // AI : Skip resizing for small images
     if (img.width < 500 && img.height < 500) {
       return {
         original: originalImageUrl,
         medium: originalImageUrl,
         small: originalImageUrl,
-        thumbnail: originalImageUrl
+        thumbnail: originalImageUrl,
+        originalWidth: img.width,
+        originalHeight: img.height
       };
     }
 
@@ -59,18 +67,22 @@ export async function generateImageResolutions(originalImageUrl: string): Promis
     if (!ctx) return resolutions;
 
     // AI : Generate medium resolution (50% of original)
+    const mediumWidth = Math.floor(img.width * 0.5);
+    const mediumHeight = Math.floor(img.height * 0.5);
     resolutions.medium = await generateResizedImage(
       img, canvas, ctx, 
-      Math.floor(img.width * 0.5), 
-      Math.floor(img.height * 0.5), 
+      mediumWidth,
+      mediumHeight, 
       0.8
     ) || originalImageUrl;
 
     // AI : Generate small resolution (25% of original)
+    const smallWidth = Math.floor(img.width * 0.25);
+    const smallHeight = Math.floor(img.height * 0.25);
     resolutions.small = await generateResizedImage(
       img, canvas, ctx, 
-      Math.floor(img.width * 0.25), 
-      Math.floor(img.height * 0.25), 
+      smallWidth,
+      smallHeight, 
       0.7
     ) || originalImageUrl;
 

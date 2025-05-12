@@ -370,7 +370,10 @@ async function saveProject() {
       startDate: editingProject.value.startDate ?? null,
       endDate: editingProject.value.endDate ?? null,
       sourceUrl: editingProject.value.sourceUrl || '',
-      budget: 0
+      budget: 0,
+      // AI : Add timestamps for database requirements
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
     
     let projectId;

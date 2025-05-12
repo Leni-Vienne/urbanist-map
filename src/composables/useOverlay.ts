@@ -2,7 +2,7 @@ import L from "leaflet";
 import 'leaflet-toolbar';
 import 'leaflet-distortableimage-updated'; // using "-updated" to prevent "WebSocket connection to 'ws://localhost:8081/ws' failed:" error
 import { ref, shallowRef, watch } from 'vue';
-import { map, calculateScreenCoverage, onMapInitialized } from './useMap';
+import { map, onMapInitialized } from './useMap';
 import { getAllOverlays, saveOverlay } from './useDatabase';
 import type { OverlayObject, StoredOverlayData } from '@types';
 import { editTools, viewTools, infoTool } from './useTools';
@@ -106,12 +106,10 @@ async function loadOverlay(savedOverlay: StoredOverlayData): Promise<void> {
   const overlayObject = createOverlayObject(savedOverlay);
 
   const overlayBounds = getOverlayBounds(savedOverlay);
-  if (!overlayBounds) return;
-
-  const coveragePercent = calculateScreenCoverage(overlayBounds);
+  if (!overlayBounds || !map.value) return;
 
   const imageUrl = savedOverlay.imageResolutions
-    ? getImageUrlForCoverage(savedOverlay.imageResolutions, coveragePercent)
+    ? getImageUrlForCoverage(savedOverlay.imageResolutions, overlayBounds, map.value)
     : savedOverlay.imageUrl;
 
   const newOverlay = await createOverlay(imageUrl, overlayObject);
@@ -157,11 +155,10 @@ async function loadOverlaysInView(): Promise<void> {
 }
 
 /**
- * AI : Function to update overlay image resolutions based on screen coverage
+ * AI : Function to update overlay image resolutions based on display size
  */
 function updateImageResolutionsForCoverage(): void {
   if (!map.value) return;
-
   const currentMapBounds = map.value.getBounds();
 
   Object.entries(overlays.value).forEach(([_id, overlayObject]) => {
@@ -177,8 +174,7 @@ function updateImageResolutionsForCoverage(): void {
       return;
     }
 
-    const coveragePercent = calculateScreenCoverage(bounds);
-    const bestResolutionUrl = getImageUrlForCoverage(overlayObject.imageResolutions, coveragePercent);
+    const bestResolutionUrl = getImageUrlForCoverage(overlayObject.imageResolutions, bounds, map.value);
     if (!bestResolutionUrl) return;
 
     if (bestResolutionUrl !== overlayObject.currentResolution) {
@@ -518,7 +514,6 @@ export function updateOverlayImage(overlayObject: OverlayObject, newImageUrl: st
 
   try {
     const currentCorners = overlayObject.overlay.getCorners();
-
     const imgElement = overlayObject.overlay.getElement();
     if (imgElement) {
       const onLoadListener = () => {

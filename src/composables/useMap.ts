@@ -136,7 +136,7 @@ export function calculateScreenCoverage(bounds: L.LatLngBounds): number {
     // AI : Calculate area - this can exceed viewport area when zoomed in
     const overlayArea = overlayWidth * overlayHeight;
     const viewportArea = viewportWidth * viewportHeight;
-    
+    console.log('Overlay area:', overlayArea, 'Viewport area:', viewportArea, 'Ratio:', (overlayArea / viewportArea) * 100);
     // AI : Return raw percentage (can be > 100% when zoomed in)
     return viewportArea > 0 ? (overlayArea / viewportArea) * 100 : 0.2; // AI : Default to small resolution if calculation fails
   } catch (error) {
