@@ -1,12 +1,11 @@
 import L from "leaflet";
-import 'leaflet-toolbar';
-import 'leaflet-distortableimage-updated';
+
 import { type ComponentInternalInstance, createVNode, render } from 'vue';
-import { map } from './useMap';
-import { overlays, idSelectedOverlay, isEditMode } from './useOverlay';
-import { undo, redo, resetImageRatio, toggleWhitePixels, deleteOverlay, updateOverlayInfo, goToNextOverlay, goToPreviousOverlay } from './useOverlayActions';
+import { map } from '@composables/useMap';
+import { overlays, idSelectedOverlay, isEditMode } from '@composables/useOverlay';
+import { undo, redo, resetImageRatio, toggleWhitePixels, deleteOverlay, updateOverlayInfo, goToNextOverlay, goToPreviousOverlay } from '@composables/useOverlayActions';
 import InfoPopup from '@components/InfoPopup.vue';
-import { useToast } from './useToast';
+import { useToast } from '@composables/useToast';
 import type { ProjectInfo } from '@types';
 import { router } from '../router';
 
@@ -14,14 +13,40 @@ const toast = useToast();
 
 let appInstance: ComponentInternalInstance | null = null;
 let primevueConfig: any = null;
+let appGlobalProperties: any = null;
 
 export function setAppContext(instance: ComponentInternalInstance) {
   appInstance = instance;
   
   try {
-    primevueConfig = instance.appContext.config.globalProperties.$primevue;
+    // AI : Store the entire globalProperties object to ensure we have access to everything
+    appGlobalProperties = instance.appContext.config.globalProperties;
+    primevueConfig = appGlobalProperties.$primevue;
+    
+    if (!primevueConfig) {
+      console.warn('AI: PrimeVue config not found in instance, checking global fallback');
+      // Try to get from window global fallback
+      if (window.$primevue) {
+        primevueConfig = window.$primevue;
+        console.log('AI: Using global PrimeVue config from window');
+      } else {
+        console.warn('AI: Creating minimal PrimeVue config');
+        // Create a minimal version for components that need it
+        primevueConfig = {
+          config: {
+            ripple: true
+          }
+        };
+      }
+    }
   } catch (err) {
-    console.error('AI: Failed to store PrimeVue config', err);
+    console.error('AI: Failed to store app context', err);
+    // Create fallback PrimeVue config to prevent errors
+    primevueConfig = window.$primevue || {
+      config: {
+        ripple: true
+      }
+    };
   }
 }
 
@@ -76,23 +101,33 @@ export const infoTool = L.Toolbar2.Action.extend({
           overlayObject: overlays.value[idSelectedOverlay.value],
           onProjectSubmit: handleProjectSubmit,
           viewMode: !isEditMode.value
-        })
-        
-        // AI : Ensure app context is available to the InfoPopup component
+        })          // AI : Ensure app context is available to the InfoPopup component
         if (appInstance) {
           vnode.appContext = { ...appInstance.appContext };
           
-          // AI : Explicitly provide router
+          // AI : Ensure the provides object exists
           if (!vnode.appContext.provides) {
             vnode.appContext.provides = {};
           }
+          
+          // AI : Explicitly provide router
           vnode.appContext.provides[Symbol.for('router')] = router;
           
-          // AI : Explicitly provide PrimeVue config
+          // AI : Set up config and global properties
+          vnode.appContext.config = vnode.appContext.config || {};
+          vnode.appContext.config.globalProperties = vnode.appContext.config.globalProperties || {};
+          
+          // AI : Explicitly provide PrimeVue config and any other global properties
           if (primevueConfig) {
-            vnode.appContext.config = vnode.appContext.config || {};
-            vnode.appContext.config.globalProperties = vnode.appContext.config.globalProperties || {};
             vnode.appContext.config.globalProperties.$primevue = primevueConfig;
+          }
+          
+          // AI : Copy all global properties to ensure everything is available
+          if (appGlobalProperties) {
+            vnode.appContext.config.globalProperties = {
+              ...vnode.appContext.config.globalProperties,
+              ...appGlobalProperties
+            };
           }
         }
         

@@ -1,6 +1,4 @@
 import L from "leaflet";
-import 'leaflet-toolbar';
-import 'leaflet-distortableimage-updated'; // using "-updated" to prevent "WebSocket connection to 'ws://localhost:8081/ws' failed:" error
 import { DBSchema } from "idb";
 
 // AI : Type for geographic coordinates

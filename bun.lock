@@ -8,7 +8,7 @@
         "@tailwindcss/vite": "^4.1.6",
         "idb": "^8.0.3",
         "leaflet": "^1.9.4",
-        "leaflet-distortableimage-updated": "^2.0.5",
+        "leaflet-distortableimage": "Karelics/Leaflet.DistortableImage",
         "leaflet-toolbar": "^0.4.0-alpha.2",
         "primeicons": "^7.0.0",
         "primevue": "^4.3.4",
@@ -439,7 +439,7 @@
 
     "leaflet": ["leaflet@1.9.4", "", {}, "sha512-nxS1ynzJOmOlHp+iL3FyWqK89GtNL8U8rvlMOsQdTTssxZwCXh8N2NB3GDQOL+YR3XnWyZAxwQixURb+FA74PA=="],
 
-    "leaflet-distortableimage-updated": ["leaflet-distortableimage-updated@2.0.5", "", { "dependencies": { "exif-js": "^2.3.0", "glfx": "0.0.4", "leaflet-google-places-autocomplete": "^0.0.9", "leaflet-toolbar": "0.4.0-alpha.2", "webgl-distort": "0.0.2" }, "peerDependencies": { "leaflet": "1.x" } }, "sha512-OxtywNVkcYvqyaJfCvIonGBejB9EazVU3IAPMeophFylyDU1aAmg/WiAp11OyGycx7TEb8iEBT8ze6ZkjBrslQ=="],
+    "leaflet-distortableimage": ["leaflet-distortableimage@github:Karelics/Leaflet.DistortableImage#5181790", { "dependencies": { "exif-js": "^2.3.0", "glfx": "0.0.4", "leaflet-google-places-autocomplete": "^0.0.9", "leaflet-toolbar": "0.4.0-alpha.2", "webgl-distort": "0.0.2" }, "peerDependencies": { "leaflet": "1.x" } }, "Karelics-Leaflet.DistortableImage-5181790"],
 
     "leaflet-google-places-autocomplete": ["leaflet-google-places-autocomplete@0.0.9", "", {}, "sha512-NHefPZn53GQIjuAZmwEN/KTy8TobEu8kRU/WlYR58j5WrQU3vZ4w2OKVUCFzKU5jlWxeZP/SQTFhmXf2vkHIeQ=="],
 

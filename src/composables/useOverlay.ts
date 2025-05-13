@@ -1,14 +1,13 @@
 import L from "leaflet";
 import 'leaflet-toolbar';
-import 'leaflet-distortableimage-updated'; // using "-updated" to prevent "WebSocket connection to 'ws://localhost:8081/ws' failed:" error
+import 'leaflet-distortableimage'; // using "-updated" to prevent "WebSocket connection to 'ws://localhost:8081/ws' failed:" error
 import { ref, shallowRef, watch } from 'vue';
-import { map, onMapInitialized } from './useMap';
-import { getAllOverlays, saveOverlay } from './useDatabase';
+import { map, onMapInitialized } from '@composables/useMap';
+import { getAllOverlays, saveOverlay } from '@composables/useDatabase';
 import type { OverlayObject, StoredOverlayData } from '@types';
-import { editTools, viewTools, infoTool } from './useTools';
-import { getImageUrlForCoverage } from './useImageResizer';
-import { debounce } from '../utils';
-import { applyProjectStyling, projects } from './useProjects';
+import { editTools, viewTools, infoTool } from '@composables/useTools';
+import { getImageUrlForCoverage } from '@composables/useImageResizer';
+import { applyProjectStyling, projects } from '@composables/useProjects';
 import { router } from '../router';
 
 export const overlays = shallowRef<Record<string, OverlayObject>>({});
@@ -17,9 +16,6 @@ export const isEditMode = ref<boolean>(true);
 
 // Tracking of all markers, even for images not currently loaded
 export const allMarkers = shallowRef<Record<string, L.Marker>>({});
-
-// Create debounced version of updateImageResolutionsForCoverage function
-const debouncedUpdateImageResolutions = debounce(updateImageResolutionsForCoverage, 250);
 
 // AI : Watch for changes in the overlays reactive reference to ensure persistent storage
 watch(overlays, (newOverlays) => {
@@ -66,10 +62,8 @@ function setupMapEventListeners(): void {
   if (!map.value) return;
 
   map.value.on('moveend', loadOverlaysInView);
-  map.value.on('zoomend', debouncedUpdateImageResolutions);
-
-  window.removeEventListener('resize', updateImageResolutionsForCoverage);
-  window.addEventListener('resize', debouncedUpdateImageResolutions);
+  map.value.on('zoomend', updateImageResolutionsForCoverage);
+  window.addEventListener('resize', updateImageResolutionsForCoverage);
 }
 
 function createMarkersForOverlays(savedOverlays: StoredOverlayData[]): void {
@@ -217,7 +211,10 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
       infoTool,
       ...(isEditMode.value ? editTools : viewTools)
     ],
-  }).addTo(map.value);
+  })
+
+  newOverlay.unbindTooltip()
+  newOverlay.addTo(map.value);
 
   overlayObject.overlay = newOverlay;
 
@@ -288,7 +285,10 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
 }
 
 function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayObject: OverlayObject): void {
+
   overlay.on('select', () => {
+    console.log('AI: Overlay selected:', overlayObject.id);
+    overlay.unbindTooltip();
     // AI : Simply update the selected overlay ID
     idSelectedOverlay.value = overlayObject.id;
 
@@ -508,6 +508,7 @@ export async function loadOverlayById(id: string): Promise<void> {
 
 /**
  * AI : Update an overlay's image without recreating the overlay
+ * Uses preloading to avoid flickering and positioning issues during resolution transitions
  */
 export function updateOverlayImage(overlayObject: OverlayObject, newImageUrl: string): void {
   if (!overlayObject.overlay) return;
@@ -515,36 +516,58 @@ export function updateOverlayImage(overlayObject: OverlayObject, newImageUrl: st
   try {
     const currentCorners = overlayObject.overlay.getCorners();
     const imgElement = overlayObject.overlay.getElement();
+    
+    // If the image element is available in the DOM
     if (imgElement) {
-      const onLoadListener = () => {
+      // Preload the new image first to avoid flickering
+      const preloadImg = new Image();
+        preloadImg.onload = () => {
+        // Only update the src when the image is fully loaded
+        imgElement.src = newImageUrl;
+        overlayObject.currentResolution = newImageUrl;
+        
+        // Ensure corners are preserved after image is updated
         if (overlayObject.overlay && currentCorners) {
-          overlayObject.overlay.setCorners(currentCorners);
+          // Apply corners in the next animation frame to ensure image is rendered
+          requestAnimationFrame(() => {
+            if (overlayObject.overlay) {
+              overlayObject.overlay.setCorners(currentCorners);
+            }
+          });
         }
-        imgElement.removeEventListener('load', onLoadListener);
       };
-
-      const onErrorListener = (error: any) => {
-        console.error(`Error loading new image for overlay ${overlayObject.id}`, error);
-        imgElement.removeEventListener('error', onErrorListener);
+      
+      preloadImg.onerror = (error: any) => {
+        console.error(`Error preloading new image for overlay ${overlayObject.id}`, error);
       };
-
-      imgElement.addEventListener('load', onLoadListener);
-      imgElement.addEventListener('error', onErrorListener);
-
-      imgElement.src = newImageUrl;
-      overlayObject.currentResolution = newImageUrl;
+      
+      // Start preloading
+      preloadImg.src = newImageUrl;
       return;
-    }
-
-    // Fallback: Try using setUrl method if available
-    if (typeof overlayObject.overlay.setUrl === 'function') {
-      overlayObject.overlay.setUrl(newImageUrl);
-      setTimeout(() => {
-        if (overlayObject.overlay && currentCorners) {
-          overlayObject.overlay.setCorners(currentCorners);
+    }    // Fallback: Try using setUrl method if available
+    if (overlayObject.overlay && typeof overlayObject.overlay.setUrl === 'function') {
+      // Create a preload image even for the setUrl method
+      const preloadImg = new Image();
+        preloadImg.onload = () => {
+        if (overlayObject.overlay) {
+          overlayObject.overlay.setUrl(newImageUrl);
+          overlayObject.currentResolution = newImageUrl;
+          
+          // Ensure corners are preserved after image update
+          requestAnimationFrame(() => {
+            if (overlayObject.overlay && currentCorners) {
+              overlayObject.overlay.setCorners(currentCorners);
+            }
+          });
         }
-      }, 50);
-      overlayObject.currentResolution = newImageUrl;
+      };
+      
+      preloadImg.onerror = (error: any) => {
+        console.error(`Error preloading new image for overlay ${overlayObject.id}`, error);
+      };
+      
+      // Start preloading
+      preloadImg.src = newImageUrl;
     }
   } catch (error) {
     console.error(`Error updating image for overlay ${overlayObject.id}:`, error);
