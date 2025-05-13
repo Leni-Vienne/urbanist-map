@@ -1,8 +1,6 @@
 import L from "leaflet";
-import 'leaflet-toolbar';
-import 'leaflet-distortableimage-updated'; // using "-updated" to prevent "WebSocket connection to 'ws://localhost:8081/ws' failed:" error
 import { ref, shallowRef } from 'vue';
-import { getSavedMapPosition, saveMapPosition } from './useDatabase';
+import { getSavedMapPosition, saveMapPosition } from '@composables/useDatabase';
 import type { MapPosition } from '@types';
 import { debounce } from '../utils';
 
@@ -109,41 +107,6 @@ export async function initializeMap() {
   }, 100);
 }
 
-// AI : Calculate how much of the screen an overlay covers (as a percentage)
-export function calculateScreenCoverage(bounds: L.LatLngBounds): number {
-  if (!map.value || !bounds?.isValid?.() || !mapInitialized.value) {
-    if (bounds && !bounds.isValid()) {
-      console.warn('Invalid bounds object passed to calculateScreenCoverage');
-    }
-    // AI : Return a default value higher than thumbnail threshold when map is not initialized
-    // AI : This ensures we don't use thumbnail resolution during initialization
-    return mapInitialized.value ? 0 : 0.2; // Above the LOW threshold in useImageResizer.ts
-  }
-  
-  try {
-    // AI : Get pixel bounds and calculate area
-    const ne = map.value.latLngToContainerPoint(bounds.getNorthEast());
-    const sw = map.value.latLngToContainerPoint(bounds.getSouthWest());
-    
-    // AI : Calculate visible area (clamp coordinates to viewport)
-    const viewportWidth = mapSize.value.width;
-    const viewportHeight = mapSize.value.height;
-    
-    // AI : Width and height of overlay in pixels
-    const overlayWidth = Math.abs(ne.x - sw.x);
-    const overlayHeight = Math.abs(ne.y - sw.y);
-    
-    // AI : Calculate area - this can exceed viewport area when zoomed in
-    const overlayArea = overlayWidth * overlayHeight;
-    const viewportArea = viewportWidth * viewportHeight;
-    console.log('Overlay area:', overlayArea, 'Viewport area:', viewportArea, 'Ratio:', (overlayArea / viewportArea) * 100);
-    // AI : Return raw percentage (can be > 100% when zoomed in)
-    return viewportArea > 0 ? (overlayArea / viewportArea) * 100 : 0.2; // AI : Default to small resolution if calculation fails
-  } catch (error) {
-    console.error('Error calculating screen coverage:', error);
-    return 0.2; // AI : Default to small resolution if calculation fails
-  }
-}
 
 function addTileLayer() {
   if (!map.value) return;

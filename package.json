@@ -10,7 +10,7 @@
     "@tailwindcss/vite": "^4.1.6",
     "idb": "^8.0.3",
     "leaflet": "^1.9.4",
-    "leaflet-distortableimage-updated": "^2.0.5",
+    "leaflet-distortableimage": "Karelics/Leaflet.DistortableImage",
     "leaflet-toolbar": "^0.4.0-alpha.2",
     "primeicons": "^7.0.0",
     "primevue": "^4.3.4",

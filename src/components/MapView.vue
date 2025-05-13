@@ -176,8 +176,12 @@ async function initializeMapAndOverlays() {
 }
 
 onMounted(async () => {
+  // AI : As a backup, set app context here as well
   const app = getCurrentInstance();
-  if (app) setAppContext(app);
+  if (app) {
+    console.log('Setting app context from MapView.vue (backup)');
+    setAppContext(app);
+  }
 
   if (!databaseInitialized.value) {
     // Wait for database initialization

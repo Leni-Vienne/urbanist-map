@@ -11,14 +11,15 @@
 <script setup lang="ts">
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-toolbar/dist/leaflet.toolbar.css';
-import "leaflet-distortableimage-updated/dist/leaflet.distortableimage.css";
+import "leaflet-distortableimage/dist/leaflet.distortableimage.css";
 import './assets/style.css' // must be imported after leaflet's css otherwise it's overwritten by leaflet's default css
 import 'primeicons/primeicons.css'
 
-import { onMounted, provide, ref } from 'vue';
+import { onMounted, provide, ref, getCurrentInstance } from 'vue';
 import { initializeDatabase } from '@composables/useDatabase';
 import { initializeProjects } from '@composables/useProjects';
 import MapView from '@components/MapView.vue';
+import { setAppContext } from '@composables/useTools';
 
 // AI : Create a ref to track database initialization state
 const databaseInitialized = ref(false);
@@ -28,6 +29,15 @@ provide('databaseInitialized', databaseInitialized);
 
 onMounted(async () => {
   try {
+    // AI : Store app instance context for dynamic components
+    const instance = getCurrentInstance();
+    if (instance) {
+      console.log('Setting app context from App.vue');
+      setAppContext(instance);
+    } else {
+      console.warn('Unable to get current instance in App.vue');
+    }
+    
     // AI : Initialize global services that should be available app-wide
     console.log('Starting database initialization...');
     await initializeDatabase();
