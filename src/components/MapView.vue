@@ -55,7 +55,7 @@ import { ref, onMounted, getCurrentInstance, watch, computed, inject, onBeforeUn
 import { useRouter, useRoute } from 'vue-router';
 import { initializeMap, disableLeafletKeyboardEvents } from '@composables/useMap';
 import { initializeOverlays, isEditMode, toggleEditMode } from '@composables/useOverlay';
-import { addOverlay, undo, redo, navigateToOverlay } from '@composables/useOverlayActions';
+import { addOverlay, undo, redo } from '@composables/useOverlayActions';
 import { useToast } from '@composables/useToast';
 import { setAppContext } from '@composables/useTools';
 import { clearDatabase } from '@composables/useDatabase';
@@ -71,7 +71,6 @@ const pendingImageFile = ref<File | null>(null);
 const databaseInitialized = inject('databaseInitialized', ref(false));
 const isLoading = ref(true);
 
-// AI: Hide buttons on non-root routes
 const isRouteActive = computed(() => route.path !== '/');
 
 // Navigate to projects while preserving coordinates
