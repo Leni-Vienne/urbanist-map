@@ -19,6 +19,8 @@ declare module "leaflet" {
   const StackAction: any;
   const Toolbar2: any;
   const EditAction: any;
+  const DragAction: any;
+  const ResizeRotateAction: any;
 
   // AI : Definition for DistortableImageOverlay
   interface DistortableImageOverlay extends L.ImageOverlay {
