@@ -213,7 +213,6 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
     ],
   })
 
-  newOverlay.unbindTooltip()
   newOverlay.addTo(map.value);
 
   overlayObject.overlay = newOverlay;
@@ -223,7 +222,6 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
   }
 
   setupOverlayEventHandlers(newOverlay, overlayObject);
-
   const element = newOverlay.getElement();
   if (!element) {
     console.error('Element not found for overlay:', overlayObject.id);
@@ -231,20 +229,7 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
   }
 
   if (!isEditMode.value) {
-    element.style.cursor = 'not-allowed';
-
-    element.addEventListener('mousedown', blockMovementEvent, true);
-    element.addEventListener('touchstart', blockMovementEvent, true);
-    element.addEventListener('dragstart', blockMovementEvent, true);
-
-    if (newOverlay.off) {
-      newOverlay.off('mousedown');
-      newOverlay.off('touchstart');
-      newOverlay.off('dragstart');
-      newOverlay.off('drag');
-      newOverlay.off('dragend');
-      // Do NOT remove 'click' as we need it for toolbar
-    }
+    configureOverlayEditingState(newOverlay, element, false);
   }
 
   // using 'element' allows to access the corners of the image on load while newOverlay.on('load') doesn't work
@@ -287,8 +272,6 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
 function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayObject: OverlayObject): void {
 
   overlay.on('select', () => {
-    console.log('AI: Overlay selected:', overlayObject.id);
-    overlay.unbindTooltip();
     // AI : Simply update the selected overlay ID
     idSelectedOverlay.value = overlayObject.id;
 
@@ -427,20 +410,13 @@ export function toggleEditMode(): void {
     if (!overlayObject.overlay) return;
 
     const editing = overlayObject.overlay.editing;
-    const element = overlayObject.overlay.getElement();
-
-    if (isEditMode.value) {
+    const element = overlayObject.overlay.getElement();    if (isEditMode.value) {
       // adding and removing tools is finicky (tools are often removed from the arrays) but this way works
       viewTools.forEach((tool) => editing.removeTool(tool));
       editTools.forEach((tool) => editing.addTool(tool));
 
       if (element) {
-        element.style.pointerEvents = 'auto';
-        element.style.cursor = '';
-
-        element.removeEventListener('mousedown', blockMovementEvent, true);
-        element.removeEventListener('touchstart', blockMovementEvent, true);
-        element.removeEventListener('dragstart', blockMovementEvent, true);
+        configureOverlayEditingState(overlayObject.overlay, element, true);
       }
     } else {
       // adding and removing tools is finicky (tools are often removed from the arrays) but this way works
@@ -448,22 +424,7 @@ export function toggleEditMode(): void {
       viewTools.forEach((tool) => editing.addTool(tool));
 
       if (element) {
-        element.style.cursor = 'not-allowed';
-
-        // We'll keep pointer-events enabled so clicks work, but block specific events
-        // that would cause movement
-        element.addEventListener('mousedown', blockMovementEvent, true);
-        element.addEventListener('touchstart', blockMovementEvent, true);
-        element.addEventListener('dragstart', blockMovementEvent, true);
-      }
-
-      if (overlayObject.overlay.off) {
-        overlayObject.overlay.off('mousedown');
-        overlayObject.overlay.off('touchstart');
-        overlayObject.overlay.off('dragstart');
-        overlayObject.overlay.off('drag');
-        overlayObject.overlay.off('dragend');
-        // Do NOT remove 'click' as we need it for toolbar
+        configureOverlayEditingState(overlayObject.overlay, element, false);
       }
 
       const corners = overlayObject.overlay.getCorners();
@@ -487,6 +448,42 @@ function blockMovementEvent(e: Event) {
   e.stopPropagation();
   e.preventDefault();
   return false;
+}
+
+/**
+ * AI : Configure overlay editing state based on edit mode
+ * @param overlay - The overlay to configure
+ * @param element - The HTML element of the overlay
+ * @param enableEditing - Whether to enable (true) or disable (false) editing
+ */
+function configureOverlayEditingState(overlay: L.DistortableImageOverlay, element: HTMLElement, enableEditing: boolean): void {
+  if (enableEditing) {
+    // Enable editing
+    element.style.pointerEvents = 'auto';
+    element.style.cursor = '';
+
+    element.removeEventListener('mousedown', blockMovementEvent, true);
+    element.removeEventListener('touchstart', blockMovementEvent, true);
+    element.removeEventListener('dragstart', blockMovementEvent, true);
+  } else {
+    // Disable editing
+    element.style.cursor = 'not-allowed';
+
+    // We'll keep pointer-events enabled so clicks work, but block specific events
+    // that would cause movement
+    element.addEventListener('mousedown', blockMovementEvent, true);
+    element.addEventListener('touchstart', blockMovementEvent, true);
+    element.addEventListener('dragstart', blockMovementEvent, true);
+
+    if (overlay.off) {
+      overlay.off('mousedown');
+      overlay.off('touchstart');
+      overlay.off('dragstart');
+      overlay.off('drag');
+      overlay.off('dragend');
+      // Do NOT remove 'click' as we need it for toolbar
+    }
+  }
 }
 
 /**

@@ -17,12 +17,12 @@ let appGlobalProperties: any = null;
 
 export function setAppContext(instance: ComponentInternalInstance) {
   appInstance = instance;
-  
+
   try {
     // AI : Store the entire globalProperties object to ensure we have access to everything
     appGlobalProperties = instance.appContext.config.globalProperties;
     primevueConfig = appGlobalProperties.$primevue;
-    
+
     if (!primevueConfig) {
       console.warn('AI: PrimeVue config not found in instance, checking global fallback');
       // Try to get from window global fallback
@@ -104,24 +104,24 @@ export const infoTool = L.Toolbar2.Action.extend({
         })          // AI : Ensure app context is available to the InfoPopup component
         if (appInstance) {
           vnode.appContext = { ...appInstance.appContext };
-          
+
           // AI : Ensure the provides object exists
           if (!vnode.appContext.provides) {
             vnode.appContext.provides = {};
           }
-          
+
           // AI : Explicitly provide router
           vnode.appContext.provides[Symbol.for('router')] = router;
-          
+
           // AI : Set up config and global properties
           vnode.appContext.config = vnode.appContext.config || {};
           vnode.appContext.config.globalProperties = vnode.appContext.config.globalProperties || {};
-          
+
           // AI : Explicitly provide PrimeVue config and any other global properties
           if (primevueConfig) {
             vnode.appContext.config.globalProperties.$primevue = primevueConfig;
           }
-          
+
           // AI : Copy all global properties to ensure everything is available
           if (appGlobalProperties) {
             vnode.appContext.config.globalProperties = {
@@ -130,7 +130,7 @@ export const infoTool = L.Toolbar2.Action.extend({
             };
           }
         }
-        
+
         render(vnode, newDiv);
       }, 10);
     }
@@ -204,7 +204,7 @@ export const undoTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       className: "pi pi-undo",
-      tooltip: 'Undo (control + z)',
+      tooltip: 'Undo (ctrl + z)',
     },
   },
   addHooks: function () {
@@ -216,7 +216,7 @@ export const redoTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       className: "pi pi-refresh",
-      tooltip: 'Redo (control + y)',
+      tooltip: 'Redo (ctrl + y)',
     },
   },
   addHooks: function () {
@@ -228,7 +228,7 @@ export const resetRatioTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       className: "pi pi-arrow-up-right-and-arrow-down-left-from-center",
-      tooltip: 'Restore image ratio',
+      tooltip: 'Restore and mirror image',
     },
   },
   addHooks: function () {
@@ -266,20 +266,37 @@ export const customDeleteTool = L.Toolbar2.Action.extend({
   },
 });
 
+// all actions (not all in docs) : L.DistortAction, L.FreeRotateAction, L.OpacityAction, L.DeleteAction, L.StackAction, L.EditAction, L.RotateAction, L.ScaleAction, L.TranslateAction, L.OpacitiesAction, L.GeolocateAction, L.RestoreAction, L.UnlockAction
+// L.RotateAction,
+// L.EditAction is empty
+// L.TranslateAction
+// L.UnlockAction is useless
+// L.LockAction
+// L.GeolocateAction crashes "ReferenceError: EXIF is not defined"
+// L.RestoreAction undistorts the image, centers it on the camera and size it to an arbitrary size. Not great
+// L.OpacitiesAction works well!
+// L.BorderAction
+// L.DragAction
+// L.ExportAction
+// L.ResizeRotateAction
+// L.TransformAction
+// L.ScaleAction
+
+
 export const editTools = [
-  L.DistortAction,
-  L.FreeRotateAction,
-  L.RotateAction,
   undoTool,
   redoTool,
+  L.DragAction,
+  L.ResizeRotateAction,
+  L.DistortAction,
   resetRatioTool,
   backgroundTool,
   L.OpacityAction,
   L.OpacitiesAction,
   previousOverlayTool,
   nextOverlayTool,
+  L.StackAction,
   customDeleteTool,
-  L.StackAction
 ];
 
 export const viewTools = [
