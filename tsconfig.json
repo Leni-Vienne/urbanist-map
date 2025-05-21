@@ -2,17 +2,21 @@
     "compilerOptions": {
         "module": "ESNext",
         "moduleResolution": "bundler",
+        "strict": true,
         "strictNullChecks": true,
         "allowSyntheticDefaultImports": true,
         "paths": {
             "@composables/*": [
-                "./src/composables/*"
+                "./front/src/composables/*"
             ],
             "@components/*": [
-                "./src/components/*"
+                "./front/src/components/*"
             ],
             "@types": [
-                "./src/types"
+                "./front/src/types"
+            ],
+            "@client": [
+                "./front/src/client"
             ],
         }
     }

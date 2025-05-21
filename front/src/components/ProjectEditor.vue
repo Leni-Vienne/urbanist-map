@@ -257,12 +257,12 @@ import {
   highlightProjectOverlays,
   clearProjectHighlight,
   updateProject
-} from '@composables/useProjects';
-import { overlays } from '@composables/useOverlay';
-import { navigateToOverlay } from '@composables/useOverlayActions';
-import { useToast } from '@composables/useToast';
-import { initialProjectName, setLastCreatedProject, goBack } from '@composables/useRouterNavigation';
-import { useProjectManagerDialog } from '@composables/useProjectManagerDialog';
+} from '../composables/useProjects';
+import { overlays } from '../composables/useOverlay';
+import { navigateToOverlay } from '../composables/useOverlayActions';
+import { useToast } from '../composables/useToast';
+import { initialProjectName, setLastCreatedProject, goBack } from '../composables/useRouterNavigation';
+import { useProjectManagerDialog } from '../composables/useProjectManagerDialog';
 import type { Project, OverlayObject, OverlayListItem } from '@types';
 import ProjectOverlaysList from './ProjectOverlaysList.vue';
 

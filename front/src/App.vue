@@ -1,9 +1,9 @@
 <template>
   <Toast />
-  
+
   <!-- AI : Map is always present in the background -->
   <MapView />
-  
+
   <!-- AI : Router view as overlay on top of the map -->
   <router-view />
 </template>
@@ -20,6 +20,7 @@ import { initializeDatabase } from '@composables/useDatabase';
 import { initializeProjects } from '@composables/useProjects';
 import MapView from '@components/MapView.vue';
 import { setAppContext } from '@composables/useTools';
+import { trpc } from './client';
 
 // AI : Create a ref to track database initialization state
 const databaseInitialized = ref(false);
@@ -33,23 +34,36 @@ onMounted(async () => {
     const instance = getCurrentInstance();
     if (instance) {
       console.log('Setting app context from App.vue');
-      setAppContext(instance);
+      //setAppContext(instance);
     } else {
       console.warn('Unable to get current instance in App.vue');
     }
-    
+
     // AI : Initialize global services that should be available app-wide
     console.log('Starting database initialization...');
     await initializeDatabase();
     console.log('Database initialized successfully');
-    
+
     console.log('Starting projects initialization...');
     await initializeProjects();
     console.log('Projects initialized successfully');
-    
+
     // AI : Set initialization flag to true after both operations complete
     databaseInitialized.value = true;
     console.log('Application initialization complete');
+
+    // Utiliser un appel à l'API pour vérifier le statut d'authentification
+    const response = await fetch('http://localhost:3000/api/check-session', {
+      method: 'GET',
+      credentials: 'include'
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      console.log('Statut de connexion:', data)
+    }
+    const aaa = await trpc.images.getCollections.query()
+    console.log('Collections:', aaa)
   } catch (error) {
     console.error('Error during application initialization:', error);
   }

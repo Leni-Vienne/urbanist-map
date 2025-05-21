@@ -1,6 +1,6 @@
 import L from "leaflet";
 import { ref, shallowRef } from 'vue';
-import { getSavedMapPosition, saveMapPosition } from '@composables/useDatabase';
+import { getSavedMapPosition, saveMapPosition } from './useDatabase';
 import type { MapPosition } from '@types';
 import { debounce } from '../utils';
 
@@ -96,6 +96,7 @@ export async function initializeMap() {
 
   addTileLayer();
   map.value.on('moveend zoomend', saveCurrentMapPosition);
+  L.control.scale().addTo(map.value);
 
   // AI : Ensure the map initialization is complete by forcing a size update
   // AI : This helps with the coverage calculation on initial load

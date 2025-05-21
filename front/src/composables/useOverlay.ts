@@ -2,12 +2,12 @@ import L from "leaflet";
 import 'leaflet-toolbar';
 import 'leaflet-distortableimage'; // using "-updated" to prevent "WebSocket connection to 'ws://localhost:8081/ws' failed:" error
 import { ref, shallowRef, watch } from 'vue';
-import { map, onMapInitialized } from '@composables/useMap';
-import { getAllOverlays, saveOverlay } from '@composables/useDatabase';
+import { map, onMapInitialized } from './useMap';
+import { getAllOverlays, saveOverlay } from './useDatabase';
 import type { OverlayObject, StoredOverlayData } from '@types';
-import { editTools, viewTools, infoTool } from '@composables/useTools';
-import { getImageUrlForCoverage } from '@composables/useImageResizer';
-import { applyProjectStyling, projects } from '@composables/useProjects';
+import { editTools, viewTools, infoTool } from './useTools';
+import { getImageUrlForCoverage } from './useImageResizer';
+import { applyProjectStyling, projects } from './useProjects';
 import { router } from '../router';
 
 export const overlays = shallowRef<Record<string, OverlayObject>>({});

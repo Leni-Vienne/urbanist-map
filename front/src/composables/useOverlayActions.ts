@@ -1,10 +1,10 @@
 import L from "leaflet";
-import { map, onMapInitialized } from '@composables/useMap';
-import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, updateOverlayImage } from '@composables/useOverlay';
-import { saveOverlay, deleteOverlay as deleteOverlayFromDatabase, saveProject, addOverlayToProject } from '@composables/useDatabase';
-import { generateImageResolutions, getImageUrlForCoverage } from '@composables/useImageResizer';
-import { useToast } from '@composables/useToast';
-import { projects, applyProjectStyling } from '@composables/useProjects';
+import { map, onMapInitialized } from './useMap';
+import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, updateOverlayImage } from './useOverlay';
+import { saveOverlay, deleteOverlay as deleteOverlayFromDatabase, saveProject, addOverlayToProject } from './useDatabase';
+import { generateImageResolutions, getImageUrlForCoverage } from './useImageResizer';
+import { useToast } from './useToast';
+import { projects, applyProjectStyling } from './useProjects';
 import type { StoredOverlayData } from '@types';
 
 const toast = useToast();

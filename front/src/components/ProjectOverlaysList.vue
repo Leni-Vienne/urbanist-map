@@ -77,10 +77,10 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { useToast } from '@composables/useToast';
-import { projects, getOverlaysForProject, removeOverlayFromProjectWithId } from '@composables/useProjects';
-import { overlays } from '@composables/useOverlay';
-import { navigateToOverlay } from '@composables/useOverlayActions';
+import { useToast } from '../composables/useToast';
+import { projects, getOverlaysForProject, removeOverlayFromProjectWithId } from '../composables/useProjects';
+import { overlays } from '../composables/useOverlay';
+import { navigateToOverlay } from '../composables/useOverlayActions';
 import type { OverlayListItem } from '@types';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';

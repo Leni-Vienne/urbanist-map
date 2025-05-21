@@ -104,10 +104,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useToast } from '@composables/useToast';
-import { updateTooltipText } from '@composables/useOverlayActions';
-import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId } from '@composables/useProjects';
-import { navigateToProjectEdit } from '@composables/useRouterNavigation';
+import { useToast } from '../composables/useToast';
+import { updateTooltipText } from '../composables/useOverlayActions';
+import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId } from '../composables/useProjects';
+import { navigateToProjectEdit } from '../composables/useRouterNavigation';
 import ProjectPicker from './ProjectPicker.vue';
 import OverlayEditor from './OverlayEditor.vue';
 import type { OverlayObject, Project } from '@types';
