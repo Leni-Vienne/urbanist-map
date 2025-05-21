@@ -1,0 +1,28 @@
+services:
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: always
+    ports:
+      #localhost port : docker port
+      - 1025:1025 # smtp server
+      - 8025:8025 # web ui
+
+  postgres:
+    image: postgis/postgis:17-3.5-alpine
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: default
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U default"] #check if postgres is ready
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+volumes:
+  postgres_data:

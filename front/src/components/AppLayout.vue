@@ -42,7 +42,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { goBack } from '@composables/useRouterNavigation';
+import { goBack } from '../composables/useRouterNavigation';
 
 // AI : Define document.body as a variable to avoid TypeScript errors
 const bodyElement = document.body;

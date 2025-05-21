@@ -1,11 +1,11 @@
 import L from "leaflet";
 
 import { type ComponentInternalInstance, createVNode, render } from 'vue';
-import { map } from '@composables/useMap';
-import { overlays, idSelectedOverlay, isEditMode } from '@composables/useOverlay';
-import { undo, redo, resetImageRatio, toggleWhitePixels, deleteOverlay, updateOverlayInfo, goToNextOverlay, goToPreviousOverlay } from '@composables/useOverlayActions';
+import { map } from './useMap';
+import { overlays, idSelectedOverlay, isEditMode } from './useOverlay';
+import { undo, redo, resetImageRatio, toggleWhitePixels, deleteOverlay, updateOverlayInfo, goToNextOverlay, goToPreviousOverlay } from './useOverlayActions';
 import InfoPopup from '@components/InfoPopup.vue';
-import { useToast } from '@composables/useToast';
+import { useToast } from './useToast';
 import type { ProjectInfo } from '@types';
 import { router } from '../router';
 

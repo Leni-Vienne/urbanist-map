@@ -83,10 +83,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
 
-import { projects } from '@composables/useProjects';
-import { useToast } from '@composables/useToast';
-import { lastCreatedProjectId } from '@composables/useRouterNavigation';
-import { useProjectManagerDialog } from '@composables/useProjectManagerDialog';
+import { projects } from '../composables/useProjects';
+import { useToast } from '../composables/useToast';
+import { lastCreatedProjectId } from '../composables/useRouterNavigation';
+import { useProjectManagerDialog } from '../composables/useProjectManagerDialog';
 import type { Project } from '@types';
 
 // AI : Add isPrimeVueReady ref to track PrimeVue initialization

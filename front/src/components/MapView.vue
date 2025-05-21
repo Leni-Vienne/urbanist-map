@@ -53,13 +53,13 @@
 <script setup lang="ts">
 import { ref, onMounted, getCurrentInstance, watch, computed, inject, onBeforeUnmount } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { initializeMap, disableLeafletKeyboardEvents } from '@composables/useMap';
-import { initializeOverlays, isEditMode, toggleEditMode } from '@composables/useOverlay';
-import { addOverlay, undo, redo } from '@composables/useOverlayActions';
-import { useToast } from '@composables/useToast';
-import { setAppContext } from '@composables/useTools';
-import { clearDatabase } from '@composables/useDatabase';
-import { navigateWithCoordinates } from '@composables/useRouterNavigation';
+import { initializeMap, disableLeafletKeyboardEvents } from '../composables/useMap';
+import { initializeOverlays, isEditMode, toggleEditMode } from '../composables/useOverlay';
+import { addOverlay, undo, redo } from '../composables/useOverlayActions';
+import { useToast } from '../composables/useToast';
+import { setAppContext } from '../composables/useTools';
+import { clearDatabase } from '../composables/useDatabase';
+import { navigateWithCoordinates } from '../composables/useRouterNavigation';
 import ProjectPicker from '@components/ProjectPicker.vue';
 
 // AI: Core state variables
