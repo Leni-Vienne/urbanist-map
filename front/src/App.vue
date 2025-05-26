@@ -62,8 +62,6 @@ onMounted(async () => {
       const data = await response.json()
       console.log('Statut de connexion:', data)
     }
-    const aaa = await trpc.images.getCollections.query()
-    console.log('Collections:', aaa)
   } catch (error) {
     console.error('Error during application initialization:', error);
   }

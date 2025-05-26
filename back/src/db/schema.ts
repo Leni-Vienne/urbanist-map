@@ -25,7 +25,7 @@ export const projects = pgTable('projects', {
 
 export const images = pgTable('images', {
   id: uuid('id').defaultRandom().primaryKey(),
-  url: text('url').notNull(), // lien CDN
+  filename: text('filename').notNull(),
   caption: text('caption'),
   projectId: uuid('project_id').references(() => projects.id),
   authorId: uuid('author_id').references(() => users.id),
