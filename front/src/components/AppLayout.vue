@@ -1,37 +1,31 @@
-<template>
-  <Dialog 
-    v-model:visible="dialogVisible" 
-    :header="pageTitle"
+<template>  <Dialog
+    v-model:visible="dialogVisible"
     :modal="true"
     :closable="true"
     :dismissableMask="true"
-    :style="{ width: '900px', maxWidth: '95vw' }"
+    :style="{ width: '600px', maxWidth: '90vw' }"
     :closeOnEscape="true"
     :draggable="false"
     :resizable="false"
     @hide="onDialogHide"
-    :appendTo="bodyElement" 
-    :transitionOptions="{disabled:true}"
+    :appendTo="bodyElement"
+    :transitionOptions="{ disabled: true }"
   >
     <div class="router-content">
       <router-view v-slot="{ Component }">
         <component :is="Component" />
       </router-view>
-    </div>
-    
-    <template #header>
-      <div class="flex justify-between items-center w-full">
-        <div class="flex items-center">
-          <Button
-            v-if="showBackButton"
-            icon="pi pi-arrow-left"
-            class="p-button-text mr-2"
-            @click="handleBack"
-            v-tooltip.right="'Return to previous page'"
-          />
-          <h1 class="text-xl font-bold">{{ pageTitle }}</h1>
-        </div>
-        <div class="flex items-center gap-2">
+    </div>    <template #header>
+      <div class="relative">
+        <Button
+          v-if="showBackButton"
+          icon="pi pi-arrow-left"
+          class="p-button-text absolute left-0 top-0"
+          @click="handleBack"
+          v-tooltip.right="'Return to previous page'"
+        />
+        <h3 class="text-xl font-bold text-center block">{{ pageTitle }}</h3>
+        <div class="absolute right-0 top-0">
           <slot name="header-actions"></slot>
         </div>
       </div>
@@ -107,15 +101,19 @@ onMounted(() => {
 .router-content {
   padding: 0;
   overflow-y: auto;
-  max-height: calc(100vh - 130px);
+  max-height: calc(100vh - 120px);
 }
 
 :deep(.p-dialog-header) {
-  padding: 1rem 1.5rem;
+  padding: 0.75rem 1rem;
+}
+
+:deep(.p-dialog-header .p-dialog-header-content) {
+  width: 100%;
 }
 
 :deep(.p-dialog-content) {
-  padding: 0 1.5rem 1.5rem 1.5rem;
+  padding: 0 1rem 1rem 1rem;
 }
 
 /* AI : Additional styles to prevent animation conflicts */

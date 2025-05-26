@@ -1,115 +1,17 @@
 <template>
-  <form
+  <ProjectForm
     v-if="mode === 'edit' || mode === 'create'"
-    @submit.prevent="saveProject"
-    class="project-editor"
-  >
-    <div class="flex flex-col gap-8 mb-4">
-      <div class="field mb-6">
-        <FloatLabel
-          class="w-full"
-          variant="in"
-        >
-          <InputText
-            v-model="editingProject.name"
-            required
-            class="w-full p-3"
-          />
-          <label class="text-gray-600">Project Name</label>
-        </FloatLabel>
-      </div>
-
-      <div class="field mb-6">
-        <FloatLabel
-          class="w-full"
-          variant="in"
-        >
-          <Textarea
-            v-model="editingProject.description"
-            rows="3"
-            class="w-full p-3 min-h-[120px]"
-          />
-          <label class="text-gray-600">Description</label>
-        </FloatLabel>
-      </div>
-
-      <div class="field mb-6">
-        <FloatLabel
-          class="w-full"
-          variant="in"
-        >
-          <InputText
-            v-model="editingProject.location"
-            class="w-full p-3"
-          />
-          <label class="text-gray-600">Location</label>
-        </FloatLabel>
-      </div>
-
-      <div class="field mb-6">
-        <FloatLabel
-          class="w-full"
-          variant="in"
-        >
-          <InputText
-            v-model="editingProject.sourceUrl"
-            class="w-full p-3"
-          />
-          <label class="text-gray-600">Source URL</label>
-        </FloatLabel>
-      </div>
-
-      <div class="flex gap-3">
-        <div class="flex-1 field mb-6">
-          <FloatLabel
-            class="w-full"
-            variant="in"
-          >
-            <DatePicker
-              v-model="editingProject.startDate"
-              class="w-full"
-            />
-            <label class="text-gray-600">Start Date</label>
-          </FloatLabel>
-        </div>
-        <div class="flex-1 field mb-6">
-          <FloatLabel
-            class="w-full"
-            variant="in"
-          >
-            <DatePicker
-              v-model="editingProject.endDate"
-              class="w-full"
-            />
-            <label class="text-gray-600">End Date</label>
-          </FloatLabel>
-        </div>
-      </div>
-    </div>
-    <br>
-    <div class="flex gap-2 justify-center mt-8 pt-6">
-      <Button
-        type="button"
-        label="Cancel"
-        class="p-button-outlined"
-        icon="pi pi-times"
-        @click="goBack()"
-      />
-      &nbsp;
-      <Button
-        type="submit"
-        :label="mode === 'create' ? 'Create project' : 'Update project'"
-        icon="pi pi-save"
-      />
-    </div>
-  </form>
-
+    :project="editingProject"
+    :mode="mode"
+    @submit="saveProject"
+    @cancel="goBack"
+  />
   <!-- Project View Mode -->
   <div
     v-if="mode === 'view' && currentProject"
     class="project-view"
   >
-    <div class="project-header mb-4">
+    <div class="project-header mb-3">
       <h4 class="text-lg font-bold">{{ currentProject.name }}</h4>
       <p
         v-if="currentProject.description"
@@ -134,54 +36,47 @@
     </div>
 
     <!-- AI : Display a summary of project overlays -->
-    <div class="mb-4">
+    <div class="mb-3">
       <div class="flex justify-between items-center mb-2">
-        <h5 class="font-bold">Project Overlays</h5>
-        <span class="text-sm bg-gray-200 px-2 py-1 rounded-full">
+        <h5 class="font-bold text-sm">Project Overlays</h5>
+        <span class="text-xs bg-gray-200 px-2 py-1 rounded-full">
           {{ currentProject.overlayIds.length }} overlays
         </span>
       </div>
-      
-      <div 
+
+      <div
         v-if="currentProject.overlayIds.length === 0"
-        class="text-center p-3 bg-gray-100 rounded-md"
+        class="text-center p-2 bg-gray-100 rounded-md text-sm"
       >
         No overlays in this project yet
       </div>
-      
-      <div 
+      <ProjectOverlaysList
         v-else
-        class="text-center p-3 bg-gray-100 rounded-md"
-      >
-        This project contains {{ currentProject.overlayIds.length }} overlay{{ currentProject.overlayIds.length > 1 ? 's' : '' }}.
-        <Button
-          label="View All Overlays"
-          icon="pi pi-list"
-          class="p-button-text p-button-sm mt-2"
-          @click="viewAllOverlays"
-        />
-      </div>
+        :overlays="projectOverlays"
+        @view="viewOverlay"
+        @remove="removeFromProject"
+      />
     </div>
 
-    <div class="mb-4">
-      <h5 class="font-bold mb-2">Actions</h5>
+    <div class="mb-3">
+      <h5 class="font-bold mb-2 text-sm">Actions</h5>
       <div class="grid grid-cols-2 gap-2">
         <Button
           label="Add Overlay"
           icon="pi pi-plus"
-          class="p-button-outlined"
+          class="p-button-outlined p-button-sm"
           @click="showAddOverlayDialog = true"
         />
         <Button
           label="Highlight All"
           icon="pi pi-eye"
-          class="p-button-outlined"
+          class="p-button-outlined p-button-sm"
           @click="toggleHighlight"
         />
         <Button
           label="Edit Project"
           icon="pi pi-pencil"
-          class="p-button-outlined p-button-info col-span-2"
+          class="p-button-outlined p-button-info p-button-sm col-span-2"
           @click="editFromView()"
         />
       </div>
@@ -190,31 +85,30 @@
     <Button
       label="Back to Projects"
       icon="pi pi-arrow-left"
-      title="salut"
-      class="p-button-text w-full"
+      class="p-button-text p-button-sm w-full"
       @click="goBackToProjects"
     />
   </div>
-
   <!-- Dialog for adding overlays to project -->
   <Dialog
     v-model:visible="showAddOverlayDialog"
     header="Add Overlay to Project"
     :modal="true"
     :closable="true"
+    :style="{ width: '400px', maxWidth: '90vw' }"
     @hide="() => { showAddOverlayDialog = false; }"
   >
     <div class="available-overlays">
-      <h5 class="font-bold mb-2">Available Overlays</h5>
+      <h5 class="font-bold mb-2 text-sm">Available Overlays</h5>
       <div
         v-if="availableOverlays.length === 0"
-        class="text-center p-3 bg-gray-100 rounded-md"
+        class="text-center p-2 bg-gray-100 rounded-md text-sm"
       >
         No available overlays to add
       </div>
       <div
         v-else
-        class="flex flex-col gap-2 max-h-60 overflow-y-auto"
+        class="flex flex-col gap-1 max-h-48 overflow-y-auto"
       >
         <div
           v-for="overlay in availableOverlays"
@@ -239,14 +133,14 @@
         label="Close"
         icon="pi pi-times"
         @click="() => { showAddOverlayDialog = false; }"
-        class="p-button-text"
+        class="p-button-text p-button-sm"
       />
     </template>
   </Dialog>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onBeforeUnmount } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount, inject } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import {
   projects,
@@ -258,13 +152,14 @@ import {
   clearProjectHighlight,
   updateProject
 } from '../composables/useProjects';
-import { overlays } from '../composables/useOverlay';
+import { overlays, initializeOverlays } from '../composables/useOverlay';
 import { navigateToOverlay } from '../composables/useOverlayActions';
 import { useToast } from '../composables/useToast';
 import { initialProjectName, setLastCreatedProject, goBack } from '../composables/useRouterNavigation';
 import { useProjectManagerDialog } from '../composables/useProjectManagerDialog';
 import type { Project, OverlayObject, OverlayListItem } from '@types';
 import ProjectOverlaysList from './ProjectOverlaysList.vue';
+import ProjectForm from './ProjectForm.vue';
 
 const props = defineProps<{
   id?: string;
@@ -275,6 +170,9 @@ const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 const { inFileUploadFlow } = useProjectManagerDialog();
+
+// AI : Inject database initialization status
+const databaseInitialized = inject('databaseInitialized', ref(false));
 
 // AI : Component state
 const mode = computed(() => props.mode);
@@ -295,11 +193,32 @@ const fullProjectOverlays = ref<OverlayObject[]>([]);
 
 // AI : Simplified overlay items for the list component
 const projectOverlays = computed<OverlayListItem[]>(() => {
-  return fullProjectOverlays.value.map(overlay => ({
-    id: overlay.id,
-    phase: overlay.phase,
-    sequenceNumber: overlay.sequenceNumber
-  }));
+  // AI : First, try to use fullProjectOverlays if available
+  if (fullProjectOverlays.value.length > 0) {
+    return fullProjectOverlays.value.map(overlay => ({
+      id: overlay.id,
+      phase: overlay.phase,
+      sequenceNumber: overlay.sequenceNumber
+    }));
+  }
+  
+  // AI : Fallback: use currentProject overlayIds and overlays store
+  if (currentProject.value && currentProject.value.overlayIds.length > 0) {
+    const overlayList: OverlayListItem[] = [];
+    for (const overlayId of currentProject.value.overlayIds) {
+      const overlay = overlays.value[overlayId];
+      if (overlay) {
+        overlayList.push({
+          id: overlay.id,
+          phase: overlay.phase,
+          sequenceNumber: overlay.sequenceNumber
+        });
+      }
+    }
+    return overlayList;
+  }
+  
+  return [];
 });
 
 const showAddOverlayDialog = ref(false);
@@ -308,8 +227,8 @@ const isHighlighted = ref(false);
 // AI : Computed properties
 const currentProject = computed(() => projectId.value ? projects.value[projectId.value] : null);
 
-const availableOverlays = computed(() => 
-  Object.values(overlays.value).filter(overlay => 
+const availableOverlays = computed(() =>
+  Object.values(overlays.value).filter(overlay =>
     !overlay.projectId || overlay.projectId !== projectId.value
   )
 );
@@ -328,7 +247,7 @@ watch([projectId, mode], async ([newId, newMode]) => {
     };
   } else if (newId && projects.value[newId]) {
     editingProject.value = newMode === 'edit' ? { ...projects.value[newId] } : editingProject.value;
-    
+
     if (newMode === 'view') {
       fullProjectOverlays.value = await getOverlaysForProject(newId);
     }
@@ -350,8 +269,8 @@ onBeforeUnmount(() => {
 });
 
 // AI : Methods
-async function saveProject() {
-  if (!editingProject.value.name) {
+async function saveProject(projectData: Partial<Project>) {
+  if (!projectData.name) {
     toast.add({
       severity: 'error',
       summary: 'Validation Error',
@@ -362,36 +281,35 @@ async function saveProject() {
   }
 
   try {
-    const isExisting = !!editingProject.value.id;
-    const projectData = {
-      name: editingProject.value.name,
-      description: editingProject.value.description || '',
-      location: editingProject.value.location || '',
-      startDate: editingProject.value.startDate ?? null,
-      endDate: editingProject.value.endDate ?? null,
-      sourceUrl: editingProject.value.sourceUrl || '',
-      budget: 0,
+    const isExisting = !!projectData.id;
+    const dataToSave = {
+      name: projectData.name,
+      description: projectData.description || '',
+      location: projectData.location || '',
+      startDate: projectData.startDate ?? null,
+      endDate: projectData.endDate ?? null,
+      sourceUrl: projectData.sourceUrl || '',
       // AI : Add timestamps for database requirements
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-    
+
     let projectId;
     if (isExisting) {
-      await updateProject(editingProject.value.id!, projectData);
-      projectId = editingProject.value.id;
+      await updateProject(projectData.id!, dataToSave);
+      projectId = projectData.id;
     } else {
-      projectId = await createProject(projectData);
+      projectId = await createProject(dataToSave);
       setLastCreatedProject(projectId);
     }
-    
+
     toast.add({
       severity: 'success',
       summary: isExisting ? 'Project updated' : 'Project created',
-      detail: `Project "${editingProject.value.name}" has been ${isExisting ? 'updated' : 'created'}`,
+      detail: `Project "${projectData.name}" has been ${isExisting ? 'updated' : 'created'}`,
       life: 3000
     });
-    
+
     // AI: Check if creating during file upload flow and return to picker
     if (!isExisting && inFileUploadFlow.value) {
       router.back();
@@ -426,10 +344,10 @@ async function removeFromProject(overlayId: string) {
 
 async function viewOverlay(overlayId: string) {
   if (!projectId.value) return;
-  
+
   const overlay = overlays.value[overlayId];
   if (!overlay) return;
-  
+
   // AI: Navigate to map and focus on overlay
   router.push('/');
   setTimeout(() => {
@@ -464,15 +382,37 @@ function formatDate(date: Date | null): string {
   return new Date(date).toLocaleDateString();
 }
 
+// AI : Initialize overlays on component mount to ensure data is available
+onMounted(async () => {
+  if (!databaseInitialized.value) {
+    // AI : Wait for database initialization
+    const unwatch = watch(databaseInitialized, async (initialized) => {
+      if (initialized) {
+        unwatch();
+        try {
+          await initializeOverlays();
+          await refreshProjectOverlays();
+          console.log('ProjectEditor - overlays initialized:', Object.keys(overlays.value).length);
+        } catch (error) {
+          console.error('ProjectEditor - error initializing overlays:', error);
+        }
+      }
+    });
+  } else {
+    // AI : Database already initialized
+    try {
+      await initializeOverlays();
+      await refreshProjectOverlays();
+      console.log('ProjectEditor - overlays initialized:', Object.keys(overlays.value).length);
+    } catch (error) {
+      console.error('ProjectEditor - error initializing overlays:', error);
+    }
+  }
+});
+
 // AI : Navigation methods
 function goBackToProjects() {
   goBack();
-}
-
-function viewAllOverlays() {
-  if (projectId.value) {
-    router.push(`/projects/${projectId.value}/overlays`);
-  }
 }
 
 function editFromView() {
@@ -485,12 +425,6 @@ function editFromView() {
 
 <style scoped>
 @import "tailwindcss";
-
-/* AI : Styles for the project editor mode */
-.project-editor {
-  max-width: 800px;
-  margin: 0 auto;
-}
 
 /* AI : Styles for the project view mode */
 .project-view {

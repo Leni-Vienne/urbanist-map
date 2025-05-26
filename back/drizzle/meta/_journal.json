@@ -15,6 +15,13 @@
       "when": 1747581498467,
       "tag": "0001_chief_jasper_sitwell",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1748037043943,
+      "tag": "0002_previous_pepper_potts",
+      "breakpoints": true
     }
   ]
 }

@@ -62,7 +62,6 @@ export interface ProjectInfo {
   sourceLink: string;
   startDate: Date | null;
   endDate: Date | null;
-  budget: number;
 }
 
 // AI : Project data that is stored in the database
@@ -73,7 +72,6 @@ export interface Project {
   location: string;
   startDate: Date | null;
   endDate: Date | null;
-  budget: number;
   sourceUrl: string;
   overlayIds: string[];
   color: string; // AI : Color for visual grouping

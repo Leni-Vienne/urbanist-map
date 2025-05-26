@@ -1,7 +1,16 @@
 <template>
   <div class="project-picker">
-    <div
-      v-if="!hideSelector && projectList.length > 0 && isPrimeVueReady"
+    <!-- AI : Show message when no projects exist -->
+    <div v-if="projectList.length === 0 && !hideCreate" class="text-center p-4">
+      <p class="mb-4">No projects available. Create your first project to add overlays.</p>
+      <Button
+        icon="pi pi-plus"
+        label="Create New Project"
+        class="p-button-primary"
+        @click="openNewProjectDialog"
+      />
+    </div>    <div
+      v-else-if="!hideSelector && projectList.length > 0 && isPrimeVueReady"
       class="mb-4"
     >
       <div class="flex gap-2">
@@ -29,9 +38,7 @@
                 <div>&nbsp;&nbsp;{{ getProjectById(value)?.name }}</div>
               </div>
               <span v-else>{{ placeholder }}</span>
-            </template>
-
-            <template #option="{ option }">
+            </template> <template #option="{ option }">
               <div class="flex items-center">
                 <div
                   class="color-circle mr-2"
@@ -43,6 +50,21 @@
                 </div>
               </div>
             </template>
+
+            <template
+              #footer
+              v-if="!hideCreate"
+            >
+              <div class="p-2 border-t">
+                <Button
+                  icon="pi pi-plus"
+                  label="Create New Project"
+                  class="p-button-primary p-button-sm w-full"
+                  @click="openNewProjectDialog"
+                  v-tooltip.top="'Create a new project'"
+                />
+              </div>
+            </template>
           </Select>
         </FloatLabel>
         <slot name="selector-actions">
@@ -52,36 +74,23 @@
             @click="confirmSelection"
             :disabled="!selectedProjectId"
             v-tooltip.top="'Confirm selection'"
-          />
-        </slot>
+          />        </slot>
       </div>
     </div>
-
-    <template v-if="!hideCreate">
-      <Divider
-        align="center"
-        v-if="!hideSelector && projectList.length > 0"
-      >
-        <b>Or create a new project</b>
-      </Divider>
-
-      <div class="create-project">
-        <div class="flex">
-          <Button
-            icon="pi pi-plus"
-            label="New Project"
-            class="p-button-primary w-full"
-            @click="openNewProjectDialog"
-            v-tooltip.top="'Create a new project'"
-          />
-        </div>
-      </div>
-    </template>
+    
+    <!-- AI : Loading state when PrimeVue is not ready -->
+    <div
+      v-else-if="!hideSelector && projectList.length > 0 && !isPrimeVueReady"
+      class="mb-4 p-2 text-center"
+    >
+      <i class="pi pi-spin pi-spinner"></i>
+      <span class="ml-2 text-sm text-gray-600">Loading...</span>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, getCurrentInstance, nextTick } from 'vue';
 
 import { projects } from '../composables/useProjects';
 import { useToast } from '../composables/useToast';
@@ -93,11 +102,20 @@ import type { Project } from '@types';
 const isPrimeVueReady = ref(false);
 
 // AI : Check if PrimeVue is initialized on component mount
-onMounted(() => {
-  // Use nextTick to ensure Vue has finished rendering
-  window.setTimeout(() => {
+onMounted(async () => {
+  // AI : Wait for next tick and check if PrimeVue is available
+  await nextTick();
+  const instance = getCurrentInstance();
+  
+  // AI : Check multiple ways PrimeVue might be available
+  if (instance?.appContext.config.globalProperties.$primevue || window.$primevue) {
     isPrimeVueReady.value = true;
-  }, 0);
+  } else {
+    // AI : Fallback with setTimeout if PrimeVue isn't immediately available
+    setTimeout(() => {
+      isPrimeVueReady.value = true;
+    }, 100);
+  }
 });
 
 const props = defineProps({
@@ -168,7 +186,7 @@ function openNewProjectDialog() {
     console.error('Global router not available for navigation');
     return;
   }
-  
+
   // AI : Set flag when creating from ProjectPicker
   setFileUploadFlow(true);
   window.router.push('/projects/create');

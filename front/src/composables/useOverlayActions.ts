@@ -1,11 +1,11 @@
 import L from "leaflet";
 import { map, onMapInitialized } from './useMap';
 import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, updateOverlayImage } from './useOverlay';
-import { saveOverlay, deleteOverlay as deleteOverlayFromDatabase, saveProject, addOverlayToProject } from './useDatabase';
+import { saveOverlay, deleteOverlay as deleteOverlayFromDatabase, saveProject } from './useDatabase';
 import { generateImageResolutions, getImageUrlForCoverage } from './useImageResizer';
 import { useToast } from './useToast';
-import { projects, applyProjectStyling } from './useProjects';
-import type { StoredOverlayData } from '@types';
+import { projects, applyProjectStyling, addOverlayToProjectWithId } from './useProjects';
+import type { StoredOverlayData, OverlayObject } from '@types';
 
 const toast = useToast();
 
@@ -53,7 +53,7 @@ export async function addOverlay(imageUrl: string, projectId: string) {
   
   updateOverlayToAppropriateResolution(overlayObject)
   
-  await addOverlayToProject(projectId, id);
+  await addOverlayToProjectWithId(projectId, id);
 
   if (projects.value[projectId]) {
     applyProjectStyling(overlayObject, projectId);
@@ -128,12 +128,14 @@ function saveOverlayInitialState(overlay: L.DistortableImageOverlay, overlayObje
   saveOverlay(storedOverlay);
 }
 
-function updateOverlayToAppropriateResolution(overlayObject) {
+function updateOverlayToAppropriateResolution(overlayObject: OverlayObject) {
   return () => {
     if (!overlayObject.overlay || !overlayObject.imageResolutions) return;
     
     const updateResolution = () => {
       if (!map.value) return;
+
+      if(!overlayObject.overlay) return;
       
       const overlayBounds = overlayObject.overlay.getBounds();
       
@@ -191,7 +193,25 @@ function applyHistoryAction(action: 'undo' | 'redo') {
   (overlay as L.DistortableImageOverlay).setCorners(newState);
 
   updateMarkerPosition(overlayObject);
-  saveImageAndPosition();
+  
+  // AI : Save only the specific overlay being updated, not all overlays
+  if (overlayObject.overlay) {
+    overlayObject.corners = overlayObject.overlay.getCorners();
+  }
+  
+  const savedOverlay = {
+    id: overlayObject.id,
+    imageUrl: overlayObject.imageUrl,
+    imageResolutions: overlayObject.imageResolutions,
+    corners: overlayObject.corners,
+    history: overlayObject.history,
+    redoStack: overlayObject.redoStack,
+    projectId: overlayObject.projectId,
+    phase: overlayObject.phase,
+    sequenceNumber: overlayObject.sequenceNumber
+  };
+  
+  saveOverlay(savedOverlay);
 }
 
 export async function toggleWhitePixels() {
@@ -287,7 +307,7 @@ export function resetImageRatio() {
     const currentCorners = overlayObject.overlay.getCorners();
     if (!currentCorners?.length || currentCorners.length !== 4) return;
     
-    const { originalRatio, newDimensions, cornersInfo } = calculateRatioFixParameters(
+    const { originalRatio: _originalRatio, newDimensions, cornersInfo } = calculateRatioFixParameters(
       img.naturalWidth / img.naturalHeight,
       currentCorners
     );
@@ -296,11 +316,28 @@ export function resetImageRatio() {
     
     applyImageRatioFix(overlayObject, cornersInfo, newDimensions);
     handleFlipIfNeeded(overlayObject);
-    
-    // Save state
+      // Save state
     saveToHistory(overlayObject);
     updateMarkerPosition(overlayObject);
-    saveImageAndPosition();
+    
+    // AI : Save only the specific overlay being updated, not all overlays
+    if (overlayObject.overlay) {
+      overlayObject.corners = overlayObject.overlay.getCorners();
+    }
+    
+    const savedOverlay = {
+      id: overlayObject.id,
+      imageUrl: overlayObject.imageUrl,
+      imageResolutions: overlayObject.imageResolutions,
+      corners: overlayObject.corners,
+      history: overlayObject.history,
+      redoStack: overlayObject.redoStack,
+      projectId: overlayObject.projectId,
+      phase: overlayObject.phase,
+      sequenceNumber: overlayObject.sequenceNumber
+    };
+    
+    saveOverlay(savedOverlay);
   };
 
   img.src = overlayObject.imageUrl || (overlayObject.overlay.getElement() as HTMLImageElement).src;
@@ -626,28 +663,6 @@ export function updateTooltipText() {
   }
 }
 
-export function saveImageAndPosition() {
-  Object.values(overlays.value).forEach(overlayObj => {
-    if (overlayObj.overlay) {
-      overlayObj.corners = overlayObj.overlay.getCorners();
-    }
-    
-    const savedOverlay = {
-      id: overlayObj.id,
-      imageUrl: overlayObj.imageUrl,
-      imageResolutions: overlayObj.imageResolutions,
-      corners: overlayObj.corners,
-      history: overlayObj.history,
-      redoStack: overlayObj.redoStack,
-      projectId: overlayObj.projectId,
-      phase: overlayObj.phase,
-      sequenceNumber: overlayObj.sequenceNumber
-    };
-    
-    saveOverlay(savedOverlay);
-  });
-}
-
 export function deleteOverlay(id: string) {
   const overlayObject = overlays.value[id];
   if (!overlayObject) return;
@@ -663,7 +678,6 @@ export function deleteOverlay(id: string) {
       location: project.location || '',
       startDate: project.startDate,
       endDate: project.endDate,
-      budget: project.budget || 0,
       sourceUrl: project.sourceUrl || '',
       overlayIds: project.overlayIds.filter(overlayId => overlayId !== id),
       createdAt: project.createdAt || new Date().toISOString(),
@@ -697,5 +711,23 @@ export function updateOverlayInfo(id: string, info: { phase?: string, sequenceNu
   overlayObject.sequenceNumber = info.sequenceNumber;
   
   updateTooltipText();
-  saveImageAndPosition();
+  
+  // AI : Save only the specific overlay being updated, not all overlays
+  if (overlayObject.overlay) {
+    overlayObject.corners = overlayObject.overlay.getCorners();
+  }
+  
+  const savedOverlay = {
+    id: overlayObject.id,
+    imageUrl: overlayObject.imageUrl,
+    imageResolutions: overlayObject.imageResolutions,
+    corners: overlayObject.corners,
+    history: overlayObject.history,
+    redoStack: overlayObject.redoStack,
+    projectId: overlayObject.projectId,
+    phase: overlayObject.phase,
+    sequenceNumber: overlayObject.sequenceNumber
+  };
+  
+  saveOverlay(savedOverlay);
 }
