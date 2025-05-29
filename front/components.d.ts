@@ -8,31 +8,37 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    AppLayout: typeof import('./src/components/AppLayout.vue')['default']
+    AddOverlayDialog: typeof import('./src/components/AddOverlayDialog.vue')['default']
+    AppLayout: typeof import('./src/components/layout/AppLayout.vue')['default']
     Button: typeof import('primevue/button')['default']
     Column: typeof import('primevue/column')['default']
     DataTable: typeof import('primevue/datatable')['default']
     DatePicker: typeof import('primevue/datepicker')['default']
     Dialog: typeof import('primevue/dialog')['default']
     FloatLabel: typeof import('primevue/floatlabel')['default']
-    InfoPopup: typeof import('./src/components/InfoPopup.vue')['default']
+    InfoPopup: typeof import('./src/components/map/InfoPopup.vue')['default']
     InputNumber: typeof import('primevue/inputnumber')['default']
     InputText: typeof import('primevue/inputtext')['default']
-    MapView: typeof import('./src/components/MapView.vue')['default']
+    MapView: typeof import('./src/components/map/MapView.vue')['default']
     Menu: typeof import('primevue/menu')['default']
-    OverlayEditor: typeof import('./src/components/OverlayEditor.vue')['default']
-    ProjectEditor: typeof import('./src/components/ProjectEditor.vue')['default']
-    ProjectForm: typeof import('./src/components/ProjectForm.vue')['default']
-    ProjectList: typeof import('./src/components/ProjectList.vue')['default']
-    ProjectOverlaysList: typeof import('./src/components/ProjectOverlaysList.vue')['default']
-    ProjectPicker: typeof import('./src/components/ProjectPicker.vue')['default']
+    OverlayEditor: typeof import('./src/components/map/OverlayEditor.vue')['default']
+    OverlayItem: typeof import('./src/components/map/OverlayItem.vue')['default']
+    ProjectActions: typeof import('./src/components/project/ProjectActions.vue')['default']
+    ProjectEditor: typeof import('./src/components/project/ProjectEditor.vue')['default']
+    ProjectForm: typeof import('./src/components/project/ProjectForm.vue')['default']
+    ProjectHeader: typeof import('./src/components/project/ProjectHeader.vue')['default']
+    ProjectList: typeof import('./src/components/project/ProjectList.vue')['default']
+    ProjectOverlaysList: typeof import('./src/components/project/ProjectOverlaysList.vue')['default']
+    ProjectOverlaysSection: typeof import('./src/components/project/ProjectOverlaysSection.vue')['default']
+    ProjectPicker: typeof import('./src/components/project/ProjectPicker.vue')['default']
+    ProjectViewer: typeof import('./src/components/project/ProjectViewer.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     Select: typeof import('primevue/select')['default']
     Textarea: typeof import('primevue/textarea')['default']
     Toast: typeof import('primevue/toast')['default']
   }
-  export interface ComponentCustomProperties {
+  export interface GlobalDirectives {
     Tooltip: typeof import('primevue/tooltip')['default']
   }
 }

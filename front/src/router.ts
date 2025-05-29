@@ -1,9 +1,9 @@
 // filepath: d:\Documents\Perso\prog\city-map-overlay\src\router.ts
 import { createRouter, createWebHistory } from 'vue-router';
-import AppLayout from '@components/AppLayout.vue';
-import ProjectList from '@components/ProjectList.vue';
-import ProjectEditor from '@components/ProjectEditor.vue';
-import ProjectOverlaysList from '@components/ProjectOverlaysList.vue';
+import AppLayout from '@components/layout/AppLayout.vue';
+import ProjectList from '@components/project/ProjectList.vue';
+import ProjectEditor from '@components/project/ProjectEditor.vue';
+import ProjectOverlaysList from '@components/project/ProjectOverlaysList.vue';
 
 // AI : Define routes for the application
 export const router = createRouter({

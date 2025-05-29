@@ -10,8 +10,7 @@
         <p class="mt-2">Loading map and data...</p>
       </div>
     </div>
-    
-    <div class="map-buttons" :class="{ 'buttons-hidden': isRouteActive }">
+      <div class="map-buttons" :class="{ 'buttons-hidden': isRouteActive }">
       <input
         type="file"
         @change="onImageUpload"
@@ -38,6 +37,34 @@
         </div>
       </div>
     </div>
+
+    <!-- AI : View Mode Overlays Panel -->
+    <div 
+      v-if="!isEditMode && viewModeOverlays.length > 0" 
+      class="view-mode-panel"
+    >
+      <div class="panel-header">
+        <h3>Visible Overlays</h3>
+        <span class="overlay-count">{{ viewModeOverlays.length }}</span>
+      </div>
+      <div class="panel-content">
+        <div 
+          v-for="overlay in viewModeOverlays" 
+          :key="overlay.id"
+          class="overlay-item"
+        >
+          <div class="overlay-info">
+            <span class="overlay-phase">{{ overlay.phase }}</span>
+            <span v-if="overlay.sequenceNumber" class="overlay-sequence">
+              #{{ overlay.sequenceNumber }}
+            </span>
+          </div>
+          <div class="overlay-distance">
+            {{ Math.round(overlay.distance) }}m
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <Dialog
@@ -53,14 +80,16 @@
 <script setup lang="ts">
 import { ref, onMounted, getCurrentInstance, watch, computed, inject, onBeforeUnmount } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { initializeMap, disableLeafletKeyboardEvents } from '../composables/useMap';
-import { initializeOverlays, isEditMode, toggleEditMode } from '../composables/useOverlay';
-import { addOverlay, undo, redo } from '../composables/useOverlayActions';
-import { useToast } from '../composables/useToast';
-import { setAppContext } from '../composables/useTools';
-import { clearDatabase } from '../composables/useDatabase';
-import { navigateWithCoordinates } from '../composables/useRouterNavigation';
-import ProjectPicker from '@components/ProjectPicker.vue';
+import { initializeMap, disableLeafletKeyboardEvents } from '@composables/core/useMap';
+import { initializeCameraBounds } from '@composables/map/useCameraBounds';
+import { initializeOverlays, isEditMode, toggleEditMode } from '@composables/overlay/useOverlay';
+import { addOverlay, undo, redo } from '@composables/overlay/useOverlayActions';
+import { useToast } from '@composables/ui/useToast';
+import { setAppContext } from '@composables/core/useTools';
+import { clearDatabase } from '@composables/core/useDatabase';
+import { navigateWithCoordinates } from '@composables/ui/useRouterNavigation';
+import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
+import ProjectPicker from '@components/project/ProjectPicker.vue';
 
 // AI: Core state variables
 const router = useRouter();
@@ -70,6 +99,9 @@ const showProjectSelector = ref(false);
 const pendingImageFile = ref<File | null>(null);
 const databaseInitialized = inject('databaseInitialized', ref(false));
 const isLoading = ref(true);
+
+// AI : Use view mode overlays for displaying overlays when camera moves
+const { viewModeOverlays, startCameraTracking, stopCameraTracking } = useViewModeOverlays();
 
 const isRouteActive = computed(() => route.path !== '/');
 
@@ -91,6 +123,20 @@ watch(() => route.query.overlay, (overlayId) => {
     router.replace(`/overlay/${overlayId}`);
   }
 }, { immediate: true });
+
+// AI : Watch for edit mode changes to start/stop camera tracking
+watch(isEditMode, (editMode) => {
+  console.log('Edit mode changed to:', editMode);
+  if (editMode) {
+    // AI : Stop tracking in edit mode
+    console.log('Stopping camera tracking (edit mode)');
+    stopCameraTracking();
+  } else {
+    // AI : Start tracking in view mode
+    console.log('Starting camera tracking (view mode)');
+    startCameraTracking();
+  }
+});
 
 // AI : Reset file input when dialog closes
 watch(() => showProjectSelector.value, (newVal) => {
@@ -161,9 +207,16 @@ function handleKeyDown(event: KeyboardEvent) {
 async function initializeMapAndOverlays() {
   try {
     await initializeMap();
+    initializeCameraBounds(); // AI : Initialize camera bounds tracking
     await initializeOverlays();
     window.addEventListener('keydown', handleKeyDown, true);
     disableLeafletKeyboardEvents();
+    
+    // AI : Start camera tracking if in view mode
+    if (!isEditMode.value) {
+      console.log('Starting camera tracking after initialization');
+      startCameraTracking();
+    }
   } catch (error) {
     console.error('Error initializing map and overlays:', error);
     toast.add({
@@ -255,5 +308,86 @@ onBeforeUnmount(() => {
 
 .loading-content {
   text-align: center;
+}
+
+.view-mode-panel {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 300px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.panel-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.overlay-count {
+  background: #007bff;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.panel-content {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.overlay-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.overlay-item:last-child {
+  border-bottom: none;
+}
+
+.overlay-item:hover {
+  background: #f8f9fa;
+}
+
+.overlay-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.overlay-phase {
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+}
+
+.overlay-sequence {
+  font-size: 11px;
+  color: #6c757d;
+}
+
+.overlay-distance {
+  font-size: 12px;
+  color: #28a745;
+  font-weight: 500;
 }
 </style>

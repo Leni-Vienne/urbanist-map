@@ -7,6 +7,15 @@ export type LatLng = {
   lng: number;
 };
 
+// AI : Interface for camera bounds used in view mode
+export interface CameraBounds {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+  zoom?: number;
+}
+
 // AI : Extend Leaflet namespace to include custom actions
 declare module "leaflet" {
   // oxlint isn't happy about those but it avoids typescript errors due to leaflet distortableimage lacking types
@@ -51,7 +60,6 @@ export type ImageResolutions = {
   original: string;
   medium?: string;
   small?: string;
-  thumbnail?: string;
   originalWidth?: number; // AI: Original image width for resolution calculations
   originalHeight?: number; // AI: Original image height for resolution calculations
 };
@@ -92,11 +100,29 @@ export interface StoredOverlayData {
   sequenceNumber?: number; // AI : Optional sequence number for chronological ordering
 }
 
+// AI : CDN overlay data returned by tRPC for view mode
+export interface CDNOverlayData {
+  id: string;
+  filename: string; // AI : For CDN URL construction
+  phase?: string;
+  sequenceNumber?: number | null;
+  centroid: {
+    lat: number;
+    lng: number;
+  };
+  // AI : All corner coordinates for proper overlay positioning (exactly 4 corners)
+  corners: { lat: number; lng: number }[];
+  distance: number;
+  createdAt: Date | null;
+}
+
 // AI : Define a simplified version of overlay data for the list component
 export interface OverlayListItem {
   id: string;
   phase?: string;
   sequenceNumber?: number;
+  distance?: number; // AI : For view mode display
+  filename?: string; // AI : For CDN URL construction in view mode
 }
 
 // AI : Extended overlay object with runtime properties

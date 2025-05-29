@@ -16,10 +16,10 @@ import './assets/style.css' // must be imported after leaflet's css otherwise it
 import 'primeicons/primeicons.css'
 
 import { onMounted, provide, ref, getCurrentInstance } from 'vue';
-import { initializeDatabase } from '@composables/useDatabase';
-import { initializeProjects } from '@composables/useProjects';
-import MapView from '@components/MapView.vue';
-import { setAppContext } from '@composables/useTools';
+import { initializeDatabase } from '@composables/core/useDatabase';
+import { initializeProjects } from '@composables/project/useProjects';
+import MapView from '@components/map/MapView.vue';
+import { setAppContext } from '@composables/core/useTools';
 import { trpc } from './client';
 
 // AI : Create a ref to track database initialization state
