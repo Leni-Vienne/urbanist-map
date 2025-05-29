@@ -112,11 +112,11 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, nextTick } from 'vue';
-import { useToast } from '../composables/useToast';
-import { updateTooltipText } from '../composables/useOverlayActions';
-import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId } from '../composables/useProjects';
-import { navigateToProjectEdit } from '../composables/useRouterNavigation';
-import ProjectPicker from './ProjectPicker.vue';
+import { useToast } from '@composables/ui/useToast';
+import { updateTooltipText } from '@composables/overlay/useOverlayActions';
+import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId } from '@composables/project/useProjects';
+import { navigateToProjectEdit } from '@composables/ui/useRouterNavigation';
+import ProjectPicker from '@components/project/ProjectPicker.vue';
 import OverlayEditor from './OverlayEditor.vue';
 import type { OverlayObject, Project } from '@types';
 import { trpc } from '@client'
@@ -396,8 +396,8 @@ async function publishOverlayToServer(filename: string): Promise<boolean> {
     metadata: {
       phase: props.overlayObject.phase,
       sequenceNumber: props.overlayObject.sequenceNumber,
-      history: props.overlayObject.history,
-      imageResolutions: props.overlayObject.imageResolutions
+      history: props.overlayObject.history
+      // AI : Exclude imageResolutions as they contain image data that shouldn't be stored in database
     },
     corners: props.overlayObject.corners
   });

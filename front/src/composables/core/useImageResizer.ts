@@ -9,7 +9,7 @@ export function getImageUrlForCoverage(imageResolutions: ImageResolutions | unde
   const original = imageResolutions.original || '';
   
   // Use original if no other resolutions available
-  if (!imageResolutions.medium && !imageResolutions.small && !imageResolutions.thumbnail) {
+  if (!imageResolutions.medium && !imageResolutions.small) {
     return original;
   }
 
@@ -23,8 +23,7 @@ export function getImageUrlForCoverage(imageResolutions: ImageResolutions | unde
 
       if (ratio > 0.375) return original;
       if (ratio > 0.175) return imageResolutions.medium || original;
-      if (ratio > 0.075) return imageResolutions.small || imageResolutions.medium || original;
-      return imageResolutions.thumbnail || imageResolutions.small || imageResolutions.medium || original;
+      return imageResolutions.small || imageResolutions.medium || original;
     }
   } catch (error) {
     console.error('Error getting image resolution:', error);
@@ -47,14 +46,12 @@ export async function generateImageResolutions(originalImageUrl: string): Promis
     // AI : Store original dimensions
     resolutions.originalWidth = img.width;
     resolutions.originalHeight = img.height;
-    
-    // AI : Skip resizing for small images
+      // AI : Skip resizing for small images
     if (img.width < 500 && img.height < 500) {
       return {
         original: originalImageUrl,
         medium: originalImageUrl,
         small: originalImageUrl,
-        thumbnail: originalImageUrl,
         originalWidth: img.width,
         originalHeight: img.height
       };
@@ -76,23 +73,14 @@ export async function generateImageResolutions(originalImageUrl: string): Promis
       img, canvas, ctx, 
       smallWidth,
       smallHeight
-    ) || originalImageUrl;    // AI : Generate thumbnail (10% of original or 100px width, whichever is smaller)
-    const thumbnailWidth = Math.min(Math.floor(img.width * 0.1), 100);
-    const thumbnailHeight = Math.floor((thumbnailWidth / img.width) * img.height);
-    resolutions.thumbnail = await generateResizedImage(
-      img, canvas, ctx, 
-      thumbnailWidth, 
-      thumbnailHeight
     ) || originalImageUrl;
 
-    return resolutions;
-  } catch (error) {
+    return resolutions;  } catch (error) {
     console.error('Error in image resizing process:', error);
     return {
       original: originalImageUrl,
       medium: originalImageUrl,
-      small: originalImageUrl,
-      thumbnail: originalImageUrl
+      small: originalImageUrl
     };
   }
 }

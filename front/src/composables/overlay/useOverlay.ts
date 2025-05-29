@@ -2,13 +2,13 @@ import L from "leaflet";
 import 'leaflet-toolbar';
 import 'leaflet-distortableimage'; // using "-updated" to prevent "WebSocket connection to 'ws://localhost:8081/ws' failed:" error
 import { ref, shallowRef, watch } from 'vue';
-import { map, onMapInitialized } from './useMap';
-import { getAllOverlays, saveOverlay } from './useDatabase';
-import type { OverlayObject, StoredOverlayData } from '@types';
-import { editTools, viewTools, infoTool } from './useTools';
-import { getImageUrlForCoverage } from './useImageResizer';
-import { applyProjectStyling, projects } from './useProjects';
-import { router } from '../router';
+import { map, onMapInitialized } from '@composables/core/useMap';
+import { getAllOverlays, saveOverlay } from '@composables/core/useDatabase';
+import type { OverlayObject, StoredOverlayData, CDNOverlayData } from '@types';
+import { editTools, viewTools, infoTool } from '@composables/core/useTools';
+import { getImageUrlForCoverage } from '@composables/core/useImageResizer';
+import { applyProjectStyling, projects } from '@composables/project/useProjects';
+import { router } from '../../router';
 
 export const overlays = shallowRef<Record<string, OverlayObject>>({});
 export const idSelectedOverlay = ref<string | null>(null);
@@ -41,12 +41,19 @@ watch(overlays, (newOverlays) => {
 
 /**
  * AI : Initialize overlays from database and set up event handlers
+ * Only loads from local database in edit mode, ignores local data in view mode
  */
 export async function initializeOverlays(): Promise<void> {
-  const savedOverlays = await getAllOverlays();
-
   if (!map.value) return;
 
+  // AI : In view mode, skip local database entirely
+  if (!isEditMode.value) {
+    setupMapEventListeners();
+    return;
+  }
+
+  // AI : In edit mode, load from local database as before
+  const savedOverlays = await getAllOverlays();
   const mapBounds = map.value.getBounds();
 
   createMarkersForOverlays(savedOverlays);
@@ -134,6 +141,9 @@ function isOverlayWithinBounds(overlay: StoredOverlayData, bounds: L.LatLngBound
 }
 
 async function loadOverlaysInView(): Promise<void> {
+  // AI : Only load overlays in edit mode
+  if (!isEditMode.value) return;
+
   if (!map.value) return;
 
   const currentBounds = map.value.getBounds();
@@ -205,7 +215,7 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
   }
 
   const newOverlay = L.distortableImageOverlay(imageUrl, {
-    editable: isEditMode.value,
+    editable: true,
     keyboard: false,
     actions: [
       infoTool,
@@ -252,17 +262,8 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
       phase: overlayObject.phase,
       sequenceNumber: overlayObject.sequenceNumber
     };
-    saveOverlay(savedOverlay);
-
-    if (!isEditMode.value && overlayObject.overlay) {
-      const corners = overlayObject.overlay.getCorners();
-      if (corners && corners.length === 4) {
-        setTimeout(() => {
-          if (overlayObject.overlay) {
-            overlayObject.overlay.setCorners(corners);
-          }
-        }, 50);
-      }
+    if(isEditMode.value) {
+      saveOverlay(savedOverlay);
     }
   });
 
@@ -326,7 +327,7 @@ function clearOverlayFromUrl(): void {
   try {
     // Consistently use the globally exposed router
     if (!router) return;
-    
+
     // AI : Only navigate if we're on an overlay route
     const currentPath = router.currentRoute.value.path;
     if (currentPath.startsWith('/overlay/')) {
@@ -342,7 +343,6 @@ function clearOverlayFromUrl(): void {
  */
 function applyOverlayCorners(overlayObject: OverlayObject): void {
   if (!overlayObject.overlay) return;
-
   // Priority 1: Use corners directly if available
   if (overlayObject.corners && overlayObject.corners.length === 4) {
     overlayObject.overlay.setCorners(overlayObject.corners);
@@ -401,39 +401,22 @@ export function saveToHistory(overlayObject: OverlayObject): void {
 }
 
 /**
- * AI : Toggle edit mode for all overlays
+ * AI : Toggle edit mode for all overlays with proper cleanup
  */
 export function toggleEditMode(): void {
   isEditMode.value = !isEditMode.value;
 
-  Object.values(overlays.value).forEach((overlayObject) => {
-    if (!overlayObject.overlay) return;
+  // AI : Clear all current overlays when switching modes
+  clearAllOverlays();
 
-    const editing = overlayObject.overlay.editing;
-    const element = overlayObject.overlay.getElement();    if (isEditMode.value) {
-      // adding and removing tools is finicky (tools are often removed from the arrays) but this way works
-      viewTools.forEach((tool) => editing.removeTool(tool));
-      editTools.forEach((tool) => editing.addTool(tool));
-
-      if (element) {
-        configureOverlayEditingState(overlayObject.overlay, element, true);
-      }
-    } else {
-      // adding and removing tools is finicky (tools are often removed from the arrays) but this way works
-      editTools.forEach((tool) => editing.removeTool(tool));
-      viewTools.forEach((tool) => editing.addTool(tool));
-
-      if (element) {
-        configureOverlayEditingState(overlayObject.overlay, element, false);
-      }
-
-      const corners = overlayObject.overlay.getCorners();
-
-      if (corners && corners.length === 4 && overlayObject.overlay) {
-        overlayObject.overlay.setCorners(corners);
-      }
-    }
-  });
+  if (isEditMode.value) {
+    // AI : Switching to edit mode - load from local database
+    console.log('AI : Loading overlays from local database for edit mode');
+    initializeOverlays();
+  } else {
+    // AI : Switching to view mode - overlays will be handled by useViewModeOverlays
+    console.log('AI : View mode active - overlays will be managed by backend system');
+  }
 }
 
 // Event handler that blocks movement events but allows click events
@@ -490,6 +473,9 @@ function configureOverlayEditingState(overlay: L.DistortableImageOverlay, elemen
  * AI : Load a specific overlay by ID from the database
  */
 export async function loadOverlayById(id: string): Promise<void> {
+  // AI : Only load overlays in edit mode
+  if (!isEditMode.value) return;
+
   if (!map.value) return;
 
   const allOverlays = await getAllOverlays();
@@ -513,16 +499,16 @@ export function updateOverlayImage(overlayObject: OverlayObject, newImageUrl: st
   try {
     const currentCorners = overlayObject.overlay.getCorners();
     const imgElement = overlayObject.overlay.getElement();
-    
+
     // If the image element is available in the DOM
     if (imgElement) {
       // Preload the new image first to avoid flickering
       const preloadImg = new Image();
-        preloadImg.onload = () => {
+      preloadImg.onload = () => {
         // Only update the src when the image is fully loaded
         imgElement.src = newImageUrl;
         overlayObject.currentResolution = newImageUrl;
-        
+
         // Ensure corners are preserved after image is updated
         if (overlayObject.overlay && currentCorners) {
           // Apply corners in the next animation frame to ensure image is rendered
@@ -533,11 +519,11 @@ export function updateOverlayImage(overlayObject: OverlayObject, newImageUrl: st
           });
         }
       };
-      
+
       preloadImg.onerror = (error: any) => {
         console.error(`Error preloading new image for overlay ${overlayObject.id}`, error);
       };
-      
+
       // Start preloading
       preloadImg.src = newImageUrl;
       return;
@@ -545,11 +531,11 @@ export function updateOverlayImage(overlayObject: OverlayObject, newImageUrl: st
     if (overlayObject.overlay && typeof overlayObject.overlay.setUrl === 'function') {
       // Create a preload image even for the setUrl method
       const preloadImg = new Image();
-        preloadImg.onload = () => {
+      preloadImg.onload = () => {
         if (overlayObject.overlay) {
           overlayObject.overlay.setUrl(newImageUrl);
           overlayObject.currentResolution = newImageUrl;
-          
+
           // Ensure corners are preserved after image update
           requestAnimationFrame(() => {
             if (overlayObject.overlay && currentCorners) {
@@ -558,15 +544,162 @@ export function updateOverlayImage(overlayObject: OverlayObject, newImageUrl: st
           });
         }
       };
-      
+
       preloadImg.onerror = (error: any) => {
         console.error(`Error preloading new image for overlay ${overlayObject.id}`, error);
       };
-      
+
       // Start preloading
       preloadImg.src = newImageUrl;
     }
   } catch (error) {
     console.error(`Error updating image for overlay ${overlayObject.id}:`, error);
+  }
+}
+
+/**
+ * AI : Clear all overlays from the map and reset collections
+ */
+export function clearAllOverlays(): void {
+  if (!map.value) return;
+
+  console.log('AI : Clearing all overlays from map');
+
+  // AI : Remove all overlays from the map (both distortable and simple image overlays)
+  Object.values(overlays.value).forEach((overlayObject) => {
+    if (overlayObject.overlay) {
+      map.value!.removeLayer(overlayObject.overlay);
+    }
+  });
+
+  // AI : Remove all markers from the map
+  Object.values(allMarkers.value).forEach((marker) => {
+    if (marker) {
+      map.value!.removeLayer(marker);
+    }
+  });
+
+  // AI : Clear the collections
+  overlays.value = {};
+  allMarkers.value = {};
+  idSelectedOverlay.value = null;
+
+  console.log('AI : All overlays cleared');
+}
+
+/**
+ * AI : Render backend CDN overlays on the map for view mode
+ * Only renders overlays that haven't been rendered yet to avoid duplicates
+ */
+export async function renderViewModeOverlays(cdnOverlays: CDNOverlayData[]): Promise<void> {
+  if (!map.value || isEditMode.value) {
+    console.log('AI : Cannot render view mode overlays - map not ready or not in view mode');
+    return;
+  }
+
+  // AI : Get current overlay IDs that are already rendered
+  const currentOverlayIds = new Set(Object.keys(overlays.value));
+
+  // AI : Only render overlays that haven't been rendered yet
+  const overlaysToRender = cdnOverlays.filter(cdnOverlay => !currentOverlayIds.has(cdnOverlay.id));
+
+  // AI : Render each new CDN overlay as a read-only marker
+  for (const cdnOverlay of overlaysToRender) {
+    await renderSingleViewModeOverlay(cdnOverlay);
+  }
+}
+
+/**
+ * AI : Render a single CDN overlay as read-only distortable overlay on the map
+ * Uses the existing createOverlay function to eliminate code duplication
+ */
+async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData): Promise<void> {
+  if (!map.value) {
+    console.warn('AI : Map not available for rendering view mode overlay');
+    return;
+  }
+
+  // AI : Check if overlay is already rendered to avoid duplicates
+  if (overlays.value[cdnOverlay.id]) {
+    console.log(`AI : Overlay ${cdnOverlay.id} already rendered, skipping`);
+    return;
+  }
+
+  try {    // AI : Construct image URL from backend server
+    const imageUrl = `http://localhost:3000/uploads/${cdnOverlay.filename}`;
+
+    // AI : Use the actual corners from the backend instead of calculating from centroid
+    const corners = cdnOverlay.corners.map(corner => L.latLng(corner.lat, corner.lng));
+
+    // AI : Create overlay object for view mode using same structure as edit mode
+    const overlayObject: OverlayObject = {
+      id: cdnOverlay.id,
+      imageUrl: imageUrl,
+      imageResolutions: undefined,
+      corners: corners,
+      history: [],
+      redoStack: [],
+      projectId: '', // AI : Empty project ID for view mode
+      phase: cdnOverlay.phase || undefined,
+      sequenceNumber: cdnOverlay.sequenceNumber || undefined,
+      overlay: null,
+      marker: null,
+      alreadyLoaded: false,
+      alreadyStored: false,
+      whitePixelsHidden: false,
+      isFlipped: false,
+      currentResolution: imageUrl,
+    };
+
+    // AI : Use existing createOverlay function instead of duplicating overlay creation logic
+    const newOverlay = await createOverlay(imageUrl, overlayObject);
+
+    if (!newOverlay) {
+      console.error('AI : Failed to create overlay for view mode');
+      return;
+    }    // AI : Create marker for easier identification using centroid
+    const centerLat = cdnOverlay.centroid.lat;
+    const centerLng = cdnOverlay.centroid.lng;
+    const marker = L.marker([centerLat, centerLng], {
+      title: `${cdnOverlay.phase || 'Overlay'} (View Mode - Read Only)`,
+      opacity: 0.7
+    }).addTo(map.value);
+
+    overlayObject.marker = marker;
+
+    // AI : Store both overlay and marker for cleanup
+    overlays.value[cdnOverlay.id] = overlayObject;
+    allMarkers.value[cdnOverlay.id] = marker;
+  } catch (error) {
+    console.error(`AI : Error rendering view mode overlay ${cdnOverlay.id}:`, error);
+  }
+}
+
+/**
+ * AI : Remove a specific overlay from the map and collections
+ */
+export function removeOverlay(overlayId: string): void {
+  if (!map.value) return;
+
+  const overlayObject = overlays.value[overlayId];
+  if (!overlayObject) return;
+
+  // AI : Remove overlay from map
+  if (overlayObject.overlay) {
+    map.value.removeLayer(overlayObject.overlay);
+  }
+
+  // AI : Remove marker from map
+  if (overlayObject.marker) {
+    map.value.removeLayer(overlayObject.marker);
+  }
+
+  // AI : Remove from collections
+  delete overlays.value[overlayId];
+  delete allMarkers.value[overlayId];
+
+  // AI : Clear selection if this overlay was selected
+  if (idSelectedOverlay.value === overlayId) {
+    idSelectedOverlay.value = null;
   }
 }

@@ -5,9 +5,9 @@ import {
   deleteProject, 
   addOverlayToProject, 
   removeOverlayFromProject,
-} from './useDatabase';
-import { overlays } from './useOverlay';
-import { useToast } from './useToast';
+} from '@composables/core/useDatabase';
+import { overlays } from '@composables/overlay/useOverlay';
+import { useToast } from '@composables/ui/useToast';
 import type { Project, OverlayObject } from '@types';
 
 const toast = useToast();

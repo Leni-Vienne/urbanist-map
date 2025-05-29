@@ -1,15 +1,21 @@
 import L from "leaflet";
-import { map, onMapInitialized } from './useMap';
-import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, updateOverlayImage } from './useOverlay';
-import { saveOverlay, deleteOverlay as deleteOverlayFromDatabase, saveProject } from './useDatabase';
-import { generateImageResolutions, getImageUrlForCoverage } from './useImageResizer';
-import { useToast } from './useToast';
-import { projects, applyProjectStyling, addOverlayToProjectWithId } from './useProjects';
+import { map, onMapInitialized } from '@composables/core/useMap';
+import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, updateOverlayImage, isEditMode } from '@composables/overlay/useOverlay';
+import { saveOverlay, deleteOverlay as deleteOverlayFromDatabase, saveProject } from '@composables/core/useDatabase';
+import { generateImageResolutions, getImageUrlForCoverage } from '@composables/core/useImageResizer';
+import { useToast } from '@composables/ui/useToast';
+import { projects, applyProjectStyling, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import type { StoredOverlayData, OverlayObject } from '@types';
 
 const toast = useToast();
 
 export async function addOverlay(imageUrl: string, projectId: string) {
+  // AI : Only allow adding overlays in edit mode
+  if (!isEditMode.value) {
+    console.warn('Cannot add overlay in view mode');
+    return;
+  }
+  
   if (!map.value) return;
   if (!projectId) {
     toast.add({ severity: 'error', summary: 'Project Required', detail: 'A project must be selected to add an overlay', life: 3000 });
@@ -601,10 +607,9 @@ function selectAndCenterOverlay(overlayId: string, index?: number, total?: numbe
         });
       }
     }
-    return true;
-  } else if (overlay.marker && centerMap) {
-    // If overlay is not loaded yet but marker exists
-    map.value!.setView(overlay.marker.getLatLng(), map.value!.getZoom());
+    return true;  } else if (overlay.marker && centerMap && map.value) {
+    // AI : If overlay is not loaded yet but marker exists
+    map.value.setView(overlay.marker.getLatLng(), map.value.getZoom());
     return true;
   }
   

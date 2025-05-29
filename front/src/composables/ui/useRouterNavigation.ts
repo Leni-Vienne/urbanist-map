@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import { router } from '../router';
+import { router } from '../../router';
 
 // AI: State accessible without requiring router injection
 export const initialProjectName = ref<string>('');
