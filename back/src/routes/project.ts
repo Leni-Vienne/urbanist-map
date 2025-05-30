@@ -20,7 +20,7 @@ const publishProjectSchema = z.object({
   }).optional()
 });
 
-export const projectsRouter = router({
+export const projectRouter = router({
   publishProject: publicProcedure
     .input(publishProjectSchema)
     .mutation(async ({ input }) => {

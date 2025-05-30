@@ -43,6 +43,7 @@ export async function addOverlay(imageUrl: string, projectId: string) {
     whitePixelsHidden: false,
     isFlipped: false,
     currentResolution: imageUrl,
+    savedRemotely: false, // AI : New overlays don't exist on server yet
   };
 
   // Create the overlay
@@ -128,7 +129,8 @@ function saveOverlayInitialState(overlay: L.DistortableImageOverlay, overlayObje
     redoStack: overlayObject.redoStack,
     projectId: overlayObject.projectId,
     phase: overlayObject.phase,
-    sequenceNumber: overlayObject.sequenceNumber
+    sequenceNumber: overlayObject.sequenceNumber,
+    savedRemotely: overlayObject.savedRemotely || false // AI : Include server existence tracking
   };
   
   saveOverlay(storedOverlay);
@@ -731,7 +733,8 @@ export function updateOverlayInfo(id: string, info: { phase?: string, sequenceNu
     redoStack: overlayObject.redoStack,
     projectId: overlayObject.projectId,
     phase: overlayObject.phase,
-    sequenceNumber: overlayObject.sequenceNumber
+    sequenceNumber: overlayObject.sequenceNumber,
+    savedRemotely: overlayObject.savedRemotely || false // AI : Include server existence tracking
   };
   
   saveOverlay(savedOverlay);

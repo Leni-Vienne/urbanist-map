@@ -23,34 +23,82 @@ const boundsSchema = z.object({
   west: z.number()
 });
 
-export const imagesRouter = router({
-  publishOverlay: publicProcedure
+export const overlayRouter = router({  publishOverlay: publicProcedure
     .input(publishOverlaySchema)
     .mutation(async ({ input }) => {
       try {
+        // AI : Log received data
+        console.log('=== PUBLISH OVERLAY BACKEND ===');
+        console.log('Received input:', JSON.stringify(input, null, 2));
+        
         // AI : Extract corner coordinates
         const [topLeft, topRight, bottomRight, bottomLeft] = input.corners;
 
         // AI : Calculate centroid (center point)
         const centroidLat = input.corners.reduce((sum, corner) => sum + corner.lat, 0) / 4;
-        const centroidLng = input.corners.reduce((sum, corner) => sum + corner.lng, 0) / 4;        // AI : Insert overlay into database
-        const result = await db.insert(images).values({
-          filename: input.filename,
-          caption: input.caption,
-          projectId: input.projectId,
-          metadata: input.metadata,
-          topLeftLat: topLeft.lat,
-          topLeftLng: topLeft.lng,
-          topRightLat: topRight.lat,
-          topRightLng: topRight.lng,
-          bottomRightLat: bottomRight.lat,
-          bottomRightLng: bottomRight.lng,
-          bottomLeftLat: bottomLeft.lat,
-          bottomLeftLng: bottomLeft.lng,
-          centroid: sql`ST_SetSRID(ST_MakePoint(${centroidLng}, ${centroidLat}), 4326)`
-        }).returning();
+        const centroidLng = input.corners.reduce((sum, corner) => sum + corner.lng, 0) / 4;        // AI : Check if overlay with this filename already exists (UPSERT logic)
+        console.log('Checking for existing overlay with filename:', input.filename);
+        const existingOverlay = await db
+          .select()
+          .from(images)
+          .where(sql`filename = ${input.filename}`)
+          .limit(1);
 
-        return { success: true, id: result[0].id };
+        console.log('Existing overlay found:', existingOverlay.length > 0, existingOverlay);
+
+        if (existingOverlay.length > 0) {
+          // AI : Update existing overlay
+          console.log('Updating existing overlay');
+          const result = await db
+            .update(images)
+            .set({
+              caption: input.caption,
+              projectId: input.projectId,
+              metadata: input.metadata,
+              topLeftLat: topLeft.lat,
+              topLeftLng: topLeft.lng,
+              topRightLat: topRight.lat,
+              topRightLng: topRight.lng,
+              bottomRightLat: bottomRight.lat,
+              bottomRightLng: bottomRight.lng,
+              bottomLeftLat: bottomLeft.lat,
+              bottomLeftLng: bottomLeft.lng,
+              centroid: sql`ST_SetSRID(ST_MakePoint(${centroidLng}, ${centroidLat}), 4326)`,
+              updatedAt: sql`NOW()`
+            })            .where(sql`filename = ${input.filename}`)
+            .returning();
+
+          console.log('Update result:', result);
+          return { 
+            success: true, 
+            id: result[0].id,
+            exists: true // AI : Indicate this overlay was updated
+          };
+        } else {
+          // AI : Insert new overlay
+          console.log('Creating new overlay');
+          const result = await db.insert(images).values({
+            filename: input.filename,
+            caption: input.caption,
+            projectId: input.projectId,
+            metadata: input.metadata,
+            topLeftLat: topLeft.lat,
+            topLeftLng: topLeft.lng,
+            topRightLat: topRight.lat,
+            topRightLng: topRight.lng,
+            bottomRightLat: bottomRight.lat,
+            bottomRightLng: bottomRight.lng,
+            bottomLeftLat: bottomLeft.lat,
+            bottomLeftLng: bottomLeft.lng,            centroid: sql`ST_SetSRID(ST_MakePoint(${centroidLng}, ${centroidLat}), 4326)`
+          }).returning();
+
+          console.log('Insert result:', result);
+          return { 
+            success: true, 
+            id: result[0].id,
+            exists: false // AI : Indicate this is a new overlay
+          };
+        }
       } catch (error) {
         console.error('Error publishing overlay:', error);
         throw new Error('Failed to publish overlay');

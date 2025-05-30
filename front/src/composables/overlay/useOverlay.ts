@@ -9,6 +9,7 @@ import { editTools, viewTools, infoTool } from '@composables/core/useTools';
 import { getImageUrlForCoverage } from '@composables/core/useImageResizer';
 import { applyProjectStyling, projects } from '@composables/project/useProjects';
 import { router } from '../../router';
+import { trpc } from '../../client';
 
 export const overlays = shallowRef<Record<string, OverlayObject>>({});
 export const idSelectedOverlay = ref<string | null>(null);
@@ -31,7 +32,8 @@ watch(overlays, (newOverlays) => {
         redoStack: overlayObj.redoStack,
         projectId: overlayObj.projectId,
         phase: overlayObj.phase,
-        sequenceNumber: overlayObj.sequenceNumber
+        sequenceNumber: overlayObj.sequenceNumber,
+        savedRemotely: overlayObj.savedRemotely || false // AI : Include server existence tracking
       };
 
       saveOverlay(savedOverlay);
@@ -41,7 +43,7 @@ watch(overlays, (newOverlays) => {
 
 /**
  * AI : Initialize overlays from database and set up event handlers
- * Only loads from local database in edit mode, ignores local data in view mode
+ * In edit mode: loads from both local IndexedDB and backend, in view mode: handled by useViewModeOverlays
  */
 export async function initializeOverlays(): Promise<void> {
   if (!map.value) return;
@@ -52,12 +54,19 @@ export async function initializeOverlays(): Promise<void> {
     return;
   }
 
-  // AI : In edit mode, load from local database as before
+  // AI : In edit mode, load from both local database and backend
+  console.log('AI : Edit mode - loading overlays from both local and backend sources');
+  
+  // AI : Load local overlays first
   const savedOverlays = await getAllOverlays();
   const mapBounds = map.value.getBounds();
 
   createMarkersForOverlays(savedOverlays);
   loadOverlaysInMapBounds(savedOverlays, mapBounds);
+  
+  // AI : Also fetch and load backend overlays for edit mode
+  await loadBackendOverlaysForEditMode(mapBounds);
+  
   setupMapEventListeners();
 
   onMapInitialized(() => {
@@ -201,6 +210,7 @@ export function createOverlayObject(savedOverlay: StoredOverlayData): OverlayObj
     whitePixelsHidden: false,
     isFlipped: false, // AI : Initialize as not flipped
     currentResolution: savedOverlay.imageUrl,
+    savedRemotely: savedOverlay.savedRemotely || false, // AI : Default to false if not set
   };
 }
 
@@ -248,9 +258,7 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
     applyOverlayCorners(overlayObject);
     updateMarkerPosition(overlayObject);
     overlayObject.alreadyLoaded = true;
-    overlayObject.alreadyStored = true;
-
-    // AI : Save overlay to database immediately after loading
+    overlayObject.alreadyStored = true;    // AI : Save overlay to database immediately after loading
     const savedOverlay: StoredOverlayData = {
       id: overlayObject.id,
       imageUrl: overlayObject.imageUrl,
@@ -260,7 +268,8 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
       redoStack: overlayObject.redoStack,
       projectId: overlayObject.projectId,
       phase: overlayObject.phase,
-      sequenceNumber: overlayObject.sequenceNumber
+      sequenceNumber: overlayObject.sequenceNumber,
+      savedRemotely: overlayObject.savedRemotely || false // AI : Include server existence tracking
     };
     if(isEditMode.value) {
       saveOverlay(savedOverlay);
@@ -288,13 +297,15 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
   });
 
   overlay.on('edit', () => {
-    saveToHistory(overlayObject);
+    // AI : Handle transition from backend to local copy when edited
+    handleOverlayMovement(overlayObject);
     updateMarkerPosition(overlayObject);
     overlayObject.corners = overlay.getCorners();
   });
 
   overlay.on('dragend', () => {
-    saveToHistory(overlayObject);
+    // AI : Handle transition from backend to local copy when moved
+    handleOverlayMovement(overlayObject);
     updateMarkerPosition(overlayObject);
     overlayObject.corners = overlay.getCorners();
   });
@@ -394,7 +405,8 @@ export function saveToHistory(overlayObject: OverlayObject): void {
     redoStack: overlayObject.redoStack,
     projectId: overlayObject.projectId,
     phase: overlayObject.phase,
-    sequenceNumber: overlayObject.sequenceNumber
+    sequenceNumber: overlayObject.sequenceNumber,
+    savedRemotely: overlayObject.savedRemotely || false // AI : Include server existence tracking
   };
 
   saveOverlay(savedOverlay);
@@ -568,21 +580,35 @@ export function clearAllOverlays(): void {
   // AI : Remove all overlays from the map (both distortable and simple image overlays)
   Object.values(overlays.value).forEach((overlayObject) => {
     if (overlayObject.overlay) {
-      map.value!.removeLayer(overlayObject.overlay);
+      try {
+        map.value!.removeLayer(overlayObject.overlay);
+        console.log(`AI : Removed overlay ${overlayObject.id} from map`);
+      } catch (error) {
+        console.warn(`AI : Error removing overlay ${overlayObject.id}:`, error);
+      }
     }
   });
 
   // AI : Remove all markers from the map
   Object.values(allMarkers.value).forEach((marker) => {
     if (marker) {
-      map.value!.removeLayer(marker);
+      try {
+        map.value!.removeLayer(marker);
+      } catch (error) {
+        console.warn('AI : Error removing marker:', error);
+      }
     }
   });
 
-  // AI : Clear the collections
+  // AI : Clear the collections completely
   overlays.value = {};
   allMarkers.value = {};
   idSelectedOverlay.value = null;
+
+  // AI : Force garbage collection by ensuring all references are cleared
+  setTimeout(() => {
+    console.log('AI : All overlays cleared and memory references cleaned');
+  }, 100);
 
   console.log('AI : All overlays cleared');
 }
@@ -629,9 +655,7 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData): Promise<
     const imageUrl = `http://localhost:3000/uploads/${cdnOverlay.filename}`;
 
     // AI : Use the actual corners from the backend instead of calculating from centroid
-    const corners = cdnOverlay.corners.map(corner => L.latLng(corner.lat, corner.lng));
-
-    // AI : Create overlay object for view mode using same structure as edit mode
+    const corners = cdnOverlay.corners.map(corner => L.latLng(corner.lat, corner.lng));    // AI : Create overlay object for view mode using same structure as edit mode
     const overlayObject: OverlayObject = {
       id: cdnOverlay.id,
       imageUrl: imageUrl,
@@ -649,6 +673,7 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData): Promise<
       whitePixelsHidden: false,
       isFlipped: false,
       currentResolution: imageUrl,
+      savedRemotely: true // AI : CDN overlays exist on server by definition
     };
 
     // AI : Use existing createOverlay function instead of duplicating overlay creation logic
@@ -702,4 +727,172 @@ export function removeOverlay(overlayId: string): void {
   if (idSelectedOverlay.value === overlayId) {
     idSelectedOverlay.value = null;
   }
+}
+
+/**
+ * AI : Load backend overlays for edit mode - creates read-only overlays that become editable when moved
+ * @param mapBounds - Current map bounds to fetch overlays for
+ */
+async function loadBackendOverlaysForEditMode(mapBounds: L.LatLngBounds): Promise<void> {
+  if (!map.value || !isEditMode.value) return;
+
+  try {
+    console.log('AI : Fetching backend overlays for edit mode');
+    
+    // AI : Fetch overlays from backend using the same bounds format as view mode
+    const result = await trpc.overlay.getIntersectingOverlays.query({
+      north: mapBounds.getNorth(),
+      south: mapBounds.getSouth(),
+      east: mapBounds.getEast(),
+      west: mapBounds.getWest()
+    });
+
+    console.log(`AI : Found ${result.overlays.length} backend overlays for edit mode`);
+
+    // AI : For each backend overlay, create an editable overlay if not already loaded locally
+    for (const cdnOverlay of result.overlays) {
+      // AI : Skip if we already have this overlay locally (from IndexedDB)
+      if (overlays.value[cdnOverlay.id]) {
+        console.log(`AI : Overlay ${cdnOverlay.id} already exists locally, checking for inconsistencies`);
+        
+        // AI : Check if local overlay has backend flag set correctly
+        const localOverlay = overlays.value[cdnOverlay.id];
+        if (!localOverlay.savedRemotely && localOverlay.alreadyStored) {
+          // AI : This is a local copy, but we also have it on backend - no action needed
+          console.log(`AI : Overlay ${cdnOverlay.id} is a local copy with backend version available`);
+        } else if (!localOverlay.savedRemotely && !localOverlay.alreadyStored) {
+          // AI : This shouldn't happen - local overlay without proper flags
+          console.warn(`AI : Overlay ${cdnOverlay.id} has inconsistent state, fixing...`);
+          localOverlay.savedRemotely = true;
+          localOverlay.alreadyStored = false;
+        }
+        continue;
+      }
+
+      await renderBackendOverlayForEditMode(cdnOverlay);
+    }
+  } catch (error) {
+    console.error('AI : Error loading backend overlays for edit mode:', error);
+  }
+}
+
+/**
+ * AI : Render a single backend overlay as editable in edit mode
+ * These overlays can be moved/edited and will automatically be saved to local IndexedDB
+ */
+async function renderBackendOverlayForEditMode(cdnOverlay: CDNOverlayData): Promise<void> {
+  if (!map.value) return;
+
+  try {
+    // AI : Construct image URL from backend server
+    const imageUrl = `http://localhost:3000/uploads/${cdnOverlay.filename}`;
+
+    // AI : Use the actual corners from the backend
+    const corners = cdnOverlay.corners.map(corner => L.latLng(corner.lat, corner.lng));
+
+    // AI : Create overlay object that tracks it's from backend
+    const overlayObject: OverlayObject = {
+      id: cdnOverlay.id,
+      imageUrl: imageUrl,
+      imageResolutions: undefined,
+      corners: corners,
+      history: [],
+      redoStack: [],
+      projectId: '', // AI : Empty project ID for backend overlays
+      phase: cdnOverlay.phase || undefined,
+      sequenceNumber: cdnOverlay.sequenceNumber || undefined,
+      overlay: null,
+      marker: null,
+      alreadyLoaded: false,
+      alreadyStored: false,
+      whitePixelsHidden: false,
+      isFlipped: false,
+      currentResolution: imageUrl,
+      savedRemotely: true // AI : Backend overlays exist on server by definition
+    };
+
+    // AI : Create the overlay using existing function
+    const newOverlay = await createOverlay(imageUrl, overlayObject);
+
+    if (!newOverlay) {
+      console.error('AI : Failed to create backend overlay for edit mode');
+      return;
+    }
+
+    // AI : Apply visual styling to distinguish backend overlays
+    const element = newOverlay.getElement();
+    if (element) {
+      element.style.border = '2px solid #007bff'; // Blue border for backend overlays
+      element.style.opacity = '0.85'; // Slightly transparent to show it's from backend
+    }
+
+    // AI : Create marker for easier identification using centroid
+    const centerLat = cdnOverlay.centroid.lat;
+    const centerLng = cdnOverlay.centroid.lng;
+    const marker = L.marker([centerLat, centerLng], {
+      title: `${cdnOverlay.phase || 'Backend Overlay'} (From Server)`,
+      opacity: 0.8
+    }).addTo(map.value);
+
+    overlayObject.marker = marker;
+
+    // AI : Store both overlay and marker
+    overlays.value[cdnOverlay.id] = overlayObject;
+    allMarkers.value[cdnOverlay.id] = marker;
+
+    console.log(`AI : Backend overlay ${cdnOverlay.id} loaded for edit mode with visual distinction`);
+  } catch (error) {
+    console.error(`AI : Error rendering backend overlay ${cdnOverlay.id} for edit mode:`, error);
+  }
+}
+
+/**
+ * AI : Handle overlay movement by converting backend overlays to local copies when moved
+ * @param overlayObject - The overlay object that was moved
+ */
+function handleOverlayMovement(overlayObject: OverlayObject): void {
+  // AI : If this is a backend overlay (savedRemotely is true and no local storage yet)
+  if (overlayObject.savedRemotely && !overlayObject.alreadyStored) {
+    console.log(`AI : Converting backend overlay ${overlayObject.id} to local copy due to movement`);
+    
+    // AI : Mark as no longer existing only on backend (now has local changes)
+    overlayObject.savedRemotely = false;
+    overlayObject.alreadyStored = true;
+    
+    // AI : Update marker title to indicate it's now a local copy
+    if (overlayObject.marker) {
+      const newTitle = `${overlayObject.phase || 'Overlay'} (Local Copy - Modified)`;
+      overlayObject.marker.setTooltipContent(newTitle);
+      overlayObject.marker.bindTooltip(newTitle, { permanent: false });
+    }
+    
+    // AI : Force a visual refresh to ensure the overlay appears correctly as a local copy
+    if (overlayObject.overlay && map.value) {
+      // AI : Get current position and state
+      const currentCorners = overlayObject.overlay.getCorners();
+      const element = overlayObject.overlay.getElement();
+      
+      if (element && currentCorners) {
+        // AI : Update the overlay's corners to trigger a refresh
+        overlayObject.corners = currentCorners;
+        
+        // AI : Update the overlay's visual properties to reflect local copy status
+        element.style.border = '2px solid #28a745'; // Green border for local copy
+        element.style.opacity = '1.0'; // Full opacity for local copy
+        
+        // AI : Apply a brief visual indicator that the conversion happened
+        element.style.boxShadow = '0 0 10px rgba(40, 167, 69, 0.5)';
+        setTimeout(() => {
+          if (element) {
+            element.style.boxShadow = '';
+          }
+        }, 1000);
+      }
+    }
+    
+    console.log(`AI : Backend overlay ${overlayObject.id} converted to local copy with visual refresh`);
+  }
+  
+  // AI : Always save to history and database when moved
+  saveToHistory(overlayObject);
 }

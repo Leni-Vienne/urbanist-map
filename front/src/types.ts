@@ -98,6 +98,7 @@ export interface StoredOverlayData {
   projectId: string; // AI : Required reference to project (no longer optional)
   phase?: string; // AI : Optional phase information (e.g., "planning", "foundation", etc.)
   sequenceNumber?: number; // AI : Optional sequence number for chronological ordering
+  savedRemotely?: boolean; // AI : Track if overlay exists on server database
 }
 
 // AI : CDN overlay data returned by tRPC for view mode
@@ -134,6 +135,7 @@ export interface OverlayObject extends StoredOverlayData {
   whitePixelsHidden: boolean;
   isFlipped: boolean; // AI : Track if the image has been flipped after ratio reset
   currentResolution?: string;
+  savedRemotely?: boolean; // AI : Track if overlay exists on server database
 }
 
 // AI : Map position data structure

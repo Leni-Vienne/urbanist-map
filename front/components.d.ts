@@ -8,7 +8,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    AddOverlayDialog: typeof import('./src/components/AddOverlayDialog.vue')['default']
+    AddOverlayDialog: typeof import('./src/components/dialogs/AddOverlayDialog.vue')['default']
     AppLayout: typeof import('./src/components/layout/AppLayout.vue')['default']
     Button: typeof import('primevue/button')['default']
     Column: typeof import('primevue/column')['default']

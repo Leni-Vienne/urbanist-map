@@ -1,5 +1,5 @@
 import { ref, onUnmounted } from 'vue';
-import { onCameraStop } from '@composables/map/useCameraBounds';
+import { onCameraStop, getCameraBounds } from '@composables/map/useCameraBounds';
 import { renderViewModeOverlays, clearAllOverlays } from '@composables/overlay/useOverlay';
 import { trpc } from '../../client';
 import type { CDNOverlayData, CameraBounds } from '@types';
@@ -20,7 +20,7 @@ export function useViewModeOverlays() {
     error.value = null;
     
     try {
-      const result = await trpc.images.getIntersectingOverlays.query({
+      const result = await trpc.overlay.getIntersectingOverlays.query({
         north: bounds.north,
         south: bounds.south,
         east: bounds.east,
@@ -38,12 +38,18 @@ export function useViewModeOverlays() {
     } finally {
       loading.value = false;
     }
-  }
-  // AI : Initialize camera tracking
+  }  // AI : Initialize camera tracking
   function startCameraTracking() {
     console.log('startCameraTracking called');
     unsubscribeFromCamera = onCameraStop(fetchIntersectingOverlays);
     console.log('Camera tracking started successfully');
+    
+    // AI : Fetch overlays for current camera position immediately
+    const currentBounds = getCameraBounds();
+    if (currentBounds.value) {
+      console.log('AI : Fetching overlays for current camera position on view mode switch');
+      fetchIntersectingOverlays(currentBounds.value);
+    }
   }
   // AI : Stop camera tracking
   function stopCameraTracking() {
