@@ -116,7 +116,7 @@ import { useToast } from '@composables/ui/useToast';
 import { updateTooltipText } from '@composables/overlay/useOverlayActions';
 import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId } from '@composables/project/useProjects';
 import { navigateToProjectEdit } from '@composables/ui/useRouterNavigation';
-import { deleteOverlay } from '@composables/core/useDatabase';
+import { deleteOverlay, deleteProject } from '@composables/core/useDatabase';
 import ProjectPicker from '@components/project/ProjectPicker.vue';
 import OverlayEditor from './OverlayEditor.vue';
 import type { OverlayObject, Project } from '@types';
@@ -214,9 +214,7 @@ async function applyProjectChange(projectId: string) {
     editingProject.value = false;
 
     // AI : Update the tooltip text
-    updateTooltipText();
-  } catch (error) {
-    console.error('Error changing project:', error);
+    updateTooltipText();  } catch (error) {
     toast.add({
       severity: 'error',
       summary: 'Error',
@@ -323,40 +321,80 @@ function validateOverlayForPublishing(): boolean {
   return true;
 }
 
-// AI : Ensure project exists on server
+// AI : Ensure project exists on server and handle project publishing
 async function ensureProjectOnServer(): Promise<boolean> {
-  if (!project.value) return false;
+  if (!project.value) {
+    return false;
+  }
   
-  const projectResult = await trpc.project.publishProject.mutate({
-    id: project.value.id,
-    title: project.value.name,
-    description: project.value.description,
-    metadata: {
-      location: project.value.location,
-      startDate: project.value.startDate?.toISOString(),
-      endDate: project.value.endDate?.toISOString(),
-      sourceUrl: project.value.sourceUrl,
-      overlayIds: project.value.overlayIds,
-      color: project.value.color,
-      createdAt: project.value.createdAt,
-      updatedAt: project.value.updatedAt
+  try {
+    const projectResult = await trpc.project.publishProject.mutate({
+      id: project.value.id,
+      title: project.value.name,
+      description: project.value.description,
+      metadata: {
+        location: project.value.location,
+        startDate: project.value.startDate?.toISOString(),
+        endDate: project.value.endDate?.toISOString(),
+        sourceUrl: project.value.sourceUrl,
+        overlayIds: project.value.overlayIds,
+        color: project.value.color,
+        createdAt: project.value.createdAt,
+        updatedAt: project.value.updatedAt
+      }
+    });    if (!projectResult.success) {
+      throw new Error('Failed to publish project to server');
     }
-  });
+    
+    // AI : Handle project ID update and IndexedDB cleanup if this is a new project
+    if (projectResult.success && projectResult.id) {
+      const oldProjectId = project.value.id;
+      
+      // AI : If this is a new project (not existing), update the project ID
+      if (!projectResult.exists && projectResult.id !== oldProjectId) {
+        // AI : Update the project ID with the one from the backend
+        project.value.id = projectResult.id;
+        
+        // AI : Update project ID in the projects store
+        const updatedProjects = { ...projects.value };
+        delete updatedProjects[oldProjectId];
+        updatedProjects[projectResult.id] = project.value;
+        projects.value = updatedProjects;
+        
+        // AI : Update current project ID references
+        currentProjectId.value = projectResult.id;
+        
+        // AI : Update overlay's project reference
+        props.overlayObject.projectId = projectResult.id;
+        
+        // AI : Delete the old project from IndexedDB using the old ID
+        await deleteProject(oldProjectId);
+      }
+    }
 
-  if (!projectResult.success) {
-    throw new Error('Failed to publish project to server');
-  }
-
-  if (!projectResult.exists) {
+    // AI : Mark project as saved remotely
+    project.value.savedRemotely = true;
+    
+    // AI : Show appropriate message
+    const actionText = projectResult.exists ? 'updated on' : 'saved to';
+    if (!projectResult.exists) {
+      toast.add({
+        severity: 'info',
+        summary: 'Project Published',
+        detail: `Project has been ${actionText} the server database`,
+        life: 2000
+      });
+    }
+      return true;
+  } catch (error) {
     toast.add({
-      severity: 'info',
-      summary: 'Project Published',
-      detail: 'Project saved to server database',
-      life: 2000
+      severity: 'error',
+      summary: 'Project Publish Failed',
+      detail: `Failed to publish project "${project.value.name}" to server: ${error instanceof Error ? error.message : String(error)}`,
+      life: 5000
     });
+    throw error;
   }
-  
-  return true;
 }
 
 // AI : Prepare image for server (upload or extract filename)
@@ -389,8 +427,6 @@ async function prepareImageForServer(): Promise<string> {
 
 // AI : Publish overlay metadata to server
 async function publishOverlayToServer(filename: string): Promise<{ success: boolean; exists: boolean; id?: string }> {
-  // AI : Log what we're sending to backend
-  console.log('=== PUBLISH OVERLAY FRONTEND ===');
   const payload = {
     id: props.overlayObject.id,
     filename: filename,
@@ -405,11 +441,7 @@ async function publishOverlayToServer(filename: string): Promise<{ success: bool
     corners: props.overlayObject.corners
   };
   
-  console.log('Sending to backend:', JSON.stringify(payload, null, 2));
-  
   const overlayResult = await trpc.overlay.publishOverlay.mutate(payload);
-  
-  console.log('Received from backend:', overlayResult);
 
   if (overlayResult.success) {
     // AI : Update local overlay state to track server existence
@@ -437,15 +469,17 @@ async function publishOverlay() {
   isPublishing.value = true;
   
   try {
+    // AI : Step 1 - Ensure project exists on server first
     await ensureProjectOnServer();
+    
+    // AI : Step 2 - Prepare and upload image if needed
     const filename = await prepareImageForServer();
+    
+    // AI : Step 3 - Publish overlay metadata
     const publishResult = await publishOverlayToServer(filename);
-      // AI : If publishing was successful, update overlay ID and delete from local IndexedDB
+    
+    // AI : If publishing was successful, update overlay ID and delete from local IndexedDB
     if (publishResult.success && publishResult.id) {
-      console.log('Publishing successful, updating overlay ID and deleting from IndexedDB');
-      console.log('Old overlay ID:', props.overlayObject.id);
-      console.log('New overlay ID from backend:', publishResult.id);
-      
       // AI : Store the old ID for IndexedDB deletion
       const oldId = props.overlayObject.id;
       
@@ -454,17 +488,7 @@ async function publishOverlay() {
       
       // AI : Delete the old overlay from IndexedDB using the old ID
       await deleteOverlay(oldId);
-      console.log(`AI : Overlay ${oldId} removed from local database after successful publishing`);
-      
-      // AI : Show additional info for UPSERT operations
-      if (publishResult.exists) {
-        console.log(`AI : Overlay was updated on server (new ID: ${publishResult.id})`);
-      } else {
-        console.log(`AI : Overlay was newly created on server (ID: ${publishResult.id})`);
-      }
-    }
-  } catch (error) {
-    console.error('Error publishing overlay:', error);
+    }  } catch (error) {
     toast.add({
       severity: 'error',
       summary: 'Publish Failed',

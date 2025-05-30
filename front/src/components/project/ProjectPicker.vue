@@ -9,8 +9,11 @@
         class="p-button-primary"
         @click="openNewProjectDialog"
       />
-    </div>    <div
-      v-else-if="!hideSelector && projectList.length > 0 && isPrimeVueReady"
+    </div>
+
+    <!-- AI : Project selector when projects exist -->
+    <div
+      v-else-if="!hideSelector && projectList.length > 0"
       class="mb-4"
     >
       <div class="flex gap-2">
@@ -38,7 +41,9 @@
                 <div>&nbsp;&nbsp;{{ getProjectById(value)?.name }}</div>
               </div>
               <span v-else>{{ placeholder }}</span>
-            </template> <template #option="{ option }">
+            </template>
+
+            <template #option="{ option }">
               <div class="flex items-center">
                 <div
                   class="color-circle mr-2"
@@ -74,49 +79,21 @@
             @click="confirmSelection"
             :disabled="!selectedProjectId"
             v-tooltip.top="'Confirm selection'"
-          />        </slot>
+          />
+        </slot>
       </div>
-    </div>
-    
-    <!-- AI : Loading state when PrimeVue is not ready -->
-    <div
-      v-else-if="!hideSelector && projectList.length > 0 && !isPrimeVueReady"
-      class="mb-4 p-2 text-center"
-    >
-      <i class="pi pi-spin pi-spinner"></i>
-      <span class="ml-2 text-sm text-gray-600">Loading...</span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, getCurrentInstance, nextTick } from 'vue';
+import { ref, computed, watch } from 'vue';
 
 import { projects } from '@composables/project/useProjects';
 import { useToast } from '@composables/ui/useToast';
 import { lastCreatedProjectId } from '@composables/ui/useRouterNavigation';
 import { useProjectManagerDialog } from '@composables/project/useProjectManagerDialog';
 import type { Project } from '@types';
-
-// AI : Add isPrimeVueReady ref to track PrimeVue initialization
-const isPrimeVueReady = ref(false);
-
-// AI : Check if PrimeVue is initialized on component mount
-onMounted(async () => {
-  // AI : Wait for next tick and check if PrimeVue is available
-  await nextTick();
-  const instance = getCurrentInstance();
-  
-  // AI : Check multiple ways PrimeVue might be available
-  if (instance?.appContext.config.globalProperties.$primevue || window.$primevue) {
-    isPrimeVueReady.value = true;
-  } else {
-    // AI : Fallback with setTimeout if PrimeVue isn't immediately available
-    setTimeout(() => {
-      isPrimeVueReady.value = true;
-    }, 100);
-  }
-});
 
 const props = defineProps({
   modelValue: {
@@ -145,6 +122,7 @@ const emit = defineEmits(['update:modelValue', 'project-selected', 'project-crea
 
 const loading = ref(false);
 const selectedProjectId = ref(props.modelValue);
+const hasSelectError = ref(false);
 
 // AI : Watch for changes in the lastCreatedProjectId to auto-select newly created projects
 watch(() => lastCreatedProjectId.value, (newProjectId) => {

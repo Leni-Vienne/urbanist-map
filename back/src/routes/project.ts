@@ -25,6 +25,10 @@ export const projectRouter = router({
     .input(publishProjectSchema)
     .mutation(async ({ input }) => {
       try {
+        // AI : Log received data
+        console.log('=== PUBLISH PROJECT BACKEND ===');
+        console.log('Received input:', JSON.stringify(input, null, 2));
+
         // AI: Check if project already exists
         const existingProject = await db.select()
           .from(projects)
@@ -32,7 +36,20 @@ export const projectRouter = router({
           .limit(1);
 
         if (existingProject.length > 0) {
-          return { success: true, id: input.id, exists: true };
+          // AI : Update existing project
+          const updateResult = await db
+            .update(projects)
+            .set({
+              title: input.title,
+              description: input.description,
+              metadata: input.metadata,
+              updatedAt: new Date()
+            })
+            .where(eq(projects.id, input.id))
+            .returning();
+
+          console.log('Updated existing project:', updateResult[0]);
+          return { success: true, id: updateResult[0].id, exists: true };
         }
 
         // AI: Insert new project into database
@@ -43,6 +60,7 @@ export const projectRouter = router({
           metadata: input.metadata
         }).returning();
 
+        console.log('Created new project:', result[0]);
         return { success: true, id: result[0].id, exists: false };
       } catch (error) {
         console.error('Error publishing project:', error);

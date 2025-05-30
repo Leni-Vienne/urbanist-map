@@ -12,7 +12,6 @@ import { router } from '../../router';
 const toast = useToast();
 
 let appInstance: ComponentInternalInstance | null = null;
-let primevueConfig: any = null;
 let appGlobalProperties: any = null;
 
 export function setAppContext(instance: ComponentInternalInstance) {
@@ -21,32 +20,8 @@ export function setAppContext(instance: ComponentInternalInstance) {
   try {
     // AI : Store the entire globalProperties object to ensure we have access to everything
     appGlobalProperties = instance.appContext.config.globalProperties;
-    primevueConfig = appGlobalProperties.$primevue;
-
-    if (!primevueConfig) {
-      console.warn('AI: PrimeVue config not found in instance, checking global fallback');
-      // Try to get from window global fallback
-      if (window.$primevue) {
-        primevueConfig = window.$primevue;
-        console.log('AI: Using global PrimeVue config from window');
-      } else {
-        console.warn('AI: Creating minimal PrimeVue config');
-        // Create a minimal version for components that need it
-        primevueConfig = {
-          config: {
-            ripple: true
-          }
-        };
-      }
-    }
   } catch (err) {
     console.error('AI: Failed to store app context', err);
-    // Create fallback PrimeVue config to prevent errors
-    primevueConfig = window.$primevue || {
-      config: {
-        ripple: true
-      }
-    };
   }
 }
 
@@ -95,13 +70,13 @@ export const infoTool = L.Toolbar2.Action.extend({
           popupElement.parentNode.replaceChild(newDiv, popupElement);
         } else {
           return
-        }
-
-        const vnode = createVNode(InfoPopup, {
+        }        const vnode = createVNode(InfoPopup, {
           overlayObject: overlays.value[idSelectedOverlay.value],
           onProjectSubmit: handleProjectSubmit,
           viewMode: !isEditMode.value
-        })          // AI : Ensure app context is available to the InfoPopup component
+        })
+
+        // AI : Ensure app context is available to the InfoPopup component
         if (appInstance) {
           vnode.appContext = { ...appInstance.appContext };
 
@@ -113,16 +88,7 @@ export const infoTool = L.Toolbar2.Action.extend({
           // AI : Explicitly provide router
           vnode.appContext.provides[Symbol.for('router')] = router;
 
-          // AI : Set up config and global properties
-          vnode.appContext.config = vnode.appContext.config || {};
-          vnode.appContext.config.globalProperties = vnode.appContext.config.globalProperties || {};
-
-          // AI : Explicitly provide PrimeVue config and any other global properties
-          if (primevueConfig) {
-            vnode.appContext.config.globalProperties.$primevue = primevueConfig;
-          }
-
-          // AI : Copy all global properties to ensure everything is available
+          // AI : Ensure global properties are available
           if (appGlobalProperties) {
             vnode.appContext.config.globalProperties = {
               ...vnode.appContext.config.globalProperties,
