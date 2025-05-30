@@ -116,6 +116,7 @@ import { useToast } from '@composables/ui/useToast';
 import { updateTooltipText } from '@composables/overlay/useOverlayActions';
 import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId } from '@composables/project/useProjects';
 import { navigateToProjectEdit } from '@composables/ui/useRouterNavigation';
+import { deleteOverlay } from '@composables/core/useDatabase';
 import ProjectPicker from '@components/project/ProjectPicker.vue';
 import OverlayEditor from './OverlayEditor.vue';
 import type { OverlayObject, Project } from '@types';
@@ -326,7 +327,7 @@ function validateOverlayForPublishing(): boolean {
 async function ensureProjectOnServer(): Promise<boolean> {
   if (!project.value) return false;
   
-  const projectResult = await trpc.projects.publishProject.mutate({
+  const projectResult = await trpc.project.publishProject.mutate({
     id: project.value.id,
     title: project.value.name,
     description: project.value.description,
@@ -387,8 +388,10 @@ async function prepareImageForServer(): Promise<string> {
 }
 
 // AI : Publish overlay metadata to server
-async function publishOverlayToServer(filename: string): Promise<boolean> {
-  const overlayResult = await trpc.images.publishOverlay.mutate({
+async function publishOverlayToServer(filename: string): Promise<{ success: boolean; exists: boolean; id?: string }> {
+  // AI : Log what we're sending to backend
+  console.log('=== PUBLISH OVERLAY FRONTEND ===');
+  const payload = {
     id: props.overlayObject.id,
     filename: filename,
     caption: props.overlayObject.phase || undefined,
@@ -400,19 +403,29 @@ async function publishOverlayToServer(filename: string): Promise<boolean> {
       // AI : Exclude imageResolutions as they contain image data that shouldn't be stored in database
     },
     corners: props.overlayObject.corners
-  });
+  };
+  
+  console.log('Sending to backend:', JSON.stringify(payload, null, 2));
+  
+  const overlayResult = await trpc.overlay.publishOverlay.mutate(payload);
+  
+  console.log('Received from backend:', overlayResult);
 
   if (overlayResult.success) {
+    // AI : Update local overlay state to track server existence
+    props.overlayObject.savedRemotely = true;
+    
+    const actionText = overlayResult.exists ? 'updated on' : 'saved to';
     toast.add({
       severity: 'success',
       summary: 'Overlay Published',
-      detail: 'Overlay has been saved to the server database',
+      detail: `Overlay has been ${actionText} the server database`,
       life: 3000
     });
-    return true;
+    return { success: true, exists: overlayResult.exists, id: overlayResult.id };
   }
   
-  return false;
+  return { success: false, exists: false };
 }
 
 // AI : Publish overlay to server database
@@ -426,7 +439,30 @@ async function publishOverlay() {
   try {
     await ensureProjectOnServer();
     const filename = await prepareImageForServer();
-    await publishOverlayToServer(filename);
+    const publishResult = await publishOverlayToServer(filename);
+      // AI : If publishing was successful, update overlay ID and delete from local IndexedDB
+    if (publishResult.success && publishResult.id) {
+      console.log('Publishing successful, updating overlay ID and deleting from IndexedDB');
+      console.log('Old overlay ID:', props.overlayObject.id);
+      console.log('New overlay ID from backend:', publishResult.id);
+      
+      // AI : Store the old ID for IndexedDB deletion
+      const oldId = props.overlayObject.id;
+      
+      // AI : Update the overlay ID with the one from the backend
+      props.overlayObject.id = publishResult.id;
+      
+      // AI : Delete the old overlay from IndexedDB using the old ID
+      await deleteOverlay(oldId);
+      console.log(`AI : Overlay ${oldId} removed from local database after successful publishing`);
+      
+      // AI : Show additional info for UPSERT operations
+      if (publishResult.exists) {
+        console.log(`AI : Overlay was updated on server (new ID: ${publishResult.id})`);
+      } else {
+        console.log(`AI : Overlay was newly created on server (ID: ${publishResult.id})`);
+      }
+    }
   } catch (error) {
     console.error('Error publishing overlay:', error);
     toast.add({

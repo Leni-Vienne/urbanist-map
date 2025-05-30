@@ -1,4 +1,4 @@
-import { ref, watch } from 'vue';
+import { ref } from 'vue';
 import { map } from '@composables/core/useMap';
 import type { CameraBounds } from '@types';
 

@@ -5,8 +5,8 @@ import { cors } from 'hono/cors'
 import { Session, sessionMiddleware, CookieStore } from 'hono-sessions'
 import { serveStatic } from 'hono/bun'
 
-import { imagesRouter } from './routes/images';
-import { projectsRouter } from './routes/projects';
+import { projectRouter } from './routes/project';
+import { overlayRouter } from './routes/overlay';
 
 type sessionData = {
     userId?: string;
@@ -35,8 +35,8 @@ app.use('*', sessionMiddleware({
 }))
 
 const appRouter = router({
-    images: imagesRouter,
-    projects: projectsRouter,
+    overlay: overlayRouter,
+    project: projectRouter,
 })
 
 export type AppRouter = typeof appRouter;
