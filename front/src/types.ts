@@ -85,6 +85,7 @@ export interface Project {
   color: string; // AI : Color for visual grouping
   createdAt: string; // AI : ISO string date of creation
   updatedAt: string; // AI : ISO string date of last update
+  savedRemotely?: boolean; // AI : Track if project exists on server database
 }
 
 // AI : Data that is stored in the database
