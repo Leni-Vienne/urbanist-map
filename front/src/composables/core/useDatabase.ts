@@ -90,9 +90,9 @@ export async function getAllOverlays(): Promise<StoredOverlayData[]> {
     console.warn('Database not initialized when getting all overlays');
     return [];
   }
-  
-  try {
-    return await db.getAll('overlays');
+    try {
+    const overlays = await db.getAll('overlays');
+    return overlays;
   } catch (error) {
     console.error('Error retrieving all overlays:', error);
     return [];
@@ -149,7 +149,22 @@ export async function saveProject(project: Project): Promise<void> {
   }
   
   try {
-    await db.put('projects', project);
+    // AI : Create a plain object copy to avoid DataCloneError with reactive data
+    const plainProject = {
+      id: project.id,
+      name: project.name,
+      description: project.description,
+      location: project.location,
+      startDate: project.startDate,
+      endDate: project.endDate,
+      sourceUrl: project.sourceUrl,
+      overlayIds: Array.isArray(project.overlayIds) ? [...project.overlayIds] : [], // AI : Ensure array copy
+      color: project.color,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+      savedRemotely: project.savedRemotely
+    };
+    await db.put('projects', plainProject);
   } catch (error) {
     console.error('Error saving project:', error);
   }
@@ -182,7 +197,10 @@ export async function getAllProjects(): Promise<Project[]> {
   }
   
   try {
-    return await db.getAll('projects');
+    console.log('AI : getAllProjects - reading from database...');
+    const result = await db.getAll('projects');
+    console.log('AI : getAllProjects - database returned:', result.length, 'projects');
+    return result;
   } catch (error) {
     console.error('Error retrieving all projects:', error);
     return [];
@@ -213,12 +231,42 @@ export async function addOverlayToProject(projectId: string, overlayId: string):
     console.warn('Database not initialized when adding overlay to project');
     return;
   }
-  
-  try {
-    const project = await db.get('projects', projectId);
+    try {
+    let project = await db.get('projects', projectId);
+    
+    // AI : If project not found in IndexedDB, check if it exists in memory and save it
     if (!project) {
-      console.error('Project not found:', projectId);
-      return;
+      console.warn(`AI : Project ${projectId} not found in IndexedDB, checking memory store...`);
+      
+      // AI : Import projects from useProjects to check memory store
+      const { projects } = await import('@composables/project/useProjects');
+      const memoryProject = projects.value[projectId];
+      
+      if (memoryProject) {
+        console.log(`AI : Found project ${projectId} in memory, saving to IndexedDB...`);
+        // AI : Create a plain object copy to avoid DataCloneError with reactive data
+        const plainProject = {
+          id: memoryProject.id,
+          name: memoryProject.name,
+          description: memoryProject.description,
+          location: memoryProject.location,
+          startDate: memoryProject.startDate,
+          endDate: memoryProject.endDate,
+          sourceUrl: memoryProject.sourceUrl,
+          overlayIds: [...memoryProject.overlayIds], // AI : Create a new array copy
+          color: memoryProject.color,
+          createdAt: memoryProject.createdAt,
+          updatedAt: memoryProject.updatedAt,
+          savedRemotely: memoryProject.savedRemotely
+        };
+        // AI : Save the plain project object to IndexedDB
+        await db.put('projects', plainProject);
+        project = plainProject;
+      } else {
+        console.error('AI : Project not found in memory store either:', projectId);
+        console.error('AI : Available projects in memory:', Object.keys(projects.value));
+        return;
+      }
     }
     
     // AI : Add overlay to project if not already included

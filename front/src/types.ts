@@ -108,6 +108,16 @@ export interface CDNOverlayData {
   filename: string; // AI : For CDN URL construction
   phase?: string;
   sequenceNumber?: number | null;
+  projectId?: string | null; // AI : Project ID for styling backend overlays
+  // AI : Full project data for display and styling
+  project?: {
+    id: string;
+    title: string;
+    description?: string | null;
+    metadata?: any;
+    createdAt: Date | null;
+    updatedAt: Date | null;
+  } | null;
   centroid: {
     lat: number;
     lng: number;
@@ -137,6 +147,15 @@ export interface OverlayObject extends StoredOverlayData {
   isFlipped: boolean; // AI : Track if the image has been flipped after ratio reset
   currentResolution?: string;
   savedRemotely?: boolean; // AI : Track if overlay exists on server database
+  // AI : Project data for backend overlays (from CDN data)
+  project?: {
+    id: string;
+    title: string;
+    description?: string | null;
+    metadata?: any;
+    createdAt: Date | null;
+    updatedAt: Date | null;
+  } | null;
 }
 
 // AI : Map position data structure

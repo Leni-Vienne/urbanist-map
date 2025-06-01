@@ -1,5 +1,5 @@
 import L from "leaflet";
-import { ref, shallowRef } from 'vue';
+import { ref, shallowRef, nextTick } from 'vue';
 import { getSavedMapPosition, saveMapPosition } from '@composables/core/useDatabase';
 import type { MapPosition } from '@types';
 import { debounce } from '../../utils';
@@ -97,15 +97,14 @@ export async function initializeMap() {
   addTileLayer();
   map.value.on('moveend zoomend', saveCurrentMapPosition);
   L.control.scale().addTo(map.value);
-
-  // AI : Ensure the map initialization is complete by forcing a size update
-  // AI : This helps with the coverage calculation on initial load
-  setTimeout(() => {
+  // AI : Ensure the map initialization is complete
+  // AI : Use nextTick for better timing than arbitrary timeout
+  nextTick(() => {
     if (map.value) {
       map.value.invalidateSize();
       debouncedUpdateMapSize();
     }
-  }, 100);
+  });
 }
 
 

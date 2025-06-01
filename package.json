@@ -14,7 +14,7 @@
     "@trpc/client": "^11.1.4",
     "@trpc/server": "^11.1.4",
     "dotenv": "^16.5.0",
-    "drizzle-orm": "^0.43.1",
+    "drizzle-orm": "^0.44.1",
     "hono": "^4.7.10",
     "hono-sessions": "^0.7.2",
     "idb": "^8.0.3",
@@ -29,7 +29,7 @@
     "tailwindcss-primeui": "^0.6.1",
     "vue": "^3.5.16",
     "vue-router": "^4.5.1",
-    "zod": "^3.25.36"
+    "zod": "^3.25.42"
   },
   "devDependencies": {
     "@primevue/auto-import-resolver": "^4.3.4",
@@ -39,7 +39,7 @@
     "@types/leaflet": "^1.9.18",
     "@vitejs/plugin-vue": "^5.2.4",
     "drizzle-kit": "^0.31.1",
-    "oxlint": "^0.16.12",
+    "oxlint": "^0.17.0",
     "unplugin-vue-components": "^28.7.0",
     "vite": "^6.3.5",
     "vite-plugin-vue-devtools": "^7.7.6"

@@ -66,5 +66,18 @@ export const projectRouter = router({
         console.error('Error publishing project:', error);
         throw new Error('Failed to publish project');
       }
+    }),
+  
+  getAllProjects: publicProcedure
+    .query(async () => {
+      try {
+        console.log('AI : Fetching all projects from backend database');
+        const allProjects = await db.select().from(projects);
+        console.log(`AI : Found ${allProjects.length} projects in backend`);
+        return { projects: allProjects };
+      } catch (error) {
+        console.error('Error fetching all projects:', error);
+        throw new Error('Failed to fetch projects');
+      }
     })
 });
