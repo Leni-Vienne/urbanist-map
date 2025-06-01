@@ -34,7 +34,6 @@ declare module 'vue' {
     ProjectViewer: typeof import('./src/components/project/ProjectViewer.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
-    SafeSelect: typeof import('./src/components/common/SafeSelect.vue')['default']
     Select: typeof import('primevue/select')['default']
     Textarea: typeof import('primevue/textarea')['default']
     Toast: typeof import('primevue/toast')['default']

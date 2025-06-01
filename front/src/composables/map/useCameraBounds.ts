@@ -51,11 +51,8 @@ export function initializeCameraBounds() {
     } catch (error) {
       console.error('Error updating camera bounds:', error);
     }
-  };
-  // AI : Set initial bounds
-  setTimeout(() => {
-    updateBounds();
-  }, 100); // AI : Small delay to ensure map is fully initialized
+  };  // AI : Set initial bounds immediately - no delay needed as map is ready
+  updateBounds();
 
   // AI : Listen for map events - these fire when camera stops moving
   map.value.on('moveend', updateBounds);

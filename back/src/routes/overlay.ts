@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { publicProcedure, router } from '../trpc';
 import { z } from 'zod';
-import { images } from '../db/schema';
+import { images, projects } from '../db/schema';
 import { sql } from 'drizzle-orm';
 
 const publishOverlaySchema = z.object({
@@ -23,14 +23,11 @@ const boundsSchema = z.object({
   west: z.number()
 });
 
-export const overlayRouter = router({  publishOverlay: publicProcedure
+export const overlayRouter = router({
+  publishOverlay: publicProcedure
     .input(publishOverlaySchema)
     .mutation(async ({ input }) => {
       try {
-        // AI : Log received data
-        console.log('=== PUBLISH OVERLAY BACKEND ===');
-        console.log('Received input:', JSON.stringify(input, null, 2));
-        
         // AI : Extract corner coordinates
         const [topLeft, topRight, bottomRight, bottomLeft] = input.corners;
 
@@ -45,7 +42,7 @@ export const overlayRouter = router({  publishOverlay: publicProcedure
           .limit(1);
 
         console.log('Existing overlay found:', existingOverlay.length > 0, existingOverlay);
-
+        console.log('input metadata:', input.metadata);
         if (existingOverlay.length > 0) {
           // AI : Update existing overlay
           console.log('Updating existing overlay');
@@ -65,12 +62,12 @@ export const overlayRouter = router({  publishOverlay: publicProcedure
               bottomLeftLng: bottomLeft.lng,
               centroid: sql`ST_SetSRID(ST_MakePoint(${centroidLng}, ${centroidLat}), 4326)`,
               updatedAt: sql`NOW()`
-            })            .where(sql`filename = ${input.filename}`)
+            }).where(sql`filename = ${input.filename}`)
             .returning();
 
           console.log('Update result:', result);
-          return { 
-            success: true, 
+          return {
+            success: true,
             id: result[0].id,
             exists: true // AI : Indicate this overlay was updated
           };
@@ -89,12 +86,13 @@ export const overlayRouter = router({  publishOverlay: publicProcedure
             bottomRightLat: bottomRight.lat,
             bottomRightLng: bottomRight.lng,
             bottomLeftLat: bottomLeft.lat,
-            bottomLeftLng: bottomLeft.lng,            centroid: sql`ST_SetSRID(ST_MakePoint(${centroidLng}, ${centroidLat}), 4326)`
+            bottomLeftLng: bottomLeft.lng, 
+            centroid: sql`ST_SetSRID(ST_MakePoint(${centroidLng}, ${centroidLat}), 4326)`
           }).returning();
 
           console.log('Insert result:', result);
-          return { 
-            success: true, 
+          return {
+            success: true,
             id: result[0].id,
             exists: false // AI : Indicate this is a new overlay
           };
@@ -108,6 +106,7 @@ export const overlayRouter = router({  publishOverlay: publicProcedure
     .input(boundsSchema)
     .query(async ({ input }) => {
       try {
+        console.log('Fetching overlays for bounds:', input);
         // AI : Create a bounding box polygon from the input bounds
         const boundingBox = sql`ST_MakeEnvelope(${input.west}, ${input.south}, ${input.east}, ${input.north}, 4326)`;
 
@@ -115,12 +114,23 @@ export const overlayRouter = router({  publishOverlay: publicProcedure
         const centerLat = (input.north + input.south) / 2;
         const centerLng = (input.east + input.west) / 2;
         const centerPoint = sql`ST_SetSRID(ST_MakePoint(${centerLng}, ${centerLat}), 4326)`;        // AI : Query overlays where centroid is within the bounding box using spatial index
+        // AI : Join with projects table to get full project data for styling
         const overlays = await db
           .select({
             id: images.id,
             filename: images.filename,
             phase: images.caption,
             sequenceNumber: images.metadata,
+            projectId: images.projectId, // AI : Include project ID for styling
+            // AI : Include full project data for frontend display
+            project: {
+              id: projects.id,
+              title: projects.title,
+              description: projects.description,
+              metadata: projects.metadata,
+              createdAt: projects.createdAt,
+              updatedAt: projects.updatedAt
+            },
             centroidLat: sql<number>`ST_Y(${images.centroid})`.as('centroid_lat'),
             centroidLng: sql<number>`ST_X(${images.centroid})`.as('centroid_lng'),
             // AI : Include all corner coordinates for frontend overlay positioning
@@ -136,15 +146,24 @@ export const overlayRouter = router({  publishOverlay: publicProcedure
             createdAt: images.createdAt
           })
           .from(images)
+          .leftJoin(projects, sql`${images.projectId} = ${projects.id}`)
           .where(sql`ST_Within(${images.centroid}, ${boundingBox})`)
-          .orderBy(sql`distance`);
-
-        // AI : Transform results for CDN usage
+          .orderBy(sql`distance`);        // AI : Transform results for CDN usage
         const result = overlays.map(overlay => ({
           id: overlay.id,
           filename: overlay.filename, // AI : For CDN URL construction
           phase: overlay.phase || undefined, // AI : Make it optional
           sequenceNumber: overlay.sequenceNumber ? (overlay.sequenceNumber as any)?.sequenceNumber || null : null,
+          projectId: overlay.projectId || null, // AI : Include project ID for styling
+          // AI : Include full project data for frontend display and styling
+          project: overlay.project?.id ? {
+            id: overlay.project.id,
+            title: overlay.project.title,
+            description: overlay.project.description,
+            metadata: overlay.project.metadata,
+            createdAt: overlay.project.createdAt,
+            updatedAt: overlay.project.updatedAt
+          } : null,
           centroid: {
             lat: overlay.centroidLat,
             lng: overlay.centroidLng

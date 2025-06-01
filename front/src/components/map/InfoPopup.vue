@@ -37,8 +37,11 @@
             @click="openProjectManagerForEdit"
             v-tooltip.top="'Edit Project'"
           />
-        </div>
-        <div class="p-2 rounded bg-gray-50 text-sm space-y-1">
+        </div>        <div class="p-2 rounded bg-gray-50 text-sm space-y-1">
+          <div class="flex justify-between">
+            <span class="font-medium text-gray-600">Name:</span>
+            <span class="text-right">{{ project.name || 'Not specified' }}</span>
+          </div>
           <div class="flex justify-between">
             <span class="font-medium text-gray-600">Location:</span>
             <span class="text-right">{{ project.location || 'Not specified' }}</span>
@@ -118,8 +121,8 @@ import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId } f
 import { navigateToProjectEdit } from '@composables/ui/useRouterNavigation';
 import { deleteOverlay, deleteProject } from '@composables/core/useDatabase';
 import ProjectPicker from '@components/project/ProjectPicker.vue';
-import OverlayEditor from './OverlayEditor.vue';
-import type { OverlayObject, Project } from '@types';
+import OverlayEditor from '@components/map/OverlayEditor.vue';
+import type { OverlayObject } from '@types';
 import { trpc } from '@client'
 
 const props = defineProps<{
@@ -141,7 +144,39 @@ const currentProjectId = ref<string | undefined>(props.overlayObject.projectId);
 // AI : Make project reactive to changes in projects store and currentProjectId
 const project = computed(() => {
   if (currentProjectId.value) {
-    return projects.value[currentProjectId.value] || null;
+    // AI : First try to get from local projects store (for edit mode and local overlays)
+    const localProject = projects.value[currentProjectId.value];
+    if (localProject) {
+      return localProject;    }
+      // AI : If not found locally, check if this overlay has backend project data (for view mode)
+    if (props.overlayObject.project && props.overlayObject.project.id === currentProjectId.value) {
+      // AI : Convert backend project data to frontend format
+      const project = props.overlayObject.project;
+      const metadata = project.metadata as {
+        location?: string;
+        startDate?: string;
+        endDate?: string;
+        sourceUrl?: string;
+        overlayIds?: string[];
+        color?: string;
+        createdAt?: string;
+        updatedAt?: string;
+      } | null;
+
+      return {
+        id: project.id,
+        name: project.title,
+        description: project.description || '',
+        color: metadata?.color || '#007bff',
+        location: metadata?.location || '',
+        startDate: metadata?.startDate ? new Date(metadata.startDate) : null,
+        endDate: metadata?.endDate ? new Date(metadata.endDate) : null,
+        sourceUrl: metadata?.sourceUrl || '',
+        overlayIds: [],
+        createdAt: project.createdAt?.toISOString() || new Date().toISOString(),
+        updatedAt: project.updatedAt?.toISOString() || new Date().toISOString()
+      };
+    }
   }
   return null;
 });
@@ -174,12 +209,6 @@ function onOverlayUpdate(overlayId: string, phase?: string, sequenceNumber?: num
     props.overlayObject.phase = phase;
     props.overlayObject.sequenceNumber = sequenceNumber;
   }
-}
-
-// AI : Start editing project assignment
-function startEditingProject() {
-  selectedProjectId.value = currentProjectId.value || undefined;
-  editingProject.value = true;
 }
 
 // AI : Apply project change to overlay
@@ -370,10 +399,11 @@ async function ensureProjectOnServer(): Promise<boolean> {
         // AI : Delete the old project from IndexedDB using the old ID
         await deleteProject(oldProjectId);
       }
+    }    // AI : Mark project as saved remotely (only for local projects, not backend ones)
+    const localProject = projects.value[project.value.id];
+    if (localProject) {
+      localProject.savedRemotely = true;
     }
-
-    // AI : Mark project as saved remotely
-    project.value.savedRemotely = true;
     
     // AI : Show appropriate message
     const actionText = projectResult.exists ? 'updated on' : 'saved to';

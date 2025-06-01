@@ -25,10 +25,9 @@
           v-tooltip.right="'Manage Projects'"
           class="p-button-rounded"
         />
-      </div>
-      <div class="card flex justify-center">
+      </div>      <div class="card flex justify-center">
         <div class="w-56">
-          <Button @click="toggleEditMode">{{ isEditMode ? 'Switch to View Mode' : 'Switch to Edit Mode' }}</Button>
+          <Button @click="handleToggleEditMode" :loading="isTogglingMode">{{ isEditMode ? 'Switch to View Mode' : 'Switch to Edit Mode' }}</Button>
         </div>
       </div>
       <div class="card flex justify-center">
@@ -99,6 +98,7 @@ const showProjectSelector = ref(false);
 const pendingImageFile = ref<File | null>(null);
 const databaseInitialized = inject('databaseInitialized', ref(false));
 const isLoading = ref(true);
+const isTogglingMode = ref(false);
 
 // AI : Use view mode overlays for displaying overlays when camera moves
 const { viewModeOverlays, startCameraTracking, stopCameraTracking } = useViewModeOverlays();
@@ -225,6 +225,24 @@ async function initializeMapAndOverlays() {
       detail: 'Failed to initialize map and overlays',
       life: 5000
     });
+  }
+}
+
+// AI : Handle toggle edit mode with loading state
+async function handleToggleEditMode() {
+  isTogglingMode.value = true;
+  try {
+    await toggleEditMode();
+  } catch (error) {
+    console.error('AI : Error toggling edit mode:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Mode Switch Error',
+      detail: 'Failed to switch mode. Please try again.',
+      life: 3000
+    });
+  } finally {
+    isTogglingMode.value = false;
   }
 }
 

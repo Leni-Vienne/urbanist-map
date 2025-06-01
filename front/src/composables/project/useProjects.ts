@@ -8,6 +8,7 @@ import {
 } from '@composables/core/useDatabase';
 import { overlays } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
+import { trpc } from '../../client';
 import type { Project, OverlayObject } from '@types';
 
 const toast = useToast();
@@ -63,10 +64,53 @@ function generateRandomColor(): string {
 
 export async function initializeProjects(): Promise<void> {
   try {
-    const projectList = await getAllProjects();
+    // AI : Fetch projects from backend first
+    let backendProjects: Project[] = [];
+    try {
+      const backendResult = await trpc.project.getAllProjects.query();      backendProjects = backendResult.projects.map(backendProject => {
+        // AI : Cast metadata to the expected structure
+        const metadata = backendProject.metadata as {
+          location?: string;
+          startDate?: string;
+          endDate?: string;
+          sourceUrl?: string;
+          overlayIds?: string[];
+          color?: string;
+          createdAt?: string;
+          updatedAt?: string;
+        } | null;
+
+        return {
+          id: backendProject.id,
+          name: backendProject.title,
+          description: backendProject.description || '',
+          color: metadata?.color || '#007bff',
+          location: metadata?.location || '',
+          startDate: metadata?.startDate ? new Date(metadata.startDate) : null,
+          endDate: metadata?.endDate ? new Date(metadata.endDate) : null,
+          sourceUrl: metadata?.sourceUrl || '',
+          overlayIds: metadata?.overlayIds || [],
+          createdAt: backendProject.createdAt?.toISOString() || new Date().toISOString(),
+          updatedAt: backendProject.updatedAt?.toISOString() || new Date().toISOString()
+        };
+      });
+    } catch (error) {
+      console.warn('AI : Could not fetch projects from backend:', error);
+    }
+    
+    // AI : Get local project overrides/modifications
+    const localProjects = await getAllProjects();
+    
+    // AI : Create projects map with backend projects as base
     const projectsMap: Record<string, Project> = {};
     
-    projectList.forEach(project => {
+    // AI : Add backend projects first
+    backendProjects.forEach(project => {
+      projectsMap[project.id] = project;
+    });
+    
+    // AI : Override with local modifications (local takes precedence)
+    localProjects.forEach(project => {
       projectsMap[project.id] = project;
     });
     
@@ -116,6 +160,8 @@ export async function getOverlaysForProject(projectId: string): Promise<OverlayO
 
 export async function addOverlayToProjectWithId(projectId: string, overlayId: string): Promise<void> {
   if (!projects.value[projectId]) {
+    console.error('AI : Project not found in memory store:', projectId);
+    console.error('AI : Available projects:', Object.keys(projects.value));
     toast.add({
       severity: 'error',
       summary: 'Project not found',
@@ -126,6 +172,7 @@ export async function addOverlayToProjectWithId(projectId: string, overlayId: st
   }
   
   if (!overlays.value[overlayId]) {
+    console.error('AI : Overlay not found in memory store:', overlayId);
     toast.add({
       severity: 'error',
       summary: 'Overlay not found',
@@ -134,6 +181,8 @@ export async function addOverlayToProjectWithId(projectId: string, overlayId: st
     });
     return;
   }
+  
+  console.log(`AI : Adding overlay ${overlayId} to project ${projectId}`);
   
   // Update database
   await addOverlayToProject(projectId, overlayId);
@@ -157,6 +206,8 @@ export async function addOverlayToProjectWithId(projectId: string, overlayId: st
   
   // Apply project styling
   applyProjectStyling(overlayObject, projectId);
+  
+  console.log(`AI : Successfully added overlay ${overlayId} to project ${projectId}`);
   
   toast.add({
     severity: 'success',

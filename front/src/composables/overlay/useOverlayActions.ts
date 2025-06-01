@@ -114,9 +114,12 @@ function saveOverlayInitialState(overlay: L.DistortableImageOverlay, overlayObje
   // Store the corners in the overlay object
   overlayObject.corners = overlay.getCorners();
   
-  // Create initial history entry if needed
+  // Create initial history entry if needed - use deep copy to prevent reference issues
   if (!overlayObject.history.length) {
-    overlayObject.history = [overlayObject.corners];
+    if (overlayObject.corners && overlayObject.corners.length > 0) {
+      overlayObject.history = [JSON.parse(JSON.stringify(overlayObject.corners))];
+      overlayObject.redoStack = [];
+    }
   }
   
   // Save the overlay to the database

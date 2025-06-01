@@ -1,6 +1,6 @@
 import { ref, onUnmounted } from 'vue';
 import { onCameraStop, getCameraBounds } from '@composables/map/useCameraBounds';
-import { renderViewModeOverlays, clearAllOverlays } from '@composables/overlay/useOverlay';
+import { renderViewModeOverlays } from '@composables/overlay/useOverlay';
 import { trpc } from '../../client';
 import type { CDNOverlayData, CameraBounds } from '@types';
 
@@ -44,14 +44,15 @@ export function useViewModeOverlays() {
     unsubscribeFromCamera = onCameraStop(fetchIntersectingOverlays);
     console.log('Camera tracking started successfully');
     
-    // AI : Fetch overlays for current camera position immediately
+    // AI : Fetch overlays for current camera position - no delay needed
     const currentBounds = getCameraBounds();
     if (currentBounds.value) {
       console.log('AI : Fetching overlays for current camera position on view mode switch');
       fetchIntersectingOverlays(currentBounds.value);
+    } else {
+      console.log('AI : No current camera bounds available for initial overlay fetch');
     }
-  }
-  // AI : Stop camera tracking
+  }  // AI : Stop camera tracking
   function stopCameraTracking() {
     console.log('stopCameraTracking called');
     if (unsubscribeFromCamera) {
@@ -60,15 +61,16 @@ export function useViewModeOverlays() {
       console.log('Camera tracking stopped successfully');
     }
     
-    // AI : Clear overlays from map when stopping tracking
-    clearAllOverlays();
+    // AI : Clear only the view mode overlays state - let the main overlay system handle map cleanup
+    viewModeOverlays.value = [];
+    error.value = null;
   }
 
   // AI : Clear overlays
   function clearOverlays() {
     viewModeOverlays.value = [];
     error.value = null;
-    clearAllOverlays();
+    // AI : Don't call clearAllOverlays here - let the mode switching handle it
   }
 
   // AI : Auto-cleanup on unmount

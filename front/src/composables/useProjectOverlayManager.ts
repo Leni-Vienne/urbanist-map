@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { 
   addOverlayToProjectWithId, 
@@ -74,10 +74,9 @@ export function useProjectOverlayManager(projectId: string, onOverlaysChanged: (
   // AI : Navigate to overlay on map
   const viewOverlay = async (overlayId: string) => {
     const overlay = overlays.value[overlayId];
-    if (!overlay) return;
-
-    router.push('/');
-    setTimeout(() => {
+    if (!overlay) return;    router.push('/');
+    // AI : Use nextTick for more reliable timing than arbitrary timeout
+    nextTick(() => {
       if (navigateToOverlay(overlayId)) {
         toast.add({
           severity: 'info',
@@ -86,7 +85,7 @@ export function useProjectOverlayManager(projectId: string, onOverlaysChanged: (
           life: 3000
         });
       }
-    }, 100);
+    });
   };
 
   return {
