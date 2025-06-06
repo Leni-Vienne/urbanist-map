@@ -612,7 +612,8 @@ function selectAndCenterOverlay(overlayId: string, index?: number, total?: numbe
         });
       }
     }
-    return true;  } else if (overlay.marker && centerMap && map.value) {
+    return true;  
+  } else if (overlay.marker && centerMap && map.value) {
     // AI : If overlay is not loaded yet but marker exists
     map.value.setView(overlay.marker.getLatLng(), map.value.getZoom());
     return true;

@@ -537,7 +537,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-
+@import "tailwindcss-primeui";
 .info-popup {
   padding: 1rem;
   width: 420px;
