@@ -34,18 +34,14 @@ export const overlayRouter = router({
         // AI : Calculate centroid (center point)
         const centroidLat = input.corners.reduce((sum, corner) => sum + corner.lat, 0) / 4;
         const centroidLng = input.corners.reduce((sum, corner) => sum + corner.lng, 0) / 4;        // AI : Check if overlay with this filename already exists (UPSERT logic)
-        console.log('Checking for existing overlay with filename:', input.filename);
         const existingOverlay = await db
           .select()
           .from(images)
           .where(sql`filename = ${input.filename}`)
           .limit(1);
 
-        console.log('Existing overlay found:', existingOverlay.length > 0, existingOverlay);
-        console.log('input metadata:', input.metadata);
         if (existingOverlay.length > 0) {
           // AI : Update existing overlay
-          console.log('Updating existing overlay');
           const result = await db
             .update(images)
             .set({
@@ -65,7 +61,6 @@ export const overlayRouter = router({
             }).where(sql`filename = ${input.filename}`)
             .returning();
 
-          console.log('Update result:', result);
           return {
             success: true,
             id: result[0].id,
@@ -73,7 +68,6 @@ export const overlayRouter = router({
           };
         } else {
           // AI : Insert new overlay
-          console.log('Creating new overlay');
           const result = await db.insert(images).values({
             filename: input.filename,
             caption: input.caption,
@@ -90,7 +84,6 @@ export const overlayRouter = router({
             centroid: sql`ST_SetSRID(ST_MakePoint(${centroidLng}, ${centroidLat}), 4326)`
           }).returning();
 
-          console.log('Insert result:', result);
           return {
             success: true,
             id: result[0].id,
@@ -106,7 +99,6 @@ export const overlayRouter = router({
     .input(boundsSchema)
     .query(async ({ input }) => {
       try {
-        console.log('Fetching overlays for bounds:', input);
         // AI : Create a bounding box polygon from the input bounds
         const boundingBox = sql`ST_MakeEnvelope(${input.west}, ${input.south}, ${input.east}, ${input.north}, 4326)`;
 

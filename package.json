@@ -5,7 +5,11 @@
     "dev-front": "vite front",
     "build-front": "vite build front",
     "dev-back": "bun --hot back/src/index.ts",
-    "build-back": "bun build server/index.ts --target=bun --outfile=./server/server.bundle.js"
+    "build-back": "bun build server/index.ts --target=bun --outfile=./server/server.bundle.js",
+    "db:generate": "cd back && bun run drizzle-kit generate",
+    "db:push": "cd back && bun run drizzle-kit push",
+    "db:migrate": "cd back && bun run drizzle-kit migrate",
+    "import:cities": "cd back && bun run src/scripts/import-cities.ts"
   },
   "dependencies": {
     "@hono/trpc-server": "^0.3.4",
