@@ -16,6 +16,9 @@ export function initializeCameraBounds() {
     console.warn('Map not available for camera bounds tracking');
     return;
   }
+  
+  console.log('Initializing camera bounds tracking...');
+  
   // AI : Update bounds when map moves or zooms
   const updateBounds = () => {
     if (!map.value) {
@@ -43,8 +46,9 @@ export function initializeCameraBounds() {
         west: bounds.getWest(),
         zoom: zoom
       };
+        currentCameraBounds.value = newBounds;
       
-      currentCameraBounds.value = newBounds;
+      console.log('Camera bounds updated:', newBounds);
       
       // AI : Call all registered callbacks when camera stops moving
       onCameraStopCallbacks.forEach(callback => callback(newBounds));
@@ -55,6 +59,7 @@ export function initializeCameraBounds() {
   updateBounds();
 
   // AI : Listen for map events - these fire when camera stops moving
+  map.value.on('load', updateBounds);
   map.value.on('moveend', updateBounds);
   map.value.on('zoomend', updateBounds);
 }
