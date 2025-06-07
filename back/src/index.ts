@@ -7,6 +7,7 @@ import { serveStatic } from 'hono/bun'
 
 import { projectRouter } from './routes/project';
 import { overlayRouter } from './routes/overlay';
+import { citiesRouter } from './routes/cities';
 
 type sessionData = {
     userId?: string;
@@ -37,6 +38,7 @@ app.use('*', sessionMiddleware({
 const appRouter = router({
     overlay: overlayRouter,
     project: projectRouter,
+    cities: citiesRouter,
 })
 
 export type AppRouter = typeof appRouter;

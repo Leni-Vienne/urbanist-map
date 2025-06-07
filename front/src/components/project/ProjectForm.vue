@@ -31,16 +31,31 @@
                     <label class="text-gray-600">Description</label>
                 </FloatLabel>
             </div>
-
             <div class="field">
                 <FloatLabel
                     class="w-full"
                     variant="in"
-                >
-                    <InputText
+                > <Select
                         v-model="localProject.location"
+                        :options="filteredCities"
+                        optionLabel="displayName"
+                        optionValue="name"
+                        :placeholder="citiesPlaceholder"
                         class="w-full"
-                    />
+                        :showClear="true"
+                        :loading="citiesLoading"
+                        :disabled="false"
+                        @focus="onSelectFocus"
+                        @click="onSelectFocus"
+                    ><template #option="{ option }">
+                            <div class="flex items-center justify-between w-full">
+                                <span>{{ option.name }}</span>
+                                <span class="text-xs text-gray-500">{{ option.countryCode }}<span
+                                        v-if="option.distance > 0"
+                                    > ({{ Math.round(option.distance) / 1000}} km)</span></span>
+                            </div>
+                        </template>
+                    </Select>
                     <label class="text-gray-600">Location</label>
                 </FloatLabel>
             </div>
@@ -104,7 +119,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
+import { trpc } from '@client';
+import { idSelectedOverlay, overlays } from '@composables/overlay/useOverlay';
+import { getCameraBounds } from '@composables/map/useCameraBounds';
 import type { Project } from '@types';
 
 const props = defineProps<{
@@ -117,12 +135,112 @@ const emit = defineEmits<{
     submit: [project: Partial<Project>];
 }>();
 
+// AI : Project data
 const localProject = ref<Partial<Project>>({ ...props.project });
+
+// AI : Cities data and state
+const cities = ref<Array<{
+    id: string;
+    name: string;
+    countryCode: string;
+    lat: number;
+    lng: number;
+    distance: number;
+}>>([]);
+const citiesLoading = ref(false);
+const citiesLoaded = ref(false); // AI : Track if cities have been loaded to avoid multiple loads
 
 // AI : Watch for external project changes
 watch(() => props.project, (newProject) => {
     localProject.value = { ...newProject };
 }, { deep: true });
+
+const citiesPlaceholder = computed(() => {
+    if (citiesLoading.value) return 'Loading cities...';
+    if (!citiesLoaded.value) return 'Click to load cities...';
+
+    const overlayCenter = getOverlayCenter();
+    if (!overlayCenter) return 'Waiting for map location data...';
+
+    if (cities.value.length === 0) return 'No cities found in this area';
+    return 'Select a city...';
+});
+
+// AI : Computed property for cities with display names and distance
+const filteredCities = computed(() => {
+    return cities.value.map(city => ({
+        ...city,
+        displayName: `${city.name}, ${city.countryCode}`
+    }));
+});
+
+// AI : Get center coordinates of currently selected overlay or camera center as fallback
+function getOverlayCenter(): { lat: number; lng: number } | null {
+    // AI : First try to get overlay center if one is selected
+    if (idSelectedOverlay.value && overlays.value[idSelectedOverlay.value]) {
+        const overlayObject = overlays.value[idSelectedOverlay.value];
+        if (overlayObject.overlay) {
+            try {
+                const bounds = overlayObject.overlay.getBounds();
+                const center = bounds.getCenter();
+                return {
+                    lat: center.lat,
+                    lng: center.lng
+                };
+            } catch (error) {
+                console.error('Error getting overlay center:', error);
+            }
+        }
+    }    // AI : Fallback to camera center when no overlay is selected or overlay center fails
+    const cameraBounds = getCameraBounds();
+
+    if (cameraBounds.value &&
+        cameraBounds.value.north !== 0 &&
+        cameraBounds.value.south !== 0 &&
+        cameraBounds.value.east !== 0 &&
+        cameraBounds.value.west !== 0) {
+        const center = {
+            lat: (cameraBounds.value.north + cameraBounds.value.south) / 2,
+            lng: (cameraBounds.value.east + cameraBounds.value.west) / 2
+        };
+        return center;
+    }
+
+    return null;
+}
+
+// AI : Lazy load cities when user first interacts with the select
+async function onSelectFocus() {
+    if (!citiesLoaded.value && !citiesLoading.value) {
+        citiesLoaded.value = true;
+        await loadNearestCities();
+    }
+}
+
+// AI : Load cities near the selected overlay
+async function loadNearestCities() {
+    const overlayCenter = getOverlayCenter();
+
+    if (!overlayCenter) {
+        cities.value = [];
+        return;
+    }
+
+    try {
+        citiesLoading.value = true;
+        const result = await trpc.cities.getCitiesNearLocation.query({
+            lat: overlayCenter.lat,
+            lng: overlayCenter.lng,
+            limit: 20
+        });
+        cities.value = result;
+    } catch (error) {
+        console.error('Error loading nearest cities:', error);
+        cities.value = [];
+    } finally {
+        citiesLoading.value = false;
+    }
+}
 
 function handleSubmit() {
     emit('submit', localProject.value);
