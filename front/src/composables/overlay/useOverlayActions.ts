@@ -1,6 +1,6 @@
 import L from "leaflet";
 import { map, onMapInitialized } from '@composables/core/useMap';
-import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, updateOverlayImage, isEditMode } from '@composables/overlay/useOverlay';
+import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, updateOverlayImage, isEditMode, removeOverlay } from '@composables/overlay/useOverlay';
 import { saveOverlay, deleteOverlay as deleteOverlayFromDatabase, saveProject } from '@composables/core/useDatabase';
 import { generateImageResolutions, getImageUrlForCoverage } from '@composables/core/useImageResizer';
 import { useToast } from '@composables/ui/useToast';
@@ -678,6 +678,7 @@ export function deleteOverlay(id: string) {
   const overlayObject = overlays.value[id];
   if (!overlayObject) return;
 
+  // AI : Update project if overlay belongs to one
   if (overlayObject.projectId && projects.value[overlayObject.projectId]) {
     const project = projects.value[overlayObject.projectId];
     // Create a clean copy with all required Project properties
@@ -700,17 +701,7 @@ export function deleteOverlay(id: string) {
     
     saveProject(projectCopy);
   }
-
-  if (overlayObject.overlay && map.value) {
-    map.value.removeLayer(overlayObject.overlay);
-  }
-  
-  if (overlayObject.marker && map.value) {
-    map.value.removeLayer(overlayObject.marker);
-  }
-  
-  delete overlays.value[id];
-
+  removeOverlay(id);
   deleteOverlayFromDatabase(id);
 }
 
