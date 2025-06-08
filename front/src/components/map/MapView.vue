@@ -50,13 +50,9 @@
         <div 
           v-for="overlay in viewModeOverlays" 
           :key="overlay.id"
-          class="overlay-item"
-        >
+          class="overlay-item"        >
           <div class="overlay-info">
             <span class="overlay-phase">{{ overlay.phase }}</span>
-            <span v-if="overlay.sequenceNumber" class="overlay-sequence">
-              #{{ overlay.sequenceNumber }}
-            </span>
           </div>
           <div class="overlay-distance">
             {{ Math.round(overlay.distance) }}m

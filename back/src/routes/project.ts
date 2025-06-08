@@ -1,22 +1,19 @@
 import { db } from '../db';
 import { publicProcedure, router } from '../trpc';
 import { z } from 'zod';
-import { projects } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { projects, cities } from '../db/schema';
+import { eq, sql } from 'drizzle-orm';
 
 const publishProjectSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  description: z.string().optional(),
+  id: z.string().min(1).max(36), // AI : UUID length limit
+  title: z.string().min(1).max(200), // AI : Reasonable title length limit
+  description: z.string().max(2000).optional(), // AI : Limit description to 2000 characters
+  cityId: z.string().uuid().optional(), // AI : City ID for foreign key relationship
   metadata: z.object({
-    location: z.string().optional(),
-    startDate: z.string().optional(), // AI: ISO date string
-    endDate: z.string().optional(), // AI: ISO date string
-    sourceUrl: z.string().optional(),
-    overlayIds: z.array(z.string()),
-    color: z.string(),
-    createdAt: z.string(),
-    updatedAt: z.string()
+    // AI : Only allow startDate, endDate, and sourceUrl in metadata - nothing else
+    startDate: z.string().max(50).optional(), // AI: ISO date string for project start
+    endDate: z.string().max(50).optional(), // AI: ISO date string for project end
+    sourceUrl: z.string().url().max(500).optional() // AI : Validate URL format and limit length
   }).optional()
 });
 
@@ -33,15 +30,14 @@ export const projectRouter = router({
         const existingProject = await db.select()
           .from(projects)
           .where(eq(projects.id, input.id))
-          .limit(1);
-
-        if (existingProject.length > 0) {
+          .limit(1);        if (existingProject.length > 0) {
           // AI : Update existing project
           const updateResult = await db
             .update(projects)
             .set({
               title: input.title,
               description: input.description,
+              cityId: input.cityId || null, // AI : Set cityId or null if not provided
               metadata: input.metadata,
               updatedAt: new Date()
             })
@@ -57,6 +53,7 @@ export const projectRouter = router({
           id: input.id,
           title: input.title,
           description: input.description,
+          cityId: input.cityId || null, // AI : Set cityId or null if not provided
           metadata: input.metadata
         }).returning();
 
@@ -67,13 +64,35 @@ export const projectRouter = router({
         throw new Error('Failed to publish project');
       }
     }),
-  
-  getAllProjects: publicProcedure
+    getAllProjects: publicProcedure
     .query(async () => {
       try {
-        console.log('AI : Fetching all projects from backend database');
-        const allProjects = await db.select().from(projects);
-        console.log(`AI : Found ${allProjects.length} projects in backend`);
+        console.log('AI : Fetching all projects from backend database with city information');
+        
+        // AI : Join projects with cities to include city information
+        const allProjects = await db
+          .select({
+            id: projects.id,
+            title: projects.title,
+            description: projects.description,
+            ownerId: projects.ownerId,
+            cityId: projects.cityId,
+            metadata: projects.metadata,
+            createdAt: projects.createdAt,
+            updatedAt: projects.updatedAt,
+            // AI : Include city information when available
+            city: {
+              id: cities.id,
+              name: cities.name,
+              countryCode: cities.countryCode,
+              lat: sql<number>`ST_Y(${cities.coordinates})`,
+              lng: sql<number>`ST_X(${cities.coordinates})`
+            }
+          })
+          .from(projects)
+          .leftJoin(cities, eq(projects.cityId, cities.id));
+        
+        console.log(`AI : Found ${allProjects.length} projects in backend with city data`);
         return { projects: allProjects };
       } catch (error) {
         console.error('Error fetching all projects:', error);

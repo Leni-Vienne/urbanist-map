@@ -35,11 +35,11 @@
                 <FloatLabel
                     class="w-full"
                     variant="in"
-                > <Select
-                        v-model="localProject.location"
+                >                <Select
+                        v-model="localProject.cityId"
                         :options="filteredCities"
                         optionLabel="displayName"
-                        optionValue="name"
+                        optionValue="id"
                         :placeholder="citiesPlaceholder"
                         class="w-full"
                         :showClear="true"
@@ -123,7 +123,7 @@ import { ref, watch, computed } from 'vue';
 import { trpc } from '@client';
 import { idSelectedOverlay, overlays } from '@composables/overlay/useOverlay';
 import { getCameraBounds } from '@composables/map/useCameraBounds';
-import type { Project } from '@types';
+import type { Project, City } from '@types';
 
 const props = defineProps<{
     project: Partial<Project>;
@@ -139,14 +139,7 @@ const emit = defineEmits<{
 const localProject = ref<Partial<Project>>({ ...props.project });
 
 // AI : Cities data and state
-const cities = ref<Array<{
-    id: string;
-    name: string;
-    countryCode: string;
-    lat: number;
-    lng: number;
-    distance: number;
-}>>([]);
+const cities = ref<City[]>([]);
 const citiesLoading = ref(false);
 const citiesLoaded = ref(false); // AI : Track if cities have been loaded to avoid multiple loads
 
@@ -172,6 +165,27 @@ const filteredCities = computed(() => {
         ...city,
         displayName: `${city.name}, ${city.countryCode}`
     }));
+});
+
+// AI : Computed property to get the selected city name for backward compatibility display
+const selectedCityName = computed(() => {
+    if (localProject.value.cityId && cities.value.length > 0) {
+        const selectedCity = cities.value.find(city => city.id === localProject.value.cityId);
+        return selectedCity?.name || localProject.value.location || '';
+    }
+    return localProject.value.location || '';
+});
+
+// AI : Watch for cityId changes to update location field for backward compatibility
+watch(() => localProject.value.cityId, (newCityId) => {
+    if (newCityId && cities.value.length > 0) {
+        const selectedCity = cities.value.find(city => city.id === newCityId);
+        if (selectedCity) {
+            localProject.value.location = selectedCity.name;
+        }
+    } else if (!newCityId) {
+        localProject.value.location = '';
+    }
 });
 
 // AI : Get center coordinates of currently selected overlay or camera center as fallback
