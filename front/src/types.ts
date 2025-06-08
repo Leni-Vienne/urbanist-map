@@ -64,6 +64,16 @@ export type ImageResolutions = {
   originalHeight?: number; // AI: Original image height for resolution calculations
 };
 
+// AI : City data structure returned by the cities API
+export interface City {
+  id: string;
+  name: string;
+  countryCode: string;
+  lat: number;
+  lng: number;
+  distance?: number; // AI : Distance in meters when returned by nearby search
+}
+
 // AI : Project information
 export interface ProjectInfo {
   projectName: string;
@@ -78,6 +88,8 @@ export interface Project {
   name: string;
   description: string;
   location: string;
+  cityId?: string; // AI : Reference to city ID for foreign key relationship
+  city?: City; // AI : City information included from backend joins
   startDate: Date | null;
   endDate: Date | null;
   sourceUrl: string;
@@ -98,7 +110,6 @@ export interface StoredOverlayData {
   redoStack: { lat: number, lng: number }[][];
   projectId: string; // AI : Required reference to project (no longer optional)
   phase?: string; // AI : Optional phase information (e.g., "planning", "foundation", etc.)
-  sequenceNumber?: number; // AI : Optional sequence number for chronological ordering
   savedRemotely?: boolean; // AI : Track if overlay exists on server database
 }
 
@@ -107,16 +118,15 @@ export interface CDNOverlayData {
   id: string;
   filename: string; // AI : For CDN URL construction
   phase?: string;
-  sequenceNumber?: number | null;
-  projectId?: string | null; // AI : Project ID for styling backend overlays
+  projectId: string | null; // AI : Project ID for styling backend overlays
   // AI : Full project data for display and styling
-  project?: {
+  project: {
     id: string;
     title: string;
-    description?: string | null;
-    metadata?: any;
-    createdAt: Date | null;
-    updatedAt: Date | null;
+    description: string | null;
+    metadata: any;
+    createdAt: Date | null; // AI : Match database schema where createdAt can be null
+    updatedAt: Date;
   } | null;
   centroid: {
     lat: number;
@@ -125,14 +135,13 @@ export interface CDNOverlayData {
   // AI : All corner coordinates for proper overlay positioning (exactly 4 corners)
   corners: { lat: number; lng: number }[];
   distance: number;
-  createdAt: Date | null;
+  createdAt: Date | null; // AI : Match database schema where createdAt can be null
 }
 
 // AI : Define a simplified version of overlay data for the list component
 export interface OverlayListItem {
   id: string;
   phase?: string;
-  sequenceNumber?: number;
   distance?: number; // AI : For view mode display
   filename?: string; // AI : For CDN URL construction in view mode
 }

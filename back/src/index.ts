@@ -28,6 +28,23 @@ app.use('*', cors({
     credentials: true
 }));
 
+// AI : Global request size limit middleware (1MB for JSON, 10MB for file uploads)
+app.use('*', async (c, next) => {
+    const contentLength = c.req.header('content-length');
+    if (contentLength) {
+        const size = parseInt(contentLength);
+        const isFileUpload = c.req.path.includes('/upload');
+        const maxSize = isFileUpload ? 10 * 1024 * 1024 : 1024 * 1024; // 10MB for uploads, 1MB for other requests
+        
+        if (size > maxSize) {
+            return c.json({ 
+                error: `Request too large. Maximum size is ${isFileUpload ? '10MB' : '1MB'}` 
+            }, 413);
+        }
+    }
+    await next();
+});
+
 app.use('*', sessionMiddleware({
     store,
     sessionCookieName: 'session',
@@ -48,9 +65,26 @@ app.post('/api/upload-image', async (c) => {
     try {
         const body = await c.req.formData();
         const file = body.get('image') as File;
-        
+
         if (!file) {
             return c.json({ error: 'No file provided' }, 400);
+        }
+
+        // AI : Check file size limit (10MB)
+        const maxFileSize = 10 * 1024 * 1024; // 10MB in bytes
+        if (file.size > maxFileSize) {
+            return c.json({ error: 'File too large. Maximum size is 10MB' }, 400);
+        }
+
+        // AI : Check file type
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (!allowedTypes.includes(file.type)) {
+            return c.json({ error: 'Invalid file type. Only JPEG, PNG, and WebP are allowed' }, 400);
+        }
+
+        // AI : Check filename length
+        if (file.name.length > 255) {
+            return c.json({ error: 'Filename too long. Maximum length is 255 characters' }, 400);
         }
         
         // AI : Generate unique filename

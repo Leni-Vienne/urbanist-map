@@ -32,14 +32,12 @@ export async function addOverlay(imageUrl: string, projectId: string) {
     imageResolutions,
     overlay: null,
     marker: null,
-    history: [],
-    redoStack: [],
+    history: [],    redoStack: [],
     alreadyLoaded: false,
     alreadyStored: false,
     corners: [],
     projectId,
     phase: undefined,
-    sequenceNumber: undefined,
     whitePixelsHidden: false,
     isFlipped: false,
     currentResolution: imageUrl,
@@ -119,10 +117,9 @@ function saveOverlayInitialState(overlay: L.DistortableImageOverlay, overlayObje
     if (overlayObject.corners && overlayObject.corners.length > 0) {
       overlayObject.history = [JSON.parse(JSON.stringify(overlayObject.corners))];
       overlayObject.redoStack = [];
-    }
-  }
+    }  }
   
-  // Save the overlay to the database
+  // AI : Save the overlay to the database
   const storedOverlay: StoredOverlayData = {
     id: overlayObject.id,
     imageUrl: overlayObject.imageUrl,
@@ -132,7 +129,6 @@ function saveOverlayInitialState(overlay: L.DistortableImageOverlay, overlayObje
     redoStack: overlayObject.redoStack,
     projectId: overlayObject.projectId,
     phase: overlayObject.phase,
-    sequenceNumber: overlayObject.sequenceNumber,
     savedRemotely: overlayObject.savedRemotely || false // AI : Include server existence tracking
   };
   
@@ -204,8 +200,7 @@ function applyHistoryAction(action: 'undo' | 'redo') {
   (overlay as L.DistortableImageOverlay).setCorners(newState);
 
   updateMarkerPosition(overlayObject);
-  
-  // AI : Save only the specific overlay being updated, not all overlays
+    // AI : Save only the specific overlay being updated, not all overlays
   if (overlayObject.overlay) {
     overlayObject.corners = overlayObject.overlay.getCorners();
   }
@@ -218,8 +213,7 @@ function applyHistoryAction(action: 'undo' | 'redo') {
     history: overlayObject.history,
     redoStack: overlayObject.redoStack,
     projectId: overlayObject.projectId,
-    phase: overlayObject.phase,
-    sequenceNumber: overlayObject.sequenceNumber
+    phase: overlayObject.phase
   };
   
   saveOverlay(savedOverlay);
@@ -335,8 +329,7 @@ export function resetImageRatio() {
     if (overlayObject.overlay) {
       overlayObject.corners = overlayObject.overlay.getCorners();
     }
-    
-    const savedOverlay = {
+      const savedOverlay = {
       id: overlayObject.id,
       imageUrl: overlayObject.imageUrl,
       imageResolutions: overlayObject.imageResolutions,
@@ -344,8 +337,7 @@ export function resetImageRatio() {
       history: overlayObject.history,
       redoStack: overlayObject.redoStack,
       projectId: overlayObject.projectId,
-      phase: overlayObject.phase,
-      sequenceNumber: overlayObject.sequenceNumber
+      phase: overlayObject.phase
     };
     
     saveOverlay(savedOverlay);
@@ -705,12 +697,11 @@ export function deleteOverlay(id: string) {
   deleteOverlayFromDatabase(id);
 }
 
-export function updateOverlayInfo(id: string, info: { phase?: string, sequenceNumber?: number }): void {
+export function updateOverlayInfo(id: string, info: { phase?: string }): void {
   const overlayObject = overlays.value[id];
   if (!overlayObject) return;
 
   overlayObject.phase = info.phase;
-  overlayObject.sequenceNumber = info.sequenceNumber;
   
   updateTooltipText();
   
@@ -728,7 +719,6 @@ export function updateOverlayInfo(id: string, info: { phase?: string, sequenceNu
     redoStack: overlayObject.redoStack,
     projectId: overlayObject.projectId,
     phase: overlayObject.phase,
-    sequenceNumber: overlayObject.sequenceNumber,
     savedRemotely: overlayObject.savedRemotely || false // AI : Include server existence tracking
   };
   

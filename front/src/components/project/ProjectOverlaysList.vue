@@ -37,18 +37,11 @@
       >
         <!-- AI : Column for overlay name/phase -->
         <Column field="phase" header="Phase">
-          <template #body="slotProps">
-            {{ slotProps.data.phase || 'Unnamed Overlay' }}
+          <template #body="slotProps">          {{ slotProps.data.phase || 'Unnamed Overlay' }}
           </template>
         </Column>
         
-        <!-- AI : Column for sequence number -->
-        <Column field="sequenceNumber" header="Sequence" style="width: 100px">
-          <template #body="slotProps">
-            {{ slotProps.data.sequenceNumber || '-' }}
-          </template>
-        </Column>
-          <!-- AI : Column for distance in view mode -->
+        <!-- AI : Column for distance in view mode -->
         <Column v-if="isViewMode" field="distance" header="Distance" style="width: 120px">
           <template #body="slotProps">
             {{ formatDistance(slotProps.data.distance) }}
@@ -149,9 +142,7 @@ const displayedOverlays = computed(() => {
   if (props.isViewMode) {
     // AI : Convert CDN overlay data to OverlayListItem format for display
     return viewModeOverlays.value.map(overlay => ({
-      id: overlay.id,
-      phase: overlay.phase,
-      sequenceNumber: overlay.sequenceNumber,
+      id: overlay.id,      phase: overlay.phase,
       distance: overlay.distance,
       filename: overlay.filename // AI : Keep filename for CDN usage
     }));

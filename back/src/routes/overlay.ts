@@ -1,26 +1,30 @@
 import { db } from '../db';
 import { publicProcedure, router } from '../trpc';
 import { z } from 'zod';
-import { images, projects } from '../db/schema';
-import { sql } from 'drizzle-orm';
+import { images, projects, cities } from '../db/schema';
+import { eq, sql } from 'drizzle-orm';
 
 const publishOverlaySchema = z.object({
-  id: z.string(),
-  filename: z.string(),
-  caption: z.string().optional(),
-  projectId: z.string(),
+  id: z.string().min(1).max(36), // AI : UUID length limit
+  filename: z.string().min(1).max(255), // AI : Standard filename length limit
+  caption: z.string().max(500).optional(), // AI : Limit caption to 500 characters
+  projectId: z.string().min(1).max(36), // AI : UUID length limit for project reference
   metadata: z.any().optional(),
   corners: z.array(z.object({
-    lat: z.number(),
-    lng: z.number()
-  })).length(4)
+    lat: z.number().min(-90).max(90), // AI : Valid latitude range
+    lng: z.number().min(-180).max(180) // AI : Valid longitude range
+  })).length(4) // AI : Exactly 4 corners required
 });
 
 const boundsSchema = z.object({
-  north: z.number(),
-  south: z.number(),
-  east: z.number(),
-  west: z.number()
+  north: z.number().min(-90).max(90), // AI : Valid latitude range
+  south: z.number().min(-90).max(90), // AI : Valid latitude range  
+  east: z.number().min(-180).max(180), // AI : Valid longitude range
+  west: z.number().min(-180).max(180) // AI : Valid longitude range
+}).refine(data => data.north > data.south, {
+  message: "AI : North boundary must be greater than south boundary"
+}).refine(data => data.east > data.west, {
+  message: "AI : East boundary must be greater than west boundary"
 });
 
 export const overlayRouter = router({
@@ -38,16 +42,14 @@ export const overlayRouter = router({
           .select()
           .from(images)
           .where(sql`filename = ${input.filename}`)
-          .limit(1);
-
-        if (existingOverlay.length > 0) {
+          .limit(1);        if (existingOverlay.length > 0) {
           // AI : Update existing overlay
           const result = await db
             .update(images)
             .set({
               caption: input.caption,
               projectId: input.projectId,
-              metadata: input.metadata,
+              metadata: null, // AI : Keep metadata empty as requested
               topLeftLat: topLeft.lat,
               topLeftLng: topLeft.lng,
               topRightLat: topRight.lat,
@@ -65,14 +67,14 @@ export const overlayRouter = router({
             success: true,
             id: result[0].id,
             exists: true // AI : Indicate this overlay was updated
-          };
+          };        
         } else {
           // AI : Insert new overlay
           const result = await db.insert(images).values({
             filename: input.filename,
             caption: input.caption,
             projectId: input.projectId,
-            metadata: input.metadata,
+            metadata: null, // AI : Keep metadata empty as requested
             topLeftLat: topLeft.lat,
             topLeftLng: topLeft.lng,
             topRightLat: topRight.lat,
@@ -106,22 +108,22 @@ export const overlayRouter = router({
         const centerLat = (input.north + input.south) / 2;
         const centerLng = (input.east + input.west) / 2;
         const centerPoint = sql`ST_SetSRID(ST_MakePoint(${centerLng}, ${centerLat}), 4326)`;        // AI : Query overlays where centroid is within the bounding box using spatial index
-        // AI : Join with projects table to get full project data for styling
+        // AI : Join with projects and cities tables to get full project data with city information
         const overlays = await db
           .select({
             id: images.id,
             filename: images.filename,
             phase: images.caption,
-            sequenceNumber: images.metadata,
             projectId: images.projectId, // AI : Include project ID for styling
-            // AI : Include full project data for frontend display
-            project: {
+            // AI : Include full project data with city information for frontend display
+            projectData: {
               id: projects.id,
               title: projects.title,
               description: projects.description,
+              cityId: projects.cityId,
               metadata: projects.metadata,
               createdAt: projects.createdAt,
-              updatedAt: projects.updatedAt
+              updatedAt: projects.updatedAt,
             },
             centroidLat: sql<number>`ST_Y(${images.centroid})`.as('centroid_lat'),
             centroidLng: sql<number>`ST_X(${images.centroid})`.as('centroid_lng'),
@@ -135,26 +137,25 @@ export const overlayRouter = router({
             bottomLeftLat: images.bottomLeftLat,
             bottomLeftLng: images.bottomLeftLng,
             distance: sql<number>`ST_Distance(${images.centroid}, ${centerPoint})`.as('distance'),
-            createdAt: images.createdAt
-          })
+            createdAt: images.createdAt          })
           .from(images)
-          .leftJoin(projects, sql`${images.projectId} = ${projects.id}`)
+          .leftJoin(projects, eq(images.projectId, projects.id))
+          .leftJoin(cities, eq(projects.cityId, cities.id))
           .where(sql`ST_Within(${images.centroid}, ${boundingBox})`)
           .orderBy(sql`distance`);        // AI : Transform results for CDN usage
         const result = overlays.map(overlay => ({
           id: overlay.id,
           filename: overlay.filename, // AI : For CDN URL construction
           phase: overlay.phase || undefined, // AI : Make it optional
-          sequenceNumber: overlay.sequenceNumber ? (overlay.sequenceNumber as any)?.sequenceNumber || null : null,
           projectId: overlay.projectId || null, // AI : Include project ID for styling
           // AI : Include full project data for frontend display and styling
-          project: overlay.project?.id ? {
-            id: overlay.project.id,
-            title: overlay.project.title,
-            description: overlay.project.description,
-            metadata: overlay.project.metadata,
-            createdAt: overlay.project.createdAt,
-            updatedAt: overlay.project.updatedAt
+          project: overlay.projectData?.id ? {
+            id: overlay.projectData.id,
+            title: overlay.projectData.title,
+            description: overlay.projectData.description,
+            metadata: overlay.projectData.metadata,
+            createdAt: overlay.projectData.createdAt,
+            updatedAt: overlay.projectData.updatedAt
           } : null,
           centroid: {
             lat: overlay.centroidLat,

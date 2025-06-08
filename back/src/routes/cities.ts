@@ -5,16 +5,16 @@ import { cities } from '../db/schema';
 import { sql } from 'drizzle-orm';
 
 const getCitiesNearLocationSchema = z.object({
-  lat: z.number(),
-  lng: z.number(),
+  lat: z.number().min(-90).max(90), // AI : Valid latitude range
+  lng: z.number().min(-180).max(180), // AI : Valid longitude range
   limit: z.number().min(1).max(50).default(10) // AI : Limit results between 1-50, default 10
 });
 
 const searchCitiesNearLocationSchema = z.object({
-  lat: z.number(),
-  lng: z.number(),
-  search: z.string(),
-  limit: z.number().min(1).max(50).default(10)
+  lat: z.number().min(-90).max(90), // AI : Valid latitude range
+  lng: z.number().min(-180).max(180), // AI : Valid longitude range
+  search: z.string().min(1).max(100), // AI : Limit search string to 100 characters
+  limit: z.number().min(1).max(50).default(10) // AI : Limit results between 1-50, default 10
 });
 
 export const citiesRouter = router({

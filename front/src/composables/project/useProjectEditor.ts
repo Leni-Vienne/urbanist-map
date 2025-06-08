@@ -37,11 +37,11 @@ export function useProjectEditor(projectId: string, mode: 'edit' | 'view' | 'cre
 
   // AI : Initialize project data based on mode
   const initializeProject = async () => {
-    if (mode === 'create') {
-      editingProject.value = {
+    if (mode === 'create') {      editingProject.value = {
         name: initialProjectName.value,
         description: '',
         location: '',
+        cityId: undefined, // AI : Initialize cityId as undefined
         startDate: null,
         endDate: null,
         sourceUrl: '',
@@ -78,11 +78,11 @@ export function useProjectEditor(projectId: string, mode: 'edit' | 'view' | 'cre
     }
 
     try {
-      const isExisting = !!projectData.id;
-      const dataToSave = {
+      const isExisting = !!projectData.id;      const dataToSave = {
         name: projectData.name,
         description: projectData.description || '',
         location: projectData.location || '',
+        cityId: projectData.cityId, // AI : Include cityId for foreign key relationship
         startDate: projectData.startDate ?? null,
         endDate: projectData.endDate ?? null,
         sourceUrl: projectData.sourceUrl || '',

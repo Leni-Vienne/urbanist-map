@@ -41,10 +41,9 @@
           <div class="flex justify-between">
             <span class="font-medium text-gray-600">Name:</span>
             <span class="text-right">{{ project.name || 'Not specified' }}</span>
-          </div>
-          <div class="flex justify-between">
+          </div>          <div class="flex justify-between">
             <span class="font-medium text-gray-600">Location:</span>
-            <span class="text-right">{{ project.location || 'Not specified' }}</span>
+            <span class="text-right">{{ getProjectLocationDisplay(project) }}</span>
           </div>
           <div class="flex justify-between">
             <span class="font-medium text-gray-600">Period:</span>
@@ -78,14 +77,9 @@
           <div class="flex justify-between">
             <span class="font-medium text-gray-600">ID:</span>
             <span class="font-mono text-xs">{{ props.overlayObject.id }}</span>
-          </div>
-          <div class="flex justify-between">
+          </div>        <div class="flex justify-between">
             <span class="font-medium text-gray-600">Name:</span>
             <span class="text-right">{{ props.overlayObject.phase || 'Not specified' }}</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="font-medium text-gray-600">Sequence:</span>
-            <span class="text-right">{{ props.overlayObject.sequenceNumber || 'Not specified' }}</span>
           </div>
         </div>
         <OverlayEditor 
@@ -203,12 +197,21 @@ function formatCurrency(amount: number): string {
 }
 
 // AI : Handle overlay update from the OverlayEditor component
-function onOverlayUpdate(overlayId: string, phase?: string, sequenceNumber?: number) {
+function onOverlayUpdate(overlayId: string, phase?: string) {
   // AI : Update the local data if needed
   if (overlayId === props.overlayObject.id) {
     props.overlayObject.phase = phase;
-    props.overlayObject.sequenceNumber = sequenceNumber;
   }
+}
+
+// AI : Get display text for project location (city name or fallback)
+function getProjectLocationDisplay(project: any): string {
+  // AI : Prefer city name from included city data
+  if (project.city?.name) {
+    return `${project.city.name}, ${project.city.countryCode}`;
+  }
+  // AI : Fallback to location field for backward compatibility
+  return project.location || 'Not specified';
 }
 
 // AI : Apply project change to overlay
@@ -354,24 +357,17 @@ function validateOverlayForPublishing(): boolean {
 async function ensureProjectOnServer(): Promise<boolean> {
   if (!project.value) {
     return false;
-  }
-  
-  try {
-    const projectResult = await trpc.project.publishProject.mutate({
-      id: project.value.id,
+  }  try {    const projectResult = await trpc.project.publishProject.mutate({      id: project.value.id,
       title: project.value.name,
       description: project.value.description,
+      cityId: project.value.cityId, // AI : Send cityId for proper city relationship
       metadata: {
-        location: project.value.location,
+        // AI : Only send startDate, endDate, and sourceUrl in metadata as per backend schema
         startDate: project.value.startDate?.toISOString(),
         endDate: project.value.endDate?.toISOString(),
-        sourceUrl: project.value.sourceUrl,
-        overlayIds: project.value.overlayIds,
-        color: project.value.color,
-        createdAt: project.value.createdAt,
-        updatedAt: project.value.updatedAt
+        sourceUrl: project.value.sourceUrl
       }
-    });    if (!projectResult.success) {
+    });if (!projectResult.success) {
       throw new Error('Failed to publish project to server');
     }
     
@@ -456,17 +452,13 @@ async function prepareImageForServer(): Promise<string> {
 }
 
 // AI : Publish overlay metadata to server
-async function publishOverlayToServer(filename: string): Promise<{ success: boolean; exists: boolean; id?: string }> {
-  const payload = {
+async function publishOverlayToServer(filename: string): Promise<{ success: boolean; exists: boolean; id?: string }> {  const payload = {
     id: props.overlayObject.id,
     filename: filename,
     caption: props.overlayObject.phase || undefined,
     projectId: props.overlayObject.projectId!,
     metadata: {
-      phase: props.overlayObject.phase,
-      sequenceNumber: props.overlayObject.sequenceNumber,
-      history: props.overlayObject.history
-      // AI : Exclude imageResolutions as they contain image data that shouldn't be stored in database
+      // AI : Keep metadata empty as requested - no phase or history data
     },
     corners: props.overlayObject.corners
   };

@@ -32,7 +32,6 @@ export function saveOverlayToDatabase(overlayObj: OverlayObject): void {
     redoStack: overlayObj.redoStack,
     projectId: overlayObj.projectId,
     phase: overlayObj.phase,
-    sequenceNumber: overlayObj.sequenceNumber,
     savedRemotely: overlayObj.savedRemotely || false
   };
 
@@ -273,15 +272,13 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
       }
     }// AI : Save overlay to database immediately after loading
     const savedOverlay: StoredOverlayData = {
-      id: overlayObject.id,
-      imageUrl: overlayObject.imageUrl,
+      id: overlayObject.id,      imageUrl: overlayObject.imageUrl,
       imageResolutions: overlayObject.imageResolutions,
       corners: overlayObject.corners || overlayObject.overlay?.getCorners() || [],
       history: overlayObject.history,
       redoStack: overlayObject.redoStack,
       projectId: overlayObject.projectId,
       phase: overlayObject.phase,
-      sequenceNumber: overlayObject.sequenceNumber,
       savedRemotely: overlayObject.savedRemotely || false // AI : Include server existence tracking
     };
     if(isEditMode.value) {
@@ -413,13 +410,11 @@ export function saveToHistory(overlayObject: OverlayObject): void {
   const savedOverlay: StoredOverlayData = {
     id: overlayObject.id,
     imageUrl: overlayObject.imageUrl,
-    imageResolutions: overlayObject.imageResolutions,
-    corners: overlayObject.corners,
+    imageResolutions: overlayObject.imageResolutions,    corners: overlayObject.corners,
     history: overlayObject.history,
     redoStack: overlayObject.redoStack,
     projectId: overlayObject.projectId,
     phase: overlayObject.phase,
-    sequenceNumber: overlayObject.sequenceNumber,
     savedRemotely: overlayObject.savedRemotely || false // AI : Include server existence tracking
   };
 
@@ -643,6 +638,7 @@ export async function renderViewModeOverlays(cdnOverlays: CDNOverlayData[]): Pro
 
   // AI : Render each new CDN overlay as a read-only marker
   for (const cdnOverlay of overlaysToRender) {
+    console.log(`AI : Rendering CDN overlay ${cdnOverlay.id} in view mode`);
     await renderSingleViewModeOverlay(cdnOverlay);
   }
 }
@@ -667,8 +663,7 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData): Promise<
 
     // AI : Use the actual corners from the backend instead of calculating from centroid
     const corners = cdnOverlay.corners.map(corner => L.latLng(corner.lat, corner.lng));    // AI : Create overlay object for view mode using same structure as edit mode
-    const overlayObject: OverlayObject = {
-      id: cdnOverlay.id,
+    const overlayObject: OverlayObject = {      id: cdnOverlay.id,
       imageUrl: imageUrl,
       imageResolutions: undefined,
       corners: corners,
@@ -676,7 +671,6 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData): Promise<
       redoStack: [],
       projectId: cdnOverlay.projectId || '', // AI : Use project ID from backend data
       phase: cdnOverlay.phase || undefined,
-      sequenceNumber: cdnOverlay.sequenceNumber || undefined,
       overlay: null,
       marker: null,
       alreadyLoaded: false,
@@ -787,8 +781,7 @@ async function loadBackendOverlaysForEditMode(mapBounds: L.LatLngBounds): Promis
     });
 
     console.log(`AI : Found ${result.overlays.length} backend overlays for edit mode`);    // AI : For each backend overlay, create an editable overlay if not already loaded locally
-    for (const cdnOverlay of result.overlays) {
-      // AI : If we already have this overlay locally, update it with backend project data
+    for (const cdnOverlay of result.overlays) {      // AI : If we already have this overlay locally, update it with backend project data
       if (overlays.value[cdnOverlay.id]) {
         console.log(`AI : Overlay ${cdnOverlay.id} already exists locally, updating with backend project data`);
         
@@ -838,8 +831,7 @@ async function renderBackendOverlayForEditMode(cdnOverlay: CDNOverlayData): Prom
 
     // AI : Use the actual corners from the backend
     const corners = cdnOverlay.corners.map(corner => L.latLng(corner.lat, corner.lng));    // AI : Create overlay object that tracks it's from backend
-    const overlayObject: OverlayObject = {
-      id: cdnOverlay.id,
+    const overlayObject: OverlayObject = {      id: cdnOverlay.id,
       imageUrl: imageUrl,
       imageResolutions: undefined,
       corners: corners,
@@ -847,7 +839,6 @@ async function renderBackendOverlayForEditMode(cdnOverlay: CDNOverlayData): Prom
       redoStack: [],
       projectId: cdnOverlay.projectId || '', // AI : Use project ID from backend or fallback to empty string
       phase: cdnOverlay.phase || undefined,
-      sequenceNumber: cdnOverlay.sequenceNumber || undefined,
       overlay: null,
       marker: null,
       alreadyLoaded: false,
