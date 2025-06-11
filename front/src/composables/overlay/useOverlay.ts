@@ -31,7 +31,7 @@ export function saveOverlayToDatabase(overlayObj: OverlayObject): void {
     history: overlayObj.history,
     redoStack: overlayObj.redoStack,
     projectId: overlayObj.projectId,
-    phase: overlayObj.phase,
+    caption: overlayObj.caption,
     savedRemotely: overlayObj.savedRemotely || false
   };
 
@@ -85,7 +85,7 @@ function createMarkersForOverlays(savedOverlays: StoredOverlayData[]): void {
     let markerTitle = 'Overlay';
     if (savedOverlay.projectId && projects.value[savedOverlay.projectId]) {
       const project = projects.value[savedOverlay.projectId];
-      markerTitle = `${project.name}${savedOverlay.phase ? ` - ${savedOverlay.phase}` : ''}`;
+      markerTitle = `${project.name}${savedOverlay.caption ? ` - ${savedOverlay.caption}` : ''}`;
     }
 
     const center = overlayBounds.getCenter();
@@ -278,7 +278,7 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
       history: overlayObject.history,
       redoStack: overlayObject.redoStack,
       projectId: overlayObject.projectId,
-      phase: overlayObject.phase,
+      caption: overlayObject.caption,
       savedRemotely: overlayObject.savedRemotely || false // AI : Include server existence tracking
     };
     if(isEditMode.value) {
@@ -414,7 +414,7 @@ export function saveToHistory(overlayObject: OverlayObject): void {
     history: overlayObject.history,
     redoStack: overlayObject.redoStack,
     projectId: overlayObject.projectId,
-    phase: overlayObject.phase,
+    caption: overlayObject.caption,
     savedRemotely: overlayObject.savedRemotely || false // AI : Include server existence tracking
   };
 
@@ -670,7 +670,7 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData): Promise<
       history: [],
       redoStack: [],
       projectId: cdnOverlay.projectId || '', // AI : Use project ID from backend data
-      phase: cdnOverlay.phase || undefined,
+      caption: cdnOverlay.caption || undefined,
       overlay: null,
       marker: null,
       alreadyLoaded: false,
@@ -719,7 +719,7 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData): Promise<
     const centerLat = cdnOverlay.centroid.lat;
     const centerLng = cdnOverlay.centroid.lng;
     const marker = L.marker([centerLat, centerLng], {
-      title: `${cdnOverlay.phase || 'Overlay'} (View Mode - Read Only)`,
+      title: `${cdnOverlay.caption || 'Overlay'} (View Mode - Read Only)`,
       opacity: 0.7
     }).addTo(map.value);
 
@@ -838,7 +838,7 @@ async function renderBackendOverlayForEditMode(cdnOverlay: CDNOverlayData): Prom
       history: [],
       redoStack: [],
       projectId: cdnOverlay.projectId || '', // AI : Use project ID from backend or fallback to empty string
-      phase: cdnOverlay.phase || undefined,
+      caption: cdnOverlay.caption || undefined,
       overlay: null,
       marker: null,
       alreadyLoaded: false,
@@ -904,7 +904,7 @@ async function renderBackendOverlayForEditMode(cdnOverlay: CDNOverlayData): Prom
     const centerLat = cdnOverlay.centroid.lat;
     const centerLng = cdnOverlay.centroid.lng;
     const marker = L.marker([centerLat, centerLng], {
-      title: `${cdnOverlay.phase || 'Backend Overlay'} (From Server)`,
+      title: `${cdnOverlay.caption || 'Backend Overlay'} (From Server)`,
       opacity: 0.8
     }).addTo(map.value);
 
@@ -935,7 +935,7 @@ function handleOverlayMovement(overlayObject: OverlayObject): void {
     
     // AI : Update marker title to indicate it's now a local copy
     if (overlayObject.marker) {
-      const newTitle = `${overlayObject.phase || 'Overlay'} (Local Copy - Modified)`;
+      const newTitle = `${overlayObject.caption || 'Overlay'} (Local Copy - Modified)`;
       overlayObject.marker.setTooltipContent(newTitle);
       overlayObject.marker.bindTooltip(newTitle, { permanent: false });
     }

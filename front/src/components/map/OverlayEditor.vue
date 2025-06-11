@@ -21,7 +21,7 @@
             variant="in"
           >
             <InputText 
-              v-model="editingInfo.phase" 
+              v-model="editingInfo.caption" 
               class="w-full p-3"
             />
             <label class="text-gray-600">Overlay Name</label>
@@ -62,7 +62,7 @@ const props = defineProps<{
 
 // AI : Define emits for the component
 const emit = defineEmits<{
-  (e: 'update', overlayId: string, phase?: string): void;
+  (e: 'update', overlayId: string, caption?: string): void;
 }>();
 
 const toast = useToast();
@@ -70,14 +70,14 @@ const showDialog = ref(false);
 
 // AI : Local state for editing overlay information
 const editingInfo = ref({
-  phase: ''
+  caption: ''
 });
 
 // AI : Open the dialog for editing overlay information
 function openDialog() {
   // AI : Reset form with current values from the overlay object
   editingInfo.value = {
-    phase: props.overlayObject.phase || ''
+    caption: props.overlayObject.caption || ''
   };
   showDialog.value = true;
 }
@@ -87,14 +87,14 @@ function saveChanges() {
   try {
     // AI : Update overlay info using existing function
     updateOverlayInfo(props.overlayObject.id, {
-      phase: editingInfo.value.phase || undefined
+      caption: editingInfo.value.caption || undefined
     });
     
     // AI : Update the tooltip text
     updateTooltipText();
     
     // AI : Emit update event
-    emit('update', props.overlayObject.id, editingInfo.value.phase);
+    emit('update', props.overlayObject.id, editingInfo.value.caption);
     
     // AI : Show success message
     toast.add({

@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { publicProcedure, router } from '../trpc';
 import { z } from 'zod';
-import { images, projects, cities } from '../db/schema';
+import { overlays, projects, cities } from '../db/schema';
 import { eq, sql } from 'drizzle-orm';
 
 const publishOverlaySchema = z.object({
@@ -40,12 +40,11 @@ export const overlayRouter = router({
         const centroidLng = input.corners.reduce((sum, corner) => sum + corner.lng, 0) / 4;        // AI : Check if overlay with this filename already exists (UPSERT logic)
         const existingOverlay = await db
           .select()
-          .from(images)
+          .from(overlays)
           .where(sql`filename = ${input.filename}`)
-          .limit(1);        if (existingOverlay.length > 0) {
-          // AI : Update existing overlay
+          .limit(1);if (existingOverlay.length > 0) {          // AI : Update existing overlay
           const result = await db
-            .update(images)
+            .update(overlays)
             .set({
               caption: input.caption,
               projectId: input.projectId,
@@ -68,9 +67,8 @@ export const overlayRouter = router({
             id: result[0].id,
             exists: true // AI : Indicate this overlay was updated
           };        
-        } else {
-          // AI : Insert new overlay
-          const result = await db.insert(images).values({
+        } else {          // AI : Insert new overlay
+          const result = await db.insert(overlays).values({
             filename: input.filename,
             caption: input.caption,
             projectId: input.projectId,
@@ -109,12 +107,12 @@ export const overlayRouter = router({
         const centerLng = (input.east + input.west) / 2;
         const centerPoint = sql`ST_SetSRID(ST_MakePoint(${centerLng}, ${centerLat}), 4326)`;        // AI : Query overlays where centroid is within the bounding box using spatial index
         // AI : Join with projects and cities tables to get full project data with city information
-        const overlays = await db
+        const overlays_data = await db
           .select({
-            id: images.id,
-            filename: images.filename,
-            phase: images.caption,
-            projectId: images.projectId, // AI : Include project ID for styling
+            id: overlays.id,
+            filename: overlays.filename,
+            caption: overlays.caption,
+            projectId: overlays.projectId, // AI : Include project ID for styling
             // AI : Include full project data with city information for frontend display
             projectData: {
               id: projects.id,
@@ -125,28 +123,28 @@ export const overlayRouter = router({
               createdAt: projects.createdAt,
               updatedAt: projects.updatedAt,
             },
-            centroidLat: sql<number>`ST_Y(${images.centroid})`.as('centroid_lat'),
-            centroidLng: sql<number>`ST_X(${images.centroid})`.as('centroid_lng'),
+            centroidLat: sql<number>`ST_Y(${overlays.centroid})`.as('centroid_lat'),
+            centroidLng: sql<number>`ST_X(${overlays.centroid})`.as('centroid_lng'),
             // AI : Include all corner coordinates for frontend overlay positioning
-            topLeftLat: images.topLeftLat,
-            topLeftLng: images.topLeftLng,
-            topRightLat: images.topRightLat,
-            topRightLng: images.topRightLng,
-            bottomRightLat: images.bottomRightLat,
-            bottomRightLng: images.bottomRightLng,
-            bottomLeftLat: images.bottomLeftLat,
-            bottomLeftLng: images.bottomLeftLng,
-            distance: sql<number>`ST_Distance(${images.centroid}, ${centerPoint})`.as('distance'),
-            createdAt: images.createdAt          })
-          .from(images)
-          .leftJoin(projects, eq(images.projectId, projects.id))
+            topLeftLat: overlays.topLeftLat,
+            topLeftLng: overlays.topLeftLng,
+            topRightLat: overlays.topRightLat,
+            topRightLng: overlays.topRightLng,
+            bottomRightLat: overlays.bottomRightLat,
+            bottomRightLng: overlays.bottomRightLng,
+            bottomLeftLat: overlays.bottomLeftLat,
+            bottomLeftLng: overlays.bottomLeftLng,
+            distance: sql<number>`ST_Distance(${overlays.centroid}, ${centerPoint})`.as('distance'),
+            createdAt: overlays.createdAt          })
+          .from(overlays)
+          .leftJoin(projects, eq(overlays.projectId, projects.id))
           .leftJoin(cities, eq(projects.cityId, cities.id))
-          .where(sql`ST_Within(${images.centroid}, ${boundingBox})`)
+          .where(sql`ST_Within(${overlays.centroid}, ${boundingBox})`)
           .orderBy(sql`distance`);        // AI : Transform results for CDN usage
-        const result = overlays.map(overlay => ({
+        const result = overlays_data.map(overlay => ({
           id: overlay.id,
           filename: overlay.filename, // AI : For CDN URL construction
-          phase: overlay.phase || undefined, // AI : Make it optional
+          caption: overlay.caption || undefined, // AI : Make it optional
           projectId: overlay.projectId || null, // AI : Include project ID for styling
           // AI : Include full project data for frontend display and styling
           project: overlay.projectData?.id ? {

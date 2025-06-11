@@ -24,7 +24,7 @@ export const projects = pgTable('projects', {
 });
 
 
-export const images = pgTable('images', {
+export const overlays = pgTable('overlays', {
   id: uuid('id').defaultRandom().primaryKey(),
   filename: text('filename').notNull(),
   caption: text('caption'),
@@ -46,9 +46,9 @@ export const images = pgTable('images', {
 
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
-}, (images) => ({
-  projectIndex: index('idx_images_project').on(images.projectId),
-  centroidIndex: sql.raw(`CREATE INDEX idx_images_centroid ON images USING GIST (centroid)`)
+}, (overlays) => ({
+  projectIndex: index('idx_overlays_project').on(overlays.projectId),
+  centroidIndex: sql.raw(`CREATE INDEX idx_overlays_centroid ON overlays USING GIST (centroid)`)
 }));
 
 export const cities = pgTable('cities', {
