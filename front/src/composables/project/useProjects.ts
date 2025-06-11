@@ -273,7 +273,7 @@ export function applyProjectStyling(overlayObject: OverlayObject, projectId: str
   // Add project indicator to marker
   if (overlayObject.marker) {
     // Add project name to marker tooltip
-    overlayObject.marker.setTooltipContent(`${project.name}${overlayObject.phase ? ` - ${overlayObject.phase}` : ''}`);
+    overlayObject.marker.setTooltipContent(`${project.name}${overlayObject.caption ? ` - ${overlayObject.caption}` : ''}`);
   }
 }
 

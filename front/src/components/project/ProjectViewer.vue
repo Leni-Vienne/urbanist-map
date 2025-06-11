@@ -71,7 +71,7 @@ const { isHighlighted, toggleHighlight, clearHighlightOnModeChange } = useProjec
 const projectOverlaysListItems = computed<OverlayListItem[]>(() =>
   projectOverlays.value.map(overlay => ({
     id: overlay.id,
-    phase: overlay.phase
+    caption: overlay.caption
   }))
 );
 

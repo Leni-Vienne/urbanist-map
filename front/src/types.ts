@@ -109,7 +109,7 @@ export interface StoredOverlayData {
   history: { lat: number, lng: number }[][];
   redoStack: { lat: number, lng: number }[][];
   projectId: string; // AI : Required reference to project (no longer optional)
-  phase?: string; // AI : Optional phase information (e.g., "planning", "foundation", etc.)
+  caption?: string; // AI : Optional caption information (e.g., "planning", "foundation", etc.)
   savedRemotely?: boolean; // AI : Track if overlay exists on server database
 }
 
@@ -117,7 +117,7 @@ export interface StoredOverlayData {
 export interface CDNOverlayData {
   id: string;
   filename: string; // AI : For CDN URL construction
-  phase?: string;
+  caption?: string;
   projectId: string | null; // AI : Project ID for styling backend overlays
   // AI : Full project data for display and styling
   project: {
@@ -141,7 +141,7 @@ export interface CDNOverlayData {
 // AI : Define a simplified version of overlay data for the list component
 export interface OverlayListItem {
   id: string;
-  phase?: string;
+  caption?: string;
   distance?: number; // AI : For view mode display
   filename?: string; // AI : For CDN URL construction in view mode
 }

@@ -79,7 +79,7 @@
             <span class="font-mono text-xs">{{ props.overlayObject.id }}</span>
           </div>        <div class="flex justify-between">
             <span class="font-medium text-gray-600">Name:</span>
-            <span class="text-right">{{ props.overlayObject.phase || 'Not specified' }}</span>
+            <span class="text-right">{{ props.overlayObject.caption || 'Not specified' }}</span>
           </div>
         </div>
         <OverlayEditor 
@@ -197,10 +197,10 @@ function formatCurrency(amount: number): string {
 }
 
 // AI : Handle overlay update from the OverlayEditor component
-function onOverlayUpdate(overlayId: string, phase?: string) {
+function onOverlayUpdate(overlayId: string, caption?: string) {
   // AI : Update the local data if needed
   if (overlayId === props.overlayObject.id) {
-    props.overlayObject.phase = phase;
+    props.overlayObject.caption = caption;
   }
 }
 
@@ -455,10 +455,10 @@ async function prepareImageForServer(): Promise<string> {
 async function publishOverlayToServer(filename: string): Promise<{ success: boolean; exists: boolean; id?: string }> {  const payload = {
     id: props.overlayObject.id,
     filename: filename,
-    caption: props.overlayObject.phase || undefined,
+    caption: props.overlayObject.caption || undefined,
     projectId: props.overlayObject.projectId!,
     metadata: {
-      // AI : Keep metadata empty as requested - no phase or history data
+      // AI : Keep metadata empty as requested - no caption or history data
     },
     corners: props.overlayObject.corners
   };

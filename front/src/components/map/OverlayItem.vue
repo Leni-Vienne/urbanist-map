@@ -4,7 +4,7 @@
     @click="$emit('add')"
   >
     <div class="flex justify-between items-center">
-      <span class="text-sm font-medium">{{ overlay.phase || 'Unnamed Overlay' }}</span>
+      <span class="text-sm font-medium">{{ overlay.caption || 'Unnamed Overlay' }}</span>
       <Button
         icon="pi pi-plus"
         class="p-button-text p-button-sm p-button-success"

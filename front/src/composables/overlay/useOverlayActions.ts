@@ -37,7 +37,7 @@ export async function addOverlay(imageUrl: string, projectId: string) {
     alreadyStored: false,
     corners: [],
     projectId,
-    phase: undefined,
+    caption: undefined,
     whitePixelsHidden: false,
     isFlipped: false,
     currentResolution: imageUrl,
@@ -103,7 +103,7 @@ function createMarkerForOverlay(overlay: L.DistortableImageOverlay, overlayObjec
   
   if (projectId && projects.value[projectId]) {
     const project = projects.value[projectId];
-    const tooltipText = `${project.name}${overlayObject.phase ? ` - ${overlayObject.phase}` : ''}`;
+    const tooltipText = `${project.name}${overlayObject.caption ? ` - ${overlayObject.caption}` : ''}`;
     marker.bindTooltip(tooltipText, { permanent: false }).openTooltip();
   }
 }
@@ -128,7 +128,7 @@ function saveOverlayInitialState(overlay: L.DistortableImageOverlay, overlayObje
     history: overlayObject.history,
     redoStack: overlayObject.redoStack,
     projectId: overlayObject.projectId,
-    phase: overlayObject.phase,
+    caption: overlayObject.caption,
     savedRemotely: overlayObject.savedRemotely || false // AI : Include server existence tracking
   };
   
@@ -213,7 +213,7 @@ function applyHistoryAction(action: 'undo' | 'redo') {
     history: overlayObject.history,
     redoStack: overlayObject.redoStack,
     projectId: overlayObject.projectId,
-    phase: overlayObject.phase
+    caption: overlayObject.caption
   };
   
   saveOverlay(savedOverlay);
@@ -337,7 +337,7 @@ export function resetImageRatio() {
       history: overlayObject.history,
       redoStack: overlayObject.redoStack,
       projectId: overlayObject.projectId,
-      phase: overlayObject.phase
+      caption: overlayObject.caption
     };
     
     saveOverlay(savedOverlay);
@@ -592,14 +592,14 @@ function selectAndCenterOverlay(overlayId: string, index?: number, total?: numbe
         toast.add({
           severity: 'info',
           summary: 'Navigation',
-          detail: `Moved to overlay ${index + 1} of ${total}${overlay.phase ? ` (${overlay.phase})` : ''}`,
+          detail: `Moved to overlay ${index + 1} of ${total}${overlay.caption ? ` (${overlay.caption})` : ''}`,
           life: 3000
         });
-      } else if (overlay.phase) {
+      } else if (overlay.caption) {
         toast.add({
           severity: 'info',
           summary: 'Navigation',
-          detail: `Navigated to overlay: ${overlay.phase}`,
+          detail: `Navigated to overlay: ${overlay.caption}`,
           life: 3000
         });
       }
@@ -658,7 +658,7 @@ export function updateTooltipText() {
   if (overlayObject.projectId) {
     const project = projects.value[overlayObject.projectId];
     if (project) {
-      const tooltipText = `${project.name}${overlayObject.phase ? ` - ${overlayObject.phase}` : ''}`;
+      const tooltipText = `${project.name}${overlayObject.caption ? ` - ${overlayObject.caption}` : ''}`;
       overlayObject.overlay!.bindTooltip(tooltipText, { permanent: true, direction: 'top' }).openTooltip();
     }
   } else {
@@ -697,11 +697,11 @@ export function deleteOverlay(id: string) {
   deleteOverlayFromDatabase(id);
 }
 
-export function updateOverlayInfo(id: string, info: { phase?: string }): void {
+export function updateOverlayInfo(id: string, info: { caption?: string }): void {
   const overlayObject = overlays.value[id];
   if (!overlayObject) return;
 
-  overlayObject.phase = info.phase;
+  overlayObject.caption = info.caption;
   
   updateTooltipText();
   
@@ -718,7 +718,7 @@ export function updateOverlayInfo(id: string, info: { phase?: string }): void {
     history: overlayObject.history,
     redoStack: overlayObject.redoStack,
     projectId: overlayObject.projectId,
-    phase: overlayObject.phase,
+    caption: overlayObject.caption,
     savedRemotely: overlayObject.savedRemotely || false // AI : Include server existence tracking
   };
   

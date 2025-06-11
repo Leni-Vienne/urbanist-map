@@ -52,7 +52,7 @@
           :key="overlay.id"
           class="overlay-item"        >
           <div class="overlay-info">
-            <span class="overlay-phase">{{ overlay.phase }}</span>
+            <span class="overlay-caption">{{ overlay.caption }}</span>
           </div>
           <div class="overlay-distance">
             {{ Math.round(overlay.distance) }}m
@@ -388,7 +388,7 @@ onBeforeUnmount(() => {
   gap: 2px;
 }
 
-.overlay-phase {
+.overlay-caption {
   font-size: 13px;
   font-weight: 500;
   color: #333;
