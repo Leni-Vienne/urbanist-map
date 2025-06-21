@@ -15,6 +15,7 @@ declare module 'vue' {
     DataTable: typeof import('primevue/datatable')['default']
     DatePicker: typeof import('primevue/datepicker')['default']
     Dialog: typeof import('primevue/dialog')['default']
+    Dropdown: typeof import('primevue/dropdown')['default']
     FloatLabel: typeof import('primevue/floatlabel')['default']
     InfoPopup: typeof import('./src/components/map/InfoPopup.vue')['default']
     InputNumber: typeof import('primevue/inputnumber')['default']
@@ -36,6 +37,7 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     Select: typeof import('primevue/select')['default']
     Textarea: typeof import('primevue/textarea')['default']
+    TileLayerSelector: typeof import('./src/components/map/TileLayerSelector.vue')['default']
     Toast: typeof import('primevue/toast')['default']
   }
   export interface GlobalDirectives {

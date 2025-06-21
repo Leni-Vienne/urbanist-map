@@ -20,7 +20,7 @@ import { initializeDatabase } from '@composables/core/useDatabase';
 import { initializeProjects } from '@composables/project/useProjects';
 import MapView from '@components/map/MapView.vue';
 import { setAppContext } from '@composables/core/useTools';
-import { trpc } from './client';
+import { trpc } from '@client';
 
 // AI : Create a ref to track database initialization state
 const databaseInitialized = ref(false);

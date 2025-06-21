@@ -8,7 +8,7 @@ import {
 } from '@composables/core/useDatabase';
 import { overlays } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
-import { trpc } from '../../client';
+import { trpc } from '@client';
 import type { Project, OverlayObject } from '@types';
 
 const toast = useToast();

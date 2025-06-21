@@ -3,6 +3,7 @@ import { ref, shallowRef, nextTick } from 'vue';
 import { getSavedMapPosition, saveMapPosition } from '@composables/core/useDatabase';
 import type { MapPosition } from '@types';
 import { debounce } from '../../utils';
+import { addTileLayer } from '@composables/map/useTileLayers';
 
 // shallowRef is used to avoid reactivity issues with Leaflet, see https://stackoverflow.com/a/73588115/12498040
 export const map = shallowRef<L.Map | null>(null); 
@@ -108,20 +109,7 @@ export async function initializeMap() {
 }
 
 
-function addTileLayer() {
-  if (!map.value) return;
-  L.tileLayer(
-    'https://data.geopf.fr/wmts?service=WMTS&request=GetTile&version=1.0.0&tilematrixset=PM&tilematrix={z}&tilecol={x}&tilerow={y}&layer=ORTHOIMAGERY.ORTHOPHOTOS&format=image/jpeg&style=normal',
-    {
-      minZoom: 0,
-      maxZoom: 22, // Allow zooming in further that the tiles maximum
-      maxNativeZoom: 19, // Tiles only exist up to 19, upscale after
-      tileSize: 256,
-      attribution: "IGN-F/Géoportail",
-      noWrap: true
-    }
-  ).addTo(map.value);
-}
+
 
 // AI : Restauration de la fonction de sauvegarde de la position de la carte
 async function saveCurrentMapPosition() {

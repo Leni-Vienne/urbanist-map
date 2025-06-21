@@ -1,7 +1,7 @@
 import { ref, onUnmounted } from 'vue';
 import { onCameraStop, getCameraBounds } from '@composables/map/useCameraBounds';
 import { renderViewModeOverlays } from '@composables/overlay/useOverlay';
-import { trpc } from '../../client';
+import { trpc } from '@client';
 import type { CDNOverlayData, CameraBounds } from '@types';
 
 // AI : Reactive state for view mode overlays

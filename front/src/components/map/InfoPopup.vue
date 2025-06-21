@@ -357,7 +357,9 @@ function validateOverlayForPublishing(): boolean {
 async function ensureProjectOnServer(): Promise<boolean> {
   if (!project.value) {
     return false;
-  }  try {    const projectResult = await trpc.project.publishProject.mutate({      id: project.value.id,
+  }  try {    
+    const projectResult = await trpc.project.publishProject.mutate({
+      id: project.value.id,
       title: project.value.name,
       description: project.value.description,
       cityId: project.value.cityId, // AI : Send cityId for proper city relationship
