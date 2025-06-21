@@ -1,4 +1,5 @@
-<template>  <Dialog
+<template>
+  <Dialog
     v-model:visible="dialogVisible"
     :modal="true"
     :closable="true"
@@ -15,7 +16,8 @@
       <router-view v-slot="{ Component }">
         <component :is="Component" />
       </router-view>
-    </div>    <template #header>
+    </div>
+    <template #header>
       <div class="relative">
         <Button
           v-if="showBackButton"

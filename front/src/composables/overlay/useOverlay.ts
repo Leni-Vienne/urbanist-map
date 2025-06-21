@@ -9,7 +9,7 @@ import { editTools, viewTools, infoTool } from '@composables/core/useTools';
 import { getImageUrlForCoverage } from '@composables/core/useImageResizer';
 import { applyProjectStyling, projects } from '@composables/project/useProjects';
 import { router } from '../../router';
-import { trpc } from '../../client';
+import { trpc } from '@client';
 
 export const overlays = shallowRef<Record<string, OverlayObject>>({});
 export const idSelectedOverlay = ref<string | null>(null);

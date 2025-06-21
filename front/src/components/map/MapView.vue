@@ -15,8 +15,7 @@
         type="file"
         @change="onImageUpload"
         accept="image/png, image/jpeg, image/jpg, image/webp"
-      />
-      <div class="card flex">
+      />      <div class="card flex">
         <Button
           icon="pi pi-bars"
           @click="navigateToProjects"
@@ -25,7 +24,13 @@
           v-tooltip.right="'Manage Projects'"
           class="p-button-rounded"
         />
-      </div>      <div class="card flex justify-center">
+      </div>
+      
+      <div class="card flex justify-center">
+        <TileLayerSelector />
+      </div>
+      
+      <div class="card flex justify-center">
         <div class="w-56">
           <Button @click="handleToggleEditMode" :loading="isTogglingMode">{{ isEditMode ? 'Switch to View Mode' : 'Switch to Edit Mode' }}</Button>
         </div>
@@ -84,6 +89,7 @@ import { setAppContext } from '@composables/core/useTools';
 import { clearDatabase } from '@composables/core/useDatabase';
 import { navigateWithCoordinates } from '@composables/ui/useRouterNavigation';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
+import TileLayerSelector from '@components/map/TileLayerSelector.vue';
 import ProjectPicker from '@components/project/ProjectPicker.vue';
 
 // AI: Core state variables

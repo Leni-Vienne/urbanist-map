@@ -35,7 +35,7 @@
                 <FloatLabel
                     class="w-full"
                     variant="in"
-                >                <Select
+                > <Select
                         v-model="localProject.cityId"
                         :options="filteredCities"
                         optionLabel="displayName"
@@ -52,7 +52,7 @@
                                 <span>{{ option.name }}</span>
                                 <span class="text-xs text-gray-500">{{ option.countryCode }}<span
                                         v-if="option.distance > 0"
-                                    > ({{ Math.round(option.distance) / 1000}} km)</span></span>
+                                    > ({{ Math.round(option.distance) / 1000 }} km)</span></span>
                             </div>
                         </template>
                     </Select>
@@ -120,10 +120,10 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
-import { trpc } from '@client';
+import { trpc, RouterInput, RouterOutput } from '@client';
 import { idSelectedOverlay, overlays } from '@composables/overlay/useOverlay';
 import { getCameraBounds } from '@composables/map/useCameraBounds';
-import type { Project, City } from '@types';
+import type { Project } from '@types';
 
 const props = defineProps<{
     project: Partial<Project>;
@@ -139,7 +139,7 @@ const emit = defineEmits<{
 const localProject = ref<Partial<Project>>({ ...props.project });
 
 // AI : Cities data and state
-const cities = ref<City[]>([]);
+const cities = ref<RouterOutput['cities']['getCitiesNearLocation']>([]);
 const citiesLoading = ref(false);
 const citiesLoaded = ref(false); // AI : Track if cities have been loaded to avoid multiple loads
 
@@ -242,12 +242,11 @@ async function loadNearestCities() {
 
     try {
         citiesLoading.value = true;
-        const result = await trpc.cities.getCitiesNearLocation.query({
+        cities.value = await trpc.cities.getCitiesNearLocation.query({
             lat: overlayCenter.lat,
             lng: overlayCenter.lng,
             limit: 20
         });
-        cities.value = result;
     } catch (error) {
         console.error('Error loading nearest cities:', error);
         cities.value = [];

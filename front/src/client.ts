@@ -1,7 +1,11 @@
 import { createTRPCClient, httpBatchLink, TRPCClientError } from '@trpc/client';
+import { inferRouterOutputs, inferRouterInputs } from '@trpc/server';
 import type { AppRouter } from '../../back/src/index';
 import superjson from 'superjson';
-//     👆 **type-only** import
+
+export type RouterInput = inferRouterInputs<AppRouter>;
+export type RouterOutput = inferRouterOutputs<AppRouter>;
+
  
 // Pass AppRouter as generic here. 👇 This lets the `trpc` object know
 // what procedures are available on the server and their input/output types.
