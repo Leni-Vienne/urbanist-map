@@ -1,7 +1,6 @@
 import { ref, onUnmounted } from 'vue';
-import { onCameraStop, getCameraBounds } from '@composables/map/useCameraBounds';
+import { onCameraStop } from '@composables/map/useCameraBounds';
 import { renderViewModeOverlays } from '@composables/overlay/useOverlay';
-import { trpc } from '@client';
 import type { CDNOverlayData, CameraBounds } from '@types';
 
 // AI : Reactive state for view mode overlays
@@ -14,45 +13,48 @@ const error = ref<string | null>(null);
  */
 export function useViewModeOverlays() {
   let unsubscribeFromCamera: (() => void) | null = null;
-  console.log('useViewModeOverlays initialized');  // AI : Fetch overlays that intersect with camera bounds
+  console.log('useViewModeOverlays initialized');  // AI : Filter already loaded overlays that intersect with camera bounds
+  // This is used for performance optimization to avoid rendering too many overlays at once
   async function fetchIntersectingOverlays(bounds: CameraBounds) {
     loading.value = true;
     error.value = null;
     
     try {
-      const result = await trpc.overlay.getIntersectingOverlays.query({
-        north: bounds.north,
-        south: bounds.south,
-        east: bounds.east,
-        west: bounds.west
+      console.log('AI : Filtering overlays locally based on camera bounds for performance');
+      
+      // AI : Use local filtering only - overlays are already loaded from city markers
+      // This function now only filters visible overlays for performance optimization
+      const currentOverlays = viewModeOverlays.value;
+      
+      // AI : Filter overlays that intersect with the current camera bounds
+      const visibleOverlays = currentOverlays.filter(overlay => {
+        // AI : Check if overlay centroid is within bounds
+        return overlay.centroid.lat >= bounds.south &&
+               overlay.centroid.lat <= bounds.north &&
+               overlay.centroid.lng >= bounds.west &&
+               overlay.centroid.lng <= bounds.east;
       });
       
-      viewModeOverlays.value = result.overlays;
+      console.log(`AI : Filtered ${visibleOverlays.length} overlays from ${currentOverlays.length} total overlays`);
       
-      // AI : Render the overlays on the map
-      await renderViewModeOverlays(result.overlays);
+      // AI : Render only the visible overlays for performance
+      await renderViewModeOverlays(visibleOverlays);
     } catch (err) {
-      console.error('Error fetching intersecting overlays:', err);
-      error.value = 'Failed to load overlays in view';
-      viewModeOverlays.value = [];
+      console.error('Error filtering overlays locally:', err);
+      error.value = 'Failed to filter overlays';
     } finally {
       loading.value = false;
     }
-  }  // AI : Initialize camera tracking
+  }// AI : Initialize camera tracking but don't auto-fetch overlays
   function startCameraTracking() {
     console.log('startCameraTracking called');
     unsubscribeFromCamera = onCameraStop(fetchIntersectingOverlays);
     console.log('Camera tracking started successfully');
     
-    // AI : Fetch overlays for current camera position - no delay needed
-    const currentBounds = getCameraBounds();
-    if (currentBounds.value) {
-      console.log('AI : Fetching overlays for current camera position on view mode switch');
-      fetchIntersectingOverlays(currentBounds.value);
-    } else {
-      console.log('AI : No current camera bounds available for initial overlay fetch');
-    }
-  }  // AI : Stop camera tracking
+    // AI : Don't auto-fetch overlays on camera tracking start
+    // Overlays will only be loaded when user clicks on city markers
+    console.log('AI : Camera tracking started without auto-fetching overlays');
+  }// AI : Stop camera tracking
   function stopCameraTracking() {
     console.log('stopCameraTracking called');
     if (unsubscribeFromCamera) {
@@ -64,6 +66,11 @@ export function useViewModeOverlays() {
     // AI : Clear only the view mode overlays state - let the main overlay system handle map cleanup
     viewModeOverlays.value = [];
     error.value = null;
+  }
+  // AI : Set overlays loaded from city markers
+  function setViewModeOverlays(overlays: CDNOverlayData[]) {
+    viewModeOverlays.value = overlays;
+    console.log(`AI : Set ${overlays.length} overlays for view mode from city markers`);
   }
 
   // AI : Clear overlays
@@ -77,7 +84,6 @@ export function useViewModeOverlays() {
   onUnmounted(() => {
     stopCameraTracking();
   });
-
   return {
     // AI : Reactive state
     viewModeOverlays,
@@ -86,6 +92,7 @@ export function useViewModeOverlays() {
     
     // AI : Methods
     fetchIntersectingOverlays,
+    setViewModeOverlays,
     startCameraTracking,
     stopCameraTracking,
     clearOverlays

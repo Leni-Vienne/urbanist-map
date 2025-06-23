@@ -25,9 +25,12 @@
           class="p-button-rounded"
         />
       </div>
+        <div class="card flex justify-center">
+        <TileLayerSelector />
+      </div>
       
       <div class="card flex justify-center">
-        <TileLayerSelector />
+        <CityMarkersToggle />
       </div>
       
       <div class="card flex justify-center">
@@ -66,15 +69,13 @@
       </div>
     </div>
   </div>
-
   <Dialog
     v-model:visible="showProjectSelector"
     header="Select a project for the new overlay"
     :modal="true"
     :style="{ width: '450px' }"
   >
-    <ProjectPicker @project-selected="onProjectSelected" />
-  </Dialog>
+    <ProjectPicker @project-selected="onProjectSelected" />  </Dialog>
 </template>
 
 <script setup lang="ts">
@@ -89,7 +90,9 @@ import { setAppContext } from '@composables/core/useTools';
 import { clearDatabase } from '@composables/core/useDatabase';
 import { navigateWithCoordinates } from '@composables/ui/useRouterNavigation';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
+import { initializeCityMarkers } from '@composables/map/useCityMarkers';
 import TileLayerSelector from '@components/map/TileLayerSelector.vue';
+import CityMarkersToggle from '@components/map/CityMarkersToggle.vue';
 import ProjectPicker from '@components/project/ProjectPicker.vue';
 
 // AI: Core state variables
@@ -211,6 +214,7 @@ async function initializeMapAndOverlays() {
     await initializeMap();
     initializeCameraBounds(); // AI : Initialize camera bounds tracking
     await initializeOverlays();
+    await initializeCityMarkers(); // AI : Initialize city markers by default
     window.addEventListener('keydown', handleKeyDown, true);
     disableLeafletKeyboardEvents();
     
