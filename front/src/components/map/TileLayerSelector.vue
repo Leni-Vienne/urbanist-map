@@ -1,6 +1,6 @@
 <template>
   <div class="tile-layer-selector">
-    <Dropdown
+    <Select
       v-model="selectedLayer"
       :options="layerOptions"
       optionLabel="label"
@@ -10,19 +10,26 @@
       :placeholder="'Select tile layer'"
     >
       <template #value="slotProps">
-        <div v-if="slotProps.value" class="flex items-center gap-2">
+        <div
+          v-if="slotProps.value"
+          class="flex items-center gap-2"
+        >
           <i class="pi pi-map text-sm"></i>
+          &nbsp;
           <span class="text-sm">{{ getLayerLabel(slotProps.value) }}</span>
         </div>
-        <span v-else class="text-sm">{{ slotProps.placeholder }}</span>
+        <span
+          v-else
+          class="text-sm"
+        >{{ slotProps.placeholder }}</span>
       </template>
       <template #option="slotProps">
         <div class="flex items-center gap-2">
-          <i class="pi pi-map text-sm"></i>
+          <i class="pi pi-map text-sm"></i>&nbsp;
           <span>{{ slotProps.option.label }}</span>
         </div>
       </template>
-    </Dropdown>
+    </Select>
   </div>
 </template>
 
@@ -59,17 +66,17 @@ function getLayerLabel(value: TileLayerType): string {
   min-width: 150px;
 }
 
-:deep(.p-dropdown) {
+:deep(.p-select) {
   background: rgba(255, 255, 255, 0.95);
   border: 1px solid #dee2e6;
   border-radius: 6px;
 }
 
-:deep(.p-dropdown:not(.p-disabled):hover) {
+:deep(.p-select:not(.p-disabled):hover) {
   border-color: #007bff;
 }
 
-:deep(.p-dropdown.p-focus) {
+:deep(.p-select.p-focus) {
   outline: 0 none;
   outline-offset: 0;
   box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);

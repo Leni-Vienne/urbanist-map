@@ -291,12 +291,18 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
     // AI : Simply update the selected overlay ID
     idSelectedOverlay.value = overlayObject.id;
 
+    // AI : Apply selection outline
+    applySelectionOutline(overlayObject);
+
     // AI : Update URL only, without moving the camera
     updateUrlWithOverlayId(overlayObject.id);
   });
 
   overlay.on('deselect', () => {
     idSelectedOverlay.value = null;
+
+    // AI : Remove selection outline
+    removeSelectionOutline(overlayObject);
 
     // AI : Clear overlay parameter from URL when deselected
     clearOverlayFromUrl();
@@ -617,6 +623,125 @@ export function clearAllOverlays(): void {
 }
 
 /**
+ * AI : Apply selection outline to overlay when selected
+ */
+function applySelectionOutline(overlayObject: OverlayObject): void {
+  if (!overlayObject.overlay || !overlayObject.projectId) return;
+  
+  // AI : Apply 30px outline to all overlays of the same project
+  const projectId = overlayObject.projectId;
+  const project = projects.value[projectId];
+  const color = project?.color || '#007bff';
+  
+  Object.values(overlays.value).forEach(obj => {
+    if (obj.projectId === projectId && obj.overlay) {
+      const element = obj.overlay.getElement();
+      if (element) {
+        element.style.outline = `30px solid ${color}`;
+      }
+    }
+  });
+}
+
+/**
+ * AI : Remove selection outline from overlay when deselected
+ */
+function removeSelectionOutline(overlayObject: OverlayObject): void {
+  if (!overlayObject.overlay || !overlayObject.projectId) return;
+  
+  // AI : Remove outline from all overlays of the same project
+  const projectId = overlayObject.projectId;
+  
+  Object.values(overlays.value).forEach(obj => {
+    if (obj.projectId === projectId && obj.overlay) {
+      const element = obj.overlay.getElement();
+      if (element) {
+        // AI : Restore original project styling
+        const project = projects.value[projectId];
+        if (project) {
+          element.style.outline = `4px solid ${project.color}`;
+        } else {
+          element.style.outline = '';
+        }
+      }
+    }
+  });
+}
+
+/**
+ * AI : Highlight all overlays from the same project on hover in view mode
+ */
+function highlightProjectOverlaysOnHover(projectId: string): void {
+  if (!projectId || isEditMode.value) return;
+
+  Object.values(overlays.value).forEach(overlayObject => {
+    if (overlayObject.projectId === projectId && overlayObject.overlay) {
+      const element = overlayObject.overlay.getElement();
+      if (element) {
+        // AI : Apply simple outline highlighting with project color
+        const project = projects.value[projectId];
+        const color = project?.color || '#007bff';
+        element.style.outline = `30px solid ${color}`;
+      }
+    }
+  });
+}
+
+/**
+ * AI : Remove project highlight on mouse leave in view mode
+ */
+function removeProjectHighlightOnHover(projectId: string): void {
+  if (!projectId || isEditMode.value) return;
+
+  // AI : Don't remove highlight if any overlay from this project is currently selected
+  const selectedOverlay = idSelectedOverlay.value ? overlays.value[idSelectedOverlay.value] : null;
+  if (selectedOverlay && selectedOverlay.projectId === projectId) {
+    return; // AI : Keep 30px outline because project is selected
+  }
+
+  Object.values(overlays.value).forEach(overlayObject => {
+    if (overlayObject.projectId === projectId && overlayObject.overlay) {
+      const element = overlayObject.overlay.getElement();
+      if (element) {
+        // AI : Remove hover highlighting but keep original project styling
+        const project = projects.value[projectId];
+        if (project) {
+          // AI : Restore original project styling
+          element.style.outline = `4px solid ${project.color}`;
+        } else {
+          // AI : Remove all styling if project not found
+          element.style.outline = '';
+        }
+      }
+    }
+  });
+}
+
+/**
+ * AI : Setup hover event listeners for project highlighting in view mode
+ */
+function setupProjectHoverEvents(overlay: L.DistortableImageOverlay, overlayObject: OverlayObject): void {
+  if (isEditMode.value || !overlayObject.projectId) return;
+
+  const element = overlay.getElement();
+  if (!element) return;
+
+  // AI : Add mouseenter event for highlighting
+  element.addEventListener('mouseenter', () => {
+    if (!isEditMode.value && overlayObject.projectId) {
+      highlightProjectOverlaysOnHover(overlayObject.projectId);
+    }
+  });
+
+  // AI : Add mouseleave event for removing highlight
+  element.addEventListener('mouseleave', () => {
+    if (!isEditMode.value && overlayObject.projectId) {
+      removeProjectHighlightOnHover(overlayObject.projectId);
+    }
+  });
+}
+
+/**
  * AI : Render backend CDN overlays on the map for view mode
  * Only renders overlays that haven't been rendered yet to avoid duplicates
  */
@@ -719,7 +844,8 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData): Promise<
       opacity: 0.7
     }).addTo(map.value);
 
-    overlayObject.marker = marker;
+    overlayObject.marker = marker;    // AI : Setup project hover events for highlighting in view mode
+    setupProjectHoverEvents(newOverlay, overlayObject);
 
     // AI : Store both overlay and marker for cleanup
     overlays.value[cdnOverlay.id] = overlayObject;
