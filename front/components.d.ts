@@ -11,6 +11,8 @@ declare module 'vue' {
     AddOverlayDialog: typeof import('./src/components/dialogs/AddOverlayDialog.vue')['default']
     AppLayout: typeof import('./src/components/layout/AppLayout.vue')['default']
     Button: typeof import('primevue/button')['default']
+    CityMarkersToggle: typeof import('./src/components/map/CityMarkersToggle.vue')['default']
+    CityProjectsDialog: typeof import('./src/components/project/CityProjectsDialog.vue')['default']
     Column: typeof import('primevue/column')['default']
     DataTable: typeof import('primevue/datatable')['default']
     DatePicker: typeof import('primevue/datepicker')['default']
