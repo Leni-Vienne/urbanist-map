@@ -1,4 +1,4 @@
-import { ref, onUnmounted } from 'vue';
+import { ref } from 'vue';
 import { onCameraStop } from '@composables/map/useCameraBounds';
 import { renderViewModeOverlays } from '@composables/overlay/useOverlay';
 import type { CDNOverlayData, CameraBounds } from '@types';
@@ -18,25 +18,25 @@ export function useViewModeOverlays() {
   async function fetchIntersectingOverlays(bounds: CameraBounds) {
     loading.value = true;
     error.value = null;
-    
+
     try {
       console.log('AI : Filtering overlays locally based on camera bounds for performance');
-      
+
       // AI : Use local filtering only - overlays are already loaded from city markers
       // This function now only filters visible overlays for performance optimization
       const currentOverlays = viewModeOverlays.value;
-      
+
       // AI : Filter overlays that intersect with the current camera bounds
       const visibleOverlays = currentOverlays.filter(overlay => {
         // AI : Check if overlay centroid is within bounds
         return overlay.centroid.lat >= bounds.south &&
-               overlay.centroid.lat <= bounds.north &&
-               overlay.centroid.lng >= bounds.west &&
-               overlay.centroid.lng <= bounds.east;
+          overlay.centroid.lat <= bounds.north &&
+          overlay.centroid.lng >= bounds.west &&
+          overlay.centroid.lng <= bounds.east;
       });
-      
+
       console.log(`AI : Filtered ${visibleOverlays.length} overlays from ${currentOverlays.length} total overlays`);
-      
+
       // AI : Render only the visible overlays for performance
       await renderViewModeOverlays(visibleOverlays);
     } catch (err) {
@@ -50,7 +50,7 @@ export function useViewModeOverlays() {
     console.log('startCameraTracking called');
     unsubscribeFromCamera = onCameraStop(fetchIntersectingOverlays);
     console.log('Camera tracking started successfully');
-    
+
     // AI : Don't auto-fetch overlays on camera tracking start
     // Overlays will only be loaded when user clicks on city markers
     console.log('AI : Camera tracking started without auto-fetching overlays');
@@ -62,7 +62,7 @@ export function useViewModeOverlays() {
       unsubscribeFromCamera = null;
       console.log('Camera tracking stopped successfully');
     }
-    
+
     // AI : Clear only the view mode overlays state - let the main overlay system handle map cleanup
     viewModeOverlays.value = [];
     error.value = null;
@@ -80,16 +80,12 @@ export function useViewModeOverlays() {
     // AI : Don't call clearAllOverlays here - let the mode switching handle it
   }
 
-  // AI : Auto-cleanup on unmount
-  onUnmounted(() => {
-    stopCameraTracking();
-  });
   return {
     // AI : Reactive state
     viewModeOverlays,
     loading,
     error,
-    
+
     // AI : Methods
     fetchIntersectingOverlays,
     setViewModeOverlays,

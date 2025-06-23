@@ -6,10 +6,21 @@ import { map, onMapInitialized } from '@composables/core/useMap';
 export type TileLayerType = 'france' | 'esri';
 
 // AI : Current active tile layer
-export const currentTileLayer = ref<TileLayerType>('france');
+export const currentTileLayer = ref<TileLayerType>('esri');
 
 // AI : Reference to the currently active tile layer instance
 let activeTileLayer: L.TileLayer | null = null;
+
+// AI : Hot reload detection - check if map exists but tile layer is missing
+if (typeof window !== 'undefined') {
+  // AI : Check for hot reload scenario after a short delay
+  setTimeout(() => {
+    if (map.value && !activeTileLayer) {
+      console.log('AI : Hot reload detected - map exists but tile layer is missing');
+      addTileLayer();
+    }
+  }, 100);
+}
 
 // AI : Tile layer configurations
 const tileLayerConfigs = {
@@ -53,7 +64,11 @@ export function addTileLayer(): void {
     return;
   }
   
-  addTileLayerToMap();
+  // AI : Check if tile layer was lost during hot reload
+  if (!activeTileLayer) {
+    console.log('AI : Tile layer lost during hot reload, re-adding');
+    addTileLayerToMap();
+  }
 }
 
 /**
@@ -63,6 +78,12 @@ function addTileLayerToMap(): void {
   if (!map.value) {
     console.log('AI : Map still not available in addTileLayerToMap');
     return;
+  }
+  
+  // AI : Remove existing tile layer if it exists (hot reload safety)
+  if (activeTileLayer) {
+    console.log('AI : Removing existing tile layer before adding new one');
+    map.value.removeLayer(activeTileLayer);
   }
   
   console.log('AI : Adding tile layer:', currentTileLayer.value);
@@ -105,7 +126,8 @@ export function switchTileLayer(layerType: TileLayerType): void {
  */
 export function getTileLayerOptions() {
   return [
-    { label: 'France (IGN)', value: 'france' as TileLayerType },
-    { label: 'ESRI Satellite', value: 'esri' as TileLayerType }
+    { label: 'World (default)', value: 'esri' as TileLayerType },
+    { label: 'France', value: 'france' as TileLayerType },
+    
   ];
 }

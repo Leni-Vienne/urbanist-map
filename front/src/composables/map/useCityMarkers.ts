@@ -51,6 +51,9 @@ export const currentCityOverlays = ref<CDNOverlayData[]>([]);
 // AI : Layer group for city markers
 let cityMarkersLayer: L.LayerGroup | null = null;
 
+// AI : Mouse tooltip element for guidance
+let mouseTooltip: HTMLElement | null = null;
+
 /**
  * AI : Load cities with projects from the backend
  */
@@ -185,6 +188,22 @@ function addCityMarkersToMapInternal(): void {
       await loadCityProjects(city.id, city.name);
     });
 
+    // AI : Add mouseover event to show guidance tooltip
+    marker.on('mouseover', (event) => {
+      createMouseTooltip();
+      showMouseTooltip(event.originalEvent);
+    });
+
+    // AI : Add mousemove event to update tooltip position
+    marker.on('mousemove', (event) => {
+      updateMouseTooltipPosition(event.originalEvent);
+    });
+
+    // AI : Add mouseout event to hide guidance tooltip
+    marker.on('mouseout', () => {
+      hideMouseTooltip();
+    });
+
     cityMarkersLayer!.addLayer(marker);
   });
 
@@ -200,6 +219,8 @@ export function removeCityMarkers(): void {
   if (map.value && cityMarkersLayer) {
     map.value.removeLayer(cityMarkersLayer);
     cityMarkersLayer = null;
+    // AI : Hide tooltip when removing markers
+    hideMouseTooltip();
     console.log('AI : City markers removed');
   }
 }
@@ -218,9 +239,80 @@ export function toggleCityMarkers(): void {
 }
 
 /**
+ * AI : Clean up mouse tooltip element
+ */
+function cleanupMouseTooltip(): void {
+  if (mouseTooltip) {
+    document.body.removeChild(mouseTooltip);
+    mouseTooltip = null;
+  }
+}
+
+/**
  * AI : Initialize city markers system
  */
 export async function initializeCityMarkers(): Promise<void> {
   await loadCitiesWithProjects();
   addCityMarkersToMap();
+}
+
+/**
+ * AI : Cleanup city markers system
+ */
+export function cleanupCityMarkers(): void {
+  removeCityMarkers();
+  cleanupMouseTooltip();
+}
+
+/**
+ * AI : Create and initialize mouse tooltip element
+ */
+function createMouseTooltip(): void {
+  if (mouseTooltip) return;
+
+  mouseTooltip = document.createElement('div');
+  mouseTooltip.style.cssText = `
+    position: fixed;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 14px;
+    z-index: 10000;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    white-space: nowrap;
+  `;
+  mouseTooltip.textContent = 'Click on a city marker to view its projects';
+  document.body.appendChild(mouseTooltip);
+}
+
+/**
+ * AI : Show mouse tooltip at cursor position
+ */
+function showMouseTooltip(event: MouseEvent): void {
+  if (!mouseTooltip) return;
+  
+  mouseTooltip.style.left = event.clientX + 15 + 'px';
+  mouseTooltip.style.top = event.clientY - 10 + 'px';
+  mouseTooltip.style.opacity = '1';
+}
+
+/**
+ * AI : Hide mouse tooltip
+ */
+function hideMouseTooltip(): void {
+  if (!mouseTooltip) return;
+  mouseTooltip.style.opacity = '0';
+}
+
+/**
+ * AI : Update mouse tooltip position on mouse move
+ */
+function updateMouseTooltipPosition(event: MouseEvent): void {
+  if (!mouseTooltip || mouseTooltip.style.opacity === '0') return;
+  
+  mouseTooltip.style.left = event.clientX + 15 + 'px';
+  mouseTooltip.style.top = event.clientY - 10 + 'px';
 }

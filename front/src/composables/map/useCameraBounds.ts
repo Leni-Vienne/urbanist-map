@@ -47,9 +47,7 @@ export function initializeCameraBounds() {
         zoom: zoom
       };
         currentCameraBounds.value = newBounds;
-      
-      console.log('Camera bounds updated:', newBounds);
-      
+          
       // AI : Call all registered callbacks when camera stops moving
       onCameraStopCallbacks.forEach(callback => callback(newBounds));
     } catch (error) {
