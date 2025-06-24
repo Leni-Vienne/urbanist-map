@@ -76,8 +76,11 @@ export const infoTool = L.Toolbar2.Action.extend({
           viewMode: !isEditMode.value
         })
 
-        // AI : Ensure app context is available to the InfoPopup component
-        if (appInstance) {
+        // AI : Use the main app instance to ensure proper PrimeVue context
+        if (window.vueApp && window.vueApp._context) {
+          vnode.appContext = window.vueApp._context;
+        } else if (appInstance) {
+          // AI : Fallback to component instance context if main app not available
           vnode.appContext = { ...appInstance.appContext };
 
           // AI : Ensure the provides object exists

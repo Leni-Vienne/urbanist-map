@@ -18,13 +18,13 @@ export default defineConfig({
       ]
     })
   ],
-
   // AI : Add resolver to use the Vue version with runtime compiler
   resolve: {
     alias: {
       'vue': 'vue/dist/vue.esm-bundler.js', //  otherwise vite is not happy when building
       '@composables': path.resolve(__dirname, './src/composables'),
       '@components': path.resolve(__dirname, './src/components'),
+      '@stores': path.resolve(__dirname, './src/stores'),
       '@types': path.resolve(__dirname, './src/types'),
       '@client': path.resolve(__dirname, './src/client'),
     }

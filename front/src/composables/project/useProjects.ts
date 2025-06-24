@@ -1,4 +1,3 @@
-import { ref } from 'vue';
 import { 
   saveProject, 
   getAllProjects, 
@@ -6,16 +5,16 @@ import {
   addOverlayToProject, 
   removeOverlayFromProject,
 } from '@composables/core/useDatabase';
-import { overlays } from '@composables/overlay/useOverlay';
+import { overlays } from '@stores/overlayStore';
+import { projects, selectedProjectId } from '@stores/projectStore';
 import { useToast } from '@composables/ui/useToast';
 import { trpc } from '@client';
 import type { Project, OverlayObject } from '@types';
 
 const toast = useToast();
 
-// Store for all projects
-export const projects = ref<Record<string, Project>>({});
-export const selectedProjectId = ref<string | null>(null);
+// AI : Export the reactive stores from centralized location
+export { projects, selectedProjectId };
 
 // Generate a vibrant color for a project that will stand out
 function generateRandomColor(): string {

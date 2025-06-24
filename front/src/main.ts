@@ -9,9 +9,10 @@ import { router } from './router';
 declare global {
   interface Window {
     router: any;
+    vueApp: any;
   }
 }
-window.router = router;
+
 
 const app = createApp(App)
 
@@ -28,4 +29,8 @@ app.use(PrimeVue, {
 
 app.use(ToastService);
 app.use(router);
+
+window.router = router;
+window.vueApp = app;
+
 app.mount('#app');

@@ -1,18 +1,19 @@
 import L from "leaflet";
 import 'leaflet-toolbar'
 import 'leaflet-distortableimage'; // using "-updated" to prevent "WebSocket connection to 'ws://localhost:8081/ws' failed:" error
-import { ref, shallowRef } from 'vue';
+import { shallowRef } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
 import { getAllOverlays, saveOverlay } from '@composables/core/useDatabase';
+import { overlays, idSelectedOverlay, isEditMode } from '@stores/overlayStore';
+import { projects } from '@stores/projectStore';
+import { applyProjectStyling } from '@composables/project/useProjects';
 import type { OverlayObject, StoredOverlayData, CDNOverlayData } from '@types';
 import { editTools, viewTools, infoTool } from '@composables/core/useTools';
 import { getImageUrlForCoverage } from '@composables/core/useImageResizer';
-import { applyProjectStyling, projects } from '@composables/project/useProjects';
 import { router } from '../../router';
 
-export const overlays = shallowRef<Record<string, OverlayObject>>({});
-export const idSelectedOverlay = ref<string | null>(null);
-export const isEditMode = ref<boolean>(false);
+// AI : Export the reactive stores from centralized location
+export { overlays, idSelectedOverlay, isEditMode };
 
 // Tracking of all markers, even for images not currently loaded
 export const allMarkers = shallowRef<Record<string, L.Marker>>({});
@@ -49,8 +50,13 @@ export async function initializeOverlays(): Promise<void> {
     setupMapEventListeners();
     return;
   }
+  
+  console.log('AI : Initializing overlays in edit mode');
+  
   // AI : In edit mode, load only from local database
   const savedOverlays = await getAllOverlays();
+  console.log(`AI : Loaded ${savedOverlays.length} overlays from database`);
+  
   const mapBounds = map.value.getBounds();
 
   createMarkersForOverlays(savedOverlays);
@@ -427,22 +433,20 @@ export function saveToHistory(overlayObject: OverlayObject): void {
  * AI : Toggle edit mode for all overlays with proper cleanup
  */
 export async function toggleEditMode(): Promise<void> {
+  console.log(`AI : Toggling edit mode from ${isEditMode.value} to ${!isEditMode.value}`);
+  
   isEditMode.value = !isEditMode.value;
 
   // AI : Clear all current overlays when switching modes
   clearAllOverlays();
   
   if (isEditMode.value) {
-    // AI : Switching to edit mode - ensure projects are loaded before initializing overlays
-    // AI : Import initializeProjects dynamically to avoid circular dependency
-    const { initializeProjects } = await import('@composables/project/useProjects');
-    
-    // AI : Ensure projects are loaded before initializing overlays
-    await initializeProjects();
-    
+    // AI : Switching to edit mode
+    console.log('AI : Switching to edit mode - calling initializeOverlays()');
     await initializeOverlays();
   } else {
     // AI : Switching to view mode - overlays will be handled by useViewModeOverlays
+    console.log('AI : Switching to view mode');
   }
 }
 
@@ -746,20 +750,27 @@ function setupProjectHoverEvents(overlay: L.DistortableImageOverlay, overlayObje
  * Only renders overlays that haven't been rendered yet to avoid duplicates
  */
 export async function renderViewModeOverlays(cdnOverlays: CDNOverlayData[]): Promise<void> {
-  if (!map.value || isEditMode.value) {
-    console.log('AI : Cannot render view mode overlays - map not ready or not in view mode');
+  if (!map.value) {
+    console.log('AI : Cannot render view mode overlays - map not ready');
     return;
   }
-
-  // AI : Get current overlay IDs that are already rendered
+  // AI : Get current overlay IDs that are already rendered (local overlays take precedence)
   const currentOverlayIds = new Set(Object.keys(overlays.value));
 
-  // AI : Only render overlays that haven't been rendered yet
-  const overlaysToRender = cdnOverlays.filter(cdnOverlay => !currentOverlayIds.has(cdnOverlay.id));
+  // AI : Only render remote overlays that don't have local versions already loaded
+  const overlaysToRender = cdnOverlays.filter(cdnOverlay => {
+    const hasLocalVersion = currentOverlayIds.has(cdnOverlay.id);
+    if (hasLocalVersion) {
+      console.log(`AI : Skipping remote overlay ${cdnOverlay.id} - local version already loaded`);
+    }
+    return !hasLocalVersion;
+  });
 
-  // AI : Render each new CDN overlay as a read-only marker
+  console.log(`AI : Rendering ${overlaysToRender.length} remote overlays (${cdnOverlays.length - overlaysToRender.length} skipped due to local versions)`);
+
+  // AI : Render each new CDN overlay as a read-only marker in view mode or editable overlay in edit mode
   for (const cdnOverlay of overlaysToRender) {
-    console.log(`AI : Rendering CDN overlay ${cdnOverlay.id} in view mode`);
+    console.log(`AI : Rendering remote overlay ${cdnOverlay.id} (${isEditMode.value ? 'edit mode' : 'view mode'})`);
     await renderSingleViewModeOverlay(cdnOverlay);
   }
 }
@@ -836,15 +847,19 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData): Promise<
       
       // AI : Restore original projects (we don't want to persist backend project data)
       projects.value = originalProjects;
-    }// AI : Create marker for easier identification using centroid
+    }    // AI : Create marker for easier identification using centroid
     const centerLat = cdnOverlay.centroid.lat;
     const centerLng = cdnOverlay.centroid.lng;
+    const markerTitle = isEditMode.value 
+      ? `${cdnOverlay.caption || 'Overlay'} (Remote - Editable)`
+      : `${cdnOverlay.caption || 'Overlay'} (View Mode - Read Only)`;
+    
     const marker = L.marker([centerLat, centerLng], {
-      title: `${cdnOverlay.caption || 'Overlay'} (View Mode - Read Only)`,
+      title: markerTitle,
       opacity: 0.7
     }).addTo(map.value);
 
-    overlayObject.marker = marker;    // AI : Setup project hover events for highlighting in view mode
+    overlayObject.marker = marker;// AI : Setup project hover events for highlighting in view mode
     setupProjectHoverEvents(newOverlay, overlayObject);
 
     // AI : Store both overlay and marker for cleanup

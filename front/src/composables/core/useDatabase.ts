@@ -1,4 +1,5 @@
 import { openDB, IDBPDatabase } from 'idb';
+import { projects } from '@stores/projectStore';
 import { MyDB, StoredOverlayData, MapPosition, Project } from '@types';
 
 let db: IDBPDatabase<MyDB> | null = null;
@@ -233,13 +234,11 @@ export async function addOverlayToProject(projectId: string, overlayId: string):
   }
     try {
     let project = await db.get('projects', projectId);
-    
-    // AI : If project not found in IndexedDB, check if it exists in memory and save it
+      // AI : If project not found in IndexedDB, check if it exists in memory and save it
     if (!project) {
       console.warn(`AI : Project ${projectId} not found in IndexedDB, checking memory store...`);
       
-      // AI : Import projects from useProjects to check memory store
-      const { projects } = await import('@composables/project/useProjects');
+      // AI : Check projects from centralized store
       const memoryProject = projects.value[projectId];
       
       if (memoryProject) {
