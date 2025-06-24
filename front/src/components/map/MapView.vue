@@ -238,6 +238,18 @@ async function initializeMapAndOverlays() {
 async function handleToggleEditMode() {
   isTogglingMode.value = true;
   try {
+    // AI : Ensure database is initialized before toggling mode
+    if (!databaseInitialized.value) {
+      console.warn('AI : Database not initialized, waiting...');
+      toast.add({
+        severity: 'warn',
+        summary: 'Please Wait',
+        detail: 'Database is still initializing...',
+        life: 3000
+      });
+      return;
+    }
+    
     await toggleEditMode();
   } catch (error) {
     console.error('AI : Error toggling edit mode:', error);

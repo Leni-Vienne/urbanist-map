@@ -1,5 +1,6 @@
 {
     "compilerOptions": {
+        "target": "esnext", // useful for this stuff : "const lastCorners = overlayObject.history.at(-1);"
         "module": "ESNext",
         "moduleResolution": "bundler",
         "strict": true,
@@ -11,6 +12,9 @@
             ],
             "@components/*": [
                 "./front/src/components/*"
+            ],
+            "@stores/*": [
+                "./front/src/stores/*"
             ],
             "@types": [
                 "./front/src/types"
