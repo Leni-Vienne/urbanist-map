@@ -145,12 +145,12 @@ export const overlayRouter = router({
           id: overlay.id,
           filename: overlay.filename, // AI : For CDN URL construction
           caption: overlay.caption || undefined, // AI : Make it optional
-          projectId: overlay.projectId || null, // AI : Include project ID for styling
-          // AI : Include full project data for frontend display and styling
+          projectId: overlay.projectId || null, // AI : Include project ID for styling          // AI : Include full project data for frontend display and styling
           project: overlay.projectData?.id ? {
             id: overlay.projectData.id,
             title: overlay.projectData.title,
             description: overlay.projectData.description,
+            cityId: overlay.projectData.cityId,
             metadata: overlay.projectData.metadata,
             createdAt: overlay.projectData.createdAt,
             updatedAt: overlay.projectData.updatedAt

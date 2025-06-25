@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { publicProcedure, router } from '../trpc';
 import { db } from '../db';
 import { cities, projects, overlays } from '../db/schema';
-import { sql, eq, isNotNull } from 'drizzle-orm';
+import { sql, eq, isNotNull, inArray } from 'drizzle-orm';
 
 const getCitiesNearLocationSchema = z.object({
   lat: z.number().min(-90).max(90), // AI : Valid latitude range
@@ -123,7 +123,6 @@ export const citiesRouter = router({
         throw new Error('Failed to fetch cities with projects');
       }
     }),
-
   // AI : Get all projects and overlays for a specific city
   getCityProjects: publicProcedure
     .input(getCityProjectsSchema)
@@ -131,69 +130,57 @@ export const citiesRouter = router({
       try {
         const { cityId } = input;
 
-        // AI : Get all projects for the city with their overlays
-        const result = await db
+        // AI : Get projects for the city with city info
+        const projectsResult = await db
           .select({
-            projectId: projects.id,
-            projectTitle: projects.title,
-            projectDescription: projects.description,
-            projectMetadata: projects.metadata,
-            projectCreatedAt: projects.createdAt,
-            overlayId: overlays.id,
-            overlayFilename: overlays.filename,
-            overlayCaption: overlays.caption,
-            overlayMetadata: overlays.metadata,
-            overlayTopLeftLat: overlays.topLeftLat,
-            overlayTopLeftLng: overlays.topLeftLng,
-            overlayTopRightLat: overlays.topRightLat,
-            overlayTopRightLng: overlays.topRightLng,
-            overlayBottomRightLat: overlays.bottomRightLat,
-            overlayBottomRightLng: overlays.bottomRightLng,
-            overlayBottomLeftLat: overlays.bottomLeftLat,
-            overlayBottomLeftLng: overlays.bottomLeftLng,
-            overlayCreatedAt: overlays.createdAt
+            id: projects.id,
+            title: projects.title,
+            description: projects.description,
+            cityId: projects.cityId,
+            metadata: projects.metadata,
+            createdAt: projects.createdAt,
+            // AI : Include city information
+            cityName: cities.name,
+            cityCountryCode: cities.countryCode
           })
           .from(projects)
-          .leftJoin(overlays, eq(projects.id, overlays.projectId))
-          .where(eq(projects.cityId, cityId))
-          .orderBy(projects.createdAt, overlays.createdAt);
+          .innerJoin(cities, eq(projects.cityId, cities.id))
+          .where(eq(projects.cityId, cityId));        // AI : Get overlays for these projects  
+        const projectIds = projectsResult.map(p => p.id);
+        const overlaysResult = projectIds.length > 0 ? await db
+          .select()
+          .from(overlays)
+          .where(inArray(overlays.projectId, projectIds)) : [];
 
-        // AI : Group results by project
-        const groupedResults = result.reduce((acc, row) => {
-          const projectId = row.projectId;
-          
-          if (!acc[projectId]) {
-            acc[projectId] = {
-              id: row.projectId,
-              title: row.projectTitle,
-              description: row.projectDescription,
-              metadata: row.projectMetadata,
-              createdAt: row.projectCreatedAt,
-              overlays: []
-            };
-          }
-
-          // AI : Add overlay if it exists
-          if (row.overlayId) {
-            acc[projectId].overlays.push({
-              id: row.overlayId,
-              filename: row.overlayFilename,
-              caption: row.overlayCaption,
-              metadata: row.overlayMetadata,
+        // AI : Combine projects with their overlays
+        return projectsResult.map(project => ({
+          id: project.id,
+          title: project.title,
+          description: project.description,
+          cityId: project.cityId,
+          city: {
+            id: project.cityId,
+            name: project.cityName,
+            countryCode: project.cityCountryCode
+          },
+          metadata: project.metadata,
+          createdAt: project.createdAt,
+          overlays: overlaysResult
+            .filter(overlay => overlay.projectId === project.id)
+            .map(overlay => ({
+              id: overlay.id,
+              filename: overlay.filename,
+              caption: overlay.caption,
+              metadata: overlay.metadata,
               corners: {
-                topLeft: { lat: row.overlayTopLeftLat, lng: row.overlayTopLeftLng },
-                topRight: { lat: row.overlayTopRightLat, lng: row.overlayTopRightLng },
-                bottomRight: { lat: row.overlayBottomRightLat, lng: row.overlayBottomRightLng },
-                bottomLeft: { lat: row.overlayBottomLeftLat, lng: row.overlayBottomLeftLng }
+                topLeft: { lat: overlay.topLeftLat, lng: overlay.topLeftLng },
+                topRight: { lat: overlay.topRightLat, lng: overlay.topRightLng },
+                bottomRight: { lat: overlay.bottomRightLat, lng: overlay.bottomRightLng },
+                bottomLeft: { lat: overlay.bottomLeftLat, lng: overlay.bottomLeftLng }
               },
-              createdAt: row.overlayCreatedAt
-            });
-          }
-
-          return acc;
-        }, {} as Record<string, any>);
-
-        return Object.values(groupedResults);
+              createdAt: overlay.createdAt
+            }))
+        }));
       } catch (error) {
         console.error('Error fetching city projects:', error);
         throw new Error('Failed to fetch city projects');

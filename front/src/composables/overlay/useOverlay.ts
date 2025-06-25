@@ -6,7 +6,8 @@ import { map, onMapInitialized } from '@composables/core/useMap';
 import { getAllOverlays, saveOverlay } from '@composables/core/useDatabase';
 import { overlays, idSelectedOverlay, isEditMode } from '@stores/overlayStore';
 import { projects } from '@stores/projectStore';
-import { applyProjectStyling } from '@composables/project/useProjects';
+import { applyProjectStyling, loadProjectsNearLocation } from '@composables/project/useProjects';
+import { getCameraBounds } from '@composables/map/useCameraBounds';
 import type { OverlayObject, StoredOverlayData, CDNOverlayData } from '@types';
 import { editTools, viewTools, infoTool } from '@composables/core/useTools';
 import { getImageUrlForCoverage } from '@composables/core/useImageResizer';
@@ -442,7 +443,17 @@ export async function toggleEditMode(): Promise<void> {
   
   if (isEditMode.value) {
     // AI : Switching to edit mode
-    console.log('AI : Switching to edit mode - calling initializeOverlays()');
+    console.log('AI : Switching to edit mode - loading nearby projects and overlays');
+    
+    // AI : Load projects near current camera location when entering edit mode
+    const cameraBounds = getCameraBounds();
+    if (cameraBounds.value) {
+      const centerLat = (cameraBounds.value.north + cameraBounds.value.south) / 2;
+      const centerLng = (cameraBounds.value.east + cameraBounds.value.west) / 2;
+      console.log(`AI : Loading projects near camera center: ${centerLat}, ${centerLng}`);
+      await loadProjectsNearLocation(centerLat, centerLng, 10);
+    }
+    
     await initializeOverlays();
   } else {
     // AI : Switching to view mode - overlays will be handled by useViewModeOverlays

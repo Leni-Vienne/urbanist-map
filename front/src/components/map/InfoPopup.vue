@@ -9,8 +9,8 @@
     <div
       v-else
       class="project-details"
-    >      <!-- Project Selection Section - Only visible in edit mode -->
-      <div 
+    > <!-- Project Selection Section - Only visible in edit mode -->
+      <div
         v-if="!props.viewMode"
         class="project-selection mb-3"
       >
@@ -37,11 +37,13 @@
             @click="openProjectManagerForEdit"
             v-tooltip.top="'Edit Project'"
           />
-        </div>        <div class="p-2 rounded bg-gray-50 text-sm space-y-1">
+        </div>
+        <div class="p-2 rounded bg-gray-50 text-sm space-y-1">
           <div class="flex justify-between">
             <span class="font-medium text-gray-600">Name:</span>
             <span class="text-right">{{ project.name || 'Not specified' }}</span>
-          </div>          <div class="flex justify-between">
+          </div>
+          <div class="flex justify-between">
             <span class="font-medium text-gray-600">Location:</span>
             <span class="text-right">{{ getProjectLocationDisplay(project) }}</span>
           </div>
@@ -54,9 +56,16 @@
               </span>
             </span>
           </div>
-          <div v-if="project.sourceUrl" class="flex justify-between">
+          <div
+            v-if="project.sourceUrl"
+            class="flex justify-between"
+          >
             <span class="font-medium text-gray-600">Source:</span>
-            <a :href="project.sourceUrl" target="_blank" class="text-blue-600 hover:underline text-xs truncate max-w-32">{{ project.sourceUrl }}</a>
+            <a
+              :href="project.sourceUrl"
+              target="_blank"
+              class="text-blue-600 hover:underline text-xs truncate max-w-32"
+            >{{ project.sourceUrl }}</a>
           </div>
         </div>
       </div>
@@ -77,19 +86,23 @@
           <div class="flex justify-between">
             <span class="font-medium text-gray-600">ID:</span>
             <span class="font-mono text-xs">{{ props.overlayObject.id }}</span>
-          </div>        <div class="flex justify-between">
+          </div>
+          <div class="flex justify-between">
             <span class="font-medium text-gray-600">Name:</span>
             <span class="text-right">{{ props.overlayObject.caption || 'Not specified' }}</span>
           </div>
         </div>
-        <OverlayEditor 
+        <OverlayEditor
           ref="overlayEditorRef"
-          :overlayObject="props.overlayObject" 
+          :overlayObject="props.overlayObject"
           @update="onOverlayUpdate"
         />
       </div>
-    </div>    <!-- Publish Overlay Section -->
-    <div v-if="!props.viewMode && project" class="publish-section">
+    </div> <!-- Publish Overlay Section -->
+    <div
+      v-if="!props.viewMode && project"
+      class="publish-section"
+    >
       <div class="text-sm font-semibold mb-2 text-gray-700">Publish to Server</div>
       <div class="p-2 rounded bg-blue-50">
         <p class="text-xs text-gray-600 mb-2">
@@ -111,9 +124,11 @@
 import { ref, computed, watch, onMounted, nextTick } from 'vue';
 import { useToast } from '@composables/ui/useToast';
 import { updateTooltipText } from '@composables/overlay/useOverlayActions';
-import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId } from '@composables/project/useProjects';
+import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId, loadProjectsNearLocation } from '@composables/project/useProjects';
 import { navigateToProjectEdit } from '@composables/ui/useRouterNavigation';
 import { deleteOverlay, deleteProject } from '@composables/core/useDatabase';
+import { isEditMode } from '@composables/overlay/useOverlay';
+import { map } from '@composables/core/useMap';
 import ProjectPicker from '@components/project/ProjectPicker.vue';
 import OverlayEditor from '@components/map/OverlayEditor.vue';
 import type { OverlayObject } from '@types';
@@ -141,11 +156,13 @@ const project = computed(() => {
     // AI : First try to get from local projects store (for edit mode and local overlays)
     const localProject = projects.value[currentProjectId.value];
     if (localProject) {
-      return localProject;    }
-      // AI : If not found locally, check if this overlay has backend project data (for view mode)
+      return localProject;
+    }
+
+    // AI : If not found locally, check if this overlay has backend project data (for view mode)
     if (props.overlayObject.project && props.overlayObject.project.id === currentProjectId.value) {
       // AI : Convert backend project data to frontend format
-      const project = props.overlayObject.project;
+      const project = props.overlayObject.project as any;
       const metadata = project.metadata as {
         location?: string;
         startDate?: string;
@@ -163,6 +180,8 @@ const project = computed(() => {
         description: project.description || '',
         color: metadata?.color || '#007bff',
         location: metadata?.location || '',
+        cityId: project.cityId || undefined,
+        city: project.city || undefined,
         startDate: metadata?.startDate ? new Date(metadata.startDate) : null,
         endDate: metadata?.endDate ? new Date(metadata.endDate) : null,
         sourceUrl: metadata?.sourceUrl || '',
@@ -181,19 +200,25 @@ watch(() => props.overlayObject.projectId, (newProjectId) => {
   currentProjectId.value = newProjectId;
 }, { immediate: true });
 
+// AI : Initialize component
+onMounted(async () => {
+  // AI : Load nearby projects if in edit mode to populate ProjectPicker
+  if (isEditMode.value && map.value) {
+    try {
+      const center = map.value.getCenter();
+      await loadProjectsNearLocation(center.lat, center.lng, 10);
+    } catch (error) {
+      console.warn('AI : Failed to load nearby projects for InfoPopup:', error);
+    }
+  }
+
+  loading.value = false;
+});
+
 // AI : Format date for display
 function formatDate(date: Date | null): string {
   if (!date) return 'Not specified';
   return new Date(date).toLocaleDateString();
-}
-
-// AI : Format currency for display
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0
-  }).format(amount);
 }
 
 // AI : Handle overlay update from the OverlayEditor component
@@ -210,7 +235,7 @@ function getProjectLocationDisplay(project: any): string {
   if (project.city?.name) {
     return `${project.city.name}, ${project.city.countryCode}`;
   }
-  // AI : Fallback to location field for backward compatibility
+  // AI : Fallback to location field for backward compatibility with older projects
   return project.location || 'Not specified';
 }
 
@@ -246,7 +271,8 @@ async function applyProjectChange(projectId: string) {
     editingProject.value = false;
 
     // AI : Update the tooltip text
-    updateTooltipText();  } catch (error) {
+    updateTooltipText();
+  } catch (error) {
     toast.add({
       severity: 'error',
       summary: 'Error',
@@ -259,10 +285,10 @@ async function applyProjectChange(projectId: string) {
 // AI : Open project manager for edit
 function openProjectManagerForEdit() {
   if (!project.value) return;
-  
+
   // AI : Store the project ID first
   const projectId = project.value.id;
-  
+
   // AI : Navigate to project edit page using composable
   navigateToProjectEdit(projectId);
 }
@@ -276,12 +302,12 @@ function openOverlayEditor() {
 async function convertToWebPIfNeeded(dataUrl: string, filename: string): Promise<File> {
   const response = await fetch(dataUrl);
   const blob = await response.blob();
-  
+
   // AI : If already WebP, return as is
   if (blob.type === 'image/webp') {
     return new File([blob], filename.replace(/\.[^/.]+$/, '.webp'), { type: 'image/webp' });
   }
-  
+
   // AI : Convert to WebP
   return new Promise((resolve, reject) => {
     const img = new Image()
@@ -289,27 +315,27 @@ async function convertToWebPIfNeeded(dataUrl: string, filename: string): Promise
       const canvas = document.createElement('canvas')
       canvas.width = img.width
       canvas.height = img.height
-      
+
       const ctx = canvas.getContext('2d')
       if (!ctx) {
         reject(new Error('Could not get canvas context'))
         return
       }
-      
+
       ctx.drawImage(img, 0, 0)
-      
+
       canvas.toBlob((blob) => {
         if (!blob) {
           reject(new Error('Failed to convert image to WebP'))
           return
         }
-        
+
         const webpFilename = filename.replace(/\.[^/.]+$/, '.webp')
         const file = new File([blob], webpFilename, { type: 'image/webp' })
         resolve(file)
       }, 'image/webp', 1.0)
     }
-    
+
     img.onerror = () => reject(new Error('Failed to load image'))
     img.src = dataUrl
   })
@@ -326,7 +352,7 @@ function validateOverlayForPublishing(): boolean {
     });
     return false;
   }
-  
+
   // AI : Check corners from overlay object or get them directly from the overlay
   let corners = props.overlayObject.corners;
   if (!corners || corners.length !== 4) {
@@ -339,7 +365,7 @@ function validateOverlayForPublishing(): boolean {
       }
     }
   }
-  
+
   if (!corners || corners.length !== 4) {
     toast.add({
       severity: 'error',
@@ -349,7 +375,7 @@ function validateOverlayForPublishing(): boolean {
     });
     return false;
   }
-  
+
   return true;
 }
 
@@ -357,12 +383,14 @@ function validateOverlayForPublishing(): boolean {
 async function ensureProjectOnServer(): Promise<boolean> {
   if (!project.value) {
     return false;
-  }  try {    
+  }
+
+  try {
     const projectResult = await trpc.project.publishProject.mutate({
       id: project.value.id,
       title: project.value.name,
       description: project.value.description,
-      cityId: project.value.cityId, // AI : Send cityId for proper city relationship
+      cityId: project.value.cityId,
       metadata: {
         // AI : Only send startDate, endDate, and sourceUrl in metadata as per backend schema
         startDate: project.value.startDate?.toISOString(),
@@ -372,28 +400,28 @@ async function ensureProjectOnServer(): Promise<boolean> {
     });if (!projectResult.success) {
       throw new Error('Failed to publish project to server');
     }
-    
+
     // AI : Handle project ID update and IndexedDB cleanup if this is a new project
     if (projectResult.success && projectResult.id) {
       const oldProjectId = project.value.id;
-      
+
       // AI : If this is a new project (not existing), update the project ID
       if (!projectResult.exists && projectResult.id !== oldProjectId) {
         // AI : Update the project ID with the one from the backend
         project.value.id = projectResult.id;
-        
+
         // AI : Update project ID in the projects store
         const updatedProjects = { ...projects.value };
         delete updatedProjects[oldProjectId];
         updatedProjects[projectResult.id] = project.value;
         projects.value = updatedProjects;
-        
+
         // AI : Update current project ID references
         currentProjectId.value = projectResult.id;
-        
+
         // AI : Update overlay's project reference
         props.overlayObject.projectId = projectResult.id;
-        
+
         // AI : Delete the old project from IndexedDB using the old ID
         await deleteProject(oldProjectId);
       }
@@ -402,7 +430,7 @@ async function ensureProjectOnServer(): Promise<boolean> {
     if (localProject) {
       localProject.savedRemotely = true;
     }
-    
+
     // AI : Show appropriate message
     const actionText = projectResult.exists ? 'updated on' : 'saved to';
     if (!projectResult.exists) {
@@ -413,7 +441,7 @@ async function ensureProjectOnServer(): Promise<boolean> {
         life: 2000
       });
     }
-      return true;
+    return true;
   } catch (error) {
     toast.add({
       severity: 'error',
@@ -430,21 +458,21 @@ async function prepareImageForServer(): Promise<string> {
   if (props.overlayObject.imageUrl.startsWith('data:')) {
     // AI : Convert data URL to WebP if needed and upload
     const imageFile = await convertToWebPIfNeeded(props.overlayObject.imageUrl, `overlay-${props.overlayObject.id}.webp`);
-    
+
     const formData = new FormData();
     formData.append('image', imageFile);
-    
+
     const uploadResponse = await fetch('http://localhost:3000/api/upload-image', {
       method: 'POST',
       body: formData,
       credentials: 'include'
     });
-    
+
     if (!uploadResponse.ok) {
       throw new Error('Failed to upload image to server');
     }
-      const uploadResult = await uploadResponse.json();
-    
+    const uploadResult = await uploadResponse.json();
+
     return uploadResult.filename;
   } else {
     // AI : Extract filename from existing server URL
@@ -454,7 +482,8 @@ async function prepareImageForServer(): Promise<string> {
 }
 
 // AI : Publish overlay metadata to server
-async function publishOverlayToServer(filename: string): Promise<{ success: boolean; exists: boolean; id?: string }> {  const payload = {
+async function publishOverlayToServer(filename: string): Promise<{ success: boolean; exists: boolean; id?: string }> {
+  const payload = {
     id: props.overlayObject.id,
     filename: filename,
     caption: props.overlayObject.caption || undefined,
@@ -464,13 +493,13 @@ async function publishOverlayToServer(filename: string): Promise<{ success: bool
     },
     corners: props.overlayObject.corners
   };
-  
+
   const overlayResult = await trpc.overlay.publishOverlay.mutate(payload);
 
   if (overlayResult.success) {
     // AI : Update local overlay state to track server existence
     props.overlayObject.savedRemotely = true;
-    
+
     const actionText = overlayResult.exists ? 'updated on' : 'saved to';
     toast.add({
       severity: 'success',
@@ -480,7 +509,7 @@ async function publishOverlayToServer(filename: string): Promise<{ success: bool
     });
     return { success: true, exists: overlayResult.exists, id: overlayResult.id };
   }
-  
+
   return { success: false, exists: false };
 }
 
@@ -491,28 +520,29 @@ async function publishOverlay() {
   }
 
   isPublishing.value = true;
-  
+
   try {
     // AI : Step 1 - Ensure project exists on server first
     await ensureProjectOnServer();
-    
+
     // AI : Step 2 - Prepare and upload image if needed
     const filename = await prepareImageForServer();
-    
+
     // AI : Step 3 - Publish overlay metadata
     const publishResult = await publishOverlayToServer(filename);
-    
+
     // AI : If publishing was successful, update overlay ID and delete from local IndexedDB
     if (publishResult.success && publishResult.id) {
       // AI : Store the old ID for IndexedDB deletion
       const oldId = props.overlayObject.id;
-      
+
       // AI : Update the overlay ID with the one from the backend
       props.overlayObject.id = publishResult.id;
-      
+
       // AI : Delete the old overlay from IndexedDB using the old ID
       await deleteOverlay(oldId);
-    }  } catch (error) {
+    }
+  } catch (error) {
     toast.add({
       severity: 'error',
       summary: 'Publish Failed',
@@ -524,14 +554,11 @@ async function publishOverlay() {
   }
 }
 
-// AI : Initialize component
-onMounted(async () => {
-  loading.value = false;
-});
 </script>
 
 <style scoped>
 @import "tailwindcss-primeui";
+
 .info-popup {
   padding: 1rem;
   width: 420px;
@@ -561,8 +588,7 @@ onMounted(async () => {
   font-size: 0.75rem;
 }
 
-.info-popup .space-y-1 > * + * {
+.info-popup .space-y-1>*+* {
   margin-top: 0.25rem;
 }
-
 </style>

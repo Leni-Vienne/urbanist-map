@@ -11,17 +11,6 @@ export const currentTileLayer = ref<TileLayerType>('esri');
 // AI : Reference to the currently active tile layer instance
 let activeTileLayer: L.TileLayer | null = null;
 
-// AI : Hot reload detection - check if map exists but tile layer is missing
-if (typeof window !== 'undefined') {
-  // AI : Check for hot reload scenario after a short delay
-  setTimeout(() => {
-    if (map.value && !activeTileLayer) {
-      console.log('AI : Hot reload detected - map exists but tile layer is missing');
-      addTileLayer();
-    }
-  }, 100);
-}
-
 // AI : Tile layer configurations
 const tileLayerConfigs = {
   france: {
