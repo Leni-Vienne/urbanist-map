@@ -124,9 +124,15 @@ export interface CDNOverlayData {
     id: string;
     title: string;
     description: string | null;
+    cityId: string | null; // AI : City ID for location context
+    city: {
+      id: string | null; // AI : City ID can be null
+      name: string;
+      countryCode: string;
+    } | null; // AI : Full city data for display
     metadata: any;
     createdAt: Date | null; // AI : Match database schema where createdAt can be null
-    updatedAt: Date;
+    updatedAt: Date | null; // AI : Can also be null
   } | null;
   centroid: {
     lat: number;

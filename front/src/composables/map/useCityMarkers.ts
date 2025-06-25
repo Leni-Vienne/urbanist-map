@@ -60,12 +60,9 @@ let mouseTooltip: HTMLElement | null = null;
 export async function loadCitiesWithProjects(): Promise<void> {
   try {
     isLoadingCities.value = true;
-    console.log('AI : Loading cities with projects...');
 
     const result = await trpc.cities.getCitiesWithProjects.query();
     citiesWithProjects.value = result;
-
-    console.log('AI : Loaded cities with projects:', result.length);
   } catch (error) {
     console.error('AI : Error loading cities with projects:', error);
   } finally {
@@ -76,10 +73,9 @@ export async function loadCitiesWithProjects(): Promise<void> {
 /**
  * AI : Load projects for a specific city and display overlays on map
  */
-export async function loadCityProjects(cityId: string, cityName: string): Promise<void> {
+export async function loadCityProjects(cityId: string, _cityName: string): Promise<void> {
   try {
     isLoadingCityProjects.value = true;
-    console.log('AI : Loading projects for city:', cityId);
 
     const result = await trpc.cities.getCityProjects.query({ cityId });
 
@@ -89,7 +85,7 @@ export async function loadCityProjects(cityId: string, cityName: string): Promis
     // AI : Convert project overlays to CDN overlay format for rendering
     const overlaysToRender: CDNOverlayData[] = [];
     result.forEach(project => {
-      project.overlays.forEach((overlay: any) => {
+      project.overlays.forEach((overlay: any) => {        
         overlaysToRender.push({
           id: overlay.id,
           filename: overlay.filename,
@@ -99,9 +95,11 @@ export async function loadCityProjects(cityId: string, cityName: string): Promis
             id: project.id,
             title: project.title,
             description: project.description,
+            cityId: project.cityId,
+            city: project.city,
             metadata: project.metadata,
             createdAt: project.createdAt,
-            updatedAt: project.createdAt // AI : Use createdAt as fallback
+            updatedAt: project.createdAt || null
           },
           centroid: {
             lat: (overlay.corners.topLeft.lat + overlay.corners.bottomRight.lat) / 2,
@@ -129,8 +127,6 @@ export async function loadCityProjects(cityId: string, cityName: string): Promis
 
     // AI : Render overlays on the map
     await renderViewModeOverlays(overlaysToRender);
-
-    console.log('AI : Displayed', overlaysToRender.length, 'overlays for city:', cityName);
   } catch (error) {
     console.error('AI : Error loading city projects:', error);
     currentCityOverlays.value = [];
@@ -143,13 +139,9 @@ export async function loadCityProjects(cityId: string, cityName: string): Promis
  * AI : Add city markers to the map
  */
 export function addCityMarkersToMap(): void {
-  console.log('AI : addCityMarkersToMap called, map.value:', !!map.value);
-
   if (!map.value) {
     // AI : If map is not ready, wait for initialization
-    console.log('AI : Map not ready, waiting for initialization');
     onMapInitialized(() => {
-      console.log('AI : Map initialized, adding city markers');
       addCityMarkersToMapInternal();
     });
     return;
@@ -163,7 +155,6 @@ export function addCityMarkersToMap(): void {
  */
 function addCityMarkersToMapInternal(): void {
   if (!map.value) {
-    console.log('AI : Map still not available in addCityMarkersToMapInternal');
     return;
   }
 

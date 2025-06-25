@@ -91,6 +91,8 @@ import { clearDatabase } from '@composables/core/useDatabase';
 import { navigateWithCoordinates } from '@composables/ui/useRouterNavigation';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
 import { initializeCityMarkers } from '@composables/map/useCityMarkers';
+import { loadProjectsNearLocation } from '@composables/project/useProjects';
+import { getCameraBounds } from '@composables/map/useCameraBounds';
 import TileLayerSelector from '@components/map/TileLayerSelector.vue';
 import CityMarkersToggle from '@components/map/CityMarkersToggle.vue';
 import ProjectPicker from '@components/project/ProjectPicker.vue';
@@ -131,7 +133,6 @@ watch(() => route.query.overlay, (overlayId) => {
 
 // AI : Watch for edit mode changes to start/stop camera tracking
 watch(isEditMode, (editMode) => {
-  console.log('Edit mode changed to:', editMode);
   if (editMode) {
     // AI : Stop tracking in edit mode
     console.log('Stopping camera tracking (edit mode)');
@@ -152,10 +153,19 @@ watch(() => showProjectSelector.value, (newVal) => {
 });
 
 // AI : Handle image upload
-function onImageUpload(event: Event) {
+async function onImageUpload(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (file) {
     pendingImageFile.value = file;
+    
+    // AI : Load projects near current camera location when uploading overlay
+    const cameraBounds = getCameraBounds();
+    if (cameraBounds.value) {
+      const centerLat = (cameraBounds.value.north + cameraBounds.value.south) / 2;
+      const centerLng = (cameraBounds.value.east + cameraBounds.value.west) / 2;
+      await loadProjectsNearLocation(centerLat, centerLng, 10);
+    }
+    
     showProjectSelector.value = true;
   }
 }

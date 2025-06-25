@@ -17,7 +17,6 @@ import 'primeicons/primeicons.css'
 
 import { onMounted, provide, ref, getCurrentInstance } from 'vue';
 import { initializeDatabase } from '@composables/core/useDatabase';
-import { initializeProjects } from '@composables/project/useProjects';
 import MapView from '@components/map/MapView.vue';
 import { setAppContext } from '@composables/core/useTools';
 import { trpc } from '@client';
@@ -42,11 +41,9 @@ onMounted(async () => {
     // AI : Initialize global services that should be available app-wide
     console.log('Starting database initialization...');
     await initializeDatabase();
-    console.log('Database initialized successfully');
-
-    console.log('Starting projects initialization...');
-    await initializeProjects();
-    console.log('Projects initialized successfully');
+    console.log('Database initialized successfully');    console.log('Starting projects initialization...');
+    // AI : Projects are now loaded lazily when entering edit mode or uploading overlays
+    console.log('Projects will be loaded on-demand');
 
     // AI : Set initialization flag to true after both operations complete
     databaseInitialized.value = true;

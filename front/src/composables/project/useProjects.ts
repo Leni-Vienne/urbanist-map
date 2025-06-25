@@ -1,8 +1,8 @@
-import { 
-  saveProject, 
-  getAllProjects, 
-  deleteProject, 
-  addOverlayToProject, 
+import {
+  saveProject,
+  getAllProjects,
+  deleteProject,
+  addOverlayToProject,
   removeOverlayFromProject,
 } from '@composables/core/useDatabase';
 import { overlays } from '@stores/overlayStore';
@@ -36,28 +36,28 @@ function generateRandomColor(): string {
     '#651FFF', // Deep Purple
     '#FFD600'  // Yellow
   ];
-  
+
   // Add randomness by slightly adjusting the color
   const baseColor = vibrantColors[Math.floor(Math.random() * vibrantColors.length)];
-  
+
   // For extra randomness, sometimes adjust the hue slightly
   if (Math.random() > 0.5) {
     return baseColor;
   }
-  
+
   // Convert hex to HSL, adjust, then back to hex
   const r = parseInt(baseColor.slice(1, 3), 16);
   const g = parseInt(baseColor.slice(3, 5), 16);
   const b = parseInt(baseColor.slice(5, 7), 16);
-  
+
   // Add slight random variations to make it more unique
   const variation = Math.floor(Math.random() * 30) - 15; // -15 to +15
-  
+
   // Ensure values stay within 0-255 range
   const newR = Math.min(255, Math.max(0, r + variation));
   const newG = Math.min(255, Math.max(0, g + variation));
   const newB = Math.min(255, Math.max(0, b + variation));
-  
+
   return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
 }
 
@@ -85,6 +85,8 @@ export async function initializeProjects(): Promise<void> {
           description: backendProject.description || '',
           color: metadata?.color || '#007bff',
           location: metadata?.location || '',
+          cityId: backendProject.cityId || undefined, // AI : Include cityId from backend
+          city: backendProject.city || undefined, // AI : Include full city object from backend
           startDate: metadata?.startDate ? new Date(metadata.startDate) : null,
           endDate: metadata?.endDate ? new Date(metadata.endDate) : null,
           sourceUrl: metadata?.sourceUrl || '',
@@ -96,24 +98,22 @@ export async function initializeProjects(): Promise<void> {
     } catch (error) {
       console.warn('AI : Could not fetch projects from backend:', error);
     }
-    
+
     // AI : Get local project overrides/modifications
     const localProjects = await getAllProjects();
-    
+
     // AI : Create projects map with backend projects as base
     const projectsMap: Record<string, Project> = {};
-    
+
     // AI : Add backend projects first
     backendProjects.forEach(project => {
       projectsMap[project.id] = project;
     });
-    
+
     // AI : Override with local modifications (local takes precedence)
     localProjects.forEach(project => {
       projectsMap[project.id] = project;
-    });
-    
-    projects.value = projectsMap;
+    });    projects.value = projectsMap;
   } catch (error) {
     console.error('Error initializing projects:', error);
     // Initialize with empty projects object on error
@@ -121,46 +121,109 @@ export async function initializeProjects(): Promise<void> {
   }
 }
 
+// AI : Get projects with overlays near the camera center (within 10km by default)
+export async function loadProjectsNearLocation(lat: number, lng: number, radiusKm: number = 10): Promise<void> {
+  try {
+    // AI : Fetch projects from backend that have overlays near the location
+    let nearbyProjects: Project[] = [];
+    try {
+      const backendResult = await trpc.project.getProjectsNearLocation.query({
+        lat,
+        lng,
+        radiusKm
+      });
+      
+      nearbyProjects = backendResult.projects.map(backendProject => {
+        // AI : Cast metadata to the expected structure
+        const metadata = backendProject.metadata as {
+          location?: string;
+          startDate?: string;
+          endDate?: string;
+          sourceUrl?: string;
+          overlayIds?: string[];
+          color?: string;
+          createdAt?: string;
+          updatedAt?: string;
+        } | null;        return {
+          id: backendProject.id,
+          name: backendProject.title,
+          description: backendProject.description || '',
+          color: metadata?.color || '#007bff',
+          location: metadata?.location || '',
+          cityId: backendProject.cityId || undefined, // AI : Include cityId from backend
+          city: backendProject.city || undefined, // AI : Include full city object from backend
+          startDate: metadata?.startDate ? new Date(metadata.startDate) : null,
+          endDate: metadata?.endDate ? new Date(metadata.endDate) : null,
+          sourceUrl: metadata?.sourceUrl || '',
+          overlayIds: metadata?.overlayIds || [],
+          createdAt: backendProject.createdAt?.toISOString() || new Date().toISOString(),
+          updatedAt: backendProject.updatedAt?.toISOString() || new Date().toISOString()
+        };
+      });
+    } catch (error) {
+      console.warn('AI : Could not fetch nearby projects from backend:', error);
+    }
+
+    // AI : Get local project overrides/modifications
+    const localProjects = await getAllProjects();
+
+    // AI : Create projects map with nearby backend projects as base
+    const projectsMap: Record<string, Project> = {};
+
+    // AI : Add nearby backend projects first
+    nearbyProjects.forEach(project => {
+      projectsMap[project.id] = project;
+    });
+
+    // AI : Override with local modifications (local takes precedence)
+    localProjects.forEach(project => {
+      projectsMap[project.id] = project;
+    });    projects.value = projectsMap;
+  } catch (error) {
+    console.error('Error loading nearby projects:', error);
+    // Keep existing projects on error
+  }
+}
+
 export async function createProject(projectData: Omit<Project, 'id' | 'overlayIds' | 'color'>): Promise<string> {
   const id = crypto.randomUUID();
-  
+
   const project: Project = {
     ...projectData,
     id,
     overlayIds: [],
     color: generateRandomColor()
   };
-  
+
   await saveProject(project);
-  
+
   // AI : Create a new object reference to ensure shallowRef reactivity triggers
   const updatedProjects = { ...projects.value };
   updatedProjects[id] = project;
   projects.value = updatedProjects;
-  
+
   return id;
 }
 
 export async function getOverlaysForProject(projectId: string): Promise<OverlayObject[]> {
   const project = projects.value[projectId];
   if (!project) return [];
-  
+
   const projectOverlays: OverlayObject[] = [];
-  
+
   for (const overlayId of project.overlayIds) {
     if (overlays.value[overlayId]) {
       // AI : Ensure we're pushing a proper OverlayObject with all expected properties
       projectOverlays.push(overlays.value[overlayId]);
     }
   }
-  
+
   return projectOverlays;
 }
 
 export async function addOverlayToProjectWithId(projectId: string, overlayId: string): Promise<void> {
   if (!projects.value[projectId]) {
     console.error('AI : Project not found in memory store:', projectId);
-    console.error('AI : Available projects:', Object.keys(projects.value));
     toast.add({
       severity: 'error',
       summary: 'Project not found',
@@ -169,7 +232,7 @@ export async function addOverlayToProjectWithId(projectId: string, overlayId: st
     });
     return;
   }
-  
+
   if (!overlays.value[overlayId]) {
     console.error('AI : Overlay not found in memory store:', overlayId);
     toast.add({
@@ -180,34 +243,29 @@ export async function addOverlayToProjectWithId(projectId: string, overlayId: st
     });
     return;
   }
-  
-  console.log(`AI : Adding overlay ${overlayId} to project ${projectId}`);
-  
+
   // Update database
   await addOverlayToProject(projectId, overlayId);
-  
+
   // AI : Create new references to ensure reactivity with shallowRef
   const updatedProjects = { ...projects.value };
   const project = { ...updatedProjects[projectId] };
-  
+
   // Update project with new overlay ID
   if (!project.overlayIds.includes(overlayId)) {
     project.overlayIds = [...project.overlayIds, overlayId];
   }
-  
+
   // Update projects collection with the modified project
   updatedProjects[projectId] = project;
   projects.value = updatedProjects;
-  
+
   // Update overlay with project reference
   const overlayObject = overlays.value[overlayId];
   overlayObject.projectId = projectId;
-  
   // Apply project styling
   applyProjectStyling(overlayObject, projectId);
-  
-  console.log(`AI : Successfully added overlay ${overlayId} to project ${projectId}`);
-  
+
   toast.add({
     severity: 'success',
     summary: 'Overlay added to project',
@@ -221,30 +279,30 @@ export async function removeOverlayFromProjectWithId(projectId: string, overlayI
     console.error('Project not found:', projectId);
     return;
   }
-  
+
   // Update database
   await removeOverlayFromProject(projectId, overlayId);
-  
+
   // AI : Create new references to ensure reactivity with shallowRef
   const updatedProjects = { ...projects.value };
   const project = { ...updatedProjects[projectId] };
-  
+
   // Filter out the overlay ID from the project's overlay IDs
   project.overlayIds = project.overlayIds.filter(id => id !== overlayId);
-  
+
   // Update projects collection with the modified project
   updatedProjects[projectId] = project;
   projects.value = updatedProjects;
-  
+
   // Update overlay
   if (overlays.value[overlayId]) {
     const overlayObject = overlays.value[overlayId];
     overlayObject.projectId = ''; // Use empty string instead of undefined
-    
+
     // Remove project styling
     removeProjectStyling(overlayObject);
   }
-  
+
   toast.add({
     severity: 'info',
     summary: 'Overlay removed from project',
@@ -255,20 +313,20 @@ export async function removeOverlayFromProjectWithId(projectId: string, overlayI
 
 export function applyProjectStyling(overlayObject: OverlayObject, projectId: string): void {
   if (!overlayObject.overlay) return;
-  
+
   const project = projects.value[projectId];
   if (!project) return;
-  
+
   const element = overlayObject.overlay.getElement();
   if (!element) return;
-  
+
   // Apply permanent and more noticeable project styling
   // Using outline instead of individual borders for cleaner effect
   element.style.outline = `4px solid ${project.color}`;
-  
+
   // Add stronger glow effect for better visibility
   element.style.boxShadow = `0 0 15px ${project.color}80`; // 80 = 50% opacity for stronger effect
-  
+
   // Add project indicator to marker
   if (overlayObject.marker) {
     // Add project name to marker tooltip
@@ -278,14 +336,14 @@ export function applyProjectStyling(overlayObject: OverlayObject, projectId: str
 
 export function removeProjectStyling(overlayObject: OverlayObject): void {
   if (!overlayObject.overlay) return;
-  
+
   const element = overlayObject.overlay.getElement();
   if (!element) return;
-  
+
   // Remove all project styling using outline instead of individual borders
   element.style.outline = '';
   element.style.boxShadow = '';
-  
+
   // Reset marker styling - only reset tooltip, no border or shadow
   if (overlayObject.marker) {
     // Reset tooltip
@@ -296,11 +354,11 @@ export function removeProjectStyling(overlayObject: OverlayObject): void {
 export function highlightProjectOverlays(projectId: string): void {
   const project = projects.value[projectId];
   if (!project) return;
-  
+
   for (const overlayId of project.overlayIds) {
     const overlayObject = overlays.value[overlayId];
     if (!overlayObject || !overlayObject.overlay) continue;
-    
+
     const element = overlayObject.overlay.getElement();
     if (element) {
       // Set CSS variable for the project color to use in animation
@@ -314,11 +372,11 @@ export function highlightProjectOverlays(projectId: string): void {
 export function clearProjectHighlight(projectId: string): void {
   const project = projects.value[projectId];
   if (!project) return;
-  
+
   for (const overlayId of project.overlayIds) {
     const overlayObject = overlays.value[overlayId];
     if (!overlayObject || !overlayObject.overlay) continue;
-    
+
     const element = overlayObject.overlay.getElement();
     if (element) {
       element.style.animation = '';
@@ -332,7 +390,7 @@ export async function deleteProjectById(projectId: string): Promise<void> {
     console.error('Project not found:', projectId);
     return;
   }
-  
+
   // Remove project reference from all its overlays
   for (const overlayId of project.overlayIds) {
     const overlayObject = overlays.value[overlayId];
@@ -341,20 +399,20 @@ export async function deleteProjectById(projectId: string): Promise<void> {
       removeProjectStyling(overlayObject);
     }
   }
-  
+
   // Delete from database
   await deleteProject(projectId);
-  
+
   // Create a new object for projects.value to trigger reactivity with shallowRef
   const updatedProjects = { ...projects.value };
   delete updatedProjects[projectId];
   projects.value = updatedProjects;
-  
+
   // Clear selection if this was the selected project
   if (selectedProjectId.value === projectId) {
     selectedProjectId.value = null;
   }
-  
+
   toast.add({
     severity: 'info',
     summary: 'Project deleted',
@@ -374,13 +432,13 @@ export async function updateProject(projectId: string, projectData: Partial<Omit
     });
     return;
   }
-  
+
   // AI : Create new project object with updated fields
   const updatedProject = { ...project, ...projectData };
-  
+
   // Save to database
   await saveProject(updatedProject);
-  
+
   // AI : Create a new projects object reference to trigger shallowRef reactivity
   const updatedProjects = { ...projects.value };
   updatedProjects[projectId] = updatedProject;
