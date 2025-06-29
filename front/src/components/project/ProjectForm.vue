@@ -146,14 +146,16 @@ const citiesLoaded = ref(false); // AI : Track if cities have been loaded to avo
 // AI : Watch for external project changes
 watch(() => props.project, (newProject) => {
     localProject.value = { ...newProject };
-}, { deep: true });
+    
+    // AI : Auto-load cities when editing a project that has city data
+    if (props.mode === 'edit' && newProject?.city?.lat && newProject?.city?.lng && !citiesLoaded.value) {
+        loadCitiesNearLocation(newProject.city.lat, newProject.city.lng);
+    }
+}, { deep: true, immediate: true });
 
 const citiesPlaceholder = computed(() => {
     if (citiesLoading.value) return 'Loading cities...';
     if (!citiesLoaded.value) return 'Click to load cities...';
-
-    const overlayCenter = getOverlayCenter();
-    if (!overlayCenter) return 'Waiting for map location data...';
 
     if (cities.value.length === 0) return 'No cities found in this area';
     return 'Select a city...';
@@ -165,15 +167,6 @@ const filteredCities = computed(() => {
         ...city,
         displayName: `${city.name}, ${city.countryCode}`
     }));
-});
-
-// AI : Computed property to get the selected city name for backward compatibility display
-const selectedCityName = computed(() => {
-    if (localProject.value.cityId && cities.value.length > 0) {
-        const selectedCity = cities.value.find(city => city.id === localProject.value.cityId);
-        return selectedCity?.name || localProject.value.location || '';
-    }
-    return localProject.value.location || '';
 });
 
 // AI : Watch for cityId changes to update location field for backward compatibility
@@ -227,28 +220,30 @@ function getOverlayCenter(): { lat: number; lng: number } | null {
 async function onSelectFocus() {
     if (!citiesLoaded.value && !citiesLoading.value) {
         citiesLoaded.value = true;
-        await loadNearestCities();
+        const overlayCenter = getOverlayCenter();
+        if (overlayCenter) {
+            await loadCitiesNearLocation(overlayCenter.lat, overlayCenter.lng);
+        }
     }
 }
 
-// AI : Load cities near the selected overlay
-async function loadNearestCities() {
-    const overlayCenter = getOverlayCenter();
-
-    if (!overlayCenter) {
-        cities.value = [];
-        return;
-    }
-
+// AI : Load cities near a specific location
+async function loadCitiesNearLocation(lat: number, lng: number) {
     try {
         citiesLoading.value = true;
+        citiesLoaded.value = true;
         cities.value = await trpc.cities.getCitiesNearLocation.query({
-            lat: overlayCenter.lat,
-            lng: overlayCenter.lng,
+            lat,
+            lng,
             limit: 20
         });
+        const aa: RouterOutput['cities']['getCitiesNearLocation'][number] = cities.value[0];
+        const bb = cities.value.map((city: RouterOutput['cities']['getCitiesNearLocation'][number]) => ({
+            ...city,
+            displayName: `${city.name}, ${city.countryCode}`
+        }));
     } catch (error) {
-        console.error('Error loading nearest cities:', error);
+        console.error('Error loading cities near location:', error);
         cities.value = [];
     } finally {
         citiesLoading.value = false;
