@@ -91,7 +91,8 @@ export const projectRouter = router({
             }
           })
           .from(projects)
-          .leftJoin(cities, eq(projects.cityId, cities.id));        console.log(`AI : Found ${allProjects.length} projects in backend with city data`);
+          .leftJoin(cities, eq(projects.cityId, cities.id));        
+          console.log(`AI : Found ${allProjects.length} projects in backend with city data`);
         return { projects: allProjects };
       } catch (error) {
         console.error('Error fetching all projects:', error);
