@@ -66,7 +66,8 @@ export async function initializeProjects(): Promise<void> {
     // AI : Fetch projects from backend first
     let backendProjects: Project[] = [];
     try {
-      const backendResult = await trpc.project.getAllProjects.query();      backendProjects = backendResult.projects.map(backendProject => {
+      const backendResult = await trpc.project.getAllProjects.query();
+      backendProjects = backendResult.projects.map(backendProject => {
         // AI : Cast metadata to the expected structure
         const metadata = backendProject.metadata as {
           location?: string;
@@ -113,7 +114,8 @@ export async function initializeProjects(): Promise<void> {
     // AI : Override with local modifications (local takes precedence)
     localProjects.forEach(project => {
       projectsMap[project.id] = project;
-    });    projects.value = projectsMap;
+    });
+    projects.value = projectsMap;
   } catch (error) {
     console.error('Error initializing projects:', error);
     // Initialize with empty projects object on error
@@ -132,7 +134,7 @@ export async function loadProjectsNearLocation(lat: number, lng: number, radiusK
         lng,
         radiusKm
       });
-      
+
       nearbyProjects = backendResult.projects.map(backendProject => {
         // AI : Cast metadata to the expected structure
         const metadata = backendProject.metadata as {
@@ -144,7 +146,8 @@ export async function loadProjectsNearLocation(lat: number, lng: number, radiusK
           color?: string;
           createdAt?: string;
           updatedAt?: string;
-        } | null;        return {
+        } | null;
+        return {
           id: backendProject.id,
           name: backendProject.title,
           description: backendProject.description || '',
@@ -178,7 +181,8 @@ export async function loadProjectsNearLocation(lat: number, lng: number, radiusK
     // AI : Override with local modifications (local takes precedence)
     localProjects.forEach(project => {
       projectsMap[project.id] = project;
-    });    projects.value = projectsMap;
+    });
+    projects.value = projectsMap;
   } catch (error) {
     console.error('Error loading nearby projects:', error);
     // Keep existing projects on error

@@ -32,22 +32,17 @@ onMounted(async () => {
     // AI : Store app instance context for dynamic components
     const instance = getCurrentInstance();
     if (instance) {
-      console.log('Setting app context from App.vue');
       //setAppContext(instance);
     } else {
       console.warn('Unable to get current instance in App.vue');
     }
 
     // AI : Initialize global services that should be available app-wide
-    console.log('Starting database initialization...');
     await initializeDatabase();
-    console.log('Database initialized successfully');    console.log('Starting projects initialization...');
     // AI : Projects are now loaded lazily when entering edit mode or uploading overlays
-    console.log('Projects will be loaded on-demand');
 
     // AI : Set initialization flag to true after both operations complete
     databaseInitialized.value = true;
-    console.log('Application initialization complete');
 
     // Utiliser un appel à l'API pour vérifier le statut d'authentification
     const response = await fetch('http://localhost:3000/api/check-session', {
@@ -57,7 +52,6 @@ onMounted(async () => {
 
     if (response.ok) {
       const data = await response.json()
-      console.log('Statut de connexion:', data)
     }
   } catch (error) {
     console.error('Error during application initialization:', error);

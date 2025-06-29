@@ -74,7 +74,8 @@ export function useProjectOverlayManager(projectId: string, onOverlaysChanged: (
   // AI : Navigate to overlay on map
   const viewOverlay = async (overlayId: string) => {
     const overlay = overlays.value[overlayId];
-    if (!overlay) return;    router.push('/');
+    if (!overlay) return;
+    router.push('/');
     // AI : Use nextTick for more reliable timing than arbitrary timeout
     nextTick(() => {
       if (navigateToOverlay(overlayId)) {

@@ -44,30 +44,6 @@
         </div>
       </div>
     </div>
-
-    <!-- AI : View Mode Overlays Panel -->
-    <div 
-      v-if="!isEditMode && viewModeOverlays.length > 0" 
-      class="view-mode-panel"
-    >
-      <div class="panel-header">
-        <h3>Visible Overlays</h3>
-        <span class="overlay-count">{{ viewModeOverlays.length }}</span>
-      </div>
-      <div class="panel-content">
-        <div 
-          v-for="overlay in viewModeOverlays" 
-          :key="overlay.id"
-          class="overlay-item"        >
-          <div class="overlay-info">
-            <span class="overlay-caption">{{ overlay.caption }}</span>
-          </div>
-          <div class="overlay-distance">
-            {{ Math.round(overlay.distance) }}m
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
   <Dialog
     v-model:visible="showProjectSelector"
@@ -110,19 +86,12 @@ const isTogglingMode = ref(false);
 // AI : Use view mode overlays for displaying overlays when camera moves
 const { viewModeOverlays, startCameraTracking, stopCameraTracking } = useViewModeOverlays();
 
-const isRouteActive = computed(() => route.path !== '/');
+const isRouteActive = computed(() => route.path !== '/' && !route.path.startsWith('/overlay'));
 
 // Navigate to projects while preserving coordinates
 function navigateToProjects() {
   navigateWithCoordinates('/projects');
 }
-
-// AI : Watch for route parameter changes - direct navigation without debounce
-watch(() => route.params.id, (overlayId) => {
-  if (overlayId && typeof overlayId === 'string' && !isLoading.value) {
-    //navigateToOverlay(overlayId, true);
-  }
-}, { immediate: true });
 
 // AI : Handle legacy query parameters
 watch(() => route.query.overlay, (overlayId) => {
@@ -135,11 +104,10 @@ watch(() => route.query.overlay, (overlayId) => {
 watch(isEditMode, (editMode) => {
   if (editMode) {
     // AI : Stop tracking in edit mode
-    console.log('Stopping camera tracking (edit mode)');
+
     stopCameraTracking();
   } else {
     // AI : Start tracking in view mode
-    console.log('Starting camera tracking (view mode)');
     startCameraTracking();
   }
 });
@@ -230,7 +198,6 @@ async function initializeMapAndOverlays() {
     
     // AI : Start camera tracking if in view mode
     if (!isEditMode.value) {
-      console.log('Starting camera tracking after initialization');
       startCameraTracking();
     }
   } catch (error) {
@@ -278,7 +245,6 @@ onMounted(async () => {
   // AI : As a backup, set app context here as well
   const app = getCurrentInstance();
   if (app) {
-    console.log('Setting app context from MapView.vue (backup)');
     setAppContext(app);
   }
 

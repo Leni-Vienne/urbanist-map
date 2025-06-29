@@ -17,7 +17,6 @@ export function initializeCameraBounds() {
     return;
   }
   
-  console.log('Initializing camera bounds tracking...');
   
   // AI : Update bounds when map moves or zooms
   const updateBounds = () => {

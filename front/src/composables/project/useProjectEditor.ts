@@ -78,7 +78,8 @@ export function useProjectEditor(projectId: string, mode: 'edit' | 'view' | 'cre
     }
 
     try {
-      const isExisting = !!projectData.id;      const dataToSave = {
+      const isExisting = !!projectData.id;
+      const dataToSave = {
         name: projectData.name,
         description: projectData.description || '',
         location: projectData.location || '',

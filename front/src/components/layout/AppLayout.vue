@@ -79,14 +79,13 @@ watch(
 
 // AI : Handle back button click
 function handleBack() {
-  console.log("dans handleBack, buttonClicked", buttonClicked.value);
+
   buttonClicked.value = true;
   goBack(dialogVisible);
 }
 
 // AI : Handle dialog hide event (only triggered when clicking outside or pressing Escape)
 function onDialogHide() {
-  console.log("dans onDialogHide, buttonClicked", buttonClicked.value);
   if (!buttonClicked.value) {
     router.push('/');
   }

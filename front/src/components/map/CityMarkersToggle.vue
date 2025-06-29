@@ -1,18 +1,15 @@
 <template>
-  <div class="city-markers-control">
-    <Button
-      :icon="showMarkers ? 'pi pi-eye-slash' : 'pi pi-eye'"
-      :label="showMarkers ? 'Masquer villes' : 'Afficher villes'"
-      :class="{
-        'p-button-success': showMarkers,
-        'p-button-secondary': !showMarkers
-      }"
-      @click="toggleMarkers"
-      :loading="isLoading"
-      size="small"
-      v-tooltip.right="showMarkers ? 'Masquer les marqueurs de villes' : 'Afficher les marqueurs de villes'"
-    />
-  </div>
+  <Button
+    :icon="showMarkers ? 'pi pi-eye-slash' : 'pi pi-eye'"
+    :label="showMarkers ? 'Hide city markers' : 'Show city markers'"
+    :class="{
+      'p-button-success': showMarkers,
+      'p-button-secondary': !showMarkers
+    }"
+    @click="toggleMarkers"
+    :loading="isLoading"
+    size="small"
+  />
 </template>
 
 <script setup lang="ts">
@@ -25,7 +22,7 @@ import {
   addCityMarkersToMap
 } from '@composables/map/useCityMarkers';
 
-// AI : Local state for markers visibility (default to true since they're shown by default)
+// AI : Local state for markers visibility (start with true since markers are likely visible on load)
 const showMarkers = ref(true);
 
 // AI : Computed properties
@@ -39,12 +36,14 @@ async function toggleMarkers(): Promise<void> {
       removeCityMarkers();
       showMarkers.value = false;
     } else {
-      // AI : Show markers
+      // AI : Show markers - always remove first to prevent duplicates
+      removeCityMarkers();
+
       if (citiesWithProjects.value.length === 0) {
         // AI : Load cities if not already loaded
         await initializeCityMarkers();
       } else {
-        // AI : Just add markers back to map
+        // AI : Add markers back to map
         addCityMarkersToMap();
       }
       showMarkers.value = true;
@@ -54,9 +53,3 @@ async function toggleMarkers(): Promise<void> {
   }
 }
 </script>
-
-<style scoped>
-.city-markers-control {
-  width: 100%;
-}
-</style>

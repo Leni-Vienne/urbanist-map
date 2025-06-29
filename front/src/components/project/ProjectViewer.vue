@@ -31,7 +31,6 @@ import { useRouter } from 'vue-router';
 import { useProjectEditor } from '@composables/project/useProjectEditor';
 import { useProjectOverlayManager } from '@composables/project/useProjectOverlayManager';
 import { useProjectHighlight } from '@composables/project/useProjectHighlight';
-import { initializeOverlays } from '@composables/overlay/useOverlay';
 import { goBack } from '@composables/ui/useRouterNavigation';
 import type { Project, OverlayListItem } from '@types';
 import ProjectHeader from '@components/project/ProjectHeader.vue';
@@ -82,22 +81,13 @@ const editProject = () => {
 
 // AI : Initialize overlays on mount
 onMounted(async () => {
-  const initializeData = async () => {
-    try {
-      await initializeOverlays();
-      await loadProjectOverlays();
-    } catch (error) {
-      console.error('ProjectViewer - error initializing:', error);
-    }
-  };
-
   if (databaseInitialized.value) {
-    await initializeData();
+    await loadProjectOverlays();
   } else {
     const unwatch = watch(databaseInitialized, async (initialized) => {
       if (initialized) {
         unwatch();
-        await initializeData();
+        await loadProjectOverlays();
       }
     });
   }

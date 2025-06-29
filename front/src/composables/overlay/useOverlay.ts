@@ -44,6 +44,7 @@ export function saveOverlayToDatabase(overlayObj: OverlayObject): void {
  * In edit mode: loads from local IndexedDB only, in view mode: handled by useViewModeOverlays
  */
 export async function initializeOverlays(): Promise<void> {
+  console.log('AI: Initializing overlays...');
   if (!map.value) return;
 
   // AI : In view mode, skip local database entirely
@@ -52,12 +53,10 @@ export async function initializeOverlays(): Promise<void> {
     return;
   }
   
-  console.log('AI : Initializing overlays in edit mode');
   
   // AI : In edit mode, load only from local database
   const savedOverlays = await getAllOverlays();
-  console.log(`AI : Loaded ${savedOverlays.length} overlays from database`);
-  
+  console.log(savedOverlays)
   const mapBounds = map.value.getBounds();
 
   createMarkersForOverlays(savedOverlays);
@@ -434,7 +433,6 @@ export function saveToHistory(overlayObject: OverlayObject): void {
  * AI : Toggle edit mode for all overlays with proper cleanup
  */
 export async function toggleEditMode(): Promise<void> {
-  console.log(`AI : Toggling edit mode from ${isEditMode.value} to ${!isEditMode.value}`);
   
   isEditMode.value = !isEditMode.value;
 
@@ -442,22 +440,11 @@ export async function toggleEditMode(): Promise<void> {
   clearAllOverlays();
   
   if (isEditMode.value) {
-    // AI : Switching to edit mode
-    console.log('AI : Switching to edit mode - loading nearby projects and overlays');
-    
-    // AI : Load projects near current camera location when entering edit mode
-    const cameraBounds = getCameraBounds();
-    if (cameraBounds.value) {
-      const centerLat = (cameraBounds.value.north + cameraBounds.value.south) / 2;
-      const centerLng = (cameraBounds.value.east + cameraBounds.value.west) / 2;
-      console.log(`AI : Loading projects near camera center: ${centerLat}, ${centerLng}`);
-      await loadProjectsNearLocation(centerLat, centerLng, 10);
-    }
+    // AI : Switching to edit mode - load only local overlays from IndexedDB
     
     await initializeOverlays();
   } else {
     // AI : Switching to view mode - overlays will be handled by useViewModeOverlays
-    console.log('AI : Switching to view mode');
   }
 }
 
@@ -605,14 +592,12 @@ export function updateOverlayImage(overlayObject: OverlayObject, newImageUrl: st
 export function clearAllOverlays(): void {
   if (!map.value) return;
 
-  console.log(`AI : Clearing all overlays from map - currently have ${Object.keys(overlays.value).length} overlays and ${Object.keys(allMarkers.value).length} markers`);
 
   // AI : Remove all overlays from the map (both distortable and simple image overlays)
   Object.values(overlays.value).forEach((overlayObject) => {
     if (overlayObject.overlay) {
       try {
         map.value!.removeLayer(overlayObject.overlay);
-        console.log(`AI : Removed overlay ${overlayObject.id} from map`);
       } catch (error) {
         console.warn(`AI : Error removing overlay ${overlayObject.id}:`, error);
       }
@@ -634,7 +619,6 @@ export function clearAllOverlays(): void {
   allMarkers.value = {};
   idSelectedOverlay.value = null;
 
-  console.log('AI : All overlays and markers cleared from collections');
 }
 
 /**
@@ -762,7 +746,6 @@ function setupProjectHoverEvents(overlay: L.DistortableImageOverlay, overlayObje
  */
 export async function renderViewModeOverlays(cdnOverlays: CDNOverlayData[]): Promise<void> {
   if (!map.value) {
-    console.log('AI : Cannot render view mode overlays - map not ready');
     return;
   }
   // AI : Get current overlay IDs that are already rendered (local overlays take precedence)
@@ -772,16 +755,13 @@ export async function renderViewModeOverlays(cdnOverlays: CDNOverlayData[]): Pro
   const overlaysToRender = cdnOverlays.filter(cdnOverlay => {
     const hasLocalVersion = currentOverlayIds.has(cdnOverlay.id);
     if (hasLocalVersion) {
-      console.log(`AI : Skipping remote overlay ${cdnOverlay.id} - local version already loaded`);
     }
     return !hasLocalVersion;
   });
 
-  console.log(`AI : Rendering ${overlaysToRender.length} remote overlays (${cdnOverlays.length - overlaysToRender.length} skipped due to local versions)`);
 
   // AI : Render each new CDN overlay as a read-only marker in view mode or editable overlay in edit mode
   for (const cdnOverlay of overlaysToRender) {
-    console.log(`AI : Rendering remote overlay ${cdnOverlay.id} (${isEditMode.value ? 'edit mode' : 'view mode'})`);
     await renderSingleViewModeOverlay(cdnOverlay);
   }
 }
@@ -917,7 +897,6 @@ export function removeOverlay(overlayId: string): void {
 function handleOverlayMovement(overlayObject: OverlayObject): void {
   // AI : If this is a backend overlay (savedRemotely is true and no local storage yet)
   if (overlayObject.savedRemotely && !overlayObject.alreadyStored) {
-    console.log(`AI : Converting backend overlay ${overlayObject.id} to local copy due to movement`);
     
     // AI : Mark as no longer existing only on backend (now has local changes)
     overlayObject.savedRemotely = false;
@@ -954,7 +933,6 @@ function handleOverlayMovement(overlayObject: OverlayObject): void {
       }
     }
     
-    console.log(`AI : Backend overlay ${overlayObject.id} converted to local copy with visual refresh`);
   }
   
   // AI : Always save to history and database when moved

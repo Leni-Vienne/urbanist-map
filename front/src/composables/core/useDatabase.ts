@@ -21,12 +21,10 @@ export async function initializeDatabase(): Promise<void> {
         
         // AI : Create projects store in version 2
         if (oldVersion < 2 && !upgradeDb.objectStoreNames.contains('projects')) {
-          console.log('Creating projects object store');
           upgradeDb.createObjectStore('projects', { keyPath: 'id' });
         }
       },
     });
-    console.log('Database initialized successfully');
   } catch (error) {
     console.error('Failed to initialize database:', error);
     throw new Error('Database initialization failed');
@@ -134,7 +132,6 @@ export async function clearDatabase(): Promise<void> {
     } catch (error) {
       console.warn('Could not clear projects store, it may not exist yet:', error);
     }
-    console.log('Database cleared successfully');
   } catch (error) {
     console.error('Error clearing database:', error);
   }
@@ -198,9 +195,7 @@ export async function getAllProjects(): Promise<Project[]> {
   }
   
   try {
-    console.log('AI : getAllProjects - reading from database...');
     const result = await db.getAll('projects');
-    console.log('AI : getAllProjects - database returned:', result.length, 'projects');
     return result;
   } catch (error) {
     console.error('Error retrieving all projects:', error);
@@ -242,7 +237,6 @@ export async function addOverlayToProject(projectId: string, overlayId: string):
       const memoryProject = projects.value[projectId];
       
       if (memoryProject) {
-        console.log(`AI : Found project ${projectId} in memory, saving to IndexedDB...`);
         // AI : Create a plain object copy to avoid DataCloneError with reactive data
         const plainProject = {
           id: memoryProject.id,
