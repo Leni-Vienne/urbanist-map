@@ -75,7 +75,8 @@ export async function generateImageResolutions(originalImageUrl: string): Promis
       smallHeight
     ) || originalImageUrl;
 
-    return resolutions;  } catch (error) {
+    return resolutions;
+  } catch (error) {
     console.error('Error in image resizing process:', error);
     return {
       original: originalImageUrl,

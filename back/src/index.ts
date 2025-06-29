@@ -114,7 +114,6 @@ app.use('/uploads/*', serveStatic({ root: './' }))
 app.use('/trpc/*', trpcServer({
     router: appRouter,
     createContext(_opts, c) {
-        console.log('in createContext')
         return {
             session: c.get('session')
         };
@@ -141,7 +140,6 @@ app.use('*', serveStatic({ root: './front/dist' }))
 
 // If no file is found, serve index.html for SPA routing
 app.notFound((c) => {
-  console.log('Path not found:', c.req.path, '- Serving index.html');
   // Make sure to return a Response object
   return c.html('<h1>Not Found</h1>'); // Temporary response, will replace with proper serving
 });

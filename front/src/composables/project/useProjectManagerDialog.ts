@@ -31,11 +31,6 @@ function openProjectManager(openMode: ProjectManagerMode = 'list', projectId: st
 }
 
 function closeProjectManager() {
-    console.log('Closing project manager dialog', { 
-        currentMode: currentMode.value, 
-        originContext: originContext.value 
-    });
-    
     // AI : If we're closing a "create" dialog, determine where to return based on origin
     if (currentMode.value === 'create') {
         if (originContext.value === 'list') {

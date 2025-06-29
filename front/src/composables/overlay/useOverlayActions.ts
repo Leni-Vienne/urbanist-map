@@ -560,7 +560,6 @@ export function navigateToOverlay(overlayId: string, centerMap: boolean = true):
   
   const targetOverlay = overlays.value[overlayId];
   if (!targetOverlay) {
-    console.trace('Overlay not found:', overlayId);
     toast.add({ severity: 'warn', summary: 'Overlay not found', detail: 'The requested overlay could not be found', life: 3000 });
     return false;
   }

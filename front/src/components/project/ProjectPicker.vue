@@ -28,6 +28,7 @@
             :filter="true"
             :showClear="true"
             :loading="loading"
+            @focus="onSelectFocus"
           >
             <template #value="{ value, placeholder }">
               <div
@@ -118,7 +119,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['update:modelValue', 'project-selected', 'project-created']);
+const emit = defineEmits(['update:modelValue', 'project-selected', 'project-created', 'select-focus']);
 
 const loading = ref(false);
 const selectedProjectId = ref(props.modelValue);
@@ -132,6 +133,9 @@ watch(() => lastCreatedProjectId.value, (newProjectId) => {
     emit('project-selected', newProjectId);
   }
 });
+
+watch(() => projects.value, (newProjects) => {
+}, { immediate: true });
 
 const projectList = computed(() => Object.values(projects.value));
 
@@ -168,6 +172,11 @@ function openNewProjectDialog() {
   // AI : Set flag when creating from ProjectPicker
   setFileUploadFlow(true);
   window.router.push('/projects/create');
+}
+
+// AI : Handle select focus/click to emit event for lazy loading
+function onSelectFocus() {
+  emit('select-focus');
 }
 </script>
 

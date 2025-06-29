@@ -23,8 +23,6 @@ export const projectRouter = router({
     .mutation(async ({ input }) => {
       try {
         // AI : Log received data
-        console.log('=== PUBLISH PROJECT BACKEND ===');
-        console.log('Received input:', JSON.stringify(input, null, 2));
 
         // AI: Check if project already exists
         const existingProject = await db.select()
@@ -45,7 +43,6 @@ export const projectRouter = router({
             .where(eq(projects.id, input.id))
             .returning();
 
-          console.log('Updated existing project:', updateResult[0]);
           return { success: true, id: updateResult[0].id, exists: true };
         }
 
@@ -58,7 +55,6 @@ export const projectRouter = router({
           metadata: input.metadata
         }).returning();
 
-        console.log('Created new project:', result[0]);
         return { success: true, id: result[0].id, exists: false };
       } catch (error) {
         console.error('Error publishing project:', error);
@@ -68,7 +64,6 @@ export const projectRouter = router({
   getAllProjects: publicProcedure
     .query(async () => {
       try {
-        console.log('AI : Fetching all projects from backend database with city information');
 
         // AI : Join projects with cities to include city information
         const allProjects = await db
@@ -92,7 +87,6 @@ export const projectRouter = router({
           })
           .from(projects)
           .leftJoin(cities, eq(projects.cityId, cities.id));        
-          console.log(`AI : Found ${allProjects.length} projects in backend with city data`);
         return { projects: allProjects };
       } catch (error) {
         console.error('Error fetching all projects:', error);
@@ -110,7 +104,6 @@ export const projectRouter = router({
     .query(async ({ input }) => {
       try {
         const { lat, lng, radiusKm } = input;
-        console.log(`AI : Fetching projects with overlays within ${radiusKm}km of ${lat}, ${lng}`);
 
         // AI : Find projects that have at least one overlay within the specified radius
         const nearbyProjects = await db
@@ -157,7 +150,6 @@ export const projectRouter = router({
             cities.coordinates
           );
 
-        console.log(`AI : Found ${nearbyProjects.length} projects with overlays near location`);
         return { projects: nearbyProjects };
       } catch (error) {
         console.error('Error fetching nearby projects:', error);

@@ -85,7 +85,7 @@ export async function loadCityProjects(cityId: string, _cityName: string): Promi
     // AI : Convert project overlays to CDN overlay format for rendering
     const overlaysToRender: CDNOverlayData[] = [];
     result.forEach(project => {
-      project.overlays.forEach((overlay: any) => {        
+      project.overlays.forEach((overlay: any) => {
         overlaysToRender.push({
           id: overlay.id,
           filename: overlay.filename,
@@ -200,7 +200,6 @@ function addCityMarkersToMapInternal(): void {
 
   // AI : Add the layer group to the map
   cityMarkersLayer.addTo(map.value);
-  console.log('AI : City markers added successfully');
 }
 
 /**
@@ -212,7 +211,6 @@ export function removeCityMarkers(): void {
     cityMarkersLayer = null;
     // AI : Hide tooltip when removing markers
     hideMouseTooltip();
-    console.log('AI : City markers removed');
   }
 }
 
@@ -284,7 +282,7 @@ function createMouseTooltip(): void {
  */
 function showMouseTooltip(event: MouseEvent): void {
   if (!mouseTooltip) return;
-  
+
   mouseTooltip.style.left = event.clientX + 15 + 'px';
   mouseTooltip.style.top = event.clientY - 10 + 'px';
   mouseTooltip.style.opacity = '1';
@@ -303,7 +301,7 @@ function hideMouseTooltip(): void {
  */
 function updateMouseTooltipPosition(event: MouseEvent): void {
   if (!mouseTooltip || mouseTooltip.style.opacity === '0') return;
-  
+
   mouseTooltip.style.left = event.clientX + 15 + 'px';
   mouseTooltip.style.top = event.clientY - 10 + 'px';
 }

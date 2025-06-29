@@ -85,7 +85,6 @@ export class CitiesImportService {
         }
       }
       
-      console.log(`AI : Loaded ${cities.length} cities from CSV`);
       return cities;
     } catch (error) {
       console.error('AI : Error loading cities data:', error);
@@ -97,7 +96,6 @@ export class CitiesImportService {
    * AI : Import cities from CSV to database using simplified schema
    */
   static async importCities(): Promise<{ imported: number; skipped: number; errors: number }> {
-    console.log('AI : Starting cities import from CSV...');
     
     try {
       // AI : Load cities from CSV
@@ -108,7 +106,6 @@ export class CitiesImportService {
       }
 
       // AI : Clear existing cities
-      console.log('AI : Clearing existing cities...');
       await db.delete(cities);
 
       let imported = 0;
@@ -139,7 +136,6 @@ export class CitiesImportService {
           try {
             await db.insert(cities).values(insertData);
             imported += insertData.length;
-            console.log(`AI : Imported batch ${Math.floor(i / batchSize) + 1}, total: ${imported} cities`);
           } catch (error) {
             console.error(`AI : Error inserting batch:`, error);
             errors += insertData.length;
@@ -147,7 +143,6 @@ export class CitiesImportService {
         }
       }
 
-      console.log(`AI : Cities import completed. Imported: ${imported}, Skipped: ${skipped}, Errors: ${errors}`);
       
       return { imported, skipped, errors };
     } catch (error) {
@@ -160,7 +155,6 @@ export class CitiesImportService {
    * AI : Import unique countries from CSV to database
    */
   static async importCountries(): Promise<{ imported: number; skipped: number; errors: number }> {
-    console.log('AI : Starting countries import from CSV...');
     
     try {
       // AI : Load cities from CSV to extract unique countries
@@ -192,7 +186,6 @@ export class CitiesImportService {
       }
 
       // AI : Clear existing countries
-      console.log('AI : Clearing existing countries...');
       await db.delete(countries);
 
       let imported = 0;
@@ -215,14 +208,12 @@ export class CitiesImportService {
         try {
           await db.insert(countries).values(insertData);
           imported = insertData.length;
-          console.log(`AI : Imported ${imported} countries`);
         } catch (error) {
           console.error(`AI : Error inserting countries:`, error);
           errors = insertData.length;
         }
       }
 
-      console.log(`AI : Countries import completed. Imported: ${imported}, Errors: ${errors}`);
       
       return { imported, skipped: 0, errors };
     } catch (error) {

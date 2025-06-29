@@ -1,5 +1,6 @@
 <template>
   <div class="info-popup">
+    {{ projects }}
     <div
       v-if="loading"
       class="loading-spinner"
@@ -18,6 +19,7 @@
         <ProjectPicker
           v-model="selectedProjectId"
           @project-selected="applyProjectChange"
+          @select-focus="onProjectPickerSelectFocus"
           :hideSelector="false"
           :placeholder="project ? 'Change project' : 'Select a project'"
         />
@@ -202,7 +204,7 @@ watch(() => props.overlayObject.projectId, (newProjectId) => {
 
 // AI : Initialize component
 onMounted(async () => {
-  // AI : Load nearby projects if in edit mode to populate ProjectPicker
+   // AI : Load nearby projects if in edit mode to populate ProjectPicker
   if (isEditMode.value && map.value) {
     try {
       const center = map.value.getCenter();
@@ -211,7 +213,6 @@ onMounted(async () => {
       console.warn('AI : Failed to load nearby projects for InfoPopup:', error);
     }
   }
-
   loading.value = false;
 });
 
@@ -397,7 +398,8 @@ async function ensureProjectOnServer(): Promise<boolean> {
         endDate: project.value.endDate?.toISOString(),
         sourceUrl: project.value.sourceUrl
       }
-    });if (!projectResult.success) {
+    });
+    if (!projectResult.success) {
       throw new Error('Failed to publish project to server');
     }
 
@@ -554,6 +556,17 @@ async function publishOverlay() {
   }
 }
 
+// AI : Load projects when user actually clicks on the ProjectPicker select
+async function onProjectPickerSelectFocus() {
+  if (isEditMode.value && map.value) {
+    try {
+      const center = map.value.getCenter();
+      await loadProjectsNearLocation(center.lat, center.lng, 10);
+    } catch (error) {
+      console.warn('AI : Failed to load nearby projects for InfoPopup:', error);
+    }
+  }
+}
 </script>
 
 <style scoped>
@@ -566,7 +579,7 @@ async function publishOverlay() {
   background-color: white;
   user-select: text;
   border-radius: 8px;
-  /* so that the popup sits above the toolbar, no matter its height*/
+  /* AI : So that the popup sits above the toolbar, no matter its height */
   translate: 0px calc(-100% - 32px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }

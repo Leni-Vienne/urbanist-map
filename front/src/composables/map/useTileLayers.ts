@@ -41,13 +41,10 @@ const tileLayerConfigs = {
  * AI : Add the default tile layer to the map
  */
 export function addTileLayer(): void {
-  console.log('AI : addTileLayer called, map.value:', !!map.value);
   
   if (!map.value) {
     // AI : If map is not ready, wait for initialization
-    console.log('AI : Map not ready, waiting for initialization');
     onMapInitialized(() => {
-      console.log('AI : Map initialized, adding tile layer');
       addTileLayerToMap();
     });
     return;
@@ -55,7 +52,6 @@ export function addTileLayer(): void {
   
   // AI : Check if tile layer was lost during hot reload
   if (!activeTileLayer) {
-    console.log('AI : Tile layer lost during hot reload, re-adding');
     addTileLayerToMap();
   }
 }
@@ -65,49 +61,40 @@ export function addTileLayer(): void {
  */
 function addTileLayerToMap(): void {
   if (!map.value) {
-    console.log('AI : Map still not available in addTileLayerToMap');
     return;
   }
   
   // AI : Remove existing tile layer if it exists (hot reload safety)
   if (activeTileLayer) {
-    console.log('AI : Removing existing tile layer before adding new one');
     map.value.removeLayer(activeTileLayer);
   }
   
-  console.log('AI : Adding tile layer:', currentTileLayer.value);
   const config = tileLayerConfigs[currentTileLayer.value];
   activeTileLayer = L.tileLayer(config.url, config.options);
   activeTileLayer.addTo(map.value);
-  console.log('AI : Tile layer added successfully');
 }
 
 /**
  * AI : Switch to a different tile layer
  */
 export function switchTileLayer(layerType: TileLayerType): void {
-  console.log('AI : switchTileLayer called:', layerType, 'current:', currentTileLayer.value, 'map:', !!map.value);
   
   if (!map.value || currentTileLayer.value === layerType) {
-    console.log('AI : Switch cancelled - map not ready or same layer');
     return;
   }
   
   // AI : Remove current tile layer
   if (activeTileLayer) {
-    console.log('AI : Removing current tile layer');
     map.value.removeLayer(activeTileLayer);
   }
   
   // AI : Add new tile layer
-  console.log('AI : Adding new tile layer:', layerType);
   const config = tileLayerConfigs[layerType];
   activeTileLayer = L.tileLayer(config.url, config.options);
   activeTileLayer.addTo(map.value);
   
   // AI : Update current layer reference
   currentTileLayer.value = layerType;
-  console.log('AI : Tile layer switched successfully');
 }
 
 /**
