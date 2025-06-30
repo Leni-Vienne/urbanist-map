@@ -170,7 +170,7 @@ function addCityMarkersToMapInternal(): void {
     const marker = L.marker([city.lat, city.lng]);
 
     // AI : Add tooltip with city name
-    marker.bindTooltip(`${city.name} (${city.projectCount} projet${city.projectCount > 1 ? 's' : ''})`, {
+    marker.bindTooltip(`${city.name} (${city.projectCount} project${city.projectCount > 1 ? 's' : ''})`, {
       permanent: true,
     });
 

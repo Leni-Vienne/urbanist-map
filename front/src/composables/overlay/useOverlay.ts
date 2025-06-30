@@ -6,12 +6,12 @@ import { map, onMapInitialized } from '@composables/core/useMap';
 import { getAllOverlays, saveOverlay } from '@composables/core/useDatabase';
 import { overlays, idSelectedOverlay, isEditMode } from '@stores/overlayStore';
 import { projects } from '@stores/projectStore';
-import { applyProjectStyling, loadProjectsNearLocation } from '@composables/project/useProjects';
-import { getCameraBounds } from '@composables/map/useCameraBounds';
+import { applyProjectStyling } from '@composables/project/useProjects';
 import type { OverlayObject, StoredOverlayData, CDNOverlayData } from '@types';
 import { editTools, viewTools, infoTool } from '@composables/core/useTools';
 import { getImageUrlForCoverage } from '@composables/core/useImageResizer';
 import { router } from '../../router';
+import { createColorIcon } from '@composables/ui/colorMarkers';
 
 // AI : Export the reactive stores from centralized location
 export { overlays, idSelectedOverlay, isEditMode };
@@ -21,9 +21,15 @@ export const allMarkers = shallowRef<Record<string, L.Marker>>({});
 
 // AI : Save an individual overlay to the database
 // This is called explicitly when an overlay changes, rather than watching the entire collection
+// Remote overlays are only saved if they have been modified (alreadyStored will be true after editing)
 export function saveOverlayToDatabase(overlayObj: OverlayObject): void {
-  if (!overlayObj || !overlayObj.alreadyLoaded || !overlayObj.alreadyStored) return;
-  
+  if (!overlayObj || !overlayObj.alreadyLoaded) return;
+
+  // AI : Skip saving remote overlays that haven't been modified locally
+  if (overlayObj.savedRemotely && !overlayObj.alreadyStored) return;
+
+  if (!overlayObj.alreadyStored) return;
+
   const savedOverlay: StoredOverlayData = {
     id: overlayObj.id,
     imageUrl: overlayObj.imageUrl,
@@ -37,6 +43,10 @@ export function saveOverlayToDatabase(overlayObj: OverlayObject): void {
   };
 
   saveOverlay(savedOverlay);
+
+  // AI : Update storage status and marker tooltip
+  overlayObj.alreadyStored = true;
+  updateMarkerTooltip(overlayObj);
 }
 
 /**
@@ -44,7 +54,6 @@ export function saveOverlayToDatabase(overlayObj: OverlayObject): void {
  * In edit mode: loads from local IndexedDB only, in view mode: handled by useViewModeOverlays
  */
 export async function initializeOverlays(): Promise<void> {
-  console.log('AI: Initializing overlays...');
   if (!map.value) return;
 
   // AI : In view mode, skip local database entirely
@@ -52,16 +61,21 @@ export async function initializeOverlays(): Promise<void> {
     setupMapEventListeners();
     return;
   }
-  
-  
+
   // AI : In edit mode, load only from local database
   const savedOverlays = await getAllOverlays();
-  console.log(savedOverlays)
+  console.log(`AI: Found ${savedOverlays.length} saved overlays in IndexedDB:`, savedOverlays.map(o => ({
+    id: o.id,
+    savedRemotely: o.savedRemotely,
+    hasCorners: !!o.corners,
+    hasHistory: !!o.history?.length
+  })));
+
   const mapBounds = map.value.getBounds();
 
   createMarkersForOverlays(savedOverlays);
   loadOverlaysInMapBounds(savedOverlays, mapBounds);
-  
+
   setupMapEventListeners();
 
   onMapInitialized(() => {
@@ -91,11 +105,22 @@ function createMarkersForOverlays(savedOverlays: StoredOverlayData[]): void {
     }
 
     const center = overlayBounds.getCenter();
+
+    // AI : Create a temporary overlay object to determine correct marker color
+    const tempOverlayObject = createOverlayObject(savedOverlay);
+    const markerColor = getMarkerColorForStorageStatus(tempOverlayObject);
+    const colorIcon = createColorIcon(markerColor);
+
     const marker = L.marker(center, {
-      title: markerTitle
+      title: markerTitle,
+      icon: colorIcon
     }).addTo(map.value!);
 
     allMarkers.value[savedOverlay.id] = marker;
+
+    // AI : Assign marker to temp object and update tooltip
+    tempOverlayObject.marker = marker;
+    updateMarkerTooltip(tempOverlayObject);
   });
 }
 
@@ -123,6 +148,11 @@ async function loadOverlay(savedOverlay: StoredOverlayData): Promise<void> {
   overlayObject.overlay = newOverlay;
   overlayObject.marker = allMarkers.value[savedOverlay.id];
   overlays.value[savedOverlay.id] = overlayObject;
+
+  // AI : Update marker tooltip with correct overlay object information
+  if (overlayObject.marker) {
+    updateMarkerTooltip(overlayObject);
+  }
 }
 
 function getOverlayBounds(overlay: StoredOverlayData): L.LatLngBounds | null {
@@ -196,30 +226,39 @@ function updateImageResolutionsForCoverage(): void {
  * AI : Create a new overlay object from saved data
  */
 export function createOverlayObject(savedOverlay: StoredOverlayData): OverlayObject {
+  console.log(`AI: createOverlayObject for overlay ${savedOverlay.id}:`, {
+    savedRemotely: savedOverlay.savedRemotely,
+    hasCorners: !!savedOverlay.corners,
+    hasHistory: !!savedOverlay.history?.length
+  });
+
   // AI : Get project data from local projects collection if available
-  const projectData = savedOverlay.projectId && projects.value[savedOverlay.projectId] 
+  const projectData = savedOverlay.projectId && projects.value[savedOverlay.projectId]
     ? {
-        id: projects.value[savedOverlay.projectId].id,
-        title: projects.value[savedOverlay.projectId].name,
-        description: projects.value[savedOverlay.projectId].description || null,
-        metadata: { color: projects.value[savedOverlay.projectId].color },
-        createdAt: new Date(projects.value[savedOverlay.projectId].createdAt),
-        updatedAt: new Date(projects.value[savedOverlay.projectId].updatedAt)
-      }
+      id: projects.value[savedOverlay.projectId].id,
+      title: projects.value[savedOverlay.projectId].name,
+      description: projects.value[savedOverlay.projectId].description || null,
+      metadata: { color: projects.value[savedOverlay.projectId].color },
+      createdAt: new Date(projects.value[savedOverlay.projectId].createdAt),
+      updatedAt: new Date(projects.value[savedOverlay.projectId].updatedAt)
+    }
     : null;
 
-  return {
+  const overlayObject = {
     ...savedOverlay,
     overlay: null,
     marker: null,
     alreadyLoaded: false,
-    alreadyStored: true,
+    // AI : Only mark as stored if it's a local overlay OR a remote overlay that has been modified
+    // Remote overlays that exist in IndexedDB but were never modified should not be considered "stored"
+    alreadyStored: !savedOverlay.savedRemotely || (savedOverlay.history && savedOverlay.history.length > 0),
     whitePixelsHidden: false,
     isFlipped: false, // AI : Initialize as not flipped
     currentResolution: savedOverlay.imageUrl,
     savedRemotely: savedOverlay.savedRemotely || false, // AI : Default to false if not set
     project: projectData // AI : Include project data for InfoPopup display, will be updated from backend if needed
   };
+  return overlayObject;
 }
 
 /**
@@ -262,30 +301,47 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
   // using 'element' allows to access the corners of the image on load while newOverlay.on('load') doesn't work
   // credit to https://github.com/publiclab/Leaflet.DistortableImage/issues/953#issuecomment-1262298228
   L.DomEvent.on(element, 'load', () => {
+    console.log(`AI: Image loaded for overlay ${overlayObject.id}:`, {
+      savedRemotely: overlayObject.savedRemotely,
+      alreadyStored: overlayObject.alreadyStored,
+      isEditMode: isEditMode.value
+    });
+
     applyOverlayCorners(overlayObject);
     updateMarkerPosition(overlayObject);
     overlayObject.alreadyLoaded = true;
-    overlayObject.alreadyStored = true;    // AI : Save initial corner positions to history for undo/redo functionality
+
+    // AI : Don't automatically set alreadyStored = true for remote overlays in view mode
+    // Only set it for local overlays or overlays loaded from IndexedDB
+    if (!overlayObject.savedRemotely) {
+      overlayObject.alreadyStored = true;
+    }
+
+    // AI : Save initial corner positions to history for undo/redo functionality
     if (overlayObject.overlay && overlayObject.history.length === 0) {
       const initialCorners = overlayObject.overlay.getCorners();
       if (initialCorners && initialCorners.length > 0) {
         overlayObject.history = [JSON.parse(JSON.stringify(initialCorners))];
         overlayObject.redoStack = [];
       }
-    }// AI : Save overlay to database immediately after loading
-    const savedOverlay: StoredOverlayData = {
-      id: overlayObject.id,      imageUrl: overlayObject.imageUrl,
-      imageResolutions: overlayObject.imageResolutions,
-      corners: overlayObject.corners || overlayObject.overlay?.getCorners() || [],
-      history: overlayObject.history,
-      redoStack: overlayObject.redoStack,
-      projectId: overlayObject.projectId,
-      caption: overlayObject.caption,
-      savedRemotely: overlayObject.savedRemotely || false // AI : Include server existence tracking
-    };
-    if(isEditMode.value) {
+    }// AI : Save overlay to database immediately after loading, but skip remote overlays
+    // AI : Remote overlays should only be saved when explicitly edited/moved
+    if (isEditMode.value && !overlayObject.savedRemotely) {
+      const savedOverlay: StoredOverlayData = {
+        id: overlayObject.id, imageUrl: overlayObject.imageUrl,
+        imageResolutions: overlayObject.imageResolutions,
+        corners: overlayObject.corners || overlayObject.overlay?.getCorners() || [],
+        history: overlayObject.history,
+        redoStack: overlayObject.redoStack,
+        projectId: overlayObject.projectId,
+        caption: overlayObject.caption,
+        savedRemotely: overlayObject.savedRemotely || false // AI : Include server existence tracking
+      };
       saveOverlay(savedOverlay);
+      overlayObject.alreadyStored = true;
     }
+    // AI : Update marker tooltip after saving to local storage 
+    updateMarkerTooltip(overlayObject);
   });
 
   return newOverlay;
@@ -313,17 +369,16 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
     // AI : Clear overlay parameter from URL when deselected
     clearOverlayFromUrl();
   });
-
   overlay.on('edit', () => {
     // AI : Handle transition from backend to local copy when edited
-    handleOverlayMovement(overlayObject);
+    saveToHistory(overlayObject);
     updateMarkerPosition(overlayObject);
     overlayObject.corners = overlay.getCorners();
   });
 
   overlay.on('dragend', () => {
     // AI : Handle transition from backend to local copy when moved
-    handleOverlayMovement(overlayObject);
+    saveToHistory(overlayObject);
     updateMarkerPosition(overlayObject);
     overlayObject.corners = overlay.getCorners();
   });
@@ -405,6 +460,7 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
 
 /**
  * AI : Save the current state of an overlay to history and database
+ * Remote overlays are saved here when edited/moved (this is the intended behavior)
  */
 export function saveToHistory(overlayObject: OverlayObject): void {
   if (!overlayObject.overlay) return;
@@ -418,7 +474,7 @@ export function saveToHistory(overlayObject: OverlayObject): void {
   const savedOverlay: StoredOverlayData = {
     id: overlayObject.id,
     imageUrl: overlayObject.imageUrl,
-    imageResolutions: overlayObject.imageResolutions,    corners: overlayObject.corners,
+    imageResolutions: overlayObject.imageResolutions, corners: overlayObject.corners,
     history: overlayObject.history,
     redoStack: overlayObject.redoStack,
     projectId: overlayObject.projectId,
@@ -427,25 +483,32 @@ export function saveToHistory(overlayObject: OverlayObject): void {
   };
 
   saveOverlay(savedOverlay);
+
+  // AI : Update storage status and marker tooltip - remote overlays become locally stored when edited
+  overlayObject.alreadyStored = true;
+  updateMarkerTooltip(overlayObject);
 }
 
 /**
  * AI : Toggle edit mode for all overlays with proper cleanup
  */
 export async function toggleEditMode(): Promise<void> {
-  
+
   isEditMode.value = !isEditMode.value;
 
   // AI : Clear all current overlays when switching modes
   clearAllOverlays();
-  
+
   if (isEditMode.value) {
-    // AI : Switching to edit mode - load only local overlays from IndexedDB
-    
     await initializeOverlays();
-  } else {
-    // AI : Switching to view mode - overlays will be handled by useViewModeOverlays
   }
+
+  // AI : Update all existing marker tooltips for the new mode
+  Object.values(overlays.value).forEach(overlayObject => {
+    if (overlayObject.marker) {
+      updateMarkerTooltip(overlayObject);
+    }
+  });
 }
 
 // Event handler that blocks movement events but allows click events
@@ -626,12 +689,12 @@ export function clearAllOverlays(): void {
  */
 function applySelectionOutline(overlayObject: OverlayObject): void {
   if (!overlayObject.overlay || !overlayObject.projectId) return;
-  
+
   // AI : Apply 30px outline to all overlays of the same project
   const projectId = overlayObject.projectId;
   const project = projects.value[projectId];
   const color = project?.color || '#007bff';
-  
+
   Object.values(overlays.value).forEach(obj => {
     if (obj.projectId === projectId && obj.overlay) {
       const element = obj.overlay.getElement();
@@ -647,10 +710,9 @@ function applySelectionOutline(overlayObject: OverlayObject): void {
  */
 function removeSelectionOutline(overlayObject: OverlayObject): void {
   if (!overlayObject.overlay || !overlayObject.projectId) return;
-  
   // AI : Remove outline from all overlays of the same project
   const projectId = overlayObject.projectId;
-  
+
   Object.values(overlays.value).forEach(obj => {
     if (obj.projectId === projectId && obj.overlay) {
       const element = obj.overlay.getElement();
@@ -784,20 +846,30 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData): Promise<
   try {    // AI : Construct image URL from backend server
     const imageUrl = `http://localhost:3000/uploads/${cdnOverlay.filename}`;
 
-    // AI : Use the actual corners from the backend instead of calculating from centroid
-    const corners = cdnOverlay.corners.map(corner => L.latLng(corner.lat, corner.lng));    // AI : Create overlay object for view mode using same structure as edit mode
-    const overlayObject: OverlayObject = {      id: cdnOverlay.id,
+    // AI : Check if this overlay already exists in local IndexedDB
+    const savedOverlays = await getAllOverlays();
+    const localOverlay = savedOverlays.find(overlay => overlay.id === cdnOverlay.id);
+    const existsLocally = !!localOverlay;
+
+    // AI : Use local corners if overlay exists locally, otherwise use remote corners
+    const corners = existsLocally && localOverlay?.corners
+      ? localOverlay.corners
+      : cdnOverlay.corners.map(corner => L.latLng(corner.lat, corner.lng));
+
+    // AI : Create overlay object for view mode using same structure as edit mode
+    const overlayObject: OverlayObject = {
+      id: cdnOverlay.id,
       imageUrl: imageUrl,
-      imageResolutions: undefined,
+      imageResolutions: existsLocally ? localOverlay?.imageResolutions : undefined,
       corners: corners,
-      history: [],
-      redoStack: [],
+      history: existsLocally ? (localOverlay?.history || []) : [],
+      redoStack: existsLocally ? (localOverlay?.redoStack || []) : [],
       projectId: cdnOverlay.projectId || '', // AI : Use project ID from backend data
-      caption: cdnOverlay.caption || undefined,
+      caption: existsLocally ? (localOverlay?.caption || cdnOverlay.caption) : cdnOverlay.caption,
       overlay: null,
       marker: null,
       alreadyLoaded: false,
-      alreadyStored: false,
+      alreadyStored: existsLocally, // AI : Set based on actual IndexedDB existence
       whitePixelsHidden: false,
       isFlipped: false,
       currentResolution: imageUrl,
@@ -832,25 +904,33 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData): Promise<
       // AI : Temporarily store project for styling (don't persist)
       const originalProjects = { ...projects.value };
       projects.value[tempProject.id] = tempProject;
-      
+
       // AI : Apply project styling
       applyProjectStyling(overlayObject, tempProject.id);
-      
+
       // AI : Restore original projects (we don't want to persist backend project data)
       projects.value = originalProjects;
     }    // AI : Create marker for easier identification using centroid
     const centerLat = cdnOverlay.centroid.lat;
     const centerLng = cdnOverlay.centroid.lng;
-    const markerTitle = isEditMode.value 
+    const markerTitle = isEditMode.value
       ? `${cdnOverlay.caption || 'Overlay'} (Remote - Editable)`
       : `${cdnOverlay.caption || 'Overlay'} (View Mode - Read Only)`;
-    
+
+    // AI : Determine marker color based on storage status
+    const markerColor = getMarkerColorForStorageStatus(overlayObject);
+    const colorIcon = createColorIcon(markerColor);
+
     const marker = L.marker([centerLat, centerLng], {
       title: markerTitle,
-      opacity: 0.7
+      opacity: 0.7,
+      icon: colorIcon
     }).addTo(map.value);
 
-    overlayObject.marker = marker;// AI : Setup project hover events for highlighting in view mode
+    overlayObject.marker = marker;
+
+    // AI : Update tooltip based on edit mode and storage status
+    updateMarkerTooltip(overlayObject);// AI : Setup project hover events for highlighting in view mode
     setupProjectHoverEvents(newOverlay, overlayObject);
 
     // AI : Store both overlay and marker for cleanup
@@ -891,50 +971,83 @@ export function removeOverlay(overlayId: string): void {
 }
 
 /**
- * AI : Handle overlay movement by converting backend overlays to local copies when moved
- * @param overlayObject - The overlay object that was moved
+ * AI : Update marker tooltip based on overlay storage status
+ * Only shows tooltips in edit mode, removes them in view mode
+ * Also updates marker color based on storage status in edit mode
  */
-function handleOverlayMovement(overlayObject: OverlayObject): void {
-  // AI : If this is a backend overlay (savedRemotely is true and no local storage yet)
-  if (overlayObject.savedRemotely && !overlayObject.alreadyStored) {
-    
-    // AI : Mark as no longer existing only on backend (now has local changes)
-    overlayObject.savedRemotely = false;
-    overlayObject.alreadyStored = true;
-    
-    // AI : Update marker title to indicate it's now a local copy
-    if (overlayObject.marker) {
-      const newTitle = `${overlayObject.caption || 'Overlay'} (Local Copy - Modified)`;
-      overlayObject.marker.setTooltipContent(newTitle);
-      overlayObject.marker.bindTooltip(newTitle, { permanent: false });
-    }
-    
-    // AI : Force a visual refresh to ensure the overlay appears correctly as a local copy
-    if (overlayObject.overlay && map.value) {
-      // AI : Get current position and state
-      const currentCorners = overlayObject.overlay.getCorners();
-      const element = overlayObject.overlay.getElement();
-      
-      if (element && currentCorners) {
-        // AI : Update the overlay's corners to trigger a refresh
-        overlayObject.corners = currentCorners;
-        
-        // AI : Update the overlay's visual properties to reflect local copy status
-        element.style.border = '2px solid #28a745'; // Green border for local copy
-        element.style.opacity = '1.0'; // Full opacity for local copy
-        
-        // AI : Apply a brief visual indicator that the conversion happened
-        element.style.boxShadow = '0 0 10px rgba(40, 167, 69, 0.5)';
-        setTimeout(() => {
-          if (element) {
-            element.style.boxShadow = '';
-          }
-        }, 1000);
-      }
-    }
-    
+export function updateMarkerTooltip(overlayObject: OverlayObject): void {
+  if (!overlayObject.marker) return;
+
+  console.log(`AI: updateMarkerTooltip for overlay ${overlayObject.id}:`, {
+    alreadyStored: overlayObject.alreadyStored,
+    savedRemotely: overlayObject.savedRemotely,
+    alreadyLoaded: overlayObject.alreadyLoaded,
+    isEditMode: isEditMode.value
+  });
+
+  // AI : Remove existing tooltip first
+  overlayObject.marker.unbindTooltip();
+
+  // AI : Update marker color based on storage status in edit mode
+  const markerColor = getMarkerColorForStorageStatus(overlayObject);
+  const colorIcon = createColorIcon(markerColor);
+  overlayObject.marker.setIcon(colorIcon);
+
+  // AI : Only show tooltips in edit mode
+  if (isEditMode.value) {
+    const tooltipText = overlayObject.alreadyStored
+      ? 'Stored locally in IndexedDB'
+      : 'Remote overlay (not stored locally)';
+
+    overlayObject.marker.bindTooltip(tooltipText, {
+      permanent: false,
+      direction: 'top',
+      offset: [0, -10]
+    });
   }
-  
-  // AI : Always save to history and database when moved
-  saveToHistory(overlayObject);
+}
+
+/**
+ * AI : Check if overlay exists in local IndexedDB and update tooltip accordingly
+ */
+export async function checkAndUpdateOverlayStorageStatus(overlayObject: OverlayObject): Promise<void> {
+  if (!overlayObject.marker) return;
+
+  try {
+    const savedOverlays = await getAllOverlays();
+    const isStoredLocally = savedOverlays.some(overlay => overlay.id === overlayObject.id);
+
+    // AI : For remote overlays, only mark as stored if they actually exist in IndexedDB
+    // This prevents remote overlays from showing as "stored locally" unless they've been edited
+    overlayObject.alreadyStored = isStoredLocally;
+    updateMarkerTooltip(overlayObject);
+  } catch (error) {
+    console.error('AI : Error checking overlay storage status:', error);
+  }
+}
+
+/**
+ * AI : Determine marker color based on overlay storage status in edit mode
+ * Green: Remote only (not stored locally)
+ * Orange: Remote and local copy (stored both remotely and locally) 
+ * Red: Local only (no remote copy)
+ */
+function getMarkerColorForStorageStatus(overlayObject: OverlayObject): 'blue' | 'green' | 'orange' | 'red' | 'gold' | 'yellow' | 'violet' | 'grey' | 'black' {
+  // AI : Only apply color coding in edit mode
+  if (!isEditMode.value) {
+    return 'blue'; // AI : Default blue color for view mode
+  }
+
+  const { savedRemotely, alreadyStored } = overlayObject;
+
+  if (savedRemotely && !alreadyStored) {
+    return 'green'; // AI : Remote overlay, not stored locally
+  } else if (savedRemotely && alreadyStored) {
+    return 'orange'; // AI : Remote overlay with local copy
+  } else if (!savedRemotely && alreadyStored) {
+    return 'red'; // AI : Local only overlay
+  }
+
+  // AI : Fallback to blue for any edge cases
+  return 'blue';
 }

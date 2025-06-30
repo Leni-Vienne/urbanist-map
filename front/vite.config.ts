@@ -22,6 +22,7 @@ export default defineConfig({
   resolve: {
     alias: {
       'vue': 'vue/dist/vue.esm-bundler.js', //  otherwise vite is not happy when building
+      '@assets': path.resolve(__dirname, './src/assets'),
       '@composables': path.resolve(__dirname, './src/composables'),
       '@components': path.resolve(__dirname, './src/components'),
       '@stores': path.resolve(__dirname, './src/stores'),

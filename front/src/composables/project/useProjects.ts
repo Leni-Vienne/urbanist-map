@@ -61,68 +61,6 @@ function generateRandomColor(): string {
   return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
 }
 
-export async function initializeProjects(): Promise<void> {
-  try {
-    // AI : Fetch projects from backend first
-    let backendProjects: Project[] = [];
-    try {
-      const backendResult = await trpc.project.getAllProjects.query();
-      backendProjects = backendResult.projects.map(backendProject => {
-        // AI : Cast metadata to the expected structure
-        const metadata = backendProject.metadata as {
-          location?: string;
-          startDate?: string;
-          endDate?: string;
-          sourceUrl?: string;
-          overlayIds?: string[];
-          color?: string;
-          createdAt?: string;
-          updatedAt?: string;
-        } | null;
-
-        return {
-          id: backendProject.id,
-          name: backendProject.title,
-          description: backendProject.description || '',
-          color: metadata?.color || '#007bff',
-          location: metadata?.location || '',
-          cityId: backendProject.cityId || undefined, // AI : Include cityId from backend
-          city: backendProject.city || undefined, // AI : Include full city object from backend
-          startDate: metadata?.startDate ? new Date(metadata.startDate) : null,
-          endDate: metadata?.endDate ? new Date(metadata.endDate) : null,
-          sourceUrl: metadata?.sourceUrl || '',
-          overlayIds: metadata?.overlayIds || [],
-          createdAt: backendProject.createdAt?.toISOString() || new Date().toISOString(),
-          updatedAt: backendProject.updatedAt?.toISOString() || new Date().toISOString()
-        };
-      });
-    } catch (error) {
-      console.warn('AI : Could not fetch projects from backend:', error);
-    }
-
-    // AI : Get local project overrides/modifications
-    const localProjects = await getAllProjects();
-
-    // AI : Create projects map with backend projects as base
-    const projectsMap: Record<string, Project> = {};
-
-    // AI : Add backend projects first
-    backendProjects.forEach(project => {
-      projectsMap[project.id] = project;
-    });
-
-    // AI : Override with local modifications (local takes precedence)
-    localProjects.forEach(project => {
-      projectsMap[project.id] = project;
-    });
-    projects.value = projectsMap;
-  } catch (error) {
-    console.error('Error initializing projects:', error);
-    // Initialize with empty projects object on error
-    projects.value = {};
-  }
-}
-
 // AI : Get projects with overlays near the camera center (within 10km by default)
 export async function loadProjectsNearLocation(lat: number, lng: number, radiusKm: number = 10): Promise<void> {
   try {
@@ -169,7 +107,6 @@ export async function loadProjectsNearLocation(lat: number, lng: number, radiusK
 
     // AI : Get local project overrides/modifications
     const localProjects = await getAllProjects();
-
     // AI : Create projects map with nearby backend projects as base
     const projectsMap: Record<string, Project> = {};
 

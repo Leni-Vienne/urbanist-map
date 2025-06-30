@@ -263,7 +263,6 @@ async function deleteProject() {
 }
 
 function openProject(projectId: string, mode: ProjectManagerMode) {
-  // AI : Utiliser le router pour naviguer vers la vue projet appropriée
   if (mode === 'view') {
     router.push(`/projects/${projectId}`);
   } else if (mode === 'edit') {
@@ -272,7 +271,6 @@ function openProject(projectId: string, mode: ProjectManagerMode) {
 }
 
 function createNewProject() {
-  // AI : Utiliser le router pour naviguer vers la page de création de projet
   router.push('/projects/create');
 }
 </script>
