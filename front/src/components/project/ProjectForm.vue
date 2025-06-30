@@ -237,11 +237,6 @@ async function loadCitiesNearLocation(lat: number, lng: number) {
             lng,
             limit: 20
         });
-        const aa: RouterOutput['cities']['getCitiesNearLocation'][number] = cities.value[0];
-        const bb = cities.value.map((city: RouterOutput['cities']['getCitiesNearLocation'][number]) => ({
-            ...city,
-            displayName: `${city.name}, ${city.countryCode}`
-        }));
     } catch (error) {
         console.error('Error loading cities near location:', error);
         cities.value = [];

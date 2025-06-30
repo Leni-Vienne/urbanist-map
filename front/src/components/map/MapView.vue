@@ -15,6 +15,7 @@
         type="file"
         @change="onImageUpload"
         accept="image/png, image/jpeg, image/jpg, image/webp"
+        :disabled="!isEditMode"
       />      <div class="card flex">
         <Button
           icon="pi pi-bars"
@@ -35,7 +36,14 @@
       
       <div class="card flex justify-center">
         <div class="w-56">
-          <Button @click="handleToggleEditMode" :loading="isTogglingMode">{{ isEditMode ? 'Switch to View Mode' : 'Switch to Edit Mode' }}</Button>
+          <Button 
+            @click="handleToggleEditMode" 
+            :loading="isTogglingMode"
+            :disabled="isEditModeDisabled"
+            v-tooltip.top="isEditModeDisabled ? 'Zoom in closer to enable edit mode' : ''"
+          >
+            {{ isEditMode ? 'Switch to View Mode' : 'Switch to Edit Mode' }}
+          </Button>
         </div>
       </div>
       <div class="card flex justify-center">
@@ -57,7 +65,7 @@
 <script setup lang="ts">
 import { ref, onMounted, getCurrentInstance, watch, computed, inject, onBeforeUnmount } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { initializeMap, disableLeafletKeyboardEvents } from '@composables/core/useMap';
+import { initializeMap, disableLeafletKeyboardEvents, currentZoomLevel } from '@composables/core/useMap';
 import { initializeCameraBounds } from '@composables/map/useCameraBounds';
 import { initializeOverlays, isEditMode, toggleEditMode } from '@composables/overlay/useOverlay';
 import { addOverlay, undo, redo } from '@composables/overlay/useOverlayActions';
@@ -83,8 +91,13 @@ const databaseInitialized = inject('databaseInitialized', ref(false));
 const isLoading = ref(true);
 const isTogglingMode = ref(false);
 
+// AI : Computed property to determine if edit mode should be disabled
+const isEditModeDisabled = computed(() => {
+  return currentZoomLevel.value < 9 && !isEditMode.value;
+});
+
 // AI : Use view mode overlays for displaying overlays when camera moves
-const { viewModeOverlays, startCameraTracking, stopCameraTracking } = useViewModeOverlays();
+const { startCameraTracking, stopCameraTracking } = useViewModeOverlays();
 
 const isRouteActive = computed(() => route.path !== '/' && !route.path.startsWith('/overlay'));
 

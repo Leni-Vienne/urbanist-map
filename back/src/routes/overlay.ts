@@ -42,32 +42,32 @@ export const overlayRouter = router({
           .select()
           .from(overlays)
           .where(sql`filename = ${input.filename}`)
-          .limit(1);if (existingOverlay.length > 0) {          // AI : Update existing overlay
-          const result = await db
-            .update(overlays)
-            .set({
-              caption: input.caption,
-              projectId: input.projectId,
-              metadata: null, // AI : Keep metadata empty as requested
-              topLeftLat: topLeft.lat,
-              topLeftLng: topLeft.lng,
-              topRightLat: topRight.lat,
-              topRightLng: topRight.lng,
-              bottomRightLat: bottomRight.lat,
-              bottomRightLng: bottomRight.lng,
-              bottomLeftLat: bottomLeft.lat,
-              bottomLeftLng: bottomLeft.lng,
-              centroid: sql`ST_SetSRID(ST_MakePoint(${centroidLng}, ${centroidLat}), 4326)`,
-              updatedAt: sql`NOW()`
-            }).where(sql`filename = ${input.filename}`)
-            .returning();
+          .limit(1); if (existingOverlay.length > 0) {          // AI : Update existing overlay
+            const result = await db
+              .update(overlays)
+              .set({
+                caption: input.caption,
+                projectId: input.projectId,
+                metadata: null, // AI : Keep metadata empty as requested
+                topLeftLat: topLeft.lat,
+                topLeftLng: topLeft.lng,
+                topRightLat: topRight.lat,
+                topRightLng: topRight.lng,
+                bottomRightLat: bottomRight.lat,
+                bottomRightLng: bottomRight.lng,
+                bottomLeftLat: bottomLeft.lat,
+                bottomLeftLng: bottomLeft.lng,
+                centroid: sql`ST_SetSRID(ST_MakePoint(${centroidLng}, ${centroidLat}), 4326)`,
+                updatedAt: sql`NOW()`
+              }).where(sql`filename = ${input.filename}`)
+              .returning();
 
-          return {
-            success: true,
-            id: result[0].id,
-            exists: true // AI : Indicate this overlay was updated
-          };        
-        } else {          // AI : Insert new overlay
+            return {
+              success: true,
+              id: result[0].id,
+              exists: true // AI : Indicate this overlay was updated
+            };
+          } else {          // AI : Insert new overlay
           const result = await db.insert(overlays).values({
             filename: input.filename,
             caption: input.caption,
@@ -80,7 +80,7 @@ export const overlayRouter = router({
             bottomRightLat: bottomRight.lat,
             bottomRightLng: bottomRight.lng,
             bottomLeftLat: bottomLeft.lat,
-            bottomLeftLng: bottomLeft.lng, 
+            bottomLeftLng: bottomLeft.lng,
             centroid: sql`ST_SetSRID(ST_MakePoint(${centroidLng}, ${centroidLat}), 4326)`
           }).returning();
 
@@ -95,85 +95,4 @@ export const overlayRouter = router({
         throw new Error('Failed to publish overlay');
       }
     }),
-  getIntersectingOverlays: publicProcedure
-    .input(boundsSchema)
-    .query(async ({ input }) => {
-      try {
-        // AI : Create a bounding box polygon from the input bounds
-        const boundingBox = sql`ST_MakeEnvelope(${input.west}, ${input.south}, ${input.east}, ${input.north}, 4326)`;
-
-        // AI : Calculate center point of the bounds for distance calculation
-        const centerLat = (input.north + input.south) / 2;
-        const centerLng = (input.east + input.west) / 2;
-        const centerPoint = sql`ST_SetSRID(ST_MakePoint(${centerLng}, ${centerLat}), 4326)`;        // AI : Query overlays where centroid is within the bounding box using spatial index
-        // AI : Join with projects and cities tables to get full project data with city information
-        const overlays_data = await db
-          .select({
-            id: overlays.id,
-            filename: overlays.filename,
-            caption: overlays.caption,
-            projectId: overlays.projectId, // AI : Include project ID for styling
-            // AI : Include full project data with city information for frontend display
-            projectData: {
-              id: projects.id,
-              title: projects.title,
-              description: projects.description,
-              cityId: projects.cityId,
-              metadata: projects.metadata,
-              createdAt: projects.createdAt,
-              updatedAt: projects.updatedAt,
-            },
-            centroidLat: sql<number>`ST_Y(${overlays.centroid})`.as('centroid_lat'),
-            centroidLng: sql<number>`ST_X(${overlays.centroid})`.as('centroid_lng'),
-            // AI : Include all corner coordinates for frontend overlay positioning
-            topLeftLat: overlays.topLeftLat,
-            topLeftLng: overlays.topLeftLng,
-            topRightLat: overlays.topRightLat,
-            topRightLng: overlays.topRightLng,
-            bottomRightLat: overlays.bottomRightLat,
-            bottomRightLng: overlays.bottomRightLng,
-            bottomLeftLat: overlays.bottomLeftLat,
-            bottomLeftLng: overlays.bottomLeftLng,
-            distance: sql<number>`ST_Distance(${overlays.centroid}, ${centerPoint})`.as('distance'),
-            createdAt: overlays.createdAt          })
-          .from(overlays)
-          .leftJoin(projects, eq(overlays.projectId, projects.id))
-          .leftJoin(cities, eq(projects.cityId, cities.id))
-          .where(sql`ST_Within(${overlays.centroid}, ${boundingBox})`)
-          .orderBy(sql`distance`);        // AI : Transform results for CDN usage
-        const result = overlays_data.map(overlay => ({
-          id: overlay.id,
-          filename: overlay.filename, // AI : For CDN URL construction
-          caption: overlay.caption || undefined, // AI : Make it optional
-          projectId: overlay.projectId || null, // AI : Include project ID for styling          // AI : Include full project data for frontend display and styling
-          project: overlay.projectData?.id ? {
-            id: overlay.projectData.id,
-            title: overlay.projectData.title,
-            description: overlay.projectData.description,
-            cityId: overlay.projectData.cityId,
-            metadata: overlay.projectData.metadata,
-            createdAt: overlay.projectData.createdAt,
-            updatedAt: overlay.projectData.updatedAt
-          } : null,
-          centroid: {
-            lat: overlay.centroidLat,
-            lng: overlay.centroidLng
-          },
-          // AI : Include all corner coordinates for proper overlay positioning
-          corners: [
-            { lat: overlay.topLeftLat, lng: overlay.topLeftLng },
-            { lat: overlay.topRightLat, lng: overlay.topRightLng },
-            { lat: overlay.bottomRightLat, lng: overlay.bottomRightLng },
-            { lat: overlay.bottomLeftLat, lng: overlay.bottomLeftLng }
-          ],
-          distance: overlay.distance,
-          createdAt: overlay.createdAt
-        }));
-
-        return { overlays: result };
-      } catch (error) {
-        console.error('Error fetching intersecting overlays:', error);
-        throw new Error('Failed to fetch intersecting overlays');
-      }
-    })
 });

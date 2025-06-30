@@ -10,6 +10,8 @@ export const map = shallowRef<L.Map | null>(null);
 export const mapSize = ref({ width: 0, height: 0 });
 // AI : Flag to track if the map is fully initialized
 export const mapInitialized = ref(false);
+// AI : Reactive zoom level tracking
+export const currentZoomLevel = ref<number>(13);
 
 // AI : Event system for map initialization
 type InitListener = () => void;
@@ -84,6 +86,16 @@ export async function initializeMap() {
   map.value = L.map("viewerDiv", { maxZoom: 22 }).setView(initialView, zoom);
   if (!map.value) throw new Error('No map element found');
 
+  // AI : Initialize reactive zoom level
+  currentZoomLevel.value = zoom;
+  
+  // AI : Listen for zoom changes to update reactive zoom level
+  map.value.on('zoomend', () => {
+    if (map.value) {
+      currentZoomLevel.value = map.value.getZoom();
+    }
+  });
+
   // AI : Save map dimensions
   debouncedUpdateMapSize();
   
@@ -146,6 +158,14 @@ export function updateUrlWithPosition(lat: number, lng: number, zoom: number): v
   } catch (error) {
     console.error('Error updating URL with map position:', error);
   }
+}
+
+// AI : Get current zoom level of the map
+export function getCurrentZoom(): number | null {
+  if (!map.value) {
+    return null;
+  }
+  return map.value.getZoom();
 }
 
 export function disableLeafletKeyboardEvents() {

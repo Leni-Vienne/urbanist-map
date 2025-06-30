@@ -1,6 +1,5 @@
 <template>
   <div class="info-popup">
-    {{ projects }}
     <div
       v-if="loading"
       class="loading-spinner"

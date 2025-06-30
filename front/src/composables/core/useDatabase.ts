@@ -153,6 +153,8 @@ export async function saveProject(project: Project): Promise<void> {
       name: project.name,
       description: project.description,
       location: project.location,
+      cityId: project.cityId, // AI : Include cityId for foreign key relationship
+      city: project.city, // AI : Include city information from backend joins
       startDate: project.startDate,
       endDate: project.endDate,
       sourceUrl: project.sourceUrl,
@@ -196,6 +198,7 @@ export async function getAllProjects(): Promise<Project[]> {
   
   try {
     const result = await db.getAll('projects');
+    // AI : Convert to Project type if necessary
     return result;
   } catch (error) {
     console.error('Error retrieving all projects:', error);
@@ -243,6 +246,8 @@ export async function addOverlayToProject(projectId: string, overlayId: string):
           name: memoryProject.name,
           description: memoryProject.description,
           location: memoryProject.location,
+          cityId: memoryProject.cityId, // AI : Include cityId for foreign key relationship
+          city: memoryProject.city, // AI : Include city information from backend joins
           startDate: memoryProject.startDate,
           endDate: memoryProject.endDate,
           sourceUrl: memoryProject.sourceUrl,

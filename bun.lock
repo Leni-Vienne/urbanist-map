@@ -8,6 +8,7 @@
         "@tailwindcss/vite": "^4.1.11",
         "@trpc/client": "^11.4.3",
         "@trpc/server": "^11.4.3",
+        "@vectorial1024/leaflet-color-markers": "^2.0.4",
         "dotenv": "^17.0.0",
         "drizzle-orm": "^0.44.2",
         "hono": "^4.8.3",
@@ -323,6 +324,8 @@
     "@types/send": ["@types/send@0.17.5", "", { "dependencies": { "@types/mime": "^1", "@types/node": "*" } }, "sha512-z6F2D3cOStZvuk2SaP6YrwkNO65iTZcwA2ZkSABegdkAh/lf+Aa/YQndZVfmEXT5vgAp6zv06VQ3ejSVjAny4w=="],
 
     "@types/serve-static": ["@types/serve-static@1.15.8", "", { "dependencies": { "@types/http-errors": "*", "@types/node": "*", "@types/send": "*" } }, "sha512-roei0UY3LhpOJvjbIP6ZZFngyLKl5dskOtDhxY5THRSpO+ZI+nzJ+m5yUMzGrp89YRa7lvknKkMYjqQFGwA7Sg=="],
+
+    "@vectorial1024/leaflet-color-markers": ["@vectorial1024/leaflet-color-markers@2.0.4", "", { "peerDependencies": { "leaflet": "^1.0.0" } }, "sha512-lAYvIG/FXMQjNR7SjN0uGowpGkEwJobrmnUUH4q/ViRyhw/3n1K03a2GW0TTgLpi2OVLOFJfVJz4j+NZeXYj5A=="],
 
     "@vitejs/plugin-vue": ["@vitejs/plugin-vue@6.0.0", "", { "dependencies": { "@rolldown/pluginutils": "1.0.0-beta.19" }, "peerDependencies": { "vite": "^5.0.0 || ^6.0.0 || ^7.0.0", "vue": "^3.2.25" } }, "sha512-iAliE72WsdhjzTOp2DtvKThq1VBC4REhwRcaA+zPAAph6I+OQhUXv+Xu2KS7ElxYtb7Zc/3R30Hwv1DxEo7NXQ=="],
 

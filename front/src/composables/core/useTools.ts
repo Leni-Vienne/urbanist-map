@@ -221,14 +221,14 @@ export const customDeleteTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       className: "pi pi-trash",
-      tooltip: "Delete this overlay",
+      tooltip: "Delete this overlay from local storage",
     },
   },
   addHooks: function () {
     if (!idSelectedOverlay.value) {
       return;
     }
-    if (confirm('Are you sure you want to delete this overlay?')) {
+    if (confirm('Are you sure you want to delete this overlay from local storage?')) {
       deleteOverlay(idSelectedOverlay.value);
       idSelectedOverlay.value = null;
     }

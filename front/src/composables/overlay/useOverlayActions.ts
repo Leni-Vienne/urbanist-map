@@ -679,6 +679,8 @@ export function deleteOverlay(id: string) {
       color: project.color,
       description: project.description,
       location: project.location || '',
+      cityId: project.cityId, // AI : Include cityId for foreign key relationship
+      city: project.city, // AI : Include city information from backend joins
       startDate: project.startDate,
       endDate: project.endDate,
       sourceUrl: project.sourceUrl || '',

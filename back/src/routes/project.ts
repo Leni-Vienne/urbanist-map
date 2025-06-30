@@ -61,39 +61,6 @@ export const projectRouter = router({
         throw new Error('Failed to publish project');
       }
     }),
-  getAllProjects: publicProcedure
-    .query(async () => {
-      try {
-
-        // AI : Join projects with cities to include city information
-        const allProjects = await db
-          .select({
-            id: projects.id,
-            title: projects.title,
-            description: projects.description,
-            ownerId: projects.ownerId,
-            cityId: projects.cityId,
-            metadata: projects.metadata,
-            createdAt: projects.createdAt,
-            updatedAt: projects.updatedAt,
-            // AI : Include city information when available
-            city: {
-              id: cities.id,
-              name: cities.name,
-              countryCode: cities.countryCode,
-              lat: sql<number>`ST_Y(${cities.coordinates})`,
-              lng: sql<number>`ST_X(${cities.coordinates})`
-            }
-          })
-          .from(projects)
-          .leftJoin(cities, eq(projects.cityId, cities.id));        
-        return { projects: allProjects };
-      } catch (error) {
-        console.error('Error fetching all projects:', error);
-        throw new Error('Failed to fetch projects');
-      }
-    }),
-
   // AI : Get projects with overlays within 10km of camera center
   getProjectsNearLocation: publicProcedure
     .input(z.object({
