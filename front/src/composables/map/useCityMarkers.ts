@@ -1,10 +1,11 @@
 import L from "leaflet";
 import { ref } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
-import { renderViewModeOverlays, clearAllOverlays } from '@composables/overlay/useOverlay';
+import { renderViewModeOverlays, clearAllOverlays, isEditMode } from '@composables/overlay/useOverlay';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
+import { projects } from '@composables/project/useProjects';
 import { trpc } from '@client';
-import type { CDNOverlayData } from '@types';
+import type { CDNOverlayData, Project } from '@types';
 
 // AI : Type for city with projects
 export interface CityWithProjects {
@@ -78,9 +79,37 @@ export async function loadCityProjects(cityId: string, _cityName: string): Promi
     isLoadingCityProjects.value = true;
 
     const result = await trpc.cities.getCityProjects.query({ cityId });
-
-    // AI : Clear existing overlays
-    clearAllOverlays();
+    
+    // AI : In edit mode, add backend projects to local projects store
+    if (isEditMode.value) {
+      const updatedProjects = { ...projects.value };
+      
+      result.forEach(project => {
+        const metadata = project.metadata as any;
+        const frontendProject: Project = {
+          id: project.id,
+          name: project.title,
+          description: project.description || '',
+          color: metadata?.color || '#007bff',
+          location: metadata?.location || '',
+          cityId: project.cityId || undefined,
+          city: project.city as any || undefined,
+          startDate: metadata?.startDate ? new Date(metadata.startDate) : null,
+          endDate: metadata?.endDate ? new Date(metadata.endDate) : null,
+          sourceUrl: metadata?.sourceUrl || '',
+          overlayIds: project.overlays.map((overlay: any) => overlay.id),
+          createdAt: project.createdAt?.toISOString() || new Date().toISOString(),
+          updatedAt: project.createdAt?.toISOString() || new Date().toISOString()
+        };
+        
+        updatedProjects[project.id] = frontendProject;
+      });
+      
+      projects.value = updatedProjects;
+    } else {
+      // AI : In view mode, clear all overlays to show only city overlays
+      clearAllOverlays();
+    }
 
     // AI : Convert project overlays to CDN overlay format for rendering
     const overlaysToRender: CDNOverlayData[] = [];

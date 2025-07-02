@@ -226,12 +226,6 @@ function updateImageResolutionsForCoverage(): void {
  * AI : Create a new overlay object from saved data
  */
 export function createOverlayObject(savedOverlay: StoredOverlayData): OverlayObject {
-  console.log(`AI: createOverlayObject for overlay ${savedOverlay.id}:`, {
-    savedRemotely: savedOverlay.savedRemotely,
-    hasCorners: !!savedOverlay.corners,
-    hasHistory: !!savedOverlay.history?.length
-  });
-
   // AI : Get project data from local projects collection if available
   const projectData = savedOverlay.projectId && projects.value[savedOverlay.projectId]
     ? {
@@ -301,12 +295,6 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
   // using 'element' allows to access the corners of the image on load while newOverlay.on('load') doesn't work
   // credit to https://github.com/publiclab/Leaflet.DistortableImage/issues/953#issuecomment-1262298228
   L.DomEvent.on(element, 'load', () => {
-    console.log(`AI: Image loaded for overlay ${overlayObject.id}:`, {
-      savedRemotely: overlayObject.savedRemotely,
-      alreadyStored: overlayObject.alreadyStored,
-      isEditMode: isEditMode.value
-    });
-
     applyOverlayCorners(overlayObject);
     updateMarkerPosition(overlayObject);
     overlayObject.alreadyLoaded = true;
@@ -977,13 +965,6 @@ export function removeOverlay(overlayId: string): void {
  */
 export function updateMarkerTooltip(overlayObject: OverlayObject): void {
   if (!overlayObject.marker) return;
-
-  console.log(`AI: updateMarkerTooltip for overlay ${overlayObject.id}:`, {
-    alreadyStored: overlayObject.alreadyStored,
-    savedRemotely: overlayObject.savedRemotely,
-    alreadyLoaded: overlayObject.alreadyLoaded,
-    isEditMode: isEditMode.value
-  });
 
   // AI : Remove existing tooltip first
   overlayObject.marker.unbindTooltip();
