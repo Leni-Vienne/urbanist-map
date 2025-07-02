@@ -4,40 +4,11 @@ import { map, onMapInitialized } from '@composables/core/useMap';
 import { renderViewModeOverlays, clearAllOverlays, isEditMode } from '@composables/overlay/useOverlay';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
 import { projects } from '@composables/project/useProjects';
-import { trpc } from '@client';
+import { trpc, RouterOutput } from '@client';
 import type { CDNOverlayData, Project } from '@types';
 
-// AI : Type for city with projects
-export interface CityWithProjects {
-  id: string;
-  name: string;
-  countryCode: string;
-  lat: number;
-  lng: number;
-  projectCount: number;
-}
-
-// AI : Type for city project data
-export interface CityProject {
-  id: string;
-  title: string;
-  description?: string;
-  metadata?: any;
-  createdAt: Date;
-  overlays: Array<{
-    id: string;
-    filename: string;
-    caption?: string;
-    metadata?: any;
-    corners: {
-      topLeft: { lat: number; lng: number };
-      topRight: { lat: number; lng: number };
-      bottomRight: { lat: number; lng: number };
-      bottomLeft: { lat: number; lng: number };
-    };
-    createdAt: Date;
-  }>;
-}
+// AI : Type aliases using RouterOutput from tRPC
+export type CityWithProjects = RouterOutput['cities']['getCitiesWithProjects'][number];
 
 // AI : Cities with projects data
 export const citiesWithProjects = ref<CityWithProjects[]>([]);
@@ -62,8 +33,7 @@ export async function loadCitiesWithProjects(): Promise<void> {
   try {
     isLoadingCities.value = true;
 
-    const result = await trpc.cities.getCitiesWithProjects.query();
-    citiesWithProjects.value = result;
+    citiesWithProjects.value  = await trpc.cities.getCitiesWithProjects.query();
   } catch (error) {
     console.error('AI : Error loading cities with projects:', error);
   } finally {
