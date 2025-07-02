@@ -107,12 +107,14 @@ export async function loadProjectsNearLocation(lat: number, lng: number, radiusK
 
     // AI : Get local project overrides/modifications
     const localProjects = await getAllProjects();
-    // AI : Create projects map with nearby backend projects as base
-    const projectsMap: Record<string, Project> = {};
+    // AI : Create projects map starting with existing projects to preserve city-loaded projects
+    const projectsMap: Record<string, Project> = { ...projects.value };
 
-    // AI : Add nearby backend projects first
+    // AI : Add nearby backend projects (don't overwrite existing)
     nearbyProjects.forEach(project => {
-      projectsMap[project.id] = project;
+      if (!projectsMap[project.id]) {
+        projectsMap[project.id] = project;
+      }
     });
 
     // AI : Override with local modifications (local takes precedence)
