@@ -1,8 +1,8 @@
 import { db } from '../db';
 import { publicProcedure, router } from '../trpc';
 import { z } from 'zod';
-import { overlays, projects, cities } from '../db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { overlays } from '../db/schema';
+import { sql } from 'drizzle-orm';
 
 const publishOverlaySchema = z.object({
   id: z.string().min(1).max(36), // AI : UUID length limit
@@ -14,17 +14,6 @@ const publishOverlaySchema = z.object({
     lat: z.number().min(-90).max(90), // AI : Valid latitude range
     lng: z.number().min(-180).max(180) // AI : Valid longitude range
   })).length(4) // AI : Exactly 4 corners required
-});
-
-const boundsSchema = z.object({
-  north: z.number().min(-90).max(90), // AI : Valid latitude range
-  south: z.number().min(-90).max(90), // AI : Valid latitude range  
-  east: z.number().min(-180).max(180), // AI : Valid longitude range
-  west: z.number().min(-180).max(180) // AI : Valid longitude range
-}).refine(data => data.north > data.south, {
-  message: "AI : North boundary must be greater than south boundary"
-}).refine(data => data.east > data.west, {
-  message: "AI : East boundary must be greater than west boundary"
 });
 
 export const overlayRouter = router({

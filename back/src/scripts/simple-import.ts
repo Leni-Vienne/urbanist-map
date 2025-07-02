@@ -7,13 +7,13 @@ async function importData() {
   try {
     
     // AI : Import countries first
-    const countryStats = await CitiesImportService.importCountries();
+    await CitiesImportService.importCountries();
     
     // AI : Import cities
-    const cityStats = await CitiesImportService.importCities();
+    await CitiesImportService.importCities();
     
     // AI : Show final statistics
-    const stats = await CitiesImportService.getImportStats();
+    await CitiesImportService.getImportStats();
     
   } catch (error) {
     console.error('AI : Import failed:', error);
