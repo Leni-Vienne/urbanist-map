@@ -147,7 +147,7 @@ function updateOverlayToAppropriateResolution(overlayObject: OverlayObject) {
       
       const overlayBounds = overlayObject.overlay.getBounds();
       
-      if (!overlayBounds || !overlayBounds.isValid()) {
+      if (!overlayBounds?.isValid()) {
         return;
       }
       
@@ -588,21 +588,7 @@ function selectAndCenterOverlay(overlayId: string, index?: number, total?: numbe
       map.value!.fitBounds(bounds, { padding: [10, 10] });
       
       // Show appropriate toast message
-      if (index !== undefined && total !== undefined) {
-        toast.add({
-          severity: 'info',
-          summary: 'Navigation',
-          detail: `Moved to overlay ${index + 1} of ${total}${overlay.caption ? ` (${overlay.caption})` : ''}`,
-          life: 3000
-        });
-      } else if (overlay.caption) {
-        toast.add({
-          severity: 'info',
-          summary: 'Navigation',
-          detail: `Navigated to overlay: ${overlay.caption}`,
-          life: 3000
-        });
-      }
+      showNavigationToast(overlay, index, total);
     }
     return true;  
   } else if (overlay.marker && centerMap && map.value) {
@@ -618,6 +604,29 @@ function selectAndCenterOverlay(overlayId: string, index?: number, total?: numbe
     life: 3000
   });
   return false;
+}
+
+/**
+ * AI : Show appropriate toast message when navigating to overlay
+ */
+function showNavigationToast(overlay: OverlayObject, index?: number, total?: number): void {
+  if (index !== undefined && total !== undefined) {
+    const captionSuffix = overlay.caption ? ` (${overlay.caption})` : '';
+    const detailMessage = `Moved to overlay ${index + 1} of ${total}${captionSuffix}`;
+    toast.add({
+      severity: 'info',
+      summary: 'Navigation',
+      detail: detailMessage,
+      life: 3000
+    });
+  } else if (overlay.caption) {
+    toast.add({
+      severity: 'info',
+      summary: 'Navigation',
+      detail: `Navigated to overlay: ${overlay.caption}`,
+      life: 3000
+    });
+  }
 }
 
 /**

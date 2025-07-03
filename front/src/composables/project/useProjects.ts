@@ -97,8 +97,8 @@ export async function loadProjectsNearLocation(lat: number, lng: number, radiusK
           endDate: metadata?.endDate ? new Date(metadata.endDate) : null,
           sourceUrl: metadata?.sourceUrl ?? '',
           overlayIds: metadata?.overlayIds ?? [],
-          createdAt: backendProject.createdAt?.toISOString() || new Date().toISOString(),
-          updatedAt: backendProject.updatedAt?.toISOString() || new Date().toISOString()
+          createdAt: backendProject.createdAt?.toISOString() ?? new Date().toISOString(),
+          updatedAt: backendProject.updatedAt?.toISOString() ?? new Date().toISOString()
         };
       });
     } catch (error) {
@@ -273,7 +273,9 @@ export function applyProjectStyling(overlayObject: OverlayObject, projectId: str
   // Add project indicator to marker
   if (overlayObject.marker) {
     // Add project name to marker tooltip
-    overlayObject.marker.setTooltipContent(`${project.name}${overlayObject.caption ? ` - ${overlayObject.caption}` : ''}`);
+    const captionSuffix = overlayObject.caption ? ` - ${overlayObject.caption}` : '';
+    const tooltipContent = `${project.name}${captionSuffix}`;
+    overlayObject.marker.setTooltipContent(tooltipContent);
   }
 }
 
@@ -300,7 +302,7 @@ export function highlightProjectOverlays(projectId: string): void {
 
   for (const overlayId of project.overlayIds) {
     const overlayObject = overlays.value[overlayId];
-    if (!overlayObject || !overlayObject.overlay) continue;
+    if (!overlayObject?.overlay) continue;
 
     const element = overlayObject.overlay.getElement();
     if (element) {
@@ -318,7 +320,7 @@ export function clearProjectHighlight(projectId: string): void {
 
   for (const overlayId of project.overlayIds) {
     const overlayObject = overlays.value[overlayId];
-    if (!overlayObject || !overlayObject.overlay) continue;
+    if (!overlayObject?.overlay) continue;
 
     const element = overlayObject.overlay.getElement();
     if (element) {
