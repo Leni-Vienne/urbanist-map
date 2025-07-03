@@ -10,7 +10,7 @@ lerna-debug.log*
 server.bundle.js
 worldcities.csv
 specs.md
-.github
+.github/instructions
 uploads
 node_modules
 .DS_Store
