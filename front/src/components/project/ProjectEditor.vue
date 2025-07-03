@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, inject, ref, onMounted } from 'vue';
+import { computed, watch } from 'vue';
 import { useProjectEditor } from '@composables/project/useProjectEditor';
 import { useProjectHighlight } from '@composables/project/useProjectHighlight';
 import { goBack } from '@composables/ui/useRouterNavigation';

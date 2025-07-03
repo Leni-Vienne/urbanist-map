@@ -81,12 +81,12 @@ export function useProjectEditor(projectId: string, mode: 'edit' | 'view' | 'cre
       const isExisting = !!projectData.id;
       const dataToSave = {
         name: projectData.name,
-        description: projectData.description || '',
-        location: projectData.location || '',
+        description: projectData.description ?? '',
+        location: projectData.location ?? '',
         cityId: projectData.cityId, // AI : Include cityId for foreign key relationship
         startDate: projectData.startDate ?? null,
         endDate: projectData.endDate ?? null,
-        sourceUrl: projectData.sourceUrl || '',
+        sourceUrl: projectData.sourceUrl ?? '',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };

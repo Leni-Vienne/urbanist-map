@@ -21,10 +21,11 @@
             variant="in"
           >
             <InputText 
+              id="overlay-name-input"
               v-model="editingInfo.caption" 
               class="w-full p-3"
             />
-            <label class="text-gray-600">Overlay Name</label>
+            <label for="overlay-name-input" class="text-gray-600">Overlay Name</label>
           </FloatLabel>
         </div>
       </div>
@@ -61,9 +62,7 @@ const props = defineProps<{
 }>();
 
 // AI : Define emits for the component
-const emit = defineEmits<{
-  (e: 'update', overlayId: string, caption?: string): void;
-}>();
+const emit = defineEmits<(e: 'update', overlayId: string, caption?: string) => void>();
 
 const toast = useToast();
 const showDialog = ref(false);

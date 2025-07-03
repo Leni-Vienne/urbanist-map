@@ -27,9 +27,7 @@ export class CitiesImportService {
     let current = '';
     let inQuotes = false;
     
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-      
+    for (const char of line) {
       if (char === '"') {
         inQuotes = !inQuotes;
       } else if (char === ',' && !inQuotes) {
@@ -169,14 +167,8 @@ export class CitiesImportService {
       
       for (const city of csvCities) {
         const key = city.iso3;
-        if (!countryMap.has(key)) {
-          countryMap.set(key, {
-            name: city.country,
-            lat: city.lat,
-            lng: city.lng
-          });
-        } else if (city.capital === 'primary') {
-          // AI : Prefer primary capital for country center
+        if (!countryMap.has(key) || city.capital === 'primary') {
+          // AI : Prefer primary capital for country center, otherwise use first city found
           countryMap.set(key, {
             name: city.country,
             lat: city.lat,
@@ -228,10 +220,10 @@ export class CitiesImportService {
   static async getImportStats(): Promise<{ totalCities: number; totalCountries: number }> {
     try {
       const totalCitiesResult = await db.select({ count: sql`count(*)` }).from(cities);
-      const totalCities = Number(totalCitiesResult[0]?.count || 0);
+      const totalCities = Number(totalCitiesResult[0]?.count ?? 0);
 
       const totalCountriesResult = await db.select({ count: sql`count(*)` }).from(countries);
-      const totalCountries = Number(totalCountriesResult[0]?.count || 0);
+      const totalCountries = Number(totalCountriesResult[0]?.count ?? 0);
 
       return { totalCities, totalCountries };
     } catch (error) {

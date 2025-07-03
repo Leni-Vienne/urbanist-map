@@ -66,7 +66,7 @@
 import { ref, onMounted, getCurrentInstance, watch, computed, inject, onBeforeUnmount } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { initializeMap, disableLeafletKeyboardEvents, currentZoomLevel } from '@composables/core/useMap';
-import { initializeCameraBounds } from '@composables/map/useCameraBounds';
+import { initializeCameraBounds, getCameraBounds } from '@composables/map/useCameraBounds';
 import { initializeOverlays, isEditMode, toggleEditMode } from '@composables/overlay/useOverlay';
 import { addOverlay, undo, redo } from '@composables/overlay/useOverlayActions';
 import { useToast } from '@composables/ui/useToast';
@@ -76,7 +76,6 @@ import { navigateWithCoordinates } from '@composables/ui/useRouterNavigation';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
 import { initializeCityMarkers } from '@composables/map/useCityMarkers';
 import { loadProjectsNearLocation } from '@composables/project/useProjects';
-import { getCameraBounds } from '@composables/map/useCameraBounds';
 import TileLayerSelector from '@components/map/TileLayerSelector.vue';
 import CityMarkersToggle from '@components/map/CityMarkersToggle.vue';
 import ProjectPicker from '@components/project/ProjectPicker.vue';

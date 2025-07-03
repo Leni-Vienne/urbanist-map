@@ -77,16 +77,14 @@ export const infoTool = L.Toolbar2.Action.extend({
         })
 
         // AI : Use the main app instance to ensure proper PrimeVue context
-        if (window.vueApp && window.vueApp._context) {
+        if (window.vueApp?._context) {
           vnode.appContext = window.vueApp._context;
         } else if (appInstance) {
           // AI : Fallback to component instance context if main app not available
           vnode.appContext = { ...appInstance.appContext };
 
           // AI : Ensure the provides object exists
-          if (!vnode.appContext.provides) {
-            vnode.appContext.provides = {};
-          }
+          vnode.appContext.provides ??= {};
 
           // AI : Explicitly provide router
           vnode.appContext.provides[Symbol.for('router')] = router;
@@ -138,7 +136,7 @@ export const centerTool = L.Toolbar2.Action.extend({
       return;
     }
     const overlayObject = overlays.value[idSelectedOverlay.value];
-    if (overlayObject && overlayObject.overlay) {
+    if (overlayObject?.overlay) {
       const bounds = overlayObject.overlay.getBounds();
       map.value?.fitBounds(bounds);
     }

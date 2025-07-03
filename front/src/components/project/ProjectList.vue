@@ -250,6 +250,7 @@ async function deleteProject() {
       life: 3000
     });
   } catch (error) {
+    console.error('AI : Failed to delete project:', error);
     toast.add({
       severity: 'error',
       summary: 'Error',

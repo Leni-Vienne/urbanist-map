@@ -78,8 +78,8 @@ export async function initializeMap() {
   }
   
   // AI : Use URL params if present, then saved position, then defaults
-  const center = urlCenter || (savedPosition ? savedPosition.center : [defaultLat, defaultLng]);
-  const zoom = urlZoom || (savedPosition ? savedPosition.zoom : defaultZoom);
+  const center = urlCenter ?? (savedPosition ? savedPosition.center : [defaultLat, defaultLng]);
+  const zoom = urlZoom ?? (savedPosition ? savedPosition.zoom : defaultZoom);
 
   const initialView: L.LatLngExpression = { lat: center[0], lng: center[1] };
 

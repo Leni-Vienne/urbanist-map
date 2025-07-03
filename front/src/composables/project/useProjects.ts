@@ -88,15 +88,15 @@ export async function loadProjectsNearLocation(lat: number, lng: number, radiusK
         return {
           id: backendProject.id,
           name: backendProject.title,
-          description: backendProject.description || '',
-          color: metadata?.color || '#007bff',
-          location: metadata?.location || '',
-          cityId: backendProject.cityId || undefined, // AI : Include cityId from backend
-          city: backendProject.city || undefined, // AI : Include full city object from backend
+          description: backendProject.description ?? '',
+          color: metadata?.color ?? '#007bff',
+          location: metadata?.location ?? '',
+          cityId: backendProject.cityId ?? undefined, // AI : Include cityId from backend
+          city: backendProject.city ?? undefined, // AI : Include full city object from backend
           startDate: metadata?.startDate ? new Date(metadata.startDate) : null,
           endDate: metadata?.endDate ? new Date(metadata.endDate) : null,
-          sourceUrl: metadata?.sourceUrl || '',
-          overlayIds: metadata?.overlayIds || [],
+          sourceUrl: metadata?.sourceUrl ?? '',
+          overlayIds: metadata?.overlayIds ?? [],
           createdAt: backendProject.createdAt?.toISOString() || new Date().toISOString(),
           updatedAt: backendProject.updatedAt?.toISOString() || new Date().toISOString()
         };
