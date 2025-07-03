@@ -5,7 +5,7 @@ import { renderViewModeOverlays, clearAllOverlays, isEditMode } from '@composabl
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
 import { projects } from '@composables/project/useProjects';
 import { trpc, RouterOutput } from '@client';
-import type { CDNOverlayData, Project } from '@types';
+import type { CDNOverlayData, Project, City } from '@types';
 
 // AI : Type aliases using RouterOutput from tRPC
 export type CityWithProjects = RouterOutput['cities']['getCitiesWithProjects'][number];
@@ -63,7 +63,7 @@ export async function loadCityProjects(cityId: string, _cityName: string): Promi
           color: metadata?.color ?? '#007bff',
           location: metadata?.location ?? '',
           cityId: project.cityId ?? undefined,
-          city: project.city as any ?? undefined,
+          city: project.city as City ?? undefined,
           startDate: metadata?.startDate ? new Date(metadata.startDate) : null,
           endDate: metadata?.endDate ? new Date(metadata.endDate) : null,
           sourceUrl: metadata?.sourceUrl ?? '',

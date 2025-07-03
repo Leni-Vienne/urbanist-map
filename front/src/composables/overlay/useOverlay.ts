@@ -291,7 +291,7 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
   }
 
   if (!isEditMode.value) {
-    configureOverlayEditingState(newOverlay, element, false);
+    disableOverlayEditing(newOverlay, element);
   }
   // using 'element' allows to access the corners of the image on load while newOverlay.on('load') doesn't work
   // credit to https://github.com/publiclab/Leaflet.DistortableImage/issues/953#issuecomment-1262298228
@@ -515,21 +515,6 @@ function blockMovementEvent(e: Event) {
 }
 
 /**
- * AI : Enable editing for an overlay
- * @param overlay - The overlay instance
- * @param element - The HTML element of the overlay
- */
-function enableOverlayEditing(overlay: L.DistortableImageOverlay, element: HTMLElement): void {
-  // Enable editing
-  element.style.pointerEvents = 'auto';
-  element.style.cursor = '';
-
-  element.removeEventListener('mousedown', blockMovementEvent, true);
-  element.removeEventListener('touchstart', blockMovementEvent, true);
-  element.removeEventListener('dragstart', blockMovementEvent, true);
-}
-
-/**
  * AI : Disable editing for an overlay
  * @param overlay - The overlay instance
  * @param element - The HTML element of the overlay
@@ -551,20 +536,6 @@ function disableOverlayEditing(overlay: L.DistortableImageOverlay, element: HTML
     overlay.off('drag');
     overlay.off('dragend');
     // Do NOT remove 'click' as we need it for toolbar
-  }
-}
-
-/**
- * AI : Configure overlay editing state based on edit mode
- * @param overlay - The overlay to configure
- * @param element - The HTML element of the overlay
- * @param enableEditing - Whether to enable (true) or disable (false) editing
- */
-function configureOverlayEditingState(overlay: L.DistortableImageOverlay, element: HTMLElement, enableEditing: boolean): void {
-  if (enableEditing) {
-    enableOverlayEditing(overlay, element);
-  } else {
-    disableOverlayEditing(overlay, element);
   }
 }
 
@@ -872,8 +843,8 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData): Promise<
       corners: corners,
       history: existsLocally ? (localOverlay?.history ?? []) : [],
       redoStack: existsLocally ? (localOverlay?.redoStack ?? []) : [],
-      projectId: cdnOverlay.projectId || '', // AI : Use project ID from backend data
-      caption: existsLocally ? (localOverlay?.caption || cdnOverlay.caption) : cdnOverlay.caption,
+      projectId: cdnOverlay.projectId ?? '', // AI : Use project ID from backend data
+      caption: existsLocally ? (localOverlay?.caption ?? cdnOverlay.caption) : cdnOverlay.caption,
       overlay: null,
       marker: null,
       alreadyLoaded: false,
