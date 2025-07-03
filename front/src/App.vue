@@ -18,8 +18,6 @@ import 'primeicons/primeicons.css'
 import { onMounted, provide, ref, getCurrentInstance } from 'vue';
 import { initializeDatabase } from '@composables/core/useDatabase';
 import MapView from '@components/map/MapView.vue';
-import { setAppContext } from '@composables/core/useTools';
-import { trpc } from '@client';
 
 // AI : Create a ref to track database initialization state
 const databaseInitialized = ref(false);
@@ -32,7 +30,7 @@ onMounted(async () => {
     // AI : Store app instance context for dynamic components
     const instance = getCurrentInstance();
     if (instance) {
-      //setAppContext(instance);
+      // AI : Context setup ready for future use
     } else {
       console.warn('Unable to get current instance in App.vue');
     }
@@ -51,7 +49,7 @@ onMounted(async () => {
     })
 
     if (response.ok) {
-      const data = await response.json()
+      await response.json();
     }
   } catch (error) {
     console.error('Error during application initialization:', error);

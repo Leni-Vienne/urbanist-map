@@ -90,7 +90,7 @@ app.post('/api/upload-image', async (c) => {
         // AI : Generate unique filename
         const timestamp = Date.now();
         const randomString = Math.random().toString(36).substring(2, 15);
-        const fileExtension = file.name.split('.').pop() || 'webp';
+        const fileExtension = file.name.split('.').pop() ?? 'webp';
         const filename = `${timestamp}-${randomString}.${fileExtension}`;
         
         // AI : Save file to uploads directory

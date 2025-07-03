@@ -103,7 +103,8 @@ function createMarkerForOverlay(overlay: L.DistortableImageOverlay, overlayObjec
   
   if (projectId && projects.value[projectId]) {
     const project = projects.value[projectId];
-    const tooltipText = `${project.name}${overlayObject.caption ? ` - ${overlayObject.caption}` : ''}`;
+    const captionSuffix = overlayObject.caption ? ` - ${overlayObject.caption}` : '';
+    const tooltipText = `${project.name}${captionSuffix}`;
     marker.bindTooltip(tooltipText, { permanent: false }).openTooltip();
   }
 }
@@ -129,7 +130,7 @@ function saveOverlayInitialState(overlay: L.DistortableImageOverlay, overlayObje
     redoStack: overlayObject.redoStack,
     projectId: overlayObject.projectId,
     caption: overlayObject.caption,
-    savedRemotely: overlayObject.savedRemotely || false // AI : Include server existence tracking
+    savedRemotely: overlayObject.savedRemotely ?? false // AI : Include server existence tracking
   };
   
   saveOverlay(storedOverlay);
@@ -193,7 +194,7 @@ function applyHistoryAction(action: 'undo' | 'redo') {
     return;
   }
 
-  const state = isUndo ? sourceStack.pop()! : sourceStack.pop()!;
+  const state = sourceStack.pop()!;
   targetStack.push(state);
 
   const newState = isUndo ? sourceStack[sourceStack.length - 1] : state;
@@ -223,7 +224,7 @@ export async function toggleWhitePixels() {
   if (!idSelectedOverlay.value) return;
 
   const overlayObject = overlays.value[idSelectedOverlay.value];
-  if (!overlayObject || !overlayObject.overlay) return;
+  if (!overlayObject?.overlay) return;
 
   overlayObject.whitePixelsHidden = !overlayObject.whitePixelsHidden;
   
@@ -232,7 +233,7 @@ export async function toggleWhitePixels() {
     if (!imgElement) return;
     
     const imgSrc = overlayObject.whitePixelsHidden ? 
-      (overlayObject.imageUrl || imgElement.src) : 
+      (overlayObject.imageUrl ?? imgElement.src) : 
       imgElement.src;
     
     if (overlayObject.whitePixelsHidden) {
@@ -241,7 +242,7 @@ export async function toggleWhitePixels() {
         imgElement.src = processedImage;
       }
     } else {
-      imgElement.src = overlayObject.imageUrl || overlayObject.currentResolution || '';
+      imgElement.src = overlayObject.imageUrl ?? overlayObject.currentResolution ?? '';
     }
     
     toast.add({
@@ -343,7 +344,7 @@ export function resetImageRatio() {
     saveOverlay(savedOverlay);
   };
 
-  img.src = overlayObject.imageUrl || (overlayObject.overlay.getElement() as HTMLImageElement).src;
+  img.src = overlayObject.imageUrl ?? (overlayObject.overlay.getElement() as HTMLImageElement).src;
 }
 
 function calculateRatioFixParameters(originalRatio: number, currentCorners: any[]) {
@@ -652,12 +653,13 @@ export function updateTooltipText() {
   if (!idSelectedOverlay.value) return;
 
   const overlayObject = overlays.value[idSelectedOverlay.value];
-  if (!overlayObject || !overlayObject.overlay) return;
+  if (!overlayObject?.overlay) return;
 
   if (overlayObject.projectId) {
     const project = projects.value[overlayObject.projectId];
     if (project) {
-      const tooltipText = `${project.name}${overlayObject.caption ? ` - ${overlayObject.caption}` : ''}`;
+      const captionSuffix = overlayObject.caption ? ` - ${overlayObject.caption}` : '';
+      const tooltipText = `${project.name}${captionSuffix}`;
       overlayObject.overlay!.bindTooltip(tooltipText, { permanent: true, direction: 'top' }).openTooltip();
     }
   } else {
@@ -678,14 +680,14 @@ export function deleteOverlay(id: string) {
       name: project.name,
       color: project.color,
       description: project.description,
-      location: project.location || '',
+      location: project.location ?? '',
       cityId: project.cityId, // AI : Include cityId for foreign key relationship
       city: project.city, // AI : Include city information from backend joins
       startDate: project.startDate,
       endDate: project.endDate,
-      sourceUrl: project.sourceUrl || '',
+      sourceUrl: project.sourceUrl ?? '',
       overlayIds: project.overlayIds.filter(overlayId => overlayId !== id),
-      createdAt: project.createdAt || new Date().toISOString(),
+      createdAt: project.createdAt ?? new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
     
@@ -720,7 +722,7 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
     redoStack: overlayObject.redoStack,
     projectId: overlayObject.projectId,
     caption: overlayObject.caption,
-    savedRemotely: overlayObject.savedRemotely || false // AI : Include server existence tracking
+    savedRemotely: overlayObject.savedRemotely ?? false // AI : Include server existence tracking
   };
   
   saveOverlay(savedOverlay);

@@ -82,7 +82,7 @@ export function useProjectOverlayManager(projectId: string, onOverlaysChanged: (
         toast.add({
           severity: 'info',
           summary: 'Viewing Overlay',
-          detail: `Navigated to ${overlay.caption || 'Unnamed Overlay'}`,
+          detail: `Navigated to ${overlay.caption ?? 'Unnamed Overlay'}`,
           life: 3000
         });
       }

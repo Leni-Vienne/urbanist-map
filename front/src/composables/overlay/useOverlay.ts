@@ -23,7 +23,7 @@ export const allMarkers = shallowRef<Record<string, L.Marker>>({});
 // This is called explicitly when an overlay changes, rather than watching the entire collection
 // Remote overlays are only saved if they have been modified (alreadyStored will be true after editing)
 export function saveOverlayToDatabase(overlayObj: OverlayObject): void {
-  if (!overlayObj || !overlayObj.alreadyLoaded) return;
+  if (!overlayObj?.alreadyLoaded) return;
 
   // AI : Skip saving remote overlays that haven't been modified locally
   if (overlayObj.savedRemotely && !overlayObj.alreadyStored) return;
@@ -101,7 +101,8 @@ function createMarkersForOverlays(savedOverlays: StoredOverlayData[]): void {
     let markerTitle = 'Overlay';
     if (savedOverlay.projectId && projects.value[savedOverlay.projectId]) {
       const project = projects.value[savedOverlay.projectId];
-      markerTitle = `${project.name}${savedOverlay.caption ? ` - ${savedOverlay.caption}` : ''}`;
+      const captionPart = savedOverlay.caption ? ` - ${savedOverlay.caption}` : '';
+      markerTitle = `${project.name}${captionPart}`;
     }
 
     const center = overlayBounds.getCenter();
@@ -204,7 +205,7 @@ function updateImageResolutionsForCoverage(): void {
 
     const bounds = overlayObject.overlay.getBounds();
 
-    if (!bounds || !bounds.isValid()) {
+    if (!bounds?.isValid()) {
       return;
     }
 
@@ -231,7 +232,7 @@ export function createOverlayObject(savedOverlay: StoredOverlayData): OverlayObj
     ? {
       id: projects.value[savedOverlay.projectId].id,
       title: projects.value[savedOverlay.projectId].name,
-      description: projects.value[savedOverlay.projectId].description || null,
+      description: projects.value[savedOverlay.projectId].description ?? null,
       metadata: { color: projects.value[savedOverlay.projectId].color },
       createdAt: new Date(projects.value[savedOverlay.projectId].createdAt),
       updatedAt: new Date(projects.value[savedOverlay.projectId].updatedAt)
@@ -279,7 +280,7 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
   overlayObject.overlay = newOverlay;
 
   if (overlayObject.projectId) {
-    applyProjectStyling(overlayObject, overlayObject.projectId!);
+    applyProjectStyling(overlayObject, overlayObject.projectId);
   }
 
   setupOverlayEventHandlers(newOverlay, overlayObject);
@@ -514,6 +515,46 @@ function blockMovementEvent(e: Event) {
 }
 
 /**
+ * AI : Enable editing for an overlay
+ * @param overlay - The overlay instance
+ * @param element - The HTML element of the overlay
+ */
+function enableOverlayEditing(overlay: L.DistortableImageOverlay, element: HTMLElement): void {
+  // Enable editing
+  element.style.pointerEvents = 'auto';
+  element.style.cursor = '';
+
+  element.removeEventListener('mousedown', blockMovementEvent, true);
+  element.removeEventListener('touchstart', blockMovementEvent, true);
+  element.removeEventListener('dragstart', blockMovementEvent, true);
+}
+
+/**
+ * AI : Disable editing for an overlay
+ * @param overlay - The overlay instance
+ * @param element - The HTML element of the overlay
+ */
+function disableOverlayEditing(overlay: L.DistortableImageOverlay, element: HTMLElement): void {
+  // Disable editing
+  element.style.cursor = 'not-allowed';
+
+  // We'll keep pointer-events enabled so clicks work, but block specific events
+  // that would cause movement
+  element.addEventListener('mousedown', blockMovementEvent, true);
+  element.addEventListener('touchstart', blockMovementEvent, true);
+  element.addEventListener('dragstart', blockMovementEvent, true);
+
+  if (overlay.off) {
+    overlay.off('mousedown');
+    overlay.off('touchstart');
+    overlay.off('dragstart');
+    overlay.off('drag');
+    overlay.off('dragend');
+    // Do NOT remove 'click' as we need it for toolbar
+  }
+}
+
+/**
  * AI : Configure overlay editing state based on edit mode
  * @param overlay - The overlay to configure
  * @param element - The HTML element of the overlay
@@ -521,31 +562,9 @@ function blockMovementEvent(e: Event) {
  */
 function configureOverlayEditingState(overlay: L.DistortableImageOverlay, element: HTMLElement, enableEditing: boolean): void {
   if (enableEditing) {
-    // Enable editing
-    element.style.pointerEvents = 'auto';
-    element.style.cursor = '';
-
-    element.removeEventListener('mousedown', blockMovementEvent, true);
-    element.removeEventListener('touchstart', blockMovementEvent, true);
-    element.removeEventListener('dragstart', blockMovementEvent, true);
+    enableOverlayEditing(overlay, element);
   } else {
-    // Disable editing
-    element.style.cursor = 'not-allowed';
-
-    // We'll keep pointer-events enabled so clicks work, but block specific events
-    // that would cause movement
-    element.addEventListener('mousedown', blockMovementEvent, true);
-    element.addEventListener('touchstart', blockMovementEvent, true);
-    element.addEventListener('dragstart', blockMovementEvent, true);
-
-    if (overlay.off) {
-      overlay.off('mousedown');
-      overlay.off('touchstart');
-      overlay.off('dragstart');
-      overlay.off('drag');
-      overlay.off('dragend');
-      // Do NOT remove 'click' as we need it for toolbar
-    }
+    disableOverlayEditing(overlay, element);
   }
 }
 
@@ -681,7 +700,7 @@ function applySelectionOutline(overlayObject: OverlayObject): void {
   // AI : Apply 30px outline to all overlays of the same project
   const projectId = overlayObject.projectId;
   const project = projects.value[projectId];
-  const color = project?.color || '#007bff';
+  const color = project?.color ?? '#007bff';
 
   Object.values(overlays.value).forEach(obj => {
     if (obj.projectId === projectId && obj.overlay) {
@@ -729,7 +748,7 @@ function highlightProjectOverlaysOnHover(projectId: string): void {
       if (element) {
         // AI : Apply simple outline highlighting with project color
         const project = projects.value[projectId];
-        const color = project?.color || '#007bff';
+        const color = project?.color ?? '#007bff';
         element.style.outline = `30px solid ${color}`;
       }
     }
@@ -805,6 +824,7 @@ export async function renderViewModeOverlays(cdnOverlays: CDNOverlayData[]): Pro
   const overlaysToRender = cdnOverlays.filter(cdnOverlay => {
     const hasLocalVersion = currentOverlayIds.has(cdnOverlay.id);
     if (hasLocalVersion) {
+      console.debug(`AI : Overlay ${cdnOverlay.id} already loaded locally, skipping`);
     }
     return !hasLocalVersion;
   });
@@ -850,8 +870,8 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData): Promise<
       imageUrl: imageUrl,
       imageResolutions: existsLocally ? localOverlay?.imageResolutions : undefined,
       corners: corners,
-      history: existsLocally ? (localOverlay?.history || []) : [],
-      redoStack: existsLocally ? (localOverlay?.redoStack || []) : [],
+      history: existsLocally ? (localOverlay?.history ?? []) : [],
+      redoStack: existsLocally ? (localOverlay?.redoStack ?? []) : [],
       projectId: cdnOverlay.projectId || '', // AI : Use project ID from backend data
       caption: existsLocally ? (localOverlay?.caption || cdnOverlay.caption) : cdnOverlay.caption,
       overlay: null,
@@ -873,20 +893,20 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData): Promise<
       console.error('AI : Failed to create overlay for view mode');
       return;
     }    // AI : Apply project styling if overlay has project data from backend
-    if (cdnOverlay.project && cdnOverlay.project.id) {
+    if (cdnOverlay.project?.id) {
       // AI : Create a temporary project object from backend data for styling
       const tempProject = {
         id: cdnOverlay.project.id,
         name: cdnOverlay.project.title,
-        description: cdnOverlay.project.description || '',
-        color: (cdnOverlay.project.metadata as any)?.color || '#007bff', // AI : Extract color from metadata
+        description: cdnOverlay.project.description ?? '',
+        color: cdnOverlay.project.metadata?.color ?? '#007bff', // AI : Extract color from metadata
         overlayIds: [],
         location: '',
         startDate: null,
         endDate: null,
         sourceUrl: '',
-        createdAt: cdnOverlay.project.createdAt?.toISOString() || new Date().toISOString(),
-        updatedAt: cdnOverlay.project.updatedAt?.toISOString() || new Date().toISOString()
+        createdAt: cdnOverlay.project.createdAt?.toISOString() ?? new Date().toISOString(),
+        updatedAt: cdnOverlay.project.updatedAt?.toISOString() ?? new Date().toISOString()
       };
 
       // AI : Temporarily store project for styling (don't persist)
@@ -902,8 +922,8 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData): Promise<
     const centerLat = cdnOverlay.centroid.lat;
     const centerLng = cdnOverlay.centroid.lng;
     const markerTitle = isEditMode.value
-      ? `${cdnOverlay.caption || 'Overlay'} (Remote - Editable)`
-      : `${cdnOverlay.caption || 'Overlay'} (View Mode - Read Only)`;
+      ? `${cdnOverlay.caption ?? 'Overlay'} (Remote - Editable)`
+      : `${cdnOverlay.caption ?? 'Overlay'} (View Mode - Read Only)`;
 
     // AI : Determine marker color based on storage status
     const markerColor = getMarkerColorForStorageStatus(overlayObject);

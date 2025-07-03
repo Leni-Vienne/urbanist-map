@@ -10,11 +10,12 @@
                     variant="in"
                 >
                     <InputText
+                        id="project-name-input"
                         v-model="localProject.name"
                         required
                         class="w-full"
                     />
-                    <label class="text-gray-600">Project Name</label>
+                    <label for="project-name-input" class="text-gray-600">Project Name</label>
                 </FloatLabel>
             </div>
 
@@ -24,18 +25,20 @@
                     variant="in"
                 >
                     <Textarea
+                        id="project-description-input"
                         v-model="localProject.description"
                         rows="2"
                         class="w-full"
                     />
-                    <label class="text-gray-600">Description</label>
+                    <label for="project-description-input" class="text-gray-600">Description</label>
                 </FloatLabel>
             </div>
             <div class="field">
                 <FloatLabel
                     class="w-full"
                     variant="in"
-                > <Select
+                >                    <Select
+                        id="location-select"
                         v-model="localProject.cityId"
                         :options="filteredCities"
                         optionLabel="displayName"
@@ -56,7 +59,7 @@
                             </div>
                         </template>
                     </Select>
-                    <label class="text-gray-600">Location</label>
+                    <label for="location-select" class="text-gray-600">Location</label>
                 </FloatLabel>
             </div>
 
@@ -66,10 +69,11 @@
                     variant="in"
                 >
                     <InputText
+                        id="source-url-input"
                         v-model="localProject.sourceUrl"
                         class="w-full"
                     />
-                    <label class="text-gray-600">Source URL</label>
+                    <label for="source-url-input" class="text-gray-600">Source URL</label>
                 </FloatLabel>
             </div>
 
@@ -80,10 +84,11 @@
                         variant="in"
                     >
                         <DatePicker
+                            id="start-date-input"
                             v-model="localProject.startDate"
                             class="w-full"
                         />
-                        <label class="text-gray-600">Start Date</label>
+                        <label for="start-date-input" class="text-gray-600">Start Date</label>
                     </FloatLabel>
                 </div>
                 <div class="flex-1 field">
@@ -92,10 +97,11 @@
                         variant="in"
                     >
                         <DatePicker
+                            id="end-date-input"
                             v-model="localProject.endDate"
                             class="w-full"
                         />
-                        <label class="text-gray-600">End Date</label>
+                        <label for="end-date-input" class="text-gray-600">End Date</label>
                     </FloatLabel>
                 </div>
             </div>
@@ -120,7 +126,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
-import { trpc, RouterInput, RouterOutput } from '@client';
+import { trpc, RouterOutput } from '@client';
 import { idSelectedOverlay, overlays } from '@composables/overlay/useOverlay';
 import { getCameraBounds } from '@composables/map/useCameraBounds';
 import type { Project } from '@types';

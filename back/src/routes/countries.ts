@@ -1,4 +1,4 @@
-import { publicProcedure, router } from '../trpc';
+import { router } from '../trpc';
 
 export const countriesRouter = router({
 

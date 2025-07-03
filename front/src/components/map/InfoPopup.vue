@@ -273,6 +273,7 @@ async function applyProjectChange(projectId: string) {
     // AI : Update the tooltip text
     updateTooltipText();
   } catch (error) {
+    console.error('AI : Failed to assign overlay to project:', error);
     toast.add({
       severity: 'error',
       summary: 'Error',
@@ -544,6 +545,7 @@ async function publishOverlay() {
       await deleteOverlay(oldId);
     }
   } catch (error) {
+    console.error('AI : Failed to publish overlay:', error);
     toast.add({
       severity: 'error',
       summary: 'Publish Failed',
@@ -581,6 +583,8 @@ async function onProjectPickerSelectFocus() {
   /* AI : So that the popup sits above the toolbar, no matter its height */
   translate: 0px calc(-100% - 32px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  /* AI : Compact styles for InfoPopup */
+  max-width: 300px;
 }
 
 .loading-spinner {
@@ -588,11 +592,6 @@ async function onProjectPickerSelectFocus() {
   justify-content: center;
   align-items: center;
   height: 200px;
-}
-
-/* AI : Compact styles for InfoPopup */
-.info-popup {
-  max-width: 300px;
 }
 
 .info-popup .p-button-sm {

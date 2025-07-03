@@ -59,17 +59,17 @@ export async function loadCityProjects(cityId: string, _cityName: string): Promi
         const frontendProject: Project = {
           id: project.id,
           name: project.title,
-          description: project.description || '',
-          color: metadata?.color || '#007bff',
-          location: metadata?.location || '',
-          cityId: project.cityId || undefined,
-          city: project.city as any || undefined,
+          description: project.description ?? '',
+          color: metadata?.color ?? '#007bff',
+          location: metadata?.location ?? '',
+          cityId: project.cityId ?? undefined,
+          city: project.city as any ?? undefined,
           startDate: metadata?.startDate ? new Date(metadata.startDate) : null,
           endDate: metadata?.endDate ? new Date(metadata.endDate) : null,
-          sourceUrl: metadata?.sourceUrl || '',
+          sourceUrl: metadata?.sourceUrl ?? '',
           overlayIds: project.overlays.map((overlay: any) => overlay.id),
-          createdAt: project.createdAt?.toISOString() || new Date().toISOString(),
-          updatedAt: project.createdAt?.toISOString() || new Date().toISOString()
+          createdAt: project.createdAt?.toISOString() ?? new Date().toISOString(),
+          updatedAt: project.createdAt?.toISOString() ?? new Date().toISOString()
         };
         
         updatedProjects[project.id] = frontendProject;
@@ -98,7 +98,7 @@ export async function loadCityProjects(cityId: string, _cityName: string): Promi
             city: project.city,
             metadata: project.metadata,
             createdAt: project.createdAt,
-            updatedAt: project.createdAt || null
+            updatedAt: project.createdAt ?? null
           },
           centroid: {
             lat: (overlay.corners.topLeft.lat + overlay.corners.bottomRight.lat) / 2,

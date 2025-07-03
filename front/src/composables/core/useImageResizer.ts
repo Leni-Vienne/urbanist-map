@@ -4,9 +4,9 @@ import type { ImageResolutions } from '@types';
  * AI: Get appropriate image URL based on displayed image size (pixels) versus the original size.
  */
 export function getImageUrlForCoverage(imageResolutions: ImageResolutions | undefined, bounds: L.LatLngBounds, map: L.Map | null): string {
-  if (!imageResolutions || !map || !bounds?.isValid?.()) return imageResolutions?.original || '';
+  if (!imageResolutions || !map || !bounds?.isValid?.()) return imageResolutions?.original ?? '';
   
-  const original = imageResolutions.original || '';
+  const original = imageResolutions.original ?? '';
   
   // Use original if no other resolutions available
   if (!imageResolutions.medium && !imageResolutions.small) {
@@ -22,8 +22,8 @@ export function getImageUrlForCoverage(imageResolutions: ImageResolutions | unde
       const ratio = displayedWidth / imageResolutions.originalWidth;
 
       if (ratio > 0.375) return original;
-      if (ratio > 0.175) return imageResolutions.medium || original;
-      return imageResolutions.small || imageResolutions.medium || original;
+      if (ratio > 0.175) return imageResolutions.medium ?? original;
+      return imageResolutions.small ?? imageResolutions.medium ?? original;
     }
   } catch (error) {
     console.error('Error getting image resolution:', error);
@@ -66,14 +66,14 @@ export async function generateImageResolutions(originalImageUrl: string): Promis
       img, canvas, ctx, 
       mediumWidth,
       mediumHeight
-    ) || originalImageUrl;    // AI : Generate small resolution (25% of original)
+    ) ?? originalImageUrl;    // AI : Generate small resolution (25% of original)
     const smallWidth = Math.floor(img.width * 0.25);
     const smallHeight = Math.floor(img.height * 0.25);
     resolutions.small = await generateResizedImage(
       img, canvas, ctx, 
       smallWidth,
       smallHeight
-    ) || originalImageUrl;
+    ) ?? originalImageUrl;
 
     return resolutions;
   } catch (error) {

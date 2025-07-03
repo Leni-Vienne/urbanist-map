@@ -36,7 +36,7 @@ export const projectRouter = router({
             .set({
               title: input.title,
               description: input.description,
-              cityId: input.cityId || null, // AI : Set cityId or null if not provided
+              cityId: input.cityId ?? null, // AI : Set cityId or null if not provided
               metadata: input.metadata,
               updatedAt: new Date()
             })
@@ -51,7 +51,7 @@ export const projectRouter = router({
           id: input.id,
           title: input.title,
           description: input.description,
-          cityId: input.cityId || null, // AI : Set cityId or null if not provided
+          cityId: input.cityId ?? null, // AI : Set cityId or null if not provided
           metadata: input.metadata
         }).returning();
 

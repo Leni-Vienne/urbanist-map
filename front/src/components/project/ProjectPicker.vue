@@ -91,7 +91,6 @@
 import { ref, computed, watch } from 'vue';
 
 import { projects } from '@composables/project/useProjects';
-import { useToast } from '@composables/ui/useToast';
 import { lastCreatedProjectId } from '@composables/ui/useRouterNavigation';
 import { useProjectManagerDialog } from '@composables/project/useProjectManagerDialog';
 import type { Project } from '@types';
