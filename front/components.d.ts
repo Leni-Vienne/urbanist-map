@@ -17,6 +17,7 @@ declare module 'vue' {
     DatePicker: typeof import('primevue/datepicker')['default']
     Dialog: typeof import('primevue/dialog')['default']
     FloatLabel: typeof import('primevue/floatlabel')['default']
+    ImageUploadDialog: typeof import('./src/components/dialogs/ImageUploadDialog.vue')['default']
     InfoPopup: typeof import('./src/components/map/InfoPopup.vue')['default']
     InputText: typeof import('primevue/inputtext')['default']
     MapView: typeof import('./src/components/map/MapView.vue')['default']
@@ -38,6 +39,8 @@ declare module 'vue' {
     Textarea: typeof import('primevue/textarea')['default']
     TileLayerSelector: typeof import('./src/components/map/TileLayerSelector.vue')['default']
     Toast: typeof import('primevue/toast')['default']
+    ToggleButton: typeof import('primevue/togglebutton')['default']
+    ToggleSwitch: typeof import('primevue/toggleswitch')['default']
   }
   export interface GlobalDirectives {
     Tooltip: typeof import('primevue/tooltip')['default']

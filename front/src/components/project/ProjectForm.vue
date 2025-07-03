@@ -15,7 +15,10 @@
                         required
                         class="w-full"
                     />
-                    <label for="project-name-input" class="text-gray-600">Project Name</label>
+                    <label
+                        for="project-name-input"
+                        class="text-gray-600"
+                    >Project Name</label>
                 </FloatLabel>
             </div>
 
@@ -30,14 +33,18 @@
                         rows="2"
                         class="w-full"
                     />
-                    <label for="project-description-input" class="text-gray-600">Description</label>
+                    <label
+                        for="project-description-input"
+                        class="text-gray-600"
+                    >Description</label>
                 </FloatLabel>
             </div>
             <div class="field">
                 <FloatLabel
                     class="w-full"
                     variant="in"
-                >                    <Select
+                >
+                    <Select
                         id="location-select"
                         v-model="localProject.cityId"
                         :options="filteredCities"
@@ -48,6 +55,7 @@
                         :showClear="true"
                         :loading="citiesLoading"
                         :disabled="false"
+                        required
                         @focus="onSelectFocus"
                         @click="onSelectFocus"
                     ><template #option="{ option }">
@@ -59,7 +67,10 @@
                             </div>
                         </template>
                     </Select>
-                    <label for="location-select" class="text-gray-600">Location</label>
+                    <label
+                        for="location-select"
+                        class="text-gray-600"
+                    >Location</label>
                 </FloatLabel>
             </div>
 
@@ -70,10 +81,15 @@
                 >
                     <InputText
                         id="source-url-input"
+                        type="url"
                         v-model="localProject.sourceUrl"
                         class="w-full"
+                        required
                     />
-                    <label for="source-url-input" class="text-gray-600">Source URL</label>
+                    <label
+                        for="source-url-input"
+                        class="text-gray-600"
+                    >Source URL</label>
                 </FloatLabel>
             </div>
 
@@ -87,8 +103,12 @@
                             id="start-date-input"
                             v-model="localProject.startDate"
                             class="w-full"
+                            required
                         />
-                        <label for="start-date-input" class="text-gray-600">Start Date</label>
+                        <label
+                            for="start-date-input"
+                            class="text-gray-600"
+                        >Start Date</label>
                     </FloatLabel>
                 </div>
                 <div class="flex-1 field">
@@ -100,8 +120,12 @@
                             id="end-date-input"
                             v-model="localProject.endDate"
                             class="w-full"
+                            required
                         />
-                        <label for="end-date-input" class="text-gray-600">End Date</label>
+                        <label
+                            for="end-date-input"
+                            class="text-gray-600"
+                        >End Date</label>
                     </FloatLabel>
                 </div>
             </div>
@@ -152,7 +176,7 @@ const citiesLoaded = ref(false); // AI : Track if cities have been loaded to avo
 // AI : Watch for external project changes
 watch(() => props.project, (newProject) => {
     localProject.value = { ...newProject };
-    
+
     // AI : Auto-load cities when editing a project that has city data
     if (props.mode === 'edit' && newProject?.city?.lat && newProject?.city?.lng && !citiesLoaded.value) {
         loadCitiesNearLocation(newProject.city.lat, newProject.city.lng);

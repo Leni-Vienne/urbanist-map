@@ -4,19 +4,29 @@
     id="viewerDiv"
     class="map-container"
   >
-    <div v-if="isLoading" class="loading-overlay">
+    <div
+      v-if="isLoading"
+      class="loading-overlay"
+    >
       <div class="loading-content">
         <i class="pi pi-spin pi-spinner text-4xl"></i>
         <p class="mt-2">Loading map and data...</p>
       </div>
     </div>
-      <div class="map-buttons" :class="{ 'buttons-hidden': isRouteActive }">
-      <input
-        type="file"
-        @change="onImageUpload"
-        accept="image/png, image/jpeg, image/jpg, image/webp"
-        :disabled="!isEditMode"
-      />      <div class="card flex">
+    <div
+      class="map-buttons"
+      :class="{ 'buttons-hidden': isRouteActive }"
+    >
+      <div class="card flex">
+        <Button
+          icon="pi pi-plus"
+          @click="handleAddOverlayClick"
+          aria-label="Add Image Overlay"
+          v-tooltip.right="'Add Image Overlay'"
+          class="p-button-rounded"
+        />
+      </div>
+      <div class="card flex">
         <Button
           icon="pi pi-bars"
           @click="navigateToProjects"
@@ -26,24 +36,27 @@
           class="p-button-rounded"
         />
       </div>
-        <div class="card flex justify-center">
+      <div class="card flex justify-center">
         <TileLayerSelector />
       </div>
-      
+
       <div class="card flex justify-center">
         <CityMarkersToggle />
       </div>
-      
+
       <div class="card flex justify-center">
         <div class="w-56">
-          <Button 
-            @click="handleToggleEditMode" 
+          <ToggleButton
+            :model-value="isEditMode"
+            @update:model-value="handleToggleEditMode"
             :loading="isTogglingMode"
             :disabled="isEditModeDisabled"
             v-tooltip.top="isEditModeDisabled ? 'Zoom in closer to enable edit mode' : ''"
-          >
-            {{ isEditMode ? 'Switch to View Mode' : 'Switch to Edit Mode' }}
-          </Button>
+            onLabel="Edit Mode"
+            offLabel="View Mode"
+            onIcon="pi pi-pencil"
+            offIcon="pi pi-eye"
+          />
         </div>
       </div>
       <div class="card flex justify-center">
@@ -59,7 +72,13 @@
     :modal="true"
     :style="{ width: '450px' }"
   >
-    <ProjectPicker @project-selected="onProjectSelected" />  </Dialog>
+    <ProjectPicker @project-selected="onProjectSelected" />
+  </Dialog>
+
+  <ImageUploadDialog
+    v-model:visible="showImageUploadDialog"
+    @file-selected="onImageUploadFromDialog"
+  />
 </template>
 
 <script setup lang="ts">
@@ -79,12 +98,14 @@ import { loadProjectsNearLocation } from '@composables/project/useProjects';
 import TileLayerSelector from '@components/map/TileLayerSelector.vue';
 import CityMarkersToggle from '@components/map/CityMarkersToggle.vue';
 import ProjectPicker from '@components/project/ProjectPicker.vue';
+import ImageUploadDialog from '@components/dialogs/ImageUploadDialog.vue';
 
 // AI: Core state variables
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 const showProjectSelector = ref(false);
+const showImageUploadDialog = ref(false);
 const pendingImageFile = ref<File | null>(null);
 const databaseInitialized = inject('databaseInitialized', ref(false));
 const isLoading = ref(true);
@@ -103,6 +124,44 @@ const isRouteActive = computed(() => route.path !== '/' && !route.path.startsWit
 // Navigate to projects while preserving coordinates
 function navigateToProjects() {
   navigateWithCoordinates('/projects');
+}
+
+// AI : Open image upload dialog
+function openImageUploadDialog() {
+  showImageUploadDialog.value = true;
+}
+
+// AI : Handle add overlay button click - enable edit mode if in view mode, otherwise open dialog
+async function handleAddOverlayClick() {
+  if (!isEditMode.value) {
+    // AI : Enable edit mode first if currently in view mode
+    await handleToggleEditMode(true);
+    // AI : Show toast notification to inform user about mode switch
+    toast.add({
+      severity: 'info',
+      summary: 'Switched to Edit Mode',
+      detail: 'Click the button again to add an overlay',
+      life: 4000
+    });
+  } else {
+    // AI : Already in edit mode, open the dialog
+    openImageUploadDialog();
+  }
+}
+
+// AI : Handle file selection from dialog
+async function onImageUploadFromDialog(file: File) {
+  pendingImageFile.value = file;
+
+  // AI : Load projects near current camera location when uploading overlay
+  const cameraBounds = getCameraBounds();
+  if (cameraBounds.value) {
+    const centerLat = (cameraBounds.value.north + cameraBounds.value.south) / 2;
+    const centerLng = (cameraBounds.value.east + cameraBounds.value.west) / 2;
+    await loadProjectsNearLocation(centerLat, centerLng, 10);
+  }
+
+  showProjectSelector.value = true;
 }
 
 // AI : Handle legacy query parameters
@@ -127,28 +186,9 @@ watch(isEditMode, (editMode) => {
 // AI : Reset file input when dialog closes
 watch(() => showProjectSelector.value, (newVal) => {
   if (!newVal) {
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    if (fileInput) fileInput.value = '';
+    pendingImageFile.value = null;
   }
 });
-
-// AI : Handle image upload
-async function onImageUpload(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0];
-  if (file) {
-    pendingImageFile.value = file;
-    
-    // AI : Load projects near current camera location when uploading overlay
-    const cameraBounds = getCameraBounds();
-    if (cameraBounds.value) {
-      const centerLat = (cameraBounds.value.north + cameraBounds.value.south) / 2;
-      const centerLng = (cameraBounds.value.east + cameraBounds.value.west) / 2;
-      await loadProjectsNearLocation(centerLat, centerLng, 10);
-    }
-    
-    showProjectSelector.value = true;
-  }
-}
 
 // AI : Process image after project selection
 async function onProjectSelected(projectId: string) {
@@ -174,7 +214,7 @@ async function handleFileUpload(projectId: string) {
     const overlayId = await addOverlay(reader.result as string, projectId);
     pendingImageFile.value = null;
     showProjectSelector.value = false;
-    
+
     // Add success message
     if (overlayId) {
       toast.add({
@@ -184,10 +224,6 @@ async function handleFileUpload(projectId: string) {
         life: 3000
       });
     }
-    
-    // Reset file input
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    if (fileInput) fileInput.value = '';
   };
   reader.readAsDataURL(pendingImageFile.value);
 }
@@ -207,7 +243,7 @@ async function initializeMapAndOverlays() {
     await initializeCityMarkers(); // AI : Initialize city markers by default
     window.addEventListener('keydown', handleKeyDown, true);
     disableLeafletKeyboardEvents();
-    
+
     // AI : Start camera tracking if in view mode
     if (!isEditMode.value) {
       startCameraTracking();
@@ -224,7 +260,7 @@ async function initializeMapAndOverlays() {
 }
 
 // AI : Handle toggle edit mode with loading state
-async function handleToggleEditMode() {
+async function handleToggleEditMode(newValue: boolean) {
   isTogglingMode.value = true;
   try {
     // AI : Ensure database is initialized before toggling mode
@@ -236,9 +272,10 @@ async function handleToggleEditMode() {
         detail: 'Database is still initializing...',
         life: 3000
       });
+      // AI : Revert the toggle if database not ready
       return;
     }
-    
+
     await toggleEditMode();
   } catch (error) {
     console.error('AI : Error toggling edit mode:', error);

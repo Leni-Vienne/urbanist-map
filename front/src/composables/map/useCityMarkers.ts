@@ -227,6 +227,13 @@ export function toggleCityMarkers(): void {
 }
 
 /**
+ * AI : Check if city markers are currently visible on the map
+ */
+export function areCityMarkersVisible(): boolean {
+  return cityMarkersLayer !== null && map.value !== null && map.value.hasLayer(cityMarkersLayer);
+}
+
+/**
  * AI : Clean up mouse tooltip element
  */
 function cleanupMouseTooltip(): void {
