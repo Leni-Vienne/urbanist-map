@@ -255,6 +255,7 @@ export async function removeOverlayFromProjectWithId(projectId: string, overlayI
 }
 
 export function applyProjectStyling(overlayObject: OverlayObject, projectId: string): void {
+  console.trace('Applying project styling for overlay:', overlayObject.id, 'in project:', projectId);
   if (!overlayObject.overlay) return;
 
   const project = projects.value[projectId];
@@ -262,6 +263,7 @@ export function applyProjectStyling(overlayObject: OverlayObject, projectId: str
 
   const element = overlayObject.overlay.getElement();
   if (!element) return;
+  console.log("not returning", element);
 
   // Apply permanent and more noticeable project styling
   // Using outline instead of individual borders for cleaner effect

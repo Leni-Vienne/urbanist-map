@@ -4,7 +4,8 @@
     :modal="true"
     :closable="true"
     :dismissableMask="true"
-    :style="{ width: '600px', maxWidth: '90vw' }"
+    :style="{ width: '600px', maxWidth: '90vw', maxHeight: '80vh' }"
+    :contentStyle="{ overflow: 'auto', maxHeight: 'calc(80vh - 120px)' }"
     :closeOnEscape="true"
     :draggable="false"
     :resizable="false"
@@ -101,8 +102,10 @@ onMounted(() => {
 <style scoped>
 .router-content {
   padding: 0;
-  overflow-y: auto;
-  max-height: calc(100vh - 120px);
+  /* AI : Remove overflow from content wrapper to prevent double scrollbar */
+  overflow: visible;
+  height: auto;
+  max-height: none;
 }
 
 :deep(.p-dialog-header) {
@@ -115,6 +118,8 @@ onMounted(() => {
 
 :deep(.p-dialog-content) {
   padding: 0 1rem 1rem 1rem;
+  /* AI : Content overflow handled by Dialog contentStyle */
+  overflow: visible;
 }
 
 /* AI : Additional styles to prevent animation conflicts */

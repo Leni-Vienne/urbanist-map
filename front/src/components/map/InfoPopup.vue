@@ -126,6 +126,7 @@ import { navigateToProjectEdit } from '@composables/ui/useRouterNavigation';
 import { deleteOverlay, deleteProject } from '@composables/core/useDatabase';
 import { isEditMode } from '@composables/overlay/useOverlay';
 import { map } from '@composables/core/useMap';
+import { loadCityProjects } from '@composables/map/useCityMarkers';
 import ProjectPicker from '@components/project/ProjectPicker.vue';
 import OverlayEditor from '@components/map/OverlayEditor.vue';
 import type { OverlayObject } from '@types';
@@ -539,6 +540,15 @@ async function publishOverlay() {
 
       // AI : Delete the old overlay from IndexedDB using the old ID
       await deleteOverlay(oldId);
+    }
+
+    // AI : Refresh project overlays from backend to update marker colors
+    if (project.value?.cityId) {
+      try {
+        await loadCityProjects(project.value.cityId, project.value.city?.name || 'Unknown City');
+      } catch (error) {
+        console.warn('AI : Failed to refresh project overlays after publishing:', error);
+      }
     }
   } catch (error) {
     console.error('AI : Failed to publish overlay:', error);
