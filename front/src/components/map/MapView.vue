@@ -45,16 +45,14 @@
       </div>
 
       <div class="card flex">
-        <ToggleButton
-          :model-value="isEditMode"
-          @update:model-value="handleToggleEditMode"
-          :loading="isTogglingMode"
+        <SelectButton
+          :model-value="isEditMode ? 'edit' : 'view'"
+          @update:model-value="handleModeChange"
+          :options="modeOptions"
+          option-label="label"
+          option-value="value"
           :disabled="isEditModeDisabled"
           v-tooltip.top="isEditModeDisabled ? 'Zoom in closer to enable edit mode' : ''"
-          onLabel="Edit Mode"
-          offLabel="View Mode"
-          onIcon="pi pi-pencil"
-          offIcon="pi pi-eye"
         />
       </div>
       <div class="card flex">
@@ -82,6 +80,7 @@
 <script setup lang="ts">
 import { ref, onMounted, getCurrentInstance, watch, computed, inject, onBeforeUnmount } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+
 import { initializeMap, disableLeafletKeyboardEvents, currentZoomLevel } from '@composables/core/useMap';
 import { initializeCameraBounds, getCameraBounds } from '@composables/map/useCameraBounds';
 import { initializeOverlays, isEditMode, toggleEditMode } from '@composables/overlay/useOverlay';
@@ -109,6 +108,12 @@ const databaseInitialized = inject('databaseInitialized', ref(false));
 const isLoading = ref(true);
 const isTogglingMode = ref(false);
 
+// AI : Options for the mode SelectButton
+const modeOptions = [
+  { label: 'View Mode', value: 'view' },
+  { label: 'Edit Mode', value: 'edit' }
+];
+
 // AI : Computed property to determine if edit mode should be disabled
 const isEditModeDisabled = computed(() => {
   return currentZoomLevel.value < 9 && !isEditMode.value;
@@ -127,6 +132,14 @@ function navigateToProjects() {
 // AI : Open image upload dialog
 function openImageUploadDialog() {
   showImageUploadDialog.value = true;
+}
+
+// AI : Handle mode change from SelectButton
+async function handleModeChange(newMode: string) {
+  const shouldBeEditMode = newMode === 'edit';
+  if (shouldBeEditMode !== isEditMode.value) {
+    await handleToggleEditMode(shouldBeEditMode);
+  }
 }
 
 // AI : Handle add overlay button click - enable edit mode if in view mode, otherwise open dialog
@@ -186,6 +199,33 @@ watch(() => showProjectSelector.value, (newVal) => {
   if (!newVal) {
     pendingImageFile.value = null;
   }
+});
+
+onMounted(async () => {
+  // AI : As a backup, set app context here as well
+  const app = getCurrentInstance();
+  if (app) {
+    setAppContext(app);
+  }
+
+  if (!databaseInitialized.value) {
+    // Wait for database initialization
+    const unwatch = watch(databaseInitialized, async (initialized) => {
+      if (initialized) {
+        unwatch();
+        await initializeMapAndOverlays();
+        isLoading.value = false;
+      }
+    });
+  } else {
+    // Database already initialized
+    await initializeMapAndOverlays();
+    isLoading.value = false;
+  }
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleKeyDown, true);
 });
 
 // AI : Process image after project selection
@@ -287,33 +327,6 @@ async function handleToggleEditMode(newValue: boolean) {
     isTogglingMode.value = false;
   }
 }
-
-onMounted(async () => {
-  // AI : As a backup, set app context here as well
-  const app = getCurrentInstance();
-  if (app) {
-    setAppContext(app);
-  }
-
-  if (!databaseInitialized.value) {
-    // Wait for database initialization
-    const unwatch = watch(databaseInitialized, async (initialized) => {
-      if (initialized) {
-        unwatch();
-        await initializeMapAndOverlays();
-        isLoading.value = false;
-      }
-    });
-  } else {
-    // Database already initialized
-    await initializeMapAndOverlays();
-    isLoading.value = false;
-  }
-});
-
-onBeforeUnmount(() => {
-  window.removeEventListener('keydown', handleKeyDown, true);
-});
 </script>
 
 <style scoped>

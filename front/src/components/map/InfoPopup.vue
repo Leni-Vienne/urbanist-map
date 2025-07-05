@@ -119,6 +119,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, nextTick } from 'vue';
+
 import { useToast } from '@composables/ui/useToast';
 import { updateTooltipText } from '@composables/overlay/useOverlayActions';
 import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId, loadProjectsNearLocation } from '@composables/project/useProjects';
