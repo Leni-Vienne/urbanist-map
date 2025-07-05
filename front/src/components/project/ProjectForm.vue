@@ -281,7 +281,6 @@ function handleSubmit() {
 </script>
 
 <style scoped>
-@import "tailwindcss";
 
 .project-editor {
     max-width: 800px;

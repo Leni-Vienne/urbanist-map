@@ -59,7 +59,3 @@ watch([projectId, mode], async () => {
 watch(mode, clearHighlightOnModeChange);
 
 </script>
-
-<style scoped>
-@import "tailwindcss";
-</style>

@@ -49,9 +49,15 @@ watch(currentTileLayer, (newLayer) => {
 });
 
 // AI : Handle layer change from dropdown
-function onLayerChange(event: any) {
+async function onLayerChange(event: any) {
   const newLayer = event.value as TileLayerType;
-  switchTileLayer(newLayer);
+  try {
+    await switchTileLayer(newLayer);
+  } catch (error) {
+    console.error('Failed to switch layer:', error);
+    // AI : Reset to previous value on error
+    selectedLayer.value = currentTileLayer.value;
+  }
 }
 
 // AI : Get the display label for a layer value

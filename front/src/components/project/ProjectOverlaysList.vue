@@ -243,7 +243,6 @@ async function removeFromProject(overlayId: string) {
 </script>
 
 <style scoped>
-@import "tailwindcss";
 
 /* Adjust styles to work better within AppLayout */
 .project-overlays {

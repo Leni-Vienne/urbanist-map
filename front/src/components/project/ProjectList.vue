@@ -277,7 +277,6 @@ function createNewProject() {
 </script>
 
 <style scoped>
-@import "tailwindcss";
 
 /* Remove these styles as they're now handled by AppLayout */
 .project-list {

@@ -180,7 +180,6 @@ function onSelectFocus() {
 </script>
 
 <style scoped>
-@import "tailwindcss";
 
 .project-picker {
   width: 100%;
