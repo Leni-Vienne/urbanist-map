@@ -36,30 +36,28 @@
           class="p-button-rounded"
         />
       </div>
-      <div class="card flex justify-center">
+      <div class="card flex">
         <TileLayerSelector />
       </div>
 
-      <div class="card flex justify-center">
+      <div class="card flex">
         <CityMarkersToggle />
       </div>
 
-      <div class="card flex justify-center">
-        <div class="w-56">
-          <ToggleButton
-            :model-value="isEditMode"
-            @update:model-value="handleToggleEditMode"
-            :loading="isTogglingMode"
-            :disabled="isEditModeDisabled"
-            v-tooltip.top="isEditModeDisabled ? 'Zoom in closer to enable edit mode' : ''"
-            onLabel="Edit Mode"
-            offLabel="View Mode"
-            onIcon="pi pi-pencil"
-            offIcon="pi pi-eye"
-          />
-        </div>
+      <div class="card flex">
+        <ToggleButton
+          :model-value="isEditMode"
+          @update:model-value="handleToggleEditMode"
+          :loading="isTogglingMode"
+          :disabled="isEditModeDisabled"
+          v-tooltip.top="isEditModeDisabled ? 'Zoom in closer to enable edit mode' : ''"
+          onLabel="Edit Mode"
+          offLabel="View Mode"
+          onIcon="pi pi-pencil"
+          offIcon="pi pi-eye"
+        />
       </div>
-      <div class="card flex justify-center">
+      <div class="card flex">
         <div class="w-56">
           <Button @click="clearDatabase">Clear Local Storage</Button>
         </div>

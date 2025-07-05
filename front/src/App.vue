@@ -58,6 +58,7 @@ onMounted(async () => {
 </script>
 
 <style>
+
 /* AI : Transition effects for route changes */
 .fade-enter-active,
 .fade-leave-active {

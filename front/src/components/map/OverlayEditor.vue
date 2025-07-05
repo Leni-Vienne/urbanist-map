@@ -121,9 +121,3 @@ defineExpose({
   openDialog
 });
 </script>
-
-<style scoped>
-@import "tailwindcss";
-
-
-</style>

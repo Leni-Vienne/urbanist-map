@@ -1,4 +1,10 @@
+@import "tailwindcss";
 @import "tailwindcss-primeui";
+
+/* AI : Override Tailwind's display: block for Leaflet toolbar icons */
+.leaflet-toolbar-icon svg {
+  display: inline !important;
+}
 
 /* to flip any icon */
 .icon-flipped {

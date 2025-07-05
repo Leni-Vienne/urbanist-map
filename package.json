@@ -26,6 +26,7 @@
     "leaflet": "^1.9.4",
     "leaflet-distortableimage": "Karelics/Leaflet.DistortableImage",
     "leaflet-toolbar": "^0.4.0-alpha.2",
+    "leaflet.gridlayer.googlemutant": "^0.15.0",
     "pg": "^8.16.3",
     "primeicons": "^7.0.0",
     "primevue": "^4.3.6",

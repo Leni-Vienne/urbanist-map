@@ -85,10 +85,6 @@
         </div>
         <div class="p-2 rounded bg-gray-50 text-sm space-y-1">
           <div class="flex justify-between">
-            <span class="font-medium text-gray-600">ID:</span>
-            <span class="font-mono text-xs">{{ props.overlayObject.id }}</span>
-          </div>
-          <div class="flex justify-between">
             <span class="font-medium text-gray-600">Name:</span>
             <span class="text-right">{{ props.overlayObject.caption || 'Not specified' }}</span>
           </div>
@@ -571,13 +567,13 @@ async function onProjectPickerSelectFocus() {
 </script>
 
 <style scoped>
-@import "tailwindcss-primeui";
 
 .info-popup {
   padding: 1rem;
   width: 420px;
   min-height: 200px;
   background-color: white;
+  cursor:text;
   user-select: text;
   border-radius: 8px;
   /* AI : So that the popup sits above the toolbar, no matter its height */
