@@ -561,70 +561,38 @@ export async function loadOverlayById(id: string): Promise<void> {
 
 /**
  * AI : Update an overlay's image without recreating the overlay
- * Uses preloading to avoid flickering and positioning issues during resolution transitions
  */
 export function updateOverlayImage(overlayObject: OverlayObject, newImageUrl: string): void {
   if (!overlayObject.overlay) return;
 
-  try {
-    const currentCorners = overlayObject.overlay.getCorners();
-    const imgElement = overlayObject.overlay.getElement();
-
-    // If the image element is available in the DOM
-    if (imgElement) {
-      // Preload the new image first to avoid flickering
-      const preloadImg = new Image();
-      preloadImg.onload = () => {
-        // Only update the src when the image is fully loaded
-        imgElement.src = newImageUrl;
-        overlayObject.currentResolution = newImageUrl;
-
-        // Ensure corners are preserved after image is updated
-        if (overlayObject.overlay && currentCorners) {
-          // Apply corners in the next animation frame to ensure image is rendered
-          requestAnimationFrame(() => {
-            if (overlayObject.overlay) {
-              overlayObject.overlay.setCorners(currentCorners);
-            }
-          });
-        }
-      };
-
-      preloadImg.onerror = (error: any) => {
-        console.error(`Error preloading new image for overlay ${overlayObject.id}`, error);
-      };
-
-      // Start preloading
-      preloadImg.src = newImageUrl;
-      return;
-    }    // Fallback: Try using setUrl method if available
-    if (overlayObject.overlay && typeof overlayObject.overlay.setUrl === 'function') {
-      // Create a preload image even for the setUrl method
-      const preloadImg = new Image();
-      preloadImg.onload = () => {
-        if (overlayObject.overlay) {
-          overlayObject.overlay.setUrl(newImageUrl);
-          overlayObject.currentResolution = newImageUrl;
-
-          // Ensure corners are preserved after image update
-          requestAnimationFrame(() => {
-            if (overlayObject.overlay && currentCorners) {
-              overlayObject.overlay.setCorners(currentCorners);
-            }
-          });
-        }
-      };
-
-      preloadImg.onerror = (error: any) => {
-        console.error(`Error preloading new image for overlay ${overlayObject.id}`, error);
-      };
-
-      // Start preloading
-      preloadImg.src = newImageUrl;
+  const currentCorners = overlayObject.overlay.getCorners();
+  
+  // AI : Preload image to avoid flickering
+  const preloadImg = new Image();
+  preloadImg.onload = () => {
+    if (!overlayObject.overlay) return;
+    
+    // AI : Try setUrl method first, fall back to direct DOM manipulation
+    if (typeof overlayObject.overlay.setUrl === 'function') {
+      overlayObject.overlay.setUrl(newImageUrl);
+    } else {
+      const imgElement = overlayObject.overlay.getElement();
+      if (imgElement) imgElement.src = newImageUrl;
     }
-  } catch (error) {
-    console.error(`Error updating image for overlay ${overlayObject.id}:`, error);
-  }
+    
+    overlayObject.currentResolution = newImageUrl;
+    
+    // AI : Restore corners after image update
+    if (currentCorners) {
+      overlayObject.overlay.setCorners(currentCorners);
+    }
+  };
+  
+  preloadImg.onerror = () => {
+    console.error(`AI : Failed to load image for overlay ${overlayObject.id}`);
+  };
+  
+  preloadImg.src = newImageUrl;
 }
 
 /**
@@ -809,112 +777,56 @@ export async function renderViewModeOverlays(cdnOverlays: CDNOverlayData[]): Pro
 
 /**
  * AI : Render a single CDN overlay as read-only distortable overlay on the map
- * Uses the existing createOverlay function to eliminate code duplication
+ * Simplified version that uses existing helper functions
  */
 async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData): Promise<void> {
-  if (!map.value) {
-    console.warn('AI : Map not available for rendering view mode overlay');
+  if (!map.value || overlays.value[cdnOverlay.id]) {
     return;
   }
 
-  // AI : Check if overlay is already rendered to avoid duplicates
-  if (overlays.value[cdnOverlay.id]) {
-    return;
-  }
-
-  try {    // AI : Construct image URL from backend server
-    const imageUrl = `http://localhost:3000/uploads/${cdnOverlay.filename}`;
-
-    // AI : Check if this overlay already exists in local IndexedDB
-    const savedOverlays = await getAllOverlays();
-    const localOverlay = savedOverlays.find(overlay => overlay.id === cdnOverlay.id);
-    const existsLocally = !!localOverlay;
-
-    // AI : Use local corners if overlay exists locally, otherwise use remote corners
-    const corners = existsLocally && localOverlay?.corners
-      ? localOverlay.corners
-      : cdnOverlay.corners.map(corner => L.latLng(corner.lat, corner.lng));
-
-    // AI : Create overlay object for view mode using same structure as edit mode
-    const overlayObject: OverlayObject = {
+  try {
+    // AI : Convert CDN data to StoredOverlayData format
+    const storedOverlayData: StoredOverlayData = {
       id: cdnOverlay.id,
-      imageUrl: imageUrl,
-      imageResolutions: existsLocally ? localOverlay?.imageResolutions : undefined,
-      corners: corners,
-      history: existsLocally ? (localOverlay?.history ?? []) : [],
-      redoStack: existsLocally ? (localOverlay?.redoStack ?? []) : [],
-      projectId: cdnOverlay.projectId ?? '', // AI : Use project ID from backend data
-      caption: existsLocally ? (localOverlay?.caption ?? cdnOverlay.caption) : cdnOverlay.caption,
-      overlay: null,
-      marker: null,
-      alreadyLoaded: false,
-      alreadyStored: existsLocally, // AI : Set based on actual IndexedDB existence
-      whitePixelsHidden: false,
-      isFlipped: false,
-      currentResolution: imageUrl,
-      savedRemotely: true, // AI : CDN overlays exist on server by definition
-      // AI : Include project data from backend for InfoPopup display
-      project: cdnOverlay.project || null
+      imageUrl: `http://localhost:3000/uploads/${cdnOverlay.filename}`,
+      imageResolutions: undefined,
+      corners: cdnOverlay.corners.map(corner => L.latLng(corner.lat, corner.lng)),
+      history: [],
+      redoStack: [],
+      projectId: cdnOverlay.projectId ?? '',
+      caption: cdnOverlay.caption,
+      savedRemotely: true
     };
 
-    // AI : Use existing createOverlay function instead of duplicating overlay creation logic
-    const newOverlay = await createOverlay(imageUrl, overlayObject);
-
-    if (!newOverlay) {
-      console.error('AI : Failed to create overlay for view mode');
-      return;
-    }    // AI : Apply project styling if overlay has project data from backend
-    if (cdnOverlay.project?.id) {
-      // AI : Create a temporary project object from backend data for styling
-      const tempProject = {
-        id: cdnOverlay.project.id,
-        name: cdnOverlay.project.title,
-        description: cdnOverlay.project.description ?? '',
-        color: cdnOverlay.project.metadata?.color ?? '#007bff', // AI : Extract color from metadata
-        overlayIds: [],
-        location: '',
-        startDate: null,
-        endDate: null,
-        sourceUrl: '',
-        createdAt: cdnOverlay.project.createdAt?.toISOString() ?? new Date().toISOString(),
-        updatedAt: cdnOverlay.project.updatedAt?.toISOString() ?? new Date().toISOString()
-      };
-
-      // AI : Temporarily store project for styling (don't persist)
-      const originalProjects = { ...projects.value };
-      projects.value[tempProject.id] = tempProject;
-
-      // AI : Apply project styling
-      applyProjectStyling(overlayObject, tempProject.id);
-
-      // AI : Restore original projects (we don't want to persist backend project data)
-      projects.value = originalProjects;
-    }    // AI : Create marker for easier identification using centroid
-    const centerLat = cdnOverlay.centroid.lat;
-    const centerLng = cdnOverlay.centroid.lng;
+    // AI : Create marker at centroid position
     const markerTitle = isEditMode.value
       ? `${cdnOverlay.caption ?? 'Overlay'} (Remote - Editable)`
       : `${cdnOverlay.caption ?? 'Overlay'} (View Mode - Read Only)`;
 
-    // AI : Determine marker color based on storage status
-    const markerColor = getMarkerColorForStorageStatus(overlayObject);
-    const colorIcon = createColorIcon(markerColor);
-
-    const marker = L.marker([centerLat, centerLng], {
+    const marker = L.marker([cdnOverlay.centroid.lat, cdnOverlay.centroid.lng], {
       title: markerTitle,
       opacity: 0.7,
-      icon: colorIcon
+      icon: createColorIcon('green') // AI : Remote overlays are green by default
     }).addTo(map.value);
 
-    overlayObject.marker = marker;
-
-    // AI : Update tooltip based on edit mode and storage status
-    updateMarkerTooltip(overlayObject);// AI : Setup project hover events for highlighting in view mode
-    setupProjectHoverEvents(newOverlay, overlayObject);
-
-    // AI : Store both overlay and marker for cleanup
-    overlays.value[cdnOverlay.id] = overlayObject;
     allMarkers.value[cdnOverlay.id] = marker;
+
+    // AI : Use existing loadOverlay function to handle the rest
+    await loadOverlay(storedOverlayData);
+    
+    // AI : Get the loaded overlay object and inject CDN project data
+    const overlayObject = overlays.value[cdnOverlay.id];
+    if (overlayObject) {
+      // AI : Inject project data from CDN for InfoPopup display
+      if (cdnOverlay.project) {
+        overlayObject.project = cdnOverlay.project;
+      }
+      
+      // AI : Setup project hover events for view mode
+      if (overlayObject.overlay) {
+        setupProjectHoverEvents(overlayObject.overlay, overlayObject);
+      }
+    }
   } catch (error) {
     console.error(`AI : Error rendering view mode overlay ${cdnOverlay.id}:`, error);
   }

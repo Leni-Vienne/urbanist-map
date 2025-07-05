@@ -281,9 +281,32 @@ function handleSubmit() {
 </script>
 
 <style scoped>
-
 .project-editor {
     max-width: 800px;
     margin: 0 auto;
+    /* AI : Prevent form from creating its own scrollbar when inside Dialog */
+    overflow: visible;
+    height: auto;
+    max-height: none;
+}
+
+/* AI : Ensure all form elements are properly sized without creating overflow */
+.field {
+    overflow: visible;
+}
+
+/* AI : Prevent flex containers from creating scrollbars */
+.flex {
+    overflow: visible;
+}
+
+/* AI : Override PrimeVue component overflow behavior when needed */
+:deep(.p-component) {
+    overflow: visible;
+}
+
+/* AI : Allow dropdown panels to scroll independently */
+:deep(.p-dropdown-panel) {
+    overflow-y: auto;
 }
 </style>
