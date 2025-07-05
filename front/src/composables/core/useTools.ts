@@ -150,8 +150,8 @@ export const previousOverlayTool = L.Toolbar2.Action.extend({
       tooltip: 'Go to previous overlay',
     },
   },
-  addHooks: function () {
-    goToPreviousOverlay();
+  addHooks: async function () {
+    await goToPreviousOverlay();
   },
 });
 
@@ -162,8 +162,8 @@ export const nextOverlayTool = L.Toolbar2.Action.extend({
       tooltip: 'Go to next overlay',
     },
   },
-  addHooks: function () {
-    goToNextOverlay();
+  addHooks: async function () {
+    await goToNextOverlay();
   },
 });
 

@@ -6,7 +6,6 @@ import { map, onMapInitialized } from '@composables/core/useMap';
 import { getAllOverlays, saveOverlay } from '@composables/core/useDatabase';
 import { overlays, idSelectedOverlay, isEditMode } from '@stores/overlayStore';
 import { projects } from '@stores/projectStore';
-import { applyProjectStyling } from '@composables/project/useProjects';
 import type { OverlayObject, StoredOverlayData, CDNOverlayData } from '@types';
 import { editTools, viewTools, infoTool } from '@composables/core/useTools';
 import { getImageUrlForCoverage } from '@composables/core/useImageResizer';
@@ -64,12 +63,6 @@ export async function initializeOverlays(): Promise<void> {
 
   // AI : In edit mode, load only from local database
   const savedOverlays = await getAllOverlays();
-  console.log(`AI: Found ${savedOverlays.length} saved overlays in IndexedDB:`, savedOverlays.map(o => ({
-    id: o.id,
-    savedRemotely: o.savedRemotely,
-    hasCorners: !!o.corners,
-    hasHistory: !!o.history?.length
-  })));
 
   const mapBounds = map.value.getBounds();
 
@@ -273,67 +266,80 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
       infoTool,
       ...(isEditMode.value ? editTools : viewTools)
     ],
-  })
-
-  newOverlay.addTo(map.value);
-
-  overlayObject.overlay = newOverlay;
-
-  if (overlayObject.projectId) {
-    applyProjectStyling(overlayObject, overlayObject.projectId);
-  }
-
-  setupOverlayEventHandlers(newOverlay, overlayObject);
-  const element = newOverlay.getElement();
-  if (!element) {
-    console.error('Element not found for overlay:', overlayObject.id);
-    return null;
-  }
-
-  if (!isEditMode.value) {
-    disableOverlayEditing(newOverlay, element);
-  }
-  // using 'element' allows to access the corners of the image on load while newOverlay.on('load') doesn't work
-  // credit to https://github.com/publiclab/Leaflet.DistortableImage/issues/953#issuecomment-1262298228
-  L.DomEvent.on(element, 'load', () => {
-    applyOverlayCorners(overlayObject);
-    updateMarkerPosition(overlayObject);
-    overlayObject.alreadyLoaded = true;
-
-    // AI : Don't automatically set alreadyStored = true for remote overlays in view mode
-    // Only set it for local overlays or overlays loaded from IndexedDB
-    if (!overlayObject.savedRemotely) {
-      overlayObject.alreadyStored = true;
-    }
-
-    // AI : Save initial corner positions to history for undo/redo functionality
-    if (overlayObject.overlay && overlayObject.history.length === 0) {
-      const initialCorners = overlayObject.overlay.getCorners();
-      if (initialCorners && initialCorners.length > 0) {
-        overlayObject.history = [JSON.parse(JSON.stringify(initialCorners))];
-        overlayObject.redoStack = [];
-      }
-    }// AI : Save overlay to database immediately after loading, but skip remote overlays
-    // AI : Remote overlays should only be saved when explicitly edited/moved
-    if (isEditMode.value && !overlayObject.savedRemotely) {
-      const savedOverlay: StoredOverlayData = {
-        id: overlayObject.id, imageUrl: overlayObject.imageUrl,
-        imageResolutions: overlayObject.imageResolutions,
-        corners: overlayObject.corners || overlayObject.overlay?.getCorners() || [],
-        history: overlayObject.history,
-        redoStack: overlayObject.redoStack,
-        projectId: overlayObject.projectId,
-        caption: overlayObject.caption,
-        savedRemotely: overlayObject.savedRemotely || false // AI : Include server existence tracking
-      };
-      saveOverlay(savedOverlay);
-      overlayObject.alreadyStored = true;
-    }
-    // AI : Update marker tooltip after saving to local storage 
-    updateMarkerTooltip(overlayObject);
   });
 
+  newOverlay.addTo(map.value);
+  overlayObject.overlay = newOverlay;
+
+  setupOverlayEventHandlers(newOverlay, overlayObject);
+  setupOverlayLoadHandler(newOverlay, overlayObject);
+
+  if (!isEditMode.value) {
+    const element = newOverlay.getElement();
+    if (element) {
+      disableOverlayEditing(newOverlay, element);
+    }
+  }
+
   return newOverlay;
+}
+
+/**
+ * AI : Handle overlay load event with all initialization logic
+ */
+function setupOverlayLoadHandler(overlay: L.DistortableImageOverlay, overlayObject: OverlayObject): void {
+  const element = overlay.getElement();
+  if (!element) {
+    console.error('Element not found for overlay:', overlayObject.id);
+    return;
+  }
+
+  // AI : using 'element' allows to access the corners of the image on load while overlay.on('load') doesn't work
+  // credit to https://github.com/publiclab/Leaflet.DistortableImage/issues/953#issuecomment-1262298228
+  L.DomEvent.on(element, 'load', () => {
+    onOverlayLoaded(overlayObject);
+  });
+}
+
+/**
+ * AI : Handle all logic when overlay finishes loading
+ */
+function onOverlayLoaded(overlayObject: OverlayObject): void {
+  applyOverlayCorners(overlayObject);
+  updateMarkerPosition(overlayObject);
+  overlayObject.alreadyLoaded = true;
+
+  initializeOverlayHistory(overlayObject);
+  handleOverlayStorageOnLoad(overlayObject);
+  updateMarkerTooltip(overlayObject);
+}
+
+/**
+ * AI : Initialize history for overlay if not already set
+ */
+function initializeOverlayHistory(overlayObject: OverlayObject): void {
+  if (!overlayObject.overlay || overlayObject.history.length > 0) return;
+
+  const initialCorners = overlayObject.overlay.getCorners();
+  if (initialCorners && initialCorners.length > 0) {
+    overlayObject.history = [JSON.parse(JSON.stringify(initialCorners))];
+    overlayObject.redoStack = [];
+  }
+}
+
+/**
+ * AI : Handle storage logic when overlay loads
+ */
+function handleOverlayStorageOnLoad(overlayObject: OverlayObject): void {
+  // AI : Don't automatically set alreadyStored = true for remote overlays in view mode
+  if (!overlayObject.savedRemotely) {
+    overlayObject.alreadyStored = true;
+  }
+
+  // AI : Save to database in edit mode for new local overlays only
+  if (isEditMode.value && !overlayObject.savedRemotely) {
+    saveOverlayToDatabase(overlayObject);
+  }
 }
 
 function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayObject: OverlayObject): void {
@@ -821,7 +827,7 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData): Promise<
       if (cdnOverlay.project) {
         overlayObject.project = cdnOverlay.project;
       }
-      
+
       // AI : Setup project hover events for view mode
       if (overlayObject.overlay) {
         setupProjectHoverEvents(overlayObject.overlay, overlayObject);

@@ -4,7 +4,7 @@ import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, creat
 import { saveOverlay, deleteOverlay as deleteOverlayFromDatabase, saveProject } from '@composables/core/useDatabase';
 import { generateImageResolutions, getImageUrlForCoverage } from '@composables/core/useImageResizer';
 import { useToast } from '@composables/ui/useToast';
-import { projects, applyProjectStyling, addOverlayToProjectWithId } from '@composables/project/useProjects';
+import { projects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import type { StoredOverlayData, OverlayObject } from '@types';
 
 const toast = useToast();
@@ -59,10 +59,6 @@ export async function addOverlay(imageUrl: string, projectId: string) {
   updateOverlayToAppropriateResolution(overlayObject)
   
   await addOverlayToProjectWithId(projectId, id);
-
-  if (projects.value[projectId]) {
-    applyProjectStyling(overlayObject, projectId);
-  }
   
   return id;
 }
@@ -483,7 +479,7 @@ function handleFlipIfNeeded(overlayObject: any) {
  * @param direction - Either 'next' or 'previous' to determine navigation direction
  * @returns boolean indicating whether navigation was successful
  */
-export function navigateOverlay(direction: 'next' | 'previous'): boolean {
+export async function navigateOverlay(direction: 'next' | 'previous'): Promise<boolean> {
   if (!map.value) {
     toast.add({ severity: 'warn', summary: 'Map not available', detail: 'Cannot navigate between overlays', life: 3000 });
     return false;
@@ -495,13 +491,27 @@ export function navigateOverlay(direction: 'next' | 'previous'): boolean {
   }
 
   const currentOverlay = overlays.value[idSelectedOverlay.value];
-  if (!currentOverlay?.projectId) return false;
   
-  const project = projects.value[currentOverlay.projectId];
-  if (!project?.overlayIds.length) return false;
+  if (!currentOverlay?.projectId) {
+    return false;
+  }
   
-  // Use the project's overlayIds directly
-  const projectOverlayIds = project.overlayIds;
+  let project = projects.value[currentOverlay.projectId];
+  let projectOverlayIds: string[];
+  
+  // AI : If project is not in memory, just find overlays with same projectId
+  if (!project) {
+    projectOverlayIds = Object.values(overlays.value)
+      .filter(overlay => overlay.projectId === currentOverlay.projectId)
+      .map(overlay => overlay.id);
+  } else {
+    projectOverlayIds = project.overlayIds;
+  }
+  
+  if (projectOverlayIds.length <= 1) {
+    toast.add({ severity: 'info', summary: 'Navigation', detail: 'No other overlays in this project', life: 3000 });
+    return false;
+  }
   
   if (projectOverlayIds.length <= 1) {
     toast.add({ severity: 'info', summary: 'Navigation', detail: 'No other overlays in this project', life: 3000 });
@@ -574,18 +584,26 @@ export function navigateToOverlay(overlayId: string, centerMap: boolean = true):
 
 function selectAndCenterOverlay(overlayId: string, index?: number, total?: number, centerMap: boolean = true): boolean {
   const overlay = overlays.value[overlayId];
-  if (!overlay) return false;
+  
+  if (!overlay) {
+    return false;
+  }
   
   idSelectedOverlay.value = overlayId;
   
   if (overlay.overlay) {
     // Click on the overlay to properly select it and open the toolbar
     const element = overlay.overlay.getElement();
-    if (element) element.click();
+    
+    if (element) {
+      element.click();
+    }
     
     if (centerMap) {
       const bounds = overlay.overlay.getBounds();
-      map.value!.fitBounds(bounds, { padding: [10, 10] });
+      const center = bounds.getCenter();
+      // AI : Center on overlay without changing zoom level
+      map.value!.setView(center, map.value!.getZoom());
       
       // Show appropriate toast message
       showNavigationToast(overlay, index, total);
@@ -646,16 +664,16 @@ function updateUrlWithOverlayId(overlayId: string): void {
  * AI : Centers the map view on the next overlay in the current project.
  * Wrapper for navigateOverlay('next')
  */
-export function goToNextOverlay() {
-  navigateOverlay('next');
+export async function goToNextOverlay() {
+  await navigateOverlay('next');
 }
 
 /**
  * AI : Centers the map view on the previous overlay in the current project.
  * Wrapper for navigateOverlay('previous')
  */
-export function goToPreviousOverlay() {
-  navigateOverlay('previous');
+export async function goToPreviousOverlay() {
+  await navigateOverlay('previous');
 }
 
 export function updateTooltipText() {

@@ -16,51 +16,6 @@ const toast = useToast();
 // AI : Export the reactive stores from centralized location
 export { projects, selectedProjectId };
 
-// Generate a vibrant color for a project that will stand out
-function generateRandomColor(): string {
-  // Array of vibrant colors with good contrast
-  const vibrantColors = [
-    '#FF3D00', // Bright Red-Orange
-    '#2979FF', // Bright Blue
-    '#00C853', // Bright Green
-    '#AA00FF', // Bright Purple
-    '#FFAB00', // Amber
-    '#00BFA5', // Teal
-    '#D500F9', // Magenta
-    '#FF9100', // Dark Orange
-    '#1DE9B6', // Light Teal
-    '#00B0FF', // Light Blue
-    '#76FF03', // Lime
-    '#FF4081', // Pink
-    '#F50057', // Deep Pink
-    '#651FFF', // Deep Purple
-    '#FFD600'  // Yellow
-  ];
-
-  // Add randomness by slightly adjusting the color
-  const baseColor = vibrantColors[Math.floor(Math.random() * vibrantColors.length)];
-
-  // For extra randomness, sometimes adjust the hue slightly
-  if (Math.random() > 0.5) {
-    return baseColor;
-  }
-
-  // Convert hex to HSL, adjust, then back to hex
-  const r = parseInt(baseColor.slice(1, 3), 16);
-  const g = parseInt(baseColor.slice(3, 5), 16);
-  const b = parseInt(baseColor.slice(5, 7), 16);
-
-  // Add slight random variations to make it more unique
-  const variation = Math.floor(Math.random() * 30) - 15; // -15 to +15
-
-  // Ensure values stay within 0-255 range
-  const newR = Math.min(255, Math.max(0, r + variation));
-  const newG = Math.min(255, Math.max(0, g + variation));
-  const newB = Math.min(255, Math.max(0, b + variation));
-
-  return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
-}
-
 // AI : Get projects with overlays near the camera center (within 10km by default)
 export async function loadProjectsNearLocation(lat: number, lng: number, radiusKm: number = 10): Promise<void> {
   try {
@@ -135,7 +90,7 @@ export async function createProject(projectData: Omit<Project, 'id' | 'overlayId
     ...projectData,
     id,
     overlayIds: [],
-    color: generateRandomColor()
+    color: '#007bff',
   };
 
   await saveProject(project);
@@ -206,8 +161,6 @@ export async function addOverlayToProjectWithId(projectId: string, overlayId: st
   // Update overlay with project reference
   const overlayObject = overlays.value[overlayId];
   overlayObject.projectId = projectId;
-  // Apply project styling
-  applyProjectStyling(overlayObject, projectId);
 
   toast.add({
     severity: 'success',
@@ -252,33 +205,6 @@ export async function removeOverlayFromProjectWithId(projectId: string, overlayI
     detail: `Overlay has been removed from project "${project.name}"`,
     life: 3000
   });
-}
-
-export function applyProjectStyling(overlayObject: OverlayObject, projectId: string): void {
-  console.trace('Applying project styling for overlay:', overlayObject.id, 'in project:', projectId);
-  if (!overlayObject.overlay) return;
-
-  const project = projects.value[projectId];
-  if (!project) return;
-
-  const element = overlayObject.overlay.getElement();
-  if (!element) return;
-  console.log("not returning", element);
-
-  // Apply permanent and more noticeable project styling
-  // Using outline instead of individual borders for cleaner effect
-  element.style.outline = `4px solid ${project.color}`;
-
-  // Add stronger glow effect for better visibility
-  element.style.boxShadow = `0 0 15px ${project.color}80`; // 80 = 50% opacity for stronger effect
-
-  // Add project indicator to marker
-  if (overlayObject.marker) {
-    // Add project name to marker tooltip
-    const captionSuffix = overlayObject.caption ? ` - ${overlayObject.caption}` : '';
-    const tooltipContent = `${project.name}${captionSuffix}`;
-    overlayObject.marker.setTooltipContent(tooltipContent);
-  }
 }
 
 export function removeProjectStyling(overlayObject: OverlayObject): void {
