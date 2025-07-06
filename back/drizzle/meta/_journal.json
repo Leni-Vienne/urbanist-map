@@ -43,6 +43,13 @@
       "when": 1751796498183,
       "tag": "0005_wakeful_patriot",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1751821671496,
+      "tag": "0006_regular_lester",
+      "breakpoints": true
     }
   ]
 }

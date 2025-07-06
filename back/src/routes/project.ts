@@ -1,8 +1,8 @@
 import { db } from '../db';
 import { publicProcedure, router } from '../trpc';
 import { z } from 'zod';
-import { projects, cities, overlays } from '../db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { projects, cities, overlays, approvalStatusEnum } from '../db/schema';
+import { eq, sql, and } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 
 const publishProjectSchema = z.object({
@@ -90,13 +90,15 @@ export const projectRouter = router({
           .from(projects)
           .leftJoin(cities, eq(projects.cityId, cities.id))
           .innerJoin(overlays, eq(overlays.projectId, projects.id))
-          .where(
+          .where(and(
+            eq(projects.status, 'approved'),
+            eq(overlays.status, 'approved'),
             sql`ST_DWithin(
               ${overlays.centroid},
               ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
               ${radiusKm * 1000}
             )`
-          )
+          ))
           .groupBy(
             projects.id,
             projects.title,
