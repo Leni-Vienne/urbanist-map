@@ -8,7 +8,6 @@ import { overlays, idSelectedOverlay, isEditMode } from '@stores/overlayStore';
 import { projects } from '@stores/projectStore';
 import type { OverlayObject, StoredOverlayData, CDNOverlayData } from '@types';
 import { editTools, viewTools, infoTool } from '@composables/core/useTools';
-import { getImageUrlForCoverage } from '@composables/core/useImageResizer';
 import { router } from '../../router';
 import { createColorIcon } from '@composables/ui/colorMarkers';
 
@@ -32,7 +31,6 @@ export function saveOverlayToDatabase(overlayObj: OverlayObject): void {
   const savedOverlay: StoredOverlayData = {
     id: overlayObj.id,
     imageUrl: overlayObj.imageUrl,
-    imageResolutions: overlayObj.imageResolutions,
     corners: overlayObj.corners,
     history: overlayObj.history,
     redoStack: overlayObj.redoStack,
@@ -72,7 +70,6 @@ export async function initializeOverlays(): Promise<void> {
   setupMapEventListeners();
 
   onMapInitialized(() => {
-    updateImageResolutionsForCoverage();
   });
 }
 
@@ -80,8 +77,6 @@ function setupMapEventListeners(): void {
   if (!map.value) return;
 
   map.value.on('moveend', loadOverlaysInView);
-  map.value.on('zoomend', updateImageResolutionsForCoverage);
-  window.addEventListener('resize', updateImageResolutionsForCoverage);
 }
 
 function createMarkersForOverlays(savedOverlays: StoredOverlayData[]): void {
@@ -132,9 +127,7 @@ async function loadOverlay(savedOverlay: StoredOverlayData): Promise<void> {
   const overlayBounds = getOverlayBounds(savedOverlay);
   if (!overlayBounds || !map.value) return;
 
-  const imageUrl = savedOverlay.imageResolutions
-    ? getImageUrlForCoverage(savedOverlay.imageResolutions, overlayBounds, map.value)
-    : savedOverlay.imageUrl;
+  const imageUrl = savedOverlay.imageUrl;
 
   const newOverlay = await createOverlay(imageUrl, overlayObject);
   if (!newOverlay) return;
@@ -186,35 +179,6 @@ async function loadOverlaysInView(): Promise<void> {
   });
 }
 
-/**
- * AI : Function to update overlay image resolutions based on display size
- */
-function updateImageResolutionsForCoverage(): void {
-  if (!map.value) return;
-  const currentMapBounds = map.value.getBounds();
-
-  Object.entries(overlays.value).forEach(([_id, overlayObject]) => {
-    if (!overlayObject.overlay || !overlayObject.imageResolutions) return;
-
-    const bounds = overlayObject.overlay.getBounds();
-
-    if (!bounds?.isValid()) {
-      return;
-    }
-
-    if (!currentMapBounds.intersects(bounds)) {
-      return;
-    }
-
-    const bestResolutionUrl = getImageUrlForCoverage(overlayObject.imageResolutions, bounds, map.value);
-    if (!bestResolutionUrl) return;
-
-    if (bestResolutionUrl !== overlayObject.currentResolution) {
-      updateOverlayImage(overlayObject, bestResolutionUrl);
-      overlayObject.currentResolution = bestResolutionUrl;
-    }
-  });
-}
 
 /**
  * AI : Create a new overlay object from saved data
@@ -388,10 +352,6 @@ function updateUrlWithOverlayId(overlayId: string): void {
     // Consistently use the globally exposed router
     if (!router) return;
 
-    // AI : Set the flag to indicate URL change is from a direct overlay click
-    if (window.isUrlChangeFromClick !== undefined) {
-      window.isUrlChangeFromClick.value = true;
-    }
     // AI : Update URL to use path parameter format /overlay/ID instead of query parameter
     router.replace(`/overlay/${overlayId}`);
   } catch (error) {
@@ -469,7 +429,7 @@ export function saveToHistory(overlayObject: OverlayObject): void {
   const savedOverlay: StoredOverlayData = {
     id: overlayObject.id,
     imageUrl: overlayObject.imageUrl,
-    imageResolutions: overlayObject.imageResolutions, corners: overlayObject.corners,
+    corners: overlayObject.corners,
     history: overlayObject.history,
     redoStack: overlayObject.redoStack,
     projectId: overlayObject.projectId,
@@ -795,7 +755,6 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData): Promise<
     const storedOverlayData: StoredOverlayData = {
       id: cdnOverlay.id,
       imageUrl: `http://localhost:3000/uploads/${cdnOverlay.filename}`,
-      imageResolutions: undefined,
       corners: cdnOverlay.corners.map(corner => L.latLng(corner.lat, corner.lng)),
       history: [],
       redoStack: [],
