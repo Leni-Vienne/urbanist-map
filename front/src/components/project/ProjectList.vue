@@ -70,7 +70,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { countries, projects, deleteProjectById } from '@composables/project/useProjects';
+
+import { countries, deleteProjectById } from '@composables/project/useProjects';
 import { useToast } from '@composables/ui/useToast';
 import type { ProjectManagerMode } from '@composables/project/useProjectManagerDialog';
 import type { MenuItem } from 'primevue/menuitem';

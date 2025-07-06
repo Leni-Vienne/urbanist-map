@@ -21,6 +21,7 @@
     "@vectorial1024/leaflet-color-markers": "^2.0.4",
     "dotenv": "^17.0.1",
     "drizzle-orm": "^0.44.2",
+    "drizzle-zod": "^0.8.2",
     "hono": "^4.8.4",
     "hono-sessions": "^0.7.3",
     "idb": "^8.0.3",

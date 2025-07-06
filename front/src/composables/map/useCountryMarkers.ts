@@ -1,10 +1,9 @@
 import L from "leaflet";
 import { ref } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
-import { projects, loadCitiesForCountry, countries } from '@composables/project/useProjects';
+import { loadCitiesForCountry, countries } from '@composables/project/useProjects';
 import { addCityMarkersForCountry } from '@composables/map/useCityMarkers';
 import { trpc, RouterOutput } from '@client';
-import type { Project, City } from '@types';
 
 export type CountryWithProjects = RouterOutput['country']['getCountriesWithProjects'][number];
 

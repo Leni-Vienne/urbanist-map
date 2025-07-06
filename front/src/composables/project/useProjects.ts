@@ -1,6 +1,5 @@
 import {
   saveProject,
-  getAllProjects,
   deleteProject,
   addOverlayToProject,
   removeOverlayFromProject,
