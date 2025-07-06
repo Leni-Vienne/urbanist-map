@@ -5,13 +5,6 @@ import Aura from '@primeuix/themes/aura';
 import ToastService from 'primevue/toastservice';
 import { router } from './router';
 
-// AI : Expose the router globally for use in composables
-declare global {
-  interface Window {
-    router: any;
-    vueApp: any;
-  }
-}
 
 
 const app = createApp(App)
@@ -29,8 +22,5 @@ app.use(PrimeVue, {
 
 app.use(ToastService);
 app.use(router);
-
-window.router = router;
-window.vueApp = app;
 
 app.mount('#app');

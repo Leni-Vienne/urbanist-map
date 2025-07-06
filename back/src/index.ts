@@ -4,6 +4,7 @@ import { router } from './trpc';
 import { cors } from 'hono/cors'
 import { Session, sessionMiddleware, CookieStore } from 'hono-sessions'
 import { serveStatic } from 'hono/bun'
+import { config } from './config';
 
 import { projectRouter } from './routes/project';
 import { overlayRouter } from './routes/overlay';
@@ -24,7 +25,7 @@ const app = new Hono<{
 const store = new CookieStore()
 
 app.use('*', cors({
-    origin: 'http://localhost:5173',
+    origin: config.CORS_ORIGIN,
     credentials: true
 }));
 
@@ -48,7 +49,7 @@ app.use('*', async (c, next) => {
 app.use('*', sessionMiddleware({
     store,
     sessionCookieName: 'session',
-    encryptionKey: 'password_at_least_32_characters_long',
+    encryptionKey: config.SESSION_ENCRYPTION_KEY,
     expireAfterSeconds: 900,
 }))
 
@@ -145,6 +146,6 @@ app.notFound((c) => {
 });
 
 export default {
-  port: 3000,
+  port: config.PORT,
   fetch: app.fetch
 }

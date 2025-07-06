@@ -3,17 +3,17 @@ import { publicProcedure, router } from '../trpc';
 import { z } from 'zod';
 import { projects, cities, overlays } from '../db/schema';
 import { eq, sql } from 'drizzle-orm';
+import { TRPCError } from '@trpc/server';
 
 const publishProjectSchema = z.object({
-  id: z.string().min(1).max(36), // AI : UUID length limit
-  title: z.string().min(1).max(200), // AI : Reasonable title length limit
-  description: z.string().max(2000).optional(), // AI : Limit description to 2000 characters
-  cityId: z.string().uuid().optional(), // AI : City ID for foreign key relationship
+  id: z.string().uuid().optional(),
+  title: z.string().min(1).max(200),
+  description: z.string().max(2000).optional(),
+  cityId: z.string().uuid().optional(),
   metadata: z.object({
-    // AI : Only allow startDate, endDate, and sourceUrl in metadata - nothing else
-    startDate: z.string().max(50).optional(), // AI: ISO date string for project start
-    endDate: z.string().max(50).optional(), // AI: ISO date string for project end
-    sourceUrl: z.string().url().max(500).optional() // AI : Validate URL format and limit length
+    startDate: z.string().max(50).optional(),
+    endDate: z.string().max(50).optional(),
+    sourceUrl: z.string().url().max(500).optional()
   }).optional()
 });
 
@@ -22,43 +22,38 @@ export const projectRouter = router({
     .input(publishProjectSchema)
     .mutation(async ({ input }) => {
       try {
-        // AI : Log received data
-
-        // AI: Check if project already exists
-        const existingProject = await db.select()
-          .from(projects)
-          .where(eq(projects.id, input.id))
-          .limit(1);
-        if (existingProject.length > 0) {
-          // AI : Update existing project
-          const updateResult = await db
-            .update(projects)
-            .set({
-              title: input.title,
-              description: input.description,
-              cityId: input.cityId ?? null, // AI : Set cityId or null if not provided
-              metadata: input.metadata,
-              updatedAt: new Date()
-            })
-            .where(eq(projects.id, input.id))
-            .returning();
-
-          return { success: true, id: updateResult[0].id, exists: true };
+        if (input.cityId) {
+          const city = await db.select().from(cities).where(eq(cities.id, input.cityId)).limit(1);
+          if (city.length === 0) {
+            throw new TRPCError({ code: 'BAD_REQUEST', message: 'City not found' });
+          }
         }
 
-        // AI: Insert new project into database
-        const result = await db.insert(projects).values({
-          id: input.id,
-          title: input.title,
-          description: input.description,
-          cityId: input.cityId ?? null, // AI : Set cityId or null if not provided
-          metadata: input.metadata
-        }).returning();
+        const data = {
+          ...input,
+          //ownerId: ctx.session.userId,
+          ownerId: null,
+          cityId: input.cityId ?? null,
+        };
 
-        return { success: true, id: result[0].id, exists: false };
+        if (input.id) {
+          // Update existing project
+          const result = await db.update(projects)
+            .set({ ...data, updatedAt: new Date() })
+            .where(eq(projects.id, input.id))
+            .returning();
+          return { success: true, id: result[0].id, exists: true };
+        } else {
+          // Insert new project
+          const result = await db.insert(projects)
+            .values(data)
+            .returning();
+          return { success: true, id: result[0].id, exists: false };
+        }
       } catch (error) {
         console.error('Error publishing project:', error);
-        throw new Error('Failed to publish project');
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to publish project' });
       }
     }),
   // AI : Get projects with overlays within 10km of camera center
@@ -68,7 +63,7 @@ export const projectRouter = router({
       lng: z.number(),
       radiusKm: z.number().default(10)
     }))
-    .query(async ({ input }) => {
+    .query(async ({ input }: { input: { lat: number; lng: number; radiusKm: number } }) => {
       try {
         const { lat, lng, radiusKm } = input;
 

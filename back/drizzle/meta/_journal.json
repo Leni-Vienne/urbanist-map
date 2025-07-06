@@ -36,6 +36,13 @@
       "when": 1749406274966,
       "tag": "0004_clammy_leper_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1751796498183,
+      "tag": "0005_wakeful_patriot",
+      "breakpoints": true
     }
   ]
 }
