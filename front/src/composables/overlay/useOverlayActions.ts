@@ -2,7 +2,6 @@ import L from "leaflet";
 import { map, onMapInitialized } from '@composables/core/useMap';
 import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, updateOverlayImage, isEditMode, removeOverlay } from '@composables/overlay/useOverlay';
 import { saveOverlay, deleteOverlay as deleteOverlayFromDatabase, saveProject } from '@composables/core/useDatabase';
-import { generateImageResolutions, getImageUrlForCoverage } from '@composables/core/useImageResizer';
 import { useToast } from '@composables/ui/useToast';
 import { projects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import type { StoredOverlayData, OverlayObject } from '@types';
@@ -24,13 +23,11 @@ export async function addOverlay(imageUrl: string, projectId: string) {
   }
 
   const id = crypto.randomUUID();
-  const imageResolutions = await generateImageResolutions(imageUrl);
   
   // Create basic overlay object
   const overlayObject = {
     id,
     imageUrl,
-    imageResolutions,
     overlay: null,
     marker: null,
     history: [],    redoStack: [],
@@ -56,8 +53,6 @@ export async function addOverlay(imageUrl: string, projectId: string) {
   if (newOverlay && map.value) {
     setupOverlayImageLoad(newOverlay, overlayObject, projectId);
   }
-  
-  updateOverlayToAppropriateResolution(overlayObject)
   
   await addOverlayToProjectWithId(projectId, id);
   
@@ -121,7 +116,6 @@ function saveOverlayInitialState(overlay: L.DistortableImageOverlay, overlayObje
   const storedOverlay: StoredOverlayData = {
     id: overlayObject.id,
     imageUrl: overlayObject.imageUrl,
-    imageResolutions: overlayObject.imageResolutions,
     corners: overlayObject.corners,
     history: overlayObject.history,
     redoStack: overlayObject.redoStack,
@@ -133,33 +127,6 @@ function saveOverlayInitialState(overlay: L.DistortableImageOverlay, overlayObje
   saveOverlay(storedOverlay);
 }
 
-function updateOverlayToAppropriateResolution(overlayObject: OverlayObject) {
-  return () => {
-    if (!overlayObject.overlay || !overlayObject.imageResolutions) return;
-    
-    const updateResolution = () => {
-      if (!map.value) return;
-
-      if(!overlayObject.overlay) return;
-      
-      const overlayBounds = overlayObject.overlay.getBounds();
-      
-      if (!overlayBounds?.isValid()) {
-        return;
-      }
-      
-      const appropriateImageUrl = getImageUrlForCoverage(overlayObject.imageResolutions, overlayBounds, map.value);
-      
-      if (appropriateImageUrl && appropriateImageUrl !== overlayObject.currentResolution) {
-        updateOverlayImage(overlayObject, appropriateImageUrl);
-        overlayObject.currentResolution = appropriateImageUrl;
-      }
-    };
-    
-    updateResolution();
-    onMapInitialized(updateResolution);
-  };
-}
 
 export function undo() {
   applyHistoryAction('undo');
@@ -206,7 +173,6 @@ function applyHistoryAction(action: 'undo' | 'redo') {
   const savedOverlay = {
     id: overlayObject.id,
     imageUrl: overlayObject.imageUrl,
-    imageResolutions: overlayObject.imageResolutions,
     corners: overlayObject.corners,
     history: overlayObject.history,
     redoStack: overlayObject.redoStack,
@@ -330,7 +296,6 @@ export function resetImageRatio() {
       const savedOverlay = {
       id: overlayObject.id,
       imageUrl: overlayObject.imageUrl,
-      imageResolutions: overlayObject.imageResolutions,
       corners: overlayObject.corners,
       history: overlayObject.history,
       redoStack: overlayObject.redoStack,
@@ -743,7 +708,6 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
   const savedOverlay = {
     id: overlayObject.id,
     imageUrl: overlayObject.imageUrl,
-    imageResolutions: overlayObject.imageResolutions,
     corners: overlayObject.corners,
     history: overlayObject.history,
     redoStack: overlayObject.redoStack,

@@ -47,14 +47,6 @@ declare module "leaflet" {
   function distortableImageOverlay(imageUrl: string, options?: any): DistortableImageOverlay;
 }
 
-// AI : Available image resolutions for an overlay
-export type ImageResolutions = {
-  original: string;
-  medium?: string;
-  small?: string;
-  originalWidth?: number; // AI: Original image width for resolution calculations
-  originalHeight?: number; // AI: Original image height for resolution calculations
-};
 
 // AI : City data structure returned by the cities API
 export interface City {
@@ -108,7 +100,6 @@ export interface Project {
 export interface StoredOverlayData {
   id: string;
   imageUrl: string;
-  imageResolutions?: ImageResolutions;
   corners: { lat: number, lng: number }[];
   history: { lat: number, lng: number }[][];
   redoStack: { lat: number, lng: number }[][];
