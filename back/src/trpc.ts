@@ -1,4 +1,4 @@
-import { initTRPC } from '@trpc/server';
+import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
 import { Session } from 'hono-sessions'
 
@@ -27,7 +27,7 @@ export const publicProcedure = t.procedure;
 
 export const isAuthed = t.middleware(({ ctx, next }) => {
     if (!ctx.session?.isAuthenticated) {
-        throw new Error('Not authenticated');
+        throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Not authenticated' });
     }
     return next({
         ctx: {

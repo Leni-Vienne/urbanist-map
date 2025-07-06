@@ -1,10 +1,8 @@
-import dotenv from 'dotenv';
 import { drizzle } from 'drizzle-orm/bun-sql';
 import { SQL } from 'bun';
-dotenv.config({ path: '../../.env' });
+import { config } from './config';
 
 // AI : to prevent too many connections, credit to Kairu https://www.answeroverflow.com/m/1216181725722578954
 let client = undefined;
-client ??= new SQL(process.env.DATABASE_URL as string);
+client ??= new SQL(config.DATABASE_URL);
 export const db = drizzle({ client });
-

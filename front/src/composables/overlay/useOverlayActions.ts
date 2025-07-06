@@ -6,6 +6,7 @@ import { generateImageResolutions, getImageUrlForCoverage } from '@composables/c
 import { useToast } from '@composables/ui/useToast';
 import { projects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import type { StoredOverlayData, OverlayObject } from '@types';
+import { router } from '../../router';
 
 const toast = useToast();
 
@@ -653,8 +654,7 @@ function showNavigationToast(overlay: OverlayObject, index?: number, total?: num
  */
 function updateUrlWithOverlayId(overlayId: string): void {
   try {
-    const router = window.router;
-    if (router) router.replace(`/overlay/${overlayId}`);
+    router.replace(`/overlay/${overlayId}`);
   } catch (error) {
     console.error('AI: Error updating URL with overlay ID:', error);
   }

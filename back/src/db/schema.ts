@@ -16,8 +16,8 @@ export const projects = pgTable('projects', {
   id: uuid('id').defaultRandom().primaryKey(),
   title: text('title').notNull(),
   description: text('description'),
-  ownerId: uuid('owner_id').references(() => users.id),
-  cityId: uuid('city_id').references(() => cities.id), // AI : Reference to the city where the project is located
+  ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'set null', onUpdate: 'cascade' }),
+  cityId: uuid('city_id').references(() => cities.id, { onDelete: 'set null', onUpdate: 'cascade' }), // AI : Reference to the city where the project is located
   metadata: jsonb('metadata'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
@@ -28,8 +28,8 @@ export const overlays = pgTable('overlays', {
   id: uuid('id').defaultRandom().primaryKey(),
   filename: text('filename').notNull(),
   caption: text('caption'),
-  projectId: uuid('project_id').references(() => projects.id),
-  authorId: uuid('author_id').references(() => users.id),
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+  authorId: uuid('author_id').references(() => users.id, { onDelete: 'set null', onUpdate: 'cascade' }),
   metadata: jsonb('metadata'), // pour EXIF, etc.
 
   // Coordonnées des 4 coins (séparées)
