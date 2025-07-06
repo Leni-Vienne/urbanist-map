@@ -1,7 +1,7 @@
 import {
   pgTable, uuid, text, timestamp, jsonb, index, doublePrecision, geometry, char
 } from 'drizzle-orm/pg-core';
-import { sql, relations } from 'drizzle-orm';
+import { sql, InferSelectModel, InferInsertModel } from 'drizzle-orm';
 
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -74,3 +74,10 @@ export const countries = pgTable('countries', {
   codeIndex: index('idx_countries_code').on(countries.code),
   centerIndex: sql.raw(`CREATE INDEX idx_countries_center ON countries USING GIST (center_coordinates)`)
 }));
+
+
+/*export type City = InferSelectModel<typeof cities>;
+export type Project = InferSelectModel<typeof projects>;
+export type Overlay = InferSelectModel<typeof overlays>;
+export type User = InferSelectModel<typeof users>;
+export type Country = InferSelectModel<typeof countries>;*/

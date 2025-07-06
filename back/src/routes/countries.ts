@@ -7,23 +7,28 @@ export const countriesRouter = router({
   // AI : Get all countries that have at least one city with a project
   getCountriesWithProjects: publicProcedure
     .query(async () => {
-      return await db
-        .select({
-          id: countries.id,
-          code: countries.code,
-          name: countries.name,
-          centerCoordinates: countries.centerCoordinates
-        })
-        .from(countries)
-        .where(
-          exists(
-            db
-              .select()
-              .from(cities)
-              .innerJoin(projects, eq(projects.cityId, cities.id))
-              .where(eq(cities.countryCode, countries.code))
+      try {
+        return await db
+          .select({
+            id: countries.id,
+            code: countries.code,
+            name: countries.name,
+            centerCoordinates: countries.centerCoordinates
+          })
+          .from(countries)
+          .where(
+            exists(
+              db
+                .select()
+                .from(cities)
+                .innerJoin(projects, eq(projects.cityId, cities.id))
+                .where(eq(cities.countryCode, countries.code))
+            )
           )
-        )
-        .orderBy(countries.name);
+          .orderBy(countries.name);
+        } catch (error) {
+          console.error('Error fetching countries with projects:', error);
+          throw new Error('Failed to fetch countries with projects');
+        }
     })
 });

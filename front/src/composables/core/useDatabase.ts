@@ -188,25 +188,6 @@ export async function getProject(id: string): Promise<Project | undefined> {
 }
 
 /**
- * Get all projects from the database
- */
-export async function getAllProjects(): Promise<Project[]> {
-  if (!db) {
-    console.warn('Database not initialized when getting all projects');
-    return [];
-  }
-  
-  try {
-    const result = await db.getAll('projects');
-    // AI : Convert to Project type if necessary
-    return result;
-  } catch (error) {
-    console.error('Error retrieving all projects:', error);
-    return [];
-  }
-}
-
-/**
  * Delete a project from the database
  */
 export async function deleteProject(id: string): Promise<void> {

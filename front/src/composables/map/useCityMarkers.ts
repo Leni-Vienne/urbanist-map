@@ -27,21 +27,6 @@ let cityMarkersLayer: L.LayerGroup | null = null;
 let mouseTooltip: HTMLElement | null = null;
 
 /**
- * AI : Load cities with projects from the backend
- */
-export async function loadCitiesWithProjects(): Promise<void> {
-  try {
-    isLoadingCities.value = true;
-
-    citiesWithProjects.value  = await trpc.cities.getCitiesWithProjects.query();
-  } catch (error) {
-    console.error('AI : Error loading cities with projects:', error);
-  } finally {
-    isLoadingCities.value = false;
-  }
-}
-
-/**
  * AI : Load projects for a specific city and display overlays on map
  */
 export async function loadCityProjects(cityId: string, _cityName: string): Promise<void> {
