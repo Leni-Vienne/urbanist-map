@@ -63,7 +63,7 @@ export async function loadCityProjects(cityId: string, _cityName: string): Promi
           color: metadata?.color ?? '#007bff',
           location: metadata?.location ?? '',
           cityId: project.cityId ?? undefined,
-          city: project.city as City ?? undefined,
+          city: project.city as unknown as City ?? undefined,
           startDate: metadata?.startDate ? new Date(metadata.startDate) : null,
           endDate: metadata?.endDate ? new Date(metadata.endDate) : null,
           sourceUrl: metadata?.sourceUrl ?? '',
@@ -135,24 +135,22 @@ export async function loadCityProjects(cityId: string, _cityName: string): Promi
 }
 
 /**
- * AI : Add city markers to the map
+ * AI : Add city markers for a specific country
  */
-export function addCityMarkersToMap(): void {
+export function addCityMarkersForCountry(cities: CityWithProjects[]): void {
   if (!map.value) {
-    // AI : If map is not ready, wait for initialization
     onMapInitialized(() => {
-      addCityMarkersToMapInternal();
+      addCityMarkersToMapInternal(cities);
     });
     return;
   }
-
-  addCityMarkersToMapInternal();
+  addCityMarkersToMapInternal(cities);
 }
 
 /**
  * AI : Internal function to add city markers to map
  */
-function addCityMarkersToMapInternal(): void {
+function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
   if (!map.value) {
     return;
   }
@@ -164,7 +162,7 @@ function addCityMarkersToMapInternal(): void {
 
   // AI : Create new layer group for city markers
   cityMarkersLayer = L.layerGroup();  // AI : Add markers for each city with projects
-  citiesWithProjects.value.forEach(city => {
+  cities.forEach(city => {
     // AI : Create a standard Leaflet marker
     const marker = L.marker([city.lat, city.lng]);
 
@@ -241,14 +239,6 @@ function cleanupMouseTooltip(): void {
     document.body.removeChild(mouseTooltip);
     mouseTooltip = null;
   }
-}
-
-/**
- * AI : Initialize city markers system
- */
-export async function initializeCityMarkers(): Promise<void> {
-  await loadCitiesWithProjects();
-  addCityMarkersToMap();
 }
 
 /**

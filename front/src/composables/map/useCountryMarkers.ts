@@ -1,0 +1,87 @@
+import L from "leaflet";
+import { ref } from 'vue';
+import { map, onMapInitialized } from '@composables/core/useMap';
+import { projects, loadCitiesForCountry, countries } from '@composables/project/useProjects';
+import { addCityMarkersForCountry } from '@composables/map/useCityMarkers';
+import { trpc, RouterOutput } from '@client';
+import type { Project, City } from '@types';
+
+export type CountryWithProjects = RouterOutput['country']['getCountriesWithProjects'][number];
+
+export const isLoadingCountries = ref(false);
+export const isLoadingCountryProjects = ref(false);
+
+let countryMarkersLayer: L.LayerGroup | null = null;
+
+export async function loadCountriesWithProjects(): Promise<void> {
+  try {
+    isLoadingCountries.value = true;
+    const countriesData = await trpc.country.getCountriesWithProjects.query();
+    countries.value = countriesData.map(country => ({
+      ...country,
+      lat: country.centerCoordinates.y,
+      lng: country.centerCoordinates.x,
+      projectCount: 0, // This will be updated later
+      cities: [], // AI : Empty array, cities will be loaded when user clicks on country
+    })) as any;
+  } catch (error) {
+    console.error('Error loading countries with projects:', error);
+  } finally {
+    isLoadingCountries.value = false;
+  }
+}
+
+
+export function addCountryMarkersToMap(): void {
+  if (!map.value) {
+    onMapInitialized(() => {
+      addCountryMarkersToMapInternal();
+    });
+    return;
+  }
+  addCountryMarkersToMapInternal();
+}
+
+function addCountryMarkersToMapInternal(): void {
+  if (!map.value) {
+    return;
+  }
+
+  if (countryMarkersLayer) {
+    map.value.removeLayer(countryMarkersLayer);
+  }
+
+  countryMarkersLayer = L.layerGroup();
+  countries.value.forEach(country => {
+    const marker = L.marker([country.lat, country.lng]);
+    marker.bindTooltip(`${country.name}`, {
+      permanent: true,
+    });
+    marker.on('click', async () => {
+      await loadCitiesForCountry(country.code);
+      const updatedCountry = countries.value.find(c => c.code === country.code);
+      if (updatedCountry) {
+        addCityMarkersForCountry(updatedCountry.cities as any);
+      }
+    });
+    countryMarkersLayer!.addLayer(marker);
+  });
+
+  countryMarkersLayer.addTo(map.value);
+}
+
+export function removeCountryMarkers(): void {
+  if (map.value && countryMarkersLayer) {
+    map.value.removeLayer(countryMarkersLayer);
+    countryMarkersLayer = null;
+  }
+}
+
+export async function initializeCountryMarkers(): Promise<void> {
+  await loadCountriesWithProjects();
+  addCountryMarkersToMap();
+}
+
+export function cleanupCountryMarkers(): void {
+  removeCountryMarkers();
+}

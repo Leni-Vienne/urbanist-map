@@ -71,7 +71,19 @@ export interface City {
   countryCode: string;
   lat: number;
   lng: number;
+  projectCount: number;
   distance?: number; // AI : Distance in meters when returned by nearby search
+}
+
+export interface Country {
+  id: string;
+  code: string;
+  name: string;
+  lat: number;
+  lng: number;
+  projectCount: number;
+  centerCoordinates?: { x: number; y: number };
+  cities: City[];
 }
 
 // AI : Project information

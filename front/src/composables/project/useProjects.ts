@@ -6,7 +6,7 @@ import {
   removeOverlayFromProject,
 } from '@composables/core/useDatabase';
 import { overlays } from '@stores/overlayStore';
-import { projects, selectedProjectId } from '@stores/projectStore';
+import { projects, selectedProjectId, countries } from '@stores/projectStore';
 import { useToast } from '@composables/ui/useToast';
 import { trpc } from '@client';
 import type { Project, OverlayObject } from '@types';
@@ -14,73 +14,24 @@ import type { Project, OverlayObject } from '@types';
 const toast = useToast();
 
 // AI : Export the reactive stores from centralized location
-export { projects, selectedProjectId };
+export { projects, selectedProjectId, countries };
 
-// AI : Get projects with overlays near the camera center (within 10km by default)
-export async function loadProjectsNearLocation(lat: number, lng: number, radiusKm: number = 10): Promise<void> {
+export async function loadCitiesForCountry(countryCode: string): Promise<void> {
   try {
-    // AI : Fetch projects from backend that have overlays near the location
-    let nearbyProjects: Project[] = [];
-    try {
-      console.log('AI : Fetching nearby projects from backend:', { lat, lng, radiusKm });
-      const backendResult = await trpc.project.getProjectsNearLocation.query({
-        lat,
-        lng,
-        radiusKm
-      });
-
-      nearbyProjects = backendResult.projects.map(backendProject => {
-        // AI : Cast metadata to the expected structure
-        const metadata = backendProject.metadata as {
-          location?: string;
-          startDate?: string;
-          endDate?: string;
-          sourceUrl?: string;
-          overlayIds?: string[];
-          color?: string;
-          createdAt?: string;
-          updatedAt?: string;
-        } | null;
-        return {
-          id: backendProject.id,
-          name: backendProject.title,
-          description: backendProject.description ?? '',
-          color: metadata?.color ?? '#007bff',
-          location: metadata?.location ?? '',
-          cityId: backendProject.cityId ?? undefined, // AI : Include cityId from backend
-          city: backendProject.city ?? undefined, // AI : Include full city object from backend
-          startDate: metadata?.startDate ? new Date(metadata.startDate) : null,
-          endDate: metadata?.endDate ? new Date(metadata.endDate) : null,
-          sourceUrl: metadata?.sourceUrl ?? '',
-          overlayIds: metadata?.overlayIds ?? [],
-          createdAt: backendProject.createdAt?.toISOString() ?? new Date().toISOString(),
-          updatedAt: backendProject.updatedAt?.toISOString() ?? new Date().toISOString()
-        };
-      });
-    } catch (error) {
-      console.warn('AI : Could not fetch nearby projects from backend:', error);
+    // AI : Get all cities that have projects for this specific country
+    const citiesData = await trpc.cities.getCitiesWithProjects.query({ countryCode });
+    // AI : Update the specific country with loaded cities
+    console.log("countries.value:", countries.value);
+    const country = countries.value.find(c => {
+      console.log('Checking country:', c.code, 'against', countryCode);
+      return c.code.trim() === countryCode.trim()
+    });
+    if (country) {
+      country.cities = citiesData as any;
     }
-
-    // AI : Get local project overrides/modifications
-    const localProjects = await getAllProjects();
-    // AI : Create projects map starting with existing projects to preserve city-loaded projects
-    const projectsMap: Record<string, Project> = { ...projects.value };
-
-    // AI : Add nearby backend projects (don't overwrite existing)
-    nearbyProjects.forEach(project => {
-      if (!projectsMap[project.id]) {
-        projectsMap[project.id] = project;
-      }
-    });
-
-    // AI : Override with local modifications (local takes precedence)
-    localProjects.forEach(project => {
-      projectsMap[project.id] = project;
-    });
-    projects.value = projectsMap;
   } catch (error) {
-    console.error('Error loading nearby projects:', error);
-    // Keep existing projects on error
+    console.error('Error loading cities for country:', error);
+    throw error;
   }
 }
 

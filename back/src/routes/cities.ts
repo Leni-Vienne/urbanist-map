@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { publicProcedure, router } from '../trpc';
 import { db } from '../db';
 import { cities, projects, overlays } from '../db/schema';
-import { sql, eq, isNotNull, inArray } from 'drizzle-orm';
+import { sql, eq, isNotNull, inArray, and } from 'drizzle-orm';
 
 const getCitiesNearLocationSchema = z.object({
   lat: z.number().min(-90).max(90), // AI : Valid latitude range
@@ -97,10 +97,18 @@ export const citiesRouter = router({
 
   // AI : Get all cities that have at least one project
   getCitiesWithProjects: publicProcedure
-    .query(async () => {
+    .input(z.object({
+      countryCode: z.string().optional(),
+    }))
+    .query(async ({ input }) => {
       try {
+        const conditions = [isNotNull(projects.cityId)];
+        if (input.countryCode) {
+          conditions.push(eq(cities.countryCode, input.countryCode));
+        }
+        
         // AI : Join cities with projects and return cities that have projects
-        const result = await db
+        const query = db
           .selectDistinct({
             id: cities.id,
             name: cities.name,
@@ -113,9 +121,11 @@ export const citiesRouter = router({
           })
           .from(cities)
           .innerJoin(projects, eq(cities.id, projects.cityId))
-          .where(isNotNull(projects.cityId))
+          .where(and(...conditions))
           .groupBy(cities.id, cities.name, cities.countryCode, cities.coordinates)
           .having(sql`COUNT(${projects.id}) > 0`);
+
+        const result = await query;
 
         return result;
       } catch (error) {

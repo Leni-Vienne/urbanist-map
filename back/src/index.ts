@@ -9,6 +9,7 @@ import { config } from './config';
 import { projectRouter } from './routes/project';
 import { overlayRouter } from './routes/overlay';
 import { citiesRouter } from './routes/cities';
+import { countriesRouter } from './routes/countries';
 
 type sessionData = {
     userId?: string;
@@ -57,6 +58,7 @@ const appRouter = router({
     overlay: overlayRouter,
     project: projectRouter,
     cities: citiesRouter,
+    country: countriesRouter,
 })
 
 export type AppRouter = typeof appRouter;
