@@ -122,7 +122,7 @@ import { ref, computed, watch, onMounted, nextTick } from 'vue';
 
 import { useToast } from '@composables/ui/useToast';
 import { updateTooltipText } from '@composables/overlay/useOverlayActions';
-import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId, loadProjectsNearLocation } from '@composables/project/useProjects';
+import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId } from '@composables/project/useProjects';
 import { navigateToProjectEdit } from '@composables/ui/useRouterNavigation';
 import { deleteOverlay, deleteProject } from '@composables/core/useDatabase';
 import { isEditMode } from '@composables/overlay/useOverlay';
@@ -201,15 +201,6 @@ watch(() => props.overlayObject.projectId, (newProjectId) => {
 
 // AI : Initialize component
 onMounted(async () => {
-   // AI : Load nearby projects if in edit mode to populate ProjectPicker
-  if (isEditMode.value && map.value) {
-    try {
-      const center = map.value.getCenter();
-      await loadProjectsNearLocation(center.lat, center.lng, 10);
-    } catch (error) {
-      console.warn('AI : Failed to load nearby projects for InfoPopup:', error);
-    }
-  }
   loading.value = false;
 });
 
@@ -566,14 +557,7 @@ async function publishOverlay() {
 
 // AI : Load projects when user actually clicks on the ProjectPicker select
 async function onProjectPickerSelectFocus() {
-  if (isEditMode.value && map.value) {
-    try {
-      const center = map.value.getCenter();
-      await loadProjectsNearLocation(center.lat, center.lng, 10);
-    } catch (error) {
-      console.warn('AI : Failed to load nearby projects for InfoPopup:', error);
-    }
-  }
+  // No longer needed, projects are loaded on map view.
 }
 </script>
 

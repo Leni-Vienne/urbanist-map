@@ -41,10 +41,6 @@
       </div>
 
       <div class="card flex">
-        <CityMarkersToggle />
-      </div>
-
-      <div class="card flex">
         <SelectButton
           :model-value="isEditMode ? 'edit' : 'view'"
           @update:model-value="handleModeChange"
@@ -90,10 +86,8 @@ import { setAppContext } from '@composables/core/useTools';
 import { clearDatabase } from '@composables/core/useDatabase';
 import { navigateWithCoordinates } from '@composables/ui/useRouterNavigation';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
-import { initializeCityMarkers } from '@composables/map/useCityMarkers';
-import { loadProjectsNearLocation } from '@composables/project/useProjects';
+import { initializeCountryMarkers } from '@composables/map/useCountryMarkers';
 import TileLayerSelector from '@components/map/TileLayerSelector.vue';
-import CityMarkersToggle from '@components/map/CityMarkersToggle.vue';
 import ProjectPicker from '@components/project/ProjectPicker.vue';
 import ImageUploadDialog from '@components/dialogs/ImageUploadDialog.vue';
 
@@ -163,14 +157,6 @@ async function handleAddOverlayClick() {
 // AI : Handle file selection from dialog
 async function onImageUploadFromDialog(file: File) {
   pendingImageFile.value = file;
-
-  // AI : Load projects near current camera location when uploading overlay
-  const cameraBounds = getCameraBounds();
-  if (cameraBounds.value) {
-    const centerLat = (cameraBounds.value.north + cameraBounds.value.south) / 2;
-    const centerLng = (cameraBounds.value.east + cameraBounds.value.west) / 2;
-    await loadProjectsNearLocation(centerLat, centerLng, 10);
-  }
 
   showProjectSelector.value = true;
 }
@@ -278,7 +264,7 @@ async function initializeMapAndOverlays() {
     await initializeMap();
     initializeCameraBounds(); // AI : Initialize camera bounds tracking
     await initializeOverlays();
-    await initializeCityMarkers(); // AI : Initialize city markers by default
+    await initializeCountryMarkers(); // AI : Initialize country markers by default
     window.addEventListener('keydown', handleKeyDown, true);
     disableLeafletKeyboardEvents();
 
