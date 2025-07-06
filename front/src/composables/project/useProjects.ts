@@ -22,6 +22,7 @@ export async function loadProjectsNearLocation(lat: number, lng: number, radiusK
     // AI : Fetch projects from backend that have overlays near the location
     let nearbyProjects: Project[] = [];
     try {
+      console.log('AI : Fetching nearby projects from backend:', { lat, lng, radiusKm });
       const backendResult = await trpc.project.getProjectsNearLocation.query({
         lat,
         lng,
