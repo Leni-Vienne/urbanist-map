@@ -10,6 +10,7 @@ import { projectRouter } from './routes/project';
 import { overlayRouter } from './routes/overlay';
 import { citiesRouter } from './routes/cities';
 import { countriesRouter } from './routes/countries';
+import { moderationRouter } from './routes/moderation';
 
 type sessionData = {
     userId?: string;
@@ -52,13 +53,14 @@ app.use('*', sessionMiddleware({
     sessionCookieName: 'session',
     encryptionKey: config.SESSION_ENCRYPTION_KEY,
     expireAfterSeconds: 900,
-}))
+}) as any)
 
 const appRouter = router({
     overlay: overlayRouter,
     project: projectRouter,
     cities: citiesRouter,
     country: countriesRouter,
+    moderation: moderationRouter,
 })
 
 export type AppRouter = typeof appRouter;

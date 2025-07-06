@@ -1,63 +1,94 @@
 <template>
-  <Toast />
+  <div class="app-container">
+    <SideMenu v-if="isModerator" :is-open="moderationPanelOpen" @close="moderationPanelOpen = false" />
+    <div class="main-content">
+      <button
+        v-if="isModerator"
+        class="moderation-toggle-button"
+        @click="moderationPanelOpen = !moderationPanelOpen"
+      >
+        <i class="pi pi-bars" />
+      </button>
+      <Toast />
 
-  <!-- AI : Map is always present in the background -->
-  <MapView />
+      <!-- AI : Map is always present in the background -->
+      <MapView />
 
-  <!-- AI : Router view as overlay on top of the map -->
-  <router-view />
+      <!-- AI : Router view as overlay on top of the map -->
+      <router-view />
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import 'leaflet/dist/leaflet.css';
-import 'leaflet-toolbar/dist/leaflet.toolbar.css';
-import "leaflet-distortableimage/dist/leaflet.distortableimage.css";
+import 'leaflet/dist/leaflet.css'
+import 'leaflet-toolbar/dist/leaflet.toolbar.css'
+import 'leaflet-distortableimage/dist/leaflet.distortableimage.css'
 import './assets/style.css' // must be imported after leaflet's css otherwise it's overwritten by leaflet's default css
 import 'primeicons/primeicons.css'
 
-import { onMounted, provide, ref, getCurrentInstance } from 'vue';
-import { initializeDatabase } from '@composables/core/useDatabase';
-import MapView from '@components/map/MapView.vue';
+import { onMounted, provide, ref, getCurrentInstance } from 'vue'
+import { initializeDatabase } from '@composables/core/useDatabase'
+import MapView from '@components/map/MapView.vue'
+import SideMenu from '@components/layout/SideMenu.vue'
 
 // AI : Create a ref to track database initialization state
-const databaseInitialized = ref(false);
+const databaseInitialized = ref(false)
+const isModerator = ref(false)
+const moderationPanelOpen = ref(false)
 
 // AI : Provide the initialization state to child components
-provide('databaseInitialized', databaseInitialized);
+provide('databaseInitialized', databaseInitialized)
 
 onMounted(async () => {
+  if (import.meta.env.VITE_DEV_MODE === 'true') {
+    isModerator.value = true
+  }
   try {
     // AI : Store app instance context for dynamic components
-    const instance = getCurrentInstance();
+    const instance = getCurrentInstance()
     if (instance) {
       // AI : Context setup ready for future use
-    } else {
-      console.warn('Unable to get current instance in App.vue');
+    }
+    else {
+      console.warn('Unable to get current instance in App.vue')
     }
 
     // AI : Initialize global services that should be available app-wide
-    await initializeDatabase();
+    await initializeDatabase()
     // AI : Projects are now loaded lazily when entering edit mode or uploading overlays
 
     // AI : Set initialization flag to true after both operations complete
-    databaseInitialized.value = true;
+    databaseInitialized.value = true
 
     // Utiliser un appel à l'API pour vérifier le statut d'authentification
     const response = await fetch('http://localhost:3000/api/check-session', {
       method: 'GET',
-      credentials: 'include'
+      credentials: 'include',
     })
 
     if (response.ok) {
-      await response.json();
+      const user = await response.json()
+      if (user.role === 'admin')
+        isModerator.value = true
     }
-  } catch (error) {
-    console.error('Error during application initialization:', error);
   }
-});
+  catch (error) {
+    console.error('Error during application initialization:', error)
+  }
+})
 </script>
 
 <style>
+.app-container {
+  display: flex;
+  height: 100vh;
+}
+
+.main-content {
+  flex-grow: 1;
+  position: relative;
+}
 
 /* AI : Transition effects for route changes */
 .fade-enter-active,
@@ -68,5 +99,28 @@ onMounted(async () => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+.moderation-toggle-button {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 1001;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 0.25rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.moderation-toggle-button:hover {
+  background-color: #e9ecef;
+  transform: scale(1.05);
 }
 </style>

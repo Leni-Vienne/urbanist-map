@@ -83,8 +83,15 @@ export async function initializeMap() {
 
   const initialView: L.LatLngExpression = { lat: center[0], lng: center[1] };
 
-  map.value = L.map("viewerDiv", { maxZoom: 22 }).setView(initialView, zoom);
+  map.value = L.map("viewerDiv", { 
+    maxZoom: 22,
+    zoomControl: false
+   }).setView(initialView, zoom);
   if (!map.value) throw new Error('No map element found');
+
+  L.control.zoom({
+    position: 'topright'
+}).addTo(map.value);
 
   // AI : Initialize reactive zoom level
   currentZoomLevel.value = zoom;

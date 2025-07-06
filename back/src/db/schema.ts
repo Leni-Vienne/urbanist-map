@@ -1,7 +1,9 @@
 import {
-  pgTable, uuid, text, timestamp, jsonb, index, doublePrecision, geometry, char
+  pgTable, uuid, text, timestamp, jsonb, index, doublePrecision, geometry, char, pgEnum
 } from 'drizzle-orm/pg-core';
 import { sql, InferSelectModel, InferInsertModel } from 'drizzle-orm';
+
+export const approvalStatusEnum = pgEnum('approval_status', ['pending', 'approved', 'rejected']);
 
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -16,6 +18,7 @@ export const projects = pgTable('projects', {
   id: uuid('id').defaultRandom().primaryKey(),
   title: text('title').notNull(),
   description: text('description'),
+  status: approvalStatusEnum('status').default('pending').notNull(),
   ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'set null', onUpdate: 'cascade' }),
   cityId: uuid('city_id').references(() => cities.id, { onDelete: 'set null', onUpdate: 'cascade' }), // AI : Reference to the city where the project is located
   metadata: jsonb('metadata'),
@@ -28,6 +31,7 @@ export const overlays = pgTable('overlays', {
   id: uuid('id').defaultRandom().primaryKey(),
   filename: text('filename').notNull(),
   caption: text('caption'),
+  status: approvalStatusEnum('status').default('pending').notNull(),
   projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
   authorId: uuid('author_id').references(() => users.id, { onDelete: 'set null', onUpdate: 'cascade' }),
   metadata: jsonb('metadata'), // pour EXIF, etc.
