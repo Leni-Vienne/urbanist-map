@@ -19,10 +19,8 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
   try {
     // AI : Get all cities that have projects for this specific country
     const citiesData = await trpc.cities.getCitiesWithProjects.query({ countryCode });
-    // AI : Update the specific country with loaded cities
-    console.log("countries.value:", countries.value);
+
     const country = countries.value.find(c => {
-      console.log('Checking country:', c.code, 'against', countryCode);
       return c.code.trim() === countryCode.trim()
     });
     if (country) {
@@ -34,7 +32,7 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
   }
 }
 
-export async function createProject(projectData: Omit<Project, 'id' | 'overlayIds' | 'color'>): Promise<string> {
+export async function createProject(projectData: Partial<Omit<Project, 'id' | 'overlayIds' | 'color'>>): Promise<string> {
   const id = crypto.randomUUID();
 
   const project: Project = {
@@ -42,6 +40,15 @@ export async function createProject(projectData: Omit<Project, 'id' | 'overlayId
     id,
     overlayIds: [],
     color: '#007bff',
+    source_url: projectData.source_url || '',
+    startDate: projectData.startDate || null,
+    endDate: projectData.endDate || null,
+    latest_update_on: projectData.latest_update_on || null,
+    name: projectData.name || '',
+    description: projectData.description || '',
+    location: projectData.location || '',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
 
   await saveProject(project);

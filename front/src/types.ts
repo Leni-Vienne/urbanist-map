@@ -88,7 +88,8 @@ export interface Project {
   city?: City; // AI : City information included from backend joins
   startDate: Date | null;
   endDate: Date | null;
-  sourceUrl: string;
+  source_url: string;
+  latest_update_on: Date | null;
   overlayIds: string[];
   color: string; // AI : Color for visual grouping
   createdAt: string; // AI : ISO string date of creation

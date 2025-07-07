@@ -147,23 +147,8 @@ export async function saveProject(project: Project): Promise<void> {
   }
   
   try {
-    // AI : Create a plain object copy to avoid DataCloneError with reactive data
-    const plainProject = {
-      id: project.id,
-      name: project.name,
-      description: project.description,
-      location: project.location,
-      cityId: project.cityId, // AI : Include cityId for foreign key relationship
-      city: project.city, // AI : Include city information from backend joins
-      startDate: project.startDate,
-      endDate: project.endDate,
-      sourceUrl: project.sourceUrl,
-      overlayIds: Array.isArray(project.overlayIds) ? [...project.overlayIds] : [], // AI : Ensure array copy
-      color: project.color,
-      createdAt: project.createdAt,
-      updatedAt: project.updatedAt,
-      savedRemotely: project.savedRemotely
-    };
+    // AI : Use helper function to create a serializable copy for IndexedDB
+    const plainProject = serializeProjectForStorage(project);
     await db.put('projects', plainProject);
   } catch (error) {
     console.error('Error saving project:', error);
@@ -180,7 +165,11 @@ export async function getProject(id: string): Promise<Project | undefined> {
   }
   
   try {
-    return await db.get('projects', id);
+    const storedProject = await db.get('projects', id);
+    if (!storedProject) return undefined;
+    
+    // AI : Use helper function to convert stored data back to runtime format
+    return deserializeProjectFromStorage(storedProject);
   } catch (error) {
     console.error('Error retrieving project:', error);
     return undefined;
@@ -221,24 +210,8 @@ export async function addOverlayToProject(projectId: string, overlayId: string):
       const memoryProject = projects.value[projectId];
       
       if (memoryProject) {
-        // AI : Create a plain object copy to avoid DataCloneError with reactive data
-        const plainProject = {
-          id: memoryProject.id,
-          name: memoryProject.name,
-          description: memoryProject.description,
-          location: memoryProject.location,
-          cityId: memoryProject.cityId, // AI : Include cityId for foreign key relationship
-          city: memoryProject.city, // AI : Include city information from backend joins
-          startDate: memoryProject.startDate,
-          endDate: memoryProject.endDate,
-          sourceUrl: memoryProject.sourceUrl,
-          overlayIds: [...memoryProject.overlayIds], // AI : Create a new array copy
-          color: memoryProject.color,
-          createdAt: memoryProject.createdAt,
-          updatedAt: memoryProject.updatedAt,
-          savedRemotely: memoryProject.savedRemotely
-        };
-        // AI : Save the plain project object to IndexedDB
+        // AI : Use helper function to serialize project for storage
+        const plainProject = serializeProjectForStorage(memoryProject);
         await db.put('projects', plainProject);
         project = plainProject;
       } else {
@@ -248,10 +221,13 @@ export async function addOverlayToProject(projectId: string, overlayId: string):
       }
     }
     
-    // AI : Add overlay to project if not already included
-    if (!project.overlayIds.includes(overlayId)) {
-      project.overlayIds.push(overlayId);
-      await db.put('projects', project);
+    // AI : Ensure project exists before proceeding
+    if (project) {
+      // AI : Add overlay to project if not already included
+      if (!project.overlayIds.includes(overlayId)) {
+        project.overlayIds.push(overlayId);
+        await db.put('projects', project);
+      }
     }
     
     // AI : Update overlay with project reference
@@ -325,4 +301,41 @@ export async function getProjectOverlays(projectId: string): Promise<StoredOverl
     console.error('Error getting project overlays:', error);
     return [];
   }
+}
+
+// AI : Helper functions to handle date serialization for IndexedDB storage
+
+/**
+ * Convert a project with Date objects to a serializable format for IndexedDB
+ */
+function serializeProjectForStorage(project: Project): any {
+  return {
+    ...project,
+    startDate: project.startDate instanceof Date ? project.startDate.toISOString() : project.startDate,
+    endDate: project.endDate instanceof Date ? project.endDate.toISOString() : project.endDate,
+    latest_update_on: project.latest_update_on instanceof Date ? project.latest_update_on.toISOString() : project.latest_update_on,
+    city: project.city ? {
+      // AI : Create a plain copy of city object to avoid reactive proxy issues
+      id: project.city.id,
+      name: project.city.name,
+      countryCode: project.city.countryCode,
+      lat: project.city.lat,
+      lng: project.city.lng,
+      projectCount: project.city.projectCount,
+      distance: project.city.distance
+    } : undefined,
+    overlayIds: Array.isArray(project.overlayIds) ? [...project.overlayIds] : []
+  };
+}
+
+/**
+ * Convert a stored project back to runtime format with Date objects
+ */
+function deserializeProjectFromStorage(storedProject: any): Project {
+  return {
+    ...storedProject,
+    startDate: storedProject.startDate ? new Date(storedProject.startDate) : null,
+    endDate: storedProject.endDate ? new Date(storedProject.endDate) : null,
+    latest_update_on: storedProject.latest_update_on ? new Date(storedProject.latest_update_on) : null
+  } as Project;
 }

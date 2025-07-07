@@ -82,7 +82,7 @@
                     <InputText
                         id="source-url-input"
                         type="url"
-                        v-model="localProject.sourceUrl"
+                        v-model="localProject.source_url"
                         class="w-full"
                         required
                     />
@@ -128,6 +128,22 @@
                         >End Date</label>
                     </FloatLabel>
                 </div>
+            </div>
+            <div class="field">
+                <FloatLabel
+                    class="w-full"
+                    variant="in"
+                >
+                    <DatePicker
+                        id="latest-update-on-input"
+                        v-model="localProject.latest_update_on"
+                        class="w-full"
+                    />
+                    <label
+                        for="latest-update-on-input"
+                        class="text-gray-600"
+                    >Latest Update On</label>
+                </FloatLabel>
             </div>
         </div>
 
