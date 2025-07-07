@@ -1,5 +1,11 @@
 import L from "leaflet";
 import { DBSchema } from "idb";
+import type { RouterOutput } from '@client';
+import type { 
+  DBCountry, 
+  DBProject, 
+  DBOverlay
+} from '../../back/src/db/schema';
 
 // AI : Type for geographic coordinates
 export type LatLng = {
@@ -18,18 +24,18 @@ export interface CameraBounds {
 
 // AI : Extend Leaflet namespace to include custom actions
 declare module "leaflet" {
-  // oxlint isn't happy about those but it avoids typescript errors due to leaflet distortableimage lacking types
-  const DistortAction: any;
-  const RotateAction: any;
-  const FreeRotateAction: any;
-  const OpacityAction: any;
-  const OpacitiesAction: any;
-  const DeleteAction: any;
-  const StackAction: any;
-  const Toolbar2: any;
-  const EditAction: any;
-  const DragAction: any;
-  const ResizeRotateAction: any;
+  // AI : Leaflet distortableimage types - prefixed with _ to indicate intentionally unused
+  const _DistortAction: any;
+  const _RotateAction: any;
+  const _FreeRotateAction: any;
+  const _OpacityAction: any;
+  const _OpacitiesAction: any;
+  const _DeleteAction: any;
+  const _StackAction: any;
+  const _Toolbar2: any;
+  const _EditAction: any;
+  const _DragAction: any;
+  const _ResizeRotateAction: any;
 
   // AI : Definition for DistortableImageOverlay
   interface DistortableImageOverlay extends L.ImageOverlay {
@@ -47,30 +53,52 @@ declare module "leaflet" {
   function distortableImageOverlay(imageUrl: string, options?: any): DistortableImageOverlay;
 }
 
+// AI : tRPC-inferred types from backend API (for transformed data)
+export type City = RouterOutput['cities']['getCitiesNearLocation'][number];
 
-// AI : City data structure returned by the cities API
-export interface City {
-  id: string;
-  name: string;
-  countryCode: string;
+// AI : Extended Country type for frontend use with additional properties
+export interface Country extends DBCountry {
   lat: number;
   lng: number;
   projectCount: number;
-  distance?: number; // AI : Distance in meters when returned by nearby search
-}
-
-export interface Country {
-  id: string;
-  code: string;
-  name: string;
-  lat: number;
-  lng: number;
-  projectCount: number;
-  centerCoordinates?: { x: number; y: number };
   cities: City[];
 }
 
-// AI : Project information
+// AI : Extract backend project data from city projects
+export type BackendProject = RouterOutput['cities']['getCityProjects'][number];
+
+// AI : Transform the backend overlay format to match our expected CDN format
+export interface CDNOverlayData {
+  id: string;
+  filename: string;
+  caption?: string;
+  projectId: string | null;
+  project: {
+    id: string;
+    title: string;
+    description: string | null;
+    cityId: string | null;
+    city: {
+      id: string | null;
+      name: string;
+      countryCode: string;
+    } | null;
+    metadata: any;
+    createdAt: Date | null;
+    updatedAt: Date | null;
+  } | null;
+  centroid: {
+    lat: number;
+    lng: number;
+  };
+  corners: { lat: number; lng: number }[];
+  distance: number;
+  createdAt: Date | null;
+}
+
+export type PendingOverlay = RouterOutput['moderation']['getPendingSubmissions']['overlays'][number];
+
+// AI : Project information for forms
 export interface ProjectInfo {
   projectName: string;
   sourceLink: string;
@@ -78,66 +106,25 @@ export interface ProjectInfo {
   endDate: Date | null;
 }
 
-// AI : Project data that is stored in the database
-export interface Project {
-  id: string;
-  name: string;
-  description: string;
-  location: string;
-  cityId?: string; // AI : Reference to city ID for foreign key relationship
+// AI : Project data that is stored in the database (local projects)
+// AI : Based on Drizzle schema but with frontend-specific extensions
+export interface Project extends Omit<DBProject, 'title' | 'ownerId' | 'status'> {
+  name: string; // AI : Frontend uses 'name' instead of 'title'
+  location: string; // AI : Frontend-specific location string
   city?: City; // AI : City information included from backend joins
-  startDate: Date | null;
-  endDate: Date | null;
-  sourceUrl: string;
-  latestUpdateOn: Date | null;
-  overlayIds: string[];
+  overlayIds: string[]; // AI : Array of overlay IDs for this project
   color: string; // AI : Color for visual grouping
-  createdAt: string; // AI : ISO string date of creation
-  updatedAt: string; // AI : ISO string date of last update
   savedRemotely?: boolean; // AI : Track if project exists on server database
 }
 
-// AI : Data that is stored in the database
-export interface StoredOverlayData {
-  id: string;
-  imageUrl: string;
-  corners: { lat: number, lng: number }[];
-  history: { lat: number, lng: number }[][];
-  redoStack: { lat: number, lng: number }[][];
-  projectId: string; // AI : Required reference to project (no longer optional)
-  caption?: string; // AI : Optional caption information (e.g., "planning", "foundation", etc.)
+// AI : Data that is stored in the database (based on Drizzle schema)
+// AI : Local storage format with frontend-specific properties
+export interface StoredOverlayData extends Omit<DBOverlay, 'topLeftLat' | 'topLeftLng' | 'topRightLat' | 'topRightLng' | 'bottomRightLat' | 'bottomRightLng' | 'bottomLeftLat' | 'bottomLeftLng' | 'centroid' | 'status' | 'authorId'> {
+  imageUrl: string; // AI : Frontend uses imageUrl for local storage
+  corners: { lat: number, lng: number }[]; // AI : Simplified corners array format
+  history: { lat: number, lng: number }[][]; // AI : Undo history for overlay transformations
+  redoStack: { lat: number, lng: number }[][]; // AI : Redo stack for overlay transformations
   savedRemotely?: boolean; // AI : Track if overlay exists on server database
-}
-
-// AI : CDN overlay data returned by tRPC for view mode
-export interface CDNOverlayData {
-  id: string;
-  filename: string; // AI : For CDN URL construction
-  caption?: string;
-  projectId: string | null; // AI : Project ID for styling backend overlays
-  // AI : Full project data for display and styling
-  project: {
-    id: string;
-    title: string;
-    description: string | null;
-    cityId: string | null; // AI : City ID for location context
-    city: {
-      id: string | null; // AI : City ID can be null
-      name: string;
-      countryCode: string;
-    } | null; // AI : Full city data for display
-    metadata: any;
-    createdAt: Date | null; // AI : Match database schema where createdAt can be null
-    updatedAt: Date | null; // AI : Can also be null
-  } | null;
-  centroid: {
-    lat: number;
-    lng: number;
-  };
-  // AI : All corner coordinates for proper overlay positioning (exactly 4 corners)
-  corners: { lat: number; lng: number }[];
-  distance: number;
-  createdAt: Date | null; // AI : Match database schema where createdAt can be null
 }
 
 // AI : Define a simplified version of overlay data for the list component
@@ -146,12 +133,6 @@ export interface OverlayListItem {
   caption?: string;
   distance?: number; // AI : For view mode display
   filename?: string; // AI : For CDN URL construction in view mode
-}
-
-export interface PendingOverlay {
-  id: string;
-  name: string;
-  city: string | null;
 }
 
 // AI : Extended overlay object with runtime properties

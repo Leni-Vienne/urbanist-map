@@ -24,8 +24,8 @@ export function useProjectEditor(projectId: string, mode: 'edit' | 'view' | 'cre
     location: '',
     startDate: null,
     endDate: null,
-    source_url: '',
-    latest_update_on: null,
+    sourceUrl: '',
+    latestUpdateOn: null,
     overlayIds: [],
   });
 
@@ -40,15 +40,15 @@ export function useProjectEditor(projectId: string, mode: 'edit' | 'view' | 'cre
   const initializeProject = async () => {
     if (mode === 'create') {
       editingProject.value = {
-        name: initialProjectName.value,
-        description: '',
-        location: '',
-        cityId: undefined, // AI : Initialize cityId as undefined
-        startDate: null,
-        endDate: null,
-        source_url: '',
-        latest_update_on: null,
-        overlayIds: [],
+    name: initialProjectName.value,
+    description: '',
+    location: '',
+    cityId: undefined, // AI : Initialize cityId as undefined
+    startDate: null,
+    endDate: null,
+    sourceUrl: '',
+    latestUpdateOn: null,
+    overlayIds: [],
       };
     } else if (projectId && projects.value[projectId]) {
       if (mode === 'edit') {
@@ -89,10 +89,8 @@ export function useProjectEditor(projectId: string, mode: 'edit' | 'view' | 'cre
         cityId: projectData.cityId, // AI : Include cityId for foreign key relationship
         startDate: projectData.startDate ?? null,
         endDate: projectData.endDate ?? null,
-        source_url: projectData.source_url ?? '',
-        latest_update_on: projectData.latest_update_on ?? null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        sourceUrl: projectData.sourceUrl ?? '',
+        latestUpdateOn: projectData.latestUpdateOn ?? null
       };
 
       let savedProjectId;

@@ -47,15 +47,16 @@ export async function loadCityProjects(cityId: string, _cityName: string): Promi
           description: project.description ?? '',
           color: metadata?.color ?? '#007bff',
           location: metadata?.location ?? '',
-          cityId: project.cityId ?? undefined,
+          cityId: project.cityId ?? null,
           city: project.city as City,
           startDate: metadata?.startDate ? new Date(metadata.startDate) : null,
           endDate: metadata?.endDate ? new Date(metadata.endDate) : null,
           sourceUrl: metadata?.sourceUrl ?? '',
           latestUpdateOn: metadata?.latestUpdateOn ? new Date(metadata.latestUpdateOn) : null,
           overlayIds: project.overlays.map((overlay: any) => overlay.id),
-          createdAt: project.createdAt?.toISOString() ?? new Date().toISOString(),
-          updatedAt: project.createdAt?.toISOString() ?? new Date().toISOString()
+          createdAt: project.createdAt ? new Date(project.createdAt) : new Date(),
+          updatedAt: project.createdAt ? new Date(project.createdAt) : new Date(),
+          metadata: project.metadata ?? null
         };
         
         updatedProjects[project.id] = frontendProject;

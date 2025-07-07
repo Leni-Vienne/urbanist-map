@@ -4,7 +4,7 @@
     
     <ProjectOverlaysSection
       :project="project"
-      :overlays="projectOverlays"
+      :overlays="projectOverlaysListItems"
       @view="viewOverlay"
       @remove="removeOverlayFromProject"
       @add-overlay="showAddOverlayDialog = true"
@@ -70,7 +70,7 @@ const { isHighlighted, toggleHighlight, clearHighlightOnModeChange } = useProjec
 const projectOverlaysListItems = computed<OverlayListItem[]>(() =>
   projectOverlays.value.map(overlay => ({
     id: overlay.id,
-    caption: overlay.caption
+    caption: overlay.caption ?? undefined // AI : Convert null to undefined for OverlayListItem type
   }))
 );
 

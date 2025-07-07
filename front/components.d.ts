@@ -12,8 +12,6 @@ declare module 'vue' {
     AppLayout: typeof import('./src/components/layout/AppLayout.vue')['default']
     Button: typeof import('primevue/button')['default']
     CityMarkersToggle: typeof import('./src/components/map/CityMarkersToggle.vue')['default']
-    Column: typeof import('primevue/column')['default']
-    DataTable: typeof import('primevue/datatable')['default']
     DatePicker: typeof import('primevue/datepicker')['default']
     Dialog: typeof import('primevue/dialog')['default']
     FloatLabel: typeof import('primevue/floatlabel')['default']
@@ -21,9 +19,6 @@ declare module 'vue' {
     InfoPopup: typeof import('./src/components/map/InfoPopup.vue')['default']
     InputText: typeof import('primevue/inputtext')['default']
     MapView: typeof import('./src/components/map/MapView.vue')['default']
-    Menu: typeof import('primevue/menu')['default']
-    ModerationColumn: typeof import('./src/components/layout/ModerationColumn.vue')['default']
-    ModerationList: typeof import('./src/components/layout/ModerationList.vue')['default']
     OverlayEditor: typeof import('./src/components/map/OverlayEditor.vue')['default']
     OverlayItem: typeof import('./src/components/map/OverlayItem.vue')['default']
     ProjectActions: typeof import('./src/components/project/ProjectActions.vue')['default']
@@ -43,7 +38,6 @@ declare module 'vue' {
     Textarea: typeof import('primevue/textarea')['default']
     TileLayerSelector: typeof import('./src/components/map/TileLayerSelector.vue')['default']
     Toast: typeof import('primevue/toast')['default']
-    ToggleButton: typeof import('primevue/togglebutton')['default']
   }
   export interface GlobalDirectives {
     Tooltip: typeof import('primevue/tooltip')['default']
