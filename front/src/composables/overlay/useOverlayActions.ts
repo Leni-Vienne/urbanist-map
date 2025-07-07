@@ -1,6 +1,6 @@
 import L from "leaflet";
-import { map, onMapInitialized } from '@composables/core/useMap';
-import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, updateOverlayImage, isEditMode, removeOverlay } from '@composables/overlay/useOverlay';
+import { map } from '@composables/core/useMap';
+import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, isEditMode, removeOverlay } from '@composables/overlay/useOverlay';
 import { saveOverlay, deleteOverlay as deleteOverlayFromDatabase, saveProject } from '@composables/core/useDatabase';
 import { useToast } from '@composables/ui/useToast';
 import { projects, addOverlayToProjectWithId } from '@composables/project/useProjects';
@@ -30,16 +30,22 @@ export async function addOverlay(imageUrl: string, projectId: string) {
     imageUrl,
     overlay: null,
     marker: null,
-    history: [],    redoStack: [],
+    history: [],
+    redoStack: [],
     alreadyLoaded: false,
     alreadyStored: false,
     corners: [],
     projectId,
-    caption: undefined,
+    caption: null,
     whitePixelsHidden: false,
     isFlipped: false,
     currentResolution: imageUrl,
     savedRemotely: false, // AI : New overlays don't exist on server yet
+    // AI : Required fields from Drizzle schema
+    filename: imageUrl.split('/').pop() || '',
+    metadata: null,
+    createdAt: new Date(),
+    updatedAt: new Date()
   };
 
   // Create the overlay
@@ -121,7 +127,12 @@ function saveOverlayInitialState(overlay: L.DistortableImageOverlay, overlayObje
     redoStack: overlayObject.redoStack,
     projectId: overlayObject.projectId,
     caption: overlayObject.caption,
-    savedRemotely: overlayObject.savedRemotely ?? false // AI : Include server existence tracking
+    savedRemotely: overlayObject.savedRemotely ?? false, // AI : Include server existence tracking
+    // AI : Required fields from Drizzle schema
+    filename: overlayObject.filename || overlayObject.imageUrl.split('/').pop() || '',
+    metadata: overlayObject.metadata || null,
+    createdAt: overlayObject.createdAt || new Date(),
+    updatedAt: new Date()
   };
   
   saveOverlay(storedOverlay);
@@ -170,14 +181,19 @@ function applyHistoryAction(action: 'undo' | 'redo') {
     overlayObject.corners = overlayObject.overlay.getCorners();
   }
   
-  const savedOverlay = {
+  const savedOverlay: StoredOverlayData = {
     id: overlayObject.id,
     imageUrl: overlayObject.imageUrl,
     corners: overlayObject.corners,
     history: overlayObject.history,
     redoStack: overlayObject.redoStack,
     projectId: overlayObject.projectId,
-    caption: overlayObject.caption
+    caption: overlayObject.caption,
+    // AI : Required fields from Drizzle schema
+    filename: overlayObject.filename || overlayObject.imageUrl.split('/').pop() || '',
+    metadata: overlayObject.metadata || null,
+    createdAt: overlayObject.createdAt || new Date(),
+    updatedAt: new Date()
   };
   
   saveOverlay(savedOverlay);
@@ -293,14 +309,19 @@ export function resetImageRatio() {
     if (overlayObject.overlay) {
       overlayObject.corners = overlayObject.overlay.getCorners();
     }
-      const savedOverlay = {
+      const savedOverlay: StoredOverlayData = {
       id: overlayObject.id,
       imageUrl: overlayObject.imageUrl,
       corners: overlayObject.corners,
       history: overlayObject.history,
       redoStack: overlayObject.redoStack,
       projectId: overlayObject.projectId,
-      caption: overlayObject.caption
+      caption: overlayObject.caption,
+      // AI : Required fields from Drizzle schema
+      filename: overlayObject.filename || overlayObject.imageUrl.split('/').pop() || '',
+      metadata: overlayObject.metadata || null,
+      createdAt: overlayObject.createdAt || new Date(),
+      updatedAt: new Date()
     };
     
     saveOverlay(savedOverlay);
@@ -677,11 +698,12 @@ export function deleteOverlay(id: string) {
       city: project.city, // AI : Include city information from backend joins
       startDate: project.startDate,
       endDate: project.endDate,
-      source_url: project.source_url ?? '',
-      latest_update_on: project.latest_update_on ?? null,
+      sourceUrl: project.sourceUrl ?? null,
+      latestUpdateOn: project.latestUpdateOn ?? null,
       overlayIds: project.overlayIds.filter(overlayId => overlayId !== id),
-      createdAt: project.createdAt ?? new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      metadata: project.metadata ?? null, // AI : Include required metadata field
+      createdAt: project.createdAt instanceof Date ? project.createdAt : new Date(),
+      updatedAt: new Date()
     };
     
     // Update local reference
@@ -697,7 +719,7 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
   const overlayObject = overlays.value[id];
   if (!overlayObject) return;
 
-  overlayObject.caption = info.caption;
+  overlayObject.caption = info.caption ?? null;
   
   updateTooltipText();
   
@@ -706,7 +728,7 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
     overlayObject.corners = overlayObject.overlay.getCorners();
   }
   
-  const savedOverlay = {
+  const savedOverlay: StoredOverlayData = {
     id: overlayObject.id,
     imageUrl: overlayObject.imageUrl,
     corners: overlayObject.corners,
@@ -714,7 +736,12 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
     redoStack: overlayObject.redoStack,
     projectId: overlayObject.projectId,
     caption: overlayObject.caption,
-    savedRemotely: overlayObject.savedRemotely ?? false // AI : Include server existence tracking
+    savedRemotely: overlayObject.savedRemotely ?? false, // AI : Include server existence tracking
+    // AI : Required fields from Drizzle schema
+    filename: overlayObject.filename || overlayObject.imageUrl.split('/').pop() || '',
+    metadata: overlayObject.metadata || null,
+    createdAt: overlayObject.createdAt || new Date(),
+    updatedAt: new Date()
   };
   
   saveOverlay(savedOverlay);

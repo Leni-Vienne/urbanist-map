@@ -40,15 +40,17 @@ export async function createProject(projectData: Partial<Omit<Project, 'id' | 'o
     id,
     overlayIds: [],
     color: '#007bff',
-    sourceUrl: projectData.sourceUrl || '',
+    sourceUrl: projectData.sourceUrl || null,
     startDate: projectData.startDate || null,
     endDate: projectData.endDate || null,
     latestUpdateOn: projectData.latestUpdateOn || null,
     name: projectData.name || '',
-    description: projectData.description || '',
+    description: projectData.description || null,
     location: projectData.location || '',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    metadata: null,
+    cityId: projectData.cityId || null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
   };
 
   await saveProject(project);

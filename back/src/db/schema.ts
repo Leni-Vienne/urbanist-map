@@ -84,8 +84,9 @@ export const countries = pgTable('countries', {
 }));
 
 
-/*export type City = InferSelectModel<typeof cities>;
-export type Project = InferSelectModel<typeof projects>;
-export type Overlay = InferSelectModel<typeof overlays>;
-export type User = InferSelectModel<typeof users>;
-export type Country = InferSelectModel<typeof countries>;*/
+// AI : Export Drizzle-inferred types for frontend consumption
+export type City = InferSelectModel<typeof cities>;
+export type DBProject = InferSelectModel<typeof projects>;
+export type DBOverlay = InferSelectModel<typeof overlays>;
+export type DBUser = InferSelectModel<typeof users>;
+export type DBCountry = InferSelectModel<typeof countries>;

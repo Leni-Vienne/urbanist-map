@@ -16,7 +16,7 @@
       >
         <div class="text-sm font-semibold mb-2 text-gray-700">Project Assignment</div>
         <ProjectPicker
-          v-model="selectedProjectId"
+          v-model="projectPickerValue"
           @project-selected="applyProjectChange"
           @select-focus="onProjectPickerSelectFocus"
           :hideSelector="false"
@@ -58,22 +58,22 @@
             </span>
           </div>
           <div
-            v-if="project.source_url"
+            v-if="project.sourceUrl"
             class="flex justify-between"
           >
             <span class="font-medium text-gray-600">Source:</span>
             <a
-              :href="project.source_url"
+              :href="project.sourceUrl"
               target="_blank"
               class="text-blue-600 hover:underline text-xs truncate max-w-32"
-            >{{ project.source_url }}</a>
+            >{{ project.sourceUrl }}</a>
           </div>
           <div
-            v-if="project.latest_update_on"
+            v-if="project.latestUpdateOn"
             class="flex justify-between"
           >
             <span class="font-medium text-gray-600">Latest Update:</span>
-            <span class="text-right text-xs">{{ formatDate(project.latest_update_on) }}</span>
+            <span class="text-right text-xs">{{ formatDate(project.latestUpdateOn) }}</span>
           </div>
         </div>
       </div>
@@ -149,12 +149,20 @@ const props = defineProps<{
 const toast = useToast();
 const loading = ref(true);
 const editingProject = ref(false);
-const selectedProjectId = ref<string | undefined>(props.overlayObject.projectId);
+const selectedProjectId = ref<string | null>(props.overlayObject.projectId);
 const overlayEditorRef = ref<InstanceType<typeof OverlayEditor> | null>(null);
 const isPublishing = ref(false);
 
 // AI : Use a reactive reference for the current project ID to ensure reactivity
-const currentProjectId = ref<string | undefined>(props.overlayObject.projectId);
+const currentProjectId = ref<string | null>(props.overlayObject.projectId);
+
+// AI : Computed property to handle null/undefined conversion for ProjectPicker v-model
+const projectPickerValue = computed({
+  get: () => selectedProjectId.value ?? '',
+  set: (value: string) => {
+    selectedProjectId.value = value || null;
+  }
+});
 
 // AI : Make project reactive to changes in projects store and currentProjectId
 const project = computed(() => {
@@ -172,18 +180,20 @@ const project = computed(() => {
       return {
         id: project.id,
         name: project.title,
-        description: project.description || '',
+        description: project.description || null,
         color: project.color || '#007bff',
         location: project.location || '',
-        cityId: project.cityId || undefined,
+        cityId: project.cityId || null,
         city: project.city || undefined,
         startDate: project.startDate ? new Date(project.startDate) : null,
         endDate: project.endDate ? new Date(project.endDate) : null,
-        source_url: project.source_url || '',
-        latest_update_on: project.latest_update_on ? new Date(project.latest_update_on) : null,
+        sourceUrl: project.sourceUrl || null,
+        latestUpdateOn: project.latestUpdateOn ? new Date(project.latestUpdateOn) : null,
+        metadata: null,
         overlayIds: [],
-        createdAt: project.createdAt?.toISOString() || new Date().toISOString(),
-        updatedAt: project.updatedAt?.toISOString() || new Date().toISOString()
+        savedRemotely: true,
+        createdAt: project.createdAt || new Date(),
+        updatedAt: project.updatedAt || new Date()
       };
     }
   }
@@ -211,7 +221,7 @@ function formatDate(date: Date | null): string {
 function onOverlayUpdate(overlayId: string, caption?: string) {
   // AI : Update the local data if needed
   if (overlayId === props.overlayObject.id) {
-    props.overlayObject.caption = caption;
+    props.overlayObject.caption = caption || null;
   }
 }
 
@@ -378,10 +388,10 @@ async function ensureProjectOnServer(): Promise<boolean> {
       title: project.value.name,
       description: project.value.description,
       cityId: project.value.cityId,
-      start_date: project.value.startDate?.toISOString(),
-      end_date: project.value.endDate?.toISOString(),
-      source_url: project.value.source_url,
-      latest_update_on: project.value.latest_update_on?.toISOString()
+      startDate: project.value.startDate?.toISOString(),
+      endDate: project.value.endDate?.toISOString(),
+      sourceUrl: project.value.sourceUrl,
+      latestUpdateOn: project.value.latestUpdateOn?.toISOString()
     });
     if (!projectResult.success) {
       throw new Error('Failed to publish project to server');

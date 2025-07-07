@@ -36,7 +36,12 @@ export function saveOverlayToDatabase(overlayObj: OverlayObject): void {
     redoStack: overlayObj.redoStack,
     projectId: overlayObj.projectId,
     caption: overlayObj.caption,
-    savedRemotely: overlayObj.savedRemotely || false
+    savedRemotely: overlayObj.savedRemotely || false,
+    // AI : Required fields from Drizzle schema
+    filename: overlayObj.filename || overlayObj.imageUrl.split('/').pop() || '',
+    metadata: overlayObj.metadata || null,
+    createdAt: overlayObj.createdAt || new Date(),
+    updatedAt: new Date()
   };
 
   saveOverlay(savedOverlay);
@@ -191,8 +196,8 @@ export function createOverlayObject(savedOverlay: StoredOverlayData): OverlayObj
       title: projects.value[savedOverlay.projectId].name,
       description: projects.value[savedOverlay.projectId].description ?? null,
       metadata: { color: projects.value[savedOverlay.projectId].color },
-      createdAt: new Date(projects.value[savedOverlay.projectId].createdAt),
-      updatedAt: new Date(projects.value[savedOverlay.projectId].updatedAt)
+      createdAt: projects.value[savedOverlay.projectId].createdAt || new Date(),
+      updatedAt: projects.value[savedOverlay.projectId].updatedAt || new Date()
     }
     : null;
 
@@ -434,7 +439,12 @@ export function saveToHistory(overlayObject: OverlayObject): void {
     redoStack: overlayObject.redoStack,
     projectId: overlayObject.projectId,
     caption: overlayObject.caption,
-    savedRemotely: overlayObject.savedRemotely || false // AI : Include server existence tracking
+    savedRemotely: overlayObject.savedRemotely || false, // AI : Include server existence tracking
+    // AI : Required fields from Drizzle schema
+    filename: overlayObject.filename || overlayObject.imageUrl.split('/').pop() || '',
+    metadata: overlayObject.metadata || null,
+    createdAt: overlayObject.createdAt || new Date(),
+    updatedAt: new Date()
   };
 
   saveOverlay(savedOverlay);
@@ -759,8 +769,13 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData): Promise<
       history: [],
       redoStack: [],
       projectId: cdnOverlay.projectId ?? '',
-      caption: cdnOverlay.caption,
-      savedRemotely: true
+      caption: cdnOverlay.caption ?? null,
+      savedRemotely: true,
+      // AI : Required fields from Drizzle schema
+      filename: cdnOverlay.filename,
+      metadata: null, // AI : CDNOverlayData doesn't have metadata field
+      createdAt: cdnOverlay.createdAt || new Date(),
+      updatedAt: new Date() // AI : CDNOverlayData doesn't have updatedAt field, use current date
     };
 
     // AI : Create marker at centroid position

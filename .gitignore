@@ -11,6 +11,7 @@ server.bundle.js
 countries.csv
 worldcities.csv
 specs.md
+.clinerules
 .github/instructions
 uploads
 node_modules

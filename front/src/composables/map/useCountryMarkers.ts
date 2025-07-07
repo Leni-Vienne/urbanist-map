@@ -20,9 +20,12 @@ export async function loadCountriesWithProjects(): Promise<void> {
       ...country,
       lat: country.centerCoordinates.y,
       lng: country.centerCoordinates.x,
-      projectCount: 0, // This will be updated later
+      projectCount: 0, // AI : This will be updated later
       cities: [], // AI : Empty array, cities will be loaded when user clicks on country
-    })) as any;
+      // AI : Add missing required fields for Country type
+      createdAt: null, // AI : Not available from this endpoint
+      updatedAt: new Date() // AI : Use current date as fallback
+    }));
   } catch (error) {
     console.error('Error loading countries with projects:', error);
   } finally {

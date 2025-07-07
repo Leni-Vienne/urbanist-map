@@ -313,7 +313,7 @@ function serializeProjectForStorage(project: Project): any {
     ...project,
     startDate: project.startDate instanceof Date ? project.startDate.toISOString() : project.startDate,
     endDate: project.endDate instanceof Date ? project.endDate.toISOString() : project.endDate,
-    latest_update_on: project.latest_update_on instanceof Date ? project.latest_update_on.toISOString() : project.latest_update_on,
+    latestUpdateOn: project.latestUpdateOn instanceof Date ? project.latestUpdateOn.toISOString() : project.latestUpdateOn,
     city: project.city ? {
       // AI : Create a plain copy of city object to avoid reactive proxy issues
       id: project.city.id,
@@ -321,7 +321,6 @@ function serializeProjectForStorage(project: Project): any {
       countryCode: project.city.countryCode,
       lat: project.city.lat,
       lng: project.city.lng,
-      projectCount: project.city.projectCount,
       distance: project.city.distance
     } : undefined,
     overlayIds: Array.isArray(project.overlayIds) ? [...project.overlayIds] : []
@@ -336,6 +335,6 @@ function deserializeProjectFromStorage(storedProject: any): Project {
     ...storedProject,
     startDate: storedProject.startDate ? new Date(storedProject.startDate) : null,
     endDate: storedProject.endDate ? new Date(storedProject.endDate) : null,
-    latest_update_on: storedProject.latest_update_on ? new Date(storedProject.latest_update_on) : null
+    latestUpdateOn: storedProject.latestUpdateOn ? new Date(storedProject.latestUpdateOn) : null
   } as Project;
 }

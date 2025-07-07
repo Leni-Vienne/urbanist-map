@@ -82,7 +82,7 @@
                     <InputText
                         id="source-url-input"
                         type="url"
-                        v-model="localProject.source_url"
+                        v-model="localProject.sourceUrl"
                         class="w-full"
                         required
                     />
@@ -136,7 +136,7 @@
                 >
                     <DatePicker
                         id="latest-update-on-input"
-                        v-model="localProject.latest_update_on"
+                        v-model="localProject.latestUpdateOn"
                         class="w-full"
                     />
                     <label
