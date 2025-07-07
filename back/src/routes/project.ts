@@ -10,10 +10,10 @@ const publishProjectSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(2000).optional(),
   cityId: z.string().uuid().optional(),
-  start_date: z.string().optional(),
-  end_date: z.string().optional(),
-  source_url: z.string().url().optional(),
-  latest_update_on: z.string().optional()
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  sourceUrl: z.string().url().optional(),
+  latestUpdateOn: z.string().optional()
 });
 
 export const projectRouter = router({
@@ -33,10 +33,10 @@ export const projectRouter = router({
           //ownerId: ctx.session.userId,
           ownerId: null,
           cityId: input.cityId ?? null,
-          start_date: input.start_date ? new Date(input.start_date) : null,
-          end_date: input.end_date ? new Date(input.end_date) : null,
-          source_url: input.source_url,
-          latest_update_on: input.latest_update_on ? new Date(input.latest_update_on) : null,
+          startDate: input.startDate ? new Date(input.startDate) : null,
+          endDate: input.endDate ? new Date(input.endDate) : null,
+          sourceUrl: input.sourceUrl,
+          latestUpdateOn: input.latestUpdateOn ? new Date(input.latestUpdateOn) : null,
         };
 
         if (input.id) {

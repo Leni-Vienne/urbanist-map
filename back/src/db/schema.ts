@@ -25,7 +25,7 @@ export const projects = pgTable('projects', {
   sourceUrl: text('source_url'),
   startDate: timestamp('start_date', { withTimezone: true }),
   endDate: timestamp('end_date', { withTimezone: true }),
-  latest_update_on: timestamp('latest_update_on', { withTimezone: true }),
+  latestUpdateOn: timestamp('latest_update_on', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
 });

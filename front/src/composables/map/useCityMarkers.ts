@@ -51,8 +51,8 @@ export async function loadCityProjects(cityId: string, _cityName: string): Promi
           city: project.city as City,
           startDate: metadata?.startDate ? new Date(metadata.startDate) : null,
           endDate: metadata?.endDate ? new Date(metadata.endDate) : null,
-          source_url: metadata?.source_url ?? '',
-          latest_update_on: metadata?.latest_update_on ? new Date(metadata.latest_update_on) : null,
+          sourceUrl: metadata?.sourceUrl ?? '',
+          latestUpdateOn: metadata?.latestUpdateOn ? new Date(metadata.latestUpdateOn) : null,
           overlayIds: project.overlays.map((overlay: any) => overlay.id),
           createdAt: project.createdAt?.toISOString() ?? new Date().toISOString(),
           updatedAt: project.createdAt?.toISOString() ?? new Date().toISOString()
