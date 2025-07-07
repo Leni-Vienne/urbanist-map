@@ -151,7 +151,11 @@ export const citiesRouter = router({
             createdAt: projects.createdAt,
             // AI : Include city information
             cityName: cities.name,
-            cityCountryCode: cities.countryCode
+            cityCountryCode: cities.countryCode,
+            sourceUrl: projects.sourceUrl,
+            latestUpdateOn: projects.latestUpdateOn,
+            startDate: projects.startDate,
+            endDate: projects.endDate,
           })
           .from(projects)
           .innerJoin(cities, eq(projects.cityId, cities.id))
