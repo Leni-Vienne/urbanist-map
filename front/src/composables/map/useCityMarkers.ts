@@ -48,10 +48,11 @@ export async function loadCityProjects(cityId: string, _cityName: string): Promi
           color: metadata?.color ?? '#007bff',
           location: metadata?.location ?? '',
           cityId: project.cityId ?? undefined,
-          city: project.city as unknown as City ?? undefined,
+          city: project.city as City,
           startDate: metadata?.startDate ? new Date(metadata.startDate) : null,
           endDate: metadata?.endDate ? new Date(metadata.endDate) : null,
-          sourceUrl: metadata?.sourceUrl ?? '',
+          source_url: metadata?.source_url ?? '',
+          latest_update_on: metadata?.latest_update_on ? new Date(metadata.latest_update_on) : null,
           overlayIds: project.overlays.map((overlay: any) => overlay.id),
           createdAt: project.createdAt?.toISOString() ?? new Date().toISOString(),
           updatedAt: project.createdAt?.toISOString() ?? new Date().toISOString()

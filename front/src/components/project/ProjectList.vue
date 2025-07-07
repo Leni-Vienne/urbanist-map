@@ -95,9 +95,16 @@ const selectedProjectId = ref<string>('');
 const menuItems = ref<MenuItem[]>([]);
 
 const nodes = computed(() => {
+  // AI : Add safety check to prevent errors when countries is undefined or empty
+  if (!countries.value || !Array.isArray(countries.value)) {
+    return [];
+  }
+  
   return countries.value.map(country => {
-    const cityNodes = country.cities.map(city => {
-      const projectNodes = (city as any).projects.map((project: any) => ({
+    // AI : Add safety check for cities array
+    const cityNodes = (country.cities || []).map(city => {
+      // AI : Add safety check for projects array
+      const projectNodes = ((city as any).projects || []).map((project: any) => ({
         key: project.id,
         data: {
           ...project,
@@ -127,24 +134,42 @@ const nodes = computed(() => {
 });
 
 function toggleMenu(event: Event, data: any) {
+  // AI : Add safety check to ensure data has an id
+  if (!data || !data.id) {
+    console.warn('AI : Invalid data passed to toggleMenu:', data);
+    return;
+  }
+  
   selectedProjectId.value = data.id;
   menuItems.value = [
     {
       label: 'View Project',
       icon: 'pi pi-eye',
-      command: () => openProject(selectedProjectId.value, 'view')
+      command: () => {
+        if (selectedProjectId.value) {
+          openProject(selectedProjectId.value, 'view');
+        }
+      }
     },
     {
       label: 'Edit Project',
       icon: 'pi pi-pencil',
-      command: () => openProject(selectedProjectId.value, 'edit')
+      command: () => {
+        if (selectedProjectId.value) {
+          openProject(selectedProjectId.value, 'edit');
+        }
+      }
     },
     { separator: true },
     {
       label: 'Delete Project',
       icon: 'pi pi-trash',
       className: 'p-error',
-      command: () => confirmDeleteProject(selectedProjectId.value)
+      command: () => {
+        if (selectedProjectId.value) {
+          confirmDeleteProject(selectedProjectId.value);
+        }
+      }
     }
   ];
   menu.value.toggle(event);

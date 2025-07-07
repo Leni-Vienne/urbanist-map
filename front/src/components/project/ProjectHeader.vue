@@ -9,16 +9,19 @@
     </p>
     <div class="text-sm text-gray-600">
       <div v-if="project.location">Location: {{ project.location }}</div>
-      <div v-if="project.sourceUrl">
+      <div v-if="project.source_url">
         Source: <a
-          :href="project.sourceUrl"
+          :href="project.source_url"
           target="_blank"
           class="text-blue-600 hover:underline"
-        >{{ project.sourceUrl }}</a>
+        >{{ project.source_url }}</a>
       </div>
       <div v-if="project.startDate">
         Period: {{ formatDate(project.startDate) }} -
         {{ project.endDate ? formatDate(project.endDate) : 'Ongoing' }}
+      </div>
+      <div v-if="project.latest_update_on">
+        Latest Update: {{ formatDate(project.latest_update_on) }}
       </div>
     </div>
   </div>

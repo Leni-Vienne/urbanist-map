@@ -58,15 +58,22 @@
             </span>
           </div>
           <div
-            v-if="project.sourceUrl"
+            v-if="project.source_url"
             class="flex justify-between"
           >
             <span class="font-medium text-gray-600">Source:</span>
             <a
-              :href="project.sourceUrl"
+              :href="project.source_url"
               target="_blank"
               class="text-blue-600 hover:underline text-xs truncate max-w-32"
-            >{{ project.sourceUrl }}</a>
+            >{{ project.source_url }}</a>
+          </div>
+          <div
+            v-if="project.latest_update_on"
+            class="flex justify-between"
+          >
+            <span class="font-medium text-gray-600">Latest Update:</span>
+            <span class="text-right text-xs">{{ formatDate(project.latest_update_on) }}</span>
           </div>
         </div>
       </div>
@@ -162,28 +169,18 @@ const project = computed(() => {
     if (props.overlayObject.project && props.overlayObject.project.id === currentProjectId.value) {
       // AI : Convert backend project data to frontend format
       const project = props.overlayObject.project as any;
-      const metadata = project.metadata as {
-        location?: string;
-        startDate?: string;
-        endDate?: string;
-        sourceUrl?: string;
-        overlayIds?: string[];
-        color?: string;
-        createdAt?: string;
-        updatedAt?: string;
-      } | null;
-
       return {
         id: project.id,
         name: project.title,
         description: project.description || '',
-        color: metadata?.color || '#007bff',
-        location: metadata?.location || '',
+        color: project.color || '#007bff',
+        location: project.location || '',
         cityId: project.cityId || undefined,
         city: project.city || undefined,
-        startDate: metadata?.startDate ? new Date(metadata.startDate) : null,
-        endDate: metadata?.endDate ? new Date(metadata.endDate) : null,
-        sourceUrl: metadata?.sourceUrl || '',
+        startDate: project.startDate ? new Date(project.startDate) : null,
+        endDate: project.endDate ? new Date(project.endDate) : null,
+        source_url: project.source_url || '',
+        latest_update_on: project.latest_update_on ? new Date(project.latest_update_on) : null,
         overlayIds: [],
         createdAt: project.createdAt?.toISOString() || new Date().toISOString(),
         updatedAt: project.updatedAt?.toISOString() || new Date().toISOString()
@@ -381,12 +378,10 @@ async function ensureProjectOnServer(): Promise<boolean> {
       title: project.value.name,
       description: project.value.description,
       cityId: project.value.cityId,
-      metadata: {
-        // AI : Only send startDate, endDate, and sourceUrl in metadata as per backend schema
-        startDate: project.value.startDate?.toISOString(),
-        endDate: project.value.endDate?.toISOString(),
-        sourceUrl: project.value.sourceUrl
-      }
+      start_date: project.value.startDate?.toISOString(),
+      end_date: project.value.endDate?.toISOString(),
+      source_url: project.value.source_url,
+      latest_update_on: project.value.latest_update_on?.toISOString()
     });
     if (!projectResult.success) {
       throw new Error('Failed to publish project to server');

@@ -677,7 +677,8 @@ export function deleteOverlay(id: string) {
       city: project.city, // AI : Include city information from backend joins
       startDate: project.startDate,
       endDate: project.endDate,
-      sourceUrl: project.sourceUrl ?? '',
+      source_url: project.source_url ?? '',
+      latest_update_on: project.latest_update_on ?? null,
       overlayIds: project.overlayIds.filter(overlayId => overlayId !== id),
       createdAt: project.createdAt ?? new Date().toISOString(),
       updatedAt: new Date().toISOString()
