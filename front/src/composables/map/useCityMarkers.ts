@@ -32,28 +32,49 @@ let mouseTooltip: HTMLElement | null = null;
 /**
  * AI : Show message to user when zoom level is too low for loading overlays
  */
-function showZoomMessage(cityName: string): void {
+function showZoomMessage(): void {
   // AI : Create temporary tooltip to inform user about zoom requirement
   const zoomTooltip = document.createElement('div');
   zoomTooltip.style.cssText = `
     position: fixed;
-    top: 50%;
+    top: 20px;
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translateX(-50%);
     background: rgba(0, 0, 0, 0.9);
     color: white;
-    padding: 16px 24px;
+    padding: 12px 16px;
     border-radius: 8px;
-    font-size: 16px;
+    font-size: 14px;
     z-index: 10001;
     text-align: center;
-    max-width: 300px;
+    max-width: 280px;
+    width: calc(100vw - 40px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    animation: slideInDown 0.3s ease-out;
   `;
+  
+  // AI : Add animation keyframes for smooth appearance
+  if (!document.querySelector('#zoom-message-styles')) {
+    const style = document.createElement('style');
+    style.id = 'zoom-message-styles';
+    style.textContent = `
+      @keyframes slideInDown {
+        from {
+          opacity: 0;
+          transform: translateX(-50%) translateY(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0);
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  
   zoomTooltip.innerHTML = `
-    <div style="margin-bottom: 8px;"><strong>${cityName}</strong></div>
-    <div>Zoom in closer to view construction projects</div>
-    <div style="font-size: 14px; margin-top: 8px; opacity: 0.8;">Minimum zoom level: ${MIN_ZOOM_FOR_OVERLAYS}</div>
+    <div style="font-size: 13px;">Zoom in closer to view construction projects</div>
+    <div style="font-size: 12px; margin-top: 4px; opacity: 0.8;">Minimum zoom level: ${MIN_ZOOM_FOR_OVERLAYS}</div>
   `;
   
   document.body.appendChild(zoomTooltip);
@@ -81,7 +102,7 @@ export async function loadCityProjects(cityId: string, cityName: string): Promis
     if (currentZoom < MIN_ZOOM_FOR_OVERLAYS) {
       console.log(`AI : Zoom level ${currentZoom} too low to load overlays for ${cityName}. Minimum required: ${MIN_ZOOM_FOR_OVERLAYS}`);
       // AI : Show user-friendly message instead of loading overlays
-      showZoomMessage(cityName);
+      showZoomMessage();
       return;
     }
 
@@ -94,30 +115,22 @@ export async function loadCityProjects(cityId: string, cityName: string): Promis
       const updatedProjects = { ...projects.value };
       
       result.forEach(project => {
-        const metadata = project.metadata as any;
         const frontendProject: Project = {
           id: project.id,
           name: project.title,
           description: project.description ?? '',
-          color: metadata?.color ?? '#007bff',
-          location: metadata?.location ?? '',
+          color: '#007bff',
+          location: '',
           cityId: project.cityId ?? null,
-          city: project.city && project.city.id ? {
-            id: project.city.id,
-            name: project.city.name,
-            countryCode: project.city.countryCode,
-            lat: 0, // AI : Default values for missing properties
-            lng: 0,
-            distance: 0
-          } : undefined,
-          startDate: metadata?.startDate ? new Date(metadata.startDate) : null,
-          endDate: metadata?.endDate ? new Date(metadata.endDate) : null,
-          sourceUrl: metadata?.sourceUrl ?? '',
-          latestUpdateOn: metadata?.latestUpdateOn ? new Date(metadata.latestUpdateOn) : null,
+          city: undefined, // AI : City info not included in new structure
+          startDate: project.startDate ? new Date(project.startDate) : null,
+          endDate: project.endDate ? new Date(project.endDate) : null,
+          sourceUrl: project.sourceUrl ?? '',
+          latestUpdateOn: project.latestUpdateOn ? new Date(project.latestUpdateOn) : null,
           overlayIds: project.overlays.map((overlay: any) => overlay.id),
           createdAt: project.createdAt ? new Date(project.createdAt) : new Date(),
-          updatedAt: project.createdAt ? new Date(project.createdAt) : new Date(),
-          metadata: project.metadata ?? null
+          updatedAt: project.updatedAt ? new Date(project.updatedAt) : new Date(),
+          metadata: null
         };
         
         updatedProjects[project.id] = frontendProject;
@@ -143,20 +156,20 @@ export async function loadCityProjects(cityId: string, cityName: string): Promis
             title: project.title,
             description: project.description,
             cityId: project.cityId,
-            city: project.city,
-            metadata: project.metadata,
+            city: null, // AI : City info not included in new structure
+            metadata: null,
             createdAt: project.createdAt,
-            updatedAt: project.createdAt ?? null
+            updatedAt: project.updatedAt
           },
           centroid: {
-            lat: (overlay.corners.topLeft.lat + overlay.corners.bottomRight.lat) / 2,
-            lng: (overlay.corners.topLeft.lng + overlay.corners.bottomRight.lng) / 2
+            lat: (overlay.topLeftLat + overlay.bottomRightLat) / 2,
+            lng: (overlay.topLeftLng + overlay.bottomRightLng) / 2
           },
           corners: [
-            overlay.corners.topLeft,
-            overlay.corners.topRight,
-            overlay.corners.bottomRight,
-            overlay.corners.bottomLeft
+            { lat: overlay.topLeftLat, lng: overlay.topLeftLng },
+            { lat: overlay.topRightLat, lng: overlay.topRightLng },
+            { lat: overlay.bottomRightLat, lng: overlay.bottomRightLng },
+            { lat: overlay.bottomLeftLat, lng: overlay.bottomLeftLng }
           ],
           distance: 0,
           createdAt: overlay.createdAt

@@ -140,61 +140,26 @@ export const citiesRouter = router({
       try {
         const { cityId } = input;
 
-        // AI : Get projects for the city with city info
+        // AI : Get all projects for the city
         const projectsResult = await db
-          .select({
-            id: projects.id,
-            title: projects.title,
-            description: projects.description,
-            cityId: projects.cityId,
-            metadata: projects.metadata,
-            createdAt: projects.createdAt,
-            // AI : Include city information
-            cityName: cities.name,
-            cityCountryCode: cities.countryCode,
-            sourceUrl: projects.sourceUrl,
-            latestUpdateOn: projects.latestUpdateOn,
-            startDate: projects.startDate,
-            endDate: projects.endDate,
-          })
+          .select()
           .from(projects)
-          .innerJoin(cities, eq(projects.cityId, cities.id))
-          .where(eq(projects.cityId, cityId));        // AI : Get overlays for these projects  
+          .where(eq(projects.cityId, cityId));
+
+        // AI : Get all overlays for these projects
         const projectIds = projectsResult.map(p => p.id);
         const overlaysResult = projectIds.length > 0 ? await db
           .select()
           .from(overlays)
           .where(inArray(overlays.projectId, projectIds)) : [];
 
-        // AI : Combine projects with their overlays
-        return projectsResult.map(project => ({
-          id: project.id,
-          title: project.title,
-          description: project.description,
-          cityId: project.cityId,
-          city: {
-            id: project.cityId,
-            name: project.cityName,
-            countryCode: project.cityCountryCode
-          },
-          metadata: project.metadata,
-          createdAt: project.createdAt,
-          overlays: overlaysResult
-            .filter(overlay => overlay.projectId === project.id)
-            .map(overlay => ({
-              id: overlay.id,
-              filename: overlay.filename,
-              caption: overlay.caption,
-              metadata: overlay.metadata,
-              corners: {
-                topLeft: { lat: overlay.topLeftLat, lng: overlay.topLeftLng },
-                topRight: { lat: overlay.topRightLat, lng: overlay.topRightLng },
-                bottomRight: { lat: overlay.bottomRightLat, lng: overlay.bottomRightLng },
-                bottomLeft: { lat: overlay.bottomLeftLat, lng: overlay.bottomLeftLng }
-              },
-              createdAt: overlay.createdAt
-            }))
+        // AI : Attach overlays to their respective projects
+        const projectsWithOverlays = projectsResult.map(project => ({
+          ...project,
+          overlays: overlaysResult.filter(overlay => overlay.projectId === project.id)
         }));
+
+        return projectsWithOverlays;
       } catch (error) {
         console.error('Error fetching city projects:', error);
         throw new Error('Failed to fetch city projects');
