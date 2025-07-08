@@ -42,7 +42,7 @@
         <div class="p-2 rounded bg-gray-50 text-sm space-y-1">
           <div class="flex justify-between">
             <span class="font-medium text-gray-600">Name:</span>
-            <span class="text-right">{{ project.name || 'Not specified' }}</span>
+            <span class="text-right">{{ project.title || 'Not specified' }}</span>
           </div>
           <div class="flex justify-between">
             <span class="font-medium text-gray-600">Location:</span>
@@ -125,13 +125,13 @@ import { ref, computed, watch, onMounted, nextTick } from 'vue';
 
 import { useToast } from '@composables/ui/useToast';
 import { updateTooltipText } from '@composables/overlay/useOverlayActions';
-import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId } from '@composables/project/useProjects';
+import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId } from '@stores/projectStore';
 import { navigateToProjectEdit } from '@composables/ui/useRouterNavigation';
 import { deleteOverlay, deleteProject } from '@composables/core/useDatabase';
 import { loadCityProjects } from '@composables/map/useCityMarkers';
 import ProjectPicker from '@components/project/ProjectPicker.vue';
 import OverlayEditor from '@components/map/OverlayEditor.vue';
-import type { OverlayObject } from '@types';
+import type { OverlayObject, Project } from '@types';
 import { trpc } from '@client'
 
 const props = defineProps<{
@@ -170,24 +170,14 @@ const project = computed(() => {
     // AI : If not found locally, check if this overlay has backend project data (for view mode)
     if (props.overlayObject.project && props.overlayObject.project.id === currentProjectId.value) {
       // AI : Convert backend project data to frontend format
-      const project = props.overlayObject.project as any;
+      const backendProject = props.overlayObject.project;
       return {
-        id: project.id,
-        name: project.title,
-        description: project.description || null,
-        color: project.color || '#007bff',
-        location: project.location || '',
-        cityId: project.cityId || null,
-        city: project.city || undefined,
-        startDate: project.startDate ? new Date(project.startDate) : null,
-        endDate: project.endDate ? new Date(project.endDate) : null,
-        sourceUrl: project.sourceUrl || null,
-        latestUpdateOn: project.latestUpdateOn ? new Date(project.latestUpdateOn) : null,
-        metadata: null,
+        ...backendProject,
+        name: backendProject.title, // AI : Map title to name for frontend compatibility
+        city: backendProject.city as any, // AI : Cast city to any to satisfy Project type
         overlayIds: [],
+        color: '#007bff',
         savedRemotely: true,
-        createdAt: project.createdAt || new Date(),
-        updatedAt: project.updatedAt || new Date()
       };
     }
   }
@@ -220,13 +210,12 @@ function onOverlayUpdate(overlayId: string, caption?: string) {
 }
 
 // AI : Get display text for project location (city name or fallback)
-function getProjectLocationDisplay(project: any): string {
+function getProjectLocationDisplay(project: Project): string {
   // AI : Prefer city name from included city data
   if (project.city?.name) {
     return `${project.city.name}, ${project.city.countryCode}`;
   }
-  // AI : Fallback to location field for backward compatibility with older projects
-  return project.location || 'Not specified';
+  return 'Not specified';
 }
 
 // AI : Apply project change to overlay
@@ -332,6 +321,18 @@ async function convertToWebPIfNeeded(dataUrl: string, filename: string): Promise
   })
 }
 
+function getCornersFromOverlay(overlay: OverlayObject) {
+  if (overlay.overlay) {
+    return overlay.overlay.getCorners();
+  }
+  return [
+    { lat: overlay.topLeftLat, lng: overlay.topLeftLng },
+    { lat: overlay.topRightLat, lng: overlay.topRightLng },
+    { lat: overlay.bottomRightLat, lng: overlay.bottomRightLng },
+    { lat: overlay.bottomLeftLat, lng: overlay.bottomLeftLng },
+  ];
+}
+
 // AI : Validate if overlay can be published
 function validateOverlayForPublishing(): boolean {
   if (!project.value) {
@@ -344,20 +345,8 @@ function validateOverlayForPublishing(): boolean {
     return false;
   }
 
-  // AI : Check corners from overlay object or get them directly from the overlay
-  let corners = props.overlayObject.corners;
-  if (!corners || corners.length !== 4) {
-    // AI : Try to get corners directly from the overlay if they're not stored
-    if (props.overlayObject.overlay) {
-      corners = props.overlayObject.overlay.getCorners();
-      // AI : Update the overlay object with the current corners
-      if (corners && corners.length === 4) {
-        props.overlayObject.corners = corners;
-      }
-    }
-  }
-
-  if (!corners || corners.length !== 4) {
+  const corners = getCornersFromOverlay(props.overlayObject);
+  if (!corners || corners.length !== 4 || corners.some(c => !c.lat || !c.lng)) {
     toast.add({
       severity: 'error',
       summary: 'Cannot Publish',
@@ -379,12 +368,12 @@ async function ensureProjectOnServer(): Promise<boolean> {
   try {
     const projectResult = await trpc.project.publishProject.mutate({
       id: project.value.id,
-      title: project.value.name,
-      description: project.value.description,
-      cityId: project.value.cityId,
+      title: project.value.title,
+      description: project.value.description || undefined,
+      cityId: project.value.cityId || undefined,
       startDate: project.value.startDate?.toISOString(),
       endDate: project.value.endDate?.toISOString(),
-      sourceUrl: project.value.sourceUrl,
+      sourceUrl: project.value.sourceUrl || undefined,
       latestUpdateOn: project.value.latestUpdateOn?.toISOString()
     });
     if (!projectResult.success) {
@@ -396,7 +385,7 @@ async function ensureProjectOnServer(): Promise<boolean> {
       const oldProjectId = project.value.id;
 
       // AI : If this is a new project (not existing), update the project ID
-      if (!projectResult.exists && projectResult.id !== oldProjectId) {
+      if (!projectResult.exists && projectResult.id !== oldProjectId && project.value) {
         // AI : Update the project ID with the one from the backend
         project.value.id = projectResult.id;
 
@@ -436,7 +425,7 @@ async function ensureProjectOnServer(): Promise<boolean> {
     toast.add({
       severity: 'error',
       summary: 'Project Publish Failed',
-      detail: `Failed to publish project "${project.value.name}" to server: ${error instanceof Error ? error.message : String(error)}`,
+      detail: `Failed to publish project "${project.value.title}" to server: ${error instanceof Error ? error.message : String(error)}`,
       life: 5000
     });
     throw error;
@@ -473,6 +462,7 @@ async function prepareImageForServer(): Promise<string> {
 
 // AI : Publish overlay metadata to server
 async function publishOverlayToServer(filename: string): Promise<{ success: boolean; exists: boolean; id?: string }> {
+  const corners = getCornersFromOverlay(props.overlayObject);
   const payload = {
     id: props.overlayObject.id,
     filename: filename,
@@ -481,7 +471,7 @@ async function publishOverlayToServer(filename: string): Promise<{ success: bool
     metadata: {
       // AI : Keep metadata empty as requested - no caption or history data
     },
-    corners: props.overlayObject.corners
+    corners: corners.map(c => ({ lat: c.lat, lng: c.lng })),
   };
 
   const overlayResult = await trpc.overlay.publishOverlay.mutate(payload);

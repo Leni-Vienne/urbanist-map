@@ -1,11 +1,9 @@
 import L from "leaflet";
 import { ref } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
-import { loadCitiesForCountry, countries } from '@composables/project/useProjects';
-import { addCityMarkersForCountry } from '@composables/map/useCityMarkers';
+import { countries } from '@stores/projectStore';
+import { addCityMarkersForCountry, CityWithProjects } from '@composables/map/useCityMarkers';
 import { trpc, RouterOutput } from '@client';
-
-export type CountryWithProjects = RouterOutput['country']['getCountriesWithProjects'][number];
 
 export const isLoadingCountries = ref(false);
 export const isLoadingCountryProjects = ref(false);
@@ -16,20 +14,34 @@ export async function loadCountriesWithProjects(): Promise<void> {
   try {
     isLoadingCountries.value = true;
     const countriesData = await trpc.country.getCountriesWithProjects.query();
-    countries.value = countriesData.map(country => ({
+    countries.value = countriesData.map((country) => ({
       ...country,
       lat: country.centerCoordinates.y,
       lng: country.centerCoordinates.x,
       projectCount: 0, // AI : This will be updated later
       cities: [], // AI : Empty array, cities will be loaded when user clicks on country
-      // AI : Add missing required fields for Country type
-      createdAt: null, // AI : Not available from this endpoint
-      updatedAt: new Date() // AI : Use current date as fallback
+      createdAt: new Date(), // AI : Add fallback
+      updatedAt: new Date(), // AI : Add fallback
     }));
   } catch (error) {
     console.error('Error loading countries with projects:', error);
   } finally {
     isLoadingCountries.value = false;
+  }
+}
+
+export async function loadCitiesForCountry(countryCode: string): Promise<void> {
+  try {
+    isLoadingCountryProjects.value = true;
+    const citiesData = await trpc.cities.getCitiesWithProjects.query({ countryCode });
+    const country = countries.value.find(c => c.code === countryCode);
+    if (country) {
+      country.cities = citiesData.map(c => ({ ...c, distance: 0 }));
+    }
+  } catch (error) {
+    console.error(`Error loading cities for country ${countryCode}:`, error);
+  } finally {
+    isLoadingCountryProjects.value = false;
   }
 }
 
@@ -61,9 +73,9 @@ function addCountryMarkersToMapInternal(): void {
     });
     marker.on('click', async () => {
       await loadCitiesForCountry(country.code);
-      const updatedCountry = countries.value.find(c => c.code === country.code);
+      const updatedCountry = countries.value.find((c) => c.code === country.code);
       if (updatedCountry) {
-        addCityMarkersForCountry(updatedCountry.cities as any);
+        addCityMarkersForCountry(updatedCountry.cities.map(c => ({ ...c, projectCount: 0 })));
       }
     });
     countryMarkersLayer!.addLayer(marker);

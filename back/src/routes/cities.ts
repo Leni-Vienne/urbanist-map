@@ -1,8 +1,12 @@
 import { z } from 'zod';
 import { publicProcedure, router } from '../trpc';
 import { db } from '../db';
-import { cities, projects, overlays } from '../db/schema';
-import { sql, eq, isNotNull, inArray, and } from 'drizzle-orm';
+import {
+  cities, projects,
+} from '../db/schema';
+import {
+  sql, eq, isNotNull, and,
+} from 'drizzle-orm';
 
 const getCitiesNearLocationSchema = z.object({
   lat: z.number().min(-90).max(90), // AI : Valid latitude range
@@ -139,27 +143,39 @@ export const citiesRouter = router({
     .query(async ({ input }) => {
       try {
         const { cityId } = input;
+        
+        // AI : Get projects with overlays, using separate lat/lng columns instead of PostGIS centroid
+        // TODO temporary, it's dumb having such long queries
+        const projectsResult = await db.query.projects.findMany({
+          where: eq(projects.cityId, cityId),
+          with: {
+            overlays: {
+              columns: {
+                id: true,
+                filename: true,
+                caption: true,
+                status: true,
+                projectId: true,
+                authorId: true,
+                metadata: true,
+                // AI : Use separate coordinate columns instead of PostGIS geometry
+                topLeftLat: true,
+                topLeftLng: true,
+                topRightLat: true,
+                topRightLng: true,
+                bottomRightLat: true,
+                bottomRightLng: true,
+                bottomLeftLat: true,
+                bottomLeftLng: true,
+                createdAt: true,
+                updatedAt: true,
+                // AI : Exclude the problematic centroid PostGIS geometry column
+              },
+            },
+          },
+        });
 
-        // AI : Get all projects for the city
-        const projectsResult = await db
-          .select()
-          .from(projects)
-          .where(eq(projects.cityId, cityId));
-
-        // AI : Get all overlays for these projects
-        const projectIds = projectsResult.map(p => p.id);
-        const overlaysResult = projectIds.length > 0 ? await db
-          .select()
-          .from(overlays)
-          .where(inArray(overlays.projectId, projectIds)) : [];
-
-        // AI : Attach overlays to their respective projects
-        const projectsWithOverlays = projectsResult.map(project => ({
-          ...project,
-          overlays: overlaysResult.filter(overlay => overlay.projectId === project.id)
-        }));
-
-        return projectsWithOverlays;
+        return projectsResult;
       } catch (error) {
         console.error('Error fetching city projects:', error);
         throw new Error('Failed to fetch city projects');
