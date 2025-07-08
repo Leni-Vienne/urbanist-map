@@ -6,7 +6,7 @@ import { map, onMapInitialized } from '@composables/core/useMap';
 import { getAllOverlays, saveOverlay } from '@composables/core/useDatabase';
 import { overlays, idSelectedOverlay, isEditMode } from '@stores/overlayStore';
 import { projects } from '@stores/projectStore';
-import type { OverlayObject, StoredOverlayData, CDNOverlayData } from '@types';
+import type { OverlayObject, StoredOverlayData, CDNOverlayData, Project } from '@types';
 import { editTools, viewTools, infoTool } from '@composables/core/useTools';
 import { router } from '../../router';
 import { createColorIcon } from '@composables/ui/colorMarkers';
@@ -891,27 +891,101 @@ export async function checkAndUpdateOverlayStorageStatus(overlayObject: OverlayO
 }
 
 /**
- * AI : Determine marker color based on overlay storage status in edit mode
- * Green: Remote only (not stored locally)
- * Orange: Remote and local copy (stored both remotely and locally) 
- * Red: Local only (no remote copy)
+ * AI : Determine project status based on start and end dates
+ */
+function getProjectStatus(project: Project | null): 'past' | 'ongoing' | 'not-started' | 'unknown' {
+  if (!project || (!project.startDate && !project.endDate)) {
+    return 'unknown';
+  }
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // AI : Start of today
+
+  // AI : If only start date is provided
+  if (project.startDate && !project.endDate) {
+    const startDate = new Date(project.startDate);
+    const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    
+    if (today >= startDateOnly) {
+      return 'ongoing'; // AI : Started and no end date = ongoing
+    } else {
+      return 'not-started'; // AI : Not started yet
+    }
+  }
+
+  // AI : If only end date is provided
+  if (!project.startDate && project.endDate) {
+    const endDate = new Date(project.endDate);
+    const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+    
+    if (today > endDateOnly) {
+      return 'past'; // AI : Past end date
+    } else {
+      return 'ongoing'; // AI : Before or on end date
+    }
+  }
+
+  // AI : Both dates are provided
+  if (project.startDate && project.endDate) {
+    const startDate = new Date(project.startDate);
+    const endDate = new Date(project.endDate);
+    const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+
+    if (today < startDateOnly) {
+      return 'not-started'; // AI : Before start date
+    } else if (today > endDateOnly) {
+      return 'past'; // AI : After end date
+    } else {
+      return 'ongoing'; // AI : Between start and end dates (inclusive)
+    }
+  }
+
+  return 'unknown';
+}
+
+/**
+ * AI : Determine marker color based on mode and status
+ * Edit mode: Green (remote stored locally), Orange (local modified), Red (remote not stored)
+ * View mode: Grey (past project), Blue (ongoing project), Orange (not started project)
  */
 function getMarkerColorForStorageStatus(overlayObject: OverlayObject): 'blue' | 'green' | 'orange' | 'red' | 'gold' | 'yellow' | 'violet' | 'grey' | 'black' {
-  // AI : Only apply color coding in edit mode
-  if (!isEditMode.value) {
-    return 'blue'; // AI : Default blue color for view mode
+  // AI : In edit mode, use storage status colors (old system)
+  if (isEditMode.value) {
+    const { savedRemotely, alreadyStored } = overlayObject;
+
+    if (savedRemotely && !alreadyStored) {
+      return 'red'; // AI : Remote overlay not stored locally
+    } else if (savedRemotely && alreadyStored) {
+      return 'orange'; // AI : Remote overlay with local copy
+    } else if (!savedRemotely && alreadyStored) {
+      return 'green'; // AI : Local only overlay
+    }
+
+    // AI : Fallback to blue for any edge cases
+    return 'blue';
   }
 
-  const { savedRemotely, alreadyStored } = overlayObject;
-
-  if (savedRemotely && !alreadyStored) {
-    return 'green'; // AI : Remote overlay, not stored locally
-  } else if (savedRemotely && alreadyStored) {
-    return 'orange'; // AI : Remote overlay with local copy
-  } else if (!savedRemotely && alreadyStored) {
-    return 'red'; // AI : Local only overlay
+  // AI : In view mode, use project status colors (new system)
+  const project = overlayObject.projectId ? projects.value[overlayObject.projectId] : null;
+  
+  // AI : If no project is assigned, use default blue color
+  if (!project) {
+    return 'blue';
   }
 
-  // AI : Fallback to blue for any edge cases
-  return 'blue';
+  // AI : Determine project status and return appropriate color
+  const status = getProjectStatus(project);
+  
+  switch (status) {
+    case 'past':
+      return 'grey'; // AI : Past project
+    case 'ongoing':
+      return 'blue'; // AI : Ongoing project
+    case 'not-started':
+      return 'orange'; // AI : Not started yet
+    case 'unknown':
+    default:
+      return 'blue'; // AI : Default color for unknown status
+  }
 }

@@ -51,7 +51,8 @@
           <div class="flex justify-between">
             <span class="font-medium text-gray-600">Period:</span>
             <span class="text-right text-xs">
-              <span v-if="!project.startDate && !project.endDate">Not specified</span>
+              <span v-if="!project.startDate && !project.endDate">Not specified{{ project }}</span>
+              
               <span v-else>
                 {{ formatDate(project.startDate) }} - {{ project.endDate ? formatDate(project.endDate) : 'Present' }}
               </span>
