@@ -107,19 +107,14 @@
       v-if="!props.viewMode && project"
       class="publish-section"
     >
-      <div class="text-sm font-semibold mb-2 text-gray-700">Publish to Server</div>
-      <div class="p-2 rounded bg-blue-50">
-        <p class="text-xs text-gray-600 mb-2">
-          Save this overlay to the server database for permanent storage.
-        </p>
-        <Button
-          label="Publish Overlay"
-          icon="pi pi-cloud-upload"
-          class="p-button-success p-button-sm w-full"
-          :loading="isPublishing"
-          @click="publishOverlay"
-        />
-      </div>
+
+      <Button
+        label="Publish Overlay"
+        icon="pi pi-cloud-upload"
+        class="p-button-success p-button-sm w-full"
+        :loading="isPublishing"
+        @click="publishOverlay"
+      />
     </div>
   </div>
 </template>
@@ -132,8 +127,6 @@ import { updateTooltipText } from '@composables/overlay/useOverlayActions';
 import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId } from '@composables/project/useProjects';
 import { navigateToProjectEdit } from '@composables/ui/useRouterNavigation';
 import { deleteOverlay, deleteProject } from '@composables/core/useDatabase';
-import { isEditMode } from '@composables/overlay/useOverlay';
-import { map } from '@composables/core/useMap';
 import { loadCityProjects } from '@composables/map/useCityMarkers';
 import ProjectPicker from '@components/project/ProjectPicker.vue';
 import OverlayEditor from '@components/map/OverlayEditor.vue';
@@ -567,13 +560,12 @@ async function onProjectPickerSelectFocus() {
 </script>
 
 <style scoped>
-
 .info-popup {
   padding: 1rem;
   width: 420px;
   min-height: 200px;
   background-color: white;
-  cursor:text;
+  cursor: text;
   user-select: text;
   border-radius: 8px;
   /* AI : So that the popup sits above the toolbar, no matter its height */

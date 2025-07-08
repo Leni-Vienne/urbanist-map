@@ -9,6 +9,14 @@ import { useToast } from '@composables/ui/useToast';
 import type { ProjectInfo } from '@types';
 import { router } from '../../router';
 
+// AI : Declare window extensions for TypeScript
+declare global {
+  interface Window {
+    vueApp?: any;
+    router?: any;
+  }
+}
+
 const toast = useToast();
 
 let appInstance: ComponentInternalInstance | null = null;
@@ -80,6 +88,7 @@ export const infoTool = L.Toolbar2.Action.extend({
         if (window.vueApp?._context) {
           vnode.appContext = window.vueApp._context;
         } else if (appInstance) {
+          console.log("fallback appContext")
           // AI : Fallback to component instance context if main app not available
           vnode.appContext = { ...appInstance.appContext };
 
