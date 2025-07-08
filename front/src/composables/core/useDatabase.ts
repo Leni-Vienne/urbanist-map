@@ -1,15 +1,17 @@
 import { openDB, IDBPDatabase } from 'idb';
-import { projects } from '@stores/projectStore';
-import { MyDB, StoredOverlayData, MapPosition, Project } from '@types';
+import {
+  MyDB, StoredOverlayData, MapPosition, StoredProjectData, Project,
+} from '@types';
+import { DBCity } from '../../../../back/src/db/schema';
 
 let db: IDBPDatabase<MyDB> | null = null;
 
 /**
- * Initialize the IndexedDB database
+ * AI : Initialize the IndexedDB database
  */
 export async function initializeDatabase(): Promise<void> {
   try {
-    db = await openDB<MyDB>('CityMapOverlayDB', 2, {
+    db = await openDB<MyDB>('CityMapOverlayDB', 3, {
       upgrade(upgradeDb, oldVersion) {
         // AI : Create stores if they don't exist
         if (!upgradeDb.objectStoreNames.contains('overlays')) {
@@ -18,10 +20,12 @@ export async function initializeDatabase(): Promise<void> {
         if (!upgradeDb.objectStoreNames.contains('mapPosition')) {
           upgradeDb.createObjectStore('mapPosition', { keyPath: 'key' });
         }
-        
-        // AI : Create projects store in version 2
-        if (oldVersion < 2 && !upgradeDb.objectStoreNames.contains('projects')) {
+        if (!upgradeDb.objectStoreNames.contains('projects')) {
           upgradeDb.createObjectStore('projects', { keyPath: 'id' });
+        }
+        // AI : Create cities store in version 3
+        if (oldVersion < 3 && !upgradeDb.objectStoreNames.contains('cities')) {
+          upgradeDb.createObjectStore('cities', { keyPath: 'id' });
         }
       },
     });
@@ -138,38 +142,31 @@ export async function clearDatabase(): Promise<void> {
 }
 
 /**
- * Save a project to the database
+ * AI : Save a project to the database
  */
-export async function saveProject(project: Project): Promise<void> {
+export async function saveProject(project: StoredProjectData): Promise<void> {
   if (!db) {
     console.warn('Database not initialized when saving project');
     return;
   }
-  
   try {
-    // AI : Use helper function to create a serializable copy for IndexedDB
-    const plainProject = serializeProjectForStorage(project);
-    await db.put('projects', plainProject);
+    await db.put('projects', project);
   } catch (error) {
     console.error('Error saving project:', error);
   }
 }
 
 /**
- * Get a project by ID
+ * AI : Get a project by ID
  */
-export async function getProject(id: string): Promise<Project | undefined> {
+export async function getProject(id: string): Promise<StoredProjectData | undefined> {
   if (!db) {
     console.warn('Database not initialized when getting project');
     return undefined;
   }
-  
   try {
     const storedProject = await db.get('projects', id);
-    if (!storedProject) return undefined;
-    
-    // AI : Use helper function to convert stored data back to runtime format
-    return deserializeProjectFromStorage(storedProject);
+    return storedProject;
   } catch (error) {
     console.error('Error retrieving project:', error);
     return undefined;
@@ -193,148 +190,37 @@ export async function deleteProject(id: string): Promise<void> {
 }
 
 /**
- * Add an overlay to a project
+ * AI : Save a city to the database
  */
-export async function addOverlayToProject(projectId: string, overlayId: string): Promise<void> {
+export async function saveCity(city: DBCity): Promise<void> {
   if (!db) {
-    console.warn('Database not initialized when adding overlay to project');
+    console.warn('Database not initialized when saving city');
     return;
   }
-    try {
-    let project = await db.get('projects', projectId);
-      // AI : If project not found in IndexedDB, check if it exists in memory and save it
-    if (!project) {
-      console.warn(`AI : Project ${projectId} not found in IndexedDB, checking memory store...`);
-      
-      // AI : Check projects from centralized store
-      const memoryProject = projects.value[projectId];
-      
-      if (memoryProject) {
-        // AI : Use helper function to serialize project for storage
-        const plainProject = serializeProjectForStorage(memoryProject);
-        await db.put('projects', plainProject);
-        project = plainProject;
-      } else {
-        console.error('AI : Project not found in memory store either:', projectId);
-        console.error('AI : Available projects in memory:', Object.keys(projects.value));
-        return;
-      }
-    }
-    
-    // AI : Ensure project exists before proceeding
-    if (project) {
-      // AI : Add overlay to project if not already included
-      if (!project.overlayIds.includes(overlayId)) {
-        project.overlayIds.push(overlayId);
-        await db.put('projects', project);
-      }
-    }
-    
-    // AI : Update overlay with project reference
-    const overlay = await db.get('overlays', overlayId);
-    if (overlay) {
-      overlay.projectId = projectId;
-      await db.put('overlays', overlay);
-    }
-  } catch (error) {
-    console.error('Error adding overlay to project:', error);
-  }
-}
-
-/**
- * Remove an overlay from a project
- */
-export async function removeOverlayFromProject(projectId: string, overlayId: string): Promise<void> {
-  if (!db) {
-    console.warn('Database not initialized when removing overlay from project');
-    return;
-  }
-  
   try {
-    const project = await db.get('projects', projectId);
-    if (!project) {
-      console.error('Project not found:', projectId);
-      return;
-    }
-    
-    // AI : Remove overlay from project
-    project.overlayIds = project.overlayIds.filter(id => id !== overlayId);
-    await db.put('projects', project);
-    
-    // AI : Remove project reference from overlay
-    const overlay = await db.get('overlays', overlayId);
-    if (overlay && overlay.projectId === projectId) {
-      overlay.projectId = ''; // AI : Use empty string instead of undefined
-      await db.put('overlays', overlay);
-    }
+    await db.put('cities', city);
   } catch (error) {
-    console.error('Error removing overlay from project:', error);
+    console.error('Error saving city:', error);
   }
 }
 
 /**
- * Get all overlays for a project
+ * AI : Get a city by ID
  */
-export async function getProjectOverlays(projectId: string): Promise<StoredOverlayData[]> {
+export async function getCity(id: string): Promise<DBCity | undefined> {
   if (!db) {
-    console.warn('Database not initialized when getting project overlays');
-    return [];
+    console.warn('Database not initialized when getting city');
+    return undefined;
   }
-  
   try {
-    const project = await db.get('projects', projectId);
-    if (!project) {
-      console.error('Project not found:', projectId);
-      return [];
-    }
-    
-    const overlays: StoredOverlayData[] = [];
-    for (const overlayId of project.overlayIds) {
-      const overlay = await db.get('overlays', overlayId);
-      if (overlay) {
-        overlays.push(overlay);
-      }
-    }
-    
-    return overlays;
+    return await db.get('cities', id);
   } catch (error) {
-    console.error('Error getting project overlays:', error);
-    return [];
+    console.error('Error retrieving city:', error);
+    return undefined;
   }
 }
 
-// AI : Helper functions to handle date serialization for IndexedDB storage
-
-/**
- * Convert a project with Date objects to a serializable format for IndexedDB
- */
-function serializeProjectForStorage(project: Project): any {
-  return {
-    ...project,
-    startDate: project.startDate instanceof Date ? project.startDate.toISOString() : project.startDate,
-    endDate: project.endDate instanceof Date ? project.endDate.toISOString() : project.endDate,
-    latestUpdateOn: project.latestUpdateOn instanceof Date ? project.latestUpdateOn.toISOString() : project.latestUpdateOn,
-    city: project.city ? {
-      // AI : Create a plain copy of city object to avoid reactive proxy issues
-      id: project.city.id,
-      name: project.city.name,
-      countryCode: project.city.countryCode,
-      lat: project.city.lat,
-      lng: project.city.lng,
-      distance: project.city.distance
-    } : undefined,
-    overlayIds: Array.isArray(project.overlayIds) ? [...project.overlayIds] : []
-  };
-}
-
-/**
- * Convert a stored project back to runtime format with Date objects
- */
-function deserializeProjectFromStorage(storedProject: any): Project {
-  return {
-    ...storedProject,
-    startDate: storedProject.startDate ? new Date(storedProject.startDate) : null,
-    endDate: storedProject.endDate ? new Date(storedProject.endDate) : null,
-    latestUpdateOn: storedProject.latestUpdateOn ? new Date(storedProject.latestUpdateOn) : null
-  } as Project;
-}
+// AI : Note: The functions addOverlayToProject, removeOverlayFromProject, and getProjectOverlays
+// AI : are removed as they are now managed at the application level, not in the database service.
+// AI : The database service should only be responsible for direct data access, not business logic.
+// AI : Helper functions for serialization are also removed as they are no longer needed with the new types.

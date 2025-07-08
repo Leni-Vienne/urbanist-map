@@ -21,7 +21,6 @@ export function useProjectEditor(projectId: string, mode: 'edit' | 'view' | 'cre
   const editingProject = ref<Partial<Project>>({
     name: '',
     description: '',
-    location: '',
     startDate: null,
     endDate: null,
     sourceUrl: '',
@@ -42,7 +41,6 @@ export function useProjectEditor(projectId: string, mode: 'edit' | 'view' | 'cre
       editingProject.value = {
     name: initialProjectName.value,
     description: '',
-    location: '',
     cityId: undefined, // AI : Initialize cityId as undefined
     startDate: null,
     endDate: null,
@@ -85,7 +83,6 @@ export function useProjectEditor(projectId: string, mode: 'edit' | 'view' | 'cre
       const dataToSave = {
         name: projectData.name,
         description: projectData.description ?? '',
-        location: projectData.location ?? '',
         cityId: projectData.cityId, // AI : Include cityId for foreign key relationship
         startDate: projectData.startDate ?? null,
         endDate: projectData.endDate ?? null,

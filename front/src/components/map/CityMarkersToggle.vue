@@ -16,8 +16,8 @@ import {
   citiesWithProjects,
   isLoadingCities,
   removeCityMarkers,
-  initializeCityMarkers,
-  addCityMarkersToMap,
+  addCityMarkersForCountry,
+  toggleCityMarkers,
   areCityMarkersVisible
 } from '@composables/map/useCityMarkers';
 
@@ -46,11 +46,11 @@ async function toggleMarkers(newValue: boolean): Promise<void> {
     if (newValue) {
       // AI : Show markers
       if (citiesWithProjects.value.length === 0) {
-        // AI : Load cities if not already loaded
-        await initializeCityMarkers();
+        // AI : If no cities loaded, use toggle function which handles loading
+        toggleCityMarkers();
       } else {
-        // AI : Add markers to map (this function handles removal of existing markers)
-        addCityMarkersToMap();
+        // AI : Add markers to map with existing cities data
+        addCityMarkersForCountry(citiesWithProjects.value);
       }
       showMarkers.value = true;
     } else {

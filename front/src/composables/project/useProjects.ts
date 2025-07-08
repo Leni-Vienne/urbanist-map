@@ -1,19 +1,45 @@
 import {
   saveProject,
   deleteProject,
-  addOverlayToProject,
-  removeOverlayFromProject,
 } from '@composables/core/useDatabase';
 import { overlays } from '@stores/overlayStore';
 import { projects, selectedProjectId, countries } from '@stores/projectStore';
 import { useToast } from '@composables/ui/useToast';
 import { trpc } from '@client';
-import type { Project, OverlayObject } from '@types';
+import type { Project, OverlayObject, StoredProjectData } from '@types';
 
 const toast = useToast();
 
+// AI : Helper functions to handle name/title mapping
+// AI : These functions ensure backward compatibility while using Drizzle schema
+
+/**
+ * AI : Convert a Project object to StoredProjectData for database storage
+ * Maps the 'name' field to 'title' for Drizzle schema compatibility
+ */
+function projectToStoredData(project: Project): StoredProjectData {
+  const { name, overlayIds: _overlayIds, color: _color, ...drizzleData } = project;
+  return {
+    ...drizzleData,
+    title: name, // AI : Map name to title for Drizzle schema
+  };
+}
+
+/**
+ * AI : Convert StoredProjectData from database to Project object
+ * Maps the 'title' field to 'name' for backward compatibility
+ */
+export function storedDataToProject(storedData: StoredProjectData, overlayIds: string[] = [], color: string = '#007bff'): Project {
+  return {
+    ...storedData,
+    name: storedData.title, // AI : Map title to name for backward compatibility
+    overlayIds,
+    color,
+  };
+}
+
 // AI : Export the reactive stores from centralized location
-export { projects, selectedProjectId, countries };
+export { projects, selectedProjectId, countries, projectToStoredData };
 
 export async function loadCitiesForCountry(countryCode: string): Promise<void> {
   try {
@@ -40,20 +66,27 @@ export async function createProject(projectData: Partial<Omit<Project, 'id' | 'o
     id,
     overlayIds: [],
     color: '#007bff',
+    // AI : Use title from Drizzle schema but populate from name for backward compatibility
+    title: projectData.name || '',
     sourceUrl: projectData.sourceUrl || null,
     startDate: projectData.startDate || null,
     endDate: projectData.endDate || null,
     latestUpdateOn: projectData.latestUpdateOn || null,
-    name: projectData.name || '',
     description: projectData.description || null,
-    location: projectData.location || '',
     metadata: null,
     cityId: projectData.cityId || null,
+    // AI : Add missing Drizzle fields with default values
+    status: 'pending', // AI : Default status for new projects
+    ownerId: null, // AI : No user authentication system yet
     createdAt: new Date(),
     updatedAt: new Date(),
+    // AI : Add computed name property for backward compatibility
+    name: projectData.name || '',
   };
 
-  await saveProject(project);
+  // AI : Convert to StoredProjectData and save to database
+  const storedData = projectToStoredData(project);
+  await saveProject(storedData);
 
   // AI : Create a new object reference to ensure shallowRef reactivity triggers
   const updatedProjects = { ...projects.value };
@@ -102,9 +135,6 @@ export async function addOverlayToProjectWithId(projectId: string, overlayId: st
     return;
   }
 
-  // Update database
-  await addOverlayToProject(projectId, overlayId);
-
   // AI : Create new references to ensure reactivity with shallowRef
   const updatedProjects = { ...projects.value };
   const project = { ...updatedProjects[projectId] };
@@ -113,6 +143,10 @@ export async function addOverlayToProjectWithId(projectId: string, overlayId: st
   if (!project.overlayIds.includes(overlayId)) {
     project.overlayIds = [...project.overlayIds, overlayId];
   }
+
+  // AI : Convert to StoredProjectData and save to database
+  const storedData = projectToStoredData(project);
+  await saveProject(storedData);
 
   // Update projects collection with the modified project
   updatedProjects[projectId] = project;
@@ -136,15 +170,16 @@ export async function removeOverlayFromProjectWithId(projectId: string, overlayI
     return;
   }
 
-  // Update database
-  await removeOverlayFromProject(projectId, overlayId);
-
   // AI : Create new references to ensure reactivity with shallowRef
   const updatedProjects = { ...projects.value };
   const project = { ...updatedProjects[projectId] };
 
   // Filter out the overlay ID from the project's overlay IDs
   project.overlayIds = project.overlayIds.filter(id => id !== overlayId);
+
+  // AI : Convert to StoredProjectData and save to database
+  const storedData = projectToStoredData(project);
+  await saveProject(storedData);
 
   // Update projects collection with the modified project
   updatedProjects[projectId] = project;
@@ -269,8 +304,9 @@ export async function updateProject(projectId: string, projectData: Partial<Omit
   // AI : Create new project object with updated fields
   const updatedProject = { ...project, ...projectData };
 
-  // Save to database
-  await saveProject(updatedProject);
+  // AI : Convert to StoredProjectData and save to database
+  const storedData = projectToStoredData(updatedProject);
+  await saveProject(storedData);
 
   // AI : Create a new projects object reference to trigger shallowRef reactivity
   const updatedProjects = { ...projects.value };

@@ -1,10 +1,11 @@
 import L from "leaflet";
 import { DBSchema } from "idb";
 import type { RouterOutput } from '@client';
-import type { 
-  DBCountry, 
-  DBProject, 
-  DBOverlay
+import type {
+  DBCountry,
+  DBProject,
+  DBOverlay,
+  DBCity,
 } from '../../back/src/db/schema';
 
 // AI : Type for geographic coordinates
@@ -73,20 +74,9 @@ export interface CDNOverlayData {
   filename: string;
   caption?: string;
   projectId: string | null;
-  project: {
-    id: string;
-    title: string;
-    description: string | null;
-    cityId: string | null;
-    city: {
-      id: string | null;
-      name: string;
-      countryCode: string;
-    } | null;
-    metadata: any;
-    createdAt: Date | null;
-    updatedAt: Date | null;
-  } | null;
+  project: (DBProject & {
+    city: DBCity | null;
+  }) | null;
   centroid: {
     lat: number;
     lng: number;
@@ -106,26 +96,37 @@ export interface ProjectInfo {
   endDate: Date | null;
 }
 
-// AI : Project data that is stored in the database (local projects)
+// AI : Data that is stored in the database (local projects)
 // AI : Based on Drizzle schema but with frontend-specific extensions
-export interface Project extends Omit<DBProject, 'title' | 'ownerId' | 'status'> {
-  name: string; // AI : Frontend uses 'name' instead of 'title'
-  location: string; // AI : Frontend-specific location string
-  city?: City; // AI : City information included from backend joins
-  overlayIds: string[]; // AI : Array of overlay IDs for this project
-  color: string; // AI : Color for visual grouping
-  savedRemotely?: boolean; // AI : Track if project exists on server database
+export type StoredProjectData = DBProject & {
+  // AI : Frontend-specific fields
+  savedRemotely?: boolean;
+};
+
+// AI : Runtime project data, including non-stored properties
+export interface Project extends StoredProjectData {
+  city?: DBCity;
+  overlayIds: string[];
+  color: string;
+  // AI : Add computed property for name to maintain backward compatibility
+  name: string;
 }
 
 // AI : Data that is stored in the database (based on Drizzle schema)
 // AI : Local storage format with frontend-specific properties
-export interface StoredOverlayData extends Omit<DBOverlay, 'topLeftLat' | 'topLeftLng' | 'topRightLat' | 'topRightLng' | 'bottomRightLat' | 'bottomRightLng' | 'bottomLeftLat' | 'bottomLeftLng' | 'centroid' | 'status' | 'authorId'> {
-  imageUrl: string; // AI : Frontend uses imageUrl for local storage
-  corners: { lat: number, lng: number }[]; // AI : Simplified corners array format
-  history: { lat: number, lng: number }[][]; // AI : Undo history for overlay transformations
-  redoStack: { lat: number, lng: number }[][]; // AI : Redo stack for overlay transformations
-  savedRemotely?: boolean; // AI : Track if overlay exists on server database
-}
+export type StoredOverlayData = DBOverlay & {
+  // AI : Frontend-specific fields for local functionality
+  imageUrl: string; // AI : Derived from filename for display
+  history: { lat: number, lng: number }[][]; // AI : For undo/redo functionality
+  redoStack: { lat: number, lng: number }[][]; // AI : For undo/redo functionality
+  savedRemotely?: boolean; // AI : Track if overlay exists on server
+  // AI : Override centroid from Drizzle geometry to simple coordinate format for frontend use
+  centroid: { x: number; y: number }; // AI : x=lng, y=lat
+  // AI : Note: All core Drizzle fields are included from DBOverlay:
+  // - id, filename, caption, status, projectId, authorId, metadata
+  // - topLeftLat, topLeftLng, topRightLat, topRightLng, bottomRightLat, bottomRightLng, bottomLeftLat, bottomLeftLng
+  // - centroid (overridden above), createdAt, updatedAt
+};
 
 // AI : Define a simplified version of overlay data for the list component
 export interface OverlayListItem {
@@ -144,16 +145,10 @@ export interface OverlayObject extends StoredOverlayData {
   whitePixelsHidden: boolean;
   isFlipped: boolean; // AI : Track if the image has been flipped after ratio reset
   currentResolution?: string;
-  savedRemotely?: boolean; // AI : Track if overlay exists on server database
   // AI : Project data for backend overlays (from CDN data)
-  project?: {
-    id: string;
-    title: string;
-    description?: string | null;
-    metadata?: any;
-    createdAt: Date | null;
-    updatedAt: Date | null;
-  } | null;
+  project?: CDNOverlayData['project'];
+  // AI : Temporary field for backward compatibility - will be removed in favor of individual lat/lng fields
+  corners: { lat: number, lng: number }[];
 }
 
 // AI : Map position data structure
@@ -177,6 +172,10 @@ export interface MyDB extends DBSchema {
   };
   projects: {
     key: string;
-    value: Project;
+    value: StoredProjectData;
+  };
+  cities: {
+    key: string;
+    value: DBCity;
   };
 }

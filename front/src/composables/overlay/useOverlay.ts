@@ -28,20 +28,25 @@ export function saveOverlayToDatabase(overlayObj: OverlayObject): void {
 
   if (!overlayObj.alreadyStored) return;
 
+  const corners = overlayObj.overlay?.getCorners() ?? [];
   const savedOverlay: StoredOverlayData = {
-    id: overlayObj.id,
-    imageUrl: overlayObj.imageUrl,
-    corners: overlayObj.corners,
-    history: overlayObj.history,
-    redoStack: overlayObj.redoStack,
-    projectId: overlayObj.projectId,
-    caption: overlayObj.caption,
-    savedRemotely: overlayObj.savedRemotely || false,
+    ...overlayObj,
     // AI : Required fields from Drizzle schema
     filename: overlayObj.filename || overlayObj.imageUrl.split('/').pop() || '',
-    metadata: overlayObj.metadata || null,
-    createdAt: overlayObj.createdAt || new Date(),
-    updatedAt: new Date()
+    // AI : Map corners to individual lat/lng fields
+    topLeftLat: corners[0]?.lat ?? 0,
+    topLeftLng: corners[0]?.lng ?? 0,
+    topRightLat: corners[1]?.lat ?? 0,
+    topRightLng: corners[1]?.lng ?? 0,
+    bottomRightLat: corners[2]?.lat ?? 0,
+    bottomRightLng: corners[2]?.lng ?? 0,
+    bottomLeftLat: corners[3]?.lat ?? 0,
+    bottomLeftLng: corners[3]?.lng ?? 0,
+    centroid: {
+      x: overlayObj.overlay?.getBounds().getCenter().lng ?? 0,
+      y: overlayObj.overlay?.getBounds().getCenter().lat ?? 0,
+    },
+    updatedAt: new Date(),
   };
 
   saveOverlay(savedOverlay);
@@ -148,20 +153,24 @@ async function loadOverlay(savedOverlay: StoredOverlayData): Promise<void> {
 }
 
 function getOverlayBounds(overlay: StoredOverlayData): L.LatLngBounds | null {
-  if (!overlay.corners || overlay.corners.length < 2) {
+  const corners = [
+    L.latLng(overlay.topLeftLat, overlay.topLeftLng),
+    L.latLng(overlay.topRightLat, overlay.topRightLng),
+    L.latLng(overlay.bottomRightLat, overlay.bottomRightLng),
+    L.latLng(overlay.bottomLeftLat, overlay.bottomLeftLng),
+  ];
+
+  // AI : Check if all corners are valid
+  if (corners.some(c => !c.lat || !c.lng)) {
     return null;
   }
 
-  return L.latLngBounds(
-    overlay.corners.map(corner => L.latLng(corner.lat, corner.lng))
-  );
+  return L.latLngBounds(corners);
 }
 
 function isOverlayWithinBounds(overlay: StoredOverlayData, bounds: L.LatLngBounds): boolean {
-  if (!overlay.corners || overlay.corners.length === 0) return true;
-
   const overlayBounds = getOverlayBounds(overlay);
-  if (!overlayBounds) return true;
+  if (!overlayBounds) return true; // AI : If no bounds, assume it's within view to load it
 
   return bounds.intersects(overlayBounds);
 }
@@ -189,31 +198,31 @@ async function loadOverlaysInView(): Promise<void> {
  * AI : Create a new overlay object from saved data
  */
 export function createOverlayObject(savedOverlay: StoredOverlayData): OverlayObject {
-  // AI : Get project data from local projects collection if available
-  const projectData = savedOverlay.projectId && projects.value[savedOverlay.projectId]
-    ? {
-      id: projects.value[savedOverlay.projectId].id,
-      title: projects.value[savedOverlay.projectId].name,
-      description: projects.value[savedOverlay.projectId].description ?? null,
-      metadata: { color: projects.value[savedOverlay.projectId].color },
-      createdAt: projects.value[savedOverlay.projectId].createdAt || new Date(),
-      updatedAt: projects.value[savedOverlay.projectId].updatedAt || new Date()
-    }
-    : null;
+  const project = savedOverlay.projectId ? projects.value[savedOverlay.projectId] : null;
 
-  const overlayObject = {
+  // AI : Reconstruct corners from individual lat/lng fields
+  const corners = [
+    { lat: savedOverlay.topLeftLat, lng: savedOverlay.topLeftLng },
+    { lat: savedOverlay.topRightLat, lng: savedOverlay.topRightLng },
+    { lat: savedOverlay.bottomRightLat, lng: savedOverlay.bottomRightLng },
+    { lat: savedOverlay.bottomLeftLat, lng: savedOverlay.bottomLeftLng },
+  ];
+
+  const overlayObject: OverlayObject = {
     ...savedOverlay,
     overlay: null,
     marker: null,
     alreadyLoaded: false,
-    // AI : Only mark as stored if it's a local overlay OR a remote overlay that has been modified
-    // Remote overlays that exist in IndexedDB but were never modified should not be considered "stored"
     alreadyStored: !savedOverlay.savedRemotely || (savedOverlay.history && savedOverlay.history.length > 0),
     whitePixelsHidden: false,
-    isFlipped: false, // AI : Initialize as not flipped
+    isFlipped: false,
     currentResolution: savedOverlay.imageUrl,
-    savedRemotely: savedOverlay.savedRemotely || false, // AI : Default to false if not set
-    project: projectData // AI : Include project data for InfoPopup display, will be updated from backend if needed
+    savedRemotely: savedOverlay.savedRemotely || false,
+    corners, // AI : Add reconstructed corners for backward compatibility
+    project: project ? {
+      ...project,
+      city: project.city ?? null,
+    } : null,
   };
   return overlayObject;
 }
@@ -337,14 +346,12 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
     // AI : Handle transition from backend to local copy when edited
     saveToHistory(overlayObject);
     updateMarkerPosition(overlayObject);
-    overlayObject.corners = overlay.getCorners();
   });
 
   overlay.on('dragend', () => {
     // AI : Handle transition from backend to local copy when moved
     saveToHistory(overlayObject);
     updateMarkerPosition(overlayObject);
-    overlayObject.corners = overlay.getCorners();
   });
 }
 
@@ -387,18 +394,25 @@ function clearOverlayFromUrl(): void {
  */
 function applyOverlayCorners(overlayObject: OverlayObject): void {
   if (!overlayObject.overlay) return;
-  // Priority 1: Use corners directly if available
-  if (overlayObject.corners && overlayObject.corners.length === 4) {
-    overlayObject.overlay.setCorners(overlayObject.corners);
-  }
-  // Priority 2: Use history if available
-  else if ((overlayObject.alreadyStored || overlayObject.alreadyLoaded) &&
-    overlayObject.history && overlayObject.history.length > 0) {
+
+  // Priority 1: Use history if available
+  if ((overlayObject.alreadyStored || overlayObject.alreadyLoaded) && overlayObject.history && overlayObject.history.length > 0) {
     const lastCorners = overlayObject.history.at(-1);
     if (lastCorners) {
       overlayObject.overlay.setCorners(lastCorners);
     }
-  }  // Priority 3: Create new history for new overlay with deep copy
+  }
+  // Priority 2: Use individual lat/lng fields if history is empty
+  else if (overlayObject.topLeftLat) {
+    const corners = [
+      { lat: overlayObject.topLeftLat, lng: overlayObject.topLeftLng },
+      { lat: overlayObject.topRightLat, lng: overlayObject.topRightLng },
+      { lat: overlayObject.bottomRightLat, lng: overlayObject.bottomRightLng },
+      { lat: overlayObject.bottomLeftLat, lng: overlayObject.bottomLeftLng },
+    ];
+    overlayObject.overlay.setCorners(corners);
+  }
+  // Priority 3: Create new history for new overlay with deep copy
   else {
     const initialState = overlayObject.overlay.getCorners();
     if (initialState && initialState.length > 0) {
@@ -429,22 +443,23 @@ export function saveToHistory(overlayObject: OverlayObject): void {
   overlayObject.history.push(currentState);
   overlayObject.redoStack = [];
 
-  overlayObject.corners = overlayObject.overlay.getCorners();
-
+  const corners = overlayObject.overlay.getCorners();
   const savedOverlay: StoredOverlayData = {
-    id: overlayObject.id,
-    imageUrl: overlayObject.imageUrl,
-    corners: overlayObject.corners,
-    history: overlayObject.history,
-    redoStack: overlayObject.redoStack,
-    projectId: overlayObject.projectId,
-    caption: overlayObject.caption,
-    savedRemotely: overlayObject.savedRemotely || false, // AI : Include server existence tracking
-    // AI : Required fields from Drizzle schema
-    filename: overlayObject.filename || overlayObject.imageUrl.split('/').pop() || '',
-    metadata: overlayObject.metadata || null,
-    createdAt: overlayObject.createdAt || new Date(),
-    updatedAt: new Date()
+    ...overlayObject,
+    // AI : Map corners to individual lat/lng fields
+    topLeftLat: corners[0]?.lat ?? 0,
+    topLeftLng: corners[0]?.lng ?? 0,
+    topRightLat: corners[1]?.lat ?? 0,
+    topRightLng: corners[1]?.lng ?? 0,
+    bottomRightLat: corners[2]?.lat ?? 0,
+    bottomRightLng: corners[2]?.lng ?? 0,
+    bottomLeftLat: corners[3]?.lat ?? 0,
+    bottomLeftLng: corners[3]?.lng ?? 0,
+    centroid: {
+      x: overlayObject.overlay.getBounds().getCenter().lng,
+      y: overlayObject.overlay.getBounds().getCenter().lat,
+    },
+    updatedAt: new Date(),
   };
 
   saveOverlay(savedOverlay);
@@ -765,17 +780,30 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData): Promise<
     const storedOverlayData: StoredOverlayData = {
       id: cdnOverlay.id,
       imageUrl: `http://localhost:3000/uploads/${cdnOverlay.filename}`,
-      corners: cdnOverlay.corners.map(corner => L.latLng(corner.lat, corner.lng)),
       history: [],
       redoStack: [],
       projectId: cdnOverlay.projectId ?? '',
       caption: cdnOverlay.caption ?? null,
       savedRemotely: true,
-      // AI : Required fields from Drizzle schema
       filename: cdnOverlay.filename,
-      metadata: null, // AI : CDNOverlayData doesn't have metadata field
-      createdAt: cdnOverlay.createdAt || new Date(),
-      updatedAt: new Date() // AI : CDNOverlayData doesn't have updatedAt field, use current date
+      metadata: null,
+      createdAt: new Date(cdnOverlay.createdAt || Date.now()),
+      updatedAt: new Date(),
+      // AI : Map corners from CDN to individual lat/lng fields
+      topLeftLat: cdnOverlay.corners[0]?.lat ?? 0,
+      topLeftLng: cdnOverlay.corners[0]?.lng ?? 0,
+      topRightLat: cdnOverlay.corners[1]?.lat ?? 0,
+      topRightLng: cdnOverlay.corners[1]?.lng ?? 0,
+      bottomRightLat: cdnOverlay.corners[2]?.lat ?? 0,
+      bottomRightLng: cdnOverlay.corners[2]?.lng ?? 0,
+      bottomLeftLat: cdnOverlay.corners[3]?.lat ?? 0,
+      bottomLeftLng: cdnOverlay.corners[3]?.lng ?? 0,
+      centroid: {
+        x: cdnOverlay.centroid.lng,
+        y: cdnOverlay.centroid.lat,
+      },
+      status: 'approved', // AI : Assume approved for view mode
+      authorId: null,
     };
 
     // AI : Create marker at centroid position

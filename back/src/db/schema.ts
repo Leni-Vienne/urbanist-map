@@ -1,7 +1,9 @@
 import {
-  pgTable, uuid, text, timestamp, jsonb, index, doublePrecision, geometry, char, pgEnum
+  pgTable, uuid, text, timestamp, jsonb, index, doublePrecision, geometry, char, pgEnum,
 } from 'drizzle-orm/pg-core';
-import { sql, InferSelectModel } from 'drizzle-orm';
+import {
+  sql, InferSelectModel, relations,
+} from 'drizzle-orm';
 
 export const approvalStatusEnum = pgEnum('approval_status', ['pending', 'approved', 'rejected']);
 
@@ -10,9 +12,13 @@ export const users = pgTable('users', {
   username: text('username').notNull(),
   email: text('email').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const usersRelations = relations(users, ({ many }) => ({
+  projects: many(projects),
+  overlays: many(overlays),
+}));
 
 export const projects = pgTable('projects', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -27,9 +33,22 @@ export const projects = pgTable('projects', {
   endDate: timestamp('end_date', { withTimezone: true }),
   latestUpdateOn: timestamp('latest_update_on', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const projectsRelations = relations(projects, ({
+  one, many,
+}) => ({
+  owner: one(users, {
+    fields: [projects.ownerId],
+    references: [users.id],
+  }),
+  city: one(cities, {
+    fields: [projects.cityId],
+    references: [cities.id],
+  }),
+  overlays: many(overlays),
+}));
 
 export const overlays = pgTable('overlays', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -53,10 +72,21 @@ export const overlays = pgTable('overlays', {
   centroid: geometry('centroid', { type: 'point', mode: 'xy', srid: 4326 }).notNull(),
 
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (overlays) => ({
   projectIndex: index('idx_overlays_project').on(overlays.projectId),
-  centroidIndex: sql.raw(`CREATE INDEX idx_overlays_centroid ON overlays USING GIST (centroid)`)
+  centroidIndex: sql.raw('CREATE INDEX idx_overlays_centroid ON overlays USING GIST (centroid)'),
+}));
+
+export const overlaysRelations = relations(overlays, ({ one }) => ({
+  project: one(projects, {
+    fields: [overlays.projectId],
+    references: [projects.id],
+  }),
+  author: one(users, {
+    fields: [overlays.authorId],
+    references: [users.id],
+  }),
 }));
 
 export const cities = pgTable('cities', {
@@ -65,10 +95,14 @@ export const cities = pgTable('cities', {
   countryCode: char('country_code', { length: 3 }).notNull(), // AI : 3-letter country code (ISO 3166-1 alpha-3)
   coordinates: geometry('coordinates', { type: 'point', mode: 'xy', srid: 4326 }).notNull(), // AI : Geographic coordinates as PostGIS point
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (cities) => ({
   countryIndex: index('idx_cities_country').on(cities.countryCode),
-  coordinatesIndex: sql.raw(`CREATE INDEX idx_cities_coordinates ON cities USING GIST (coordinates)`)
+  coordinatesIndex: sql.raw('CREATE INDEX idx_cities_coordinates ON cities USING GIST (coordinates)'),
+}));
+
+export const citiesRelations = relations(cities, ({ many }) => ({
+  projects: many(projects),
 }));
 
 export const countries = pgTable('countries', {

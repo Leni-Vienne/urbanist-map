@@ -3,9 +3,10 @@ import { ref } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
 import { renderViewModeOverlays, clearAllOverlays, isEditMode } from '@composables/overlay/useOverlay';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
-import { projects } from '@composables/project/useProjects';
+import { projects } from '@stores/projectStore';
 import { trpc, RouterOutput } from '@client';
-import type { CDNOverlayData, Project } from '@types';
+import type { CDNOverlayData, StoredProjectData } from '@types';
+import { saveProject } from '@composables/core/useDatabase';
 
 // AI : Minimum zoom level required to load city projects and overlays
 const MIN_ZOOM_FOR_OVERLAYS = 12;
@@ -113,29 +114,30 @@ export async function loadCityProjects(cityId: string, cityName: string): Promis
     // AI : In edit mode, add backend projects to local projects store
     if (isEditMode.value) {
       const updatedProjects = { ...projects.value };
-      
-      result.forEach(project => {
-        const frontendProject: Project = {
-          id: project.id,
-          name: project.title,
+      for (const project of result) {
+        const storedProject: StoredProjectData = {
+          ...project,
           description: project.description ?? '',
-          color: '#007bff',
-          location: '',
           cityId: project.cityId ?? null,
-          city: undefined, // AI : City info not included in new structure
           startDate: project.startDate ? new Date(project.startDate) : null,
           endDate: project.endDate ? new Date(project.endDate) : null,
           sourceUrl: project.sourceUrl ?? '',
           latestUpdateOn: project.latestUpdateOn ? new Date(project.latestUpdateOn) : null,
-          overlayIds: project.overlays.map((overlay: any) => overlay.id),
           createdAt: project.createdAt ? new Date(project.createdAt) : new Date(),
           updatedAt: project.updatedAt ? new Date(project.updatedAt) : new Date(),
-          metadata: null
+          metadata: project.metadata ?? null,
+          savedRemotely: true,
         };
-        
-        updatedProjects[project.id] = frontendProject;
-      });
-      
+        await saveProject(storedProject);
+
+        updatedProjects[project.id] = {
+          ...storedProject,
+          name: storedProject.title, // AI : Map title to name for backward compatibility
+          // AI : City data not included in simplified response, so omit the field
+          overlayIds: project.overlays.map((o) => o.id),
+          color: '#007bff', // AI : Default color
+        };
+      }
       projects.value = updatedProjects;
     } else {
       // AI : In view mode, clear all overlays to show only city overlays
@@ -152,14 +154,8 @@ export async function loadCityProjects(cityId: string, cityName: string): Promis
           caption: overlay.caption,
           projectId: project.id,
           project: {
-            id: project.id,
-            title: project.title,
-            description: project.description,
-            cityId: project.cityId,
-            city: null, // AI : City info not included in new structure
-            metadata: null,
-            createdAt: project.createdAt,
-            updatedAt: project.updatedAt
+            ...project,
+            city: null, // AI : City data not included in simplified response
           },
           centroid: {
             lat: (overlay.topLeftLat + overlay.bottomRightLat) / 2,
