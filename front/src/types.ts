@@ -25,17 +25,17 @@ export interface CameraBounds {
 // AI : Extend Leaflet namespace to include custom actions
 declare module "leaflet" {
   // AI : Leaflet distortableimage types - prefixed with _ to indicate intentionally unused
-  const _DistortAction: any;
-  const _RotateAction: any;
-  const _FreeRotateAction: any;
-  const _OpacityAction: any;
-  const _OpacitiesAction: any;
-  const _DeleteAction: any;
-  const _StackAction: any;
-  const _Toolbar2: any;
-  const _EditAction: any;
-  const _DragAction: any;
-  const _ResizeRotateAction: any;
+  const DistortAction: any;
+  const RotateAction: any;
+  const FreeRotateAction: any;
+  const OpacityAction: any;
+  const OpacitiesAction: any;
+  const DeleteAction: any;
+  const StackAction: any;
+  const Toolbar2: any;
+  const EditAction: any;
+  const DragAction: any;
+  const ResizeRotateAction: any;
 
   // AI : Definition for DistortableImageOverlay
   interface DistortableImageOverlay extends L.ImageOverlay {

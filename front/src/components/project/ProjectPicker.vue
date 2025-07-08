@@ -93,6 +93,7 @@ import { ref, computed, watch } from 'vue';
 import { projects } from '@composables/project/useProjects';
 import { lastCreatedProjectId } from '@composables/ui/useRouterNavigation';
 import { useProjectManagerDialog } from '@composables/project/useProjectManagerDialog';
+import { router } from '../../router';
 import type { Project } from '@types';
 
 const props = defineProps({
@@ -163,14 +164,13 @@ function confirmSelection() {
 const { setFileUploadFlow } = useProjectManagerDialog();
 
 function openNewProjectDialog() {
-  if (!window.router) {
-    console.error('Global router not available for navigation');
-    return;
+  try {
+    // AI : Set flag when creating from ProjectPicker
+    setFileUploadFlow(true);
+    router.push('/projects/create');
+  } catch (err) {
+    console.error('AI: Failed to navigate to project creation', err);
   }
-
-  // AI : Set flag when creating from ProjectPicker
-  setFileUploadFlow(true);
-  window.router.push('/projects/create');
 }
 
 // AI : Handle select focus/click to emit event for lazy loading

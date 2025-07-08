@@ -5,7 +5,10 @@ import { renderViewModeOverlays, clearAllOverlays, isEditMode } from '@composabl
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
 import { projects } from '@composables/project/useProjects';
 import { trpc, RouterOutput } from '@client';
-import type { CDNOverlayData, Project, City } from '@types';
+import type { CDNOverlayData, Project } from '@types';
+
+// AI : Minimum zoom level required to load city projects and overlays
+const MIN_ZOOM_FOR_OVERLAYS = 12;
 
 // AI : Type aliases using RouterOutput from tRPC
 export type CityWithProjects = RouterOutput['cities']['getCitiesWithProjects'][number];
@@ -27,10 +30,61 @@ let cityMarkersLayer: L.LayerGroup | null = null;
 let mouseTooltip: HTMLElement | null = null;
 
 /**
+ * AI : Show message to user when zoom level is too low for loading overlays
+ */
+function showZoomMessage(cityName: string): void {
+  // AI : Create temporary tooltip to inform user about zoom requirement
+  const zoomTooltip = document.createElement('div');
+  zoomTooltip.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 16px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    z-index: 10001;
+    text-align: center;
+    max-width: 300px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  `;
+  zoomTooltip.innerHTML = `
+    <div style="margin-bottom: 8px;"><strong>${cityName}</strong></div>
+    <div>Zoom in closer to view construction projects</div>
+    <div style="font-size: 14px; margin-top: 8px; opacity: 0.8;">Minimum zoom level: ${MIN_ZOOM_FOR_OVERLAYS}</div>
+  `;
+  
+  document.body.appendChild(zoomTooltip);
+  
+  // AI : Auto-remove message after 3 seconds
+  setTimeout(() => {
+    if (document.body.contains(zoomTooltip)) {
+      document.body.removeChild(zoomTooltip);
+    }
+  }, 3000);
+}
+
+/**
  * AI : Load projects for a specific city and display overlays on map
  */
-export async function loadCityProjects(cityId: string, _cityName: string): Promise<void> {
+export async function loadCityProjects(cityId: string, cityName: string): Promise<void> {
   try {
+    // AI : Check if user is zoomed in enough to load overlays
+    if (!map.value) {
+      console.warn('AI : Map not available for zoom check');
+      return;
+    }
+    
+    const currentZoom = map.value.getZoom();
+    if (currentZoom < MIN_ZOOM_FOR_OVERLAYS) {
+      console.log(`AI : Zoom level ${currentZoom} too low to load overlays for ${cityName}. Minimum required: ${MIN_ZOOM_FOR_OVERLAYS}`);
+      // AI : Show user-friendly message instead of loading overlays
+      showZoomMessage(cityName);
+      return;
+    }
+
     isLoadingCityProjects.value = true;
 
     const result = await trpc.cities.getCityProjects.query({ cityId });
@@ -48,7 +102,14 @@ export async function loadCityProjects(cityId: string, _cityName: string): Promi
           color: metadata?.color ?? '#007bff',
           location: metadata?.location ?? '',
           cityId: project.cityId ?? null,
-          city: project.city as City,
+          city: project.city && project.city.id ? {
+            id: project.city.id,
+            name: project.city.name,
+            countryCode: project.city.countryCode,
+            lat: 0, // AI : Default values for missing properties
+            lng: 0,
+            distance: 0
+          } : undefined,
           startDate: metadata?.startDate ? new Date(metadata.startDate) : null,
           endDate: metadata?.endDate ? new Date(metadata.endDate) : null,
           sourceUrl: metadata?.sourceUrl ?? '',

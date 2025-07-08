@@ -1,7 +1,7 @@
 import {
   pgTable, uuid, text, timestamp, jsonb, index, doublePrecision, geometry, char, pgEnum
 } from 'drizzle-orm/pg-core';
-import { sql, InferSelectModel, InferInsertModel } from 'drizzle-orm';
+import { sql, InferSelectModel } from 'drizzle-orm';
 
 export const approvalStatusEnum = pgEnum('approval_status', ['pending', 'approved', 'rejected']);
 
@@ -85,7 +85,7 @@ export const countries = pgTable('countries', {
 
 
 // AI : Export Drizzle-inferred types for frontend consumption
-export type City = InferSelectModel<typeof cities>;
+export type DBCity = InferSelectModel<typeof cities>;
 export type DBProject = InferSelectModel<typeof projects>;
 export type DBOverlay = InferSelectModel<typeof overlays>;
 export type DBUser = InferSelectModel<typeof users>;
