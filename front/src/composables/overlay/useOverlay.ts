@@ -74,7 +74,10 @@ export async function initializeOverlays(): Promise<void> {
 
   const mapBounds = map.value.getBounds();
 
-  createMarkersForOverlays(savedOverlays);
+  // AI : Only create markers in edit mode - view mode markers are handled by renderViewModeOverlays
+  if (isEditMode.value) {
+    createMarkersForOverlays(savedOverlays);
+  }
   loadOverlaysInMapBounds(savedOverlays, mapBounds);
 
   setupMapEventListeners();
@@ -92,34 +95,11 @@ function setupMapEventListeners(): void {
 function createMarkersForOverlays(savedOverlays: StoredOverlayData[]): void {
   if (!map.value) return;
 
+  // AI : Use unified marker creation for LOCAL overlays only (not remote)
   savedOverlays.forEach(savedOverlay => {
-    const overlayBounds = getOverlayBounds(savedOverlay);
-    if (!overlayBounds || allMarkers.value[savedOverlay.id]) return;
-
-    let markerTitle = 'Overlay';
-    if (savedOverlay.projectId && projects.value[savedOverlay.projectId]) {
-      const project = projects.value[savedOverlay.projectId];
-      const captionPart = savedOverlay.caption ? ` - ${savedOverlay.caption}` : '';
-      markerTitle = `${project.name}${captionPart}`;
+    if (!savedOverlay.savedRemotely) {
+      createSingleMarker(savedOverlay);
     }
-
-    const center = overlayBounds.getCenter();
-
-    // AI : Create a temporary overlay object to determine correct marker color
-    const tempOverlayObject = createOverlayObject(savedOverlay);
-    const markerColor = getMarkerColorForStorageStatus(tempOverlayObject);
-    const colorIcon = createColorIcon(markerColor);
-
-    const marker = L.marker(center, {
-      title: markerTitle,
-      icon: colorIcon
-    }).addTo(map.value!);
-
-    allMarkers.value[savedOverlay.id] = marker;
-
-    // AI : Assign marker to temp object and update tooltip
-    tempOverlayObject.marker = marker;
-    updateMarkerTooltip(tempOverlayObject);
   });
 }
 
@@ -143,7 +123,10 @@ async function loadOverlay(savedOverlay: StoredOverlayData): Promise<void> {
   if (!newOverlay) return;
 
   overlayObject.overlay = newOverlay;
+  
+  // AI : Always assign markers from allMarkers if they exist
   overlayObject.marker = allMarkers.value[savedOverlay.id];
+  
   overlays.value[savedOverlay.id] = overlayObject;
 
   // AI : Update marker tooltip with correct overlay object information
@@ -743,7 +726,7 @@ function setupProjectHoverEvents(overlay: L.DistortableImageOverlay, overlayObje
  * AI : Render backend CDN overlays on the map for view mode
  * Only renders overlays that haven't been rendered yet to avoid duplicates
  */
-export async function renderViewModeOverlays(cdnOverlays: CDNOverlayData[]): Promise<void> {
+export async function renderViewModeOverlays(cdnOverlays: CDNOverlayData[], createMarkers = true): Promise<void> {
   if (!map.value) {
     return;
   }
@@ -762,7 +745,7 @@ export async function renderViewModeOverlays(cdnOverlays: CDNOverlayData[]): Pro
 
   // AI : Render each new CDN overlay as a read-only marker in view mode or editable overlay in edit mode
   for (const cdnOverlay of overlaysToRender) {
-    await renderSingleViewModeOverlay(cdnOverlay);
+    await renderSingleViewModeOverlay(cdnOverlay, createMarkers);
   }
 }
 
@@ -770,7 +753,7 @@ export async function renderViewModeOverlays(cdnOverlays: CDNOverlayData[]): Pro
  * AI : Render a single CDN overlay as read-only distortable overlay on the map
  * Simplified version that uses existing helper functions
  */
-async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData): Promise<void> {
+async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData, createMarkers = true): Promise<void> {
   if (!map.value || overlays.value[cdnOverlay.id]) {
     return;
   }
@@ -806,18 +789,10 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData): Promise<
       authorId: null,
     };
 
-    // AI : Create marker at centroid position
-    const markerTitle = isEditMode.value
-      ? `${cdnOverlay.caption ?? 'Overlay'} (Remote - Editable)`
-      : `${cdnOverlay.caption ?? 'Overlay'} (View Mode - Read Only)`;
-
-    const marker = L.marker([cdnOverlay.centroid.lat, cdnOverlay.centroid.lng], {
-      title: markerTitle,
-      opacity: 0.7,
-      icon: createColorIcon('green') // AI : Remote overlays are green by default
-    }).addTo(map.value);
-
-    allMarkers.value[cdnOverlay.id] = marker;
+    // AI : Create marker if requested using unified marker creation system
+    if (createMarkers) {
+      createSingleMarker(storedOverlayData);
+    }
 
     // AI : Use existing loadOverlay function to handle the rest
     await loadOverlay(storedOverlayData);
@@ -1016,4 +991,39 @@ function getMarkerColorForStorageStatus(overlayObject: OverlayObject): 'blue' | 
     default:
       return 'blue'; // AI : Default color for unknown status
   }
+}
+
+/**
+ * AI : UNIFIED marker creation function - THE ONLY PLACE WHERE MARKERS ARE CREATED
+ */
+function createSingleMarker(savedOverlay: StoredOverlayData): void {
+  if (!map.value || allMarkers.value[savedOverlay.id]) return;
+
+  const overlayBounds = getOverlayBounds(savedOverlay);
+  if (!overlayBounds) return;
+
+  let markerTitle = 'Overlay';
+  if (savedOverlay.projectId && projects.value[savedOverlay.projectId]) {
+    const project = projects.value[savedOverlay.projectId];
+    const captionPart = savedOverlay.caption ? ` - ${savedOverlay.caption}` : '';
+    markerTitle = `${project.name}${captionPart}`;
+  }
+
+  const center = overlayBounds.getCenter();
+
+  // AI : Create a temporary overlay object to determine correct marker color
+  const tempOverlayObject = createOverlayObject(savedOverlay);
+  const markerColor = getMarkerColorForStorageStatus(tempOverlayObject);
+  const colorIcon = createColorIcon(markerColor);
+
+  const marker = L.marker(center, {
+    title: markerTitle,
+    icon: colorIcon
+  }).addTo(map.value!);
+
+  allMarkers.value[savedOverlay.id] = marker;
+
+  // AI : Update marker tooltip immediately
+  tempOverlayObject.marker = marker;
+  updateMarkerTooltip(tempOverlayObject);
 }
