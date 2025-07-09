@@ -1,6 +1,6 @@
 import { openDB, IDBPDatabase } from 'idb';
 import {
-  MyDB, StoredOverlayData, MapPosition, StoredProjectData, Project,
+  MyDB, StoredOverlayData, StoredProjectData,
 } from '@types';
 import { DBCity } from '../../../../back/src/db/schema';
 
@@ -17,9 +17,6 @@ export async function initializeDatabase(): Promise<void> {
         if (!upgradeDb.objectStoreNames.contains('overlays')) {
           upgradeDb.createObjectStore('overlays', { keyPath: 'id' });
         }
-        if (!upgradeDb.objectStoreNames.contains('mapPosition')) {
-          upgradeDb.createObjectStore('mapPosition', { keyPath: 'key' });
-        }
         if (!upgradeDb.objectStoreNames.contains('projects')) {
           upgradeDb.createObjectStore('projects', { keyPath: 'id' });
         }
@@ -32,40 +29,6 @@ export async function initializeDatabase(): Promise<void> {
   } catch (error) {
     console.error('Failed to initialize database:', error);
     throw new Error('Database initialization failed');
-  }
-}
-
-/**
- * Get the saved map position from the database
- */
-export async function getSavedMapPosition() {
-  if (!db) {
-    console.warn('Database not initialized when getting map position');
-    return null;
-  }
-  
-  try {
-    const savedPosition = await db.get('mapPosition', 'position');
-    return savedPosition ? savedPosition.value : null;
-  } catch (error) {
-    console.error('Error retrieving map position:', error);
-    return null;
-  }
-}
-
-/**
- * Save the current map position to the database
- */
-export async function saveMapPosition(position: MapPosition): Promise<void> {
-  if (!db) {
-    console.warn('Database not initialized when saving map position');
-    return;
-  }
-  
-  try {
-    await db.put('mapPosition', position);
-  } catch (error) {
-    console.error('Error saving map position:', error);
   }
 }
 
@@ -129,7 +92,6 @@ export async function clearDatabase(): Promise<void> {
   
   try {
     await db.clear('overlays');
-    await db.clear('mapPosition');
     // AI : Also clear projects store if it exists
     try {
       await db.clear('projects');

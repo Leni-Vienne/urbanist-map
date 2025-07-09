@@ -151,21 +151,8 @@ export interface OverlayObject extends StoredOverlayData {
   corners: { lat: number, lng: number }[];
 }
 
-// AI : Map position data structure
-export interface MapPosition {
-  key: string;
-  value: {
-    center: number[];
-    zoom: number;
-  };
-}
-
 // AI : Database schema definition
 export interface MyDB extends DBSchema {
-  mapPosition: {
-    key: string;
-    value: MapPosition;
-  };
   overlays: {
     key: string;
     value: StoredOverlayData;

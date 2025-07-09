@@ -1,7 +1,5 @@
 import L from "leaflet";
 import { ref, shallowRef, nextTick } from 'vue';
-import { getSavedMapPosition, saveMapPosition } from '@composables/core/useDatabase';
-import type { MapPosition } from '@types';
 import { debounce } from '../../utils';
 import { addTileLayer } from '@composables/map/useTileLayers';
 
@@ -49,52 +47,18 @@ export const debouncedUpdateMapSize = debounce(function() {
 }, 250);
 
 export async function initializeMap() {
-  const savedPosition = await getSavedMapPosition();
-
-  // AI : Default coordinates for Paris if no saved position is found
-  const defaultLat = 48.8566;
-  const defaultLng = 2.3522;
-  const defaultZoom = 13;
-
-  // AI : Check for coordinates in URL first
-  let urlCenter: [number, number] | null = null;
-  let urlZoom: number | null = null;
-  
-  try {
-    const url = new URL(window.location.href);
-    const lat = url.searchParams.get('lat');
-    const lng = url.searchParams.get('lng');
-    const zoom = url.searchParams.get('zoom');
-    
-    if (lat && lng) {
-      urlCenter = [parseFloat(lat), parseFloat(lng)];
-    }
-    
-    if (zoom) {
-      urlZoom = parseInt(zoom, 10);
-    }
-  } catch (error) {
-    console.error('Error parsing URL params:', error);
-  }
-  
-  // AI : Use URL params if present, then saved position, then defaults
-  const center = urlCenter ?? (savedPosition ? savedPosition.center : [defaultLat, defaultLng]);
-  const zoom = urlZoom ?? (savedPosition ? savedPosition.zoom : defaultZoom);
-
-  const initialView: L.LatLngExpression = { lat: center[0], lng: center[1] };
-
   map.value = L.map("viewerDiv", { 
     maxZoom: 22,
     zoomControl: false
-   }).setView(initialView, zoom);
+   }).setView([22, 10], 3);
   if (!map.value) throw new Error('No map element found');
 
   L.control.zoom({
     position: 'topright'
 }).addTo(map.value);
 
-  // AI : Initialize reactive zoom level
-  currentZoomLevel.value = zoom;
+  // AI : Initialize reactive zoom level with Leaflet's default
+  currentZoomLevel.value = map.value.getZoom();
   
   // AI : Listen for zoom changes to update reactive zoom level
   map.value.on('zoomend', () => {
@@ -109,13 +73,7 @@ export async function initializeMap() {
   // AI : Update map size when window is resized (debounced to trigger only on resize end)
   window.addEventListener('resize', debouncedUpdateMapSize);
 
-  // AI : Save default position if none exists
-  if (!savedPosition) {
-    await saveCurrentMapPosition();
-  }
-
   addTileLayer();
-  map.value.on('moveend zoomend', saveCurrentMapPosition);
   L.control.scale().addTo(map.value);
   // AI : Ensure the map initialization is complete
   // AI : Use nextTick for better timing than arbitrary timeout
@@ -129,26 +87,6 @@ export async function initializeMap() {
 
 
 
-
-// AI : Restauration de la fonction de sauvegarde de la position de la carte
-async function saveCurrentMapPosition() {
-  if (!map.value) return;
-
-  const center = map.value.getCenter();
-  const zoom = map.value.getZoom();
-  const position: MapPosition = { 
-    key: 'position', 
-    value: { 
-      center: [center.lat, center.lng], 
-      zoom 
-    } 
-  };
-
-  // Update URL with position without affecting history
-  updateUrlWithPosition(center.lat, center.lng, zoom);
-
-  await saveMapPosition(position);
-}
 
 // AI : Update URL with map coordinates and zoom without affecting history
 export function updateUrlWithPosition(lat: number, lng: number, zoom: number): void {
