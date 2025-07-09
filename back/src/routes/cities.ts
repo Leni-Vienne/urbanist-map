@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { publicProcedure, router } from '../trpc';
 import { db } from '../db';
 import {
-  cities, projects,
+  cities, projects, overlays,
 } from '../db/schema';
 import {
   sql, eq, isNotNull, and,
@@ -144,38 +144,56 @@ export const citiesRouter = router({
       try {
         const { cityId } = input;
         
-        // AI : Get projects with overlays, using separate lat/lng columns instead of PostGIS centroid
-        // TODO temporary, it's dumb having such long queries
+        // AI : Get all overlays for projects in this city with centroid coordinates in one query
+        const overlaysWithCentroids = await db
+          .select({
+            id: overlays.id,
+            filename: overlays.filename,
+            caption: overlays.caption,
+            status: overlays.status,
+            projectId: overlays.projectId,
+            authorId: overlays.authorId,
+            metadata: overlays.metadata,
+            topLeftLat: overlays.topLeftLat,
+            topLeftLng: overlays.topLeftLng,
+            topRightLat: overlays.topRightLat,
+            topRightLng: overlays.topRightLng,
+            bottomRightLat: overlays.bottomRightLat,
+            bottomRightLng: overlays.bottomRightLng,
+            bottomLeftLat: overlays.bottomLeftLat,
+            bottomLeftLng: overlays.bottomLeftLng,
+            lat: sql<number>`ST_Y(${overlays.centroid})`,
+            lng: sql<number>`ST_X(${overlays.centroid})`,
+            createdAt: overlays.createdAt,
+            updatedAt: overlays.updatedAt,
+          })
+          .from(overlays)
+          .innerJoin(projects, eq(overlays.projectId, projects.id))
+          .where(eq(projects.cityId, cityId));
+
+        // AI : Get all projects for this city
         const projectsResult = await db.query.projects.findMany({
           where: eq(projects.cityId, cityId),
-          with: {
-            overlays: {
-              columns: {
-                id: true,
-                filename: true,
-                caption: true,
-                status: true,
-                projectId: true,
-                authorId: true,
-                metadata: true,
-                // AI : Use separate coordinate columns instead of PostGIS geometry
-                topLeftLat: true,
-                topLeftLng: true,
-                topRightLat: true,
-                topRightLng: true,
-                bottomRightLat: true,
-                bottomRightLng: true,
-                bottomLeftLat: true,
-                bottomLeftLng: true,
-                createdAt: true,
-                updatedAt: true,
-                // AI : Exclude the problematic centroid PostGIS geometry column
-              },
-            },
-          },
         });
 
-        return projectsResult;
+        // AI : Group overlays by project ID and attach to projects
+        const overlaysByProject = overlaysWithCentroids.reduce((acc, overlay) => {
+          const projectId = overlay.projectId;
+          if (projectId) {
+            if (!acc[projectId]) {
+              acc[projectId] = [];
+            }
+            acc[projectId].push(overlay);
+          }
+          return acc;
+        }, {} as Record<string, typeof overlaysWithCentroids>);
+
+        const projectsWithOverlays = projectsResult.map(project => ({
+          ...project,
+          overlays: overlaysByProject[project.id] || [],
+        }));
+
+        return projectsWithOverlays;
       } catch (error) {
         console.error('Error fetching city projects:', error);
         throw new Error('Failed to fetch city projects');
