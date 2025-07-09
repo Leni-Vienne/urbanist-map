@@ -30,7 +30,18 @@ export function saveOverlayToDatabase(overlayObj: OverlayObject): void {
 
   const corners = overlayObj.overlay?.getCorners() ?? [];
   const savedOverlay: StoredOverlayData = {
-    ...overlayObj,
+    // AI : Copy only serializable properties, excluding overlay, marker, and project objects
+    id: overlayObj.id,
+    imageUrl: overlayObj.imageUrl,
+    history: overlayObj.history,
+    redoStack: overlayObj.redoStack,
+    projectId: overlayObj.projectId,
+    caption: overlayObj.caption,
+    savedRemotely: overlayObj.savedRemotely,
+    metadata: overlayObj.metadata,
+    createdAt: overlayObj.createdAt,
+    status: overlayObj.status,
+    authorId: overlayObj.authorId,
     // AI : Required fields from Drizzle schema
     filename: overlayObj.filename || overlayObj.imageUrl.split('/').pop() || '',
     // AI : Map corners to individual lat/lng fields
@@ -49,11 +60,14 @@ export function saveOverlayToDatabase(overlayObj: OverlayObject): void {
     updatedAt: new Date(),
   };
 
-  saveOverlay(savedOverlay);
-
-  // AI : Update storage status and marker tooltip
-  overlayObj.alreadyStored = true;
-  updateMarkerTooltip(overlayObj);
+  try {
+    saveOverlay(savedOverlay);
+    // AI : Update storage status and marker tooltip
+    overlayObj.alreadyStored = true;
+    updateMarkerTooltip(overlayObj);
+  } catch (error) {
+    console.error('AI : Error saving overlay to database:', error);
+  }
 }
 
 /**
@@ -136,6 +150,15 @@ async function loadOverlay(savedOverlay: StoredOverlayData): Promise<void> {
 }
 
 function getOverlayBounds(overlay: StoredOverlayData): L.LatLngBounds | null {
+  // AI : Validate all corner coordinates exist and are valid numbers
+  if (!overlay.topLeftLat || !overlay.topLeftLng || 
+      !overlay.topRightLat || !overlay.topRightLng ||
+      !overlay.bottomRightLat || !overlay.bottomRightLng ||
+      !overlay.bottomLeftLat || !overlay.bottomLeftLng) {
+    console.warn('AI : Invalid overlay coordinates for overlay:', overlay.id);
+    return null;
+  }
+
   const corners = [
     L.latLng(overlay.topLeftLat, overlay.topLeftLng),
     L.latLng(overlay.topRightLat, overlay.topRightLng),
@@ -181,6 +204,25 @@ async function loadOverlaysInView(): Promise<void> {
  * AI : Create a new overlay object from saved data
  */
 export function createOverlayObject(savedOverlay: StoredOverlayData): OverlayObject {
+  // AI : Validate coordinates before creating overlay object
+  if (!savedOverlay.topLeftLat || !savedOverlay.topLeftLng || 
+      !savedOverlay.topRightLat || !savedOverlay.topRightLng ||
+      !savedOverlay.bottomRightLat || !savedOverlay.bottomRightLng ||
+      !savedOverlay.bottomLeftLat || !savedOverlay.bottomLeftLng) {
+    console.warn('AI : Creating overlay object with invalid coordinates:', savedOverlay.id, savedOverlay);
+    // AI : Provide default coordinates if missing (center of map view)
+    const defaultLat = 50.8503; // AI : Brussels, Belgium
+    const defaultLng = 4.3517;
+    savedOverlay.topLeftLat = savedOverlay.topLeftLat || defaultLat - 0.001;
+    savedOverlay.topLeftLng = savedOverlay.topLeftLng || defaultLng - 0.001;
+    savedOverlay.topRightLat = savedOverlay.topRightLat || defaultLat - 0.001;
+    savedOverlay.topRightLng = savedOverlay.topRightLng || defaultLng + 0.001;
+    savedOverlay.bottomRightLat = savedOverlay.bottomRightLat || defaultLat + 0.001;
+    savedOverlay.bottomRightLng = savedOverlay.bottomRightLng || defaultLng + 0.001;
+    savedOverlay.bottomLeftLat = savedOverlay.bottomLeftLat || defaultLat + 0.001;
+    savedOverlay.bottomLeftLng = savedOverlay.bottomLeftLng || defaultLng - 0.001;
+  }
+
   const project = savedOverlay.projectId ? projects.value[savedOverlay.projectId] : null;
 
   // AI : Reconstruct corners from individual lat/lng fields
@@ -428,7 +470,19 @@ export function saveToHistory(overlayObject: OverlayObject): void {
 
   const corners = overlayObject.overlay.getCorners();
   const savedOverlay: StoredOverlayData = {
-    ...overlayObject,
+    // AI : Copy only serializable properties, excluding overlay, marker, and project objects
+    id: overlayObject.id,
+    imageUrl: overlayObject.imageUrl,
+    history: overlayObject.history,
+    redoStack: overlayObject.redoStack,
+    projectId: overlayObject.projectId,
+    caption: overlayObject.caption,
+    savedRemotely: overlayObject.savedRemotely,
+    filename: overlayObject.filename,
+    metadata: overlayObject.metadata,
+    createdAt: overlayObject.createdAt,
+    status: overlayObject.status,
+    authorId: overlayObject.authorId,
     // AI : Map corners to individual lat/lng fields
     topLeftLat: corners[0]?.lat ?? 0,
     topLeftLng: corners[0]?.lng ?? 0,
@@ -445,11 +499,14 @@ export function saveToHistory(overlayObject: OverlayObject): void {
     updatedAt: new Date(),
   };
 
-  saveOverlay(savedOverlay);
-
-  // AI : Update storage status and marker tooltip - remote overlays become locally stored when edited
-  overlayObject.alreadyStored = true;
-  updateMarkerTooltip(overlayObject);
+  try {
+    saveOverlay(savedOverlay);
+    // AI : Update storage status and marker tooltip - remote overlays become locally stored when edited
+    overlayObject.alreadyStored = true;
+    updateMarkerTooltip(overlayObject);
+  } catch (error) {
+    console.error('AI : Error saving overlay to history:', error);
+  }
 }
 
 /**
@@ -500,7 +557,7 @@ function disableOverlayEditing(overlay: L.DistortableImageOverlay, element: HTML
   // We'll keep pointer-events enabled so clicks work, but block specific events
   // that would cause movement
   element.addEventListener('mousedown', blockMovementEvent, true);
-  element.addEventListener('touchstart', blockMovementEvent, true);
+  element.addEventListener('touchstart', blockMovementEvent, { capture: true, passive: false });
   element.addEventListener('dragstart', blockMovementEvent, true);
 
   if (overlay.off) {

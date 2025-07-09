@@ -97,8 +97,8 @@ export async function loadCityProjects(cityId: string, cityName: string, forceFu
         updatedProjects[project.id] = {
           ...storedProject,
           name: storedProject.title, // AI : Map title to name for backward compatibility
-          // AI : City data not included in simplified response, so omit the field
-          overlayIds: project.overlays.map((o) => o.id),
+          // AI : Extract overlay IDs from the JSON array returned by backend
+          overlayIds: (project.overlays as any[])?.map((o: any) => o.id) || [],
           color: '#007bff', // AI : Default color
         };
       }
@@ -111,7 +111,18 @@ export async function loadCityProjects(cityId: string, cityName: string, forceFu
     // AI : Convert project overlays to CDN overlay format for rendering
     const overlaysToRender: CDNOverlayData[] = [];
     result.forEach(project => {
-      project.overlays.forEach((overlay: any) => {
+      // AI : Handle overlays as JSON array returned by backend
+      const overlaysArray = project.overlays as any[] || [];
+      overlaysArray.forEach((overlay: any) => {
+        // AI : Validate overlay coordinates before adding
+        if (!overlay.topLeftLat || !overlay.topLeftLng || 
+            !overlay.topRightLat || !overlay.topRightLng ||
+            !overlay.bottomRightLat || !overlay.bottomRightLng ||
+            !overlay.bottomLeftLat || !overlay.bottomLeftLng) {
+          console.warn('AI : Skipping overlay with invalid coordinates:', overlay.id);
+          return;
+        }
+
         overlaysToRender.push({
           id: overlay.id,
           filename: overlay.filename,
@@ -122,8 +133,8 @@ export async function loadCityProjects(cityId: string, cityName: string, forceFu
             city: null, // AI : City data not included in simplified response
           },
           centroid: {
-            lat: (overlay.topLeftLat + overlay.bottomRightLat) / 2,
-            lng: (overlay.topLeftLng + overlay.bottomRightLng) / 2
+            lat: overlay.centroidLat,
+            lng: overlay.centroidLng
           },
           corners: [
             { lat: overlay.topLeftLat, lng: overlay.topLeftLng },
@@ -170,7 +181,18 @@ async function showOverlayMarkers(cityId: string, cityName: string): Promise<voi
     // AI : Convert project overlays to CDN overlay format but don't render images
     const overlaysData: CDNOverlayData[] = [];
     result.forEach(project => {
-      project.overlays.forEach((overlay: any) => {
+      // AI : Handle overlays as JSON array returned by backend
+      const overlaysArray = project.overlays as any[] || [];
+      overlaysArray.forEach((overlay: any) => {
+        // AI : Validate overlay coordinates before adding
+        if (!overlay.topLeftLat || !overlay.topLeftLng || 
+            !overlay.topRightLat || !overlay.topRightLng ||
+            !overlay.bottomRightLat || !overlay.bottomRightLng ||
+            !overlay.bottomLeftLat || !overlay.bottomLeftLng) {
+          console.warn('AI : Skipping overlay marker with invalid coordinates:', overlay.id);
+          return;
+        }
+
         overlaysData.push({
           id: overlay.id,
           filename: overlay.filename,
@@ -181,8 +203,8 @@ async function showOverlayMarkers(cityId: string, cityName: string): Promise<voi
             city: null,
           },
           centroid: {
-            lat: (overlay.topLeftLat + overlay.bottomRightLat) / 2,
-            lng: (overlay.topLeftLng + overlay.bottomRightLng) / 2
+            lat: overlay.centroidLat || overlay.lat,
+            lng: overlay.centroidLng || overlay.lng
           },
           corners: [
             { lat: overlay.topLeftLat, lng: overlay.topLeftLng },
@@ -207,14 +229,7 @@ async function showOverlayMarkers(cityId: string, cityName: string): Promise<voi
     
     // AI : Add simple markers for each overlay location
     overlaysData.forEach(overlay => {
-      const marker = L.circleMarker([overlay.centroid.lat, overlay.centroid.lng], {
-        radius: 8,
-        fillColor: '#ff6b35',
-        fillOpacity: 0.8,
-        color: '#ffffff',
-        weight: 2,
-        opacity: 1
-      });
+      const marker = L.marker([overlay.centroid.lat, overlay.centroid.lng]);
 
       // AI : Add tooltip with project info
       marker.bindTooltip(`📷 ${overlay.project?.title || 'Project'}${overlay.caption ? `<br/>${overlay.caption}` : ''}`, {
@@ -459,15 +474,16 @@ function setupZoomEventListenerInternal(): void {
     // AI : If zoomed in enough and we have overlay markers, upgrade to full overlays
     if (currentZoom >= MIN_ZOOM_FOR_OVERLAYS && overlayMarkersLayer && map.value.hasLayer(overlayMarkersLayer)) {
       console.log(`AI : Zoom level ${currentZoom} reached. Upgrading to full overlays for ${latestClickedCity.name}`);
-      // AI : Remove circle markers before loading full overlays
+      // AI : Remove overlay markers before loading full overlays
       removeOverlayMarkers();
       await loadCityProjects(latestClickedCity.id, latestClickedCity.name, true);
     }
-    // AI : If zoomed out from full overlays, show circle markers again
+    // AI : If zoomed out from full overlays, show overlay markers again
     else if (currentZoom < MIN_ZOOM_FOR_OVERLAYS && currentCityOverlays.value.length > 0) {
-      console.log(`AI : Zoom level ${currentZoom} too low. Showing overlay markers for ${latestClickedCity.name}`);
-      clearAllOverlays();
-      currentCityOverlays.value = [];
+      console.log(`AI : Zoom level ${currentZoom} too low. Clearing overlays and showing overlay markers for ${latestClickedCity.name}`);
+      // AI : Force cleanup all overlays first
+      forceCleanupOverlays();
+      // AI : Then show overlay markers
       await showOverlayMarkers(latestClickedCity.id, latestClickedCity.name);
     }
   });
