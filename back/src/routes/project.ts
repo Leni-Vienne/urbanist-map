@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { publicProcedure, router } from '../trpc';
 import { z } from 'zod';
-import { projects, cities, overlays, approvalStatusEnum } from '../db/schema';
+import { projects, cities, overlays } from '../db/schema';
 import { eq, sql, and } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 
@@ -59,16 +59,15 @@ export const projectRouter = router({
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to publish project' });
       }
     }),
-  // AI : Get projects with overlays within 10km of camera center
+  // AI : Get projects with overlays within 100km of camera center
   getProjectsNearLocation: publicProcedure
     .input(z.object({
       lat: z.number(),
       lng: z.number(),
-      radiusKm: z.number().default(10)
     }))
-    .query(async ({ input }: { input: { lat: number; lng: number; radiusKm: number } }) => {
+    .query(async ({ input }: { input: { lat: number; lng: number;} }) => {
       try {
-        const { lat, lng, radiusKm } = input;
+        const { lat, lng } = input;
 
         // AI : Find projects that have at least one overlay within the specified radius
         const nearbyProjects = await db
@@ -94,12 +93,11 @@ export const projectRouter = router({
           .leftJoin(cities, eq(projects.cityId, cities.id))
           .innerJoin(overlays, eq(overlays.projectId, projects.id))
           .where(and(
-            eq(projects.status, 'approved'),
-            eq(overlays.status, 'approved'),
+            sql`${overlays.centroid} IS NOT NULL`,
             sql`ST_DWithin(
               ${overlays.centroid},
               ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
-              ${radiusKm * 1000}
+              ${10 * 1000}
             )`
           ))
           .groupBy(

@@ -953,60 +953,6 @@ export async function checkAndUpdateOverlayStorageStatus(overlayObject: OverlayO
 }
 
 /**
- * AI : Determine project status based on start and end dates
- */
-function getProjectStatus(project: Project | null): 'past' | 'ongoing' | 'not-started' | 'unknown' {
-  if (!project || (!project.startDate && !project.endDate)) {
-    return 'unknown';
-  }
-
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // AI : Start of today
-
-  // AI : If only start date is provided
-  if (project.startDate && !project.endDate) {
-    const startDate = new Date(project.startDate);
-    const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-    
-    if (today >= startDateOnly) {
-      return 'ongoing'; // AI : Started and no end date = ongoing
-    } else {
-      return 'not-started'; // AI : Not started yet
-    }
-  }
-
-  // AI : If only end date is provided
-  if (!project.startDate && project.endDate) {
-    const endDate = new Date(project.endDate);
-    const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
-    
-    if (today > endDateOnly) {
-      return 'past'; // AI : Past end date
-    } else {
-      return 'ongoing'; // AI : Before or on end date
-    }
-  }
-
-  // AI : Both dates are provided
-  if (project.startDate && project.endDate) {
-    const startDate = new Date(project.startDate);
-    const endDate = new Date(project.endDate);
-    const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-    const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
-
-    if (today < startDateOnly) {
-      return 'not-started'; // AI : Before start date
-    } else if (today > endDateOnly) {
-      return 'past'; // AI : After end date
-    } else {
-      return 'ongoing'; // AI : Between start and end dates (inclusive)
-    }
-  }
-
-  return 'unknown';
-}
-
-/**
  * AI : Determine marker color based on mode and status
  * Edit mode: Green (remote stored locally), Orange (local modified), Red (remote not stored)
  * View mode: Grey (past project), Blue (ongoing project), Orange (not started project)
@@ -1017,11 +963,11 @@ function getMarkerColorForStorageStatus(overlayObject: OverlayObject): 'blue' | 
     const { savedRemotely, alreadyStored } = overlayObject;
 
     if (savedRemotely && !alreadyStored) {
-      return 'red'; // AI : Remote overlay not stored locally
+      return 'green'; // AI : Remote overlay not stored locally
     } else if (savedRemotely && alreadyStored) {
       return 'orange'; // AI : Remote overlay with local copy
     } else if (!savedRemotely && alreadyStored) {
-      return 'green'; // AI : Local only overlay
+      return 'red'; // AI : Local only overlay
     }
 
     // AI : Fallback to blue for any edge cases
