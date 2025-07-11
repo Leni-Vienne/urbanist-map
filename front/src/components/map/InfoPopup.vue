@@ -51,7 +51,7 @@
           <div class="flex justify-between">
             <span class="font-medium text-gray-600">Period:</span>
             <span class="text-right text-xs">
-              <span v-if="!project.startDate && !project.endDate">Not specified{{ project }}</span>
+              <span v-if="!project.startDate && !project.endDate">Not specified</span>
               
               <span v-else>
                 {{ formatDate(project.startDate) }} - {{ project.endDate ? formatDate(project.endDate) : 'Present' }}
@@ -128,7 +128,7 @@ import { updateTooltipText } from '@composables/overlay/useOverlayActions';
 import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId } from '@stores/projectStore';
 import { navigateToProjectEdit } from '@composables/ui/useRouterNavigation';
 import { deleteOverlay, deleteProject } from '@composables/core/useDatabase';
-import { loadCityProjects } from '@composables/map/useCityMarkers';
+import { loadCityProjects, citiesWithProjects, latestClickedCity } from '@composables/map/useCityMarkers';
 import ProjectPicker from '@components/project/ProjectPicker.vue';
 import OverlayEditor from '@components/map/OverlayEditor.vue';
 import type { OverlayObject, Project } from '@types';
@@ -211,10 +211,26 @@ function onOverlayUpdate(overlayId: string, caption?: string) {
 
 // AI : Get display text for project location (city name or fallback)
 function getProjectLocationDisplay(project: Project): string {
-  // AI : Prefer city name from included city data
+  // AI : First check if project has city data directly
   if (project.city?.name) {
     return `${project.city.name}, ${project.city.countryCode}`;
   }
+  
+  // AI : If no direct city data, look up city by cityId in citiesWithProjects
+  if (project.cityId) {
+    const city = citiesWithProjects.value.find(c => c.id === project.cityId);
+    if (city) {
+      return `${city.name}, ${city.countryCode}`;
+    }
+  }
+  
+  // AI : If still no city found, use the latest clicked city if it matches the project's cityId
+  if (project.cityId && latestClickedCity && latestClickedCity.id === project.cityId) {
+    return latestClickedCity.countryCode 
+      ? `${latestClickedCity.name}, ${latestClickedCity.countryCode}`
+      : latestClickedCity.name;
+  }
+  
   return 'Not specified';
 }
 

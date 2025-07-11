@@ -16,9 +16,10 @@ const toast = useToast();
 /**
  * AI : Convert a Project object to StoredProjectData for database storage
  * Maps the 'name' field to 'title' for Drizzle schema compatibility
+ * Excludes non-serializable fields like 'city' which contains geometry objects
  */
 function projectToStoredData(project: Project): StoredProjectData {
-  const { name, overlayIds: _overlayIds, color: _color, ...drizzleData } = project;
+  const { name, overlayIds: _overlayIds, color: _color, city: _city, ...drizzleData } = project;
   return {
     ...drizzleData,
     title: name, // AI : Map name to title for Drizzle schema
@@ -61,27 +62,30 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
 export async function createProject(projectData: Partial<Omit<Project, 'id' | 'overlayIds' | 'color'>>): Promise<string> {
   const id = crypto.randomUUID();
 
+  // AI : Filter out non-serializable properties from projectData
+  const { city: _city, ...safeProjectData } = projectData;
+
   const project: Project = {
-    ...projectData,
+    ...safeProjectData,
     id,
     overlayIds: [],
     color: '#007bff',
     // AI : Use title from Drizzle schema but populate from name for backward compatibility
-    title: projectData.name || '',
-    sourceUrl: projectData.sourceUrl || null,
-    startDate: projectData.startDate || null,
-    endDate: projectData.endDate || null,
-    latestUpdateOn: projectData.latestUpdateOn || null,
-    description: projectData.description || null,
+    title: safeProjectData.name || '',
+    sourceUrl: safeProjectData.sourceUrl || null,
+    startDate: safeProjectData.startDate || null,
+    endDate: safeProjectData.endDate || null,
+    latestUpdateOn: safeProjectData.latestUpdateOn || null,
+    description: safeProjectData.description || null,
     metadata: null,
-    cityId: projectData.cityId || null,
+    cityId: safeProjectData.cityId || null,
     // AI : Add missing Drizzle fields with default values
     status: 'pending', // AI : Default status for new projects
     ownerId: null, // AI : No user authentication system yet
     createdAt: new Date(),
     updatedAt: new Date(),
     // AI : Add computed name property for backward compatibility
-    name: projectData.name || '',
+    name: safeProjectData.name || '',
   };
 
   // AI : Convert to StoredProjectData and save to database
@@ -301,8 +305,11 @@ export async function updateProject(projectId: string, projectData: Partial<Omit
     return;
   }
 
+  // AI : Filter out non-serializable properties from projectData before merging
+  const { city: _city, ...safeProjectData } = projectData;
+
   // AI : Create new project object with updated fields
-  const updatedProject = { ...project, ...projectData };
+  const updatedProject = { ...project, ...safeProjectData };
 
   // AI : Convert to StoredProjectData and save to database
   const storedData = projectToStoredData(updatedProject);

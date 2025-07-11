@@ -42,7 +42,9 @@ export async function saveOverlay(overlay: StoredOverlayData): Promise<void> {
   }
   
   try {
-    await db.put('overlays', overlay);
+    // AI : Sanitize the overlay object before storing to prevent DataCloneError
+    const sanitizedOverlay = sanitizeForIndexedDB(overlay);
+    await db.put('overlays', sanitizedOverlay);
   } catch (error) {
     console.error('Error saving overlay:', error);
   }
@@ -112,7 +114,9 @@ export async function saveProject(project: StoredProjectData): Promise<void> {
     return;
   }
   try {
-    await db.put('projects', project);
+    // AI : Sanitize the project object before storing to prevent DataCloneError
+    const sanitizedProject = sanitizeForIndexedDB(project);
+    await db.put('projects', sanitizedProject);
   } catch (error) {
     console.error('Error saving project:', error);
   }
@@ -186,3 +190,44 @@ export async function getCity(id: string): Promise<DBCity | undefined> {
 // AI : are removed as they are now managed at the application level, not in the database service.
 // AI : The database service should only be responsible for direct data access, not business logic.
 // AI : Helper functions for serialization are also removed as they are no longer needed with the new types.
+
+// AI : Sanitize object for IndexedDB storage - remove non-serializable properties
+function sanitizeForIndexedDB(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  
+  // AI : Handle primitive types
+  if (typeof obj === 'string' || typeof obj === 'number' || typeof obj === 'boolean') {
+    return obj;
+  }
+  
+  // AI : Handle Date objects
+  if (obj instanceof Date) {
+    return obj;
+  }
+  
+  // AI : Handle arrays
+  if (Array.isArray(obj)) {
+    return obj.map(item => sanitizeForIndexedDB(item));
+  }
+  
+  // AI : Handle objects
+  if (typeof obj === 'object') {
+    const sanitized: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      // AI : Skip functions and undefined values
+      if (typeof value === 'function' || value === undefined) {
+        continue;
+      }
+      
+      // AI : Skip known non-serializable properties
+      if (key === 'city' || key === 'coordinates' || key === 'geometry') {
+        continue;
+      }
+      
+      sanitized[key] = sanitizeForIndexedDB(value);
+    }
+    return sanitized;
+  }
+  
+  return obj;
+}
