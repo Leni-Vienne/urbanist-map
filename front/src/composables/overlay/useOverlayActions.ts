@@ -1,11 +1,12 @@
 import L from "leaflet";
 import { map } from '@composables/core/useMap';
-import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, isEditMode, removeOverlay } from '@composables/overlay/useOverlay';
+import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, isEditMode, removeOverlay, allMarkers, updateMarkerTooltip } from '@composables/overlay/useOverlay';
 import { saveOverlay, deleteOverlay as deleteOverlayFromDatabase, saveProject } from '@composables/core/useDatabase';
 import { useToast } from '@composables/ui/useToast';
 import { projects, addOverlayToProjectWithId, projectToStoredData } from '@composables/project/useProjects';
 import type { StoredOverlayData, OverlayObject } from '@types';
 import { router } from '../../router';
+import { createColorIcon } from '@composables/ui/colorMarkers';
 
 const toast = useToast();
 
@@ -67,7 +68,10 @@ export async function addOverlay(imageUrl: string, projectId: string) {
   // Store reference and initialize
   overlays.value[id] = overlayObject;
   
-  // Add image load handler to create marker and save initial state
+  // AI : Create marker immediately when overlay is created, not waiting for image load
+  createMarkerForNewOverlay(overlayObject, projectId);
+  
+  // Add image load handler to save initial state
   if (newOverlay && map.value) {
     setupOverlayImageLoad(newOverlay, overlayObject, projectId);
   }
@@ -77,7 +81,38 @@ export async function addOverlay(imageUrl: string, projectId: string) {
   return id;
 }
 
-function setupOverlayImageLoad(overlay: L.DistortableImageOverlay, overlayObject: any, projectId: string) {
+// AI : Create marker for new overlay at map center (before image loads)
+function createMarkerForNewOverlay(overlayObject: any, projectId: string) {
+  if (!map.value) return;
+  
+  // AI : Use current map center as initial marker position
+  const center = map.value.getCenter();
+  
+  // AI : Use unified marker creation system with proper color and tooltip handling
+  let markerTitle = 'Overlay';
+  if (projectId && projects.value[projectId]) {
+    const project = projects.value[projectId];
+    const captionPart = overlayObject.caption ? ` - ${overlayObject.caption}` : '';
+    markerTitle = `${project.name}${captionPart}`;
+  }
+
+  // AI : Create marker with proper color based on storage status
+  const markerColor = getMarkerColorForEditMode(overlayObject);
+  const colorIcon = createColorIcon(markerColor);
+  
+  const marker = L.marker(center, {
+    title: markerTitle,
+    icon: colorIcon
+  }).addTo(map.value);
+  
+  overlayObject.marker = marker;
+  allMarkers.value[overlayObject.id] = marker;
+  
+  // AI : Update marker tooltip with proper styling
+  updateMarkerTooltip(overlayObject);
+}
+
+function setupOverlayImageLoad(overlay: L.DistortableImageOverlay, overlayObject: any, _projectId: string) {
   const imgElement = overlay.getElement();
   if (!imgElement) return;
   
@@ -85,7 +120,8 @@ function setupOverlayImageLoad(overlay: L.DistortableImageOverlay, overlayObject
     if (!map.value || !overlay) return;
     
     try {
-      createMarkerForOverlay(overlay, overlayObject, projectId);
+      // AI : Update marker position now that overlay has proper bounds
+      updateMarkerPositionForOverlay(overlay, overlayObject);
       saveOverlayInitialState(overlay, overlayObject);
     } catch (error) {
       console.error('Error in overlay image load handler:', error);
@@ -102,21 +138,31 @@ function setupOverlayImageLoad(overlay: L.DistortableImageOverlay, overlayObject
   }
 }
 
-function createMarkerForOverlay(overlay: L.DistortableImageOverlay, overlayObject: any, projectId: string) {
+// AI : Update marker position based on overlay bounds
+function updateMarkerPositionForOverlay(overlay: L.DistortableImageOverlay, overlayObject: any) {
+  if (!overlayObject.marker) return;
+  
   const bounds = overlay.getBounds();
-  if (!bounds || !map.value) return;
+  if (!bounds) return;
   
   const center = bounds.getCenter();
-  const marker = L.marker(center, { title: 'Overlay' }).addTo(map.value);
-  
-  overlayObject.marker = marker;
-  
-  if (projectId && projects.value[projectId]) {
-    const project = projects.value[projectId];
-    const captionSuffix = overlayObject.caption ? ` - ${overlayObject.caption}` : '';
-    const tooltipText = `${project.name}${captionSuffix}`;
-    marker.bindTooltip(tooltipText, { permanent: false }).openTooltip();
+  overlayObject.marker.setLatLng(center);
+}
+
+// AI : Helper function to determine marker color in edit mode
+function getMarkerColorForEditMode(overlayObject: OverlayObject): 'blue' | 'green' | 'orange' | 'red' | 'gold' | 'yellow' | 'violet' | 'grey' | 'black' {
+  const { savedRemotely, alreadyStored } = overlayObject;
+
+  if (savedRemotely && !alreadyStored) {
+    return 'green'; // AI : Remote overlay not stored locally
+  } else if (savedRemotely && alreadyStored) {
+    return 'orange'; // AI : Remote overlay with local copy
+  } else if (!savedRemotely) {
+    return 'red'; // AI : Local only overlay (new or existing local overlay)
   }
+
+  // AI : Fallback to blue for any edge cases
+  return 'blue';
 }
 
 function saveOverlayInitialState(overlay: L.DistortableImageOverlay, overlayObject: any) {

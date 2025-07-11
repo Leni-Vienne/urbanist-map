@@ -129,6 +129,7 @@ import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId } f
 import { navigateToProjectEdit } from '@composables/ui/useRouterNavigation';
 import { deleteOverlay, deleteProject } from '@composables/core/useDatabase';
 import { loadCityProjects, citiesWithProjects, latestClickedCity } from '@composables/map/useCityMarkers';
+import { getNearbyProjects } from '@composables/project/useNearbyProjects';
 import ProjectPicker from '@components/project/ProjectPicker.vue';
 import OverlayEditor from '@components/map/OverlayEditor.vue';
 import type { OverlayObject, Project } from '@types';
@@ -242,6 +243,75 @@ async function applyProjectChange(projectId: string) {
     // AI : If overlay already belongs to a project, remove it first
     if (originalProjectId) {
       await removeOverlayFromProjectWithId(originalProjectId, props.overlayObject.id);
+    }
+
+    // AI : Check if project exists in local store, if not, try to get it from nearby projects
+    if (!projects.value[projectId]) {
+      // AI : Get nearby projects to find the selected project
+      const { projects: nearbyProjectsData } = getNearbyProjects();
+      const nearbyProject = nearbyProjectsData.value.find((p: any) => p.id === projectId);
+      
+      if (nearbyProject) {
+        // AI : Convert nearby project to local project format and add to store
+        const localProject = {
+          id: nearbyProject.id,
+          name: nearbyProject.title,
+          title: nearbyProject.title,
+          description: nearbyProject.description || '',
+          overlayIds: [],
+          color: '#007bff',
+          cityId: nearbyProject.cityId,
+          status: 'approved' as const,
+          ownerId: nearbyProject.ownerId,
+          createdAt: nearbyProject.createdAt,
+          updatedAt: nearbyProject.updatedAt,
+          metadata: nearbyProject.metadata,
+          city: nearbyProject.city ? {
+            id: nearbyProject.city.id,
+            name: nearbyProject.city.name,
+            countryCode: nearbyProject.city.countryCode,
+            coordinates: { x: nearbyProject.city.lng, y: nearbyProject.city.lat },
+            createdAt: null,
+            updatedAt: new Date()
+          } : undefined,
+          sourceUrl: null,
+          startDate: null,
+          endDate: null,
+          latestUpdateOn: null,
+          savedRemotely: true
+        };
+        
+        // AI : Add project to local store
+        projects.value[projectId] = localProject;
+        
+        // AI : Also set project data on overlay object for InfoPopup display - convert to compatible format
+        props.overlayObject.project = {
+          id: nearbyProject.id,
+          status: 'approved' as const,
+          title: nearbyProject.title,
+          description: nearbyProject.description || null,
+          createdAt: nearbyProject.createdAt,
+          updatedAt: nearbyProject.updatedAt,
+          ownerId: nearbyProject.ownerId,
+          cityId: nearbyProject.cityId,
+          startDate: null, // AI : Not available in nearby projects
+          endDate: null, // AI : Not available in nearby projects
+          sourceUrl: null, // AI : Not available in nearby projects
+          latestUpdateOn: null, // AI : Not available in nearby projects
+          metadata: nearbyProject.metadata,
+          city: nearbyProject.city ? {
+            id: nearbyProject.city.id,
+            name: nearbyProject.city.name,
+            countryCode: nearbyProject.city.countryCode,
+            coordinates: { x: nearbyProject.city.lng, y: nearbyProject.city.lat },
+            createdAt: null,
+            updatedAt: new Date()
+          } : null
+        };
+      } else {
+        // AI : Project not found in nearby projects, show error
+        throw new Error(`Project ${projectId} not found in local store or nearby projects`);
+      }
     }
 
     // AI : Add to the new project

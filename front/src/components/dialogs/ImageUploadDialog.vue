@@ -10,16 +10,20 @@
       <div class="explanation-section">
         <h4>What kind of images are accepted?</h4>
         <p>
-          This website is about geolocated images of top-down view of planned constructions, whether that's housing, added cycle paths, or other infrastructure.
+          This website is about upcoming infrastructure and buildings. whether that's new trams lines,
+          cycle paths, redeveloppement and more.
         </p>
-        
-        <h4>Supported formats:</h4>
-        <ul>
-          <li>PNG, JPEG, JPG, WEBP images</li>
-        </ul>
-    
+
+        <h4>Good to know</h4>
+
+        If you want to upload an image that comes from a PDF, please use programs like <a
+          href="https://www.rptools.net/toolbox/token-tool/"
+          target="_blank"
+          style="color: #2196f3; text-decoration: underline;"
+        >TokenTool</a> for the best possible quality.
+
       </div>
-      
+
       <div class="upload-section">
         <div class="file-input-container">
           <input
@@ -30,36 +34,42 @@
             class="hidden-input"
             id="overlay-file-input"
           />
-          <label for="overlay-file-input" class="file-input-label">
+          <label
+            for="overlay-file-input"
+            class="file-input-label"
+          >
             <i class="pi pi-cloud-upload text-3xl mb-2"></i>
             <span class="upload-text">Choose Image File</span>
             <span class="upload-subtext">Click here or drag and drop</span>
           </label>
         </div>
-        
-        <div v-if="selectedFile" class="selected-file">
+
+        <div
+          v-if="selectedFile"
+          class="selected-file"
+        >
           <i class="pi pi-file"></i>
           <span>{{ selectedFile.name }}</span>
-          <Button 
-            icon="pi pi-times" 
-            class="p-button-text p-button-sm" 
+          <Button
+            icon="pi pi-times"
+            class="p-button-text p-button-sm"
             @click="clearFile"
           />
         </div>
       </div>
     </div>
-    
+
     <template #footer>
       <div class="dialog-footer">
-        <Button 
-          label="Cancel" 
-          icon="pi pi-times" 
-          class="p-button-text" 
+        <Button
+          label="Cancel"
+          icon="pi pi-times"
+          class="p-button-text"
           @click="onCancel"
         />
-        <Button 
-          label="Continue" 
-          icon="pi pi-check" 
+        <Button
+          label="Continue"
+          icon="pi pi-check"
           :disabled="!selectedFile"
           @click="onContinue"
         />

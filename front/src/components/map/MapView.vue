@@ -60,11 +60,14 @@
   </div>
   <Dialog
     v-model:visible="showProjectSelector"
-    header="Select a project for the new overlay"
+    header="Select a nearby project for the new overlay"
     :modal="true"
     :style="{ width: '450px' }"
   >
-    <ProjectPicker @project-selected="onProjectSelected" />
+    <ProjectPicker 
+      @project-selected="onProjectSelected" 
+      :use-nearby-projects="true"
+    />
   </Dialog>
 
   <ImageUploadDialog
@@ -87,6 +90,8 @@ import { clearDatabase } from '@composables/core/useDatabase';
 import { navigateWithCoordinates } from '@composables/ui/useRouterNavigation';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
 import { initializeCountryMarkers } from '@composables/map/useCountryMarkers';
+import { projects } from '@stores/projectStore';
+import { fetchNearbyProjects } from '@composables/project/useNearbyProjects';
 import TileLayerSelector from '@components/map/TileLayerSelector.vue';
 import ProjectPicker from '@components/project/ProjectPicker.vue';
 import ImageUploadDialog from '@components/dialogs/ImageUploadDialog.vue';
@@ -216,6 +221,53 @@ onBeforeUnmount(() => {
 
 // AI : Process image after project selection
 async function onProjectSelected(projectId: string) {
+  // AI : Check if project exists in local store, if not, try to get it from nearby projects
+  if (!projects.value[projectId]) {
+    try {
+      // AI : Fetch nearby projects to get the selected project data
+      const nearbyProjects = await fetchNearbyProjects();
+      const nearbyProject = nearbyProjects.find((p: any) => p.id === projectId);
+      
+      if (nearbyProject) {
+        // AI : Convert nearby project to local project format and add to store
+        const localProject = {
+          id: nearbyProject.id,
+          name: nearbyProject.title,
+          title: nearbyProject.title,
+          description: nearbyProject.description || '',
+          overlayIds: [],
+          color: '#007bff',
+          cityId: nearbyProject.cityId,
+          status: 'approved' as const,
+          ownerId: nearbyProject.ownerId,
+          createdAt: nearbyProject.createdAt,
+          updatedAt: nearbyProject.updatedAt,
+          metadata: nearbyProject.metadata,
+          city: nearbyProject.city ? {
+            id: nearbyProject.city.id,
+            name: nearbyProject.city.name,
+            countryCode: nearbyProject.city.countryCode,
+            coordinates: { x: nearbyProject.city.lng, y: nearbyProject.city.lat },
+            createdAt: null,
+            updatedAt: new Date()
+          } : undefined,
+          sourceUrl: null,
+          startDate: null,
+          endDate: null,
+          latestUpdateOn: null,
+          savedRemotely: true
+        };
+        
+        // AI : Add project to local store
+        projects.value[projectId] = localProject;
+      } else {
+        console.warn('AI : Project not found in nearby projects, overlay creation may not work properly');
+      }
+    } catch (error) {
+      console.error('AI : Error fetching nearby projects for project selection:', error);
+    }
+  }
+  
   await handleFileUpload(projectId);
 }
 
