@@ -1,3 +1,5 @@
+// AI : Import getConstructionMarkerColor from useCityMarkers for unified color logic
+import { getConstructionMarkerColor } from '@composables/map/useCityMarkers';
 import L from "leaflet";
 import 'leaflet-toolbar'
 import 'leaflet-distortableimage'; // using "-updated" to prevent "WebSocket connection to 'ws://localhost:8081/ws' failed:" error
@@ -1026,28 +1028,17 @@ function getMarkerColorForStorageStatus(overlayObject: OverlayObject): 'blue' | 
     return 'blue';
   }
 
-  // AI : In view mode, use project status colors (new system)
-  const project = overlayObject.projectId ? projects.value[overlayObject.projectId] : null;
-  
-  // AI : If no project is assigned, use default blue color
-  if (!project) {
-    return 'blue';
+  // AI : In view mode, use construction date logic for color (same as city markers)
+  let startDate: string | Date | null | undefined = null;
+  let endDate: string | Date | null | undefined = null;
+  if (overlayObject.project) {
+    startDate = overlayObject.project.startDate;
+    endDate = overlayObject.project.endDate;
+  } else if ((overlayObject as any).startDate || (overlayObject as any).endDate) {
+    startDate = (overlayObject as any).startDate;
+    endDate = (overlayObject as any).endDate;
   }
-
-  // AI : Determine project status and return appropriate color
-  const status = getProjectStatus(project);
-  
-  switch (status) {
-    case 'past':
-      return 'grey'; // AI : Past project
-    case 'ongoing':
-      return 'blue'; // AI : Ongoing project
-    case 'not-started':
-      return 'orange'; // AI : Not started yet
-    case 'unknown':
-    default:
-      return 'blue'; // AI : Default color for unknown status
-  }
+  return getConstructionMarkerColor(startDate, endDate);
 }
 
 /**

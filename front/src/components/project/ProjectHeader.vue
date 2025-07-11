@@ -8,7 +8,7 @@
       {{ project.description }}
     </p>
     <div class="text-sm text-gray-600">
-      <div v-if="project.location">Location: {{ project.location }}</div>
+      <div v-if="project.city && project.city.name">Location: {{ project.city.name }}</div>
       <div v-if="project.sourceUrl">
         Source: <a
           :href="project.sourceUrl"

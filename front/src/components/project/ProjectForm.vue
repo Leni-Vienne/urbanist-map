@@ -194,8 +194,13 @@ watch(() => props.project, (newProject) => {
     localProject.value = { ...newProject };
 
     // AI : Auto-load cities when editing a project that has city data
-    if (props.mode === 'edit' && newProject?.city?.lat && newProject?.city?.lng && !citiesLoaded.value) {
-        loadCitiesNearLocation(newProject.city.lat, newProject.city.lng);
+    if (
+        props.mode === 'edit' &&
+        newProject?.city?.coordinates?.x != null &&
+        newProject?.city?.coordinates?.y != null &&
+        !citiesLoaded.value
+    ) {
+        loadCitiesNearLocation(newProject.city.coordinates.y, newProject.city.coordinates.x);
     }
 }, { deep: true, immediate: true });
 
@@ -216,14 +221,11 @@ const filteredCities = computed(() => {
 });
 
 // AI : Watch for cityId changes to update location field for backward compatibility
+// AI : Watch for cityId changes to update city name if needed (backward compatibility)
 watch(() => localProject.value.cityId, (newCityId) => {
     if (newCityId && cities.value.length > 0) {
         const selectedCity = cities.value.find(city => city.id === newCityId);
-        if (selectedCity) {
-            localProject.value.location = selectedCity.name;
-        }
-    } else if (!newCityId) {
-        localProject.value.location = '';
+        // AI : Add logic here if you want to update another field based on city selection
     }
 });
 
