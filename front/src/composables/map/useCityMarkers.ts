@@ -4,7 +4,7 @@ import { ref } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
 import { renderViewModeOverlays, clearAllOverlays, isEditMode } from '@composables/overlay/useOverlay';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
-import { projects } from '@stores/projectStore';
+import { projects, selectedProjectId } from '@stores/projectStore';
 import { trpc, RouterOutput } from '@client';
 import type { CDNOverlayData, StoredProjectData } from '@types';
 import { saveProject } from '@composables/core/useDatabase';
@@ -64,6 +64,12 @@ export async function loadCityProjects(cityId: string, cityName: string, forceFu
     // AI : Update latest clicked city
     latestClickedCity = { id: cityId, name: cityName, countryCode: cityCountryCode };
 
+    // AI : Clear selected project when switching cities
+    selectedProjectId.value = null;
+
+    // AI : Clear selected project when switching cities
+    selectedProjectId.value = null;
+
     // AI : If zoom is too low and not forcing full load, show overlay markers only
     if (currentZoom < MIN_ZOOM_FOR_OVERLAYS && !forceFullLoad) {
       console.log(`AI : Zoom level ${currentZoom} too low to load full overlays for ${cityName}. Showing markers only.`);
@@ -73,9 +79,13 @@ export async function loadCityProjects(cityId: string, cityName: string, forceFu
 
     isLoadingCityProjects.value = true;
 
-    // AI : Clear any existing overlay markers and overlays before loading new city
+    // AI : Clear any existing overlays and markers before loading new city
     clearAllOverlays();
     removeOverlayMarkers();
+
+    // AI : Clear view mode overlays state
+    const { stopCameraTracking } = useViewModeOverlays();
+    stopCameraTracking();
 
     const result = await trpc.cities.getCityProjects.query({ cityId });
 
@@ -115,9 +125,6 @@ export async function loadCityProjects(cityId: string, cityName: string, forceFu
         };
       }
       projects.value = updatedProjects;
-    } else {
-      // AI : In view mode, clear all overlays to show only city overlays
-      clearAllOverlays();
     }
 
     // AI : Convert project overlays to CDN overlay format for rendering
@@ -169,14 +176,12 @@ export async function loadCityProjects(cityId: string, cityName: string, forceFu
 
     currentCityOverlays.value = overlaysToRender;
 
-    // AI : Get view mode overlays instance to set the overlays
+    // AI : Set overlays in view mode overlays and render them
     const { setViewModeOverlays } = useViewModeOverlays();
-
-    // AI : Set overlays in view mode overlays first (for local filtering)
     setViewModeOverlays(overlaysToRender);
 
-    // AI : Render overlays on the map with markers (not disabling them anymore)
-    await renderViewModeOverlays(overlaysToRender, true);
+    // AI : Render overlays on the map with markers
+    await renderViewModeOverlays(overlaysToRender, true, true);
 
     // AI : Check zoom level after loading to ensure overlays are hidden if zoom is too low
     checkZoomAndHideOverlays();
@@ -194,6 +199,14 @@ export async function loadCityProjects(cityId: string, cityName: string, forceFu
 async function showOverlayMarkers(cityId: string, cityName: string, cityCountryCode?: string): Promise<void> {
   try {
     isLoadingCityProjects.value = true;
+
+    // AI : Clear any existing overlays and markers before loading new city
+    clearAllOverlays();
+    removeOverlayMarkers();
+
+    // AI : Clear view mode overlays state
+    const { stopCameraTracking } = useViewModeOverlays();
+    stopCameraTracking();
 
     const result = await trpc.cities.getCityProjects.query({ cityId });
 
@@ -243,9 +256,6 @@ async function showOverlayMarkers(cityId: string, cityName: string, cityCountryC
         });
       });
     });
-
-    // AI : Clear existing overlay markers
-    removeOverlayMarkers();
 
     // AI : Create new layer group for overlay markers
     overlayMarkersLayer = L.layerGroup();
@@ -526,8 +536,9 @@ function setupZoomEventListenerInternal(): void {
     // AI : If zoomed out from full overlays, show overlay markers again
     else if (currentZoom < MIN_ZOOM_FOR_OVERLAYS && currentCityOverlays.value.length > 0) {
       console.log(`AI : Zoom level ${currentZoom} too low. Clearing overlays and showing overlay markers for ${latestClickedCity.name}`);
-      // AI : Force cleanup all overlays first
-      forceCleanupOverlays();
+      // AI : Clear all overlays first
+      clearAllOverlays();
+      currentCityOverlays.value = [];
       // AI : Then show overlay markers
       await showOverlayMarkers(latestClickedCity.id, latestClickedCity.name);
     }
@@ -540,28 +551,6 @@ onMapInitialized(() => {
 });
 
 /**
- * AI : Force cleanup of all overlays and markers regardless of zoom level
- */
-export function forceCleanupOverlays(): void {
-  try {
-    // AI : Clear all overlays
-    clearAllOverlays();
-    currentCityOverlays.value = [];
-
-    // AI : Remove overlay markers
-    removeOverlayMarkers();
-
-    // AI : Clear view mode overlays
-    const { setViewModeOverlays } = useViewModeOverlays();
-    setViewModeOverlays([]);
-
-    console.log('AI : Force cleanup completed - all overlays and markers removed');
-  } catch (error) {
-    console.error('AI : Error during force cleanup:', error);
-  }
-}
-
-/**
  * AI : Check current zoom and hide overlays if needed
  */
 export function checkZoomAndHideOverlays(): void {
@@ -570,8 +559,9 @@ export function checkZoomAndHideOverlays(): void {
   const currentZoom = map.value.getZoom();
 
   if (currentZoom < MIN_ZOOM_FOR_OVERLAYS) {
-    console.log(`AI : Current zoom ${currentZoom} is below threshold. Force cleaning overlays.`);
-    forceCleanupOverlays();
+    console.log(`AI : Current zoom ${currentZoom} is below threshold. Clearing overlays.`);
+    clearAllOverlays();
+    currentCityOverlays.value = [];
   }
 }
 

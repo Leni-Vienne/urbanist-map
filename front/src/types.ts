@@ -1,5 +1,4 @@
 import L from "leaflet";
-import { DBSchema } from "idb";
 import type { RouterOutput } from '@client';
 import type {
   DBCountry,
@@ -149,20 +148,4 @@ export interface OverlayObject extends StoredOverlayData {
   project?: CDNOverlayData['project'];
   // AI : Temporary field for backward compatibility - will be removed in favor of individual lat/lng fields
   corners: { lat: number, lng: number }[];
-}
-
-// AI : Database schema definition
-export interface MyDB extends DBSchema {
-  overlays: {
-    key: string;
-    value: StoredOverlayData;
-  };
-  projects: {
-    key: string;
-    value: StoredProjectData;
-  };
-  cities: {
-    key: string;
-    value: DBCity;
-  };
 }

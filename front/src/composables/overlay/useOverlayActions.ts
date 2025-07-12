@@ -12,51 +12,6 @@ const toast = useToast();
 
 // AI : Helper function to create StoredOverlayData from OverlayObject
 function createStoredOverlayData(overlayObject: OverlayObject): StoredOverlayData {
-  // AI : Get corners from overlay if available, otherwise use stored corners or defaults
-  let corners = Array.isArray(overlayObject.corners) ? overlayObject.corners : [];
-  
-  // AI : If corners are empty, try to get them from the overlay
-  if (corners.length === 0 && overlayObject.overlay) {
-    try {
-      const overlayCorners = overlayObject.overlay.getCorners();
-      if (Array.isArray(overlayCorners) && overlayCorners.length > 0) {
-        corners = overlayCorners;
-      }
-    } catch (error) {
-      console.warn('AI : Error getting corners from overlay:', error);
-    }
-  }
-  
-  // AI : If still no corners, use default corners based on individual lat/lng fields or create defaults
-  if (corners.length === 0) {
-    if (overlayObject.topLeftLat != null && overlayObject.topLeftLng != null) {
-      corners = [
-        { lat: overlayObject.topLeftLat, lng: overlayObject.topLeftLng },
-        { lat: overlayObject.topRightLat, lng: overlayObject.topRightLng },
-        { lat: overlayObject.bottomRightLat, lng: overlayObject.bottomRightLng },
-        { lat: overlayObject.bottomLeftLat, lng: overlayObject.bottomLeftLng },
-      ];
-    } else {
-      // AI : Create default corners (will be properly set when overlay loads)
-      corners = [
-        { lat: 0, lng: 0 },
-        { lat: 0, lng: 0 },
-        { lat: 0, lng: 0 },
-        { lat: 0, lng: 0 }
-      ];
-    }
-  }
-  
-  // AI : Ensure corners is always an array with at least 4 elements
-  if (!Array.isArray(corners) || corners.length < 4) {
-    corners = [
-      { lat: 0, lng: 0 },
-      { lat: 0, lng: 0 },
-      { lat: 0, lng: 0 },
-      { lat: 0, lng: 0 }
-    ];
-  }
-  
   return {
     id: overlayObject.id,
     imageUrl: overlayObject.imageUrl,
@@ -65,24 +20,19 @@ function createStoredOverlayData(overlayObject: OverlayObject): StoredOverlayDat
     projectId: overlayObject.projectId,
     caption: overlayObject.caption,
     savedRemotely: overlayObject.savedRemotely ?? false,
-    // AI : Required fields from Drizzle schema
     filename: overlayObject.filename ?? overlayObject.imageUrl.split('/').pop() ?? '',
     metadata: overlayObject.metadata ?? null,
     status: overlayObject.status ?? 'pending',
     authorId: overlayObject.authorId ?? null,
-    // AI : Map corners to individual lat/lng fields with validation
-    topLeftLat: corners[0]?.lat ?? 0,
-    topLeftLng: corners[0]?.lng ?? 0,
-    topRightLat: corners[1]?.lat ?? 0,
-    topRightLng: corners[1]?.lng ?? 0,
-    bottomRightLat: corners[2]?.lat ?? 0,
-    bottomRightLng: corners[2]?.lng ?? 0,
-    bottomLeftLat: corners[3]?.lat ?? 0,
-    bottomLeftLng: corners[3]?.lng ?? 0,
-    centroid: {
-      x: corners.length > 0 ? corners.reduce((sum: number, c: { lng: number }) => sum + c.lng, 0) / corners.length : 0,
-      y: corners.length > 0 ? corners.reduce((sum: number, c: { lat: number }) => sum + c.lat, 0) / corners.length : 0,
-    },
+    topLeftLat: overlayObject.topLeftLat ?? 0,
+    topLeftLng: overlayObject.topLeftLng ?? 0,
+    topRightLat: overlayObject.topRightLat ?? 0,
+    topRightLng: overlayObject.topRightLng ?? 0,
+    bottomRightLat: overlayObject.bottomRightLat ?? 0,
+    bottomRightLng: overlayObject.bottomRightLng ?? 0,
+    bottomLeftLat: overlayObject.bottomLeftLat ?? 0,
+    bottomLeftLng: overlayObject.bottomLeftLng ?? 0,
+    centroid: overlayObject.centroid ?? { x: 0, y: 0 },
     createdAt: overlayObject.createdAt ?? new Date(),
     updatedAt: new Date()
   };

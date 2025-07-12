@@ -1,7 +1,6 @@
 import { ref } from 'vue';
-import { onCameraStop } from '@composables/map/useCameraBounds';
 import { renderViewModeOverlays } from '@composables/overlay/useOverlay';
-import type { CDNOverlayData, CameraBounds } from '@types';
+import type { CDNOverlayData } from '@types';
 
 // AI : Reactive state for view mode overlays
 const viewModeOverlays = ref<CDNOverlayData[]>([]);
@@ -12,56 +11,42 @@ const error = ref<string | null>(null);
  * AI : Composable to manage overlays in view mode
  */
 export function useViewModeOverlays() {
-  let unsubscribeFromCamera: (() => void) | null = null;
-  // This is used for performance optimization to avoid rendering too many overlays at once
-  async function fetchIntersectingOverlays(bounds: CameraBounds) {
-    loading.value = true;
-    error.value = null;
-
-    try {
-
-      // AI : Use local filtering only - overlays are already loaded from city markers
-      // This function now only filters visible overlays for performance optimization
-      const currentOverlays = viewModeOverlays.value;
-
-      // AI : Filter overlays that intersect with the current camera bounds
-      const visibleOverlays = currentOverlays.filter(overlay => {
-        // AI : Check if overlay centroid is within bounds
-        return overlay.centroid.lat >= bounds.south &&
-          overlay.centroid.lat <= bounds.north &&
-          overlay.centroid.lng >= bounds.west &&
-          overlay.centroid.lng <= bounds.east;
-      });
-
-
-      // AI : Render only the visible overlays for performance
-      await renderViewModeOverlays(visibleOverlays);
-    } catch (err) {
-      console.error('Error filtering overlays locally:', err);
-      error.value = 'Failed to filter overlays';
-    } finally {
-      loading.value = false;
-    }
-  }// AI : Initialize camera tracking but don't auto-fetch overlays
+  // AI : Simplified approach - no camera tracking needed for view mode
+  // AI : Just render all overlays when they're set from city markers
+  
+  // AI : No-op functions for backward compatibility
   function startCameraTracking() {
-    unsubscribeFromCamera = onCameraStop(fetchIntersectingOverlays);
+    // AI : No longer needed - overlays are rendered directly when set
+  }
 
-    // AI : Don't auto-fetch overlays on camera tracking start
-    // Overlays will only be loaded when user clicks on city markers
-  }// AI : Stop camera tracking
   function stopCameraTracking() {
-    if (unsubscribeFromCamera) {
-      unsubscribeFromCamera();
-      unsubscribeFromCamera = null;
-    }
-
-    // AI : Clear only the view mode overlays state - let the main overlay system handle map cleanup
+    // AI : Clear view mode overlays state
     viewModeOverlays.value = [];
     error.value = null;
   }
   // AI : Set overlays loaded from city markers
   function setViewModeOverlays(overlays: CDNOverlayData[]) {
     viewModeOverlays.value = overlays;
+    // AI : Do not automatically render overlays - let the caller handle rendering
+    // AI : This prevents double-rendering when switching cities
+  }
+
+  // AI : Render all current overlays
+  async function renderCurrentOverlays() {
+    if (viewModeOverlays.value.length === 0) return;
+    
+    loading.value = true;
+    error.value = null;
+
+    try {
+      // AI : Render all overlays - no filtering needed since overlays are already city-specific
+      await renderViewModeOverlays(viewModeOverlays.value);
+    } catch (err) {
+      console.error('Error rendering overlays:', err);
+      error.value = 'Failed to render overlays';
+    } finally {
+      loading.value = false;
+    }
   }
 
   // AI : Clear overlays
@@ -78,7 +63,7 @@ export function useViewModeOverlays() {
     error,
 
     // AI : Methods
-    fetchIntersectingOverlays,
+    renderCurrentOverlays,
     setViewModeOverlays,
     startCameraTracking,
     stopCameraTracking,
