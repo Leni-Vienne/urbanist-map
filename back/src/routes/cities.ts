@@ -190,7 +190,7 @@ export const citiesRouter = router({
 
         const projectsWithOverlays = projectsResult.map(project => ({
           ...project,
-          overlays: overlaysByProject[project.id] || [],
+          overlays: overlaysByProject[project.id] ?? [],
         }));
 
         return projectsWithOverlays;

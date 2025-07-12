@@ -52,7 +52,7 @@
             :options="projectList"
             optionLabel="name"
             optionValue="id"
-            :placeholder="props.useNearbyProjects ? 'Select a nearby project' : (placeholder || 'Select a project')"
+            :placeholder="props.useNearbyProjects ? 'Select a nearby project' : (placeholder ?? 'Select a project')"
             class="w-full"
             :filter="true"
             :showClear="true"
@@ -66,7 +66,7 @@
               >
                 <div
                   class="color-circle mr-2"
-                  :style="{ backgroundColor: getProjectById(value)?.color || '#ccc' }"
+                  :style="{ backgroundColor: getProjectById(value)?.color ?? '#ccc' }"
                 ></div>
                 <div>&nbsp;&nbsp;{{ getProjectById(value)?.name }}</div>
               </div>

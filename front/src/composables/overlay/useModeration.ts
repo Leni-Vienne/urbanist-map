@@ -29,7 +29,7 @@ export function useModeration() {
     try {
       // AI : Find overlay name for tracking
       const overlay = overlays.value.find(o => o.id === id)
-      const overlayName = overlay?.name || 'Unknown'
+      const overlayName = overlay?.name ?? 'Unknown'
 
       // AI : Track action for potential undo
       const action: RecentAction = {
@@ -60,7 +60,7 @@ export function useModeration() {
     try {
       // AI : Find overlay name for tracking
       const overlay = overlays.value.find(o => o.id === id)
-      const overlayName = overlay?.name || 'Unknown'
+      const overlayName = overlay?.name ?? 'Unknown'
 
       // AI : Track action for potential undo
       const action: RecentAction = {

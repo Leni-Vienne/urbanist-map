@@ -71,7 +71,7 @@ export class CitiesImportService {
               iso3: values[6],
               admin_name: values[7],
               capital: values[8],
-              population: parseInt(values[9]) || 0,
+              population: parseInt(values[9]) ?? 0,
               id: values[10],
             };
             
@@ -167,7 +167,7 @@ export class CitiesImportService {
       
       for (const city of csvCities) {
         const key = city.iso3;
-        if (!countryMap.has(key) || city.capital === 'primary') {
+        if (!countryMap.has(key) ?? city.capital === 'primary') {
           // AI : Prefer primary capital for country center, otherwise use first city found
           countryMap.set(key, {
             name: city.country,

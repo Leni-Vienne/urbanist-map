@@ -76,7 +76,7 @@ const editingInfo = ref({
 function openDialog() {
   // AI : Reset form with current values from the overlay object
   editingInfo.value = {
-    caption: props.overlayObject.caption || ''
+    caption: props.overlayObject.caption ?? ''
   };
   showDialog.value = true;
 }
@@ -86,7 +86,7 @@ function saveChanges() {
   try {
     // AI : Update overlay info using existing function
     updateOverlayInfo(props.overlayObject.id, {
-      caption: editingInfo.value.caption || undefined
+      caption: editingInfo.value.caption ?? undefined
     });
     
     // AI : Update the tooltip text
