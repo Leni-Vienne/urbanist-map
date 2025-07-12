@@ -10,6 +10,49 @@ import { createColorIcon } from '@composables/ui/colorMarkers';
 
 const toast = useToast();
 
+// AI : Helper function to create StoredOverlayData from OverlayObject
+function createStoredOverlayData(overlayObject: OverlayObject): StoredOverlayData {
+  return {
+    id: overlayObject.id,
+    imageUrl: overlayObject.imageUrl,
+    history: overlayObject.history,
+    redoStack: overlayObject.redoStack,
+    projectId: overlayObject.projectId,
+    caption: overlayObject.caption,
+    savedRemotely: overlayObject.savedRemotely ?? false,
+    // AI : Required fields from Drizzle schema
+    filename: overlayObject.filename ?? overlayObject.imageUrl.split('/').pop() ?? '',
+    metadata: overlayObject.metadata ?? null,
+    status: overlayObject.status ?? 'pending',
+    authorId: overlayObject.authorId ?? null,
+    // AI : Map corners to individual lat/lng fields
+    topLeftLat: overlayObject.corners[0]?.lat ?? 0,
+    topLeftLng: overlayObject.corners[0]?.lng ?? 0,
+    topRightLat: overlayObject.corners[1]?.lat ?? 0,
+    topRightLng: overlayObject.corners[1]?.lng ?? 0,
+    bottomRightLat: overlayObject.corners[2]?.lat ?? 0,
+    bottomRightLng: overlayObject.corners[2]?.lng ?? 0,
+    bottomLeftLat: overlayObject.corners[3]?.lat ?? 0,
+    bottomLeftLng: overlayObject.corners[3]?.lng ?? 0,
+    centroid: {
+      x: overlayObject.corners.length > 0 ? overlayObject.corners.reduce((sum: number, c: { lng: number }) => sum + c.lng, 0) / overlayObject.corners.length : 0,
+      y: overlayObject.corners.length > 0 ? overlayObject.corners.reduce((sum: number, c: { lat: number }) => sum + c.lat, 0) / overlayObject.corners.length : 0,
+    },
+    createdAt: overlayObject.createdAt ?? new Date(),
+    updatedAt: new Date()
+  };
+}
+
+// AI : Helper function to save overlay with updated corners
+function saveOverlayWithCurrentCorners(overlayObject: OverlayObject): void {
+  if (overlayObject.overlay) {
+    overlayObject.corners = overlayObject.overlay.getCorners();
+  }
+  
+  const storedOverlay = createStoredOverlayData(overlayObject);
+  saveOverlay(storedOverlay);
+}
+
 export async function addOverlay(imageUrl: string, projectId: string) {
   // AI : Only allow adding overlays in edit mode
   if (!isEditMode.value) {
@@ -177,36 +220,7 @@ function saveOverlayInitialState(overlay: L.DistortableImageOverlay, overlayObje
     }  }
   
   // AI : Save the overlay to the database
-  const storedOverlay: StoredOverlayData = {
-    id: overlayObject.id,
-    imageUrl: overlayObject.imageUrl,
-    history: overlayObject.history,
-    redoStack: overlayObject.redoStack,
-    projectId: overlayObject.projectId,
-    caption: overlayObject.caption,
-    savedRemotely: overlayObject.savedRemotely ?? false, // AI : Include server existence tracking
-    // AI : Required fields from Drizzle schema
-    filename: overlayObject.filename || overlayObject.imageUrl.split('/').pop() || '',
-    metadata: overlayObject.metadata ?? null,
-    status: overlayObject.status ?? 'pending',
-    authorId: overlayObject.authorId ?? null,
-    // AI : Map corners to individual lat/lng fields
-    topLeftLat: overlayObject.corners[0]?.lat ?? 0,
-    topLeftLng: overlayObject.corners[0]?.lng ?? 0,
-    topRightLat: overlayObject.corners[1]?.lat ?? 0,
-    topRightLng: overlayObject.corners[1]?.lng ?? 0,
-    bottomRightLat: overlayObject.corners[2]?.lat ?? 0,
-    bottomRightLng: overlayObject.corners[2]?.lng ?? 0,
-    bottomLeftLat: overlayObject.corners[3]?.lat ?? 0,
-    bottomLeftLng: overlayObject.corners[3]?.lng ?? 0,
-    centroid: {
-      x: overlayObject.corners.length > 0 ? overlayObject.corners.reduce((sum: number, c: { lng: number }) => sum + c.lng, 0) / overlayObject.corners.length : 0,
-      y: overlayObject.corners.length > 0 ? overlayObject.corners.reduce((sum: number, c: { lat: number }) => sum + c.lat, 0) / overlayObject.corners.length : 0,
-    },
-    createdAt: overlayObject.createdAt ?? new Date(),
-    updatedAt: new Date()
-  };
-  
+  const storedOverlay = createStoredOverlayData(overlayObject);
   saveOverlay(storedOverlay);
 }
 
@@ -248,41 +262,8 @@ function applyHistoryAction(action: 'undo' | 'redo') {
   (overlay as L.DistortableImageOverlay).setCorners(newState);
 
   updateMarkerPosition(overlayObject);
-    // AI : Save only the specific overlay being updated, not all overlays
-  if (overlayObject.overlay) {
-    overlayObject.corners = overlayObject.overlay.getCorners();
-  }
-  
-  const savedOverlay: StoredOverlayData = {
-    id: overlayObject.id,
-    imageUrl: overlayObject.imageUrl,
-    history: overlayObject.history,
-    redoStack: overlayObject.redoStack,
-    projectId: overlayObject.projectId,
-    caption: overlayObject.caption,
-    // AI : Required fields from Drizzle schema
-    filename: overlayObject.filename || overlayObject.imageUrl.split('/').pop() || '',
-    metadata: overlayObject.metadata ?? null,
-    status: overlayObject.status ?? 'pending',
-    authorId: overlayObject.authorId ?? null,
-    // AI : Map corners to individual lat/lng fields
-    topLeftLat: overlayObject.corners[0]?.lat ?? 0,
-    topLeftLng: overlayObject.corners[0]?.lng ?? 0,
-    topRightLat: overlayObject.corners[1]?.lat ?? 0,
-    topRightLng: overlayObject.corners[1]?.lng ?? 0,
-    bottomRightLat: overlayObject.corners[2]?.lat ?? 0,
-    bottomRightLng: overlayObject.corners[2]?.lng ?? 0,
-    bottomLeftLat: overlayObject.corners[3]?.lat ?? 0,
-    bottomLeftLng: overlayObject.corners[3]?.lng ?? 0,
-    centroid: {
-      x: overlayObject.corners.length > 0 ? overlayObject.corners.reduce((sum: number, c: { lng: number }) => sum + c.lng, 0) / overlayObject.corners.length : 0,
-      y: overlayObject.corners.length > 0 ? overlayObject.corners.reduce((sum: number, c: { lat: number }) => sum + c.lat, 0) / overlayObject.corners.length : 0,
-    },
-    createdAt: overlayObject.createdAt ?? new Date(),
-    updatedAt: new Date()
-  };
-  
-  saveOverlay(savedOverlay);
+  // AI : Save only the specific overlay being updated, not all overlays
+  saveOverlayWithCurrentCorners(overlayObject);
 }
 
 export async function toggleWhitePixels() {
@@ -387,44 +368,12 @@ export function resetImageRatio() {
     
     applyImageRatioFix(overlayObject, cornersInfo, newDimensions);
     handleFlipIfNeeded(overlayObject);
-      // Save state
+    // Save state
     saveToHistory(overlayObject);
     updateMarkerPosition(overlayObject);
     
     // AI : Save only the specific overlay being updated, not all overlays
-    if (overlayObject.overlay) {
-      overlayObject.corners = overlayObject.overlay.getCorners();
-    }
-      const savedOverlay: StoredOverlayData = {
-      id: overlayObject.id,
-      imageUrl: overlayObject.imageUrl,
-      history: overlayObject.history,
-      redoStack: overlayObject.redoStack,
-      projectId: overlayObject.projectId,
-      caption: overlayObject.caption,
-      // AI : Required fields from Drizzle schema
-      filename: overlayObject.filename || overlayObject.imageUrl.split('/').pop() || '',
-      metadata: overlayObject.metadata ?? null,
-      status: overlayObject.status ?? 'pending',
-      authorId: overlayObject.authorId ?? null,
-      // AI : Map corners to individual lat/lng fields
-      topLeftLat: overlayObject.corners[0]?.lat ?? 0,
-      topLeftLng: overlayObject.corners[0]?.lng ?? 0,
-      topRightLat: overlayObject.corners[1]?.lat ?? 0,
-      topRightLng: overlayObject.corners[1]?.lng ?? 0,
-      bottomRightLat: overlayObject.corners[2]?.lat ?? 0,
-      bottomRightLng: overlayObject.corners[2]?.lng ?? 0,
-      bottomLeftLat: overlayObject.corners[3]?.lat ?? 0,
-      bottomLeftLng: overlayObject.corners[3]?.lng ?? 0,
-      centroid: {
-        x: overlayObject.corners.length > 0 ? overlayObject.corners.reduce((sum: number, c: { lng: number }) => sum + c.lng, 0) / overlayObject.corners.length : 0,
-        y: overlayObject.corners.length > 0 ? overlayObject.corners.reduce((sum: number, c: { lat: number }) => sum + c.lat, 0) / overlayObject.corners.length : 0,
-      },
-      createdAt: overlayObject.createdAt ?? new Date(),
-      updatedAt: new Date()
-    };
-    
-    saveOverlay(savedOverlay);
+    saveOverlayWithCurrentCorners(overlayObject);
   };
 
   img.src = overlayObject.imageUrl ?? (overlayObject.overlay.getElement() as HTMLImageElement).src;
@@ -593,11 +542,6 @@ export async function navigateOverlay(direction: 'next' | 'previous'): Promise<b
       .map(overlay => overlay.id);
   } else {
     projectOverlayIds = project.overlayIds;
-  }
-  
-  if (projectOverlayIds.length <= 1) {
-    toast.add({ severity: 'info', summary: 'Navigation', detail: 'No other overlays in this project', life: 3000 });
-    return false;
   }
   
   if (projectOverlayIds.length <= 1) {
@@ -814,39 +758,5 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
   updateTooltipText();
   
   // AI : Save only the specific overlay being updated, not all overlays
-  if (overlayObject.overlay) {
-    overlayObject.corners = overlayObject.overlay.getCorners();
-  }
-  
-  const savedOverlay: StoredOverlayData = {
-    id: overlayObject.id,
-    imageUrl: overlayObject.imageUrl,
-    history: overlayObject.history,
-    redoStack: overlayObject.redoStack,
-    projectId: overlayObject.projectId,
-    caption: overlayObject.caption,
-    savedRemotely: overlayObject.savedRemotely ?? false, // AI : Include server existence tracking
-    // AI : Required fields from Drizzle schema
-    filename: overlayObject.filename || overlayObject.imageUrl.split('/').pop() || '',
-    metadata: overlayObject.metadata ?? null,
-    status: overlayObject.status ?? 'pending',
-    authorId: overlayObject.authorId ?? null,
-    // AI : Map corners to individual lat/lng fields
-    topLeftLat: overlayObject.corners[0]?.lat ?? 0,
-    topLeftLng: overlayObject.corners[0]?.lng ?? 0,
-    topRightLat: overlayObject.corners[1]?.lat ?? 0,
-    topRightLng: overlayObject.corners[1]?.lng ?? 0,
-    bottomRightLat: overlayObject.corners[2]?.lat ?? 0,
-    bottomRightLng: overlayObject.corners[2]?.lng ?? 0,
-    bottomLeftLat: overlayObject.corners[3]?.lat ?? 0,
-    bottomLeftLng: overlayObject.corners[3]?.lng ?? 0,
-    centroid: {
-      x: overlayObject.corners.length > 0 ? overlayObject.corners.reduce((sum: number, c: { lng: number }) => sum + c.lng, 0) / overlayObject.corners.length : 0,
-      y: overlayObject.corners.length > 0 ? overlayObject.corners.reduce((sum: number, c: { lat: number }) => sum + c.lat, 0) / overlayObject.corners.length : 0,
-    },
-    createdAt: overlayObject.createdAt ?? new Date(),
-    updatedAt: new Date()
-  };
-  
-  saveOverlay(savedOverlay);
+  saveOverlayWithCurrentCorners(overlayObject);
 }

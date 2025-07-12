@@ -2,8 +2,8 @@ import L from "leaflet";
 import { ref } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
 import { countries } from '@stores/projectStore';
-import { addCityMarkersForCountry, CityWithProjects } from '@composables/map/useCityMarkers';
-import { trpc, RouterOutput } from '@client';
+import { addCityMarkersForCountry } from '@composables/map/useCityMarkers';
+import { trpc } from '@client';
 
 export const isLoadingCountries = ref(false);
 export const isLoadingCountryProjects = ref(false);

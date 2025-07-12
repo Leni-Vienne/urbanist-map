@@ -180,9 +180,7 @@ export const citiesRouter = router({
         const overlaysByProject = overlaysWithCentroids.reduce((acc, overlay) => {
           const projectId = overlay.projectId;
           if (projectId) {
-            if (!acc[projectId]) {
-              acc[projectId] = [];
-            }
+            acc[projectId] ??= [];
             acc[projectId].push(overlay);
           }
           return acc;

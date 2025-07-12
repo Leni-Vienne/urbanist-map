@@ -80,7 +80,7 @@ import { ref, onMounted, getCurrentInstance, watch, computed, inject, onBeforeUn
 import { useRouter, useRoute } from 'vue-router';
 
 import { initializeMap, disableLeafletKeyboardEvents, currentZoomLevel } from '@composables/core/useMap';
-import { initializeCameraBounds, getCameraBounds } from '@composables/map/useCameraBounds';
+import { initializeCameraBounds } from '@composables/map/useCameraBounds';
 import { initializeOverlays, isEditMode, toggleEditMode } from '@composables/overlay/useOverlay';
 import { addOverlay, undo, redo } from '@composables/overlay/useOverlayActions';
 import { useToast } from '@composables/ui/useToast';
