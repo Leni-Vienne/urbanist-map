@@ -43,7 +43,7 @@ export async function addOverlay(imageUrl: string, projectId: string) {
     currentResolution: imageUrl,
     savedRemotely: false, // AI : New overlays don't exist on server yet
     // AI : Required fields from Drizzle schema
-    filename: imageUrl.split('/').pop() || '',
+    filename: imageUrl.split('/').pop() ?? '',
     metadata: null,
     status: 'pending' as const, // AI : Default status for new overlays
     authorId: null, // AI : No user authentication system yet
@@ -187,9 +187,9 @@ function saveOverlayInitialState(overlay: L.DistortableImageOverlay, overlayObje
     savedRemotely: overlayObject.savedRemotely ?? false, // AI : Include server existence tracking
     // AI : Required fields from Drizzle schema
     filename: overlayObject.filename || overlayObject.imageUrl.split('/').pop() || '',
-    metadata: overlayObject.metadata || null,
-    status: overlayObject.status || 'pending',
-    authorId: overlayObject.authorId || null,
+    metadata: overlayObject.metadata ?? null,
+    status: overlayObject.status ?? 'pending',
+    authorId: overlayObject.authorId ?? null,
     // AI : Map corners to individual lat/lng fields
     topLeftLat: overlayObject.corners[0]?.lat ?? 0,
     topLeftLng: overlayObject.corners[0]?.lng ?? 0,
@@ -203,7 +203,7 @@ function saveOverlayInitialState(overlay: L.DistortableImageOverlay, overlayObje
       x: overlayObject.corners.length > 0 ? overlayObject.corners.reduce((sum: number, c: { lng: number }) => sum + c.lng, 0) / overlayObject.corners.length : 0,
       y: overlayObject.corners.length > 0 ? overlayObject.corners.reduce((sum: number, c: { lat: number }) => sum + c.lat, 0) / overlayObject.corners.length : 0,
     },
-    createdAt: overlayObject.createdAt || new Date(),
+    createdAt: overlayObject.createdAt ?? new Date(),
     updatedAt: new Date()
   };
   
@@ -262,9 +262,9 @@ function applyHistoryAction(action: 'undo' | 'redo') {
     caption: overlayObject.caption,
     // AI : Required fields from Drizzle schema
     filename: overlayObject.filename || overlayObject.imageUrl.split('/').pop() || '',
-    metadata: overlayObject.metadata || null,
-    status: overlayObject.status || 'pending',
-    authorId: overlayObject.authorId || null,
+    metadata: overlayObject.metadata ?? null,
+    status: overlayObject.status ?? 'pending',
+    authorId: overlayObject.authorId ?? null,
     // AI : Map corners to individual lat/lng fields
     topLeftLat: overlayObject.corners[0]?.lat ?? 0,
     topLeftLng: overlayObject.corners[0]?.lng ?? 0,
@@ -278,7 +278,7 @@ function applyHistoryAction(action: 'undo' | 'redo') {
       x: overlayObject.corners.length > 0 ? overlayObject.corners.reduce((sum: number, c: { lng: number }) => sum + c.lng, 0) / overlayObject.corners.length : 0,
       y: overlayObject.corners.length > 0 ? overlayObject.corners.reduce((sum: number, c: { lat: number }) => sum + c.lat, 0) / overlayObject.corners.length : 0,
     },
-    createdAt: overlayObject.createdAt || new Date(),
+    createdAt: overlayObject.createdAt ?? new Date(),
     updatedAt: new Date()
   };
   
@@ -404,9 +404,9 @@ export function resetImageRatio() {
       caption: overlayObject.caption,
       // AI : Required fields from Drizzle schema
       filename: overlayObject.filename || overlayObject.imageUrl.split('/').pop() || '',
-      metadata: overlayObject.metadata || null,
-      status: overlayObject.status || 'pending',
-      authorId: overlayObject.authorId || null,
+      metadata: overlayObject.metadata ?? null,
+      status: overlayObject.status ?? 'pending',
+      authorId: overlayObject.authorId ?? null,
       // AI : Map corners to individual lat/lng fields
       topLeftLat: overlayObject.corners[0]?.lat ?? 0,
       topLeftLng: overlayObject.corners[0]?.lng ?? 0,
@@ -420,7 +420,7 @@ export function resetImageRatio() {
         x: overlayObject.corners.length > 0 ? overlayObject.corners.reduce((sum: number, c: { lng: number }) => sum + c.lng, 0) / overlayObject.corners.length : 0,
         y: overlayObject.corners.length > 0 ? overlayObject.corners.reduce((sum: number, c: { lat: number }) => sum + c.lat, 0) / overlayObject.corners.length : 0,
       },
-      createdAt: overlayObject.createdAt || new Date(),
+      createdAt: overlayObject.createdAt ?? new Date(),
       updatedAt: new Date()
     };
     
@@ -828,9 +828,9 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
     savedRemotely: overlayObject.savedRemotely ?? false, // AI : Include server existence tracking
     // AI : Required fields from Drizzle schema
     filename: overlayObject.filename || overlayObject.imageUrl.split('/').pop() || '',
-    metadata: overlayObject.metadata || null,
-    status: overlayObject.status || 'pending',
-    authorId: overlayObject.authorId || null,
+    metadata: overlayObject.metadata ?? null,
+    status: overlayObject.status ?? 'pending',
+    authorId: overlayObject.authorId ?? null,
     // AI : Map corners to individual lat/lng fields
     topLeftLat: overlayObject.corners[0]?.lat ?? 0,
     topLeftLng: overlayObject.corners[0]?.lng ?? 0,
@@ -844,7 +844,7 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
       x: overlayObject.corners.length > 0 ? overlayObject.corners.reduce((sum: number, c: { lng: number }) => sum + c.lng, 0) / overlayObject.corners.length : 0,
       y: overlayObject.corners.length > 0 ? overlayObject.corners.reduce((sum: number, c: { lat: number }) => sum + c.lat, 0) / overlayObject.corners.length : 0,
     },
-    createdAt: overlayObject.createdAt || new Date(),
+    createdAt: overlayObject.createdAt ?? new Date(),
     updatedAt: new Date()
   };
   

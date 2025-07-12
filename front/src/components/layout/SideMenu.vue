@@ -51,7 +51,7 @@
                         {{ item.name }}
                       </div>
                       <div class="overlay-city">
-                        {{ item.city || 'Unknown' }}
+                        {{ item.city ?? 'Unknown' }}
                       </div>
                     </div>
                     <div class="overlay-actions">

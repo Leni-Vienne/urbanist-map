@@ -63,7 +63,7 @@ async function onLayerChange(event: any) {
 // AI : Get the display label for a layer value
 function getLayerLabel(value: TileLayerType): string {
   const option = layerOptions.find(opt => opt.value === value);
-  return option?.label || value;
+  return option?.label ?? value;
 }
 </script>
 

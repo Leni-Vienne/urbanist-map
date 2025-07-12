@@ -41,7 +41,7 @@
           field="caption"
           header="caption"
         >
-          <template #body="slotProps"> {{ slotProps.data.caption || 'Unnamed Overlay' }}
+          <template #body="slotProps"> {{ slotProps.data.caption ?? 'Unnamed Overlay' }}
           </template>
         </Column>
 
@@ -160,7 +160,7 @@ const displayedOverlays = computed(() => {
       filename: overlay.filename // AI : Keep filename for CDN usage
     }));
   }
-  return props.overlays || [];
+  return props.overlays ?? [];
 });
 
 // AI : Use props overlays directly instead of loading them

@@ -30,7 +30,7 @@ const props = defineProps<{
 
 // AI : Component state
 const mode = computed(() => props.mode);
-const projectId = computed(() => props.id || '');
+const projectId = computed(() => props.id ?? '');
 
 // AI : Use project editor composable for business logic
 const {

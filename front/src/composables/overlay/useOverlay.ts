@@ -131,7 +131,7 @@ function loadOverlaysInMapBounds(savedOverlays: StoredOverlayData[], mapBounds: 
     if (isOverlayWithinBounds(savedOverlay, mapBounds)) {
       // AI : In edit mode, check zoom level before loading full overlay
       if (isEditMode.value) {
-        const currentZoom = map.value?.getZoom() || 0;
+        const currentZoom = map.value?.getZoom() ?? 0;
         if (currentZoom < 12) {
           // AI : Only create/update marker, don't load full overlay
           if (!overlays.value[savedOverlay.id]) {
@@ -259,14 +259,14 @@ export function createOverlayObject(savedOverlay: StoredOverlayData): OverlayObj
     // AI : Provide default coordinates if missing (center of map view)
     const defaultLat = 50.8503; // AI : Brussels, Belgium
     const defaultLng = 4.3517;
-    savedOverlay.topLeftLat = savedOverlay.topLeftLat || defaultLat - 0.001;
-    savedOverlay.topLeftLng = savedOverlay.topLeftLng || defaultLng - 0.001;
-    savedOverlay.topRightLat = savedOverlay.topRightLat || defaultLat - 0.001;
-    savedOverlay.topRightLng = savedOverlay.topRightLng || defaultLng + 0.001;
-    savedOverlay.bottomRightLat = savedOverlay.bottomRightLat || defaultLat + 0.001;
-    savedOverlay.bottomRightLng = savedOverlay.bottomRightLng || defaultLng + 0.001;
-    savedOverlay.bottomLeftLat = savedOverlay.bottomLeftLat || defaultLat + 0.001;
-    savedOverlay.bottomLeftLng = savedOverlay.bottomLeftLng || defaultLng - 0.001;
+    savedOverlay.topLeftLat = savedOverlay.topLeftLat ?? defaultLat - 0.001;
+    savedOverlay.topLeftLng = savedOverlay.topLeftLng ?? defaultLng - 0.001;
+    savedOverlay.topRightLat = savedOverlay.topRightLat ?? defaultLat - 0.001;
+    savedOverlay.topRightLng = savedOverlay.topRightLng ?? defaultLng + 0.001;
+    savedOverlay.bottomRightLat = savedOverlay.bottomRightLat ?? defaultLat + 0.001;
+    savedOverlay.bottomRightLng = savedOverlay.bottomRightLng ?? defaultLng + 0.001;
+    savedOverlay.bottomLeftLat = savedOverlay.bottomLeftLat ?? defaultLat + 0.001;
+    savedOverlay.bottomLeftLng = savedOverlay.bottomLeftLng ?? defaultLng - 0.001;
   }
 
   const project = savedOverlay.projectId ? projects.value[savedOverlay.projectId] : null;
@@ -873,7 +873,7 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData, createMar
       savedRemotely: true,
       filename: cdnOverlay.filename,
       metadata: null,
-      createdAt: new Date(cdnOverlay.createdAt || Date.now()),
+      createdAt: new Date(cdnOverlay.createdAt ?? Date.now()),
       updatedAt: new Date(),
       // AI : Map corners from CDN to individual lat/lng fields
       topLeftLat: cdnOverlay.corners[0]?.lat ?? 0,

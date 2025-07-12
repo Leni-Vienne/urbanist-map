@@ -102,9 +102,9 @@ const nodes = computed(() => {
   
   return countries.value.map(country => {
     // AI : Add safety check for cities array
-    const cityNodes = (country.cities || []).map(city => {
+    const cityNodes = (country.cities ?? []).map(city => {
       // AI : Add safety check for projects array
-      const projectNodes = ((city as any).projects || []).map((project: any) => ({
+      const projectNodes = ((city as any).projects ?? []).map((project: any) => ({
         key: project.id,
         data: {
           ...project,

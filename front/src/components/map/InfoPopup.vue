@@ -42,7 +42,7 @@
         <div class="p-2 rounded bg-gray-50 text-sm space-y-1">
           <div class="flex justify-between">
             <span class="font-medium text-gray-600">Name:</span>
-            <span class="text-right">{{ project.title || 'Not specified' }}</span>
+            <span class="text-right">{{ project.title ?? 'Not specified' }}</span>
           </div>
           <div class="flex justify-between">
             <span class="font-medium text-gray-600">Location:</span>
@@ -94,7 +94,7 @@
         <div class="p-2 rounded bg-gray-50 text-sm space-y-1">
           <div class="flex justify-between">
             <span class="font-medium text-gray-600">Name:</span>
-            <span class="text-right">{{ props.overlayObject.caption || 'Not specified' }}</span>
+            <span class="text-right">{{ props.overlayObject.caption ?? 'Not specified' }}</span>
           </div>
         </div>
         <OverlayEditor
@@ -155,7 +155,7 @@ const currentProjectId = ref<string | null>(props.overlayObject.projectId);
 const projectPickerValue = computed({
   get: () => selectedProjectId.value ?? '',
   set: (value: string) => {
-    selectedProjectId.value = value || null;
+    selectedProjectId.value = value ?? null;
   }
 });
 
@@ -206,7 +206,7 @@ function formatDate(date: Date | null): string {
 function onOverlayUpdate(overlayId: string, caption?: string) {
   // AI : Update the local data if needed
   if (overlayId === props.overlayObject.id) {
-    props.overlayObject.caption = caption || null;
+    props.overlayObject.caption = caption ?? null;
   }
 }
 
@@ -257,7 +257,7 @@ async function applyProjectChange(projectId: string) {
           id: nearbyProject.id,
           name: nearbyProject.title,
           title: nearbyProject.title,
-          description: nearbyProject.description || '',
+          description: nearbyProject.description ?? '',
           overlayIds: [],
           color: '#007bff',
           cityId: nearbyProject.cityId,
@@ -289,7 +289,7 @@ async function applyProjectChange(projectId: string) {
           id: nearbyProject.id,
           status: 'approved' as const,
           title: nearbyProject.title,
-          description: nearbyProject.description || null,
+          description: nearbyProject.description ?? null,
           createdAt: nearbyProject.createdAt,
           updatedAt: nearbyProject.updatedAt,
           ownerId: nearbyProject.ownerId,
@@ -455,11 +455,11 @@ async function ensureProjectOnServer(): Promise<boolean> {
     const projectResult = await trpc.project.publishProject.mutate({
       id: project.value.id,
       title: project.value.title,
-      description: project.value.description || undefined,
-      cityId: project.value.cityId || undefined,
+      description: project.value.description ?? undefined,
+      cityId: project.value.cityId ?? undefined,
       startDate: project.value.startDate?.toISOString(),
       endDate: project.value.endDate?.toISOString(),
-      sourceUrl: project.value.sourceUrl || undefined,
+      sourceUrl: project.value.sourceUrl ?? undefined,
       latestUpdateOn: project.value.latestUpdateOn?.toISOString()
     });
     if (!projectResult.success) {
@@ -552,7 +552,7 @@ async function publishOverlayToServer(filename: string): Promise<{ success: bool
   const payload = {
     id: props.overlayObject.id,
     filename: filename,
-    caption: props.overlayObject.caption || undefined,
+    caption: props.overlayObject.caption ?? undefined,
     projectId: props.overlayObject.projectId!,
     metadata: {
       // AI : Keep metadata empty as requested - no caption or history data
@@ -612,7 +612,7 @@ async function publishOverlay() {
     // AI : Refresh project overlays from backend to update marker colors
     if (project.value?.cityId) {
       try {
-        await loadCityProjects(project.value.cityId, project.value.city?.name || 'Unknown City');
+        await loadCityProjects(project.value.cityId, project.value.city?.name ?? 'Unknown City');
       } catch (error) {
         console.warn('AI : Failed to refresh project overlays after publishing:', error);
       }

@@ -71,21 +71,21 @@ export async function createProject(projectData: Partial<Omit<Project, 'id' | 'o
     overlayIds: [],
     color: '#007bff',
     // AI : Use title from Drizzle schema but populate from name for backward compatibility
-    title: safeProjectData.name || '',
-    sourceUrl: safeProjectData.sourceUrl || null,
-    startDate: safeProjectData.startDate || null,
-    endDate: safeProjectData.endDate || null,
-    latestUpdateOn: safeProjectData.latestUpdateOn || null,
-    description: safeProjectData.description || null,
+    title: safeProjectData.name ?? '',
+    sourceUrl: safeProjectData.sourceUrl ?? null,
+    startDate: safeProjectData.startDate ?? null,
+    endDate: safeProjectData.endDate ?? null,
+    latestUpdateOn: safeProjectData.latestUpdateOn ?? null,
+    description: safeProjectData.description ?? null,
     metadata: null,
-    cityId: safeProjectData.cityId || null,
+    cityId: safeProjectData.cityId ?? null,
     // AI : Add missing Drizzle fields with default values
     status: 'pending', // AI : Default status for new projects
     ownerId: null, // AI : No user authentication system yet
     createdAt: new Date(),
     updatedAt: new Date(),
     // AI : Add computed name property for backward compatibility
-    name: safeProjectData.name || '',
+    name: safeProjectData.name ?? '',
   };
 
   // AI : Convert to StoredProjectData and save to database

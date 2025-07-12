@@ -102,7 +102,7 @@ export async function loadCityProjects(cityId: string, cityName: string, forceFu
           ...storedProject,
           name: storedProject.title, // AI : Map title to name for backward compatibility
           // AI : Extract overlay IDs from the JSON array returned by backend
-          overlayIds: (project.overlays as any[])?.map((o: any) => o.id) || [],
+          overlayIds: (project.overlays as any[])?.map((o: any) => o.id) ?? [],
           color: '#007bff', // AI : Default color
           city: cityCountryCode ? {
             id: cityId,
@@ -124,7 +124,7 @@ export async function loadCityProjects(cityId: string, cityName: string, forceFu
     const overlaysToRender: CDNOverlayData[] = [];
     result.forEach(project => {
       // AI : Handle overlays as JSON array returned by backend
-      const overlaysArray = project.overlays as any[] || [];
+      const overlaysArray = project.overlays as any[] ?? [];
       overlaysArray.forEach((overlay: any) => {
         // AI : Validate overlay coordinates before adding
         if (!overlay.topLeftLat || !overlay.topLeftLng ||
@@ -201,7 +201,7 @@ async function showOverlayMarkers(cityId: string, cityName: string, cityCountryC
     const overlaysData: CDNOverlayData[] = [];
     result.forEach(project => {
       // AI : Handle overlays as JSON array returned by backend
-      const overlaysArray = project.overlays as any[] || [];
+      const overlaysArray = project.overlays as any[] ?? [];
       overlaysArray.forEach((overlay: any) => {
         // AI : Validate overlay coordinates before adding
         if (!overlay.topLeftLat || !overlay.topLeftLng ||
@@ -229,8 +229,8 @@ async function showOverlayMarkers(cityId: string, cityName: string, cityCountryC
             } : null, // AI : Include city data when available
           },
           centroid: {
-            lat: overlay.centroidLat || overlay.lat,
-            lng: overlay.centroidLng || overlay.lng
+            lat: overlay.centroidLat ?? overlay.lat,
+            lng: overlay.centroidLng ?? overlay.lng
           },
           corners: [
             { lat: overlay.topLeftLat, lng: overlay.topLeftLng },

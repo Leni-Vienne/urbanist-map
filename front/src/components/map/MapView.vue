@@ -232,7 +232,7 @@ async function onProjectSelected(projectId: string) {
           id: nearbyProject.id,
           name: nearbyProject.title,
           title: nearbyProject.title,
-          description: nearbyProject.description || '',
+          description: nearbyProject.description ?? '',
           overlayIds: [],
           color: '#007bff',
           cityId: nearbyProject.cityId,

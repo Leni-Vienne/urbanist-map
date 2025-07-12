@@ -88,8 +88,8 @@ function createEditModeOverlayMarker(overlay: OverlayObject): void {
   const currentZoom = currentZoomLevel.value;
   const tooltipContent = `
     <div>
-      <strong>${overlay.caption || 'Overlay'}</strong><br>
-      Project: ${project?.title || 'Unknown'}<br>
+      <strong>${overlay.caption ?? 'Overlay'}</strong><br>
+      Project: ${project?.title ?? 'Unknown'}<br>
       <small>${currentZoom < MIN_ZOOM_FOR_EDIT_OVERLAYS ? 
         `Zoom to level ${MIN_ZOOM_FOR_EDIT_OVERLAYS}+ to load overlay` : 
         'Click to load full overlay'}</small>
@@ -276,8 +276,8 @@ function updateTooltipsForZoomLevel(): void {
         const project = overlay.projectId ? projects.value[overlay.projectId] : null;
         const tooltipContent = `
           <div>
-            <strong>${overlay.caption || 'Overlay'}</strong><br>
-            Project: ${project?.title || 'Unknown'}<br>
+            <strong>${overlay.caption ?? 'Overlay'}</strong><br>
+            Project: ${project?.title ?? 'Unknown'}<br>
             <small>${currentZoom < MIN_ZOOM_FOR_EDIT_OVERLAYS ? 
               `Zoom to level ${MIN_ZOOM_FOR_EDIT_OVERLAYS}+ to load overlay` : 
               'Click to load full overlay'}</small>

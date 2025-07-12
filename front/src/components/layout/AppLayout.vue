@@ -60,12 +60,12 @@ const buttonClicked = ref(false);
 
 // AI : Computed property for the page title
 const pageTitle = computed(() => {
-  return props.title || (route.meta.title as string) || 'City Map Overlay';
+  return props.title ?? (route.meta.title as string) ?? 'City Map Overlay';
 });
 
 // AI : Determine if we should show the back button based on route
 const showBackButton = computed(() => {
-  return router.options.history.state.back || route.path !== '/projects';
+  return router.options.history.state.back ?? route.path !== '/projects';
 });
 
 // AI : Watch for route changes to ensure dialog stays visible
