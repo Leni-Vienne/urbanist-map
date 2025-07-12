@@ -47,7 +47,6 @@
           :options="modeOptions"
           option-label="label"
           option-value="value"
-          :disabled="isEditModeDisabled"
           v-tooltip.top="isEditModeDisabled ? 'Zoom in closer to enable edit mode' : ''"
         />
       </div>
@@ -176,11 +175,10 @@ watch(() => route.query.overlay, (overlayId) => {
 // AI : Watch for edit mode changes to start/stop camera tracking
 watch(isEditMode, (editMode) => {
   if (editMode) {
-    // AI : Stop tracking in edit mode
-
+    // AI : Stop view mode tracking when entering edit mode
     stopCameraTracking();
   } else {
-    // AI : Start tracking in view mode
+    // AI : Start view mode tracking when exiting edit mode
     startCameraTracking();
   }
 });

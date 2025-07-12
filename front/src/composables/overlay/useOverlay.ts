@@ -8,7 +8,7 @@ import { map, onMapInitialized } from '@composables/core/useMap';
 import { getAllOverlays, saveOverlay } from '@composables/core/useDatabase';
 import { overlays, idSelectedOverlay, isEditMode } from '@stores/overlayStore';
 import { projects } from '@stores/projectStore';
-import type { OverlayObject, StoredOverlayData, CDNOverlayData, Project } from '@types';
+import type { OverlayObject, StoredOverlayData, CDNOverlayData } from '@types';
 import { editTools, viewTools, infoTool } from '@composables/core/useTools';
 import { router } from '../../router';
 import { createColorIcon } from '@composables/ui/colorMarkers';
@@ -106,6 +106,13 @@ function setupMapEventListeners(): void {
   if (!map.value) return;
 
   map.value.on('moveend', loadOverlaysInView);
+  
+  // AI : Add zoom event listener to handle loading overlays when zoom changes in edit mode
+  map.value.on('zoomend', () => {
+    if (isEditMode.value) {
+      loadOverlaysInView();
+    }
+  });
 }
 
 function createMarkersForOverlays(savedOverlays: StoredOverlayData[]): void {
@@ -122,6 +129,18 @@ function createMarkersForOverlays(savedOverlays: StoredOverlayData[]): void {
 function loadOverlaysInMapBounds(savedOverlays: StoredOverlayData[], mapBounds: L.LatLngBounds): void {
   savedOverlays.forEach(async (savedOverlay) => {
     if (isOverlayWithinBounds(savedOverlay, mapBounds)) {
+      // AI : In edit mode, check zoom level before loading full overlay
+      if (isEditMode.value) {
+        const currentZoom = map.value?.getZoom() || 0;
+        if (currentZoom < 12) {
+          // AI : Only create/update marker, don't load full overlay
+          if (!overlays.value[savedOverlay.id]) {
+            const overlayObject = createOverlayObject(savedOverlay);
+            overlays.value[savedOverlay.id] = overlayObject;
+          }
+          return;
+        }
+      }
       await loadOverlay(savedOverlay);
     }
   });
@@ -190,13 +209,38 @@ async function loadOverlaysInView(): Promise<void> {
   if (!map.value) return;
 
   const currentBounds = map.value.getBounds();
+  const currentZoom = map.value.getZoom();
   const savedOverlays = await getAllOverlays();
 
   savedOverlays.forEach(async (savedOverlay) => {
     const isAlreadyLoaded = overlays.value[savedOverlay.id] !== undefined;
 
     if (!isAlreadyLoaded && isOverlayWithinBounds(savedOverlay, currentBounds)) {
-      await loadOverlay(savedOverlay);
+      if (currentZoom < 12) {
+        // AI : Only create overlay object without loading full image
+        const overlayObject = createOverlayObject(savedOverlay);
+        overlays.value[savedOverlay.id] = overlayObject;
+      } else {
+        // AI : Load full overlay when zoom is sufficient
+        await loadOverlay(savedOverlay);
+      }
+    } else if (isAlreadyLoaded) {
+      // AI : Handle zoom-based loading for already tracked overlays
+      const overlayObject = overlays.value[savedOverlay.id];
+      if (currentZoom >= 12 && !overlayObject.overlay) {
+        // AI : Load full overlay when zoom becomes sufficient
+        await loadOverlay(savedOverlay);
+      } else if (currentZoom < 12 && overlayObject.overlay) {
+        // AI : Hide full overlay when zoom becomes insufficient
+        if (map.value) {
+          try {
+            map.value.removeLayer(overlayObject.overlay);
+            overlayObject.overlay = null;
+          } catch (error) {
+            console.warn(`AI : Error removing overlay on zoom out:`, error);
+          }
+        }
+      }
     }
   });
 }
