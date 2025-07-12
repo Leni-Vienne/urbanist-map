@@ -1,8 +1,8 @@
 import { db } from '../db';
 import { publicProcedure, router } from '../trpc';
 import { z } from 'zod';
-import { overlays } from '../db/schema';
-import { sql } from 'drizzle-orm';
+import { overlays, projects, cities } from '../db/schema';
+import { sql, eq, and, inArray } from 'drizzle-orm';
 
 const publishOverlaySchema = z.object({
   id: z.string().min(1).max(36), // AI : UUID length limit
@@ -14,6 +14,12 @@ const publishOverlaySchema = z.object({
     lat: z.number().min(-90).max(90), // AI : Valid latitude range
     lng: z.number().min(-180).max(180) // AI : Valid longitude range
   })).length(4) // AI : Exactly 4 corners required
+});
+
+const getOverlaysSchema = z.object({
+  cityId: z.string().optional(),
+  projectIds: z.array(z.string()).optional(),
+  status: z.enum(['pending', 'approved', 'rejected']).optional().default('approved')
 });
 
 export const overlayRouter = router({

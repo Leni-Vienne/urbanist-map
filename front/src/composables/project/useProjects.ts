@@ -1,6 +1,6 @@
 import {
-  saveProject,
   deleteProject,
+  saveProject,
 } from '@composables/core/useDatabase';
 import { overlays } from '@stores/overlayStore';
 import { projects, selectedProjectId, countries } from '@stores/projectStore';
@@ -88,9 +88,9 @@ export async function createProject(projectData: Partial<Omit<Project, 'id' | 'o
     name: safeProjectData.name ?? '',
   };
 
-  // AI : Convert to StoredProjectData and save to database
-  const storedData = projectToStoredData(project);
-  await saveProject(storedData);
+  // AI : Store only locally - no backend calls during editing
+  // AI : Projects will be published when user explicitly saves/publishes them
+  console.log('AI : Project created locally (no backend call):', project.id);
 
   // AI : Create a new object reference to ensure shallowRef reactivity triggers
   const updatedProjects = { ...projects.value };
@@ -148,9 +148,9 @@ export async function addOverlayToProjectWithId(projectId: string, overlayId: st
     project.overlayIds = [...project.overlayIds, overlayId];
   }
 
-  // AI : Convert to StoredProjectData and save to database
-  const storedData = projectToStoredData(project);
-  await saveProject(storedData);
+  // AI : Store only locally - no backend calls during editing
+  // AI : Projects will be published when user explicitly saves/publishes them
+  console.log('AI : Overlay added to project locally (no backend call):', overlayId, 'to project:', projectId);
 
   // Update projects collection with the modified project
   updatedProjects[projectId] = project;
@@ -181,9 +181,9 @@ export async function removeOverlayFromProjectWithId(projectId: string, overlayI
   // Filter out the overlay ID from the project's overlay IDs
   project.overlayIds = project.overlayIds.filter(id => id !== overlayId);
 
-  // AI : Convert to StoredProjectData and save to database
-  const storedData = projectToStoredData(project);
-  await saveProject(storedData);
+  // AI : Store only locally - no backend calls during editing
+  // AI : Projects will be published when user explicitly saves/publishes them
+  console.log('AI : Overlay removed from project locally (no backend call):', overlayId, 'from project:', projectId);
 
   // Update projects collection with the modified project
   updatedProjects[projectId] = project;
@@ -311,12 +311,47 @@ export async function updateProject(projectId: string, projectData: Partial<Omit
   // AI : Create new project object with updated fields
   const updatedProject = { ...project, ...safeProjectData };
 
-  // AI : Convert to StoredProjectData and save to database
-  const storedData = projectToStoredData(updatedProject);
-  await saveProject(storedData);
+  // AI : Store only locally - no backend calls during editing
+  // AI : Projects will be published when user explicitly saves/publishes them
+  console.log('AI : Project updated locally (no backend call):', projectId);
 
   // AI : Create a new projects object reference to trigger shallowRef reactivity
   const updatedProjects = { ...projects.value };
   updatedProjects[projectId] = updatedProject;
   projects.value = updatedProjects;
+}
+
+// AI : Explicit publish functions - only called when user clicks publish
+export async function publishProject(projectId: string): Promise<void> {
+  const project = projects.value[projectId];
+  if (!project) {
+    toast.add({
+      severity: 'error',
+      summary: 'Project not found',
+      detail: 'The project to publish could not be found',
+      life: 3000
+    });
+    return;
+  }
+
+  try {
+    // AI : Convert to StoredProjectData and save to database
+    const storedData = projectToStoredData(project);
+    await saveProject(storedData);
+
+    toast.add({
+      severity: 'success',
+      summary: 'Project published',
+      detail: `Project "${project.name}" has been published successfully`,
+      life: 3000
+    });
+  } catch (error) {
+    console.error('AI : Error publishing project:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Publish failed',
+      detail: 'Failed to publish project to backend',
+      life: 3000
+    });
+  }
 }
