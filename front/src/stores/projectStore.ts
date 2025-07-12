@@ -1,6 +1,5 @@
 import { ref } from 'vue';
 import type { Project, Country } from '@types';
-import { saveProject } from '@composables/core/useDatabase';
 
 // AI : Central store for project data to avoid circular dependencies
 export const projects = ref<Record<string, Project>>({});
@@ -17,8 +16,7 @@ export async function addOverlayToProjectWithId(projectId: string, overlayId: st
   if (project) {
     if (!project.overlayIds.includes(overlayId)) {
       project.overlayIds.push(overlayId);
-      // AI : Persist the change to IndexedDB
-      await saveProject(project);
+      // AI : Local storage removed - changes are now stored only in memory during edit mode
     }
   }
 }
@@ -32,7 +30,6 @@ export async function removeOverlayFromProjectWithId(projectId: string, overlayI
   const project = projects.value[projectId];
   if (project) {
     project.overlayIds = project.overlayIds.filter(id => id !== overlayId);
-    // AI : Persist the change to IndexedDB
-    await saveProject(project);
+    // AI : Local storage removed - changes are now stored only in memory during edit mode
   }
 }

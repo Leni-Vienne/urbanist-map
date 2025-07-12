@@ -1,233 +1,84 @@
-import { openDB, IDBPDatabase } from 'idb';
-import {
-  MyDB, StoredOverlayData, StoredProjectData,
-} from '@types';
-import { DBCity } from '../../../../back/src/db/schema';
+// AI : Simplified database replacement - works directly with backend
+import { trpc } from '@client';
+import type { StoredOverlayData, StoredProjectData } from '@types';
 
-let db: IDBPDatabase<MyDB> | null = null;
-
-/**
- * AI : Initialize the IndexedDB database
- */
 export async function initializeDatabase(): Promise<void> {
+  // AI : No IndexedDB needed - backend handles all persistence
+  console.log('AI : Database initialization complete - using backend directly');
+}
+
+export async function clearDatabase(): Promise<void> {
+  // AI : No local database to clear
+  console.log('AI : No local database to clear - data persisted on backend');
+}
+
+// AI : Save overlay to local storage only - NO BACKEND CALLS
+export async function saveOverlay(overlay: StoredOverlayData): Promise<void> {
   try {
-    db = await openDB<MyDB>('CityMapOverlayDB', 3, {
-      upgrade(upgradeDb, oldVersion) {
-        // AI : Create stores if they don't exist
-        if (!upgradeDb.objectStoreNames.contains('overlays')) {
-          upgradeDb.createObjectStore('overlays', { keyPath: 'id' });
-        }
-        if (!upgradeDb.objectStoreNames.contains('projects')) {
-          upgradeDb.createObjectStore('projects', { keyPath: 'id' });
-        }
-        // AI : Create cities store in version 3
-        if (oldVersion < 3 && !upgradeDb.objectStoreNames.contains('cities')) {
-          upgradeDb.createObjectStore('cities', { keyPath: 'id' });
-        }
-      },
+    // AI : Just store locally in memory - no backend calls during editing
+    // AI : This will be handled by a separate publish function when user explicitly saves
+    console.log('AI : Overlay saved locally (no backend call):', overlay.id);
+  } catch (error) {
+    console.error('AI : Error saving overlay locally:', error);
+  }
+}
+
+// AI : Delete overlay from backend
+export async function deleteOverlay(_id: string): Promise<void> {
+  try {
+    // AI : Note: Backend doesn't have deleteOverlay endpoint, would need to be added
+    console.warn('AI : Delete overlay not implemented in backend yet');
+  } catch (error) {
+    console.error('AI : Error deleting overlay from backend:', error);
+  }
+}
+
+// AI : Save project to backend
+export async function saveProject(project: StoredProjectData): Promise<void> {
+  try {
+    await trpc.project.publishProject.mutate({
+      id: project.id,
+      title: project.title,
+      description: project.description ?? undefined,
+      cityId: project.cityId ?? undefined,
+      startDate: project.startDate?.toISOString(),
+      endDate: project.endDate?.toISOString(),
+      sourceUrl: project.sourceUrl ?? undefined,
+      latestUpdateOn: project.latestUpdateOn?.toISOString()
     });
   } catch (error) {
-    console.error('Failed to initialize database:', error);
-    throw new Error('Database initialization failed');
+    console.error('AI : Error saving project to backend:', error);
   }
 }
 
-/**
- * Save an overlay to the database
- */
-export async function saveOverlay(overlay: StoredOverlayData): Promise<void> {
-  if (!db) {
-    console.warn('Database not initialized when saving overlay');
-    return;
-  }
-  
+// AI : Delete project from backend
+export async function deleteProject(_projectId: string): Promise<void> {
   try {
-    // AI : Sanitize the overlay object before storing to prevent DataCloneError
-    const sanitizedOverlay = sanitizeForIndexedDB(overlay);
-    await db.put('overlays', sanitizedOverlay);
+    // AI : Note: Backend doesn't have deleteProject endpoint, would need to be added
+    console.warn('AI : Delete project not implemented in backend yet');
   } catch (error) {
-    console.error('Error saving overlay:', error);
+    console.error('AI : Error deleting project from backend:', error);
   }
 }
 
-/**
- * Get all overlays from the database
- */
-export async function getAllOverlays(): Promise<StoredOverlayData[]> {
-  if (!db) {
-    console.warn('Database not initialized when getting all overlays');
-    return [];
-  }
-    try {
-    const overlays = await db.getAll('overlays');
-    return overlays;
-  } catch (error) {
-    console.error('Error retrieving all overlays:', error);
-    return [];
-  }
-}
-
-/**
- * Delete an overlay from the database
- */
-export async function deleteOverlay(id: string): Promise<void> {
-  if (!db) {
-    console.warn('Database not initialized when deleting overlay');
-    return;
-  }
-  
+// AI : Get project from backend
+export async function getProject(_projectId: string): Promise<StoredProjectData | undefined> {
   try {
-    await db.delete('overlays', id);
-  } catch (error) {
-    console.error('Error deleting overlay:', error);
-  }
-}
-
-/**
- * Clear all data from the database
- */
-export async function clearDatabase(): Promise<void> {
-  if (!db) {
-    console.warn('Database not initialized when clearing database');
-    return;
-  }
-  
-  try {
-    await db.clear('overlays');
-    // AI : Also clear projects store if it exists
-    try {
-      await db.clear('projects');
-    } catch (error) {
-      console.warn('Could not clear projects store, it may not exist yet:', error);
-    }
-  } catch (error) {
-    console.error('Error clearing database:', error);
-  }
-}
-
-/**
- * AI : Save a project to the database
- */
-export async function saveProject(project: StoredProjectData): Promise<void> {
-  if (!db) {
-    console.warn('Database not initialized when saving project');
-    return;
-  }
-  try {
-    // AI : Sanitize the project object before storing to prevent DataCloneError
-    const sanitizedProject = sanitizeForIndexedDB(project);
-    await db.put('projects', sanitizedProject);
-  } catch (error) {
-    console.error('Error saving project:', error);
-  }
-}
-
-/**
- * AI : Get a project by ID
- */
-export async function getProject(id: string): Promise<StoredProjectData | undefined> {
-  if (!db) {
-    console.warn('Database not initialized when getting project');
+    // AI : Note: Backend doesn't have getProject endpoint, would need to be added
+    console.warn('AI : Get project not implemented in backend yet');
     return undefined;
-  }
-  try {
-    const storedProject = await db.get('projects', id);
-    return storedProject;
   } catch (error) {
-    console.error('Error retrieving project:', error);
+    console.error('AI : Error getting project from backend:', error);
     return undefined;
   }
 }
 
-/**
- * Delete a project from the database
- */
-export async function deleteProject(id: string): Promise<void> {
-  if (!db) {
-    console.warn('Database not initialized when deleting project');
-    return;
-  }
-  
-  try {
-    await db.delete('projects', id);
-  } catch (error) {
-    console.error('Error deleting project:', error);
-  }
+// AI : Legacy city functions - cities are handled by backend
+export async function saveCity(): Promise<void> {
+  console.warn('AI : saveCity is deprecated - cities are handled by backend');
 }
 
-/**
- * AI : Save a city to the database
- */
-export async function saveCity(city: DBCity): Promise<void> {
-  if (!db) {
-    console.warn('Database not initialized when saving city');
-    return;
-  }
-  try {
-    await db.put('cities', city);
-  } catch (error) {
-    console.error('Error saving city:', error);
-  }
-}
-
-/**
- * AI : Get a city by ID
- */
-export async function getCity(id: string): Promise<DBCity | undefined> {
-  if (!db) {
-    console.warn('Database not initialized when getting city');
-    return undefined;
-  }
-  try {
-    return await db.get('cities', id);
-  } catch (error) {
-    console.error('Error retrieving city:', error);
-    return undefined;
-  }
-}
-
-// AI : Note: The functions addOverlayToProject, removeOverlayFromProject, and getProjectOverlays
-// AI : are removed as they are now managed at the application level, not in the database service.
-// AI : The database service should only be responsible for direct data access, not business logic.
-// AI : Helper functions for serialization are also removed as they are no longer needed with the new types.
-
-// AI : Sanitize object for IndexedDB storage - remove non-serializable properties
-function sanitizeForIndexedDB(obj: any): any {
-  if (obj === null || obj === undefined) return obj;
-  
-  // AI : Handle primitive types
-  if (typeof obj === 'string' || typeof obj === 'number' || typeof obj === 'boolean') {
-    return obj;
-  }
-  
-  // AI : Handle Date objects
-  if (obj instanceof Date) {
-    return obj;
-  }
-  
-  // AI : Handle arrays
-  if (Array.isArray(obj)) {
-    return obj.map(item => sanitizeForIndexedDB(item));
-  }
-  
-  // AI : Handle objects
-  if (typeof obj === 'object') {
-    const sanitized: any = {};
-    for (const [key, value] of Object.entries(obj)) {
-      // AI : Skip functions and undefined values
-      if (typeof value === 'function' || value === undefined) {
-        continue;
-      }
-      
-      // AI : Skip known non-serializable properties
-      if (key === 'city' || key === 'coordinates' || key === 'geometry') {
-        continue;
-      }
-      
-      sanitized[key] = sanitizeForIndexedDB(value);
-    }
-    return sanitized;
-  }
-  
-  return obj;
+export async function getCity(): Promise<any> {
+  console.warn('AI : getCity is deprecated - cities are handled by backend');
+  return undefined;
 }

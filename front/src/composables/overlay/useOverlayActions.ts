@@ -1,9 +1,9 @@
 import L from "leaflet";
 import { map } from '@composables/core/useMap';
 import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, isEditMode, removeOverlay, allMarkers, updateMarkerTooltip } from '@composables/overlay/useOverlay';
-import { saveOverlay, deleteOverlay as deleteOverlayFromDatabase, saveProject } from '@composables/core/useDatabase';
+import { saveOverlay, deleteOverlay as deleteOverlayFromDatabase } from '@composables/core/useDatabase';
 import { useToast } from '@composables/ui/useToast';
-import { projects, addOverlayToProjectWithId, projectToStoredData } from '@composables/project/useProjects';
+import { projects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import type { StoredOverlayData, OverlayObject } from '@types';
 import { router } from '../../router';
 import { createColorIcon } from '@composables/ui/colorMarkers';
@@ -12,6 +12,51 @@ const toast = useToast();
 
 // AI : Helper function to create StoredOverlayData from OverlayObject
 function createStoredOverlayData(overlayObject: OverlayObject): StoredOverlayData {
+  // AI : Get corners from overlay if available, otherwise use stored corners or defaults
+  let corners = Array.isArray(overlayObject.corners) ? overlayObject.corners : [];
+  
+  // AI : If corners are empty, try to get them from the overlay
+  if (corners.length === 0 && overlayObject.overlay) {
+    try {
+      const overlayCorners = overlayObject.overlay.getCorners();
+      if (Array.isArray(overlayCorners) && overlayCorners.length > 0) {
+        corners = overlayCorners;
+      }
+    } catch (error) {
+      console.warn('AI : Error getting corners from overlay:', error);
+    }
+  }
+  
+  // AI : If still no corners, use default corners based on individual lat/lng fields or create defaults
+  if (corners.length === 0) {
+    if (overlayObject.topLeftLat != null && overlayObject.topLeftLng != null) {
+      corners = [
+        { lat: overlayObject.topLeftLat, lng: overlayObject.topLeftLng },
+        { lat: overlayObject.topRightLat, lng: overlayObject.topRightLng },
+        { lat: overlayObject.bottomRightLat, lng: overlayObject.bottomRightLng },
+        { lat: overlayObject.bottomLeftLat, lng: overlayObject.bottomLeftLng },
+      ];
+    } else {
+      // AI : Create default corners (will be properly set when overlay loads)
+      corners = [
+        { lat: 0, lng: 0 },
+        { lat: 0, lng: 0 },
+        { lat: 0, lng: 0 },
+        { lat: 0, lng: 0 }
+      ];
+    }
+  }
+  
+  // AI : Ensure corners is always an array with at least 4 elements
+  if (!Array.isArray(corners) || corners.length < 4) {
+    corners = [
+      { lat: 0, lng: 0 },
+      { lat: 0, lng: 0 },
+      { lat: 0, lng: 0 },
+      { lat: 0, lng: 0 }
+    ];
+  }
+  
   return {
     id: overlayObject.id,
     imageUrl: overlayObject.imageUrl,
@@ -25,18 +70,18 @@ function createStoredOverlayData(overlayObject: OverlayObject): StoredOverlayDat
     metadata: overlayObject.metadata ?? null,
     status: overlayObject.status ?? 'pending',
     authorId: overlayObject.authorId ?? null,
-    // AI : Map corners to individual lat/lng fields
-    topLeftLat: overlayObject.corners[0]?.lat ?? 0,
-    topLeftLng: overlayObject.corners[0]?.lng ?? 0,
-    topRightLat: overlayObject.corners[1]?.lat ?? 0,
-    topRightLng: overlayObject.corners[1]?.lng ?? 0,
-    bottomRightLat: overlayObject.corners[2]?.lat ?? 0,
-    bottomRightLng: overlayObject.corners[2]?.lng ?? 0,
-    bottomLeftLat: overlayObject.corners[3]?.lat ?? 0,
-    bottomLeftLng: overlayObject.corners[3]?.lng ?? 0,
+    // AI : Map corners to individual lat/lng fields with validation
+    topLeftLat: corners[0]?.lat ?? 0,
+    topLeftLng: corners[0]?.lng ?? 0,
+    topRightLat: corners[1]?.lat ?? 0,
+    topRightLng: corners[1]?.lng ?? 0,
+    bottomRightLat: corners[2]?.lat ?? 0,
+    bottomRightLng: corners[2]?.lng ?? 0,
+    bottomLeftLat: corners[3]?.lat ?? 0,
+    bottomLeftLng: corners[3]?.lng ?? 0,
     centroid: {
-      x: overlayObject.corners.length > 0 ? overlayObject.corners.reduce((sum: number, c: { lng: number }) => sum + c.lng, 0) / overlayObject.corners.length : 0,
-      y: overlayObject.corners.length > 0 ? overlayObject.corners.reduce((sum: number, c: { lat: number }) => sum + c.lat, 0) / overlayObject.corners.length : 0,
+      x: corners.length > 0 ? corners.reduce((sum: number, c: { lng: number }) => sum + c.lng, 0) / corners.length : 0,
+      y: corners.length > 0 ? corners.reduce((sum: number, c: { lat: number }) => sum + c.lat, 0) / corners.length : 0,
     },
     createdAt: overlayObject.createdAt ?? new Date(),
     updatedAt: new Date()
@@ -68,7 +113,7 @@ export async function addOverlay(imageUrl: string, projectId: string) {
 
   const id = crypto.randomUUID();
   
-  // Create basic overlay object
+  // Create basic overlay object  
   const overlayObject = {
     id,
     imageUrl,
@@ -90,15 +135,15 @@ export async function addOverlay(imageUrl: string, projectId: string) {
     metadata: null,
     status: 'pending' as const, // AI : Default status for new overlays
     authorId: null, // AI : No user authentication system yet
-    // AI : Initialize corner coordinates (will be set when overlay loads)
-    topLeftLat: 0,
-    topLeftLng: 0,
-    topRightLat: 0,
-    topRightLng: 0,
-    bottomRightLat: 0,
-    bottomRightLng: 0,
-    bottomLeftLat: 0,
-    bottomLeftLng: 0,
+    // AI : Initialize corner coordinates as undefined so applyOverlayCorners uses Priority 3 (natural positioning)
+    topLeftLat: undefined as any,
+    topLeftLng: undefined as any,
+    topRightLat: undefined as any,
+    topRightLng: undefined as any,
+    bottomRightLat: undefined as any,
+    bottomRightLng: undefined as any,
+    bottomLeftLat: undefined as any,
+    bottomLeftLng: undefined as any,
     centroid: { x: 0, y: 0 }, // AI : Will be calculated when overlay loads
     createdAt: new Date(),
     updatedAt: new Date()
@@ -114,10 +159,8 @@ export async function addOverlay(imageUrl: string, projectId: string) {
   // AI : Create marker immediately when overlay is created, not waiting for image load
   createMarkerForNewOverlay(overlayObject, projectId);
   
-  // Add image load handler to save initial state
-  if (newOverlay && map.value) {
-    setupOverlayImageLoad(newOverlay, overlayObject, projectId);
-  }
+  // AI : Don't set up custom load handler - let the existing setupOverlayLoadHandler handle it
+  // The existing system in useOverlay.ts will call onOverlayLoaded which handles all initialization
   
   await addOverlayToProjectWithId(projectId, id);
   
@@ -132,11 +175,11 @@ function createMarkerForNewOverlay(overlayObject: any, projectId: string) {
   const center = map.value.getCenter();
   
   // AI : Use unified marker creation system with proper color and tooltip handling
-  let markerTitle = 'Overlay';
+  let markerTitle = 'New Overlay';
   if (projectId && projects.value[projectId]) {
     const project = projects.value[projectId];
     const captionPart = overlayObject.caption ? ` - ${overlayObject.caption}` : '';
-    markerTitle = `${project.name}${captionPart}`;
+    markerTitle = `${project.name} - New Overlay${captionPart}`;
   }
 
   // AI : Create marker with proper color based on storage status
@@ -148,48 +191,25 @@ function createMarkerForNewOverlay(overlayObject: any, projectId: string) {
     icon: colorIcon
   }).addTo(map.value);
   
+  // AI : Add click handler to marker to select the overlay
+  marker.on('click', () => {
+    if (overlayObject.overlay) {
+      // AI : If overlay exists, click it to select
+      const element = overlayObject.overlay.getElement();
+      if (element) {
+        element.click();
+      }
+    } else {
+      // AI : If overlay doesn't exist yet, just select it
+      idSelectedOverlay.value = overlayObject.id;
+    }
+  });
+  
   overlayObject.marker = marker;
   allMarkers.value[overlayObject.id] = marker;
   
   // AI : Update marker tooltip with proper styling
   updateMarkerTooltip(overlayObject);
-}
-
-function setupOverlayImageLoad(overlay: L.DistortableImageOverlay, overlayObject: any, _projectId: string) {
-  const imgElement = overlay.getElement();
-  if (!imgElement) return;
-  
-  const onLoadHandler = () => {
-    if (!map.value || !overlay) return;
-    
-    try {
-      // AI : Update marker position now that overlay has proper bounds
-      updateMarkerPositionForOverlay(overlay, overlayObject);
-      saveOverlayInitialState(overlay, overlayObject);
-    } catch (error) {
-      console.error('Error in overlay image load handler:', error);
-    } finally {
-      imgElement.removeEventListener('load', onLoadHandler);
-    }
-  };
-  
-  imgElement.addEventListener('load', onLoadHandler);
-  
-  // If image is already loaded, call the handler immediately
-  if (imgElement.complete && imgElement.naturalWidth > 0) {
-    onLoadHandler();
-  }
-}
-
-// AI : Update marker position based on overlay bounds
-function updateMarkerPositionForOverlay(overlay: L.DistortableImageOverlay, overlayObject: any) {
-  if (!overlayObject.marker) return;
-  
-  const bounds = overlay.getBounds();
-  if (!bounds) return;
-  
-  const center = bounds.getCenter();
-  overlayObject.marker.setLatLng(center);
 }
 
 // AI : Helper function to determine marker color in edit mode
@@ -206,22 +226,6 @@ function getMarkerColorForEditMode(overlayObject: OverlayObject): 'blue' | 'gree
 
   // AI : Fallback to blue for any edge cases
   return 'blue';
-}
-
-function saveOverlayInitialState(overlay: L.DistortableImageOverlay, overlayObject: any) {
-  // Store the corners in the overlay object
-  overlayObject.corners = overlay.getCorners();
-  
-  // Create initial history entry if needed - use deep copy to prevent reference issues
-  if (!overlayObject.history.length) {
-    if (overlayObject.corners && overlayObject.corners.length > 0) {
-      overlayObject.history = [JSON.parse(JSON.stringify(overlayObject.corners))];
-      overlayObject.redoStack = [];
-    }  }
-  
-  // AI : Save the overlay to the database
-  const storedOverlay = createStoredOverlayData(overlayObject);
-  saveOverlay(storedOverlay);
 }
 
 
@@ -731,19 +735,11 @@ export async function deleteOverlay(id: string) {
   // AI : Update project if overlay belongs to one
   if (overlayObject.projectId && projects.value[overlayObject.projectId]) {
     const project = projects.value[overlayObject.projectId];
-    // Create a clean copy with all required Project properties  
-    const projectCopy = {
-      ...project,
-      overlayIds: project.overlayIds.filter(overlayId => overlayId !== id),
-      updatedAt: new Date()
-    };
+    // Update local reference only - no backend calls during editing
+    project.overlayIds = project.overlayIds.filter(overlayId => overlayId !== id);
+    project.updatedAt = new Date();
     
-    // Update local reference
-    project.overlayIds = projectCopy.overlayIds;
-    
-    // AI : Convert to StoredProjectData and save to database
-    const storedData = projectToStoredData(projectCopy);
-    await saveProject(storedData);
+    console.log('AI : Overlay removed from project locally (no backend call):', id, 'from project:', overlayObject.projectId);
   }
   removeOverlay(id);
   deleteOverlayFromDatabase(id);
