@@ -91,8 +91,8 @@ export function useProjectEditor(projectId: string, mode: 'edit' | 'view' | 'cre
       };
 
       let savedProjectId;
-      if (isExisting) {
-        await updateProject(projectData.id!, dataToSave);
+      if (isExisting && projectData.id) {
+        await updateProject(projectData.id, dataToSave);
         savedProjectId = projectData.id;
       } else {
         savedProjectId = await createProject(dataToSave);
