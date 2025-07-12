@@ -1,6 +1,5 @@
 import {
   deleteProject,
-  saveProject,
 } from '@composables/core/useDatabase';
 import { overlays } from '@stores/overlayStore';
 import { projects, selectedProjectId, countries } from '@stores/projectStore';
@@ -335,9 +334,17 @@ export async function publishProject(projectId: string): Promise<void> {
   }
 
   try {
-    // AI : Convert to StoredProjectData and save to database
-    const storedData = projectToStoredData(project);
-    await saveProject(storedData);
+    // AI : Publish directly to backend
+    await trpc.project.publishProject.mutate({
+      id: project.id,
+      title: project.title,
+      description: project.description ?? undefined,
+      cityId: project.cityId ?? undefined,
+      startDate: project.startDate?.toISOString(),
+      endDate: project.endDate?.toISOString(),
+      sourceUrl: project.sourceUrl ?? undefined,
+      latestUpdateOn: project.latestUpdateOn?.toISOString()
+    });
 
     toast.add({
       severity: 'success',

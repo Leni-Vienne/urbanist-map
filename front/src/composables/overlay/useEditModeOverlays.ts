@@ -6,7 +6,7 @@ import { overlays } from '@stores/overlayStore';
 import { projects } from '@stores/projectStore';
 import { createColorIcon } from '@composables/ui/colorMarkers';
 import { getConstructionMarkerColor } from '@composables/map/useCityMarkers';
-import { clearAllOverlays, loadOverlayById } from '@composables/overlay/useOverlay';
+import { clearAllOverlays, createOverlay } from '@composables/overlay/useOverlay';
 import type { CameraBounds, OverlayObject } from '@types';
 
 // AI : Distance threshold for loading full overlay images in edit mode (in meters)
@@ -132,8 +132,13 @@ async function loadFullOverlay(overlayId: string): Promise<void> {
     // AI : Load the full overlay by triggering its display
     // AI : In edit mode, we need to ensure the overlay is loaded and visible
     if (!overlay.alreadyLoaded) {
-      // AI : Load the overlay if not already loaded
-      await loadOverlayById(overlayId);
+      // AI : Load the overlay if not already loaded - create the overlay if it doesn't exist
+      if (!overlay.overlay) {
+        const newOverlay = await createOverlay(overlay.imageUrl, overlay);
+        if (newOverlay) {
+          overlay.overlay = newOverlay;
+        }
+      }
     } else if (overlay.overlay && map.value) {
       // AI : If already loaded, just make sure it's visible on the map
       overlay.overlay.addTo(map.value);

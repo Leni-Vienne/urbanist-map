@@ -1,7 +1,7 @@
 import L from "leaflet";
 import { map } from '@composables/core/useMap';
 import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, isEditMode, removeOverlay, allMarkers, updateMarkerTooltip } from '@composables/overlay/useOverlay';
-import { saveOverlay, deleteOverlay as deleteOverlayFromDatabase } from '@composables/core/useDatabase';
+import { saveOverlay } from '@composables/core/useDatabase';
 import { useToast } from '@composables/ui/useToast';
 import { projects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import type { StoredOverlayData, OverlayObject } from '@types';
@@ -692,7 +692,6 @@ export async function deleteOverlay(id: string) {
     console.log('AI : Overlay removed from project locally (no backend call):', id, 'from project:', overlayObject.projectId);
   }
   removeOverlay(id);
-  deleteOverlayFromDatabase(id);
 }
 
 export function updateOverlayInfo(id: string, info: { caption?: string }): void {

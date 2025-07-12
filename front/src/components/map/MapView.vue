@@ -63,8 +63,8 @@
     :modal="true"
     :style="{ width: '450px' }"
   >
-    <ProjectPicker 
-      @project-selected="onProjectSelected" 
+    <ProjectPicker
+      @project-selected="onProjectSelected"
       :use-nearby-projects="true"
     />
   </Dialog>
@@ -81,7 +81,8 @@ import { useRouter, useRoute } from 'vue-router';
 
 import { initializeMap, disableLeafletKeyboardEvents, currentZoomLevel } from '@composables/core/useMap';
 import { initializeCameraBounds } from '@composables/map/useCameraBounds';
-import { initializeOverlays, isEditMode, toggleEditMode } from '@composables/overlay/useOverlay';
+import { isEditMode } from '@composables/overlay/useOverlay';
+import { toggleEditMode } from '@composables/overlay/useEditMode';
 import { addOverlay, undo, redo } from '@composables/overlay/useOverlayActions';
 import { useToast } from '@composables/ui/useToast';
 import { setAppContext } from '@composables/core/useTools';
@@ -225,7 +226,7 @@ async function onProjectSelected(projectId: string) {
       // AI : Fetch nearby projects to get the selected project data
       const nearbyProjects = await fetchNearbyProjects();
       const nearbyProject = nearbyProjects.find((p: any) => p.id === projectId);
-      
+
       if (nearbyProject) {
         // AI : Convert nearby project to local project format and add to store
         const localProject = {
@@ -255,7 +256,7 @@ async function onProjectSelected(projectId: string) {
           latestUpdateOn: null,
           savedRemotely: true
         };
-        
+
         // AI : Add project to local store
         projects.value[projectId] = localProject;
       } else {
@@ -265,7 +266,7 @@ async function onProjectSelected(projectId: string) {
       console.error('AI : Error fetching nearby projects for project selection:', error);
     }
   }
-  
+
   await handleFileUpload(projectId);
 }
 
@@ -313,7 +314,6 @@ async function initializeMapAndOverlays() {
   try {
     await initializeMap();
     initializeCameraBounds(); // AI : Initialize camera bounds tracking
-    await initializeOverlays();
     await initializeCountryMarkers(); // AI : Initialize country markers by default
     window.addEventListener('keydown', handleKeyDown, true);
     disableLeafletKeyboardEvents();

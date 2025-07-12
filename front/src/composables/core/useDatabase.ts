@@ -1,5 +1,4 @@
 // AI : Simplified database replacement - works directly with backend
-import { trpc } from '@client';
 import type { StoredOverlayData, StoredProjectData } from '@types';
 
 export async function initializeDatabase(): Promise<void> {
@@ -20,34 +19,6 @@ export async function saveOverlay(overlay: StoredOverlayData): Promise<void> {
     console.log('AI : Overlay saved locally (no backend call):', overlay.id);
   } catch (error) {
     console.error('AI : Error saving overlay locally:', error);
-  }
-}
-
-// AI : Delete overlay from backend
-export async function deleteOverlay(_id: string): Promise<void> {
-  try {
-    // AI : Note: Backend doesn't have deleteOverlay endpoint, would need to be added
-    console.warn('AI : Delete overlay not implemented in backend yet');
-  } catch (error) {
-    console.error('AI : Error deleting overlay from backend:', error);
-  }
-}
-
-// AI : Save project to backend
-export async function saveProject(project: StoredProjectData): Promise<void> {
-  try {
-    await trpc.project.publishProject.mutate({
-      id: project.id,
-      title: project.title,
-      description: project.description ?? undefined,
-      cityId: project.cityId ?? undefined,
-      startDate: project.startDate?.toISOString(),
-      endDate: project.endDate?.toISOString(),
-      sourceUrl: project.sourceUrl ?? undefined,
-      latestUpdateOn: project.latestUpdateOn?.toISOString()
-    });
-  } catch (error) {
-    console.error('AI : Error saving project to backend:', error);
   }
 }
 

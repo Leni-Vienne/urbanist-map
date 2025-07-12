@@ -4,8 +4,7 @@ import L from "leaflet";
 import 'leaflet-toolbar'
 import 'leaflet-distortableimage'; // using "-updated" to prevent "WebSocket connection to 'ws://localhost:8081/ws' failed:" error
 import { shallowRef } from 'vue';
-import { map, onMapInitialized } from '@composables/core/useMap';
-import { saveOverlay } from '@composables/core/useDatabase';
+import { map } from '@composables/core/useMap';
 import { overlays, idSelectedOverlay, isEditMode } from '@stores/overlayStore';
 import { projects } from '@stores/projectStore';
 import type { OverlayObject, StoredOverlayData, CDNOverlayData } from '@types';
@@ -19,233 +18,28 @@ export { overlays, idSelectedOverlay, isEditMode };
 // Tracking of all markers, even for images not currently loaded
 export const allMarkers = shallowRef<Record<string, L.Marker>>({});
 
-// AI : Save an individual overlay to local storage
-// This is called explicitly when an overlay changes, rather than watching the entire collection
-// Remote overlays are saved locally when they have been modified 
-export function saveOverlayToDatabase(overlayObj: OverlayObject): void {
-  if (!overlayObj?.alreadyLoaded) return;
-
-  // AI : Skip saving remote overlays that haven't been modified locally
-  if (overlayObj.savedRemotely && !overlayObj.alreadyStored) return;
-
-  if (!overlayObj.alreadyStored) return;
-
-  const corners = overlayObj.overlay?.getCorners() ?? [];
-  const savedOverlay: StoredOverlayData = {
-    // AI : Copy only serializable properties, excluding overlay, marker, and project objects
-    id: overlayObj.id,
-    imageUrl: overlayObj.imageUrl,
-    history: overlayObj.history,
-    redoStack: overlayObj.redoStack,
-    projectId: overlayObj.projectId,
-    caption: overlayObj.caption,
-    savedRemotely: overlayObj.savedRemotely,
-    metadata: overlayObj.metadata,
-    createdAt: overlayObj.createdAt,
-    status: overlayObj.status,
-    authorId: overlayObj.authorId,
-    // AI : Required fields from Drizzle schema
-    filename: overlayObj.filename ?? overlayObj.imageUrl.split('/').pop() ?? '',
-    // AI : Map corners to individual lat/lng fields
-    topLeftLat: corners[0]?.lat ?? 0,
-    topLeftLng: corners[0]?.lng ?? 0,
-    topRightLat: corners[1]?.lat ?? 0,
-    topRightLng: corners[1]?.lng ?? 0,
-    bottomRightLat: corners[2]?.lat ?? 0,
-    bottomRightLng: corners[2]?.lng ?? 0,
-    bottomLeftLat: corners[3]?.lat ?? 0,
-    bottomLeftLng: corners[3]?.lng ?? 0,
-    centroid: {
-      x: overlayObj.overlay?.getBounds().getCenter().lng ?? 0,
-      y: overlayObj.overlay?.getBounds().getCenter().lat ?? 0,
-    },
-    updatedAt: new Date(),
-  };
-
-  try {
-    // AI : Save locally during editing, not to backend
-    saveOverlay(savedOverlay);
-    // AI : Update storage status and marker tooltip
-    overlayObj.alreadyStored = true;
-    updateMarkerTooltip(overlayObj);
-  } catch (error) {
-    console.error('AI : Error saving overlay to local storage:', error);
-  }
-}
-
 /**
- * AI : Initialize overlays from database and set up event handlers
- * In edit mode: loads from local IndexedDB only, in view mode: handled by useViewModeOverlays
+ * AI : Update overlay editing state based on current mode
  */
-export async function initializeOverlays(): Promise<void> {
-  if (!map.value) return;
+export function updateOverlayEditingState(): void {
+  Object.values(overlays.value).forEach(overlayObject => {
+    if (!overlayObject.overlay) return;
 
-  // AI : In view mode, skip local database entirely
-  if (!isEditMode.value) {
-    setupMapEventListeners();
-    return;
-  }
+    const element = overlayObject.overlay.getElement();
+    if (!element) return;
 
-  // AI : In edit mode, no overlays to load from local database (empty array)
-  const savedOverlays: StoredOverlayData[] = [];
-
-  const mapBounds = map.value.getBounds();
-
-  // AI : Only create markers in edit mode - view mode markers are handled by renderViewModeOverlays
-  if (isEditMode.value) {
-    createMarkersForOverlays(savedOverlays);
-  }
-  loadOverlaysInMapBounds(savedOverlays, mapBounds);
-
-  setupMapEventListeners();
-
-  onMapInitialized(() => {
-  });
-}
-
-function setupMapEventListeners(): void {
-  if (!map.value) return;
-
-  map.value.on('moveend', loadOverlaysInView);
-  
-  // AI : Add zoom event listener to handle loading overlays when zoom changes in edit mode
-  map.value.on('zoomend', () => {
     if (isEditMode.value) {
-      loadOverlaysInView();
+      // AI : Enable editing in edit mode
+      enableOverlayEditing(overlayObject.overlay, element);
+    } else {
+      // AI : Disable editing in view mode
+      disableOverlayEditing(overlayObject.overlay, element);
     }
-  });
-}
 
-function createMarkersForOverlays(savedOverlays: StoredOverlayData[]): void {
-  if (!map.value) return;
-
-  // AI : Use unified marker creation for LOCAL overlays only (not remote)
-  savedOverlays.forEach(savedOverlay => {
-    if (!savedOverlay.savedRemotely) {
-      createSingleMarker(savedOverlay);
-    }
-  });
-}
-
-function loadOverlaysInMapBounds(savedOverlays: StoredOverlayData[], mapBounds: L.LatLngBounds): void {
-  savedOverlays.forEach(async (savedOverlay) => {
-    if (isOverlayWithinBounds(savedOverlay, mapBounds)) {
-      // AI : In edit mode, check zoom level before loading full overlay
-      if (isEditMode.value) {
-        const currentZoom = map.value?.getZoom() ?? 0;
-        if (currentZoom < 12) {
-          // AI : Only create/update marker, don't load full overlay
-          if (!overlays.value[savedOverlay.id]) {
-            const overlayObject = createOverlayObject(savedOverlay);
-            overlays.value[savedOverlay.id] = overlayObject;
-          }
-          return;
-        }
-      }
-      await loadOverlay(savedOverlay);
-    }
-  });
-}
-
-async function loadOverlay(savedOverlay: StoredOverlayData): Promise<void> {
-  const overlayObject = createOverlayObject(savedOverlay);
-
-  const overlayBounds = getOverlayBounds(savedOverlay);
-  if (!overlayBounds || !map.value) return;
-
-  const imageUrl = savedOverlay.imageUrl;
-
-  const newOverlay = await createOverlay(imageUrl, overlayObject);
-  if (!newOverlay) return;
-
-  overlayObject.overlay = newOverlay;
-  
-  // AI : Always assign markers from allMarkers if they exist
-  overlayObject.marker = allMarkers.value[savedOverlay.id];
-  
-  overlays.value[savedOverlay.id] = overlayObject;
-
-  // AI : Update marker tooltip with correct overlay object information
-  if (overlayObject.marker) {
+    // AI : Update marker color and tooltip
     updateMarkerTooltip(overlayObject);
-  }
-}
-
-function getOverlayBounds(overlay: StoredOverlayData): L.LatLngBounds | null {
-  // AI : Validate all corner coordinates exist and are valid numbers
-  if (!overlay.topLeftLat || !overlay.topLeftLng || 
-      !overlay.topRightLat || !overlay.topRightLng ||
-      !overlay.bottomRightLat || !overlay.bottomRightLng ||
-      !overlay.bottomLeftLat || !overlay.bottomLeftLng) {
-    console.warn('AI : Invalid overlay coordinates for overlay:', overlay.id);
-    return null;
-  }
-
-  const corners = [
-    L.latLng(overlay.topLeftLat, overlay.topLeftLng),
-    L.latLng(overlay.topRightLat, overlay.topRightLng),
-    L.latLng(overlay.bottomRightLat, overlay.bottomRightLng),
-    L.latLng(overlay.bottomLeftLat, overlay.bottomLeftLng),
-  ];
-
-  // AI : Check if all corners are valid
-  if (corners.some(c => !c.lat || !c.lng)) {
-    return null;
-  }
-
-  return L.latLngBounds(corners);
-}
-
-function isOverlayWithinBounds(overlay: StoredOverlayData, bounds: L.LatLngBounds): boolean {
-  const overlayBounds = getOverlayBounds(overlay);
-  if (!overlayBounds) return true; // AI : If no bounds, assume it's within view to load it
-
-  return bounds.intersects(overlayBounds);
-}
-
-async function loadOverlaysInView(): Promise<void> {
-  // AI : Only load overlays in edit mode
-  if (!isEditMode.value) return;
-
-  if (!map.value) return;
-
-  const currentBounds = map.value.getBounds();
-  const currentZoom = map.value.getZoom();
-  const savedOverlays: StoredOverlayData[] = []; // AI : No overlays to load from local database
-
-  savedOverlays.forEach(async (savedOverlay) => {
-    const isAlreadyLoaded = overlays.value[savedOverlay.id] !== undefined;
-
-    if (!isAlreadyLoaded && isOverlayWithinBounds(savedOverlay, currentBounds)) {
-      if (currentZoom < 12) {
-        // AI : Only create overlay object without loading full image
-        const overlayObject = createOverlayObject(savedOverlay);
-        overlays.value[savedOverlay.id] = overlayObject;
-      } else {
-        // AI : Load full overlay when zoom is sufficient
-        await loadOverlay(savedOverlay);
-      }
-    } else if (isAlreadyLoaded) {
-      // AI : Handle zoom-based loading for already tracked overlays
-      const overlayObject = overlays.value[savedOverlay.id];
-      if (currentZoom >= 12 && !overlayObject.overlay) {
-        // AI : Load full overlay when zoom becomes sufficient
-        await loadOverlay(savedOverlay);
-      } else if (currentZoom < 12 && overlayObject.overlay) {
-        // AI : Hide full overlay when zoom becomes insufficient
-        if (map.value) {
-          try {
-            map.value.removeLayer(overlayObject.overlay);
-            overlayObject.overlay = null;
-          } catch (error) {
-            console.warn(`AI : Error removing overlay on zoom out:`, error);
-          }
-        }
-      }
-    }
   });
 }
-
 
 /**
  * AI : Create a new overlay object from saved data
@@ -254,7 +48,7 @@ export function createOverlayObject(savedOverlay: StoredOverlayData): OverlayObj
   // AI : Provide default coordinates if missing
   const defaultLat = 50.8503; // AI : Brussels, Belgium
   const defaultLng = 4.3517;
-  
+
   const coordinates = {
     topLeftLat: savedOverlay.topLeftLat ?? defaultLat - 0.001,
     topLeftLng: savedOverlay.topLeftLng ?? defaultLng - 0.001,
@@ -315,11 +109,16 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
     setupOverlayEventHandlers(newOverlay, overlayObject);
     setupOverlayLoadHandler(newOverlay, overlayObject);
 
+    // AI : Only disable editing if we're in view mode
+    // AI : The onOverlayLoaded function will set the proper state when the element is ready
     if (!isEditMode.value) {
-      const element = newOverlay.getElement();
-      if (element) {
-        disableOverlayEditing(newOverlay, element);
-      }
+      // AI : Use a timeout to ensure element is available
+      setTimeout(() => {
+        const element = newOverlay.getElement();
+        if (element) {
+          disableOverlayEditing(newOverlay, element);
+        }
+      }, 100);
     }
 
     return newOverlay;
@@ -344,7 +143,7 @@ function setupOverlayLoadHandler(overlay: L.DistortableImageOverlay, overlayObje
       onOverlayLoaded(overlayObject);
     }
   });
-  
+
   if (element.complete && element.naturalWidth > 0) {
     setTimeout(() => onOverlayLoaded(overlayObject), 100);
   }
@@ -361,7 +160,17 @@ function onOverlayLoaded(overlayObject: OverlayObject): void {
   overlayObject.alreadyLoaded = true;
 
   initializeOverlayHistory(overlayObject);
-  handleOverlayStorageOnLoad(overlayObject);
+
+  // AI : Set proper editing state based on current mode
+  const element = overlayObject.overlay.getElement();
+  if (element) {
+    if (isEditMode.value) {
+      enableOverlayEditing(overlayObject.overlay, element);
+    } else {
+      disableOverlayEditing(overlayObject.overlay, element);
+    }
+  }
+
   updateMarkerTooltip(overlayObject);
 }
 
@@ -375,21 +184,6 @@ function initializeOverlayHistory(overlayObject: OverlayObject): void {
   if (initialCorners?.length === 4) {
     overlayObject.history = [JSON.parse(JSON.stringify(initialCorners))];
     overlayObject.redoStack = [];
-  }
-}
-
-/**
- * AI : Handle storage logic when overlay loads
- */
-function handleOverlayStorageOnLoad(overlayObject: OverlayObject): void {
-  // AI : Don't automatically set alreadyStored = true for remote overlays in view mode
-  if (!overlayObject.savedRemotely) {
-    overlayObject.alreadyStored = true;
-  }
-
-  // AI : Save to database in edit mode for new local overlays only
-  if (isEditMode.value && !overlayObject.savedRemotely) {
-    saveOverlayToDatabase(overlayObject);
   }
 }
 
@@ -518,11 +312,11 @@ function getCornersForOverlay(overlayObject: OverlayObject) {
  * AI : Validate corners data
  */
 function isValidCorners(corners: any[]): boolean {
-  return corners.every(corner => 
-    corner && 
-    typeof corner.lat === 'number' && 
-    typeof corner.lng === 'number' && 
-    !isNaN(corner.lat) && 
+  return corners.every(corner =>
+    corner &&
+    typeof corner.lat === 'number' &&
+    typeof corner.lng === 'number' &&
+    !isNaN(corner.lat) &&
     !isNaN(corner.lng)
   );
 }
@@ -532,7 +326,7 @@ function isValidCorners(corners: any[]): boolean {
  */
 export function updateMarkerPosition(overlayObject: OverlayObject): void {
   if (!overlayObject.overlay?.getBounds || !overlayObject.marker) return;
-  
+
   const bounds = overlayObject.overlay.getBounds();
   if (bounds?.isValid()) {
     overlayObject.marker.setLatLng(bounds.getCenter());
@@ -540,7 +334,7 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
 }
 
 /**
- * AI : Save the current state of an overlay to history and local storage
+ * AI : Save the current state of an overlay to history
  */
 export function saveToHistory(overlayObject: OverlayObject): void {
   if (!overlayObject.overlay) return;
@@ -550,62 +344,8 @@ export function saveToHistory(overlayObject: OverlayObject): void {
 
   overlayObject.history.push(JSON.parse(JSON.stringify(currentState)));
   overlayObject.redoStack = [];
-
-  const savedOverlay = createStoredOverlayData(overlayObject, currentState);
-  saveOverlay(savedOverlay);
   overlayObject.alreadyStored = true;
   updateMarkerTooltip(overlayObject);
-}
-
-/**
- * AI : Create StoredOverlayData from overlay object and corners
- */
-function createStoredOverlayData(overlayObject: OverlayObject, corners: any[]): StoredOverlayData {
-  return {
-    id: overlayObject.id,
-    imageUrl: overlayObject.imageUrl,
-    history: overlayObject.history,
-    redoStack: overlayObject.redoStack,
-    projectId: overlayObject.projectId,
-    caption: overlayObject.caption,
-    savedRemotely: overlayObject.savedRemotely,
-    filename: overlayObject.filename,
-    metadata: overlayObject.metadata,
-    createdAt: overlayObject.createdAt,
-    status: overlayObject.status,
-    authorId: overlayObject.authorId,
-    topLeftLat: corners[0]?.lat ?? 0,
-    topLeftLng: corners[0]?.lng ?? 0,
-    topRightLat: corners[1]?.lat ?? 0,
-    topRightLng: corners[1]?.lng ?? 0,
-    bottomRightLat: corners[2]?.lat ?? 0,
-    bottomRightLng: corners[2]?.lng ?? 0,
-    bottomLeftLat: corners[3]?.lat ?? 0,
-    bottomLeftLng: corners[3]?.lng ?? 0,
-    centroid: {
-      x: overlayObject.overlay?.getBounds().getCenter().lng ?? 0,
-      y: overlayObject.overlay?.getBounds().getCenter().lat ?? 0,
-    },
-    updatedAt: new Date(),
-  };
-}
-
-/**
- * AI : Toggle edit mode for all overlays with proper cleanup
- */
-export async function toggleEditMode(): Promise<void> {
-  isEditMode.value = !isEditMode.value;
-  clearAllOverlays();
-
-  if (isEditMode.value) {
-    await initializeOverlays();
-  }
-
-  Object.values(overlays.value).forEach(overlayObject => {
-    if (overlayObject.marker) {
-      updateMarkerTooltip(overlayObject);
-    }
-  });
 }
 
 // Event handler that blocks movement events but allows click events
@@ -648,41 +388,19 @@ function disableOverlayEditing(overlay: L.DistortableImageOverlay, element: HTML
 }
 
 /**
- * AI : Load a specific overlay by ID from the database
+ * AI : Enable editing for an overlay
  */
-export async function loadOverlayById(id: string): Promise<void> {
-  if (!isEditMode.value || !map.value) return;
+function enableOverlayEditing(overlay: L.DistortableImageOverlay, element: HTMLElement): void {
+  // AI : Remove disabled styling
+  element.style.cursor = '';
 
-  console.warn(`AI : Overlay with ID ${id} not found - no local database`);
-}
+  // AI : Remove event listeners that block editing
+  element.removeEventListener('mousedown', blockMovementEvent, true);
+  element.removeEventListener('touchstart', blockMovementEvent, true);
+  element.removeEventListener('dragstart', blockMovementEvent, true);
 
-/**
- * AI : Update an overlay's image without recreating the overlay
- */
-export function updateOverlayImage(overlayObject: OverlayObject, newImageUrl: string): void {
-  if (!overlayObject.overlay) return;
-
-  const currentCorners = overlayObject.overlay.getCorners();
-  
-  const preloadImg = new Image();
-  preloadImg.onload = () => {
-    if (!overlayObject.overlay) return;
-    
-    if (typeof overlayObject.overlay.setUrl === 'function') {
-      overlayObject.overlay.setUrl(newImageUrl);
-    } else {
-      const imgElement = overlayObject.overlay.getElement();
-      if (imgElement) imgElement.src = newImageUrl;
-    }
-    
-    overlayObject.currentResolution = newImageUrl;
-    
-    if (currentCorners) {
-      overlayObject.overlay.setCorners(currentCorners);
-    }
-  };
-  
-  preloadImg.src = newImageUrl;
+  // AI : Make sure the overlay is editable
+  (overlay as any).options.editable = true;
 }
 
 /**
@@ -721,7 +439,9 @@ function applySelectionOutline(overlayObject: OverlayObject): void {
     if (obj.projectId === overlayObject.projectId && obj.overlay) {
       const element = obj.overlay.getElement();
       if (element) {
-        element.style.outline = `30px solid ${color}`;
+        // AI : Use box-shadow instead of outline to avoid scaling issues
+        element.style.boxShadow = `0 0 0 20px ${color}`;
+        element.style.outline = 'none';
       }
     }
   });
@@ -739,7 +459,9 @@ function removeSelectionOutline(overlayObject: OverlayObject): void {
     if (obj.projectId === overlayObject.projectId && obj.overlay) {
       const element = obj.overlay.getElement();
       if (element) {
-        element.style.outline = project ? `4px solid ${project.color}` : '';
+        // AI : Use box-shadow instead of outline for consistency
+        element.style.boxShadow = project ? `0 0 0 2px ${project.color}` : '';
+        element.style.outline = 'none';
       }
     }
   });
@@ -758,7 +480,9 @@ function highlightProjectOverlaysOnHover(projectId: string): void {
     if (overlayObject.projectId === projectId && overlayObject.overlay) {
       const element = overlayObject.overlay.getElement();
       if (element) {
-        element.style.outline = `30px solid ${color}`;
+        // AI : Use box-shadow instead of outline to avoid scaling issues
+        element.style.boxShadow = `0 0 0 20px ${color}`;
+        element.style.outline = 'none';
       }
     }
   });
@@ -779,7 +503,9 @@ function removeProjectHighlightOnHover(projectId: string): void {
     if (overlayObject.projectId === projectId && overlayObject.overlay) {
       const element = overlayObject.overlay.getElement();
       if (element) {
-        element.style.outline = project ? `4px solid ${project.color}` : '';
+        // AI : Use box-shadow instead of outline for consistency
+        element.style.boxShadow = project ? `0 0 0 2px ${project.color}` : '';
+        element.style.outline = 'none';
       }
     }
   });
@@ -814,7 +540,7 @@ export async function renderViewModeOverlays(cdnOverlays: CDNOverlayData[], crea
   if (!map.value) return;
 
   let overlaysToRender: CDNOverlayData[];
-  
+
   if (forceRerender) {
     // AI : Force re-render all overlays (for city switching)
     overlaysToRender = cdnOverlays;
@@ -835,14 +561,14 @@ export async function renderViewModeOverlays(cdnOverlays: CDNOverlayData[], crea
 async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData, createMarkers = true): Promise<void> {
   if (!map.value || overlays.value[cdnOverlay.id]) return;
 
-  const corners = cdnOverlay.corners?.length === 4 
-    ? cdnOverlay.corners 
+  const corners = cdnOverlay.corners?.length === 4
+    ? cdnOverlay.corners
     : [
-        { lat: cdnOverlay.centroid.lat - 0.001, lng: cdnOverlay.centroid.lng - 0.001 },
-        { lat: cdnOverlay.centroid.lat - 0.001, lng: cdnOverlay.centroid.lng + 0.001 },
-        { lat: cdnOverlay.centroid.lat + 0.001, lng: cdnOverlay.centroid.lng + 0.001 },
-        { lat: cdnOverlay.centroid.lat + 0.001, lng: cdnOverlay.centroid.lng - 0.001 }
-      ];
+      { lat: cdnOverlay.centroid.lat - 0.001, lng: cdnOverlay.centroid.lng - 0.001 },
+      { lat: cdnOverlay.centroid.lat - 0.001, lng: cdnOverlay.centroid.lng + 0.001 },
+      { lat: cdnOverlay.centroid.lat + 0.001, lng: cdnOverlay.centroid.lng + 0.001 },
+      { lat: cdnOverlay.centroid.lat + 0.001, lng: cdnOverlay.centroid.lng - 0.001 }
+    ];
 
   const cdnUrl = import.meta.env.VITE_CDN_URL ?? 'http://localhost:3000/uploads';
   const storedOverlayData: StoredOverlayData = {
@@ -877,17 +603,25 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData, createMar
     createSingleMarker(storedOverlayData);
   }
 
-  await loadOverlay(storedOverlayData);
-  
-  const overlayObject = overlays.value[cdnOverlay.id];
-  if (overlayObject) {
-    if (cdnOverlay.project) {
-      overlayObject.project = cdnOverlay.project;
-    }
+  const overlayObject = createOverlayObject(storedOverlayData);
+  const newOverlay = await createOverlay(overlayObject.imageUrl, overlayObject);
+  if (!newOverlay) return;
 
-    if (overlayObject.overlay) {
-      setupProjectHoverEvents(overlayObject.overlay, overlayObject);
-    }
+  overlayObject.overlay = newOverlay;
+  overlayObject.marker = allMarkers.value[cdnOverlay.id];
+  overlays.value[cdnOverlay.id] = overlayObject;
+
+  if (cdnOverlay.project) {
+    overlayObject.project = cdnOverlay.project;
+  }
+
+  if (overlayObject.overlay) {
+    setupProjectHoverEvents(overlayObject.overlay, overlayObject);
+  }
+
+  // AI : Update marker tooltip with correct overlay object information
+  if (overlayObject.marker) {
+    updateMarkerTooltip(overlayObject);
   }
 }
 
@@ -930,8 +664,8 @@ export function updateMarkerTooltip(overlayObject: OverlayObject): void {
 
   if (isEditMode.value) {
     const tooltipText = overlayObject.alreadyStored
-      ? 'Stored locally in IndexedDB'
-      : 'Remote overlay (not stored locally)';
+      ? 'Stored locally'
+      : 'Remote overlay';
 
     overlayObject.marker.bindTooltip(tooltipText, {
       permanent: false,
@@ -939,16 +673,6 @@ export function updateMarkerTooltip(overlayObject: OverlayObject): void {
       offset: [0, -10]
     });
   }
-}
-
-/**
- * AI : Check if overlay exists in local IndexedDB and update tooltip accordingly
- */
-export async function checkAndUpdateOverlayStorageStatus(overlayObject: OverlayObject): Promise<void> {
-  if (!overlayObject.marker) return;
-
-  overlayObject.alreadyStored = false;
-  updateMarkerTooltip(overlayObject);
 }
 
 /**
@@ -1012,4 +736,29 @@ function createSingleMarker(savedOverlay: StoredOverlayData): void {
 
   tempOverlayObject.marker = marker;
   updateMarkerTooltip(tempOverlayObject);
+}
+
+function getOverlayBounds(overlay: StoredOverlayData): L.LatLngBounds | null {
+  // AI : Validate all corner coordinates exist and are valid numbers
+  if (!overlay.topLeftLat || !overlay.topLeftLng ||
+    !overlay.topRightLat || !overlay.topRightLng ||
+    !overlay.bottomRightLat || !overlay.bottomRightLng ||
+    !overlay.bottomLeftLat || !overlay.bottomLeftLng) {
+    console.warn('AI : Invalid overlay coordinates for overlay:', overlay.id);
+    return null;
+  }
+
+  const corners = [
+    L.latLng(overlay.topLeftLat, overlay.topLeftLng),
+    L.latLng(overlay.topRightLat, overlay.topRightLng),
+    L.latLng(overlay.bottomRightLat, overlay.bottomRightLng),
+    L.latLng(overlay.bottomLeftLat, overlay.bottomLeftLng),
+  ];
+
+  // AI : Check if all corners are valid
+  if (corners.some(c => !c.lat || !c.lng)) {
+    return null;
+  }
+
+  return L.latLngBounds(corners);
 }
