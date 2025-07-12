@@ -25,7 +25,8 @@ export function useModeration() {
     }
   }
 
-  const approveOverlay = async (id: string) => {
+  // AI : Helper function to set overlay approval status and track action
+  const setOverlayStatus = async (id: string, status: 'approved' | 'rejected') => {
     try {
       // AI : Find overlay name for tracking
       const overlay = overlays.value.find(o => o.id === id)
@@ -36,13 +37,13 @@ export function useModeration() {
         id,
         overlayName,
         previousStatus: 'pending',
-        newStatus: 'approved',
+        newStatus: status,
         timestamp: new Date()
       }
 
       await trpc.moderation.setOverlayApprovalStatus.mutate({
         ids: [id],
-        status: 'approved',
+        status,
       })
 
       // AI : Add to recent actions and limit to last 5 actions
@@ -52,39 +53,16 @@ export function useModeration() {
       await fetchPendingOverlays()
     }
     catch (error) {
-      console.error(`Error approving overlay ${id}:`, error)
+      console.error(`Error ${status === 'approved' ? 'approving' : 'rejecting'} overlay ${id}:`, error)
     }
   }
 
+  const approveOverlay = async (id: string) => {
+    await setOverlayStatus(id, 'approved')
+  }
+
   const rejectOverlay = async (id: string) => {
-    try {
-      // AI : Find overlay name for tracking
-      const overlay = overlays.value.find(o => o.id === id)
-      const overlayName = overlay?.name ?? 'Unknown'
-
-      // AI : Track action for potential undo
-      const action: RecentAction = {
-        id,
-        overlayName,
-        previousStatus: 'pending',
-        newStatus: 'rejected',
-        timestamp: new Date()
-      }
-
-      await trpc.moderation.setOverlayApprovalStatus.mutate({
-        ids: [id],
-        status: 'rejected',
-      })
-
-      // AI : Add to recent actions and limit to last 5 actions
-      recentActions.value.unshift(action)
-      recentActions.value = recentActions.value.slice(0, 5)
-
-      await fetchPendingOverlays()
-    }
-    catch (error) {
-      console.error(`Error rejecting overlay ${id}:`, error)
-    }
+    await setOverlayStatus(id, 'rejected')
   }
 
   const undoLastAction = async () => {

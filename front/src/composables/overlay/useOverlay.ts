@@ -45,7 +45,7 @@ export function saveOverlayToDatabase(overlayObj: OverlayObject): void {
     status: overlayObj.status,
     authorId: overlayObj.authorId,
     // AI : Required fields from Drizzle schema
-    filename: overlayObj.filename || overlayObj.imageUrl.split('/').pop() || '',
+    filename: overlayObj.filename ?? overlayObj.imageUrl.split('/').pop() ?? '',
     // AI : Map corners to individual lat/lng fields
     topLeftLat: corners[0]?.lat ?? 0,
     topLeftLng: corners[0]?.lng ?? 0,
@@ -288,7 +288,7 @@ export function createOverlayObject(savedOverlay: StoredOverlayData): OverlayObj
     whitePixelsHidden: false,
     isFlipped: false,
     currentResolution: savedOverlay.imageUrl,
-    savedRemotely: savedOverlay.savedRemotely || false,
+    savedRemotely: savedOverlay.savedRemotely ?? false,
     corners, // AI : Add reconstructed corners for backward compatibility
     project: project ? {
       ...project,
@@ -304,9 +304,7 @@ export function createOverlayObject(savedOverlay: StoredOverlayData): OverlayObj
 export async function createOverlay(imageUrl: string, overlayObject?: OverlayObject) {
   if (!map.value || !overlayObject) return null;
 
-  if (!overlayObject.imageUrl) {
-    overlayObject.imageUrl = imageUrl;
-  }
+  overlayObject.imageUrl ??= imageUrl;
 
   const newOverlay = L.distortableImageOverlay(imageUrl, {
     editable: true,

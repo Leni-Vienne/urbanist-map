@@ -224,7 +224,6 @@ const filteredCities = computed(() => {
 // AI : Watch for cityId changes to update city name if needed (backward compatibility)
 watch(() => localProject.value.cityId, (newCityId) => {
     if (newCityId && cities.value.length > 0) {
-        const selectedCity = cities.value.find(city => city.id === newCityId);
         // AI : Add logic here if you want to update another field based on city selection
     }
 });

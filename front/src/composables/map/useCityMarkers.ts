@@ -379,7 +379,7 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
 
   // AI : Add the layer group to the map if it exists
   if (cityMarkersLayer) {
-    cityMarkersLayer.addTo(map.value!);
+    cityMarkersLayer.addTo(map.value);
   }
 
   // AI : Reset selected marker when new markers are added

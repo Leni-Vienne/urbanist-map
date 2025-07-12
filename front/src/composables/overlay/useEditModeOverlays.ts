@@ -134,11 +134,9 @@ async function loadFullOverlay(overlayId: string): Promise<void> {
     if (!overlay.alreadyLoaded) {
       // AI : Load the overlay if not already loaded
       await loadOverlayById(overlayId);
-    } else {
+    } else if (overlay.overlay && map.value) {
       // AI : If already loaded, just make sure it's visible on the map
-      if (overlay.overlay && map.value) {
-        overlay.overlay.addTo(map.value);
-      }
+      overlay.overlay.addTo(map.value);
     }
 
     console.log(`AI : Loaded full overlay ${overlayId} in edit mode`);
