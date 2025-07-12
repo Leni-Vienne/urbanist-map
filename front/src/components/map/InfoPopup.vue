@@ -94,12 +94,12 @@
         <div class="p-2 rounded bg-gray-50 text-sm space-y-1">
           <div class="flex justify-between">
             <span class="font-medium text-gray-600">Name:</span>
-            <span class="text-right">{{ props.overlayObject.caption ?? 'Not specified' }}</span>
+            <span class="text-right">{{ currentOverlay.caption ?? 'Not specified' }}</span>
           </div>
         </div>
         <OverlayEditor
           ref="overlayEditorRef"
-          :overlayObject="props.overlayObject"
+          :overlayObject="currentOverlay"
           @update="onOverlayUpdate"
         />
       </div>
@@ -126,8 +126,9 @@ import { ref, computed, watch, onMounted, nextTick } from 'vue';
 import { useToast } from '@composables/ui/useToast';
 import { updateTooltipText } from '@composables/overlay/useOverlayActions';
 import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId } from '@stores/projectStore';
+import { overlays } from '@stores/overlayStore';
 import { navigateToProjectEdit } from '@composables/ui/useRouterNavigation';
-import { deleteOverlay, deleteProject } from '@composables/core/useDatabase';
+import { deleteProject } from '@composables/core/useDatabase';
 import { loadCityProjects, citiesWithProjects, latestClickedCity } from '@composables/map/useCityMarkers';
 import { getNearbyProjects } from '@composables/project/useNearbyProjects';
 import ProjectPicker from '@components/project/ProjectPicker.vue';
@@ -143,13 +144,17 @@ const props = defineProps<{
 
 const toast = useToast();
 const loading = ref(true);
-const editingProject = ref(false);
-const selectedProjectId = ref<string | null>(props.overlayObject.projectId);
+const selectedProjectId = ref<string | null>(null);
 const overlayEditorRef = ref<InstanceType<typeof OverlayEditor> | null>(null);
 const isPublishing = ref(false);
 
 // AI : Use a reactive reference for the current project ID to ensure reactivity
-const currentProjectId = ref<string | null>(props.overlayObject.projectId);
+const currentProjectId = ref<string | null>(null);
+
+// AI : Get the current overlay from the store to ensure we have the latest data
+const currentOverlay = computed(() => {
+  return overlays.value[props.overlayObject.id] || props.overlayObject;
+});
 
 // AI : Computed property to handle null/undefined conversion for ProjectPicker v-model
 const projectPickerValue = computed({
@@ -169,10 +174,10 @@ const project = computed(() => {
     }
 
     // AI : If not found locally, check if this overlay has backend project data (for view mode)
-    if (props.overlayObject.project && props.overlayObject.project.id === currentProjectId.value) {
+    if (currentOverlay.value.project && currentOverlay.value.project.id === currentProjectId.value) {
       // AI : Convert backend project data to frontend format
-      const backendProject = props.overlayObject.project;
-      return {
+      const backendProject = currentOverlay.value.project;
+      const convertedProject = {
         ...backendProject,
         name: backendProject.title, // AI : Map title to name for frontend compatibility
         city: backendProject.city as any, // AI : Cast city to any to satisfy Project type
@@ -180,19 +185,32 @@ const project = computed(() => {
         color: '#007bff',
         savedRemotely: true,
       };
+      
+      // AI : Add the project to the projects store so ProjectPicker can access it
+      if (!projects.value[currentProjectId.value]) {
+        projects.value = {
+          ...projects.value,
+          [currentProjectId.value]: convertedProject
+        };
+      }
+      
+      return convertedProject;
     }
   }
   return null;
 });
 
-// AI : Watch for changes in overlay's projectId to update both selectedProjectId and currentProjectId
-watch(() => props.overlayObject.projectId, (newProjectId) => {
+// AI : Watch for changes in the current overlay's projectId to update both selectedProjectId and currentProjectId
+watch(() => currentOverlay.value.projectId, (newProjectId) => {
   selectedProjectId.value = newProjectId;
   currentProjectId.value = newProjectId;
 }, { immediate: true });
 
 // AI : Initialize component
 onMounted(async () => {
+  // AI : Initialize the reactive state with the initial overlay data
+  selectedProjectId.value = currentOverlay.value.projectId;
+  currentProjectId.value = currentOverlay.value.projectId;
   loading.value = false;
 });
 
@@ -205,8 +223,8 @@ function formatDate(date: Date | null): string {
 // AI : Handle overlay update from the OverlayEditor component
 function onOverlayUpdate(overlayId: string, caption?: string) {
   // AI : Update the local data if needed
-  if (overlayId === props.overlayObject.id) {
-    props.overlayObject.caption = caption ?? null;
+  if (overlayId === currentOverlay.value.id) {
+    currentOverlay.value.caption = caption ?? null;
   }
 }
 
@@ -238,11 +256,11 @@ function getProjectLocationDisplay(project: Project): string {
 // AI : Apply project change to overlay
 async function applyProjectChange(projectId: string) {
   try {
-    const originalProjectId = props.overlayObject.projectId;
+    const originalProjectId = currentOverlay.value.projectId;
 
     // AI : If overlay already belongs to a project, remove it first
     if (originalProjectId) {
-      await removeOverlayFromProjectWithId(originalProjectId, props.overlayObject.id);
+      await removeOverlayFromProjectWithId(originalProjectId, currentOverlay.value.id);
     }
 
     // AI : Check if project exists in local store, if not, try to get it from nearby projects
@@ -285,7 +303,7 @@ async function applyProjectChange(projectId: string) {
         projects.value[projectId] = localProject;
         
         // AI : Also set project data on overlay object for InfoPopup display - convert to compatible format
-        props.overlayObject.project = {
+        currentOverlay.value.project = {
           id: nearbyProject.id,
           status: 'approved' as const,
           title: nearbyProject.title,
@@ -315,10 +333,10 @@ async function applyProjectChange(projectId: string) {
     }
 
     // AI : Add to the new project
-    await addOverlayToProjectWithId(projectId, props.overlayObject.id);
+    await addOverlayToProjectWithId(projectId, currentOverlay.value.id);
 
     // AI : Update local state - both the prop and reactive references
-    props.overlayObject.projectId = projectId;
+    currentOverlay.value.projectId = projectId;
     currentProjectId.value = projectId;
     selectedProjectId.value = projectId;
 
@@ -331,9 +349,6 @@ async function applyProjectChange(projectId: string) {
       detail: 'Overlay assigned to project successfully',
       life: 3000
     });
-
-    // AI : Close editing mode
-    editingProject.value = false;
 
     // AI : Update the tooltip text
     updateTooltipText();
@@ -431,7 +446,7 @@ function validateOverlayForPublishing(): boolean {
     return false;
   }
 
-  const corners = getCornersFromOverlay(props.overlayObject);
+  const corners = getCornersFromOverlay(currentOverlay.value);
   if (!corners || corners.length !== 4 || corners.some(c => !c.lat || !c.lng)) {
     toast.add({
       severity: 'error',
@@ -441,7 +456,6 @@ function validateOverlayForPublishing(): boolean {
     });
     return false;
   }
-
   return true;
 }
 
@@ -485,7 +499,7 @@ async function ensureProjectOnServer(): Promise<boolean> {
         currentProjectId.value = projectResult.id;
 
         // AI : Update overlay's project reference
-        props.overlayObject.projectId = projectResult.id;
+        currentOverlay.value.projectId = projectResult.id;
 
         // AI : Delete the old project from IndexedDB using the old ID
         await deleteProject(oldProjectId);
@@ -520,9 +534,9 @@ async function ensureProjectOnServer(): Promise<boolean> {
 
 // AI : Prepare image for server (upload or extract filename)
 async function prepareImageForServer(): Promise<string> {
-  if (props.overlayObject.imageUrl.startsWith('data:')) {
+  if (currentOverlay.value.imageUrl.startsWith('data:')) {
     // AI : Convert data URL to WebP if needed and upload
-    const imageFile = await convertToWebPIfNeeded(props.overlayObject.imageUrl, `overlay-${props.overlayObject.id}.webp`);
+    const imageFile = await convertToWebPIfNeeded(currentOverlay.value.imageUrl, `overlay-${currentOverlay.value.id}.webp`);
 
     const formData = new FormData();
     formData.append('image', imageFile);
@@ -541,19 +555,19 @@ async function prepareImageForServer(): Promise<string> {
     return uploadResult.filename;
   } else {
     // AI : Extract filename from existing server URL
-    const urlParts = props.overlayObject.imageUrl.split('/');
+    const urlParts = currentOverlay.value.imageUrl.split('/');
     return urlParts[urlParts.length - 1];
   }
 }
 
 // AI : Publish overlay metadata to server
 async function publishOverlayToServer(filename: string): Promise<{ success: boolean; exists: boolean; id?: string }> {
-  const corners = getCornersFromOverlay(props.overlayObject);
+  const corners = getCornersFromOverlay(currentOverlay.value);
   const payload = {
-    id: props.overlayObject.id,
+    id: currentOverlay.value.id,
     filename: filename,
-    caption: props.overlayObject.caption ?? undefined,
-    projectId: props.overlayObject.projectId!,
+    caption: currentOverlay.value.caption ?? undefined,
+    projectId: currentOverlay.value.projectId!,
     metadata: {
       // AI : Keep metadata empty as requested - no caption or history data
     },
@@ -564,7 +578,7 @@ async function publishOverlayToServer(filename: string): Promise<{ success: bool
 
   if (overlayResult.success) {
     // AI : Update local overlay state to track server existence
-    props.overlayObject.savedRemotely = true;
+    currentOverlay.value.savedRemotely = true;
 
     const actionText = overlayResult.exists ? 'updated on' : 'saved to';
     toast.add({
@@ -600,13 +614,10 @@ async function publishOverlay() {
     // AI : If publishing was successful, update overlay ID and delete from local IndexedDB
     if (publishResult.success && publishResult.id) {
       // AI : Store the old ID for IndexedDB deletion
-      const oldId = props.overlayObject.id;
+      const oldId = currentOverlay.value.id;
 
       // AI : Update the overlay ID with the one from the backend
-      props.overlayObject.id = publishResult.id;
-
-      // AI : Delete the old overlay from IndexedDB using the old ID
-      await deleteOverlay(oldId);
+      currentOverlay.value.id = publishResult.id;
     }
 
     // AI : Refresh project overlays from backend to update marker colors
