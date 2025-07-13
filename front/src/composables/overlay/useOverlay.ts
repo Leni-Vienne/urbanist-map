@@ -203,7 +203,12 @@ function onOverlayLoaded(overlayObject: OverlayObject): void {
  * AI : Initialize history for overlay if not already set
  */
 function initializeOverlayHistory(overlayObject: OverlayObject): void {
-  if (!overlayObject.overlay || overlayObject.history.length > 0) return;
+  if (!overlayObject.overlay) return;
+  
+  // AI : Only initialize if history is completely empty
+  if (overlayObject.history.length > 0) {
+    return;
+  }
 
   const initialCorners = overlayObject.overlay.getCorners();
   if (initialCorners?.length === 4) {
@@ -237,8 +242,9 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
   
   overlay.on('edit', () => {
     // AI : Handle transition from backend to local copy when edited
-    saveToHistory(overlayObject);
     updateMarkerPosition(overlayObject);
+    overlayObject.isModified = true;
+    updateMarkerTooltip(overlayObject);
   });
 
   // AI : Set up comprehensive event handlers for overlay manipulation
@@ -409,6 +415,17 @@ export function saveToHistory(overlayObject: OverlayObject): void {
 
   const currentState = overlayObject.overlay.getCorners();
   if (!currentState?.length) return;
+
+  // AI : Check if current state is different from last saved state
+  if (overlayObject.history.length > 0) {
+    const lastState = overlayObject.history[overlayObject.history.length - 1];
+    const currentStateStr = JSON.stringify(currentState);
+    const lastStateStr = JSON.stringify(lastState);
+    
+    if (currentStateStr === lastStateStr) {
+      return;
+    }
+  }
 
   overlayObject.history.push(JSON.parse(JSON.stringify(currentState)));
   overlayObject.redoStack = [];
@@ -871,63 +888,7 @@ function getOverlayBounds(overlay: StoredOverlayData): L.LatLngBounds | null {
  */
 function setupOverlayMovementTracking(overlay: L.DistortableImageOverlay, overlayObject: OverlayObject): void {
   // AI : Track all overlay manipulation events
-  overlay.on('drag', () => {
-    updateMarkerPosition(overlayObject);
-  });
-  
-  overlay.on('dragstart', () => {
-    updateMarkerPosition(overlayObject);
-  });
-  
-  overlay.on('dragend', () => {
-    updateMarkerPosition(overlayObject);
-  });
-  
-  overlay.on('transform', () => {
-    updateMarkerPosition(overlayObject);
-  });
-  
-  overlay.on('transformstart', () => {
-    updateMarkerPosition(overlayObject);
-  });
-  
-  overlay.on('transformend', () => {
-    updateMarkerPosition(overlayObject);
-  });
-  
-  overlay.on('rotate', () => {
-    updateMarkerPosition(overlayObject);
-  });
-  
-  overlay.on('rotatestart', () => {
-    updateMarkerPosition(overlayObject);
-  });
-  
-  overlay.on('rotateend', () => {
-    updateMarkerPosition(overlayObject);
-  });
-  
-  overlay.on('scale', () => {
-    updateMarkerPosition(overlayObject);
-  });
-  
-  overlay.on('scalestart', () => {
-    updateMarkerPosition(overlayObject);
-  });
-  
-  overlay.on('scaleend', () => {
-    updateMarkerPosition(overlayObject);
-  });
-  
-  overlay.on('distort', () => {
-    updateMarkerPosition(overlayObject);
-  });
-  
-  overlay.on('distortstart', () => {
-    updateMarkerPosition(overlayObject);
-  });
-  
-  overlay.on('distortend', () => {
+  overlay.on('edit', () => {
     updateMarkerPosition(overlayObject);
   });
   
@@ -937,9 +898,30 @@ function setupOverlayMovementTracking(overlay: L.DistortableImageOverlay, overla
     if (element) {
       let isManipulating = false;
       let updateFrame: number | null = null;
+      let lastSavedState: any = null;
       
       const startTracking = () => {
         if (isManipulating) return;
+        
+        // AI : Always save current state before manipulation starts
+        const currentCorners = overlayObject.overlay?.getCorners();
+        if (currentCorners && currentCorners.length === 4) {
+          const currentStateStr = JSON.stringify(currentCorners);
+          
+          // AI : If history is empty, initialize it with current state
+          if (overlayObject.history.length === 0) {
+            overlayObject.history = [JSON.parse(JSON.stringify(currentCorners))];
+            overlayObject.redoStack = [];
+            lastSavedState = currentStateStr;
+          } else {
+            // AI : Save current state to history if it's different from last saved
+            if (lastSavedState !== currentStateStr) {
+              saveToHistory(overlayObject);
+              lastSavedState = currentStateStr;
+            }
+          }
+        }
+        
         isManipulating = true;
         
         const continuousUpdate = () => {
@@ -962,6 +944,16 @@ function setupOverlayMovementTracking(overlay: L.DistortableImageOverlay, overla
         
         // AI : Final update after manipulation ends
         updateMarkerPosition(overlayObject);
+        
+        // AI : Save the final state after manipulation ends
+        const finalCorners = overlayObject.overlay?.getCorners();
+        if (finalCorners && finalCorners.length === 4) {
+          const finalStateStr = JSON.stringify(finalCorners);
+          if (lastSavedState !== finalStateStr) {
+            saveToHistory(overlayObject);
+            lastSavedState = finalStateStr;
+          }
+        }
       };
       
       // AI : Track mouse and touch events
