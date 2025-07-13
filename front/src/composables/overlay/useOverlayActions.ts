@@ -1,15 +1,99 @@
 import L from "leaflet";
 import { map } from '@composables/core/useMap';
 import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, isEditMode, removeOverlay, allMarkers, updateMarkerTooltip, renderViewModeOverlays } from '@composables/overlay/useOverlay';
-import { saveOverlay } from '@composables/core/useDatabase';
 import { useToast } from '@composables/ui/useToast';
 import { projects, addOverlayToProjectWithId } from '@composables/project/useProjects';
-import type { StoredOverlayData, OverlayObject } from '@types';
+import type { OverlayObject, CDNOverlayData } from '@types';
 import { router } from '../../router';
 import { createColorIcon } from '@composables/ui/colorMarkers';
 import { trpc } from '../../client';
+import type { BackendOverlay } from '../../types/api';
 
 const toast = useToast();
+
+// AI : Helper function to transform backend overlay to CDN format
+function transformBackendOverlayToCDN(backendOverlay: BackendOverlay): CDNOverlayData {
+  return {
+    id: backendOverlay.id,
+    filename: backendOverlay.filename,
+    caption: backendOverlay.caption ?? undefined,
+    projectId: backendOverlay.projectId,
+    project: backendOverlay.projectName ? {
+      id: backendOverlay.projectId ?? '',
+      title: backendOverlay.projectName,
+      description: null,
+      status: 'approved' as const,
+      ownerId: null,
+      cityId: null,
+      metadata: null,
+      sourceUrl: null,
+      startDate: null,
+      endDate: null,
+      latestUpdateOn: null,
+      createdAt: null,
+      updatedAt: new Date(),
+      city: backendOverlay.cityName ? {
+        id: '',
+        name: backendOverlay.cityName,
+        countryCode: '',
+        coordinates: { x: 0, y: 0 },
+        createdAt: null,
+        updatedAt: new Date()
+      } : null
+    } : null,
+    corners: [
+      { lat: backendOverlay.topLeftLat, lng: backendOverlay.topLeftLng },
+      { lat: backendOverlay.topRightLat, lng: backendOverlay.topRightLng },
+      { lat: backendOverlay.bottomRightLat, lng: backendOverlay.bottomRightLng },
+      { lat: backendOverlay.bottomLeftLat, lng: backendOverlay.bottomLeftLng }
+    ],
+    centroid: {
+      lat: backendOverlay.centroid.y,
+      lng: backendOverlay.centroid.x
+    },
+    distance: 0,
+    createdAt: backendOverlay.createdAt,
+  };
+}
+
+// AI : Helper function to create new overlay with proper Drizzle schema structure
+function createNewOverlayObject(id: string, imageUrl: string, projectId: string): OverlayObject {
+  const filename = imageUrl.split('/').pop() ?? '';
+  
+  return {
+    // AI : Core Drizzle schema fields
+    id,
+    filename,
+    caption: null,
+    status: 'pending',
+    projectId,
+    authorId: null,
+    metadata: null,
+    topLeftLat: 0, // AI : Will be set when overlay loads
+    topLeftLng: 0,
+    topRightLat: 0,
+    topRightLng: 0,
+    bottomRightLat: 0,
+    bottomRightLng: 0,
+    bottomLeftLat: 0,
+    bottomLeftLng: 0,
+    centroid: { x: 0, y: 0 },
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    // AI : Frontend-specific fields
+    imageUrl,
+    history: [],
+    redoStack: [],
+    // AI : Runtime properties
+    overlay: null,
+    marker: null,
+    whitePixelsHidden: false,
+    isFlipped: false,
+    currentResolution: imageUrl,
+    corners: [],
+    isModified: false, // AI : New overlays start as not modified
+  };
+}
 
 // AI : Helper function to wait for overlay corners to be ready
 async function waitForOverlayReady(overlay: OverlayObject): Promise<boolean> {
@@ -64,42 +148,15 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
   return false;
 }
 
-// AI : Helper function to create StoredOverlayData from OverlayObject
-function createStoredOverlayData(overlayObject: OverlayObject): StoredOverlayData {
-  return {
-    id: overlayObject.id,
-    imageUrl: overlayObject.imageUrl,
-    history: overlayObject.history,
-    redoStack: overlayObject.redoStack,
-    projectId: overlayObject.projectId,
-    caption: overlayObject.caption,
-    savedRemotely: overlayObject.savedRemotely ?? false,
-    filename: overlayObject.filename ?? overlayObject.imageUrl.split('/').pop() ?? '',
-    metadata: overlayObject.metadata ?? null,
-    status: overlayObject.status ?? 'pending',
-    authorId: overlayObject.authorId ?? null,
-    topLeftLat: overlayObject.topLeftLat ?? 0,
-    topLeftLng: overlayObject.topLeftLng ?? 0,
-    topRightLat: overlayObject.topRightLat ?? 0,
-    topRightLng: overlayObject.topRightLng ?? 0,
-    bottomRightLat: overlayObject.bottomRightLat ?? 0,
-    bottomRightLng: overlayObject.bottomRightLng ?? 0,
-    bottomLeftLat: overlayObject.bottomLeftLat ?? 0,
-    bottomLeftLng: overlayObject.bottomLeftLng ?? 0,
-    centroid: overlayObject.centroid ?? { x: 0, y: 0 },
-    createdAt: overlayObject.createdAt ?? new Date(),
-    updatedAt: new Date()
-  };
-}
-
-// AI : Helper function to save overlay with updated corners
+// AI : Helper function to save overlay with updated corners (no local storage)
 function saveOverlayWithCurrentCorners(overlayObject: OverlayObject): void {
   if (overlayObject.overlay) {
     overlayObject.corners = overlayObject.overlay.getCorners();
+    // AI : Update marker tooltip after corners are saved
+    updateMarkerTooltip(overlayObject);
   }
-  
-  const storedOverlay = createStoredOverlayData(overlayObject);
-  saveOverlay(storedOverlay);
+  // AI : No local storage - data is managed in memory and published to backend when user saves
+  console.log('AI : Overlay corners updated in memory:', overlayObject.id);
 }
 
 export async function addOverlay(imageUrl: string, projectId: string) {
@@ -117,41 +174,8 @@ export async function addOverlay(imageUrl: string, projectId: string) {
 
   const id = crypto.randomUUID();
   
-  // Create basic overlay object  
-  const overlayObject = {
-    id,
-    imageUrl,
-    overlay: null,
-    marker: null,
-    history: [],
-    redoStack: [],
-    alreadyLoaded: false,
-    alreadyStored: false,
-    corners: [], // AI : Temporary field for backward compatibility - will be removed
-    projectId,
-    caption: null,
-    whitePixelsHidden: false,
-    isFlipped: false,
-    currentResolution: imageUrl,
-    savedRemotely: false, // AI : New overlays don't exist on server yet
-    // AI : Required fields from Drizzle schema
-    filename: imageUrl.split('/').pop() ?? '',
-    metadata: null,
-    status: 'pending' as const, // AI : Default status for new overlays
-    authorId: null, // AI : No user authentication system yet
-    // AI : Initialize corner coordinates as undefined so applyOverlayCorners uses Priority 3 (natural positioning)
-    topLeftLat: undefined as any,
-    topLeftLng: undefined as any,
-    topRightLat: undefined as any,
-    topRightLng: undefined as any,
-    bottomRightLat: undefined as any,
-    bottomRightLng: undefined as any,
-    bottomLeftLat: undefined as any,
-    bottomLeftLng: undefined as any,
-    centroid: { x: 0, y: 0 }, // AI : Will be calculated when overlay loads
-    createdAt: new Date(),
-    updatedAt: new Date()
-  };
+  // AI : Create overlay object using proper schema structure
+  const overlayObject = createNewOverlayObject(id, imageUrl, projectId);
 
   // Create the overlay
   const newOverlay = await createOverlay(imageUrl, overlayObject);
@@ -186,8 +210,8 @@ function createMarkerForNewOverlay(overlayObject: any, projectId: string) {
     markerTitle = `${project.name} - New Overlay${captionPart}`;
   }
 
-  // AI : Create marker with proper color based on storage status
-  const markerColor = getMarkerColorForEditMode(overlayObject);
+  // AI : Create marker with consistent color for edit mode
+  const markerColor = getMarkerColorForEditMode();
   const colorIcon = createColorIcon(markerColor);
   
   const marker = L.marker(center, {
@@ -216,19 +240,9 @@ function createMarkerForNewOverlay(overlayObject: any, projectId: string) {
   updateMarkerTooltip(overlayObject);
 }
 
-// AI : Helper function to determine marker color in edit mode
-function getMarkerColorForEditMode(overlayObject: OverlayObject): 'blue' | 'green' | 'orange' | 'red' | 'gold' | 'yellow' | 'violet' | 'grey' | 'black' {
-  const { savedRemotely, alreadyStored } = overlayObject;
-
-  if (savedRemotely && !alreadyStored) {
-    return 'green'; // AI : Remote overlay not stored locally
-  } else if (savedRemotely && alreadyStored) {
-    return 'orange'; // AI : Remote overlay with local copy
-  } else if (!savedRemotely) {
-    return 'red'; // AI : Local only overlay (new or existing local overlay)
-  }
-
-  // AI : Fallback to blue for any edge cases
+// AI : Helper function to determine marker color (simplified - no storage state)
+function getMarkerColorForEditMode(): 'blue' | 'green' | 'orange' | 'red' | 'gold' | 'yellow' | 'violet' | 'grey' | 'black' {
+  // AI : All overlays are local in edit mode, use consistent color
   return 'blue';
 }
 
@@ -626,47 +640,7 @@ export async function navigateToOverlay(overlayId: string, centerMap: boolean = 
       }
       
       // AI : Transform backend overlay to CDN format
-      const cdnOverlay = {
-        id: result.overlay.id,
-        filename: result.overlay.filename,
-        caption: result.overlay.caption ?? undefined,
-        projectId: result.overlay.projectId,
-        project: result.overlay.projectName ? {
-          id: result.overlay.projectId ?? '',
-          title: result.overlay.projectName,
-          description: null,
-          status: 'approved' as const,
-          ownerId: null,
-          cityId: null,
-          metadata: null,
-          sourceUrl: null,
-          startDate: null,
-          endDate: null,
-          latestUpdateOn: null,
-          createdAt: null,
-          updatedAt: new Date(),
-          city: result.overlay.cityName ? {
-            id: '',
-            name: result.overlay.cityName,
-            countryCode: '',
-            coordinates: { x: 0, y: 0 },
-            createdAt: null,
-            updatedAt: new Date()
-          } : null
-        } : null,
-        corners: [
-          { lat: result.overlay.topLeftLat, lng: result.overlay.topLeftLng },
-          { lat: result.overlay.topRightLat, lng: result.overlay.topRightLng },
-          { lat: result.overlay.bottomRightLat, lng: result.overlay.bottomRightLng },
-          { lat: result.overlay.bottomLeftLat, lng: result.overlay.bottomLeftLng }
-        ],
-        centroid: {
-          lat: result.overlay.centroid.y,
-          lng: result.overlay.centroid.x
-        },
-        distance: 0,
-        createdAt: result.overlay.createdAt,
-      };
+      const cdnOverlay = transformBackendOverlayToCDN(result.overlay);
       
       await renderViewModeOverlays([cdnOverlay], true, false);
       
@@ -674,47 +648,7 @@ export async function navigateToOverlay(overlayId: string, centerMap: boolean = 
       if (result.intersectingOverlays && result.intersectingOverlays.length > 0) {
         console.log(`AI : Rendering ${result.intersectingOverlays.length} intersecting overlays`);
         
-        const intersectingCdnOverlays = result.intersectingOverlays.map(intersectingOverlay => ({
-          id: intersectingOverlay.id,
-          filename: intersectingOverlay.filename,
-          caption: intersectingOverlay.caption ?? undefined,
-          projectId: intersectingOverlay.projectId,
-          project: intersectingOverlay.projectName ? {
-            id: intersectingOverlay.projectId ?? '',
-            title: intersectingOverlay.projectName,
-            description: null,
-            status: 'approved' as const,
-            ownerId: null,
-            cityId: null,
-            metadata: null,
-            sourceUrl: null,
-            startDate: null,
-            endDate: null,
-            latestUpdateOn: null,
-            createdAt: null,
-            updatedAt: new Date(),
-            city: intersectingOverlay.cityName ? {
-              id: '',
-              name: intersectingOverlay.cityName,
-              countryCode: '',
-              coordinates: { x: 0, y: 0 },
-              createdAt: null,
-              updatedAt: new Date()
-            } : null
-          } : null,
-          corners: [
-            { lat: intersectingOverlay.topLeftLat, lng: intersectingOverlay.topLeftLng },
-            { lat: intersectingOverlay.topRightLat, lng: intersectingOverlay.topRightLng },
-            { lat: intersectingOverlay.bottomRightLat, lng: intersectingOverlay.bottomRightLng },
-            { lat: intersectingOverlay.bottomLeftLat, lng: intersectingOverlay.bottomLeftLng }
-          ],
-          centroid: {
-            lat: intersectingOverlay.centroid.y,
-            lng: intersectingOverlay.centroid.x
-          },
-          distance: 0,
-          createdAt: intersectingOverlay.createdAt,
-        }));
+        const intersectingCdnOverlays = result.intersectingOverlays.map(transformBackendOverlayToCDN);
         
         await renderViewModeOverlays(intersectingCdnOverlays, true, false);
         
@@ -900,3 +834,4 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
   // AI : Save only the specific overlay being updated, not all overlays
   saveOverlayWithCurrentCorners(overlayObject);
 }
+

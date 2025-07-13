@@ -7,7 +7,6 @@ import { undo, redo, resetImageRatio, toggleWhitePixels, deleteOverlay, updateOv
 import InfoPopup from '@components/map/InfoPopup.vue';
 import { useToast } from '@composables/ui/useToast';
 import type { ProjectInfo } from '@types';
-import { router } from '../../router';
 
 // AI : Declare window extensions for TypeScript
 declare global {
@@ -20,17 +19,9 @@ declare global {
 const toast = useToast();
 
 let appInstance: ComponentInternalInstance | null = null;
-let appGlobalProperties: any = null;
 
 export function setAppContext(instance: ComponentInternalInstance) {
   appInstance = instance;
-
-  try {
-    // AI : Store the entire globalProperties object to ensure we have access to everything
-    appGlobalProperties = instance.appContext.config.globalProperties;
-  } catch (err) {
-    console.error('AI: Failed to store app context', err);
-  }
 }
 
 export const infoTool = L.Toolbar2.Action.extend({
@@ -85,26 +76,15 @@ export const infoTool = L.Toolbar2.Action.extend({
         })
 
         // AI : Use the main app instance to ensure proper PrimeVue context
-        if (window.vueApp?._context) {
-          vnode.appContext = window.vueApp._context;
-        } else if (appInstance) {
-          console.log("fallback appContext")
+        const globalApp = (window as any).vueApp;
+        if (globalApp?._context) {
+          // AI : Use the global app context directly for proper PrimeVue support
+          vnode.appContext = globalApp._context;
+        } else if (appInstance?.appContext) {
           // AI : Fallback to component instance context if main app not available
-          vnode.appContext = { ...appInstance.appContext };
-
-          // AI : Ensure the provides object exists
-          vnode.appContext.provides ??= {};
-
-          // AI : Explicitly provide router
-          vnode.appContext.provides[Symbol.for('router')] = router;
-
-          // AI : Ensure global properties are available
-          if (appGlobalProperties) {
-            vnode.appContext.config.globalProperties = {
-              ...vnode.appContext.config.globalProperties,
-              ...appGlobalProperties
-            };
-          }
+          vnode.appContext = appInstance.appContext;
+        } else {
+          console.warn('AI : No app context available for InfoPopup component');
         }
 
         render(vnode, newDiv);

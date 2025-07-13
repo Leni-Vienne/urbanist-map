@@ -87,46 +87,6 @@ export interface CDNOverlayData {
 
 export type PendingOverlay = RouterOutput['moderation']['getPendingSubmissions']['overlays'][number];
 
-// AI : Project information for forms
-export interface ProjectInfo {
-  projectName: string;
-  sourceLink: string;
-  startDate: Date | null;
-  endDate: Date | null;
-}
-
-// AI : Data that is stored in the database (local projects)
-// AI : Based on Drizzle schema but with frontend-specific extensions
-export type StoredProjectData = DBProject & {
-  // AI : Frontend-specific fields
-  savedRemotely?: boolean;
-};
-
-// AI : Runtime project data, including non-stored properties
-export interface Project extends StoredProjectData {
-  city?: DBCity;
-  overlayIds: string[];
-  color: string;
-  // AI : Add computed property for name to maintain backward compatibility
-  name: string;
-}
-
-// AI : Data that is stored in the database (based on Drizzle schema)
-// AI : Local storage format with frontend-specific properties
-export type StoredOverlayData = DBOverlay & {
-  // AI : Frontend-specific fields for local functionality
-  imageUrl: string; // AI : Derived from filename for display
-  history: { lat: number, lng: number }[][]; // AI : For undo/redo functionality
-  redoStack: { lat: number, lng: number }[][]; // AI : For undo/redo functionality
-  savedRemotely?: boolean; // AI : Track if overlay exists on server
-  // AI : Override centroid from Drizzle geometry to simple coordinate format for frontend use
-  centroid: { x: number; y: number }; // AI : x=lng, y=lat
-  // AI : Note: All core Drizzle fields are included from DBOverlay:
-  // - id, filename, caption, status, projectId, authorId, metadata
-  // - topLeftLat, topLeftLng, topRightLat, topRightLng, bottomRightLat, bottomRightLng, bottomLeftLat, bottomLeftLng
-  // - centroid (overridden above), createdAt, updatedAt
-};
-
 // AI : Define a simplified version of overlay data for the list component
 export interface OverlayListItem {
   id: string;
@@ -135,12 +95,34 @@ export interface OverlayListItem {
   filename?: string; // AI : For CDN URL construction in view mode
 }
 
-// AI : Extended overlay object with runtime properties
-export interface OverlayObject extends StoredOverlayData {
+// AI : Project information for forms
+export interface ProjectInfo {
+  projectName: string;
+  sourceLink: string;
+  startDate: Date | null;
+  endDate: Date | null;
+}
+
+// AI : Runtime project data - directly extends Drizzle schema
+export interface Project extends DBProject {
+  city?: DBCity;
+  overlayIds: string[];
+  color: string;
+  // AI : Add computed property for name to maintain backward compatibility
+  name: string;
+}
+
+// AI : Runtime overlay data - directly extends Drizzle schema with frontend-specific fields
+export interface OverlayObject extends DBOverlay {
+  // AI : Frontend-specific fields for local functionality
+  imageUrl: string; // AI : Derived from filename for display
+  history: { lat: number, lng: number }[][]; // AI : For undo/redo functionality
+  redoStack: { lat: number, lng: number }[][]; // AI : For undo/redo functionality
+  // AI : Override centroid from Drizzle geometry to simple coordinate format for frontend use
+  centroid: { x: number; y: number }; // AI : x=lng, y=lat
+  // AI : Runtime properties for map interactions
   overlay: L.DistortableImageOverlay | null;
   marker: L.Marker | null;
-  alreadyLoaded: boolean;
-  alreadyStored: boolean;
   whitePixelsHidden: boolean;
   isFlipped: boolean; // AI : Track if the image has been flipped after ratio reset
   currentResolution?: string;
@@ -148,4 +130,6 @@ export interface OverlayObject extends StoredOverlayData {
   project?: CDNOverlayData['project'];
   // AI : Temporary field for backward compatibility - will be removed in favor of individual lat/lng fields
   corners: { lat: number, lng: number }[];
+  // AI : Track if overlay has been modified locally (moved, rotated, scaled, etc.)
+  isModified: boolean;
 }

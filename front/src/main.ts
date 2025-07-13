@@ -5,10 +5,9 @@ import Aura from '@primeuix/themes/aura';
 import ToastService from 'primevue/toastservice';
 import { router } from './router';
 
-
-
 const app = createApp(App)
 
+// @ts-ignore - AI : PrimeVue configuration type issue
 app.use(PrimeVue, {
   theme: {
     preset: Aura,
@@ -22,5 +21,8 @@ app.use(PrimeVue, {
 
 app.use(ToastService);
 app.use(router);
+
+// AI : Store the app instance globally for access by dynamically created components
+(window as any).vueApp = app;
 
 app.mount('#app');

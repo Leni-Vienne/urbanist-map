@@ -28,7 +28,6 @@ import './assets/style.css' // must be imported after leaflet's css otherwise it
 import 'primeicons/primeicons.css'
 
 import { onMounted, provide, ref, getCurrentInstance } from 'vue'
-import { initializeDatabase } from '@composables/core/useDatabase'
 import MapView from '@components/map/MapView.vue'
 import SideMenu from '@components/layout/SideMenu.vue'
 
@@ -55,10 +54,9 @@ onMounted(async () => {
     }
 
     // AI : Initialize global services that should be available app-wide
-    await initializeDatabase()
     // AI : Projects are now loaded lazily when entering edit mode or uploading overlays
 
-    // AI : Set initialization flag to true after both operations complete
+    // AI : Set initialization flag to true after setup complete
     databaseInitialized.value = true
 
     // Utiliser un appel à l'API pour vérifier le statut d'authentification
