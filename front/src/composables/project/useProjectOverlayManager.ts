@@ -5,7 +5,7 @@ import {
   removeOverlayFromProjectWithId 
 } from '@composables/project/useProjects';
 import { overlays } from '@composables/overlay/useOverlay';
-import { navigateToOverlay } from '@composables/overlay/useOverlayActions';
+//import { navigateToOverlay } from '@composables/overlay/useOverlayActions';
 import { useToast } from '@composables/ui/useToast';
 
 // AI : Composable for managing project overlay operations and dialog
@@ -78,14 +78,14 @@ export function useProjectOverlayManager(projectId: string, onOverlaysChanged: (
     router.push('/');
     // AI : Use nextTick for more reliable timing than arbitrary timeout
     nextTick(() => {
-      if (navigateToOverlay(overlayId)) {
+      /*if (navigateToOverlay(overlayId)) {
         toast.add({
           severity: 'info',
           summary: 'Viewing Overlay',
           detail: `Navigated to ${overlay.caption ?? 'Unnamed Overlay'}`,
           life: 3000
         });
-      }
+      }*/
     });
   };
 

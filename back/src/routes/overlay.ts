@@ -1,8 +1,8 @@
 import { db } from '../db';
 import { publicProcedure, router } from '../trpc';
 import { z } from 'zod';
-import { overlays } from '../db/schema';
-import { sql } from 'drizzle-orm';
+import { overlays, projects, cities } from '../db/schema';
+import { sql, eq, and } from 'drizzle-orm';
 
 const publishOverlaySchema = z.object({
   id: z.string().min(1).max(36), // AI : UUID length limit
@@ -16,7 +16,145 @@ const publishOverlaySchema = z.object({
   })).length(4) // AI : Exactly 4 corners required
 });
 
+const getOverlaySchema = z.object({
+  id: z.string().uuid(),
+  includeIntersecting: z.boolean().optional().default(false),
+});
+
 export const overlayRouter = router({
+  getOverlay: publicProcedure
+    .input(getOverlaySchema)
+    .query(async ({ input }) => {
+      console.log('Fetching overlay with input:', input);
+      try {
+        // AI : Fetch the requested overlay
+        const overlay = await db
+          .select({
+            id: overlays.id,
+            filename: overlays.filename,
+            caption: overlays.caption,
+            status: overlays.status,
+            projectId: overlays.projectId,
+            authorId: overlays.authorId,
+            metadata: overlays.metadata,
+            topLeftLat: overlays.topLeftLat,
+            topLeftLng: overlays.topLeftLng,
+            topRightLat: overlays.topRightLat,
+            topRightLng: overlays.topRightLng,
+            bottomRightLat: overlays.bottomRightLat,
+            bottomRightLng: overlays.bottomRightLng,
+            bottomLeftLat: overlays.bottomLeftLat,
+            bottomLeftLng: overlays.bottomLeftLng,
+            centroid: overlays.centroid,
+            createdAt: overlays.createdAt,
+            updatedAt: overlays.updatedAt,
+            // AI : Join project and city information
+            projectName: projects.title,
+            cityName: cities.name,
+          })
+          .from(overlays)
+          .leftJoin(projects, eq(overlays.projectId, projects.id))
+          .leftJoin(cities, eq(projects.cityId, cities.id))
+          .where(eq(overlays.id, input.id))
+          .limit(1);
+
+        if (!overlay.length) {
+          throw new Error('Overlay not found');
+        }
+
+        let intersectingOverlays: any[] = [];
+
+        // AI : If includeIntersecting is true, find overlays that intersect with the queried overlay's bounding box
+        if (input.includeIntersecting) {
+          const queriedOverlay = overlay[0];
+          
+          // AI : Create bounding box of the queried overlay using its 4 corners
+          const queriedMinLat = Math.min(
+            queriedOverlay.topLeftLat, 
+            queriedOverlay.topRightLat, 
+            queriedOverlay.bottomRightLat, 
+            queriedOverlay.bottomLeftLat
+          );
+          const queriedMaxLat = Math.max(
+            queriedOverlay.topLeftLat, 
+            queriedOverlay.topRightLat, 
+            queriedOverlay.bottomRightLat, 
+            queriedOverlay.bottomLeftLat
+          );
+          const queriedMinLng = Math.min(
+            queriedOverlay.topLeftLng, 
+            queriedOverlay.topRightLng, 
+            queriedOverlay.bottomRightLng, 
+            queriedOverlay.bottomLeftLng
+          );
+          const queriedMaxLng = Math.max(
+            queriedOverlay.topLeftLng, 
+            queriedOverlay.topRightLng, 
+            queriedOverlay.bottomRightLng, 
+            queriedOverlay.bottomLeftLng
+          );
+
+          console.log('Queried overlay bounding box:', {
+            minLat: queriedMinLat,
+            maxLat: queriedMaxLat,
+            minLng: queriedMinLng,
+            maxLng: queriedMaxLng
+          });
+
+          // AI : Find overlays that intersect with the queried overlay's bounding box
+          intersectingOverlays = await db
+            .select({
+              id: overlays.id,
+              filename: overlays.filename,
+              caption: overlays.caption,
+              status: overlays.status,
+              projectId: overlays.projectId,
+              authorId: overlays.authorId,
+              metadata: overlays.metadata,
+              topLeftLat: overlays.topLeftLat,
+              topLeftLng: overlays.topLeftLng,
+              topRightLat: overlays.topRightLat,
+              topRightLng: overlays.topRightLng,
+              bottomRightLat: overlays.bottomRightLat,
+              bottomRightLng: overlays.bottomRightLng,
+              bottomLeftLat: overlays.bottomLeftLat,
+              bottomLeftLng: overlays.bottomLeftLng,
+              centroid: overlays.centroid,
+              createdAt: overlays.createdAt,
+              updatedAt: overlays.updatedAt,
+              projectName: projects.title,
+              cityName: cities.name,
+            })
+            .from(overlays)
+            .leftJoin(projects, eq(overlays.projectId, projects.id))
+            .leftJoin(cities, eq(projects.cityId, cities.id))
+            .where(
+              and(
+                // AI : Exclude the requested overlay itself
+                sql`${overlays.id} != ${input.id}`,
+                // AI : Check bounding box intersection: two bounding boxes intersect if they overlap in both dimensions
+                sql`NOT (
+                  GREATEST(${overlays.topLeftLat}, ${overlays.topRightLat}, ${overlays.bottomRightLat}, ${overlays.bottomLeftLat}) < ${queriedMinLat} OR
+                  LEAST(${overlays.topLeftLat}, ${overlays.topRightLat}, ${overlays.bottomRightLat}, ${overlays.bottomLeftLat}) > ${queriedMaxLat} OR
+                  GREATEST(${overlays.topLeftLng}, ${overlays.topRightLng}, ${overlays.bottomRightLng}, ${overlays.bottomLeftLng}) < ${queriedMinLng} OR
+                  LEAST(${overlays.topLeftLng}, ${overlays.topRightLng}, ${overlays.bottomRightLng}, ${overlays.bottomLeftLng}) > ${queriedMaxLng}
+                )`
+              )
+            );
+            
+          console.log(`Found ${intersectingOverlays.length} intersecting overlays`);
+        }
+
+        return {
+          overlay: overlay[0],
+          intersectingOverlays
+        };
+      } catch (error) {
+        console.error('Error fetching overlay:', error);
+        throw new Error('Failed to fetch overlay');
+      }
+    }),
+
   publishOverlay: publicProcedure
     .input(publishOverlaySchema)
     .mutation(async ({ input }) => {
