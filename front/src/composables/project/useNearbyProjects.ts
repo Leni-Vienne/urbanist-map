@@ -1,10 +1,7 @@
 import { ref, computed } from 'vue';
 import { trpc } from '@client';
 import { map } from '@composables/core/useMap';
-import type { RouterOutput } from '@client';
-
-// AI : Type for nearby projects from the API
-type NearbyProject = RouterOutput['project']['getProjectsNearLocation']['projects'][0];
+import type { NearbyProject } from '../../types/api';
 
 // AI : Reactive state for nearby projects
 const nearbyProjects = ref<NearbyProject[]>([]);

@@ -1,45 +1,14 @@
-import {
-  deleteProject,
-} from '@composables/core/useDatabase';
 import { overlays } from '@stores/overlayStore';
 import { projects, selectedProjectId, countries } from '@stores/projectStore';
 import { useToast } from '@composables/ui/useToast';
 import { trpc } from '@client';
-import type { Project, OverlayObject, StoredProjectData } from '@types';
+import type { Project, OverlayObject } from '@types';
+import type { PublishProjectInput } from '../../types/api';
 
 const toast = useToast();
 
-// AI : Helper functions to handle name/title mapping
-// AI : These functions ensure backward compatibility while using Drizzle schema
-
-/**
- * AI : Convert a Project object to StoredProjectData for database storage
- * Maps the 'name' field to 'title' for Drizzle schema compatibility
- * Excludes non-serializable fields like 'city' which contains geometry objects
- */
-function projectToStoredData(project: Project): StoredProjectData {
-  const { name, overlayIds: _overlayIds, color: _color, city: _city, ...drizzleData } = project;
-  return {
-    ...drizzleData,
-    title: name, // AI : Map name to title for Drizzle schema
-  };
-}
-
-/**
- * AI : Convert StoredProjectData from database to Project object
- * Maps the 'title' field to 'name' for backward compatibility
- */
-export function storedDataToProject(storedData: StoredProjectData, overlayIds: string[] = [], color: string = '#007bff'): Project {
-  return {
-    ...storedData,
-    name: storedData.title, // AI : Map title to name for backward compatibility
-    overlayIds,
-    color,
-  };
-}
-
 // AI : Export the reactive stores from centralized location
-export { projects, selectedProjectId, countries, projectToStoredData };
+export { projects, selectedProjectId, countries };
 
 export async function loadCitiesForCountry(countryCode: string): Promise<void> {
   try {
@@ -271,8 +240,8 @@ export async function deleteProjectById(projectId: string): Promise<void> {
     }
   }
 
-  // Delete from database
-  await deleteProject(projectId);
+  // AI : No local database to delete from - projects are managed in memory
+  console.log('AI : Project deleted from memory:', projectId);
 
   // Create a new object for projects.value to trigger reactivity with shallowRef
   const updatedProjects = { ...projects.value };
@@ -334,8 +303,8 @@ export async function publishProject(projectId: string): Promise<void> {
   }
 
   try {
-    // AI : Publish directly to backend
-    await trpc.project.publishProject.mutate({
+    // AI : Use properly typed input for tRPC call
+    const publishInput: PublishProjectInput = {
       id: project.id,
       title: project.title,
       description: project.description ?? undefined,
@@ -344,7 +313,9 @@ export async function publishProject(projectId: string): Promise<void> {
       endDate: project.endDate?.toISOString(),
       sourceUrl: project.sourceUrl ?? undefined,
       latestUpdateOn: project.latestUpdateOn?.toISOString()
-    });
+    };
+
+    await trpc.project.publishProject.mutate(publishInput);
 
     toast.add({
       severity: 'success',

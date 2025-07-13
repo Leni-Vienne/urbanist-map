@@ -50,11 +50,6 @@
           v-tooltip.top="isEditModeDisabled ? 'Zoom in closer to enable edit mode' : ''"
         />
       </div>
-      <div class="card flex">
-        <div class="w-56">
-          <Button @click="clearDatabase">Clear Local Storage</Button>
-        </div>
-      </div>
     </div>
   </div>
   <Dialog
@@ -86,7 +81,6 @@ import { toggleEditMode } from '@composables/overlay/useEditMode';
 import { addOverlay, undo, redo } from '@composables/overlay/useOverlayActions';
 import { useToast } from '@composables/ui/useToast';
 import { setAppContext } from '@composables/core/useTools';
-import { clearDatabase } from '@composables/core/useDatabase';
 import { navigateWithCoordinates } from '@composables/ui/useRouterNavigation';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
 import { initializeCountryMarkers } from '@composables/map/useCountryMarkers';

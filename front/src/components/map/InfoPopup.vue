@@ -128,7 +128,6 @@ import { updateTooltipText } from '@composables/overlay/useOverlayActions';
 import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId } from '@stores/projectStore';
 import { overlays } from '@stores/overlayStore';
 import { navigateToProjectEdit } from '@composables/ui/useRouterNavigation';
-import { deleteProject } from '@composables/core/useDatabase';
 import { loadCityProjects, citiesWithProjects, latestClickedCity } from '@composables/map/useCityMarkers';
 import { getNearbyProjects } from '@composables/project/useNearbyProjects';
 import ProjectPicker from '@components/project/ProjectPicker.vue';
@@ -177,13 +176,12 @@ const project = computed(() => {
     if (currentOverlay.value.project && currentOverlay.value.project.id === currentProjectId.value) {
       // AI : Convert backend project data to frontend format
       const backendProject = currentOverlay.value.project;
-      const convertedProject = {
+      const convertedProject: Project = {
         ...backendProject,
         name: backendProject.title, // AI : Map title to name for frontend compatibility
         city: backendProject.city as any, // AI : Cast city to any to satisfy Project type
         overlayIds: [],
-        color: '#007bff',
-        savedRemotely: true,
+        color: '#007bff'
       };
       
       // AI : Add the project to the projects store so ProjectPicker can access it
@@ -501,15 +499,11 @@ async function ensureProjectOnServer(): Promise<boolean> {
         // AI : Update overlay's project reference
         currentOverlay.value.projectId = projectResult.id;
 
-        // AI : Delete the old project from IndexedDB using the old ID
-        await deleteProject(oldProjectId);
+        // AI : Delete the old project from local memory
+        console.log('AI : Project ID updated, removing old project from memory:', oldProjectId);
       }
-    }    // AI : Mark project as saved remotely (only for local projects, not backend ones)
-    const localProject = projects.value[project.value.id];
-    if (localProject) {
-      localProject.savedRemotely = true;
     }
-
+    
     // AI : Show appropriate message
     const actionText = projectResult.exists ? 'updated on' : 'saved to';
     if (!projectResult.exists) {
@@ -577,9 +571,6 @@ async function publishOverlayToServer(filename: string): Promise<{ success: bool
   const overlayResult = await trpc.overlay.publishOverlay.mutate(payload);
 
   if (overlayResult.success) {
-    // AI : Update local overlay state to track server existence
-    currentOverlay.value.savedRemotely = true;
-
     const actionText = overlayResult.exists ? 'updated on' : 'saved to';
     toast.add({
       severity: 'success',

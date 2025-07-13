@@ -7,7 +7,15 @@ import { shallowRef } from 'vue';
 import { map } from '@composables/core/useMap';
 import { overlays, idSelectedOverlay, isEditMode } from '@stores/overlayStore';
 import { projects } from '@stores/projectStore';
-import type { OverlayObject, StoredOverlayData, CDNOverlayData } from '@types';
+import type { OverlayObject, CDNOverlayData } from '@types';
+
+// AI : Simple type for overlay data used internally  
+type StoredOverlayData = OverlayObject & {
+  imageUrl: string;
+  history: { lat: number, lng: number }[][];
+  redoStack: { lat: number, lng: number }[][];
+  isModified: boolean;
+};
 import { editTools, viewTools, infoTool } from '@composables/core/useTools';
 import { router } from '../../router';
 import { createColorIcon } from '@composables/ui/colorMarkers';
@@ -20,24 +28,43 @@ export const allMarkers = shallowRef<Record<string, L.Marker>>({});
 
 /**
  * AI : Update overlay editing state based on current mode
+ * AI : This function recreates overlays to update toolbar actions properly
  */
 export function updateOverlayEditingState(): void {
+  // AI : Store overlay data before recreating
+  const overlayDataToRecreate: { [key: string]: { imageUrl: string; overlayObject: OverlayObject } } = {};
+  
   Object.values(overlays.value).forEach(overlayObject => {
     if (!overlayObject.overlay) return;
 
-    const element = overlayObject.overlay.getElement();
-    if (!element) return;
+    // AI : Store the overlay data for recreation
+    overlayDataToRecreate[overlayObject.id] = {
+      imageUrl: overlayObject.imageUrl,
+      overlayObject: { ...overlayObject }
+    };
 
-    if (isEditMode.value) {
-      // AI : Enable editing in edit mode
-      enableOverlayEditing(overlayObject.overlay, element);
-    } else {
-      // AI : Disable editing in view mode
-      disableOverlayEditing(overlayObject.overlay, element);
+    // AI : Remove the old overlay from the map
+    if (map.value) {
+      map.value.removeLayer(overlayObject.overlay);
     }
+    
+    // AI : Clear the overlay reference but keep the object
+    overlayObject.overlay = null;
+  });
 
-    // AI : Update marker color and tooltip
-    updateMarkerTooltip(overlayObject);
+  // AI : Recreate overlays with updated toolbar actions
+  Object.entries(overlayDataToRecreate).forEach(async ([overlayId, data]) => {
+    const overlayObject = overlays.value[overlayId];
+    if (!overlayObject) return;
+
+    // AI : Recreate the overlay with current mode's toolbar actions
+    const newOverlay = await createOverlay(data.imageUrl, overlayObject);
+    if (newOverlay) {
+      overlayObject.overlay = newOverlay;
+      
+      // AI : Update marker color and tooltip
+      updateMarkerTooltip(overlayObject);
+    }
   });
 }
 
@@ -74,14 +101,12 @@ export function createOverlayObject(savedOverlay: StoredOverlayData): OverlayObj
     ...coordinates,
     overlay: null,
     marker: null,
-    alreadyLoaded: false,
-    alreadyStored: !savedOverlay.savedRemotely || (savedOverlay.history?.length > 0),
     whitePixelsHidden: false,
     isFlipped: false,
     currentResolution: savedOverlay.imageUrl,
-    savedRemotely: savedOverlay.savedRemotely ?? false,
     corners,
     project: project ? { ...project, city: project.city ?? null } : null,
+    isModified: false, // AI : Initialize as not modified
   };
 }
 
@@ -89,6 +114,7 @@ export function createOverlayObject(savedOverlay: StoredOverlayData): OverlayObj
  * AI : Create a Leaflet overlay on the map
  */
 export async function createOverlay(imageUrl: string, overlayObject?: OverlayObject) {
+  console.log("Creating overlay with imageUrl:", imageUrl);
   if (!map.value || !overlayObject) return null;
 
   overlayObject.imageUrl ??= imageUrl;
@@ -157,7 +183,6 @@ function onOverlayLoaded(overlayObject: OverlayObject): void {
 
   applyOverlayCorners(overlayObject);
   updateMarkerPosition(overlayObject);
-  overlayObject.alreadyLoaded = true;
 
   initializeOverlayHistory(overlayObject);
 
@@ -209,17 +234,15 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
     // AI : Clear overlay parameter from URL when deselected
     clearOverlayFromUrl();
   });
+  
   overlay.on('edit', () => {
     // AI : Handle transition from backend to local copy when edited
     saveToHistory(overlayObject);
     updateMarkerPosition(overlayObject);
   });
 
-  overlay.on('dragend', () => {
-    // AI : Handle transition from backend to local copy when moved
-    saveToHistory(overlayObject);
-    updateMarkerPosition(overlayObject);
-  });
+  // AI : Set up comprehensive event handlers for overlay manipulation
+  setupOverlayMovementTracking(overlay, overlayObject);
 }
 
 /**
@@ -325,11 +348,56 @@ function isValidCorners(corners: any[]): boolean {
  * AI : Update the marker position based on overlay center
  */
 export function updateMarkerPosition(overlayObject: OverlayObject): void {
-  if (!overlayObject.overlay?.getBounds || !overlayObject.marker) return;
+  if (!overlayObject.overlay || !overlayObject.marker) {
+    return;
+  }
 
-  const bounds = overlayObject.overlay.getBounds();
-  if (bounds?.isValid()) {
-    overlayObject.marker.setLatLng(bounds.getCenter());
+  // AI : Try different methods to get the center position
+  let center: L.LatLng | null = null;
+  
+  // AI : Method 1: Try getBounds() if available
+  if (overlayObject.overlay.getBounds) {
+    const bounds = overlayObject.overlay.getBounds();
+    if (bounds?.isValid()) {
+      center = bounds.getCenter();
+    }
+  }
+  
+  // AI : Method 2: Try getCorners() if getBounds() fails
+  if (!center) {
+    try {
+      const corners = overlayObject.overlay.getCorners();
+      if (corners && corners.length === 4) {
+        const latSum = corners.reduce((sum, corner) => sum + corner.lat, 0);
+        const lngSum = corners.reduce((sum, corner) => sum + corner.lng, 0);
+        center = L.latLng(latSum / 4, lngSum / 4);
+      }
+    } catch (error) {
+      console.log('AI : updateMarkerPosition - getCorners failed:', error);
+    }
+  }
+  
+  // AI : Method 3: Fallback to element position
+  if (!center) {
+    try {
+      const element = overlayObject.overlay.getElement();
+      if (element) {
+        const rect = element.getBoundingClientRect();
+        const mapContainer = map.value?.getContainer();
+        if (mapContainer) {
+          const mapRect = mapContainer.getBoundingClientRect();
+          const centerX = rect.left + rect.width / 2 - mapRect.left;
+          const centerY = rect.top + rect.height / 2 - mapRect.top;
+          center = map.value?.containerPointToLatLng([centerX, centerY]) || null;
+        }
+      }
+    } catch (error) {
+      console.log('AI : updateMarkerPosition - Element position failed:', error);
+    }
+  }
+  
+  if (center) {
+    overlayObject.marker.setLatLng(center);
   }
 }
 
@@ -344,7 +412,10 @@ export function saveToHistory(overlayObject: OverlayObject): void {
 
   overlayObject.history.push(JSON.parse(JSON.stringify(currentState)));
   overlayObject.redoStack = [];
-  overlayObject.alreadyStored = true;
+  
+  // AI : Mark overlay as modified when it's moved/changed
+  overlayObject.isModified = true;
+  
   updateMarkerTooltip(overlayObject);
 }
 
@@ -358,7 +429,10 @@ function blockMovementEvent(e: Event) {
   }
 
   e.stopPropagation();
-  e.preventDefault();
+  // AI : Only call preventDefault if the event allows it (not passive)
+  if (e.cancelable) {
+    e.preventDefault();
+  }
   return false;
 }
 
@@ -374,7 +448,7 @@ function disableOverlayEditing(overlay: L.DistortableImageOverlay, element: HTML
   // We'll keep pointer-events enabled so clicks work, but block specific events
   // that would cause movement
   element.addEventListener('mousedown', blockMovementEvent, true);
-  element.addEventListener('touchstart', blockMovementEvent, { capture: true, passive: false });
+  element.addEventListener('touchstart', blockMovementEvent, { capture: true, passive: true });
   element.addEventListener('dragstart', blockMovementEvent, true);
 
   if (overlay.off) {
@@ -396,7 +470,7 @@ function enableOverlayEditing(overlay: L.DistortableImageOverlay, element: HTMLE
 
   // AI : Remove event listeners that block editing
   element.removeEventListener('mousedown', blockMovementEvent, true);
-  element.removeEventListener('touchstart', blockMovementEvent, true);
+  element.removeEventListener('touchstart', blockMovementEvent, { capture: true, passive: true } as any);
   element.removeEventListener('dragstart', blockMovementEvent, true);
 
   // AI : Make sure the overlay is editable
@@ -578,7 +652,6 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData, createMar
     redoStack: [],
     projectId: cdnOverlay.projectId ?? '',
     caption: cdnOverlay.caption ?? null,
-    savedRemotely: true,
     filename: cdnOverlay.filename,
     metadata: null,
     createdAt: new Date(cdnOverlay.createdAt ?? Date.now()),
@@ -597,6 +670,14 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData, createMar
     },
     status: 'approved',
     authorId: null,
+    overlay: null,
+    marker: null,
+    whitePixelsHidden: false,
+    isFlipped: false,
+    currentResolution: `${cdnUrl}/${cdnOverlay.filename}`,
+    project: cdnOverlay.project,
+    corners: corners,
+    isModified: false, // AI : CDN overlays start as not modified
   };
 
   if (createMarkers) {
@@ -663,9 +744,20 @@ export function updateMarkerTooltip(overlayObject: OverlayObject): void {
   overlayObject.marker.setIcon(colorIcon);
 
   if (isEditMode.value) {
-    const tooltipText = overlayObject.alreadyStored
-      ? 'Stored locally'
-      : 'Remote overlay';
+    // AI : Generate tooltip text based on overlay state
+    const isRemoteOverlay = overlayObject.project !== undefined;
+    const hasBeenModified = overlayObject.isModified;
+    
+    let tooltipText = '';
+    if (isRemoteOverlay && !hasBeenModified) {
+      tooltipText = 'Saved remotely';
+    } else if (isRemoteOverlay && hasBeenModified) {
+      tooltipText = 'Remote overlay (modified)';
+    } else if (!isRemoteOverlay && hasBeenModified) {
+      tooltipText = 'Local overlay';
+    } else {
+      tooltipText = 'New overlay';
+    }
 
     overlayObject.marker.bindTooltip(tooltipText, {
       permanent: false,
@@ -680,19 +772,30 @@ export function updateMarkerTooltip(overlayObject: OverlayObject): void {
  */
 function getMarkerColorForStorageStatus(overlayObject: OverlayObject): 'blue' | 'green' | 'orange' | 'red' | 'gold' | 'yellow' | 'violet' | 'grey' | 'black' {
   if (isEditMode.value) {
-    const { savedRemotely, alreadyStored } = overlayObject;
-
-    if (savedRemotely && !alreadyStored) {
+    // AI : In edit mode, show different colors based on overlay state
+    
+    // AI : Check if overlay was loaded from CDN (has project data from backend)
+    const isRemoteOverlay = overlayObject.project !== undefined;
+    
+    // AI : Check if overlay has been modified locally
+    const hasBeenModified = overlayObject.isModified;
+    
+    if (isRemoteOverlay && !hasBeenModified) {
+      // AI : Remote overlay, not modified = green
       return 'green';
-    } else if (savedRemotely && alreadyStored) {
+    } else if (isRemoteOverlay && hasBeenModified) {
+      // AI : Remote overlay, modified locally = orange
       return 'orange';
-    } else if (!savedRemotely && alreadyStored) {
+    } else if (!isRemoteOverlay && hasBeenModified) {
+      // AI : Local overlay with changes = red
       return 'red';
+    } else {
+      // AI : New overlay, no changes = blue
+      return 'blue';
     }
-
-    return 'blue';
   }
 
+  // AI : View mode - use construction timeline colors
   let startDate: string | Date | null | undefined = null;
   let endDate: string | Date | null | undefined = null;
   if (overlayObject.project) {
@@ -762,3 +865,123 @@ function getOverlayBounds(overlay: StoredOverlayData): L.LatLngBounds | null {
 
   return L.latLngBounds(corners);
 }
+
+/**
+ * AI : Set up comprehensive movement tracking for overlays
+ */
+function setupOverlayMovementTracking(overlay: L.DistortableImageOverlay, overlayObject: OverlayObject): void {
+  // AI : Track all overlay manipulation events
+  overlay.on('drag', () => {
+    updateMarkerPosition(overlayObject);
+  });
+  
+  overlay.on('dragstart', () => {
+    updateMarkerPosition(overlayObject);
+  });
+  
+  overlay.on('dragend', () => {
+    updateMarkerPosition(overlayObject);
+  });
+  
+  overlay.on('transform', () => {
+    updateMarkerPosition(overlayObject);
+  });
+  
+  overlay.on('transformstart', () => {
+    updateMarkerPosition(overlayObject);
+  });
+  
+  overlay.on('transformend', () => {
+    updateMarkerPosition(overlayObject);
+  });
+  
+  overlay.on('rotate', () => {
+    updateMarkerPosition(overlayObject);
+  });
+  
+  overlay.on('rotatestart', () => {
+    updateMarkerPosition(overlayObject);
+  });
+  
+  overlay.on('rotateend', () => {
+    updateMarkerPosition(overlayObject);
+  });
+  
+  overlay.on('scale', () => {
+    updateMarkerPosition(overlayObject);
+  });
+  
+  overlay.on('scalestart', () => {
+    updateMarkerPosition(overlayObject);
+  });
+  
+  overlay.on('scaleend', () => {
+    updateMarkerPosition(overlayObject);
+  });
+  
+  overlay.on('distort', () => {
+    updateMarkerPosition(overlayObject);
+  });
+  
+  overlay.on('distortstart', () => {
+    updateMarkerPosition(overlayObject);
+  });
+  
+  overlay.on('distortend', () => {
+    updateMarkerPosition(overlayObject);
+  });
+  
+  // AI : Set up DOM event listeners for additional tracking
+  setTimeout(() => {
+    const element = overlay.getElement();
+    if (element) {
+      let isManipulating = false;
+      let updateFrame: number | null = null;
+      
+      const startTracking = () => {
+        if (isManipulating) return;
+        isManipulating = true;
+        
+        const continuousUpdate = () => {
+          if (isManipulating) {
+            updateMarkerPosition(overlayObject);
+            updateFrame = requestAnimationFrame(continuousUpdate);
+          }
+        };
+        continuousUpdate();
+      };
+      
+      const stopTracking = () => {
+        if (!isManipulating) return;
+        isManipulating = false;
+        
+        if (updateFrame) {
+          cancelAnimationFrame(updateFrame);
+          updateFrame = null;
+        }
+        
+        // AI : Final update after manipulation ends
+        updateMarkerPosition(overlayObject);
+      };
+      
+      // AI : Track mouse and touch events
+      element.addEventListener('mousedown', startTracking);
+      element.addEventListener('touchstart', startTracking, { passive: true });
+      
+      document.addEventListener('mouseup', stopTracking);
+      document.addEventListener('touchend', stopTracking);
+      document.addEventListener('mousemove', () => {
+        if (isManipulating) {
+          updateMarkerPosition(overlayObject);
+        }
+      });
+      document.addEventListener('touchmove', () => {
+        if (isManipulating) {
+          updateMarkerPosition(overlayObject);
+        }
+      }, { passive: true });
+    }
+  }, 100);
+}
+
+
