@@ -264,9 +264,6 @@ function applyHistoryAction(action: 'undo' | 'redo') {
   const { history, redoStack, overlay } = overlayObject;
   const isUndo = action === 'undo';
   
-  const sourceStack = isUndo ? history : redoStack;
-  const targetStack = isUndo ? redoStack : history;
-  
   if ((isUndo && history.length <= 1) || (!isUndo && redoStack.length === 0)) {
     toast.add({
       severity: 'warn',
@@ -277,92 +274,22 @@ function applyHistoryAction(action: 'undo' | 'redo') {
     return;
   }
 
-  const state = sourceStack.pop()!;
-  targetStack.push(state);
-
-  const newState = isUndo ? sourceStack[sourceStack.length - 1] : state;
-  (overlay as L.DistortableImageOverlay).setCorners(newState);
+  if (isUndo) {
+    // AI : For undo: move current state to redo stack and apply previous state
+    const currentState = history.pop()!;
+    redoStack.push(currentState);
+    const previousState = history[history.length - 1];
+    (overlay as L.DistortableImageOverlay).setCorners(previousState);
+  } else {
+    // AI : For redo: move state from redo stack to history and apply it
+    const stateToRestore = redoStack.pop()!;
+    history.push(stateToRestore);
+    (overlay as L.DistortableImageOverlay).setCorners(stateToRestore);
+  }
 
   updateMarkerPosition(overlayObject);
   // AI : Save only the specific overlay being updated, not all overlays
   saveOverlayWithCurrentCorners(overlayObject);
-}
-
-export async function toggleWhitePixels() {
-  if (!idSelectedOverlay.value) return;
-
-  const overlayObject = overlays.value[idSelectedOverlay.value];
-  if (!overlayObject?.overlay) return;
-
-  overlayObject.whitePixelsHidden = !overlayObject.whitePixelsHidden;
-  
-  try {
-    const imgElement = overlayObject.overlay.getElement();
-    if (!imgElement) return;
-    
-    const imgSrc = overlayObject.whitePixelsHidden ? 
-      (overlayObject.imageUrl ?? imgElement.src) : 
-      imgElement.src;
-    
-    if (overlayObject.whitePixelsHidden) {
-      const processedImage = await processImageToHideWhitePixels(imgSrc);
-      if (processedImage) {
-        imgElement.src = processedImage;
-      }
-    } else {
-      imgElement.src = overlayObject.imageUrl ?? overlayObject.currentResolution ?? '';
-    }
-    
-    toast.add({
-      severity: 'info',
-      summary: overlayObject.whitePixelsHidden ? 
-        'Background pixels have been hidden' : 
-        'Background pixels are now visible',
-      life: 2000
-    });
-  } catch (error) {
-    console.error('Error toggling white pixels:', error);
-  }
-}
-
-async function processImageToHideWhitePixels(imgSrc: string): Promise<string | null> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        resolve(null);
-        return;
-      }
-      
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0);
-      
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-      
-      // AI : Make white pixels transparent
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const alpha = data[i + 3];
-        
-        // check if the pixel is a gray shade (which is likely a background pixel)
-        if (r === g && g === b && alpha > 0) {
-          data[i + 3] = 0;  // makes the pixel transparent
-        }
-      }
-      
-      ctx.putImageData(imageData, 0, 0);
-      resolve(canvas.toDataURL());
-    };
-    
-    img.onerror = () => resolve(null);
-    img.src = imgSrc;
-  });
 }
 
 export function resetImageRatio() {
@@ -381,6 +308,9 @@ export function resetImageRatio() {
     const currentCorners = overlayObject.overlay.getCorners();
     if (!currentCorners?.length || currentCorners.length !== 4) return;
     
+    // AI : Save state before applying ratio fix
+    saveToHistory(overlayObject);
+    
     const { originalRatio: _originalRatio, newDimensions, cornersInfo } = calculateRatioFixParameters(
       img.naturalWidth / img.naturalHeight,
       currentCorners
@@ -390,8 +320,6 @@ export function resetImageRatio() {
     
     applyImageRatioFix(overlayObject, cornersInfo, newDimensions);
     handleFlipIfNeeded(overlayObject);
-    // Save state
-    saveToHistory(overlayObject);
     updateMarkerPosition(overlayObject);
     
     // AI : Save only the specific overlay being updated, not all overlays

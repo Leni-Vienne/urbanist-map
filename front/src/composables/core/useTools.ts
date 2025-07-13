@@ -3,7 +3,7 @@ import L from "leaflet";
 import { type ComponentInternalInstance, createVNode, render } from 'vue';
 import { map } from '@composables/core/useMap';
 import { overlays, idSelectedOverlay, isEditMode } from '@composables/overlay/useOverlay';
-import { undo, redo, resetImageRatio, toggleWhitePixels, deleteOverlay, updateOverlayInfo, goToNextOverlay, goToPreviousOverlay } from '@composables/overlay/useOverlayActions';
+import { undo, redo, resetImageRatio, deleteOverlay, updateOverlayInfo, goToNextOverlay, goToPreviousOverlay } from '@composables/overlay/useOverlayActions';
 import InfoPopup from '@components/map/InfoPopup.vue';
 import { useToast } from '@composables/ui/useToast';
 import type { ProjectInfo } from '@types';
@@ -192,18 +192,6 @@ export const resetRatioTool = L.Toolbar2.Action.extend({
   },
 });
 
-export const backgroundTool = L.Toolbar2.Action.extend({
-  options: {
-    toolbarIcon: {
-      className: "pi pi-eraser",
-      tooltip: 'Toggle the background',
-    },
-  },
-  addHooks: function () {
-    toggleWhitePixels();
-  },
-});
-
 export const customDeleteTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
@@ -246,7 +234,6 @@ export const editTools = [
   L.ResizeRotateAction,
   L.DistortAction,
   resetRatioTool,
-  backgroundTool,
   L.OpacityAction,
   L.OpacitiesAction,
   previousOverlayTool,
@@ -257,7 +244,6 @@ export const editTools = [
 
 export const viewTools = [
   centerTool,
-  backgroundTool,
   L.OpacityAction,
   L.OpacitiesAction,
   previousOverlayTool,
