@@ -669,6 +669,63 @@ export async function navigateToOverlay(overlayId: string, centerMap: boolean = 
       };
       
       await renderViewModeOverlays([cdnOverlay], true, false);
+      
+      // AI : Also render intersecting overlays if they exist
+      if (result.intersectingOverlays && result.intersectingOverlays.length > 0) {
+        console.log(`AI : Rendering ${result.intersectingOverlays.length} intersecting overlays`);
+        
+        const intersectingCdnOverlays = result.intersectingOverlays.map(intersectingOverlay => ({
+          id: intersectingOverlay.id,
+          filename: intersectingOverlay.filename,
+          caption: intersectingOverlay.caption ?? undefined,
+          projectId: intersectingOverlay.projectId,
+          project: intersectingOverlay.projectName ? {
+            id: intersectingOverlay.projectId ?? '',
+            title: intersectingOverlay.projectName,
+            description: null,
+            status: 'approved' as const,
+            ownerId: null,
+            cityId: null,
+            metadata: null,
+            sourceUrl: null,
+            startDate: null,
+            endDate: null,
+            latestUpdateOn: null,
+            createdAt: null,
+            updatedAt: new Date(),
+            city: intersectingOverlay.cityName ? {
+              id: '',
+              name: intersectingOverlay.cityName,
+              countryCode: '',
+              coordinates: { x: 0, y: 0 },
+              createdAt: null,
+              updatedAt: new Date()
+            } : null
+          } : null,
+          corners: [
+            { lat: intersectingOverlay.topLeftLat, lng: intersectingOverlay.topLeftLng },
+            { lat: intersectingOverlay.topRightLat, lng: intersectingOverlay.topRightLng },
+            { lat: intersectingOverlay.bottomRightLat, lng: intersectingOverlay.bottomRightLng },
+            { lat: intersectingOverlay.bottomLeftLat, lng: intersectingOverlay.bottomLeftLng }
+          ],
+          centroid: {
+            lat: intersectingOverlay.centroid.y,
+            lng: intersectingOverlay.centroid.x
+          },
+          distance: 0,
+          createdAt: intersectingOverlay.createdAt,
+        }));
+        
+        await renderViewModeOverlays(intersectingCdnOverlays, true, false);
+        
+        toast.add({
+          severity: 'info',
+          summary: 'Overlays Loaded',
+          detail: `Loaded main overlay and ${result.intersectingOverlays.length} intersecting overlays`,
+          life: 3000
+        });
+      }
+      
       targetOverlay = overlays.value[overlayId];
       
       if (!targetOverlay) {
