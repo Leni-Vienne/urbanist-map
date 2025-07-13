@@ -1,6 +1,6 @@
 <template>
   <div class="app-container">
-    <SideMenu v-if="isModerator" :is-open="moderationPanelOpen" @close="moderationPanelOpen = false" />
+    <SideMenu v-if="isModerator" :is-open="moderationPanelOpen" panel="moderation" @close="moderationPanelOpen = false" />
     <div class="main-content">
       <button
         v-if="isModerator"

@@ -19,6 +19,7 @@ declare module 'vue' {
     InfoPopup: typeof import('./src/components/map/InfoPopup.vue')['default']
     InputText: typeof import('primevue/inputtext')['default']
     MapView: typeof import('./src/components/map/MapView.vue')['default']
+    ModerationPanel: typeof import('./src/components/layout/ModerationPanel.vue')['default']
     OverlayEditor: typeof import('./src/components/map/OverlayEditor.vue')['default']
     OverlayItem: typeof import('./src/components/map/OverlayItem.vue')['default']
     ProjectActions: typeof import('./src/components/project/ProjectActions.vue')['default']

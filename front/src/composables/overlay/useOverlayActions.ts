@@ -1,14 +1,68 @@
 import L from "leaflet";
 import { map } from '@composables/core/useMap';
-import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, isEditMode, removeOverlay, allMarkers, updateMarkerTooltip } from '@composables/overlay/useOverlay';
+import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, isEditMode, removeOverlay, allMarkers, updateMarkerTooltip, renderViewModeOverlays } from '@composables/overlay/useOverlay';
 import { saveOverlay } from '@composables/core/useDatabase';
 import { useToast } from '@composables/ui/useToast';
 import { projects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import type { StoredOverlayData, OverlayObject } from '@types';
 import { router } from '../../router';
 import { createColorIcon } from '@composables/ui/colorMarkers';
+import { trpc } from '../../client';
 
 const toast = useToast();
+
+// AI : Helper function to wait for overlay corners to be ready
+async function waitForOverlayReady(overlay: OverlayObject): Promise<boolean> {
+  if (!overlay.overlay) return false;
+  
+  return new Promise(resolve => {
+    const checkOverlayReady = () => {
+      try {
+        const corners = overlay.overlay?.getCorners();
+        if (corners && corners.length === 4) {
+          resolve(true);
+        } else {
+          setTimeout(checkOverlayReady, 50);
+        }
+      } catch {
+        // AI : If corners aren't ready, wait a bit more
+        setTimeout(checkOverlayReady, 50);
+      }
+    };
+    checkOverlayReady();
+  });
+}
+
+// AI : Helper function to zoom to overlay bounds with proper error handling
+function zoomToOverlayBounds(overlay: OverlayObject): boolean {
+  if (!overlay.overlay || !map.value) return false;
+  
+  try {
+    const bounds = overlay.overlay.getBounds();
+    if (bounds) {
+      map.value.fitBounds(bounds, { padding: [50, 50] });
+      return true;
+    } else {
+      // AI : Try to get corners for zoom calculation
+      const corners = overlay.overlay.getCorners();
+      if (corners && corners.length === 4) {
+        const overlayBounds = L.latLngBounds(corners);
+        map.value.fitBounds(overlayBounds, { padding: [50, 50] });
+        return true;
+      } else if (overlay.marker) {
+        map.value.setView(overlay.marker.getLatLng(), 18);
+        return true;
+      }
+    }
+  } catch (error) {
+    console.error('Error zooming to overlay bounds:', error);
+    if (overlay.marker) {
+      map.value.setView(overlay.marker.getLatLng(), 18);
+      return true;
+    }
+  }
+  return false;
+}
 
 // AI : Helper function to create StoredOverlayData from OverlayObject
 function createStoredOverlayData(overlayObject: OverlayObject): StoredOverlayData {
@@ -469,7 +523,7 @@ function handleFlipIfNeeded(overlayObject: any) {
  * @param direction - Either 'next' or 'previous' to determine navigation direction
  * @returns boolean indicating whether navigation was successful
  */
-export async function navigateOverlay(direction: 'next' | 'previous'): Promise<boolean> {
+export async function focusCameraToOverlay(direction: 'next' | 'previous'): Promise<boolean> {
   if (!map.value) {
     toast.add({ severity: 'warn', summary: 'Map not available', detail: 'Cannot navigate between overlays', life: 3000 });
     return false;
@@ -477,7 +531,7 @@ export async function navigateOverlay(direction: 'next' | 'previous'): Promise<b
   
   // Handle case when no overlay is selected
   if (!idSelectedOverlay.value) {
-    return selectFirstOrLastOverlayInAnyProject(direction);
+    return await selectFirstOrLastOverlayInAnyProject(direction);
   }
 
   const currentOverlay = overlays.value[idSelectedOverlay.value];
@@ -509,10 +563,10 @@ export async function navigateOverlay(direction: 'next' | 'previous'): Promise<b
   const newIndex = (currentIndex + step + projectOverlayIds.length) % projectOverlayIds.length;
   const newOverlayId = projectOverlayIds[newIndex];
   
-  return selectAndCenterOverlay(newOverlayId, newIndex, projectOverlayIds.length);
+  return await selectAndCenterOverlay(newOverlayId, newIndex, projectOverlayIds.length);
 }
 
-function selectFirstOrLastOverlayInAnyProject(direction: 'next' | 'previous'): boolean {
+async function selectFirstOrLastOverlayInAnyProject(direction: 'next' | 'previous'): Promise<boolean> {
   const projectIds = Object.keys(projects.value);
   if (!projectIds.length) {
     toast.add({ severity: 'warn', summary: 'No projects', detail: 'Please create a project first', life: 3000 });
@@ -526,7 +580,7 @@ function selectFirstOrLastOverlayInAnyProject(direction: 'next' | 'previous'): b
       const index = direction === 'next' ? 0 : project.overlayIds.length - 1;
       const overlayId = project.overlayIds[index];
       
-      if (selectAndCenterOverlay(overlayId)) {
+      if (await selectAndCenterOverlay(overlayId)) {
         toast.add({
           severity: 'info',
           summary: 'Navigation',
@@ -548,26 +602,110 @@ function selectFirstOrLastOverlayInAnyProject(direction: 'next' | 'previous'): b
  * @param centerMap - Whether to center the map on the overlay (defaults to true)
  * @returns boolean indicating whether navigation was successful
  */
-export function navigateToOverlay(overlayId: string, centerMap: boolean = true): boolean {
+export async function navigateToOverlay(overlayId: string, centerMap: boolean = true): Promise<boolean> {
   if (!map.value) {
     toast.add({ severity: 'warn', summary: 'Map not available', detail: 'Cannot navigate to overlay', life: 3000 });
     return false;
   }
   
-  const targetOverlay = overlays.value[overlayId];
+  let targetOverlay = overlays.value[overlayId];
+  
+  // AI : If overlay is not loaded locally, fetch from backend
   if (!targetOverlay) {
-    toast.add({ severity: 'warn', summary: 'Overlay not found', detail: 'The requested overlay could not be found', life: 3000 });
-    return false;
+    try {
+      toast.add({ severity: 'info', summary: 'Loading overlay', detail: 'Fetching overlay from server...', life: 2000 });
+      
+      const result = await trpc.overlay.getOverlay.query({
+        id: overlayId,
+        includeIntersecting: true,
+      });
+      
+      if (!result.overlay) {
+        toast.add({ severity: 'error', summary: 'Overlay not found', detail: 'The requested overlay could not be found on the server', life: 3000 });
+        return false;
+      }
+      
+      // AI : Transform backend overlay to CDN format
+      const cdnOverlay = {
+        id: result.overlay.id,
+        filename: result.overlay.filename,
+        caption: result.overlay.caption ?? undefined,
+        projectId: result.overlay.projectId,
+        project: result.overlay.projectName ? {
+          id: result.overlay.projectId ?? '',
+          title: result.overlay.projectName,
+          description: null,
+          status: 'approved' as const,
+          ownerId: null,
+          cityId: null,
+          metadata: null,
+          sourceUrl: null,
+          startDate: null,
+          endDate: null,
+          latestUpdateOn: null,
+          createdAt: null,
+          updatedAt: new Date(),
+          city: result.overlay.cityName ? {
+            id: '',
+            name: result.overlay.cityName,
+            countryCode: '',
+            coordinates: { x: 0, y: 0 },
+            createdAt: null,
+            updatedAt: new Date()
+          } : null
+        } : null,
+        corners: [
+          { lat: result.overlay.topLeftLat, lng: result.overlay.topLeftLng },
+          { lat: result.overlay.topRightLat, lng: result.overlay.topRightLng },
+          { lat: result.overlay.bottomRightLat, lng: result.overlay.bottomRightLng },
+          { lat: result.overlay.bottomLeftLat, lng: result.overlay.bottomLeftLng }
+        ],
+        centroid: {
+          lat: result.overlay.centroid.y,
+          lng: result.overlay.centroid.x
+        },
+        distance: 0,
+        createdAt: result.overlay.createdAt,
+      };
+      
+      await renderViewModeOverlays([cdnOverlay], true, false);
+      targetOverlay = overlays.value[overlayId];
+      
+      if (!targetOverlay) {
+        toast.add({ severity: 'error', summary: 'Loading failed', detail: 'Failed to load overlay after fetching from server', life: 3000 });
+        return false;
+      }
+      
+    } catch (error) {
+      console.error('Error fetching overlay:', error);
+      toast.add({ severity: 'error', summary: 'Loading failed', detail: 'Failed to fetch overlay from server', life: 3000 });
+      return false;
+    }
   }
   
-  // Select the overlay and update URL
+  // AI : Select the overlay and update URL
   idSelectedOverlay.value = overlayId;
   updateUrlWithOverlayId(overlayId);
   
-  return selectAndCenterOverlay(overlayId, undefined, undefined, centerMap);
+  // AI : Center map if requested
+  if (centerMap && targetOverlay.overlay) {
+    await waitForOverlayReady(targetOverlay);
+    zoomToOverlayBounds(targetOverlay);
+  }
+  
+  // AI : Click on overlay to select it
+  if (targetOverlay.overlay) {
+    const element = targetOverlay.overlay.getElement();
+    if (element) {
+      element.click();
+    }
+    return true;
+  }
+  
+  return false;
 }
 
-function selectAndCenterOverlay(overlayId: string, index?: number, total?: number, centerMap: boolean = true): boolean {
+async function selectAndCenterOverlay(overlayId: string, index?: number, total?: number, centerMap: boolean = true): Promise<boolean> {
   const overlay = overlays.value[overlayId];
   
   if (!overlay) {
@@ -584,19 +722,19 @@ function selectAndCenterOverlay(overlayId: string, index?: number, total?: numbe
       element.click();
     }
     
-    if (centerMap) {
-      const bounds = overlay.overlay.getBounds();
-      const center = bounds.getCenter();
-      // AI : Center on overlay without changing zoom level
-      map.value!.setView(center, map.value!.getZoom());
+    if (centerMap && map.value) {
+      // AI : Wait for overlay to be properly initialized before zooming
+      await waitForOverlayReady(overlay);
       
-      // Show appropriate toast message
-      showNavigationToast(overlay, index, total);
+      // AI : Zoom to overlay bounds with proper error handling
+      if (zoomToOverlayBounds(overlay)) {
+        showNavigationToast(overlay, index, total);
+      }
     }
     return true;  
   } else if (overlay.marker && centerMap && map.value) {
     // AI : If overlay is not loaded yet but marker exists
-    map.value.setView(overlay.marker.getLatLng(), map.value.getZoom());
+    map.value.setView(overlay.marker.getLatLng(), 18);
     return true;
   }
   
@@ -646,18 +784,18 @@ function updateUrlWithOverlayId(overlayId: string): void {
 
 /**
  * AI : Centers the map view on the next overlay in the current project.
- * Wrapper for navigateOverlay('next')
+ * Wrapper for focusCameraToOverlay('next')
  */
 export async function goToNextOverlay() {
-  await navigateOverlay('next');
+  await focusCameraToOverlay('next');
 }
 
 /**
  * AI : Centers the map view on the previous overlay in the current project.
- * Wrapper for navigateOverlay('previous')
+ * Wrapper for focusCameraToOverlay('previous')
  */
 export async function goToPreviousOverlay() {
-  await navigateOverlay('previous');
+  await focusCameraToOverlay('previous');
 }
 
 export function updateTooltipText() {
