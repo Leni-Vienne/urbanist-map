@@ -2,7 +2,7 @@ import { db } from '../db';
 import { publicProcedure, router } from '../trpc';
 import { z } from 'zod';
 import { overlays, projects, cities } from '../db/schema';
-import { sql, eq, and } from 'drizzle-orm';
+import { sql, eq } from 'drizzle-orm';
 
 const publishOverlaySchema = z.object({
   id: z.string().min(1).max(36), // AI : UUID length limit
@@ -21,6 +21,70 @@ const getOverlaySchema = z.object({
   includeIntersecting: z.boolean().optional().default(false),
 });
 
+// AI : Shared select fields for overlay queries to reduce duplication
+const overlaySelectFields = {
+  id: overlays.id,
+  filename: overlays.filename,
+  caption: overlays.caption,
+  status: overlays.status,
+  projectId: overlays.projectId,
+  authorId: overlays.authorId,
+  metadata: overlays.metadata,
+  topLeftLat: overlays.topLeftLat,
+  topLeftLng: overlays.topLeftLng,
+  topRightLat: overlays.topRightLat,
+  topRightLng: overlays.topRightLng,
+  bottomRightLat: overlays.bottomRightLat,
+  bottomRightLng: overlays.bottomRightLng,
+  bottomLeftLat: overlays.bottomLeftLat,
+  bottomLeftLng: overlays.bottomLeftLng,
+  centroid: overlays.centroid,
+  createdAt: overlays.createdAt,
+  updatedAt: overlays.updatedAt,
+  projectName: projects.title,
+  cityName: cities.name,
+};
+
+// AI : Calculate bounding box from overlay corners
+function calculateBoundingBox(overlay: any) {
+  const latitudes = [overlay.topLeftLat, overlay.topRightLat, overlay.bottomRightLat, overlay.bottomLeftLat];
+  const longitudes = [overlay.topLeftLng, overlay.topRightLng, overlay.bottomRightLng, overlay.bottomLeftLng];
+  
+  return {
+    minLat: Math.min(...latitudes),
+    maxLat: Math.max(...latitudes),
+    minLng: Math.min(...longitudes),
+    maxLng: Math.max(...longitudes)
+  };
+}
+
+// AI : Base query builder for overlays with joins
+function buildOverlayQuery() {
+  return db
+    .select(overlaySelectFields)
+    .from(overlays)
+    .leftJoin(projects, eq(overlays.projectId, projects.id))
+    .leftJoin(cities, eq(projects.cityId, cities.id));
+}
+
+// AI : Find overlays that intersect with a given bounding box
+async function findIntersectingOverlays(excludeId: string, boundingBox: ReturnType<typeof calculateBoundingBox>) {
+  // AI : Get all overlays except the excluded one
+  const allOverlays = await buildOverlayQuery()
+    .where(sql`${overlays.id} != ${excludeId}`);
+
+  // AI : Filter overlays that have bounding box overlap
+  return allOverlays.filter(overlay => {
+    const overlayBoundingBox = calculateBoundingBox(overlay);
+    
+    // AI : Two bounding boxes overlap if they overlap in both dimensions
+    const latOverlap = boundingBox.minLat <= overlayBoundingBox.maxLat && boundingBox.maxLat >= overlayBoundingBox.minLat;
+    const lngOverlap = boundingBox.minLng <= overlayBoundingBox.maxLng && boundingBox.maxLng >= overlayBoundingBox.minLng;
+    
+    return latOverlap && lngOverlap;
+  });
+}
+
 export const overlayRouter = router({
   getOverlay: publicProcedure
     .input(getOverlaySchema)
@@ -28,33 +92,7 @@ export const overlayRouter = router({
       console.log('Fetching overlay with input:', input);
       try {
         // AI : Fetch the requested overlay
-        const overlay = await db
-          .select({
-            id: overlays.id,
-            filename: overlays.filename,
-            caption: overlays.caption,
-            status: overlays.status,
-            projectId: overlays.projectId,
-            authorId: overlays.authorId,
-            metadata: overlays.metadata,
-            topLeftLat: overlays.topLeftLat,
-            topLeftLng: overlays.topLeftLng,
-            topRightLat: overlays.topRightLat,
-            topRightLng: overlays.topRightLng,
-            bottomRightLat: overlays.bottomRightLat,
-            bottomRightLng: overlays.bottomRightLng,
-            bottomLeftLat: overlays.bottomLeftLat,
-            bottomLeftLng: overlays.bottomLeftLng,
-            centroid: overlays.centroid,
-            createdAt: overlays.createdAt,
-            updatedAt: overlays.updatedAt,
-            // AI : Join project and city information
-            projectName: projects.title,
-            cityName: cities.name,
-          })
-          .from(overlays)
-          .leftJoin(projects, eq(overlays.projectId, projects.id))
-          .leftJoin(cities, eq(projects.cityId, cities.id))
+        const overlay = await buildOverlayQuery()
           .where(eq(overlays.id, input.id))
           .limit(1);
 
@@ -67,82 +105,9 @@ export const overlayRouter = router({
         // AI : If includeIntersecting is true, find overlays that intersect with the queried overlay's bounding box
         if (input.includeIntersecting) {
           const queriedOverlay = overlay[0];
-          
-          // AI : Create bounding box of the queried overlay using its 4 corners
-          const queriedMinLat = Math.min(
-            queriedOverlay.topLeftLat, 
-            queriedOverlay.topRightLat, 
-            queriedOverlay.bottomRightLat, 
-            queriedOverlay.bottomLeftLat
-          );
-          const queriedMaxLat = Math.max(
-            queriedOverlay.topLeftLat, 
-            queriedOverlay.topRightLat, 
-            queriedOverlay.bottomRightLat, 
-            queriedOverlay.bottomLeftLat
-          );
-          const queriedMinLng = Math.min(
-            queriedOverlay.topLeftLng, 
-            queriedOverlay.topRightLng, 
-            queriedOverlay.bottomRightLng, 
-            queriedOverlay.bottomLeftLng
-          );
-          const queriedMaxLng = Math.max(
-            queriedOverlay.topLeftLng, 
-            queriedOverlay.topRightLng, 
-            queriedOverlay.bottomRightLng, 
-            queriedOverlay.bottomLeftLng
-          );
+          const boundingBox = calculateBoundingBox(queriedOverlay);
 
-          console.log('Queried overlay bounding box:', {
-            minLat: queriedMinLat,
-            maxLat: queriedMaxLat,
-            minLng: queriedMinLng,
-            maxLng: queriedMaxLng
-          });
-
-          // AI : Find overlays that intersect with the queried overlay's bounding box
-          intersectingOverlays = await db
-            .select({
-              id: overlays.id,
-              filename: overlays.filename,
-              caption: overlays.caption,
-              status: overlays.status,
-              projectId: overlays.projectId,
-              authorId: overlays.authorId,
-              metadata: overlays.metadata,
-              topLeftLat: overlays.topLeftLat,
-              topLeftLng: overlays.topLeftLng,
-              topRightLat: overlays.topRightLat,
-              topRightLng: overlays.topRightLng,
-              bottomRightLat: overlays.bottomRightLat,
-              bottomRightLng: overlays.bottomRightLng,
-              bottomLeftLat: overlays.bottomLeftLat,
-              bottomLeftLng: overlays.bottomLeftLng,
-              centroid: overlays.centroid,
-              createdAt: overlays.createdAt,
-              updatedAt: overlays.updatedAt,
-              projectName: projects.title,
-              cityName: cities.name,
-            })
-            .from(overlays)
-            .leftJoin(projects, eq(overlays.projectId, projects.id))
-            .leftJoin(cities, eq(projects.cityId, cities.id))
-            .where(
-              and(
-                // AI : Exclude the requested overlay itself
-                sql`${overlays.id} != ${input.id}`,
-                // AI : Check bounding box intersection: two bounding boxes intersect if they overlap in both dimensions
-                sql`NOT (
-                  GREATEST(${overlays.topLeftLat}, ${overlays.topRightLat}, ${overlays.bottomRightLat}, ${overlays.bottomLeftLat}) < ${queriedMinLat} OR
-                  LEAST(${overlays.topLeftLat}, ${overlays.topRightLat}, ${overlays.bottomRightLat}, ${overlays.bottomLeftLat}) > ${queriedMaxLat} OR
-                  GREATEST(${overlays.topLeftLng}, ${overlays.topRightLng}, ${overlays.bottomRightLng}, ${overlays.bottomLeftLng}) < ${queriedMinLng} OR
-                  LEAST(${overlays.topLeftLng}, ${overlays.topRightLng}, ${overlays.bottomRightLng}, ${overlays.bottomLeftLng}) > ${queriedMaxLng}
-                )`
-              )
-            );
-            
-          console.log(`Found ${intersectingOverlays.length} intersecting overlays`);
+          intersectingOverlays = await findIntersectingOverlays(input.id, boundingBox);
         }
 
         return {
@@ -164,51 +129,52 @@ export const overlayRouter = router({
 
         // AI : Calculate centroid (center point)
         const centroidLat = input.corners.reduce((sum, corner) => sum + corner.lat, 0) / 4;
-        const centroidLng = input.corners.reduce((sum, corner) => sum + corner.lng, 0) / 4;        // AI : Check if overlay with this filename already exists (UPSERT logic)
+        const centroidLng = input.corners.reduce((sum, corner) => sum + corner.lng, 0) / 4;
+
+        // AI : Prepare overlay data for insert/update
+        const overlayData = {
+          caption: input.caption,
+          projectId: input.projectId,
+          metadata: null, // AI : Keep metadata empty as requested
+          topLeftLat: topLeft.lat,
+          topLeftLng: topLeft.lng,
+          topRightLat: topRight.lat,
+          topRightLng: topRight.lng,
+          bottomRightLat: bottomRight.lat,
+          bottomRightLng: bottomRight.lng,
+          bottomLeftLat: bottomLeft.lat,
+          bottomLeftLng: bottomLeft.lng,
+          centroid: sql`ST_SetSRID(ST_MakePoint(${centroidLng}, ${centroidLat}), 4326)`
+        };
+
+        // AI : Check if overlay with this filename already exists (UPSERT logic)
         const existingOverlay = await db
           .select()
           .from(overlays)
           .where(sql`filename = ${input.filename}`)
-          .limit(1); if (existingOverlay.length > 0) {          // AI : Update existing overlay
-            const result = await db
-              .update(overlays)
-              .set({
-                caption: input.caption,
-                projectId: input.projectId,
-                metadata: null, // AI : Keep metadata empty as requested
-                topLeftLat: topLeft.lat,
-                topLeftLng: topLeft.lng,
-                topRightLat: topRight.lat,
-                topRightLng: topRight.lng,
-                bottomRightLat: bottomRight.lat,
-                bottomRightLng: bottomRight.lng,
-                bottomLeftLat: bottomLeft.lat,
-                bottomLeftLng: bottomLeft.lng,
-                centroid: sql`ST_SetSRID(ST_MakePoint(${centroidLng}, ${centroidLat}), 4326)`,
-                updatedAt: sql`NOW()`
-              }).where(sql`filename = ${input.filename}`)
-              .returning();
+          .limit(1);
 
-            return {
-              success: true,
-              id: result[0].id,
-              exists: true // AI : Indicate this overlay was updated
-            };
-          } else {          // AI : Insert new overlay
+        if (existingOverlay.length > 0) {
+          // AI : Update existing overlay
+          const result = await db
+            .update(overlays)
+            .set({
+              ...overlayData,
+              updatedAt: sql`NOW()`
+            })
+            .where(sql`filename = ${input.filename}`)
+            .returning();
+
+          return {
+            success: true,
+            id: result[0].id,
+            exists: true // AI : Indicate this overlay was updated
+          };
+        } else {
+          // AI : Insert new overlay
           const result = await db.insert(overlays).values({
             filename: input.filename,
-            caption: input.caption,
-            projectId: input.projectId,
-            metadata: null, // AI : Keep metadata empty as requested
-            topLeftLat: topLeft.lat,
-            topLeftLng: topLeft.lng,
-            topRightLat: topRight.lat,
-            topRightLng: topRight.lng,
-            bottomRightLat: bottomRight.lat,
-            bottomRightLng: bottomRight.lng,
-            bottomLeftLat: bottomLeft.lat,
-            bottomLeftLng: bottomLeft.lng,
-            centroid: sql`ST_SetSRID(ST_MakePoint(${centroidLng}, ${centroidLat}), 4326)`
+            ...overlayData
           }).returning();
 
           return {

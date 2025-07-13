@@ -5,7 +5,6 @@ import { onCameraStop } from '@composables/map/useCameraBounds';
 import { overlays } from '@stores/overlayStore';
 import { projects } from '@stores/projectStore';
 import { createColorIcon } from '@composables/ui/colorMarkers';
-import { getConstructionMarkerColor } from '@composables/map/useCityMarkers';
 import { clearAllOverlays, createOverlay } from '@composables/overlay/useOverlay';
 import type { CameraBounds, OverlayObject } from '@types';
 
@@ -47,9 +46,10 @@ function initializeEditModeOverlaysInternal(): void {
   // AI : Create new layer group for overlay markers
   editModeOverlayMarkers = L.layerGroup();
 
-  // AI : Add markers for all overlays in the store
+  // AI : Add markers for overlays that don't have images loaded yet
   Object.values(overlays.value).forEach(overlay => {
-    if (overlay.corners && overlay.corners.length >= 4) {
+    if (overlay.corners && overlay.corners.length >= 4 && !overlay.overlay) {
+      // AI : Only create markers for overlays that don't have images loaded yet
       createEditModeOverlayMarker(overlay);
     }
   });
@@ -75,9 +75,8 @@ function createEditModeOverlayMarker(overlay: OverlayObject): void {
   const centerLat = (overlay.corners[0].lat + overlay.corners[2].lat) / 2;
   const centerLng = (overlay.corners[0].lng + overlay.corners[2].lng) / 2;
 
-  // AI : Get project for color coding
-  const project = overlay.projectId ? projects.value[overlay.projectId] : null;
-  const markerColor = getConstructionMarkerColor(project?.startDate, project?.endDate);
+  // AI : Get marker color based on edit mode storage status
+  const markerColor = getEditModeMarkerColor(overlay);
   const markerIcon = createColorIcon(markerColor);
 
   // AI : Create marker with overlay ID stored for later reference
@@ -85,6 +84,7 @@ function createEditModeOverlayMarker(overlay: OverlayObject): void {
   marker.overlayId = overlay.id;
 
   // AI : Add tooltip with overlay info
+  const project = overlay.projectId ? projects.value[overlay.projectId] : null;
   const currentZoom = currentZoomLevel.value;
   const tooltipContent = `
     <div>
@@ -108,6 +108,22 @@ function createEditModeOverlayMarker(overlay: OverlayObject): void {
 
   // AI : Add marker to layer group
   editModeOverlayMarkers.addLayer(marker);
+}
+
+// AI : Helper function to get edit mode marker color
+function getEditModeMarkerColor(overlayObject: OverlayObject): 'blue' | 'green' | 'orange' | 'red' | 'gold' | 'yellow' | 'violet' | 'grey' | 'black' {
+  const { savedRemotely, alreadyStored } = overlayObject;
+
+  if (savedRemotely && !alreadyStored) {
+    return 'green'; // AI : Remote overlay not stored locally
+  } else if (savedRemotely && alreadyStored) {
+    return 'orange'; // AI : Remote overlay with local copy
+  } else if (!savedRemotely) {
+    return 'red'; // AI : Local only overlay (new or existing local overlay)
+  }
+
+  // AI : Fallback to blue for any edge cases
+  return 'blue';
 }
 
 /**
@@ -219,6 +235,23 @@ async function handleCameraStop(_bounds: CameraBounds): Promise<void> {
  */
 export function clearEditModeOverlays(): void {
   // AI : Remove overlay markers from map
+  if (map.value && editModeOverlayMarkers) {
+    map.value.removeLayer(editModeOverlayMarkers);
+    editModeOverlayMarkers = null;
+  }
+
+  // AI : Clear loaded overlays tracking
+  loadedEditOverlays.value.clear();
+
+  // AI : Only clear overlays when switching back to view mode
+  // AI : Don't clear all overlays here - let the mode switching handle it
+}
+
+/**
+ * AI : Clear all edit mode overlays and markers including full overlays
+ */
+export function clearAllEditModeOverlays(): void {
+  // AI : Clear markers first
   if (map.value && editModeOverlayMarkers) {
     map.value.removeLayer(editModeOverlayMarkers);
     editModeOverlayMarkers = null;
@@ -368,6 +401,7 @@ export function useEditModeOverlays() {
     startEditModeTracking,
     stopEditModeTracking,
     clearEditModeOverlays,
+    clearAllEditModeOverlays,
     addEditModeOverlayMarker,
     removeEditModeOverlayMarker,
     loadFullOverlay
