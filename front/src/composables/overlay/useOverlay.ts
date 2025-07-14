@@ -1,5 +1,5 @@
 // AI : Import getConstructionMarkerColor from useCityMarkers for unified color logic
-import { getConstructionMarkerColor } from '@composables/map/useCityMarkers';
+import { getConstructionMarkerColor, updateOverlayMarkers, applyCachedOverlayState, updateCachedOverlayData } from '@composables/map/useCityMarkers';
 import L from "leaflet";
 import 'leaflet-toolbar'
 import 'leaflet-distortableimage'; // using "-updated" to prevent "WebSocket connection to 'ws://localhost:8081/ws' failed:" error
@@ -106,7 +106,7 @@ export function createOverlayObject(savedOverlay: StoredOverlayData): OverlayObj
     currentResolution: savedOverlay.imageUrl,
     corners,
     project: project ? { ...project, city: project.city ?? null } : null,
-    isModified: false, // AI : Initialize as not modified
+    isModified: savedOverlay.isModified ?? false, // AI : Preserve isModified flag from saved data
   };
 }
 
@@ -180,7 +180,18 @@ function setupOverlayLoadHandler(overlay: L.DistortableImageOverlay, overlayObje
 function onOverlayLoaded(overlayObject: OverlayObject): void {
   if (!overlayObject.overlay) return;
 
-  applyOverlayCorners(overlayObject);
+  // AI : Apply cached overlay state first if available (in edit mode)
+  // AI : If cached state was applied, skip applyOverlayCorners to avoid overwriting
+  let cachedStateApplied = false;
+  if (isEditMode.value) {
+    cachedStateApplied = applyCachedOverlayState(overlayObject.id, overlayObject);
+  }
+
+  // AI : Only apply overlay corners if no cached state was applied
+  if (!cachedStateApplied) {
+    applyOverlayCorners(overlayObject);
+  }
+
   updateMarkerPosition(overlayObject);
 
   initializeOverlayHistory(overlayObject);
@@ -244,6 +255,15 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
     updateMarkerPosition(overlayObject);
     overlayObject.isModified = true;
     updateMarkerTooltip(overlayObject);
+    
+    // AI : Update cached overlay data with new corners
+    const newCorners = overlayObject.overlay?.getCorners();
+    if (newCorners && newCorners.length === 4) {
+      updateCachedOverlayData(overlayObject.id, newCorners);
+    }
+    
+    // AI : Update city overlay markers if they are visible
+    updateOverlayMarkers();
   });
 
   // AI : Set up comprehensive event handlers for overlay manipulation
@@ -438,6 +458,11 @@ export function saveToHistory(overlayObject: OverlayObject): void {
   overlayObject.isModified = true;
   
   updateMarkerTooltip(overlayObject);
+  
+  // AI : Update city overlay markers if they are visible
+  if (typeof updateOverlayMarkers === 'function') {
+    updateOverlayMarkers();
+  }
 }
 
 // Event handler that blocks movement events but allows click events
@@ -699,7 +724,7 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData, createMar
     currentResolution: `${cdnUrl}/${cdnOverlay.filename}`,
     project: cdnOverlay.project,
     corners: corners,
-    isModified: false, // AI : CDN overlays start as not modified
+    isModified: cdnOverlay.isModified ?? false, // AI : Preserve isModified flag from cached data
   };
 
   if (createMarkers) {
@@ -958,6 +983,9 @@ function setupOverlayMovementTracking(overlay: L.DistortableImageOverlay, overla
         // AI : Final update after manipulation ends
         updateMarkerPosition(overlayObject);
         
+        // AI : Update city overlay markers if they are visible
+        updateOverlayMarkers();
+        
         // AI : Save the final state after manipulation ends
         const finalCorners = overlayObject.overlay?.getCorners();
         if (finalCorners && finalCorners.length === 4) {
@@ -965,6 +993,9 @@ function setupOverlayMovementTracking(overlay: L.DistortableImageOverlay, overla
           if (lastSavedState !== finalStateStr) {
             saveToHistory(overlayObject);
             lastSavedState = finalStateStr;
+            
+            // AI : Update cached overlay data with final corners
+            updateCachedOverlayData(overlayObject.id, finalCorners);
           }
         }
       };

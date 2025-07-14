@@ -8,6 +8,7 @@ import { router } from '../../router';
 import { createColorIcon } from '@composables/ui/colorMarkers';
 import { trpc } from '../../client';
 import type { BackendOverlay } from '../../types/api';
+import { updateCachedOverlayData } from '@composables/map/useCityMarkers';
 
 const toast = useToast();
 
@@ -154,7 +155,14 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
 // AI : Helper function to save overlay with updated corners (no local storage)
 function saveOverlayWithCurrentCorners(overlayObject: OverlayObject): void {
   if (overlayObject.overlay) {
-    overlayObject.corners = overlayObject.overlay.getCorners();
+    const newCorners = overlayObject.overlay.getCorners();
+    overlayObject.corners = newCorners;
+    
+    // AI : Update cached overlay data with new corners
+    if (newCorners && newCorners.length === 4) {
+      updateCachedOverlayData(overlayObject.id, newCorners);
+    }
+    
     // AI : Update marker tooltip after corners are saved
     updateMarkerTooltip(overlayObject);
   }

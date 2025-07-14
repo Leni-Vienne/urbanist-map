@@ -71,9 +71,10 @@ function initializeEditModeOverlaysInternal(): void {
 function createEditModeOverlayMarker(overlay: OverlayObject): void {
   if (!map.value || !overlay.corners || !editModeOverlayMarkers) return;
 
-  // AI : Calculate center point from corners
-  const centerLat = (overlay.corners[0].lat + overlay.corners[2].lat) / 2;
-  const centerLng = (overlay.corners[0].lng + overlay.corners[2].lng) / 2;
+  // AI : Calculate center point from corners - Leaflet distortable uses: NW, NE, SW, SE
+  // AI : Center should be between NW (corners[0]) and SE (corners[3])
+  const centerLat = (overlay.corners[0].lat + overlay.corners[3].lat) / 2;
+  const centerLng = (overlay.corners[0].lng + overlay.corners[3].lng) / 2;
 
   // AI : Get marker color based on edit mode storage status
   const markerColor = getEditModeMarkerColor(overlay);
@@ -219,9 +220,10 @@ async function handleCameraStop(_bounds: CameraBounds): Promise<void> {
       return;
     }
 
-    // AI : Calculate distance to overlay center
-    const centerLat = (overlay.corners[0].lat + overlay.corners[2].lat) / 2;
-    const centerLng = (overlay.corners[0].lng + overlay.corners[2].lng) / 2;
+    // AI : Calculate distance to overlay center - Leaflet distortable uses: NW, NE, SW, SE
+    // AI : Center should be between NW (corners[0]) and SE (corners[3])
+    const centerLat = (overlay.corners[0].lat + overlay.corners[3].lat) / 2;
+    const centerLng = (overlay.corners[0].lng + overlay.corners[3].lng) / 2;
     const overlayCenter = L.latLng(centerLat, centerLng);
     const distance = center.distanceTo(overlayCenter);
 
