@@ -9,6 +9,7 @@ const publishOverlaySchema = z.object({
   filename: z.string().min(1).max(255), // AI : Standard filename length limit
   caption: z.string().max(500).optional(), // AI : Limit caption to 500 characters
   projectId: z.string().min(1).max(36), // AI : UUID length limit for project reference
+  replacesOverlayId: z.string().min(1).max(36).optional(), // AI : UUID for overlay replacement
   metadata: z.any().optional(),
   corners: z.array(z.object({
     lat: z.number().min(-90).max(90), // AI : Valid latitude range
@@ -29,6 +30,7 @@ const overlaySelectFields = {
   status: overlays.status,
   projectId: overlays.projectId,
   authorId: overlays.authorId,
+  replacesOverlayId: overlays.replacesOverlayId,
   metadata: overlays.metadata,
   topLeftLat: overlays.topLeftLat,
   topLeftLng: overlays.topLeftLng,
@@ -135,6 +137,7 @@ export const overlayRouter = router({
         const overlayData = {
           caption: input.caption,
           projectId: input.projectId,
+          replacesOverlayId: input.replacesOverlayId ?? null,
           metadata: null, // AI : Keep metadata empty as requested
           topLeftLat: topLeft.lat,
           topLeftLng: topLeft.lng,

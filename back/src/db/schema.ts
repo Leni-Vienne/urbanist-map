@@ -57,6 +57,7 @@ export const overlays = pgTable('overlays', {
   status: approvalStatusEnum('status').default('pending').notNull(),
   projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
   authorId: uuid('author_id').references(() => users.id, { onDelete: 'set null', onUpdate: 'cascade' }),
+  replacesOverlayId: uuid('replaces_overlay_id'), // AI : Reference to the overlay this replaces (self-reference added via relations)
   metadata: jsonb('metadata'), // pour EXIF, etc.
 
   // Coordonnées des 4 coins (séparées)
@@ -86,6 +87,11 @@ export const overlaysRelations = relations(overlays, ({ one }) => ({
   author: one(users, {
     fields: [overlays.authorId],
     references: [users.id],
+  }),
+  replacesOverlay: one(overlays, {
+    fields: [overlays.replacesOverlayId],
+    references: [overlays.id],
+    relationName: 'overlay_replacement'
   }),
 }));
 

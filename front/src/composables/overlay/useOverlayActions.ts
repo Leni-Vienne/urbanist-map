@@ -18,6 +18,7 @@ function transformBackendOverlayToCDN(backendOverlay: BackendOverlay): CDNOverla
     filename: backendOverlay.filename,
     caption: backendOverlay.caption ?? undefined,
     projectId: backendOverlay.projectId,
+    replacesOverlayId: backendOverlay.replacesOverlayId ?? undefined,
     project: backendOverlay.projectName ? {
       id: backendOverlay.projectId ?? '',
       title: backendOverlay.projectName,
@@ -68,8 +69,10 @@ function createNewOverlayObject(id: string, imageUrl: string, projectId: string)
     status: 'pending',
     projectId,
     authorId: null,
+    replacesOverlayId: null,
     metadata: null,
-    topLeftLat: 0, // AI : Will be set when overlay loads
+    // AI : Use 0 for coordinates to indicate they need to be set by leaflet-distortableimage
+    topLeftLat: 0,
     topLeftLng: 0,
     topRightLat: 0,
     topRightLng: 0,
@@ -159,7 +162,7 @@ function saveOverlayWithCurrentCorners(overlayObject: OverlayObject): void {
   console.log('AI : Overlay corners updated in memory:', overlayObject.id);
 }
 
-export async function addOverlay(imageUrl: string, projectId: string) {
+export async function addOverlay(imageUrl: string, projectId: string, replacesOverlayId?: string) {
   // AI : Only allow adding overlays in edit mode
   if (!isEditMode.value) {
     console.warn('Cannot add overlay in view mode');
@@ -177,6 +180,13 @@ export async function addOverlay(imageUrl: string, projectId: string) {
   // AI : Create overlay object using proper schema structure
   const overlayObject = createNewOverlayObject(id, imageUrl, projectId);
 
+  // AI : If this is a replacement overlay, set the replacement reference
+  if (replacesOverlayId) {
+    overlayObject.replacesOverlayId = replacesOverlayId;
+    const originalOverlay = overlays.value[replacesOverlayId];
+    overlayObject.caption = `Replacement for ${originalOverlay?.caption ?? 'overlay'}`;
+  }
+
   // Create the overlay
   const newOverlay = await createOverlay(imageUrl, overlayObject);
   if (!newOverlay) return;
@@ -184,13 +194,20 @@ export async function addOverlay(imageUrl: string, projectId: string) {
   // Store reference and initialize
   overlays.value[id] = overlayObject;
   
-  // AI : Create marker immediately when overlay is created, not waiting for image load
-  createMarkerForNewOverlay(overlayObject, projectId);
+  // AI : Create marker with appropriate color based on replacement status
+  if (replacesOverlayId) {
+    createReplacementMarker(overlayObject, projectId);
+  } else {
+    createMarkerForNewOverlay(overlayObject, projectId);
+  }
   
   // AI : Don't set up custom load handler - let the existing setupOverlayLoadHandler handle it
   // The existing system in useOverlay.ts will call onOverlayLoaded which handles all initialization
   
   await addOverlayToProjectWithId(projectId, id);
+  
+  // AI : Select the new overlay (important for replacement overlays)
+  idSelectedOverlay.value = id;
   
   return id;
 }
@@ -761,5 +778,115 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
   
   // AI : Save only the specific overlay being updated, not all overlays
   saveOverlayWithCurrentCorners(overlayObject);
+}
+
+/**
+ * AI : Replace an existing overlay with a new image
+ * Creates a new local overlay that references the original overlay for replacement
+ */
+export async function replaceOverlay(originalOverlayId: string, newImageFile: File) {
+  if (!isEditMode.value) {
+    console.warn('Cannot replace overlay in view mode');
+    return;
+  }
+  
+  if (!map.value || !overlays.value[originalOverlayId]) {
+    console.error('Map not available or overlay not found');
+    return;
+  }
+
+  const originalOverlay = overlays.value[originalOverlayId];
+  
+  try {
+    // AI : Convert file to data URL for local overlay creation
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const imageUrl = reader.result as string;
+      const newOverlayId = crypto.randomUUID();
+      
+      // AI : Create replacement overlay object exactly like a new overlay
+      const replacementOverlay = createNewOverlayObject(newOverlayId, imageUrl, originalOverlay.projectId ?? '');
+      
+      // AI : Set the replacement reference and visual indicator
+      replacementOverlay.replacesOverlayId = originalOverlayId;
+      replacementOverlay.caption = `Replacement for ${originalOverlay.caption ?? 'overlay'}`;
+      
+      // AI : Create the overlay on the map (identical to new overlay process)
+      const newOverlay = await createOverlay(imageUrl, replacementOverlay);
+      if (!newOverlay) return;
+
+      // AI : Store reference and initialize exactly like addOverlay
+      overlays.value[newOverlayId] = replacementOverlay;
+      
+      // AI : Create marker with violet color to indicate replacement
+      createReplacementMarker(replacementOverlay, originalOverlay.projectId ?? '');
+      
+      // AI : For replacement overlays, don't try to add to local project store
+      // The replacement relationship is handled via the replacesOverlayId field in the backend
+      // No need to update local project structures for replacements
+      
+      // AI : Select the new replacement overlay
+      idSelectedOverlay.value = newOverlayId;
+      
+      toast.add({
+        severity: 'success',
+        summary: 'Replacement Created',
+        detail: 'Replacement overlay created. Position it and click "Publish Overlay" to submit for review.',
+        life: 5000
+      });
+    };
+    
+    reader.readAsDataURL(newImageFile);
+  } catch (error) {
+    console.error('Error creating replacement overlay:', error);
+    throw error;
+  }
+}
+
+/**
+ * AI : Create a violet marker for replacement overlays (identical to new overlay process)
+ */
+function createReplacementMarker(overlayObject: any, projectId: string) {
+  if (!map.value) return;
+  
+  // AI : Use current map center as initial marker position (identical to createMarkerForNewOverlay)
+  const center = map.value.getCenter();
+  
+  // AI : Use unified marker creation system with proper color and tooltip handling
+  let markerTitle = 'Replacement Overlay';
+  if (projectId && projects.value[projectId]) {
+    const project = projects.value[projectId];
+    const captionPart = overlayObject.caption ? ` - ${overlayObject.caption}` : '';
+    markerTitle = `${project.name} - ${markerTitle}${captionPart}`;
+  }
+
+  // AI : Create violet marker for replacement overlays
+  const colorIcon = createColorIcon('violet');
+  
+  const marker = L.marker(center, {
+    title: markerTitle,
+    icon: colorIcon
+  }).addTo(map.value);
+  
+  // AI : Add click handler to marker to select the overlay (identical to createMarkerForNewOverlay)
+  marker.on('click', () => {
+    if (overlayObject.overlay) {
+      // AI : If overlay exists, click it to select
+      const element = overlayObject.overlay.getElement();
+      if (element) {
+        element.click();
+      }
+    } else {
+      // AI : If overlay doesn't exist yet, just select it
+      idSelectedOverlay.value = overlayObject.id;
+    }
+  });
+  
+  // AI : Store marker reference (identical to createMarkerForNewOverlay)
+  overlayObject.marker = marker;
+  allMarkers.value[overlayObject.id] = marker;
+  
+  // AI : Update marker tooltip with proper styling
+  updateMarkerTooltip(overlayObject);
 }
 

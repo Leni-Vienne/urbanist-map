@@ -114,7 +114,6 @@ export function createOverlayObject(savedOverlay: StoredOverlayData): OverlayObj
  * AI : Create a Leaflet overlay on the map
  */
 export async function createOverlay(imageUrl: string, overlayObject?: OverlayObject) {
-  console.log("Creating overlay with imageUrl:", imageUrl);
   if (!map.value || !overlayObject) return null;
 
   overlayObject.imageUrl ??= imageUrl;
@@ -316,8 +315,13 @@ function getCornersForOverlay(overlayObject: OverlayObject) {
     if (lastCorners?.length === 4) return lastCorners;
   }
 
-  // AI : Priority 2: Use individual lat/lng fields
-  if (overlayObject.topLeftLat != null && overlayObject.topLeftLng != null) {
+  // ugly but since the type expects non null AND DistortableImage needs null corners for the initial state
+  // AI : Priority 2: Use individual lat/lng fields (skip if all zeros - indicates new overlay)
+  if (overlayObject.topLeftLat != null && overlayObject.topLeftLng != null && 
+      !(overlayObject.topLeftLat === 0 && overlayObject.topLeftLng === 0 && 
+        overlayObject.topRightLat === 0 && overlayObject.topRightLng === 0 &&
+        overlayObject.bottomRightLat === 0 && overlayObject.bottomRightLng === 0 &&
+        overlayObject.bottomLeftLat === 0 && overlayObject.bottomLeftLng === 0)) {
     return [
       { lat: overlayObject.topLeftLat, lng: overlayObject.topLeftLng },
       { lat: overlayObject.topRightLat, lng: overlayObject.topRightLng },
@@ -673,6 +677,7 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData, createMar
     metadata: null,
     createdAt: new Date(cdnOverlay.createdAt ?? Date.now()),
     updatedAt: new Date(),
+    replacesOverlayId: cdnOverlay.replacesOverlayId ?? null,
     topLeftLat: corners[0].lat,
     topLeftLng: corners[0].lng,
     topRightLat: corners[1].lat,
@@ -764,9 +769,12 @@ export function updateMarkerTooltip(overlayObject: OverlayObject): void {
     // AI : Generate tooltip text based on overlay state
     const isRemoteOverlay = overlayObject.project !== undefined;
     const hasBeenModified = overlayObject.isModified;
+    const isReplacement = overlayObject.replacesOverlayId !== null;
     
     let tooltipText = '';
-    if (isRemoteOverlay && !hasBeenModified) {
+    if (isReplacement) {
+      tooltipText = 'Replacement overlay';
+    } else if (isRemoteOverlay && !hasBeenModified) {
       tooltipText = 'Saved remotely';
     } else if (isRemoteOverlay && hasBeenModified) {
       tooltipText = 'Remote overlay (modified)';
@@ -790,6 +798,11 @@ export function updateMarkerTooltip(overlayObject: OverlayObject): void {
 function getMarkerColorForStorageStatus(overlayObject: OverlayObject): 'blue' | 'green' | 'orange' | 'red' | 'gold' | 'yellow' | 'violet' | 'grey' | 'black' {
   if (isEditMode.value) {
     // AI : In edit mode, show different colors based on overlay state
+    
+    // AI : Check if this is a replacement overlay first (highest priority)
+    if (overlayObject.replacesOverlayId !== null) {
+      return 'violet';
+    }
     
     // AI : Check if overlay was loaded from CDN (has project data from backend)
     const isRemoteOverlay = overlayObject.project !== undefined;

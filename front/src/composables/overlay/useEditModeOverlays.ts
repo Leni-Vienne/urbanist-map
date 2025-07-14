@@ -112,18 +112,25 @@ function createEditModeOverlayMarker(overlay: OverlayObject): void {
 
 // AI : Helper function to get edit mode marker color
 function getEditModeMarkerColor(overlayObject: OverlayObject): 'blue' | 'green' | 'orange' | 'red' | 'gold' | 'yellow' | 'violet' | 'grey' | 'black' {
-  const { savedRemotely, alreadyStored } = overlayObject;
-
-  if (savedRemotely && !alreadyStored) {
-    return 'green'; // AI : Remote overlay not stored locally
-  } else if (savedRemotely && alreadyStored) {
-    return 'orange'; // AI : Remote overlay with local copy
-  } else if (!savedRemotely) {
-    return 'red'; // AI : Local only overlay (new or existing local overlay)
+  // AI : Check if overlay was loaded from CDN (has project data from backend)
+  const isRemoteOverlay = overlayObject.project !== undefined;
+  
+  // AI : Check if overlay has been modified locally
+  const hasBeenModified = overlayObject.isModified;
+  
+  if (isRemoteOverlay && !hasBeenModified) {
+    // AI : Remote overlay, not modified = green
+    return 'green';
+  } else if (isRemoteOverlay && hasBeenModified) {
+    // AI : Remote overlay, modified locally = orange
+    return 'orange';
+  } else if (!isRemoteOverlay && hasBeenModified) {
+    // AI : Local overlay with changes = red
+    return 'red';
+  } else {
+    // AI : New overlay, no changes = blue
+    return 'blue';
   }
-
-  // AI : Fallback to blue for any edge cases
-  return 'blue';
 }
 
 /**
@@ -147,15 +154,15 @@ async function loadFullOverlay(overlayId: string): Promise<void> {
 
     // AI : Load the full overlay by triggering its display
     // AI : In edit mode, we need to ensure the overlay is loaded and visible
-    if (!overlay.alreadyLoaded) {
-      // AI : Load the overlay if not already loaded - create the overlay if it doesn't exist
-      if (!overlay.overlay) {
-        const newOverlay = await createOverlay(overlay.imageUrl, overlay);
-        if (newOverlay) {
-          overlay.overlay = newOverlay;
-        }
+    // AI : Load the overlay if not already loaded - create the overlay if it doesn't exist
+    if (!overlay.overlay) {
+      console.log(`AI : Loading full overlay ${overlayId}...`);
+      const newOverlay = await createOverlay(overlay.imageUrl, overlay);
+      if (newOverlay) {
+        overlay.overlay = newOverlay;
       }
     } else if (overlay.overlay && map.value) {
+      console.log(`AI : Overlay ${overlayId} already loaded, adding to map`);
       // AI : If already loaded, just make sure it's visible on the map
       overlay.overlay.addTo(map.value);
     }

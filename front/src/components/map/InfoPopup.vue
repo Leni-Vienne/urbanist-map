@@ -96,6 +96,10 @@
             <span class="font-medium text-gray-600">Name:</span>
             <span class="text-right">{{ currentOverlay.caption ?? 'Not specified' }}</span>
           </div>
+          <div v-if="currentOverlay.replacesOverlayId" class="flex justify-between">
+            <span class="font-medium text-gray-600">Type:</span>
+            <span class="text-right text-purple-600 font-medium">Replacement Overlay</span>
+          </div>
         </div>
         <OverlayEditor
           ref="overlayEditorRef"
@@ -562,6 +566,7 @@ async function publishOverlayToServer(filename: string): Promise<{ success: bool
     filename: filename,
     caption: currentOverlay.value.caption ?? undefined,
     projectId: currentOverlay.value.projectId!,
+    replacesOverlayId: currentOverlay.value.replacesOverlayId ?? undefined,
     metadata: {
       // AI : Keep metadata empty as requested - no caption or history data
     },
@@ -572,10 +577,15 @@ async function publishOverlayToServer(filename: string): Promise<{ success: bool
 
   if (overlayResult.success) {
     const actionText = overlayResult.exists ? 'updated on' : 'saved to';
+    const summaryText = currentOverlay.value.replacesOverlayId ? 'Replacement Submitted' : 'Overlay Published';
+    const detailText = currentOverlay.value.replacesOverlayId 
+      ? `Replacement overlay has been submitted for moderation review` 
+      : `Overlay has been ${actionText} the server database`;
+    
     toast.add({
       severity: 'success',
-      summary: 'Overlay Published',
-      detail: `Overlay has been ${actionText} the server database`,
+      summary: summaryText,
+      detail: detailText,
       life: 3000
     });
     return { success: true, exists: overlayResult.exists, id: overlayResult.id };
