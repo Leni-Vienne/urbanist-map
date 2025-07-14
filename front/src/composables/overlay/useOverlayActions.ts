@@ -3,7 +3,7 @@ import { map } from '@composables/core/useMap';
 import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, isEditMode, removeOverlay, allMarkers, updateMarkerTooltip, renderViewModeOverlays } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
 import { projects, addOverlayToProjectWithId } from '@composables/project/useProjects';
-import type { OverlayObject, CDNOverlayData } from '@types';
+import type { OverlayObject, CDNOverlayData, MarkerColor } from '@types';
 import { router } from '../../router';
 import { createColorIcon } from '@composables/ui/colorMarkers';
 import { trpc } from '../../client';
@@ -266,7 +266,7 @@ function createMarkerForNewOverlay(overlayObject: any, projectId: string) {
 }
 
 // AI : Helper function to determine marker color (simplified - no storage state)
-function getMarkerColorForEditMode(): 'blue' | 'green' | 'orange' | 'red' | 'gold' | 'yellow' | 'violet' | 'grey' | 'black' {
+function getMarkerColorForEditMode(): MarkerColor {
   // AI : All overlays are local in edit mode, use consistent color
   return 'blue';
 }

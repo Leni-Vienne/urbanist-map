@@ -29,6 +29,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 import L from 'leaflet';
+import type { MarkerColor } from '@types';
 
 const iconSize = [25, 41] as [number, number];
 const iconAnchor = [12, 41] as [number, number];
@@ -159,7 +160,7 @@ export const blackIcon = L.Icon.extend({
 });
 
 // AI : Helper function to create instances of color icons
-export function createColorIcon(color: 'blue' | 'gold' | 'red' | 'green' | 'orange' | 'yellow' | 'violet' | 'grey' | 'black'): L.Icon {
+export function createColorIcon(color: MarkerColor): L.Icon {
 	const iconMap = {
 		blue: blueIcon,
 		gold: goldIcon,

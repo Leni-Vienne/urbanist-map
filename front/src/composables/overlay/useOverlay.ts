@@ -1,5 +1,6 @@
-// AI : Import getConstructionMarkerColor from useCityMarkers for unified color logic
-import { getConstructionMarkerColor, updateOverlayMarkers, applyCachedOverlayState, updateCachedOverlayData } from '@composables/map/useCityMarkers';
+// AI : Import utility functions from useCityMarkers
+import { updateOverlayMarkers, applyCachedOverlayState, updateCachedOverlayData } from '@composables/map/useCityMarkers';
+import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
 import L from "leaflet";
 import 'leaflet-toolbar'
 import 'leaflet-distortableimage'; // using "-updated" to prevent "WebSocket connection to 'ws://localhost:8081/ws' failed:" error
@@ -786,7 +787,7 @@ export function updateMarkerTooltip(overlayObject: OverlayObject): void {
 
   overlayObject.marker.unbindTooltip();
 
-  const markerColor = getMarkerColorForStorageStatus(overlayObject);
+  const markerColor = getOverlayMarkerColor(overlayObject);
   const colorIcon = createColorIcon(markerColor);
   overlayObject.marker.setIcon(colorIcon);
 
@@ -818,52 +819,6 @@ export function updateMarkerTooltip(overlayObject: OverlayObject): void {
 }
 
 /**
- * AI : Determine marker color based on mode and status
- */
-function getMarkerColorForStorageStatus(overlayObject: OverlayObject): 'blue' | 'green' | 'orange' | 'red' | 'gold' | 'yellow' | 'violet' | 'grey' | 'black' {
-  if (isEditMode.value) {
-    // AI : In edit mode, show different colors based on overlay state
-    
-    // AI : Check if this is a replacement overlay first (highest priority)
-    if (overlayObject.replacesOverlayId !== null) {
-      return 'violet';
-    }
-    
-    // AI : Check if overlay was loaded from CDN (has project data from backend)
-    const isRemoteOverlay = overlayObject.project !== undefined;
-    
-    // AI : Check if overlay has been modified locally
-    const hasBeenModified = overlayObject.isModified;
-    
-    if (isRemoteOverlay && !hasBeenModified) {
-      // AI : Remote overlay, not modified = green
-      return 'green';
-    } else if (isRemoteOverlay && hasBeenModified) {
-      // AI : Remote overlay, modified locally = orange
-      return 'orange';
-    } else if (!isRemoteOverlay && hasBeenModified) {
-      // AI : Local overlay with changes = red
-      return 'red';
-    } else {
-      // AI : New overlay, no changes = blue
-      return 'blue';
-    }
-  }
-
-  // AI : View mode - use construction timeline colors
-  let startDate: string | Date | null | undefined = null;
-  let endDate: string | Date | null | undefined = null;
-  if (overlayObject.project) {
-    startDate = overlayObject.project.startDate;
-    endDate = overlayObject.project.endDate;
-  } else if ((overlayObject as any).startDate || (overlayObject as any).endDate) {
-    startDate = (overlayObject as any).startDate;
-    endDate = (overlayObject as any).endDate;
-  }
-  return getConstructionMarkerColor(startDate, endDate);
-}
-
-/**
  * AI : Create a single marker for an overlay
  */
 function createSingleMarker(savedOverlay: StoredOverlayData): void {
@@ -882,7 +837,7 @@ function createSingleMarker(savedOverlay: StoredOverlayData): void {
   const center = overlayBounds.getCenter();
 
   const tempOverlayObject = createOverlayObject(savedOverlay);
-  const markerColor = getMarkerColorForStorageStatus(tempOverlayObject);
+  const markerColor = getOverlayMarkerColor(tempOverlayObject);
   const colorIcon = createColorIcon(markerColor);
 
   const marker = L.marker(center, {
