@@ -84,6 +84,7 @@ export interface CDNOverlayData {
   corners: { lat: number; lng: number }[];
   distance: number;
   createdAt: Date | null;
+  isModified?: boolean; // AI : Track if overlay has been modified locally
 }
 
 export type PendingOverlay = RouterOutput['moderation']['getPendingSubmissions']['overlays'][number];
