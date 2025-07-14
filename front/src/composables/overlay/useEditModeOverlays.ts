@@ -6,6 +6,7 @@ import { overlays } from '@stores/overlayStore';
 import { projects } from '@stores/projectStore';
 import { createColorIcon } from '@composables/ui/colorMarkers';
 import { clearAllOverlays, createOverlay } from '@composables/overlay/useOverlay';
+import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
 import type { CameraBounds, OverlayObject } from '@types';
 
 // AI : Distance threshold for loading full overlay images in edit mode (in meters)
@@ -77,7 +78,7 @@ function createEditModeOverlayMarker(overlay: OverlayObject): void {
   const centerLng = (overlay.corners[0].lng + overlay.corners[3].lng) / 2;
 
   // AI : Get marker color based on edit mode storage status
-  const markerColor = getEditModeMarkerColor(overlay);
+  const markerColor = getOverlayMarkerColor(overlay, 'edit');
   const markerIcon = createColorIcon(markerColor);
 
   // AI : Create marker with overlay ID stored for later reference
@@ -109,29 +110,6 @@ function createEditModeOverlayMarker(overlay: OverlayObject): void {
 
   // AI : Add marker to layer group
   editModeOverlayMarkers.addLayer(marker);
-}
-
-// AI : Helper function to get edit mode marker color
-function getEditModeMarkerColor(overlayObject: OverlayObject): 'blue' | 'green' | 'orange' | 'red' | 'gold' | 'yellow' | 'violet' | 'grey' | 'black' {
-  // AI : Check if overlay was loaded from CDN (has project data from backend)
-  const isRemoteOverlay = overlayObject.project !== undefined;
-  
-  // AI : Check if overlay has been modified locally
-  const hasBeenModified = overlayObject.isModified;
-  
-  if (isRemoteOverlay && !hasBeenModified) {
-    // AI : Remote overlay, not modified = green
-    return 'green';
-  } else if (isRemoteOverlay && hasBeenModified) {
-    // AI : Remote overlay, modified locally = orange
-    return 'orange';
-  } else if (!isRemoteOverlay && hasBeenModified) {
-    // AI : Local overlay with changes = red
-    return 'red';
-  } else {
-    // AI : New overlay, no changes = blue
-    return 'blue';
-  }
 }
 
 /**

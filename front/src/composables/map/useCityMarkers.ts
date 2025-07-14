@@ -7,7 +7,8 @@ import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
 import { selectedProjectId } from '@stores/projectStore';
 import { overlays, isEditMode } from '@stores/overlayStore';
 import { trpc, RouterOutput } from '@client';
-import type { CDNOverlayData } from '@types';
+import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
+import type { CDNOverlayData, MarkerColor } from '@types';
 
 // AI : Minimum zoom level required to load city projects and overlays
 const MIN_ZOOM_FOR_OVERLAYS = 12;
@@ -627,7 +628,7 @@ export function checkZoomAndHideOverlays(): void {
  * @param endDate - The construction end date (string or Date or null)
  * @returns 'blue' | 'grey' | 'orange'
  */
-export function getConstructionMarkerColor(startDate: string | Date | null | undefined, endDate: string | Date | null | undefined): 'blue' | 'grey' | 'orange' {
+export function getConstructionMarkerColor(startDate: string | Date | null | undefined, endDate: string | Date | null | undefined): MarkerColor {
   const now = new Date();
   const start = startDate ? new Date(startDate) : null;
   const end = endDate ? new Date(endDate) : null;
@@ -646,7 +647,7 @@ export function getConstructionMarkerColor(startDate: string | Date | null | und
  * @param overlayData - The CDN overlay data
  * @returns Object with marker color and position
  */
-function getOverlayMarkerInfo(overlayData: CDNOverlayData): { color: 'blue' | 'green' | 'orange' | 'red' | 'gold' | 'yellow' | 'violet' | 'grey' | 'black', position: { lat: number, lng: number } } {
+function getOverlayMarkerInfo(overlayData: CDNOverlayData): { color: MarkerColor, position: { lat: number, lng: number } } {
   let position = { lat: overlayData.centroid.lat, lng: overlayData.centroid.lng };
   
   // AI : Check if we're in edit mode and if the overlay exists in the overlays store
@@ -663,30 +664,9 @@ function getOverlayMarkerInfo(overlayData: CDNOverlayData): { color: 'blue' | 'g
         position = { lat: centerLat, lng: centerLng };
       }
       
-      // AI : Check if this is a replacement overlay first (highest priority)
-      if (overlayObject.replacesOverlayId !== null) {
-        return { color: 'violet', position };
-      }
-      
-      // AI : Check if overlay was loaded from CDN (has project data from backend)
-      const isRemoteOverlay = overlayObject.project !== undefined;
-      
-      // AI : Check if overlay has been modified locally
-      const hasBeenModified = overlayObject.isModified;
-      
-      if (isRemoteOverlay && !hasBeenModified) {
-        // AI : Remote overlay, not modified = green
-        return { color: 'green', position };
-      } else if (isRemoteOverlay && hasBeenModified) {
-        // AI : Remote overlay, modified locally = orange
-        return { color: 'orange', position };
-      } else if (!isRemoteOverlay && hasBeenModified) {
-        // AI : Local overlay with changes = red
-        return { color: 'red', position };
-      } else {
-        // AI : New overlay, no changes = blue
-        return { color: 'blue', position };
-      }
+      // AI : Use centralized color logic
+      const color = getOverlayMarkerColor(overlayObject, 'edit');
+      return { color, position };
     } else {
       // AI : Use overlay position from cached data if available (for modified overlays)
       if (overlayData.corners && overlayData.corners.length >= 4) {
@@ -695,16 +675,14 @@ function getOverlayMarkerInfo(overlayData: CDNOverlayData): { color: 'blue' | 'g
         position = { lat: centerLat, lng: centerLng };
       }
       
-      // AI : Check if overlay has been modified in cached data
-      if (overlayData.isModified) {
-        // AI : Modified overlay (from cache) = orange
-        return { color: 'orange', position };
-      }
+      // AI : Use centralized color logic for cached data
+      const color = getOverlayMarkerColor(overlayData, 'edit');
+      return { color, position };
     }
   }
 
-  // AI : View mode or overlay not in store/cache - use construction timeline colors
-  const color = getConstructionMarkerColor(overlayData.project?.startDate, overlayData.project?.endDate);
+  // AI : View mode - use centralized color logic
+  const color = getOverlayMarkerColor(overlayData, 'view');
   return { color, position };
 }
 
