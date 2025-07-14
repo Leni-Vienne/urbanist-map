@@ -73,6 +73,7 @@ export interface CDNOverlayData {
   filename: string;
   caption?: string;
   projectId: string | null;
+  replacesOverlayId?: string | null;
   project: (DBProject & {
     city: DBCity | null;
   }) | null;

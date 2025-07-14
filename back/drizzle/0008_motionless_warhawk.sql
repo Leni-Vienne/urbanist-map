@@ -1,0 +1,1 @@
+ALTER TABLE "overlays" ADD COLUMN "replaces_overlay_id" uuid;

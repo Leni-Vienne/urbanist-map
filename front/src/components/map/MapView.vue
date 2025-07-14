@@ -71,12 +71,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, getCurrentInstance, watch, computed, inject, onBeforeUnmount } from 'vue';
+import { ref, onMounted, onUnmounted, getCurrentInstance, watch, computed, inject } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 
 import { initializeMap, disableLeafletKeyboardEvents, currentZoomLevel } from '@composables/core/useMap';
 import { initializeCameraBounds } from '@composables/map/useCameraBounds';
-import { isEditMode } from '@composables/overlay/useOverlay';
+import { isEditMode, overlays } from '@composables/overlay/useOverlay';
 import { toggleEditMode } from '@composables/overlay/useEditMode';
 import { addOverlay, undo, redo } from '@composables/overlay/useOverlayActions';
 import { useToast } from '@composables/ui/useToast';
@@ -86,6 +86,7 @@ import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
 import { initializeCountryMarkers } from '@composables/map/useCountryMarkers';
 import { projects } from '@stores/projectStore';
 import { fetchNearbyProjects } from '@composables/project/useNearbyProjects';
+import { showImageUploadDialog, replacementOverlayId, resetReplacement } from '@stores/overlayStore';
 import TileLayerSelector from '@components/map/TileLayerSelector.vue';
 import ProjectPicker from '@components/project/ProjectPicker.vue';
 import ImageUploadDialog from '@components/dialogs/ImageUploadDialog.vue';
@@ -95,7 +96,6 @@ const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 const showProjectSelector = ref(false);
-const showImageUploadDialog = ref(false);
 const pendingImageFile = ref<File | null>(null);
 const databaseInitialized = inject('databaseInitialized', ref(false));
 const isLoading = ref(true);
@@ -157,6 +157,7 @@ async function handleAddOverlayClick() {
 async function onImageUploadFromDialog(file: File) {
   pendingImageFile.value = file;
 
+  // AI : Always show project selector for both new overlays and replacements
   showProjectSelector.value = true;
 }
 
@@ -182,6 +183,7 @@ watch(isEditMode, (editMode) => {
 watch(() => showProjectSelector.value, (newVal) => {
   if (!newVal) {
     pendingImageFile.value = null;
+    // AI : Don't reset replacementOverlayId here as it's needed after project selection
   }
 });
 
@@ -196,9 +198,9 @@ onMounted(async () => {
     // Wait for database initialization
     const unwatch = watch(databaseInitialized, async (initialized) => {
       if (initialized) {
-        unwatch();
         await initializeMapAndOverlays();
         isLoading.value = false;
+        unwatch();
       }
     });
   } else {
@@ -206,10 +208,6 @@ onMounted(async () => {
     await initializeMapAndOverlays();
     isLoading.value = false;
   }
-});
-
-onBeforeUnmount(() => {
-  window.removeEventListener('keydown', handleKeyDown, true);
 });
 
 // AI : Process image after project selection
@@ -261,11 +259,11 @@ async function onProjectSelected(projectId: string) {
     }
   }
 
-  await handleFileUpload(projectId);
+  await handleFileUpload(projectId, !!replacementOverlayId.value);
 }
 
 // AI : Handle file upload by user
-async function handleFileUpload(projectId: string) {
+async function handleFileUpload(projectId: string, isReplacement: boolean = false) {
   if (!pendingImageFile.value) {
     console.warn('No image file to upload');
     toast.add({
@@ -280,18 +278,45 @@ async function handleFileUpload(projectId: string) {
 
   const reader = new FileReader();
   reader.onload = async () => {
-    const overlayId = await addOverlay(reader.result as string, projectId);
-    pendingImageFile.value = null;
-    showProjectSelector.value = false;
-
-    // Add success message
-    if (overlayId) {
-      toast.add({
-        severity: 'success',
-        summary: 'Overlay added',
-        detail: `Overlay has been added to project`,
-        life: 3000
+    try {
+      if (isReplacement && replacementOverlayId.value) {
+        // AI : Create replacement overlay using the standard overlay creation process
+        const overlayId = await addOverlay(reader.result as string, projectId, replacementOverlayId.value);
+        
+        if (overlayId) {
+          toast.add({ 
+            severity: 'success', 
+            summary: 'Replacement Overlay Created', 
+            detail: 'Your replacement overlay has been created and is ready for editing',
+            life: 3000 
+          });
+        }
+      } else {
+        // AI : Regular overlay addition
+        const overlayId = await addOverlay(reader.result as string, projectId);
+        
+        if (overlayId) {
+          toast.add({
+            severity: 'success',
+            summary: 'Overlay added',
+            detail: `Overlay has been added to project`,
+            life: 3000
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error handling file upload:', error);
+      toast.add({ 
+        severity: 'error', 
+        summary: 'Upload Failed', 
+        detail: 'Failed to process the image overlay',
+        life: 3000 
       });
+    } finally {
+      // AI : Reset state
+      resetReplacement();
+      pendingImageFile.value = null;
+      showProjectSelector.value = false;
     }
   };
   reader.readAsDataURL(pendingImageFile.value);

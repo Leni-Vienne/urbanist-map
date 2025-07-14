@@ -210,6 +210,26 @@ export const customDeleteTool = L.Toolbar2.Action.extend({
   },
 });
 
+export const replaceOverlayTool = L.Toolbar2.Action.extend({
+  options: {
+    toolbarIcon: {
+      className: "pi pi-image",
+      tooltip: "Replace this overlay image",
+    },
+  },
+  addHooks: async function () {
+    if (!idSelectedOverlay.value) {
+      return;
+    }
+    
+    // AI : Import the overlay store for replacement functionality
+    const { requestOverlayReplacement } = await import('@stores/overlayStore');
+    
+    // AI : Request overlay replacement using the store
+    requestOverlayReplacement(idSelectedOverlay.value);
+  },
+});
+
 // all actions (not all in docs) : L.DistortAction, L.FreeRotateAction, L.OpacityAction, L.DeleteAction, L.StackAction, L.EditAction, L.RotateAction, L.ScaleAction, L.TranslateAction, L.OpacitiesAction, L.GeolocateAction, L.RestoreAction, L.UnlockAction
 // L.RotateAction,
 // L.EditAction is empty
@@ -239,6 +259,7 @@ export const editTools = [
   previousOverlayTool,
   nextOverlayTool,
   L.StackAction,
+  replaceOverlayTool,
   customDeleteTool,
 ];
 

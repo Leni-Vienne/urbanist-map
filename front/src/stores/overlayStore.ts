@@ -5,3 +5,18 @@ import type { OverlayObject } from '@types';
 export const overlays = shallowRef<Record<string, OverlayObject>>({});
 export const idSelectedOverlay = ref<string | null>(null);
 export const isEditMode = ref<boolean>(false);
+
+// AI : Replacement overlay functionality
+export const replacementOverlayId = ref<string | null>(null);
+export const showImageUploadDialog = ref<boolean>(false);
+
+// AI : Request overlay replacement (replaces EventBus functionality)
+export function requestOverlayReplacement(overlayId: string) {
+  replacementOverlayId.value = overlayId;
+  showImageUploadDialog.value = true;
+}
+
+// AI : Reset replacement state
+export function resetReplacement() {
+  replacementOverlayId.value = null;
+}

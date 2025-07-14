@@ -57,6 +57,13 @@
       "when": 1751839942867,
       "tag": "0007_small_dreadnoughts",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1752433239415,
+      "tag": "0008_motionless_warhawk",
+      "breakpoints": true
     }
   ]
 }
