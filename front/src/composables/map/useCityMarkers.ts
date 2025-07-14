@@ -11,7 +11,7 @@ import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColo
 import type { CDNOverlayData, MarkerColor } from '@types';
 
 // AI : Minimum zoom level required to load city projects and overlays
-const MIN_ZOOM_FOR_OVERLAYS = 12;
+export const MIN_ZOOM_FOR_OVERLAYS = 12;
 // AI : Opacity constants for city markers
 const CITY_MARKER_OPACITY = 0.6; // AI : Default opacity for city markers
 const CITY_MARKER_HOVER_OPACITY = 1; // AI : Opacity for city markers on hover
@@ -40,6 +40,9 @@ export let latestClickedCity: { id: string; name: string; countryCode?: string }
 
 // AI : Cache for city projects data to avoid repeated API calls
 const cityProjectsCache = new Map<string, CDNOverlayData[]>();
+
+// AI : Separate cache for edit mode modifications (keeps original cache pristine)
+const editModeOverlayCache = new Map<string, { corners: { lat: number, lng: number }[], isModified: boolean }>();
 
 // AI : Mouse tooltip element for guidance
 let mouseTooltip: HTMLElement | null = null;
@@ -397,6 +400,37 @@ export function clearCityProjectsCache(): void {
 }
 
 /**
+ * AI : Clear edit mode cache for overlay modifications
+ */
+export function clearEditModeOverlayCache(): void {
+  editModeOverlayCache.clear();
+  console.log('AI : Edit mode overlay cache cleared');
+}
+
+/**
+ * AI : Get overlay data with edit modifications applied (for edit mode)
+ * @param overlayData - Original overlay data
+ * @returns Overlay data with edit modifications applied if in edit mode
+ */
+function getOverlayDataWithEditModifications(overlayData: CDNOverlayData): CDNOverlayData {
+  if (!isEditMode.value) {
+    return overlayData; // AI : Return original data in view mode
+  }
+
+  const editModifications = editModeOverlayCache.get(overlayData.id);
+  if (editModifications) {
+    // AI : Apply edit modifications
+    return {
+      ...overlayData,
+      corners: editModifications.corners,
+      isModified: editModifications.isModified
+    };
+  }
+
+  return overlayData; // AI : No modifications found
+}
+
+/**
  * AI : Clear cache for a specific city
  */
 export function clearCityProjectsCacheForCity(cityId: string): void {
@@ -412,6 +446,7 @@ export function cleanupCityMarkers(): void {
   removeOverlayMarkers();
   cleanupMouseTooltip();
   clearCityProjectsCache();
+  clearEditModeOverlayCache(); // AI : Clear edit modifications on cleanup
   latestClickedCity = null;
 }
 
@@ -505,7 +540,7 @@ async function renderFullOverlaysFromCache(cityId: string, cityName: string): Pr
 /**
  * AI : Render overlay markers from cached data
  */
-function renderOverlayMarkersFromCache(cityId: string, cityName: string): void {
+export function renderOverlayMarkersFromCache(cityId: string, cityName: string): void {
   const overlaysData = cityProjectsCache.get(cityId);
   if (!overlaysData) {
     console.warn(`AI : No cached data found for city ${cityName}`);
@@ -668,20 +703,23 @@ function getOverlayMarkerInfo(overlayData: CDNOverlayData): { color: MarkerColor
       const color = getOverlayMarkerColor(overlayObject, 'edit');
       return { color, position };
     } else {
-      // AI : Use overlay position from cached data if available (for modified overlays)
-      if (overlayData.corners && overlayData.corners.length >= 4) {
-        const centerLat = (overlayData.corners[0].lat + overlayData.corners[3].lat) / 2;
-        const centerLng = (overlayData.corners[0].lng + overlayData.corners[3].lng) / 2;
+      // AI : No overlay object loaded, check edit cache for modifications
+      const overlayDataWithMods = getOverlayDataWithEditModifications(overlayData);
+      
+      // AI : Use modified position if available
+      if (overlayDataWithMods.corners && overlayDataWithMods.corners.length >= 4) {
+        const centerLat = (overlayDataWithMods.corners[0].lat + overlayDataWithMods.corners[3].lat) / 2;
+        const centerLng = (overlayDataWithMods.corners[0].lng + overlayDataWithMods.corners[3].lng) / 2;
         position = { lat: centerLat, lng: centerLng };
       }
       
-      // AI : Use centralized color logic for cached data
-      const color = getOverlayMarkerColor(overlayData, 'edit');
+      // AI : Use centralized color logic with modified data
+      const color = getOverlayMarkerColor(overlayDataWithMods, 'edit');
       return { color, position };
     }
   }
 
-  // AI : View mode - use centralized color logic
+  // AI : View mode - always use original cached data (no edit modifications)
   const color = getOverlayMarkerColor(overlayData, 'view');
   return { color, position };
 }
@@ -722,32 +760,61 @@ export function updateOverlayMarkers(): void {
  * This function should be called from the overlay rendering process
  * @returns true if cached state was applied, false otherwise
  */
-export function applyCachedOverlayState(_overlayId: string, _overlayObject: any): boolean {
-  // AI : No longer using overlay states cache - overlay data is updated directly in cityProjectsCache
+export function applyCachedOverlayState(overlayId: string, overlayObject: any): boolean {
+  if (!isEditMode.value || !overlayObject.overlay) {
+    return false;
+  }
+
+  // AI : Check if we have edit modifications for this overlay
+  const editModifications = editModeOverlayCache.get(overlayId);
+  if (editModifications && editModifications.corners && editModifications.corners.length === 4) {
+    try {
+      // AI : Apply the edit modifications to the overlay
+      overlayObject.overlay.setCorners(editModifications.corners);
+      overlayObject.isModified = editModifications.isModified;
+      console.log(`AI : Applied cached edit modifications for overlay ${overlayId}`);
+      return true;
+    } catch (error) {
+      console.error(`AI : Error applying cached edit modifications for overlay ${overlayId}:`, error);
+      return false;
+    }
+  }
+
   return false;
 }
 
 /**
  * AI : Update cached overlay data when an overlay is modified
- * This ensures there's only one source of truth for overlay data
+ * This stores modifications in a separate edit cache to keep original backend data pristine
  */
 export function updateCachedOverlayData(overlayId: string, newCorners: { lat: number, lng: number }[]): void {
-  if (!latestClickedCity || !cityProjectsCache.has(latestClickedCity.id)) {
-    return;
+  if (!isEditMode.value) {
+    return; // AI : Only update edit cache when in edit mode
   }
 
-  const overlaysData = cityProjectsCache.get(latestClickedCity.id)!;
-  const overlayIndex = overlaysData.findIndex(overlay => overlay.id === overlayId);
+  // AI : Store modifications in separate edit cache, keeping original cityProjectsCache pristine
+  editModeOverlayCache.set(overlayId, {
+    corners: [...newCorners],
+    isModified: true
+  });
   
-  if (overlayIndex !== -1) {
-    // AI : Update the corners and mark as modified in the cached data
-    overlaysData[overlayIndex] = {
-      ...overlaysData[overlayIndex],
-      corners: [...newCorners],
-      isModified: true // AI : Mark as modified so markers show correct color
-    };
-    
-    // AI : Update the cache
-    cityProjectsCache.set(latestClickedCity.id, overlaysData);
-  }
+  console.log(`AI : Cached edit modifications for overlay ${overlayId}`);
+}
+
+/**
+ * AI : Get cached overlay data for a specific city
+ * @param cityId - The city ID to get data for
+ * @returns The cached overlay data or null if not found
+ */
+export function getCachedCityProjectsData(cityId: string): CDNOverlayData[] | null {
+  return cityProjectsCache.get(cityId) ?? null;
+}
+
+/**
+ * AI : Check if city projects data is cached
+ * @param cityId - The city ID to check
+ * @returns True if data is cached, false otherwise
+ */
+export function hasCachedCityProjectsData(cityId: string): boolean {
+  return cityProjectsCache.has(cityId);
 }
