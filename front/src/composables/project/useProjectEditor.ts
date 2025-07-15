@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { 
-  projects, 
+  useProjects,
   createProject, 
   updateProject,
   getOverlaysForProject 
@@ -16,6 +16,9 @@ export function useProjectEditor(projectId: string, mode: 'edit' | 'view' | 'cre
   const router = useRouter();
   const toast = useToast();
   const { inFileUploadFlow } = useProjectManagerDialog();
+
+  // AI : Get store refs using the composable pattern
+  const { projects } = useProjects();
 
   // AI : Reactive state
   const editingProject = ref<Partial<Project>>({

@@ -129,8 +129,9 @@ import { ref, computed, watch, onMounted, nextTick } from 'vue';
 
 import { useToast } from '@composables/ui/useToast';
 import { updateTooltipText } from '@composables/overlay/useOverlayActions';
-import { projects, addOverlayToProjectWithId, removeOverlayFromProjectWithId } from '@stores/projectStore';
-import { overlays } from '@stores/overlayStore';
+import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { useProjectStore } from '@stores/pinia/projectStore';
+import { storeToRefs } from 'pinia';
 import { navigateToProjectEdit } from '@composables/ui/useRouterNavigation';
 import { loadCityProjects, citiesWithProjects, latestClickedCity } from '@composables/map/useCityMarkers';
 import { getNearbyProjects } from '@composables/project/useNearbyProjects';
@@ -138,6 +139,12 @@ import ProjectPicker from '@components/project/ProjectPicker.vue';
 import OverlayEditor from '@components/map/OverlayEditor.vue';
 import type { OverlayObject, Project } from '@types';
 import { trpc } from '@client'
+
+// AI : Get Pinia stores
+const overlayStore = useOverlayStore();
+const projectStore = useProjectStore();
+const { overlays } = storeToRefs(overlayStore);
+const { projects } = storeToRefs(projectStore);
 
 const props = defineProps<{
   overlayObject: OverlayObject;
@@ -262,7 +269,7 @@ async function applyProjectChange(projectId: string) {
 
     // AI : If overlay already belongs to a project, remove it first
     if (originalProjectId) {
-      await removeOverlayFromProjectWithId(originalProjectId, currentOverlay.value.id);
+      await projectStore.removeOverlayFromProjectWithId(originalProjectId, currentOverlay.value.id);
     }
 
     // AI : Check if project exists in local store, if not, try to get it from nearby projects
@@ -335,7 +342,7 @@ async function applyProjectChange(projectId: string) {
     }
 
     // AI : Add to the new project
-    await addOverlayToProjectWithId(projectId, currentOverlay.value.id);
+    await projectStore.addOverlayToProjectWithId(projectId, currentOverlay.value.id);
 
     // AI : Update local state - both the prop and reactive references
     currentOverlay.value.projectId = projectId;

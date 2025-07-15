@@ -71,7 +71,7 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { countries, deleteProjectById } from '@composables/project/useProjects';
+import { useProjects, deleteProjectById } from '@composables/project/useProjects';
 import { useToast } from '@composables/ui/useToast';
 import type { ProjectManagerMode } from '@composables/project/useProjectManagerDialog';
 import type { MenuItem } from 'primevue/menuitem';
@@ -84,6 +84,9 @@ import Dialog from 'primevue/dialog';
 
 const toast = useToast();
 const router = useRouter();
+
+// AI : Get store refs using the composable pattern
+const { countries } = useProjects();
 
 const showDeleteDialog = ref(false);
 const projectToDelete = ref<string | null>(null);

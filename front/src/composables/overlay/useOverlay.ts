@@ -4,10 +4,11 @@ import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColo
 import L from "leaflet";
 import 'leaflet-toolbar'
 import 'leaflet-distortableimage'; // using "-updated" to prevent "WebSocket connection to 'ws://localhost:8081/ws' failed:" error
-import { shallowRef } from 'vue';
+import { shallowRef, type Ref } from 'vue';
 import { map } from '@composables/core/useMap';
-import { overlays, idSelectedOverlay, isEditMode } from '@stores/overlayStore';
-import { projects } from '@stores/projectStore';
+import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { useProjectStore } from '@stores/pinia/projectStore';
+import { storeToRefs } from 'pinia';
 import type { OverlayObject, CDNOverlayData } from '@types';
 
 // AI : Simple type for overlay data used internally  
@@ -21,8 +22,26 @@ import { editTools, viewTools, infoTool } from '@composables/core/useTools';
 import { router } from '../../router';
 import { createColorIcon } from '@composables/ui/colorMarkers';
 
-// AI : Export the reactive stores from centralized location
-export { overlays, idSelectedOverlay, isEditMode };
+// AI : Export store refs that will be initialized when router navigation starts
+export let overlays: Ref<Record<string, OverlayObject>>;
+export let idSelectedOverlay: Ref<string | null>;
+export let isEditMode: Ref<boolean>;
+export let projects: Ref<Record<string, any>>;
+
+// AI : Initialize stores - will be called by router guard
+export function initializeStores() {
+  const overlayStore = useOverlayStore();
+  const projectStore = useProjectStore();
+  const storeRefs = storeToRefs(overlayStore);
+  const projectRefs = storeToRefs(projectStore);
+  
+  overlays = storeRefs.overlays;
+  idSelectedOverlay = storeRefs.idSelectedOverlay;
+  isEditMode = storeRefs.isEditMode;
+  projects = projectRefs.projects;
+  
+  return { ...storeRefs, ...projectRefs };
+}
 
 // Tracking of all markers, even for images not currently loaded
 export const allMarkers = shallowRef<Record<string, L.Marker>>({});
@@ -35,7 +54,7 @@ export function updateOverlayEditingState(): void {
   // AI : Store overlay data before recreating
   const overlayDataToRecreate: { [key: string]: { imageUrl: string; overlayObject: OverlayObject } } = {};
   
-  Object.values(overlays.value).forEach(overlayObject => {
+  Object.values(overlays.value).forEach((overlayObject: OverlayObject) => {
     if (!overlayObject.overlay) return;
 
     // AI : Store the overlay data for recreation
@@ -530,7 +549,7 @@ function enableOverlayEditing(overlay: L.DistortableImageOverlay, element: HTMLE
 export function clearAllOverlays(): void {
   if (!map.value) return;
 
-  Object.values(overlays.value).forEach((overlayObject) => {
+  Object.values(overlays.value).forEach((overlayObject: OverlayObject) => {
     if (overlayObject.overlay) {
       map.value!.removeLayer(overlayObject.overlay);
     }
@@ -556,7 +575,7 @@ function applySelectionOutline(overlayObject: OverlayObject): void {
   const project = projects.value[overlayObject.projectId];
   const color = project?.color ?? '#007bff';
 
-  Object.values(overlays.value).forEach(obj => {
+  Object.values(overlays.value).forEach((obj: OverlayObject) => {
     if (obj.projectId === overlayObject.projectId && obj.overlay) {
       const element = obj.overlay.getElement();
       if (element) {
@@ -576,7 +595,7 @@ function removeSelectionOutline(overlayObject: OverlayObject): void {
 
   const project = projects.value[overlayObject.projectId];
 
-  Object.values(overlays.value).forEach(obj => {
+  Object.values(overlays.value).forEach((obj: OverlayObject) => {
     if (obj.projectId === overlayObject.projectId && obj.overlay) {
       const element = obj.overlay.getElement();
       if (element) {
@@ -597,7 +616,7 @@ function highlightProjectOverlaysOnHover(projectId: string): void {
   const project = projects.value[projectId];
   const color = project?.color ?? '#007bff';
 
-  Object.values(overlays.value).forEach(overlayObject => {
+  Object.values(overlays.value).forEach((overlayObject: OverlayObject) => {
     if (overlayObject.projectId === projectId && overlayObject.overlay) {
       const element = overlayObject.overlay.getElement();
       if (element) {
@@ -620,7 +639,7 @@ function removeProjectHighlightOnHover(projectId: string): void {
 
   const project = projects.value[projectId];
 
-  Object.values(overlays.value).forEach(overlayObject => {
+  Object.values(overlays.value).forEach((overlayObject: OverlayObject) => {
     if (overlayObject.projectId === projectId && overlayObject.overlay) {
       const element = overlayObject.overlay.getElement();
       if (element) {

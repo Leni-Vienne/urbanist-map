@@ -1,21 +1,29 @@
-import { overlays } from '@stores/overlayStore';
-import { projects, selectedProjectId, countries } from '@stores/projectStore';
 import { useToast } from '@composables/ui/useToast';
 import { trpc } from '@client';
 import type { Project, OverlayObject } from '@types';
 import type { PublishProjectInput } from '../../types/api';
+import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { useProjectStore } from '@stores/pinia/projectStore';
+import { storeToRefs } from 'pinia';
 
 const toast = useToast();
 
-// AI : Export the reactive stores from centralized location
-export { projects, selectedProjectId, countries };
+// AI : Export composable function that gets store refs when called (not at module level)
+export function useProjects() {
+  const overlayStore = useOverlayStore();
+  const projectStore = useProjectStore();
+  const { overlays } = storeToRefs(overlayStore);
+  const { projects, countries, selectedProjectId } = storeToRefs(projectStore);
+  return { overlays, projects, countries, selectedProjectId };
+}
 
 export async function loadCitiesForCountry(countryCode: string): Promise<void> {
   try {
     // AI : Get all cities that have projects for this specific country
     const citiesData = await trpc.cities.getCitiesWithProjects.query({ countryCode });
 
-    const country = countries.value.find(c => {
+    const { countries } = useProjects();
+    const country = countries.value.find((c: any) => {
       return c.code.trim() === countryCode.trim()
     });
     if (country) {
@@ -61,6 +69,7 @@ export async function createProject(projectData: Partial<Omit<Project, 'id' | 'o
   console.log('AI : Project created locally (no backend call):', project.id);
 
   // AI : Create a new object reference to ensure shallowRef reactivity triggers
+  const { projects } = useProjects();
   const updatedProjects = { ...projects.value };
   updatedProjects[id] = project;
   projects.value = updatedProjects;
@@ -69,6 +78,7 @@ export async function createProject(projectData: Partial<Omit<Project, 'id' | 'o
 }
 
 export async function getOverlaysForProject(projectId: string): Promise<OverlayObject[]> {
+  const { projects, overlays } = useProjects();
   const project = projects.value[projectId];
   if (!project) return [];
 
@@ -85,6 +95,8 @@ export async function getOverlaysForProject(projectId: string): Promise<OverlayO
 }
 
 export async function addOverlayToProjectWithId(projectId: string, overlayId: string): Promise<void> {
+  const { projects, overlays } = useProjects();
+  
   if (!projects.value[projectId]) {
     console.error('AI : Project not found in memory store:', projectId);
     toast.add({
@@ -137,6 +149,8 @@ export async function addOverlayToProjectWithId(projectId: string, overlayId: st
 }
 
 export async function removeOverlayFromProjectWithId(projectId: string, overlayId: string): Promise<void> {
+  const { projects, overlays } = useProjects();
+  
   if (!projects.value[projectId]) {
     console.error('Project not found:', projectId);
     return;
@@ -147,7 +161,7 @@ export async function removeOverlayFromProjectWithId(projectId: string, overlayI
   const project = { ...updatedProjects[projectId] };
 
   // Filter out the overlay ID from the project's overlay IDs
-  project.overlayIds = project.overlayIds.filter(id => id !== overlayId);
+  project.overlayIds = project.overlayIds.filter((id: string) => id !== overlayId);
 
   // AI : Store only locally - no backend calls during editing
   // AI : Projects will be published when user explicitly saves/publishes them
@@ -192,6 +206,7 @@ export function removeProjectStyling(overlayObject: OverlayObject): void {
 }
 
 export function highlightProjectOverlays(projectId: string): void {
+  const { projects, overlays } = useProjects();
   const project = projects.value[projectId];
   if (!project) return;
 
@@ -210,6 +225,7 @@ export function highlightProjectOverlays(projectId: string): void {
 }
 
 export function clearProjectHighlight(projectId: string): void {
+  const { projects, overlays } = useProjects();
   const project = projects.value[projectId];
   if (!project) return;
 
@@ -225,6 +241,7 @@ export function clearProjectHighlight(projectId: string): void {
 }
 
 export async function deleteProjectById(projectId: string): Promise<void> {
+  const { projects, overlays, selectedProjectId } = useProjects();
   const project = projects.value[projectId];
   if (!project) {
     console.error('Project not found:', projectId);
@@ -262,6 +279,7 @@ export async function deleteProjectById(projectId: string): Promise<void> {
 }
 
 export async function updateProject(projectId: string, projectData: Partial<Omit<Project, 'id' | 'overlayIds' | 'color'>>): Promise<void> {
+  const { projects } = useProjects();
   const project = projects.value[projectId];
   if (!project) {
     toast.add({
@@ -291,6 +309,7 @@ export async function updateProject(projectId: string, projectData: Partial<Omit
 
 // AI : Explicit publish functions - only called when user clicks publish
 export async function publishProject(projectId: string): Promise<void> {
+  const { projects } = useProjects();
   const project = projects.value[projectId];
   if (!project) {
     toast.add({

@@ -2,11 +2,19 @@ import L from "leaflet";
 
 import { type ComponentInternalInstance, createVNode, render } from 'vue';
 import { map } from '@composables/core/useMap';
-import { overlays, idSelectedOverlay, isEditMode } from '@composables/overlay/useOverlay';
 import { undo, redo, resetImageRatio, deleteOverlay, updateOverlayInfo, goToNextOverlay, goToPreviousOverlay } from '@composables/overlay/useOverlayActions';
 import InfoPopup from '@components/map/InfoPopup.vue';
 import { useToast } from '@composables/ui/useToast';
+import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { storeToRefs } from 'pinia';
 import type { ProjectInfo } from '@types';
+
+// AI : Function to get store refs when needed
+function getStoreRefs() {
+  const overlayStore = useOverlayStore();
+  const { overlays, idSelectedOverlay, isEditMode } = storeToRefs(overlayStore);
+  return { overlays, idSelectedOverlay, isEditMode };
+}
 
 // AI : Declare window extensions for TypeScript
 declare global {
@@ -56,6 +64,7 @@ export const infoTool = L.Toolbar2.Action.extend({
       L.DomUtil.addClass(link, "subtoolbar_enabled");
 
       setTimeout(() => {
+        const { overlays, idSelectedOverlay, isEditMode } = getStoreRefs();
         if (!idSelectedOverlay.value) return;
         const popupElement = document.getElementsByClassName("more-info-popup")[0];
 
@@ -97,6 +106,7 @@ export const infoTool = L.Toolbar2.Action.extend({
 });
 
 function handleProjectSubmit(projectInfo: ProjectInfo & { id: string }) {
+  const { overlays } = getStoreRefs();
   if (!projectInfo.id || !overlays.value[projectInfo.id]) {
     console.error('Overlay not found for ID:', projectInfo.id);
     return;
@@ -120,6 +130,7 @@ export const centerTool = L.Toolbar2.Action.extend({
     },
   },
   addHooks: function () {
+    const { overlays, idSelectedOverlay } = getStoreRefs();
     if (!idSelectedOverlay.value) {
       alert('No overlay selected!');
       return;
@@ -200,6 +211,7 @@ export const customDeleteTool = L.Toolbar2.Action.extend({
     },
   },
   addHooks: function () {
+    const { idSelectedOverlay } = getStoreRefs();
     if (!idSelectedOverlay.value) {
       return;
     }
@@ -218,15 +230,16 @@ export const replaceOverlayTool = L.Toolbar2.Action.extend({
     },
   },
   addHooks: async function () {
+    const { idSelectedOverlay } = getStoreRefs();
     if (!idSelectedOverlay.value) {
       return;
     }
     
-    // AI : Import the overlay store for replacement functionality
-    const { requestOverlayReplacement } = await import('@stores/overlayStore');
+    // AI : Use the overlay store for replacement functionality
+    const overlayStore = useOverlayStore();
     
     // AI : Request overlay replacement using the store
-    requestOverlayReplacement(idSelectedOverlay.value);
+    overlayStore.requestOverlayReplacement(idSelectedOverlay.value);
   },
 });
 

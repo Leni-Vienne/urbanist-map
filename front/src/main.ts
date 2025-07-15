@@ -4,8 +4,11 @@ import PrimeVue from 'primevue/config';
 import Aura from '@primeuix/themes/aura';
 import ToastService from 'primevue/toastservice';
 import { router } from './router';
+import { createPinia } from 'pinia';
 
 const app = createApp(App)
+
+app.use(createPinia());
 
 // @ts-ignore - AI : PrimeVue configuration type issue
 app.use(PrimeVue, {

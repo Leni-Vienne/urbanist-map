@@ -4,7 +4,8 @@ import {
   addOverlayToProjectWithId, 
   removeOverlayFromProjectWithId 
 } from '@composables/project/useProjects';
-import { overlays } from '@composables/overlay/useOverlay';
+import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { storeToRefs } from 'pinia';
 //import { navigateToOverlay } from '@composables/overlay/useOverlayActions';
 import { useToast } from '@composables/ui/useToast';
 
@@ -12,6 +13,10 @@ import { useToast } from '@composables/ui/useToast';
 export function useProjectOverlayManager(projectId: string, onOverlaysChanged: () => void) {
   const router = useRouter();
   const toast = useToast();
+  
+  // AI : Get store refs
+  const overlayStore = useOverlayStore();
+  const { overlays } = storeToRefs(overlayStore);
   
   const showAddOverlayDialog = ref(false);
 

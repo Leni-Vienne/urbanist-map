@@ -1,9 +1,17 @@
 import L from "leaflet";
 import { ref } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
-import { countries } from '@stores/projectStore';
 import { addCityMarkersForCountry } from '@composables/map/useCityMarkers';
 import { trpc } from '@client';
+
+// AI : Function to get countries when needed
+async function getCountries() {
+  const { useProjectStore } = await import('@stores/pinia/projectStore');
+  const { storeToRefs } = await import('pinia');
+  const projectStore = useProjectStore();
+  const { countries } = storeToRefs(projectStore);
+  return countries;
+}
 
 export const isLoadingCountries = ref(false);
 export const isLoadingCountryProjects = ref(false);
@@ -14,6 +22,7 @@ export async function loadCountriesWithProjects(): Promise<void> {
   try {
     isLoadingCountries.value = true;
     const countriesData = await trpc.country.getCountriesWithProjects.query();
+    const countries = await getCountries();
     countries.value = countriesData.map((country) => ({
       ...country,
       lat: country.centerCoordinates.y,
@@ -34,9 +43,10 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
   try {
     isLoadingCountryProjects.value = true;
     const citiesData = await trpc.cities.getCitiesWithProjects.query({ countryCode });
-    const country = countries.value.find(c => c.code === countryCode);
+    const countries = await getCountries();
+    const country = countries.value.find((c: any) => c.code === countryCode);
     if (country) {
-      country.cities = citiesData.map(c => ({ ...c, distance: 0 }));
+      country.cities = citiesData.map((c: any) => ({ ...c, distance: 0 }));
     }
   } catch (error) {
     console.error(`Error loading cities for country ${countryCode}:`, error);
@@ -46,17 +56,17 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
 }
 
 
-export function addCountryMarkersToMap(): void {
+export async function addCountryMarkersToMap(): Promise<void> {
   if (!map.value) {
     onMapInitialized(() => {
       addCountryMarkersToMapInternal();
     });
     return;
   }
-  addCountryMarkersToMapInternal();
+  await addCountryMarkersToMapInternal();
 }
 
-function addCountryMarkersToMapInternal(): void {
+async function addCountryMarkersToMapInternal(): Promise<void> {
   if (!map.value) {
     return;
   }
@@ -66,16 +76,18 @@ function addCountryMarkersToMapInternal(): void {
   }
 
   countryMarkersLayer = L.layerGroup();
-  countries.value.forEach(country => {
+  const countries = await getCountries();
+  countries.value.forEach((country: any) => {
     const marker = L.marker([country.lat, country.lng]);
     marker.bindTooltip(`${country.name}`, {
       permanent: true,
     });
     marker.on('click', async () => {
       await loadCitiesForCountry(country.code);
-      const updatedCountry = countries.value.find((c) => c.code === country.code);
+      const updatedCountries = await getCountries();
+      const updatedCountry = updatedCountries.value.find((c: any) => c.code === country.code);
       if (updatedCountry) {
-        addCityMarkersForCountry(updatedCountry.cities.map(c => ({ ...c, projectCount: 0 })));
+        addCityMarkersForCountry(updatedCountry.cities.map((c: any) => ({ ...c, projectCount: 0 })));
       }
     });
     countryMarkersLayer!.addLayer(marker);

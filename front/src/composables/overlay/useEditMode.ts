@@ -1,15 +1,20 @@
 // AI : Simplified edit mode management
-import { overlays, updateOverlayEditingState, clearAllOverlays, renderViewModeOverlays } from '@composables/overlay/useOverlay';
-import { isEditMode } from '@stores/overlayStore';
+import { updateOverlayEditingState, clearAllOverlays, renderViewModeOverlays } from '@composables/overlay/useOverlay';
 import { initializeEditModeOverlays, clearEditModeOverlays, startEditModeTracking, stopEditModeTracking } from '@composables/overlay/useEditModeOverlays';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
 import { latestClickedCity, getCachedCityProjectsData, hasCachedCityProjectsData, renderOverlayMarkersFromCache, MIN_ZOOM_FOR_OVERLAYS } from '@composables/map/useCityMarkers';
 import { map } from '@composables/core/useMap';
+import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { storeToRefs } from 'pinia';
 
 /**
  * AI : Toggle between edit and view modes
  */
 export async function toggleEditMode(): Promise<void> {
+  // AI : Get store refs when needed to avoid module-level initialization
+  const overlayStore = useOverlayStore();
+  const { overlays, isEditMode } = storeToRefs(overlayStore);
+  
   isEditMode.value = !isEditMode.value;
 
   if (isEditMode.value) {
@@ -90,12 +95,18 @@ export async function toggleEditMode(): Promise<void> {
   }
 }
 
+// AI : Export isEditMode getter for backward compatibility
+export function getIsEditMode() {
+  const overlayStore = useOverlayStore();
+  const { isEditMode } = storeToRefs(overlayStore);
+  return isEditMode;
+}
+
 /**
  * AI : Set edit mode state without toggling
  */
 export function setEditMode(editMode: boolean): void {
+  const overlayStore = useOverlayStore();
+  const { isEditMode } = storeToRefs(overlayStore);
   isEditMode.value = editMode;
 }
-
-// AI : Re-export isEditMode for convenience
-export { isEditMode };
