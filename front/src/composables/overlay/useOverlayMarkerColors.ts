@@ -1,4 +1,4 @@
-import { isEditMode } from '@stores/overlayStore';
+import { isEditMode } from '@composables/overlay/useOverlay';
 import { getConstructionMarkerColor } from '@composables/map/useCityMarkers';
 import type { OverlayObject, CDNOverlayData, MarkerColor } from '@types';
 

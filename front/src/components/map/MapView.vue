@@ -42,7 +42,7 @@
 
       <div class="card flex">
         <SelectButton
-          :model-value="isEditMode ? 'edit' : 'view'"
+          :model-value="(isEditMode ?? false) ? 'edit' : 'view'"
           @update:model-value="handleModeChange"
           :options="modeOptions"
           option-label="label"
@@ -76,7 +76,6 @@ import { useRouter, useRoute } from 'vue-router';
 
 import { initializeMap, disableLeafletKeyboardEvents, currentZoomLevel } from '@composables/core/useMap';
 import { initializeCameraBounds } from '@composables/map/useCameraBounds';
-import { isEditMode, overlays } from '@composables/overlay/useOverlay';
 import { toggleEditMode } from '@composables/overlay/useEditMode';
 import { addOverlay, undo, redo } from '@composables/overlay/useOverlayActions';
 import { useToast } from '@composables/ui/useToast';
@@ -84,12 +83,19 @@ import { setAppContext } from '@composables/core/useTools';
 import { navigateWithCoordinates } from '@composables/ui/useRouterNavigation';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
 import { initializeCountryMarkers } from '@composables/map/useCountryMarkers';
-import { projects } from '@stores/projectStore';
+import { useProjectStore } from '@stores/pinia/projectStore';
+import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { storeToRefs } from 'pinia';
 import { fetchNearbyProjects } from '@composables/project/useNearbyProjects';
-import { showImageUploadDialog, replacementOverlayId, resetReplacement } from '@stores/overlayStore';
 import TileLayerSelector from '@components/map/TileLayerSelector.vue';
 import ProjectPicker from '@components/project/ProjectPicker.vue';
 import ImageUploadDialog from '@components/dialogs/ImageUploadDialog.vue';
+
+// AI: Get Pinia stores
+const projectStore = useProjectStore();
+const overlayStore = useOverlayStore();
+const { projects } = storeToRefs(projectStore);
+const { isEditMode, overlays, showImageUploadDialog, replacementOverlayId } = storeToRefs(overlayStore);
 
 // AI: Core state variables
 const router = useRouter();
@@ -109,7 +115,7 @@ const modeOptions = [
 
 // AI : Computed property to determine if edit mode should be disabled
 const isEditModeDisabled = computed(() => {
-  return currentZoomLevel.value < 9 && !isEditMode.value;
+  return currentZoomLevel.value < 9 && !(isEditMode?.value ?? false);
 });
 
 // AI : Use view mode overlays for displaying overlays when camera moves
@@ -130,14 +136,14 @@ function openImageUploadDialog() {
 // AI : Handle mode change from SelectButton
 async function handleModeChange(newMode: string) {
   const shouldBeEditMode = newMode === 'edit';
-  if (shouldBeEditMode !== isEditMode.value) {
+  if (shouldBeEditMode !== (isEditMode?.value ?? false)) {
     await handleToggleEditMode(shouldBeEditMode);
   }
 }
 
 // AI : Handle add overlay button click - enable edit mode if in view mode, otherwise open dialog
 async function handleAddOverlayClick() {
-  if (!isEditMode.value) {
+  if (!(isEditMode?.value ?? false)) {
     // AI : Enable edit mode first if currently in view mode
     await handleToggleEditMode(true);
     // AI : Show toast notification to inform user about mode switch
@@ -169,7 +175,7 @@ watch(() => route.query.overlay, (overlayId) => {
 }, { immediate: true });
 
 // AI : Watch for edit mode changes to start/stop camera tracking
-watch(isEditMode, (editMode) => {
+watch(() => isEditMode?.value, (editMode) => {
   if (editMode) {
     // AI : Stop view mode tracking when entering edit mode
     stopCameraTracking();
@@ -314,7 +320,7 @@ async function handleFileUpload(projectId: string, isReplacement: boolean = fals
       });
     } finally {
       // AI : Reset state
-      resetReplacement();
+      overlayStore.resetReplacement();
       pendingImageFile.value = null;
       showProjectSelector.value = false;
     }
@@ -338,7 +344,7 @@ async function initializeMapAndOverlays() {
     disableLeafletKeyboardEvents();
 
     // AI : Start camera tracking if in view mode
-    if (!isEditMode.value) {
+    if (!(isEditMode?.value ?? false)) {
       startCameraTracking();
     }
   } catch (error) {

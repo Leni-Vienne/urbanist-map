@@ -96,7 +96,7 @@ import { computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useToast } from '@composables/ui/useToast';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
-import { projects } from '@composables/project/useProjects';
+import { useProjects } from '@composables/project/useProjects';
 import type { OverlayListItem, CameraBounds } from '@types';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
@@ -118,6 +118,9 @@ const emit = defineEmits<{
 
 const router = useRouter();
 const toast = useToast();
+
+// AI : Get store refs using the composable pattern
+const { projects } = useProjects();
 
 // AI : Use view mode overlays composable
 const {

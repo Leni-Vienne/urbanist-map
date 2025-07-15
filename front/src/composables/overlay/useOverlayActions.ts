@@ -2,7 +2,7 @@ import L from "leaflet";
 import { map } from '@composables/core/useMap';
 import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, isEditMode, removeOverlay, allMarkers, updateMarkerTooltip, renderViewModeOverlays } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
-import { projects, addOverlayToProjectWithId } from '@composables/project/useProjects';
+import { useProjects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import type { OverlayObject, CDNOverlayData, MarkerColor } from '@types';
 import { router } from '../../router';
 import { createColorIcon } from '@composables/ui/colorMarkers';
@@ -170,6 +170,57 @@ function saveOverlayWithCurrentCorners(overlayObject: OverlayObject): void {
   console.log('AI : Overlay corners updated in memory:', overlayObject.id);
 }
 
+/**
+ * AI : Create a violet marker for replacement overlays (identical to new overlay process)
+ */
+function createReplacementMarker(overlayObject: any, projectId: string) {
+  if (!map.value) return;
+  
+  // AI : Use current map center as initial marker position (identical to createMarkerForNewOverlay)
+  const center = map.value.getCenter();
+  
+  // AI : Use unified marker creation system with proper color and tooltip handling
+  let markerTitle = 'Replacement Overlay';
+  if (projectId) {
+    const { projects } = useProjects();
+    if (projects.value[projectId]) {
+      const project = projects.value[projectId];
+      const captionPart = overlayObject.caption ? ` - ${overlayObject.caption}` : '';
+      markerTitle = `${project.name} - ${markerTitle}${captionPart}`;
+    }
+  }
+
+  // AI : Create violet marker for replacement overlays
+  const colorIcon = createColorIcon('violet');
+  
+  const marker = L.marker(center, {
+    title: markerTitle,
+    icon: colorIcon
+  }).addTo(map.value);
+  
+  // AI : Add click handler to marker to select the overlay (identical to createMarkerForNewOverlay)
+  marker.on('click', () => {
+    if (overlayObject.overlay) {
+      // AI : If overlay exists, click it to select
+      const element = overlayObject.overlay.getElement();
+      if (element) {
+        element.click();
+      }
+    } else {
+      // AI : If overlay doesn't exist yet, just select it
+      idSelectedOverlay.value = overlayObject.id;
+    }
+  });
+  
+  // AI : Store marker reference (identical to createMarkerForNewOverlay)
+  overlayObject.marker = marker;
+  allMarkers.value[overlayObject.id] = marker;
+  
+  // AI : Update marker tooltip with proper styling
+  updateMarkerTooltip(overlayObject);
+}
+
+
 export async function addOverlay(imageUrl: string, projectId: string, replacesOverlayId?: string) {
   // AI : Only allow adding overlays in edit mode
   if (!isEditMode.value) {
@@ -229,10 +280,13 @@ function createMarkerForNewOverlay(overlayObject: any, projectId: string) {
   
   // AI : Use unified marker creation system with proper color and tooltip handling
   let markerTitle = 'New Overlay';
-  if (projectId && projects.value[projectId]) {
-    const project = projects.value[projectId];
-    const captionPart = overlayObject.caption ? ` - ${overlayObject.caption}` : '';
-    markerTitle = `${project.name} - New Overlay${captionPart}`;
+  if (projectId) {
+    const { projects } = useProjects();
+    if (projects.value[projectId]) {
+      const project = projects.value[projectId];
+      const captionPart = overlayObject.caption ? ` - ${overlayObject.caption}` : '';
+      markerTitle = `${project.name} - New Overlay${captionPart}`;
+    }
   }
 
   // AI : Create marker with consistent color for edit mode
@@ -507,6 +561,7 @@ export async function focusCameraToOverlay(direction: 'next' | 'previous'): Prom
     return false;
   }
   
+  const { projects } = useProjects();
   let project = projects.value[currentOverlay.projectId];
   let projectOverlayIds: string[];
   
@@ -534,6 +589,7 @@ export async function focusCameraToOverlay(direction: 'next' | 'previous'): Prom
 }
 
 async function selectFirstOrLastOverlayInAnyProject(direction: 'next' | 'previous'): Promise<boolean> {
+  const { projects } = useProjects();
   const projectIds = Object.keys(projects.value);
   if (!projectIds.length) {
     toast.add({ severity: 'warn', summary: 'No projects', detail: 'Please create a project first', life: 3000 });
@@ -749,6 +805,7 @@ export function updateTooltipText() {
   if (!overlayObject?.overlay) return;
 
   if (overlayObject.projectId) {
+    const { projects } = useProjects();
     const project = projects.value[overlayObject.projectId];
     if (project) {
       const captionSuffix = overlayObject.caption ? ` - ${overlayObject.caption}` : '';
@@ -765,13 +822,16 @@ export async function deleteOverlay(id: string) {
   if (!overlayObject) return;
 
   // AI : Update project if overlay belongs to one
-  if (overlayObject.projectId && projects.value[overlayObject.projectId]) {
-    const project = projects.value[overlayObject.projectId];
-    // Update local reference only - no backend calls during editing
-    project.overlayIds = project.overlayIds.filter(overlayId => overlayId !== id);
-    project.updatedAt = new Date();
-    
-    console.log('AI : Overlay removed from project locally (no backend call):', id, 'from project:', overlayObject.projectId);
+  if (overlayObject.projectId) {
+    const { projects } = useProjects();
+    if (projects.value[overlayObject.projectId]) {
+      const project = projects.value[overlayObject.projectId];
+      // Update local reference only - no backend calls during editing
+      project.overlayIds = project.overlayIds.filter(overlayId => overlayId !== id);
+      project.updatedAt = new Date();
+      
+      console.log('AI : Overlay removed from project locally (no backend call):', id, 'from project:', overlayObject.projectId);
+    }
   }
   removeOverlay(id);
 }
@@ -849,52 +909,5 @@ export async function replaceOverlay(originalOverlayId: string, newImageFile: Fi
     console.error('Error creating replacement overlay:', error);
     throw error;
   }
-}
-
-/**
- * AI : Create a violet marker for replacement overlays (identical to new overlay process)
- */
-function createReplacementMarker(overlayObject: any, projectId: string) {
-  if (!map.value) return;
-  
-  // AI : Use current map center as initial marker position (identical to createMarkerForNewOverlay)
-  const center = map.value.getCenter();
-  
-  // AI : Use unified marker creation system with proper color and tooltip handling
-  let markerTitle = 'Replacement Overlay';
-  if (projectId && projects.value[projectId]) {
-    const project = projects.value[projectId];
-    const captionPart = overlayObject.caption ? ` - ${overlayObject.caption}` : '';
-    markerTitle = `${project.name} - ${markerTitle}${captionPart}`;
-  }
-
-  // AI : Create violet marker for replacement overlays
-  const colorIcon = createColorIcon('violet');
-  
-  const marker = L.marker(center, {
-    title: markerTitle,
-    icon: colorIcon
-  }).addTo(map.value);
-  
-  // AI : Add click handler to marker to select the overlay (identical to createMarkerForNewOverlay)
-  marker.on('click', () => {
-    if (overlayObject.overlay) {
-      // AI : If overlay exists, click it to select
-      const element = overlayObject.overlay.getElement();
-      if (element) {
-        element.click();
-      }
-    } else {
-      // AI : If overlay doesn't exist yet, just select it
-      idSelectedOverlay.value = overlayObject.id;
-    }
-  });
-  
-  // AI : Store marker reference (identical to createMarkerForNewOverlay)
-  overlayObject.marker = marker;
-  allMarkers.value[overlayObject.id] = marker;
-  
-  // AI : Update marker tooltip with proper styling
-  updateMarkerTooltip(overlayObject);
 }
 

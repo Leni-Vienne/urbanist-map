@@ -78,3 +78,16 @@ export const router = createRouter({
     }
   ]
 });
+
+// AI : Initialize stores when router navigation starts
+let storesInitialized = false;
+router.beforeEach(async (_to, _from) => {
+  if (!storesInitialized) {
+    // AI : Import and initialize stores on first navigation only
+    const { initializeStores } = await import('@composables/overlay/useOverlay');
+    initializeStores();
+    storesInitialized = true;
+  }
+  
+  return true;
+});

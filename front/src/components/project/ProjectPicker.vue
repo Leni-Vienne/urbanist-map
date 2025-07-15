@@ -122,7 +122,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 
-import { projects } from '@composables/project/useProjects';
+import { useProjects } from '@composables/project/useProjects';
 import { fetchNearbyProjects, getNearbyProjects } from '@composables/project/useNearbyProjects';
 import { lastCreatedProjectId } from '@composables/ui/useRouterNavigation';
 import { useProjectManagerDialog } from '@composables/project/useProjectManagerDialog';
@@ -157,6 +157,9 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['update:modelValue', 'project-selected', 'project-created', 'select-focus']);
+
+// AI : Get store refs using the composable pattern
+const { projects } = useProjects();
 
 const loading = ref(false);
 const selectedProjectId = ref(props.modelValue);

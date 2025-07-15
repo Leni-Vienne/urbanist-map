@@ -167,9 +167,14 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { trpc, RouterOutput } from '@client';
-import { idSelectedOverlay, overlays } from '@composables/overlay/useOverlay';
 import { getCameraBounds } from '@composables/map/useCameraBounds';
+import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { storeToRefs } from 'pinia';
 import type { Project } from '@types';
+
+// AI : Get store refs
+const overlayStore = useOverlayStore();
+const { idSelectedOverlay, overlays } = storeToRefs(overlayStore);
 
 const props = defineProps<{
     project: Partial<Project>;

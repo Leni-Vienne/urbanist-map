@@ -2,12 +2,22 @@ import { ref, watch } from 'vue';
 import L from 'leaflet';
 import { map, onMapInitialized, currentZoomLevel } from '@composables/core/useMap';
 import { onCameraStop } from '@composables/map/useCameraBounds';
-import { overlays } from '@stores/overlayStore';
-import { projects } from '@stores/projectStore';
-import { createColorIcon } from '@composables/ui/colorMarkers';
 import { clearAllOverlays, createOverlay } from '@composables/overlay/useOverlay';
+import { createColorIcon } from '@composables/ui/colorMarkers';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
+import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { useProjectStore } from '@stores/pinia/projectStore';
+import { storeToRefs } from 'pinia';
 import type { CameraBounds, OverlayObject } from '@types';
+
+// AI : Function to get store refs when needed
+function getStoreRefs() {
+  const overlayStore = useOverlayStore();
+  const projectStore = useProjectStore();
+  const { overlays } = storeToRefs(overlayStore);
+  const { projects } = storeToRefs(projectStore);
+  return { overlays, projects };
+}
 
 // AI : Distance threshold for loading full overlay images in edit mode (in meters)
 const EDIT_MODE_LOAD_DISTANCE = 1000; // 1km - closer than view mode since edit mode needs more precision
@@ -48,6 +58,7 @@ function initializeEditModeOverlaysInternal(): void {
   editModeOverlayMarkers = L.layerGroup();
 
   // AI : Add markers for overlays that don't have images loaded yet
+  const { overlays } = getStoreRefs();
   Object.values(overlays.value).forEach(overlay => {
     if (overlay.corners && overlay.corners.length >= 4 && !overlay.overlay) {
       // AI : Only create markers for overlays that don't have images loaded yet
@@ -86,6 +97,7 @@ function createEditModeOverlayMarker(overlay: OverlayObject): void {
   marker.overlayId = overlay.id;
 
   // AI : Add tooltip with overlay info
+  const { projects } = getStoreRefs();
   const project = overlay.projectId ? projects.value[overlay.projectId] : null;
   const currentZoom = currentZoomLevel.value;
   const tooltipContent = `
@@ -116,6 +128,7 @@ function createEditModeOverlayMarker(overlay: OverlayObject): void {
  * AI : Load full overlay image for a specific overlay
  */
 async function loadFullOverlay(overlayId: string): Promise<void> {
+  const { overlays } = getStoreRefs();
   const overlay = overlays.value[overlayId];
   if (!overlay || loadedEditOverlays.value.has(overlayId)) {
     return;
@@ -193,6 +206,7 @@ async function handleCameraStop(_bounds: CameraBounds): Promise<void> {
   // AI : Find overlays within loading distance
   const overlaysToLoad: string[] = [];
   
+  const { overlays } = getStoreRefs();
   Object.values(overlays.value).forEach(overlay => {
     if (!overlay.corners || overlay.corners.length < 4 || loadedEditOverlays.value.has(overlay.id)) {
       return;
@@ -293,6 +307,7 @@ function updateTooltipsForZoomLevel(): void {
     if (layer instanceof L.Marker) {
       const marker = layer as any;
       const overlayId = marker.overlayId;
+      const { overlays, projects } = getStoreRefs();
       const overlay = overlays.value[overlayId];
       
       if (overlay) {
@@ -350,6 +365,7 @@ function watchZoomLevel(): void {
  * AI : Watch for changes in the overlays store and update markers accordingly
  */
 function watchOverlayChanges(): void {
+  const { overlays } = getStoreRefs();
   watch(overlays, (newOverlays, oldOverlays) => {
     // AI : Check for new overlays
     Object.keys(newOverlays).forEach(overlayId => {

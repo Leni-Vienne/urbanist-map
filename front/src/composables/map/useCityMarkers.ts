@@ -4,11 +4,27 @@ import { ref } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
 import { renderViewModeOverlays, clearAllOverlays } from '@composables/overlay/useOverlay';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
-import { selectedProjectId } from '@stores/projectStore';
-import { overlays, isEditMode } from '@stores/overlayStore';
 import { trpc, RouterOutput } from '@client';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
+import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { useProjectStore } from '@stores/pinia/projectStore';
+import { storeToRefs } from 'pinia';
 import type { CDNOverlayData, MarkerColor } from '@types';
+
+// AI : Function to get store refs when needed
+function getStoreRefs() {
+  const overlayStore = useOverlayStore();
+  const projectStore = useProjectStore();
+  const { overlays, isEditMode } = storeToRefs(overlayStore);
+  const { selectedProjectId } = storeToRefs(projectStore);
+  return { overlays, isEditMode, selectedProjectId };
+}
+
+// AI : Function to get selected project ID when needed (kept for backward compatibility)
+async function getSelectedProjectId() {
+  const { selectedProjectId } = getStoreRefs();
+  return selectedProjectId;
+}
 
 // AI : Minimum zoom level required to load city projects and overlays
 export const MIN_ZOOM_FOR_OVERLAYS = 12;
@@ -145,6 +161,7 @@ export async function loadCityProjects(cityId: string, cityName: string, forceFu
     latestClickedCity = { id: cityId, name: cityName, countryCode: cityCountryCode };
 
     // AI : Clear selected project when switching cities
+    const selectedProjectId = await getSelectedProjectId();
     selectedProjectId.value = null;
 
     // AI : Check if we have cached data and decide what to show
@@ -413,6 +430,7 @@ export function clearEditModeOverlayCache(): void {
  * @returns Overlay data with edit modifications applied if in edit mode
  */
 function getOverlayDataWithEditModifications(overlayData: CDNOverlayData): CDNOverlayData {
+  const { isEditMode } = getStoreRefs();
   if (!isEditMode.value) {
     return overlayData; // AI : Return original data in view mode
   }
@@ -686,6 +704,7 @@ function getOverlayMarkerInfo(overlayData: CDNOverlayData): { color: MarkerColor
   let position = { lat: overlayData.centroid.lat, lng: overlayData.centroid.lng };
   
   // AI : Check if we're in edit mode and if the overlay exists in the overlays store
+  const { isEditMode, overlays } = getStoreRefs();
   if (isEditMode.value) {
     const overlayObject = overlays.value[overlayData.id];
     
@@ -730,6 +749,7 @@ function getOverlayMarkerInfo(overlayData: CDNOverlayData): { color: MarkerColor
  */
 export function updateOverlayMarkers(): void {
   // AI : Only update if we have overlay markers visible and we're in edit mode
+  const { isEditMode } = getStoreRefs();
   if (!overlayMarkersLayer || !map.value || !map.value.hasLayer(overlayMarkersLayer) || !isEditMode.value) {
     return;
   }
@@ -761,6 +781,7 @@ export function updateOverlayMarkers(): void {
  * @returns true if cached state was applied, false otherwise
  */
 export function applyCachedOverlayState(overlayId: string, overlayObject: any): boolean {
+  const { isEditMode } = getStoreRefs();
   if (!isEditMode.value || !overlayObject.overlay) {
     return false;
   }
@@ -788,6 +809,7 @@ export function applyCachedOverlayState(overlayId: string, overlayObject: any): 
  * This stores modifications in a separate edit cache to keep original backend data pristine
  */
 export function updateCachedOverlayData(overlayId: string, newCorners: { lat: number, lng: number }[]): void {
+  const { isEditMode } = getStoreRefs();
   if (!isEditMode.value) {
     return; // AI : Only update edit cache when in edit mode
   }
