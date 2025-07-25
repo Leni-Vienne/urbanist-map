@@ -135,6 +135,7 @@ import { storeToRefs } from 'pinia';
 import { navigateToProjectEdit } from '@composables/ui/useRouterNavigation';
 import { loadCityProjects, citiesWithProjects, latestClickedCity } from '@composables/map/useCityMarkers';
 import { getNearbyProjects } from '@composables/project/useNearbyProjects';
+import { useSelectedProject } from '@composables/project/useSelectedProject';
 import ProjectPicker from '@components/project/ProjectPicker.vue';
 import OverlayEditor from '@components/map/OverlayEditor.vue';
 import type { OverlayObject, Project } from '@types';
@@ -146,6 +147,9 @@ const projectStore = useProjectStore();
 const { overlays } = storeToRefs(overlayStore);
 const { projects } = storeToRefs(projectStore);
 
+// AI : Use centralized selected project state
+const { selectedProjectId } = useSelectedProject();
+
 const props = defineProps<{
   overlayObject: OverlayObject;
   onProjectSubmit?: (data: any) => void;
@@ -154,7 +158,6 @@ const props = defineProps<{
 
 const toast = useToast();
 const loading = ref(true);
-const selectedProjectId = ref<string | null>(null);
 const overlayEditorRef = ref<InstanceType<typeof OverlayEditor> | null>(null);
 const isPublishing = ref(false);
 

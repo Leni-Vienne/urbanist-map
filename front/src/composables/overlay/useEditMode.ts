@@ -1,5 +1,5 @@
 // AI : Simplified edit mode management
-import { updateOverlayEditingState, clearAllOverlays, renderViewModeOverlays } from '@composables/overlay/useOverlay';
+import { updateOverlayEditingState, clearAllOverlays, renderViewModeOverlays, updateMarkerTooltip } from '@composables/overlay/useOverlay';
 import { initializeEditModeOverlays, clearEditModeOverlays, startEditModeTracking, stopEditModeTracking } from '@composables/overlay/useEditModeOverlays';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
 import { latestClickedCity, getCachedCityProjectsData, hasCachedCityProjectsData, renderOverlayMarkersFromCache, MIN_ZOOM_FOR_OVERLAYS } from '@composables/map/useCityMarkers';
@@ -34,6 +34,11 @@ export async function toggleEditMode(): Promise<void> {
           overlayObject.overlay.addTo(map.value);
         }
       }
+      
+      // AI : Update marker colors and tooltips for edit mode
+      if (overlayObject.marker) {
+        updateMarkerTooltip(overlayObject);
+      }
     });
     
     // AI : Update overlay editing state for existing overlays
@@ -53,6 +58,13 @@ export async function toggleEditMode(): Promise<void> {
     
     // AI : Clear only the edit mode markers, not the full overlays
     clearEditModeOverlays();
+    
+    // AI : Update markers for view mode (remove tooltips, update colors)
+    Object.values(overlays.value).forEach((overlayObject) => {
+      if (overlayObject.marker) {
+        updateMarkerTooltip(overlayObject);
+      }
+    });
     
     // AI : Force re-render overlays to show original backend positions instead of modified ones
     // AI : Check if we have a current city with cached data

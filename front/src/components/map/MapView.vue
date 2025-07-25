@@ -94,16 +94,19 @@ import ImageUploadDialog from '@components/dialogs/ImageUploadDialog.vue';
 const projectStore = useProjectStore();
 const overlayStore = useOverlayStore();
 const { projects } = storeToRefs(projectStore);
-const { isEditMode, overlays, showImageUploadDialog, replacementOverlayId } = storeToRefs(overlayStore);
+const { 
+  isEditMode,  
+  showImageUploadDialog, 
+  replacementOverlayId,
+  pendingImageFile
+} = storeToRefs(overlayStore);
 
 // AI: Core state variables
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 const showProjectSelector = ref(false);
-const pendingImageFile = ref<File | null>(null);
 const isLoading = ref(true);
-const isTogglingMode = ref(false);
 
 // AI : Options for the mode SelectButton
 const modeOptions = [
@@ -159,7 +162,7 @@ async function handleAddOverlayClick() {
 
 // AI : Handle file selection from dialog
 async function onImageUploadFromDialog(file: File) {
-  pendingImageFile.value = file;
+  overlayStore.handleFileSelected(file);
 
   // AI : Always show project selector for both new overlays and replacements
   showProjectSelector.value = true;
@@ -186,7 +189,7 @@ watch(() => isEditMode?.value, (editMode) => {
 // AI : Reset file input when dialog closes
 watch(() => showProjectSelector.value, (newVal) => {
   if (!newVal) {
-    pendingImageFile.value = null;
+    overlayStore.clearPendingFile();
     // AI : Don't reset replacementOverlayId here as it's needed after project selection
   }
 });
@@ -301,7 +304,6 @@ async function handleFileUpload(projectId: string, isReplacement: boolean = fals
     } finally {
       // AI : Reset state
       overlayStore.resetReplacement();
-      pendingImageFile.value = null;
       showProjectSelector.value = false;
     }
   };
@@ -340,7 +342,6 @@ async function initializeMapAndOverlays() {
 
 // AI : Handle toggle edit mode with loading state
 async function handleToggleEditMode(newValue: boolean) {
-  isTogglingMode.value = true;
   try {
     await toggleEditMode();
   } catch (error) {
@@ -351,8 +352,6 @@ async function handleToggleEditMode(newValue: boolean) {
       detail: 'Failed to switch mode. Please try again.',
       life: 3000
     });
-  } finally {
-    isTogglingMode.value = false;
   }
 }
 </script>

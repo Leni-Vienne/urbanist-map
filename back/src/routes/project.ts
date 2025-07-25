@@ -45,6 +45,15 @@ export const projectRouter = router({
             .set({ ...data, updatedAt: new Date() })
             .where(eq(projects.id, input.id))
             .returning();
+          
+          if (result.length === 0) {
+            // AI : Project with this ID doesn't exist, create it as new
+            const newResult = await db.insert(projects)
+              .values(data)
+              .returning();
+            return { success: true, id: newResult[0].id, exists: false };
+          }
+          
           return { success: true, id: result[0].id, exists: true };
         } else {
           // Insert new project
