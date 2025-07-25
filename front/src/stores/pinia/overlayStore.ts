@@ -1,86 +1,108 @@
-import { defineStore } from 'pinia';
-import { ref, shallowRef } from 'vue';
-import type { OverlayObject } from '@types';
+import { defineStore } from 'pinia'
+import { ref, shallowRef } from 'vue'
+import type { OverlayObject, CDNOverlayData } from '@types'
 
 export const useOverlayStore = defineStore('overlay', () => {
-  // AI : Central store for overlay data to avoid circular dependencies
-  const overlays = shallowRef<Record<string, OverlayObject>>({});
-  const idSelectedOverlay = ref<string | null>(null);
-  const isEditMode = ref(false);
+  // AI : Central store for overlay data
+  const overlays = shallowRef<Record<string, OverlayObject>>({})
+  const idSelectedOverlay = ref<string | null>(null)
+  
+  // AI : Edit mode state
+  const isEditMode = ref(false)
+  const isTogglingMode = ref(false)
 
-  // AI : Replacement overlay functionality
-  const replacementOverlayId = ref<string | null>(null);
-  const showImageUploadDialog = ref(false);
+  // AI : Overlay data for different modes
+  const viewModeOverlays = ref<CDNOverlayData[]>([])
+  const loadedEditOverlays = ref<Set<string>>(new Set())
+  const overlaysLoading = ref(false)
+  const overlaysError = ref<string | null>(null)
 
-  // AI : InfoPopup state for Teleport solution
-  const showInfoPopup = ref(false);
-  const infoPopupOverlayId = ref<string | null>(null);
+  // AI : UI state
+  const replacementOverlayId = ref<string | null>(null)
+  const showImageUploadDialog = ref(false)
+  const pendingImageFile = ref<File | null>(null)
+  const showInfoPopup = ref(false)
+  const infoPopupOverlayId = ref<string | null>(null)
 
-  // AI : Request overlay replacement (replaces EventBus functionality)
-  function requestOverlayReplacement(overlayId: string) {
-    replacementOverlayId.value = overlayId;
-    showImageUploadDialog.value = true;
+  // AI : Basic actions
+  const setViewModeOverlays = (overlayData: CDNOverlayData[]) => {
+    viewModeOverlays.value = overlayData
+    overlaysError.value = null
   }
 
-  // AI : Reset replacement state
-  function resetReplacement() {
-    replacementOverlayId.value = null;
+  const clearViewModeOverlays = () => {
+    viewModeOverlays.value = []
+    overlaysError.value = null
   }
 
-  // AI : Show InfoPopup for specific overlay
-  function showInfoPopupForOverlay(overlayId: string) {
-    infoPopupOverlayId.value = overlayId;
-    showInfoPopup.value = true;
+  const setOverlaysLoading = (loading: boolean) => {
+    overlaysLoading.value = loading
   }
 
-  // AI : Hide InfoPopup
-  function hideInfoPopup() {
-    showInfoPopup.value = false;
-    infoPopupOverlayId.value = null;
+  const setOverlaysError = (error: string | null) => {
+    overlaysError.value = error
   }
 
-  // AI : Toggle InfoPopup for selected overlay
-  function toggleInfoPopup() {
+  const addEditModeOverlay = (overlayId: string) => {
+    loadedEditOverlays.value.add(overlayId)
+  }
+
+  const removeEditModeOverlay = (overlayId: string) => {
+    loadedEditOverlays.value.delete(overlayId)
+  }
+
+  const clearEditModeOverlays = () => {
+    loadedEditOverlays.value.clear()
+  }
+
+  const setEditMode = (editMode: boolean) => {
+    isEditMode.value = editMode
+  }
+
+  const handleFileSelected = (file: File) => {
+    pendingImageFile.value = file
+  }
+
+  const clearPendingFile = () => {
+    pendingImageFile.value = null
+  }
+
+  const requestOverlayReplacement = (overlayId: string) => {
+    replacementOverlayId.value = overlayId
+    showImageUploadDialog.value = true
+  }
+
+  const resetReplacement = () => {
+    replacementOverlayId.value = null
+    clearPendingFile()
+  }
+
+  const showInfoPopupForOverlay = (overlayId: string) => {
+    infoPopupOverlayId.value = overlayId
+    showInfoPopup.value = true
+  }
+
+  const hideInfoPopup = () => {
+    showInfoPopup.value = false
+    infoPopupOverlayId.value = null
+  }
+
+  const toggleInfoPopup = () => {
     if (showInfoPopup.value) {
-      hideInfoPopup();
+      hideInfoPopup()
     } else if (idSelectedOverlay.value) {
-      showInfoPopupForOverlay(idSelectedOverlay.value);
+      showInfoPopupForOverlay(idSelectedOverlay.value)
     }
   }
 
-  // AI : Reset all UI states (useful when overlays are recreated)
-  function resetAllUIStates() {
-    hideInfoPopup();
-    resetReplacement();
-    // AI : Clean up any lingering DOM elements
-    const existingTargets = document.querySelectorAll('#info-popup-teleport-target');
-    existingTargets.forEach(target => target.remove());
-    
-    // AI : Reset any toolbar states
-    const toolbarButtons = document.querySelectorAll('.leaflet-toolbar .subtoolbar_enabled');
-    toolbarButtons.forEach(button => {
-      if (button.classList.contains('pi-info-circle')) {
-        button.classList.remove('subtoolbar_enabled');
-      }
-    });
+  const resetAllUIStates = () => {
+    hideInfoPopup()
+    resetReplacement()
   }
 
-  // AI : Close all UI elements gracefully (useful for window blur events)
-  function closeAllUIElements() {
-    hideInfoPopup();
-    resetReplacement();
-    
-    // AI : Clean up any lingering DOM elements
-    const existingTargets = document.querySelectorAll('#info-popup-teleport-target');
-    existingTargets.forEach(target => target.remove());
-    
-    // AI : Reset any toolbar states
-    const toolbarButtons = document.querySelectorAll('.leaflet-toolbar .subtoolbar_enabled');
-    toolbarButtons.forEach(button => {
-      if (button.classList.contains('pi-info-circle')) {
-        button.classList.remove('subtoolbar_enabled');
-      }
-    });
+  const closeAllUIElements = () => {
+    hideInfoPopup()
+    resetReplacement()
   }
 
   return {
@@ -88,12 +110,28 @@ export const useOverlayStore = defineStore('overlay', () => {
     overlays,
     idSelectedOverlay,
     isEditMode,
+    isTogglingMode,
+    viewModeOverlays,
+    loadedEditOverlays,
+    overlaysLoading,
+    overlaysError,
     replacementOverlayId,
     showImageUploadDialog,
+    pendingImageFile,
     showInfoPopup,
     infoPopupOverlayId,
     
     // Actions
+    setViewModeOverlays,
+    clearViewModeOverlays,
+    setOverlaysLoading,
+    setOverlaysError,
+    addEditModeOverlay,
+    removeEditModeOverlay,
+    clearEditModeOverlays,
+    setEditMode,
+    handleFileSelected,
+    clearPendingFile,
     requestOverlayReplacement,
     resetReplacement,
     showInfoPopupForOverlay,
@@ -101,5 +139,5 @@ export const useOverlayStore = defineStore('overlay', () => {
     toggleInfoPopup,
     resetAllUIStates,
     closeAllUIElements
-  };
-});
+  }
+})

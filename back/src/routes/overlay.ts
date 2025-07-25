@@ -135,6 +135,8 @@ export const overlayRouter = router({
 
         // AI : Prepare overlay data for insert/update
         const overlayData = {
+          id: input.id,
+          filename: input.filename,
           caption: input.caption,
           projectId: input.projectId,
           replacesOverlayId: input.replacesOverlayId ?? null,
@@ -150,11 +152,11 @@ export const overlayRouter = router({
           centroid: sql`ST_SetSRID(ST_MakePoint(${centroidLng}, ${centroidLat}), 4326)`
         };
 
-        // AI : Check if overlay with this filename already exists (UPSERT logic)
+        // AI : Check if overlay already exists
         const existingOverlay = await db
-          .select()
+          .select({ id: overlays.id })
           .from(overlays)
-          .where(sql`filename = ${input.filename}`)
+          .where(eq(overlays.id, input.id))
           .limit(1);
 
         if (existingOverlay.length > 0) {
@@ -165,25 +167,25 @@ export const overlayRouter = router({
               ...overlayData,
               updatedAt: sql`NOW()`
             })
-            .where(sql`filename = ${input.filename}`)
+            .where(eq(overlays.id, input.id))
             .returning();
 
           return {
             success: true,
             id: result[0].id,
-            exists: true // AI : Indicate this overlay was updated
+            exists: true
           };
         } else {
           // AI : Insert new overlay
-          const result = await db.insert(overlays).values({
-            filename: input.filename,
-            ...overlayData
-          }).returning();
+          const result = await db
+            .insert(overlays)
+            .values(overlayData)
+            .returning();
 
           return {
             success: true,
             id: result[0].id,
-            exists: false // AI : Indicate this is a new overlay
+            exists: false
           };
         }
       } catch (error) {

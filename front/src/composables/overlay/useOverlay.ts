@@ -18,7 +18,7 @@ type StoredOverlayData = OverlayObject & {
   redoStack: { lat: number, lng: number }[][];
   isModified: boolean;
 };
-import { editTools, viewTools, infoTool } from '@composables/core/useTools';
+import { editTools, viewTools } from '@composables/core/useTools';
 import { router } from '../../router';
 import { createColorIcon } from '@composables/ui/colorMarkers';
 
