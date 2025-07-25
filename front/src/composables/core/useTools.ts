@@ -1,13 +1,8 @@
 import L from "leaflet";
 
-import { type ComponentInternalInstance, createVNode, render } from 'vue';
-import { map } from '@composables/core/useMap';
-import { undo, redo, resetImageRatio, deleteOverlay, updateOverlayInfo, goToNextOverlay, goToPreviousOverlay } from '@composables/overlay/useOverlayActions';
-import InfoPopup from '@components/map/InfoPopup.vue';
-import { useToast } from '@composables/ui/useToast';
+import { undo, redo, resetImageRatio, deleteOverlay, goToNextOverlay, goToPreviousOverlay } from '@composables/overlay/useOverlayActions';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { storeToRefs } from 'pinia';
-import type { ProjectInfo } from '@types';
 
 // AI : Function to get store refs when needed
 function getStoreRefs() {
@@ -16,26 +11,11 @@ function getStoreRefs() {
   return { overlays, idSelectedOverlay, isEditMode };
 }
 
-// AI : Declare window extensions for TypeScript
-declare global {
-  interface Window {
-    vueApp?: any;
-    router?: any;
-  }
-}
-
-const toast = useToast();
-
-let appInstance: ComponentInternalInstance | null = null;
-
-export function setAppContext(instance: ComponentInternalInstance) {
-  appInstance = instance;
-}
-
 export const infoTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       className: 'pi pi-info-circle',
+      tooltip: 'Info'
     },
     subToolbar: new L.Toolbar2({
       actions: [L.EditAction.extend({
@@ -53,94 +33,56 @@ export const infoTool = L.Toolbar2.Action.extend({
   },
   addHooks() {
     const link = this._link;
-    if (L.DomUtil.hasClass(link, "subtoolbar_enabled")) {
+    const overlayStore = useOverlayStore();
+    const { idSelectedOverlay } = getStoreRefs();
+
+    if (!idSelectedOverlay.value) {
+      return;
+    }
+
+    // AI : Check if currently open using store state
+    const isCurrentlyOpen = overlayStore.showInfoPopup;
+
+    if (isCurrentlyOpen) {
+      // AI : Close
+      overlayStore.hideInfoPopup();
       L.DomUtil.removeClass(link, "subtoolbar_enabled");
+      this.options.subToolbar._hide();
+      // AI : Restore the original button when closing
+      const teleportTarget = document.getElementById('info-popup-teleport-target');
+      if (teleportTarget && teleportTarget.parentNode) {
+        const originalButton = document.createElement('a');
+        originalButton.className = "leaflet-toolbar-icon more-info-popup";
+        originalButton.href = "#";
+        originalButton.title = "Info";
+        originalButton.setAttribute('role', 'button');
 
-      setTimeout(() => {
-        this.options.subToolbar._hide();
-      }, 100);
-
+        teleportTarget.parentNode.replaceChild(originalButton, teleportTarget);
+      }
     } else {
+      // AI : Open
       L.DomUtil.addClass(link, "subtoolbar_enabled");
+      this.options.subToolbar._show();
 
-      setTimeout(() => {
-        const { overlays, idSelectedOverlay, isEditMode } = getStoreRefs();
-        if (!idSelectedOverlay.value) return;
-        const popupElement = document.getElementsByClassName("more-info-popup")[0];
+      const subtoolbarContainer = this.options.subToolbar._container;
+      const existingButton = subtoolbarContainer?.querySelector('.more-info-popup');
 
-        if (!popupElement || popupElement.tagName !== 'A') {
-          return
+      if (existingButton && existingButton.tagName === 'A') {
+        const teleportTarget = document.createElement('div');
+        teleportTarget.id = "info-popup-teleport-target";
+        teleportTarget.className = "leaflet-toolbar-icon more-info-popup";
+
+        existingButton.parentNode?.replaceChild(teleportTarget, existingButton);
+
+        if (idSelectedOverlay.value) {
+          overlayStore.showInfoPopupForOverlay(idSelectedOverlay.value);
         }
-        const newDiv = document.createElement('div');
-        newDiv.className = "leaflet-toolbar-icon more-info-popup";
-        newDiv.id = "info-popup-container";
-        if (popupElement.parentNode) {
-          popupElement.parentNode.replaceChild(newDiv, popupElement);
-        } else {
-          return
-        }        const vnode = createVNode(InfoPopup, {
-          overlayObject: overlays.value[idSelectedOverlay.value],
-          onProjectSubmit: handleProjectSubmit,
-          viewMode: !isEditMode.value
-        })
-
-        // AI : Use the main app instance to ensure proper PrimeVue context
-        const globalApp = (window as any).vueApp;
-        if (globalApp?._context) {
-          // AI : Use the global app context directly for proper PrimeVue support
-          vnode.appContext = globalApp._context;
-        } else if (appInstance?.appContext) {
-          // AI : Fallback to component instance context if main app not available
-          vnode.appContext = appInstance.appContext;
-        } else {
-          console.warn('AI : No app context available for InfoPopup component');
-        }
-
-        render(vnode, newDiv);
-      }, 10);
+      }
     }
 
     (L as any).IconUtil.toggleXlink(link, "information", "close");
     (L as any).IconUtil.toggleTitle(link, "Close", "About");
   }
-});
-
-function handleProjectSubmit(projectInfo: ProjectInfo & { id: string }) {
-  const { overlays } = getStoreRefs();
-  if (!projectInfo.id || !overlays.value[projectInfo.id]) {
-    console.error('Overlay not found for ID:', projectInfo.id);
-    return;
-  }
-
-  updateOverlayInfo(projectInfo.id, {});
-
-  toast.add({ severity: 'success', summary: 'Project info updated', life: 3000 });
-
-  const infoLink = document.querySelector('.pi-info-circle');
-  if (infoLink && infoLink instanceof HTMLElement) {
-    infoLink.click();
-  }
-}
-
-export const centerTool = L.Toolbar2.Action.extend({
-  options: {
-    toolbarIcon: {
-      html: '<span>Center Map</span>',
-      tooltip: 'Center map on the selected overlay',
-    },
-  },
-  addHooks: function () {
-    const { overlays, idSelectedOverlay } = getStoreRefs();
-    if (!idSelectedOverlay.value) {
-      alert('No overlay selected!');
-      return;
-    }
-    const overlayObject = overlays.value[idSelectedOverlay.value];
-    if (overlayObject?.overlay) {
-      const bounds = overlayObject.overlay.getBounds();
-      map.value?.fitBounds(bounds);
-    }
-  },
 });
 
 export const previousOverlayTool = L.Toolbar2.Action.extend({
@@ -234,10 +176,10 @@ export const replaceOverlayTool = L.Toolbar2.Action.extend({
     if (!idSelectedOverlay.value) {
       return;
     }
-    
+
     // AI : Use the overlay store for replacement functionality
     const overlayStore = useOverlayStore();
-    
+
     // AI : Request overlay replacement using the store
     overlayStore.requestOverlayReplacement(idSelectedOverlay.value);
   },
@@ -261,6 +203,7 @@ export const replaceOverlayTool = L.Toolbar2.Action.extend({
 
 
 export const editTools = [
+  infoTool,
   undoTool,
   redoTool,
   L.DragAction,
@@ -277,7 +220,7 @@ export const editTools = [
 ];
 
 export const viewTools = [
-  centerTool,
+  infoTool,
   L.OpacityAction,
   L.OpacitiesAction,
   previousOverlayTool,

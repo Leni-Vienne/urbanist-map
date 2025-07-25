@@ -79,7 +79,6 @@ import { initializeCameraBounds } from '@composables/map/useCameraBounds';
 import { toggleEditMode } from '@composables/overlay/useEditMode';
 import { addOverlay, undo, redo } from '@composables/overlay/useOverlayActions';
 import { useToast } from '@composables/ui/useToast';
-import { setAppContext } from '@composables/core/useTools';
 import { navigateWithCoordinates } from '@composables/ui/useRouterNavigation';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
 import { initializeCountryMarkers } from '@composables/map/useCountryMarkers';
@@ -103,7 +102,6 @@ const route = useRoute();
 const toast = useToast();
 const showProjectSelector = ref(false);
 const pendingImageFile = ref<File | null>(null);
-const databaseInitialized = inject('databaseInitialized', ref(false));
 const isLoading = ref(true);
 const isTogglingMode = ref(false);
 
@@ -194,26 +192,8 @@ watch(() => showProjectSelector.value, (newVal) => {
 });
 
 onMounted(async () => {
-  // AI : As a backup, set app context here as well
-  const app = getCurrentInstance();
-  if (app) {
-    setAppContext(app);
-  }
-
-  if (!databaseInitialized.value) {
-    // Wait for database initialization
-    const unwatch = watch(databaseInitialized, async (initialized) => {
-      if (initialized) {
-        await initializeMapAndOverlays();
-        isLoading.value = false;
-        unwatch();
-      }
-    });
-  } else {
-    // Database already initialized
-    await initializeMapAndOverlays();
-    isLoading.value = false;
-  }
+  await initializeMapAndOverlays();
+  isLoading.value = false;
 });
 
 // AI : Process image after project selection
@@ -288,19 +268,19 @@ async function handleFileUpload(projectId: string, isReplacement: boolean = fals
       if (isReplacement && replacementOverlayId.value) {
         // AI : Create replacement overlay using the standard overlay creation process
         const overlayId = await addOverlay(reader.result as string, projectId, replacementOverlayId.value);
-        
+
         if (overlayId) {
-          toast.add({ 
-            severity: 'success', 
-            summary: 'Replacement Overlay Created', 
+          toast.add({
+            severity: 'success',
+            summary: 'Replacement Overlay Created',
             detail: 'Your replacement overlay has been created and is ready for editing',
-            life: 3000 
+            life: 3000
           });
         }
       } else {
         // AI : Regular overlay addition
         const overlayId = await addOverlay(reader.result as string, projectId);
-        
+
         if (overlayId) {
           toast.add({
             severity: 'success',
@@ -312,11 +292,11 @@ async function handleFileUpload(projectId: string, isReplacement: boolean = fals
       }
     } catch (error) {
       console.error('Error handling file upload:', error);
-      toast.add({ 
-        severity: 'error', 
-        summary: 'Upload Failed', 
+      toast.add({
+        severity: 'error',
+        summary: 'Upload Failed',
         detail: 'Failed to process the image overlay',
-        life: 3000 
+        life: 3000
       });
     } finally {
       // AI : Reset state
@@ -362,19 +342,6 @@ async function initializeMapAndOverlays() {
 async function handleToggleEditMode(newValue: boolean) {
   isTogglingMode.value = true;
   try {
-    // AI : Ensure database is initialized before toggling mode
-    if (!databaseInitialized.value) {
-      console.warn('AI : Database not initialized, waiting...');
-      toast.add({
-        severity: 'warn',
-        summary: 'Please Wait',
-        detail: 'Database is still initializing...',
-        life: 3000
-      });
-      // AI : Revert the toggle if database not ready
-      return;
-    }
-
     await toggleEditMode();
   } catch (error) {
     console.error('AI : Error toggling edit mode:', error);

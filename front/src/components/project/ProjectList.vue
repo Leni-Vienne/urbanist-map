@@ -94,7 +94,7 @@ const menu = ref();
 const filters = ref({
   'global': { value: null, matchMode: 'contains' },
 });
-const selectedProjectId = ref<string>('');
+const contextMenuProjectId = ref<string>('');
 const menuItems = ref<MenuItem[]>([]);
 
 const nodes = computed(() => {
@@ -143,14 +143,14 @@ function toggleMenu(event: Event, data: any) {
     return;
   }
   
-  selectedProjectId.value = data.id;
+  contextMenuProjectId.value = data.id;
   menuItems.value = [
     {
       label: 'View Project',
       icon: 'pi pi-eye',
       command: () => {
-        if (selectedProjectId.value) {
-          openProject(selectedProjectId.value, 'view');
+        if (contextMenuProjectId.value) {
+          openProject(contextMenuProjectId.value, 'view');
         }
       }
     },
@@ -158,8 +158,8 @@ function toggleMenu(event: Event, data: any) {
       label: 'Edit Project',
       icon: 'pi pi-pencil',
       command: () => {
-        if (selectedProjectId.value) {
-          openProject(selectedProjectId.value, 'edit');
+        if (contextMenuProjectId.value) {
+          openProject(contextMenuProjectId.value, 'edit');
         }
       }
     },
@@ -169,8 +169,8 @@ function toggleMenu(event: Event, data: any) {
       icon: 'pi pi-trash',
       className: 'p-error',
       command: () => {
-        if (selectedProjectId.value) {
-          confirmDeleteProject(selectedProjectId.value);
+        if (contextMenuProjectId.value) {
+          confirmDeleteProject(contextMenuProjectId.value);
         }
       }
     }
