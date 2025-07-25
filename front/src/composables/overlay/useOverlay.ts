@@ -143,7 +143,6 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
       editable: true,
       keyboard: false,
       actions: [
-        infoTool,
         ...(isEditMode.value ? editTools : viewTools)
       ],
     });
@@ -564,6 +563,10 @@ export function clearAllOverlays(): void {
   overlays.value = {};
   allMarkers.value = {};
   idSelectedOverlay.value = null;
+  
+  // AI : Reset UI states when clearing overlays
+  const overlayStore = useOverlayStore();
+  overlayStore.resetAllUIStates();
 }
 
 /**

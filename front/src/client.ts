@@ -12,7 +12,7 @@ export type RouterOutput = inferRouterOutputs<AppRouter>;
 export const trpc = createTRPCClient<AppRouter>({
   links: [
     httpBatchLink({
-      url: 'http://localhost:3000/trpc',
+      url: `${import.meta.env.VITE_API_BASE_URL}/trpc`,
       
       fetch(url, options) {
         return fetch(url, {

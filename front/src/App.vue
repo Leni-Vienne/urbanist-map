@@ -16,6 +16,12 @@
 
       <!-- AI : Router view as overlay on top of the map -->
       <router-view />
+
+      <!-- AI : Teleport target for InfoPopup -->
+      <div id="info-popup-teleport-target" />
+
+      <!-- AI : InfoPopup container using Teleport -->
+      <InfoPopupContainer />
     </div>
   </div>
 </template>
@@ -27,22 +33,35 @@ import 'leaflet-distortableimage/dist/leaflet.distortableimage.css'
 import './assets/style.css' // must be imported after leaflet's css otherwise it's overwritten by leaflet's default css
 import 'primeicons/primeicons.css'
 
-import { onMounted, provide, ref, getCurrentInstance } from 'vue'
+import { onMounted, provide, ref, getCurrentInstance, onUnmounted } from 'vue'
 import MapView from '@components/map/MapView.vue'
 import SideMenu from '@components/layout/SideMenu.vue'
+import InfoPopupContainer from '@components/map/InfoPopupContainer.vue'
+import { useOverlayStore } from '@stores/pinia/overlayStore'
 
 // AI : Create a ref to track database initialization state
 const databaseInitialized = ref(false)
 const isModerator = ref(false)
 const moderationPanelOpen = ref(false)
+const overlayStore = useOverlayStore()
 
 // AI : Provide the initialization state to child components
 provide('databaseInitialized', databaseInitialized)
+
+// AI : Handle window blur to close UI elements gracefully
+function handleWindowBlur() {
+  overlayStore.closeAllUIElements();
+  moderationPanelOpen.value = false;
+}
 
 onMounted(async () => {
   if (import.meta.env.VITE_DEV_MODE === 'true') {
     isModerator.value = true
   }
+  
+  // AI : Add window blur listener to close UI elements gracefully
+  window.addEventListener('blur', handleWindowBlur);
+  
   try {
     // AI : Store app instance context for dynamic components
     const instance = getCurrentInstance()
@@ -59,8 +78,8 @@ onMounted(async () => {
     // AI : Set initialization flag to true after setup complete
     databaseInitialized.value = true
 
-    // Utiliser un appel à l'API pour vérifier le statut d'authentification
-    const response = await fetch('http://localhost:3000/api/check-session', {
+    // AI : Use environment variable for API base URL
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/check-session`, {
       method: 'GET',
       credentials: 'include',
     })
@@ -74,6 +93,10 @@ onMounted(async () => {
   catch (error) {
     console.error('Error during application initialization:', error)
   }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('blur', handleWindowBlur);
 })
 </script>
 

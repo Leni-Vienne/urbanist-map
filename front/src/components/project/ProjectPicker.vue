@@ -126,6 +126,7 @@ import { useProjects } from '@composables/project/useProjects';
 import { fetchNearbyProjects, getNearbyProjects } from '@composables/project/useNearbyProjects';
 import { lastCreatedProjectId } from '@composables/ui/useRouterNavigation';
 import { useProjectManagerDialog } from '@composables/project/useProjectManagerDialog';
+import { useSelectedProject } from '@composables/project/useSelectedProject';
 import { router } from '../../router';
 import type { Project } from '@types';
 
@@ -162,8 +163,10 @@ const emit = defineEmits(['update:modelValue', 'project-selected', 'project-crea
 const { projects } = useProjects();
 
 const loading = ref(false);
-const selectedProjectId = ref(props.modelValue);
 const hasSelectError = ref(false);
+
+// AI : Use centralized selected project state
+const { selectedProjectId } = useSelectedProject();
 
 // AI : Get nearby projects composable
 const { projects: nearbyProjectsData, isLoading: nearbyLoading, error: nearbyError } = getNearbyProjects();
@@ -217,8 +220,17 @@ watch(() => lastCreatedProjectId.value, (newProjectId) => {
   }
 });
 
-watch(() => projects.value, (newProjects) => {
+// AI : Initialize selectedProjectId from modelValue prop
+watch(() => props.modelValue, (newValue) => {
+  if (newValue !== selectedProjectId.value) {
+    selectedProjectId.value = newValue;
+  }
 }, { immediate: true });
+
+// AI : Watch for changes to the selectedProjectId and emit them
+watch(selectedProjectId, (newValue) => {
+  emit('update:modelValue', newValue);
+});
 
 // AI : Watch for useNearbyProjects prop to fetch nearby projects when dialog opens
 watch(() => props.useNearbyProjects, async (useNearby) => {
@@ -231,18 +243,6 @@ watch(() => props.useNearbyProjects, async (useNearby) => {
     }
   }
 }, { immediate: true });
-
-// AI : Watch for changes to the modelValue prop
-watch(() => props.modelValue, (newValue) => {
-  if (newValue !== selectedProjectId.value) {
-    selectedProjectId.value = newValue;
-  }
-});
-
-// AI : Watch for changes to the selectedProjectId ref and emit them
-watch(selectedProjectId, (newValue) => {
-  emit('update:modelValue', newValue);
-});
 
 function getProjectById(id: string): Project | undefined {
   return projectList.value.find(project => project.id === id);

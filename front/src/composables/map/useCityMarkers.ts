@@ -7,22 +7,21 @@ import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
 import { trpc, RouterOutput } from '@client';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { useProjectStore } from '@stores/pinia/projectStore';
+import { useSelectedProject } from '@composables/project/useSelectedProject';
 import { storeToRefs } from 'pinia';
 import type { CDNOverlayData, MarkerColor } from '@types';
 
 // AI : Function to get store refs when needed
 function getStoreRefs() {
   const overlayStore = useOverlayStore();
-  const projectStore = useProjectStore();
   const { overlays, isEditMode } = storeToRefs(overlayStore);
-  const { selectedProjectId } = storeToRefs(projectStore);
+  const { selectedProjectId } = useSelectedProject();
   return { overlays, isEditMode, selectedProjectId };
 }
 
 // AI : Function to get selected project ID when needed (kept for backward compatibility)
 async function getSelectedProjectId() {
-  const { selectedProjectId } = getStoreRefs();
+  const { selectedProjectId } = useSelectedProject();
   return selectedProjectId;
 }
 

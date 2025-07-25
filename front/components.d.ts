@@ -17,6 +17,7 @@ declare module 'vue' {
     FloatLabel: typeof import('primevue/floatlabel')['default']
     ImageUploadDialog: typeof import('./src/components/dialogs/ImageUploadDialog.vue')['default']
     InfoPopup: typeof import('./src/components/map/InfoPopup.vue')['default']
+    InfoPopupContainer: typeof import('./src/components/map/InfoPopupContainer.vue')['default']
     InputText: typeof import('primevue/inputtext')['default']
     MapView: typeof import('./src/components/map/MapView.vue')['default']
     ModerationPanel: typeof import('./src/components/layout/ModerationPanel.vue')['default']
