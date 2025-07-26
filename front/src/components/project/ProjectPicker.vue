@@ -124,8 +124,7 @@ import { ref, computed, watch } from 'vue';
 
 import { useProjects } from '@composables/project/useProjects';
 import { fetchNearbyProjects, getNearbyProjects } from '@composables/project/useNearbyProjects';
-import { lastCreatedProjectId } from '@composables/ui/useRouterNavigation';
-import { useProjectManagerDialog } from '@composables/project/useProjectManagerDialog';
+import { lastCreatedProjectId, setFileUploadFlow } from '@composables/ui/useRouterNavigation';
 import { useSelectedProject } from '@composables/project/useSelectedProject';
 import { router } from '../../router';
 import type { Project } from '@types';
@@ -253,8 +252,6 @@ function confirmSelection() {
     emit('project-selected', selectedProjectId.value);
   }
 }
-
-const { setFileUploadFlow } = useProjectManagerDialog();
 
 function openNewProjectDialog() {
   try {

@@ -73,7 +73,7 @@ import { useRouter } from 'vue-router';
 
 import { useProjects, deleteProjectById } from '@composables/project/useProjects';
 import { useToast } from '@composables/ui/useToast';
-import type { ProjectManagerMode } from '@composables/project/useProjectManagerDialog';
+import type { ProjectManagerMode } from '@types';
 import type { MenuItem } from 'primevue/menuitem';
 import TreeTable from 'primevue/treetable';
 import Column from 'primevue/column';

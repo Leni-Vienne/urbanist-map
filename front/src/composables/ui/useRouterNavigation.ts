@@ -4,6 +4,7 @@ import { router } from '../../router';
 // AI: State accessible without requiring router injection
 export const initialProjectName = ref<string>('');
 export const lastCreatedProjectId = ref<string | null>(null);
+export const inFileUploadFlow = ref<boolean>(false);
 
 /**
  * AI: Simple back navigation with safety check
@@ -65,4 +66,11 @@ export function navigateToProjectEdit(projectId: string) {
  */
 export function setLastCreatedProject(projectId: string | null) {
   lastCreatedProjectId.value = projectId;
+}
+
+/**
+ * AI: Set the file upload flow state for navigation context
+ */
+export function setFileUploadFlow(active: boolean): void {
+  inFileUploadFlow.value = active;
 }
