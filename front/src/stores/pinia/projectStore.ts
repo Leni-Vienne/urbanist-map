@@ -2,6 +2,8 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { Project, Country } from '@types';
 import type { NearbyProject } from '../../types/api';
+import { map } from '@composables/core/useMap';
+import { trpc } from '@client';
 
 export const useProjectStore = defineStore('project', () => {
   // AI : Central store for project data to avoid circular dependencies
@@ -59,7 +61,6 @@ export const useProjectStore = defineStore('project', () => {
       nearbyProjectsLoading.value = true;
       nearbyProjectsError.value = null;
       
-      const { map } = await import('@composables/core/useMap');
       if (!map.value) {
         console.warn('Map not available for fetching nearby projects');
         return [];
@@ -69,7 +70,6 @@ export const useProjectStore = defineStore('project', () => {
       const center = map.value.getCenter();
       
       // AI : Call the TRPC endpoint to fetch nearby projects
-      const { trpc } = await import('@client');
       const response = await trpc.project.getProjectsNearLocation.query({
         lat: center.lat,
         lng: center.lng,

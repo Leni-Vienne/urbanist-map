@@ -4,6 +4,7 @@ import AppLayout from '@components/layout/AppLayout.vue';
 import ProjectList from '@components/project/ProjectList.vue';
 import ProjectEditor from '@components/project/ProjectEditor.vue';
 import ProjectOverlaysList from '@components/project/ProjectOverlaysList.vue';
+import { initializeStores } from '@composables/overlay/useOverlay';
 
 // AI : Define routes for the application
 export const router = createRouter({
@@ -84,7 +85,6 @@ let storesInitialized = false;
 router.beforeEach(async (_to, _from) => {
   if (!storesInitialized) {
     // AI : Import and initialize stores on first navigation only
-    const { initializeStores } = await import('@composables/overlay/useOverlay');
     initializeStores();
     storesInitialized = true;
   }

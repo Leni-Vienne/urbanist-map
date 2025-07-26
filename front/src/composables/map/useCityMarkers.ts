@@ -1,12 +1,13 @@
 import L from "leaflet";
 import { createColorIcon } from '@composables/ui/colorMarkers';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
 import { renderViewModeOverlays, clearAllOverlays } from '@composables/overlay/useOverlay';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
 import { trpc, RouterOutput } from '@client';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { useMapStore } from '@stores/pinia/mapStore';
 import { useSelectedProject } from '@composables/project/useSelectedProject';
 import { storeToRefs } from 'pinia';
 import type { CDNOverlayData, MarkerColor } from '@types';
@@ -14,9 +15,11 @@ import type { CDNOverlayData, MarkerColor } from '@types';
 // AI : Function to get store refs when needed
 function getStoreRefs() {
   const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
   const { overlays, isEditMode } = storeToRefs(overlayStore);
+  const { selectedCity } = storeToRefs(mapStore);
   const { selectedProjectId } = useSelectedProject();
-  return { overlays, isEditMode, selectedProjectId };
+  return { overlays, isEditMode, selectedProjectId, selectedCity, mapStore };
 }
 
 // AI : Function to get selected project ID when needed (kept for backward compatibility)
@@ -49,9 +52,6 @@ let cityMarkersLayer: L.LayerGroup | null = null;
 
 // AI : Layer group for overlay markers (markers without images)
 let overlayMarkersLayer: L.LayerGroup | null = null;
-
-// AI : Track the latest clicked city for two-stage loading
-export let latestClickedCity: { id: string; name: string; countryCode?: string } | null = null;
 
 // AI : Cache for city projects data to avoid repeated API calls
 const cityProjectsCache = new Map<string, CDNOverlayData[]>();
@@ -156,8 +156,9 @@ export async function loadCityProjects(cityId: string, cityName: string, forceFu
 
     const currentZoom = map.value.getZoom();
 
-    // AI : Update latest clicked city
-    latestClickedCity = { id: cityId, name: cityName, countryCode: cityCountryCode };
+    // AI : Update selected city in store
+    const { mapStore } = getStoreRefs();
+    mapStore.setSelectedCity({ id: cityId, name: cityName, countryCode: cityCountryCode });
 
     // AI : Clear selected project when switching cities
     const selectedProjectId = await getSelectedProjectId();
@@ -464,7 +465,10 @@ export function cleanupCityMarkers(): void {
   cleanupMouseTooltip();
   clearCityProjectsCache();
   clearEditModeOverlayCache(); // AI : Clear edit modifications on cleanup
-  latestClickedCity = null;
+  
+  // AI : Clear selected city from store
+  const { mapStore } = getStoreRefs();
+  mapStore.clearSelectedCity();
 }
 
 /**
@@ -629,27 +633,30 @@ function setupZoomEventListenerInternal(): void {
   });
 
   map.value.on('zoomend', async () => {
-    if (!map.value || !latestClickedCity) return;
+    if (!map.value) return;
+    
+    const { selectedCity } = getStoreRefs();
+    if (!selectedCity.value) return;
 
     const currentZoom = map.value.getZoom();
-    const hasCachedData = cityProjectsCache.has(latestClickedCity.id);
+    const hasCachedData = cityProjectsCache.has(selectedCity.value.id);
 
     // AI : Only act if we have cached data to avoid unnecessary API calls
     if (!hasCachedData) return;
 
     // AI : If zoomed in enough and we have overlay markers, upgrade to full overlays
     if (currentZoom >= MIN_ZOOM_FOR_OVERLAYS && overlayMarkersLayer && map.value.hasLayer(overlayMarkersLayer)) {
-      console.log(`AI : Zoom level ${currentZoom} reached. Upgrading to full overlays for ${latestClickedCity.name}`);
-      await renderFullOverlaysFromCache(latestClickedCity.id, latestClickedCity.name);
+      console.log(`AI : Zoom level ${currentZoom} reached. Upgrading to full overlays for ${selectedCity.value.name}`);
+      await renderFullOverlaysFromCache(selectedCity.value.id, selectedCity.value.name);
     }
     // AI : If zoomed out from full overlays, show overlay markers again
     else if (currentZoom < MIN_ZOOM_FOR_OVERLAYS && currentCityOverlays.value.length > 0) {
-      console.log(`AI : Zoom level ${currentZoom} too low. Clearing overlays and showing overlay markers for ${latestClickedCity.name}`);
+      console.log(`AI : Zoom level ${currentZoom} too low. Clearing overlays and showing overlay markers for ${selectedCity.value.name}`);
       // AI : Clear current overlays first
       clearAllOverlays();
       currentCityOverlays.value = [];
       // AI : Then show overlay markers
-      renderOverlayMarkersFromCache(latestClickedCity.id, latestClickedCity.name);
+      renderOverlayMarkersFromCache(selectedCity.value.id, selectedCity.value.name);
     }
   });
 }
@@ -747,17 +754,17 @@ function getOverlayMarkerInfo(overlayData: CDNOverlayData): { color: MarkerColor
  */
 export function updateOverlayMarkers(): void {
   // AI : Only update if we have overlay markers visible and we're in edit mode
-  const { isEditMode } = getStoreRefs();
+  const { isEditMode, selectedCity } = getStoreRefs();
   if (!overlayMarkersLayer || !map.value || !map.value.hasLayer(overlayMarkersLayer) || !isEditMode.value) {
     return;
   }
 
   // AI : Get the current city data from cache
-  if (!latestClickedCity || !cityProjectsCache.has(latestClickedCity.id)) {
+  if (!selectedCity.value || !cityProjectsCache.has(selectedCity.value.id)) {
     return;
   }
 
-  const overlaysData = cityProjectsCache.get(latestClickedCity.id)!;
+  const overlaysData = cityProjectsCache.get(selectedCity.value.id)!;
   
   // AI : Clear existing markers
   overlayMarkersLayer.clearLayers();
@@ -838,3 +845,15 @@ export function getCachedCityProjectsData(cityId: string): CDNOverlayData[] | nu
 export function hasCachedCityProjectsData(cityId: string): boolean {
   return cityProjectsCache.has(cityId);
 }
+
+/**
+ * AI : Get the currently selected city from the map store
+ * @returns The selected city or null if none selected
+ */
+export function getSelectedCity() {
+  const { selectedCity } = getStoreRefs();
+  return selectedCity.value;
+}
+
+// AI : Backward compatibility - computed property that behaves like the old latestClickedCity
+export const latestClickedCity = computed(() => getSelectedCity());
