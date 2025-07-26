@@ -9,10 +9,10 @@ export const approvalStatusEnum = pgEnum('approval_status', ['pending', 'approve
 
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
-  username: text('username').notNull(),
-  email: text('email').notNull(),
+  username: text('username').notNull().unique(),
+  email: text('email').notNull().unique(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
 });
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -33,7 +33,7 @@ export const projects = pgTable('projects', {
   endDate: timestamp('end_date', { withTimezone: true }),
   latestUpdateOn: timestamp('latest_update_on', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
 });
 
 export const projectsRelations = relations(projects, ({
@@ -73,7 +73,7 @@ export const overlays = pgTable('overlays', {
   centroid: geometry('centroid', { type: 'point', mode: 'xy', srid: 4326 }).notNull(),
 
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
 }, (overlays) => ({
   projectIndex: index('idx_overlays_project').on(overlays.projectId),
   centroidIndex: sql.raw('CREATE INDEX idx_overlays_centroid ON overlays USING GIST (centroid)'),
@@ -101,7 +101,7 @@ export const cities = pgTable('cities', {
   countryCode: char('country_code', { length: 3 }).notNull(), // AI : 3-letter country code (ISO 3166-1 alpha-3)
   coordinates: geometry('coordinates', { type: 'point', mode: 'xy', srid: 4326 }).notNull(), // AI : Geographic coordinates as PostGIS point
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
 }, (cities) => ({
   countryIndex: index('idx_cities_country').on(cities.countryCode),
   coordinatesIndex: sql.raw('CREATE INDEX idx_cities_coordinates ON cities USING GIST (coordinates)'),
@@ -117,7 +117,7 @@ export const countries = pgTable('countries', {
   name: text('name').notNull(), // AI : Country name in English
   centerCoordinates: geometry('center_coordinates', { type: 'point', mode: 'xy', srid: 4326 }).notNull(), // AI : Geographic center of the country
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date())
 }, (countries) => ({
   codeIndex: index('idx_countries_code').on(countries.code),
   centerIndex: sql.raw(`CREATE INDEX idx_countries_center ON countries USING GIST (center_coordinates)`)

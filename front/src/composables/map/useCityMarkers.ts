@@ -798,7 +798,6 @@ export function applyCachedOverlayState(overlayId: string, overlayObject: any): 
       // AI : Apply the edit modifications to the overlay
       overlayObject.overlay.setCorners(editModifications.corners);
       overlayObject.isModified = editModifications.isModified;
-      console.log(`AI : Applied cached edit modifications for overlay ${overlayId}`);
       return true;
     } catch (error) {
       console.error(`AI : Error applying cached edit modifications for overlay ${overlayId}:`, error);
@@ -824,8 +823,6 @@ export function updateCachedOverlayData(overlayId: string, newCorners: { lat: nu
     corners: [...newCorners],
     isModified: true
   });
-  
-  console.log(`AI : Cached edit modifications for overlay ${overlayId}`);
 }
 
 /**

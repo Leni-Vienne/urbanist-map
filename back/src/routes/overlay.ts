@@ -59,16 +59,10 @@ function buildOverlayQuery() {
 // AI : Find overlays that intersect with a given overlay using PostGIS spatial queries
 async function findIntersectingOverlays(excludeId: string, targetOverlay: any) {
   try {
-    // AI : Create a polygon from the target overlay's corner coordinates using PostGIS
-    const targetPolygon = sql`ST_SetSRID(ST_MakePolygon(ST_MakeLine(ARRAY[
-      ST_MakePoint(${targetOverlay.topLeftLng}, ${targetOverlay.topLeftLat}),
-      ST_MakePoint(${targetOverlay.topRightLng}, ${targetOverlay.topRightLat}),
-      ST_MakePoint(${targetOverlay.bottomRightLng}, ${targetOverlay.bottomRightLat}),
-      ST_MakePoint(${targetOverlay.bottomLeftLng}, ${targetOverlay.bottomLeftLat}),
-      ST_MakePoint(${targetOverlay.topLeftLng}, ${targetOverlay.topLeftLat})
-    ])), 4326)`;
+    // AI : Construct the target polygon once as WKT string - avoids expensive polygon construction for every row
+    const targetPolygonWKT = `POLYGON((${targetOverlay.topLeftLng} ${targetOverlay.topLeftLat}, ${targetOverlay.topRightLng} ${targetOverlay.topRightLat}, ${targetOverlay.bottomRightLng} ${targetOverlay.bottomRightLat}, ${targetOverlay.bottomLeftLng} ${targetOverlay.bottomLeftLat}, ${targetOverlay.topLeftLng} ${targetOverlay.topLeftLat}))`;
 
-    // AI : Use PostGIS ST_Intersects to find overlapping overlays efficiently in the database
+    // AI : Use PostGIS ST_Intersects with precomputed target polygon for optimal performance
     const intersectingOverlays = await db
       .select(overlaySelectFields)
       .from(overlays)
@@ -77,7 +71,7 @@ async function findIntersectingOverlays(excludeId: string, targetOverlay: any) {
       .where(sql`
         ${overlays.id} != ${excludeId} AND
         ST_Intersects(
-          ${targetPolygon},
+          ST_GeomFromText(${targetPolygonWKT}, 4326),
           ST_SetSRID(ST_MakePolygon(ST_MakeLine(ARRAY[
             ST_MakePoint(${overlays.topLeftLng}, ${overlays.topLeftLat}),
             ST_MakePoint(${overlays.topRightLng}, ${overlays.topRightLat}),
@@ -160,42 +154,37 @@ export const overlayRouter = router({
           centroid: sql`ST_SetSRID(ST_MakePoint(${centroidLng}, ${centroidLat}), 4326)`
         };
 
-        // AI : Check if overlay already exists
-        const existingOverlay = await db
-          .select({ id: overlays.id })
-          .from(overlays)
-          .where(eq(overlays.id, input.id))
-          .limit(1);
-
-        if (existingOverlay.length > 0) {
-          // AI : Update existing overlay
-          const result = await db
-            .update(overlays)
-            .set({
-              ...overlayData,
+        // AI : Use upsert operation to avoid race conditions - atomic insert or update
+        const result = await db
+          .insert(overlays)
+          .values(overlayData)
+          .onConflictDoUpdate({
+            target: overlays.id,
+            set: {
+              filename: overlayData.filename,
+              caption: overlayData.caption,
+              projectId: overlayData.projectId,
+              replacesOverlayId: overlayData.replacesOverlayId,
+              metadata: overlayData.metadata,
+              topLeftLat: overlayData.topLeftLat,
+              topLeftLng: overlayData.topLeftLng,
+              topRightLat: overlayData.topRightLat,
+              topRightLng: overlayData.topRightLng,
+              bottomRightLat: overlayData.bottomRightLat,
+              bottomRightLng: overlayData.bottomRightLng,
+              bottomLeftLat: overlayData.bottomLeftLat,
+              bottomLeftLng: overlayData.bottomLeftLng,
+              centroid: overlayData.centroid,
               updatedAt: sql`NOW()`
-            })
-            .where(eq(overlays.id, input.id))
-            .returning();
+            }
+          })
+          .returning();
 
-          return {
-            success: true,
-            id: result[0].id,
-            exists: true
-          };
-        } else {
-          // AI : Insert new overlay
-          const result = await db
-            .insert(overlays)
-            .values(overlayData)
-            .returning();
-
-          return {
-            success: true,
-            id: result[0].id,
-            exists: false
-          };
-        }
+        return {
+          success: true,
+          id: result[0].id,
+          exists: result[0].createdAt !== result[0].updatedAt // AI : Determine if it was update or insert
+        };
       } catch (error) {
         console.error('Error publishing overlay:', error);
         throw new Error('Failed to publish overlay');
