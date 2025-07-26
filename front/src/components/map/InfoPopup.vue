@@ -621,9 +621,6 @@ async function publishOverlay() {
 
     // AI : If publishing was successful, update overlay ID and delete from local IndexedDB
     if (publishResult.success && publishResult.id) {
-      // AI : Store the old ID for IndexedDB deletion
-      const oldId = currentOverlay.value.id;
-
       // AI : Update the overlay ID with the one from the backend
       currentOverlay.value.id = publishResult.id;
     }

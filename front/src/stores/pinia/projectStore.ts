@@ -22,34 +22,32 @@ export const useProjectStore = defineStore('project', () => {
     
     // AI : Add nearby projects that aren't already in local projects
     nearbyProjects.value.forEach((nearbyProject: NearbyProject) => {
-      if (!combined[nearbyProject.id]) {
-        combined[nearbyProject.id] = {
-          id: nearbyProject.id,
-          name: nearbyProject.title,
-          title: nearbyProject.title,
-          description: nearbyProject.description ?? '',
-          overlayIds: [],
-          color: '#007bff',
-          cityId: nearbyProject.cityId,
-          status: 'approved' as const,
-          ownerId: nearbyProject.ownerId,
-          createdAt: nearbyProject.createdAt,
-          updatedAt: nearbyProject.updatedAt,
-          metadata: nearbyProject.metadata,
-          city: nearbyProject.city ? {
-            id: nearbyProject.city.id,
-            name: nearbyProject.city.name,
-            countryCode: nearbyProject.city.countryCode,
-            coordinates: { x: nearbyProject.city.lng, y: nearbyProject.city.lat },
-            createdAt: null,
-            updatedAt: new Date()
-          } : undefined,
-          sourceUrl: null,
-          startDate: null,
-          endDate: null,
-          latestUpdateOn: null
-        } as Project; // AI : Type assertion to handle savedRemotely property
-      }
+      combined[nearbyProject.id] ??= {
+        id: nearbyProject.id,
+        name: nearbyProject.title,
+        title: nearbyProject.title,
+        description: nearbyProject.description ?? '',
+        overlayIds: [],
+        color: '#007bff',
+        cityId: nearbyProject.cityId,
+        status: 'approved' as const,
+        ownerId: nearbyProject.ownerId,
+        createdAt: nearbyProject.createdAt,
+        updatedAt: nearbyProject.updatedAt,
+        metadata: nearbyProject.metadata,
+        city: nearbyProject.city ? {
+          id: nearbyProject.city.id,
+          name: nearbyProject.city.name,
+          countryCode: nearbyProject.city.countryCode,
+          coordinates: { x: nearbyProject.city.lng, y: nearbyProject.city.lat },
+          createdAt: null,
+          updatedAt: new Date()
+        } : undefined,
+        sourceUrl: null,
+        startDate: null,
+        endDate: null,
+        latestUpdateOn: null
+      } as Project; // AI : Type assertion to handle savedRemotely property
     });
     
     return combined;

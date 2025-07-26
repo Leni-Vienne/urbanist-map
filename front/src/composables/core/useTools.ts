@@ -4,7 +4,7 @@ import { undo, redo, resetImageRatio, deleteOverlay, goToNextOverlay, goToPrevio
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { storeToRefs } from 'pinia';
 
-// AI : Function to get store refs when needed
+// AI : Function to get store refs directly from the store
 function getStoreRefs() {
   const overlayStore = useOverlayStore();
   const { overlays, idSelectedOverlay, isEditMode } = storeToRefs(overlayStore);
@@ -48,8 +48,9 @@ export const infoTool = L.Toolbar2.Action.extend({
       overlayStore.hideInfoPopup();
       L.DomUtil.removeClass(link, "subtoolbar_enabled");
       this.options.subToolbar._hide();
-      // AI : Restore the original button when closing
-      const teleportTarget = document.getElementById('info-popup-teleport-target');
+      
+      // AI : Remove the teleport target and restore original button
+      const teleportTarget = this.options.subToolbar._container?.querySelector('#info-popup-teleport-target');
       if (teleportTarget && teleportTarget.parentNode) {
         const originalButton = document.createElement('a');
         originalButton.className = "leaflet-toolbar-icon more-info-popup";
@@ -64,20 +65,23 @@ export const infoTool = L.Toolbar2.Action.extend({
       L.DomUtil.addClass(link, "subtoolbar_enabled");
       this.options.subToolbar._show();
 
-      const subtoolbarContainer = this.options.subToolbar._container;
-      const existingButton = subtoolbarContainer?.querySelector('.more-info-popup');
+      // AI : Wait for subtoolbar to be shown before manipulating it
+      setTimeout(() => {
+        const existingButton = this.options.subToolbar._container?.querySelector('.more-info-popup');
 
-      if (existingButton && existingButton.tagName === 'A') {
-        const teleportTarget = document.createElement('div');
-        teleportTarget.id = "info-popup-teleport-target";
-        teleportTarget.className = "leaflet-toolbar-icon more-info-popup";
+        if (existingButton?.tagName === 'A') {
+          const teleportTarget = document.createElement('div');
+          teleportTarget.id = "info-popup-teleport-target";
+          teleportTarget.className = "leaflet-toolbar-icon more-info-popup";
 
-        existingButton.parentNode?.replaceChild(teleportTarget, existingButton);
+          existingButton.parentNode?.replaceChild(teleportTarget, existingButton);
 
-        if (idSelectedOverlay.value) {
-          overlayStore.showInfoPopupForOverlay(idSelectedOverlay.value);
+          // AI : Show the info popup for the selected overlay
+          if (idSelectedOverlay.value) {
+            overlayStore.showInfoPopupForOverlay(idSelectedOverlay.value);
+          }
         }
-      }
+      }, 50);
     }
 
     (L as any).IconUtil.toggleXlink(link, "information", "close");

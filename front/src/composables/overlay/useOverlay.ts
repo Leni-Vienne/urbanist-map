@@ -22,7 +22,7 @@ import { editTools, viewTools } from '@composables/core/useTools';
 import { router } from '../../router';
 import { createColorIcon } from '@composables/ui/colorMarkers';
 
-// AI : Export store refs that will be initialized when router navigation starts
+// AI : Export reactive refs from stores
 export let overlays: Ref<Record<string, OverlayObject>>;
 export let idSelectedOverlay: Ref<string | null>;
 export let isEditMode: Ref<boolean>;
@@ -32,15 +32,16 @@ export let projects: Ref<Record<string, any>>;
 export function initializeStores() {
   const overlayStore = useOverlayStore();
   const projectStore = useProjectStore();
-  const storeRefs = storeToRefs(overlayStore);
-  const projectRefs = storeToRefs(projectStore);
+  const overlayStoreRefs = storeToRefs(overlayStore);
+  const projectStoreRefs = storeToRefs(projectStore);
 
-  overlays = storeRefs.overlays;
-  idSelectedOverlay = storeRefs.idSelectedOverlay;
-  isEditMode = storeRefs.isEditMode;
-  projects = projectRefs.projects;
+  // AI : Connect the exported refs to the store refs
+  overlays = overlayStoreRefs.overlays;
+  idSelectedOverlay = overlayStoreRefs.idSelectedOverlay;
+  isEditMode = overlayStoreRefs.isEditMode;
+  projects = projectStoreRefs.projects;
 
-  return { ...storeRefs, ...projectRefs };
+  return { ...overlayStoreRefs, ...projectStoreRefs };
 }
 
 // Tracking of all markers, even for images not currently loaded
@@ -249,7 +250,7 @@ function initializeOverlayHistory(overlayObject: OverlayObject): void {
 function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayObject: OverlayObject): void {
 
   overlay.on('select', () => {
-    // AI : Simply update the selected overlay ID
+    // AI : Update the selected overlay ID (this updates the store since we're using store refs)
     idSelectedOverlay.value = overlayObject.id;
 
     // AI : Apply selection outline
@@ -813,31 +814,32 @@ export function updateMarkerTooltip(overlayObject: OverlayObject): void {
   const colorIcon = createColorIcon(markerColor);
   overlayObject.marker.setIcon(colorIcon);
 
-  if (isEditMode.value) {
-    // AI : Generate tooltip text based on overlay state
-    const isRemoteOverlay = overlayObject.project !== undefined;
-    const hasBeenModified = overlayObject.isModified;
-    const isReplacement = overlayObject.replacesOverlayId !== null;
-
-    let tooltipText = '';
-    if (isReplacement) {
-      tooltipText = 'Replacement overlay';
-    } else if (isRemoteOverlay && !hasBeenModified) {
-      tooltipText = 'Saved remotely';
-    } else if (isRemoteOverlay && hasBeenModified) {
-      tooltipText = 'Remote overlay (modified)';
-    } else if (!isRemoteOverlay && hasBeenModified) {
-      tooltipText = 'Local overlay';
-    } else {
-      tooltipText = 'New overlay';
-    }
-
-    overlayObject.marker.bindTooltip(tooltipText, {
-      permanent: false,
-      direction: 'top',
-      offset: [0, -10]
-    });
+  if (!isEditMode.value) {
+    return;
   }
+  // AI : Generate tooltip text based on overlay state
+  const isRemoteOverlay = overlayObject.project !== undefined;
+  const hasBeenModified = overlayObject.isModified;
+  const isReplacement = overlayObject.replacesOverlayId !== null;
+
+  let tooltipText = '';
+  if (isReplacement) {
+    tooltipText = 'Replacement overlay';
+  } else if (isRemoteOverlay && !hasBeenModified) {
+    tooltipText = 'Saved remotely';
+  } else if (isRemoteOverlay && hasBeenModified) {
+    tooltipText = 'Remote overlay (modified)';
+  } else if (!isRemoteOverlay && hasBeenModified) {
+    tooltipText = 'Local overlay';
+  } else {
+    tooltipText = 'New overlay';
+  }
+
+  overlayObject.marker.bindTooltip(tooltipText, {
+    permanent: false,
+    direction: 'top',
+    offset: [0, -10]
+  });
 }
 
 /**
@@ -994,5 +996,3 @@ function setupOverlayMovementTracking(overlay: L.DistortableImageOverlay, overla
     }, { passive: true });
   }
 }
-
-
