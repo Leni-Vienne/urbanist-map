@@ -6,7 +6,6 @@ import {
 } from '@composables/project/useProjects';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { storeToRefs } from 'pinia';
-//import { navigateToOverlay } from '@composables/overlay/useOverlayActions';
 import { useToast } from '@composables/ui/useToast';
 
 // AI : Composable for managing project overlay operations and dialog
@@ -83,14 +82,7 @@ export function useProjectOverlayManager(projectId: string, onOverlaysChanged: (
     router.push('/');
     // AI : Use nextTick for more reliable timing than arbitrary timeout
     nextTick(() => {
-      /*if (navigateToOverlay(overlayId)) {
-        toast.add({
-          severity: 'info',
-          summary: 'Viewing Overlay',
-          detail: `Navigated to ${overlay.caption ?? 'Unnamed Overlay'}`,
-          life: 3000
-        });
-      }*/
+      // AI : navigateToOverlay is not implemented yet
     });
   };
 

@@ -269,7 +269,7 @@ async function showOverlayMarkers(cityId: string, cityName: string, cityCountryC
  * AI : Remove city markers from the map
  */
 export function removeCityMarkers(): void {
-  if (map.value && cityMarkersLayer) {
+  if (cityMarkersLayer && map.value?.hasLayer(cityMarkersLayer)) {
     map.value.removeLayer(cityMarkersLayer);
     cityMarkersLayer = null;
     // AI : Hide tooltip when removing markers
@@ -395,7 +395,7 @@ export function toggleCityMarkers(): void {
  * AI : Check if city markers are currently visible on the map
  */
 export function areCityMarkersVisible(): boolean {
-  return cityMarkersLayer !== null && map.value !== null && map.value.hasLayer(cityMarkersLayer);
+  return !!(cityMarkersLayer && map.value?.hasLayer(cityMarkersLayer));
 }
 
 /**
