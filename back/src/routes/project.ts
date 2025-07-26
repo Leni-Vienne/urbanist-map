@@ -40,23 +40,32 @@ export const projectRouter = router({
         };
 
         if (input.id) {
-          // Update existing project
-          const result = await db.update(projects)
-            .set({ ...data, updatedAt: new Date() })
-            .where(eq(projects.id, input.id))
+          // AI : Use upsert operation for existing project ID to avoid race conditions
+          const result = await db
+            .insert(projects)
+            .values({ ...data, id: input.id })
+            .onConflictDoUpdate({
+              target: projects.id,
+              set: {
+                title: data.title,
+                description: data.description,
+                cityId: data.cityId,
+                startDate: data.startDate,
+                endDate: data.endDate,
+                sourceUrl: data.sourceUrl,
+                latestUpdateOn: data.latestUpdateOn,
+                updatedAt: new Date()
+              }
+            })
             .returning();
           
-          if (result.length === 0) {
-            // AI : Project with this ID doesn't exist, create it as new
-            const newResult = await db.insert(projects)
-              .values(data)
-              .returning();
-            return { success: true, id: newResult[0].id, exists: false };
-          }
-          
-          return { success: true, id: result[0].id, exists: true };
+          return { 
+            success: true, 
+            id: result[0].id, 
+            exists: result[0].createdAt !== result[0].updatedAt // AI : Determine if it was update or insert
+          };
         } else {
-          // Insert new project
+          // AI : Insert new project without ID (will get auto-generated UUID)
           const result = await db.insert(projects)
             .values(data)
             .returning();
