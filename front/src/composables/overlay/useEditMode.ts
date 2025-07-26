@@ -68,8 +68,8 @@ export async function toggleEditMode(): Promise<void> {
     
     // AI : Force re-render overlays to show original backend positions instead of modified ones
     // AI : Check if we have a current city with cached data
-    if (latestClickedCity && hasCachedCityProjectsData(latestClickedCity.id)) {
-      const overlaysData = getCachedCityProjectsData(latestClickedCity.id)!;
+    if (latestClickedCity.value && hasCachedCityProjectsData(latestClickedCity.value.id)) {
+      const overlaysData = getCachedCityProjectsData(latestClickedCity.value.id)!;;;
       
       // AI : Clear all current overlays first
       clearAllOverlays();
@@ -88,7 +88,7 @@ export async function toggleEditMode(): Promise<void> {
         });
       } else {
         // AI : Zoom is too low, render markers only (view mode markers)
-        renderOverlayMarkersFromCache(latestClickedCity.id, latestClickedCity.name);
+        renderOverlayMarkersFromCache(latestClickedCity.value.id, latestClickedCity.value.name);
       }
     } else {
       // AI : No city data available, just update editing state for existing overlays

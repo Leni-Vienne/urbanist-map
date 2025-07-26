@@ -255,11 +255,11 @@ function getProjectLocationDisplay(project: Project): string {
     }
   }
   
-  // AI : If still no city found, use the latest clicked city if it matches the project's cityId
-  if (project.cityId && latestClickedCity && latestClickedCity.id === project.cityId) {
-    return latestClickedCity.countryCode 
-      ? `${latestClickedCity.name}, ${latestClickedCity.countryCode}`
-      : latestClickedCity.name;
+  // AI : If still no city found, use the selected city if it matches the project's cityId
+  if (project.cityId && latestClickedCity.value && latestClickedCity.value.id === project.cityId) {
+    return latestClickedCity.value.countryCode 
+      ? `${latestClickedCity.value.name}, ${latestClickedCity.value.countryCode}`
+      : latestClickedCity.value.name;
   }
   
   return 'Not specified';

@@ -3,11 +3,11 @@ import { ref } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
 import { addCityMarkersForCountry } from '@composables/map/useCityMarkers';
 import { trpc } from '@client';
+import { useProjectStore } from '@stores/pinia/projectStore';
+import { storeToRefs } from 'pinia';
 
 // AI : Function to get countries when needed
-async function getCountries() {
-  const { useProjectStore } = await import('@stores/pinia/projectStore');
-  const { storeToRefs } = await import('pinia');
+function getCountries() {
   const projectStore = useProjectStore();
   const { countries } = storeToRefs(projectStore);
   return countries;
@@ -22,7 +22,7 @@ export async function loadCountriesWithProjects(): Promise<void> {
   try {
     isLoadingCountries.value = true;
     const countriesData = await trpc.country.getCountriesWithProjects.query();
-    const countries = await getCountries();
+    const countries = getCountries();
     countries.value = countriesData.map((country) => ({
       ...country,
       lat: country.centerCoordinates.y,
@@ -43,7 +43,7 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
   try {
     isLoadingCountryProjects.value = true;
     const citiesData = await trpc.cities.getCitiesWithProjects.query({ countryCode });
-    const countries = await getCountries();
+    const countries = getCountries();
     const country = countries.value.find((c: any) => c.code === countryCode);
     if (country) {
       country.cities = citiesData.map((c: any) => ({ ...c, distance: 0 }));
@@ -76,7 +76,7 @@ async function addCountryMarkersToMapInternal(): Promise<void> {
   }
 
   countryMarkersLayer = L.layerGroup();
-  const countries = await getCountries();
+  const countries = getCountries();
   countries.value.forEach((country: any) => {
     const marker = L.marker([country.lat, country.lng]);
     marker.bindTooltip(`${country.name}`, {
@@ -84,7 +84,7 @@ async function addCountryMarkersToMapInternal(): Promise<void> {
     });
     marker.on('click', async () => {
       await loadCitiesForCountry(country.code);
-      const updatedCountries = await getCountries();
+      const updatedCountries = getCountries();
       const updatedCountry = updatedCountries.value.find((c: any) => c.code === country.code);
       if (updatedCountry) {
         addCityMarkersForCountry(updatedCountry.cities.map((c: any) => ({ ...c, projectCount: 0 })));
