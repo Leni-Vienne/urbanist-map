@@ -701,7 +701,6 @@ export function getConstructionMarkerColor(startDate: string | Date | null | und
  */
 function getOverlayMarkerInfo(overlayData: CDNOverlayData): { color: MarkerColor, position: { lat: number, lng: number } } {
   let position = { lat: overlayData.centroid.lat, lng: overlayData.centroid.lng };
-  
   // AI : Check if we're in edit mode and if the overlay exists in the overlays store
   const { isEditMode, overlays } = getStoreRefs();
   if (isEditMode.value) {

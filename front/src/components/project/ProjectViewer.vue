@@ -1,7 +1,10 @@
 <template>
   <div class="project-view">
-    <ProjectHeader :project="project" :formatDate="formatDate" />
-    
+    <ProjectHeader
+      :project="project"
+      :formatDate="formatDate"
+    />
+
     <ProjectOverlaysSection
       :project="project"
       :overlays="projectOverlaysListItems"
@@ -9,14 +12,14 @@
       @remove="removeOverlayFromProject"
       @add-overlay="showAddOverlayDialog = true"
     />
-    
+
     <ProjectActions
       :isHighlighted="isHighlighted"
       @toggle-highlight="toggleHighlight"
       @edit-project="editProject"
       @go-back="goBack"
     />
-    
+
     <AddOverlayDialog
       v-model:visible="showAddOverlayDialog"
       :availableOverlays="availableOverlays"
@@ -46,14 +49,11 @@ interface Props {
 const props = defineProps<Props>();
 const router = useRouter();
 
-// AI : Inject database initialization status
-const databaseInitialized = inject('databaseInitialized', ref(false));
-
 // AI : Use composables for specific functionality
-const { 
-  projectOverlays, 
-  loadProjectOverlays, 
-  formatDate 
+const {
+  projectOverlays,
+  loadProjectOverlays,
+  formatDate
 } = useProjectEditor(props.projectId, 'view');
 
 const {
@@ -64,7 +64,7 @@ const {
   viewOverlay
 } = useProjectOverlayManager(props.projectId, loadProjectOverlays);
 
-const { isHighlighted, toggleHighlight, clearHighlightOnModeChange } = useProjectHighlight(props.projectId);
+const { isHighlighted, toggleHighlight } = useProjectHighlight(props.projectId);
 
 // AI : Convert overlays to list items for display
 const projectOverlaysListItems = computed<OverlayListItem[]>(() =>
@@ -79,19 +79,6 @@ const editProject = () => {
   router.push(`/projects/${props.projectId}/edit`);
 };
 
-// AI : Initialize overlays on mount
-onMounted(async () => {
-  if (databaseInitialized.value) {
-    await loadProjectOverlays();
-  } else {
-    const unwatch = watch(databaseInitialized, async (initialized) => {
-      if (initialized) {
-        unwatch();
-        await loadProjectOverlays();
-      }
-    });
-  }
-});
 </script>
 
 <style scoped>
