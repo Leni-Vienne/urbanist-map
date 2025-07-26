@@ -29,7 +29,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, onMounted, inject, ref } from 'vue';
+import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useProjectEditor } from '@composables/project/useProjectEditor';
 import { useProjectOverlayManager } from '@composables/project/useProjectOverlayManager';

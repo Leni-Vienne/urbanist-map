@@ -40,6 +40,7 @@ declare module 'vue' {
     Textarea: typeof import('primevue/textarea')['default']
     TileLayerSelector: typeof import('./src/components/map/TileLayerSelector.vue')['default']
     Toast: typeof import('primevue/toast')['default']
+    ToggleButton: typeof import('primevue/togglebutton')['default']
   }
   export interface GlobalDirectives {
     Tooltip: typeof import('primevue/tooltip')['default']

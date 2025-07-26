@@ -34,12 +34,12 @@ export function initializeStores() {
   const projectStore = useProjectStore();
   const storeRefs = storeToRefs(overlayStore);
   const projectRefs = storeToRefs(projectStore);
-  
+
   overlays = storeRefs.overlays;
   idSelectedOverlay = storeRefs.idSelectedOverlay;
   isEditMode = storeRefs.isEditMode;
   projects = projectRefs.projects;
-  
+
   return { ...storeRefs, ...projectRefs };
 }
 
@@ -53,7 +53,7 @@ export const allMarkers = shallowRef<Record<string, L.Marker>>({});
 export function updateOverlayEditingState(): void {
   // AI : Store overlay data before recreating
   const overlayDataToRecreate: { [key: string]: { imageUrl: string; overlayObject: OverlayObject } } = {};
-  
+
   Object.values(overlays.value).forEach((overlayObject: OverlayObject) => {
     if (!overlayObject.overlay) return;
 
@@ -67,7 +67,7 @@ export function updateOverlayEditingState(): void {
     if (map.value) {
       map.value.removeLayer(overlayObject.overlay);
     }
-    
+
     // AI : Clear the overlay reference but keep the object
     overlayObject.overlay = null;
   });
@@ -81,7 +81,7 @@ export function updateOverlayEditingState(): void {
     const newOverlay = await createOverlay(data.imageUrl, overlayObject);
     if (newOverlay) {
       overlayObject.overlay = newOverlay;
-      
+
       // AI : Update marker color and tooltip
       updateMarkerTooltip(overlayObject);
     }
@@ -233,7 +233,7 @@ function onOverlayLoaded(overlayObject: OverlayObject): void {
  */
 function initializeOverlayHistory(overlayObject: OverlayObject): void {
   if (!overlayObject.overlay) return;
-  
+
   // AI : Only initialize if history is completely empty
   if (overlayObject.history.length > 0) {
     return;
@@ -268,19 +268,19 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
     // AI : Clear overlay parameter from URL when deselected
     clearOverlayFromUrl();
   });
-  
+
   overlay.on('edit', () => {
     // AI : Handle transition from backend to local copy when edited
     updateMarkerPosition(overlayObject);
     overlayObject.isModified = true;
     updateMarkerTooltip(overlayObject);
-    
+
     // AI : Update cached overlay data with new corners
     const newCorners = overlayObject.overlay?.getCorners();
     if (newCorners && newCorners.length === 4) {
       updateCachedOverlayData(overlayObject.id, newCorners);
     }
-    
+
     // AI : Update city overlay markers if they are visible
     updateOverlayMarkers();
   });
@@ -356,11 +356,11 @@ function getCornersForOverlay(overlayObject: OverlayObject) {
 
   // ugly but since the type expects non null AND DistortableImage needs null corners for the initial state
   // AI : Priority 2: Use individual lat/lng fields (skip if all zeros - indicates new overlay)
-  if (overlayObject.topLeftLat != null && overlayObject.topLeftLng != null && 
-      !(overlayObject.topLeftLat === 0 && overlayObject.topLeftLng === 0 && 
-        overlayObject.topRightLat === 0 && overlayObject.topRightLng === 0 &&
-        overlayObject.bottomRightLat === 0 && overlayObject.bottomRightLng === 0 &&
-        overlayObject.bottomLeftLat === 0 && overlayObject.bottomLeftLng === 0)) {
+  if (overlayObject.topLeftLat != null && overlayObject.topLeftLng != null &&
+    !(overlayObject.topLeftLat === 0 && overlayObject.topLeftLng === 0 &&
+      overlayObject.topRightLat === 0 && overlayObject.topRightLng === 0 &&
+      overlayObject.bottomRightLat === 0 && overlayObject.bottomRightLng === 0 &&
+      overlayObject.bottomLeftLat === 0 && overlayObject.bottomLeftLng === 0)) {
     return [
       { lat: overlayObject.topLeftLat, lng: overlayObject.topLeftLng },
       { lat: overlayObject.topRightLat, lng: overlayObject.topRightLng },
@@ -403,7 +403,7 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
 
   // AI : Try different methods to get the center position
   let center: L.LatLng | null = null;
-  
+
   // AI : Method 1: Try getBounds() if available
   if (overlayObject.overlay.getBounds) {
     const bounds = overlayObject.overlay.getBounds();
@@ -411,7 +411,7 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
       center = bounds.getCenter();
     }
   }
-  
+
   // AI : Method 2: Try getCorners() if getBounds() fails
   if (!center) {
     try {
@@ -425,7 +425,7 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
       console.log('AI : updateMarkerPosition - getCorners failed:', error);
     }
   }
-  
+
   // AI : Method 3: Fallback to element position
   if (!center) {
     try {
@@ -444,7 +444,7 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
       console.log('AI : updateMarkerPosition - Element position failed:', error);
     }
   }
-  
+
   if (center) {
     overlayObject.marker.setLatLng(center);
   }
@@ -464,7 +464,7 @@ export function saveToHistory(overlayObject: OverlayObject): void {
     const lastState = overlayObject.history[overlayObject.history.length - 1];
     const currentStateStr = JSON.stringify(currentState);
     const lastStateStr = JSON.stringify(lastState);
-    
+
     if (currentStateStr === lastStateStr) {
       return;
     }
@@ -472,12 +472,12 @@ export function saveToHistory(overlayObject: OverlayObject): void {
 
   overlayObject.history.push(JSON.parse(JSON.stringify(currentState)));
   overlayObject.redoStack = [];
-  
+
   // AI : Mark overlay as modified when it's moved/changed
   overlayObject.isModified = true;
-  
+
   updateMarkerTooltip(overlayObject);
-  
+
   // AI : Update city overlay markers if they are visible
   if (typeof updateOverlayMarkers === 'function') {
     updateOverlayMarkers();
@@ -563,7 +563,7 @@ export function clearAllOverlays(): void {
   overlays.value = {};
   allMarkers.value = {};
   idSelectedOverlay.value = null;
-  
+
   // AI : Reset UI states when clearing overlays
   const overlayStore = useOverlayStore();
   overlayStore.resetAllUIStates();
@@ -818,7 +818,7 @@ export function updateMarkerTooltip(overlayObject: OverlayObject): void {
     const isRemoteOverlay = overlayObject.project !== undefined;
     const hasBeenModified = overlayObject.isModified;
     const isReplacement = overlayObject.replacesOverlayId !== null;
-    
+
     let tooltipText = '';
     if (isReplacement) {
       tooltipText = 'Replacement overlay';
@@ -906,95 +906,93 @@ function setupOverlayMovementTracking(overlay: L.DistortableImageOverlay, overla
   overlay.on('edit', () => {
     updateMarkerPosition(overlayObject);
   });
-  
+
   // AI : Set up DOM event listeners for additional tracking
-  setTimeout(() => {
-    const element = overlay.getElement();
-    if (element) {
-      let isManipulating = false;
-      let updateFrame: number | null = null;
-      let lastSavedState: any = null;
-      
-      const startTracking = () => {
-        if (isManipulating) return;
-        
-        // AI : Always save current state before manipulation starts
-        const currentCorners = overlayObject.overlay?.getCorners();
-        if (currentCorners && currentCorners.length === 4) {
-          const currentStateStr = JSON.stringify(currentCorners);
-          
-          // AI : If history is empty, initialize it with current state
-          if (overlayObject.history.length === 0) {
-            overlayObject.history = [JSON.parse(JSON.stringify(currentCorners))];
-            overlayObject.redoStack = [];
-            lastSavedState = currentStateStr;
-          } else {
-            // AI : Save current state to history if it's different from last saved
-            if (lastSavedState !== currentStateStr) {
-              saveToHistory(overlayObject);
-              lastSavedState = currentStateStr;
-            }
-          }
-        }
-        
-        isManipulating = true;
-        
-        const continuousUpdate = () => {
-          if (isManipulating) {
-            updateMarkerPosition(overlayObject);
-            updateFrame = requestAnimationFrame(continuousUpdate);
-          }
-        };
-        continuousUpdate();
-      };
-      
-      const stopTracking = () => {
-        if (!isManipulating) return;
-        isManipulating = false;
-        
-        if (updateFrame) {
-          cancelAnimationFrame(updateFrame);
-          updateFrame = null;
-        }
-        
-        // AI : Final update after manipulation ends
-        updateMarkerPosition(overlayObject);
-        
-        // AI : Update city overlay markers if they are visible
-        updateOverlayMarkers();
-        
-        // AI : Save the final state after manipulation ends
-        const finalCorners = overlayObject.overlay?.getCorners();
-        if (finalCorners && finalCorners.length === 4) {
-          const finalStateStr = JSON.stringify(finalCorners);
-          if (lastSavedState !== finalStateStr) {
+  const element = overlay.getElement();
+  if (element) {
+    let isManipulating = false;
+    let updateFrame: number | null = null;
+    let lastSavedState: any = null;
+
+    const startTracking = () => {
+      if (isManipulating) return;
+
+      // AI : Always save current state before manipulation starts
+      const currentCorners = overlayObject.overlay?.getCorners();
+      if (currentCorners && currentCorners.length === 4) {
+        const currentStateStr = JSON.stringify(currentCorners);
+
+        // AI : If history is empty, initialize it with current state
+        if (overlayObject.history.length === 0) {
+          overlayObject.history = [JSON.parse(JSON.stringify(currentCorners))];
+          overlayObject.redoStack = [];
+          lastSavedState = currentStateStr;
+        } else {
+          // AI : Save current state to history if it's different from last saved
+          if (lastSavedState !== currentStateStr) {
             saveToHistory(overlayObject);
-            lastSavedState = finalStateStr;
-            
-            // AI : Update cached overlay data with final corners
-            updateCachedOverlayData(overlayObject.id, finalCorners);
+            lastSavedState = currentStateStr;
           }
         }
+      }
+
+      isManipulating = true;
+
+      const continuousUpdate = () => {
+        if (isManipulating) {
+          updateMarkerPosition(overlayObject);
+          updateFrame = requestAnimationFrame(continuousUpdate);
+        }
       };
-      
-      // AI : Track mouse and touch events
-      element.addEventListener('mousedown', startTracking);
-      element.addEventListener('touchstart', startTracking, { passive: true });
-      
-      document.addEventListener('mouseup', stopTracking);
-      document.addEventListener('touchend', stopTracking);
-      document.addEventListener('mousemove', () => {
-        if (isManipulating) {
-          updateMarkerPosition(overlayObject);
+      continuousUpdate();
+    };
+
+    const stopTracking = () => {
+      if (!isManipulating) return;
+      isManipulating = false;
+
+      if (updateFrame) {
+        cancelAnimationFrame(updateFrame);
+        updateFrame = null;
+      }
+
+      // AI : Final update after manipulation ends
+      updateMarkerPosition(overlayObject);
+
+      // AI : Update city overlay markers if they are visible
+      updateOverlayMarkers();
+
+      // AI : Save the final state after manipulation ends
+      const finalCorners = overlayObject.overlay?.getCorners();
+      if (finalCorners && finalCorners.length === 4) {
+        const finalStateStr = JSON.stringify(finalCorners);
+        if (lastSavedState !== finalStateStr) {
+          saveToHistory(overlayObject);
+          lastSavedState = finalStateStr;
+
+          // AI : Update cached overlay data with final corners
+          updateCachedOverlayData(overlayObject.id, finalCorners);
         }
-      });
-      document.addEventListener('touchmove', () => {
-        if (isManipulating) {
-          updateMarkerPosition(overlayObject);
-        }
-      }, { passive: true });
-    }
-  }, 100);
+      }
+    };
+
+    // AI : Track mouse and touch events
+    element.addEventListener('mousedown', startTracking);
+    element.addEventListener('touchstart', startTracking, { passive: true });
+
+    document.addEventListener('mouseup', stopTracking);
+    document.addEventListener('touchend', stopTracking);
+    document.addEventListener('mousemove', () => {
+      if (isManipulating) {
+        updateMarkerPosition(overlayObject);
+      }
+    });
+    document.addEventListener('touchmove', () => {
+      if (isManipulating) {
+        updateMarkerPosition(overlayObject);
+      }
+    }, { passive: true });
+  }
 }
 
 
