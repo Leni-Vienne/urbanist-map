@@ -16,6 +16,9 @@ export type LatLng = {
 // AI : Type for marker colors used throughout the application
 export type MarkerColor = 'blue' | 'green' | 'orange' | 'red' | 'gold' | 'yellow' | 'violet' | 'grey' | 'black';
 
+// AI : Type for project manager modes
+export type ProjectManagerMode = 'list' | 'edit' | 'view' | 'create';
+
 // AI : Interface for camera bounds used in view mode
 export interface CameraBounds {
   north: number;

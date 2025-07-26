@@ -7,15 +7,13 @@ import {
   getOverlaysForProject 
 } from '@composables/project/useProjects';
 import { useToast } from '@composables/ui/useToast';
-import { initialProjectName, setLastCreatedProject } from '@composables/ui/useRouterNavigation';
-import { useProjectManagerDialog } from '@composables/project/useProjectManagerDialog';
+import { initialProjectName, setLastCreatedProject, inFileUploadFlow } from '@composables/ui/useRouterNavigation';
 import type { Project, OverlayObject } from '@types';
 
 // AI : Main composable for project editor business logic
 export function useProjectEditor(projectId: string, mode: 'edit' | 'view' | 'create') {
   const router = useRouter();
   const toast = useToast();
-  const { inFileUploadFlow } = useProjectManagerDialog();
 
   // AI : Get store refs using the composable pattern
   const { projects } = useProjects();
