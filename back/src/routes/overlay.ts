@@ -47,19 +47,6 @@ const overlaySelectFields = {
   cityName: cities.name,
 };
 
-// AI : Calculate bounding box from overlay corners
-function calculateBoundingBox(overlay: any) {
-  const latitudes = [overlay.topLeftLat, overlay.topRightLat, overlay.bottomRightLat, overlay.bottomLeftLat];
-  const longitudes = [overlay.topLeftLng, overlay.topRightLng, overlay.bottomRightLng, overlay.bottomLeftLng];
-  
-  return {
-    minLat: Math.min(...latitudes),
-    maxLat: Math.max(...latitudes),
-    minLng: Math.min(...longitudes),
-    maxLng: Math.max(...longitudes)
-  };
-}
-
 // AI : Base query builder for overlays with joins
 function buildOverlayQuery() {
   return db
@@ -69,22 +56,43 @@ function buildOverlayQuery() {
     .leftJoin(cities, eq(projects.cityId, cities.id));
 }
 
-// AI : Find overlays that intersect with a given bounding box
-async function findIntersectingOverlays(excludeId: string, boundingBox: ReturnType<typeof calculateBoundingBox>) {
-  // AI : Get all overlays except the excluded one
-  const allOverlays = await buildOverlayQuery()
-    .where(sql`${overlays.id} != ${excludeId}`);
+// AI : Find overlays that intersect with a given overlay using PostGIS spatial queries
+async function findIntersectingOverlays(excludeId: string, targetOverlay: any) {
+  try {
+    // AI : Create a polygon from the target overlay's corner coordinates using PostGIS
+    const targetPolygon = sql`ST_SetSRID(ST_MakePolygon(ST_MakeLine(ARRAY[
+      ST_MakePoint(${targetOverlay.topLeftLng}, ${targetOverlay.topLeftLat}),
+      ST_MakePoint(${targetOverlay.topRightLng}, ${targetOverlay.topRightLat}),
+      ST_MakePoint(${targetOverlay.bottomRightLng}, ${targetOverlay.bottomRightLat}),
+      ST_MakePoint(${targetOverlay.bottomLeftLng}, ${targetOverlay.bottomLeftLat}),
+      ST_MakePoint(${targetOverlay.topLeftLng}, ${targetOverlay.topLeftLat})
+    ])), 4326)`;
 
-  // AI : Filter overlays that have bounding box overlap
-  return allOverlays.filter(overlay => {
-    const overlayBoundingBox = calculateBoundingBox(overlay);
-    
-    // AI : Two bounding boxes overlap if they overlap in both dimensions
-    const latOverlap = boundingBox.minLat <= overlayBoundingBox.maxLat && boundingBox.maxLat >= overlayBoundingBox.minLat;
-    const lngOverlap = boundingBox.minLng <= overlayBoundingBox.maxLng && boundingBox.maxLng >= overlayBoundingBox.minLng;
-    
-    return latOverlap && lngOverlap;
-  });
+    // AI : Use PostGIS ST_Intersects to find overlapping overlays efficiently in the database
+    const intersectingOverlays = await db
+      .select(overlaySelectFields)
+      .from(overlays)
+      .leftJoin(projects, eq(overlays.projectId, projects.id))
+      .leftJoin(cities, eq(projects.cityId, cities.id))
+      .where(sql`
+        ${overlays.id} != ${excludeId} AND
+        ST_Intersects(
+          ${targetPolygon},
+          ST_SetSRID(ST_MakePolygon(ST_MakeLine(ARRAY[
+            ST_MakePoint(${overlays.topLeftLng}, ${overlays.topLeftLat}),
+            ST_MakePoint(${overlays.topRightLng}, ${overlays.topRightLat}),
+            ST_MakePoint(${overlays.bottomRightLng}, ${overlays.bottomRightLat}),
+            ST_MakePoint(${overlays.bottomLeftLng}, ${overlays.bottomLeftLat}),
+            ST_MakePoint(${overlays.topLeftLng}, ${overlays.topLeftLat})
+          ])), 4326)
+        )
+      `);
+
+    return intersectingOverlays;
+  } catch (error) {
+    console.error('Error finding intersecting overlays:', error);
+    throw new Error('Failed to find intersecting overlays');
+  }
 }
 
 export const overlayRouter = router({
@@ -104,12 +112,10 @@ export const overlayRouter = router({
 
         let intersectingOverlays: any[] = [];
 
-        // AI : If includeIntersecting is true, find overlays that intersect with the queried overlay's bounding box
+        // AI : If includeIntersecting is true, find overlays that intersect with the queried overlay
         if (input.includeIntersecting) {
           const queriedOverlay = overlay[0];
-          const boundingBox = calculateBoundingBox(queriedOverlay);
-
-          intersectingOverlays = await findIntersectingOverlays(input.id, boundingBox);
+          intersectingOverlays = await findIntersectingOverlays(input.id, queriedOverlay);
         }
 
         return {

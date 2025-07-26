@@ -1,7 +1,6 @@
 import { useToast } from '@composables/ui/useToast';
 import { trpc } from '@client';
 import type { Project, OverlayObject } from '@types';
-import type { PublishProjectInput } from '../../types/api';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { storeToRefs } from 'pinia';
@@ -302,50 +301,4 @@ export async function updateProject(projectId: string, projectData: Partial<Omit
   const updatedProjects = { ...projects.value };
   updatedProjects[projectId] = updatedProject;
   projects.value = updatedProjects;
-}
-
-// AI : Explicit publish functions - only called when user clicks publish
-export async function publishProject(projectId: string): Promise<void> {
-  const { projects } = useProjects();
-  const project = projects.value[projectId];
-  if (!project) {
-    toast.add({
-      severity: 'error',
-      summary: 'Project not found',
-      detail: 'The project to publish could not be found',
-      life: 3000
-    });
-    return;
-  }
-
-  try {
-    // AI : Use properly typed input for tRPC call
-    const publishInput: PublishProjectInput = {
-      id: project.id,
-      title: project.title,
-      description: project.description ?? undefined,
-      cityId: project.cityId ?? undefined,
-      startDate: project.startDate?.toISOString(),
-      endDate: project.endDate?.toISOString(),
-      sourceUrl: project.sourceUrl ?? undefined,
-      latestUpdateOn: project.latestUpdateOn?.toISOString()
-    };
-
-    await trpc.project.publishProject.mutate(publishInput);
-
-    toast.add({
-      severity: 'success',
-      summary: 'Project published',
-      detail: `Project "${project.name}" has been published successfully`,
-      life: 3000
-    });
-  } catch (error) {
-    console.error('AI : Error publishing project:', error);
-    toast.add({
-      severity: 'error',
-      summary: 'Publish failed',
-      detail: 'Failed to publish project to backend',
-      life: 3000
-    });
-  }
 }
