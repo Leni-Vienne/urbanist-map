@@ -512,9 +512,6 @@ async function ensureProjectOnServer(): Promise<boolean> {
 
         // AI : Update overlay's project reference
         currentOverlay.value.projectId = projectResult.id;
-
-        // AI : Delete the old project from local memory
-        console.log('AI : Project ID updated, removing old project from memory:', oldProjectId);
       }
     }
     

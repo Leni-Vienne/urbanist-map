@@ -1,6 +1,11 @@
 <template>
   <div class="app-container">
-    <SideMenu v-if="isModerator" :is-open="moderationPanelOpen" panel="moderation" @close="moderationPanelOpen = false" />
+    <SideMenu
+      v-if="isModerator"
+      :is-open="moderationPanelOpen"
+      panel="moderation"
+      @close="moderationPanelOpen = false"
+    />
     <div class="main-content">
       <button
         v-if="isModerator"
@@ -40,13 +45,11 @@ import InfoPopupContainer from '@components/map/InfoPopupContainer.vue'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 
 // AI : Create a ref to track database initialization state
-const databaseInitialized = ref(false)
 const isModerator = ref(false)
 const moderationPanelOpen = ref(false)
 const overlayStore = useOverlayStore()
 
 // AI : Provide the initialization state to child components
-provide('databaseInitialized', databaseInitialized)
 
 // AI : Handle window blur to close UI elements gracefully
 function handleWindowBlur() {
@@ -58,26 +61,11 @@ onMounted(async () => {
   if (import.meta.env.VITE_DEV_MODE === 'true') {
     isModerator.value = true
   }
-  
+
   // AI : Add window blur listener to close UI elements gracefully
   window.addEventListener('blur', handleWindowBlur);
-  
+
   try {
-    // AI : Store app instance context for dynamic components
-    const instance = getCurrentInstance()
-    if (instance) {
-      // AI : Context setup ready for future use
-    }
-    else {
-      console.warn('Unable to get current instance in App.vue')
-    }
-
-    // AI : Initialize global services that should be available app-wide
-    // AI : Projects are now loaded lazily when entering edit mode or uploading overlays
-
-    // AI : Set initialization flag to true after setup complete
-    databaseInitialized.value = true
-
     // AI : Use environment variable for API base URL
     const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/check-session`, {
       method: 'GET',

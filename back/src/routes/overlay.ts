@@ -130,8 +130,10 @@ export const overlayRouter = router({
         const [topLeft, topRight, bottomRight, bottomLeft] = input.corners;
 
         // AI : Calculate centroid (center point)
-        const centroidLat = input.corners.reduce((sum, corner) => sum + corner.lat, 0) / 4;
-        const centroidLng = input.corners.reduce((sum, corner) => sum + corner.lng, 0) / 4;
+        //const centroidLat = input.corners.reduce((sum, corner) => sum + corner.lat, 0) / 4;
+        //const centroidLng = input.corners.reduce((sum, corner) => sum + corner.lng, 0) / 4;
+                const centroidLat = (topLeft.lat + bottomLeft.lat) / 2;
+        const centroidLng = (topLeft.lng + bottomLeft.lng) / 2;
 
         // AI : Prepare overlay data for insert/update
         const overlayData = {

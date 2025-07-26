@@ -257,9 +257,6 @@ export async function deleteProjectById(projectId: string): Promise<void> {
     }
   }
 
-  // AI : No local database to delete from - projects are managed in memory
-  console.log('AI : Project deleted from memory:', projectId);
-
   // Create a new object for projects.value to trigger reactivity with shallowRef
   const updatedProjects = { ...projects.value };
   delete updatedProjects[projectId];
