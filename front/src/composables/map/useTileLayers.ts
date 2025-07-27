@@ -207,7 +207,7 @@ export async function switchTileLayer(layerType: TileLayerType): Promise<void> {
       
       // AI : Update the tileLayers object with the new active layer
       Object.keys(tileLayers).forEach(key => {
-        if (map.value && map.value.hasLayer(tileLayers[key])) {
+        if (map.value?.hasLayer(tileLayers[key])) {
           map.value.removeLayer(tileLayers[key]);
         }
       });
