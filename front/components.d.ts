@@ -11,7 +11,6 @@ declare module 'vue' {
     AddOverlayDialog: typeof import('./src/components/dialogs/AddOverlayDialog.vue')['default']
     AppLayout: typeof import('./src/components/layout/AppLayout.vue')['default']
     Button: typeof import('primevue/button')['default']
-    CityMarkersToggle: typeof import('./src/components/map/CityMarkersToggle.vue')['default']
     DatePicker: typeof import('primevue/datepicker')['default']
     Dialog: typeof import('primevue/dialog')['default']
     EditModeToggle: typeof import('./src/components/map/EditModeToggle.vue')['default']
@@ -40,13 +39,9 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     Select: typeof import('primevue/select')['default']
-    SelectButton: typeof import('primevue/selectbutton')['default']
-    Sidebar: typeof import('primevue/sidebar')['default']
     SideMenu: typeof import('./src/components/layout/SideMenu.vue')['default']
     Textarea: typeof import('primevue/textarea')['default']
-    TileLayerSelector: typeof import('./src/components/map/TileLayerSelector.vue')['default']
     Toast: typeof import('primevue/toast')['default']
-    ToggleButton: typeof import('primevue/togglebutton')['default']
   }
   export interface GlobalDirectives {
     Tooltip: typeof import('primevue/tooltip')['default']

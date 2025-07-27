@@ -1,7 +1,19 @@
-import dotenv from 'dotenv';
 import { z } from 'zod';
 
-dotenv.config({ path: '../../../.env', override: false });
+// AI : Support for both local development and Cloudflare Pages
+let env = process.env;
+
+// AI : In local development, load .env file
+if (typeof Bun !== 'undefined' && (!env.DATABASE_URL || env.DATABASE_URL.includes('localhost'))) {
+    try {
+        const dotenv = await import('dotenv');
+        dotenv.config({ path: '../../../.env', override: false });
+        env = process.env;
+    } catch {
+        // AI : dotenv might not be available in production, that's fine
+        console.log('Running without dotenv (production mode)');
+    }
+}
 
 const envSchema = z.object({
   DATABASE_URL: z.string().url(),
@@ -10,7 +22,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
 });
 
-const parsedEnv = envSchema.safeParse(process.env);
+const parsedEnv = envSchema.safeParse(env);
 
 if (!parsedEnv.success) {
   console.error(
