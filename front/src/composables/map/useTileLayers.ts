@@ -12,6 +12,12 @@ export const currentTileLayer = ref<TileLayerType>('esri');
 // AI : Reference to the currently active tile layer instance
 let activeTileLayer: L.TileLayer | L.GridLayer | null = null;
 
+// AI : Reference to the layer control instance
+let layerControl: L.Control.Layers | null = null;
+
+// AI : Store all tile layer instances for the layer control
+const tileLayers: Record<string, L.TileLayer | L.GridLayer> = {};
+
 // AI : Track if Google Maps API is loaded
 let googleMapsLoaded = false;
 let googleMapsLoading = false;
@@ -50,21 +56,51 @@ const tileLayerConfigs = {
 };
 
 /**
- * AI : Add the default tile layer to the map
+ * AI : Add tile layers and layer control to the map
  */
 export function addTileLayer(): void {
-
   if (!map.value) {
     // AI : If map is not ready, wait for initialization
     onMapInitialized(() => {
-      addTileLayerToMap();
+      addTileLayersToMap();
     });
     return;
   }
 
-  // AI : Check if tile layer was lost during hot reload
+  // AI : Check if tile layers were lost during hot reload
   if (!activeTileLayer) {
-    addTileLayerToMap();
+    addTileLayersToMap();
+  }
+}
+
+/**
+ * AI : Initialize all tile layers without layer control (using custom control instead)
+ */
+async function addTileLayersToMap(): Promise<void> {
+  if (!map.value) {
+    return;
+  }
+
+  try {
+    // AI : Create and add the default ESRI layer
+    activeTileLayer = await createTileLayer('esri');
+    activeTileLayer.addTo(map.value);
+
+    // AI : Pre-create other layers for faster switching (optional)
+    const franceLayer = await createTileLayer('france');
+    const googleLayer = await createTileLayer('google_satellite');
+
+    // AI : Store layers in the tileLayers object for potential future use
+    tileLayers['World (ESRI)'] = activeTileLayer;
+    tileLayers['France (IGN)'] = franceLayer;
+    tileLayers['Google Satellite'] = googleLayer;
+
+  } catch (error) {
+    console.error('Failed to initialize tile layers:', error);
+    // AI : Fallback to simple ESRI layer on error
+    const fallbackLayer = await createTileLayer('esri');
+    activeTileLayer = fallbackLayer;
+    activeTileLayer.addTo(map.value);
   }
 }
 
@@ -144,37 +180,9 @@ async function createTileLayer(layerType: TileLayerType): Promise<L.TileLayer | 
 }
 
 /**
- * AI : Internal function to add tile layer to map
- */
-async function addTileLayerToMap(): Promise<void> {
-  if (!map.value) {
-    return;
-  }
-
-  // AI : Remove existing tile layer if it exists (hot reload safety)
-  if (activeTileLayer) {
-    map.value.removeLayer(activeTileLayer);
-  }
-
-  try {
-    activeTileLayer = await createTileLayer(currentTileLayer.value);
-    activeTileLayer.addTo(map.value);
-  } catch (error) {
-    console.error('Failed to create tile layer:', error);
-    // AI : Fallback to default ESRI layer on error
-    if (currentTileLayer.value !== 'esri') {
-      currentTileLayer.value = 'esri';
-      activeTileLayer = await createTileLayer('esri');
-      activeTileLayer.addTo(map.value);
-    }
-  }
-}
-
-/**
- * AI : Switch to a different tile layer
+ * AI : Switch to a different tile layer (for custom layer control)
  */
 export async function switchTileLayer(layerType: TileLayerType): Promise<void> {
-
   if (!map.value || currentTileLayer.value === layerType) {
     return;
   }
@@ -191,8 +199,24 @@ export async function switchTileLayer(layerType: TileLayerType): Promise<void> {
 
     // AI : Update current layer reference
     currentTileLayer.value = layerType;
+
+    // AI : Update layer control if it exists
+    if (layerControl) {
+      // AI : Remove and recreate layer control with updated active layer
+      map.value.removeControl(layerControl);
+      
+      // AI : Update the tileLayers object with the new active layer
+      Object.keys(tileLayers).forEach(key => {
+        if (map.value && map.value.hasLayer(tileLayers[key])) {
+          map.value.removeLayer(tileLayers[key]);
+        }
+      });
+      
+      // AI : Add the new active layer
+      activeTileLayer.addTo(map.value);
+    }
   } catch (error) {
-    console.error('Failed to switch tile layer:', error);
+    console.error('AI : Failed to switch tile layer:', error);
     // AI : Fallback to previous layer or default ESRI on error
     if (layerType !== 'esri') {
       activeTileLayer = await createTileLayer('esri');
@@ -203,7 +227,7 @@ export async function switchTileLayer(layerType: TileLayerType): Promise<void> {
 }
 
 /**
- * AI : Get available tile layer options for UI
+ * AI : Get available tile layer options for UI compatibility (deprecated with layer control)
  */
 export function getTileLayerOptions() {
   return [

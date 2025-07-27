@@ -787,13 +787,13 @@ export function updateOverlayMarkers(): void {
  */
 export function applyCachedOverlayState(overlayId: string, overlayObject: any): boolean {
   const { isEditMode } = getStoreRefs();
-  if (!isEditMode.value || !overlayObject.overlay) {
+  if (!isEditMode.value || !overlayObject?.overlay) {
     return false;
   }
 
   // AI : Check if we have edit modifications for this overlay
   const editModifications = editModeOverlayCache.get(overlayId);
-  if (editModifications && editModifications.corners && editModifications.corners.length === 4) {
+  if (editModifications?.corners?.length === 4) {
     try {
       // AI : Apply the edit modifications to the overlay
       overlayObject.overlay.setCorners(editModifications.corners);

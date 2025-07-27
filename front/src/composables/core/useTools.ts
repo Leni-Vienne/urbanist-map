@@ -51,7 +51,7 @@ export const infoTool = L.Toolbar2.Action.extend({
       
       // AI : Remove the teleport target and restore original button
       const teleportTarget = this.options.subToolbar._container?.querySelector('#info-popup-teleport-target');
-      if (teleportTarget && teleportTarget.parentNode) {
+      if (teleportTarget?.parentNode) {
         const originalButton = document.createElement('a');
         originalButton.className = "leaflet-toolbar-icon more-info-popup";
         originalButton.href = "#";
