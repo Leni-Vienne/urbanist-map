@@ -280,7 +280,7 @@ export function removeCityMarkers(): void {
 /**
  * AI : Remove overlay markers from the map
  */
-function removeOverlayMarkers(): void {
+export function removeOverlayMarkers(): void {
   if (map.value && overlayMarkersLayer) {
     map.value.removeLayer(overlayMarkersLayer);
     overlayMarkersLayer = null;
