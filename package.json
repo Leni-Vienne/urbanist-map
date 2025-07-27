@@ -2,7 +2,7 @@
   "type": "module",
   "scripts": {
     "preview": "vite preview front",
-    "dev-front": "vite front",
+    "dev-front": "bunx --bun vite front",
     "build-front": "vite build front",
     "dev-back": "bun --hot back/src/index.ts",
     "build-back": "bun build back/src/index.ts --target=bun --outfile=./server.bundle.js",

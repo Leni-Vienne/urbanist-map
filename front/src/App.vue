@@ -109,8 +109,8 @@ onUnmounted(() => {
 
 .moderation-toggle-button {
   position: fixed;
-  top: 1rem;
-  left: 1rem;
+  top: 10px;
+  left: 10px;
   z-index: 1001;
   background-color: #f8f9fa;
   border: 1px solid #dee2e6;

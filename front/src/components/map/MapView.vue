@@ -37,18 +37,11 @@
         />
       </div>
       <div class="card flex">
-        <TileLayerSelector />
+        <LayerControl />
       </div>
 
       <div class="card flex">
-        <SelectButton
-          :model-value="(isEditMode ?? false) ? 'edit' : 'view'"
-          @update:model-value="handleModeChange"
-          :options="modeOptions"
-          option-label="label"
-          option-value="value"
-          v-tooltip.top="isEditModeDisabled ? 'Zoom in closer to enable edit mode' : ''"
-        />
+        <EditModeToggle />
       </div>
     </div>
   </div>
@@ -74,7 +67,7 @@
 import { ref, onMounted, watch, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 
-import { initializeMap, disableLeafletKeyboardEvents, currentZoomLevel } from '@composables/core/useMap';
+import { initializeMap, disableLeafletKeyboardEvents } from '@composables/core/useMap';
 import { initializeCameraBounds } from '@composables/map/useCameraBounds';
 import { toggleEditMode } from '@composables/overlay/useEditMode';
 import { addOverlay, undo, redo } from '@composables/overlay/useOverlayActions';
@@ -86,7 +79,8 @@ import { useProjectStore } from '@stores/pinia/projectStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { storeToRefs } from 'pinia';
 import { fetchNearbyProjects } from '@composables/project/useNearbyProjects';
-import TileLayerSelector from '@components/map/TileLayerSelector.vue';
+import LayerControl from '@components/map/LayerControl.vue';
+import EditModeToggle from '@components/map/EditModeToggle.vue';
 import ProjectPicker from '@components/project/ProjectPicker.vue';
 import ImageUploadDialog from '@components/dialogs/ImageUploadDialog.vue';
 
@@ -108,17 +102,6 @@ const toast = useToast();
 const showProjectSelector = ref(false);
 const isLoading = ref(true);
 
-// AI : Options for the mode SelectButton
-const modeOptions = [
-  { label: 'View Mode', value: 'view' },
-  { label: 'Edit Mode', value: 'edit' }
-];
-
-// AI : Computed property to determine if edit mode should be disabled
-const isEditModeDisabled = computed(() => {
-  return currentZoomLevel.value < 9 && !(isEditMode?.value ?? false);
-});
-
 // AI : Use view mode overlays for displaying overlays when camera moves
 const { startCameraTracking, stopCameraTracking } = useViewModeOverlays();
 
@@ -132,14 +115,6 @@ function navigateToProjects() {
 // AI : Open image upload dialog
 function openImageUploadDialog() {
   showImageUploadDialog.value = true;
-}
-
-// AI : Handle mode change from SelectButton
-async function handleModeChange(newMode: string) {
-  const shouldBeEditMode = newMode === 'edit';
-  if (shouldBeEditMode !== (isEditMode?.value ?? false)) {
-    await handleToggleEditMode(shouldBeEditMode);
-  }
 }
 
 // AI : Handle add overlay button click - enable edit mode if in view mode, otherwise open dialog
@@ -368,7 +343,7 @@ async function handleToggleEditMode(newValue: boolean) {
 
 .map-buttons {
   position: absolute;
-  top: 80px;
+  top: 60px;
   left: 10px;
   z-index: 1000;
   display: flex;

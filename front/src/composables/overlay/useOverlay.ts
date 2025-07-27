@@ -438,7 +438,7 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
           const mapRect = mapContainer.getBoundingClientRect();
           const centerX = rect.left + rect.width / 2 - mapRect.left;
           const centerY = rect.top + rect.height / 2 - mapRect.top;
-          center = map.value?.containerPointToLatLng([centerX, centerY]) || null;
+          center = map.value?.containerPointToLatLng([centerX, centerY]) ?? null;
         }
       }
     } catch (error) {
@@ -867,7 +867,7 @@ function createSingleMarker(savedOverlay: StoredOverlayData): void {
   const marker = L.marker(center, {
     title: markerTitle,
     icon: colorIcon
-  }).addTo(map.value!);
+  }).addTo(map.value);
 
   allMarkers.value[savedOverlay.id] = marker;
 
