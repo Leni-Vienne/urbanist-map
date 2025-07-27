@@ -282,9 +282,10 @@ export function removeEditModeOverlayMarker(overlayId: string): void {
   if (!editModeOverlayMarkers) return;
 
   // AI : Find and remove the marker
-  editModeOverlayMarkers.eachLayer((layer) => {
+  const markersLayer = editModeOverlayMarkers;
+  markersLayer.eachLayer((layer) => {
     if (layer instanceof L.Marker && (layer as any).overlayId === overlayId) {
-      editModeOverlayMarkers!.removeLayer(layer);
+      markersLayer.removeLayer(layer);
     }
   });
 

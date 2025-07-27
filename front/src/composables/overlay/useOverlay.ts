@@ -28,6 +28,16 @@ export let idSelectedOverlay: Ref<string | null>;
 export let isEditMode: Ref<boolean>;
 export let projects: Ref<Record<string, any>>;
 
+// AI : Export function to get store refs
+export function getStoreRefs() {
+  return {
+    overlays,
+    idSelectedOverlay,
+    isEditMode,
+    projects
+  };
+}
+
 // AI : Initialize stores - will be called by router guard
 export function initializeStores() {
   const overlayStore = useOverlayStore();
@@ -929,12 +939,10 @@ function setupOverlayMovementTracking(overlay: L.DistortableImageOverlay, overla
           overlayObject.history = [JSON.parse(JSON.stringify(currentCorners))];
           overlayObject.redoStack = [];
           lastSavedState = currentStateStr;
-        } else {
+        } else if (lastSavedState !== currentStateStr) {
           // AI : Save current state to history if it's different from last saved
-          if (lastSavedState !== currentStateStr) {
-            saveToHistory(overlayObject);
-            lastSavedState = currentStateStr;
-          }
+          saveToHistory(overlayObject);
+          lastSavedState = currentStateStr;
         }
       }
 

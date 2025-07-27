@@ -170,35 +170,52 @@ function saveOverlayWithCurrentCorners(overlayObject: OverlayObject): void {
   console.log('AI : Overlay corners updated in memory:', overlayObject.id);
 }
 
+// AI : Helper function to update marker position and save overlay data
+function updateMarkerAndSaveOverlay(overlayObject: OverlayObject): void {
+  updateMarkerPosition(overlayObject);
+  saveOverlayWithCurrentCorners(overlayObject);
+}
+
+// AI : Helper function to center map on overlay with proper waiting and error handling
+async function centerMapOnOverlay(overlay: OverlayObject): Promise<boolean> {
+  if (!overlay.overlay) return false;
+  
+  await waitForOverlayReady(overlay);
+  return zoomToOverlayBounds(overlay);
+}
+
 /**
- * AI : Create a violet marker for replacement overlays (identical to new overlay process)
+ * AI : Create a marker for overlays with specified type and color
  */
-function createReplacementMarker(overlayObject: any, projectId: string) {
+function createMarker(overlayObject: any, projectId: string, markerType: 'new' | 'replacement'): void {
   if (!map.value) return;
   
-  // AI : Use current map center as initial marker position (identical to createMarkerForNewOverlay)
+  // AI : Use current map center as initial marker position
   const center = map.value.getCenter();
   
-  // AI : Use unified marker creation system with proper color and tooltip handling
-  let markerTitle = 'Replacement Overlay';
+  // AI : Determine marker title based on type
+  const baseTitle = markerType === 'replacement' ? 'Replacement Overlay' : 'New Overlay';
+  let markerTitle = baseTitle;
+  
   if (projectId) {
     const { projects } = useProjects();
     if (projects.value[projectId]) {
       const project = projects.value[projectId];
       const captionPart = overlayObject.caption ? ` - ${overlayObject.caption}` : '';
-      markerTitle = `${project.name} - ${markerTitle}${captionPart}`;
+      markerTitle = `${project.name} - ${baseTitle}${captionPart}`;
     }
   }
 
-  // AI : Create violet marker for replacement overlays
-  const colorIcon = createColorIcon('violet');
+  // AI : Determine marker color based on type
+  const markerColor = markerType === 'replacement' ? 'violet' : getMarkerColorForEditMode();
+  const colorIcon = createColorIcon(markerColor);
   
   const marker = L.marker(center, {
     title: markerTitle,
     icon: colorIcon
   }).addTo(map.value);
   
-  // AI : Add click handler to marker to select the overlay (identical to createMarkerForNewOverlay)
+  // AI : Add click handler to marker to select the overlay
   marker.on('click', () => {
     if (overlayObject.overlay) {
       // AI : If overlay exists, click it to select
@@ -212,12 +229,19 @@ function createReplacementMarker(overlayObject: any, projectId: string) {
     }
   });
   
-  // AI : Store marker reference (identical to createMarkerForNewOverlay)
+  // AI : Store marker reference
   overlayObject.marker = marker;
   allMarkers.value[overlayObject.id] = marker;
   
   // AI : Update marker tooltip with proper styling
   updateMarkerTooltip(overlayObject);
+}
+
+/**
+ * AI : Create a violet marker for replacement overlays
+ */
+function createReplacementMarker(overlayObject: any, projectId: string): void {
+  createMarker(overlayObject, projectId, 'replacement');
 }
 
 
@@ -272,51 +296,8 @@ export async function addOverlay(imageUrl: string, projectId: string, replacesOv
 }
 
 // AI : Create marker for new overlay at map center (before image loads)
-function createMarkerForNewOverlay(overlayObject: any, projectId: string) {
-  if (!map.value) return;
-  
-  // AI : Use current map center as initial marker position
-  const center = map.value.getCenter();
-  
-  // AI : Use unified marker creation system with proper color and tooltip handling
-  let markerTitle = 'New Overlay';
-  if (projectId) {
-    const { projects } = useProjects();
-    if (projects.value[projectId]) {
-      const project = projects.value[projectId];
-      const captionPart = overlayObject.caption ? ` - ${overlayObject.caption}` : '';
-      markerTitle = `${project.name} - New Overlay${captionPart}`;
-    }
-  }
-
-  // AI : Create marker with consistent color for edit mode
-  const markerColor = getMarkerColorForEditMode();
-  const colorIcon = createColorIcon(markerColor);
-  
-  const marker = L.marker(center, {
-    title: markerTitle,
-    icon: colorIcon
-  }).addTo(map.value);
-  
-  // AI : Add click handler to marker to select the overlay
-  marker.on('click', () => {
-    if (overlayObject.overlay) {
-      // AI : If overlay exists, click it to select
-      const element = overlayObject.overlay.getElement();
-      if (element) {
-        element.click();
-      }
-    } else {
-      // AI : If overlay doesn't exist yet, just select it
-      idSelectedOverlay.value = overlayObject.id;
-    }
-  });
-  
-  overlayObject.marker = marker;
-  allMarkers.value[overlayObject.id] = marker;
-  
-  // AI : Update marker tooltip with proper styling
-  updateMarkerTooltip(overlayObject);
+function createMarkerForNewOverlay(overlayObject: any, projectId: string): void {
+  createMarker(overlayObject, projectId, 'new');
 }
 
 // AI : Helper function to determine marker color (simplified - no storage state)
@@ -366,9 +347,7 @@ function applyHistoryAction(action: 'undo' | 'redo') {
     (overlay as L.DistortableImageOverlay).setCorners(stateToRestore);
   }
 
-  updateMarkerPosition(overlayObject);
-  // AI : Save only the specific overlay being updated, not all overlays
-  saveOverlayWithCurrentCorners(overlayObject);
+  updateMarkerAndSaveOverlay(overlayObject);
 }
 
 export function resetImageRatio() {
@@ -399,10 +378,7 @@ export function resetImageRatio() {
     
     applyImageRatioFix(overlayObject, cornersInfo, newDimensions);
     handleFlipIfNeeded(overlayObject);
-    updateMarkerPosition(overlayObject);
-    
-    // AI : Save only the specific overlay being updated, not all overlays
-    saveOverlayWithCurrentCorners(overlayObject);
+    updateMarkerAndSaveOverlay(overlayObject);
   };
 
   img.src = overlayObject.imageUrl ?? (overlayObject.overlay.getElement() as HTMLImageElement).src;
@@ -689,8 +665,7 @@ export async function navigateToOverlay(overlayId: string, centerMap: boolean = 
   
   // AI : Center map if requested
   if (centerMap && targetOverlay.overlay) {
-    await waitForOverlayReady(targetOverlay);
-    zoomToOverlayBounds(targetOverlay);
+    await centerMapOnOverlay(targetOverlay);
   }
   
   // AI : Click on overlay to select it
@@ -724,10 +699,9 @@ async function selectAndCenterOverlay(overlayId: string, index?: number, total?:
     
     if (centerMap && map.value) {
       // AI : Wait for overlay to be properly initialized before zooming
-      await waitForOverlayReady(overlay);
+      const zoomSuccess = await centerMapOnOverlay(overlay);
       
-      // AI : Zoom to overlay bounds with proper error handling
-      if (zoomToOverlayBounds(overlay)) {
+      if (zoomSuccess) {
         showNavigationToast(overlay, index, total);
       }
     }

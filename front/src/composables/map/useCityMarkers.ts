@@ -755,7 +755,7 @@ function getOverlayMarkerInfo(overlayData: CDNOverlayData): { color: MarkerColor
 export function updateOverlayMarkers(): void {
   // AI : Only update if we have overlay markers visible and we're in edit mode
   const { isEditMode, selectedCity } = getStoreRefs();
-  if (!overlayMarkersLayer || !map.value || !map.value.hasLayer(overlayMarkersLayer) || !isEditMode.value) {
+  if (!overlayMarkersLayer || !map.value || !map.value?.hasLayer(overlayMarkersLayer) || !isEditMode.value) {
     return;
   }
 
