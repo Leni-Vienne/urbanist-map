@@ -1,9 +1,9 @@
-import { db } from '../db';
 import { publicProcedure, router } from '../trpc';
 import { z } from 'zod';
 import { projects, overlays, approvalStatusEnum, cities } from '../db/schema';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
+import { getDb } from '../shared/db-util';
 
 const setApprovalStatusSchema = z.object({
   ids: z.array(z.string().uuid()),
@@ -14,12 +14,12 @@ export const moderationRouter = router({
   getPendingSubmissions: publicProcedure
     .query(async () => {
       try {
-        const pendingProjects = await db
+        const pendingProjects = await getDb()
           .select()
           .from(projects)
           .where(eq(projects.status, 'pending'));
 
-        const pendingOverlays = await db
+        const pendingOverlays = await getDb()
           .select({
             id: overlays.id,
             name: sql<string>`coalesce(${overlays.caption}, 'Unnamed')`,
@@ -44,7 +44,7 @@ export const moderationRouter = router({
     .input(setApprovalStatusSchema)
     .mutation(async ({ input }) => {
       try {
-        await db
+        await getDb()
           .update(projects)
           .set({ status: input.status })
           .where(inArray(projects.id, input.ids));
@@ -59,7 +59,7 @@ export const moderationRouter = router({
     .input(setApprovalStatusSchema)
     .mutation(async ({ input }) => {
       try {
-        await db
+        await getDb()
           .update(overlays)
           .set({ status: input.status })
           .where(inArray(overlays.id, input.ids));

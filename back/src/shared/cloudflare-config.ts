@@ -1,11 +1,13 @@
 // AI : Configuration for Cloudflare Pages - no dotenv, no top-level await
 import { z } from 'zod';
 
-// AI : Environment schema for Cloudflare Pages
+// AI : Environment schema for Cloudflare Pages with Supabase
 const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   SESSION_ENCRYPTION_KEY: z.string().min(32),
   CORS_ORIGIN: z.string().url().optional(),
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_ANON_KEY: z.string().optional(),
 });
 
 // AI : Get config from Cloudflare Pages environment

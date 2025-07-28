@@ -1,19 +1,8 @@
 import { z } from 'zod';
 
 // AI : Support for both local development and Cloudflare Pages
+// AI : For local development, use Bun's built-in .env support or manual loading
 let env = process.env;
-
-// AI : In local development, load .env file
-if (typeof Bun !== 'undefined' && (!env.DATABASE_URL || env.DATABASE_URL.includes('localhost'))) {
-    try {
-        const dotenv = await import('dotenv');
-        dotenv.config({ path: '../../../.env', override: false });
-        env = process.env;
-    } catch {
-        // AI : dotenv might not be available in production, that's fine
-        console.log('Running without dotenv (production mode)');
-    }
-}
 
 const envSchema = z.object({
   DATABASE_URL: z.string().url(),

@@ -1,8 +1,8 @@
-import { db } from '../db';
 import { publicProcedure, router } from '../trpc';
 import { z } from 'zod';
 import { overlays, projects, cities } from '../db/schema';
 import { sql, eq } from 'drizzle-orm';
+import { getDb } from '../shared/db-util';
 
 const publishOverlaySchema = z.object({
   id: z.string().min(1).max(36), // AI : UUID length limit
@@ -49,7 +49,7 @@ const overlaySelectFields = {
 
 // AI : Base query builder for overlays with joins
 function buildOverlayQuery() {
-  return db
+  return getDb()
     .select(overlaySelectFields)
     .from(overlays)
     .leftJoin(projects, eq(overlays.projectId, projects.id))
@@ -63,7 +63,7 @@ async function findIntersectingOverlays(excludeId: string, targetOverlay: any) {
     const targetPolygonWKT = `POLYGON((${targetOverlay.topLeftLng} ${targetOverlay.topLeftLat}, ${targetOverlay.topRightLng} ${targetOverlay.topRightLat}, ${targetOverlay.bottomRightLng} ${targetOverlay.bottomRightLat}, ${targetOverlay.bottomLeftLng} ${targetOverlay.bottomLeftLat}, ${targetOverlay.topLeftLng} ${targetOverlay.topLeftLat}))`;
 
     // AI : Use PostGIS ST_Intersects with precomputed target polygon for optimal performance
-    const intersectingOverlays = await db
+    const intersectingOverlays = await getDb()
       .select(overlaySelectFields)
       .from(overlays)
       .leftJoin(projects, eq(overlays.projectId, projects.id))
@@ -155,7 +155,7 @@ export const overlayRouter = router({
         };
 
         // AI : Use upsert operation to avoid race conditions - atomic insert or update
-        const result = await db
+        const result = await getDb()
           .insert(overlays)
           .values(overlayData)
           .onConflictDoUpdate({

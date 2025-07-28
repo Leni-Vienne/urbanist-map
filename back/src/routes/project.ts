@@ -1,9 +1,9 @@
-import { db } from '../db';
 import { publicProcedure, router } from '../trpc';
 import { z } from 'zod';
 import { projects, cities, overlays } from '../db/schema';
 import { eq, sql, and } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
+import { getDb } from '../shared/db-util';
 
 const publishProjectSchema = z.object({
   id: z.string().uuid().optional(),
@@ -22,7 +22,7 @@ export const projectRouter = router({
     .mutation(async ({ input }) => {
       try {
         if (input.cityId) {
-          const city = await db.select().from(cities).where(eq(cities.id, input.cityId)).limit(1);
+          const city = await getDb().select().from(cities).where(eq(cities.id, input.cityId)).limit(1);
           if (city.length === 0) {
             throw new TRPCError({ code: 'BAD_REQUEST', message: 'City not found' });
           }
@@ -41,7 +41,7 @@ export const projectRouter = router({
 
         if (input.id) {
           // AI : Use upsert operation for existing project ID to avoid race conditions
-          const result = await db
+          const result = await getDb()
             .insert(projects)
             .values({ ...data, id: input.id })
             .onConflictDoUpdate({
@@ -66,7 +66,7 @@ export const projectRouter = router({
           };
         } else {
           // AI : Insert new project without ID (will get auto-generated UUID)
-          const result = await db.insert(projects)
+          const result = await getDb().insert(projects)
             .values(data)
             .returning();
           return { success: true, id: result[0].id, exists: false };
@@ -88,7 +88,7 @@ export const projectRouter = router({
         const { lat, lng } = input;
 
         // AI : Find projects that have at least one overlay within the specified radius
-        const nearbyProjects = await db
+        const nearbyProjects = await getDb()
           .select({
             id: projects.id,
             title: projects.title,
