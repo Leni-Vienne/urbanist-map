@@ -546,7 +546,7 @@ async function prepareImageForServer(): Promise<string> {
     const formData = new FormData();
     formData.append('image', imageFile);
 
-    const uploadResponse = await fetch('http://localhost:3000/api/upload-image', {
+    const uploadResponse = await fetch('/api/upload-image', {
       method: 'POST',
       body: formData,
       credentials: 'include'

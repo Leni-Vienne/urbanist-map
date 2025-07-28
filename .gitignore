@@ -7,6 +7,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+.dev.vars
 .wrangler
 codebase_combined.txt
 combine.sh

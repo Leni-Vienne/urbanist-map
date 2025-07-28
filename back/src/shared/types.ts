@@ -25,7 +25,7 @@ export interface AppConfig {
     corsOrigin: string | string[];
     sessionEncryptionKey: string;
     storage: StorageInterface;
-    databaseUrl?: string; // AI : Database URL for Workers context
+    databaseUrl: string; // AI : Database URL for Workers context
 }
 
 export type SessionData = {
