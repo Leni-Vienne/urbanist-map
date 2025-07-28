@@ -1,6 +1,7 @@
 {
   "type": "module",
   "scripts": {
+    "build": "vite build front",
     "preview": "vite preview front",
     "dev-front": "bunx --bun vite front",
     "build-front": "vite build front",
@@ -26,7 +27,6 @@
     "@trpc/server": "^11.4.3",
     "@vectorial1024/leaflet-color-markers": "^2.0.4",
     "drizzle-orm": "^0.44.2",
-    "drizzle-zod": "^0.8.2",
     "hono": "^4.8.4",
     "hono-sessions": "^0.8.0",
     "leaflet": "^1.9.4",
