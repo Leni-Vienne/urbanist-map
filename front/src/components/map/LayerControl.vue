@@ -13,11 +13,10 @@
             />
         </div>
 
-        <!-- AI : Layer panel using PrimeVue OverlayPanel for small popup -->
-        <OverlayPanel
+        <!-- AI : Layer panel using PrimeVue Popover for small popup -->
+        <Popover
             ref="layerPanel"
-            class="layer-overlay-panel"
-            :dismissable="true"
+            class="layer-popover"
         >
             <div class="flex flex-col gap-4">
                 <!-- AI : Base layers section using PrimeVue Panel -->
@@ -47,7 +46,7 @@
                     </div>
                 </Panel>
             </div>
-        </OverlayPanel>
+        </Popover>
     </div>
 </template>
 
@@ -90,9 +89,9 @@ async function onLayerChange() {
     }
 }
 
-// AI : Watch for overlay panel visibility changes
+// AI : Watch for popover visibility changes
 watch(() => layerPanel.value?.visible, (visible) => {
-    showLayerPanel.value = visible;
+    showLayerPanel.value = visible ?? false;
 });
 </script>
 
@@ -101,17 +100,17 @@ watch(() => layerPanel.value?.visible, (visible) => {
     position: relative;
 }
 
-/* AI : Custom overlay panel styling */
-:deep(.layer-overlay-panel) {
+/* AI : Custom popover styling */
+:deep(.layer-popover) {
     width: 280px;
 }
 
-:deep(.layer-overlay-panel .p-panel-header) {
+:deep(.layer-popover .p-panel-header) {
     padding: 0.75rem 1rem;
     font-size: 0.875rem;
 }
 
-:deep(.layer-overlay-panel .p-panel-content) {
+:deep(.layer-popover .p-panel-content) {
     padding: 0.75rem 1rem;
 }
 </style>
