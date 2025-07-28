@@ -64,7 +64,7 @@ onMounted(async () => {
 
   try {
     // AI : Use environment variable for API base URL
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/check-session`, {
+    const response = await fetch(`/api/check-session`, {
       method: 'GET',
       credentials: 'include',
     })

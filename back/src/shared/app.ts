@@ -30,64 +30,33 @@ export async function createApp(config: AppConfig) {
         expireAfterSeconds: 900,
     }) as any)
 
-    // AI : Setup tRPC with Supabase if database URL is provided (Workers context)
-    let appRouter: any = null;
-    
-    if (config.databaseUrl && !config.databaseUrl.includes('your-project.supabase.co')) {
-        try {
-            console.log('AI : Setting up tRPC with Supabase for Workers...');
-            
-            // AI : Create database instance for Cloudflare Workers
-            const workersDb = createCloudflareDb(config.databaseUrl);
-            
-            // AI : Test the database connection first
-            await workersDb.execute('SELECT 1');
-            
-            // AI : Create tRPC router with database injection (now async)
-            appRouter = await createAppRouter(workersDb);
-
-            // AI : tRPC server with superjson transformer
-            app.use('/trpc/*', trpcServer({
-                router: appRouter,
-                createContext(_opts: any, c: any) {
-                    return {
-                        session: c.get('session')
-                    };
-                }
-            }));
-
-            console.log('AI : tRPC routes enabled for Workers with Supabase');
-        } catch (error) {
-            console.error('AI : Failed to setup tRPC in Workers:', error);
-            console.log('AI : Creating router without database');
-            
-            // AI : Create router without database for fallback
-            appRouter = await createAppRouter();
-            
-            app.use('/trpc/*', trpcServer({
-                router: appRouter,
-                createContext(_opts: any, c: any) {
-                    return {
-                        session: c.get('session')
-                    };
-                }
-            }));
-        }
-    } else {
-        console.log('AI : No valid database URL - creating router without database');
-        
-        // AI : Create router without database
-        appRouter = await createAppRouter();
-        
-        app.use('/trpc/*', trpcServer({
-            router: appRouter,
-            createContext(_opts: any, c: any) {
-                return {
-                    session: c.get('session')
-                };
-            }
-        }));
+    // AI : Setup tRPC with Supabase - database is required
+    if (!config.databaseUrl || config.databaseUrl.includes('your-project.supabase.co')) {
+        throw new Error('DATABASE_URL is required. Please configure your Supabase connection string.');
     }
+
+    console.log('AI : Setting up tRPC with Supabase for Workers...');
+    
+    // AI : Create database instance for Cloudflare Workers
+    const workersDb = createCloudflareDb(config.databaseUrl);
+    
+    // AI : Test the database connection first
+    await workersDb.execute('SELECT 1');
+    
+    // AI : Create tRPC router with database injection (now async)
+    const appRouter = await createAppRouter(workersDb);
+
+    // AI : tRPC server with superjson transformer
+    app.use('/trpc/*', trpcServer({
+        router: appRouter,
+        createContext(_opts: any, c: any) {
+            return {
+                session: c.get('session')
+            };
+        }
+    }));
+
+    console.log('AI : tRPC routes enabled for Workers with Supabase');
 
     // AI : File upload endpoint for images
     app.post('/api/upload-image', async (c) => {
