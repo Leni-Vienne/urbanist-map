@@ -3,15 +3,11 @@ import { trpcServer } from '@hono/trpc-server'
 import { cors } from 'hono/cors'
 import { Session, sessionMiddleware, CookieStore } from 'hono-sessions'
 import { AppConfig, SessionData, FileUploadResult, FileUploadError } from './types';
-import { router } from '../trpc';
-import { projectRouter } from '../routes/project';
-import { overlayRouter } from '../routes/overlay';
-import { citiesRouter } from '../routes/cities';
-import { countriesRouter } from '../routes/countries';
-import { moderationRouter } from '../routes/moderation';
+import { db } from '../db';
+import { createAppRouter } from './routers';
 
 // AI : Create local development app with full tRPC support
-export function createLocalApp(config: AppConfig) {
+export async function createLocalApp(config: AppConfig) {
     const app = new Hono<{
         Variables: {
             session: Session<SessionData>,
@@ -34,14 +30,8 @@ export function createLocalApp(config: AppConfig) {
         expireAfterSeconds: 900,
     }) as any)
 
-    // AI : Create tRPC router
-    const appRouter = router({
-        overlay: overlayRouter,
-        project: projectRouter,
-        cities: citiesRouter,
-        country: countriesRouter,
-        moderation: moderationRouter,
-    });
+    // AI : Create tRPC router using factory with local database
+    const appRouter = await createAppRouter(db);
 
     // AI : tRPC server
     app.use('/trpc/*', trpcServer({
@@ -132,4 +122,4 @@ export function createLocalApp(config: AppConfig) {
     return { app, appRouter };
 }
 
-export type LocalAppRouter = ReturnType<typeof createLocalApp>['appRouter'];
+export type LocalAppRouter = Awaited<ReturnType<typeof createLocalApp>>['appRouter'];

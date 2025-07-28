@@ -1,5 +1,5 @@
 import { createApp } from '../back/src/shared/app';
-import { EnhancedR2Storage } from '../back/src/shared/cloudflare-storage';
+import { R2Storage } from '../back/src/shared/storage';
 
 // AI : Cloudflare Workers environment bindings
 interface Env {
@@ -14,7 +14,7 @@ export default {
         // AI : Create storage based on available services
         let storage;
         if (env.R2_BUCKET) {
-            storage = new EnhancedR2Storage(env.R2_BUCKET);
+            storage = new R2Storage(env.R2_BUCKET);
         } else {
             // AI : Fallback storage that throws errors
             storage = {
@@ -24,7 +24,7 @@ export default {
         }
 
         // AI : Create the app with environment configuration
-        const { app } = createApp({
+        const { app } = await createApp({
             corsOrigin: env.CORS_ORIGIN || 'https://your-domain.pages.dev',
             sessionEncryptionKey: env.SESSION_ENCRYPTION_KEY,
             storage,

@@ -1,14 +1,14 @@
 import { publicProcedure, router } from '../trpc';
-import { db } from '../db';
 import { countries, cities, projects } from '../db/schema';
 import { eq, exists } from 'drizzle-orm';
+import { getDb } from '../shared/db-util';
 
 export const countriesRouter = router({
   // AI : Get all countries that have at least one city with a project
   getCountriesWithProjects: publicProcedure
     .query(async () => {
       try {
-        return await db
+        return await getDb()
           .select({
             id: countries.id,
             code: countries.code,
@@ -18,7 +18,7 @@ export const countriesRouter = router({
           .from(countries)
           .where(
             exists(
-              db
+              getDb()
                 .select()
                 .from(cities)
                 .innerJoin(projects, eq(projects.cityId, cities.id))

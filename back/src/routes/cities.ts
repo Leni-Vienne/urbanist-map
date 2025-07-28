@@ -1,12 +1,12 @@
 import { z } from 'zod';
 import { publicProcedure, router } from '../trpc';
-import { db } from '../db';
 import {
   cities, projects, overlays,
 } from '../db/schema';
 import {
   sql, eq, isNotNull, and,
 } from 'drizzle-orm';
+import { getDb } from '../shared/db-util';
 
 const getCitiesNearLocationSchema = z.object({
   lat: z.number().min(-90).max(90), // AI : Valid latitude range
@@ -34,7 +34,7 @@ export const citiesRouter = router({
         const { lat, lng, limit } = input;
         
         // AI : Use PostGIS ST_Distance to calculate distance and order by closest
-        const result = await db
+        const result = await getDb()
           .select({
             id: cities.id,
             name: cities.name,
@@ -70,7 +70,7 @@ export const citiesRouter = router({
         const { lat, lng, search, limit } = input;
         
         // AI : Use PostGIS ST_Distance to calculate distance and order by closest, with name filter
-        const result = await db
+        const result = await getDb()
           .select({
             id: cities.id,
             name: cities.name,
@@ -112,7 +112,7 @@ export const citiesRouter = router({
         }
         
         // AI : Join cities with projects and return cities that have projects
-        const query = db
+        const query = getDb()
           .selectDistinct({
             id: cities.id,
             name: cities.name,
@@ -145,7 +145,7 @@ export const citiesRouter = router({
         const { cityId } = input;
         
         // AI : Get all overlays for projects in this city with centroid coordinates in one query
-        const overlaysWithCentroids = await db
+        const overlaysWithCentroids = await getDb()
           .select({
             id: overlays.id,
             filename: overlays.filename,
@@ -172,7 +172,7 @@ export const citiesRouter = router({
           .where(eq(projects.cityId, cityId));
 
         // AI : Get all projects for this city
-        const projectsResult = await db.query.projects.findMany({
+        const projectsResult = await getDb().query.projects.findMany({
           where: eq(projects.cityId, cityId),
         });
 

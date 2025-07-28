@@ -2,7 +2,6 @@ import { Hono } from 'hono'
 import { handle } from 'hono/cloudflare-pages'
 import { createApp } from '../back/src/shared/app';
 import { R2Storage } from '../back/src/shared/storage';
-import './types'; // AI : Import Cloudflare types
 
 // AI : Cloudflare Pages environment bindings
 interface Env {
@@ -10,6 +9,8 @@ interface Env {
     DATABASE_URL: string;
     SESSION_ENCRYPTION_KEY: string;
     CORS_ORIGIN: string;
+    SUPABASE_URL?: string;
+    SUPABASE_ANON_KEY?: string;
 }
 
 // AI : Create main app for Cloudflare Pages
@@ -22,10 +23,11 @@ app.use('*', async (c) => {
         get: async () => null
     };
 
-    const { app: sharedApp } = createApp({
+    const { app: sharedApp, appRouter: _appRouter } = await createApp({
         corsOrigin: ['https://construction-map.pages.dev', 'http://localhost:8788'],
         sessionEncryptionKey: c.env.SESSION_ENCRYPTION_KEY || 'a_very_long_and_secure_secret_key_of_at_least_32_chars',
-        storage
+        storage,
+        databaseUrl: c.env.DATABASE_URL
     });
 
     // AI : Forward request to shared app
