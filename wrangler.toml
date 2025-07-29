@@ -9,6 +9,9 @@ compatibility_flags = ["nodejs_compat"]
 directory = "front/dist"
 binding = "ASSETS"
 
+[observability.logs]
+enabled = true
+
 # AI : R2 bucket binding for file uploads
 [[r2_buckets]]
 binding = "R2_BUCKET"

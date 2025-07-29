@@ -1,6 +1,7 @@
 // AI : Import utility functions from useCityMarkers
 import { updateOverlayMarkers, applyCachedOverlayState, updateCachedOverlayData } from '@composables/map/useCityMarkers';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
+import { buildImageUrl } from '../../utils';
 import L from "leaflet";
 import 'leaflet-toolbar'
 import 'leaflet-distortableimage'; // using "-updated" to prevent "WebSocket connection to 'ws://localhost:8081/ws' failed:" error
@@ -724,10 +725,10 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData, createMar
       { lat: cdnOverlay.centroid.lat + 0.001, lng: cdnOverlay.centroid.lng - 0.001 }
     ];
 
-  const cdnUrl = import.meta.env.VITE_CDN_URL ?? 'http://localhost:3000/uploads';
+  // AI : Use buildImageUrl utility to construct image URL from Cloudflare R2 via worker
   const storedOverlayData: StoredOverlayData = {
     id: cdnOverlay.id,
-    imageUrl: `${cdnUrl}/${cdnOverlay.filename}`,
+    imageUrl: buildImageUrl(cdnOverlay.filename),
     history: [],
     redoStack: [],
     projectId: cdnOverlay.projectId ?? '',
@@ -755,7 +756,7 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData, createMar
     marker: null,
     whitePixelsHidden: false,
     isFlipped: false,
-    currentResolution: `${cdnUrl}/${cdnOverlay.filename}`,
+    currentResolution: buildImageUrl(cdnOverlay.filename),
     project: cdnOverlay.project,
     corners: corners,
     isModified: cdnOverlay.isModified ?? false, // AI : Preserve isModified flag from cached data
