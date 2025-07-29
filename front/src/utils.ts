@@ -19,3 +19,20 @@ export function debounce<T extends (...args: any[]) => any>(
     timeout = setTimeout(() => func(...args), wait) as unknown as number;
   };
 }
+
+/**
+ * AI : Build image URL for overlay files
+ * AI : Uses relative URL to serve images from the same origin (Cloudflare R2 via worker)
+ * @param filename - The filename of the image
+ * @returns The complete URL to access the image
+ */
+export function buildImageUrl(filename: string): string {
+  // AI : In production (workers), use relative URL since images are served by same worker
+  if (import.meta.env.PROD) {
+    return `/uploads/${filename}`;
+  }
+  
+  // AI : In development, use local server
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
+  return `${apiBaseUrl}/uploads/${filename}`;
+}
