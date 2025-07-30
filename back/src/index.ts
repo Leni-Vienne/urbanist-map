@@ -29,11 +29,8 @@ async function initializeApp() {
       }
   }>()
 
-  // AI : Mount the shared app routes
+  // AI : Mount the shared app routes (includes /uploads/* handler)
   app.route('/', sharedApp)
-
-  // AI : Serve uploaded files from local uploads folder
-  app.get('/uploads/*', serveStatic({ root: './' }))
 
   // AI : Static file serving for frontend
   app.use('*', serveStatic({ root: './front/dist' }))
