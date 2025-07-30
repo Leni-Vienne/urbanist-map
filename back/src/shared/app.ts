@@ -20,7 +20,8 @@ export async function createApp(config: AppConfig) {
     // AI : Use shared app creation function
     return createSharedApp({
         ...config,
-        database: workersDb
+        database: workersDb,
+        isProduction: true
     });
 }
 

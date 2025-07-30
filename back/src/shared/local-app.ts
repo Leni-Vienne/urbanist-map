@@ -9,7 +9,8 @@ export async function createLocalApp(config: AppConfig) {
     // AI : Use shared app creation function with local database
     return createSharedApp({
         ...config,
-        database: db
+        database: db,
+        isProduction: false
     });
 }
 
