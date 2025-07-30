@@ -1,5 +1,5 @@
 import { createApp } from '../back/src/shared/app';
-import { R2Storage } from '../back/src/shared/storage';
+import { R2Storage, LocalFileStorage } from '../back/src/shared/storage';
 
 // AI : Cloudflare Workers environment bindings
 interface Env {
@@ -26,11 +26,8 @@ export default {
                 if (env.R2_BUCKET) {
                     storage = new R2Storage(env.R2_BUCKET);
                 } else {
-                    // AI : Fallback storage that throws errors
-                    storage = {
-                        put: async () => { throw new Error('R2 storage not configured') },
-                        get: async () => null
-                    };
+                    // AI : Use local file storage for development
+                    storage = new LocalFileStorage();
                 }
 
                 // AI : Create the app with environment configuration - DATABASE_URL is required
