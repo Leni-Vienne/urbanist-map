@@ -7,6 +7,7 @@ interface Env {
     R2_BUCKET?: R2Bucket;
     SESSION_ENCRYPTION_KEY: string;
     CORS_ORIGIN?: string;
+    R2_PUBLIC_URL?: string;
     DATABASE_URL?: string; // AI : Supabase PostgreSQL URL
     SUPABASE_URL?: string;
     SUPABASE_ANON_KEY?: string;
@@ -20,7 +21,7 @@ export default {
         
         try {
             // AI : Check if this is an API request
-            if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/trpc/') || url.pathname.startsWith('/uploads/')) {
+            if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/trpc/')) {
                 // AI : Create storage based on available services
                 let storage;
                 if (env.R2_BUCKET) {
@@ -39,7 +40,8 @@ export default {
                     corsOrigin: env.CORS_ORIGIN ?? 'https://construction-map.leni-vienne2.workers.dev',
                     sessionEncryptionKey: env.SESSION_ENCRYPTION_KEY ?? 'dev_key_for_local_development_only_32_chars_min',
                     storage,
-                    databaseUrl: env.DATABASE_URL
+                    databaseUrl: env.DATABASE_URL,
+                    r2PublicUrl: env.R2_PUBLIC_URL
                 });
 
                 return app.fetch(request, env);
@@ -54,7 +56,7 @@ export default {
             
             // AI : For paths that don't have file extensions and aren't API routes,
             // AI : serve index.html for SPA routing
-            if (!assetPath.includes('.') && !assetPath.startsWith('/api/') && !assetPath.startsWith('/trpc/') && !assetPath.startsWith('/uploads/')) {
+            if (!assetPath.includes('.') && !assetPath.startsWith('/api/') && !assetPath.startsWith('/trpc/')) {
                 assetPath = '/index.html';
             }
 

@@ -10,6 +10,8 @@ lerna-debug.log*
 .clinerules
 .github/instructions
 CLAUDE.md
+.mcp.json
+.claude
 
 .dev.vars
 .wrangler

@@ -70,10 +70,15 @@ export async function createSharedApp(config: AppConfig & { database: any }) {
             const buffer = await file.arrayBuffer();
             await config.storage.put(filename, buffer);
             
+            // AI : Use direct R2 URL in production, local URL for development
+            const imageUrl = config.isProduction && config.r2PublicUrl
+                ? `${config.r2PublicUrl}/${filename}`
+                : `/uploads/${filename}`;
+            
             return c.json({ 
                 success: true, 
                 filename: filename,
-                url: `/uploads/${filename}`
+                url: imageUrl
             } as FileUploadResult);
         } catch (error) {
             console.error('Error uploading file:', error);
@@ -81,7 +86,7 @@ export async function createSharedApp(config: AppConfig & { database: any }) {
         }
     });
 
-    // AI : Serve uploaded files
+    // AI : Serve uploaded files - only for local development
     app.get('/uploads/*', async (c) => {
         try {
             const filename = c.req.path.replace('/uploads/', '');
