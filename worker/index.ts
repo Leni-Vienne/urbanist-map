@@ -20,7 +20,7 @@ export default {
         
         try {
             // AI : Check if this is an API request
-            if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/trpc/')) {
+            if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/trpc/') || url.pathname.startsWith('/uploads/')) {
                 // AI : Create storage based on available services
                 let storage;
                 if (env.R2_BUCKET) {
@@ -57,7 +57,7 @@ export default {
             
             // AI : For paths that don't have file extensions and aren't API routes,
             // AI : serve index.html for SPA routing
-            if (!assetPath.includes('.') && !assetPath.startsWith('/api/') && !assetPath.startsWith('/trpc/')) {
+            if (!assetPath.includes('.') && !assetPath.startsWith('/api/') && !assetPath.startsWith('/trpc/') && !assetPath.startsWith('/uploads/')) {
                 assetPath = '/index.html';
             }
 
