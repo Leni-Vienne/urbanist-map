@@ -3,23 +3,25 @@ import { z } from 'zod';
 import { projects, overlays, approvalStatusEnum, cities } from '../db/schema';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
-import { getDb } from '../shared/db-util';
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import * as schema from '../db/schema';
 
 const setApprovalStatusSchema = z.object({
   ids: z.array(z.string().uuid()),
   status: z.enum(approvalStatusEnum.enumValues),
 });
 
-export const moderationRouter = router({
+export function createModerationRouter(db: PostgresJsDatabase<typeof schema>) {
+  return router({
   getPendingSubmissions: publicProcedure
     .query(async () => {
       try {
-        const pendingProjects = await getDb()
+        const pendingProjects = await db
           .select()
           .from(projects)
           .where(eq(projects.status, 'pending'));
 
-        const pendingOverlays = await getDb()
+        const pendingOverlays = await db
           .select({
             id: overlays.id,
             name: sql<string>`coalesce(${overlays.caption}, 'Unnamed')`,
@@ -44,7 +46,7 @@ export const moderationRouter = router({
     .input(setApprovalStatusSchema)
     .mutation(async ({ input }) => {
       try {
-        await getDb()
+        await db
           .update(projects)
           .set({ status: input.status })
           .where(inArray(projects.id, input.ids));
@@ -59,7 +61,7 @@ export const moderationRouter = router({
     .input(setApprovalStatusSchema)
     .mutation(async ({ input }) => {
       try {
-        await getDb()
+        await db
           .update(overlays)
           .set({ status: input.status })
           .where(inArray(overlays.id, input.ids));
@@ -69,4 +71,5 @@ export const moderationRouter = router({
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update overlay status' });
       }
     }),
-});
+  });
+}

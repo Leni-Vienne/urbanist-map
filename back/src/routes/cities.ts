@@ -6,7 +6,8 @@ import {
 import {
   sql, eq, isNotNull, and,
 } from 'drizzle-orm';
-import { getDb } from '../shared/db-util';
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import * as schema from '../db/schema';
 
 const getCitiesNearLocationSchema = z.object({
   lat: z.number().min(-90).max(90), // AI : Valid latitude range
@@ -25,7 +26,8 @@ const getCityProjectsSchema = z.object({
   cityId: z.string().uuid() // AI : City ID to get projects for
 });
 
-export const citiesRouter = router({
+export function createCitiesRouter(db: PostgresJsDatabase<typeof schema>) {
+  return router({
   // AI : Get cities closest to given coordinates ordered by distance
   getCitiesNearLocation: publicProcedure
     .input(getCitiesNearLocationSchema)
@@ -34,7 +36,7 @@ export const citiesRouter = router({
         const { lat, lng, limit } = input;
         
         // AI : Use PostGIS ST_Distance to calculate distance and order by closest
-        const result = await getDb()
+        const result = await db
           .select({
             id: cities.id,
             name: cities.name,
@@ -70,7 +72,7 @@ export const citiesRouter = router({
         const { lat, lng, search, limit } = input;
         
         // AI : Use PostGIS ST_Distance to calculate distance and order by closest, with name filter
-        const result = await getDb()
+        const result = await db
           .select({
             id: cities.id,
             name: cities.name,
@@ -112,7 +114,7 @@ export const citiesRouter = router({
         }
         
         // AI : Join cities with projects and return cities that have projects
-        const query = getDb()
+        const query = db
           .selectDistinct({
             id: cities.id,
             name: cities.name,
@@ -145,7 +147,7 @@ export const citiesRouter = router({
         const { cityId } = input;
         
         // AI : Get all overlays for projects in this city with centroid coordinates in one query
-        const overlaysWithCentroids = await getDb()
+        const overlaysWithCentroids = await db
           .select({
             id: overlays.id,
             filename: overlays.filename,
@@ -172,7 +174,7 @@ export const citiesRouter = router({
           .where(eq(projects.cityId, cityId));
 
         // AI : Get all projects for this city
-        const projectsResult = await getDb().query.projects.findMany({
+        const projectsResult = await db.query.projects.findMany({
           where: eq(projects.cityId, cityId),
         });
 
@@ -197,4 +199,5 @@ export const citiesRouter = router({
         throw new Error('Failed to fetch city projects');
       }
     }),
-});
+  });
+}

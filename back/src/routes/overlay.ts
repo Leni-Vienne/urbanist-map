@@ -2,7 +2,8 @@ import { publicProcedure, router } from '../trpc';
 import { z } from 'zod';
 import { overlays, projects, cities } from '../db/schema';
 import { sql, eq } from 'drizzle-orm';
-import { getDb } from '../shared/db-util';
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import * as schema from '../db/schema';
 
 const publishOverlaySchema = z.object({
   id: z.string().min(1).max(36), // AI : UUID length limit
@@ -48,8 +49,8 @@ const overlaySelectFields = {
 };
 
 // AI : Base query builder for overlays with joins
-function buildOverlayQuery() {
-  return getDb()
+function buildOverlayQuery(db: PostgresJsDatabase<typeof schema>) {
+  return db
     .select(overlaySelectFields)
     .from(overlays)
     .leftJoin(projects, eq(overlays.projectId, projects.id))
@@ -57,13 +58,13 @@ function buildOverlayQuery() {
 }
 
 // AI : Find overlays that intersect with a given overlay using PostGIS spatial queries
-async function findIntersectingOverlays(excludeId: string, targetOverlay: any) {
+async function findIntersectingOverlays(db: PostgresJsDatabase<typeof schema>, excludeId: string, targetOverlay: any) {
   try {
     // AI : Construct the target polygon once as WKT string - avoids expensive polygon construction for every row
     const targetPolygonWKT = `POLYGON((${targetOverlay.topLeftLng} ${targetOverlay.topLeftLat}, ${targetOverlay.topRightLng} ${targetOverlay.topRightLat}, ${targetOverlay.bottomRightLng} ${targetOverlay.bottomRightLat}, ${targetOverlay.bottomLeftLng} ${targetOverlay.bottomLeftLat}, ${targetOverlay.topLeftLng} ${targetOverlay.topLeftLat}))`;
 
     // AI : Use PostGIS ST_Intersects with precomputed target polygon for optimal performance
-    const intersectingOverlays = await getDb()
+    const intersectingOverlays = await db
       .select(overlaySelectFields)
       .from(overlays)
       .leftJoin(projects, eq(overlays.projectId, projects.id))
@@ -89,14 +90,15 @@ async function findIntersectingOverlays(excludeId: string, targetOverlay: any) {
   }
 }
 
-export const overlayRouter = router({
+export function createOverlayRouter(db: PostgresJsDatabase<typeof schema>) {
+  return router({
   getOverlay: publicProcedure
     .input(getOverlaySchema)
     .query(async ({ input }) => {
       console.log('Fetching overlay with input:', input);
       try {
         // AI : Fetch the requested overlay
-        const overlay = await buildOverlayQuery()
+        const overlay = await buildOverlayQuery(db)
           .where(eq(overlays.id, input.id))
           .limit(1);
 
@@ -109,7 +111,7 @@ export const overlayRouter = router({
         // AI : If includeIntersecting is true, find overlays that intersect with the queried overlay
         if (input.includeIntersecting) {
           const queriedOverlay = overlay[0];
-          intersectingOverlays = await findIntersectingOverlays(input.id, queriedOverlay);
+          intersectingOverlays = await findIntersectingOverlays(db, input.id, queriedOverlay);
         }
 
         return {
@@ -155,7 +157,7 @@ export const overlayRouter = router({
         };
 
         // AI : Use upsert operation to avoid race conditions - atomic insert or update
-        const result = await getDb()
+        const result = await db
           .insert(overlays)
           .values(overlayData)
           .onConflictDoUpdate({
@@ -190,4 +192,5 @@ export const overlayRouter = router({
         throw new Error('Failed to publish overlay');
       }
     }),
-});
+  });
+}
