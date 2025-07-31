@@ -1,6 +1,6 @@
 # AI : Cloudflare Worker configuration for full-stack app
 name = "construction-map"
-main = "worker/index.ts"
+main = "back/worker/index.ts"
 compatibility_date = "2024-01-15"
 compatibility_flags = ["nodejs_compat"]
 
