@@ -17,6 +17,12 @@ enabled = true
 binding = "R2_BUCKET"
 bucket_name = "construction-map-uploads"
 
+
+# AI : Hyperdrive binding for database connection pooling
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "53021ecf4ac94d2a8555d8f11022aa44" # construction-map-supabase Hyperdrive UUID
+
 # AI : Secrets to be set in Cloudflare dashboard
 # DATABASE_URL (Supabase PostgreSQL URL)
 # SUPABASE_URL 

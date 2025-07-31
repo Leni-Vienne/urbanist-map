@@ -14,6 +14,8 @@ declare global {
             contentType?: string;
         };
     }
+
+    type Hyperdrive = any;
 }
 
 export interface StorageInterface {

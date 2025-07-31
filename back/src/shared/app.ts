@@ -9,14 +9,9 @@ export async function createApp(config: AppConfig) {
         throw new Error('DATABASE_URL is required. Please configure your Supabase connection string.');
     }
 
-    console.log('AI : Setting up tRPC with Supabase for Workers...');
-    
     // AI : Create database instance for Cloudflare Workers
     const workersDb = createCloudflareDb(config.databaseUrl);
-    
-    // AI : Test the database connection first
-    await workersDb.execute('SELECT 1');
-    
+
     // AI : Use shared app creation function
     return createSharedApp({
         ...config,
