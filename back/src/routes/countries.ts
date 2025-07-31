@@ -1,14 +1,16 @@
 import { publicProcedure, router } from '../trpc';
 import { countries, cities, projects } from '../db/schema';
 import { eq, exists } from 'drizzle-orm';
-import { getDb } from '../shared/db-util';
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import * as schema from '../db/schema';
 
-export const countriesRouter = router({
+export function createCountriesRouter(db: PostgresJsDatabase<typeof schema>) {
+  return router({
   // AI : Get all countries that have at least one city with a project
   getCountriesWithProjects: publicProcedure
     .query(async () => {
       try {
-        return await getDb()
+        return await db
           .select({
             id: countries.id,
             code: countries.code,
@@ -18,7 +20,7 @@ export const countriesRouter = router({
           .from(countries)
           .where(
             exists(
-              getDb()
+              db
                 .select()
                 .from(cities)
                 .innerJoin(projects, eq(projects.cityId, cities.id))
@@ -31,4 +33,5 @@ export const countriesRouter = router({
           throw new Error('Failed to fetch countries with projects');
         }
     })
-});
+  });
+}
