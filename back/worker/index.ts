@@ -1,5 +1,5 @@
-import { createApp } from '../back/src/shared/app';
-import { R2Storage, LocalFileStorage } from '../back/src/shared/storage';
+import { createApp } from '../src/shared/app';
+import { R2Storage, LocalFileStorage } from '../src/shared/storage';
 
 // AI : Cloudflare Workers environment bindings
 interface Env {
