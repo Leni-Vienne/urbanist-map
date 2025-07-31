@@ -5,10 +5,11 @@ import { R2Storage, LocalFileStorage } from '../src/shared/storage';
 interface Env {
     ASSETS: { fetch: (request: Request) => Promise<Response> }; // AI : Static assets binding
     R2_BUCKET?: R2Bucket;
+    HYPERDRIVE?: Hyperdrive; // AI : Hyperdrive binding for database connection pooling
     SESSION_ENCRYPTION_KEY: string;
     CORS_ORIGIN?: string;
     R2_PUBLIC_URL?: string;
-    DATABASE_URL?: string; // AI : Supabase PostgreSQL URL
+    DATABASE_URL?: string; // AI : Supabase PostgreSQL URL (fallback for local development)
     SUPABASE_URL?: string;
     SUPABASE_ANON_KEY?: string;
     CF_ACCOUNT_ID?: string;
@@ -31,16 +32,31 @@ export default {
                     storage = new LocalFileStorage();
                 }
 
-                // AI : Create the app with environment configuration - DATABASE_URL is required
-                if (!env.DATABASE_URL) {
-                    throw new Error('DATABASE_URL is required. Please set it in your Worker environment variables.');
+                // AI : Create the app with environment configuration
+                let databaseUrl: string;
+                
+                // AI : For local development, always prefer DATABASE_URL over Hyperdrive
+                const isLocal = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+                
+                if (isLocal && env.DATABASE_URL) {
+                    databaseUrl = env.DATABASE_URL;
+                    console.log('AI : Using local Docker database connection');
+                } else if (env.HYPERDRIVE) {
+                    // AI : Use Hyperdrive's pooled connection string for production
+                    databaseUrl = env.HYPERDRIVE.connectionString;
+                    console.log('AI : Using Hyperdrive for database connection pooling');
+                } else if (env.DATABASE_URL) {
+                    databaseUrl = env.DATABASE_URL;
+                    console.log('AI : Using direct database connection (fallback)');
+                } else {
+                    throw new Error('No database connection available. Please configure DATABASE_URL or HYPERDRIVE.');
                 }
 
                 const { app } = await createApp({
                     corsOrigin: env.CORS_ORIGIN ?? 'https://construction-map.leni-vienne2.workers.dev',
                     sessionEncryptionKey: env.SESSION_ENCRYPTION_KEY ?? 'dev_key_for_local_development_only_32_chars_min',
                     storage,
-                    databaseUrl: env.DATABASE_URL,
+                    databaseUrl,
                     r2PublicUrl: env.R2_PUBLIC_URL
                 });
 
