@@ -13,63 +13,68 @@ const setApprovalStatusSchema = z.object({
 
 export function createModerationRouter(db: PostgresJsDatabase<typeof schema>) {
   return router({
-  getPendingSubmissions: publicProcedure
-    .query(async () => {
-      try {
-        const pendingProjects = await db
-          .select()
-          .from(projects)
-          .where(eq(projects.status, 'pending'));
+    getPendingSubmissions: publicProcedure
+      .query(async () => {
+        try {
+          const pendingProjects = db
+            .select()
+            .from(projects)
+            .where(eq(projects.status, 'pending'));
 
-        const pendingOverlays = await db
-          .select({
-            id: overlays.id,
-            name: sql<string>`coalesce(${overlays.caption}, 'Unnamed')`,
-            city: cities.name,
-          })
-          .from(overlays)
-          .leftJoin(projects, eq(overlays.projectId, projects.id))
-          .leftJoin(cities, eq(projects.cityId, cities.id))
-          .where(eq(overlays.status, 'pending'));
+          const pendingOverlays = db
+            .select({
+              id: overlays.id,
+              name: sql<string>`coalesce(${overlays.caption}, 'Unnamed')`,
+              city: cities.name,
+            })
+            .from(overlays)
+            .leftJoin(projects, eq(overlays.projectId, projects.id))
+            .leftJoin(cities, eq(projects.cityId, cities.id))
+            .where(eq(overlays.status, 'pending'));
 
-        return {
-          projects: pendingProjects,
-          overlays: pendingOverlays,
-        };
-      } catch (error) {
-        console.error('Error fetching pending submissions:', error);
-        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch pending submissions' });
-      }
-    }),
+          const [projectsResult, overlaysResult] = await Promise.all([
+            pendingProjects,
+            pendingOverlays,
+          ]);
 
-  setProjectApprovalStatus: publicProcedure
-    .input(setApprovalStatusSchema)
-    .mutation(async ({ input }) => {
-      try {
-        await db
-          .update(projects)
-          .set({ status: input.status })
-          .where(inArray(projects.id, input.ids));
-        return { success: true };
-      } catch (error) {
-        console.error('Error updating project status:', error);
-        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update project status' });
-      }
-    }),
+          return {
+            projects: projectsResult,
+            overlays: overlaysResult,
+          };
+        } catch (error) {
+          console.error('Error fetching pending submissions:', error);
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch pending submissions' });
+        }
+      }),
 
-  setOverlayApprovalStatus: publicProcedure
-    .input(setApprovalStatusSchema)
-    .mutation(async ({ input }) => {
-      try {
-        await db
-          .update(overlays)
-          .set({ status: input.status })
-          .where(inArray(overlays.id, input.ids));
-        return { success: true };
-      } catch (error) {
-        console.error('Error updating overlay status:', error);
-        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update overlay status' });
-      }
-    }),
+    setProjectApprovalStatus: publicProcedure
+      .input(setApprovalStatusSchema)
+      .mutation(async ({ input }) => {
+        try {
+          await db
+            .update(projects)
+            .set({ status: input.status })
+            .where(inArray(projects.id, input.ids));
+          return { success: true };
+        } catch (error) {
+          console.error('Error updating project status:', error);
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update project status' });
+        }
+      }),
+
+    setOverlayApprovalStatus: publicProcedure
+      .input(setApprovalStatusSchema)
+      .mutation(async ({ input }) => {
+        try {
+          await db
+            .update(overlays)
+            .set({ status: input.status })
+            .where(inArray(overlays.id, input.ids));
+          return { success: true };
+        } catch (error) {
+          console.error('Error updating overlay status:', error);
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update overlay status' });
+        }
+      }),
   });
 }
