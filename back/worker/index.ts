@@ -44,7 +44,6 @@ export default {
                 } else if (env.HYPERDRIVE) {
                     // AI : Use Hyperdrive's pooled connection string for production
                     databaseUrl = env.HYPERDRIVE.connectionString;
-                    console.log('AI : Using Hyperdrive for database connection pooling');
                 } else if (env.DATABASE_URL) {
                     databaseUrl = env.DATABASE_URL;
                     console.log('AI : Using direct database connection (fallback)');

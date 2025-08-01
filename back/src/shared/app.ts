@@ -22,7 +22,7 @@ function createCloudflareDb(databaseUrl: string) {
 }
 
 // AI : Create Hono application for Cloudflare Workers
-export async function createApp(config: AppConfig) {
+export function createApp(config: AppConfig) {
     // AI : Setup database connection for Workers
     if (!config.databaseUrl || config.databaseUrl.includes('your-project.supabase.co')) {
         throw new Error('DATABASE_URL is required. Please configure your Supabase connection string.');
@@ -39,4 +39,4 @@ export async function createApp(config: AppConfig) {
     });
 }
 
-export type AppRouter = Awaited<ReturnType<typeof createApp>>['appRouter'];
+export type AppRouter = ReturnType<typeof createApp>['appRouter'];

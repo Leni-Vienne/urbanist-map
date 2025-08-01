@@ -6,7 +6,7 @@ import { createAppRouter } from './routers';
 import { trpcServer } from '@hono/trpc-server';
 
 // AI : Unified app creation function for both local and worker environments
-export async function createSharedApp(config: AppConfig & { database: any }) {
+export function createSharedApp(config: AppConfig & { database: any }) {
     const app = new Hono<{
         Variables: {
             session: Session<SessionData>,
@@ -15,7 +15,7 @@ export async function createSharedApp(config: AppConfig & { database: any }) {
 
     const store = new CookieStore()
 
-    // AI : CORS configuration
+    // useful for local development
     app.use('*', cors({
         origin: config.corsOrigin,
         credentials: true
@@ -30,7 +30,7 @@ export async function createSharedApp(config: AppConfig & { database: any }) {
     }) as any)
 
     // AI : Create tRPC router with provided database instance
-    const appRouter = await createAppRouter(config.database);
+    const appRouter = createAppRouter(config.database);
 
     // AI : tRPC server with superjson transformer
     app.use('/trpc/*', trpcServer({
@@ -126,4 +126,4 @@ export async function createSharedApp(config: AppConfig & { database: any }) {
     return { app, appRouter };
 }
 
-export type AppRouter = Awaited<ReturnType<typeof createSharedApp>>['appRouter'];
+export type AppRouter = ReturnType<typeof createSharedApp>['appRouter'];
