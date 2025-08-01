@@ -1,24 +1,14 @@
 import { router } from '../trpc';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../db/schema';
+import { createProjectRouter } from '../routes/project';
+import { createOverlayRouter } from '../routes/overlay';
+import { createCitiesRouter } from '../routes/cities';
+import { createCountriesRouter } from '../routes/countries';
+import { createModerationRouter } from '../routes/moderation';
 
 // AI : Main router factory that combines all sub-routers
-export async function createAppRouter(db: PostgresJsDatabase<typeof schema>) {
-  // AI : Import existing router factories using dynamic imports
-  const [
-    { createProjectRouter },
-    { createOverlayRouter },
-    { createCitiesRouter },
-    { createCountriesRouter },
-    { createModerationRouter }
-  ] = await Promise.all([
-    import('../routes/project'),
-    import('../routes/overlay'),
-    import('../routes/cities'),
-    import('../routes/countries'),
-    import('../routes/moderation')
-  ]);
-
+export function createAppRouter(db: PostgresJsDatabase<typeof schema>) {
   // AI : Return the full router with all routes, passing database to each factory
   return router({
     project: createProjectRouter(db),
@@ -30,4 +20,4 @@ export async function createAppRouter(db: PostgresJsDatabase<typeof schema>) {
 }
 
 // AI : Export types
-export type AppRouter = Awaited<ReturnType<typeof createAppRouter>>;
+export type AppRouter = ReturnType<typeof createAppRouter>;
