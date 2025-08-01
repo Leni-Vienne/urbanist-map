@@ -92,105 +92,105 @@ async function findIntersectingOverlays(db: PostgresJsDatabase<typeof schema>, e
 
 export function createOverlayRouter(db: PostgresJsDatabase<typeof schema>) {
   return router({
-  getOverlay: publicProcedure
-    .input(getOverlaySchema)
-    .query(async ({ input }) => {
-      console.log('Fetching overlay with input:', input);
-      try {
-        // AI : Fetch the requested overlay
-        const overlay = await buildOverlayQuery(db)
-          .where(eq(overlays.id, input.id))
-          .limit(1);
+    getOverlay: publicProcedure
+      .input(getOverlaySchema)
+      .query(async ({ input }) => {
+        console.log('Fetching overlay with input:', input);
+        try {
+          // AI : Fetch the requested overlay
+          const overlay = await buildOverlayQuery(db)
+            .where(eq(overlays.id, input.id))
+            .limit(1);
 
-        if (!overlay.length) {
-          throw new Error('Overlay not found');
+          if (!overlay.length) {
+            throw new Error('Overlay not found');
+          }
+
+          let intersectingOverlays: any[] = [];
+
+          // AI : If includeIntersecting is true, find overlays that intersect with the queried overlay
+          if (input.includeIntersecting) {
+            const queriedOverlay = overlay[0];
+            intersectingOverlays = await findIntersectingOverlays(db, input.id, queriedOverlay);
+          }
+
+          return {
+            overlay: overlay[0],
+            intersectingOverlays
+          };
+        } catch (error) {
+          console.error('Error fetching overlay:', error);
+          throw new Error('Failed to fetch overlay');
         }
+      }),
 
-        let intersectingOverlays: any[] = [];
+    publishOverlay: publicProcedure
+      .input(publishOverlaySchema)
+      .mutation(async ({ input }) => {
+        try {
+          // AI : Extract corner coordinates
+          const [topLeft, topRight, bottomRight, bottomLeft] = input.corners;
 
-        // AI : If includeIntersecting is true, find overlays that intersect with the queried overlay
-        if (input.includeIntersecting) {
-          const queriedOverlay = overlay[0];
-          intersectingOverlays = await findIntersectingOverlays(db, input.id, queriedOverlay);
+          // AI : Calculate centroid (center point)
+          //const centroidLat = input.corners.reduce((sum, corner) => sum + corner.lat, 0) / 4;
+          //const centroidLng = input.corners.reduce((sum, corner) => sum + corner.lng, 0) / 4;
+          const centroidLat = (topLeft.lat + bottomLeft.lat) / 2;
+          const centroidLng = (topLeft.lng + bottomLeft.lng) / 2;
+
+          // AI : Prepare overlay data for insert/update
+          const overlayData = {
+            id: input.id,
+            filename: input.filename,
+            caption: input.caption,
+            projectId: input.projectId,
+            replacesOverlayId: input.replacesOverlayId ?? null,
+            metadata: null, // AI : Keep metadata empty as requested
+            topLeftLat: topLeft.lat,
+            topLeftLng: topLeft.lng,
+            topRightLat: topRight.lat,
+            topRightLng: topRight.lng,
+            bottomRightLat: bottomRight.lat,
+            bottomRightLng: bottomRight.lng,
+            bottomLeftLat: bottomLeft.lat,
+            bottomLeftLng: bottomLeft.lng,
+            centroid: sql`ST_SetSRID(ST_MakePoint(${centroidLng}, ${centroidLat}), 4326)`
+          };
+
+          // AI : Use upsert operation to avoid race conditions - atomic insert or update
+          const result = await db
+            .insert(overlays)
+            .values(overlayData)
+            .onConflictDoUpdate({
+              target: overlays.id,
+              set: {
+                filename: overlayData.filename,
+                caption: overlayData.caption,
+                projectId: overlayData.projectId,
+                replacesOverlayId: overlayData.replacesOverlayId,
+                metadata: overlayData.metadata,
+                topLeftLat: overlayData.topLeftLat,
+                topLeftLng: overlayData.topLeftLng,
+                topRightLat: overlayData.topRightLat,
+                topRightLng: overlayData.topRightLng,
+                bottomRightLat: overlayData.bottomRightLat,
+                bottomRightLng: overlayData.bottomRightLng,
+                bottomLeftLat: overlayData.bottomLeftLat,
+                bottomLeftLng: overlayData.bottomLeftLng,
+                centroid: overlayData.centroid,
+                updatedAt: sql`NOW()`
+              }
+            })
+            .returning();
+
+          return {
+            success: true,
+            id: result[0].id,
+            exists: result[0].createdAt !== result[0].updatedAt // AI : Determine if it was update or insert
+          };
+        } catch (error) {
+          console.error('Error publishing overlay:', error);
+          throw new Error('Failed to publish overlay');
         }
-
-        return {
-          overlay: overlay[0],
-          intersectingOverlays
-        };
-      } catch (error) {
-        console.error('Error fetching overlay:', error);
-        throw new Error('Failed to fetch overlay');
-      }
-    }),
-
-  publishOverlay: publicProcedure
-    .input(publishOverlaySchema)
-    .mutation(async ({ input }) => {
-      try {
-        // AI : Extract corner coordinates
-        const [topLeft, topRight, bottomRight, bottomLeft] = input.corners;
-
-        // AI : Calculate centroid (center point)
-        //const centroidLat = input.corners.reduce((sum, corner) => sum + corner.lat, 0) / 4;
-        //const centroidLng = input.corners.reduce((sum, corner) => sum + corner.lng, 0) / 4;
-                const centroidLat = (topLeft.lat + bottomLeft.lat) / 2;
-        const centroidLng = (topLeft.lng + bottomLeft.lng) / 2;
-
-        // AI : Prepare overlay data for insert/update
-        const overlayData = {
-          id: input.id,
-          filename: input.filename,
-          caption: input.caption,
-          projectId: input.projectId,
-          replacesOverlayId: input.replacesOverlayId ?? null,
-          metadata: null, // AI : Keep metadata empty as requested
-          topLeftLat: topLeft.lat,
-          topLeftLng: topLeft.lng,
-          topRightLat: topRight.lat,
-          topRightLng: topRight.lng,
-          bottomRightLat: bottomRight.lat,
-          bottomRightLng: bottomRight.lng,
-          bottomLeftLat: bottomLeft.lat,
-          bottomLeftLng: bottomLeft.lng,
-          centroid: sql`ST_SetSRID(ST_MakePoint(${centroidLng}, ${centroidLat}), 4326)`
-        };
-
-        // AI : Use upsert operation to avoid race conditions - atomic insert or update
-        const result = await db
-          .insert(overlays)
-          .values(overlayData)
-          .onConflictDoUpdate({
-            target: overlays.id,
-            set: {
-              filename: overlayData.filename,
-              caption: overlayData.caption,
-              projectId: overlayData.projectId,
-              replacesOverlayId: overlayData.replacesOverlayId,
-              metadata: overlayData.metadata,
-              topLeftLat: overlayData.topLeftLat,
-              topLeftLng: overlayData.topLeftLng,
-              topRightLat: overlayData.topRightLat,
-              topRightLng: overlayData.topRightLng,
-              bottomRightLat: overlayData.bottomRightLat,
-              bottomRightLng: overlayData.bottomRightLng,
-              bottomLeftLat: overlayData.bottomLeftLat,
-              bottomLeftLng: overlayData.bottomLeftLng,
-              centroid: overlayData.centroid,
-              updatedAt: sql`NOW()`
-            }
-          })
-          .returning();
-
-        return {
-          success: true,
-          id: result[0].id,
-          exists: result[0].createdAt !== result[0].updatedAt // AI : Determine if it was update or insert
-        };
-      } catch (error) {
-        console.error('Error publishing overlay:', error);
-        throw new Error('Failed to publish overlay');
-      }
-    }),
+      }),
   });
 }
