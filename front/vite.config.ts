@@ -1,16 +1,22 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type PluginOption } from "vite";
 import vue from '@vitejs/plugin-vue'
 import Components from 'unplugin-vue-components/vite';
 import { PrimeVueResolver } from '@primevue/auto-import-resolver';
 import tailwindcss from '@tailwindcss/vite'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import path from 'path'
+import { visualizer } from "rollup-plugin-visualizer";
 
 // https://vite.dev/config/
 export default defineConfig({
   envDir: '../.env',
   plugins: [
     vue(),
+    visualizer({
+          filename: 'stats.html',
+          open: false,
+          template: 'network', // 'treemap', 'sunburst', 'network'
+        }),
     tailwindcss(),
     vueDevTools(),
     Components({

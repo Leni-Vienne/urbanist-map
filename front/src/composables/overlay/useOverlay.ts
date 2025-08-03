@@ -279,6 +279,12 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
 
     // AI : Clear overlay parameter from URL when deselected
     clearOverlayFromUrl();
+    
+    // AI : Hide InfoPopup when overlay is deselected
+    const overlayStore = useOverlayStore();
+    if (overlayStore.showInfoPopup) {
+      overlayStore.hideInfoPopup();
+    }
   });
 
   overlay.on('edit', () => {

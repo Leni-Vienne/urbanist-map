@@ -36,6 +36,7 @@
     "postgres": "^3.4.7",
     "primeicons": "^7.0.0",
     "primevue": "^4.3.7",
+    "rollup-plugin-visualizer": "^6.0.3",
     "superjson": "^2.2.2",
     "tailwindcss": "^4.1.11",
     "tailwindcss-primeui": "^0.6.1",

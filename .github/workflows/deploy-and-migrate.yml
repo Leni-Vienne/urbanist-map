@@ -2,9 +2,9 @@ name: Deploy and Migrate
 
 on:
   push:
-    branches: [main, preview]
+    branches: [production, preview]
   pull_request:
-    branches: [main]
+    branches: [production]
 
 jobs:
   deploy-and-migrate:
