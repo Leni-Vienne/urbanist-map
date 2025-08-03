@@ -44,7 +44,7 @@ const overlaySelectFields = {
   centroid: overlays.centroid,
   createdAt: overlays.createdAt,
   updatedAt: overlays.updatedAt,
-  projectName: projects.title,
+  projectName: projects.name,
   cityName: cities.name,
 };
 

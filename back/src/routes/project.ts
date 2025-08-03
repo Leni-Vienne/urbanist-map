@@ -8,7 +8,7 @@ import * as schema from '../db/schema';
 
 const publishProjectSchema = z.object({
   id: z.string().uuid().optional(),
-  title: z.string().min(1).max(200),
+  name: z.string().min(1).max(200),
   description: z.string().max(2000).optional(),
   cityId: z.string().uuid().optional(),
   startDate: z.string().optional(),
@@ -49,7 +49,7 @@ export function createProjectRouter(db: PostgresJsDatabase<typeof schema>) {
             .onConflictDoUpdate({
               target: projects.id,
               set: {
-                title: data.title,
+                name: data.name,
                 description: data.description,
                 cityId: data.cityId,
                 startDate: data.startDate,
@@ -93,7 +93,7 @@ export function createProjectRouter(db: PostgresJsDatabase<typeof schema>) {
         const nearbyProjects = await db
           .select({
             id: projects.id,
-            title: projects.title,
+            name: projects.name,
             description: projects.description,
             ownerId: projects.ownerId,
             cityId: projects.cityId,
@@ -122,7 +122,7 @@ export function createProjectRouter(db: PostgresJsDatabase<typeof schema>) {
           ))
           .groupBy(
             projects.id,
-            projects.title,
+            projects.name,
             projects.description,
             projects.ownerId,
             projects.cityId,
