@@ -61,7 +61,7 @@ function transformBackendOverlayToCDN(backendOverlay: BackendOverlay): CDNOverla
 // AI : Helper function to create new overlay with proper Drizzle schema structure
 function createNewOverlayObject(id: string, imageUrl: string, projectId: string): OverlayObject {
   const filename = imageUrl.split('/').pop() ?? '';
-  
+
   return {
     // AI : Core Drizzle schema fields
     id,
@@ -102,7 +102,7 @@ function createNewOverlayObject(id: string, imageUrl: string, projectId: string)
 // AI : Helper function to wait for overlay corners to be ready
 async function waitForOverlayReady(overlay: OverlayObject): Promise<boolean> {
   if (!overlay.overlay) return false;
-  
+
   return new Promise(resolve => {
     const checkOverlayReady = () => {
       try {
@@ -124,7 +124,7 @@ async function waitForOverlayReady(overlay: OverlayObject): Promise<boolean> {
 // AI : Helper function to zoom to overlay bounds with proper error handling
 function zoomToOverlayBounds(overlay: OverlayObject): boolean {
   if (!overlay.overlay || !map.value) return false;
-  
+
   try {
     const bounds = overlay.overlay.getBounds();
     if (bounds) {
@@ -157,12 +157,12 @@ function saveOverlayWithCurrentCorners(overlayObject: OverlayObject): void {
   if (overlayObject.overlay) {
     const newCorners = overlayObject.overlay.getCorners();
     overlayObject.corners = newCorners;
-    
+
     // AI : Update cached overlay data with new corners
     if (newCorners && newCorners.length === 4) {
       updateCachedOverlayData(overlayObject.id, newCorners);
     }
-    
+
     // AI : Update marker tooltip after corners are saved
     updateMarkerTooltip(overlayObject);
   }
@@ -179,7 +179,7 @@ function updateMarkerAndSaveOverlay(overlayObject: OverlayObject): void {
 // AI : Helper function to center map on overlay with proper waiting and error handling
 async function centerMapOnOverlay(overlay: OverlayObject): Promise<boolean> {
   if (!overlay.overlay) return false;
-  
+
   await waitForOverlayReady(overlay);
   return zoomToOverlayBounds(overlay);
 }
@@ -189,14 +189,14 @@ async function centerMapOnOverlay(overlay: OverlayObject): Promise<boolean> {
  */
 function createMarker(overlayObject: any, projectId: string, markerType: 'new' | 'replacement'): void {
   if (!map.value) return;
-  
+
   // AI : Use current map center as initial marker position
   const center = map.value.getCenter();
-  
+
   // AI : Determine marker title based on type
   const baseTitle = markerType === 'replacement' ? 'Replacement Overlay' : 'New Overlay';
   let markerTitle = baseTitle;
-  
+
   if (projectId) {
     const { projects } = useProjects();
     if (projects.value[projectId]) {
@@ -209,12 +209,12 @@ function createMarker(overlayObject: any, projectId: string, markerType: 'new' |
   // AI : Determine marker color based on type
   const markerColor = markerType === 'replacement' ? 'violet' : getMarkerColorForEditMode();
   const colorIcon = createColorIcon(markerColor);
-  
+
   const marker = L.marker(center, {
     title: markerTitle,
     icon: colorIcon
   }).addTo(map.value);
-  
+
   // AI : Add click handler to marker to select the overlay
   marker.on('click', () => {
     if (overlayObject.overlay) {
@@ -228,11 +228,11 @@ function createMarker(overlayObject: any, projectId: string, markerType: 'new' |
       idSelectedOverlay.value = overlayObject.id;
     }
   });
-  
+
   // AI : Store marker reference
   overlayObject.marker = marker;
   allMarkers.value[overlayObject.id] = marker;
-  
+
   // AI : Update marker tooltip with proper styling
   updateMarkerTooltip(overlayObject);
 }
@@ -251,7 +251,7 @@ export async function addOverlay(imageUrl: string, projectId: string, replacesOv
     console.warn('Cannot add overlay in view mode');
     return;
   }
-  
+
   if (!map.value) return;
   if (!projectId) {
     toast.add({ severity: 'error', summary: 'Project Required', detail: 'A project must be selected to add an overlay', life: 3000 });
@@ -259,7 +259,7 @@ export async function addOverlay(imageUrl: string, projectId: string, replacesOv
   }
 
   const id = crypto.randomUUID();
-  
+
   // AI : Create overlay object using proper schema structure
   const overlayObject = createNewOverlayObject(id, imageUrl, projectId);
 
@@ -276,22 +276,22 @@ export async function addOverlay(imageUrl: string, projectId: string, replacesOv
 
   // Store reference and initialize
   overlays.value[id] = overlayObject;
-  
+
   // AI : Create marker with appropriate color based on replacement status
   if (replacesOverlayId) {
     createReplacementMarker(overlayObject, projectId);
   } else {
     createMarkerForNewOverlay(overlayObject, projectId);
   }
-  
+
   // AI : Don't set up custom load handler - let the existing setupOverlayLoadHandler handle it
   // The existing system in useOverlay.ts will call onOverlayLoaded which handles all initialization
-  
+
   await addOverlayToProjectWithId(projectId, id);
-  
+
   // AI : Select the new overlay (important for replacement overlays)
   idSelectedOverlay.value = id;
-  
+
   return id;
 }
 
@@ -323,7 +323,7 @@ function applyHistoryAction(action: 'undo' | 'redo') {
 
   const { history, redoStack, overlay } = overlayObject;
   const isUndo = action === 'undo';
-  
+
   if ((isUndo && history.length <= 1) || (!isUndo && redoStack.length === 0)) {
     toast.add({
       severity: 'warn',
@@ -362,20 +362,20 @@ export function resetImageRatio() {
   const img = new Image();
   img.onload = () => {
     if (!overlayObject.overlay || !map.value) return;
-    
+
     const currentCorners = overlayObject.overlay.getCorners();
     if (!currentCorners?.length || currentCorners.length !== 4) return;
-    
+
     // AI : Save state before applying ratio fix
     saveToHistory(overlayObject);
-    
+
     const { originalRatio: _originalRatio, newDimensions, cornersInfo } = calculateRatioFixParameters(
       img.naturalWidth / img.naturalHeight,
       currentCorners
     );
-    
+
     if (!cornersInfo) return;
-    
+
     applyImageRatioFix(overlayObject, cornersInfo, newDimensions);
     handleFlipIfNeeded(overlayObject);
     updateMarkerAndSaveOverlay(overlayObject);
@@ -386,22 +386,22 @@ export function resetImageRatio() {
 
 function calculateRatioFixParameters(originalRatio: number, currentCorners: any[]) {
   if (!map.value) return {};
-  
+
   // Convert corners to screen coordinates
   const nw = map.value.latLngToContainerPoint(currentCorners[0]);
   const ne = map.value.latLngToContainerPoint(currentCorners[1]);
   const sw = map.value.latLngToContainerPoint(currentCorners[2]);
   const se = map.value.latLngToContainerPoint(currentCorners[3]);
-  
+
   // Calculate current dimensions
   const topEdge = nw.distanceTo(ne);
   const rightEdge = ne.distanceTo(se);
   const bottomEdge = sw.distanceTo(se);
   const leftEdge = nw.distanceTo(sw);
-  
+
   const currentWidth = (topEdge + bottomEdge) / 2;
   const currentHeight = (leftEdge + rightEdge) / 2;
-  
+
   // Calculate new dimensions that maintain original ratio
   let newWidth, newHeight;
   if (currentWidth / currentHeight > originalRatio) {
@@ -411,18 +411,18 @@ function calculateRatioFixParameters(originalRatio: number, currentCorners: any[
     newWidth = currentWidth;
     newHeight = currentWidth / originalRatio;
   }
-  
+
   // Get rotation and center
   const bounds = L.latLngBounds(currentCorners);
   const center = bounds.getCenter();
   const centerPoint = map.value.latLngToContainerPoint(center);
-  
+
   const topVector = { x: ne.x - nw.x, y: ne.y - nw.y };
   const angleRad = Math.atan2(topVector.y, topVector.x);
   const isClockwise = (ne.x - nw.x) * (se.y - nw.y) - (ne.y - nw.y) * (se.x - nw.x) > 0;
-  
-  return { 
-    originalRatio, 
+
+  return {
+    originalRatio,
     newDimensions: { width: newWidth, height: newHeight },
     cornersInfo: { centerPoint, angleRad, isClockwise }
   };
@@ -430,35 +430,35 @@ function calculateRatioFixParameters(originalRatio: number, currentCorners: any[
 
 function applyImageRatioFix(overlayObject: any, cornersInfo: any, dimensions: any) {
   if (!map.value || !overlayObject.overlay) return;
-  
+
   const { centerPoint, angleRad, isClockwise } = cornersInfo;
   const { width, height } = dimensions;
   const halfWidth = width / 2;
   const halfHeight = height / 2;
-  
+
   // Calculate corner offsets
   const cornerOffsets = calculateCornerOffsets(angleRad, halfWidth, halfHeight);
-  
+
   // Create new corner points
   const newCornerPoints = cornerOffsets.map(offset => ({
     x: centerPoint.x + offset.dx,
     y: centerPoint.y + offset.dy
   }));
-  
+
   // Check if we need to maintain orientation
-  const newIsClockwise = (newCornerPoints[1].x - newCornerPoints[0].x) * 
-                        (newCornerPoints[3].y - newCornerPoints[0].y) - 
-                        (newCornerPoints[1].y - newCornerPoints[0].y) * 
-                        (newCornerPoints[3].x - newCornerPoints[0].x) > 0;
-  
-  const finalPoints = isClockwise !== newIsClockwise ? 
+  const newIsClockwise = (newCornerPoints[1].x - newCornerPoints[0].x) *
+    (newCornerPoints[3].y - newCornerPoints[0].y) -
+    (newCornerPoints[1].y - newCornerPoints[0].y) *
+    (newCornerPoints[3].x - newCornerPoints[0].x) > 0;
+
+  const finalPoints = isClockwise !== newIsClockwise ?
     [...newCornerPoints].reverse() : newCornerPoints;
-  
+
   // Convert back to geographical coordinates and apply
-  const newCorners = finalPoints.map(point => 
+  const newCorners = finalPoints.map(point =>
     map.value!.containerPointToLatLng([point.x, point.y])
   );
-  
+
   overlayObject.overlay.setCorners(newCorners);
 }
 
@@ -486,16 +486,16 @@ function calculateCornerOffsets(angleRad: number, halfWidth: number, halfHeight:
 
 function handleFlipIfNeeded(overlayObject: any) {
   if (!overlayObject.overlay) return;
-  
+
   if (overlayObject.isFlipped) {
     // This is the second click, apply horizontal mirroring
     overlayObject.isFlipped = false;
     const corners = overlayObject.overlay.getCorners();
-    
+
     // Swap corners for horizontal mirroring: NW<->NE and SW<->SE
     const mirroredCorners = [corners[1], corners[0], corners[3], corners[2]];
     overlayObject.overlay.setCorners(mirroredCorners);
-    
+
     toast.add({
       severity: 'success',
       summary: 'Image ratio reset and mirrored',
@@ -505,7 +505,7 @@ function handleFlipIfNeeded(overlayObject: any) {
   } else {
     // First click, just set the flag for potential mirroring on next click
     overlayObject.isFlipped = true;
-    
+
     toast.add({
       severity: 'success',
       summary: 'Image ratio reset',
@@ -525,22 +525,22 @@ export async function focusCameraToOverlay(direction: 'next' | 'previous'): Prom
     toast.add({ severity: 'warn', summary: 'Map not available', detail: 'Cannot navigate between overlays', life: 3000 });
     return false;
   }
-  
+
   // Handle case when no overlay is selected
   if (!idSelectedOverlay.value) {
     return await selectFirstOrLastOverlayInAnyProject(direction);
   }
 
   const currentOverlay = overlays.value[idSelectedOverlay.value];
-  
+
   if (!currentOverlay?.projectId) {
     return false;
   }
-  
+
   const { projects } = useProjects();
   let project = projects.value[currentOverlay.projectId];
   let projectOverlayIds: string[];
-  
+
   // AI : If project is not in memory, just find overlays with same projectId
   if (!project) {
     projectOverlayIds = Object.values(overlays.value)
@@ -549,18 +549,18 @@ export async function focusCameraToOverlay(direction: 'next' | 'previous'): Prom
   } else {
     projectOverlayIds = project.overlayIds;
   }
-  
+
   if (projectOverlayIds.length <= 1) {
     toast.add({ severity: 'info', summary: 'Navigation', detail: 'No other overlays in this project', life: 3000 });
     return false;
   }
-  
+
   // Get the next/previous overlay (with wraparound)
   const currentIndex = projectOverlayIds.indexOf(idSelectedOverlay.value);
   const step = direction === 'next' ? 1 : -1;
   const newIndex = (currentIndex + step + projectOverlayIds.length) % projectOverlayIds.length;
   const newOverlayId = projectOverlayIds[newIndex];
-  
+
   return await selectAndCenterOverlay(newOverlayId, newIndex, projectOverlayIds.length);
 }
 
@@ -571,14 +571,14 @@ async function selectFirstOrLastOverlayInAnyProject(direction: 'next' | 'previou
     toast.add({ severity: 'warn', summary: 'No projects', detail: 'Please create a project first', life: 3000 });
     return false;
   }
-  
+
   for (const projectId of projectIds) {
     const project = projects.value[projectId];
     if (project.overlayIds.length > 0) {
       // Select first overlay for 'next', last overlay for 'previous'
       const index = direction === 'next' ? 0 : project.overlayIds.length - 1;
       const overlayId = project.overlayIds[index];
-      
+
       if (await selectAndCenterOverlay(overlayId)) {
         toast.add({
           severity: 'info',
@@ -590,7 +590,7 @@ async function selectFirstOrLastOverlayInAnyProject(direction: 'next' | 'previou
       }
     }
   }
-  
+
   toast.add({ severity: 'warn', summary: 'No overlays', detail: 'No overlays found in any project', life: 3000 });
   return false;
 }
@@ -606,37 +606,37 @@ export async function navigateToOverlay(overlayId: string, centerMap: boolean = 
     toast.add({ severity: 'warn', summary: 'Map not available', detail: 'Cannot navigate to overlay', life: 3000 });
     return false;
   }
-  
+
   let targetOverlay = overlays.value[overlayId];
-  
+
   // AI : If overlay is not loaded locally, fetch from backend
   if (!targetOverlay) {
     try {
       toast.add({ severity: 'info', summary: 'Loading overlay', detail: 'Fetching overlay from server...', life: 2000 });
-      
+
       const result = await trpc.overlay.getOverlay.query({
         id: overlayId,
         includeIntersecting: true,
       });
-      
+
       if (!result.overlay) {
         toast.add({ severity: 'error', summary: 'Overlay not found', detail: 'The requested overlay could not be found on the server', life: 3000 });
         return false;
       }
-      
+
       // AI : Transform backend overlay to CDN format
       const cdnOverlay = transformBackendOverlayToCDN(result.overlay);
-      
+
       await renderViewModeOverlays([cdnOverlay], true, false);
-      
+
       // AI : Also render intersecting overlays if they exist
       if (result.intersectingOverlays && result.intersectingOverlays.length > 0) {
         console.log(`AI : Rendering ${result.intersectingOverlays.length} intersecting overlays`);
-        
+
         const intersectingCdnOverlays = result.intersectingOverlays.map(transformBackendOverlayToCDN);
-        
+
         await renderViewModeOverlays(intersectingCdnOverlays, true, false);
-        
+
         toast.add({
           severity: 'info',
           summary: 'Overlays Loaded',
@@ -644,30 +644,30 @@ export async function navigateToOverlay(overlayId: string, centerMap: boolean = 
           life: 3000
         });
       }
-      
+
       targetOverlay = overlays.value[overlayId];
-      
+
       if (!targetOverlay) {
         toast.add({ severity: 'error', summary: 'Loading failed', detail: 'Failed to load overlay after fetching from server', life: 3000 });
         return false;
       }
-      
+
     } catch (error) {
       console.error('Error fetching overlay:', error);
       toast.add({ severity: 'error', summary: 'Loading failed', detail: 'Failed to fetch overlay from server', life: 3000 });
       return false;
     }
   }
-  
+
   // AI : Select the overlay and update URL
   idSelectedOverlay.value = overlayId;
   updateUrlWithOverlayId(overlayId);
-  
+
   // AI : Center map if requested
   if (centerMap && targetOverlay.overlay) {
     await centerMapOnOverlay(targetOverlay);
   }
-  
+
   // AI : Click on overlay to select it
   if (targetOverlay.overlay) {
     const element = targetOverlay.overlay.getElement();
@@ -676,42 +676,42 @@ export async function navigateToOverlay(overlayId: string, centerMap: boolean = 
     }
     return true;
   }
-  
+
   return false;
 }
 
 async function selectAndCenterOverlay(overlayId: string, index?: number, total?: number, centerMap: boolean = true): Promise<boolean> {
   const overlay = overlays.value[overlayId];
-  
+
   if (!overlay) {
     return false;
   }
-  
+
   idSelectedOverlay.value = overlayId;
-  
+
   if (overlay.overlay) {
     // Click on the overlay to properly select it and open the toolbar
     const element = overlay.overlay.getElement();
-    
+
     if (element) {
       element.click();
     }
-    
+
     if (centerMap && map.value) {
       // AI : Wait for overlay to be properly initialized before zooming
       const zoomSuccess = await centerMapOnOverlay(overlay);
-      
+
       if (zoomSuccess) {
         showNavigationToast(overlay, index, total);
       }
     }
-    return true;  
+    return true;
   } else if (overlay.marker && centerMap && map.value) {
     // AI : If overlay is not loaded yet but marker exists
     map.value.setView(overlay.marker.getLatLng(), 18);
     return true;
   }
-  
+
   toast.add({
     severity: 'warn',
     summary: 'Navigation issue',
@@ -803,7 +803,7 @@ export async function deleteOverlay(id: string) {
       // Update local reference only - no backend calls during editing
       project.overlayIds = project.overlayIds.filter(overlayId => overlayId !== id);
       project.updatedAt = new Date();
-      
+
       console.log('AI : Overlay removed from project locally (no backend call):', id, 'from project:', overlayObject.projectId);
     }
   }
@@ -815,9 +815,9 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
   if (!overlayObject) return;
 
   overlayObject.caption = info.caption ?? null;
-  
+
   updateTooltipText();
-  
+
   // AI : Save only the specific overlay being updated, not all overlays
   saveOverlayWithCurrentCorners(overlayObject);
 }
