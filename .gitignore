@@ -7,6 +7,12 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+.wrangler
+.dev.vars
+.claude
+CLAUDE.md
+.mcp.json
+
 codebase_combined.txt
 combine.sh
 issues.json
