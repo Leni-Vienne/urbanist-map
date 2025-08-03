@@ -101,6 +101,7 @@
                     >
                         <DatePicker
                             id="start-date-input"
+                            dateFormat="dd/mm/yy"
                             v-model="localProject.startDate"
                             class="w-full"
                             required
@@ -118,6 +119,7 @@
                     >
                         <DatePicker
                             id="end-date-input"
+                            dateFormat="dd/mm/yy"
                             v-model="localProject.endDate"
                             class="w-full"
                             required
@@ -136,6 +138,7 @@
                 >
                     <DatePicker
                         id="latest-update-on-input"
+                        dateFormat="dd/mm/yy"
                         v-model="localProject.latestUpdateOn"
                         class="w-full"
                     />

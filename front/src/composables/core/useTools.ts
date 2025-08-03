@@ -48,7 +48,7 @@ export const infoTool = L.Toolbar2.Action.extend({
       overlayStore.hideInfoPopup();
       L.DomUtil.removeClass(link, "subtoolbar_enabled");
       this.options.subToolbar._hide();
-      
+
       // AI : Remove the teleport target and restore original button
       const teleportTarget = this.options.subToolbar._container?.querySelector('#info-popup-teleport-target');
       if (teleportTarget?.parentNode) {
@@ -66,22 +66,20 @@ export const infoTool = L.Toolbar2.Action.extend({
       this.options.subToolbar._show();
 
       // AI : Wait for subtoolbar to be shown before manipulating it
-      setTimeout(() => {
-        const existingButton = this.options.subToolbar._container?.querySelector('.more-info-popup');
+      const existingButton = this.options.subToolbar._container?.querySelector('.more-info-popup');
 
-        if (existingButton?.tagName === 'A') {
-          const teleportTarget = document.createElement('div');
-          teleportTarget.id = "info-popup-teleport-target";
-          teleportTarget.className = "leaflet-toolbar-icon more-info-popup";
+      if (existingButton?.tagName === 'A') {
+        const teleportTarget = document.createElement('div');
+        teleportTarget.id = "info-popup-teleport-target";
+        teleportTarget.className = "leaflet-toolbar-icon more-info-popup";
 
-          existingButton.parentNode?.replaceChild(teleportTarget, existingButton);
+        existingButton.parentNode?.replaceChild(teleportTarget, existingButton);
 
-          // AI : Show the info popup for the selected overlay
-          if (idSelectedOverlay.value) {
-            overlayStore.showInfoPopupForOverlay(idSelectedOverlay.value);
-          }
+        // AI : Show the info popup for the selected overlay
+        if (idSelectedOverlay.value) {
+          overlayStore.showInfoPopupForOverlay(idSelectedOverlay.value);
         }
-      }, 50);
+      }
     }
 
     (L as any).IconUtil.toggleXlink(link, "information", "close");
