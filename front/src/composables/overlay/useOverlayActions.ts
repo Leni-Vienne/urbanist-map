@@ -22,7 +22,7 @@ function transformBackendOverlayToCDN(backendOverlay: BackendOverlay): CDNOverla
     replacesOverlayId: backendOverlay.replacesOverlayId ?? undefined,
     project: backendOverlay.projectName ? {
       id: backendOverlay.projectId ?? '',
-      title: backendOverlay.projectName,
+      name: backendOverlay.projectName,
       description: null,
       status: 'approved' as const,
       ownerId: null,

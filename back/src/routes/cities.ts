@@ -146,7 +146,7 @@ export function createCitiesRouter(db: PostgresJsDatabase<typeof schema>) {
           return await db
             .select({
               id: projects.id,
-              title: projects.title,
+              name: projects.name,
               description: projects.description,
               status: projects.status,
               cityId: projects.cityId,
@@ -211,7 +211,7 @@ export function createCitiesRouter(db: PostgresJsDatabase<typeof schema>) {
             .where(eq(projects.cityId, cityId))
             .groupBy(
               projects.id,
-              projects.title,
+              projects.name,
               projects.description,
               projects.status,
               projects.cityId,

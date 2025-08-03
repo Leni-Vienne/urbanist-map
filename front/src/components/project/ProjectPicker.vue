@@ -176,8 +176,7 @@ const projectList = computed(() => {
     // AI : Convert nearby projects to the expected format
     return nearbyProjectsData.value.map(project => ({
       id: project.id,
-      name: project.title,
-      title: project.title,
+      name: project.name,
       description: project.description,
       overlayIds: [], // AI : We don't have overlay IDs in nearby projects response
       color: '#007bff', // AI : Default color for nearby projects
