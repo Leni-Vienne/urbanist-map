@@ -480,7 +480,7 @@ async function ensureProjectOnServer(): Promise<boolean> {
   try {
     const projectResult = await trpc.project.publishProject.mutate({
       id: project.value.id,
-      title: project.value.title,
+      title: project.value.title ?? project.value.name,
       description: project.value.description ?? undefined,
       cityId: project.value.cityId ?? undefined,
       startDate: project.value.startDate?.toISOString(),
