@@ -2,7 +2,7 @@ name: Deploy and Migrate
 
 on:
   push:
-    branches: [main]
+    branches: [main, preview]
   pull_request:
     branches: [main]
 
