@@ -1,9 +1,10 @@
-import { db } from '../db';
 import { publicProcedure, router } from '../trpc';
 import { z } from 'zod';
 import { projects, cities, overlays } from '../db/schema';
 import { eq, sql, and } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import * as schema from '../db/schema';
 
 const publishProjectSchema = z.object({
   id: z.string().uuid().optional(),
@@ -16,7 +17,8 @@ const publishProjectSchema = z.object({
   latestUpdateOn: z.string().optional()
 });
 
-export const projectRouter = router({
+export function createProjectRouter(db: PostgresJsDatabase<typeof schema>) {
+  return router({
   publishProject: publicProcedure
     .input(publishProjectSchema)
     .mutation(async ({ input }) => {
@@ -139,4 +141,5 @@ export const projectRouter = router({
         throw new Error('Failed to fetch nearby projects');
       }
     })
-});
+  });
+}

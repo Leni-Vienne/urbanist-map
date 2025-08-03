@@ -1,0 +1,32 @@
+# AI : Cloudflare Worker configuration for full-stack app
+name = "construction-map"
+main = "back/worker/index.ts"
+compatibility_date = "2024-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+# AI : Assets configuration for frontend files
+[assets]
+directory = "front/dist"
+binding = "ASSETS"
+
+[observability.logs]
+enabled = true
+
+# AI : R2 bucket binding for file uploads
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "construction-map-uploads"
+
+
+# AI : Hyperdrive binding for database connection pooling
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "53021ecf4ac94d2a8555d8f11022aa44" # construction-map-supabase Hyperdrive UUID
+
+# AI : Secrets to be set in Cloudflare dashboard
+# DATABASE_URL (Supabase PostgreSQL URL)
+# SUPABASE_URL 
+# SUPABASE_ANON_KEY
+# SESSION_ENCRYPTION_KEY
+# CF_ACCOUNT_ID (for Cloudflare Images)
+# CF_API_TOKEN (for Cloudflare Images)

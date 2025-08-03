@@ -1,7 +1,8 @@
-import dotenv from 'dotenv';
 import { z } from 'zod';
 
-dotenv.config({ path: '../../../.env', override: false });
+// AI : Support for both local development and Cloudflare Pages
+// AI : For local development, use Bun's built-in .env support or manual loading
+let env = process.env;
 
 const envSchema = z.object({
   DATABASE_URL: z.string().url(),
@@ -10,7 +11,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
 });
 
-const parsedEnv = envSchema.safeParse(process.env);
+const parsedEnv = envSchema.safeParse(env);
 
 if (!parsedEnv.success) {
   console.error(

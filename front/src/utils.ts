@@ -19,3 +19,21 @@ export function debounce<T extends (...args: any[]) => any>(
     timeout = setTimeout(() => func(...args), wait) as unknown as number;
   };
 }
+
+/**
+ * AI : Build image URL for overlay files
+ * AI : Uses direct R2 public URL in production to avoid worker CPU usage
+ * @param filename - The filename of the image
+ * @returns The complete URL to access the image
+ */
+export function buildImageUrl(filename: string): string {
+  // AI : In production, use direct R2 public URL to bypass worker
+  if (import.meta.env.PROD) {
+    const r2PublicUrl = import.meta.env.VITE_R2_PUBLIC_URL ?? 'https://pub-5c021a4a1a2a4ef9b96843a7331042c2.r2.dev';
+    return `${r2PublicUrl}/${filename}`;
+  }
+  
+  // AI : In development, use local server
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
+  return `${apiBaseUrl}/uploads/${filename}`;
+}
