@@ -100,6 +100,8 @@ export function createProjectRouter(db: PostgresJsDatabase<typeof schema>) {
             metadata: projects.metadata,
             createdAt: projects.createdAt,
             updatedAt: projects.updatedAt,
+            // AI : Count overlays for this project within the search radius
+            overlayCount: sql<number>`COUNT(${overlays.id})::int`,
             // AI : Include city information when available
             city: {
               id: cities.id,

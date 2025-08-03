@@ -81,7 +81,7 @@
                 ></div>
                 <div>
                   <span>&nbsp;&nbsp;{{ option.name }}</span>
-                  <span class="text-sm text-gray-500 ml-2">({{ option.overlayIds.length }} overlays)</span>
+                  <span class="text-sm text-gray-500 ml-2">({{ getOverlayCountForProject(option.id) }} overlays)</span>
                   <div v-if="props.useNearbyProjects && option.city" class="text-xs text-gray-400 ml-2">
                     {{ option.city.name }}, {{ option.city.countryCode }}
                   </div>
@@ -126,6 +126,7 @@ import { useProjects } from '@composables/project/useProjects';
 import { fetchNearbyProjects, getNearbyProjects } from '@composables/project/useNearbyProjects';
 import { lastCreatedProjectId, setFileUploadFlow } from '@composables/ui/useRouterNavigation';
 import { useSelectedProject } from '@composables/project/useSelectedProject';
+import { storeToRefs } from 'pinia';
 import { router } from '../../router';
 import type { Project } from '@types';
 
@@ -170,6 +171,29 @@ const { selectedProjectId } = useSelectedProject();
 // AI : Get nearby projects composable
 const { projects: nearbyProjectsData, isLoading: nearbyLoading, error: nearbyError } = getNearbyProjects();
 
+// AI : Function to count overlays for a project using the appropriate data source
+function getOverlayCountForProject(projectId: string): number {
+  const project = projectList.value.find(p => p.id === projectId);
+  if (!project) return 0;
+  
+  // AI : For nearby projects, use the overlayCount from backend
+  if (props.useNearbyProjects && 'overlayCount' in project) {
+    return (project as any).overlayCount ?? 0;
+  }
+  
+  // AI : For local projects, check both overlayIds and overlays arrays
+  if (project.overlayIds && project.overlayIds.length > 0) {
+    return project.overlayIds.length;
+  }
+  
+  // AI : Some projects have overlays stored as full objects in an overlays array (from getCityProjects)
+  if ((project as any).overlays && Array.isArray((project as any).overlays)) {
+    return (project as any).overlays.length;
+  }
+  
+  return 0;
+}
+
 // AI : Compute the project list based on the mode
 const projectList = computed(() => {
   if (props.useNearbyProjects) {
@@ -179,6 +203,7 @@ const projectList = computed(() => {
       name: project.name,
       description: project.description,
       overlayIds: [], // AI : We don't have overlay IDs in nearby projects response
+      overlayCount: project.overlayCount ?? 0, // AI : Use overlay count from backend
       color: '#007bff', // AI : Default color for nearby projects
       cityId: project.cityId,
       status: 'approved' as const, // AI : Only approved projects are returned from nearby endpoint
@@ -233,7 +258,6 @@ watch(selectedProjectId, (newValue) => {
 // AI : Watch for useNearbyProjects prop to fetch nearby projects when dialog opens
 watch(() => props.useNearbyProjects, async (useNearby) => {
   if (useNearby) {
-    console.log('AI : Dialog opened, fetching nearby projects...');
     try {
       await fetchNearbyProjects();
     } catch (error) {
