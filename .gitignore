@@ -15,6 +15,7 @@ CLAUDE.md
 .clinerules
 .github/instructions
 
+stats.html
 .dev.vars
 .wrangler
 codebase_combined.txt

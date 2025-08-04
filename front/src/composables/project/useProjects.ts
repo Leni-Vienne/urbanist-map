@@ -45,8 +45,8 @@ export async function createProject(projectData: Partial<Omit<Project, 'id' | 'o
     id,
     overlayIds: [],
     color: '#007bff',
-    // AI : Use title from Drizzle schema but populate from name for backward compatibility
-    title: safeProjectData.name ?? '',
+    // AI : Use name from updated Drizzle schema
+    name: safeProjectData.name ?? '',
     sourceUrl: safeProjectData.sourceUrl ?? null,
     startDate: safeProjectData.startDate ?? null,
     endDate: safeProjectData.endDate ?? null,
@@ -59,8 +59,6 @@ export async function createProject(projectData: Partial<Omit<Project, 'id' | 'o
     ownerId: null, // AI : No user authentication system yet
     createdAt: new Date(),
     updatedAt: new Date(),
-    // AI : Add computed name property for backward compatibility
-    name: safeProjectData.name ?? '',
   };
 
   // AI : Store only locally - no backend calls during editing

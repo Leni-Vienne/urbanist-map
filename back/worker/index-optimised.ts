@@ -168,21 +168,15 @@ export default {
                 encryptionKey: env.SESSION_ENCRYPTION_KEY ?? 'dev_key_for_local_development_only_32_chars_min',
                 expireAfterSeconds: 900,
             }) as any);
-
-            // AI : tRPC setup with fetchRequestHandler
-            const appRouter = createMinimalRouter(db);
-            
+      
             // AI : Handle tRPC requests through Hono to maintain session context
             app.use('/trpc/*', async (c) => {
-                console.time('trpc-handler');
-                const response = await fetchRequestHandler({
+                return  fetchRequestHandler({
                     endpoint: '/trpc',
                     req: c.req.raw,
-                    router: appRouter,
+                    router: createMinimalRouter(db),
                     createContext: () => ({ session: c.get('session') }),
                 });
-                console.timeEnd('trpc-handler');
-                return response;
             });
 
             // AI : Essential API endpoints

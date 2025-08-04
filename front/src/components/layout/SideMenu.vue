@@ -21,8 +21,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, type Component } from 'vue'
-import ModerationPanel from './ModerationPanel.vue'
+import { computed, defineAsyncComponent, type Component } from 'vue'
+
+// AI : Lazy load ModerationPanel to reduce initial bundle size
+const ModerationPanel = defineAsyncComponent(() => import('./ModerationPanel.vue'))
 
 const props = defineProps<{
   isOpen: boolean
