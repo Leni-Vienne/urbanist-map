@@ -22,7 +22,7 @@ export const usersRelations = relations(users, ({ many }) => ({
 
 export const projects = pgTable('projects', {
   id: uuid('id').defaultRandom().primaryKey(),
-  title: text('title').notNull(),
+  name: text('name').notNull(),
   description: text('description'),
   status: approvalStatusEnum('status').default('pending').notNull(),
   ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'set null', onUpdate: 'cascade' }),

@@ -187,8 +187,7 @@ async function onProjectSelected(projectId: string) {
         // AI : Convert nearby project to local project format and add to store
         const localProject = {
           id: nearbyProject.id,
-          name: nearbyProject.title,
-          title: nearbyProject.title,
+          name: nearbyProject.name,
           description: nearbyProject.description ?? '',
           overlayIds: [],
           color: '#007bff',

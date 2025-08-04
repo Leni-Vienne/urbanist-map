@@ -17,7 +17,8 @@ async function initializeApp() {
   const appResult = await createLocalApp({
       corsOrigin: config.CORS_ORIGIN,
       sessionEncryptionKey: config.SESSION_ENCRYPTION_KEY,
-      storage: new LocalFileStorage()
+      storage: new LocalFileStorage(),
+      databaseUrl: config.DATABASE_URL
   });
 
   const { app: sharedApp, appRouter } = appResult;
