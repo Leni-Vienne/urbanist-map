@@ -48,6 +48,9 @@ jobs:
         secrets: |
           DATABASE_URL
           SESSION_ENCRYPTION_KEY
+      env:
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        SESSION_ENCRYPTION_KEY: ${{ secrets.SESSION_ENCRYPTION_KEY }}
 
     - name: Comment on PR with deployment status
       if: github.event_name == 'pull_request'
