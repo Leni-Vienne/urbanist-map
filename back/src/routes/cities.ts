@@ -23,7 +23,7 @@ const searchCitiesNearLocationSchema = z.object({
 });
 
 const getCityProjectsSchema = z.object({
-  cityId: z.string().uuid() // AI : City ID to get projects for
+  cityId: z.uuid()
 });
 
 export function createCitiesRouter(db: PostgresJsDatabase<typeof schema>) {
@@ -135,7 +135,7 @@ export function createCitiesRouter(db: PostgresJsDatabase<typeof schema>) {
           throw new Error('Failed to fetch cities with projects');
         }
       }),
-    // AI : Get all projects and overlays for a specific city
+    // AI : Get all projects and overlays for a specific city, including projects with no overlays
     getCityProjects: publicProcedure
       .input(getCityProjectsSchema)
       .query(async ({ input }) => {

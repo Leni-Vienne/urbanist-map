@@ -15,7 +15,7 @@ export default defineConfig({
     visualizer({
           filename: 'stats.html',
           open: false,
-          template: 'network', // 'treemap', 'sunburst', 'network'
+          template: 'treemap', // 'treemap', 'sunburst', 'network'
         }),
     tailwindcss(),
     vueDevTools(),
