@@ -1,10 +1,12 @@
 // filepath: d:\Documents\Perso\prog\city-map-overlay\src\router.ts
 import { createRouter, createWebHistory } from 'vue-router';
-import AppLayout from '@components/layout/AppLayout.vue';
-import ProjectList from '@components/project/ProjectList.vue';
-import ProjectEditor from '@components/project/ProjectEditor.vue';
-import ProjectOverlaysList from '@components/project/ProjectOverlaysList.vue';
 import { initializeStores } from '@composables/overlay/useOverlay';
+
+// AI : Lazy load heavy components to reduce initial bundle size
+const AppLayout = () => import('@components/layout/AppLayout.vue');
+const ProjectList = () => import('@components/project/ProjectList.vue');
+const ProjectEditor = () => import('@components/project/ProjectEditor.vue');
+const ProjectOverlaysList = () => import('@components/project/ProjectOverlaysList.vue');
 
 // AI : Define routes for the application
 export const router = createRouter({
