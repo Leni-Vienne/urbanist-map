@@ -12,9 +12,9 @@
     "dev-worker": "wrangler dev",
     "deploy-worker": "wrangler deploy",
     "deploy": "bun run build-front && bun run deploy-worker",
-    "db:generate": "cd back && bun run drizzle-kit generate",
-    "db:push": "cd back && bun run drizzle-kit push",
-    "db:migrate": "cd back && bun run drizzle-kit migrate",
+    "db:generate": "cd back && bun --bun run drizzle-kit generate",
+    "db:push": "cd back && bun --bun run drizzle-kit push",
+    "db:migrate": "cd back && bun --bun run drizzle-kit migrate",
     "db:drop": "cd back && bun run drizzle-kit drop",
     "import:cities": "cd back && bun run src/scripts/import-cities.ts"
   },
