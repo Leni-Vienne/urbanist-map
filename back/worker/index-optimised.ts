@@ -108,6 +108,7 @@ export default {
         
         try {
             // AI : Quick path for non-API requests
+            console.log("env ; ", env)
             if (!url.pathname.startsWith('/api/') && !url.pathname.startsWith('/trpc/')) {
                 let assetPath = url.pathname === '/' ? '/index.html' : url.pathname;
                 if (!assetPath.includes('.') && !assetPath.startsWith('/api/')) {

@@ -545,7 +545,15 @@ async function prepareImageForServer(): Promise<string> {
     const formData = new FormData();
     formData.append('image', imageFile);
 
-    const uploadResponse = await fetch('/api/upload-image', {
+    // AI : Get API URL based on environment (same logic as tRPC client)
+    const getApiUrl = () => {
+      if (import.meta.env.PROD) {
+        return ''; // AI : Same origin in production
+      }
+      return import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
+    };
+
+    const uploadResponse = await fetch(`${getApiUrl()}/api/upload-image`, {
       method: 'POST',
       body: formData,
       credentials: 'include'
