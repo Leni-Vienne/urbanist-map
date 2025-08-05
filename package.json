@@ -3,7 +3,8 @@
   "scripts": {
     "preview": "vite preview front",
     "dev-front": "bunx --bun vite front",
-    "build-front": "bunx --bun vite build front",
+    "build-front-workflow": "bun --bun vite build front",
+    "build-front": "vite build front",
     "dev-back": "bun --hot back/src/index.ts",
     "build-back": "bun build back/src/index.ts --target=bun --outfile=./server.bundle.js",
     "build-back2": "bun build back/worker/index.ts --target=bun --outfile=./server.bundle.js",

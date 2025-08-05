@@ -42,7 +42,7 @@ jobs:
         DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
 
     - name: Build frontend
-      run: bun run build-front
+      run: bun run build-front-workflow
 
     - name: Deploy to Cloudflare Workers
       uses: cloudflare/wrangler-action@v3
@@ -50,6 +50,7 @@ jobs:
         apiToken: ${{ secrets.CF_API_TOKEN }}
         accountId: ${{ secrets.CF_ACCOUNT_ID }}
         command: deploy ${{ env.DEPLOY_ENV }}
+        environment: ${{ github.ref == 'refs/heads/production' && '' || 'preview' }}
         secrets: |
           SESSION_ENCRYPTION_KEY
       env:
