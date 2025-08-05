@@ -9,7 +9,7 @@ on:
 jobs:
   deploy-and-migrate:
     runs-on: self-hosted
-    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'preview' }}
+    environment: ${{ github.ref == 'refs/heads/production' && 'production' || 'preview' }}
     
     steps:
     - name: Checkout code
@@ -30,10 +30,10 @@ jobs:
 
     - name: Set environment variables
       run: |
-        if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-          echo "WORKER_NAME=construction-map" >> $GITHUB_ENV
+        if [ "${{ github.ref }}" = "refs/heads/production" ]; then
+          echo "DEPLOY_ENV=" >> $GITHUB_ENV
         else
-          echo "WORKER_NAME=construction-map-preview" >> $GITHUB_ENV
+          echo "DEPLOY_ENV=--env preview" >> $GITHUB_ENV
         fi
 
     - name: Run database migrations
@@ -49,7 +49,7 @@ jobs:
       with:
         apiToken: ${{ secrets.CF_API_TOKEN }}
         accountId: ${{ secrets.CF_ACCOUNT_ID }}
-        command: deploy ${{ github.ref == 'refs/heads/main' && '' || '--env preview' }}
+        command: deploy ${{ env.DEPLOY_ENV }}
         secrets: |
           SESSION_ENCRYPTION_KEY
       env:
