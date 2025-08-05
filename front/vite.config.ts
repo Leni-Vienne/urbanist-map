@@ -13,10 +13,10 @@ export default defineConfig({
   plugins: [
     vue(),
     visualizer({
-          filename: 'stats.html',
-          open: false,
-          template: 'treemap', // 'treemap', 'sunburst', 'network'
-        }),
+      filename: 'stats.html',
+      open: false,
+      template: 'treemap', // 'treemap', 'sunburst', 'network'
+    }),
     tailwindcss(),
     vueDevTools(),
     Components({
