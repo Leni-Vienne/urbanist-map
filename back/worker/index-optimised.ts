@@ -171,7 +171,7 @@ export default {
       
             // AI : Handle tRPC requests through Hono to maintain session context
             app.use('/trpc/*', async (c) => {
-                return  fetchRequestHandler({
+                return fetchRequestHandler({
                     endpoint: '/trpc',
                     req: c.req.raw,
                     router: createMinimalRouter(db),
