@@ -49,12 +49,10 @@ jobs:
       with:
         apiToken: ${{ secrets.CF_API_TOKEN }}
         accountId: ${{ secrets.CF_ACCOUNT_ID }}
-        command: deploy --name ${{ env.WORKER_NAME }}
+        command: deploy ${{ github.ref == 'refs/heads/main' && '' || '--env preview' }}
         secrets: |
-          DATABASE_URL
           SESSION_ENCRYPTION_KEY
       env:
-        DATABASE_URL: ${{ secrets.DATABASE_URL }}
         SESSION_ENCRYPTION_KEY: ${{ secrets.SESSION_ENCRYPTION_KEY }}
 
     - name: Comment on PR with deployment status
