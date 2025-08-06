@@ -111,7 +111,7 @@ const nodes = computed(() => {
         key: project.id,
         data: {
           ...project,
-          name: project.title,
+          name: project.name,
           location: `${city.name}, ${country.name}`,
           overlayCount: project.overlayIds?.length ?? 0
         }
