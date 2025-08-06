@@ -101,6 +101,7 @@
                     >
                         <DatePicker
                             id="start-date-input"
+                            dateFormat="dd/mm/yy"
                             v-model="localProject.startDate"
                             class="w-full"
                             required
@@ -118,6 +119,7 @@
                     >
                         <DatePicker
                             id="end-date-input"
+                            dateFormat="dd/mm/yy"
                             v-model="localProject.endDate"
                             class="w-full"
                             required
@@ -136,6 +138,7 @@
                 >
                     <DatePicker
                         id="latest-update-on-input"
+                        dateFormat="dd/mm/yy"
                         v-model="localProject.latestUpdateOn"
                         class="w-full"
                     />
@@ -198,15 +201,8 @@ const citiesLoaded = ref(false); // AI : Track if cities have been loaded to avo
 watch(() => props.project, (newProject) => {
     localProject.value = { ...newProject };
 
-    // AI : Auto-load cities when editing a project that has city data
-    if (
-        props.mode === 'edit' &&
-        newProject?.city?.coordinates?.x != null &&
-        newProject?.city?.coordinates?.y != null &&
-        !citiesLoaded.value
-    ) {
-        loadCitiesNearLocation(newProject.city.coordinates.y, newProject.city.coordinates.x);
-    }
+    // AI : Don't auto-load cities based on existing project location
+    // AI : Let user click to load cities near current camera/overlay position instead
 }, { deep: true, immediate: true });
 
 const citiesPlaceholder = computed(() => {
@@ -235,9 +231,11 @@ watch(() => localProject.value.cityId, (newCityId) => {
 
 // AI : Get center coordinates of currently selected overlay or camera center as fallback
 function getOverlayCenter(): { lat: number; lng: number } | null {
+    
     // AI : First try to get overlay center if one is selected
     if (idSelectedOverlay.value && overlays.value[idSelectedOverlay.value]) {
         const overlayObject = overlays.value[idSelectedOverlay.value];
+        
         if (overlayObject.overlay) {
             try {
                 const bounds = overlayObject.overlay.getBounds();
@@ -250,7 +248,8 @@ function getOverlayCenter(): { lat: number; lng: number } | null {
                 console.error('Error getting overlay center:', error);
             }
         }
-    }    // AI : Fallback to camera center when no overlay is selected or overlay center fails
+    }    
+    // AI : Fallback to camera center when no overlay is selected or overlay center fails
     const cameraBounds = getCameraBounds();
 
     if (cameraBounds.value &&

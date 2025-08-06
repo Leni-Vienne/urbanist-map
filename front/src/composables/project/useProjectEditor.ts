@@ -110,8 +110,12 @@ export function useProjectEditor(projectId: string, mode: 'edit' | 'view' | 'cre
       // AI : Navigate based on context
       if (!isExisting && inFileUploadFlow.value) {
         router.back();
+      } else if (isExisting) {
+        // AI : For existing projects, go back to previous page instead of project list
+        router.back();
       } else {
-        router.push(isExisting ? '/projects' : `/projects/${savedProjectId}`);
+        // AI : For new projects, navigate to the project view
+        router.push(`/projects/${savedProjectId}`);
       }
     } catch (error) {
       console.error('Error saving project:', error);

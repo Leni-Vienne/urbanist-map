@@ -24,8 +24,7 @@ export const useProjectStore = defineStore('project', () => {
     nearbyProjects.value.forEach((nearbyProject: NearbyProject) => {
       combined[nearbyProject.id] ??= {
         id: nearbyProject.id,
-        name: nearbyProject.title,
-        title: nearbyProject.title,
+        name: nearbyProject.name,
         description: nearbyProject.description ?? '',
         overlayIds: [],
         color: '#007bff',

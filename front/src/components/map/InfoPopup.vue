@@ -42,7 +42,7 @@
         <div class="p-2 rounded bg-gray-50 text-sm space-y-1">
           <div class="flex justify-between">
             <span class="font-medium text-gray-600">Name:</span>
-            <span class="text-right">{{ project.title ?? 'Not specified' }}</span>
+            <span class="text-right">{{ project.name ?? 'Not specified' }}</span>
           </div>
           <div class="flex justify-between">
             <span class="font-medium text-gray-600">Location:</span>
@@ -192,7 +192,7 @@ const project = computed(() => {
       const backendProject = currentOverlay.value.project;
       const convertedProject: Project = {
         ...backendProject,
-        name: backendProject.title, // AI : Map title to name for frontend compatibility
+        name: backendProject.name, // AI : Use name from updated backend schema
         city: backendProject.city as any, // AI : Cast city to any to satisfy Project type
         overlayIds: [],
         color: '#007bff'
@@ -285,8 +285,7 @@ async function applyProjectChange(projectId: string) {
         // AI : Convert nearby project to local project format and add to store
         const localProject = {
           id: nearbyProject.id,
-          name: nearbyProject.title,
-          title: nearbyProject.title,
+          name: nearbyProject.name,
           description: nearbyProject.description ?? '',
           overlayIds: [],
           color: '#007bff',
@@ -318,7 +317,7 @@ async function applyProjectChange(projectId: string) {
         currentOverlay.value.project = {
           id: nearbyProject.id,
           status: 'approved' as const,
-          title: nearbyProject.title,
+          name: nearbyProject.name,
           description: nearbyProject.description ?? null,
           createdAt: nearbyProject.createdAt,
           updatedAt: nearbyProject.updatedAt,
@@ -480,7 +479,7 @@ async function ensureProjectOnServer(): Promise<boolean> {
   try {
     const projectResult = await trpc.project.publishProject.mutate({
       id: project.value.id,
-      title: project.value.title,
+      name: project.value.name,
       description: project.value.description ?? undefined,
       cityId: project.value.cityId ?? undefined,
       startDate: project.value.startDate?.toISOString(),
@@ -530,7 +529,7 @@ async function ensureProjectOnServer(): Promise<boolean> {
     toast.add({
       severity: 'error',
       summary: 'Project Publish Failed',
-      detail: `Failed to publish project "${project.value.title}" to server: ${error instanceof Error ? error.message : String(error)}`,
+      detail: `Failed to publish project "${project.value.name}" to server: ${error instanceof Error ? error.message : String(error)}`,
       life: 5000
     });
     throw error;
@@ -546,7 +545,15 @@ async function prepareImageForServer(): Promise<string> {
     const formData = new FormData();
     formData.append('image', imageFile);
 
-    const uploadResponse = await fetch('/api/upload-image', {
+    // AI : Get API URL based on environment (same logic as tRPC client)
+    const getApiUrl = () => {
+      if (import.meta.env.PROD) {
+        return ''; // AI : Same origin in production
+      }
+      return import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
+    };
+
+    const uploadResponse = await fetch(`${getApiUrl()}/api/upload-image`, {
       method: 'POST',
       body: formData,
       credentials: 'include'
