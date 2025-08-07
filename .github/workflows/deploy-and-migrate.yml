@@ -9,7 +9,7 @@ on:
 jobs:
   deploy-and-migrate:
     runs-on: self-hosted
-    environment: ${{ github.ref == 'refs/heads/production' && 'production' || 'preview' }}
+    environment: ${{ github.event_name == 'pull_request' && 'preview' || (github.ref == 'refs/heads/production' && 'production' || 'preview') }}
     
     steps:
     - name: Checkout code
@@ -30,10 +30,15 @@ jobs:
 
     - name: Set environment variables
       run: |
-        if [ "${{ github.ref }}" = "refs/heads/production" ]; then
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          echo "WRANGLER_ENV=preview" >> $GITHUB_ENV
+          echo "DEPLOY_TARGET=preview" >> $GITHUB_ENV
+        elif [ "${{ github.ref }}" = "refs/heads/production" ]; then
           echo "WRANGLER_ENV=" >> $GITHUB_ENV
+          echo "DEPLOY_TARGET=production" >> $GITHUB_ENV
         else
           echo "WRANGLER_ENV=preview" >> $GITHUB_ENV
+          echo "DEPLOY_TARGET=preview" >> $GITHUB_ENV
         fi
 
     - name: Run database migrations
@@ -44,13 +49,17 @@ jobs:
     - name: Build frontend
       run: bun run build-front-workflow
 
+    - name: Show deployment target
+      run: |
+        echo "🚀 Deploying to: ${{ env.DEPLOY_TARGET }} environment"
+        echo "📦 Wrangler environment: '${{ env.WRANGLER_ENV }}'"
+
     - name: Deploy to Cloudflare Workers
       uses: cloudflare/wrangler-action@v3
       with:
         apiToken: ${{ secrets.CF_API_TOKEN }}
         accountId: ${{ secrets.CF_ACCOUNT_ID }}
-        command: deploy
-        environment: ${{ env.WRANGLER_ENV }}
+        command: deploy --env="${{ env.WRANGLER_ENV }}"
         secrets: |
           SESSION_ENCRYPTION_KEY
       env:
@@ -67,5 +76,5 @@ jobs:
             issue_number: context.issue.number,
             owner: context.repo.owner,
             repo: context.repo.repo,
-            body: `✅ Preview deployment completed successfully!\n\n🔗 **Preview URL**: ${deploymentUrl}\n\n📊 **Database**: Preview environment with latest migrations applied`
+            body: `✅ PR deployed to preview environment for testing!\n\n🔗 **Preview URL**: ${deploymentUrl}\n\n📊 **Database**: Preview environment (isolated from production)\n\n⚠️ **Note**: This is a preview deployment. Production deployment happens only after merging to \`production\` branch.`
           })
