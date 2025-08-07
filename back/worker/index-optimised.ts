@@ -105,7 +105,7 @@ export default {
         console.time("now-in-trpc-cloudflare-worker-init");
         console.time('minimal-worker-total');
         const url = new URL(request.url);
-        
+        console.log("env", env)
         try {
             // AI : Quick path for non-API requests
             if (!url.pathname.startsWith('/api/') && !url.pathname.startsWith('/trpc/')) {
