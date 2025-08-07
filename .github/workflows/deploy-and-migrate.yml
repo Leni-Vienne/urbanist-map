@@ -48,6 +48,8 @@ jobs:
 
     - name: Build frontend
       run: bun run build-front-workflow
+      env:
+        VITE_R2_PUBLIC_URL: ${{ vars.VITE_R2_PUBLIC_URL }}
 
     - name: Show deployment target
       run: |
