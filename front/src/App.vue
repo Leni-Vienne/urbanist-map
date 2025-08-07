@@ -2,11 +2,8 @@
   <div class="app-container">
     <SideMenu
       :is-open="sideMenuOpen"
-      :panel="currentPanel"
       :is-moderator="isModerator"
-      :current-panel-type="currentPanelType"
       @close="handleSideMenuClose"
-      @toggle-panel="togglePanel"
     />
     <div class="main-content">
       <button

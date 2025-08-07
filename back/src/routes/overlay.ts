@@ -1,6 +1,6 @@
 import { publicProcedure, router } from '../trpc';
 import { z } from 'zod';
-import { overlays, projects, cities } from '../db/schema';
+import { overlays, projects, cities, countries } from '../db/schema';
 import { sql, eq } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../db/schema';
@@ -52,6 +52,8 @@ const overlaySelectFields = {
   projectName: projects.name,
   cityName: cities.name,
   cityId: cities.id,
+  countryCode: countries.code,
+  countryName: countries.name,
 };
 
 // AI : Base query builder for overlays with joins
@@ -60,7 +62,8 @@ function buildOverlayQuery(db: PostgresJsDatabase<typeof schema>) {
     .select(overlaySelectFields)
     .from(overlays)
     .leftJoin(projects, eq(overlays.projectId, projects.id))
-    .leftJoin(cities, eq(projects.cityId, cities.id));
+    .leftJoin(cities, eq(projects.cityId, cities.id))
+    .leftJoin(countries, eq(cities.countryCode, countries.code));
 }
 
 // AI : Find overlays that intersect with a given overlay using PostGIS spatial queries
@@ -75,6 +78,7 @@ async function findIntersectingOverlays(db: PostgresJsDatabase<typeof schema>, e
       .from(overlays)
       .leftJoin(projects, eq(overlays.projectId, projects.id))
       .leftJoin(cities, eq(projects.cityId, cities.id))
+      .leftJoin(countries, eq(cities.countryCode, countries.code))
       .where(sql`
         ${overlays.id} != ${excludeId} AND
         ST_Intersects(

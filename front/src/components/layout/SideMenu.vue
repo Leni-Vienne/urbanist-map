@@ -14,17 +14,8 @@
     <div class="sidecolumn__header">
       <div class="site-branding">
         <h2 class="site-title">Construction Map</h2>
-        <p class="site-subtitle">AI : Explore construction projects worldwide</p>
       </div>
       <div class="header-actions">
-        <Button
-          v-if="isModerator"
-          :icon="currentPanelType === 'moderation' ? 'pi pi-map' : 'pi pi-cog'"
-          class="p-button-text p-button-rounded panel-toggle-button"
-          @click="$emit('togglePanel')"
-          v-tooltip.top="currentPanelType === 'moderation' ? 'Switch to Explorer' : 'Switch to Moderation'"
-          :aria-label="currentPanelType === 'moderation' ? 'Switch to Explorer' : 'Switch to Moderation'"
-        />
         <Button
           icon="pi pi-times"
           class="p-button-text p-button-rounded close-button"
@@ -33,50 +24,59 @@
         />
       </div>
     </div>
+
+    <!-- AI : Tab navigation like the prototype -->
+    <div class="tab-navigation">
+      <button
+        :class="['tab-button', { active: activeTab === 'latest' }]"
+        @click="activeTab = 'latest'"
+      >
+        Latest
+      </button>
+      <button
+        :class="['tab-button', { active: activeTab === 'uploads' }]"
+        @click="activeTab = 'uploads'"
+      >
+        My Uploads
+      </button>
+      <button
+        v-if="isModerator"
+        :class="['tab-button', { active: activeTab === 'admin' }]"
+        @click="activeTab = 'admin'"
+      >
+        Admin
+      </button>
+    </div>
     
     <div class="sidecolumn__content">
-      <!-- AI : Dynamic content based on current panel -->
-      <component 
-        :is="currentPanel" 
-        :is-moderator="isModerator"
-        :current-panel-type="currentPanelType"
-        @close="$emit('close')"
-        @toggle-panel="$emit('togglePanel')"
-      />
+      <!-- AI : Tab content based on active tab -->
+      <LatestOverlaysPanel v-if="activeTab === 'latest'" />
+      <MyUploadsPanel v-else-if="activeTab === 'uploads'" />
+      <ModerationPanel v-else-if="activeTab === 'admin'" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, type Component } from 'vue'
+import { ref, defineAsyncComponent } from 'vue'
 import Button from 'primevue/button'
 
 // AI : Lazy load panels to reduce initial bundle size
 const ModerationPanel = defineAsyncComponent(() => import('./ModerationPanel.vue'))
-const ExplorerPanel = defineAsyncComponent(() => import('./ExplorerPanel.vue'))
+const LatestOverlaysPanel = defineAsyncComponent(() => import('./LatestOverlaysPanel.vue'))
+const MyUploadsPanel = defineAsyncComponent(() => import('./MyUploadsPanel.vue'))
 
 const props = defineProps<{
   isOpen: boolean
-  panel?: string
   isModerator?: boolean
-  currentPanelType?: string
 }>()
 
 defineEmits<{
   close: []
-  togglePanel: []
 }>()
 
-// AI : Map of available panels
-const panels: Record<string, Component> = {
-  moderation: ModerationPanel,
-  explorer: ExplorerPanel,
-}
-
-// AI : Default to explorer panel if no panel specified
-const currentPanel = computed(() => {
-  return panels[props.panel ?? 'explorer'] ?? ExplorerPanel
-})
+// AI : Tab state - default to "latest" like the prototype
+const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
 </script>
 
 <style scoped>
@@ -119,7 +119,7 @@ const currentPanel = computed(() => {
 
 .site-branding {
   margin-bottom: 0.5rem;
-  padding-right: 4rem; /* AI : Space for header actions */
+  padding-right: 3rem; /* AI : Space for header actions */
 }
 
 .site-title {
@@ -130,11 +130,35 @@ const currentPanel = computed(() => {
   line-height: 1.2;
 }
 
-.site-subtitle {
-  margin: 0.25rem 0 0;
-  font-size: 0.875rem;
+/* AI : Tab navigation styles */
+.tab-navigation {
+  display: flex;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #ffffff;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: none;
+  background: none;
   color: #6b7280;
   font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 2px solid transparent;
+}
+
+.tab-button:hover {
+  color: #374151;
+  background-color: #f9fafb;
+}
+
+.tab-button.active {
+  color: #6366f1;
+  border-bottom-color: #6366f1;
+  background-color: #ffffff;
 }
 
 .header-actions {
