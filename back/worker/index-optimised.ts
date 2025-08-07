@@ -175,7 +175,7 @@ export default {
                     endpoint: '/trpc',
                     req: c.req.raw,
                     router: createMinimalRouter(db),
-                    createContext: () => ({ session: c.get('session') }),
+                    //createContext: () => ({ session: c.get('session') }), // TODO temporary to see if CPU time changes
                 });
             });
 

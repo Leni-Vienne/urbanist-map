@@ -20,6 +20,7 @@ bucket_name = "construction-map-uploads" #production
 [[hyperdrive]]
 binding = "HYPERDRIVE"
 id = "53021ecf4ac94d2a8555d8f11022aa44" # production construction-map-supabase Hyperdrive UUID
+localConnectionString = "postgresql://default:password@localhost:5432/postgres"
 
 # AI : Preview environment configuration
 [env.preview]
