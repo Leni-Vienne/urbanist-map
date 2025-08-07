@@ -1,8 +1,9 @@
 <template>
   <div class="moderation-panel">
-    <div class="moderation-panel__header">
-      <h3 class="moderation-panel__title">Moderation Panel</h3>
-      <div class="header-actions">
+    <!-- AI : Panel-specific header with just the actions -->
+    <div class="moderation-panel__subheader">
+      <h3 class="moderation-panel__title">Pending Overlays</h3>
+      <div class="subheader-actions">
         <Button
           icon="pi pi-undo"
           class="p-button-text p-button-rounded undo-button"
@@ -10,12 +11,6 @@
           :disabled="!canUndo"
           v-tooltip.top="undoTooltip"
           aria-label="Undo last action"
-        />
-        <Button
-          icon="pi pi-times"
-          class="p-button-text p-button-rounded close-button"
-          @click="$emit('close')"
-          aria-label="Close panel"
         />
       </div>
     </div>
@@ -84,6 +79,7 @@ import Button from 'primevue/button'
 
 defineEmits<{
   close: []
+  togglePanel: []
 }>()
 
 const { overlays, recentActions, approveOverlay, rejectOverlay, undoLastAction } = useModeration()
@@ -114,7 +110,7 @@ const handleUndo = async () => {
   flex-direction: column;
 }
 
-.moderation-panel__header {
+.moderation-panel__subheader {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -126,13 +122,12 @@ const handleUndo = async () => {
 
 .moderation-panel__title {
   margin: 0;
-  margin-left: 3.5rem; /* AI : Add space to avoid overlap with toggle button */
   font-size: 1.125rem;
   font-weight: 600;
   color: #374151;
 }
 
-.header-actions {
+.subheader-actions {
   display: flex;
   gap: 0.5rem;
   align-items: center;
@@ -147,9 +142,6 @@ const handleUndo = async () => {
   cursor: not-allowed;
 }
 
-.close-button {
-  display: none;
-}
 
 .moderation-content {
   flex: 1;

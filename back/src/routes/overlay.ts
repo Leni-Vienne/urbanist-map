@@ -23,6 +23,11 @@ const getOverlaySchema = z.object({
   includeIntersecting: z.boolean().optional().default(false),
 });
 
+const getLatestOverlaysSchema = z.object({
+  limit: z.number().min(1).max(100).optional().default(20),
+  cityId: z.string().uuid().optional(), // AI : Filter by city if provided
+});
+
 // AI : Shared select fields for overlay queries to reduce duplication
 const overlaySelectFields = {
   id: overlays.id,
@@ -46,6 +51,7 @@ const overlaySelectFields = {
   updatedAt: overlays.updatedAt,
   projectName: projects.name,
   cityName: cities.name,
+  cityId: cities.id,
 };
 
 // AI : Base query builder for overlays with joins
@@ -92,6 +98,28 @@ async function findIntersectingOverlays(db: PostgresJsDatabase<typeof schema>, e
 
 export function createOverlayRouter(db: PostgresJsDatabase<typeof schema>) {
   return router({
+    getLatestOverlays: publicProcedure
+      .input(getLatestOverlaysSchema)
+      .query(async ({ input }) => {
+        try {
+          let query = buildOverlayQuery(db)
+            .where(eq(overlays.status, 'approved'))
+            .orderBy(sql`${overlays.createdAt} DESC`)
+            .limit(input.limit);
+
+          // AI : Filter by city if provided
+          if (input.cityId) {
+            query = query.where(eq(projects.cityId, input.cityId));
+          }
+
+          const latestOverlays = await query;
+          return latestOverlays;
+        } catch (error) {
+          console.error('Error fetching latest overlays:', error);
+          throw new Error('Failed to fetch latest overlays');
+        }
+      }),
+
     getOverlay: publicProcedure
       .input(getOverlaySchema)
       .query(async ({ input }) => {

@@ -1,16 +1,17 @@
 <template>
   <div class="app-container">
     <SideMenu
-      v-if="isModerator"
-      :is-open="moderationPanelOpen"
-      panel="moderation"
-      @close="moderationPanelOpen = false"
+      :is-open="sideMenuOpen"
+      :panel="currentPanel"
+      :is-moderator="isModerator"
+      :current-panel-type="currentPanelType"
+      @close="handleSideMenuClose"
+      @toggle-panel="togglePanel"
     />
     <div class="main-content">
       <button
-        v-if="isModerator"
-        class="moderation-toggle-button"
-        @click="moderationPanelOpen = !moderationPanelOpen"
+        class="menu-toggle-button"
+        @click="sideMenuOpen = !sideMenuOpen"
       >
         <i class="pi pi-bars" />
       </button>
@@ -35,23 +36,40 @@ import 'leaflet-distortableimage/dist/leaflet.distortableimage.css'
 import './assets/style.css' // must be imported after leaflet's css otherwise it's overwritten by leaflet's default css
 import 'primeicons/primeicons.css'
 
-import { onMounted, ref, onUnmounted } from 'vue'
+import { onMounted, ref, onUnmounted, computed } from 'vue'
 import MapView from '@components/map/MapView.vue'
 import SideMenu from '@components/layout/SideMenu.vue'
 import InfoPopupContainer from '@components/map/InfoPopupContainer.vue'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 
-// AI : Create a ref to track database initialization state
+// AI : Create refs to track app state
 const isModerator = ref(false)
-const moderationPanelOpen = ref(false)
+const sideMenuOpen = ref(true) // AI : Open by default
+const currentPanelType = ref<'explorer' | 'moderation'>('explorer') // AI : Default to explorer
 const overlayStore = useOverlayStore()
+
+// AI : Determine which panel to show - allow manual override
+const currentPanel = computed(() => {
+  return currentPanelType.value
+})
 
 // AI : Provide the initialization state to child components
 
 // AI : Handle window blur to close UI elements gracefully
 function handleWindowBlur() {
   overlayStore.closeAllUIElements();
-  moderationPanelOpen.value = false;
+}
+
+// AI : Handle side menu close (mobile only)
+function handleSideMenuClose() {
+  sideMenuOpen.value = false;
+}
+
+// AI : Toggle between explorer and moderation panels
+function togglePanel() {
+  if (isModerator.value) {
+    currentPanelType.value = currentPanelType.value === 'explorer' ? 'moderation' : 'explorer'
+  }
 }
 
 onMounted(async () => {
@@ -107,7 +125,7 @@ onUnmounted(() => {
   opacity: 0;
 }
 
-.moderation-toggle-button {
+.menu-toggle-button {
   position: fixed;
   top: 10px;
   left: 10px;
@@ -125,8 +143,22 @@ onUnmounted(() => {
   transition: all 0.2s ease;
 }
 
-.moderation-toggle-button:hover {
+.menu-toggle-button:hover {
   background-color: #e9ecef;
   transform: scale(1.05);
+}
+
+/* AI : Hide toggle button on desktop when side menu is open */
+@media (min-width: 769px) {
+  .menu-toggle-button {
+    display: none;
+  }
+}
+
+/* AI : Show toggle button on mobile */
+@media (max-width: 768px) {
+  .menu-toggle-button {
+    display: flex;
+  }
 }
 </style>

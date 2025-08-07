@@ -692,9 +692,9 @@ export function getConstructionMarkerColor(startDate: string | Date | null | und
   const start = startDate ? new Date(startDate) : null;
   const end = endDate ? new Date(endDate) : null;
   if (start && start > now) {
-    return 'orange';
+    return 'green';
   } else if (start && start <= now && (!end || end > now)) {
-    return 'blue';
+    return 'orange';
   } else if (end && end <= now) {
     return 'grey';
   }

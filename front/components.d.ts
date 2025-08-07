@@ -14,6 +14,7 @@ declare module 'vue' {
     DatePicker: typeof import('primevue/datepicker')['default']
     Dialog: typeof import('primevue/dialog')['default']
     EditModeToggle: typeof import('./src/components/map/EditModeToggle.vue')['default']
+    ExplorerPanel: typeof import('./src/components/layout/ExplorerPanel.vue')['default']
     FloatLabel: typeof import('primevue/floatlabel')['default']
     ImageUploadDialog: typeof import('./src/components/dialogs/ImageUploadDialog.vue')['default']
     InfoPopup: typeof import('./src/components/map/InfoPopup.vue')['default']
