@@ -31,9 +31,9 @@ jobs:
     - name: Set environment variables
       run: |
         if [ "${{ github.ref }}" = "refs/heads/production" ]; then
-          echo "DEPLOY_ENV=" >> $GITHUB_ENV
+          echo "WRANGLER_ENV=" >> $GITHUB_ENV
         else
-          echo "DEPLOY_ENV=--env preview" >> $GITHUB_ENV
+          echo "WRANGLER_ENV=preview" >> $GITHUB_ENV
         fi
 
     - name: Run database migrations
@@ -49,8 +49,8 @@ jobs:
       with:
         apiToken: ${{ secrets.CF_API_TOKEN }}
         accountId: ${{ secrets.CF_ACCOUNT_ID }}
-        command: deploy ${{ env.DEPLOY_ENV }}
-        environment: ${{ github.ref == 'refs/heads/production' && '' || 'preview' }}
+        command: deploy
+        environment: ${{ env.WRANGLER_ENV }}
         secrets: |
           SESSION_ENCRYPTION_KEY
       env:
@@ -61,7 +61,7 @@ jobs:
       uses: actions/github-script@v7
       with:
         script: |
-          const deploymentUrl = 'https://construction-map-preview.workers.dev';
+          const deploymentUrl = 'https://construction-map-preview.leni-vienne2.workers.dev';
           
           github.rest.issues.createComment({
             issue_number: context.issue.number,
