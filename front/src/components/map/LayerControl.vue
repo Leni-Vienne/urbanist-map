@@ -8,8 +8,7 @@
                 @click="toggleLayerPanel"
                 aria-label="Layer Control"
                 v-tooltip.right="'Map Layers'"
-                class="p-button-rounded"
-                :severity="showLayerPanel ? 'secondary' : undefined"
+                :severity="showLayerPanel ? undefined : 'secondary'"
             />
         </div>
 

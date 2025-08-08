@@ -27,7 +27,6 @@ export function debounce<T extends (...args: any[]) => any>(
  * @returns The complete URL to access the image
  */
 export function buildImageUrl(filename: string): string {
-  console.log('env ;', import.meta.env);
   // AI : In production, use direct R2 public URL to bypass worker
   if (import.meta.env.PROD) {
     

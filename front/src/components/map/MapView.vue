@@ -17,30 +17,30 @@
       class="map-buttons"
       :class="{ 'buttons-hidden': isRouteActive }"
     >
-      <div class="card flex">
+      <div class="control-button-container">
         <Button
           icon="pi pi-plus"
           @click="handleAddOverlayClick"
           aria-label="Add Image Overlay"
           v-tooltip.right="'Add Image Overlay'"
-          class="p-button-rounded"
+          class="map-control-button"
         />
       </div>
-      <div class="card flex">
+      <div class="control-button-container">
         <Button
           icon="pi pi-bars"
           @click="navigateToProjects"
           aria-haspopup="true"
           aria-controls="project_menu"
           v-tooltip.right="'Manage Projects'"
-          class="p-button-rounded"
+          class="map-control-button"
         />
       </div>
-      <div class="card flex">
+      <div class="control-button-container">
         <LayerControl />
       </div>
 
-      <div class="card flex">
+      <div class="control-button-container">
         <EditModeToggle />
       </div>
     </div>
@@ -342,12 +342,12 @@ async function handleToggleEditMode(newValue: boolean) {
 
 .map-buttons {
   position: absolute;
-  top: 60px;
-  left: 10px;
+  top: 80px;
+  left: 16px;
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   transition: opacity 0.3s ease;
 }
 
@@ -361,9 +361,37 @@ async function handleToggleEditMode(newValue: boolean) {
   pointer-events: auto;
 }
 
-.p-button-rounded:hover {
-  transform: scale(1.05);
-  transition: transform 0.2s ease;
+/* AI : Professional control button styling using standard CSS and PrimeVue tokens */
+.control-button-container {
+  background-color: var(--p-surface-0);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  transition: all 150ms ease-out;
+}
+
+.control-button-container:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.map-control-button {
+  width: 44px;
+  height: 44px;
+  border-radius: 0.5rem;
+  background: var(--p-surface-0) !important;
+  color: var(--p-surface-700) !important;
+  border: none !important;
+  box-shadow: none !important;
+  transition: all 150ms ease-out;
+}
+
+.map-control-button:hover {
+  background: var(--p-surface-50) !important;
+  color: var(--p-surface-800) !important;
+}
+
+.map-control-button:active {
+  background: var(--p-surface-100) !important;
 }
 
 .loading-overlay {
