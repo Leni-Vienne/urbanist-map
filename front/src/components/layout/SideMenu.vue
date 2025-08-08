@@ -1,20 +1,18 @@
 <template>
   <!-- AI : Mobile backdrop overlay -->
-  <div 
-    v-if="isOpen" 
-    class="mobile-backdrop" 
+  <div
+    v-if="isOpen"
+    class="mobile-backdrop"
     @click="$emit('close')"
   ></div>
-  
+
   <div
     class="sidecolumn"
     :class="{ 'sidecolumn--collapsed': !isOpen }"
   >
     <!-- AI : Common header for all panels -->
     <div class="sidecolumn__header">
-      <div class="site-branding">
-        <h2 class="site-title">Construction Map</h2>
-      </div>
+      <h2 class="site-title">ConstructionMap.org</h2>
       <div class="header-actions">
         <Button
           icon="pi pi-times"
@@ -47,7 +45,7 @@
         Admin
       </button>
     </div>
-    
+
     <div class="sidecolumn__content">
       <!-- AI : Tab content based on active tab -->
       <LatestOverlaysPanel v-if="activeTab === 'latest'" />
@@ -95,11 +93,12 @@ const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
 .sidecolumn {
   position: relative;
   flex-shrink: 0;
-  width: 300px;
+  width: 320px;
   height: 100%;
-  background-color: #f8f9fa;
-  border-right: 1px solid #dee2e6;
-  transition: width 0.3s ease-in-out;
+  background-color: var(--p-surface-0);
+  border-right: 1px solid var(--p-surface-200);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  transition: all 300ms ease-in-out;
   overflow: hidden;
   z-index: 1000;
 }
@@ -111,54 +110,53 @@ const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
 
 .sidecolumn__header {
   flex-shrink: 0;
-  padding: 1.5rem 1rem 1rem;
-  border-bottom: 1px solid #e5e7eb;
-  background-color: #ffffff;
+  padding: 2rem 1.5rem 1.5rem;
+  background-color: var(--p-surface-0);
+  border-bottom: 1px solid var(--p-surface-100);
   position: relative;
-}
-
-.site-branding {
-  margin-bottom: 0.5rem;
-  padding-right: 3rem; /* AI : Space for header actions */
 }
 
 .site-title {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #111827;
+  font-size: 1.75rem;
+  font-weight: 600;
   line-height: 1.2;
+  letter-spacing: -0.025em;
+  color: var(--p-surface-800);
 }
 
 /* AI : Tab navigation styles */
 .tab-navigation {
   display: flex;
-  border-bottom: 1px solid #e5e7eb;
-  background-color: #ffffff;
+  margin: 0 1.5rem;
+  background-color: var(--p-surface-0);
+  border-bottom: 1px solid var(--p-surface-100);
 }
 
 .tab-button {
   flex: 1;
-  padding: 0.75rem 1rem;
+  padding: 1rem 0;
   border: none;
-  background: none;
-  color: #6b7280;
+  background: transparent;
   font-weight: 500;
   font-size: 0.875rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 150ms ease-out;
+  text-align: center;
   border-bottom: 2px solid transparent;
+  color: var(--p-surface-500);
 }
 
 .tab-button:hover {
-  color: #374151;
-  background-color: #f9fafb;
+  color: var(--p-surface-600);
+  background-color: var(--p-surface-50);
 }
 
 .tab-button.active {
-  color: #6366f1;
-  border-bottom-color: #6366f1;
-  background-color: #ffffff;
+  font-weight: 600;
+  color: var(--p-primary-600);
+  background-color: var(--p-surface-0);
+  border-bottom-color: var(--p-primary-600);
 }
 
 .header-actions {
@@ -175,8 +173,9 @@ const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
 }
 
 .close-button {
-  color: #6b7280;
-  display: none; /* AI : Hidden on desktop by default */
+  display: none;
+  /* AI : Hidden on desktop by default */
+  color: var(--p-surface-500);
 }
 
 .sidecolumn__content {
@@ -191,19 +190,20 @@ const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
   .mobile-backdrop {
     display: block;
   }
-  
+
   .close-button {
-    display: flex; /* AI : Show close button on mobile */
+    display: flex;
+    /* AI : Show close button on mobile */
   }
-  
+
   .site-title {
     font-size: 1.375rem;
   }
-  
+
   .sidecolumn__header {
     padding: 1rem;
   }
-  
+
   .sidecolumn {
     position: fixed;
     top: 0;
@@ -215,11 +215,11 @@ const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
     border-right: none;
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
   }
-  
+
   .sidecolumn:not(.sidecolumn--collapsed) {
     transform: translateX(0);
   }
-  
+
   .sidecolumn--collapsed {
     width: 100%;
     transform: translateX(-100%);
