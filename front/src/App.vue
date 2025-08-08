@@ -127,7 +127,7 @@ onUnmounted(() => {
   top: 10px;
   left: 10px;
   z-index: 1001;
-  background-color: #f8f9fa;
+  background-color: var(--p-surface-50);
   border: 1px solid #dee2e6;
   border-radius: 0.25rem;
   width: 2.5rem;
@@ -141,7 +141,7 @@ onUnmounted(() => {
 }
 
 .menu-toggle-button:hover {
-  background-color: #e9ecef;
+  background-color: var(--p-surface-100);
   transform: scale(1.05);
 }
 

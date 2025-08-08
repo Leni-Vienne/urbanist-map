@@ -378,11 +378,6 @@ async function handleToggleEditMode(newValue: boolean) {
   width: 44px;
   height: 44px;
   border-radius: 0.5rem;
-  background: var(--p-surface-0) !important;
-  color: var(--p-surface-700) !important;
-  border: none !important;
-  box-shadow: none !important;
-  transition: all 150ms ease-out;
 }
 
 .map-control-button:hover {
@@ -436,7 +431,7 @@ async function handleToggleEditMode(newValue: boolean) {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  color: #495057;
+  color: var(--p-surface-600);
 }
 
 .overlay-count {
@@ -478,17 +473,17 @@ async function handleToggleEditMode(newValue: boolean) {
 .overlay-caption {
   font-size: 13px;
   font-weight: 500;
-  color: #333;
+  color: var(--p-surface-800);
 }
 
 .overlay-sequence {
   font-size: 11px;
-  color: #6c757d;
+  color: var(--p-surface-500);
 }
 
 .overlay-distance {
   font-size: 12px;
-  color: #28a745;
+  color: var(--p-green-600);
   font-weight: 500;
 }
 </style>

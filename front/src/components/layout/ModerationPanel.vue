@@ -1,9 +1,8 @@
 <template>
   <div class="moderation-panel">
-    <!-- AI : Panel-specific header with just the actions -->
-    <div class="moderation-panel__subheader">
-      <h3 class="moderation-panel__title">Pending Overlays</h3>
-      <div class="subheader-actions">
+    <div class="panel-content">
+      <div class="panel-header">
+        <h3 class="panel-title">Pending Overlays</h3>
         <Button
           icon="pi pi-undo"
           class="p-button-text p-button-rounded undo-button"
@@ -13,58 +12,74 @@
           aria-label="Undo last action"
         />
       </div>
-    </div>
-    
-    <div class="moderation-content">
-      <DataView :value="overlays" v-if="overlays.length > 0">
-        <template #list="slotProps">
-          <div class="grid grid-nogutter">
-            <div
-              v-for="(item, index) in slotProps.items"
-              :key="index"
-              class="col-12"
-            >
-              <div
-                class="overlay-item"
-                :class="{ 'border-top-1 surface-border': index !== 0 }"
-              >
-                <div class="overlay-content">
-                  <div class="overlay-info">
-                    <div class="overlay-name">
-                      {{ item.name }}
-                    </div>
-                    <div class="overlay-city">
-                      {{ item.city ?? 'Unknown' }}
-                    </div>
-                  </div>
-                  <div class="overlay-actions">
-                    <Button
-                      icon="pi pi-check"
-                      class="p-button-rounded p-button-success action-btn"
-                      @click="approveOverlay(item.id)"
-                      v-tooltip.top="'Approve'"
-                    />
-                    <Button
-                      icon="pi pi-times"
-                      class="p-button-rounded p-button-danger action-btn"
-                      @click="rejectOverlay(item.id)"
-                      v-tooltip.top="'Reject'"
-                    />
-                    <Button
-                      icon="pi pi-map-marker"
-                      class="p-button-rounded action-btn"
-                      @click="() => navigateToOverlay(item.id)"
-                      v-tooltip.top="'Navigate to overlay'"
-                    />
-                  </div>
-                </div>
-              </div>
+      
+      <div class="flex flex-col gap-3" v-if="overlays.length > 0">
+        <div 
+          v-for="overlay in overlays" 
+          :key="overlay.id"
+          class="overlay-card"
+        >
+          <!-- AI : Overlay thumbnail image -->
+          <div class="overlay-thumbnail">
+            <img 
+              :src="getOverlayImageUrl(overlay.filename)" 
+              :alt="overlay.name"
+              class="thumbnail-image"
+              @error="handleImageError"
+            />
+            <!-- AI : Fallback letter if image fails -->
+            <div class="thumbnail-fallback">
+              {{ getOverlayLetter(overlay.name) }}
             </div>
           </div>
-        </template>
-      </DataView>
-      <div v-else class="p-4">
-        No overlays to moderate.
+          
+          <!-- AI : Overlay info -->
+          <div class="overlay-info">
+            <p class="overlay-name">{{ overlay.name || 'Untitled' }}</p>
+            <div class="overlay-project" v-if="overlay.projectName">
+              <i class="pi pi-folder"></i>
+              <span>{{ overlay.projectName }}</span>
+            </div>
+            <div class="overlay-location">
+              <i class="pi pi-map-marker"></i>
+              <img 
+                v-if="overlay.countryCode" 
+                :src="getFlagUrl(overlay.countryCode)" 
+                :alt="overlay.countryCode"
+                class="country-flag"
+                @error="hideFlagOnError"
+              />
+              <span>{{ getLocationDisplay(overlay) }}</span>
+            </div>
+            <div class="overlay-time">
+              {{ formatRelativeTime(overlay.updatedAt) }}
+            </div>
+          </div>
+          
+          <!-- AI : Action buttons with modern styling -->
+          <div class="overlay-actions">
+            <button 
+              class="action-button approve-button"
+              @click="approveOverlay(overlay.id)"
+              v-tooltip.top="'Approve'"
+            >
+              <i class="pi pi-check"></i>
+            </button>
+            <button 
+              class="action-button reject-button"
+              @click="rejectOverlay(overlay.id)"
+              v-tooltip.top="'Reject'"
+            >
+              <i class="pi pi-times"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div v-else class="empty-state">
+        <i class="pi pi-eye text-5xl text-surface-400 mb-4"></i>
+        <p class="text-base mb-2">No overlays to moderate.</p>
+        <p class="text-sm">All caught up!</p>
       </div>
     </div>
   </div>
@@ -74,7 +89,7 @@
 import { computed } from 'vue'
 import { useModeration } from '../../composables/overlay/useModeration'
 import { navigateToOverlay } from '../../composables/overlay/useOverlayActions'
-import DataView from 'primevue/dataview'
+import { buildImageUrl, formatRelativeTime } from '../../utils'
 import Button from 'primevue/button'
 
 defineEmits<{
@@ -101,40 +116,77 @@ const handleUndo = async () => {
     console.error('Failed to undo last action')
   }
 }
+
+// AI : Get overlay image URL using the utility function
+function getOverlayImageUrl(filename: string): string {
+  return buildImageUrl(filename)
+}
+
+// AI : Get first letter of overlay name for fallback
+function getOverlayLetter(filename: string): string {
+  return filename?.charAt(0)?.toUpperCase() || 'O'
+}
+
+// AI : Handle image loading errors
+function handleImageError(event: Event) {
+  const target = event.target as HTMLImageElement
+  target.style.display = 'none'
+}
+
+// AI : Get flag URL for country
+function getFlagUrl(countryCode: string): string {
+  return `https://flagcdn.com/16x12/${countryCode.toLowerCase()}.png`
+}
+
+// AI : Hide flag on error
+function hideFlagOnError(event: Event) {
+  const target = event.target as HTMLImageElement
+  target.style.display = 'none'
+}
+
+// AI : Get location display (city, country)
+function getLocationDisplay(overlay: any): string {
+  if (overlay.city && overlay.countryName) {
+    return `${overlay.city}, ${overlay.countryName}`
+  } else if (overlay.city) {
+    return overlay.city
+  } else if (overlay.countryName) {
+    return overlay.countryName
+  }
+  return 'Unknown Location'
+}
 </script>
 
 <style scoped>
+/* AI : Modern card-based design inspired by the reference site */
 .moderation-panel {
   height: 100%;
   display: flex;
   flex-direction: column;
 }
 
-.moderation-panel__subheader {
+.panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem;
-  border-bottom: 1px solid #dee2e6;
-  background-color: #ffffff;
-  flex-shrink: 0;
+  margin-bottom: 1.5rem;
 }
 
-.moderation-panel__title {
+.panel-title {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: 1.25rem;
   font-weight: 600;
-  color: #374151;
-}
-
-.subheader-actions {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
+  color: var(--p-surface-800);
 }
 
 .undo-button {
-  color: #6366f1;
+  color: var(--p-primary-600);
 }
 
 .undo-button:disabled {
@@ -142,86 +194,195 @@ const handleUndo = async () => {
   cursor: not-allowed;
 }
 
-
-.moderation-content {
-  flex: 1;
-  overflow-y: auto;
-}
-
-/* AI : Overlay item styles for full width utilization */
-.overlay-item {
-  padding: 1rem;
-  width: 100%;
-}
-
-.overlay-content {
+/* AI : Modern card design */
+.overlay-card {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  width: 100%;
-  gap: 1rem;
+  gap: 0.75rem;
+  background: white;
+  border: 1px solid var(--p-surface-300);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  transition: all 0.2s ease;
 }
 
+.overlay-card:hover {
+  border-color: var(--p-surface-400);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+/* AI : Thumbnail styling */
+.overlay-thumbnail {
+  width: 3.75rem;
+  height: 3.75rem;
+  border-radius: 0.375rem;
+  overflow: hidden;
+  background-color: var(--p-surface-100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.thumbnail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumbnail-fallback {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--p-surface-500);
+}
+
+/* AI : Info section */
 .overlay-info {
   flex: 1;
-  min-width: 0; /* AI : Allow text to truncate if needed */
+  min-width: 0;
 }
 
 .overlay-name {
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: #1f2937;
-  margin-bottom: 0.25rem;
-  word-wrap: break-word;
-}
-
-.overlay-city {
+  font-weight: 600;
+  color: var(--p-surface-900);
   font-size: 0.875rem;
-  font-weight: 500;
-  color: #6b7280;
+  margin-bottom: 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+.overlay-project {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--p-blue-600);
+  font-size: 0.75rem;
+  margin-bottom: 0.25rem;
+  font-weight: 500;
+}
+
+.overlay-project i {
+  color: var(--p-blue-500);
+}
+
+.overlay-location {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--p-surface-600);
+  font-size: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.overlay-location i {
+  color: var(--p-surface-500);
+}
+
+.overlay-location span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.country-flag {
+  width: 1rem;
+  height: 0.75rem;
+  border-radius: 0.125rem;
+}
+
+.overlay-time {
+  font-size: 0.75rem;
+  color: var(--p-surface-500);
+}
+
+/* AI : Modern action buttons */
 .overlay-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.375rem;
   flex-shrink: 0;
 }
 
-.action-btn {
-  width: 2.5rem;
-  height: 2.5rem;
+.action-button {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.375rem;
+  border: 1px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.875rem;
 }
 
-/* AI : Mobile responsive styles */
+.approve-button {
+  background-color: var(--p-green-50);
+  border-color: var(--p-green-200);
+  color: var(--p-green-600);
+}
+
+.approve-button:hover {
+  background-color: var(--p-green-100);
+  color: var(--p-green-700);
+}
+
+.reject-button {
+  background-color: var(--p-red-50);
+  border-color: var(--p-red-200);
+  color: var(--p-red-600);
+}
+
+.reject-button:hover {
+  background-color: var(--p-red-100);
+  color: var(--p-red-700);
+}
+
+
+/* AI : Empty state styling */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  text-align: center;
+  color: var(--p-surface-600);
+}
+
+/* AI : Mobile responsive adjustments */
 @media (max-width: 768px) {
-  .close-button {
-    display: flex;
+  .panel-content {
+    padding: 0.75rem;
   }
   
-  /* AI : Mobile-specific content optimizations */
-  .overlay-item {
-    padding: 1.25rem;
+  .overlay-card {
+    padding: 1rem;
+    gap: 1rem;
   }
   
-  .overlay-content {
-    gap: 1.5rem;
+  .overlay-thumbnail {
+    width: 4rem;
+    height: 4rem;
   }
   
   .overlay-name {
-    font-size: 1.25rem;
-  }
-  
-  .overlay-city {
     font-size: 1rem;
   }
   
-  .action-btn {
-    width: 3rem;
-    height: 3rem;
+  .overlay-location,
+  .overlay-time {
+    font-size: 0.875rem;
+  }
+  
+  .action-button {
+    width: 2.5rem;
+    height: 2.5rem;
   }
   
   .overlay-actions {
-    gap: 0.75rem;
+    gap: 0.5rem;
   }
 }
 </style>

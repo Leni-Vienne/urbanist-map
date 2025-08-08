@@ -108,7 +108,7 @@ export function createOverlayRouter(db: PostgresJsDatabase<typeof schema>) {
         try {
           let query = buildOverlayQuery(db)
             .where(eq(overlays.status, 'approved'))
-            .orderBy(sql`${overlays.createdAt} DESC`)
+            .orderBy(sql`${overlays.updatedAt} DESC`)
             .limit(input.limit);
 
           // AI : Filter by city if provided
@@ -116,8 +116,7 @@ export function createOverlayRouter(db: PostgresJsDatabase<typeof schema>) {
             query = query.where(eq(projects.cityId, input.cityId));
           }
 
-          const latestOverlays = await query;
-          return latestOverlays;
+          return await query;
         } catch (error) {
           console.error('Error fetching latest overlays:', error);
           throw new Error('Failed to fetch latest overlays');

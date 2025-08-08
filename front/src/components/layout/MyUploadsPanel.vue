@@ -5,7 +5,7 @@
       
       <!-- AI : Placeholder content for now -->
       <div class="placeholder-state">
-        <i class="pi pi-cloud-upload" style="font-size: 3rem; color: #6b7280; margin-bottom: 1rem;"></i>
+        <i class="pi pi-cloud-upload" style="font-size: 3rem; color: var(--p-surface-500); margin-bottom: 1rem;"></i>
         <p>Upload feature coming soon!</p>
         <p class="placeholder-subtitle">This will show your uploaded overlays with status indicators.</p>
       </div>
@@ -34,7 +34,7 @@
   margin: 0 0 1rem 0;
   font-size: 1.125rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--p-surface-700);
 }
 
 .placeholder-state {
@@ -44,7 +44,7 @@
   justify-content: center;
   padding: 3rem 1rem;
   text-align: center;
-  color: #6b7280;
+  color: var(--p-surface-500);
 }
 
 .placeholder-subtitle {
