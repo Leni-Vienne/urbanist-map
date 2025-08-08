@@ -19,7 +19,7 @@
         If you want to upload an image that comes from a PDF, please use programs like <a
           href="https://www.rptools.net/toolbox/token-tool/"
           target="_blank"
-          style="color: #2196f3; text-decoration: underline;"
+          style="color: var(--p-primary-600); text-decoration: underline;"
         >TokenTool</a> for the best possible quality.
 
       </div>
@@ -157,21 +157,21 @@ watch(() => props.visible, (newVisible) => {
 
 .explanation-section h4 {
   margin: 0 0 8px 0;
-  color: #333;
+  color: var(--p-surface-800);
   font-size: 16px;
   font-weight: 600;
 }
 
 .explanation-section p {
   margin: 0 0 16px 0;
-  color: #666;
+  color: var(--p-surface-600);
   line-height: 1.5;
 }
 
 .explanation-section ul {
   margin: 0 0 16px 0;
   padding-left: 20px;
-  color: #666;
+  color: var(--p-surface-600);
 }
 
 .explanation-section li {
@@ -211,19 +211,19 @@ watch(() => props.visible, (newVisible) => {
 }
 
 .file-input-label:hover {
-  border-color: #2196f3;
+  border-color: var(--p-primary-600);
   background: #f5f5f5;
 }
 
 .upload-text {
   font-weight: 600;
-  color: #333;
+  color: var(--p-surface-800);
   margin-bottom: 4px;
 }
 
 .upload-subtext {
   font-size: 14px;
-  color: #666;
+  color: var(--p-surface-600);
 }
 
 .selected-file {
@@ -237,12 +237,12 @@ watch(() => props.visible, (newVisible) => {
 }
 
 .selected-file i {
-  color: #0284c7;
+  color: var(--p-primary-600);
 }
 
 .selected-file span {
   flex: 1;
-  color: #0c4a6e;
+  color: var(--p-primary-700);
   font-weight: 500;
 }
 

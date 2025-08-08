@@ -93,7 +93,7 @@ const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
 .sidecolumn {
   position: relative;
   flex-shrink: 0;
-  width: 320px;
+  width: 380px;
   height: 100%;
   background-color: var(--p-surface-0);
   border-right: 1px solid var(--p-surface-200);
@@ -169,7 +169,7 @@ const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
 }
 
 .panel-toggle-button {
-  color: #6366f1;
+  color: var(--p-primary-600);
 }
 
 .close-button {
@@ -229,7 +229,7 @@ const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
 /* AI : Tablet responsive styles */
 @media (min-width: 769px) and (max-width: 1024px) {
   .sidecolumn {
-    width: 400px;
+    width: 500px;
   }
 }
 </style>

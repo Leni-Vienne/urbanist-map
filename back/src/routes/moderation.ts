@@ -1,6 +1,6 @@
 import { publicProcedure, router } from '../trpc';
 import { z } from 'zod';
-import { projects, overlays, approvalStatusEnum, cities } from '../db/schema';
+import { projects, overlays, approvalStatusEnum, cities, countries } from '../db/schema';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
@@ -25,11 +25,17 @@ export function createModerationRouter(db: PostgresJsDatabase<typeof schema>) {
             .select({
               id: overlays.id,
               name: sql<string>`coalesce(${overlays.caption}, 'Unnamed')`,
+              filename: overlays.filename,
               city: cities.name,
+              updatedAt: overlays.updatedAt,
+              projectName: projects.name,
+              countryCode: countries.code,
+              countryName: countries.name,
             })
             .from(overlays)
             .leftJoin(projects, eq(overlays.projectId, projects.id))
             .leftJoin(cities, eq(projects.cityId, cities.id))
+            .leftJoin(countries, eq(cities.countryCode, countries.code))
             .where(eq(overlays.status, 'pending'));
 
           const [projectsResult, overlaysResult] = await Promise.all([
