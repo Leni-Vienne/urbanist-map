@@ -1,7 +1,7 @@
 import { publicProcedure, router } from '../trpc';
 import { z } from 'zod';
 import { projects, overlays, approvalStatusEnum, cities, countries } from '../db/schema';
-import { eq, inArray, sql } from 'drizzle-orm';
+import { eq, inArray, sql, or } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../db/schema';
@@ -16,19 +16,47 @@ export function createModerationRouter(db: PostgresJsDatabase<typeof schema>) {
     getPendingSubmissions: publicProcedure
       .query(async () => {
         try {
-          const pendingProjects = db
-            .select()
-            .from(projects)
-            .where(eq(projects.status, 'pending'));
+          // AI : Get projects that need moderation (either project pending OR has pending overlays)
+          const projectsWithPendingOverlays = await db
+            .selectDistinct({ projectId: overlays.projectId })
+            .from(overlays)
+            .where(eq(overlays.status, 'pending'));
 
-          const pendingOverlays = db
+          const projectIdsWithPendingOverlays = projectsWithPendingOverlays.map(p => p.projectId).filter(Boolean);
+
+          const moderationProjects = db
+            .select({
+              id: projects.id,
+              name: projects.name,
+              description: projects.description,
+              status: projects.status,
+              createdAt: projects.createdAt,
+              updatedAt: projects.updatedAt,
+              cityName: cities.name,
+              countryCode: countries.code,
+              countryName: countries.name,
+            })
+            .from(projects)
+            .leftJoin(cities, eq(projects.cityId, cities.id))
+            .leftJoin(countries, eq(cities.countryCode, countries.code))
+            .where(
+              or(
+                eq(projects.status, 'pending'),
+                inArray(projects.id, projectIdsWithPendingOverlays)
+              )
+            )
+            .orderBy(projects.createdAt);
+
+          // AI : Get all overlays for these moderation projects
+          const projectOverlays = db
             .select({
               id: overlays.id,
               name: sql<string>`coalesce(${overlays.caption}, 'Unnamed')`,
               filename: overlays.filename,
-              city: cities.name,
+              status: overlays.status,
+              projectId: overlays.projectId,
               updatedAt: overlays.updatedAt,
-              projectName: projects.name,
+              cityName: cities.name,
               countryCode: countries.code,
               countryName: countries.name,
             })
@@ -36,16 +64,27 @@ export function createModerationRouter(db: PostgresJsDatabase<typeof schema>) {
             .leftJoin(projects, eq(overlays.projectId, projects.id))
             .leftJoin(cities, eq(projects.cityId, cities.id))
             .leftJoin(countries, eq(cities.countryCode, countries.code))
-            .where(eq(overlays.status, 'pending'));
+            .where(
+              or(
+                eq(projects.status, 'pending'),
+                inArray(projects.id, projectIdsWithPendingOverlays)
+              )
+            );
 
           const [projectsResult, overlaysResult] = await Promise.all([
-            pendingProjects,
-            pendingOverlays,
+            moderationProjects,
+            projectOverlays,
           ]);
 
+          // AI : Group overlays by project
+          const projectsWithOverlays = projectsResult.map(project => ({
+            ...project,
+            overlays: overlaysResult.filter(overlay => overlay.projectId === project.id),
+          }));
+
           return {
-            projects: projectsResult,
-            overlays: overlaysResult,
+            projects: projectsWithOverlays,
+            overlays: overlaysResult.filter(overlay => overlay.status === 'pending'), // Keep for backward compatibility
           };
         } catch (error) {
           console.error('Error fetching pending submissions:', error);

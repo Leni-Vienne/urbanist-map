@@ -7,10 +7,9 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-.wrangler
-.dev.vars
 .claude
 CLAUDE.md
+AI_RULES.md
 .mcp.json
 .clinerules
 .github/instructions
