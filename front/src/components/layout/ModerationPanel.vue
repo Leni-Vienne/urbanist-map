@@ -2,85 +2,184 @@
   <div class="moderation-panel">
     <div class="panel-content">
       <div class="panel-header">
-        <h3 class="panel-title">Pending Overlays</h3>
+        <h3 class="panel-title">Pending Projects</h3>
         <Button
           icon="pi pi-undo"
-          class="p-button-text p-button-rounded undo-button"
+          class="p-button-text p-button-rounded"
           @click="handleUndo"
           :disabled="!canUndo"
           v-tooltip.top="undoTooltip"
           aria-label="Undo last action"
         />
       </div>
-      
-      <div class="flex flex-col gap-3" v-if="overlays.length > 0">
-        <div 
-          v-for="overlay in overlays" 
-          :key="overlay.id"
-          class="overlay-card"
+
+      <Accordion
+        v-if="projects.length > 0"
+        :multiple="true"
+      >
+        <AccordionPanel
+          v-for="project in projects"
+          :value="project.id"
         >
-          <!-- AI : Overlay thumbnail image -->
-          <div class="overlay-thumbnail">
-            <img 
-              :src="getOverlayImageUrl(overlay.filename)" 
-              :alt="overlay.name"
-              class="thumbnail-image"
-              @error="handleImageError"
-            />
-            <!-- AI : Fallback letter if image fails -->
-            <div class="thumbnail-fallback">
-              {{ getOverlayLetter(overlay.name) }}
-            </div>
-          </div>
-          
-          <!-- AI : Overlay info -->
-          <div class="overlay-info">
-            <p class="overlay-name">{{ overlay.name || 'Untitled' }}</p>
-            <div class="overlay-project" v-if="overlay.projectName">
-              <i class="pi pi-folder"></i>
-              <span>{{ overlay.projectName }}</span>
-            </div>
-            <div class="overlay-location">
-              <i class="pi pi-map-marker"></i>
-              <img 
-                v-if="overlay.countryCode" 
-                :src="getFlagUrl(overlay.countryCode)" 
-                :alt="overlay.countryCode"
-                class="country-flag"
-                @error="hideFlagOnError"
+          <AccordionHeader>
+            <div class="project-name-section">
+              <span class="project-name">{{ project.name }}</span>
+              <Tag
+                :value="project.status"
+                :severity="getStatusSeverity(project.status)"
+                class="project-status-tag"
               />
-              <span>{{ getLocationDisplay(overlay) }}</span>
             </div>
-            <div class="overlay-time">
-              {{ formatRelativeTime(overlay.updatedAt) }}
+          </AccordionHeader>
+          <AccordionContent>
+
+            <Card class="project-details-card">
+              <!-- AI : Project description and metadata -->
+              <template #content>
+                <div class="project-content-wrapper">
+                  <div class="project-info-section">
+                    <div
+                      v-if="project.description"
+                      class="project-description"
+                    >
+                      <p>{{ project.description }}</p>
+                    </div>
+                    <div class="project-metadata">
+                      <div class="metadata-item">
+                        <i class="pi pi-calendar"></i>
+                        <span>{{ formatRelativeTime(project.updatedAt) }}</span>
+                      </div>
+                      <div
+                        class="metadata-item"
+                        v-if="project.cityName"
+                      >
+                        <i class="pi pi-map-marker"></i>
+                        <img
+                          v-if="project.countryCode"
+                          :src="getFlagUrl(project.countryCode)"
+                          :alt="project.countryCode"
+                          class="country-flag"
+                          @error="hideFlagOnError"
+                        />
+                        <span>{{ getProjectLocationDisplay(project) }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- AI : Project approval actions in the same grey card -->
+                  <div
+                    class="project-actions"
+                    v-if="project.status === 'pending'"
+                  >
+                    <button
+                      class="action-btn approve-btn"
+                      @click="approveProject(project.id)"
+                      v-tooltip.top="'Approve Project'"
+                    >
+                      <i class="pi pi-check"></i>
+                    </button>
+                    <button
+                      class="action-btn reject-btn"
+                      @click="rejectProject(project.id)"
+                      v-tooltip.top="'Reject Project'"
+                    >
+                      <i class="pi pi-times"></i>
+                    </button>
+                  </div>
+                </div>
+              </template>
+            </Card>
+
+            <!-- AI : Project overlays - match LatestOverlaysPanel structure -->
+            <div
+              v-if="project.overlays && project.overlays.length > 0"
+              class="flex flex-col gap-3 mt-4"
+            >
+              <div
+                v-for="overlay in project.overlays"
+                :key="overlay.id"
+                class="flex items-center gap-3 bg-white border border-surface-300 rounded-lg p-3 transition-all hover:border-surface-400 hover:shadow-sm"
+              >
+                <!-- AI : Overlay thumbnail -->
+                <div
+                  class="w-15 h-15 rounded-md overflow-hidden bg-surface-100 flex items-center justify-center flex-shrink-0"
+                >
+                  <img
+                    :src="getOverlayImageUrl(overlay.filename)"
+                    :alt="overlay.name"
+                    class="w-full h-full object-cover"
+                    @error="handleImageError"
+                  />
+                  <div class="text-2xl font-bold text-surface-500">
+                    {{ getOverlayLetter(overlay.name) }}
+                  </div>
+                </div>
+
+                <!-- AI : Overlay info -->
+                <div class="flex-1 min-w-0">
+                  <p class="overlay-name">{{ overlay.name || 'Untitled' }}</p>
+                  <div class="flex items-center gap-1.5 text-surface-600 text-xs mb-1">
+                    <i class="pi pi-map-marker text-surface-500"></i>
+                    <img
+                      v-if="overlay.countryCode"
+                      :src="getFlagUrl(overlay.countryCode)"
+                      :alt="overlay.countryCode"
+                      class="w-4 h-3 rounded-sm"
+                      @error="hideFlagOnError"
+                    />
+                    <span class="truncate">{{ getOverlayLocationDisplay(overlay) }}</span>
+                  </div>
+                  <div class="text-xs text-surface-500 mb-2">
+                    {{ formatRelativeTime(overlay.updatedAt) }}
+                  </div>
+                  <Tag
+                    :value="overlay.status"
+                    :severity="getStatusSeverity(overlay.status)"
+                    class="overlay-status-tag"
+                  />
+                </div>
+
+                <!-- AI : Overlay actions -->
+                <div
+                  class="flex flex-col gap-2"
+                  v-if="overlay.status === 'pending'"
+                >
+                  <button
+                    class="action-btn approve-btn"
+                    @click="approveOverlay(overlay.id)"
+                    v-tooltip.top="'Approve'"
+                  >
+                    <i class="pi pi-check"></i>
+                  </button>
+                  <button
+                    class="action-btn reject-btn"
+                    @click="rejectOverlay(overlay.id)"
+                    v-tooltip.top="'Reject'"
+                  >
+                    <i class="pi pi-times"></i>
+                  </button>
+                </div>
+              </div>
             </div>
+          </AccordionContent>
+        </AccordionPanel>
+      </Accordion>
+
+      <Card
+        v-else
+        class="empty-state-card"
+      >
+        <template #content>
+          <div class="empty-state">
+            <i
+              class="pi pi-folder"
+              style="font-size: 3rem; color: var(--surface-400); margin-bottom: 1rem;"
+            ></i>
+            <h4>No projects to moderate</h4>
+            <p>All caught up!</p>
           </div>
-          
-          <!-- AI : Action buttons with modern styling -->
-          <div class="overlay-actions">
-            <button 
-              class="action-button approve-button"
-              @click="approveOverlay(overlay.id)"
-              v-tooltip.top="'Approve'"
-            >
-              <i class="pi pi-check"></i>
-            </button>
-            <button 
-              class="action-button reject-button"
-              @click="rejectOverlay(overlay.id)"
-              v-tooltip.top="'Reject'"
-            >
-              <i class="pi pi-times"></i>
-            </button>
-          </div>
-        </div>
-      </div>
-      
-      <div v-else class="empty-state">
-        <i class="pi pi-eye text-5xl text-surface-400 mb-4"></i>
-        <p class="text-base mb-2">No overlays to moderate.</p>
-        <p class="text-sm">All caught up!</p>
-      </div>
+        </template>
+      </Card>
     </div>
   </div>
 </template>
@@ -88,16 +187,23 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useModeration } from '../../composables/overlay/useModeration'
-import { navigateToOverlay } from '../../composables/overlay/useOverlayActions'
 import { buildImageUrl, formatRelativeTime } from '../../utils'
+import { navigateToOverlay } from '../../composables/overlay/useOverlayActions'
 import Button from 'primevue/button'
+import Accordion from 'primevue/accordion'
+import AccordionPanel from 'primevue/accordionpanel'
+import AccordionHeader from 'primevue/accordionheader'
+import AccordionContent from 'primevue/accordioncontent'
+import Card from 'primevue/card'
+import Badge from 'primevue/badge'
+import Tag from 'primevue/tag'
 
 defineEmits<{
   close: []
   togglePanel: []
 }>()
 
-const { overlays, recentActions, approveOverlay, rejectOverlay, undoLastAction } = useModeration()
+const { overlays, projects, recentActions, approveOverlay, rejectOverlay, approveProject, rejectProject, undoLastAction } = useModeration()
 
 // AI : Computed properties for undo functionality
 const canUndo = computed(() => recentActions.value.length > 0)
@@ -107,7 +213,7 @@ const undoTooltip = computed(() => {
     return 'No recent actions to undo'
   }
   const lastAction = recentActions.value[0]
-  return `Undo ${lastAction.newStatus} action for "${lastAction.overlayName}"`
+  return `Undo ${lastAction.newStatus} action for ${lastAction.itemType}: "${lastAction.itemName}"`
 })
 
 const handleUndo = async () => {
@@ -123,8 +229,8 @@ function getOverlayImageUrl(filename: string): string {
 }
 
 // AI : Get first letter of overlay name for fallback
-function getOverlayLetter(filename: string): string {
-  return filename?.charAt(0)?.toUpperCase() || 'O'
+function getOverlayLetter(name: string): string {
+  return name?.charAt(0)?.toUpperCase() || 'O'
 }
 
 // AI : Handle image loading errors
@@ -144,21 +250,55 @@ function hideFlagOnError(event: Event) {
   target.style.display = 'none'
 }
 
-// AI : Get location display (city, country)
-function getLocationDisplay(overlay: any): string {
-  if (overlay.city && overlay.countryName) {
-    return `${overlay.city}, ${overlay.countryName}`
-  } else if (overlay.city) {
-    return overlay.city
+// AI : Get project location display (city, country)
+function getProjectLocationDisplay(project: any): string {
+  if (project.cityName && project.countryName) {
+    return `${project.cityName}, ${project.countryName}`
+  } else if (project.cityName) {
+    return project.cityName
+  } else if (project.countryName) {
+    return project.countryName
+  }
+  return 'Unknown Location'
+}
+
+// AI : Get overlay location display (city, country)
+function getOverlayLocationDisplay(overlay: any): string {
+  if (overlay.cityName && overlay.countryName) {
+    return `${overlay.cityName}, ${overlay.countryName}`
+  } else if (overlay.cityName) {
+    return overlay.cityName
   } else if (overlay.countryName) {
     return overlay.countryName
   }
   return 'Unknown Location'
 }
+
+// AI : Get badge severity based on status
+function getStatusSeverity(status: string): string {
+  switch (status) {
+    case 'approved':
+      return 'success'
+    case 'rejected':
+      return 'danger'
+    case 'pending':
+      return 'warning'
+    default:
+      return 'info'
+  }
+}
+
+// AI : Handle overlay zoom navigation
+async function handleOverlayZoom(overlay: any) {
+  try {
+    await navigateToOverlay(overlay.id)
+  } catch (error) {
+    console.error('AI : Failed to navigate to overlay:', error)
+  }
+}
 </script>
 
 <style scoped>
-/* AI : Modern card-based design inspired by the reference site */
 .moderation-panel {
   height: 100%;
   display: flex;
@@ -169,6 +309,7 @@ function getLocationDisplay(overlay: any): string {
   flex: 1;
   overflow-y: auto;
   padding: 1.5rem;
+  max-height: 100vh;
 }
 
 .panel-header {
@@ -185,64 +326,85 @@ function getLocationDisplay(overlay: any): string {
   color: var(--p-surface-800);
 }
 
-.undo-button {
-  color: var(--p-primary-600);
-}
+/* AI : Project header customization - simplified */
 
-.undo-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* AI : Modern card design */
-.overlay-card {
+.project-name-section {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  background: white;
-  border: 1px solid var(--p-surface-300);
-  border-radius: 0.5rem;
-  padding: 0.75rem;
-  transition: all 0.2s ease;
 }
 
-.overlay-card:hover {
-  border-color: var(--p-surface-400);
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+.project-name {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--p-surface-900);
+  margin: 0;
 }
 
-/* AI : Thumbnail styling */
-.overlay-thumbnail {
-  width: 3.75rem;
-  height: 3.75rem;
-  border-radius: 0.375rem;
-  overflow: hidden;
-  background-color: var(--p-surface-100);
+.project-status-tag {
+  font-size: 0.75rem;
+  text-transform: lowercase;
+}
+
+/* AI : Project content layout */
+.project-content-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.project-info-section {
+  flex: 1;
+}
+
+.project-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+
+/* AI : Project details */
+.project-details-card {
+  margin-bottom: 1rem;
+  box-shadow: none;
+  border: none;
+  background-color: #f8f9fa;
+}
+
+.project-description p {
+  margin: 0 0 1rem 0;
+  color: var(--p-surface-700);
+  line-height: 1.5;
+}
+
+.project-metadata {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* AI : Metadata items */
+.metadata-item {
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  position: relative;
+  gap: 0.5rem;
+  color: var(--p-surface-600);
+  font-size: 0.875rem;
 }
 
-.thumbnail-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.thumbnail-fallback {
-  font-size: 1.5rem;
-  font-weight: bold;
+.metadata-item i {
   color: var(--p-surface-500);
 }
 
-/* AI : Info section */
-.overlay-info {
-  flex: 1;
-  min-width: 0;
+.country-flag {
+  width: 1rem;
+  height: 0.75rem;
+  border-radius: 0.125rem;
 }
 
+/* AI : Overlay name styling to match LatestOverlaysPanel */
 .overlay-name {
   font-weight: 600;
   color: var(--p-surface-900);
@@ -253,136 +415,90 @@ function getLocationDisplay(overlay: any): string {
   white-space: nowrap;
 }
 
-.overlay-project {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  color: var(--p-blue-600);
+/* AI : Status tag styling */
+.overlay-status-tag {
   font-size: 0.75rem;
-  margin-bottom: 0.25rem;
-  font-weight: 500;
+  text-transform: lowercase;
 }
 
-.overlay-project i {
-  color: var(--p-blue-500);
-}
-
-.overlay-location {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  color: var(--p-surface-600);
-  font-size: 0.75rem;
-  margin-bottom: 0.25rem;
-}
-
-.overlay-location i {
-  color: var(--p-surface-500);
-}
-
-.overlay-location span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.country-flag {
-  width: 1rem;
-  height: 0.75rem;
-  border-radius: 0.125rem;
-}
-
-.overlay-time {
-  font-size: 0.75rem;
-  color: var(--p-surface-500);
-}
-
-/* AI : Modern action buttons */
-.overlay-actions {
-  display: flex;
-  gap: 0.375rem;
-  flex-shrink: 0;
-}
-
-.action-button {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 0.375rem;
-  border: 1px solid;
+/* AI : Clean action buttons matching prototype */
+.action-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: white;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   font-size: 0.875rem;
 }
 
-.approve-button {
-  background-color: var(--p-green-50);
-  border-color: var(--p-green-200);
-  color: var(--p-green-600);
+.action-btn:hover {
+  border-color: #d1d5db;
+  background-color: #f9fafb;
 }
 
-.approve-button:hover {
-  background-color: var(--p-green-100);
-  color: var(--p-green-700);
+.approve-btn {
+  color: #059669;
 }
 
-.reject-button {
-  background-color: var(--p-red-50);
-  border-color: var(--p-red-200);
-  color: var(--p-red-600);
+.approve-btn:hover {
+  background-color: #ecfdf5;
+  border-color: #a7f3d0;
 }
 
-.reject-button:hover {
-  background-color: var(--p-red-100);
-  color: var(--p-red-700);
+.reject-btn {
+  color: #dc2626;
 }
 
+.reject-btn:hover {
+  background-color: #fef2f2;
+  border-color: #fecaca;
+}
 
-/* AI : Empty state styling */
+/* AI : Empty state */
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 3rem;
+  padding: 2rem;
   text-align: center;
   color: var(--p-surface-600);
 }
 
-/* AI : Mobile responsive adjustments */
+.empty-state h4 {
+  margin: 0.5rem 0;
+  color: var(--p-surface-700);
+}
+
+.empty-state p {
+  margin: 0;
+  color: var(--p-surface-500);
+}
+
+/* AI : Mobile responsive */
 @media (max-width: 768px) {
   .panel-content {
     padding: 0.75rem;
   }
-  
-  .overlay-card {
-    padding: 1rem;
+
+  .project-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .overlay-content {
     gap: 1rem;
   }
-  
+
   .overlay-thumbnail {
-    width: 4rem;
-    height: 4rem;
-  }
-  
-  .overlay-name {
-    font-size: 1rem;
-  }
-  
-  .overlay-location,
-  .overlay-time {
-    font-size: 0.875rem;
-  }
-  
-  .action-button {
-    width: 2.5rem;
-    height: 2.5rem;
-  }
-  
-  .overlay-actions {
-    gap: 0.5rem;
+    width: 3.5rem;
+    height: 3.5rem;
   }
 }
 </style>

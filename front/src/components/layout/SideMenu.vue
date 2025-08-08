@@ -58,10 +58,10 @@
 <script setup lang="ts">
 import { ref, defineAsyncComponent } from 'vue'
 import Button from 'primevue/button'
+import LatestOverlaysPanel from './LatestOverlaysPanel.vue' // static import since it's the default panel
 
 // AI : Lazy load panels to reduce initial bundle size
 const ModerationPanel = defineAsyncComponent(() => import('./ModerationPanel.vue'))
-const LatestOverlaysPanel = defineAsyncComponent(() => import('./LatestOverlaysPanel.vue'))
 const MyUploadsPanel = defineAsyncComponent(() => import('./MyUploadsPanel.vue'))
 
 const props = defineProps<{

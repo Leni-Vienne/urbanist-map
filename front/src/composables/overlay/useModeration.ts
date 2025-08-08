@@ -5,7 +5,8 @@ import type { PendingOverlay } from '../../types'
 // AI : Interface for tracking recent actions for undo functionality
 interface RecentAction {
   id: string
-  overlayName: string
+  itemName: string
+  itemType: 'overlay' | 'project'
   previousStatus: 'pending' | 'approved' | 'rejected'
   newStatus: 'approved' | 'rejected'
   timestamp: Date
@@ -13,15 +14,17 @@ interface RecentAction {
 
 export function useModeration() {
   const overlays = ref<PendingOverlay[]>([])
+  const projects = ref<any[]>([])
   const recentActions = ref<RecentAction[]>([])
 
-  const fetchPendingOverlays = async () => {
+  const fetchPendingSubmissions = async () => {
     try {
       const response = await trpc.moderation.getPendingSubmissions.query()
       overlays.value = response.overlays
+      projects.value = response.projects
     }
     catch (error) {
-      console.error('Error fetching pending overlays:', error)
+      console.error('Error fetching pending submissions:', error)
     }
   }
 
@@ -30,12 +33,13 @@ export function useModeration() {
     try {
       // AI : Find overlay name for tracking
       const overlay = overlays.value.find(o => o.id === id)
-      const overlayName = overlay?.name ?? 'Unknown'
+      const itemName = overlay?.name ?? 'Unknown'
 
       // AI : Track action for potential undo
       const action: RecentAction = {
         id,
-        overlayName,
+        itemName,
+        itemType: 'overlay',
         previousStatus: 'pending',
         newStatus: status,
         timestamp: new Date()
@@ -50,7 +54,7 @@ export function useModeration() {
       recentActions.value.unshift(action)
       recentActions.value = recentActions.value.slice(0, 5)
 
-      await fetchPendingOverlays()
+      await fetchPendingSubmissions()
     }
     catch (error) {
       console.error(`Error ${status === 'approved' ? 'approving' : 'rejecting'} overlay ${id}:`, error)
@@ -74,16 +78,23 @@ export function useModeration() {
 
       const lastAction = recentActions.value[0]
 
-      // AI : Restore to previous status (pending)
-      await trpc.moderation.setOverlayApprovalStatus.mutate({
-        ids: [lastAction.id],
-        status: lastAction.previousStatus,
-      })
+      // AI : Restore to previous status (pending) based on item type
+      if (lastAction.itemType === 'overlay') {
+        await trpc.moderation.setOverlayApprovalStatus.mutate({
+          ids: [lastAction.id],
+          status: lastAction.previousStatus,
+        })
+      } else if (lastAction.itemType === 'project') {
+        await trpc.moderation.setProjectApprovalStatus.mutate({
+          ids: [lastAction.id],
+          status: lastAction.previousStatus,
+        })
+      }
 
       // AI : Remove the undone action from recent actions
       recentActions.value = recentActions.value.slice(1)
 
-      await fetchPendingOverlays()
+      await fetchPendingSubmissions()
       return true
     }
     catch (error) {
@@ -92,13 +103,57 @@ export function useModeration() {
     }
   }
 
-  onMounted(fetchPendingOverlays)
+  onMounted(fetchPendingSubmissions)
+
+  // AI : Project approval functions with tracking
+  const setProjectStatus = async (id: string, status: 'approved' | 'rejected') => {
+    try {
+      // AI : Find project name for tracking
+      const project = projects.value.find(p => p.id === id)
+      const itemName = project?.name ?? 'Unknown Project'
+
+      // AI : Track action for potential undo
+      const action: RecentAction = {
+        id,
+        itemName,
+        itemType: 'project',
+        previousStatus: 'pending',
+        newStatus: status,
+        timestamp: new Date()
+      }
+
+      await trpc.moderation.setProjectApprovalStatus.mutate({
+        ids: [id],
+        status,
+      })
+
+      // AI : Add to recent actions and limit to last 5 actions
+      recentActions.value.unshift(action)
+      recentActions.value = recentActions.value.slice(0, 5)
+
+      await fetchPendingSubmissions()
+    }
+    catch (error) {
+      console.error(`Error ${status === 'approved' ? 'approving' : 'rejecting'} project ${id}:`, error)
+    }
+  }
+
+  const approveProject = async (id: string) => {
+    await setProjectStatus(id, 'approved')
+  }
+
+  const rejectProject = async (id: string) => {
+    await setProjectStatus(id, 'rejected')
+  }
 
   return {
     overlays,
+    projects,
     recentActions,
     approveOverlay,
     rejectOverlay,
+    approveProject,
+    rejectProject,
     undoLastAction,
   }
 }
