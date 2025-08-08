@@ -7,7 +7,6 @@
         icon="pi pi-eye"
         :class="[
           'p-button-outlined p-button-sm',
-          { 'p-button-warning': isHighlighted }
         ]"
         @click="$emit('toggle-highlight')"
       />

@@ -1,15 +1,13 @@
 <template>
-    <div class="edit-mode-toggle-container">
-        <!-- AI : Edit mode toggle button -->
-        <Button
-            :icon="currentIcon"
-            @click="handleModeToggle"
-            :severity="buttonSeverity"
-            class="map-control-button"
-            v-tooltip.right="tooltipText"
-            aria-label="Toggle Edit Mode"
-        />
-    </div>
+    <!-- AI : Edit mode toggle button -->
+    <Button
+        :icon="currentIcon"
+        @click="handleModeToggle"
+        :severity="buttonSeverity"
+        class="map-control-button"
+        v-tooltip.right="tooltipText"
+        aria-label="Toggle Edit Mode"
+    />
 </template>
 
 <script setup lang="ts">
@@ -73,10 +71,3 @@ async function handleModeToggle() {
     }
 }
 </script>
-
-<style scoped>
-/* AI : Minimal styling - PrimeVue severity handles colors */
-.edit-mode-toggle-container {
-    position: relative;
-}
-</style>

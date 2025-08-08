@@ -43,10 +43,10 @@ export const infoTool = L.Toolbar2.Action.extend({
     // AI : Check if currently open using store state
     const isCurrentlyOpen = overlayStore.showInfoPopup;
 
+    // IMPORTANT : This if/else is need to toggle open/close the info popup and be able to open it again
     if (isCurrentlyOpen) {
       // AI : Close
       overlayStore.hideInfoPopup();
-      L.DomUtil.removeClass(link, "subtoolbar_enabled");
       this.options.subToolbar._hide();
 
       // AI : Remove the teleport target and restore original button
@@ -62,7 +62,6 @@ export const infoTool = L.Toolbar2.Action.extend({
       }
     } else {
       // AI : Open
-      L.DomUtil.addClass(link, "subtoolbar_enabled");
       this.options.subToolbar._show();
 
       // AI : Wait for subtoolbar to be shown before manipulating it
@@ -71,7 +70,6 @@ export const infoTool = L.Toolbar2.Action.extend({
       if (existingButton?.tagName === 'A') {
         const teleportTarget = document.createElement('div');
         teleportTarget.id = "info-popup-teleport-target";
-        teleportTarget.className = "leaflet-toolbar-icon more-info-popup";
 
         existingButton.parentNode?.replaceChild(teleportTarget, existingButton);
 

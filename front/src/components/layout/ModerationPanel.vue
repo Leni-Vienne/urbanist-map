@@ -288,14 +288,6 @@ function getStatusSeverity(status: string): string {
   }
 }
 
-// AI : Handle overlay zoom navigation
-async function handleOverlayZoom(overlay: any) {
-  try {
-    await navigateToOverlay(overlay.id)
-  } catch (error) {
-    console.error('AI : Failed to navigate to overlay:', error)
-  }
-}
 </script>
 
 <style scoped>

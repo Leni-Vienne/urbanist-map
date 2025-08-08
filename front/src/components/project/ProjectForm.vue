@@ -1,8 +1,5 @@
 <template>
-    <form
-        @submit.prevent="handleSubmit"
-        class="project-editor"
-    >
+    <form @submit.prevent="handleSubmit">
         <div class="flex flex-col gap-4">
             <div class="field">
                 <FloatLabel
@@ -231,11 +228,11 @@ watch(() => localProject.value.cityId, (newCityId) => {
 
 // AI : Get center coordinates of currently selected overlay or camera center as fallback
 function getOverlayCenter(): { lat: number; lng: number } | null {
-    
+
     // AI : First try to get overlay center if one is selected
     if (idSelectedOverlay.value && overlays.value[idSelectedOverlay.value]) {
         const overlayObject = overlays.value[idSelectedOverlay.value];
-        
+
         if (overlayObject.overlay) {
             try {
                 const bounds = overlayObject.overlay.getBounds();
@@ -248,7 +245,7 @@ function getOverlayCenter(): { lat: number; lng: number } | null {
                 console.error('Error getting overlay center:', error);
             }
         }
-    }    
+    }
     // AI : Fallback to camera center when no overlay is selected or overlay center fails
     const cameraBounds = getCameraBounds();
 
@@ -300,34 +297,3 @@ function handleSubmit() {
     emit('submit', localProject.value);
 }
 </script>
-
-<style scoped>
-.project-editor {
-    max-width: 800px;
-    margin: 0 auto;
-    /* AI : Prevent form from creating its own scrollbar when inside Dialog */
-    overflow: visible;
-    height: auto;
-    max-height: none;
-}
-
-/* AI : Ensure all form elements are properly sized without creating overflow */
-.field {
-    overflow: visible;
-}
-
-/* AI : Prevent flex containers from creating scrollbars */
-.flex {
-    overflow: visible;
-}
-
-/* AI : Override PrimeVue component overflow behavior when needed */
-:deep(.p-component) {
-    overflow: visible;
-}
-
-/* AI : Allow dropdown panels to scroll independently */
-:deep(.p-dropdown-panel) {
-    overflow-y: auto;
-}
-</style>

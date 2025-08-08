@@ -1,52 +1,40 @@
 <template>
-    <div class="layer-control-container">
-        <!-- AI : Layer control button -->
-        <div class="card flex">
-            <Button
-                ref="layerButton"
-                icon="pi pi-map"
-                @click="toggleLayerPanel"
-                aria-label="Layer Control"
-                v-tooltip.right="'Map Layers'"
-                :severity="showLayerPanel ? undefined : 'secondary'"
-            />
-        </div>
+    <!-- AI : Layer control button -->
+    <Button
+        ref="layerButton"
+        icon="pi pi-map"
+        @click="toggleLayerPanel"
+        aria-label="Layer Control"
+        v-tooltip.right="'Map Layers'"
+        :severity="showLayerPanel ? undefined : 'secondary'"
+    />
 
-        <!-- AI : Layer panel using PrimeVue Popover for small popup -->
-        <Popover
-            ref="layerPanel"
-            class="layer-popover"
+    <!-- AI : Layer panel using PrimeVue Popover for small popup -->
+    <Popover ref="layerPanel">
+        <!-- AI : Base layers section using PrimeVue Panel -->
+        <Panel
+            header="Base Maps"
+            :toggleable="false"
         >
-            <div class="flex flex-col gap-4">
-                <!-- AI : Base layers section using PrimeVue Panel -->
-                <Panel
-                    header="Base Maps"
-                    :toggleable="false"
+            <div class="flex flex-col gap-2">
+                <div
+                    v-for="layer in layerOptions"
+                    :key="layer.value"
                 >
-                    <div class="flex flex-col gap-3">
-                        <div
-                            v-for="layer in layerOptions"
-                            :key="layer.value"
-                            class="flex align-items-center gap-2"
-                        >
-                            <RadioButton
-                                :id="layer.value"
-                                v-model="selectedLayer"
-                                :value="layer.value"
-                                @change="onLayerChange"
-                            />
-                            <label
-                                :for="layer.value"
-                                class="cursor-pointer"
-                            >
-                                {{ layer.label }}
-                            </label>
-                        </div>
-                    </div>
-                </Panel>
+                    <RadioButton
+                        :id="layer.value"
+                        v-model="selectedLayer"
+                        :inputId="layer.value"
+                        :value="layer.value"
+                        @change="onLayerChange"
+                    />
+                    <label :for="layer.value">
+                        &nbsp;{{ layer.label }}
+                    </label>
+                </div>
             </div>
-        </Popover>
-    </div>
+        </Panel>
+    </Popover>
 </template>
 
 <script setup lang="ts">
@@ -93,23 +81,3 @@ watch(() => layerPanel.value?.visible, (visible) => {
     showLayerPanel.value = visible ?? false;
 });
 </script>
-
-<style scoped>
-.layer-control-container {
-    position: relative;
-}
-
-/* AI : Custom popover styling */
-:deep(.layer-popover) {
-    width: 280px;
-}
-
-:deep(.layer-popover .p-panel-header) {
-    padding: 0.75rem 1rem;
-    font-size: 0.875rem;
-}
-
-:deep(.layer-popover .p-panel-content) {
-    padding: 0.75rem 1rem;
-}
-</style>
