@@ -34,7 +34,7 @@ export default {
             const isLocal = url.hostname === 'localhost' || url.hostname === '127.0.0.1'
             const databaseUrl = (isLocal && env.DATABASE_URL)
                 ? env.DATABASE_URL
-                : env.HYPERDRIVE?.connectionString || env.DATABASE_URL!
+                : env.HYPERDRIVE?.connectionString ?? env.DATABASE_URL!
 
             if (!databaseUrl) {
                 throw new Error('No database connection available')

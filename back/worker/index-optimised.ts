@@ -136,8 +136,8 @@ export default {
             // AI : Database URL resolution
             const isLocal = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
             const databaseUrl = (isLocal && (env.DATABASE_URL || process.env.DATABASE_URL))
-                ? (env.DATABASE_URL || process.env.DATABASE_URL!)
-                : env.HYPERDRIVE?.connectionString || env.DATABASE_URL || process.env.DATABASE_URL!;
+                ? (env.DATABASE_URL ?? process.env.DATABASE_URL!)
+                : env.HYPERDRIVE?.connectionString ?? env.DATABASE_URL ?? process.env.DATABASE_URL!;
 
                 console.log('Minimal. Using database URL:', databaseUrl);
             if (!databaseUrl) {

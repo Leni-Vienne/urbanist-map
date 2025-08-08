@@ -630,7 +630,7 @@ export async function navigateToOverlay(overlayId: string, centerMap: boolean = 
       await renderViewModeOverlays([cdnOverlay], true, false);
 
       // AI : Also render intersecting overlays if they exist
-      if (result.intersectingOverlays && result.intersectingOverlays.length > 0) {
+      if (result?.intersectingOverlays.length > 0) {
         console.log(`AI : Rendering ${result.intersectingOverlays.length} intersecting overlays`);
 
         const intersectingCdnOverlays = result.intersectingOverlays.map(transformBackendOverlayToCDN);

@@ -126,7 +126,6 @@ import { useProjects } from '@composables/project/useProjects';
 import { fetchNearbyProjects, getNearbyProjects } from '@composables/project/useNearbyProjects';
 import { lastCreatedProjectId, setFileUploadFlow } from '@composables/ui/useRouterNavigation';
 import { useSelectedProject } from '@composables/project/useSelectedProject';
-import { storeToRefs } from 'pinia';
 import { router } from '../../router';
 import type { Project } from '@types';
 

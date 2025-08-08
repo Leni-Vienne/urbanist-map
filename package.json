@@ -45,6 +45,7 @@
     "zod": "^4.0.15"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250807.0",
     "@primevue/auto-import-resolver": "^4.3.7",
     "@types/bun": "^1.2.19",
     "@types/cors": "^2.8.19",
