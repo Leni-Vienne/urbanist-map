@@ -1,4 +1,3 @@
-// filepath: d:\Documents\Perso\prog\city-map-overlay\src\components\MapView.vue
 <template>
   <div
     id="viewerDiv"
@@ -17,32 +16,24 @@
       class="map-buttons"
       :class="{ 'buttons-hidden': isRouteActive }"
     >
-      <div class="control-button-container">
-        <Button
-          icon="pi pi-plus"
-          @click="handleAddOverlayClick"
-          aria-label="Add Image Overlay"
-          v-tooltip.right="'Add Image Overlay'"
-          class="map-control-button"
-        />
-      </div>
-      <div class="control-button-container">
-        <Button
-          icon="pi pi-bars"
-          @click="navigateToProjects"
-          aria-haspopup="true"
-          aria-controls="project_menu"
-          v-tooltip.right="'Manage Projects'"
-          class="map-control-button"
-        />
-      </div>
-      <div class="control-button-container">
-        <LayerControl />
-      </div>
+      <Button
+        icon="pi pi-plus"
+        @click="handleAddOverlayClick"
+        aria-label="Add Image Overlay"
+        v-tooltip.right="'Add Image Overlay'"
+        class="map-control-button"
+      />
+      <Button
+        icon="pi pi-bars"
+        @click="navigateToProjects"
+        aria-haspopup="true"
+        aria-controls="project_menu"
+        v-tooltip.right="'Manage Projects'"
+        class="map-control-button"
+      />
+      <LayerControl />
 
-      <div class="control-button-container">
-        <EditModeToggle />
-      </div>
+      <EditModeToggle />
     </div>
   </div>
   <Dialog
@@ -88,9 +79,9 @@ import ImageUploadDialog from '@components/dialogs/ImageUploadDialog.vue';
 const projectStore = useProjectStore();
 const overlayStore = useOverlayStore();
 const { projects } = storeToRefs(projectStore);
-const { 
-  isEditMode,  
-  showImageUploadDialog, 
+const {
+  isEditMode,
+  showImageUploadDialog,
   replacementOverlayId,
   pendingImageFile
 } = storeToRefs(overlayStore);
@@ -361,34 +352,6 @@ async function handleToggleEditMode(newValue: boolean) {
   pointer-events: auto;
 }
 
-/* AI : Professional control button styling using standard CSS and PrimeVue tokens */
-.control-button-container {
-  background-color: var(--p-surface-0);
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-  transition: all 150ms ease-out;
-}
-
-.control-button-container:hover {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-  transform: translateY(-1px);
-}
-
-.map-control-button {
-  width: 44px;
-  height: 44px;
-  border-radius: 0.5rem;
-}
-
-.map-control-button:hover {
-  background: var(--p-surface-50) !important;
-  color: var(--p-surface-800) !important;
-}
-
-.map-control-button:active {
-  background: var(--p-surface-100) !important;
-}
-
 .loading-overlay {
   position: absolute;
   top: 0;
@@ -406,84 +369,4 @@ async function handleToggleEditMode(newValue: boolean) {
   text-align: center;
 }
 
-.view-mode-panel {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  width: 300px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  overflow: hidden;
-}
-
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.panel-header h3 {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--p-surface-600);
-}
-
-.overlay-count {
-  background: #007bff;
-  color: white;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.panel-content {
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.overlay-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 16px;
-  border-bottom: 1px solid #f1f3f4;
-}
-
-.overlay-item:last-child {
-  border-bottom: none;
-}
-
-.overlay-item:hover {
-  background: #f8f9fa;
-}
-
-.overlay-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.overlay-caption {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--p-surface-800);
-}
-
-.overlay-sequence {
-  font-size: 11px;
-  color: var(--p-surface-500);
-}
-
-.overlay-distance {
-  font-size: 12px;
-  color: var(--p-green-600);
-  font-weight: 500;
-}
 </style>

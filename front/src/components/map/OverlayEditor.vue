@@ -7,7 +7,6 @@
       header="Edit Overlay Information" 
       :modal="true"
       :closable="true"
-      class="edit-overlay-dialog"
       :closeOnEscape="true"
       :dismissableMask="true"
       :draggable="false"

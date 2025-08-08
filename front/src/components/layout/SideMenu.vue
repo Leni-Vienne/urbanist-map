@@ -168,10 +168,6 @@ const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
   align-items: center;
 }
 
-.panel-toggle-button {
-  color: var(--p-primary-600);
-}
-
 .close-button {
   display: none;
   /* AI : Hidden on desktop by default */
