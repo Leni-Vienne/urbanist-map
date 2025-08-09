@@ -24,7 +24,7 @@
         >
           <AccordionHeader>
             <div class="project-name-section">
-              <span class="project-name">{{ project.name }}</span>
+              <span class="project-name">{{ project.name }}&nbsp;</span>
               <Tag
                 :value="project.status"
                 :severity="getStatusSeverity(project.status)"
@@ -334,116 +334,12 @@ function getStatusSeverity(status: string): string {
   color: var(--p-surface-800);
 }
 
-/* AI : Project header customization - simplified */
-
-/* AI : Accordion header hover effects */
-:deep(.p-accordion-panel .p-accordion-header) {
-  transition: background-color 0.15s ease;
-}
-
-:deep(.p-accordion-panel .p-accordion-header:hover) {
-  background-color: var(--p-surface-50) !important;
-}
-
-:deep(.p-accordion-panel .p-accordion-header .p-accordion-header-content) {
-  transition: all 0.15s ease;
-}
-
-:deep(.p-accordion-panel .p-accordion-header:hover .p-accordion-header-content) {
-  color: var(--p-surface-700) !important;
-}
-
-.project-name-section {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.project-name {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--p-surface-900);
-  margin: 0;
-}
-
-.project-status-tag {
-  font-size: 0.75rem;
-  text-transform: lowercase;
-}
-
-/* AI : Project content layout */
-.project-content-wrapper {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-}
-
-.project-info-section {
-  flex: 1;
-}
+/* AI : Project structure styles moved to SideMenu.vue */
 
 .project-actions {
   display: flex;
   gap: 0.5rem;
   flex-shrink: 0;
-}
-
-
-/* AI : Project details */
-.project-details-card {
-  margin-bottom: 1rem;
-  box-shadow: none;
-  border: none;
-  background-color: #f8f9fa;
-}
-
-.project-description p {
-  margin: 0 0 1rem 0;
-  color: var(--p-surface-700);
-  line-height: 1.5;
-}
-
-.project-metadata {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-/* AI : Metadata items */
-.metadata-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--p-surface-600);
-  font-size: 0.875rem;
-}
-
-.metadata-item i {
-  color: var(--p-surface-500);
-}
-
-.country-flag {
-  width: 1rem;
-  height: 0.75rem;
-  border-radius: 0.125rem;
-}
-
-/* AI : Overlay name styling to match LatestOverlaysPanel */
-.overlay-name {
-  font-weight: 600;
-  color: var(--p-surface-900);
-  font-size: 0.875rem;
-  margin-bottom: 0.25rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* AI : Status tag styling */
-.overlay-status-tag {
-  font-size: 0.75rem;
-  text-transform: lowercase;
 }
 
 /* AI : Clean action buttons matching prototype */

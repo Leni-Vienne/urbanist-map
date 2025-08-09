@@ -186,6 +186,101 @@ const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
   min-height: 0; /* AI : Allow flex item to shrink below content size */
 }
 
+/* AI : Shared accordion hover styles for all panels */
+.sidecolumn {
+  --p-accordion-header-hover-background: var(--p-surface-50);
+}
+
+/* AI : Shared utility classes for common panel elements */
+.sidecolumn .country-flag {
+  width: 1rem;
+  height: 0.75rem;
+  border-radius: 0.125rem;
+}
+
+.sidecolumn .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.sidecolumn .overlay-status-tag,
+.sidecolumn .project-status-tag {
+  font-size: 0.75rem;
+  text-transform: lowercase;
+}
+
+.sidecolumn .overlay-name {
+  font-weight: 600;
+  color: var(--p-surface-900);
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidecolumn .metadata-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--p-surface-600);
+  font-size: 0.875rem;
+}
+
+.sidecolumn .metadata-item i {
+  color: var(--p-surface-500);
+}
+
+.sidecolumn .project-description p {
+  margin: 0 0 1rem 0;
+  color: var(--p-surface-700);
+  line-height: 1.5;
+}
+
+.sidecolumn .project-metadata {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sidecolumn .project-content-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.sidecolumn .project-info-section {
+  flex: 1;
+}
+
+.sidecolumn .project-details-card {
+  margin-bottom: 1rem;
+  box-shadow: none;
+  border: none;
+  background-color: #f8f9fa;
+}
+
+.sidecolumn .project-name-section {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sidecolumn .project-name {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--p-surface-900);
+  margin: 0;
+}
+
 /* AI : Mobile responsive styles */
 @media (max-width: 768px) {
   .mobile-backdrop {

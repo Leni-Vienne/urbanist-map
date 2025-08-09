@@ -21,7 +21,7 @@
         >
           <AccordionHeader>
             <div class="project-name-section">
-              <span class="project-name">{{ project.name }}</span>
+              <span class="project-name">{{ project.name }} &nbsp;</span>
               <Tag
                 :value="project.status"
                 :severity="getStatusSeverity(project.status)"
@@ -328,15 +328,6 @@ onMounted(() => {
   color: var(--p-surface-700);
 }
 
-.project-name {
-  font-weight: 600;
-  color: var(--p-surface-900);
-  font-size: 0.875rem;
-  margin-bottom: 0.25rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 .project-location {
   display: flex;
@@ -357,125 +348,11 @@ onMounted(() => {
   text-transform: lowercase;
 }
 
-/* AI : Accordion styling to match moderation panel */
-:deep(.p-accordion-panel .p-accordion-header) {
-  transition: background-color 0.15s ease;
-}
-
-:deep(.p-accordion-panel .p-accordion-header:hover) {
-  background-color: var(--p-surface-50) !important;
-}
-
-:deep(.p-accordion-panel .p-accordion-header .p-accordion-header-content) {
-  transition: all 0.15s ease;
-}
-
-:deep(.p-accordion-panel .p-accordion-header:hover .p-accordion-header-content) {
-  color: var(--p-surface-700) !important;
-}
-
-.project-name-section {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.project-name {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--p-surface-900);
-  margin: 0;
-}
+/* AI : Project name section styles moved to SideMenu.vue */
 
 .project-status-tag {
   font-size: 0.75rem;
   text-transform: lowercase;
-}
-
-.project-details-card {
-  margin-bottom: 1rem;
-  box-shadow: none;
-  border: none;
-  background-color: #f8f9fa;
-}
-
-.project-content-wrapper {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-}
-
-.project-info-section {
-  flex: 1;
-}
-
-.project-description p {
-  margin: 0 0 1rem 0;
-  color: var(--p-surface-700);
-  line-height: 1.5;
-}
-
-.project-metadata {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.metadata-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--p-surface-600);
-  font-size: 0.875rem;
-}
-
-.metadata-item i {
-  color: var(--p-surface-500);
-}
-
-.country-flag {
-  width: 1rem;
-  height: 0.75rem;
-  border-radius: 0.125rem;
-}
-
-/* AI : Overlay name styling to match LatestOverlaysPanel */
-.overlay-name {
-  font-weight: 600;
-  color: var(--p-surface-900);
-  font-size: 0.875rem;
-  margin-bottom: 0.25rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* AI : Status tag styling */
-.overlay-status-tag {
-  font-size: 0.75rem;
-  text-transform: lowercase;
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-/* AI : Accordion header hover effects */
-:deep(.p-accordion-panel .p-accordion-header:hover) {
-  background-color: var(--p-surface-50) !important;
-}
-
-:deep(.p-accordion-panel .p-accordion-header:hover .p-accordion-toggle-icon) {
-  color: var(--p-primary-color) !important;
 }
 
 /* AI : Mobile responsive adjustments */
