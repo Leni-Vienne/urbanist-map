@@ -185,15 +185,7 @@ onMounted(() => {
   color: var(--p-surface-800);
 }
 
-.overlay-name {
-  font-weight: 600;
-  color: var(--p-surface-900);
-  font-size: 0.875rem;
-  margin-bottom: 0.25rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+/* AI : overlay-name style moved to SideMenu.vue */
 
 .overlay-project {
   display: flex;
@@ -209,17 +201,7 @@ onMounted(() => {
   color: var(--p-blue-500);
 }
 
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
+/* AI : sr-only style moved to SideMenu.vue */
 
 /* AI : Mobile responsive adjustments */
 @media (max-width: 768px) {
