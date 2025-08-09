@@ -1,7 +1,9 @@
 <template>
   <div class="latest-overlays-panel">
     <div class="panel-content">
-      <h3 class="panel-title">Latest Images</h3>
+      <div class="panel-header">
+        <h3 class="panel-title">Latest Images</h3>
+      </div>
       
       <div class="flex flex-col gap-3" v-if="overlays.length > 0">
         <div 
@@ -171,18 +173,28 @@ onMounted(() => {
   flex-direction: column;
 }
 
+.panel-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--p-surface-900);
+  letter-spacing: -0.025em;
+}
+
 .panel-content {
   flex: 1;
-  padding: 1rem;
+  padding: 1rem 0 1rem 1rem;
   /* AI : No overflow on individual panels - parent handles scrolling */
   overflow: visible;
 }
 
-.panel-title {
-  margin: 0 0 1rem 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--p-surface-800);
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--p-primary-100);
 }
 
 /* AI : overlay-name style moved to SideMenu.vue */

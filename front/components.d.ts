@@ -28,6 +28,7 @@ declare module 'vue' {
     OverlayItem: typeof import('./src/components/map/OverlayItem.vue')['default']
     Panel: typeof import('primevue/panel')['default']
     Popover: typeof import('primevue/popover')['default']
+    ProjectAccordionPanel: typeof import('./src/components/layout/ProjectAccordionPanel.vue')['default']
     ProjectActions: typeof import('./src/components/project/ProjectActions.vue')['default']
     ProjectEditor: typeof import('./src/components/project/ProjectEditor.vue')['default']
     ProjectForm: typeof import('./src/components/project/ProjectForm.vue')['default']
