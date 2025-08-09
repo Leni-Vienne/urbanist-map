@@ -1,7 +1,7 @@
 import { publicProcedure, router } from '../trpc';
 import { z } from 'zod';
 import { projects, cities, overlays } from '../db/schema';
-import { eq, sql, and } from 'drizzle-orm';
+import { eq, sql, and, inArray } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../db/schema';
@@ -203,6 +203,75 @@ export function createProjectRouter(db: PostgresJsDatabase<typeof schema>) {
         } catch (error) {
           console.error('Error fetching projects by city:', error);
           throw new Error('Failed to fetch projects by city');
+        }
+      }),
+      
+    // AI : Get all projects for contributions panel with overlays
+    getAllProjects: publicProcedure
+      .input(z.object({
+        limit: z.number().min(1).max(100).optional().default(50)
+      }))
+      .query(async ({ input }) => {
+        try {
+          // AI : Get all projects
+          const allProjects = await db
+            .select({
+              id: projects.id,
+              name: projects.name,
+              description: projects.description,
+              status: projects.status,
+              ownerId: projects.ownerId,
+              cityId: projects.cityId,
+              startDate: projects.startDate,
+              endDate: projects.endDate,
+              sourceUrl: projects.sourceUrl,
+              latestUpdateOn: projects.latestUpdateOn,
+              createdAt: projects.createdAt,
+              updatedAt: projects.updatedAt,
+              city: {
+                id: cities.id,
+                name: cities.name,
+                countryCode: cities.countryCode,
+                lat: sql<number>`ST_Y(${cities.coordinates})`,
+                lng: sql<number>`ST_X(${cities.coordinates})`
+              }
+            })
+            .from(projects)
+            .leftJoin(cities, eq(projects.cityId, cities.id))
+            .orderBy(sql`${projects.updatedAt} DESC`)
+            .limit(input.limit);
+
+          // AI : Get overlays for all projects
+          const projectIds = allProjects.map(p => p.id);
+          const projectOverlays = projectIds.length > 0 ? await db
+            .select({
+              id: overlays.id,
+              name: sql<string>`coalesce(${overlays.caption}, 'Unnamed')`,
+              filename: overlays.filename,
+              status: overlays.status,
+              projectId: overlays.projectId,
+              updatedAt: overlays.updatedAt,
+              cityName: cities.name,
+              countryCode: cities.countryCode,
+              countryName: cities.name,
+            })
+            .from(overlays)
+            .leftJoin(projects, eq(overlays.projectId, projects.id))
+            .leftJoin(cities, eq(projects.cityId, cities.id))
+            .where(inArray(overlays.projectId, projectIds))
+            .orderBy(overlays.updatedAt) : [];
+
+          // AI : Group overlays by project and add overlay count
+          const projectsWithOverlays = allProjects.map(project => ({
+            ...project,
+            overlays: projectOverlays.filter(overlay => overlay.projectId === project.id),
+            overlayCount: projectOverlays.filter(overlay => overlay.projectId === project.id).length,
+          }));
+
+          return projectsWithOverlays;
+        } catch (error) {
+          console.error('Error fetching all projects:', error);
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch all projects' });
         }
       })
   });

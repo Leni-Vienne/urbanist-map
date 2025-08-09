@@ -7,6 +7,7 @@ import ToastService from 'primevue/toastservice';
 import { router } from './router';
 import { createPinia } from 'pinia';
 
+
 // AI : Custom PrimeVue preset for Construction Map
 const ConstructionMapPreset = definePreset(Aura, {
   semantic: {
@@ -48,6 +49,8 @@ app.use(createPinia());
 
 // @ts-ignore - AI : PrimeVue configuration type issue
 app.use(PrimeVue, {
+  ripple: true,
+  inputVariant: "filled",
   theme: {
     preset: ConstructionMapPreset,
     options: {

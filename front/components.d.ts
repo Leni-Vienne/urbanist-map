@@ -23,7 +23,7 @@ declare module 'vue' {
     LayerControl: typeof import('./src/components/map/LayerControl.vue')['default']
     MapView: typeof import('./src/components/map/MapView.vue')['default']
     ModerationPanel: typeof import('./src/components/layout/ModerationPanel.vue')['default']
-    MyUploadsPanel: typeof import('./src/components/layout/MyUploadsPanel.vue')['default']
+    MyContributionsPanel: typeof import('./src/components/layout/MyContributionsPanel.vue')['default']
     OverlayEditor: typeof import('./src/components/map/OverlayEditor.vue')['default']
     OverlayItem: typeof import('./src/components/map/OverlayItem.vue')['default']
     Panel: typeof import('primevue/panel')['default']

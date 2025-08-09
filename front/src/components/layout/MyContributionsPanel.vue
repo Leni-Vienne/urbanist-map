@@ -1,25 +1,22 @@
 <template>
-  <div class="moderation-panel">
+  <div class="my-contributions-panel">
     <div class="panel-content">
       <div class="panel-header">
-        <h3 class="panel-title">Pending Projects</h3>
-        <Button
-          icon="pi pi-undo"
-          class="p-button-text p-button-rounded"
-          @click="handleUndo"
-          :disabled="!canUndo"
-          label="Undo"
-          v-tooltip.top="undoTooltip"
-          aria-label="Undo last action"
-        />
+        <h3 class="panel-title">My Contributions</h3>
+        <div class="filter-controls">
+          <div class="field-checkbox">
+            <Checkbox v-model="showApprovedRejected" inputId="showApprovedRejected" binary />
+            <label for="showApprovedRejected">Show approved/rejected</label>
+          </div>
+        </div>
       </div>
-
+      
       <Accordion
-        v-if="projects.length > 0"
+        v-if="filteredProjects.length > 0"
         :multiple="true"
       >
         <AccordionPanel
-          v-for="project in projects"
+          v-for="project in filteredProjects"
           :value="project.id"
         >
           <AccordionHeader>
@@ -33,9 +30,7 @@
             </div>
           </AccordionHeader>
           <AccordionContent>
-
             <Card class="project-details-card">
-              <!-- AI : Project description and metadata -->
               <template #content>
                 <div class="project-content-wrapper">
                   <div class="project-info-section">
@@ -52,46 +47,29 @@
                       </div>
                       <div
                         class="metadata-item"
-                        v-if="project.cityName"
+                        v-if="project.city?.name"
                       >
                         <i class="pi pi-map-marker"></i>
                         <img
-                          v-if="project.countryCode"
-                          :src="getFlagUrl(project.countryCode)"
-                          :alt="project.countryCode"
+                          v-if="project.city?.countryCode"
+                          :src="getFlagUrl(project.city.countryCode)"
+                          :alt="project.city.countryCode"
                           class="country-flag"
                           @error="hideFlagOnError"
                         />
-                        <span>{{ getProjectLocationDisplay(project) }}</span>
+                        <span>{{ project.city.name }}</span>
+                      </div>
+                      <div class="metadata-item">
+                        <i class="pi pi-images"></i>
+                        <span>{{ project.overlayCount }} overlays</span>
                       </div>
                     </div>
-                  </div>
-
-                  <!-- AI : Project approval actions in the same grey card -->
-                  <div
-                    class="project-actions"
-                    v-if="project.status === 'pending'"
-                  >
-                    <button
-                      class="action-btn approve-btn"
-                      @click="approveProject(project.id)"
-                      v-tooltip.top="'Approve Project'"
-                    >
-                      <i class="pi pi-check"></i>
-                    </button>
-                    <button
-                      class="action-btn reject-btn"
-                      @click="rejectProject(project.id)"
-                      v-tooltip.top="'Reject Project'"
-                    >
-                      <i class="pi pi-times"></i>
-                    </button>
                   </div>
                 </div>
               </template>
             </Card>
 
-            <!-- AI : Project overlays - match LatestOverlaysPanel structure -->
+            <!-- AI : Project overlays - match ModerationPanel structure -->
             <div
               v-if="project.overlays && project.overlays.length > 0"
               class="flex flex-col gap-3 mt-4"
@@ -99,7 +77,8 @@
               <div
                 v-for="overlay in project.overlays"
                 :key="overlay.id"
-                class="flex items-center gap-3 bg-white border border-surface-300 rounded-lg p-3 transition-all hover:border-surface-400 hover:shadow-sm"
+                class="flex items-center gap-3 bg-white border border-surface-300 rounded-lg p-3 cursor-pointer transition-all hover:border-surface-400 hover:shadow-sm"
+                @click="handleOverlayClick(overlay)"
               >
                 <!-- AI : Overlay thumbnail -->
                 <div
@@ -144,91 +123,98 @@
                   />
                 </div>
 
-                <!-- AI : Overlay actions -->
-                <div
-                  class="flex flex-col gap-2"
-                  v-if="overlay.status === 'pending'"
+                <!-- AI : Zoom button -->
+                <button 
+                  class="bg-surface-50 border border-surface-200 rounded-md w-8 h-8 flex items-center justify-center text-surface-500 hover:bg-surface-100 hover:text-surface-600 transition-all flex-shrink-0" 
+                  @click.stop="handleOverlayClick(overlay)"
                 >
-                  <button
-                    class="action-btn approve-btn"
-                    @click="approveOverlay(overlay.id)"
-                    v-tooltip.top="'Approve'"
-                  >
-                    <i class="pi pi-check"></i>
-                  </button>
-                  <button
-                    class="action-btn reject-btn"
-                    @click="rejectOverlay(overlay.id)"
-                    v-tooltip.top="'Reject'"
-                  >
-                    <i class="pi pi-times"></i>
-                  </button>
-                </div>
+                  <i class="pi pi-search"></i>
+                  <span class="sr-only">Zoom to {{ overlay.name }}</span>
+                </button>
               </div>
             </div>
           </AccordionContent>
         </AccordionPanel>
       </Accordion>
-
-      <Card
-        v-else
-        class="empty-state-card"
-      >
-        <template #content>
-          <div class="empty-state">
-            <i
-              class="pi pi-folder"
-              style="font-size: 3rem; color: var(--surface-400); margin-bottom: 1rem;"
-            ></i>
-            <h4>No projects to moderate</h4>
-            <p>All caught up!</p>
-          </div>
-        </template>
-      </Card>
+      
+      <div class="flex flex-col gap-3" v-else-if="projects.length > 0 && filteredProjects.length === 0">
+        <div class="flex flex-col items-center justify-center p-12 text-center text-surface-600">
+          <i class="pi pi-filter text-5xl text-surface-400 mb-4"></i>
+          <p class="text-base mb-2">No projects match the current filter.</p>
+          <p class="text-sm">Try changing your filter settings.</p>
+        </div>
+      </div>
+      
+      <div v-else-if="!isLoading" class="flex flex-col items-center justify-center p-12 text-center text-surface-600">
+        <i class="pi pi-folder text-5xl text-surface-400 mb-4"></i>
+        <p class="text-base mb-2">No projects found.</p>
+        <p class="text-sm">Create your first construction project!</p>
+      </div>
+      
+      <div v-if="isLoading" class="flex flex-col items-center justify-center p-12 text-center text-surface-600">
+        <i class="pi pi-spin pi-spinner text-2xl mb-4"></i>
+        <p>Loading projects...</p>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useModeration } from '../../composables/overlay/useModeration'
+import { ref, onMounted, computed } from 'vue'
+import { trpc } from '../../client'
 import { buildImageUrl, formatRelativeTime } from '../../utils'
 import { navigateToOverlay } from '../../composables/overlay/useOverlayActions'
-import Button from 'primevue/button'
+import Tag from 'primevue/tag'
 import Accordion from 'primevue/accordion'
 import AccordionPanel from 'primevue/accordionpanel'
 import AccordionHeader from 'primevue/accordionheader'
 import AccordionContent from 'primevue/accordioncontent'
 import Card from 'primevue/card'
-import Badge from 'primevue/badge'
-import Tag from 'primevue/tag'
+import Checkbox from 'primevue/checkbox'
 
-defineEmits<{
-  close: []
-  togglePanel: []
-}>()
-
-const { overlays, projects, recentActions, approveOverlay, rejectOverlay, approveProject, rejectProject, undoLastAction } = useModeration()
-
-// AI : Image error tracking
+// AI : Reactive state
+const projects = ref<any[]>([])
+const isLoading = ref(false)
+const showApprovedRejected = ref(false)
 const imageErrors = ref<Record<string, boolean>>({})
 
-// AI : Computed properties for undo functionality
-const canUndo = computed(() => recentActions.value.length > 0)
-
-const undoTooltip = computed(() => {
-  if (recentActions.value.length === 0) {
-    return 'No recent actions to undo'
+// AI : Computed filtered projects
+const filteredProjects = computed(() => {
+  if (showApprovedRejected.value) {
+    return projects.value
   }
-  const lastAction = recentActions.value[0]
-  return `Undo ${lastAction.newStatus} action for ${lastAction.itemType}: "${lastAction.itemName}"`
+  return projects.value.filter(project => project.status === 'pending')
 })
 
-const handleUndo = async () => {
-  const success = await undoLastAction()
-  if (!success) {
-    console.error('Failed to undo last action')
+// AI : Get flag URL for country
+function getFlagUrl(countryCode: string): string {
+  return `https://flagcdn.com/16x12/${countryCode.toLowerCase()}.png`
+}
+
+// AI : Hide flag on error
+function hideFlagOnError(event: Event) {
+  const target = event.target as HTMLImageElement
+  target.style.display = 'none'
+}
+
+// AI : Get badge severity based on status
+function getStatusSeverity(status: string): string {
+  switch (status) {
+    case 'approved':
+      return 'success'
+    case 'rejected':
+      return 'danger'
+    case 'pending':
+      return 'warning'
+    default:
+      return 'info'
   }
+}
+
+// AI : Handle project click - navigate to project or open it
+function handleProjectClick(project: any) {
+  // AI : For now, just log the project - can be extended later
+  console.log('Project clicked:', project.name, project.id)
 }
 
 // AI : Get overlay image URL using the utility function
@@ -253,29 +239,6 @@ function handleImageLoad(event: Event, overlayId: string) {
   imageErrors.value[overlayId] = false
 }
 
-// AI : Get flag URL for country
-function getFlagUrl(countryCode: string): string {
-  return `https://flagcdn.com/16x12/${countryCode.toLowerCase()}.png`
-}
-
-// AI : Hide flag on error
-function hideFlagOnError(event: Event) {
-  const target = event.target as HTMLImageElement
-  target.style.display = 'none'
-}
-
-// AI : Get project location display (city, country)
-function getProjectLocationDisplay(project: any): string {
-  if (project.cityName && project.countryName) {
-    return `${project.cityName}, ${project.countryName}`
-  } else if (project.cityName) {
-    return project.cityName
-  } else if (project.countryName) {
-    return project.countryName
-  }
-  return 'Unknown Location'
-}
-
 // AI : Get overlay location display (city, country)
 function getOverlayLocationDisplay(overlay: any): string {
   if (overlay.cityName && overlay.countryName) {
@@ -288,24 +251,39 @@ function getOverlayLocationDisplay(overlay: any): string {
   return 'Unknown Location'
 }
 
-// AI : Get badge severity based on status
-function getStatusSeverity(status: string): string {
-  switch (status) {
-    case 'approved':
-      return 'success'
-    case 'rejected':
-      return 'danger'
-    case 'pending':
-      return 'warning'
-    default:
-      return 'info'
+// AI : Handle overlay click - navigate to overlay
+async function handleOverlayClick(overlay: any) {
+  try {
+    await navigateToOverlay(overlay.id)
+    console.log('Successfully navigated to overlay:', overlay.id)
+  } catch (error) {
+    console.error('Failed to navigate to overlay:', error)
   }
 }
 
+// AI : Fetch all projects from API
+async function fetchAllProjects() {
+  try {
+    isLoading.value = true
+    const result = await trpc.project.getAllProjects.query({
+      limit: 50
+    })
+    projects.value = result
+  } catch (error) {
+    console.error('Error fetching projects:', error)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// AI : Load initial data
+onMounted(() => {
+  fetchAllProjects()
+})
 </script>
 
 <style scoped>
-.moderation-panel {
+.my-contributions-panel {
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -313,9 +291,7 @@ function getStatusSeverity(status: string): string {
 
 .panel-content {
   flex: 1;
-  padding-right:0;
-  padding-top:0.5rem;
-  padding-left: 0.5rem;
+  padding: 1rem;
   /* AI : No overflow on individual panels - parent handles scrolling */
   overflow: visible;
 }
@@ -323,20 +299,65 @@ function getStatusSeverity(status: string): string {
 .panel-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 1rem;
+}
+
+.filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.field-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.field-checkbox label {
+  font-size: 0.875rem;
+  color: var(--p-surface-600);
+  cursor: pointer;
 }
 
 .panel-title {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 600;
-  color: var(--p-surface-800);
+  color: var(--p-surface-700);
 }
 
-/* AI : Project header customization - simplified */
+.project-name {
+  font-weight: 600;
+  color: var(--p-surface-900);
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
-/* AI : Accordion header hover effects */
+.project-location {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--p-blue-600);
+  font-size: 0.75rem;
+  margin-bottom: 0.25rem;
+  font-weight: 500;
+}
+
+.project-location i {
+  color: var(--p-blue-500);
+}
+
+.project-status-tag {
+  font-size: 0.75rem;
+  text-transform: lowercase;
+}
+
+/* AI : Accordion styling to match moderation panel */
 :deep(.p-accordion-panel .p-accordion-header) {
   transition: background-color 0.15s ease;
 }
@@ -371,7 +392,13 @@ function getStatusSeverity(status: string): string {
   text-transform: lowercase;
 }
 
-/* AI : Project content layout */
+.project-details-card {
+  margin-bottom: 1rem;
+  box-shadow: none;
+  border: none;
+  background-color: #f8f9fa;
+}
+
 .project-content-wrapper {
   display: flex;
   justify-content: space-between;
@@ -381,21 +408,6 @@ function getStatusSeverity(status: string): string {
 
 .project-info-section {
   flex: 1;
-}
-
-.project-actions {
-  display: flex;
-  gap: 0.5rem;
-  flex-shrink: 0;
-}
-
-
-/* AI : Project details */
-.project-details-card {
-  margin-bottom: 1rem;
-  box-shadow: none;
-  border: none;
-  background-color: #f8f9fa;
 }
 
 .project-description p {
@@ -410,7 +422,6 @@ function getStatusSeverity(status: string): string {
   gap: 0.5rem;
 }
 
-/* AI : Metadata items */
 .metadata-item {
   display: flex;
   align-items: center;
@@ -446,84 +457,37 @@ function getStatusSeverity(status: string): string {
   text-transform: lowercase;
 }
 
-/* AI : Clean action buttons matching prototype */
-.action-btn {
-  width: 32px;
-  height: 32px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  background: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  font-size: 0.875rem;
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
-.action-btn:hover {
-  border-color: #d1d5db;
-  background-color: #f9fafb;
+/* AI : Accordion header hover effects */
+:deep(.p-accordion-panel .p-accordion-header:hover) {
+  background-color: var(--p-surface-50) !important;
 }
 
-.approve-btn {
-  color: #059669;
+:deep(.p-accordion-panel .p-accordion-header:hover .p-accordion-toggle-icon) {
+  color: var(--p-primary-color) !important;
 }
 
-.approve-btn:hover {
-  background-color: #ecfdf5;
-  border-color: #a7f3d0;
-}
-
-.reject-btn {
-  color: #dc2626;
-}
-
-.reject-btn:hover {
-  background-color: #fef2f2;
-  border-color: #fecaca;
-}
-
-/* AI : Empty state */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-  text-align: center;
-  color: var(--p-surface-600);
-}
-
-.empty-state h4 {
-  margin: 0.5rem 0;
-  color: var(--p-surface-700);
-}
-
-.empty-state p {
-  margin: 0;
-  color: var(--p-surface-500);
-}
-
-/* AI : Mobile responsive */
+/* AI : Mobile responsive adjustments */
 @media (max-width: 768px) {
   .panel-content {
     padding: 0.75rem;
   }
-
-  .project-info {
+  
+  .panel-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.75rem;
-  }
-
-  .overlay-content {
     gap: 1rem;
-  }
-
-  .overlay-thumbnail {
-    width: 3.5rem;
-    height: 3.5rem;
   }
 }
 </style>

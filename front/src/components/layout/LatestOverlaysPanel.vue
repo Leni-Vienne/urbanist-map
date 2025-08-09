@@ -16,10 +16,14 @@
               :src="getOverlayImageUrl(overlay.filename)" 
               :alt="overlay.filename"
               class="w-full h-full object-cover"
-              @error="handleImageError"
+              @error="(event) => handleImageError(event, overlay.id)"
+              @load="(event) => handleImageLoad(event, overlay.id)"
             />
             <!-- AI : Fallback letter if image fails -->
-            <div class="text-2xl font-bold text-surface-500">
+            <div 
+              class="text-2xl font-bold text-surface-500"
+              :class="{ 'hidden': !imageErrors[overlay.id] }"
+            >
               {{ getOverlayLetter(overlay.caption) }}
             </div>
           </div>
@@ -81,6 +85,7 @@ import { buildImageUrl, formatRelativeTime } from '../../utils'
 // AI : Reactive state
 const overlays = ref<any[]>([])
 const isLoading = ref(false)
+const imageErrors = ref<Record<string, boolean>>({})
 
 // AI : Get overlay image URL using the utility function
 function getOverlayImageUrl(filename: string): string {
@@ -98,9 +103,15 @@ function getFlagUrl(countryCode: string): string {
 }
 
 // AI : Handle image loading errors
-function handleImageError(event: Event) {
+function handleImageError(event: Event, overlayId: string) {
+  imageErrors.value[overlayId] = true
   const target = event.target as HTMLImageElement
   target.style.display = 'none'
+}
+
+// AI : Handle image loading success
+function handleImageLoad(event: Event, overlayId: string) {
+  imageErrors.value[overlayId] = false
 }
 
 // AI : Hide flag on error
@@ -162,12 +173,13 @@ onMounted(() => {
 
 .panel-content {
   flex: 1;
-  overflow-y: auto;
-  padding: 1.5rem;
+  padding: 1rem;
+  /* AI : No overflow on individual panels - parent handles scrolling */
+  overflow: visible;
 }
 
 .panel-title {
-  margin: 0 0 1.5rem 0;
+  margin: 0 0 1rem 0;
   font-size: 1.25rem;
   font-weight: 600;
   color: var(--p-surface-800);
