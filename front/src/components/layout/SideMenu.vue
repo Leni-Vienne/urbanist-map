@@ -184,6 +184,10 @@ const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
   flex-direction: column;
   /* AI : Scrollbar on the main container for better visual integration */
   min-height: 0; /* AI : Allow flex item to shrink below content size */
+  /* AI : Reserve space for scrollbar to prevent content shift - Windows scrollbar is typically 17px */
+  scrollbar-gutter: stable;
+  padding-right: 0rem;
+  box-sizing: content-box;
 }
 
 /* AI : Shared accordion hover styles for all panels */
@@ -279,6 +283,14 @@ const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
   font-weight: 600;
   color: var(--p-surface-900);
   margin: 0;
+}
+
+.sidecolumn .panel-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--p-surface-900);
+  letter-spacing: -0.025em;
 }
 
 /* AI : Mobile responsive styles */
