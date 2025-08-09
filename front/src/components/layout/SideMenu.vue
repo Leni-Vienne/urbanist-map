@@ -35,7 +35,7 @@
         :class="['tab-button', { active: activeTab === 'uploads' }]"
         @click="activeTab = 'uploads'"
       >
-        My Uploads
+        My Contributions
       </button>
       <button
         v-if="isModerator"
@@ -49,7 +49,7 @@
     <div class="sidecolumn__content">
       <!-- AI : Tab content based on active tab -->
       <LatestOverlaysPanel v-if="activeTab === 'latest'" />
-      <MyUploadsPanel v-else-if="activeTab === 'uploads'" />
+      <MyContributionsPanel v-else-if="activeTab === 'uploads'" />
       <ModerationPanel v-else-if="activeTab === 'admin'" />
     </div>
   </div>
@@ -62,7 +62,7 @@ import LatestOverlaysPanel from './LatestOverlaysPanel.vue' // static import sin
 
 // AI : Lazy load panels to reduce initial bundle size
 const ModerationPanel = defineAsyncComponent(() => import('./ModerationPanel.vue'))
-const MyUploadsPanel = defineAsyncComponent(() => import('./MyUploadsPanel.vue'))
+const MyContributionsPanel = defineAsyncComponent(() => import('./MyContributionsPanel.vue'))
 
 const props = defineProps<{
   isOpen: boolean
@@ -94,18 +94,22 @@ const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
   position: relative;
   flex-shrink: 0;
   width: 380px;
-  height: 100%;
+  height: 100vh; /* AI : Use viewport height instead of 100% */
+  max-height: 100vh; /* AI : Constrain maximum height */
   background-color: var(--p-surface-0);
   border-right: 1px solid var(--p-surface-200);
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
   transition: all 300ms ease-in-out;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   z-index: 1000;
+  overflow: hidden; /* AI : Prevent internal content from spilling outside container */
 }
 
 .sidecolumn--collapsed {
   width: 0;
   border-right: none;
+  overflow: hidden; /* AI : Hide content when collapsed */
 }
 
 .sidecolumn__header {
@@ -128,7 +132,6 @@ const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
 /* AI : Tab navigation styles */
 .tab-navigation {
   display: flex;
-  margin: 0 1.5rem;
   background-color: var(--p-surface-0);
   border-bottom: 1px solid var(--p-surface-100);
 }
@@ -176,9 +179,11 @@ const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
 
 .sidecolumn__content {
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
+  /* AI : Scrollbar on the main container for better visual integration */
+  min-height: 0; /* AI : Allow flex item to shrink below content size */
 }
 
 /* AI : Mobile responsive styles */
