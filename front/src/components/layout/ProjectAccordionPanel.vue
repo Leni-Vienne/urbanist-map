@@ -17,13 +17,14 @@
           :value="project.id"
         >
           <AccordionHeader>
-            <div class="project-name-section">
-              <span class="project-name">{{ project.name }}&nbsp;</span>
+            <div class="accordion-header-content">
+              <span class="project-name">{{ project.name }}</span>
               <Tag
                 :value="project.status"
                 :severity="getStatusSeverity(project.status)"
                 class="project-status-tag"
               />
+              
             </div>
           </AccordionHeader>
           <AccordionContent>
@@ -266,6 +267,19 @@ async function handleOverlayClick(overlay: any) {
 </script>
 
 <style scoped>
+/* AI : Style the accordion header content wrapper for proper alignment */
+.accordion-header-content {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  gap: 0.5rem !important;
+}
+
+/* AI : Add extra space to the right of status tags */
+.project-status-tag {
+  margin-right: 0.5rem;
+}
 /* AI : Component wrapper */
 .my-contributions-panel,
 .moderation-panel {
@@ -281,11 +295,15 @@ async function handleOverlayClick(overlay: any) {
 }
 
 .panel-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: var(--p-surface-0);
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 1.5rem;
-  padding-bottom: 0.75rem;
+  padding: 1rem 1rem 0.75rem 0;
   border-bottom: 2px solid var(--p-primary-100);
 }
 

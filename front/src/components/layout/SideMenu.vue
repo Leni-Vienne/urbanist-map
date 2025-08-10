@@ -90,6 +90,8 @@ const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
 }
 
 .sidecolumn {
+  --p-accordion-header-hover-background: var(--p-surface-100);
+  --p-accordion-header-active-hover-background: var(--p-surface-100);
   position: relative;
   flex-shrink: 0;
   width: 380px;
@@ -189,11 +191,6 @@ const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
   box-sizing: content-box;
 }
 
-/* AI : Shared accordion hover styles for all panels */
-.sidecolumn {
-  --p-accordion-header-hover-background: var(--p-surface-50);
-}
-
 /* AI : Shared utility classes for common panel elements */
 .sidecolumn .country-flag {
   width: 1rem;
@@ -271,11 +268,6 @@ const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
   background-color: #f8f9fa;
 }
 
-.sidecolumn .project-name-section {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
 
 .sidecolumn .project-name {
   font-size: 1.125rem;

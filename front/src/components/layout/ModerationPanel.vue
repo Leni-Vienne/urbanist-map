@@ -14,6 +14,7 @@
         :disabled="!canUndo"
         size="small"
         label="Undo"
+        severity="secondary"
         v-tooltip.top="undoTooltip"
         aria-label="Undo last action"
       />
