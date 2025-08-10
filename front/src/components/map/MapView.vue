@@ -24,11 +24,9 @@
         class="map-control-button"
       />
       <Button
-        icon="pi pi-bars"
-        @click="navigateToProjects"
-        aria-haspopup="true"
-        aria-controls="project_menu"
-        v-tooltip.right="'Manage Projects'"
+        icon="pi pi-cog"
+        @click="openProjectDialog"
+        v-tooltip.right="'Test Project Dialog'"
         class="map-control-button"
       />
       <LayerControl />
@@ -44,9 +42,20 @@
   >
     <ProjectPicker
       @project-selected="onProjectSelected"
+      @create-project="openProjectDialogFromPicker"
       :use-nearby-projects="true"
+      ref="projectPickerRef"
     />
   </Dialog>
+
+  <ProjectDialog
+    v-model:visible="showProjectDialogGlobally"
+    :project="{}"
+    mode="create"
+    title="Create New Project"
+    @submit="handleProjectCreated"
+    @cancel="handleProjectDialogCancel"
+  />
 
   <ImageUploadDialog
     v-model:visible="showImageUploadDialog"
@@ -55,7 +64,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, watch, computed, defineAsyncComponent } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 
 import { initializeMap, disableLeafletKeyboardEvents } from '@composables/core/useMap';
@@ -63,17 +72,20 @@ import { initializeCameraBounds } from '@composables/map/useCameraBounds';
 import { toggleEditMode } from '@composables/overlay/useEditMode';
 import { addOverlay, undo, redo } from '@composables/overlay/useOverlayActions';
 import { useToast } from '@composables/ui/useToast';
-import { navigateWithCoordinates, lastCreatedProjectId } from '@composables/ui/useRouterNavigation';
+import { lastCreatedProjectId } from '@composables/ui/useRouterNavigation';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
 import { initializeCountryMarkers } from '@composables/map/useCountryMarkers';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { storeToRefs } from 'pinia';
 import { fetchNearbyProjects } from '@composables/project/useNearbyProjects';
+import { useProjectDialogState } from '@composables/ui/useProjectDialogState';
 import LayerControl from '@components/map/LayerControl.vue';
 import EditModeToggle from '@components/map/EditModeToggle.vue';
 import ProjectPicker from '@components/project/ProjectPicker.vue';
-import ImageUploadDialog from '@components/dialogs/ImageUploadDialog.vue';
+
+const ProjectDialog = defineAsyncComponent(() => import('@components/project/ProjectDialog.vue'));
+const ImageUploadDialog = defineAsyncComponent(() => import('@components/dialogs/ImageUploadDialog.vue'));
 
 // AI: Get Pinia stores
 const projectStore = useProjectStore();
@@ -86,21 +98,45 @@ const {
   pendingImageFile
 } = storeToRefs(overlayStore);
 
+// AI : Use global project dialog state
+const { showProjectDialogGlobally, closeProjectDialog } = useProjectDialogState();
+
 // AI: Core state variables
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
+const showProjectDialog = ref(false);
 const showProjectSelector = ref(false);
 const isLoading = ref(true);
+const projectPickerRef = ref();
 
 // AI : Use view mode overlays for displaying overlays when camera moves
 const { startCameraTracking, stopCameraTracking } = useViewModeOverlays();
 
 const isRouteActive = computed(() => route.path !== '/' && !route.path.startsWith('/overlay'));
 
-// Navigate to projects while preserving coordinates
-function navigateToProjects() {
-  navigateWithCoordinates('/projects');
+// AI : Open project dialog for testing
+function openProjectDialog() {
+  showProjectDialog.value = true;
+}
+
+// AI : Handle create-project event from ProjectPicker
+function openProjectDialogFromPicker() {
+  console.log('AI: MapView received create-project event');
+  showProjectSelector.value = false;
+  showProjectDialog.value = true;
+}
+
+// AI : Handle project creation from dialog
+function handleProjectCreated(project: any) {
+  closeProjectDialog();
+  // AI : The project was created, it should trigger the lastCreatedProjectId watcher
+  // which will auto-select it in the project selector
+}
+
+// AI : Handle project dialog cancel
+function handleProjectDialogCancel() {
+  closeProjectDialog();
 }
 
 // AI : Open image upload dialog
@@ -130,7 +166,7 @@ async function handleAddOverlayClick() {
 async function onImageUploadFromDialog(file: File) {
   overlayStore.handleFileSelected(file);
 
-  // AI : Always show project selector for both new overlays and replacements
+  // AI : Show project selector for overlay workflow
   showProjectSelector.value = true;
 }
 
@@ -156,7 +192,6 @@ watch(() => isEditMode?.value, (editMode) => {
 watch(() => showProjectSelector.value, (newVal) => {
   if (!newVal && !lastCreatedProjectId.value) {
     overlayStore.clearPendingFile();
-    // AI : Don't reset replacementOverlayId here as it's needed after project selection
   }
 });
 

@@ -62,27 +62,29 @@
             <template #value="{ value, placeholder }">
               <div
                 v-if="value"
-                class="flex items-center"
+                class="flex items-center gap-2"
               >
                 <div
-                  class="color-circle mr-2"
+                  class="w-3 h-3 rounded-full flex-shrink-0"
                   :style="{ backgroundColor: getProjectById(value)?.color ?? '#ccc' }"
                 ></div>
-                <div>&nbsp;&nbsp;{{ getProjectById(value)?.name }}</div>
+                <span>{{ getProjectById(value)?.name }}</span>
               </div>
               <span v-else>{{ placeholder }}</span>
             </template>
 
             <template #option="{ option }">
-              <div class="flex items-center">
+              <div class="flex items-center gap-2">
                 <div
-                  class="color-circle mr-2"
+                  class="w-3 h-3 rounded-full flex-shrink-0"
                   :style="{ backgroundColor: option.color }"
                 ></div>
                 <div>
-                  <span>&nbsp;&nbsp;{{ option.name }}</span>
-                  <span class="text-sm text-gray-500 ml-2">({{ getOverlayCountForProject(option.id) }} overlays)</span>
-                  <div v-if="props.useNearbyProjects && option.city" class="text-xs text-gray-400 ml-2">
+                  <div class="flex items-center gap-2">
+                    <span>{{ option.name }}</span>
+                    <span class="text-sm opacity-75">({{ getOverlayCountForProject(option.id) }} overlays)</span>
+                  </div>
+                  <div v-if="props.useNearbyProjects && option.city" class="text-xs opacity-60">
                     {{ option.city.name }}, {{ option.city.countryCode }}
                   </div>
                 </div>
@@ -126,7 +128,7 @@ import { useProjects } from '@composables/project/useProjects';
 import { fetchNearbyProjects, getNearbyProjects } from '@composables/project/useNearbyProjects';
 import { lastCreatedProjectId, setFileUploadFlow } from '@composables/ui/useRouterNavigation';
 import { useSelectedProject } from '@composables/project/useSelectedProject';
-import { router } from '../../router';
+import { useProjectDialogState } from '@composables/ui/useProjectDialogState';
 import type { Project } from '@types';
 
 const props = defineProps({
@@ -156,7 +158,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['update:modelValue', 'project-selected', 'project-created', 'select-focus']);
+const emit = defineEmits(['update:modelValue', 'project-selected', 'project-created', 'select-focus', 'create-project']);
 
 // AI : Get store refs using the composable pattern
 const { projects } = useProjects();
@@ -166,6 +168,9 @@ const hasSelectError = ref(false);
 
 // AI : Use centralized selected project state
 const { selectedProjectId } = useSelectedProject();
+
+// AI : Use global project dialog state
+const { openProjectDialog } = useProjectDialogState();
 
 // AI : Get nearby projects composable
 const { projects: nearbyProjectsData, isLoading: nearbyLoading, error: nearbyError } = getNearbyProjects();
@@ -277,11 +282,15 @@ function confirmSelection() {
 
 function openNewProjectDialog() {
   try {
+    console.log('AI: ProjectPicker opening project dialog via global state');
     // AI : Set flag when creating from ProjectPicker
     setFileUploadFlow(true);
-    router.push('/projects/create');
+    // AI : Use global state to trigger dialog opening
+    openProjectDialog();
+    // AI : Also emit event as fallback
+    emit('create-project');
   } catch (err) {
-    console.error('AI: Failed to navigate to project creation', err);
+    console.error('AI: Failed to open project dialog', err);
   }
 }
 
@@ -292,16 +301,7 @@ function onSelectFocus() {
 </script>
 
 <style scoped>
-
 .project-picker {
   width: 100%;
-}
-
-.color-circle {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  display: inline-block;
-  flex-shrink: 0;
 }
 </style>

@@ -5,7 +5,6 @@
     :modal="true"
     :closable="true"
     :draggable="false"
-    class="project-dialog"
     @update:visible="handleVisibilityChange"
   >
     <template #default>
@@ -38,9 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import Dialog from 'primevue/dialog';
-import Button from 'primevue/button';
+import { computed } from 'vue';
 import ProjectForm from './ProjectForm.vue';
 import type { Project } from '@types';
 
@@ -56,9 +53,6 @@ const emit = defineEmits<{
   submit: [project: Partial<Project>];
   cancel: [];
 }>();
-
-// AI : Reference to the form component to trigger validation
-const projectFormRef = ref<InstanceType<typeof ProjectForm> | null>(null);
 
 // AI : Computed dialog title with fallback
 const dialogTitle = computed(() => {
@@ -91,17 +85,3 @@ function handleFormSubmit() {
   }
 }
 </script>
-
-<style scoped>
-.project-dialog {
-  min-width: 500px;
-  max-width: 600px;
-}
-
-@media (max-width: 768px) {
-  .project-dialog {
-    min-width: 90vw;
-    max-width: 90vw;
-  }
-}
-</style>
