@@ -1,5 +1,5 @@
 <template>
-  <!-- AI : Use ProjectDialog for form modes, ProjectViewer for view mode -->
+  <!-- AI : Use ProjectDialog for all modes - ProjectViewer was removed -->
   <ProjectDialog
     v-if="isFormMode"
     :visible="true"
@@ -11,20 +11,23 @@
     @update:visible="handleDialogVisibility"
   />
 
-  <ProjectViewer
-    v-else-if="isViewMode && currentProject"
-    :project="currentProject"
-    :projectId="projectId"
-  />
+  <div v-else-if="isViewMode && currentProject" class="p-4">
+    <!-- AI : Simplified project view since ProjectViewer was removed -->
+    <h2 class="text-xl font-bold mb-2">{{ currentProject.name }}</h2>
+    <p class="text-gray-600">{{ currentProject.description }}</p>
+    <div class="mt-4 text-sm text-gray-500">
+      Project ID: {{ projectId }}
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { computed, watch } from 'vue';
-import { useProjectEditor } from '@composables/project/useProjectEditor';
+import { useProjectEditor, type ProjectEditorOptions } from '@composables/project/useProjectEditor';
 import { useProjectHighlight } from '@composables/project/useProjectHighlight';
 import { goBack } from '@composables/ui/useRouterNavigation';
 import ProjectDialog from '@components/project/ProjectDialog.vue';
-import ProjectViewer from '@components/project/ProjectViewer.vue';
+// AI : ProjectViewer was removed
 
 const props = defineProps<{
   id?: string;
@@ -35,13 +38,25 @@ const props = defineProps<{
 const mode = computed(() => props.mode);
 const projectId = computed(() => props.id ?? '');
 
+// AI : Options for project editor callbacks
+const editorOptions: ProjectEditorOptions = {
+  onProjectSaved: (projectId: string, isNewProject: boolean) => {
+    // AI : Navigate back after saving
+    goBack();
+  },
+  onCancel: () => {
+    // AI : Navigate back when cancelled
+    goBack();
+  }
+};
+
 // AI : Use project editor composable for business logic
 const {
   editingProject,
   currentProject,
   initializeProject,
   saveProject
-} = useProjectEditor(projectId.value, mode.value);
+} = useProjectEditor(projectId.value, mode.value, editorOptions);
 
 // AI : Use highlight composable for view mode
 const { clearHighlightOnModeChange } = useProjectHighlight(projectId.value);

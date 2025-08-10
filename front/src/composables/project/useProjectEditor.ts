@@ -1,5 +1,4 @@
 import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
 import { 
   useProjects,
   createProject, 
@@ -10,9 +9,18 @@ import { useToast } from '@composables/ui/useToast';
 import { initialProjectName, setLastCreatedProject, inFileUploadFlow } from '@composables/ui/useRouterNavigation';
 import type { Project, OverlayObject } from '@types';
 
+// AI : Options for customizing navigation behavior
+export interface ProjectEditorOptions {
+  onProjectSaved?: (projectId: string, isNewProject: boolean) => void;
+  onCancel?: () => void;
+}
+
 // AI : Main composable for project editor business logic
-export function useProjectEditor(projectId: string, mode: 'edit' | 'view' | 'create') {
-  const router = useRouter();
+export function useProjectEditor(
+  projectId: string, 
+  mode: 'edit' | 'view' | 'create',
+  options: ProjectEditorOptions = {}
+) {
   const toast = useToast();
 
   // AI : Get store refs using the composable pattern
@@ -112,17 +120,9 @@ export function useProjectEditor(projectId: string, mode: 'edit' | 'view' | 'cre
         life: 3000
       });
 
-      // AI : Navigate based on context
-      if (!isExisting && inFileUploadFlow.value) {
-        // AI : During file upload flow, return to map to continue overlay import
-        // AI : setLastCreatedProject already called above, don't call again
-        router.back();
-      } else if (isExisting) {
-        // AI : For existing projects, go back to previous page instead of project list
-        router.back();
-      } else {
-        // AI : For new projects, navigate to the project view
-        router.push(`/projects/${savedProjectId}`);
+      // AI : Call the onProjectSaved callback if provided
+      if (options.onProjectSaved) {
+        options.onProjectSaved(savedProjectId, !isExisting);
       }
     } catch (error) {
       console.error('Error saving project:', error);
