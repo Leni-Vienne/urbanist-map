@@ -38,7 +38,6 @@
         My Contributions
       </button>
       <button
-        v-if="isModerator"
         :class="['tab-button', { active: activeTab === 'admin' }]"
         @click="activeTab = 'admin'"
       >
@@ -316,7 +315,8 @@ const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
     position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
+    width: 85%;
+    max-width: 380px;
     height: 100vh;
     transform: translateX(-100%);
     transition: transform 0.3s ease-in-out;
@@ -329,7 +329,8 @@ const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
   }
 
   .sidecolumn--collapsed {
-    width: 100%;
+    width: 85%;
+    max-width: 380px;
     transform: translateX(-100%);
   }
 }

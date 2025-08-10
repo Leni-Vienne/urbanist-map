@@ -132,6 +132,7 @@ import { updateTooltipText } from '@composables/overlay/useOverlayActions';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { storeToRefs } from 'pinia';
+import { allMarkers } from '@composables/overlay/useOverlay';
 import { navigateToProjectEdit } from '@composables/ui/useRouterNavigation';
 import { loadCityProjects, citiesWithProjects, latestClickedCity } from '@composables/map/useCityMarkers';
 import { getNearbyProjects } from '@composables/project/useNearbyProjects';
@@ -626,10 +627,28 @@ async function publishOverlay() {
     // AI : Step 3 - Publish overlay metadata
     const publishResult = await publishOverlayToServer(filename);
 
-    // AI : If publishing was successful, update overlay ID and delete from local IndexedDB
+    // AI : If publishing was successful, update overlay ID and update store
     if (publishResult.success && publishResult.id) {
-      // AI : Update the overlay ID with the one from the backend
-      currentOverlay.value.id = publishResult.id;
+      const oldId = currentOverlay.value.id;
+      const newId = publishResult.id;
+      
+      // AI : Update overlay ID
+      currentOverlay.value.id = newId;
+      
+      // AI : If ID changed, update the overlays store with new key
+      if (oldId !== newId) {
+        const updatedOverlays = { ...overlays.value };
+        delete updatedOverlays[oldId]; // Remove old entry
+        updatedOverlays[newId] = currentOverlay.value; // Add with new ID
+        overlays.value = updatedOverlays;
+        
+        // AI : Also update marker in allMarkers if it exists
+        if (allMarkers.value[oldId]) {
+          const marker = allMarkers.value[oldId];
+          delete allMarkers.value[oldId];
+          allMarkers.value[newId] = marker;
+        }
+      }
     }
 
     // AI : Refresh project overlays from backend to update marker colors
