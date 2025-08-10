@@ -11,6 +11,7 @@
                         v-model="localProject.name"
                         required
                         class="w-full"
+                        placeholder="e.g. Downtown Office Building"
                     />
                     <label
                         for="project-name-input"
@@ -29,6 +30,7 @@
                         v-model="localProject.description"
                         rows="2"
                         class="w-full"
+                        placeholder="Brief description of the construction project"
                     />
                     <label
                         for="project-description-input"
@@ -65,28 +67,10 @@
                         </template>
                     </Select>
                     <label
+                    v-if="filteredCities.length > 0"
                         for="location-select"
                         class="text-gray-600"
                     >Location</label>
-                </FloatLabel>
-            </div>
-
-            <div class="field">
-                <FloatLabel
-                    class="w-full"
-                    variant="in"
-                >
-                    <InputText
-                        id="source-url-input"
-                        type="url"
-                        v-model="localProject.sourceUrl"
-                        class="w-full"
-                        required
-                    />
-                    <label
-                        for="source-url-input"
-                        class="text-gray-600"
-                    >Source URL</label>
                 </FloatLabel>
             </div>
 
@@ -102,6 +86,8 @@
                             v-model="localProject.startDate"
                             class="w-full"
                             required
+                            placeholder="Select start date"
+                            showIcon
                         />
                         <label
                             for="start-date-input"
@@ -120,6 +106,8 @@
                             v-model="localProject.endDate"
                             class="w-full"
                             required
+                            placeholder="Select end date"
+                            showIcon
                         />
                         <label
                             for="end-date-input"
@@ -128,38 +116,39 @@
                     </FloatLabel>
                 </div>
             </div>
+
             <div class="field">
                 <FloatLabel
                     class="w-full"
                     variant="in"
                 >
-                    <DatePicker
-                        id="latest-update-on-input"
-                        dateFormat="dd/mm/yy"
-                        v-model="localProject.latestUpdateOn"
+                    <InputText
+                        id="source-url-input"
+                        type="url"
+                        v-model="localProject.sourceUrl"
                         class="w-full"
+                        placeholder="https://example.com/project.pdf"
                     />
                     <label
-                        for="latest-update-on-input"
+                        for="source-url-input"
                         class="text-gray-600"
-                    >Latest Update On</label>
+                    >Source URL</label>
                 </FloatLabel>
             </div>
-        </div>
 
-        <div class="flex gap-2 justify-center mt-6">
-            <Button
-                type="button"
-                label="Cancel"
-                class="p-button-outlined"
-                icon="pi pi-times"
-                @click="$emit('cancel')"
-            />
-            <Button
-                type="submit"
-                :label="mode === 'create' ? 'Create project' : 'Update project'"
-                icon="pi pi-save"
-            />
+            <div class="field">
+                <label class="text-gray-600 block mb-2">Source PDF</label>
+                <FileUpload
+                    id="source-pdf-input"
+                    mode="basic"
+                    accept=".pdf"
+                    :maxFileSize="50000000"
+                    :auto="false"
+                    choose-label="Source PDF"
+                    @select="onPdfSelect"
+                    @clear="onPdfClear"
+                />
+            </div>
         </div>
     </form>
 </template>
@@ -171,6 +160,7 @@ import { getCameraBounds } from '@composables/map/useCameraBounds';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { storeToRefs } from 'pinia';
 import type { Project } from '@types';
+import FileUpload from 'primevue/fileupload';
 
 // AI : Get store refs
 const overlayStore = useOverlayStore();
@@ -294,6 +284,21 @@ async function loadCitiesNearLocation(lat: number, lng: number) {
 }
 
 function handleSubmit() {
-    emit('submit', localProject.value);
+    // AI : Create a clean project object without File objects to prevent serialization issues
+    const { sourcePdf, ...cleanProjectData } = localProject.value;
+    emit('submit', cleanProjectData);
+}
+
+// AI : Handle PDF file selection
+function onPdfSelect(event: any) {
+    const file = event.files[0];
+    if (file) {
+        localProject.value.sourcePdf = file;
+    }
+}
+
+// AI : Handle PDF file clear
+function onPdfClear() {
+    localProject.value.sourcePdf = null;
 }
 </script>

@@ -81,6 +81,10 @@ export function useProjectEditor(projectId: string, mode: 'edit' | 'view' | 'cre
 
     try {
       const isExisting = !!projectData.id;
+      
+      // AI : Extract PDF file for potential future upload, but don't include in main project data
+      const sourcePdfFile = projectData.sourcePdf;
+      
       const dataToSave = {
         name: projectData.name,
         description: projectData.description ?? '',
@@ -89,6 +93,7 @@ export function useProjectEditor(projectId: string, mode: 'edit' | 'view' | 'cre
         endDate: projectData.endDate ?? null,
         sourceUrl: projectData.sourceUrl ?? '',
         latestUpdateOn: projectData.latestUpdateOn ?? null
+        // AI : Don't include sourcePdf File object in serialized data
       };
 
       let savedProjectId;
@@ -109,6 +114,8 @@ export function useProjectEditor(projectId: string, mode: 'edit' | 'view' | 'cre
 
       // AI : Navigate based on context
       if (!isExisting && inFileUploadFlow.value) {
+        // AI : During file upload flow, return to map to continue overlay import
+        // AI : setLastCreatedProject already called above, don't call again
         router.back();
       } else if (isExisting) {
         // AI : For existing projects, go back to previous page instead of project list

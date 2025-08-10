@@ -52,7 +52,7 @@
             <span class="font-medium text-gray-600">Period:</span>
             <span class="text-right text-xs">
               <span v-if="!project.startDate && !project.endDate">Not specified</span>
-              
+
               <span v-else>
                 {{ formatDate(project.startDate) }} - {{ project.endDate ? formatDate(project.endDate) : 'Present' }}
               </span>
@@ -96,7 +96,10 @@
             <span class="font-medium text-gray-600">Name:</span>
             <span class="text-right">{{ currentOverlay.caption ?? 'Not specified' }}</span>
           </div>
-          <div v-if="currentOverlay.replacesOverlayId" class="flex justify-between">
+          <div
+            v-if="currentOverlay.replacesOverlayId"
+            class="flex justify-between"
+          >
             <span class="font-medium text-gray-600">Type:</span>
             <span class="text-right text-purple-600 font-medium">Replacement Overlay</span>
           </div>
@@ -145,7 +148,7 @@ import { trpc } from '@client'
 // AI : Get Pinia stores
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
-const { overlays } = storeToRefs(overlayStore);
+const { overlays, idSelectedOverlay } = storeToRefs(overlayStore);
 const { projects } = storeToRefs(projectStore);
 
 // AI : Use centralized selected project state
@@ -198,7 +201,7 @@ const project = computed(() => {
         overlayIds: [],
         color: '#007bff'
       };
-      
+
       // AI : Add the project to the projects store so ProjectPicker can access it
       if (!projects.value[currentProjectId.value]) {
         projects.value = {
@@ -206,7 +209,7 @@ const project = computed(() => {
           [currentProjectId.value]: convertedProject
         };
       }
-      
+
       return convertedProject;
     }
   }
@@ -247,7 +250,7 @@ function getProjectLocationDisplay(project: Project): string {
   if (project.city?.name) {
     return `${project.city.name}, ${project.city.countryCode}`;
   }
-  
+
   // AI : If no direct city data, look up city by cityId in citiesWithProjects
   if (project.cityId) {
     const city = citiesWithProjects.value.find(c => c.id === project.cityId);
@@ -255,14 +258,14 @@ function getProjectLocationDisplay(project: Project): string {
       return `${city.name}, ${city.countryCode}`;
     }
   }
-  
+
   // AI : If still no city found, use the selected city if it matches the project's cityId
   if (project.cityId && latestClickedCity.value && latestClickedCity.value.id === project.cityId) {
-    return latestClickedCity.value.countryCode 
+    return latestClickedCity.value.countryCode
       ? `${latestClickedCity.value.name}, ${latestClickedCity.value.countryCode}`
       : latestClickedCity.value.name;
   }
-  
+
   return 'Not specified';
 }
 
@@ -281,7 +284,7 @@ async function applyProjectChange(projectId: string) {
       // AI : Get nearby projects to find the selected project
       const { projects: nearbyProjectsData } = getNearbyProjects();
       const nearbyProject = nearbyProjectsData.value.find((p: any) => p.id === projectId);
-      
+
       if (nearbyProject) {
         // AI : Convert nearby project to local project format and add to store
         const localProject = {
@@ -310,10 +313,10 @@ async function applyProjectChange(projectId: string) {
           latestUpdateOn: null,
           savedRemotely: true
         };
-        
+
         // AI : Add project to local store
         projects.value[projectId] = localProject;
-        
+
         // AI : Also set project data on overlay object for InfoPopup display - convert to compatible format
         currentOverlay.value.project = {
           id: nearbyProject.id,
@@ -514,7 +517,7 @@ async function ensureProjectOnServer(): Promise<boolean> {
         currentOverlay.value.projectId = projectResult.id;
       }
     }
-    
+
     // AI : Show appropriate message
     const actionText = projectResult.exists ? 'updated on' : 'saved to';
     if (!projectResult.exists) {
@@ -593,10 +596,10 @@ async function publishOverlayToServer(filename: string): Promise<{ success: bool
   if (overlayResult.success) {
     const actionText = overlayResult.exists ? 'updated on' : 'saved to';
     const summaryText = currentOverlay.value.replacesOverlayId ? 'Replacement Submitted' : 'Overlay Published';
-    const detailText = currentOverlay.value.replacesOverlayId 
-      ? `Replacement overlay has been submitted for moderation review` 
+    const detailText = currentOverlay.value.replacesOverlayId
+      ? `Replacement overlay has been submitted for moderation review`
       : `Overlay has been ${actionText} the server database`;
-    
+
     toast.add({
       severity: 'success',
       summary: summaryText,
@@ -631,28 +634,49 @@ async function publishOverlay() {
     if (publishResult.success && publishResult.id) {
       const oldId = currentOverlay.value.id;
       const newId = publishResult.id;
-      
+
       // AI : Update overlay ID
       currentOverlay.value.id = newId;
-      
+
       // AI : If ID changed, update the overlays store with new key
       if (oldId !== newId) {
         const updatedOverlays = { ...overlays.value };
         delete updatedOverlays[oldId]; // Remove old entry
         updatedOverlays[newId] = currentOverlay.value; // Add with new ID
         overlays.value = updatedOverlays;
-        
+
         // AI : Also update marker in allMarkers if it exists
         if (allMarkers.value[oldId]) {
           const marker = allMarkers.value[oldId];
           delete allMarkers.value[oldId];
           allMarkers.value[newId] = marker;
         }
+
+        // AI : Update project's overlayIds array to use new ID
+        if (project.value?.id) {
+          const updatedProjects = { ...projects.value };
+          const projectToUpdate = { ...updatedProjects[project.value.id] };
+          
+          // Replace old overlay ID with new ID in the project's overlayIds array
+          const overlayIndex = projectToUpdate.overlayIds.indexOf(oldId);
+          if (overlayIndex !== -1) {
+            projectToUpdate.overlayIds = [...projectToUpdate.overlayIds];
+            projectToUpdate.overlayIds[overlayIndex] = newId;
+            updatedProjects[project.value.id] = projectToUpdate;
+            projects.value = updatedProjects;
+          }
+        }
+
+        // AI : Update selected overlay ID if this was the selected one
+        if (idSelectedOverlay.value === oldId) {
+          idSelectedOverlay.value = newId;
+        }
       }
     }
 
     // AI : Refresh project overlays from backend to update marker colors
-    if (project.value?.cityId) {
+    // AI : Skip refresh for locally created projects to avoid overwriting the just-published overlay
+    if (project.value?.cityId && project.value.savedRemotely) {
       try {
         await loadCityProjects(project.value.cityId, project.value.city?.name ?? 'Unknown City');
       } catch (error) {

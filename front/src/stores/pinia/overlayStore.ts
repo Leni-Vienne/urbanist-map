@@ -102,7 +102,11 @@ export const useOverlayStore = defineStore('overlay', () => {
 
   const closeAllUIElements = () => {
     hideInfoPopup()
-    resetReplacement()
+    // AI : Don't reset replacement (which clears pendingImageFile) if we have a pending file
+    // AI : This preserves the file during dialog navigation in overlay import flow
+    if (!pendingImageFile.value) {
+      resetReplacement()
+    }
   }
 
   return {

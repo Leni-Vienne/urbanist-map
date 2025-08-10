@@ -276,9 +276,10 @@ async function handleOverlayClick(overlay: any) {
   gap: 0.5rem !important;
 }
 
-/* AI : Add extra space to the right of status tags */
+/* AI : Add extra space to the right of status tags and capitalize first letter */
 .project-status-tag {
   margin-right: 0.5rem;
+  text-transform: capitalize;
 }
 /* AI : Component wrapper */
 .my-contributions-panel,

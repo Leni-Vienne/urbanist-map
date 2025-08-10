@@ -54,7 +54,14 @@ const currentPanel = computed(() => {
 
 // AI : Handle window blur to close UI elements gracefully
 function handleWindowBlur() {
-  overlayStore.closeAllUIElements();
+  // AI : Only close UI elements if the user actually leaves the application
+  // AI : Don't close when opening dialogs within the same app
+  setTimeout(() => {
+    // AI : Check if focus returned to the window (meaning it was just a dialog opening)
+    if (!document.hasFocus()) {
+      overlayStore.closeAllUIElements();
+    }
+  }, 100);
 }
 
 // AI : Handle side menu close (mobile only)

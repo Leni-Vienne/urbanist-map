@@ -1,4 +1,5 @@
-<template>  <Dialog
+<template>
+  <Dialog
     :visible="visible"
     header="Add Overlay to Project"
     :modal="true"
@@ -26,7 +27,7 @@
         />
       </div>
     </div>
-    
+
     <template #footer>
       <Button
         label="Close"
