@@ -118,6 +118,10 @@ export interface Project extends DBProject {
   color: string;
   // AI : Add computed property for name to maintain backward compatibility
   name: string;
+  // AI : Add sourcePdf field for PDF file uploads (File object or null)
+  sourcePdf?: File | null;
+  // AI : Track if project exists on server (vs locally created)
+  savedRemotely?: boolean;
 }
 
 // AI : Runtime overlay data - directly extends Drizzle schema with frontend-specific fields

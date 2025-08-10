@@ -1,11 +1,14 @@
 <template>
-  <!-- AI : Route to appropriate component based on mode -->
-  <ProjectForm
+  <!-- AI : Use ProjectDialog for form modes, ProjectViewer for view mode -->
+  <ProjectDialog
     v-if="isFormMode"
+    :visible="true"
     :project="editingProject"
     :mode="formMode"
+    :title="dialogTitle"
     @submit="saveProject"
     @cancel="goBack"
+    @update:visible="handleDialogVisibility"
   />
 
   <ProjectViewer
@@ -20,7 +23,7 @@ import { computed, watch } from 'vue';
 import { useProjectEditor } from '@composables/project/useProjectEditor';
 import { useProjectHighlight } from '@composables/project/useProjectHighlight';
 import { goBack } from '@composables/ui/useRouterNavigation';
-import ProjectForm from '@components/project/ProjectForm.vue';
+import ProjectDialog from '@components/project/ProjectDialog.vue';
 import ProjectViewer from '@components/project/ProjectViewer.vue';
 
 const props = defineProps<{
@@ -49,6 +52,18 @@ const isViewMode = computed(() => mode.value === 'view');
 
 // AI : Computed property for form mode to ensure type safety
 const formMode = computed(() => mode.value as 'edit' | 'create');
+
+// AI : Computed dialog title based on mode
+const dialogTitle = computed(() => {
+  return mode.value === 'create' ? 'Create New Project' : 'Edit Project';
+});
+
+// AI : Handle dialog visibility changes
+function handleDialogVisibility(visible: boolean) {
+  if (!visible) {
+    goBack();
+  }
+}
 
 // AI : Watch for mode and project changes
 watch([projectId, mode], async () => {

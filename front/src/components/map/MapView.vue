@@ -63,7 +63,7 @@ import { initializeCameraBounds } from '@composables/map/useCameraBounds';
 import { toggleEditMode } from '@composables/overlay/useEditMode';
 import { addOverlay, undo, redo } from '@composables/overlay/useOverlayActions';
 import { useToast } from '@composables/ui/useToast';
-import { navigateWithCoordinates } from '@composables/ui/useRouterNavigation';
+import { navigateWithCoordinates, lastCreatedProjectId } from '@composables/ui/useRouterNavigation';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
 import { initializeCountryMarkers } from '@composables/map/useCountryMarkers';
 import { useProjectStore } from '@stores/pinia/projectStore';
@@ -152,9 +152,9 @@ watch(() => isEditMode?.value, (editMode) => {
   }
 });
 
-// AI : Reset file input when dialog closes
+// AI : Reset file input when dialog closes, but not if we just created a project
 watch(() => showProjectSelector.value, (newVal) => {
-  if (!newVal) {
+  if (!newVal && !lastCreatedProjectId.value) {
     overlayStore.clearPendingFile();
     // AI : Don't reset replacementOverlayId here as it's needed after project selection
   }
@@ -167,6 +167,8 @@ onMounted(async () => {
 
 // AI : Process image after project selection
 async function onProjectSelected(projectId: string) {
+  // AI : Clear the last created project ID since we're now proceeding with overlay creation
+  lastCreatedProjectId.value = null;
   // AI : Check if project exists in local store, if not, try to get it from nearby projects
   if (!projects.value[projectId]) {
     try {
@@ -248,15 +250,7 @@ async function handleFileUpload(projectId: string, isReplacement: boolean = fals
       } else {
         // AI : Regular overlay addition
         const overlayId = await addOverlay(reader.result as string, projectId);
-
-        if (overlayId) {
-          toast.add({
-            severity: 'success',
-            summary: 'Overlay added',
-            detail: `Overlay has been added to project`,
-            life: 3000
-          });
-        }
+        // AI : Don't show toast here - addOverlayToProjectWithId will show a more specific toast
       }
     } catch (error) {
       console.error('Error handling file upload:', error);

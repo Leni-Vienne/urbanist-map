@@ -37,8 +37,8 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
 export async function createProject(projectData: Partial<Omit<Project, 'id' | 'overlayIds' | 'color'>>): Promise<string> {
   const id = crypto.randomUUID();
 
-  // AI : Filter out non-serializable properties from projectData
-  const { city: _city, ...safeProjectData } = projectData;
+  // AI : Filter out non-serializable properties from projectData (File objects, city objects)
+  const { city: _city, sourcePdf: _sourcePdf, ...safeProjectData } = projectData;
 
   const project: Project = {
     ...safeProjectData,
@@ -285,8 +285,8 @@ export async function updateProject(projectId: string, projectData: Partial<Omit
     return;
   }
 
-  // AI : Filter out non-serializable properties from projectData before merging
-  const { city: _city, ...safeProjectData } = projectData;
+  // AI : Filter out non-serializable properties from projectData before merging (File objects, city objects)
+  const { city: _city, sourcePdf: _sourcePdf, ...safeProjectData } = projectData;
 
   // AI : Create new project object with updated fields
   const updatedProject = { ...project, ...safeProjectData };
