@@ -3,12 +3,13 @@ import { map } from '@composables/core/useMap';
 import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, createOverlay, isEditMode, removeOverlay, allMarkers, updateMarkerTooltip, renderViewModeOverlays } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
 import { useProjects, addOverlayToProjectWithId } from '@composables/project/useProjects';
-import type { OverlayObject, CDNOverlayData, MarkerColor } from '@types';
+import type { OverlayObject, CDNOverlayData } from '@types';
 import { router } from '../../router';
 import { createColorIcon } from '@composables/ui/colorMarkers';
 import { trpc } from '../../client';
 import type { BackendOverlay } from '../../types/api';
 import { updateCachedOverlayData } from '@composables/map/useCityMarkers';
+import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
 
 const toast = useToast();
 
@@ -95,7 +96,7 @@ function createNewOverlayObject(id: string, imageUrl: string, projectId: string)
     isFlipped: false,
     currentResolution: imageUrl,
     corners: [],
-    isModified: false, // AI : New overlays start as not modified
+    isModified: true, // AI : New overlays are considered modified since they need to be uploaded
   };
 }
 
@@ -206,8 +207,8 @@ function createMarker(overlayObject: any, projectId: string, markerType: 'new' |
     }
   }
 
-  // AI : Determine marker color based on type
-  const markerColor = markerType === 'replacement' ? 'violet' : getMarkerColorForEditMode();
+  // AI : Determine marker color based on type and overlay state
+  const markerColor = markerType === 'replacement' ? 'violet' : getOverlayMarkerColor(overlayObject, 'edit');
   const colorIcon = createColorIcon(markerColor);
 
   const marker = L.marker(center, {
@@ -300,11 +301,6 @@ function createMarkerForNewOverlay(overlayObject: any, projectId: string): void 
   createMarker(overlayObject, projectId, 'new');
 }
 
-// AI : Helper function to determine marker color (simplified - no storage state)
-function getMarkerColorForEditMode(): MarkerColor {
-  // AI : All overlays are local in edit mode, use consistent color
-  return 'blue';
-}
 
 
 export function undo() {
