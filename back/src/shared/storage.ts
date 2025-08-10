@@ -17,7 +17,7 @@ export class LocalFileStorage implements StorageInterface {
             
             return {
                 body: file.stream(),
-                contentType: file.type || 'application/octet-stream'
+                contentType: file.type ?? 'application/octet-stream'
             };
         } catch {
             return null;
