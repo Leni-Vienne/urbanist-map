@@ -16,38 +16,6 @@ import * as schema from '../src/db/schema'
 // AI : Router imports are now lazy loaded
 
 // AI : Minimal worker with inlined dependencies for maximum performance
-console.time('minimal-worker-init')
-
-// AI : CPU time measurement utilities for Cloudflare Workers
-interface CpuTimeTracker {
-    start: number;
-    measurements: { [key: string]: number };
-    mark(label: string): void;
-    getReport(): { totalTime: number; breakdown: { [key: string]: number } };
-}
-
-function createCpuTimeTracker(): CpuTimeTracker {
-    const start = performance.now();
-    const measurements: { [key: string]: number } = {};
-    let lastMark = start;
-    
-    return {
-        start,
-        measurements,
-        mark(label: string) {
-            const now = performance.now();
-            measurements[label] = now - lastMark;
-            lastMark = now;
-        },
-        getReport() {
-            const totalTime = performance.now() - start;
-            return {
-                totalTime,
-                breakdown: { ...measurements }
-            };
-        }
-    };
-}
 
 // AI : Inline tRPC setup
 const t = initTRPC.context<{ session?: any }>().create({
@@ -58,10 +26,6 @@ const router = t.router;
 
 // AI : Create router with lazy-loaded route files using tRPC's lazy function
 function createMinimalRouter(db: any) {
-    const routerStart = performance.now();
-    console.time('minimal-router-creation');
-    
-    const routerCreationStart = performance.now();
     const minimalRouter = router({
         project: lazy(() => import('../src/routes/project').then(m => m.createProjectRouter(db))),
         moderation: lazy(() => import('../src/routes/moderation').then(m => m.createModerationRouter(db))),
@@ -69,36 +33,18 @@ function createMinimalRouter(db: any) {
         country: lazy(() => import('../src/routes/countries').then(m => m.createCountriesRouter(db))),
         overlay: lazy(() => import('../src/routes/overlay').then(m => m.createOverlayRouter(db))),
     });
-    const routerCreationTime = performance.now() - routerCreationStart;
-    
-    console.timeEnd('minimal-router-creation');
-    
-    const totalRouterTime = performance.now() - routerStart;
-    console.log(`Router Creation CPU Time: ${totalRouterTime.toFixed(2)}ms (creation: ${routerCreationTime.toFixed(2)}ms)`);
     
     return minimalRouter;
 }
 
 // AI : Inline database creation
 function createDb(databaseUrl: string) {
-    const dbStart = performance.now();
-    console.time('minimal-db-creation');
-    
-    const clientStart = performance.now();
     const client = postgres(databaseUrl, {
         max: 1,
         fetch_types: false,
     });
-    const clientTime = performance.now() - clientStart;
     
-    const drizzleStart = performance.now();
     const db = drizzle(client, { schema });
-    const drizzleTime = performance.now() - drizzleStart;
-    
-    console.timeEnd('minimal-db-creation');
-    
-    const totalDbTime = performance.now() - dbStart;
-    console.log(`Database Creation CPU Time: ${totalDbTime.toFixed(2)}ms (client: ${clientTime.toFixed(2)}ms, drizzle: ${drizzleTime.toFixed(2)}ms)`);
     
     return db;
 }
@@ -129,8 +75,6 @@ class MinimalLocalStorage {
     }
 }
 
-console.timeEnd('minimal-worker-init');
-
 // AI : Cloudflare Workers environment bindings
 interface Env {
     ASSETS: { fetch: (request: Request) => Promise<Response> };
@@ -148,14 +92,7 @@ interface Env {
 
 export default {
     async fetch(request: Request, env: Env): Promise<Response> {
-        console.time("now-in-trpc-cloudflare-worker-init");
-        console.time('minimal-worker-total');
         const url = new URL(request.url);
-        
-        // AI : Initialize CPU time tracking only for tRPC routes
-        const isTrpcRoute = url.pathname.startsWith('/trpc/');
-        const cpuTracker = isTrpcRoute ? createCpuTimeTracker() : null;
-        if (cpuTracker) cpuTracker.mark('request-start');
         
         try {
             // AI : Quick path for non-API requests
@@ -177,19 +114,13 @@ export default {
 
             // AI : Super fast health check
             if (url.pathname === '/api/health') {
-                console.timeEnd('minimal-worker-total');
                 return Response.json({ status: 'ok', timestamp: new Date().toISOString() });
             }
 
-            console.time('minimal-setup');
-            if (cpuTracker) cpuTracker.mark('api-request-start');
-            
             // AI : Minimal storage setup
             const storage = env.R2_BUCKET 
                 ? new MinimalR2Storage(env.R2_BUCKET)
                 : new MinimalLocalStorage();
-
-            if (cpuTracker) cpuTracker.mark('storage-setup');
 
             // AI : Database URL resolution
             const isLocal = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
@@ -197,32 +128,22 @@ export default {
                 ? (env.DATABASE_URL ?? process.env.DATABASE_URL!)
                 : env.HYPERDRIVE?.connectionString ?? env.DATABASE_URL ?? process.env.DATABASE_URL!;
 
-            if (cpuTracker) cpuTracker.mark('database-url-resolution');
-
             console.log('Minimal. Using database URL:', databaseUrl);
             if (!databaseUrl) {
                 throw new Error('No database connection available');
             }
 
-            console.timeEnd('minimal-setup');
-            if (cpuTracker) cpuTracker.mark('minimal-setup-complete');
-
-            console.time('minimal-app-creation');
-            
             // AI : Create database
             const db = createDb(databaseUrl);
-            if (cpuTracker) cpuTracker.mark('database-creation');
             
             // AI : Create minimal Hono app
             const app = new Hono<{ Variables: { session: Session<any> } }>();
-            if (cpuTracker) cpuTracker.mark('hono-app-creation');
             
             // AI : Minimal middleware
             app.use('*', cors({
                 origin: env.CORS_ORIGIN ?? 'https://construction-map.leni-vienne2.workers.dev',
                 credentials: true
             }));
-            if (cpuTracker) cpuTracker.mark('cors-middleware');
             
             const store = new CookieStore();
             app.use('*', sessionMiddleware({
@@ -231,22 +152,17 @@ export default {
                 encryptionKey: env.SESSION_ENCRYPTION_KEY ?? 'dev_key_for_local_development_only_32_chars_min',
                 expireAfterSeconds: 900,
             }) as any);
-            if (cpuTracker) cpuTracker.mark('session-middleware');
       
             // AI : Handle tRPC requests through Hono to maintain session context
             app.use('/trpc/*', async (c) => {
-                const trpcStart = performance.now();
                 const result = await fetchRequestHandler({
                     endpoint: '/trpc',
                     req: c.req.raw,
                     router: createMinimalRouter(db),
                     //createContext: () => ({ session: c.get('session') }), // TODO temporary to see if CPU time changes
                 });
-                const trpcTime = performance.now() - trpcStart;
-                console.log(`TRPC Handler CPU Time: ${trpcTime.toFixed(2)}ms`);
                 return result;
             });
-            if (cpuTracker) cpuTracker.mark('trpc-handler-setup');
 
             // AI : Essential API endpoints
             app.get('/api/check-session', (c) => {
@@ -324,44 +240,12 @@ export default {
                 }
             });
 
-            console.timeEnd('minimal-app-creation');
-            if (cpuTracker) cpuTracker.mark('app-creation-complete');
-
-            console.time('minimal-request-handling');
             const response = await app.fetch(request, env);
-            console.timeEnd('minimal-request-handling');
-            if (cpuTracker) cpuTracker.mark('request-handling-complete');
-            
-            console.timeEnd('minimal-worker-total');
-            
-            // AI : Generate and log comprehensive CPU time report only for tRPC routes
-            if (cpuTracker) {
-                const finalReport = cpuTracker.getReport();
-                console.log('=== COMPREHENSIVE CPU TIME REPORT ===');
-                console.log(`Total Request CPU Time: ${finalReport.totalTime.toFixed(2)}ms`);
-                console.log('Breakdown:');
-                Object.entries(finalReport.breakdown).forEach(([operation, time]) => {
-                    console.log(`  ${operation}: ${time.toFixed(2)}ms`);
-                });
-                console.log('========================================');
-            }
             
             return response;
 
         } catch (error) {
-            if (cpuTracker) {
-                const errorReport = cpuTracker.getReport();
-                console.log('=== ERROR CPU TIME REPORT ===');
-                console.log(`Total CPU Time Before Error: ${errorReport.totalTime.toFixed(2)}ms`);
-                console.log('Breakdown:');
-                Object.entries(errorReport.breakdown).forEach(([operation, time]) => {
-                    console.log(`  ${operation}: ${time.toFixed(2)}ms`);
-                });
-                console.log('==============================');
-            }
-            
             console.error('Minimal worker error:', error);
-            console.timeEnd('minimal-worker-total');
             return new Response('Internal Server Error', { status: 500 });
         }
     }
