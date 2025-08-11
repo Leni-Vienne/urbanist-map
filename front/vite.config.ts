@@ -9,7 +9,7 @@ import { visualizer } from "rollup-plugin-visualizer";
 
 // https://vite.dev/config/
 export default defineConfig({
-  envDir: '../.env',
+  envDir: '../', // only way that .env can be imported, '../.env' don't work for some reason
   plugins: [
     vue(),
     visualizer({

@@ -1,7 +1,6 @@
 import L from "leaflet";
 import { ref } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
-import 'leaflet.gridlayer.googlemutant';
 
 // AI : Available tile layer types
 export type TileLayerType = 'france' | 'esri' | 'google_satellite';
@@ -18,9 +17,6 @@ let layerControl: L.Control.Layers | null = null;
 // AI : Store all tile layer instances for the layer control
 const tileLayers: Record<string, L.TileLayer | L.GridLayer> = {};
 
-// AI : Track if Google Maps API is loaded
-let googleMapsLoaded = false;
-let googleMapsLoading = false;
 
 // AI : Tile layer configurations
 const tileLayerConfigs = {
@@ -104,62 +100,6 @@ async function addTileLayersToMap(): Promise<void> {
   }
 }
 
-/**
- * AI : Load Google Maps API dynamically
- */
-function loadGoogleMapsAPI(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    // AI : Check if already loaded
-    if (googleMapsLoaded && (window as any).google?.maps) {
-      resolve();
-      return;
-    }
-
-    // AI : Check if already loading
-    if (googleMapsLoading) {
-      // AI : Wait for existing load to complete
-      const checkLoaded = () => {
-        if (googleMapsLoaded && (window as any).google?.maps) {
-          resolve();
-        } else {
-          setTimeout(checkLoaded, 100);
-        }
-      };
-      checkLoaded();
-      return;
-    }
-
-    googleMapsLoading = true;
-
-    // AI : Get Google Maps API key from environment
-    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-
-    if (!apiKey) {
-      googleMapsLoading = false;
-      reject(new Error('Google Maps API key not found. Please set VITE_GOOGLE_MAPS_API_KEY in your environment variables.'));
-      return;
-    }
-
-    // AI : Create script element to load Google Maps API
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=3`; //
-    script.async = true;
-    script.defer = true;
-
-    script.onload = () => {
-      googleMapsLoaded = true;
-      googleMapsLoading = false;
-      resolve();
-    };
-
-    script.onerror = () => {
-      googleMapsLoading = false;
-      reject(new Error('Failed to load Google Maps API'));
-    };
-
-    document.head.appendChild(script);
-  });
-}
 
 /**
  * AI : Create a tile layer based on configuration
@@ -168,15 +108,53 @@ async function createTileLayer(layerType: TileLayerType): Promise<L.TileLayer | 
   const config = tileLayerConfigs[layerType];
 
   if ('type' in config && config.type === 'google') {
-    // AI : Load Google Maps API first
-    await loadGoogleMapsAPI();
-    // AI : Create Google Mutant layer
-    return (L as any).gridLayer.googleMutant(config.options);
+    // AI : Check if Google Maps API key is available
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    if (!apiKey) {
+      console.warn('AI : Google Maps API key not found, falling back to ESRI');
+      // AI : Fallback to ESRI if no Google API key
+      return createTileLayer('esri');
+    }
+
+    try {
+      // AI : Dynamically import Google Mutant plugin to avoid bundling issues
+      // @ts-ignore - No type definitions available for this plugin
+      await import('leaflet.gridlayer.googlemutant');
+      
+      // AI : Load Google Maps API if not already loaded
+      await loadGoogleMapsAPI(apiKey);
+      
+      return (L as any).gridLayer.googleMutant(config.options);
+    } catch (error) {
+      console.warn('AI : Failed to load Google Maps, falling back to ESRI:', error);
+      return createTileLayer('esri');
+    }
   } else {
     // AI : Create standard tile layer
     const standardConfig = config as { url: string; options: any };
     return L.tileLayer(standardConfig.url, standardConfig.options);
   }
+}
+
+/**
+ * AI : Load Google Maps API
+ */
+function loadGoogleMapsAPI(apiKey: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // AI : Check if already loaded
+    if ((window as any).google?.maps) {
+      resolve();
+      return;
+    }
+
+    // AI : Create script element to load Google Maps API with async loading
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&loading=async`;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load Google Maps API'));
+    document.head.appendChild(script);
+  });
 }
 
 /**
