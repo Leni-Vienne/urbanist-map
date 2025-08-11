@@ -8,16 +8,12 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { Session, sessionMiddleware, CookieStore } from 'hono-sessions'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
-import { initTRPC } from '@trpc/server'
+import { initTRPC, lazy } from '@trpc/server'
 import superjson from 'superjson'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from "postgres"
 import * as schema from '../src/db/schema'
-import { createProjectRouter } from '../src/routes/project'
-import { createOverlayRouter } from '../src/routes/overlay'
-import { createCitiesRouter } from '../src/routes/cities'
-import { createCountriesRouter } from '../src/routes/countries'
-import { createModerationRouter } from '../src/routes/moderation'
+// AI : Router imports are now lazy loaded
 
 // AI : Minimal worker with inlined dependencies for maximum performance
 console.time('minimal-worker-init')
@@ -60,18 +56,18 @@ const t = initTRPC.context<{ session?: any }>().create({
 
 const router = t.router;
 
-// AI : Create router using actual route files
+// AI : Create router with lazy-loaded route files using tRPC's lazy function
 function createMinimalRouter(db: any) {
     const routerStart = performance.now();
     console.time('minimal-router-creation');
     
     const routerCreationStart = performance.now();
     const minimalRouter = router({
-        project: createProjectRouter(db),
-        moderation: createModerationRouter(db),
-        cities: createCitiesRouter(db),
-        country: createCountriesRouter(db),
-        overlay: createOverlayRouter(db),
+        project: lazy(() => import('../src/routes/project').then(m => m.createProjectRouter(db))),
+        moderation: lazy(() => import('../src/routes/moderation').then(m => m.createModerationRouter(db))),
+        cities: lazy(() => import('../src/routes/cities').then(m => m.createCitiesRouter(db))),
+        country: lazy(() => import('../src/routes/countries').then(m => m.createCountriesRouter(db))),
+        overlay: lazy(() => import('../src/routes/overlay').then(m => m.createOverlayRouter(db))),
     });
     const routerCreationTime = performance.now() - routerCreationStart;
     
