@@ -118,15 +118,15 @@ watch(() => authStore.isAuthenticated, (isAuthenticated) => {
 }
 
 .sidecolumn {
+  /* to make the accordion header highlight on hover */
   --p-accordion-header-hover-background: var(--p-surface-100);
   --p-accordion-header-active-hover-background: var(--p-surface-100);
+
   position: relative;
   flex-shrink: 0;
   width: 380px;
   height: 100vh;
-  /* AI : Use viewport height instead of 100% */
   max-height: 100vh;
-  /* AI : Constrain maximum height */
   background-color: var(--p-surface-0);
   border-right: 1px solid var(--p-surface-200);
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
@@ -135,14 +135,13 @@ watch(() => authStore.isAuthenticated, (isAuthenticated) => {
   flex-direction: column;
   z-index: 1000;
   overflow: hidden;
-  /* AI : Prevent internal content from spilling outside container */
 }
+
 
 .sidecolumn--collapsed {
   width: 0;
   border-right: none;
   overflow: hidden;
-  /* AI : Hide content when collapsed */
 }
 
 .sidecolumn__header {
@@ -153,12 +152,6 @@ watch(() => authStore.isAuthenticated, (isAuthenticated) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
 }
 
 
@@ -215,7 +208,6 @@ watch(() => authStore.isAuthenticated, (isAuthenticated) => {
 
 .close-button {
   display: none;
-  /* AI : Hidden on desktop by default */
   color: var(--p-surface-500);
 }
 
@@ -224,107 +216,10 @@ watch(() => authStore.isAuthenticated, (isAuthenticated) => {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  /* AI : Scrollbar on the main container for better visual integration */
   min-height: 0;
-  /* AI : Allow flex item to shrink below content size */
-  /* AI : Reserve space for scrollbar to prevent content shift - Windows scrollbar is typically 17px */
   scrollbar-gutter: stable;
-  padding-right: 0rem;
-  box-sizing: content-box;
 }
 
-/* AI : Shared utility classes for common panel elements */
-.sidecolumn .country-flag {
-  width: 1rem;
-  height: 0.75rem;
-  border-radius: 0.125rem;
-}
-
-.sidecolumn .sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.sidecolumn .overlay-status-tag,
-.sidecolumn .project-status-tag {
-  font-size: 0.75rem;
-  text-transform: lowercase;
-}
-
-.sidecolumn .overlay-name {
-  font-weight: 600;
-  color: var(--p-surface-900);
-  font-size: 0.875rem;
-  margin-bottom: 0.25rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sidecolumn .metadata-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--p-surface-600);
-  font-size: 0.875rem;
-}
-
-.sidecolumn .metadata-item i {
-  color: var(--p-surface-500);
-}
-
-.sidecolumn .project-description p {
-  margin: 0 0 1rem 0;
-  color: var(--p-surface-700);
-  line-height: 1.5;
-}
-
-.sidecolumn .project-metadata {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.sidecolumn .project-content-wrapper {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-}
-
-.sidecolumn .project-info-section {
-  flex: 1;
-}
-
-.sidecolumn .project-details-card {
-  margin-bottom: 1rem;
-  box-shadow: none;
-  border: none;
-  background-color: #f8f9fa;
-}
-
-
-.sidecolumn .project-name {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--p-surface-900);
-  margin: 0;
-}
-
-.sidecolumn .panel-title {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--p-surface-900);
-  letter-spacing: -0.025em;
-}
 
 /* AI : Mobile responsive styles */
 @media (max-width: 768px) {
@@ -334,7 +229,6 @@ watch(() => authStore.isAuthenticated, (isAuthenticated) => {
 
   .close-button {
     display: flex;
-    /* AI : Show close button on mobile */
   }
 
   .site-title {
@@ -369,14 +263,12 @@ watch(() => authStore.isAuthenticated, (isAuthenticated) => {
   }
 }
 
-/* AI : Tablet responsive styles */
 @media (min-width: 769px) and (max-width: 1024px) {
   .sidecolumn {
     width: 500px;
   }
 }
 
-/* AI : Sign-in prompt styles */
 .signin-prompt {
   display: flex;
   align-items: center;
