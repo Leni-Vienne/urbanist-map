@@ -7,10 +7,10 @@ import {
 
 export const approvalStatusEnum = pgEnum('approval_status', ['pending', 'approved', 'rejected']);
 
+// AI : Profiles table that references Supabase auth.users
 export const users = pgTable('users', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  username: text('username').notNull().unique(),
-  email: text('email').notNull().unique(),
+  id: uuid('id').primaryKey(), // AI : This will be the auth.users.id from Supabase
+  username: text('username').unique(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
 });

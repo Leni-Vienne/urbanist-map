@@ -23,8 +23,12 @@
             outlined
             @click="showAuthModal = true"
           />
-          <div v-else class="user-menu">
-            <span class="username">{{ authStore.user?.user_metadata?.username || authStore.user?.email?.split('@')[0] }}</span>
+          <div
+            v-else
+            class="user-menu"
+          >
+            <span class="username">{{ authStore.user?.user_metadata?.username || authStore.user?.email?.split('@')[0]
+              }}</span>
             <Button
               icon="pi pi-sign-out"
               size="small"
@@ -34,7 +38,7 @@
             />
           </div>
         </div>
-        
+
         <Button
           icon="pi pi-times"
           class="p-button-text p-button-rounded close-button"
@@ -43,11 +47,11 @@
         />
       </div>
     </div>
-    
+
     <!-- AI : Auth Modal -->
     <AuthModal v-model:visible="showAuthModal" />
 
-    <!-- AI : Tab navigation like the prototype -->
+    <!-- AI : Tab navigation - only show authenticated tabs when signed in -->
     <div class="tab-navigation">
       <button
         :class="['tab-button', { active: activeTab === 'latest' }]"
@@ -56,12 +60,14 @@
         Latest
       </button>
       <button
+        v-if="authStore.isAuthenticated"
         :class="['tab-button', { active: activeTab === 'uploads' }]"
         @click="activeTab = 'uploads'"
       >
         My Contributions
       </button>
       <button
+        v-if="authStore.isAuthenticated"
         :class="['tab-button', { active: activeTab === 'admin' }]"
         @click="activeTab = 'admin'"
       >
@@ -70,16 +76,35 @@
     </div>
 
     <div class="sidecolumn__content">
-      <!-- AI : Tab content based on active tab -->
+      <!-- AI : Show content based on active tab -->
       <LatestOverlaysPanel v-if="activeTab === 'latest'" />
-      <MyContributionsPanel v-else-if="activeTab === 'uploads'" />
-      <ModerationPanel v-else-if="activeTab === 'admin'" />
+      <MyContributionsPanel v-else-if="activeTab === 'uploads' && authStore.isAuthenticated" />
+      <ModerationPanel v-else-if="activeTab === 'admin' && authStore.isAuthenticated" />
+
+      <!-- AI : Show sign-in prompt for authenticated tabs when not signed in -->
+      <div
+        v-else-if="!authStore.isAuthenticated && (activeTab === 'uploads' || activeTab === 'admin')"
+        class="signin-prompt"
+      >
+        <div class="signin-content">
+          <i class="pi pi-user text-4xl text-muted-color mb-4"></i>
+          <h3 class="text-lg font-semibold mb-2">Authentication Required</h3>
+          <p class="text-muted-color text-sm mb-4 text-center">
+            Please sign in to access this section.
+          </p>
+          <Button
+            label="Sign In"
+            class="w-full"
+            @click="showAuthModal = true"
+          />
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, defineAsyncComponent } from 'vue'
+import { ref, defineAsyncComponent, watch } from 'vue'
 import Button from 'primevue/button'
 import LatestOverlaysPanel from './LatestOverlaysPanel.vue' // static import since it's the default panel
 import AuthModal from '../auth/AuthModal.vue'
@@ -91,7 +116,7 @@ const ModerationPanel = defineAsyncComponent(() => import('./ModerationPanel.vue
 const MyContributionsPanel = defineAsyncComponent(() => import('./MyContributionsPanel.vue'))
 
 const authStore = useAuthStore()
-const { showSuccess } = useToast()
+const toast = useToast()
 const showAuthModal = ref(false)
 
 const props = defineProps<{
@@ -106,11 +131,23 @@ defineEmits<{
 // AI : Tab state - default to "latest" like the prototype
 const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
 
+// AI : Watch for authentication changes and reset tab if user signs out
+watch(() => authStore.isAuthenticated, (isAuthenticated) => {
+  if (!isAuthenticated && (activeTab.value === 'uploads' || activeTab.value === 'admin')) {
+    activeTab.value = 'latest'
+  }
+})
+
 // AI : Handle sign out
 async function handleSignOut() {
   const result = await authStore.signOut()
   if (result.success) {
-    showSuccess('Successfully signed out!')
+    toast.add({
+      severity: 'success',
+      summary: 'Signed Out',
+      detail: 'You have successfully signed out.',
+      life: 3000
+    })
   }
 }
 </script>
@@ -134,8 +171,10 @@ async function handleSignOut() {
   position: relative;
   flex-shrink: 0;
   width: 380px;
-  height: 100vh; /* AI : Use viewport height instead of 100% */
-  max-height: 100vh; /* AI : Constrain maximum height */
+  height: 100vh;
+  /* AI : Use viewport height instead of 100% */
+  max-height: 100vh;
+  /* AI : Constrain maximum height */
   background-color: var(--p-surface-0);
   border-right: 1px solid var(--p-surface-200);
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
@@ -143,13 +182,15 @@ async function handleSignOut() {
   display: flex;
   flex-direction: column;
   z-index: 1000;
-  overflow: hidden; /* AI : Prevent internal content from spilling outside container */
+  overflow: hidden;
+  /* AI : Prevent internal content from spilling outside container */
 }
 
 .sidecolumn--collapsed {
   width: 0;
   border-right: none;
-  overflow: hidden; /* AI : Hide content when collapsed */
+  overflow: hidden;
+  /* AI : Hide content when collapsed */
 }
 
 .sidecolumn__header {
@@ -248,7 +289,8 @@ async function handleSignOut() {
   display: flex;
   flex-direction: column;
   /* AI : Scrollbar on the main container for better visual integration */
-  min-height: 0; /* AI : Allow flex item to shrink below content size */
+  min-height: 0;
+  /* AI : Allow flex item to shrink below content size */
   /* AI : Reserve space for scrollbar to prevent content shift - Windows scrollbar is typically 17px */
   scrollbar-gutter: stable;
   padding-right: 0rem;
@@ -396,5 +438,22 @@ async function handleSignOut() {
   .sidecolumn {
     width: 500px;
   }
+}
+
+/* AI : Sign-in prompt styles */
+.signin-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 2rem;
+}
+
+.signin-content {
+  text-align: center;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 </style>

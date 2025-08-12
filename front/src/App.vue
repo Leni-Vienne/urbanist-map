@@ -7,6 +7,7 @@
     />
     <div class="main-content">
       <button
+        v-if="authStore.isAuthenticated"
         class="menu-toggle-button"
         @click="sideMenuOpen = !sideMenuOpen"
       >

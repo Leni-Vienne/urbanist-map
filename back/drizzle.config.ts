@@ -1,8 +1,9 @@
 import { defineConfig } from 'drizzle-kit';
+import { resolve } from 'path';
 
 export default defineConfig({
-    out: './drizzle',
-    schema: './src/db/schema.ts',
+    out: resolve(__dirname, './drizzle'),
+    schema: resolve(__dirname, './src/db/schema.ts'),
     dialect: 'postgresql',
     extensionsFilters: ['postgis'], // To prevent drizzle migrations from trying to delete 'spatial_ref_sys' table
     dbCredentials: {

@@ -17,6 +17,7 @@
       :class="{ 'buttons-hidden': isRouteActive }"
     >
       <Button
+        v-if="authStore.isAuthenticated"
         icon="pi pi-plus"
         @click="handleAddOverlayClick"
         aria-label="Add Image Overlay"
@@ -24,6 +25,7 @@
         class="map-control-button"
       />
       <Button
+        v-if="authStore.isAuthenticated"
         icon="pi pi-cog"
         @click="openProjectDialog"
         v-tooltip.right="'Test Project Dialog'"
@@ -31,7 +33,7 @@
       />
       <LayerControl />
 
-      <EditModeToggle />
+      <EditModeToggle v-if="authStore.isAuthenticated" />
     </div>
   </div>
   <Dialog
@@ -77,6 +79,7 @@ import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
 import { initializeCountryMarkers } from '@composables/map/useCountryMarkers';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { useAuthStore } from '@stores/authStore';
 import { storeToRefs } from 'pinia';
 import { fetchNearbyProjects } from '@composables/project/useNearbyProjects';
 import { useProjectDialogState } from '@composables/ui/useProjectDialogState';
@@ -90,6 +93,7 @@ const ImageUploadDialog = defineAsyncComponent(() => import('@components/dialogs
 // AI: Get Pinia stores
 const projectStore = useProjectStore();
 const overlayStore = useOverlayStore();
+const authStore = useAuthStore();
 const { projects } = storeToRefs(projectStore);
 const {
   isEditMode,
