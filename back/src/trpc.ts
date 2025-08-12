@@ -1,13 +1,9 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
-import { Session } from 'hono-sessions'
+import type { JWTPayload } from './shared/auth';
 
 export type Context = {
-    session?: Session & {
-        userId?: string;
-        isAuthenticated?: boolean;
-        username?: string;
-    }
+    user?: JWTPayload | null;
 };
 
 /**
@@ -26,12 +22,12 @@ export const router = t.router;
 export const publicProcedure = t.procedure;
 
 export const isAuthed = t.middleware(({ ctx, next }) => {
-    if (!ctx.session?.isAuthenticated) {
+    if (!ctx.user) {
         throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Not authenticated' });
     }
     return next({
         ctx: {
-            session: ctx.session,
+            user: ctx.user,
         },
     });
 });

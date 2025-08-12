@@ -32,8 +32,7 @@ export function createProjectRouter(db: PostgresJsDatabase<typeof schema>) {
 
         const data = {
           ...input,
-          //ownerId: ctx.session.userId,
-          ownerId: null,
+          ownerId: null, // AI : Projects can be created anonymously for now
           cityId: input.cityId ?? null,
           startDate: input.startDate ? new Date(input.startDate) : null,
           endDate: input.endDate ? new Date(input.endDate) : null,

@@ -1,27 +1,23 @@
 import { Hono } from 'hono'
-import { Session } from 'hono-sessions'
 import { serveStatic } from 'hono/bun'
 import { config } from './config'
 import { createApp } from './app'
-
-type SessionData = {
-    userId?: string
-    isAuthenticated?: boolean
-    username?: string
-}
+import type { JWTPayload } from './shared/types'
 
 // AI : Create the unified app for local development
 const { app: coreApp, appRouter } = createApp({
     corsOrigin: config.CORS_ORIGIN,
-    sessionEncryptionKey: config.SESSION_ENCRYPTION_KEY,
+    jwtSecret: config.JWT_SECRET,
     databaseUrl: config.DATABASE_URL,
-    isProduction: false
+    isProduction: false,
+    supabaseUrl: process.env.VITE_SUPABASE_URL,
+    supabaseAnonKey: process.env.VITE_SUPABASE_ANON_KEY
 })
 
 // AI : Wrap with static file serving for bun
 const app = new Hono<{
     Variables: {
-        session: Session<SessionData>
+        user: JWTPayload | null
     }
 }>()
 

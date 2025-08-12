@@ -1,21 +1,23 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { Session, sessionMiddleware, CookieStore } from 'hono-sessions'
 import { trpcServer } from '@hono/trpc-server'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from "postgres"
 import * as schema from './db/schema'
 import { createAppRouter } from './shared/routers'
 import { LocalFileStorage, R2Storage } from './shared/storage'
-import type { SessionData, FileUploadResult, FileUploadError } from './shared/types'
+import { createSupabaseAuthMiddleware, getAuthenticatedUser, type JWTPayload } from './shared/supabase-auth'
+import type { FileUploadResult, FileUploadError } from './shared/types'
 
 interface AppOptions {
     corsOrigin: string | string[]
-    sessionEncryptionKey: string
+    jwtSecret: string
     databaseUrl: string
     r2Bucket?: R2Bucket
     r2PublicUrl?: string
     isProduction?: boolean
+    supabaseUrl?: string
+    supabaseAnonKey?: string
 }
 
 // AI : Create database connection with appropriate settings
@@ -31,11 +33,10 @@ function createDatabase(databaseUrl: string, isProduction = false) {
 export function createApp(options: AppOptions) {
     const app = new Hono<{
         Variables: {
-            session: Session<SessionData>
+            user: JWTPayload | null
         }
     }>()
 
-    const store = new CookieStore()
     const db = createDatabase(options.databaseUrl, options.isProduction)
     const storage = options.r2Bucket 
         ? new R2Storage(options.r2Bucket)
@@ -47,13 +48,16 @@ export function createApp(options: AppOptions) {
         credentials: true
     }))
 
-    // AI : Session middleware
-    app.use('*', sessionMiddleware({
-        store,
-        sessionCookieName: 'session',
-        encryptionKey: options.sessionEncryptionKey,
-        expireAfterSeconds: 900,
-    }) as any)
+    // AI : Supabase authentication middleware
+    if (options.supabaseUrl && options.supabaseAnonKey) {
+        app.use('*', createSupabaseAuthMiddleware(options.supabaseUrl, options.supabaseAnonKey))
+    } else {
+        // AI : For development without Supabase auth, set user to null
+        app.use('*', (c, next) => {
+            c.set('user', null)
+            return next()
+        })
+    }
 
     // AI : tRPC routes
     const appRouter = createAppRouter(db)
@@ -61,7 +65,7 @@ export function createApp(options: AppOptions) {
         router: appRouter,
         createContext(_opts: any, c: any) {
             return {
-                session: c.get('session')
+                user: c.get('user')
             }
         }
     }))
@@ -132,13 +136,17 @@ export function createApp(options: AppOptions) {
         }
     })
 
-    // AI : Session check endpoint
-    app.get('/api/check-session', (c) => {
-        const session = c.get('session')
+    // AI : Check authentication status endpoint
+    app.get('/api/auth/me', (c) => {
+        const user = getAuthenticatedUser(c)
         return c.json({
-            userId: session.get('userId'),
-            isAuthenticated: session.get('isAuthenticated'),
-            username: session.get('username')
+            isAuthenticated: !!user,
+            user: user ? {
+                userId: user.userId,
+                email: user.email,
+                username: user.username,
+                role: user.role
+            } : null
         })
     })
 
