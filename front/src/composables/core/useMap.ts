@@ -62,7 +62,7 @@ export async function initializeMap() {
   if (!map.value) throw new Error('No map element found');
 
   L.control.zoom({
-    position: 'topright'
+    position: 'topleft'
 }).addTo(map.value);
 
   // AI : Initialize reactive zoom level with Leaflet's default

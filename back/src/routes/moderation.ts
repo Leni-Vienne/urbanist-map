@@ -17,13 +17,17 @@ export function createModerationRouter(db: PostgresJsDatabase<typeof schema>) {
       .query(async () => {
         try {
           // AI : Get projects that need moderation (either project pending OR has pending overlays)
+          // First, find all projects that have at least one pending overlay
           const projectsWithPendingOverlays = await db
             .selectDistinct({ projectId: overlays.projectId })
             .from(overlays)
             .where(eq(overlays.status, 'pending'));
 
-          const projectIdsWithPendingOverlays = projectsWithPendingOverlays.map(p => p.projectId).filter(Boolean);
+          // AI : Extract project IDs and filter out nulls with proper TypeScript type narrowing
+          // This ensures we have a clean array of strings for the inArray query
+          const projectIdsWithPendingOverlays = projectsWithPendingOverlays.map(p => p.projectId).filter((id): id is string => id !== null);
 
+          // AI : Query projects that need moderation - either directly pending OR have pending overlays
           const moderationProjects = db
             .select({
               id: projects.id,
@@ -42,12 +46,14 @@ export function createModerationRouter(db: PostgresJsDatabase<typeof schema>) {
             .where(
               or(
                 eq(projects.status, 'pending'),
-                inArray(projects.id, projectIdsWithPendingOverlays)
+                // AI : Only add inArray condition if we have project IDs to avoid empty array SQL error
+                // Drizzle's inArray() fails with empty arrays, so we conditionally include it
+                ...(projectIdsWithPendingOverlays.length > 0 ? [inArray(projects.id, projectIdsWithPendingOverlays)] : [])
               )
             )
             .orderBy(projects.createdAt);
 
-          // AI : Get all overlays for these moderation projects
+          // AI : Get all overlays for these moderation projects (to show what needs review)
           const projectOverlays = db
             .select({
               id: overlays.id,
@@ -67,7 +73,8 @@ export function createModerationRouter(db: PostgresJsDatabase<typeof schema>) {
             .where(
               or(
                 eq(projects.status, 'pending'),
-                inArray(projects.id, projectIdsWithPendingOverlays)
+                // AI : Same empty array protection as above - only add inArray if we have IDs
+                ...(projectIdsWithPendingOverlays.length > 0 ? [inArray(projects.id, projectIdsWithPendingOverlays)] : [])
               )
             );
 
@@ -96,6 +103,11 @@ export function createModerationRouter(db: PostgresJsDatabase<typeof schema>) {
       .input(setApprovalStatusSchema)
       .mutation(async ({ input }) => {
         try {
+          // AI : Guard against empty array to prevent SQL errors
+          if (input.ids.length === 0) {
+            return { success: true };
+          }
+          
           await db
             .update(projects)
             .set({ status: input.status })
@@ -111,6 +123,11 @@ export function createModerationRouter(db: PostgresJsDatabase<typeof schema>) {
       .input(setApprovalStatusSchema)
       .mutation(async ({ input }) => {
         try {
+          // AI : Guard against empty array to prevent SQL errors
+          if (input.ids.length === 0) {
+            return { success: true };
+          }
+          
           await db
             .update(overlays)
             .set({ status: input.status })

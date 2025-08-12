@@ -122,7 +122,7 @@ import InputText from 'primevue/inputtext'
 import Password from 'primevue/password'
 import Button from 'primevue/button'
 import { useAuthStore } from '../../stores/authStore'
-import { useToast } from '../../composables/ui/useToast'
+import { useToast } from '@composables/ui/useToast'
 
 const props = defineProps<{
   visible: boolean

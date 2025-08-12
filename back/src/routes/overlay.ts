@@ -1,7 +1,7 @@
 import { publicProcedure, protectedProcedure, router } from '../trpc';
 import { z } from 'zod';
 import { overlays, projects, cities, countries } from '../db/schema';
-import { sql, eq } from 'drizzle-orm';
+import { sql, eq, and } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../db/schema';
 
@@ -106,15 +106,19 @@ export function createOverlayRouter(db: PostgresJsDatabase<typeof schema>) {
       .input(getLatestOverlaysSchema)
       .query(async ({ input }) => {
         try {
-          let query = buildOverlayQuery(db)
-            .where(eq(overlays.status, 'approved'))
+          // AI : Build the where conditions array dynamically
+          const whereConditions = [eq(overlays.status, 'approved')];
+          
+          // AI : Add city filter if provided
+          if (input.cityId) {
+            whereConditions.push(eq(projects.cityId, input.cityId));
+          }
+
+          // AI : Apply all where conditions at once using AND logic
+          const query = buildOverlayQuery(db)
+            .where(and(...whereConditions))
             .orderBy(sql`${overlays.updatedAt} DESC`)
             .limit(input.limit);
-
-          // AI : Filter by city if provided
-          if (input.cityId) {
-            query = query.where(eq(projects.cityId, input.cityId));
-          }
 
           return await query;
         } catch (error) {

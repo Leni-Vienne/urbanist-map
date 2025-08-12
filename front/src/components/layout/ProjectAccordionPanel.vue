@@ -277,7 +277,8 @@ async function handleOverlayClick(overlay: any) {
 }
 
 /* AI : Add extra space to the right of status tags and capitalize first letter */
-.project-status-tag {
+.project-status-tag,
+.overlay-status-tag {
   margin-right: 0.5rem;
   text-transform: capitalize;
 }

@@ -50,14 +50,7 @@ const currentPanelType = ref<'explorer' | 'moderation'>('explorer') // AI : Defa
 const overlayStore = useOverlayStore()
 const authStore = useAuthStore()
 const route = useRoute()
-const { showSuccess, showError } = useToast()
-
-// AI : Determine which panel to show - allow manual override
-const currentPanel = computed(() => {
-  return currentPanelType.value
-})
-
-// AI : Provide the initialization state to child components
+const toast = useToast()
 
 // AI : Handle window blur to close UI elements gracefully
 function handleWindowBlur() {
@@ -102,10 +95,20 @@ onMounted(async () => {
 
     // AI : Handle auth query parameters
     if (route.query.auth === 'success') {
-      showSuccess('Successfully signed in!')
+      toast.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: 'Successfully signed in!',
+        life: 3000
+      })
     } else if (route.query.error) {
       const errorMessage = getErrorMessage(route.query.error as string)
-      showError(errorMessage)
+      toast.add({
+        severity: 'error',
+        summary: 'Authentication Error',
+        detail: errorMessage,
+        life: 5000
+      })
     }
   }
   catch (error) {
