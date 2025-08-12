@@ -12,13 +12,6 @@ export interface AppConfig {
     r2PublicUrl?: string; // AI : R2 public URL for direct image access
 }
 
-// AI : JWT payload structure
-export interface JWTPayload {
-    userId: string;
-    username?: string;
-    iat?: number;
-    exp?: number;
-}
 
 export interface FileUploadResult {
     success: boolean;

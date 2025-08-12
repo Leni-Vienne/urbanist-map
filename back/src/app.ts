@@ -6,18 +6,16 @@ import postgres from "postgres"
 import * as schema from './db/schema'
 import { createAppRouter } from './shared/routers'
 import { LocalFileStorage, R2Storage } from './shared/storage'
-import { createSupabaseAuthMiddleware, getAuthenticatedUser, type JWTPayload } from './shared/supabase-auth'
+import { createSupabaseAuthMiddleware, getAuthenticatedUser, type AuthUser } from './shared/auth'
 import type { FileUploadResult, FileUploadError } from './shared/types'
 
 interface AppOptions {
     corsOrigin: string | string[]
-    jwtSecret: string
     databaseUrl: string
     r2Bucket?: R2Bucket
     r2PublicUrl?: string
     isProduction?: boolean
-    supabaseUrl?: string
-    supabaseAnonKey?: string
+    supabaseJwtSecret?: string
 }
 
 // AI : Create database connection with appropriate settings
@@ -33,7 +31,7 @@ function createDatabase(databaseUrl: string, isProduction = false) {
 export function createApp(options: AppOptions) {
     const app = new Hono<{
         Variables: {
-            user: JWTPayload | null
+            user: AuthUser | null
         }
     }>()
 
@@ -48,9 +46,9 @@ export function createApp(options: AppOptions) {
         credentials: true
     }))
 
-    // AI : Supabase authentication middleware
-    if (options.supabaseUrl && options.supabaseAnonKey) {
-        app.use('*', createSupabaseAuthMiddleware(options.supabaseUrl, options.supabaseAnonKey))
+    // AI : Supabase JWT authentication middleware
+    if (options.supabaseJwtSecret) {
+        app.use('*', createSupabaseAuthMiddleware(options.supabaseJwtSecret))
     } else {
         // AI : For development without Supabase auth, set user to null
         app.use('*', (c, next) => {
@@ -142,9 +140,9 @@ export function createApp(options: AppOptions) {
         return c.json({
             isAuthenticated: !!user,
             user: user ? {
-                userId: user.userId,
+                userId: user.id,
                 email: user.email,
-                username: user.username,
+                username: user.user_metadata?.username || user.email?.split('@')[0],
                 role: user.role
             } : null
         })

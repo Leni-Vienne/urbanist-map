@@ -1,9 +1,9 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
-import type { JWTPayload } from './shared/auth';
+import type { AuthUser } from './shared/auth';
 
 export type Context = {
-    user?: JWTPayload | null;
+    user?: AuthUser | null;
 };
 
 /**

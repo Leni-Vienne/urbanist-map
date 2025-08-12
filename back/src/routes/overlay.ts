@@ -1,4 +1,4 @@
-import { publicProcedure, router } from '../trpc';
+import { publicProcedure, protectedProcedure, router } from '../trpc';
 import { z } from 'zod';
 import { overlays, projects, cities, countries } from '../db/schema';
 import { sql, eq } from 'drizzle-orm';
@@ -155,9 +155,9 @@ export function createOverlayRouter(db: PostgresJsDatabase<typeof schema>) {
         }
       }),
 
-    publishOverlay: publicProcedure
+    publishOverlay: protectedProcedure
       .input(publishOverlaySchema)
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         try {
           // AI : Extract corner coordinates
           const [topLeft, topRight, bottomRight, bottomLeft] = input.corners;
@@ -174,6 +174,7 @@ export function createOverlayRouter(db: PostgresJsDatabase<typeof schema>) {
             filename: input.filename,
             caption: input.caption,
             projectId: input.projectId,
+            authorId: ctx.user.id, // AI : Use authenticated user's ID from Supabase
             replacesOverlayId: input.replacesOverlayId ?? null,
             metadata: null, // AI : Keep metadata empty as requested
             topLeftLat: topLeft.lat,
@@ -197,6 +198,7 @@ export function createOverlayRouter(db: PostgresJsDatabase<typeof schema>) {
                 filename: overlayData.filename,
                 caption: overlayData.caption,
                 projectId: overlayData.projectId,
+                authorId: overlayData.authorId,
                 replacesOverlayId: overlayData.replacesOverlayId,
                 metadata: overlayData.metadata,
                 topLeftLat: overlayData.topLeftLat,

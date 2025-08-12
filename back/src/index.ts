@@ -2,22 +2,20 @@ import { Hono } from 'hono'
 import { serveStatic } from 'hono/bun'
 import { config } from './config'
 import { createApp } from './app'
-import type { JWTPayload } from './shared/types'
+import type { AuthUser } from './shared/auth'
 
 // AI : Create the unified app for local development
 const { app: coreApp, appRouter } = createApp({
     corsOrigin: config.CORS_ORIGIN,
-    jwtSecret: config.JWT_SECRET,
     databaseUrl: config.DATABASE_URL,
     isProduction: false,
-    supabaseUrl: process.env.VITE_SUPABASE_URL,
-    supabaseAnonKey: process.env.VITE_SUPABASE_ANON_KEY
+    supabaseJwtSecret: process.env.JWT_SECRET
 })
 
 // AI : Wrap with static file serving for bun
 const app = new Hono<{
     Variables: {
-        user: JWTPayload | null
+        user: AuthUser | null
     }
 }>()
 
