@@ -29,7 +29,7 @@
 
     <!-- AI : User menu popover -->
     <Popover ref="userPopover">
-      <div class="flex flex-col gap-4 w-48">
+      <div class="flex flex-col w-48">
         <div class="px-3 py-2 bg-surface-50 border-round">
           <div class="font-medium text-sm">{{ authStore.user?.email }}</div>
           <div 

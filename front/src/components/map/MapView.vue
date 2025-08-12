@@ -20,9 +20,11 @@
     <div
       class="map-buttons"
       :class="{ 'buttons-hidden': isRouteActive }"
+      @dblclick.stop
     >
       <Button
         @click="handleAddOverlayButtonClick"
+        @dblclick.stop
         aria-label="Add Image Overlay"
         v-tooltip.right="'Add Image Overlay'"
         severity="secondary"
@@ -55,6 +57,7 @@
         v-if="authStore.isAuthenticated"
         icon="pi pi-cog"
         @click="openProjectDialog"
+        @dblclick.stop
         v-tooltip.right="'Test Project Dialog'"
         severity="secondary"
       />
@@ -66,6 +69,7 @@
       <div class="zoom-controls">
         <Button
           @click="handleZoomIn"
+          @dblclick.stop
           icon="pi pi-plus"
           aria-label="Zoom In"
           v-tooltip.right="'Zoom In'"
@@ -73,6 +77,7 @@
         />
         <Button
           @click="handleZoomOut"
+          @dblclick.stop
           icon="pi pi-minus"
           aria-label="Zoom Out"
           v-tooltip.right="'Zoom Out'"
@@ -153,13 +158,12 @@ const {
 } = storeToRefs(overlayStore);
 
 // AI : Use global project dialog state
-const { showProjectDialogGlobally, closeProjectDialog } = useProjectDialogState();
+const { showProjectDialogGlobally, openProjectDialog: openProjectDialogGlobally, closeProjectDialog } = useProjectDialogState();
 
 // AI: Core state variables
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
-const showProjectDialog = ref(false);
 const showProjectSelector = ref(false);
 const showAuthModal = ref(false);
 const isLoading = ref(true);
@@ -182,14 +186,14 @@ const isRouteActive = computed(() => route.path !== '/' && !route.path.startsWit
 
 // AI : Open project dialog for testing
 function openProjectDialog() {
-  showProjectDialog.value = true;
+  openProjectDialogGlobally();
 }
 
 // AI : Handle create-project event from ProjectPicker
 function openProjectDialogFromPicker() {
   console.log('AI: MapView received create-project event');
   showProjectSelector.value = false;
-  showProjectDialog.value = true;
+  openProjectDialogGlobally();
 }
 
 // AI : Handle project creation from dialog
