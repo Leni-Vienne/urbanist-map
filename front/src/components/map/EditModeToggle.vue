@@ -3,6 +3,7 @@
     <Button
         :icon="currentIcon"
         @click="handleModeToggle"
+        @dblclick.stop
         :severity="buttonSeverity"
         class="map-control-button"
         v-tooltip.right="tooltipText"

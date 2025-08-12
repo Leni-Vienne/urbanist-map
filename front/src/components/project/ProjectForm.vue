@@ -49,25 +49,24 @@
                         :options="filteredCities"
                         optionLabel="displayName"
                         optionValue="id"
-                        :placeholder="citiesPlaceholder"
                         class="w-full"
                         :showClear="true"
                         :loading="citiesLoading"
                         :disabled="false"
                         required
-                        @focus="onSelectFocus"
-                        @click="onSelectFocus"
+                        @click="onSelectClick"
+                        @show="onSelectShow"
                     ><template #option="{ option }">
                             <div class="flex items-center justify-between w-full">
                                 <span>{{ option.name }}</span>
-                                <span class="text-xs text-gray-500">{{ option.countryCode }}<span
-                                        v-if="option.distance > 0"
-                                    > ({{ Math.round(option.distance) / 1000 }} km)</span></span>
+                                <span class="text-xs text-gray-500">{{ option.countryCode }}
+                                    <span v-if="option.distance > 0"> ({{ Math.round(option.distance) / 1000 }}
+                                        km)</span>
+                                </span>
                             </div>
                         </template>
                     </Select>
                     <label
-                    v-if="filteredCities.length > 0"
                         for="location-select"
                         class="text-gray-600"
                     >Location</label>
@@ -192,13 +191,7 @@ watch(() => props.project, (newProject) => {
     // AI : Let user click to load cities near current camera/overlay position instead
 }, { deep: true, immediate: true });
 
-const citiesPlaceholder = computed(() => {
-    if (citiesLoading.value) return 'Loading cities...';
-    if (!citiesLoaded.value) return 'Click to load cities...';
 
-    if (cities.value.length === 0) return 'No cities found in this area';
-    return 'Select a city...';
-});
 
 // AI : Computed property for cities with display names and distance
 const filteredCities = computed(() => {
@@ -209,7 +202,6 @@ const filteredCities = computed(() => {
 });
 
 // AI : Watch for cityId changes to update location field for backward compatibility
-// AI : Watch for cityId changes to update city name if needed (backward compatibility)
 watch(() => localProject.value.cityId, (newCityId) => {
     if (newCityId && cities.value.length > 0) {
         // AI : Add logic here if you want to update another field based on city selection
@@ -254,13 +246,24 @@ function getOverlayCenter(): { lat: number; lng: number } | null {
     return null;
 }
 
-// AI : Lazy load cities when user first interacts with the select
-async function onSelectFocus() {
+// AI : Load cities when user clicks the select (before dropdown opens)
+async function onSelectClick() {
     if (!citiesLoaded.value && !citiesLoading.value) {
-        citiesLoaded.value = true;
         const overlayCenter = getOverlayCenter();
         if (overlayCenter) {
-            await loadCitiesNearLocation(overlayCenter.lat, overlayCenter.lng);
+            // AI : Start loading immediately, don't wait
+            loadCitiesNearLocation(overlayCenter.lat, overlayCenter.lng);
+        }
+    }
+}
+
+// AI : Load cities when dropdown is about to show
+async function onSelectShow() {
+    if (!citiesLoaded.value && !citiesLoading.value) {
+        const overlayCenter = getOverlayCenter();
+        if (overlayCenter) {
+            // AI : Start loading immediately if not already started
+            loadCitiesNearLocation(overlayCenter.lat, overlayCenter.lng);
         }
     }
 }
