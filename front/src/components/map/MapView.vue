@@ -16,28 +16,69 @@
     <div class="user-menu-container">
       <UserMenu />
     </div>
-    
+
     <div
       class="map-buttons"
       :class="{ 'buttons-hidden': isRouteActive }"
     >
       <Button
-        icon="pi pi-plus"
         @click="handleAddOverlayButtonClick"
         aria-label="Add Image Overlay"
         v-tooltip.right="'Add Image Overlay'"
-        class="map-control-button"
-      />
+        severity="secondary"
+      >
+        <template #icon>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="1em"
+            height="1em"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M16 5h6" />
+            <path d="M19 2v6" />
+            <path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5" />
+            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+            <circle
+              cx="9"
+              cy="9"
+              r="2"
+            />
+          </svg>
+        </template>
+      </Button>
       <Button
         v-if="authStore.isAuthenticated"
         icon="pi pi-cog"
         @click="openProjectDialog"
         v-tooltip.right="'Test Project Dialog'"
-        class="map-control-button"
+        severity="secondary"
       />
       <LayerControl />
 
       <EditModeToggle v-if="authStore.isAuthenticated" />
+
+      <!-- AI : Zoom Controls -->
+      <div class="zoom-controls">
+        <Button
+          @click="handleZoomIn"
+          icon="pi pi-plus"
+          aria-label="Zoom In"
+          v-tooltip.right="'Zoom In'"
+          severity="secondary"
+        />
+        <Button
+          @click="handleZoomOut"
+          icon="pi pi-minus"
+          aria-label="Zoom Out"
+          v-tooltip.right="'Zoom Out'"
+          severity="secondary"
+        />
+      </div>
     </div>
   </div>
   <Dialog
@@ -76,7 +117,7 @@
 import { ref, onMounted, watch, computed, defineAsyncComponent } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 
-import { initializeMap, disableLeafletKeyboardEvents } from '@composables/core/useMap';
+import { initializeMap, disableLeafletKeyboardEvents, map } from '@composables/core/useMap';
 import { initializeCameraBounds } from '@composables/map/useCameraBounds';
 import { toggleEditMode } from '@composables/overlay/useEditMode';
 import { addOverlay, undo, redo } from '@composables/overlay/useOverlayActions';
@@ -123,6 +164,16 @@ const showProjectSelector = ref(false);
 const showAuthModal = ref(false);
 const isLoading = ref(true);
 const projectPickerRef = ref();
+
+// AI : Marker colors for the color picker buttons
+const markerColors = [
+  { name: 'Red', value: '#ef4444' },
+  { name: 'Blue', value: '#3b82f6' },
+  { name: 'Green', value: '#22c55e' },
+  { name: 'Yellow', value: '#eab308' },
+  { name: 'Purple', value: '#a855f7' },
+  { name: 'Orange', value: '#f97316' }
+];
 
 // AI : Use view mode overlays for displaying overlays when camera moves
 const { startCameraTracking, stopCameraTracking } = useViewModeOverlays();
@@ -180,7 +231,7 @@ async function handleAddOverlayClick() {
 function handleAddOverlayButtonClick() {
   console.log('AI : handleAddOverlayButtonClick called');
   console.log('AI : authStore.isAuthenticated:', authStore.isAuthenticated);
-  
+
   if (authStore.isAuthenticated) {
     handleAddOverlayClick();
   } else {
@@ -190,14 +241,21 @@ function handleAddOverlayButtonClick() {
 
 // AI : Handle unauthenticated user trying to add overlay
 function handleUnauthenticatedAction() {
-  console.log('AI : handleUnauthenticatedAction called');
   showAuthModal.value = true;
-  toast.add({
-    severity: 'info',
-    summary: 'Sign In Required',
-    detail: 'Please sign in to add image overlays',
-    life: 4000
-  });
+}
+
+// AI : Handle zoom in
+function handleZoomIn() {
+  if (map.value) {
+    map.value.zoomIn();
+  }
+}
+
+// AI : Handle zoom out  
+function handleZoomOut() {
+  if (map.value) {
+    map.value.zoomOut();
+  }
 }
 
 // AI : Handle file selection from dialog
@@ -445,4 +503,18 @@ async function handleToggleEditMode(newValue: boolean) {
   isolation: isolate;
 }
 
+/* AI : Simple container styling */
+.zoom-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 12px;
+}
+
+.marker-colors {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
 </style>

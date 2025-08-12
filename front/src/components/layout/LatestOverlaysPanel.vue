@@ -1,44 +1,51 @@
 <template>
   <div class="latest-overlays-panel">
     <div class="panel-content">
-      
-      <div class="flex flex-col gap-3" v-if="overlays.length > 0">
-        <div 
-          v-for="overlay in overlays" 
+      <div
+        class="flex flex-col gap-3"
+        v-if="overlays.length > 0"
+      >
+        <div
+          v-for="overlay in overlays"
           :key="overlay.id"
           class="flex items-center gap-3 bg-white border border-surface-300 rounded-lg p-3 cursor-pointer transition-all hover:border-surface-400 hover:shadow-sm"
           @click="handleOverlayClick(overlay)"
         >
           <!-- AI : Overlay thumbnail image -->
-          <div class="w-15 h-15 rounded-md overflow-hidden bg-surface-100 flex items-center justify-center flex-shrink-0">
-            <img 
-              :src="getOverlayImageUrl(overlay.filename)" 
+          <div
+            class="w-15 h-15 rounded-md overflow-hidden bg-surface-100 flex items-center justify-center flex-shrink-0"
+          >
+            <img
+              :src="getOverlayImageUrl(overlay.filename)"
               :alt="overlay.filename"
               class="w-full h-full object-cover"
               @error="(event) => handleImageError(event, overlay.id)"
               @load="(event) => handleImageLoad(event, overlay.id)"
             />
             <!-- AI : Fallback letter if image fails -->
-            <div 
+            <div
               class="text-2xl font-bold text-surface-500"
               :class="{ 'hidden': !imageErrors[overlay.id] }"
             >
               {{ getOverlayLetter(overlay.caption) }}
             </div>
           </div>
-          
+
           <!-- AI : Overlay info -->
           <div class="flex-1 min-w-0">
             <p class="overlay-name">{{ overlay.caption || 'Untitled' }}</p>
-            <div class="overlay-project" v-if="overlay.projectName">
+            <div
+              class="overlay-project"
+              v-if="overlay.projectName"
+            >
               <i class="pi pi-folder"></i>
               <span>{{ overlay.projectName }}</span>
             </div>
             <div class="flex items-center gap-1.5 text-surface-600 text-xs mb-1">
               <i class="pi pi-map-marker text-surface-500"></i>
-              <img 
-                v-if="overlay.countryCode" 
-                :src="getFlagUrl(overlay.countryCode)" 
+              <img
+                v-if="overlay.countryCode"
+                :src="getFlagUrl(overlay.countryCode)"
                 :alt="overlay.countryCode"
                 class="w-4 h-3 rounded-sm"
                 @error="hideFlagOnError"
@@ -49,10 +56,10 @@
               {{ formatRelativeTime(overlay.updatedAt) }}
             </div>
           </div>
-          
+
           <!-- AI : Zoom button with magnifying glass - fixed click handler -->
-          <button 
-            class="bg-surface-50 border border-surface-200 rounded-md w-8 h-8 flex items-center justify-center text-surface-500 hover:bg-surface-100 hover:text-surface-600 transition-all flex-shrink-0" 
+          <button
+            class="bg-surface-50 border border-surface-200 rounded-md w-8 h-8 flex items-center justify-center text-surface-500 hover:bg-surface-100 hover:text-surface-600 transition-all flex-shrink-0"
             @click.stop="handleOverlayClick(overlay)"
           >
             <i class="pi pi-search"></i>
@@ -60,14 +67,20 @@
           </button>
         </div>
       </div>
-      
-      <div v-else-if="!isLoading" class="flex flex-col items-center justify-center p-12 text-center text-surface-600">
+
+      <div
+        v-else-if="!isLoading"
+        class="flex flex-col items-center justify-center p-12 text-center text-surface-600"
+      >
         <i class="pi pi-image text-5xl text-surface-400 mb-4"></i>
         <p class="text-base mb-2">No overlays found.</p>
         <p class="text-sm">Be the first to add a construction overlay!</p>
       </div>
-      
-      <div v-if="isLoading" class="flex flex-col items-center justify-center p-12 text-center text-surface-600">
+
+      <div
+        v-if="isLoading"
+        class="flex flex-col items-center justify-center p-12 text-center text-surface-600"
+      >
         <i class="pi pi-spin pi-spinner text-2xl mb-4"></i>
         <p>Loading overlays...</p>
       </div>
