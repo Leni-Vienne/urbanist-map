@@ -5,10 +5,12 @@ interface Env {
     ASSETS: { fetch: (request: Request) => Promise<Response> }
     R2_BUCKET?: R2Bucket
     HYPERDRIVE?: Hyperdrive
-    SESSION_ENCRYPTION_KEY: string
+    JWT_SECRET: string
     CORS_ORIGIN?: string
     R2_PUBLIC_URL?: string
     DATABASE_URL?: string
+    VITE_SUPABASE_URL?: string
+    VITE_SUPABASE_ANON_KEY?: string
 }
 
 export default {
@@ -43,11 +45,13 @@ export default {
             // AI : Create the unified app
             const { app } = createApp({
                 corsOrigin: env.CORS_ORIGIN ?? 'https://construction-map.leni-vienne2.workers.dev',
-                sessionEncryptionKey: env.SESSION_ENCRYPTION_KEY ?? 'dev_key_for_local_development_only_32_chars_min',
+                jwtSecret: env.JWT_SECRET ?? 'dev_jwt_secret_for_local_development_only_32_chars_minimum',
                 databaseUrl,
                 r2Bucket: env.R2_BUCKET,
                 r2PublicUrl: env.R2_PUBLIC_URL,
-                isProduction: !isLocal
+                isProduction: !isLocal,
+                supabaseUrl: env.VITE_SUPABASE_URL,
+                supabaseAnonKey: env.VITE_SUPABASE_ANON_KEY
             })
             
             return await app.fetch(request, env)

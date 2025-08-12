@@ -14,6 +14,27 @@
     <div class="sidecolumn__header">
       <h2 class="site-title">ConstructionMap.org</h2>
       <div class="header-actions">
+        <!-- AI : Authentication controls -->
+        <div class="auth-section">
+          <Button
+            v-if="!authStore.isAuthenticated"
+            label="Sign In"
+            size="small"
+            outlined
+            @click="showAuthModal = true"
+          />
+          <div v-else class="user-menu">
+            <span class="username">{{ authStore.user?.user_metadata?.username || authStore.user?.email?.split('@')[0] }}</span>
+            <Button
+              icon="pi pi-sign-out"
+              size="small"
+              class="p-button-text"
+              @click="handleSignOut"
+              v-tooltip.left="'Sign Out'"
+            />
+          </div>
+        </div>
+        
         <Button
           icon="pi pi-times"
           class="p-button-text p-button-rounded close-button"
@@ -22,6 +43,9 @@
         />
       </div>
     </div>
+    
+    <!-- AI : Auth Modal -->
+    <AuthModal v-model:visible="showAuthModal" />
 
     <!-- AI : Tab navigation like the prototype -->
     <div class="tab-navigation">
@@ -58,10 +82,17 @@
 import { ref, defineAsyncComponent } from 'vue'
 import Button from 'primevue/button'
 import LatestOverlaysPanel from './LatestOverlaysPanel.vue' // static import since it's the default panel
+import AuthModal from '../auth/AuthModal.vue'
+import { useAuthStore } from '../../stores/authStore'
+import { useToast } from '../../composables/ui/useToast'
 
 // AI : Lazy load panels to reduce initial bundle size
 const ModerationPanel = defineAsyncComponent(() => import('./ModerationPanel.vue'))
 const MyContributionsPanel = defineAsyncComponent(() => import('./MyContributionsPanel.vue'))
+
+const authStore = useAuthStore()
+const { showSuccess } = useToast()
+const showAuthModal = ref(false)
 
 const props = defineProps<{
   isOpen: boolean
@@ -74,6 +105,14 @@ defineEmits<{
 
 // AI : Tab state - default to "latest" like the prototype
 const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
+
+// AI : Handle sign out
+async function handleSignOut() {
+  const result = await authStore.signOut()
+  if (result.success) {
+    showSuccess('Successfully signed out!')
+  }
+}
 </script>
 
 <style scoped>
@@ -118,7 +157,32 @@ const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
   padding: 2rem 1.5rem 1.5rem;
   background-color: var(--p-surface-0);
   border-bottom: 1px solid var(--p-surface-100);
-  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.auth-section {
+  display: flex;
+  align-items: center;
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.username {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--p-text-color);
 }
 
 .site-title {

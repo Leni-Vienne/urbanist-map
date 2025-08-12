@@ -38,12 +38,18 @@ import MapView from '@components/map/MapView.vue'
 import SideMenu from '@components/layout/SideMenu.vue'
 import InfoPopupContainer from '@components/map/InfoPopupContainer.vue'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
+import { useAuthStore } from '@stores/authStore'
+import { useRoute } from 'vue-router'
+import { useToast } from '@composables/ui/useToast'
 
 // AI : Create refs to track app state
 const isModerator = ref(false)
 const sideMenuOpen = ref(true) // AI : Open by default
 const currentPanelType = ref<'explorer' | 'moderation'>('explorer') // AI : Default to explorer
 const overlayStore = useOverlayStore()
+const authStore = useAuthStore()
+const route = useRoute()
+const { showSuccess, showError } = useToast()
 
 // AI : Determine which panel to show - allow manual override
 const currentPanel = computed(() => {
@@ -85,22 +91,40 @@ onMounted(async () => {
   window.addEventListener('blur', handleWindowBlur);
 
   try {
-    // AI : Use environment variable for API base URL
-    const response = await fetch(`/api/check-session`, {
-      method: 'GET',
-      credentials: 'include',
-    })
+    // AI : Initialize Supabase authentication
+    await authStore.initialize()
+    
+    // AI : Check if user is a moderator based on their role in Supabase
+    if (authStore.user?.user_metadata?.role === 'admin') {
+      isModerator.value = true
+    }
 
-    if (response.ok) {
-      const user = await response.json()
-      if (user.role === 'admin')
-        isModerator.value = true
+    // AI : Handle auth query parameters
+    if (route.query.auth === 'success') {
+      showSuccess('Successfully signed in!')
+    } else if (route.query.error) {
+      const errorMessage = getErrorMessage(route.query.error as string)
+      showError(errorMessage)
     }
   }
   catch (error) {
     console.error('Error during application initialization:', error)
   }
 })
+
+// AI : Get user-friendly error messages
+function getErrorMessage(error: string): string {
+  switch (error) {
+    case 'auth_failed':
+      return 'Authentication failed. Please try again.'
+    case 'no_session':
+      return 'Sign in was cancelled or failed.'
+    case 'unexpected':
+      return 'An unexpected error occurred during sign in.'
+    default:
+      return 'Authentication error occurred.'
+  }
+}
 
 onUnmounted(() => {
   window.removeEventListener('blur', handleWindowBlur);
