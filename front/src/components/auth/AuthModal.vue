@@ -179,7 +179,7 @@ async function handleSubmit() {
     if (isLoginMode.value) {
       const result = await authStore.signIn(form.email, form.password)
       if (result.success) {
-        toast.add({ severity: 'success', summary: 'Success', detail: 'Successfully signed in!' })
+        toast.add({ severity: 'success', summary: 'Success', detail: 'Successfully signed in!', life: 3000 })
         visible.value = false
         resetForm()
       } else {
@@ -188,7 +188,7 @@ async function handleSubmit() {
     } else {
       const result = await authStore.signUp(form.email, form.password, form.username)
       if (result.success) {
-        toast.add({ severity: 'success', summary: 'Success', detail: 'Successfully signed up!' })
+        toast.add({ severity: 'success', summary: 'Success', detail: 'Successfully signed up!', life: 3000 })
         visible.value = false
         resetForm()
       } else {
@@ -214,7 +214,8 @@ async function handleOAuthSignIn(provider: 'google' | 'github' | 'discord' | 'fa
       toast.add({ 
         severity: 'info', 
         summary: 'Redirecting...', 
-        detail: `Redirecting to ${provider} for authentication...` 
+        detail: `Redirecting to ${provider} for authentication...`,
+        life: 3000
       })
     } else {
       error.value = result.error || `${provider} sign in failed`
