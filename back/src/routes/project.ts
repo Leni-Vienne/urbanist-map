@@ -1,4 +1,4 @@
-import { publicProcedure, router } from '../trpc';
+import { publicProcedure, protectedProcedure, router } from '../trpc';
 import { z } from 'zod';
 import { projects, cities, overlays } from '../db/schema';
 import { eq, sql, and, inArray } from 'drizzle-orm';
@@ -19,9 +19,9 @@ const publishProjectSchema = z.object({
 
 export function createProjectRouter(db: PostgresJsDatabase<typeof schema>) {
   return router({
-  publishProject: publicProcedure
+  publishProject: protectedProcedure
     .input(publishProjectSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       try {
         if (input.cityId) {
           const city = await db.select().from(cities).where(eq(cities.id, input.cityId)).limit(1);
@@ -32,7 +32,7 @@ export function createProjectRouter(db: PostgresJsDatabase<typeof schema>) {
 
         const data = {
           ...input,
-          ownerId: null, // AI : Projects can be created anonymously for now
+          ownerId: ctx.user.id, // AI : Use authenticated user's ID from Supabase
           cityId: input.cityId ?? null,
           startDate: input.startDate ? new Date(input.startDate) : null,
           endDate: input.endDate ? new Date(input.endDate) : null,

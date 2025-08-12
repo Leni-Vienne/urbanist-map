@@ -21,7 +21,7 @@
   "dependencies": {
     "@hono/trpc-server": "^0.4.0",
     "@primeuix/themes": "^1.2.3",
-    "@supabase/supabase-js": "^2.54.0",
+    "@supabase/supabase-js": "^2.55.0",
     "@tailwindcss/vite": "^4.1.11",
     "@trpc/client": "^11.4.4",
     "@trpc/server": "^11.4.4",
