@@ -14,31 +14,6 @@
     <div class="sidecolumn__header">
       <h2 class="site-title">ConstructionMap.org</h2>
       <div class="header-actions">
-        <!-- AI : Authentication controls -->
-        <div class="auth-section">
-          <Button
-            v-if="!authStore.isAuthenticated"
-            label="Sign In"
-            size="small"
-            outlined
-            @click="showAuthModal = true"
-          />
-          <div
-            v-else
-            class="user-menu"
-          >
-            <span class="username">{{ authStore.user?.user_metadata?.username || authStore.user?.email?.split('@')[0]
-              }}</span>
-            <Button
-              icon="pi pi-sign-out"
-              size="small"
-              class="p-button-text"
-              @click="handleSignOut"
-              v-tooltip.left="'Sign Out'"
-            />
-          </div>
-        </div>
-
         <Button
           icon="pi pi-times"
           class="p-button-text p-button-rounded close-button"
@@ -48,8 +23,6 @@
       </div>
     </div>
 
-    <!-- AI : Auth Modal -->
-    <AuthModal v-model:visible="showAuthModal" />
 
     <!-- AI : Tab navigation - only show authenticated tabs when signed in -->
     <div class="tab-navigation">
@@ -90,13 +63,8 @@
           <i class="pi pi-user text-4xl text-muted-color mb-4"></i>
           <h3 class="text-lg font-semibold mb-2">Authentication Required</h3>
           <p class="text-muted-color text-sm mb-4 text-center">
-            Please sign in to access this section.
+            Please sign in using the button in the top-right corner to access this section.
           </p>
-          <Button
-            label="Sign In"
-            class="w-full"
-            @click="showAuthModal = true"
-          />
         </div>
       </div>
     </div>
@@ -107,17 +75,13 @@
 import { ref, defineAsyncComponent, watch } from 'vue'
 import Button from 'primevue/button'
 import LatestOverlaysPanel from './LatestOverlaysPanel.vue' // static import since it's the default panel
-import AuthModal from '../auth/AuthModal.vue'
 import { useAuthStore } from '../../stores/authStore'
-import { useToast } from '../../composables/ui/useToast'
 
 // AI : Lazy load panels to reduce initial bundle size
 const ModerationPanel = defineAsyncComponent(() => import('./ModerationPanel.vue'))
 const MyContributionsPanel = defineAsyncComponent(() => import('./MyContributionsPanel.vue'))
 
 const authStore = useAuthStore()
-const toast = useToast()
-const showAuthModal = ref(false)
 
 const props = defineProps<{
   isOpen: boolean
@@ -138,18 +102,6 @@ watch(() => authStore.isAuthenticated, (isAuthenticated) => {
   }
 })
 
-// AI : Handle sign out
-async function handleSignOut() {
-  const result = await authStore.signOut()
-  if (result.success) {
-    toast.add({
-      severity: 'success',
-      summary: 'Signed Out',
-      detail: 'You have successfully signed out.',
-      life: 3000
-    })
-  }
-}
 </script>
 
 <style scoped>
@@ -209,22 +161,6 @@ async function handleSignOut() {
   gap: 0.5rem;
 }
 
-.auth-section {
-  display: flex;
-  align-items: center;
-}
-
-.user-menu {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.username {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--p-text-color);
-}
 
 .site-title {
   margin: 0;

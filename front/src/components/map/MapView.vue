@@ -12,14 +12,18 @@
         <p class="mt-2">Loading map and data...</p>
       </div>
     </div>
+    <!-- AI : User Menu in top-right corner -->
+    <div class="user-menu-container">
+      <UserMenu />
+    </div>
+    
     <div
       class="map-buttons"
       :class="{ 'buttons-hidden': isRouteActive }"
     >
       <Button
-        v-if="authStore.isAuthenticated"
         icon="pi pi-plus"
-        @click="handleAddOverlayClick"
+        @click="handleAddOverlayButtonClick"
         aria-label="Add Image Overlay"
         v-tooltip.right="'Add Image Overlay'"
         class="map-control-button"
@@ -63,6 +67,9 @@
     v-model:visible="showImageUploadDialog"
     @file-selected="onImageUploadFromDialog"
   />
+
+  <!-- AI : Auth Modal for unauthenticated users -->
+  <AuthModal v-model:visible="showAuthModal" />
 </template>
 
 <script setup lang="ts">
@@ -86,6 +93,8 @@ import { useProjectDialogState } from '@composables/ui/useProjectDialogState';
 import LayerControl from '@components/map/LayerControl.vue';
 import EditModeToggle from '@components/map/EditModeToggle.vue';
 import ProjectPicker from '@components/project/ProjectPicker.vue';
+import UserMenu from '@components/auth/UserMenu.vue';
+import AuthModal from '@components/auth/AuthModal.vue';
 
 const ProjectDialog = defineAsyncComponent(() => import('@components/project/ProjectDialog.vue'));
 const ImageUploadDialog = defineAsyncComponent(() => import('@components/dialogs/ImageUploadDialog.vue'));
@@ -111,6 +120,7 @@ const route = useRoute();
 const toast = useToast();
 const showProjectDialog = ref(false);
 const showProjectSelector = ref(false);
+const showAuthModal = ref(false);
 const isLoading = ref(true);
 const projectPickerRef = ref();
 
@@ -164,6 +174,30 @@ async function handleAddOverlayClick() {
     // AI : Already in edit mode, open the dialog
     openImageUploadDialog();
   }
+}
+
+// AI : Handle add overlay button click - check auth first
+function handleAddOverlayButtonClick() {
+  console.log('AI : handleAddOverlayButtonClick called');
+  console.log('AI : authStore.isAuthenticated:', authStore.isAuthenticated);
+  
+  if (authStore.isAuthenticated) {
+    handleAddOverlayClick();
+  } else {
+    handleUnauthenticatedAction();
+  }
+}
+
+// AI : Handle unauthenticated user trying to add overlay
+function handleUnauthenticatedAction() {
+  console.log('AI : handleUnauthenticatedAction called');
+  showAuthModal.value = true;
+  toast.add({
+    severity: 'info',
+    summary: 'Sign In Required',
+    detail: 'Please sign in to add image overlays',
+    life: 4000
+  });
 }
 
 // AI : Handle file selection from dialog
@@ -400,6 +434,15 @@ async function handleToggleEditMode(newValue: boolean) {
 
 .loading-content {
   text-align: center;
+}
+
+.user-menu-container {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 10000;
+  pointer-events: auto;
+  isolation: isolate;
 }
 
 </style>

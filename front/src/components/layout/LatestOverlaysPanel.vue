@@ -1,9 +1,6 @@
 <template>
   <div class="latest-overlays-panel">
     <div class="panel-content">
-      <div class="panel-header">
-        <h3 class="panel-title">Latest Images</h3>
-      </div>
       
       <div class="flex flex-col gap-3" v-if="overlays.length > 0">
         <div 

@@ -41,6 +41,7 @@ declare module 'vue' {
     SideMenu: typeof import('./src/components/layout/SideMenu.vue')['default']
     Textarea: typeof import('primevue/textarea')['default']
     Toast: typeof import('primevue/toast')['default']
+    UserMenu: typeof import('./src/components/auth/UserMenu.vue')['default']
   }
   export interface GlobalDirectives {
     Tooltip: typeof import('primevue/tooltip')['default']
