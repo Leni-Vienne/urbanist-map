@@ -50,6 +50,8 @@ jobs:
       run: bun run build-front
       env:
         VITE_R2_PUBLIC_URL: ${{ vars.VITE_R2_PUBLIC_URL }}
+        VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+        VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
 
     - name: Show deployment target
       run: |
