@@ -11,7 +11,6 @@
                         v-model="localProject.name"
                         required
                         class="w-full"
-                        placeholder="e.g. Downtown Office Building"
                     />
                     <label
                         for="project-name-input"
@@ -30,7 +29,6 @@
                         v-model="localProject.description"
                         rows="2"
                         class="w-full"
-                        placeholder="Brief description of the construction project"
                     />
                     <label
                         for="project-description-input"
@@ -85,7 +83,6 @@
                             v-model="localProject.startDate"
                             class="w-full"
                             required
-                            placeholder="Select start date"
                             showIcon
                         />
                         <label
@@ -105,7 +102,6 @@
                             v-model="localProject.endDate"
                             class="w-full"
                             required
-                            placeholder="Select end date"
                             showIcon
                         />
                         <label
@@ -126,7 +122,6 @@
                         type="url"
                         v-model="localProject.sourceUrl"
                         class="w-full"
-                        placeholder="https://example.com/project.pdf"
                     />
                     <label
                         for="source-url-input"
