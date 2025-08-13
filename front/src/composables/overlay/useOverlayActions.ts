@@ -245,7 +245,13 @@ function createReplacementMarker(overlayObject: any, projectId: string): void {
   createMarker(overlayObject, projectId, 'replacement');
 }
 
-
+/**
+ * 
+ * @param imageUrl 
+ * @param projectId 
+ * @param replacesOverlayId 
+ * @returns the ID of the newly created overlay
+ */
 export async function addOverlay(imageUrl: string, projectId: string, replacesOverlayId?: string) {
   // AI : Only allow adding overlays in edit mode
   if (!isEditMode.value) {

@@ -116,7 +116,7 @@
 
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Password from 'primevue/password'
@@ -135,17 +135,17 @@ const emit = defineEmits<{
 const authStore = useAuthStore()
 const toast = useToast();
 
-const visible = computed({
-  get: () => props.visible,
-  set: (value: boolean) => emit('update:visible', value)
-})
-
 const isLoginMode = ref(true)
 const loading = ref(false)
 const oauthLoading = ref(false)
 const error = ref('')
 const emailError = ref('')
 const passwordError = ref('')
+
+const visible = computed({
+  get: () => props.visible,
+  set: (value: boolean) => emit('update:visible', value)
+})
 
 const form = reactive({
   email: '',

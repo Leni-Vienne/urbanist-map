@@ -25,7 +25,7 @@ const getApiUrl = () => {
 
 // Pass AppRouter as generic here. 👇 This lets the `trpc` object know
 // what procedures are available on the server and their input/output types.
-export const trpc = createTRPCClient<AppRouter>({
+const trpc = createTRPCClient<AppRouter>({
   links: [
     httpBatchLink({
       url: `${getApiUrl()}/trpc`,
@@ -50,6 +50,9 @@ export const trpc = createTRPCClient<AppRouter>({
     }),
   ],
 });
+
+// AI : Export as named export to prevent tree-shaking issues
+export { trpc };
 
 export function isTRPCClientError(
   cause: unknown,
