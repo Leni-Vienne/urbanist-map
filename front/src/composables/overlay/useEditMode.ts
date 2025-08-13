@@ -18,9 +18,6 @@ export async function toggleEditMode(): Promise<void> {
   isEditMode.value = !isEditMode.value;
 
   if (isEditMode.value) {
-    // AI : Switch to edit mode
-    console.log('AI : Switched to edit mode');
-    
     // AI : Stop view mode tracking
     const { stopCameraTracking } = useViewModeOverlays();
     stopCameraTracking();
@@ -50,9 +47,6 @@ export async function toggleEditMode(): Promise<void> {
     // AI : Start camera tracking for edit mode
     startEditModeTracking();
   } else {
-    // AI : Switch to view mode
-    console.log('AI : Switched to view mode');
-    
     // AI : Stop edit mode tracking
     stopEditModeTracking();
     

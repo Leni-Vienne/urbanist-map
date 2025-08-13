@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
 
 // AI : Available tile layer types
-export type TileLayerType = 'france' | 'esri' | 'google_satellite';
+export type TileLayerType = 'france' | 'esri' | 'google_satellite' | 'swiss';
 
 // AI : Current active tile layer
 export const currentTileLayer = ref<TileLayerType>('esri');
@@ -45,8 +45,21 @@ const tileLayerConfigs = {
   google_satellite: {
     type: 'google',
     options: {
+      maxZoom: 22,
+      maxNativeZoom: 21,
       type: 'satellite',
       attribution: "Google"
+    }
+  },
+  swiss: {
+    url: 'https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg',
+    options: {
+      minZoom: 2,
+      maxZoom: 22,
+      maxNativeZoom: 20,
+      tileSize: 256,
+      attribution: "© swisstopo",
+      noWrap: true
     }
   },
 };
@@ -85,11 +98,13 @@ async function addTileLayersToMap(): Promise<void> {
     // AI : Pre-create other layers for faster switching (optional)
     const franceLayer = await createTileLayer('france');
     const googleLayer = await createTileLayer('google_satellite');
+    const swissLayer = await createTileLayer('swiss');
 
     // AI : Store layers in the tileLayers object for potential future use
     tileLayers['World (ESRI)'] = activeTileLayer;
     tileLayers['France (IGN)'] = franceLayer;
     tileLayers['Google Satellite'] = googleLayer;
+    tileLayers['Switzerland (swisstopo)'] = swissLayer;
 
   } catch (error) {
     console.error('Failed to initialize tile layers:', error);
@@ -212,5 +227,6 @@ export function getTileLayerOptions() {
     { label: 'World (default)', value: 'esri' as TileLayerType },
     { label: 'France', value: 'france' as TileLayerType },
     { label: 'Google Satellite', value: 'google_satellite' as TileLayerType },
+    { label: 'Switzerland', value: 'swiss' as TileLayerType },
   ];
 }

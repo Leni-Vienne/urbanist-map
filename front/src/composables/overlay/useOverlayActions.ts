@@ -167,8 +167,6 @@ function saveOverlayWithCurrentCorners(overlayObject: OverlayObject): void {
     // AI : Update marker tooltip after corners are saved
     updateMarkerTooltip(overlayObject);
   }
-  // AI : No local storage - data is managed in memory and published to backend when user saves
-  console.log('AI : Overlay corners updated in memory:', overlayObject.id);
 }
 
 // AI : Helper function to update marker position and save overlay data
@@ -321,7 +319,7 @@ function applyHistoryAction(action: 'undo' | 'redo') {
   if (!idSelectedOverlay.value) return;
 
   const overlayObject = overlays.value[idSelectedOverlay.value];
-  if (!overlayObject) return;
+  if (!overlayObject?.overlay) return;
 
   const { history, redoStack, overlay } = overlayObject;
   const isUndo = action === 'undo';
@@ -336,20 +334,30 @@ function applyHistoryAction(action: 'undo' | 'redo') {
     return;
   }
 
-  if (isUndo) {
-    // AI : For undo: move current state to redo stack and apply previous state
-    const currentState = history.pop()!;
-    redoStack.push(currentState);
-    const previousState = history[history.length - 1];
-    (overlay as L.DistortableImageOverlay).setCorners(previousState);
-  } else {
-    // AI : For redo: move state from redo stack to history and apply it
-    const stateToRestore = redoStack.pop()!;
-    history.push(stateToRestore);
-    (overlay as L.DistortableImageOverlay).setCorners(stateToRestore);
-  }
+  try {
+    if (isUndo) {
+      // AI : For undo: move current state to redo stack and apply previous state
+      const currentState = history.pop()!;
+      redoStack.push(currentState);
+      const previousState = history[history.length - 1];
+      (overlay as any).setCorners(previousState);
+    } else {
+      // AI : For redo: move state from redo stack to history and apply it
+      const stateToRestore = redoStack.pop()!;
+      history.push(stateToRestore);
+      (overlay as any).setCorners(stateToRestore);
+    }
 
-  updateMarkerAndSaveOverlay(overlayObject);
+    updateMarkerAndSaveOverlay(overlayObject);
+  } catch (error) {
+    console.error(`AI : Error during ${action}:`, error);
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: `Failed to ${action}`,
+      life: 3000
+    });
+  }
 }
 
 export function resetImageRatio() {
@@ -633,7 +641,6 @@ export async function navigateToOverlay(overlayId: string, centerMap: boolean = 
 
       // AI : Also render intersecting overlays if they exist
       if (result?.intersectingOverlays.length > 0) {
-        console.log(`AI : Rendering ${result.intersectingOverlays.length} intersecting overlays`);
 
         const intersectingCdnOverlays = result.intersectingOverlays.map(transformBackendOverlayToCDN);
 
@@ -805,8 +812,6 @@ export async function deleteOverlay(id: string) {
       // Update local reference only - no backend calls during editing
       project.overlayIds = project.overlayIds.filter(overlayId => overlayId !== id);
       project.updatedAt = new Date();
-
-      console.log('AI : Overlay removed from project locally (no backend call):', id, 'from project:', overlayObject.projectId);
     }
   }
   removeOverlay(id);

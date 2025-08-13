@@ -5,7 +5,6 @@ const showProjectDialogGlobally = ref(false);
 
 export function useProjectDialogState() {
   function openProjectDialog() {
-    console.log('AI: Opening project dialog globally');
     showProjectDialogGlobally.value = true;
   }
   

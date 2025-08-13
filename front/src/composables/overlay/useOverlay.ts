@@ -151,7 +151,7 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
   overlayObject.imageUrl ??= imageUrl;
 
   try {
-    const newOverlay = L.distortableImageOverlay(imageUrl, {
+    const newOverlay = (L as any).distortableImageOverlay(imageUrl, {
       editable: true,
       keyboard: false,
       actions: [
