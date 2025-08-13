@@ -12,9 +12,9 @@
     "dev-worker": "wrangler dev",
     "deploy-worker": "wrangler deploy",
     "deploy": "bun run build-front && bun run deploy-worker",
-    "db:generate": "bun --bun run drizzle-kit generate --config=back/drizzle.config.ts",
-    "db:push": "bun --bun run drizzle-kit push --config=back/drizzle.config.ts",
-    "db:migrate": "bun --bun run drizzle-kit migrate --config=back/drizzle.config.ts",
+    "db:generate": "cd back && bun --env-file=../.env --bun run drizzle-kit generate --config=drizzle.config.ts",
+    "db:push": "cd back && bun --env-file=../.env --bun run drizzle-kit push --config=drizzle.config.ts",
+    "db:migrate": "cd back && bun --env-file=../.env --bun run drizzle-kit migrate --config=drizzle.config.ts",
     "db:drop": "cd back && bun run drizzle-kit drop",
     "import:cities": "cd back && bun run src/scripts/import-cities.ts"
   },

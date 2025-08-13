@@ -76,7 +76,7 @@
           id="auth-username"
           v-model="form.username"
           placeholder="Choose a username"
-          autocomplete="username"
+          autocomplete="nickname"
           class="w-full"
         />
         <small class="text-muted-color text-xs">This will be your display name</small>
