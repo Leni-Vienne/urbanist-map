@@ -11,6 +11,7 @@ export const approvalStatusEnum = pgEnum('approval_status', ['pending', 'approve
 export const users = pgTable('users', {
   id: uuid('id').primaryKey(), // AI : This will be the auth.users.id from Supabase
   username: text('username').unique(),
+  role: text('role').default('user'), // AI : Role can be 'user', 'admin', etc.
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
 });
