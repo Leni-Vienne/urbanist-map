@@ -111,7 +111,6 @@ async function handleUndo() {
 async function handleOverlayClick(overlay: any) {
   try {
     await navigateToOverlay(overlay.id)
-    console.log('Successfully navigated to overlay:', overlay.id)
   } catch (error) {
     console.error('Failed to navigate to overlay:', error)
   }

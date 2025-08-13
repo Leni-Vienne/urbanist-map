@@ -191,7 +191,6 @@ function openProjectDialog() {
 
 // AI : Handle create-project event from ProjectPicker
 function openProjectDialogFromPicker() {
-  console.log('AI: MapView received create-project event');
   showProjectSelector.value = false;
   openProjectDialogGlobally();
 }
@@ -233,9 +232,6 @@ async function handleAddOverlayClick() {
 
 // AI : Handle add overlay button click - check auth first
 function handleAddOverlayButtonClick() {
-  console.log('AI : handleAddOverlayButtonClick called');
-  console.log('AI : authStore.isAuthenticated:', authStore.isAuthenticated);
-
   if (authStore.isAuthenticated) {
     handleAddOverlayClick();
   } else {

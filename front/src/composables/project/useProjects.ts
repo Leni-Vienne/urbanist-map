@@ -61,10 +61,6 @@ export async function createProject(projectData: Partial<Omit<Project, 'id' | 'o
     updatedAt: new Date(),
   };
 
-  // AI : Store only locally - no backend calls during editing
-  // AI : Projects will be published when user explicitly saves/publishes them
-  console.log('AI : Project created locally (no backend call):', project.id);
-
   // AI : Create a new object reference to ensure shallowRef reactivity triggers
   const { projects } = useProjects();
   const updatedProjects = { ...projects.value };
@@ -125,10 +121,6 @@ export async function addOverlayToProjectWithId(projectId: string, overlayId: st
     project.overlayIds = [...project.overlayIds, overlayId];
   }
 
-  // AI : Store only locally - no backend calls during editing
-  // AI : Projects will be published when user explicitly saves/publishes them
-  console.log('AI : Overlay added to project locally (no backend call):', overlayId, 'to project:', projectId);
-
   // Update projects collection with the modified project
   updatedProjects[projectId] = project;
   projects.value = updatedProjects;
@@ -159,10 +151,6 @@ export async function removeOverlayFromProjectWithId(projectId: string, overlayI
 
   // Filter out the overlay ID from the project's overlay IDs
   project.overlayIds = project.overlayIds.filter((id: string) => id !== overlayId);
-
-  // AI : Store only locally - no backend calls during editing
-  // AI : Projects will be published when user explicitly saves/publishes them
-  console.log('AI : Overlay removed from project locally (no backend call):', overlayId, 'from project:', projectId);
 
   // Update projects collection with the modified project
   updatedProjects[projectId] = project;
@@ -290,10 +278,6 @@ export async function updateProject(projectId: string, projectData: Partial<Omit
 
   // AI : Create new project object with updated fields
   const updatedProject = { ...project, ...safeProjectData };
-
-  // AI : Store only locally - no backend calls during editing
-  // AI : Projects will be published when user explicitly saves/publishes them
-  console.log('AI : Project updated locally (no backend call):', projectId);
 
   // AI : Create a new projects object reference to trigger shallowRef reactivity
   const updatedProjects = { ...projects.value };

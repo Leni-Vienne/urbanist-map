@@ -282,7 +282,6 @@ function confirmSelection() {
 
 function openNewProjectDialog() {
   try {
-    console.log('AI: ProjectPicker opening project dialog via global state');
     // AI : Set flag when creating from ProjectPicker
     setFileUploadFlow(true);
     // AI : Use global state to trigger dialog opening

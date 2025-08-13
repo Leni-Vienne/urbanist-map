@@ -70,8 +70,6 @@ function initializeEditModeOverlaysInternal(): void {
 
   // AI : Update tooltips based on current zoom level
   updateTooltipsForZoomLevel();
-
-  console.log(`AI : Loaded ${Object.keys(overlays.value).length} overlay markers in edit mode`);
 }
 
 /**
@@ -134,7 +132,6 @@ async function loadFullOverlay(overlayId: string): Promise<void> {
 
   // AI : Check if zoom level is sufficient to load full overlay
   if (!map.value || currentZoomLevel.value < MIN_ZOOM_FOR_EDIT_OVERLAYS) {
-    console.log(`AI : Zoom level ${currentZoomLevel.value} too low to load full overlay ${overlayId}. Minimum required: ${MIN_ZOOM_FOR_EDIT_OVERLAYS}`);
     return;
   }
 
@@ -146,18 +143,15 @@ async function loadFullOverlay(overlayId: string): Promise<void> {
     // AI : In edit mode, we need to ensure the overlay is loaded and visible
     // AI : Load the overlay if not already loaded - create the overlay if it doesn't exist
     if (!overlay.overlay) {
-      console.log(`AI : Loading full overlay ${overlayId}...`);
       const newOverlay = await createOverlay(overlay.imageUrl, overlay);
       if (newOverlay) {
         overlay.overlay = newOverlay;
       }
     } else if (overlay.overlay && map.value) {
-      console.log(`AI : Overlay ${overlayId} already loaded, adding to map`);
       // AI : If already loaded, just make sure it's visible on the map
       overlay.overlay.addTo(map.value);
     }
 
-    console.log(`AI : Loaded full overlay ${overlayId} in edit mode`);
   } catch (error) {
     console.error(`AI : Error loading full overlay ${overlayId}:`, error);
     // AI : Remove from loaded set if loading failed using store action
@@ -342,7 +336,6 @@ function unloadOverlaysForZoomLevel(): void {
     clearAllOverlays();
     const { overlayStore } = getStoreRefs();
     overlayStore.clearEditModeOverlays();
-    console.log(`AI : Unloaded all overlays due to zoom level ${currentZoomLevel.value} < ${MIN_ZOOM_FOR_EDIT_OVERLAYS}`);
   }
 }
 

@@ -87,7 +87,6 @@ function toggleMenu(event: Event) {
 
 // AI : Handle sign out
 async function handleSignOut() {
-  console.log('AI : handleSignOut called')
   try {
     const result = await authStore.signOut()
     if (result.success) {

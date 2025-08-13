@@ -47,15 +47,12 @@ export function createSupabaseAuthMiddleware(jwtSecret: string) {
       const authHeader = c.req.header('Authorization')
       const token = extractBearerToken(authHeader)
       
-      console.log('Auth middleware - Header:', !!authHeader, 'Token:', !!token, 'JWT Secret:', !!jwtSecret)
-      
       if (!token) {
         c.set('user', null)
         return next()
       }
 
       const user = await verifySupabaseJWT(token, jwtSecret)
-      console.log('Auth middleware - User verified:', !!user, user ? user.email : 'null')
       c.set('user', user)
       return next()
       

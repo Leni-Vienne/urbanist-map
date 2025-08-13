@@ -40,9 +40,6 @@ export default {
                 throw new Error('No database connection available')
             }
 
-            // AI : Debug JWT_SECRET availability
-            console.log('JWT_SECRET available:', !!env.JWT_SECRET, env.JWT_SECRET ? 'length=' + env.JWT_SECRET.length : 'undefined')
-
             // AI : Create the unified app
             const { app } = createApp({
                 corsOrigin: env.CORS_ORIGIN ?? 'https://construction-map.leni-vienne2.workers.dev',

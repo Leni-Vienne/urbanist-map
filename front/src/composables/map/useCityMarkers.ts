@@ -77,12 +77,10 @@ async function fetchCityProjectsData(cityId: string, cityName: string, cityCount
   // AI : Check if we already have cached data for this city
   const cachedData = cityProjectsCache.get(cityId);
   if (cachedData) {
-    console.log(`AI : Using cached data for city ${cityName} (${cachedData.length} overlays)`);
     return cachedData;
   }
 
   try {
-    console.log(`AI : Fetching city projects data for ${cityName}...`);
     const result = await trpc.cities.getCityProjects.query({ cityId });
 
     // AI : Convert project overlays to CDN overlay format
@@ -134,8 +132,6 @@ async function fetchCityProjectsData(cityId: string, cityName: string, cityCount
 
     // AI : Cache the data for future use
     cityProjectsCache.set(cityId, overlaysData);
-    console.log(`AI : Cached ${overlaysData.length} overlays for city ${cityName}`);
-    
     return overlaysData;
   } catch (error) {
     console.error('AI : Error fetching city projects data:', error);
@@ -170,12 +166,10 @@ export async function loadCityProjects(cityId: string, cityName: string, forceFu
 
     if (hasCachedData && shouldShowFullOverlays) {
       // AI : We have cached data and zoom is high enough - show full overlays immediately
-      console.log(`AI : Showing full overlays for ${cityName} from cache (zoom: ${currentZoom})`);
       await renderFullOverlaysFromCache(cityId, cityName);
       return;
     } else if (hasCachedData && !shouldShowFullOverlays) {
       // AI : We have cached data but zoom is too low - show markers only
-      console.log(`AI : Showing overlay markers for ${cityName} from cache (zoom: ${currentZoom})`);
       renderOverlayMarkersFromCache(cityId, cityName);
       return;
     }
@@ -183,7 +177,6 @@ export async function loadCityProjects(cityId: string, cityName: string, forceFu
     // AI : No cached data - need to fetch from API
     // AI : If zoom is too low and not forcing full load, show overlay markers only
     if (currentZoom < MIN_ZOOM_FOR_OVERLAYS && !forceFullLoad) {
-      console.log(`AI : Zoom level ${currentZoom} too low to load full overlays for ${cityName}. Showing markers only.`);
       await showOverlayMarkers(cityId, cityName, cityCountryCode);
       return;
     }
@@ -256,8 +249,6 @@ async function showOverlayMarkers(cityId: string, cityName: string, cityCountryC
     if (map.value) {
       overlayMarkersLayer.addTo(map.value);
     }
-
-    console.log(`AI : Loaded ${overlaysData.length} overlay markers for ${cityName} (no images)`);
   } catch (error) {
     console.error('AI : Error loading overlay markers:', error);
   } finally {
@@ -413,7 +404,6 @@ function cleanupMouseTooltip(): void {
  */
 export function clearCityProjectsCache(): void {
   cityProjectsCache.clear();
-  console.log('AI : City projects cache cleared');
 }
 
 /**
@@ -421,7 +411,6 @@ export function clearCityProjectsCache(): void {
  */
 export function clearEditModeOverlayCache(): void {
   editModeOverlayCache.clear();
-  console.log('AI : Edit mode overlay cache cleared');
 }
 
 /**
@@ -453,7 +442,6 @@ function getOverlayDataWithEditModifications(overlayData: CDNOverlayData): CDNOv
  */
 export function clearCityProjectsCacheForCity(cityId: string): void {
   cityProjectsCache.delete(cityId);
-  console.log(`AI : Cache cleared for city ${cityId}`);
 }
 
 /**
@@ -551,8 +539,6 @@ async function renderFullOverlaysFromCache(cityId: string, cityName: string): Pr
 
     // AI : Render overlays on the map with markers
     await renderViewModeOverlays(overlaysData, true, true);
-
-    console.log(`AI : Rendered ${overlaysData.length} full overlays for ${cityName} from cache`);
   } catch (error) {
     console.error('AI : Error rendering full overlays from cache:', error);
   }
@@ -593,8 +579,6 @@ export function renderOverlayMarkersFromCache(cityId: string, cityName: string):
     if (map.value) {
       overlayMarkersLayer.addTo(map.value);
     }
-
-    console.log(`AI : Rendered ${overlaysData.length} overlay markers for ${cityName} from cache`);
   } catch (error) {
     console.error('AI : Error rendering overlay markers from cache:', error);
   }
@@ -646,12 +630,10 @@ function setupZoomEventListenerInternal(): void {
 
     // AI : If zoomed in enough and we have overlay markers, upgrade to full overlays
     if (currentZoom >= MIN_ZOOM_FOR_OVERLAYS && overlayMarkersLayer && map.value.hasLayer(overlayMarkersLayer)) {
-      console.log(`AI : Zoom level ${currentZoom} reached. Upgrading to full overlays for ${selectedCity.value.name}`);
       await renderFullOverlaysFromCache(selectedCity.value.id, selectedCity.value.name);
     }
     // AI : If zoomed out from full overlays, show overlay markers again
     else if (currentZoom < MIN_ZOOM_FOR_OVERLAYS && currentCityOverlays.value.length > 0) {
-      console.log(`AI : Zoom level ${currentZoom} too low. Clearing overlays and showing overlay markers for ${selectedCity.value.name}`);
       // AI : Clear current overlays first
       clearAllOverlays();
       currentCityOverlays.value = [];
@@ -675,7 +657,6 @@ export function checkZoomAndHideOverlays(): void {
   const currentZoom = map.value.getZoom();
 
   if (currentZoom < MIN_ZOOM_FOR_OVERLAYS) {
-    console.log(`AI : Current zoom ${currentZoom} is below threshold. Clearing overlays.`);
     clearAllOverlays();
     currentCityOverlays.value = [];
   }
@@ -776,8 +757,6 @@ export function updateOverlayMarkers(): void {
     const marker = L.marker([position.lat, position.lng], { icon: markerIcon });
     overlayMarkersLayer!.addLayer(marker);
   });
-
-  console.log(`AI : Updated ${overlaysData.length} overlay markers with current state`);
 }
 
 /**

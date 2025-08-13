@@ -44,7 +44,6 @@ export class CountriesImportService {
     try {
       // AI : Read CSV file from project root
       const csvPath = join(__dirname, '..', '..', '..', 'countries.csv');
-      console.log(`AI : Reading countries from: ${csvPath}`);
       
       const csvData = readFileSync(csvPath, 'utf-8');
       const lines = csvData.split('\n').filter(line => line.trim());
@@ -85,8 +84,6 @@ export class CountriesImportService {
           console.error(`AI : Error parsing line ${i + 2}: ${line}`, error);
         }
       }
-
-      console.log(`AI : Successfully loaded ${countries.length} countries from CSV`);
       return countries;
     } catch (error) {
       console.error('AI : Error loading countries CSV:', error);
@@ -109,8 +106,6 @@ export class CountriesImportService {
       let inserted = 0;
       let updated = 0;
       let errors = 0;
-
-      console.log(`AI : Processing ${csvCountries.length} countries...`);
 
       // AI : Process each country individually for upsert logic
       for (const csvCountry of csvCountries) {
@@ -139,12 +134,10 @@ export class CountriesImportService {
               .where(eq(countries.code, csvCountry.alpha3Code));
             
             updated++;
-            console.log(`AI : Updated coordinates for ${csvCountry.country} (${csvCountry.alpha3Code})`);
           } else {
             // AI : Insert new country
             await db.insert(countries).values(countryData);
             inserted++;
-            console.log(`AI : Inserted new country ${csvCountry.country} (${csvCountry.alpha3Code})`);
           }
 
         } catch (error) {
@@ -153,7 +146,6 @@ export class CountriesImportService {
         }
       }
 
-      console.log(`AI : Import completed. Inserted: ${inserted}, Updated: ${updated}, Errors: ${errors}`);
       return { inserted, updated, errors };
     } catch (error) {
       console.error('AI : Error importing countries:', error);
@@ -169,7 +161,6 @@ export class CountriesImportService {
       const totalCountriesResult = await db.select({ count: sql`count(*)` }).from(countries);
       const totalCountries = Number(totalCountriesResult[0]?.count ?? 0);
 
-      console.log(`AI : Total countries in database: ${totalCountries}`);
       return { totalCountries };
     } catch (error) {
       console.error('AI : Error getting countries stats:', error);
