@@ -6,7 +6,7 @@ import {
   getOverlaysForProject 
 } from '@composables/project/useProjects';
 import { useToast } from '@composables/ui/useToast';
-import { initialProjectName, setLastCreatedProject, inFileUploadFlow } from '@composables/ui/useRouterNavigation';
+import { setLastCreatedProject, inFileUploadFlow } from '@composables/ui/useRouterNavigation';
 import type { Project, OverlayObject } from '@types';
 
 // AI : Options for customizing navigation behavior
@@ -48,7 +48,7 @@ export function useProjectEditor(
   const initializeProject = async () => {
     if (mode === 'create') {
       editingProject.value = {
-    name: initialProjectName.value,
+    name: '',
     description: '',
     cityId: undefined, // AI : Initialize cityId as undefined
     startDate: null,
