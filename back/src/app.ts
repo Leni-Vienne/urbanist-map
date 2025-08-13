@@ -142,7 +142,7 @@ export function createApp(options: AppOptions) {
             user: user ? {
                 userId: user.id,
                 email: user.email,
-                username: user.user_metadata?.username || user.email?.split('@')[0],
+                username: user.user_metadata?.username ?? user.email?.split('@')[0],
                 role: user.role
             } : null
         })

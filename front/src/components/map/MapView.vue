@@ -384,7 +384,7 @@ async function handleFileUpload(projectId: string, isReplacement: boolean = fals
         }
       } else {
         // AI : Regular overlay addition
-        const overlayId = await addOverlay(reader.result as string, projectId);
+        await addOverlay(reader.result as string, projectId);
         // AI : Don't show toast here - addOverlayToProjectWithId will show a more specific toast
       }
     } catch (error) {

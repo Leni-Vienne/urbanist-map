@@ -131,7 +131,7 @@
             </div>
 
             <div class="field">
-                <label class="text-gray-600 block mb-2">Source PDF</label>
+                <label for="source-pdf-input" class="text-gray-600 block mb-2">Source PDF</label>
                 <FileUpload
                     id="source-pdf-input"
                     mode="basic"

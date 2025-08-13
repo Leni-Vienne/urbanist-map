@@ -34,7 +34,7 @@ import 'leaflet-distortableimage/dist/leaflet.distortableimage.css'
 import './assets/style.css' // must be imported after leaflet's css otherwise it's overwritten by leaflet's default css
 import 'primeicons/primeicons.css'
 
-import { onMounted, ref, onUnmounted, computed } from 'vue'
+import { onMounted, ref, onUnmounted } from 'vue'
 import MapView from '@components/map/MapView.vue'
 import SideMenu from '@components/layout/SideMenu.vue'
 import InfoPopupContainer from '@components/map/InfoPopupContainer.vue'

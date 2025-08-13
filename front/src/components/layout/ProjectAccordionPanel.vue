@@ -3,11 +3,14 @@
     <div class="panel-content">
       <div class="panel-header">
         <h3 class="panel-title">{{ title }}</h3>
-        <div v-if="$slots['header-actions']" class="header-actions">
+        <div
+          v-if="$slots['header-actions']"
+          class="header-actions"
+        >
           <slot name="header-actions"></slot>
         </div>
       </div>
-      
+
       <Accordion
         v-if="projects.length > 0"
         :multiple="true"
@@ -25,7 +28,7 @@
                 class="project-status-tag"
                 rounded
               />
-              
+
             </div>
           </AccordionHeader>
           <AccordionContent>
@@ -53,7 +56,8 @@
                       </div>
                       <div class="metadata-item">
                         <i class="pi pi-images"></i>
-                        <span>{{ project.overlayCount || (project.overlays ? project.overlays.length : 0) }} overlays</span>
+                        <span>{{ project.overlayCount || (project.overlays ? project.overlays.length : 0) }}
+                          overlays</span>
                       </div>
                       <div
                         class="metadata-item"
@@ -67,7 +71,11 @@
                         v-if="project.sourceUrl"
                       >
                         <i class="pi pi-link"></i>
-                        <a :href="project.sourceUrl" target="_blank" class="source-link">
+                        <a
+                          :href="project.sourceUrl"
+                          target="_blank"
+                          class="source-link"
+                        >
                           {{ formatSourceUrl(project.sourceUrl) }}
                         </a>
                       </div>
@@ -75,8 +83,14 @@
                   </div>
 
                   <!-- AI : Project actions slot for moderation panel - match overlay layout -->
-                  <div v-if="$slots['project-actions']" class="flex flex-col gap-2">
-                    <slot name="project-actions" :project="project"></slot>
+                  <div
+                    v-if="$slots['project-actions']"
+                    class="flex flex-col gap-2"
+                  >
+                    <slot
+                      name="project-actions"
+                      :project="project"
+                    ></slot>
                   </div>
                 </div>
               </template>
@@ -104,7 +118,7 @@
                     @error="(event) => handleImageError(event, overlay.id)"
                     @load="(event) => handleImageLoad(event, overlay.id)"
                   />
-                  <div 
+                  <div
                     class="text-2xl font-bold text-surface-500"
                     :class="{ 'hidden': !imageErrors[overlay.id] }"
                   >
@@ -138,12 +152,18 @@
                 </div>
 
                 <!-- AI : Overlay action buttons slot or default zoom button -->
-                <div v-if="$slots['overlay-actions']" class="flex flex-col gap-2">
-                  <slot name="overlay-actions" :overlay="overlay"></slot>
+                <div
+                  v-if="$slots['overlay-actions']"
+                  class="flex flex-col gap-2"
+                >
+                  <slot
+                    name="overlay-actions"
+                    :overlay="overlay"
+                  ></slot>
                 </div>
-                <button 
+                <button
                   v-else
-                  class="bg-surface-50 border border-surface-200 rounded-md w-8 h-8 flex items-center justify-center text-surface-500 hover:bg-surface-100 hover:text-surface-600 transition-all flex-shrink-0" 
+                  class="bg-surface-50 border border-surface-200 rounded-md w-8 h-8 flex items-center justify-center text-surface-500 hover:bg-surface-100 hover:text-surface-600 transition-all flex-shrink-0"
                   @click.stop="handleOverlayClick(overlay)"
                 >
                   <i class="pi pi-search"></i>
@@ -154,16 +174,22 @@
           </AccordionContent>
         </AccordionPanel>
       </Accordion>
-      
+
       <!-- AI : Empty state -->
-      <div v-else-if="!isLoading" class="flex flex-col items-center justify-center p-12 text-center text-surface-600">
+      <div
+        v-else-if="!isLoading"
+        class="flex flex-col items-center justify-center p-12 text-center text-surface-600"
+      >
         <i class="pi pi-folder text-5xl text-surface-400 mb-4"></i>
         <p class="text-base mb-2">{{ emptyMessage }}</p>
         <p class="text-sm">{{ emptySubMessage }}</p>
       </div>
-      
+
       <!-- AI : Loading state -->
-      <div v-if="isLoading" class="flex flex-col items-center justify-center p-12 text-center text-surface-600">
+      <div
+        v-if="isLoading"
+        class="flex flex-col items-center justify-center p-12 text-center text-surface-600"
+      >
         <i class="pi pi-spin pi-spinner text-2xl mb-4"></i>
         <p>Loading projects...</p>
       </div>
@@ -229,7 +255,7 @@ function getStatusSeverity(status: string): string {
 function getProjectLocation(project: any): string {
   const cityName = project.cityName || project.city?.name
   const countryName = project.countryName || project.city?.countryName || project.country?.name
-  
+
   if (cityName && countryName) {
     return `${cityName}, ${countryName}`
   } else if (cityName) {
@@ -267,7 +293,7 @@ function getOverlayLocationDisplay(overlay: any): string {
   // AI : Try different property combinations to avoid duplication
   const cityName = overlay.cityName || overlay.city?.name
   const countryName = overlay.countryName || overlay.city?.countryName || overlay.country?.name
-  
+
   if (cityName && countryName) {
     // AI : Avoid duplication if city name already contains country
     if (cityName.includes(countryName)) {
@@ -285,23 +311,19 @@ function getOverlayLocationDisplay(overlay: any): string {
 // AI : Format project dates nicely
 function formatProjectDate(dateString: string): string {
   if (!dateString) return ''
-  try {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    })
-  } catch (error) {
-    return dateString
-  }
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  })
 }
 
 // AI : Format project date range on single line with dash
 function formatProjectDateRange(startDate: string, endDate: string): string {
   const start = startDate ? formatProjectDate(startDate) : null
   const end = endDate ? formatProjectDate(endDate) : null
-  
+
   if (start && end) {
     return `${start} - ${end}`
   } else if (start) {
@@ -350,6 +372,7 @@ async function handleOverlayClick(overlay: any) {
   margin-right: 0.5rem;
   text-transform: capitalize;
 }
+
 /* AI : Component wrapper */
 .my-contributions-panel,
 .moderation-panel {
