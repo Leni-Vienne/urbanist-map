@@ -64,6 +64,8 @@ jobs:
         apiToken: ${{ secrets.CF_API_TOKEN }}
         accountId: ${{ secrets.CF_ACCOUNT_ID }}
         command: deploy --env="${{ env.WRANGLER_ENV }}"
+      env:
+        JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
     - name: Comment on PR with deployment status
       if: github.event_name == 'pull_request'
