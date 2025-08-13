@@ -55,7 +55,7 @@
     "drizzle-kit": "^0.31.4",
     "oxlint": "^1.10.0",
     "unplugin-vue-components": "^28.8.0",
-    "vite": "npm:rolldown-vite@latest",
+    "vite": "^7.1.1",
     "vite-plugin-vue-devtools": "^8.0.0",
     "wrangler": "^4.28.1"
   }
