@@ -2,29 +2,28 @@
   <div class="latest-overlays-panel">
     <div class="panel-content">
       <div
-        class="flex flex-col gap-3"
+        class="flex flex-col"
         v-if="overlays.length > 0"
       >
+        <!-- AI : Clean borderless cards like the prototype -->
         <div
           v-for="overlay in overlays"
           :key="overlay.id"
-          class="flex items-center gap-3 bg-white border border-surface-300 rounded-lg p-3 cursor-pointer transition-all hover:border-surface-400 hover:shadow-sm"
+          class="overlay-card"
           @click="handleOverlayClick(overlay)"
         >
           <!-- AI : Overlay thumbnail image -->
-          <div
-            class="w-15 h-15 rounded-md overflow-hidden bg-surface-100 flex items-center justify-center flex-shrink-0"
-          >
+          <div class="overlay-thumbnail">
             <img
               :src="getOverlayImageUrl(overlay.filename)"
-              :alt="overlay.filename"
+              :alt="overlay.caption || 'Overlay'"
               class="w-full h-full object-cover"
               @error="(event) => handleImageError(event, overlay.id)"
               @load="(event) => handleImageLoad(event, overlay.id)"
             />
             <!-- AI : Fallback letter if image fails -->
             <div
-              class="text-2xl font-bold text-surface-500"
+              class="fallback-letter"
               :class="{ 'hidden': !imageErrors[overlay.id] }"
             >
               {{ getOverlayLetter(overlay.caption) }}
@@ -32,35 +31,27 @@
           </div>
 
           <!-- AI : Overlay info -->
-          <div class="flex-1 min-w-0">
-            <p class="overlay-name">{{ overlay.caption || 'Untitled' }}</p>
-            <div
-              class="overlay-project"
-              v-if="overlay.projectName"
-            >
-              <i class="pi pi-folder"></i>
-              <span>{{ overlay.projectName }}</span>
-            </div>
-            <div class="flex items-center gap-1.5 text-surface-600 text-xs mb-1">
-              <i class="pi pi-map-marker text-surface-500"></i>
+          <div class="overlay-info">
+            <h4 class="overlay-name">{{ overlay.caption || 'Untitled' }}</h4>
+            <div class="overlay-time">{{ formatRelativeTime(overlay.updatedAt) }}</div>
+            <div class="overlay-location">
+              <i class="pi pi-map-marker"></i>
               <img
                 v-if="overlay.countryCode"
                 :src="getFlagUrl(overlay.countryCode)"
                 :alt="overlay.countryCode"
-                class="w-4 h-3 rounded-sm"
+                class="country-flag"
                 @error="hideFlagOnError"
               />
-              <span class="truncate">{{ getLocationDisplay(overlay) }}</span>
-            </div>
-            <div class="text-xs text-surface-500">
-              {{ formatRelativeTime(overlay.updatedAt) }}
+              <span>{{ getLocationDisplay(overlay) }}</span>
             </div>
           </div>
 
-          <!-- AI : Zoom button with magnifying glass - fixed click handler -->
+          <!-- AI : Zoom button like the prototype -->
           <button
-            class="bg-surface-50 border border-surface-200 rounded-md w-8 h-8 flex items-center justify-center text-surface-500 hover:bg-surface-100 hover:text-surface-600 transition-all flex-shrink-0"
+            class="zoom-button"
             @click.stop="handleOverlayClick(overlay)"
+            :title="`Zoom to ${overlay.caption || 'overlay'}`"
           >
             <i class="pi pi-search"></i>
             <span class="sr-only">Zoom to {{ overlay.caption }}</span>
@@ -176,59 +167,162 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* AI : Minimal scoped styles - most styling is handled by Tailwind classes */
+/* AI : Latest overlays panel with prototype-inspired design */
 .latest-overlays-panel {
   height: 100%;
   display: flex;
   flex-direction: column;
 }
 
-.panel-title {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--p-surface-900);
-  letter-spacing: -0.025em;
-}
-
 .panel-content {
   flex: 1;
   padding: 1rem 0 1rem 1rem;
-  /* AI : No overflow on individual panels - parent handles scrolling */
   overflow: visible;
 }
 
-.panel-header {
+
+/* AI : Clean borderless overlay cards like the prototype */
+.overlay-card {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1.5rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 2px solid var(--p-primary-100);
+  gap: 0.75rem;
+  padding: 1rem;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border-radius: 0;
 }
 
-/* AI : overlay-name style moved to SideMenu.vue */
+.overlay-card:hover {
+  background-color: var(--p-surface-50);
+}
 
-.overlay-project {
+/* AI : Overlay thumbnail */
+.overlay-thumbnail {
+  width: 60px;
+  height: 60px;
+  border-radius: 0.375rem;
+  overflow: hidden;
+  background-color: var(--p-surface-100);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.fallback-letter {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--p-surface-500);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* AI : Overlay info section */
+.overlay-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.overlay-name {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--p-surface-900);
+  margin: 0 0 0.25rem 0;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overlay-time {
+  font-size: 0.75rem;
+  color: var(--p-surface-500);
+  margin-bottom: 0.25rem;
+}
+
+.overlay-location {
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  color: var(--p-blue-600);
   font-size: 0.75rem;
+  color: var(--p-surface-600);
   margin-bottom: 0.25rem;
-  font-weight: 500;
 }
 
-.overlay-project i {
-  color: var(--p-blue-500);
+.overlay-location i {
+  color: var(--p-surface-500);
+  font-size: 0.625rem;
 }
 
-/* AI : sr-only style moved to SideMenu.vue */
+.country-flag {
+  width: 16px;
+  height: 12px;
+  border-radius: 0.125rem;
+  flex-shrink: 0;
+}
+
+/* AI : Zoom button styling */
+.zoom-button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--p-surface-200);
+  background-color: var(--p-surface-50);
+  border-radius: 0.375rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--p-surface-500);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.zoom-button:hover {
+  background-color: var(--p-surface-100);
+  color: var(--p-surface-600);
+  border-color: var(--p-surface-300);
+}
+
+.zoom-button i {
+  font-size: 0.75rem;
+}
+
+/* AI : Screen reader only text */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 
 /* AI : Mobile responsive adjustments */
 @media (max-width: 768px) {
   .panel-content {
     padding: 0.75rem;
+  }
+  
+  .overlay-card {
+    padding: 0.625rem;
+    gap: 0.625rem;
+  }
+  
+  .overlay-thumbnail {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .overlay-name {
+    font-size: 0.8125rem;
   }
 }
 </style>

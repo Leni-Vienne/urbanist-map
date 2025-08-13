@@ -1,6 +1,6 @@
 import { publicProcedure, protectedProcedure, router } from '../trpc';
 import { z } from 'zod';
-import { projects, cities, overlays } from '../db/schema';
+import { projects, cities, overlays, countries } from '../db/schema';
 import { eq, sql, and, inArray } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
@@ -212,7 +212,7 @@ export function createProjectRouter(db: PostgresJsDatabase<typeof schema>) {
       }))
       .query(async ({ input }) => {
         try {
-          // AI : Get all projects
+          // AI : Get all projects with full location info
           const allProjects = await db
             .select({
               id: projects.id,
@@ -227,20 +227,25 @@ export function createProjectRouter(db: PostgresJsDatabase<typeof schema>) {
               latestUpdateOn: projects.latestUpdateOn,
               createdAt: projects.createdAt,
               updatedAt: projects.updatedAt,
+              cityName: cities.name,
+              countryCode: countries.code,
+              countryName: countries.name,
               city: {
                 id: cities.id,
                 name: cities.name,
                 countryCode: cities.countryCode,
+                countryName: countries.name,
                 lat: sql<number>`ST_Y(${cities.coordinates})`,
                 lng: sql<number>`ST_X(${cities.coordinates})`
               }
             })
             .from(projects)
             .leftJoin(cities, eq(projects.cityId, cities.id))
+            .leftJoin(countries, eq(cities.countryCode, countries.code))
             .orderBy(sql`${projects.updatedAt} DESC`)
             .limit(input.limit);
 
-          // AI : Get overlays for all projects
+          // AI : Get overlays for all projects with full location info
           const projectIds = allProjects.map(p => p.id);
           const projectOverlays = projectIds.length > 0 ? await db
             .select({
@@ -251,12 +256,13 @@ export function createProjectRouter(db: PostgresJsDatabase<typeof schema>) {
               projectId: overlays.projectId,
               updatedAt: overlays.updatedAt,
               cityName: cities.name,
-              countryCode: cities.countryCode,
-              countryName: cities.name,
+              countryCode: countries.code,
+              countryName: countries.name,
             })
             .from(overlays)
             .leftJoin(projects, eq(overlays.projectId, projects.id))
             .leftJoin(cities, eq(projects.cityId, cities.id))
+            .leftJoin(countries, eq(cities.countryCode, countries.code))
             .where(inArray(overlays.projectId, projectIds))
             .orderBy(overlays.updatedAt) : [];
 

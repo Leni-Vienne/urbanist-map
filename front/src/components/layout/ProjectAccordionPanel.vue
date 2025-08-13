@@ -23,6 +23,7 @@
                 :value="project.status"
                 :severity="getStatusSeverity(project.status)"
                 class="project-status-tag"
+                rounded
               />
               
             </div>
@@ -40,40 +41,56 @@
                     </div>
                     <div class="project-metadata">
                       <div class="metadata-item">
-                        <i class="pi pi-calendar"></i>
-                        <span>&nbsp;{{ formatRelativeTime(project.updatedAt) }}</span>
+                        <i class="pi pi-clock"></i>
+                        <span>Updated {{ formatRelativeTime(project.updatedAt) }}</span>
                       </div>
                       <div
                         class="metadata-item"
                         v-if="getProjectLocation(project)"
                       >
                         <i class="pi pi-map-marker"></i>
-                        <span>&nbsp;{{ getProjectLocation(project) }}</span>
+                        <span>{{ getProjectLocation(project) }}</span>
                       </div>
                       <div class="metadata-item">
                         <i class="pi pi-images"></i>
-                        <span>&nbsp;{{ project.overlayCount || (project.overlays ? project.overlays.length : 0) }} overlays</span>
+                        <span>{{ project.overlayCount || (project.overlays ? project.overlays.length : 0) }} overlays</span>
+                      </div>
+                      <div
+                        class="metadata-item"
+                        v-if="project.startDate || project.endDate"
+                      >
+                        <i class="pi pi-calendar"></i>
+                        <span>{{ formatProjectDateRange(project.startDate, project.endDate) }}</span>
+                      </div>
+                      <div
+                        class="metadata-item"
+                        v-if="project.sourceUrl"
+                      >
+                        <i class="pi pi-link"></i>
+                        <a :href="project.sourceUrl" target="_blank" class="source-link">
+                          {{ formatSourceUrl(project.sourceUrl) }}
+                        </a>
                       </div>
                     </div>
                   </div>
 
-                  <!-- AI : Project actions slot for moderation panel -->
-                  <div v-if="$slots['project-actions']" class="project-actions">
+                  <!-- AI : Project actions slot for moderation panel - match overlay layout -->
+                  <div v-if="$slots['project-actions']" class="flex flex-col gap-2">
                     <slot name="project-actions" :project="project"></slot>
                   </div>
                 </div>
               </template>
             </Card>
 
-            <!-- AI : Project overlays -->
+            <!-- AI : Project overlays with borderless design -->
             <div
               v-if="project.overlays && project.overlays.length > 0"
-              class="flex flex-col gap-3 mt-4"
+              class="flex flex-col mt-4"
             >
               <div
                 v-for="overlay in project.overlays"
                 :key="overlay.id"
-                class="flex items-center gap-3 bg-white border border-surface-300 rounded-lg p-3 cursor-pointer transition-all hover:border-surface-400 hover:shadow-sm"
+                class="overlay-card"
                 @click="handleOverlayClick(overlay)"
               >
                 <!-- AI : Overlay thumbnail -->
@@ -116,6 +133,7 @@
                     :value="overlay.status"
                     :severity="getStatusSeverity(overlay.status)"
                     class="overlay-status-tag"
+                    rounded
                   />
                 </div>
 
@@ -207,16 +225,17 @@ function getStatusSeverity(status: string): string {
   }
 }
 
-// AI : Get project location display
+// AI : Get project location display - always show country when available
 function getProjectLocation(project: any): string {
-  if (project.cityName && project.countryName) {
-    return `${project.cityName}, ${project.countryName}`
-  } else if (project.city?.name && project.city?.countryName) {
-    return `${project.city.name}, ${project.city.countryName}`
-  } else if (project.cityName) {
-    return project.cityName
-  } else if (project.city?.name) {
-    return project.city.name
+  const cityName = project.cityName || project.city?.name
+  const countryName = project.countryName || project.city?.countryName || project.country?.name
+  
+  if (cityName && countryName) {
+    return `${cityName}, ${countryName}`
+  } else if (cityName) {
+    return cityName
+  } else if (countryName) {
+    return countryName
   }
   return ''
 }
@@ -243,16 +262,65 @@ function handleImageLoad(event: Event, overlayId: string) {
   imageErrors.value[overlayId] = false
 }
 
-// AI : Get overlay location display (city, country)
+// AI : Get overlay location display (city, country) - avoid duplication
 function getOverlayLocationDisplay(overlay: any): string {
-  if (overlay.cityName && overlay.countryName) {
-    return `${overlay.cityName}, ${overlay.countryName}`
-  } else if (overlay.cityName) {
-    return overlay.cityName
-  } else if (overlay.countryName) {
-    return overlay.countryName
+  // AI : Try different property combinations to avoid duplication
+  const cityName = overlay.cityName || overlay.city?.name
+  const countryName = overlay.countryName || overlay.city?.countryName || overlay.country?.name
+  
+  if (cityName && countryName) {
+    // AI : Avoid duplication if city name already contains country
+    if (cityName.includes(countryName)) {
+      return cityName
+    }
+    return `${cityName}, ${countryName}`
+  } else if (cityName) {
+    return cityName
+  } else if (countryName) {
+    return countryName
   }
   return 'Unknown Location'
+}
+
+// AI : Format project dates nicely
+function formatProjectDate(dateString: string): string {
+  if (!dateString) return ''
+  try {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    })
+  } catch (error) {
+    return dateString
+  }
+}
+
+// AI : Format project date range on single line with dash
+function formatProjectDateRange(startDate: string, endDate: string): string {
+  const start = startDate ? formatProjectDate(startDate) : null
+  const end = endDate ? formatProjectDate(endDate) : null
+  
+  if (start && end) {
+    return `${start} - ${end}`
+  } else if (start) {
+    return `Starts ${start}`
+  } else if (end) {
+    return `Ends ${end}`
+  }
+  return ''
+}
+
+// AI : Format source URL for display
+function formatSourceUrl(url: string): string {
+  if (!url) return ''
+  try {
+    const urlObj = new URL(url)
+    return urlObj.hostname
+  } catch (error) {
+    return url.length > 30 ? url.substring(0, 30) + '...' : url
+  }
 }
 
 // AI : Handle overlay click - navigate to overlay
@@ -321,5 +389,95 @@ async function handleOverlayClick(overlay: any) {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+
+/* AI : Project content wrapper flex layout like overlay cards */
+.project-content-wrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+/* AI : Improved project information styling */
+.project-info-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.project-description {
+  margin-bottom: 1rem;
+}
+
+.project-description p {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--p-surface-700);
+  margin: 0;
+}
+
+.project-metadata {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.metadata-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--p-surface-600);
+}
+
+.metadata-item i {
+  color: var(--p-surface-500);
+  font-size: 0.75rem;
+  width: 14px;
+  flex-shrink: 0;
+}
+
+.metadata-item span {
+  line-height: 1.4;
+}
+
+.source-link {
+  color: var(--p-primary-600);
+  text-decoration: none;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.source-link:hover {
+  color: var(--p-primary-700);
+  text-decoration: underline;
+}
+
+
+/* AI : Borderless overlay cards like the prototype */
+.overlay-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border-radius: 0;
+}
+
+.overlay-card:hover {
+  background-color: var(--p-surface-50);
+}
+
+/* AI : Overlay name styling to match LatestOverlaysPanel */
+.overlay-card .overlay-name {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--p-surface-900);
+  margin: 0 0 0.25rem 0;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>
