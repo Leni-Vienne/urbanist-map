@@ -2,9 +2,11 @@ import { ref } from 'vue';
 import { router } from '../../router';
 
 // AI: State accessible without requiring router injection
-export const initialProjectName = ref<string>('');
-export const lastCreatedProjectId = ref<string | null>(null);
-export const inFileUploadFlow = ref<boolean>(false);
+const lastCreatedProjectId = ref<string | null>(null);
+const inFileUploadFlow = ref<boolean>(false);
+
+// AI: Export as named exports to prevent tree-shaking issues
+export { lastCreatedProjectId, inFileUploadFlow };
 
 /**
  * AI: Simple back navigation with safety check
@@ -41,8 +43,7 @@ export function navigateWithCoordinates(path: string) {
 /**
  * AI: Open project manager view
  */
-export function openProjectManager(mode = 'list', projectId = '', projectName = '') {
-  initialProjectName.value = projectName;
+export function openProjectManager(mode = 'list', projectId = '') {
   
   let path = '/projects';
   switch (mode) {
