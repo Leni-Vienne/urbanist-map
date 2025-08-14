@@ -1,5 +1,5 @@
 // AI : Import utility functions from useCityMarkers
-import { updateOverlayMarkers, applyCachedOverlayState, updateCachedOverlayData } from '@composables/map/useCityMarkers';
+import { updateOverlayMarkers, updateCachedOverlayData } from '@composables/map/useCityMarkers';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
 import { buildImageUrl } from '../../utils';
 import L from "leaflet";
@@ -151,12 +151,22 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
   overlayObject.imageUrl ??= imageUrl;
 
   try {
+    // AI : Get corners before creating overlay to provide them during initialization
+    const corners = getCornersForOverlay(overlayObject);
+
+    // AI : Convert corners to Leaflet LatLng objects if available
+    const leafletCorners = corners && isValidCorners(corners)
+      ? corners.map(corner => L.latLng(corner.lat, corner.lng))
+      : undefined;
+
     const newOverlay = (L as any).distortableImageOverlay(imageUrl, {
       editable: true,
       keyboard: false,
       actions: [
         ...(isEditMode.value ? editTools : viewTools)
       ],
+      // AI : Provide corners during initialization to prevent timing issues
+      corners: leafletCorners,
     });
 
     newOverlay.addTo(map.value);
@@ -169,12 +179,10 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
     // AI : The onOverlayLoaded function will set the proper state when the element is ready
     if (!isEditMode.value) {
       // AI : Use a timeout to ensure element is available
-      setTimeout(() => {
-        const element = newOverlay.getElement();
-        if (element) {
-          disableOverlayEditing(newOverlay, element);
-        }
-      }, 100);
+      const element = newOverlay.getElement();
+      if (element) {
+        disableOverlayEditing(newOverlay, element);
+      }
     }
 
     return newOverlay;
@@ -190,7 +198,8 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
 function setupOverlayLoadHandler(overlay: L.DistortableImageOverlay, overlayObject: OverlayObject): void {
   const element = overlay.getElement();
   if (!element) {
-    setTimeout(() => setupOverlayLoadHandler(overlay, overlayObject), 100);
+    // AI : Element should be available immediately after addTo(), but add minimal fallback
+    requestAnimationFrame(() => setupOverlayLoadHandler(overlay, overlayObject));
     return;
   }
 
@@ -201,7 +210,7 @@ function setupOverlayLoadHandler(overlay: L.DistortableImageOverlay, overlayObje
   });
 
   if (element.complete && element.naturalWidth > 0) {
-    setTimeout(() => onOverlayLoaded(overlayObject), 100);
+    onOverlayLoaded(overlayObject);
   }
 }
 
@@ -210,18 +219,6 @@ function setupOverlayLoadHandler(overlay: L.DistortableImageOverlay, overlayObje
  */
 function onOverlayLoaded(overlayObject: OverlayObject): void {
   if (!overlayObject.overlay) return;
-
-  // AI : Apply cached overlay state first if available (in edit mode)
-  // AI : If cached state was applied, skip applyOverlayCorners to avoid overwriting
-  let cachedStateApplied = false;
-  if (isEditMode.value) {
-    cachedStateApplied = applyCachedOverlayState(overlayObject.id, overlayObject);
-  }
-
-  // AI : Only apply overlay corners if no cached state was applied
-  if (!cachedStateApplied) {
-    applyOverlayCorners(overlayObject);
-  }
 
   updateMarkerPosition(overlayObject);
 
@@ -279,7 +276,7 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
 
     // AI : Clear overlay parameter from URL when deselected
     clearOverlayFromUrl();
-    
+
     // AI : Hide InfoPopup when overlay is deselected
     const overlayStore = useOverlayStore();
     if (overlayStore.showInfoPopup) {
@@ -338,27 +335,6 @@ function clearOverlayFromUrl(): void {
     }
   } catch (error) {
     console.error('AI: Error clearing overlay from URL:', error);
-  }
-}
-
-/**
- * AI : Applies corners to overlay with validation
- */
-function applyOverlayCorners(overlayObject: OverlayObject): void {
-  if (!overlayObject.overlay) return;
-
-  const element = overlayObject.overlay.getElement();
-  if (!element?.complete || !element.naturalWidth) return;
-
-  // AI : Check if overlay is ready for corner operations
-  if (!(overlayObject.overlay as any)._corners) {
-    setTimeout(() => applyOverlayCorners(overlayObject), 200);
-    return;
-  }
-
-  const corners = getCornersForOverlay(overlayObject);
-  if (corners && isValidCorners(corners)) {
-    overlayObject.overlay.setCorners(corners);
   }
 }
 
