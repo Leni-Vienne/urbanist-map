@@ -100,28 +100,6 @@ function createNewOverlayObject(id: string, imageUrl: string, projectId: string)
   };
 }
 
-// AI : Helper function to wait for overlay corners to be ready
-async function waitForOverlayReady(overlay: OverlayObject): Promise<boolean> {
-  if (!overlay.overlay) return false;
-
-  return new Promise(resolve => {
-    const checkOverlayReady = () => {
-      try {
-        const corners = overlay.overlay?.getCorners();
-        if (corners && corners.length === 4) {
-          resolve(true);
-        } else {
-          setTimeout(checkOverlayReady, 50);
-        }
-      } catch {
-        // AI : If corners aren't ready, wait a bit more
-        setTimeout(checkOverlayReady, 50);
-      }
-    };
-    checkOverlayReady();
-  });
-}
-
 // AI : Helper function to zoom to overlay bounds with proper error handling
 function zoomToOverlayBounds(overlay: OverlayObject): boolean {
   if (!overlay.overlay || !map.value) return false;
@@ -175,11 +153,11 @@ function updateMarkerAndSaveOverlay(overlayObject: OverlayObject): void {
   saveOverlayWithCurrentCorners(overlayObject);
 }
 
-// AI : Helper function to center map on overlay with proper waiting and error handling
+// AI : Helper function to center map on overlay with proper error handling
 async function centerMapOnOverlay(overlay: OverlayObject): Promise<boolean> {
   if (!overlay.overlay) return false;
 
-  await waitForOverlayReady(overlay);
+  // AI : No need to wait for overlay ready since corners are now provided during initialization
   return zoomToOverlayBounds(overlay);
 }
 

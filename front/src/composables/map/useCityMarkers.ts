@@ -760,34 +760,6 @@ export function updateOverlayMarkers(): void {
 }
 
 /**
- * AI : Apply cached overlay state immediately when an overlay is created during rendering
- * This function should be called from the overlay rendering process
- * @returns true if cached state was applied, false otherwise
- */
-export function applyCachedOverlayState(overlayId: string, overlayObject: any): boolean {
-  const { isEditMode } = getStoreRefs();
-  if (!isEditMode.value || !overlayObject?.overlay) {
-    return false;
-  }
-
-  // AI : Check if we have edit modifications for this overlay
-  const editModifications = editModeOverlayCache.get(overlayId);
-  if (editModifications?.corners?.length === 4) {
-    try {
-      // AI : Apply the edit modifications to the overlay
-      overlayObject.overlay.setCorners(editModifications.corners);
-      overlayObject.isModified = editModifications.isModified;
-      return true;
-    } catch (error) {
-      console.error(`AI : Error applying cached edit modifications for overlay ${overlayId}:`, error);
-      return false;
-    }
-  }
-
-  return false;
-}
-
-/**
  * AI : Update cached overlay data when an overlay is modified
  * This stores modifications in a separate edit cache to keep original backend data pristine
  */

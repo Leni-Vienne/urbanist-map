@@ -135,7 +135,7 @@ import { updateTooltipText } from '@composables/overlay/useOverlayActions';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { storeToRefs } from 'pinia';
-import { allMarkers } from '@composables/overlay/useOverlay';
+import { allMarkers, updateMarkerTooltip } from '@composables/overlay/useOverlay';
 import { navigateToProjectEdit } from '@composables/ui/useRouterNavigation';
 import { loadCityProjects, citiesWithProjects, latestClickedCity } from '@composables/map/useCityMarkers';
 import { getNearbyProjects } from '@composables/project/useNearbyProjects';
@@ -635,8 +635,9 @@ async function publishOverlay() {
       const oldId = currentOverlay.value.id;
       const newId = publishResult.id;
 
-      // AI : Update overlay ID
+      // AI : Update overlay ID and reset modified flag since it's now saved
       currentOverlay.value.id = newId;
+      currentOverlay.value.isModified = false;
 
       // AI : If ID changed, update the overlays store with new key
       if (oldId !== newId) {
@@ -672,6 +673,9 @@ async function publishOverlay() {
           idSelectedOverlay.value = newId;
         }
       }
+
+      // AI : Update marker tooltip to reflect new published state (green color)
+      updateMarkerTooltip(currentOverlay.value);
     }
 
     // AI : Refresh project overlays from backend to update marker colors
