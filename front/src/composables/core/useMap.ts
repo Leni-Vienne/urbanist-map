@@ -98,22 +98,6 @@ export async function initializeMap() {
 
 
 
-// AI : Update URL with map coordinates and zoom without affecting history
-export function updateUrlWithPosition(lat: number, lng: number, zoom: number): void {
-  try {
-    const url = new URL(window.location.href);
-
-    // Set the map position query parameters
-    url.searchParams.set('lat', lat.toFixed(6));
-    url.searchParams.set('lng', lng.toFixed(6));
-    url.searchParams.set('zoom', zoom.toString());
-
-    // Replace current URL without adding to history stack
-    window.history.replaceState(window.history.state, '', url.toString());
-  } catch (error) {
-    console.error('Error updating URL with map position:', error);
-  }
-}
 
 // AI : Get current zoom level of the map
 export function getCurrentZoom(): number | null {

@@ -540,7 +540,7 @@ function removeSelectionOutline(overlayObject: OverlayObject): void {
  * AI : Highlight all overlays from the same project on hover in view mode
  */
 function highlightProjectOverlaysOnHover(projectId: string): void {
-  if (!projectId || isEditMode.value) return;
+  if (!projectId) return;
 
   const project = projects.value[projectId];
   const color = project?.color ?? '#007bff';
@@ -561,7 +561,7 @@ function highlightProjectOverlaysOnHover(projectId: string): void {
  * AI : Remove project highlight on mouse leave in view mode
  */
 function removeProjectHighlightOnHover(projectId: string): void {
-  if (!projectId || isEditMode.value) return;
+  if (!projectId) return;
 
   const selectedOverlay = idSelectedOverlay.value ? overlays.value[idSelectedOverlay.value] : null;
   if (selectedOverlay?.projectId === projectId) return;
@@ -584,19 +584,19 @@ function removeProjectHighlightOnHover(projectId: string): void {
  * AI : Setup hover event listeners for project highlighting in view mode
  */
 function setupProjectHoverEvents(overlay: L.DistortableImageOverlay, overlayObject: OverlayObject): void {
-  if (isEditMode.value || !overlayObject.projectId) return;
+  if (!overlayObject.projectId) return;
 
   const element = overlay.getElement();
   if (!element) return;
 
   element.addEventListener('mouseenter', () => {
-    if (!isEditMode.value && overlayObject.projectId) {
+    if (overlayObject.projectId) {
       highlightProjectOverlaysOnHover(overlayObject.projectId);
     }
   });
 
   element.addEventListener('mouseleave', () => {
-    if (!isEditMode.value && overlayObject.projectId) {
+    if (overlayObject.projectId) {
       removeProjectHighlightOnHover(overlayObject.projectId);
     }
   });
