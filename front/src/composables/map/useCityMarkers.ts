@@ -11,6 +11,7 @@ import { useMapStore } from '@stores/pinia/mapStore';
 import { useSelectedProject } from '@composables/project/useSelectedProject';
 import { storeToRefs } from 'pinia';
 import type { CDNOverlayData, MarkerColor } from '@types';
+import { debounce } from '../../utils';
 
 // AI : Function to get store refs when needed
 function getStoreRefs() {
@@ -597,24 +598,40 @@ export function setupZoomEventListener(): void {
   setupZoomEventListenerInternal();
 }
 
+// AI : Combined zoom handler for both cleanup and live overlay rendering
+const combinedZoomHandler = debounce(async () => {
+  if (!map.value) return;
+  
+  const currentZoom = map.value.getZoom();
+  
+  // AI : Immediate cleanup for very low zoom levels
+  if (currentZoom < MIN_ZOOM_FOR_OVERLAYS - 2 && currentCityOverlays.value.length > 0) {
+    clearAllOverlays();
+    currentCityOverlays.value = [];
+    return; // AI : Exit early if we cleared overlays
+  }
+  
+  // AI : Live overlay rendering during zoom
+  const { selectedCity } = getStoreRefs();
+  if (!selectedCity.value) return;
+
+  const hasCachedData = cityProjectsCache.has(selectedCity.value.id);
+  if (!hasCachedData) return;
+
+  // AI : If zoomed in enough and we have overlay markers, upgrade to full overlays during zoom
+  if (currentZoom >= MIN_ZOOM_FOR_OVERLAYS && overlayMarkersLayer && map.value.hasLayer(overlayMarkersLayer)) {
+    await renderFullOverlaysFromCache(selectedCity.value.id, selectedCity.value.name);
+  }
+}, 200); // AI : 200ms debounce for responsive live updates during pinch-to-zoom
+
 /**
  * AI : Internal function to set up zoom event listener
  */
 function setupZoomEventListenerInternal(): void {
   if (!map.value) return;
 
-  // AI : Monitor zoom during the zoom process for cleanup only if really needed
-  map.value.on('zoom', () => {
-    if (!map.value) return;
-
-    const currentZoom = map.value.getZoom();
-
-    // AI : Only hide overlays during zoom if they're causing glitches (very low zoom)
-    if (currentZoom < MIN_ZOOM_FOR_OVERLAYS - 2 && currentCityOverlays.value.length > 0) {
-      clearAllOverlays();
-      currentCityOverlays.value = [];
-    }
-  });
+  // AI : Single zoom event listener that handles both cleanup and live rendering
+  map.value.on('zoom', combinedZoomHandler);
 
   map.value.on('zoomend', async () => {
     if (!map.value) return;
