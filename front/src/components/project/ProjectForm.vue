@@ -299,4 +299,9 @@ function onPdfSelect(event: any) {
 function onPdfClear() {
     localProject.value.sourcePdf = null;
 }
+
+// AI : Expose methods to parent component
+defineExpose({
+    handleSubmit
+});
 </script>

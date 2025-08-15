@@ -6,7 +6,7 @@ import {
   getOverlaysForProject 
 } from '@composables/project/useProjects';
 import { useToast } from '@composables/ui/useToast';
-import { setLastCreatedProject } from '@composables/ui/useRouterNavigation';
+import { setLastCreatedProject } from '@composables/ui/useProjectState';
 import type { Project, OverlayObject } from '@types';
 
 // AI : Options for customizing navigation behavior

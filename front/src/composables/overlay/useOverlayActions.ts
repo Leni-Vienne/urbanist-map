@@ -4,7 +4,6 @@ import { overlays, idSelectedOverlay, updateMarkerPosition, saveToHistory, creat
 import { useToast } from '@composables/ui/useToast';
 import { useProjects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import type { OverlayObject, CDNOverlayData } from '@types';
-import { router } from '../../router';
 import { createColorIcon } from '@composables/ui/colorMarkers';
 import { trpc } from '../../client';
 import type { BackendOverlay } from '../../types/api';
@@ -646,9 +645,8 @@ export async function navigateToOverlay(overlayId: string, centerMap: boolean = 
     }
   }
 
-  // AI : Select the overlay and update URL
+  // AI : Select the overlay (URL updates no longer needed without routing)
   idSelectedOverlay.value = overlayId;
-  updateUrlWithOverlayId(overlayId);
 
   // AI : Center map if requested
   if (centerMap && targetOverlay.overlay) {
@@ -731,17 +729,6 @@ function showNavigationToast(overlay: OverlayObject, index?: number, total?: num
   }
 }
 
-/**
- * AI : Updates the URL with the current overlay ID using path parameter
- * @param overlayId - The ID of the overlay to include in the URL
- */
-function updateUrlWithOverlayId(overlayId: string): void {
-  try {
-    router.replace(`/overlay/${overlayId}`);
-  } catch (error) {
-    console.error('AI: Error updating URL with overlay ID:', error);
-  }
-}
 
 /**
  * AI : Centers the map view on the next overlay in the current project.

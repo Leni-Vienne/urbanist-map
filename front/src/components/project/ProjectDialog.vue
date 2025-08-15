@@ -9,6 +9,7 @@
   >
     <template #default>
       <ProjectForm
+        ref="projectFormRef"
         :project="project"
         :mode="mode"
         @submit="handleSubmit"
@@ -37,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import ProjectForm from './ProjectForm.vue';
 import type { Project } from '@types';
 
@@ -53,6 +54,8 @@ const emit = defineEmits<{
   submit: [project: Partial<Project>];
   cancel: [];
 }>();
+
+const projectFormRef = ref<InstanceType<typeof ProjectForm> | null>(null);
 
 // AI : Computed dialog title with fallback
 const dialogTitle = computed(() => {
@@ -78,10 +81,9 @@ function handleCancel() {
 
 // AI : Handle submit button click in footer (trigger form validation)
 function handleFormSubmit() {
-  // AI : This will trigger the form's submit event if validation passes
-  const formElement = document.querySelector('.project-dialog form');
-  if (formElement instanceof HTMLFormElement) {
-    formElement.requestSubmit();
+  // AI : Call the exposed handleSubmit method from ProjectForm
+  if (projectFormRef.value) {
+    projectFormRef.value.handleSubmit();
   }
 }
 </script>
