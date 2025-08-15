@@ -41,7 +41,7 @@ const filteredProjects = computed(() => {
 async function fetchAllProjects() {
   try {
     isLoading.value = true
-    const result = await trpc.project.getAllProjects.query({
+    const result = await trpc.project.getUsersContributions.query({
       limit: 50
     })
     projects.value = result

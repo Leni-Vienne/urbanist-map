@@ -14,9 +14,11 @@
       <Accordion
         v-if="projects.length > 0"
         :multiple="true"
+        v-model:value="activeAccordionPanels"
       >
         <AccordionPanel
           v-for="project in projects"
+          :key="project.id"
           :value="project.id"
         >
           <AccordionHeader>
@@ -98,7 +100,7 @@
 
             <!-- AI : Project overlays with borderless design -->
             <div
-              v-if="project.overlays && project.overlays.length > 0"
+              v-if="shouldShowOverlays(project) && project.overlays && project.overlays.length > 0"
               class="flex flex-col mt-4"
             >
               <div
@@ -112,18 +114,17 @@
                   class="w-15 h-15 rounded-md overflow-hidden bg-surface-100 flex items-center justify-center flex-shrink-0"
                 >
                   <img
+                    v-if="shouldShowOverlays(project) && !imageErrors[overlay.id]"
                     :src="getOverlayImageUrl(overlay.filename)"
                     :alt="overlay.name"
                     class="w-full h-full object-cover"
                     @error="(event) => handleImageError(event, overlay.id)"
                     @load="(event) => handleImageLoad(event, overlay.id)"
                   />
-                  <div
-                    class="text-2xl font-bold text-surface-500"
-                    :class="{ 'hidden': !imageErrors[overlay.id] }"
-                  >
-                    {{ getOverlayLetter(overlay.name) }}
-                  </div>
+                  <i
+                    v-if="imageErrors[overlay.id]"
+                    class="pi pi-image text-2xl text-surface-400"
+                  ></i>
                 </div>
 
                 <!-- AI : Overlay info -->
@@ -198,7 +199,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { buildImageUrl, formatRelativeTime } from '../../utils'
 import { navigateToOverlay } from '../../composables/overlay/useOverlayActions'
 import Tag from 'primevue/tag'
@@ -223,8 +224,12 @@ const props = withDefaults(defineProps<Props>(), {
   emptySubMessage: 'Create your first construction project!'
 })
 
-// AI : Reactive state for image errors
+// AI : Reactive state for image errors and expanded panels
 const imageErrors = ref<Record<string, boolean>>({})
+const activeAccordionPanels = ref<string[]>([])
+
+// AI : Computed expanded panels set for easier checking
+const expandedPanels = computed(() => new Set(activeAccordionPanels.value))
 
 // AI : Get flag URL for country
 function getFlagUrl(countryCode: string): string {
@@ -271,10 +276,6 @@ function getOverlayImageUrl(filename: string): string {
   return buildImageUrl(filename)
 }
 
-// AI : Get first letter of overlay name for fallback
-function getOverlayLetter(name: string): string {
-  return name?.charAt(0)?.toUpperCase() || 'O'
-}
 
 // AI : Handle image loading errors
 function handleImageError(event: Event, overlayId: string) {
@@ -343,6 +344,12 @@ function formatSourceUrl(url: string): string {
   } catch (error) {
     return url.length > 30 ? url.substring(0, 30) + '...' : url
   }
+}
+
+
+// AI : Check if overlays should be shown (only for expanded panels)
+function shouldShowOverlays(project: any): boolean {
+  return expandedPanels.value.has(project.id)
 }
 
 // AI : Handle overlay click - navigate to overlay

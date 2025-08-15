@@ -395,51 +395,19 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
     return;
   }
 
-  // AI : Try different methods to get the center position
-  let center: L.LatLng | null = null;
-
-  // AI : Method 1: Try getBounds() if available
-  if (overlayObject.overlay.getBounds) {
-    const bounds = overlayObject.overlay.getBounds();
-    if (bounds?.isValid()) {
-      center = bounds.getCenter();
-    }
+  // AI : Get center from overlay bounds - should work reliably now that corners are set during init
+  const bounds = overlayObject.overlay.getBounds();
+  if (bounds?.isValid()) {
+    overlayObject.marker.setLatLng(bounds.getCenter());
+    return;
   }
-
-  // AI : Method 2: Try getCorners() if getBounds() fails
-  if (!center) {
-    try {
-      const corners = overlayObject.overlay.getCorners();
-      if (corners && corners.length === 4) {
-        const latSum = corners.reduce((sum, corner) => sum + corner.lat, 0);
-        const lngSum = corners.reduce((sum, corner) => sum + corner.lng, 0);
-        center = L.latLng(latSum / 4, lngSum / 4);
-      }
-    } catch (error) {
-      console.log('AI : updateMarkerPosition - getCorners failed:', error);
-    }
-  }
-
-  // AI : Method 3: Fallback to element position
-  if (!center) {
-    try {
-      const element = overlayObject.overlay.getElement();
-      if (element) {
-        const rect = element.getBoundingClientRect();
-        const mapContainer = map.value?.getContainer();
-        if (mapContainer) {
-          const mapRect = mapContainer.getBoundingClientRect();
-          const centerX = rect.left + rect.width / 2 - mapRect.left;
-          const centerY = rect.top + rect.height / 2 - mapRect.top;
-          center = map.value?.containerPointToLatLng([centerX, centerY]) ?? null;
-        }
-      }
-    } catch (error) {
-      console.log('AI : updateMarkerPosition - Element position failed:', error);
-    }
-  }
-
-  if (center) {
+  console.log("updateMarkerPosition fallback: bounds not valid", bounds);
+  // AI : Fallback: calculate center from corners manually
+  const corners = overlayObject.overlay.getCorners();
+  if (corners && corners.length === 4) {
+    const latSum = corners.reduce((sum, corner) => sum + corner.lat, 0);
+    const lngSum = corners.reduce((sum, corner) => sum + corner.lng, 0);
+    const center = L.latLng(latSum / 4, lngSum / 4);
     overlayObject.marker.setLatLng(center);
   }
 }

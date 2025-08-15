@@ -206,7 +206,7 @@ export function createProjectRouter(db: PostgresJsDatabase<typeof schema>) {
       }),
       
     // AI : Get user's own projects for contributions panel with overlays
-    getAllProjects: protectedProcedure
+    getUsersContributions: protectedProcedure
       .input(z.object({
         limit: z.number().min(1).max(100).optional().default(50)
       }))
