@@ -1,10 +1,11 @@
 import L from "leaflet";
+import 'leaflet-doubletapdragzoom';
 import { ref, shallowRef, nextTick } from 'vue';
 import { debounce } from '../../utils';
 import { addTileLayer } from '@composables/map/useTileLayers';
 
 // shallowRef is used to avoid reactivity issues with Leaflet, see https://stackoverflow.com/a/73588115/12498040
-export const map = shallowRef<L.Map | null>(null); 
+export const map = shallowRef<L.Map | null>(null);
 export const mapSize = ref({ width: 0, height: 0 });
 // AI : Flag to track if the map is fully initialized
 export const mapInitialized = ref(false);
@@ -26,28 +27,28 @@ export function onMapInitialized(callback: InitListener): void {
 }
 
 // AI : Create a debounced version of updateMapSize
-export const debouncedUpdateMapSize = debounce(function() {
+export const debouncedUpdateMapSize = debounce(function () {
   if (!map.value) return;
   const container = map.value.getContainer();
   mapSize.value = {
     width: container.clientWidth,
     height: container.clientHeight
   };
-  
+
   // AI : Trigger a resize event on the map to ensure all components adjust
   map.value.invalidateSize();
-  
+
   // AI : Set initialized flag to true once we have valid dimensions
   if (mapSize.value.width > 0 && mapSize.value.height > 0 && !mapInitialized.value) {
     mapInitialized.value = true;
-    
+
     // AI : Notify all listeners
     initListeners.forEach(callback => callback());
   }
 }, 250);
 
 export async function initializeMap() {
-  // Fix Leaflet default marker icons for Vite build, credit to benneq : https://github.com/PaulLeCam/react-leaflet/issues/453#issuecomment-410450387
+  // Fixes Leaflet default marker icons for Vite build, credit to benneq : https://github.com/PaulLeCam/react-leaflet/issues/453#issuecomment-410450387
   delete (L.Icon.Default.prototype as any)._getIconUrl;
   L.Icon.Default.mergeOptions({
     iconRetinaUrl: new URL('../../../../node_modules/leaflet/dist/images/marker-icon-2x.png', import.meta.url).href,
@@ -55,15 +56,20 @@ export async function initializeMap() {
     shadowUrl: new URL('../../../../node_modules/leaflet/dist/images/marker-shadow.png', import.meta.url).href,
   });
 
-  map.value = L.map("viewerDiv", { 
+  map.value = L.map("viewerDiv", {
     maxZoom: 22,
-    zoomControl: false
-   }).setView([22, 10], 3);
+    zoomControl: false, // because we have our own zoom control
+    // to have double tag + drag zoom on mobile, using Leaflet.DoubleTapDragZoom package
+    doubleTapDragZoom: 'center',
+    doubleTapDragZoomOptions: {
+      reverse: true,
+    },
+  } as any).setView([22, 10], 3);
   if (!map.value) throw new Error('No map element found');
 
   // AI : Initialize reactive zoom level with Leaflet's default
   currentZoomLevel.value = map.value.getZoom();
-  
+
   // AI : Listen for zoom changes to update reactive zoom level
   map.value.on('zoomend', () => {
     if (map.value) {
@@ -73,7 +79,7 @@ export async function initializeMap() {
 
   // AI : Save map dimensions
   debouncedUpdateMapSize();
-  
+
   // AI : Update map size when window is resized (debounced to trigger only on resize end)
   window.addEventListener('resize', debouncedUpdateMapSize);
 
@@ -96,12 +102,12 @@ export async function initializeMap() {
 export function updateUrlWithPosition(lat: number, lng: number, zoom: number): void {
   try {
     const url = new URL(window.location.href);
-    
+
     // Set the map position query parameters
     url.searchParams.set('lat', lat.toFixed(6));
     url.searchParams.set('lng', lng.toFixed(6));
     url.searchParams.set('zoom', zoom.toString());
-    
+
     // Replace current URL without adding to history stack
     window.history.replaceState(window.history.state, '', url.toString());
   } catch (error) {

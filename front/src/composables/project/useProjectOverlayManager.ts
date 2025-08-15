@@ -1,8 +1,8 @@
-import { ref, computed, nextTick } from 'vue';
+import { computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
-import { 
-  addOverlayToProjectWithId, 
-  removeOverlayFromProjectWithId 
+import {
+  addOverlayToProjectWithId,
+  removeOverlayFromProjectWithId
 } from '@composables/project/useProjects';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { storeToRefs } from 'pinia';
@@ -12,12 +12,10 @@ import { useToast } from '@composables/ui/useToast';
 export function useProjectOverlayManager(projectId: string, onOverlaysChanged: () => void) {
   const router = useRouter();
   const toast = useToast();
-  
+
   // AI : Get store refs
   const overlayStore = useOverlayStore();
   const { overlays } = storeToRefs(overlayStore);
-  
-  const showAddOverlayDialog = ref(false);
 
   // AI : Get available overlays that can be added to the project
   const availableOverlays = computed(() =>
@@ -33,8 +31,7 @@ export function useProjectOverlayManager(projectId: string, onOverlaysChanged: (
     try {
       await addOverlayToProjectWithId(projectId, overlayId);
       onOverlaysChanged();
-      showAddOverlayDialog.value = false;
-        toast.add({
+      toast.add({
         severity: 'success',
         summary: 'Overlay Added',
         detail: 'Overlay successfully added to project',
@@ -58,7 +55,7 @@ export function useProjectOverlayManager(projectId: string, onOverlaysChanged: (
     try {
       await removeOverlayFromProjectWithId(projectId, overlayId);
       onOverlaysChanged();
-        toast.add({
+      toast.add({
         severity: 'success',
         summary: 'Overlay Removed',
         detail: 'Overlay successfully removed from project',
@@ -87,7 +84,6 @@ export function useProjectOverlayManager(projectId: string, onOverlaysChanged: (
   };
 
   return {
-    showAddOverlayDialog,
     availableOverlays,
     addOverlayToProject,
     removeOverlayFromProject,

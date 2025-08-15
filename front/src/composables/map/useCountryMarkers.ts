@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
 import { addCityMarkersForCountry, removeCityMarkers, currentCityOverlays, removeOverlayMarkers } from '@composables/map/useCityMarkers';
 import { clearAllOverlays } from '@composables/overlay/useOverlay';
+import { switchTileLayer, type TileLayerType } from '@composables/map/useTileLayers';
 import { trpc } from '@client';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
@@ -14,6 +15,7 @@ function getCountries() {
   const { countries } = storeToRefs(projectStore);
   return countries;
 }
+
 
 // AI : Opacity constants for country markers
 const COUNTRY_MARKER_OPACITY = 0.6; // AI : Default opacity for country markers
@@ -112,6 +114,9 @@ async function addCountryMarkersToMapInternal(): Promise<void> {
       }
       marker.setOpacity(COUNTRY_MARKER_HOVER_OPACITY);
       selectedCountryMarker = marker;
+      
+      // AI : Automatically switch to the appropriate tile layer for this country
+      await switchTileLayer(country.code as TileLayerType ?? 'esri');
       
       // AI : Clear previous city markers, overlays and selected city state before loading new ones
       removeCityMarkers();
