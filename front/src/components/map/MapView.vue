@@ -137,12 +137,13 @@ import { useAuthStore } from '@stores/authStore';
 import { storeToRefs } from 'pinia';
 import { fetchNearbyProjects } from '@composables/project/useNearbyProjects';
 import { useProjectDialogState } from '@composables/ui/useProjectDialogState';
+
 import LayerControl from '@components/map/LayerControl.vue';
 import EditModeToggle from '@components/map/EditModeToggle.vue';
-import ProjectPicker from '@components/project/ProjectPicker.vue';
 import UserMenu from '@components/auth/UserMenu.vue';
 import AuthModal from '@components/auth/AuthModal.vue';
 
+const ProjectPicker = defineAsyncComponent(() => import('@components/project/ProjectPicker.vue'));
 const ProjectDialog = defineAsyncComponent(() => import('@components/project/ProjectDialog.vue'));
 const ImageUploadDialog = defineAsyncComponent(() => import('@components/dialogs/ImageUploadDialog.vue'));
 

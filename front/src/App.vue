@@ -28,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import 'leaflet/dist/leaflet.css'
+// AI : Leaflet CSS now loaded from CDN in index.html
 import 'leaflet-toolbar/dist/leaflet.toolbar.css'
 import 'leaflet-distortableimage/dist/leaflet.distortableimage.css'
 import './assets/style.css' // must be imported after leaflet's css otherwise it's overwritten by leaflet's default css

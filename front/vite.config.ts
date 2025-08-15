@@ -25,10 +25,11 @@ export default defineConfig({
       ]
     })
   ],
-  // AI : Add resolver to use the Vue version with runtime compiler
+  // AI : Configure aliases and externals for CDN usage
   resolve: {
     alias: {
-      'vue': 'vue/dist/vue.esm-bundler.js', //  otherwise vite is not happy when building
+      // AI : Redirect leaflet imports to our CDN shim
+      'leaflet': path.resolve(__dirname, './src/lib/leaflet-umd-shim.ts'),
       '@tables': path.resolve(__dirname, './back/src/db/schema'),
       '@assets': path.resolve(__dirname, './src/assets'),
       '@composables': path.resolve(__dirname, './src/composables'),
@@ -36,6 +37,15 @@ export default defineConfig({
       '@stores': path.resolve(__dirname, './src/stores'),
       '@types': path.resolve(__dirname, './src/types'),
       '@client': path.resolve(__dirname, './src/client'),
+    }
+  },
+  // AI : External leaflet to prevent bundling 
+  build: {
+    rollupOptions: {
+      external: (id) => {
+        // AI : Mark CDN URLs as external so they don't get bundled
+        return id.includes('unpkg.com/leaflet')
+      }
     }
   }
 })

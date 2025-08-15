@@ -29,6 +29,9 @@
             "@client": [
                 "./front/src/client"
             ],
+            "leaflet": [
+                "./node_modules/@types/leaflet"
+            ]
         }
     }
 }
