@@ -205,12 +205,12 @@ export function createProjectRouter(db: PostgresJsDatabase<typeof schema>) {
         }
       }),
       
-    // AI : Get all projects for contributions panel with overlays
-    getAllProjects: publicProcedure
+    // AI : Get user's own projects for contributions panel with overlays
+    getAllProjects: protectedProcedure
       .input(z.object({
         limit: z.number().min(1).max(100).optional().default(50)
       }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
         try {
           // AI : Get all projects with full location info
           const allProjects = await db
@@ -242,6 +242,7 @@ export function createProjectRouter(db: PostgresJsDatabase<typeof schema>) {
             .from(projects)
             .leftJoin(cities, eq(projects.cityId, cities.id))
             .leftJoin(countries, eq(cities.countryCode, countries.code))
+            .where(eq(projects.ownerId, ctx.user.id))
             .orderBy(sql`${projects.updatedAt} DESC`)
             .limit(input.limit);
 

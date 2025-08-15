@@ -1,4 +1,4 @@
-import { protectedProcedure, router } from '../trpc';
+import { adminProcedure, router } from '../trpc';
 import { z } from 'zod';
 import { projects, overlays, approvalStatusEnum, cities, countries } from '../db/schema';
 import { eq, inArray, sql, or } from 'drizzle-orm';
@@ -13,10 +13,9 @@ const setApprovalStatusSchema = z.object({
 
 export function createModerationRouter(db: PostgresJsDatabase<typeof schema>) {
   return router({
-    getPendingSubmissions: protectedProcedure
+    getPendingSubmissions: adminProcedure
       .query(async () => {
         try {
-          // AI : Get projects that need moderation (either project pending OR has pending overlays)
           // First, find all projects that have at least one pending overlay
           const projectsWithPendingOverlays = await db
             .selectDistinct({ projectId: overlays.projectId })
@@ -102,7 +101,7 @@ export function createModerationRouter(db: PostgresJsDatabase<typeof schema>) {
         }
       }),
 
-    setProjectApprovalStatus: protectedProcedure
+    setProjectApprovalStatus: adminProcedure
       .input(setApprovalStatusSchema)
       .mutation(async ({ input }) => {
         try {
@@ -122,7 +121,7 @@ export function createModerationRouter(db: PostgresJsDatabase<typeof schema>) {
         }
       }),
 
-    setOverlayApprovalStatus: protectedProcedure
+    setOverlayApprovalStatus: adminProcedure
       .input(setApprovalStatusSchema)
       .mutation(async ({ input }) => {
         try {

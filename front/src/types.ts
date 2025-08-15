@@ -71,7 +71,8 @@ export interface Country extends DBCountry {
 }
 
 // AI : Extract backend project data from city projects
-export type BackendProject = RouterOutput['cities']['getCityProjects'][number];
+// AI : getCityProjects now returns CDNOverlayData array directly
+export type BackendCityOverlay = RouterOutput['cities']['getCityProjects'][number];
 
 // AI : Transform the backend overlay format to match our expected CDN format
 export interface CDNOverlayData {
