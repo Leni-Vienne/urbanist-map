@@ -40,6 +40,7 @@ import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useAuthStore } from '@stores/authStore'
 import { useToast } from '@composables/ui/useToast'
 import { initializeStores } from '@composables/overlay/useOverlay'
+import { useBeforeUnload } from '@composables/core/useBeforeUnload'
 
 // AI : Create refs to track app state
 const isModerator = ref(false)
@@ -48,6 +49,9 @@ const currentPanelType = ref<'explorer' | 'moderation'>('explorer') // AI : Defa
 const overlayStore = useOverlayStore()
 const authStore = useAuthStore()
 const toast = useToast()
+
+// AI : Initialize beforeunload handler for modified overlays
+useBeforeUnload()
 
 // AI : Handle window blur to close UI elements gracefully
 function handleWindowBlur() {

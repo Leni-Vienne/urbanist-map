@@ -263,8 +263,10 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
 
 
   cities.forEach(city => {
-    // AI : Create a standard Leaflet marker
+    // AI : Create SVG marker for cities (using blue color)
+    const markerIcon = createColorIcon('blue');
     const marker = L.marker([city.lat, city.lng], {
+      icon: markerIcon,
       opacity: CITY_MARKER_OPACITY // AI : Lower default opacity to suggest interactivity
     });
 

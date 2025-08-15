@@ -8,6 +8,7 @@ import { trpc } from '@client';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { storeToRefs } from 'pinia';
+import { createColorIcon } from '@composables/ui/colorMarkers';
 
 // AI : Function to get countries when needed
 function getCountries() {
@@ -92,8 +93,10 @@ async function addCountryMarkersToMapInternal(): Promise<void> {
   countryMarkersLayer = L.layerGroup();
   const countries = getCountries();
   countries.value.forEach((country: any) => {
-    // AI : Create a standard Leaflet marker with hover opacity
+    // AI : Create SVG marker for countries (using blue color)
+    const markerIcon = createColorIcon('blue');
     const marker = L.marker([country.lat, country.lng], {
+      icon: markerIcon,
       opacity: COUNTRY_MARKER_OPACITY // AI : Lower default opacity to suggest interactivity
     });
 
