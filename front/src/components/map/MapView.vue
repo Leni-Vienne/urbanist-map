@@ -101,6 +101,7 @@
   </Dialog>
 
   <ProjectDialog
+    v-if="showProjectDialogGlobally"
     v-model:visible="showProjectDialogGlobally"
     :project="{}"
     mode="create"

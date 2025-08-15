@@ -8,7 +8,6 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    AddOverlayDialog: typeof import('./src/components/dialogs/AddOverlayDialog.vue')['default']
     AppLayout: typeof import('./src/components/layout/AppLayout.vue')['default']
     AuthModal: typeof import('./src/components/auth/AuthModal.vue')['default']
     Button: typeof import('primevue/button')['default']
@@ -31,7 +30,6 @@ declare module 'vue' {
     Popover: typeof import('primevue/popover')['default']
     ProjectAccordionPanel: typeof import('./src/components/layout/ProjectAccordionPanel.vue')['default']
     ProjectDialog: typeof import('./src/components/project/ProjectDialog.vue')['default']
-    ProjectEditor: typeof import('./src/components/project/ProjectEditor.vue')['default']
     ProjectForm: typeof import('./src/components/project/ProjectForm.vue')['default']
     ProjectPicker: typeof import('./src/components/project/ProjectPicker.vue')['default']
     RadioButton: typeof import('primevue/radiobutton')['default']

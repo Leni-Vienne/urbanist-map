@@ -4,7 +4,6 @@ import { initializeStores } from '@composables/overlay/useOverlay';
 
 // AI : Lazy load heavy components to reduce initial bundle size
 const AppLayout = () => import('@components/layout/AppLayout.vue');
-const ProjectEditor = () => import('@components/project/ProjectEditor.vue');
 
 // AI : Define routes for the application
 export const router = createRouter({
@@ -34,35 +33,6 @@ export const router = createRouter({
     {
       path: '/projects',
       component: AppLayout,
-      children: [
-        {
-          path: 'create',
-          name: 'project-create',
-          component: ProjectEditor,
-          props: { mode: 'create' },
-          meta: { title: 'Create Project' }
-        },
-        {
-          path: ':id',
-          name: 'project-view',
-          component: ProjectEditor,
-          props: (route) => ({ 
-            id: route.params.id, 
-            mode: 'view' 
-          }),
-          meta: { title: 'Project Details' }
-        },
-        {
-          path: ':id/edit',
-          name: 'project-edit',
-          component: ProjectEditor,
-          props: (route) => ({ 
-            id: route.params.id, 
-            mode: 'edit' 
-          }),
-          meta: { title: 'Edit Project' }
-        },
-      ]
     }
   ]
 });
