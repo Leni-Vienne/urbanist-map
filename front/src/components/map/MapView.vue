@@ -263,23 +263,6 @@ async function onImageUploadFromDialog(file: File) {
   showProjectSelector.value = true;
 }
 
-// AI : Handle overlay selection from URL
-const urlParams = new URLSearchParams(window.location.search);
-const overlayId = urlParams.get('overlay');
-if (overlayId) {
-  // AI : Handle overlay selection from URL parameter
-  watch(() => !isLoading.value, (notLoading) => {
-    if (notLoading && overlayId) {
-      // AI : Select the overlay from URL parameter
-      const { idSelectedOverlay } = storeToRefs(overlayStore);
-      idSelectedOverlay.value = overlayId;
-      // AI : Clean up URL without reloading
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.delete('overlay');
-      window.history.replaceState({}, '', newUrl.toString());
-    }
-  }, { immediate: true });
-}
 
 // AI : Watch for edit mode changes to start/stop camera tracking
 watch(() => isEditMode?.value, (editMode) => {

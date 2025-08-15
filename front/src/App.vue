@@ -66,13 +66,6 @@ function handleSideMenuClose() {
   sideMenuOpen.value = false;
 }
 
-// AI : Toggle between explorer and moderation panels
-function togglePanel() {
-  if (isModerator.value) {
-    currentPanelType.value = currentPanelType.value === 'explorer' ? 'moderation' : 'explorer'
-  }
-}
-
 onMounted(async () => {
   // AI : Initialize stores first
   initializeStores();
