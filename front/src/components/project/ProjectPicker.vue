@@ -126,7 +126,7 @@ import { ref, computed, watch } from 'vue';
 
 import { useProjects } from '@composables/project/useProjects';
 import { fetchNearbyProjects, getNearbyProjects } from '@composables/project/useNearbyProjects';
-import { lastCreatedProjectId, setFileUploadFlow } from '@composables/ui/useRouterNavigation';
+import { lastCreatedProjectId, setFileUploadFlow } from '@composables/ui/useProjectState';
 import { useSelectedProject } from '@composables/project/useSelectedProject';
 import { useProjectDialogState } from '@composables/ui/useProjectDialogState';
 import type { Project } from '@types';

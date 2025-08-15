@@ -136,7 +136,7 @@ import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { storeToRefs } from 'pinia';
 import { allMarkers, updateMarkerTooltip } from '@composables/overlay/useOverlay';
-import { navigateToProjectEdit } from '@composables/ui/useRouterNavigation';
+import { useProjectDialogState } from '@composables/ui/useProjectDialogState';
 import { loadCityProjects, citiesWithProjects, latestClickedCity } from '@composables/map/useCityMarkers';
 import { getNearbyProjects } from '@composables/project/useNearbyProjects';
 import { useSelectedProject } from '@composables/project/useSelectedProject';
@@ -151,6 +151,7 @@ const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
 const { overlays, idSelectedOverlay } = storeToRefs(overlayStore);
 const { projects } = storeToRefs(projectStore);
+const { openProjectDialog } = useProjectDialogState();
 
 // AI : Use centralized selected project state
 const { selectedProjectId } = useSelectedProject();
@@ -379,15 +380,12 @@ async function applyProjectChange(projectId: string) {
   }
 }
 
-// AI : Open project manager for edit
+// AI : Open project dialog for edit
 function openProjectManagerForEdit() {
   if (!project.value) return;
 
-  // AI : Store the project ID first
-  const projectId = project.value.id;
-
-  // AI : Navigate to project edit page using composable
-  navigateToProjectEdit(projectId);
+  // AI : Open dialog with project data for editing
+  openProjectDialog(project.value, 'edit');
 }
 
 // AI : Open the overlay editor dialog

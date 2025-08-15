@@ -18,8 +18,6 @@
       <!-- AI : Map is always present in the background -->
       <MapView />
 
-      <!-- AI : Router view as overlay on top of the map -->
-      <router-view />
 
       <!-- AI : InfoPopup container using Teleport -->
       <InfoPopupContainer />
@@ -40,8 +38,8 @@ import SideMenu from '@components/layout/SideMenu.vue'
 import InfoPopupContainer from '@components/map/InfoPopupContainer.vue'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useAuthStore } from '@stores/authStore'
-import { useRoute } from 'vue-router'
 import { useToast } from '@composables/ui/useToast'
+import { initializeStores } from '@composables/overlay/useOverlay'
 
 // AI : Create refs to track app state
 const isModerator = ref(false)
@@ -49,7 +47,6 @@ const sideMenuOpen = ref(true) // AI : Open by default
 const currentPanelType = ref<'explorer' | 'moderation'>('explorer') // AI : Default to explorer
 const overlayStore = useOverlayStore()
 const authStore = useAuthStore()
-const route = useRoute()
 const toast = useToast()
 
 // AI : Handle window blur to close UI elements gracefully
@@ -77,6 +74,9 @@ function togglePanel() {
 }
 
 onMounted(async () => {
+  // AI : Initialize stores first
+  initializeStores();
+
   if (import.meta.env.VITE_DEV_MODE === 'true') {
     isModerator.value = true
   }
@@ -93,16 +93,17 @@ onMounted(async () => {
       isModerator.value = true
     }
 
-    // AI : Handle auth query parameters
-    if (route.query.auth === 'success') {
+    // AI : Handle auth query parameters from URL
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('auth') === 'success') {
       toast.add({
         severity: 'success',
         summary: 'Success',
         detail: 'Successfully signed in!',
         life: 3000
       })
-    } else if (route.query.error) {
-      const errorMessage = getErrorMessage(route.query.error as string)
+    } else if (urlParams.get('error')) {
+      const errorMessage = getErrorMessage(urlParams.get('error') as string)
       toast.add({
         severity: 'error',
         summary: 'Authentication Error',

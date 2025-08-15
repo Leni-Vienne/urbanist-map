@@ -19,7 +19,6 @@
 
     <div
       class="map-buttons"
-      :class="{ 'buttons-hidden': isRouteActive }"
       @dblclick.stop
     >
       <Button
@@ -103,9 +102,9 @@
   <ProjectDialog
     v-if="showProjectDialogGlobally"
     v-model:visible="showProjectDialogGlobally"
-    :project="{}"
-    mode="create"
-    title="Create New Project"
+    :project="projectDialogData"
+    :mode="projectDialogMode"
+    :title="projectDialogMode === 'create' ? 'Create New Project' : 'Edit Project'"
     @submit="handleProjectCreated"
     @cancel="handleProjectDialogCancel"
   />
@@ -121,14 +120,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch, computed, defineAsyncComponent } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
 
 import { initializeMap, disableLeafletKeyboardEvents, map } from '@composables/core/useMap';
 import { initializeCameraBounds } from '@composables/map/useCameraBounds';
 import { toggleEditMode } from '@composables/overlay/useEditMode';
 import { addOverlay, undo, redo } from '@composables/overlay/useOverlayActions';
 import { useToast } from '@composables/ui/useToast';
-import { lastCreatedProjectId } from '@composables/ui/useRouterNavigation';
+import { lastCreatedProjectId } from '@composables/ui/useProjectState';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
 import { initializeCountryMarkers } from '@composables/map/useCountryMarkers';
 import { useProjectStore } from '@stores/pinia/projectStore';
@@ -160,11 +158,9 @@ const {
 } = storeToRefs(overlayStore);
 
 // AI : Use global project dialog state
-const { showProjectDialogGlobally, openProjectDialog: openProjectDialogGlobally, closeProjectDialog } = useProjectDialogState();
+const { showProjectDialogGlobally, projectDialogData, projectDialogMode, openProjectDialog: openProjectDialogGlobally, closeProjectDialog } = useProjectDialogState();
 
 // AI: Core state variables
-const router = useRouter();
-const route = useRoute();
 const toast = useToast();
 const showProjectSelector = ref(false);
 const showAuthModal = ref(false);
@@ -184,7 +180,6 @@ const markerColors = [
 // AI : Use view mode overlays for displaying overlays when camera moves
 const { startCameraTracking, stopCameraTracking } = useViewModeOverlays();
 
-const isRouteActive = computed(() => route.path !== '/' && !route.path.startsWith('/overlay'));
 
 // AI : Open project dialog for testing
 function openProjectDialog() {
@@ -197,11 +192,11 @@ function openProjectDialogFromPicker() {
   openProjectDialogGlobally();
 }
 
-// AI : Handle project creation from dialog
+// AI : Handle project creation/update from dialog
 function handleProjectCreated(project: any) {
   closeProjectDialog();
-  // AI : The project was created, it should trigger the lastCreatedProjectId watcher
-  // which will auto-select it in the project selector
+  // AI : For creation, this will trigger the lastCreatedProjectId watcher
+  // For updates, the project data will be refreshed automatically through stores
 }
 
 // AI : Handle project dialog cancel
@@ -268,12 +263,23 @@ async function onImageUploadFromDialog(file: File) {
   showProjectSelector.value = true;
 }
 
-// AI : Handle legacy query parameters
-watch(() => route.query.overlay, (overlayId) => {
-  if (overlayId && typeof overlayId === 'string' && !isLoading.value) {
-    router.replace(`/overlay/${overlayId}`);
-  }
-}, { immediate: true });
+// AI : Handle overlay selection from URL
+const urlParams = new URLSearchParams(window.location.search);
+const overlayId = urlParams.get('overlay');
+if (overlayId) {
+  // AI : Handle overlay selection from URL parameter
+  watch(() => !isLoading.value, (notLoading) => {
+    if (notLoading && overlayId) {
+      // AI : Select the overlay from URL parameter
+      const { idSelectedOverlay } = storeToRefs(overlayStore);
+      idSelectedOverlay.value = overlayId;
+      // AI : Clean up URL without reloading
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('overlay');
+      window.history.replaceState({}, '', newUrl.toString());
+    }
+  }, { immediate: true });
+}
 
 // AI : Watch for edit mode changes to start/stop camera tracking
 watch(() => isEditMode?.value, (editMode) => {

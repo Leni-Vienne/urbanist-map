@@ -1,5 +1,4 @@
-import { computed, nextTick } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed } from 'vue';
 import {
   addOverlayToProjectWithId,
   removeOverlayFromProjectWithId
@@ -10,7 +9,6 @@ import { useToast } from '@composables/ui/useToast';
 
 // AI : Composable for managing project overlay operations and dialog
 export function useProjectOverlayManager(projectId: string, onOverlaysChanged: () => void) {
-  const router = useRouter();
   const toast = useToast();
 
   // AI : Get store refs
@@ -72,15 +70,13 @@ export function useProjectOverlayManager(projectId: string, onOverlaysChanged: (
     }
   };
 
-  // AI : Navigate to overlay on map
+  // AI : Select overlay on map
   const viewOverlay = async (overlayId: string) => {
     const overlay = overlays.value[overlayId];
     if (!overlay) return;
-    router.push('/');
-    // AI : Use nextTick for more reliable timing than arbitrary timeout
-    nextTick(() => {
-      // AI : navigateToOverlay is not implemented yet
-    });
+    // AI : Select the overlay to view it on the map
+    const { idSelectedOverlay } = storeToRefs(overlayStore);
+    idSelectedOverlay.value = overlayId;
   };
 
   return {

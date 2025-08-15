@@ -20,7 +20,6 @@ type StoredOverlayData = OverlayObject & {
   isModified: boolean;
 };
 import { editTools, viewTools } from '@composables/core/useTools';
-import { router } from '../../router';
 import { createColorIcon } from '@composables/ui/colorMarkers';
 
 // AI : Export reactive refs from stores
@@ -39,7 +38,7 @@ export function getStoreRefs() {
   };
 }
 
-// AI : Initialize stores - will be called by router guard
+// AI : Initialize stores - will be called during app initialization
 export function initializeStores() {
   const overlayStore = useOverlayStore();
   const projectStore = useProjectStore();
@@ -264,8 +263,7 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
     // AI : Apply selection outline
     applySelectionOutline(overlayObject);
 
-    // AI : Update URL only, without moving the camera
-    updateUrlWithOverlayId(overlayObject.id);
+    // AI : Overlay selected - URL updates are no longer needed without routing
   });
 
   overlay.on('deselect', () => {
@@ -274,8 +272,7 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
     // AI : Remove selection outline
     removeSelectionOutline(overlayObject);
 
-    // AI : Clear overlay parameter from URL when deselected
-    clearOverlayFromUrl();
+    // AI : Overlay deselected (no URL updates needed without routing)
 
     // AI : Hide InfoPopup when overlay is deselected
     const overlayStore = useOverlayStore();
@@ -304,39 +301,6 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
   setupOverlayMovementTracking(overlay, overlayObject);
 }
 
-/**
- * AI : Updates the URL to use path parameter format for overlay selection
- * @param overlayId - The ID of the overlay to include in the URL
- */
-function updateUrlWithOverlayId(overlayId: string): void {
-  try {
-    // Consistently use the globally exposed router
-    if (!router) return;
-
-    // AI : Update URL to use path parameter format /overlay/ID instead of query parameter
-    router.replace(`/overlay/${overlayId}`);
-  } catch (error) {
-    console.error('AI: Error updating URL with overlay ID:', error);
-  }
-}
-
-/**
- * AI : Removes the overlay path by navigating back to home
- */
-function clearOverlayFromUrl(): void {
-  try {
-    // Consistently use the globally exposed router
-    if (!router) return;
-
-    // AI : Only navigate if we're on an overlay route
-    const currentPath = router.currentRoute.value.path;
-    if (currentPath.startsWith('/overlay/')) {
-      router.replace('/');
-    }
-  } catch (error) {
-    console.error('AI: Error clearing overlay from URL:', error);
-  }
-}
 
 /**
  * AI : Get corners for overlay based on priority: history > coordinates > default
