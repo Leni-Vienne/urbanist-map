@@ -7,12 +7,6 @@ import type {
   DBCity,
 } from '../../back/src/db/schema';
 
-// AI : Type for geographic coordinates
-export type LatLng = {
-  lat: number;
-  lng: number;
-};
-
 // AI : Type for marker colors used throughout the application
 export type MarkerColor = 'blue' | 'green' | 'orange' | 'red' | 'gold' | 'yellow' | 'violet' | 'grey' | 'black';
 

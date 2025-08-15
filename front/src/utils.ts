@@ -81,3 +81,4 @@ export function formatRelativeTime(date: Date | string | null | undefined): stri
     return `${diffYears} year${diffYears === 1 ? '' : 's'} ago`
   }
 }
+

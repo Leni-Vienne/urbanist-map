@@ -130,7 +130,6 @@ export function createOverlayRouter(db: PostgresJsDatabase<typeof schema>) {
     getOverlay: publicProcedure
       .input(getOverlaySchema)
       .query(async ({ input }) => {
-        console.log('Fetching overlay with input:', input);
         try {
           // AI : Fetch the requested overlay
           const overlay = await buildOverlayQuery(db)

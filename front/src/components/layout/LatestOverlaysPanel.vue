@@ -22,12 +22,10 @@
               @load="(event) => handleImageLoad(event, overlay.id)"
             />
             <!-- AI : Fallback letter if image fails -->
-            <div
-              class="fallback-letter"
-              :class="{ 'hidden': !imageErrors[overlay.id] }"
-            >
-              {{ getOverlayLetter(overlay.caption) }}
-            </div>
+            <i
+              v-if="imageErrors[overlay.id]"
+              class="pi pi-image text-2xl text-surface-400"
+            ></i>
           </div>
 
           <!-- AI : Overlay info -->
@@ -95,10 +93,6 @@ function getOverlayImageUrl(filename: string): string {
   return buildImageUrl(filename)
 }
 
-// AI : Get first letter of overlay name for fallback
-function getOverlayLetter(filename: string): string {
-  return filename?.charAt(0)?.toUpperCase() || 'O'
-}
 
 // AI : Get flag URL for country
 function getFlagUrl(countryCode: string): string {
