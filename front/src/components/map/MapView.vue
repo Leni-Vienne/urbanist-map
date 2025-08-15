@@ -62,6 +62,46 @@
       />
       <LayerControl />
 
+      <!-- AI : Overlay Completion Status Filter Buttons (View Mode Only) -->
+      <div v-if="!isEditMode" class="overlay-status-filters">
+        <Button
+          @click="toggleCompletionFilter('green')"
+          @dblclick.stop
+          :severity="visibleCompletionStates.green ? 'primary' : 'secondary'"
+          aria-label="Toggle not started projects"
+          v-tooltip.right="'Toggle not started projects'"
+          class="status-filter-btn"
+        >
+          <template #icon>
+            <div v-html="getMarkerSVG('green')"></div>
+          </template>
+        </Button>
+        <Button
+          @click="toggleCompletionFilter('orange')"
+          @dblclick.stop
+          :severity="visibleCompletionStates.orange ? 'primary' : 'secondary'"
+          aria-label="Toggle in progress projects"
+          v-tooltip.right="'Toggle in progress projects'"
+          class="status-filter-btn"
+        >
+          <template #icon>
+            <div v-html="getMarkerSVG('orange')"></div>
+          </template>
+        </Button>
+        <Button
+          @click="toggleCompletionFilter('grey')"
+          @dblclick.stop
+          :severity="visibleCompletionStates.grey ? 'primary' : 'secondary'"
+          aria-label="Toggle completed projects"
+          v-tooltip.right="'Toggle completed projects'"
+          class="status-filter-btn"
+        >
+          <template #icon>
+            <div v-html="getMarkerSVG('grey')"></div>
+          </template>
+        </Button>
+      </div>
+
       <EditModeToggle v-if="authStore.isAuthenticated" />
 
       <!-- AI : Zoom Controls -->
@@ -135,6 +175,8 @@ import { useAuthStore } from '@stores/authStore';
 import { storeToRefs } from 'pinia';
 import { fetchNearbyProjects } from '@composables/project/useNearbyProjects';
 import { useProjectDialogState } from '@composables/ui/useProjectDialogState';
+import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
+import { createButtonSVG } from '@composables/ui/colorMarkers';
 
 import LayerControl from '@components/map/LayerControl.vue';
 import EditModeToggle from '@components/map/EditModeToggle.vue';
@@ -154,7 +196,8 @@ const {
   isEditMode,
   showImageUploadDialog,
   replacementOverlayId,
-  pendingImageFile
+  pendingImageFile,
+  overlays
 } = storeToRefs(overlayStore);
 
 // AI : Use global project dialog state
@@ -167,6 +210,13 @@ const showAuthModal = ref(false);
 const isLoading = ref(true);
 const projectPickerRef = ref();
 
+// AI : Overlay completion status filter state
+const visibleCompletionStates = ref({
+  green: true,   // Not started
+  orange: true,  // In progress  
+  grey: true     // Completed
+});
+
 // AI : Marker colors for the color picker buttons
 const markerColors = [
   { name: 'Red', value: '#ef4444' },
@@ -178,7 +228,7 @@ const markerColors = [
 ];
 
 // AI : Use view mode overlays for displaying overlays when camera moves
-const { startCameraTracking, stopCameraTracking } = useViewModeOverlays();
+const { startCameraTracking, stopCameraTracking, renderCurrentOverlays } = useViewModeOverlays();
 
 
 // AI : Open project dialog for testing
@@ -241,6 +291,54 @@ function handleUnauthenticatedAction() {
   showAuthModal.value = true;
 }
 
+// AI : Toggle completion status filter
+function toggleCompletionFilter(status: 'green' | 'orange' | 'grey') {
+  visibleCompletionStates.value[status] = !visibleCompletionStates.value[status];
+  filterOverlaysByCompletionStatus();
+}
+
+// AI : Get marker SVG for button icons using button-specific SVG
+function getMarkerSVG(color: 'green' | 'orange' | 'grey'): string {
+  return createButtonSVG(color);
+}
+
+// AI : Filter overlays based on completion status
+function filterOverlaysByCompletionStatus() {
+  if (!map.value || !overlays.value) return;
+  
+  // AI : Get all overlay objects from the store
+  const allOverlays = Object.values(overlays.value) as any[];
+  
+  allOverlays.forEach((overlayObject) => {
+    if (overlayObject.overlay) {
+      // AI : Get the completion color using the same logic as markers
+      const completionColor = getOverlayMarkerColor(overlayObject, 'view');
+      
+      const shouldShow = visibleCompletionStates.value[completionColor as keyof typeof visibleCompletionStates.value];
+      
+      if (shouldShow) {
+        // AI : Show overlay on map if not already visible
+        if (!map.value!.hasLayer(overlayObject.overlay)) {
+          map.value!.addLayer(overlayObject.overlay);
+        }
+        // AI : Show marker if exists
+        if (overlayObject.marker && !map.value!.hasLayer(overlayObject.marker)) {
+          map.value!.addLayer(overlayObject.marker);
+        }
+      } else {
+        // AI : Hide overlay from map
+        if (map.value!.hasLayer(overlayObject.overlay)) {
+          map.value!.removeLayer(overlayObject.overlay);
+        }
+        // AI : Hide marker if exists
+        if (overlayObject.marker && map.value!.hasLayer(overlayObject.marker)) {
+          map.value!.removeLayer(overlayObject.marker);
+        }
+      }
+    }
+  });
+}
+
 // AI : Handle zoom in
 function handleZoomIn() {
   if (map.value) {
@@ -272,6 +370,15 @@ watch(() => isEditMode?.value, (editMode) => {
   } else {
     // AI : Start view mode tracking when exiting edit mode
     startCameraTracking();
+    // AI : Apply filters when entering view mode
+    setTimeout(() => filterOverlaysByCompletionStatus(), 100);
+  }
+});
+
+// AI : Watch for overlays changes to apply filters
+watch(() => overlays.value ? Object.keys(overlays.value).length : 0, () => {
+  if (!isEditMode?.value) {
+    setTimeout(() => filterOverlaysByCompletionStatus(), 100);
   }
 });
 
@@ -507,5 +614,30 @@ async function handleToggleEditMode(newValue: boolean) {
   flex-direction: column;
   gap: 6px;
   margin-top: 12px;
+}
+
+/* AI : Overlay completion status filter buttons */
+.overlay-status-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.status-filter-btn {
+  min-width: 40px;
+  min-height: 40px;
+}
+
+.status-filter-btn :deep(svg) {
+  display: block;
+  margin: auto;
+}
+
+/* AI : Global CSS for custom SVG markers */
+:global(.custom-svg-marker) {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 </style>
