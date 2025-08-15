@@ -13,11 +13,9 @@
         "drizzle-orm": "^0.44.4",
         "hono": "^4.9.1",
         "jose": "^6.0.12",
-        "leaflet": "^1.9.4",
         "leaflet-distortableimage": "Karelics/Leaflet.DistortableImage",
         "leaflet-doubletapdragzoom": "^0.3.2",
         "leaflet-toolbar": "^0.4.0-alpha.2",
-        "leaflet.gridlayer.googlemutant": "^0.15.0",
         "pinia": "^3.0.3",
         "postgres": "^3.4.7",
         "primeicons": "^7.0.0",
@@ -666,8 +664,6 @@
     "leaflet-google-places-autocomplete": ["leaflet-google-places-autocomplete@0.0.9", "", {}, "sha512-NHefPZn53GQIjuAZmwEN/KTy8TobEu8kRU/WlYR58j5WrQU3vZ4w2OKVUCFzKU5jlWxeZP/SQTFhmXf2vkHIeQ=="],
 
     "leaflet-toolbar": ["leaflet-toolbar@0.4.0-alpha.2", "", { "peerDependencies": { "leaflet": "*" } }, "sha512-g1KeU3DYGUOwXTS0vKIgJ8KgY0h/2B0qENNQUSYMFtSY2yzwaHWMbDyhDbk+aO8LgJ1iOX4fUt2bh1sYZbpmmQ=="],
-
-    "leaflet.gridlayer.googlemutant": ["leaflet.gridlayer.googlemutant@0.15.0", "", {}, "sha512-kA5jCOBhCPigyue6YpZMhXMVYA1hM2pDIaJ6u0wSSiSZ2TQ4kZfKuhwkIexcadJfs0BP4FyhZIDZC7hmTlvjOA=="],
 
     "lightningcss": ["lightningcss@1.30.1", "", { "dependencies": { "detect-libc": "^2.0.3" }, "optionalDependencies": { "lightningcss-darwin-arm64": "1.30.1", "lightningcss-darwin-x64": "1.30.1", "lightningcss-freebsd-x64": "1.30.1", "lightningcss-linux-arm-gnueabihf": "1.30.1", "lightningcss-linux-arm64-gnu": "1.30.1", "lightningcss-linux-arm64-musl": "1.30.1", "lightningcss-linux-x64-gnu": "1.30.1", "lightningcss-linux-x64-musl": "1.30.1", "lightningcss-win32-arm64-msvc": "1.30.1", "lightningcss-win32-x64-msvc": "1.30.1" } }, "sha512-xi6IyHML+c9+Q3W0S4fCQJOym42pyurFiJUHEcEyHS0CeKzia4yZDEsLlqOFykxOdHpNy0NmvVO31vcSqAxJCg=="],
 

@@ -128,7 +128,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, nextTick, defineAsyncComponent } from 'vue';
 
 import { useToast } from '@composables/ui/useToast';
 import { updateTooltipText } from '@composables/overlay/useOverlayActions';
@@ -140,10 +140,11 @@ import { navigateToProjectEdit } from '@composables/ui/useRouterNavigation';
 import { loadCityProjects, citiesWithProjects, latestClickedCity } from '@composables/map/useCityMarkers';
 import { getNearbyProjects } from '@composables/project/useNearbyProjects';
 import { useSelectedProject } from '@composables/project/useSelectedProject';
-import ProjectPicker from '@components/project/ProjectPicker.vue';
-import OverlayEditor from '@components/map/OverlayEditor.vue';
 import type { OverlayObject, Project } from '@types';
 import { trpc } from '@client'
+
+const ProjectPicker = defineAsyncComponent(() => import('@components/project/ProjectPicker.vue'));
+const OverlayEditor = defineAsyncComponent(() => import('@components/map/OverlayEditor.vue'));
 
 // AI : Get Pinia stores
 const overlayStore = useOverlayStore();

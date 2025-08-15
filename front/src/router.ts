@@ -10,8 +10,8 @@ export const router = createRouter({
       path: '/',
       name: 'home',
       component: { 
-        // AI : Empty component for home route since MapView is already in App.vue
-        template: '<div></div>' 
+        // AI : Use render function instead of template to avoid needing compiler
+        render: () => null
       },
       meta: { title: 'Map View' },
       // AI : Add query params definition to handle overlay selection via URL
@@ -22,7 +22,8 @@ export const router = createRouter({
       path: '/overlay/:id',
       name: 'overlay-view',
       component: { 
-        template: '<div></div>' 
+        // AI : Use render function instead of template to avoid needing compiler
+        render: () => null
       },
       props: true,
       meta: { title: 'Overlay View' }
