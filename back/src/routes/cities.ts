@@ -142,89 +142,66 @@ export function createCitiesRouter(db: PostgresJsDatabase<typeof schema>) {
         try {
           const { cityId } = input;
 
-          // AI : Get projects with their overlays in a single optimized query using JSON aggregation
-          return await db
+          // AI : Return overlays array directly from SQL using JSON_AGG
+          const result = await db
             .select({
-              id: projects.id,
-              name: projects.name,
-              description: projects.description,
-              status: projects.status,
-              cityId: projects.cityId,
-              ownerId: projects.ownerId,
-              metadata: projects.metadata,
-              sourceUrl: projects.sourceUrl,
-              startDate: projects.startDate,
-              endDate: projects.endDate,
-              latestUpdateOn: projects.latestUpdateOn,
-              createdAt: projects.createdAt,
-              updatedAt: projects.updatedAt,
-              // AI : Aggregate overlays as JSON array directly in SQL
-              overlays: sql<Array<{
-                id: string;
-                filename: string;
-                caption: string | null;
-                status: string;
-                projectId: string;
-                authorId: string;
-                metadata: any;
-                topLeftLat: number;
-                topLeftLng: number;
-                topRightLat: number;
-                topRightLng: number;
-                bottomRightLat: number;
-                bottomRightLng: number;
-                bottomLeftLat: number;
-                bottomLeftLng: number;
-                lat: number;
-                lng: number;
-                createdAt: Date;
-                updatedAt: Date;
-              }>>`COALESCE(
-              JSON_AGG(
-                JSON_BUILD_OBJECT(
-                  'id', ${overlays.id},
-                  'filename', ${overlays.filename},
-                  'caption', ${overlays.caption},
-                  'status', ${overlays.status},
-                  'projectId', ${overlays.projectId},
-                  'authorId', ${overlays.authorId},
-                  'metadata', ${overlays.metadata},
-                  'topLeftLat', ${overlays.topLeftLat},
-                  'topLeftLng', ${overlays.topLeftLng},
-                  'topRightLat', ${overlays.topRightLat},
-                  'topRightLng', ${overlays.topRightLng},
-                  'bottomRightLat', ${overlays.bottomRightLat},
-                  'bottomRightLng', ${overlays.bottomRightLng},
-                  'bottomLeftLat', ${overlays.bottomLeftLat},
-                  'bottomLeftLng', ${overlays.bottomLeftLng},
-                  'lat', ST_Y(${overlays.centroid}),
-                  'lng', ST_X(${overlays.centroid}),
-                  'createdAt', ${overlays.createdAt},
-                  'updatedAt', ${overlays.updatedAt}
-                ) ORDER BY ${overlays.createdAt}
-              ) FILTER (WHERE ${overlays.id} IS NOT NULL),
-              '[]'::json
-            )`
+              overlays: sql<any[]>`
+                COALESCE(
+                  JSON_AGG(
+                    JSON_BUILD_OBJECT(
+                      'id', ${overlays.id},
+                      'filename', ${overlays.filename},
+                      'caption', ${overlays.caption},
+                      'projectId', ${overlays.projectId},
+                      'project', JSON_BUILD_OBJECT(
+                        'id', ${projects.id},
+                        'name', ${projects.name},
+                        'description', ${projects.description},
+                        'status', ${projects.status},
+                        'cityId', ${projects.cityId},
+                        'ownerId', ${projects.ownerId},
+                        'metadata', ${projects.metadata},
+                        'sourceUrl', ${projects.sourceUrl},
+                        'startDate', ${projects.startDate},
+                        'endDate', ${projects.endDate},
+                        'latestUpdateOn', ${projects.latestUpdateOn},
+                        'createdAt', ${projects.createdAt},
+                        'updatedAt', ${projects.updatedAt},
+                        'city', JSON_BUILD_OBJECT(
+                          'id', ${cities.id},
+                          'name', ${cities.name},
+                          'countryCode', ${cities.countryCode},
+                          'coordinates', ${cities.coordinates},
+                          'createdAt', ${cities.createdAt},
+                          'updatedAt', ${cities.updatedAt}
+                        )
+                      ),
+                      'centroid', JSON_BUILD_OBJECT(
+                        'lat', ST_Y(${overlays.centroid}),
+                        'lng', ST_X(${overlays.centroid})
+                      ),
+                      'corners', JSON_BUILD_ARRAY(
+                        JSON_BUILD_OBJECT('lat', ${overlays.topLeftLat}, 'lng', ${overlays.topLeftLng}),
+                        JSON_BUILD_OBJECT('lat', ${overlays.topRightLat}, 'lng', ${overlays.topRightLng}),
+                        JSON_BUILD_OBJECT('lat', ${overlays.bottomRightLat}, 'lng', ${overlays.bottomRightLng}),
+                        JSON_BUILD_OBJECT('lat', ${overlays.bottomLeftLat}, 'lng', ${overlays.bottomLeftLng})
+                      ),
+                      'distance', 0,
+                      'createdAt', ${overlays.createdAt}
+                    ) ORDER BY ${overlays.createdAt}
+                  ),
+                  '[]'::json
+                )
+              `.as('overlays')
             })
-            .from(projects)
-            .leftJoin(overlays, eq(projects.id, overlays.projectId))
+            .from(overlays)
+            .innerJoin(projects, eq(projects.id, overlays.projectId))
+            .innerJoin(cities, eq(cities.id, projects.cityId))
             .where(eq(projects.cityId, cityId))
-            .groupBy(
-              projects.id,
-              projects.name,
-              projects.description,
-              projects.status,
-              projects.cityId,
-              projects.ownerId,
-              projects.metadata,
-              projects.sourceUrl,
-              projects.startDate,
-              projects.endDate,
-              projects.latestUpdateOn,
-              projects.createdAt,
-              projects.updatedAt
-            )
-            .orderBy(projects.createdAt);
+            .limit(1);
+
+          // AI : Return the aggregated array directly
+          return result[0]?.overlays ?? [];
 
         } catch (error) {
           console.error('Error fetching city projects:', error);

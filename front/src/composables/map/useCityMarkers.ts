@@ -74,7 +74,7 @@ onMapInitialized(() => {
 /**
  * AI : Fetch city projects data with caching to avoid repeated API calls
  */
-async function fetchCityProjectsData(cityId: string, cityName: string, cityCountryCode?: string): Promise<CDNOverlayData[]> {
+async function fetchCityProjectsData(cityId: string): Promise<CDNOverlayData[]> {
   // AI : Check if we already have cached data for this city
   const cachedData = cityProjectsCache.get(cityId);
   if (cachedData) {
@@ -82,60 +82,14 @@ async function fetchCityProjectsData(cityId: string, cityName: string, cityCount
   }
 
   try {
-    const result = await trpc.cities.getCityProjects.query({ cityId });
-
-    // AI : Convert project overlays to CDN overlay format
-    const overlaysData: CDNOverlayData[] = [];
-    result.forEach(project => {
-      // AI : Handle overlays as JSON array returned by backend
-      const overlaysArray = project.overlays as any[] ?? [];
-      overlaysArray.forEach((overlay: any) => {
-        // AI : Validate overlay coordinates before adding
-        if (!overlay.topLeftLat || !overlay.topLeftLng ||
-          !overlay.topRightLat || !overlay.topRightLng ||
-          !overlay.bottomRightLat || !overlay.bottomRightLng ||
-          !overlay.bottomLeftLat || !overlay.bottomLeftLng) {
-          console.warn('AI : Skipping overlay with invalid coordinates:', overlay.id);
-          return;
-        }
-
-        overlaysData.push({
-          id: overlay.id,
-          filename: overlay.filename,
-          caption: overlay.caption,
-          projectId: project.id,
-          project: {
-            ...project,
-            city: cityCountryCode ? {
-              id: cityId,
-              name: cityName,
-              countryCode: cityCountryCode,
-              coordinates: { x: 0, y: 0 }, // AI : Placeholder coordinates
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            } : null, // AI : Include city data when available
-          },
-          centroid: {
-            lat: overlay.centroidLat ?? overlay.lat,
-            lng: overlay.centroidLng ?? overlay.lng
-          },
-          corners: [
-            { lat: overlay.topLeftLat, lng: overlay.topLeftLng },
-            { lat: overlay.topRightLat, lng: overlay.topRightLng },
-            { lat: overlay.bottomRightLat, lng: overlay.bottomRightLng },
-            { lat: overlay.bottomLeftLat, lng: overlay.bottomLeftLng }
-          ],
-          distance: 0,
-          createdAt: overlay.createdAt
-        });
-      });
-    });
+    // AI : Backend now returns data in CDNOverlayData format directly
+    const overlaysData = await trpc.cities.getCityProjects.query({ cityId });
 
     // AI : Cache the data for future use
     cityProjectsCache.set(cityId, overlaysData);
     return overlaysData;
   } catch (error) {
-    console.error('AI : Error fetching city projects data:', error);
+    console.error('Error fetching city projects data:', error);
     throw error;
   }
 }
@@ -194,7 +148,7 @@ export async function loadCityProjects(cityId: string, cityName: string, forceFu
     stopCameraTracking();
 
     // AI : Get overlays data (cached or fresh)
-    const overlaysToRender = await fetchCityProjectsData(cityId, cityName, cityCountryCode);
+    const overlaysToRender = await fetchCityProjectsData(cityId);
 
     currentCityOverlays.value = overlaysToRender;
 
@@ -231,7 +185,7 @@ async function showOverlayMarkers(cityId: string, cityName: string, cityCountryC
     stopCameraTracking();
 
     // AI : Get overlays data (cached or fresh)
-    const overlaysData = await fetchCityProjectsData(cityId, cityName, cityCountryCode);
+    const overlaysData = await fetchCityProjectsData(cityId);
 
     // AI : Create new layer group for overlay markers
     overlayMarkersLayer = L.layerGroup();
@@ -454,7 +408,7 @@ export function cleanupCityMarkers(): void {
   cleanupMouseTooltip();
   clearCityProjectsCache();
   clearEditModeOverlayCache(); // AI : Clear edit modifications on cleanup
-  
+
   // AI : Clear selected city from store
   const { mapStore } = getStoreRefs();
   mapStore.clearSelectedCity();
@@ -601,16 +555,16 @@ export function setupZoomEventListener(): void {
 // AI : Combined zoom handler for both cleanup and live overlay rendering
 const combinedZoomHandler = debounce(async () => {
   if (!map.value) return;
-  
+
   const currentZoom = map.value.getZoom();
-  
+
   // AI : Immediate cleanup for very low zoom levels
   if (currentZoom < MIN_ZOOM_FOR_OVERLAYS - 2 && currentCityOverlays.value.length > 0) {
     clearAllOverlays();
     currentCityOverlays.value = [];
     return; // AI : Exit early if we cleared overlays
   }
-  
+
   // AI : Live overlay rendering during zoom
   const { selectedCity } = getStoreRefs();
   if (!selectedCity.value) return;
@@ -635,7 +589,7 @@ function setupZoomEventListenerInternal(): void {
 
   map.value.on('zoomend', async () => {
     if (!map.value) return;
-    
+
     const { selectedCity } = getStoreRefs();
     if (!selectedCity.value) return;
 
@@ -710,7 +664,7 @@ function getOverlayMarkerInfo(overlayData: CDNOverlayData): { color: MarkerColor
   const { isEditMode, overlays } = getStoreRefs();
   if (isEditMode.value) {
     const overlayObject = overlays.value[overlayData.id];
-    
+
     if (overlayObject) {
       // AI : Use current overlay position if it has been moved
       if (overlayObject.corners && overlayObject.corners.length >= 4) {
@@ -720,21 +674,21 @@ function getOverlayMarkerInfo(overlayData: CDNOverlayData): { color: MarkerColor
         const centerLng = (overlayObject.corners[0].lng + overlayObject.corners[3].lng) / 2;
         position = { lat: centerLat, lng: centerLng };
       }
-      
+
       // AI : Use centralized color logic
       const color = getOverlayMarkerColor(overlayObject, 'edit');
       return { color, position };
     } else {
       // AI : No overlay object loaded, check edit cache for modifications
       const overlayDataWithMods = getOverlayDataWithEditModifications(overlayData);
-      
+
       // AI : Use modified position if available
       if (overlayDataWithMods.corners && overlayDataWithMods.corners.length >= 4) {
         const centerLat = (overlayDataWithMods.corners[0].lat + overlayDataWithMods.corners[3].lat) / 2;
         const centerLng = (overlayDataWithMods.corners[0].lng + overlayDataWithMods.corners[3].lng) / 2;
         position = { lat: centerLat, lng: centerLng };
       }
-      
+
       // AI : Use centralized color logic with modified data
       const color = getOverlayMarkerColor(overlayDataWithMods, 'edit');
       return { color, position };
@@ -763,7 +717,7 @@ export function updateOverlayMarkers(): void {
   }
 
   const overlaysData = cityProjectsCache.get(selectedCity.value.id)!;
-  
+
   // AI : Clear existing markers
   overlayMarkersLayer.clearLayers();
 

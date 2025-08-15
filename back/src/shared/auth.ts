@@ -27,12 +27,11 @@ export async function verifySupabaseJWT(token: string, jwtSecret: string): Promi
   try {
     const secret = new TextEncoder().encode(jwtSecret)
     const { payload } = await jose.jwtVerify(token, secret)
-    
     return {
       id: payload.sub as string,
       email: payload.email as string,
       user_metadata: payload.user_metadata as { username?: string },
-      role: payload.role as string
+      role: payload.user_role as string
     }
   } catch (error) {
     console.error('JWT verification failed:', error)

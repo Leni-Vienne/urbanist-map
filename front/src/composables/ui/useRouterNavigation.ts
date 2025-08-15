@@ -8,23 +8,6 @@ const inFileUploadFlow = ref<boolean>(false);
 // AI: Export as named exports to prevent tree-shaking issues
 export { lastCreatedProjectId, inFileUploadFlow };
 
-/**
- * AI: Simple back navigation with safety check
- */
-export function goBack(closeDialog?: any) {
-  // AI: Close dialog if provided
-  if (closeDialog && typeof closeDialog === 'object' && 'value' in closeDialog) {
-    closeDialog.value = false;
-  }
-  
-  // AI: Safe navigation with fallback to home
-  if (window.history.length > 2 && router.options?.history?.state?.back) {
-    router.back();
-  } else {
-    navigateWithCoordinates('/');
-  }
-}
-
 // AI: Navigate while preserving map coordinates
 export function navigateWithCoordinates(path: string) {
   const url = new URL(window.location.href);

@@ -32,5 +32,20 @@ export const isAuthed = t.middleware(({ ctx, next }) => {
     });
 });
 
+// AI : Middleware to check if user has admin role
+export const isAdmin = t.middleware(({ ctx, next }) => {
+    if (!ctx.user) {
+        throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Not authenticated' });
+    }
+    if (ctx.user.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin access required' });
+    }
+    return next({
+        ctx: {
+            user: ctx.user,
+        },
+    });
+});
 
 export const protectedProcedure = t.procedure.use(isAuthed);
+export const adminProcedure = t.procedure.use(isAdmin);

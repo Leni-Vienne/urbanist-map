@@ -2,9 +2,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { initializeStores } from '@composables/overlay/useOverlay';
 
-// AI : Lazy load heavy components to reduce initial bundle size
-const AppLayout = () => import('@components/layout/AppLayout.vue');
-
 // AI : Define routes for the application
 export const router = createRouter({
   history: createWebHistory(),
@@ -30,10 +27,6 @@ export const router = createRouter({
       props: true,
       meta: { title: 'Overlay View' }
     },
-    {
-      path: '/projects',
-      component: AppLayout,
-    }
   ]
 });
 
