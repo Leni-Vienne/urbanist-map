@@ -15,6 +15,7 @@ AI_RULES.md
 .github/instructions
 
 junk
+*.puml
 .secrets
 stats.html
 .dev.vars
