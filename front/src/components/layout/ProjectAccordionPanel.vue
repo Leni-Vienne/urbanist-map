@@ -95,6 +95,38 @@
                     ></slot>
                   </div>
                 </div>
+
+                <!-- AI : Project change requests -->
+                <div v-if="getProjectChangeRequests(project.id).length > 0" class="project-change-requests">
+                  <h4 class="change-requests-title">Pending Changes</h4>
+                  <div class="change-requests-list">
+                    <div 
+                      v-for="change in getProjectChangeRequests(project.id)" 
+                      :key="change.id"
+                      class="change-item"
+                    >
+                      <div class="change-content">
+                        <div class="change-field">
+                          <strong>{{ change.fieldName }}:</strong>
+                          <div class="change-values">
+                            <span class="old-value">{{ formatValue(change.oldValue) }}</span>
+                            <i class="pi pi-arrow-right"></i>
+                            <span class="new-value">{{ formatValue(change.newValue) }}</span>
+                          </div>
+                          <div v-if="change.changeReason" class="change-reason">
+                            <em>Reason: {{ change.changeReason }}</em>
+                          </div>
+                        </div>
+                        <div v-if="$slots['change-actions']" class="change-actions">
+                          <slot
+                            name="change-actions"
+                            :change="change"
+                          ></slot>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </template>
             </Card>
 
@@ -106,70 +138,119 @@
               <div
                 v-for="overlay in project.overlays"
                 :key="overlay.id"
-                class="overlay-card"
-                @click="handleOverlayClick(overlay)"
+                class="overlay-card-wrapper"
+                :class="{ 'has-changes': getOverlayChangeRequests(overlay.id).length > 0 }"
               >
-                <!-- AI : Overlay thumbnail -->
-                <div
-                  class="w-15 h-15 rounded-md overflow-hidden bg-surface-100 flex items-center justify-center flex-shrink-0"
-                >
-                  <img
-                    v-if="shouldShowOverlays(project) && !imageErrors[overlay.id]"
-                    :src="getOverlayImageUrl(overlay.filename)"
-                    :alt="overlay.name"
-                    class="w-full h-full object-cover"
-                    @error="(event) => handleImageError(event, overlay.id)"
-                    @load="(event) => handleImageLoad(event, overlay.id)"
-                  />
-                  <i
-                    v-if="imageErrors[overlay.id]"
-                    class="pi pi-image text-2xl text-surface-400"
-                  ></i>
-                </div>
-
-                <!-- AI : Overlay info -->
-                <div class="flex-1 min-w-0">
-                  <p class="overlay-name">{{ overlay.name || 'Untitled' }}</p>
-                  <div class="flex items-center gap-1.5 text-surface-600 text-xs mb-1">
-                    <i class="pi pi-map-marker text-surface-500"></i>
+                <div class="overlay-card" @click="handleOverlayClick(overlay)">
+                  <!-- AI : Overlay thumbnail -->
+                  <div
+                    class="w-15 h-15 rounded-md overflow-hidden bg-surface-100 flex items-center justify-center flex-shrink-0"
+                  >
                     <img
-                      v-if="overlay.countryCode"
-                      :src="getFlagUrl(overlay.countryCode)"
-                      :alt="overlay.countryCode"
-                      class="w-4 h-3 rounded-sm"
-                      @error="hideFlagOnError"
+                      v-if="shouldShowOverlays(project) && !imageErrors[overlay.id]"
+                      :src="getOverlayImageUrl(overlay.filename)"
+                      :alt="overlay.name"
+                      class="w-full h-full object-cover"
+                      @error="(event) => handleImageError(event, overlay.id)"
+                      @load="(event) => handleImageLoad(event, overlay.id)"
                     />
-                    <span class="truncate">{{ getOverlayLocationDisplay(overlay) }}</span>
+                    <i
+                      v-if="imageErrors[overlay.id]"
+                      class="pi pi-image text-2xl text-surface-400"
+                    ></i>
                   </div>
-                  <div class="text-xs text-surface-500 mb-2">
-                    {{ formatRelativeTime(overlay.updatedAt) }}
+
+                  <!-- AI : Overlay info -->
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                      <p class="overlay-name">{{ overlay.name || 'Untitled' }}</p>
+                      <!-- AI : Change indicator badge -->
+                      <Tag
+                        v-if="getOverlayChangeRequests(overlay.id).length > 0"
+                        :value="`${getOverlayChangeRequests(overlay.id).length} pending change${getOverlayChangeRequests(overlay.id).length > 1 ? 's' : ''}`"
+                        severity="warning"
+                        class="text-xs"
+                        rounded
+                      />
+                    </div>
+                    <div class="flex items-center gap-1.5 text-surface-600 text-xs mb-1">
+                      <i class="pi pi-map-marker text-surface-500"></i>
+                      <img
+                        v-if="overlay.countryCode"
+                        :src="getFlagUrl(overlay.countryCode)"
+                        :alt="overlay.countryCode"
+                        class="w-4 h-3 rounded-sm"
+                        @error="hideFlagOnError"
+                      />
+                      <span class="truncate">{{ getOverlayLocationDisplay(overlay) }}</span>
+                    </div>
+                    <div class="text-xs text-surface-500 mb-2">
+                      {{ formatRelativeTime(overlay.updatedAt) }}
+                    </div>
+                    <Tag
+                      :value="overlay.status"
+                      :severity="getStatusSeverity(overlay.status)"
+                      class="overlay-status-tag"
+                      rounded
+                    />
                   </div>
-                  <Tag
-                    :value="overlay.status"
-                    :severity="getStatusSeverity(overlay.status)"
-                    class="overlay-status-tag"
-                    rounded
-                  />
+
+                  <!-- AI : Overlay action buttons slot or default zoom button -->
+                  <div
+                    v-if="$slots['overlay-actions']"
+                    class="flex flex-col gap-2"
+                  >
+                    <slot
+                      name="overlay-actions"
+                      :overlay="overlay"
+                    ></slot>
+                  </div>
+                  <button
+                    v-else
+                    class="bg-surface-50 border border-surface-200 rounded-md w-8 h-8 flex items-center justify-center text-surface-500 hover:bg-surface-100 hover:text-surface-600 transition-all flex-shrink-0"
+                    @click.stop="handleOverlayClick(overlay)"
+                  >
+                    <i class="pi pi-search"></i>
+                    <span class="sr-only">Zoom to {{ overlay.name }}</span>
+                  </button>
                 </div>
 
-                <!-- AI : Overlay action buttons slot or default zoom button -->
-                <div
-                  v-if="$slots['overlay-actions']"
-                  class="flex flex-col gap-2"
-                >
-                  <slot
-                    name="overlay-actions"
-                    :overlay="overlay"
-                  ></slot>
+                <!-- AI : Overlay change requests - visually connected to overlay -->
+                <div v-if="getOverlayChangeRequests(overlay.id).length > 0" class="overlay-change-requests">
+                  <div class="change-requests-header">
+                    <div class="change-indicator">
+                      <i class="pi pi-exclamation-triangle text-orange-500"></i>
+                      <span class="change-header-text">Pending Changes for "{{ overlay.name || 'Untitled' }}"</span>
+                    </div>
+                  </div>
+                  <div class="change-requests-list">
+                    <div 
+                      v-for="change in getOverlayChangeRequests(overlay.id)" 
+                      :key="change.id"
+                      class="change-item"
+                    >
+                      <div class="change-content">
+                        <div class="change-field">
+                          <strong>{{ change.fieldName }}:</strong>
+                          <div class="change-values">
+                            <span class="old-value">{{ formatValue(change.oldValue) }}</span>
+                            <i class="pi pi-arrow-right"></i>
+                            <span class="new-value">{{ formatValue(change.newValue) }}</span>
+                          </div>
+                          <div v-if="change.changeReason" class="change-reason">
+                            <em>Reason: {{ change.changeReason }}</em>
+                          </div>
+                        </div>
+                        <div v-if="$slots['change-actions']" class="change-actions">
+                          <slot
+                            name="change-actions"
+                            :change="change"
+                          ></slot>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <button
-                  v-else
-                  class="bg-surface-50 border border-surface-200 rounded-md w-8 h-8 flex items-center justify-center text-surface-500 hover:bg-surface-100 hover:text-surface-600 transition-all flex-shrink-0"
-                  @click.stop="handleOverlayClick(overlay)"
-                >
-                  <i class="pi pi-search"></i>
-                  <span class="sr-only">Zoom to {{ overlay.name }}</span>
-                </button>
               </div>
             </div>
           </AccordionContent>
@@ -208,6 +289,7 @@ import AccordionPanel from 'primevue/accordionpanel'
 import AccordionHeader from 'primevue/accordionheader'
 import AccordionContent from 'primevue/accordioncontent'
 import Card from 'primevue/card'
+import type { PendingChangeRequest } from '../../types/api'
 
 // AI : Props interface
 interface Props {
@@ -217,11 +299,13 @@ interface Props {
   panelClass: string
   emptyMessage?: string
   emptySubMessage?: string
+  changeRequests?: PendingChangeRequest[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
   emptyMessage: 'No projects found.',
-  emptySubMessage: 'Create your first construction project!'
+  emptySubMessage: 'Create your first construction project!',
+  changeRequests: () => []
 })
 
 // AI : Reactive state for image errors and expanded panels
@@ -360,6 +444,31 @@ async function handleOverlayClick(overlay: any) {
     console.error('Failed to navigate to overlay:', error)
   }
 }
+
+// AI : Get change requests for a specific project
+function getProjectChangeRequests(projectId: string): PendingChangeRequest[] {
+  return props.changeRequests?.filter(
+    request => request.entityType === 'project' && request.entityId === projectId
+  ) ?? []
+}
+
+// AI : Get change requests for a specific overlay
+function getOverlayChangeRequests(overlayId: string): PendingChangeRequest[] {
+  return props.changeRequests?.filter(
+    request => request.entityType === 'overlay' && request.entityId === overlayId
+  ) ?? []
+}
+
+// AI : Format values for display
+function formatValue(value: any): string {
+  if (value === null || value === undefined || value === '') {
+    return 'Not set'
+  }
+  if (typeof value === 'object') {
+    return JSON.stringify(value, null, 2)
+  }
+  return String(value)
+}
 </script>
 
 <style scoped>
@@ -482,6 +591,21 @@ async function handleOverlayClick(overlay: any) {
 }
 
 
+/* AI : Overlay card wrapper */
+.overlay-card-wrapper {
+  display: flex;
+  flex-direction: column;
+  transition: all 0.15s ease;
+}
+
+/* AI : Visual connection for overlays with changes */
+.overlay-card-wrapper.has-changes {
+  border-left: 3px solid var(--p-orange-400);
+  background: var(--p-orange-50);
+  border-radius: 4px;
+  margin: 0.25rem 0;
+}
+
 /* AI : Borderless overlay cards like the prototype */
 .overlay-card {
   display: flex;
@@ -498,6 +622,15 @@ async function handleOverlayClick(overlay: any) {
   background-color: var(--p-surface-50);
 }
 
+/* AI : Overlay card in wrapper with changes */
+.overlay-card-wrapper.has-changes .overlay-card {
+  background: transparent;
+}
+
+.overlay-card-wrapper.has-changes .overlay-card:hover {
+  background-color: var(--p-orange-100);
+}
+
 /* AI : Overlay name styling to match LatestOverlaysPanel */
 .overlay-card .overlay-name {
   font-size: 0.9375rem;
@@ -508,5 +641,114 @@ async function handleOverlayClick(overlay: any) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* AI : Change requests styling */
+.project-change-requests {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: var(--p-surface-50);
+  border: 1px solid var(--p-surface-200);
+  border-radius: 6px;
+}
+
+.overlay-change-requests {
+  padding: 0.75rem 1rem;
+  background: var(--p-orange-25);
+  border-top: 1px solid var(--p-orange-200);
+}
+
+.change-requests-title {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--p-surface-700);
+}
+
+/* AI : Change requests header for overlays */
+.change-requests-header {
+  margin-bottom: 0.75rem;
+}
+
+.change-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.change-header-text {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--p-orange-700);
+}
+
+.change-requests-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.change-item {
+  background: white;
+  border: 1px solid var(--p-surface-200);
+  border-radius: 4px;
+  padding: 0.5rem;
+}
+
+.change-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.change-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.change-field strong {
+  color: var(--p-surface-700);
+  font-size: 0.8125rem;
+}
+
+.change-values {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0.25rem 0;
+  font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.old-value {
+  color: #dc2626;
+  background: #fef2f2;
+  padding: 0.125rem 0.25rem;
+  border-radius: 3px;
+  word-break: break-word;
+  max-width: 150px;
+}
+
+.new-value {
+  color: #059669;
+  background: #ecfdf5;
+  padding: 0.125rem 0.25rem;
+  border-radius: 3px;
+  word-break: break-word;
+  max-width: 150px;
+}
+
+.change-reason {
+  font-size: 0.75rem;
+  color: var(--p-surface-600);
+  margin-top: 0.25rem;
+}
+
+.change-actions {
+  display: flex;
+  gap: 0.25rem;
+  justify-content: flex-end;
+  flex-shrink: 0;
 }
 </style>

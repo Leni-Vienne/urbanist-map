@@ -149,13 +149,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, onMounted } from 'vue'
+import { ref, computed, reactive } from 'vue'
 import { useFieldChanges } from '../../composables/changes/useFieldChanges'
 import { useToast } from '../../composables/ui/useToast'
-import InputText from 'primevue/inputtext'
-import Textarea from 'primevue/textarea'
-import Calendar from 'primevue/calendar'
-import Button from 'primevue/button'
 import type { Project } from '../../types'
 
 interface Props {
