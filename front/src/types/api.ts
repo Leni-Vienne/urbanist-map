@@ -36,9 +36,27 @@ export type BackendCountry = GetCountriesWithProjectsResponse[0];
 export type GetPendingSubmissionsResponse = RouterOutput['moderation']['getPendingSubmissions'];
 export type PendingProject = GetPendingSubmissionsResponse['projects'][0];
 export type PendingOverlay = GetPendingSubmissionsResponse['overlays'][0];
+export type PendingChangeRequest = GetPendingSubmissionsResponse['changeRequests'][0];
 
 export type SetProjectApprovalStatusInput = RouterInput['moderation']['setProjectApprovalStatus'];
 export type SetProjectApprovalStatusResponse = RouterOutput['moderation']['setProjectApprovalStatus'];
 
 export type SetOverlayApprovalStatusInput = RouterInput['moderation']['setOverlayApprovalStatus'];
 export type SetOverlayApprovalStatusResponse = RouterOutput['moderation']['setOverlayApprovalStatus'];
+
+// AI : Change tracking API types
+export type SubmitChangeRequestInput = RouterInput['changes']['submitChangeRequest'];
+export type SubmitChangeRequestResponse = RouterOutput['changes']['submitChangeRequest'];
+
+export type GetPendingChangeRequestsResponse = RouterOutput['changes']['getPendingChangeRequests'];
+export type ChangeRequest = GetPendingChangeRequestsResponse[0];
+
+export type ApproveChangeRequestsInput = RouterInput['changes']['approveChangeRequests'];
+export type ApproveChangeRequestsResponse = RouterOutput['changes']['approveChangeRequests'];
+
+export type RejectChangeRequestsInput = RouterInput['changes']['rejectChangeRequests'];
+export type RejectChangeRequestsResponse = RouterOutput['changes']['rejectChangeRequests'];
+
+export type GetChangeHistoryInput = RouterInput['changes']['getChangeHistory'];
+export type GetChangeHistoryResponse = RouterOutput['changes']['getChangeHistory'];
+export type ChangeHistoryEntry = GetChangeHistoryResponse[0];

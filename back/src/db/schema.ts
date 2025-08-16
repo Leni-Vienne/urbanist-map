@@ -125,9 +125,66 @@ export const countries = pgTable('countries', {
 }));
 
 
+export const changeRequests = pgTable('change_requests', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  entityType: text('entity_type').notNull(),
+  entityId: uuid('entity_id').notNull(),
+  fieldName: text('field_name').notNull(),
+  oldValue: jsonb('old_value'),
+  newValue: jsonb('new_value').notNull(),
+  changeReason: text('change_reason'),
+  requestedBy: uuid('requested_by').references(() => users.id, { onDelete: 'set null', onUpdate: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  entityIndex: index('idx_change_requests_entity').on(table.entityType, table.entityId),
+  requestedByIndex: index('idx_change_requests_requested_by').on(table.requestedBy),
+}));
+
+export const changeHistory = pgTable('change_history', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  changeRequestId: uuid('change_request_id').references(() => changeRequests.id, { onDelete: 'set null', onUpdate: 'cascade' }),
+  entityType: text('entity_type').notNull(),
+  entityId: uuid('entity_id').notNull(),
+  fieldName: text('field_name').notNull(),
+  oldValue: jsonb('old_value'),
+  newValue: jsonb('new_value').notNull(),
+  changedBy: uuid('changed_by').references(() => users.id, { onDelete: 'set null', onUpdate: 'cascade' }),
+  approvedBy: uuid('approved_by').references(() => users.id, { onDelete: 'set null', onUpdate: 'cascade' }),
+  appliedAt: timestamp('applied_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  entityIndex: index('idx_change_history_entity').on(table.entityType, table.entityId),
+  changeRequestIndex: index('idx_change_history_request').on(table.changeRequestId),
+}));
+
+export const changeRequestsRelations = relations(changeRequests, ({ one }) => ({
+  requestedByUser: one(users, {
+    fields: [changeRequests.requestedBy],
+    references: [users.id],
+  }),
+}));
+
+export const changeHistoryRelations = relations(changeHistory, ({ one }) => ({
+  changeRequest: one(changeRequests, {
+    fields: [changeHistory.changeRequestId],
+    references: [changeRequests.id],
+  }),
+  changedByUser: one(users, {
+    fields: [changeHistory.changedBy],
+    references: [users.id],
+    relationName: 'changed_by'
+  }),
+  approvedByUser: one(users, {
+    fields: [changeHistory.approvedBy],
+    references: [users.id],
+    relationName: 'approved_by'
+  }),
+}));
+
 // AI : Export Drizzle-inferred types for frontend consumption
 export type DBCity = InferSelectModel<typeof cities>;
 export type DBProject = InferSelectModel<typeof projects>;
 export type DBOverlay = InferSelectModel<typeof overlays>;
 export type DBUser = InferSelectModel<typeof users>;
 export type DBCountry = InferSelectModel<typeof countries>;
+export type DBChangeRequest = InferSelectModel<typeof changeRequests>;
+export type DBChangeHistory = InferSelectModel<typeof changeHistory>;

@@ -149,6 +149,41 @@
     @cancel="handleProjectDialogCancel"
   />
 
+  <!-- AI : Edit forms dialogs with proper modal behavior -->
+  <Dialog
+    v-model:visible="showProjectEditForm"
+    :modal="true"
+    :closable="true"
+    :draggable="false"
+    header="Suggest Project Changes"
+    @update:visible="closeProjectEditForm"
+    class="edit-form-dialog"
+  >
+    <EditableProjectForm
+      v-if="projectEditData && showProjectEditForm"
+      :project="projectEditData"
+      @close="closeProjectEditForm"
+      @submitted="closeProjectEditForm"
+    />
+  </Dialog>
+
+  <Dialog
+    v-model:visible="showOverlayEditForm"
+    :modal="true"
+    :closable="true"
+    :draggable="false"
+    header="Suggest Overlay Changes"
+    @update:visible="closeOverlayEditForm"
+    class="edit-form-dialog"
+  >
+    <EditableOverlayForm
+      v-if="overlayEditData && showOverlayEditForm"
+      :overlay="overlayEditData"
+      @close="closeOverlayEditForm"
+      @submitted="closeOverlayEditForm"
+    />
+  </Dialog>
+
   <ImageUploadDialog
     v-model:visible="showImageUploadDialog"
     @file-selected="onImageUploadFromDialog"
@@ -175,6 +210,7 @@ import { useAuthStore } from '@stores/authStore';
 import { storeToRefs } from 'pinia';
 import { fetchNearbyProjects } from '@composables/project/useNearbyProjects';
 import { useProjectDialogState } from '@composables/ui/useProjectDialogState';
+import { useEditFormsState } from '@composables/ui/useEditFormsState';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
 import { createButtonSVG } from '@composables/ui/colorMarkers';
 
@@ -186,6 +222,8 @@ import AuthModal from '@components/auth/AuthModal.vue';
 const ProjectPicker = defineAsyncComponent(() => import('@components/project/ProjectPicker.vue'));
 const ProjectDialog = defineAsyncComponent(() => import('@components/project/ProjectDialog.vue'));
 const ImageUploadDialog = defineAsyncComponent(() => import('@components/dialogs/ImageUploadDialog.vue'));
+const EditableProjectForm = defineAsyncComponent(() => import('@components/forms/EditableProjectForm.vue'));
+const EditableOverlayForm = defineAsyncComponent(() => import('@components/forms/EditableOverlayForm.vue'));
 
 // AI: Get Pinia stores
 const projectStore = useProjectStore();
@@ -202,6 +240,16 @@ const {
 
 // AI : Use global project dialog state
 const { showProjectDialogGlobally, projectDialogData, projectDialogMode, openProjectDialog: openProjectDialogGlobally, closeProjectDialog } = useProjectDialogState();
+
+// AI : Use global edit forms state
+const { 
+  showProjectEditForm, 
+  showOverlayEditForm, 
+  projectEditData, 
+  overlayEditData, 
+  closeProjectEditForm, 
+  closeOverlayEditForm 
+} = useEditFormsState();
 
 // AI: Core state variables
 const toast = useToast();
@@ -639,5 +687,20 @@ async function handleToggleEditMode(newValue: boolean) {
   background: none !important;
   border: none !important;
   box-shadow: none !important;
+}
+
+/* AI : Edit form dialogs - ensure proper modal behavior */
+:deep(.edit-form-dialog .p-dialog) {
+  max-width: 90vw;
+  max-height: 90vh;
+  z-index: 9999;
+}
+
+:deep(.edit-form-dialog .p-dialog-content) {
+  padding: 0;
+}
+
+:deep(.edit-form-dialog .p-dialog-mask) {
+  z-index: 9998;
 }
 </style>

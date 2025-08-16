@@ -31,13 +31,21 @@
       >
         <div class="text-sm font-semibold mb-2 text-gray-700 flex justify-between items-center">
           Project Information
-          <Button
-            v-if="!props.viewMode"
-            icon="pi pi-pencil"
-            class="p-button-sm p-button-text p-button-info"
-            @click="openProjectManagerForEdit"
-            v-tooltip.top="'Edit Project'"
-          />
+          <div class="project-actions">
+            <Button
+              v-if="!props.viewMode"
+              icon="pi pi-pencil"
+              class="p-button-sm p-button-text p-button-info"
+              @click="openProjectManagerForEdit"
+              v-tooltip.top="'Edit Project'"
+            />
+            <Button
+              icon="pi pi-file-edit"
+              class="p-button-sm p-button-text p-button-secondary"
+              @click="openProjectEditFormLocal"
+              v-tooltip.top="'Suggest Changes'"
+            />
+          </div>
         </div>
         <div class="p-2 rounded bg-gray-50 text-sm space-y-1">
           <div class="flex justify-between">
@@ -83,13 +91,21 @@
       <div class="overlay-meta mb-3">
         <div class="text-sm font-semibold mb-2 text-gray-700 flex justify-between items-center">
           Overlay Information
-          <Button
-            v-if="!props.viewMode"
-            icon="pi pi-pencil"
-            class="p-button-sm p-button-text p-button-info"
-            @click="openOverlayEditor"
-            v-tooltip.top="'Edit Overlay'"
-          />
+          <div class="overlay-actions">
+            <Button
+              v-if="!props.viewMode"
+              icon="pi pi-pencil"
+              class="p-button-sm p-button-text p-button-info"
+              @click="openOverlayEditor"
+              v-tooltip.top="'Edit Overlay'"
+            />
+            <Button
+              icon="pi pi-file-edit"
+              class="p-button-sm p-button-text p-button-secondary"
+              @click="openOverlayEditFormLocal"
+              v-tooltip.top="'Suggest Changes'"
+            />
+          </div>
         </div>
         <div class="p-2 rounded bg-gray-50 text-sm space-y-1">
           <div class="flex justify-between">
@@ -124,6 +140,7 @@
         @click="publishOverlay"
       />
     </div>
+
   </div>
 </template>
 
@@ -137,6 +154,7 @@ import { useProjectStore } from '@stores/pinia/projectStore';
 import { storeToRefs } from 'pinia';
 import { allMarkers, updateMarkerTooltip } from '@composables/overlay/useOverlay';
 import { useProjectDialogState } from '@composables/ui/useProjectDialogState';
+import { useEditFormsState } from '@composables/ui/useEditFormsState';
 import { loadCityProjects, citiesWithProjects, latestClickedCity } from '@composables/map/useCityMarkers';
 import { getNearbyProjects } from '@composables/project/useNearbyProjects';
 import { useSelectedProject } from '@composables/project/useSelectedProject';
@@ -152,6 +170,7 @@ const projectStore = useProjectStore();
 const { overlays, idSelectedOverlay } = storeToRefs(overlayStore);
 const { projects } = storeToRefs(projectStore);
 const { openProjectDialog } = useProjectDialogState();
+const { openProjectEditForm, openOverlayEditForm } = useEditFormsState();
 
 // AI : Use centralized selected project state
 const { selectedProjectId } = useSelectedProject();
@@ -391,6 +410,18 @@ function openProjectManagerForEdit() {
 // AI : Open the overlay editor dialog
 function openOverlayEditor() {
   overlayEditorRef.value?.openDialog();
+}
+
+// AI : Open project edit form using global state
+function openProjectEditFormLocal() {
+  if (project.value) {
+    openProjectEditForm(project.value);
+  }
+}
+
+// AI : Open overlay edit form using global state
+function openOverlayEditFormLocal() {
+  openOverlayEditForm(currentOverlay.value);
 }
 
 // AI : Helper function to convert data URL to WebP if needed
@@ -736,4 +767,11 @@ async function onProjectPickerSelectFocus() {
 .info-popup .space-y-1>*+* {
   margin-top: 0.25rem;
 }
+
+.project-actions,
+.overlay-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
 </style>
