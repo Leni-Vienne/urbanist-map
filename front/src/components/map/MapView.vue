@@ -214,6 +214,7 @@ import { useEditFormsState } from '@composables/ui/useEditFormsState';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
 import { createButtonSVG } from '@composables/ui/colorMarkers';
 
+import ImageUploadDialog from '@components/dialogs/ImageUploadDialog.vue';
 import LayerControl from '@components/map/LayerControl.vue';
 import EditModeToggle from '@components/map/EditModeToggle.vue';
 import UserMenu from '@components/auth/UserMenu.vue';
@@ -221,7 +222,6 @@ import AuthModal from '@components/auth/AuthModal.vue';
 
 const ProjectPicker = defineAsyncComponent(() => import('@components/project/ProjectPicker.vue'));
 const ProjectDialog = defineAsyncComponent(() => import('@components/project/ProjectDialog.vue'));
-const ImageUploadDialog = defineAsyncComponent(() => import('@components/dialogs/ImageUploadDialog.vue'));
 const EditableProjectForm = defineAsyncComponent(() => import('@components/forms/EditableProjectForm.vue'));
 const EditableOverlayForm = defineAsyncComponent(() => import('@components/forms/EditableOverlayForm.vue'));
 

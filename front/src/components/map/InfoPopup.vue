@@ -32,14 +32,17 @@
         <div class="text-sm font-semibold mb-2 text-gray-700 flex justify-between items-center">
           Project Information
           <div class="project-actions">
+            <!-- AI : Direct edit button (for owned projects or moderator pending projects) -->
             <Button
-              v-if="!props.viewMode"
+              v-if="!props.viewMode && project && user && project.ownerId === user.id"
               icon="pi pi-pencil"
               class="p-button-sm p-button-text p-button-info"
               @click="openProjectManagerForEdit"
               v-tooltip.top="'Edit Project'"
             />
+            <!-- AI : Suggest changes button (for non-owned projects) -->
             <Button
+              v-else-if="!props.viewMode && project && user && project.ownerId !== user.id"
               icon="pi pi-file-edit"
               class="p-button-sm p-button-text p-button-secondary"
               @click="openProjectEditFormLocal"
@@ -92,14 +95,17 @@
         <div class="text-sm font-semibold mb-2 text-gray-700 flex justify-between items-center">
           Overlay Information
           <div class="overlay-actions">
+            <!-- AI : Direct edit button (for owned overlays) -->
             <Button
-              v-if="!props.viewMode"
+              v-if="!props.viewMode && currentOverlay && user && currentOverlay.authorId === user.id"
               icon="pi pi-pencil"
               class="p-button-sm p-button-text p-button-info"
               @click="openOverlayEditor"
               v-tooltip.top="'Edit Overlay'"
             />
+            <!-- AI : Suggest changes button (for non-owned overlays) -->
             <Button
+              v-else-if="!props.viewMode && currentOverlay && user && currentOverlay.authorId !== user.id"
               icon="pi pi-file-edit"
               class="p-button-sm p-button-text p-button-secondary"
               @click="openOverlayEditFormLocal"
@@ -158,6 +164,7 @@ import { useEditFormsState } from '@composables/ui/useEditFormsState';
 import { loadCityProjects, citiesWithProjects, latestClickedCity } from '@composables/map/useCityMarkers';
 import { getNearbyProjects } from '@composables/project/useNearbyProjects';
 import { useSelectedProject } from '@composables/project/useSelectedProject';
+import { useAuthStore } from '@stores/authStore';
 import type { OverlayObject, Project } from '@types';
 import { trpc } from '@client'
 
@@ -174,6 +181,10 @@ const { openProjectEditForm, openOverlayEditForm } = useEditFormsState();
 
 // AI : Use centralized selected project state
 const { selectedProjectId } = useSelectedProject();
+
+// AI : Use auth store for ownership checks
+const authStore = useAuthStore();
+const { user } = storeToRefs(authStore);
 
 const props = defineProps<{
   overlayObject: OverlayObject;
@@ -264,6 +275,7 @@ function onOverlayUpdate(overlayId: string, caption?: string) {
     currentOverlay.value.caption = caption ?? null;
   }
 }
+
 
 // AI : Get display text for project location (city name or fallback)
 function getProjectLocationDisplay(project: Project): string {

@@ -1,27 +1,5 @@
 <template>
   <div class="editable-overlay-form">
-    <div class="form-header">
-      <h3>Edit Overlay Information</h3>
-      <div class="header-actions">
-        <Button
-          v-if="hasChanges"
-          icon="pi pi-undo"
-          @click="resetChanges"
-          size="small"
-          label="Reset"
-          severity="secondary"
-          text
-        />
-        <Button
-          icon="pi pi-times"
-          @click="$emit('close')"
-          size="small"
-          severity="secondary"
-          text
-        />
-      </div>
-    </div>
-
     <form @submit.prevent="submitChanges" class="overlay-form">
       <div class="form-group">
         <label for="caption">Overlay Name/Caption</label>
@@ -34,6 +12,7 @@
         <small v-if="hasChanged('caption')" class="change-indicator">
           Changed from: "{{ originalData.caption || 'Not set' }}"
         </small>
+        <div v-else class="change-indicator-placeholder"></div>
       </div>
 
 
@@ -48,6 +27,15 @@
       </div>
 
       <div class="form-actions">
+        <Button
+          v-if="hasChanges"
+          type="button"
+          @click="resetChanges"
+          label="Reset"
+          severity="secondary"
+          outlined
+          icon="pi pi-undo"
+        />
         <Button
           type="button"
           @click="$emit('close')"
@@ -65,15 +53,6 @@
       </div>
     </form>
 
-    <div v-if="hasChanges" class="changes-summary">
-      <h4>Changes to be submitted:</h4>
-      <ul>
-        <li v-for="change in getChangesToSubmit()" :key="change.fieldName">
-          <strong>{{ change.fieldName }}:</strong>
-          "{{ formatValue(change.oldValue) }}" → "{{ formatValue(change.newValue) }}"
-        </li>
-      </ul>
-    </div>
   </div>
 </template>
 
@@ -194,38 +173,17 @@ async function submitChanges() {
 
 <style scoped>
 .editable-overlay-form {
-  background: white;
-  border-radius: 8px;
   padding: 1.5rem;
-  max-width: 700px;
-  margin: 0 auto;
-}
-
-.form-header {
+  min-height: 280px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.form-header h3 {
-  margin: 0;
-  color: #374151;
-  font-size: 1.25rem;
-  font-weight: 600;
-}
-
-.header-actions {
-  display: flex;
-  gap: 0.5rem;
+  flex-direction: column;
 }
 
 .overlay-form {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  flex: 1;
 }
 
 .form-group {
@@ -253,6 +211,20 @@ async function submitChanges() {
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   font-size: 0.75rem;
+  min-height: 1.25rem;
+  display: flex;
+  align-items: center;
+}
+
+/* AI : Reserve space for change indicators to prevent dialog jumping */
+.form-group {
+  position: relative;
+}
+
+.form-group small.change-indicator,
+.form-group .change-indicator-placeholder {
+  min-height: 1.25rem;
+  margin-top: 0.25rem;
 }
 
 .form-actions {
@@ -262,32 +234,6 @@ async function submitChanges() {
   margin-top: 1.5rem;
   padding-top: 1rem;
   border-top: 1px solid #e5e7eb;
-}
-
-.changes-summary {
-  margin-top: 1.5rem;
-  padding: 1rem;
-  background: #f0f9ff;
-  border: 1px solid #bae6fd;
-  border-radius: 6px;
-}
-
-.changes-summary h4 {
-  margin: 0 0 0.75rem 0;
-  color: #0c4a6e;
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-.changes-summary ul {
-  margin: 0;
-  padding-left: 1.25rem;
-  color: #0c4a6e;
-}
-
-.changes-summary li {
-  font-size: 0.875rem;
-  margin-bottom: 0.25rem;
 }
 
 @media (max-width: 640px) {

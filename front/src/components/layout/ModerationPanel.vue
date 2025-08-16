@@ -1,9 +1,8 @@
 <template>
   <div class="moderation-container">
-    <!-- AI : Projects Section with integrated change requests -->
+    <!-- AI : Projects Section - pure approve/reject workflow for pending items -->
     <ProjectAccordionPanel
       :projects="projects"
-      :change-requests="changeRequests"
       :is-loading="isLoading"
       title="Pending Projects"
       panel-class="moderation-panel"
@@ -68,22 +67,6 @@
       </button>
     </template>
 
-    <template #change-actions="{ change }">
-      <Button
-        icon="pi pi-check"
-        @click="approveChangeRequest(change.id)"
-        size="small"
-        severity="success"
-        text
-      />
-      <Button
-        icon="pi pi-times"
-        @click="rejectChangeRequest(change.id)"
-        size="small"
-        severity="danger"
-        text
-      />
-    </template>
     </ProjectAccordionPanel>
   </div>
 </template>
@@ -91,16 +74,13 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
 import { useModeration } from '../../composables/overlay/useModeration'
-import { useChangeRequests } from '../../composables/changes/useChangeRequests'
 import { navigateToOverlay } from '../../composables/overlay/useOverlayActions'
 import Button from 'primevue/button'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
-import type { PendingChangeRequest } from '../../types/api'
 
 // AI : Use moderation composable
 const {
   projects,
-  changeRequests: moderationChangeRequests,
   approveProject,
   rejectProject,
   approveOverlay,
@@ -108,16 +88,6 @@ const {
   undoLastAction,
   recentActions
 } = useModeration()
-
-// AI : Use change requests composable
-const {
-  approveChangeRequests,
-  rejectChangeRequests,
-  refreshPendingChangeRequests
-} = useChangeRequests()
-
-// AI : Get change requests from moderation (they're included in the moderation response)
-const changeRequests = computed(() => moderationChangeRequests.value)
 
 // AI : Create isLoading ref
 const isLoading = ref(false)
@@ -147,23 +117,6 @@ async function handleOverlayClick(overlay: any) {
     await navigateToOverlay(overlay.id)
   } catch (error) {
     console.error('Failed to navigate to overlay:', error)
-  }
-}
-
-// AI : Change request actions
-async function approveChangeRequest(changeRequestId: string) {
-  try {
-    await approveChangeRequests([changeRequestId])
-  } catch (error) {
-    console.error('Failed to approve change request:', error)
-  }
-}
-
-async function rejectChangeRequest(changeRequestId: string) {
-  try {
-    await rejectChangeRequests([changeRequestId])
-  } catch (error) {
-    console.error('Failed to reject change request:', error)
   }
 }
 </script>

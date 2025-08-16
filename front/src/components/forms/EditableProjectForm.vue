@@ -1,27 +1,5 @@
 <template>
   <div class="editable-project-form">
-    <div class="form-header">
-      <h3>Edit Project Information</h3>
-      <div class="header-actions">
-        <Button
-          v-if="hasChanges"
-          icon="pi pi-undo"
-          @click="resetChanges"
-          size="small"
-          label="Reset"
-          severity="secondary"
-          text
-        />
-        <Button
-          icon="pi pi-times"
-          @click="$emit('close')"
-          size="small"
-          severity="secondary"
-          text
-        />
-      </div>
-    </div>
-
     <form @submit.prevent="submitChanges" class="project-form">
       <div class="form-group">
         <label for="name">Project Name *</label>
@@ -67,7 +45,7 @@
       <div class="form-row">
         <div class="form-group">
           <label for="startDate">Start Date</label>
-          <Calendar
+          <DatePicker
             id="startDate"
             v-model="formData.startDate"
             :class="{ 'field-changed': hasChanged('startDate') }"
@@ -81,7 +59,7 @@
 
         <div class="form-group">
           <label for="endDate">End Date</label>
-          <Calendar
+          <DatePicker
             id="endDate"
             v-model="formData.endDate"
             :class="{ 'field-changed': hasChanged('endDate') }"
@@ -96,7 +74,7 @@
 
       <div class="form-group">
         <label for="latestUpdateOn">Latest Update</label>
-        <Calendar
+        <DatePicker
           id="latestUpdateOn"
           v-model="formData.latestUpdateOn"
           :class="{ 'field-changed': hasChanged('latestUpdateOn') }"
@@ -120,6 +98,15 @@
 
       <div class="form-actions">
         <Button
+          v-if="hasChanges"
+          type="button"
+          @click="resetChanges"
+          label="Reset"
+          severity="secondary"
+          outlined
+          icon="pi pi-undo"
+        />
+        <Button
           type="button"
           @click="$emit('close')"
           label="Cancel"
@@ -136,15 +123,6 @@
       </div>
     </form>
 
-    <div v-if="hasChanges" class="changes-summary">
-      <h4>Changes to be submitted:</h4>
-      <ul>
-        <li v-for="change in getChangesToSubmit()" :key="change.fieldName">
-          <strong>{{ change.fieldName }}:</strong>
-          "{{ formatValue(change.oldValue) }}" → "{{ formatValue(change.newValue) }}"
-        </li>
-      </ul>
-    </div>
   </div>
 </template>
 
@@ -284,32 +262,7 @@ async function submitChanges() {
 
 <style scoped>
 .editable-project-form {
-  background: white;
-  border-radius: 8px;
   padding: 1.5rem;
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.form-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.form-header h3 {
-  margin: 0;
-  color: #374151;
-  font-size: 1.25rem;
-  font-weight: 600;
-}
-
-.header-actions {
-  display: flex;
-  gap: 0.5rem;
 }
 
 .project-form {
@@ -362,32 +315,6 @@ async function submitChanges() {
   margin-top: 1.5rem;
   padding-top: 1rem;
   border-top: 1px solid #e5e7eb;
-}
-
-.changes-summary {
-  margin-top: 1.5rem;
-  padding: 1rem;
-  background: #f0f9ff;
-  border: 1px solid #bae6fd;
-  border-radius: 6px;
-}
-
-.changes-summary h4 {
-  margin: 0 0 0.75rem 0;
-  color: #0c4a6e;
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-.changes-summary ul {
-  margin: 0;
-  padding-left: 1.25rem;
-  color: #0c4a6e;
-}
-
-.changes-summary li {
-  font-size: 0.875rem;
-  margin-bottom: 0.25rem;
 }
 
 @media (max-width: 640px) {

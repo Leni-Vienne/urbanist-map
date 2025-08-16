@@ -10,7 +10,6 @@ declare module 'vue' {
   export interface GlobalComponents {
     AuthModal: typeof import('./src/components/auth/AuthModal.vue')['default']
     Button: typeof import('primevue/button')['default']
-    ChangeHistoryViewer: typeof import('./src/components/history/ChangeHistoryViewer.vue')['default']
     DatePicker: typeof import('primevue/datepicker')['default']
     Dialog: typeof import('primevue/dialog')['default']
     EditableOverlayForm: typeof import('./src/components/forms/EditableOverlayForm.vue')['default']
