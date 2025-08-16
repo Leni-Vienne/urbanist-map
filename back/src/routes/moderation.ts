@@ -1,6 +1,6 @@
 import { adminProcedure, router } from '../trpc';
 import { z } from 'zod';
-import { projects, overlays, approvalStatusEnum, cities, countries } from '../db/schema';
+import { projects, overlays, approvalStatusEnum, cities, countries, changeRequests } from '../db/schema';
 import { eq, inArray, sql, or } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
@@ -80,9 +80,26 @@ export function createModerationRouter(db: PostgresJsDatabase<typeof schema>) {
               )
             );
 
-          const [projectsResult, overlaysResult] = await Promise.all([
+          // AI : Get pending change requests
+          const pendingChangeRequests = db
+            .select({
+              id: changeRequests.id,
+              entityType: changeRequests.entityType,
+              entityId: changeRequests.entityId,
+              fieldName: changeRequests.fieldName,
+              oldValue: changeRequests.oldValue,
+              newValue: changeRequests.newValue,
+              changeReason: changeRequests.changeReason,
+              requestedBy: changeRequests.requestedBy,
+              createdAt: changeRequests.createdAt,
+            })
+            .from(changeRequests)
+            .orderBy(changeRequests.createdAt);
+
+          const [projectsResult, overlaysResult, changeRequestsResult] = await Promise.all([
             moderationProjects,
             projectOverlays,
+            pendingChangeRequests,
           ]);
 
           // AI : Group overlays by project
@@ -94,6 +111,7 @@ export function createModerationRouter(db: PostgresJsDatabase<typeof schema>) {
           return {
             projects: projectsWithOverlays,
             overlays: overlaysResult.filter(overlay => overlay.status === 'pending'), // Keep for backward compatibility
+            changeRequests: changeRequestsResult,
           };
         } catch (error) {
           console.error('Error fetching pending submissions:', error);

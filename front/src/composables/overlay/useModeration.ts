@@ -1,6 +1,6 @@
 import { ref, onMounted } from 'vue'
 import { trpc } from '../../client'
-import type { PendingOverlay } from '../../types'
+import type { PendingOverlay, PendingChangeRequest } from '../../types/api'
 
 // AI : Interface for tracking recent actions for undo functionality
 interface RecentAction {
@@ -15,6 +15,7 @@ interface RecentAction {
 export function useModeration() {
   const overlays = ref<PendingOverlay[]>([])
   const projects = ref<any[]>([])
+  const changeRequests = ref<PendingChangeRequest[]>([])
   const recentActions = ref<RecentAction[]>([])
 
   const fetchPendingSubmissions = async () => {
@@ -22,6 +23,7 @@ export function useModeration() {
       const response = await trpc.moderation.getPendingSubmissions.query()
       overlays.value = response.overlays
       projects.value = response.projects
+      changeRequests.value = response.changeRequests || []
     }
     catch (error) {
       console.error('Error fetching pending submissions:', error)
@@ -149,6 +151,7 @@ export function useModeration() {
   return {
     overlays,
     projects,
+    changeRequests,
     recentActions,
     approveOverlay,
     rejectOverlay,

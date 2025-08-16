@@ -6,6 +6,7 @@ import { createOverlayRouter } from '../routes/overlay';
 import { createCitiesRouter } from '../routes/cities';
 import { createCountriesRouter } from '../routes/countries';
 import { createModerationRouter } from '../routes/moderation';
+import { createChangesRouter } from '../routes/changes';
 
 // AI : Main router factory that combines all sub-routers
 export function createAppRouter(db: PostgresJsDatabase<typeof schema>) {
@@ -16,6 +17,7 @@ export function createAppRouter(db: PostgresJsDatabase<typeof schema>) {
     cities: createCitiesRouter(db),
     country: createCountriesRouter(db),
     overlay: createOverlayRouter(db),
+    changes: createChangesRouter(db),
   });
 
 }
