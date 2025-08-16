@@ -445,15 +445,32 @@ async function handleOverlayClick(overlay: any) {
   }
 }
 
-// AI : Get change requests for a specific project
+// AI : Get change requests for a specific project (only for approved projects)
 function getProjectChangeRequests(projectId: string): PendingChangeRequest[] {
+  const project = props.projects.find(p => p.id === projectId)
+  // AI : Only show change requests for approved projects, not pending ones
+  if (!project || project.status === 'pending') {
+    return []
+  }
   return props.changeRequests?.filter(
     request => request.entityType === 'project' && request.entityId === projectId
   ) ?? []
 }
 
-// AI : Get change requests for a specific overlay
+// AI : Get change requests for a specific overlay (only for approved overlays)
 function getOverlayChangeRequests(overlayId: string): PendingChangeRequest[] {
+  // AI : Find the overlay in the projects data
+  let overlay = null
+  for (const project of props.projects) {
+    if (project.overlays) {
+      overlay = project.overlays.find((o: any) => o.id === overlayId)
+      if (overlay) break
+    }
+  }
+  // AI : Only show change requests for approved overlays, not pending ones
+  if (!overlay || overlay.status === 'pending') {
+    return []
+  }
   return props.changeRequests?.filter(
     request => request.entityType === 'overlay' && request.entityId === overlayId
   ) ?? []
