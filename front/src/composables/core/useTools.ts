@@ -133,11 +133,11 @@ export const redoTool = L.Toolbar2.Action.extend({
   },
 });
 
-export const resetRatioTool = L.Toolbar2.Action.extend({
+export const mirrorResetTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
-      className: "pi pi-arrow-up-right-and-arrow-down-left-from-center",
-      tooltip: 'Restore and mirror image',
+      html: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0078a8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 7 5 5-5 5V7" /><path d="m21 7-5 5 5 5V7" /><path d="M12 20v2" /><path d="M12 14v2" /><path d="M12 8v2" /><path d="M12 2v2" /></svg>',
+      tooltip: 'Mirror and reset Image',
     },
   },
   addHooks: function () {
@@ -209,7 +209,7 @@ export const editTools = [
   L.DragAction,
   L.ResizeRotateAction,
   L.DistortAction,
-  resetRatioTool,
+  mirrorResetTool,
   L.OpacityAction,
   L.OpacitiesAction,
   previousOverlayTool,

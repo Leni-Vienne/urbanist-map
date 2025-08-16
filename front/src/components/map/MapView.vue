@@ -62,6 +62,8 @@
       />
       <LayerControl />
 
+      <EditModeToggle v-if="authStore.isAuthenticated" />
+
       <!-- AI : Overlay Completion Status Filter Buttons (View Mode Only) -->
       <div v-if="!isEditMode" class="overlay-status-filters">
         <Button
@@ -101,8 +103,6 @@
           </template>
         </Button>
       </div>
-
-      <EditModeToggle v-if="authStore.isAuthenticated" />
 
       <!-- AI : Zoom Controls -->
       <div class="zoom-controls">

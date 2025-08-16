@@ -13,6 +13,9 @@
       :resizable="false"
       :appendTo="bodyElement"
       :transitionOptions="{disabled:true}"
+      @keydown.stop
+      @keyup.stop
+      @keypress.stop
     >      <div class="p-fluid">
         <div class="field mb-4">
           <FloatLabel
