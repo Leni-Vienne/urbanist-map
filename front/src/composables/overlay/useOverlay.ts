@@ -164,11 +164,25 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
       actions: [
         ...(isEditMode.value ? editTools : viewTools)
       ],
-      // AI : Provide corners during initialization to prevent timing issues
       corners: leafletCorners,
     });
 
-    newOverlay.addTo(map.value);
+    // AI : Wait for any ongoing zoom animation to complete before adding overlay to prevent visual glitch
+    // AI : This fixes the bug when zooming multiple levels past the render threshold at once
+    const addOverlayWhenReady = () => {
+      if (map.value && newOverlay) {
+        newOverlay.addTo(map.value);
+      }
+    };
+
+    // Check if map is currently zooming, _animatingZoom isn't document for some reason
+    if (map.value && (map.value as any)._animatingZoom) {
+      // AI : Wait for zoom animation to complete
+      map.value.once('zoomend', addOverlayWhenReady);
+    } else {
+      // AI : No zoom animation, add immediately
+      addOverlayWhenReady();
+    }
     overlayObject.overlay = newOverlay;
 
     setupOverlayEventHandlers(newOverlay, overlayObject);
@@ -177,7 +191,6 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
     // AI : Only disable editing if we're in view mode
     // AI : The onOverlayLoaded function will set the proper state when the element is ready
     if (!isEditMode.value) {
-      // AI : Use a timeout to ensure element is available
       const element = newOverlay.getElement();
       if (element) {
         disableOverlayEditing(newOverlay, element);
@@ -359,20 +372,10 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
     return;
   }
 
-  // AI : Get center from overlay bounds - should work reliably now that corners are set during init
   const bounds = overlayObject.overlay.getBounds();
   if (bounds?.isValid()) {
     overlayObject.marker.setLatLng(bounds.getCenter());
     return;
-  }
-  console.log("updateMarkerPosition fallback: bounds not valid", bounds);
-  // AI : Fallback: calculate center from corners manually
-  const corners = overlayObject.overlay.getCorners();
-  if (corners && corners.length === 4) {
-    const latSum = corners.reduce((sum, corner) => sum + corner.lat, 0);
-    const lngSum = corners.reduce((sum, corner) => sum + corner.lng, 0);
-    const center = L.latLng(latSum / 4, lngSum / 4);
-    overlayObject.marker.setLatLng(center);
   }
 }
 
