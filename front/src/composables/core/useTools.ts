@@ -40,8 +40,10 @@ export const infoTool = L.Toolbar2.Action.extend({
       return;
     }
 
-    // AI : Check if currently open using store state
-    const isCurrentlyOpen = overlayStore.showInfoPopup;
+    // AI : Check if currently open using store state and DOM state
+    const { showInfoPopup } = storeToRefs(overlayStore);
+    const teleportTargetExists = !!this.options.subToolbar._container?.querySelector('#info-popup-teleport-target');
+    const isCurrentlyOpen = showInfoPopup.value && teleportTargetExists;
 
     // IMPORTANT : This if/else is need to toggle open/close the info popup and be able to open it again
     if (isCurrentlyOpen) {
@@ -61,7 +63,20 @@ export const infoTool = L.Toolbar2.Action.extend({
         teleportTarget.parentNode.replaceChild(originalButton, teleportTarget);
       }
     } else {
-      // AI : Open
+      // AI : Open - but first clean up any stale teleport target
+      if (teleportTargetExists && !showInfoPopup.value) {
+        // AI : Store thinks popup is closed but DOM has teleport target - clean it up
+        const staleTarget = this.options.subToolbar._container?.querySelector('#info-popup-teleport-target');
+        if (staleTarget?.parentNode) {
+          const originalButton = document.createElement('a');
+          originalButton.className = "leaflet-toolbar-icon more-info-popup";
+          originalButton.href = "#";
+          originalButton.title = "Info";
+          originalButton.setAttribute('role', 'button');
+          staleTarget.parentNode.replaceChild(originalButton, staleTarget);
+        }
+      }
+
       this.options.subToolbar._show();
 
       // AI : Wait for subtoolbar to be shown before manipulating it
@@ -70,6 +85,8 @@ export const infoTool = L.Toolbar2.Action.extend({
       if (existingButton?.tagName === 'A') {
         const teleportTarget = document.createElement('div');
         teleportTarget.id = "info-popup-teleport-target";
+        // AI : Ensure teleport target doesn't interfere with map interactions
+        teleportTarget.style.cssText = 'pointer-events: none; position: absolute; width: 0; height: 0; overflow: visible;';
 
         existingButton.parentNode?.replaceChild(teleportTarget, existingButton);
 
