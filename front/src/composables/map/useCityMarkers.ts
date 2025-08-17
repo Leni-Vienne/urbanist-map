@@ -4,6 +4,7 @@ import { ref, computed } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
 import { renderViewModeOverlays, clearAllOverlays } from '@composables/overlay/useOverlay';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
+import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import { trpc, RouterOutput } from '@client';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
@@ -148,15 +149,19 @@ export async function loadCityProjects(cityId: string, cityName: string, forceFu
     stopCameraTracking();
 
     // AI : Get overlays data (cached or fresh)
-    const overlaysToRender = await fetchCityProjectsData(cityId);
+    const overlaysData = await fetchCityProjectsData(cityId);
 
-    currentCityOverlays.value = overlaysToRender;
+    currentCityOverlays.value = overlaysData;
+
+    // AI : Filter overlays based on current completion status filters
+    const { filterByCompletionStatus } = useCompletionFilters();
+    const overlaysToRender = filterByCompletionStatus(overlaysData);
 
     // AI : Set overlays in view mode overlays and render them
     const { setViewModeOverlays } = useViewModeOverlays();
     setViewModeOverlays(overlaysToRender);
 
-    // AI : Render overlays on the map with markers
+    // AI : Render only visible overlays on the map with markers
     await renderViewModeOverlays(overlaysToRender, true, true);
 
     // AI : Check zoom level after loading to ensure overlays are hidden if zoom is too low
@@ -187,11 +192,15 @@ async function showOverlayMarkers(cityId: string): Promise<void> {
     // AI : Get overlays data (cached or fresh)
     const overlaysData = await fetchCityProjectsData(cityId);
 
+    // AI : Filter overlays based on current completion status filters
+    const { filterByCompletionStatus } = useCompletionFilters();
+    const visibleOverlays = filterByCompletionStatus(overlaysData);
+
     // AI : Create new layer group for overlay markers
     overlayMarkersLayer = L.layerGroup();
 
-    // AI : Add simple markers for each overlay location, color depends on overlay state in edit mode or project status in view mode
-    overlaysData.forEach(overlay => {
+    // AI : Add simple markers for each visible overlay location
+    visibleOverlays.forEach(overlay => {
       // AI : Use getOverlayMarkerInfo which considers edit mode, current overlay state, and position
       const { color: markerColor, position } = getOverlayMarkerInfo(overlay);
       const markerIcon = createColorIcon(markerColor);
@@ -490,12 +499,16 @@ async function renderFullOverlaysFromCache(cityId: string, cityName: string): Pr
 
     currentCityOverlays.value = overlaysData;
 
+    // AI : Filter overlays based on current completion status filters
+    const { filterByCompletionStatus } = useCompletionFilters();
+    const visibleOverlays = filterByCompletionStatus(overlaysData);
+
     // AI : Set overlays in view mode overlays and render them
     const { setViewModeOverlays } = useViewModeOverlays();
-    setViewModeOverlays(overlaysData);
+    setViewModeOverlays(visibleOverlays);
 
-    // AI : Render overlays on the map with markers
-    await renderViewModeOverlays(overlaysData, true, true);
+    // AI : Render only visible overlays on the map with markers
+    await renderViewModeOverlays(visibleOverlays, true, true);
   } catch (error) {
     console.error('AI : Error rendering full overlays from cache:', error);
   }
@@ -519,11 +532,15 @@ export function renderOverlayMarkersFromCache(cityId: string, cityName: string):
     const { stopCameraTracking } = useViewModeOverlays();
     stopCameraTracking();
 
+    // AI : Filter overlays based on current completion status filters
+    const { filterByCompletionStatus } = useCompletionFilters();
+    const visibleOverlays = filterByCompletionStatus(overlaysData);
+
     // AI : Create new layer group for overlay markers
     overlayMarkersLayer = L.layerGroup();
 
-    // AI : Add simple markers for each overlay location, color depends on overlay state in edit mode or project status in view mode
-    overlaysData.forEach(overlay => {
+    // AI : Add simple markers for each visible overlay location
+    visibleOverlays.forEach(overlay => {
       // AI : Use getOverlayMarkerInfo which considers edit mode, current overlay state, and position
       const { color: markerColor, position } = getOverlayMarkerInfo(overlay);
       const markerIcon = createColorIcon(markerColor);
