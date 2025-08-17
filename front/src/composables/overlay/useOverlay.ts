@@ -165,7 +165,7 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
         ...(isEditMode.value ? editTools : viewTools)
       ],
       corners: leafletCorners,
-    });
+    }) as L.DistortableImageOverlay;
 
     // AI : Wait for any ongoing zoom animation to complete before adding overlay to prevent visual glitch
     // AI : This fixes the bug when zooming multiple levels past the render threshold at once
@@ -211,7 +211,7 @@ function setupOverlayLoadHandler(overlay: L.DistortableImageOverlay, overlayObje
   const element = overlay.getElement();
   if (!element) {
     // AI : Element should be available immediately after addTo(), but add minimal fallback
-    requestAnimationFrame(() => setupOverlayLoadHandler(overlay, overlayObject));
+    requestAnimationFrame(() => { setupOverlayLoadHandler(overlay, overlayObject); });
     return;
   }
 

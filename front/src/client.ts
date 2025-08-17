@@ -32,8 +32,8 @@ const trpc = createTRPCClient<AppRouter>({
       
       async fetch(url, options) {
         const token = await getAuthToken();
-        const headers = {
-          ...options?.headers,
+        const headers: Record<string, string> = {
+          ...(options?.headers as Record<string, string>),
         };
         
         if (token) {

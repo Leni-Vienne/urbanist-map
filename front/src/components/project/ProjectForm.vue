@@ -52,7 +52,6 @@
                         :loading="citiesLoading"
                         :disabled="false"
                         required
-                        @click="onSelectClick"
                         @show="onSelectShow"
                     ><template #option="{ option }">
                             <div class="flex items-center justify-between w-full">
@@ -241,23 +240,11 @@ function getOverlayCenter(): { lat: number; lng: number } | null {
     return null;
 }
 
-// AI : Load cities when user clicks the select (before dropdown opens)
-async function onSelectClick() {
-    if (!citiesLoaded.value && !citiesLoading.value) {
-        const overlayCenter = getOverlayCenter();
-        if (overlayCenter) {
-            // AI : Start loading immediately, don't wait
-            loadCitiesNearLocation(overlayCenter.lat, overlayCenter.lng);
-        }
-    }
-}
-
 // AI : Load cities when dropdown is about to show
 async function onSelectShow() {
     if (!citiesLoaded.value && !citiesLoading.value) {
         const overlayCenter = getOverlayCenter();
         if (overlayCenter) {
-            // AI : Start loading immediately if not already started
             loadCitiesNearLocation(overlayCenter.lat, overlayCenter.lng);
         }
     }

@@ -1,5 +1,5 @@
 import { ref, onMounted } from 'vue'
-import { trpc } from '../../client'
+import { trpc } from '@client'
 import type { PendingOverlay, PendingChangeRequest } from '../../types/api'
 
 // AI : Interface for tracking recent actions for undo functionality

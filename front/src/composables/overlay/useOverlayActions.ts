@@ -5,7 +5,7 @@ import { useToast } from '@composables/ui/useToast';
 import { useProjects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import type { OverlayObject, CDNOverlayData } from '@types';
 import { createColorIcon } from '@composables/ui/colorMarkers';
-import { trpc } from '../../client';
+import { trpc } from '@client';
 import type { BackendOverlay } from '../../types/api';
 import { updateCachedOverlayData } from '@composables/map/useCityMarkers';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';

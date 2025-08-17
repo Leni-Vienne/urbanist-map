@@ -75,7 +75,7 @@
 import { ref, defineAsyncComponent, watch } from 'vue'
 import Button from 'primevue/button'
 import LatestOverlaysPanel from './LatestOverlaysPanel.vue' // static import since it's the default panel
-import { useAuthStore } from '../../stores/authStore'
+import { useAuthStore } from '@stores/authStore'
 
 // AI : Lazy load panels to reduce initial bundle size
 const ModerationPanel = defineAsyncComponent(() => import('./ModerationPanel.vue'))

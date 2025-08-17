@@ -128,9 +128,9 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue'
-import { useFieldChanges } from '../../composables/changes/useFieldChanges'
-import { useToast } from '../../composables/ui/useToast'
-import type { Project } from '../../types'
+import { useFieldChanges } from '@composables/changes/useFieldChanges'
+import { useToast } from '@composables/ui/useToast'
+import type { Project } from '@types'
 
 interface Props {
   project: Project

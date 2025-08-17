@@ -91,7 +91,7 @@ export function useProjectEditor(
       const isExisting = !!projectData.id;
       
       // AI : Extract PDF file for potential future upload, but don't include in main project data
-      const sourcePdfFile = projectData.sourcePdf;
+      const _sourcePdfFile = projectData.sourcePdf;
       
       const dataToSave = {
         name: projectData.name,

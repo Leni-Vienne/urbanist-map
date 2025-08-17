@@ -3,10 +3,14 @@
         "target": "esnext", // useful for this stuff : "const lastCorners = overlayObject.history.at(-1);"
         "module": "ESNext",
         "moduleResolution": "bundler",
+        "skipLibCheck": true,
         "strict": true,
         "strictNullChecks": true,
         "allowSyntheticDefaultImports": true,
-        "types": ["@cloudflare/workers-types", "@types/bun"],
+        "types": [
+            "@cloudflare/workers-types",
+            "@types/bun"
+        ],
         "paths": {
             "@tables": [
                 "./back/src/db/schema"
@@ -33,5 +37,9 @@
                 "./node_modules/@types/leaflet"
             ]
         }
-    }
+    },
+    "exclude": [
+        "node_modules",
+        "dist"
+    ]
 }

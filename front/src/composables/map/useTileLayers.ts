@@ -70,14 +70,14 @@ export function addTileLayer(): void {
   if (!map.value) {
     // AI : If map is not ready, wait for initialization
     onMapInitialized(() => {
-      addTileLayersToMap();
+      void addTileLayersToMap();
     });
     return;
   }
 
   // AI : Check if tile layers were lost during hot reload
   if (!activeTileLayer) {
-    addTileLayersToMap();
+    void addTileLayersToMap();
   }
 }
 

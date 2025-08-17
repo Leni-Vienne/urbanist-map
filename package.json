@@ -1,6 +1,8 @@
 {
   "type": "module",
   "scripts": {
+    "ts-check": "bunx vue-tsc@latest --noEmit",
+    "oxlint": "bunx oxlint@latest --type-aware",
     "preview": "vite preview front",
     "dev-front": "bunx --bun vite front",
     "build-front-workflow": "bun --bun vite build front",
@@ -27,7 +29,7 @@
     "@trpc/server": "^11.4.4",
     "@vectorial1024/leaflet-color-markers": "^2.0.4",
     "drizzle-orm": "^0.44.4",
-    "hono": "^4.9.1",
+    "hono": "^4.9.2",
     "jose": "^6.0.12",
     "leaflet-distortableimage": "Karelics/Leaflet.DistortableImage",
     "leaflet-doubletapdragzoom": "^0.3.2",
@@ -44,14 +46,14 @@
     "zod": "^4.0.17"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250813.0",
+    "@cloudflare/workers-types": "^4.20250816.0",
     "@primevue/auto-import-resolver": "^4.3.7",
     "@types/bun": "^1.2.20",
     "@types/cors": "^2.8.19",
     "@types/leaflet": "^1.9.20",
     "@vitejs/plugin-vue": "^6.0.1",
     "drizzle-kit": "^0.31.4",
-    "oxlint": "^1.11.2",
+    "oxlint": "^1.12.0",
     "unplugin-vue-components": "^28.8.0",
     "vite": "^7.1.2",
     "vite-plugin-vue-devtools": "^8.0.0",

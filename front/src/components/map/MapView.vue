@@ -178,7 +178,7 @@
   >
     <EditableOverlayForm
       v-if="overlayEditData && showOverlayEditForm"
-      :overlay="overlayEditData"
+      :overlay="(overlayEditData as OverlayObject)"
       @close="closeOverlayEditForm"
       @submitted="closeOverlayEditForm"
     />
@@ -194,7 +194,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed, defineAsyncComponent } from 'vue';
+import { ref, onMounted, watch, defineAsyncComponent } from 'vue';
 
 import { initializeMap, disableLeafletKeyboardEvents, map } from '@composables/core/useMap';
 import { initializeCameraBounds } from '@composables/map/useCameraBounds';
@@ -213,6 +213,7 @@ import { useProjectDialogState } from '@composables/ui/useProjectDialogState';
 import { useEditFormsState } from '@composables/ui/useEditFormsState';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
 import { createButtonSVG } from '@composables/ui/colorMarkers';
+import type { OverlayObject } from '@types';
 
 import ImageUploadDialog from '@components/dialogs/ImageUploadDialog.vue';
 import LayerControl from '@components/map/LayerControl.vue';

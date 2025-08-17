@@ -160,20 +160,19 @@ export function createChangesRouter(db: PostgresJsDatabase<typeof schema>) {
       }))
       .query(async ({ input }) => {
         try {
-          let query = db.select().from(changeHistory);
+          const baseQuery = db.select().from(changeHistory);
 
-          if (input.entityType && input.entityId) {
-            query = query.where(
-              and(
-                eq(changeHistory.entityType, input.entityType),
-                eq(changeHistory.entityId, input.entityId)
-              )
-            );
-          } else if (input.entityType) {
-            query = query.where(eq(changeHistory.entityType, input.entityType));
-          } else if (input.entityId) {
-            query = query.where(eq(changeHistory.entityId, input.entityId));
+          let whereConditions = [];
+          if (input.entityType) {
+            whereConditions.push(eq(changeHistory.entityType, input.entityType));
           }
+          if (input.entityId) {
+            whereConditions.push(eq(changeHistory.entityId, input.entityId));
+          }
+
+          const query = whereConditions.length > 0 
+            ? baseQuery.where(and(...whereConditions))
+            : baseQuery;
 
           const history = await query.orderBy(changeHistory.appliedAt);
           return history;

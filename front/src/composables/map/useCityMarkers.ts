@@ -132,7 +132,7 @@ export async function loadCityProjects(cityId: string, cityName: string, forceFu
     // AI : No cached data - need to fetch from API
     // AI : If zoom is too low and not forcing full load, show overlay markers only
     if (currentZoom < MIN_ZOOM_FOR_OVERLAYS && !forceFullLoad) {
-      await showOverlayMarkers(cityId, cityName, cityCountryCode);
+      await showOverlayMarkers(cityId);
       return;
     }
 
@@ -172,7 +172,7 @@ export async function loadCityProjects(cityId: string, cityName: string, forceFu
 /**
  * AI : Show overlay markers without loading images for performance
  */
-async function showOverlayMarkers(cityId: string, cityName: string, cityCountryCode?: string): Promise<void> {
+async function showOverlayMarkers(cityId: string): Promise<void> {
   try {
     isLoadingCityProjects.value = true;
 

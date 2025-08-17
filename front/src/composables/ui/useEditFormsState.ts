@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import type { Project, OverlayObject } from '../../types'
+import type { Project, OverlayObject } from '@types'
 
 // AI : Global state for edit forms to prevent modal issues and key interference
 const showProjectEditForm = ref(false)
