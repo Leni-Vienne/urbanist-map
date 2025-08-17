@@ -19,6 +19,7 @@ declare module 'vue' {
     ImageUploadDialog: typeof import('./src/components/dialogs/ImageUploadDialog.vue')['default']
     InfoPopup: typeof import('./src/components/map/InfoPopup.vue')['default']
     InfoPopupContainer: typeof import('./src/components/map/InfoPopupContainer.vue')['default']
+    InfoPopupSimple: typeof import('./src/components/map/InfoPopupSimple.vue')['default']
     InputText: typeof import('primevue/inputtext')['default']
     LatestOverlaysPanel: typeof import('./src/components/layout/LatestOverlaysPanel.vue')['default']
     LayerControl: typeof import('./src/components/map/LayerControl.vue')['default']

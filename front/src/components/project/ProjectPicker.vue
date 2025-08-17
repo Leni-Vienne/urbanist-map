@@ -1,36 +1,7 @@
 <template>
   <div class="project-picker">
-    <!-- AI : Show error message for nearby projects -->
-    <div v-if="props.useNearbyProjects && nearbyError" class="text-center p-4">
-      <i class="pi pi-exclamation-triangle text-red-500 text-2xl mb-2"></i>
-      <p class="text-red-600 mb-4">{{ nearbyError }}</p>
-      <Button
-        icon="pi pi-refresh"
-        label="Retry"
-        class="p-button-secondary"
-        @click="onSelectFocus"
-      />
-    </div>
-
-    <!-- AI : Show loading message for nearby projects -->
-    <div v-else-if="props.useNearbyProjects && isLoadingProjects" class="text-center p-4">
-      <i class="pi pi-spin pi-spinner text-2xl mb-2"></i>
-      <p>Finding nearby projects...</p>
-    </div>
-
-    <!-- AI : Show message when no nearby projects are found -->
-    <div v-else-if="props.useNearbyProjects && projectList.length === 0 && !isLoadingProjects && !hideCreate" class="text-center p-4">
-      <p class="mb-4">No nearby projects found in this area. Create a new project to add your overlay.</p>
-      <Button
-        icon="pi pi-plus"
-        label="Create New Project"
-        class="p-button-primary"
-        @click="openNewProjectDialog"
-      />
-    </div>
-
     <!-- AI : Show message when no projects exist -->
-    <div v-else-if="!props.useNearbyProjects && projectList.length === 0 && !hideCreate" class="text-center p-4">
+    <div v-if="projectList.length === 0 && !hideCreate" class="text-center p-4">
       <p class="mb-4">No projects available. Create your first project to add overlays.</p>
       <Button
         icon="pi pi-plus"
@@ -52,7 +23,7 @@
             :options="projectList"
             optionLabel="name"
             optionValue="id"
-            :placeholder="props.useNearbyProjects ? 'Select a nearby project' : (placeholder ?? 'Select a project')"
+            :placeholder="placeholder ?? 'Select a project'"
             class="w-full"
             :filter="true"
             :showClear="true"
@@ -84,7 +55,7 @@
                     <span>{{ option.name }}</span>
                     <span class="text-sm opacity-75">({{ getOverlayCountForProject(option.id) }} overlays)</span>
                   </div>
-                  <div v-if="props.useNearbyProjects && option.city" class="text-xs opacity-60">
+                  <div v-if="option.city" class="text-xs opacity-60">
                     {{ option.city.name }}, {{ option.city.countryCode }}
                   </div>
                 </div>
@@ -125,7 +96,7 @@
 import { ref, computed, watch } from 'vue';
 
 import { useProjects } from '@composables/project/useProjects';
-import { fetchNearbyProjects, getNearbyProjects } from '@composables/project/useNearbyProjects';
+import { useCityProjects } from '@composables/project/useCityProjects';
 import { lastCreatedProjectId, setFileUploadFlow } from '@composables/ui/useProjectState';
 import { useSelectedProject } from '@composables/project/useSelectedProject';
 import { useProjectDialogState } from '@composables/ui/useProjectDialogState';
@@ -152,7 +123,7 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
-  useNearbyProjects: {
+  useCityProjects: {
     type: Boolean,
     default: false
   }
@@ -164,7 +135,6 @@ const emit = defineEmits(['update:modelValue', 'project-selected', 'project-crea
 const { projects } = useProjects();
 
 const loading = ref(false);
-const hasSelectError = ref(false);
 
 // AI : Use centralized selected project state
 const { selectedProjectId } = useSelectedProject();
@@ -172,27 +142,21 @@ const { selectedProjectId } = useSelectedProject();
 // AI : Use global project dialog state
 const { openProjectDialog } = useProjectDialogState();
 
-// AI : Get nearby projects composable
-const { projects: nearbyProjectsData, isLoading: nearbyLoading, error: nearbyError } = getNearbyProjects();
+
+// AI : Get city projects composable
+const { projectsWithCounts: cityProjectsData, getOverlayCountForProject: getCityOverlayCount } = useCityProjects();
 
 // AI : Function to count overlays for a project using the appropriate data source
 function getOverlayCountForProject(projectId: string): number {
+  // AI : Use city projects data when available (most efficient)
+  if (props.useCityProjects) {
+    return getCityOverlayCount(projectId);
+  }
+  
+  // AI : For local projects, check overlayIds array
   const project = projectList.value.find(p => p.id === projectId);
-  if (!project) return 0;
-  
-  // AI : For nearby projects, use the overlayCount from backend
-  if (props.useNearbyProjects && 'overlayCount' in project) {
-    return (project as any).overlayCount ?? 0;
-  }
-  
-  // AI : For local projects, check both overlayIds and overlays arrays
-  if (project.overlayIds && project.overlayIds.length > 0) {
+  if (project?.overlayIds && Array.isArray(project.overlayIds)) {
     return project.overlayIds.length;
-  }
-  
-  // AI : Some projects have overlays stored as full objects in an overlays array (from getCityProjects)
-  if ((project as any).overlays && Array.isArray((project as any).overlays)) {
-    return (project as any).overlays.length;
   }
   
   return 0;
@@ -200,43 +164,17 @@ function getOverlayCountForProject(projectId: string): number {
 
 // AI : Compute the project list based on the mode
 const projectList = computed(() => {
-  if (props.useNearbyProjects) {
-    // AI : Convert nearby projects to the expected format
-    return nearbyProjectsData.value.map(project => ({
-      id: project.id,
-      name: project.name,
-      description: project.description,
-      overlayIds: [], // AI : We don't have overlay IDs in nearby projects response
-      overlayCount: project.overlayCount ?? 0, // AI : Use overlay count from backend
-      color: '#007bff', // AI : Default color for nearby projects
-      cityId: project.cityId,
-      status: 'approved' as const, // AI : Only approved projects are returned from nearby endpoint
-      ownerId: project.ownerId,
-      createdAt: project.createdAt,
-      updatedAt: project.updatedAt,
-      metadata: project.metadata,
-      city: project.city ? {
-        id: project.city.id,
-        name: project.city.name,
-        countryCode: project.city.countryCode,
-        coordinates: { x: project.city.lng, y: project.city.lat },
-        createdAt: null,
-        updatedAt: new Date()
-      } : undefined,
-      sourceUrl: null,
-      startDate: null,
-      endDate: null,
-      latestUpdateOn: null
-    }));
+  if (props.useCityProjects) {
+    // AI : Use city projects data extracted from overlay data (most efficient)
+    return cityProjectsData.value;
   } else {
+    // AI : Use local projects from store
     return Object.values(projects.value);
   }
 });
 
-// AI : Update loading state based on the mode
-const isLoadingProjects = computed(() => {
-  return props.useNearbyProjects ? nearbyLoading.value : loading.value;
-});
+// AI : Update loading state
+const isLoadingProjects = computed(() => loading.value);
 
 // AI : Watch for changes in the lastCreatedProjectId to auto-select newly created projects
 watch(() => lastCreatedProjectId.value, (newProjectId) => {
@@ -259,16 +197,6 @@ watch(selectedProjectId, (newValue) => {
   emit('update:modelValue', newValue);
 });
 
-// AI : Watch for useNearbyProjects prop to fetch nearby projects when dialog opens
-watch(() => props.useNearbyProjects, async (useNearby) => {
-  if (useNearby) {
-    try {
-      await fetchNearbyProjects();
-    } catch (error) {
-      console.error('Error fetching nearby projects on dialog open:', error);
-    }
-  }
-}, { immediate: true });
 
 function getProjectById(id: string): Project | undefined {
   return projectList.value.find(project => project.id === id);

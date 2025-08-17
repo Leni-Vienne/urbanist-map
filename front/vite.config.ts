@@ -6,6 +6,7 @@ import tailwindcss from '@tailwindcss/vite'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import path from 'path'
 import { visualizer } from "rollup-plugin-visualizer";
+import istanbul from 'vite-plugin-istanbul';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -23,7 +24,13 @@ export default defineConfig({
       resolvers: [
         PrimeVueResolver()
       ]
-    })
+    }),
+    istanbul({
+      include: 'front/src/*',
+      exclude: ['node_modules', 'test/'],
+      extension: ['.js', '.ts', '.vue'],
+      requireEnv: false,
+    }),
   ],
   // AI : Configure aliases and externals for CDN usage
   resolve: {
@@ -40,6 +47,35 @@ export default defineConfig({
       '@types': path.resolve(__dirname, './src/types'),
       '@client': path.resolve(__dirname, './src/client'),
     }
+  },
+  // to prevent annoying automatic reloads in devmode 
+  optimizeDeps: {
+    include: [
+      'primevue/badge',
+      'primevue/button',
+      'primevue/floatlabel',
+      'primevue/datepicker',
+      'primevue/textarea',
+      'primevue/dialog',
+      'primevue/fileupload',
+      'primevue/iconfield',
+      'primevue/inputicon',
+      'primevue/inputtext',
+      'primevue/message',
+      'primevue/panel',
+      'primevue/password',
+      'primevue/popover',
+      'primevue/progressbar',
+      'primevue/radiobutton',
+      'primevue/select',
+      'primevue/toast',
+      'primevue/virtualscroller',
+      'primevue/focustrap',
+      'primevue/ripple',
+      'primevue/tooltip',
+      'primevue/toastservice',
+      'primevue/usetoast'
+    ]
   },
   // AI : External leaflet and supabase to prevent bundling 
   build: {

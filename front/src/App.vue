@@ -19,7 +19,7 @@
       <MapView />
 
 
-      <!-- AI : InfoPopup container using Teleport -->
+      <!-- AI : InfoPopup with teleport mechanism -->
       <InfoPopupContainer />
     </div>
   </div>

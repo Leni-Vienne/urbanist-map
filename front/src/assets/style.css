@@ -1,5 +1,5 @@
 @import "tailwindcss";
-/*@import "tailwindcss-primeui"; -> doesn't seem useful? */
+@import "tailwindcss-primeui"; /* doesn't seem useful? */
 
 /* AI : Override Tailwind's display: block for Leaflet toolbar icons */
 .leaflet-toolbar-icon svg {
