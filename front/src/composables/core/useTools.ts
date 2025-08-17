@@ -158,7 +158,7 @@ export const customDeleteTool = L.Toolbar2.Action.extend({
       return;
     }
     if (confirm('Are you sure you want to delete this overlay from local storage?')) {
-      deleteOverlay(idSelectedOverlay.value);
+      void deleteOverlay(idSelectedOverlay.value);
       idSelectedOverlay.value = null;
     }
   },

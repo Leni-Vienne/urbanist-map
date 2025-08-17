@@ -43,23 +43,16 @@ export const debouncedUpdateMapSize = debounce(function () {
     mapInitialized.value = true;
 
     // AI : Notify all listeners
-    initListeners.forEach(callback => callback());
+    initListeners.forEach(callback => { callback(); });
   }
 }, 250);
 
 export async function initializeMap() {
-  // Fixes Leaflet default marker icons for Vite build, credit to benneq : https://github.com/PaulLeCam/react-leaflet/issues/453#issuecomment-410450387
-  delete (L.Icon.Default.prototype as any)._getIconUrl;
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl: new URL('../../../../node_modules/leaflet/dist/images/marker-icon-2x.png', import.meta.url).href,
-    iconUrl: new URL('../../../../node_modules/leaflet/dist/images/marker-icon.png', import.meta.url).href,
-    shadowUrl: new URL('../../../../node_modules/leaflet/dist/images/marker-shadow.png', import.meta.url).href,
-  });
 
   map.value = L.map("viewerDiv", {
     maxZoom: 22,
     zoomControl: false, // because we have our own zoom control
-    // to have double tag + drag zoom on mobile, using Leaflet.DoubleTapDragZoom package
+    // to have double tag + drag zoom on mobile, using Leaflet.DoubleTapDragZoom package. Doesn't seem to work
     doubleTapDragZoom: 'center',
     doubleTapDragZoomOptions: {
       reverse: true,
@@ -87,7 +80,7 @@ export async function initializeMap() {
   L.control.scale().addTo(map.value);
   // AI : Ensure the map initialization is complete
   // AI : Use nextTick for better timing than arbitrary timeout
-  nextTick(() => {
+  void nextTick(() => {
     if (map.value) {
       map.value.invalidateSize();
       debouncedUpdateMapSize();

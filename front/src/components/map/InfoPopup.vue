@@ -608,7 +608,7 @@ async function prepareImageForServer(): Promise<string> {
     if (!uploadResponse.ok) {
       throw new Error('Failed to upload image to server');
     }
-    const uploadResult = await uploadResponse.json();
+    const uploadResult = await uploadResponse.json() as { filename: string };
 
     return uploadResult.filename;
   } else {

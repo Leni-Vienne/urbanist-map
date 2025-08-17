@@ -58,9 +58,9 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue'
-import { useFieldChanges } from '../../composables/changes/useFieldChanges'
-import { useToast } from '../../composables/ui/useToast'
-import type { OverlayObject } from '../../types'
+import { useFieldChanges } from '@composables/changes/useFieldChanges'
+import { useToast } from '@composables/ui/useToast'
+import type { OverlayObject } from '@types'
 
 interface Props {
   overlay: OverlayObject

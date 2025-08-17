@@ -32,4 +32,4 @@ async function importCountriesData() {
   }
 }
 
-importCountriesData();
+void importCountriesData();

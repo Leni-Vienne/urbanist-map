@@ -73,8 +73,8 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
-import { useModeration } from '../../composables/overlay/useModeration'
-import { navigateToOverlay } from '../../composables/overlay/useOverlayActions'
+import { useModeration } from '@composables/overlay/useModeration'
+import { navigateToOverlay } from '@composables/overlay/useOverlayActions'
 import Button from 'primevue/button'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 

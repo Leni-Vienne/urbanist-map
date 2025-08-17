@@ -2,7 +2,7 @@ import { overlays } from '@composables/overlay/useOverlay';
 import { onMounted, onUnmounted } from 'vue';
 
 /**
- * AI : Composable to handle beforeunload event when there are modified overlays
+ * AI : Composable to handle user wanting to close tab/window while there are unsaved overlays
  */
 export function useBeforeUnload() {
   function checkForModifiedOverlays(): boolean {
@@ -13,14 +13,11 @@ export function useBeforeUnload() {
 
   function handleBeforeUnload(event: BeforeUnloadEvent) {
     if (checkForModifiedOverlays()) {
-      // AI : Standard message for browsers that support custom messages
-      const message = 'You have unsaved changes to overlays. Are you sure you want to leave?';
+      // AI : Prevent default to trigger browser confirmation dialog
+      event.preventDefault();
       
-      // AI : Set returnValue for older browsers
-      event.returnValue = message;
-      
-      // AI : Return message for modern browsers (though most ignore custom messages now)
-      return message;
+      // AI : Modern browsers ignore custom messages and show their own dialog
+      return '';
     }
   }
 

@@ -112,7 +112,7 @@ function createEditModeOverlayMarker(overlay: OverlayObject): void {
 
   // AI : Add click handler to load full overlay
   marker.on('click', () => {
-    loadFullOverlay(overlay.id);
+    void loadFullOverlay(overlay.id);
   });
 
   // AI : Add marker to layer group

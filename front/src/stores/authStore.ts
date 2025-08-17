@@ -68,7 +68,7 @@ export const useAuthStore = defineStore('auth', () => {
   // AI : Sign in with OAuth provider (Google, GitHub, etc.)
   async function signInWithOAuth(provider: 'google' | 'github' | 'discord' | 'facebook') {
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
           redirectTo: `${window.location.origin}/auth/callback`
