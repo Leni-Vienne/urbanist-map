@@ -200,9 +200,11 @@ import { initializeMap, disableLeafletKeyboardEvents, map } from '@composables/c
 import { initializeCameraBounds } from '@composables/map/useCameraBounds';
 import { toggleEditMode } from '@composables/overlay/useEditMode';
 import { addOverlay, undo, redo } from '@composables/overlay/useOverlayActions';
+import { renderViewModeOverlays, removeOverlay } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
 import { lastCreatedProjectId } from '@composables/ui/useProjectState';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
+import { currentCityOverlays } from '@composables/map/useCityMarkers';
 import { initializeCountryMarkers } from '@composables/map/useCountryMarkers';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
@@ -213,6 +215,7 @@ import { useProjectDialogState } from '@composables/ui/useProjectDialogState';
 import { useEditFormsState } from '@composables/ui/useEditFormsState';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
 import { createButtonSVG } from '@composables/ui/colorMarkers';
+import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import type { OverlayObject } from '@types';
 
 import ImageUploadDialog from '@components/dialogs/ImageUploadDialog.vue';
@@ -259,12 +262,8 @@ const showAuthModal = ref(false);
 const isLoading = ref(true);
 const projectPickerRef = ref();
 
-// AI : Overlay completion status filter state
-const visibleCompletionStates = ref({
-  green: true,   // Not started
-  orange: true,  // In progress  
-  grey: true     // Completed
-});
+// AI : Use shared completion filter state
+const { visibleCompletionStates, filterByCompletionStatus, toggleFilter } = useCompletionFilters();
 
 // AI : Marker colors for the color picker buttons
 const markerColors = [
@@ -341,9 +340,9 @@ function handleUnauthenticatedAction() {
 }
 
 // AI : Toggle completion status filter
-function toggleCompletionFilter(status: 'green' | 'orange' | 'grey') {
-  visibleCompletionStates.value[status] = !visibleCompletionStates.value[status];
-  filterOverlaysByCompletionStatus();
+async function toggleCompletionFilter(status: 'green' | 'orange' | 'grey') {
+  toggleFilter(status);
+  await filterOverlaysByCompletionStatus();
 }
 
 // AI : Get marker SVG for button icons using button-specific SVG
@@ -352,40 +351,31 @@ function getMarkerSVG(color: 'green' | 'orange' | 'grey'): string {
 }
 
 // AI : Filter overlays based on completion status
-function filterOverlaysByCompletionStatus() {
-  if (!map.value || !overlays.value) return;
+async function filterOverlaysByCompletionStatus() {
+  if (!map.value || !currentCityOverlays.value?.length) return;
   
-  // AI : Get all overlay objects from the store
-  const allOverlays = Object.values(overlays.value) as any[];
+  // AI : Use the shared filtering utility
+  const visibleOverlays = filterByCompletionStatus(currentCityOverlays.value);
+  const visibleOverlayIds = new Set(visibleOverlays.map(o => o.id));
   
-  allOverlays.forEach((overlayObject) => {
-    if (overlayObject.overlay) {
-      // AI : Get the completion color using the same logic as markers
-      const completionColor = getOverlayMarkerColor(overlayObject, 'view');
-      
-      const shouldShow = visibleCompletionStates.value[completionColor as keyof typeof visibleCompletionStates.value];
-      
-      if (shouldShow) {
-        // AI : Show overlay on map if not already visible
-        if (!map.value!.hasLayer(overlayObject.overlay)) {
-          map.value!.addLayer(overlayObject.overlay);
-        }
-        // AI : Show marker if exists
-        if (overlayObject.marker && !map.value!.hasLayer(overlayObject.marker)) {
-          map.value!.addLayer(overlayObject.marker);
-        }
-      } else {
-        // AI : Hide overlay from map
-        if (map.value!.hasLayer(overlayObject.overlay)) {
-          map.value!.removeLayer(overlayObject.overlay);
-        }
-        // AI : Hide marker if exists
-        if (overlayObject.marker && map.value!.hasLayer(overlayObject.marker)) {
-          map.value!.removeLayer(overlayObject.marker);
-        }
-      }
-    }
+  // AI : Remove overlays that should be hidden
+  const overlaysToHide = currentCityOverlays.value.filter(overlay => !visibleOverlayIds.has(overlay.id));
+  overlaysToHide.forEach(overlay => removeOverlay(overlay.id));
+  
+  // AI : Find overlays that should be visible but aren't currently rendered
+  const overlaysToRender = visibleOverlays.filter(cdnOverlay => {
+    const overlayObject = overlays.value[cdnOverlay.id];
+    return !overlayObject || !overlayObject.overlay || !map.value!.hasLayer(overlayObject.overlay);
   });
+  
+  // AI : Recreate missing overlays from scratch
+  if (overlaysToRender.length > 0) {
+    await renderViewModeOverlays(overlaysToRender, true, false);
+    
+    // AI : Update view mode tracking with currently visible overlays
+    const { setViewModeOverlays } = useViewModeOverlays();
+    setViewModeOverlays(visibleOverlays);
+  }
 }
 
 // AI : Handle zoom in
@@ -420,14 +410,14 @@ watch(() => isEditMode?.value, (editMode) => {
     // AI : Start view mode tracking when exiting edit mode
     startCameraTracking();
     // AI : Apply filters when entering view mode
-    setTimeout(() => filterOverlaysByCompletionStatus(), 100);
+    setTimeout(async () => await filterOverlaysByCompletionStatus(), 100);
   }
 });
 
 // AI : Watch for overlays changes to apply filters
 watch(() => overlays.value ? Object.keys(overlays.value).length : 0, () => {
   if (!isEditMode?.value) {
-    setTimeout(() => filterOverlaysByCompletionStatus(), 100);
+    setTimeout(async () => await filterOverlaysByCompletionStatus(), 100);
   }
 });
 
