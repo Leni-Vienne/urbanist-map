@@ -1,4 +1,3 @@
-// filepath: d:\Documents\Perso\prog\city-map-overlay\src\components\OverlayEditor.vue
 <template>
   <div>
     <!-- Edit Overlay Dialog -->

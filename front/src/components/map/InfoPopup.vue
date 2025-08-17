@@ -12,14 +12,14 @@
     > <!-- Project Selection Section - Only visible in edit mode -->
       <div
         v-if="!props.viewMode"
-        class="project-selection mb-3"
+        class="project-selection"
       >
-        <div class="text-sm font-semibold mb-2 text-gray-700">Project Assignment</div>
+        <div class="section-header">Project Assignment</div>
         <ProjectPicker
           v-model="projectPickerValue"
           @project-selected="applyProjectChange"
-          @select-focus="onProjectPickerSelectFocus"
           :hideSelector="false"
+          :useCityProjects="true"
           :placeholder="project ? 'Change project' : 'Select a project'"
         />
       </div>
@@ -29,8 +29,8 @@
         v-if="project"
         class="project-meta mb-3"
       >
-        <div class="text-sm font-semibold mb-2 text-gray-700 flex justify-between items-center">
-          Project Information
+        <div class="section-header-row">
+          <div class="section-header">Project Information</div>
           <div class="project-actions">
             <!-- AI : Direct edit button (for owned projects or moderator pending projects) -->
             <Button
@@ -50,20 +50,19 @@
             />
           </div>
         </div>
-        <div class="p-2 rounded bg-gray-50 text-sm space-y-1">
-          <div class="flex justify-between">
-            <span class="font-medium text-gray-600">Name:</span>
-            <span class="text-right">{{ project.name ?? 'Not specified' }}</span>
+        <div class="info-card">
+          <div class="info-row">
+            <span class="info-label">Name:</span>
+            <span class="info-value">{{ project.name ?? 'Not specified' }}</span>
           </div>
-          <div class="flex justify-between">
-            <span class="font-medium text-gray-600">Location:</span>
-            <span class="text-right">{{ getProjectLocationDisplay(project) }}</span>
+          <div class="info-row">
+            <span class="info-label">Location:</span>
+            <span class="info-value">{{ getProjectLocationDisplay(project) }}</span>
           </div>
-          <div class="flex justify-between">
-            <span class="font-medium text-gray-600">Period:</span>
-            <span class="text-right text-xs">
+          <div class="info-row">
+            <span class="info-label">Period:</span>
+            <span class="info-value info-small">
               <span v-if="!project.startDate && !project.endDate">Not specified</span>
-
               <span v-else>
                 {{ formatDate(project.startDate) }} - {{ project.endDate ? formatDate(project.endDate) : 'Present' }}
               </span>
@@ -71,29 +70,29 @@
           </div>
           <div
             v-if="project.sourceUrl"
-            class="flex justify-between"
+            class="info-row"
           >
-            <span class="font-medium text-gray-600">Source:</span>
+            <span class="info-label">Source:</span>
             <a
               :href="project.sourceUrl"
               target="_blank"
-              class="text-blue-600 hover:underline text-xs truncate max-w-32"
+              class="info-link"
             >{{ project.sourceUrl }}</a>
           </div>
           <div
             v-if="project.latestUpdateOn"
-            class="flex justify-between"
+            class="info-row"
           >
-            <span class="font-medium text-gray-600">Latest Update:</span>
-            <span class="text-right text-xs">{{ formatDate(project.latestUpdateOn) }}</span>
+            <span class="info-label">Latest Update:</span>
+            <span class="info-value info-small">{{ formatDate(project.latestUpdateOn) }}</span>
           </div>
         </div>
       </div>
 
       <!-- Overlay Information Section -->
       <div class="overlay-meta mb-3">
-        <div class="text-sm font-semibold mb-2 text-gray-700 flex justify-between items-center">
-          Overlay Information
+        <div class="section-header-row">
+          <div class="section-header">Overlay Information</div>
           <div class="overlay-actions">
             <!-- AI : Direct edit button (for owned overlays) -->
             <Button
@@ -113,17 +112,17 @@
             />
           </div>
         </div>
-        <div class="p-2 rounded bg-gray-50 text-sm space-y-1">
-          <div class="flex justify-between">
-            <span class="font-medium text-gray-600">Name:</span>
-            <span class="text-right">{{ currentOverlay.caption ?? 'Not specified' }}</span>
+        <div class="info-card">
+          <div class="info-row">
+            <span class="info-label">Name:</span>
+            <span class="info-value">{{ currentOverlay.caption ?? 'Not specified' }}</span>
           </div>
           <div
             v-if="currentOverlay.replacesOverlayId"
-            class="flex justify-between"
+            class="info-row"
           >
-            <span class="font-medium text-gray-600">Type:</span>
-            <span class="text-right text-purple-600 font-medium">Replacement Overlay</span>
+            <span class="info-label">Type:</span>
+            <span class="info-value replacement-type">Replacement Overlay</span>
           </div>
         </div>
         <OverlayEditor
@@ -141,7 +140,9 @@
       <Button
         label="Publish Overlay"
         icon="pi pi-cloud-upload"
-        class="p-button-success p-button-sm w-full"
+        severity="success"
+        size="small"
+        class="w-full"
         :loading="isPublishing"
         @click="publishOverlay"
       />
@@ -742,10 +743,6 @@ async function publishOverlay() {
   }
 }
 
-// AI : Load projects when user actually clicks on the ProjectPicker select
-async function onProjectPickerSelectFocus() {
-  // No longer needed, projects are loaded on map view.
-}
 </script>
 
 <style scoped>
@@ -753,15 +750,20 @@ async function onProjectPickerSelectFocus() {
   padding: 1rem;
   width: 420px;
   min-height: 200px;
-  background-color: white;
+  background-color: var(--p-surface-0);
   cursor: text;
   user-select: text;
-  border-radius: 8px;
+  border-radius: 0.75rem;
   /* AI : So that the popup sits above the toolbar, no matter its height */
   translate: 0px calc(-100% - 32px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--p-shadow-md);
   /* AI : Compact styles for InfoPopup */
   max-width: 300px;
+  border: 1px solid var(--p-surface-border);
+  /* AI : Prevent dev tools interference */
+  pointer-events: auto;
+  position: relative;
+  z-index: 1000;
 }
 
 .loading-spinner {
@@ -776,14 +778,87 @@ async function onProjectPickerSelectFocus() {
   font-size: 0.75rem;
 }
 
-.info-popup .space-y-1>*+* {
-  margin-top: 0.25rem;
-}
 
 .project-actions,
 .overlay-actions {
   display: flex;
   gap: 0.25rem;
+}
+
+/* AI : Section styling */
+.project-selection {
+  margin-bottom: 1rem;
+}
+
+.section-header {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--p-surface-700);
+  margin-bottom: 0.5rem;
+}
+
+.section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+/* AI : Info card styling */
+.info-card {
+  background-color: var(--p-surface-50);
+  border: 1px solid var(--p-surface-200);
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.info-row:last-child {
+  margin-bottom: 0;
+}
+
+.info-label {
+  font-weight: 500;
+  color: var(--p-surface-600);
+  flex-shrink: 0;
+  margin-right: 0.5rem;
+}
+
+.info-value {
+  text-align: right;
+  color: var(--p-surface-900);
+  flex-grow: 1;
+  word-wrap: break-word;
+}
+
+.info-small {
+  font-size: 0.75rem;
+}
+
+.info-link {
+  color: var(--p-primary-500);
+  text-decoration: none;
+  font-size: 0.75rem;
+  max-width: 8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.info-link:hover {
+  text-decoration: underline;
+}
+
+.replacement-type {
+  font-weight: 600;
+  color: var(--p-purple-500);
 }
 
 </style>
