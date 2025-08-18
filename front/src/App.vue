@@ -32,7 +32,8 @@
       <ProjectPicker
         @project-selected="onProjectSelected"
         @create-project="uiStore.openProjectDialog()"
-        :use-nearby-projects="true"
+        @select-focus="fetchProjectsForPicker"
+        :useCityProjects="true"
         ref="projectPickerRef"
       />
     </Dialog>
@@ -114,6 +115,8 @@ import { initializeStores } from '@composables/overlay/useOverlay'
 import { useBeforeUnload } from '@composables/core/useBeforeUnload'
 import { fetchNearbyProjects } from '@composables/project/useNearbyProjects'
 import { addOverlay } from '@composables/overlay/useOverlayActions'
+import { setLastCreatedProject } from '@composables/ui/useProjectState'
+import { createProject } from '@composables/project/useProjects'
 import { storeToRefs } from 'pinia'
 import type { Project, OverlayObject } from '@types'
 
@@ -139,18 +142,16 @@ const { pendingImageFile, replacementOverlayId } = storeToRefs(overlayStore);
 // AI : Initialize beforeunload handler for modified overlays
 useBeforeUnload()
 
-// AI : Handle window blur to close UI elements gracefully
-function handleWindowBlur() {
-  // AI : Only close UI elements if the user actually leaves the application
-  // AI : Don't close when opening dialogs within the same app
-  // AI : Use a longer timeout to account for file dialog interactions
-  setTimeout(() => {
-    // AI : Check if focus returned to the window (meaning it was just a dialog opening)
-    // AI : Also check if we're in the middle of a file upload flow
-    if (!document.hasFocus() && !pendingImageFile.value && !uiStore.imageUploadDialogVisible) {
+// AI : Handle window visibility change to close UI elements when user switches tabs/apps
+function handleVisibilityChange() {
+  // AI : Only close dialogs when the page becomes hidden (user switched tabs/minimized window)
+  // AI : This is more reliable than blur events and doesn't interfere with native dialogs
+  if (document.hidden) {
+    // AI : Don't close if we're in the middle of critical user flows
+    if (!pendingImageFile.value && !uiStore.imageUploadDialogVisible && !uiStore.projectSelectorVisible) {
       overlayStore.closeAllUIElements();
     }
-  }, 1000); // Increased timeout for file dialog interactions
+  }
 }
 
 // AI : Handle side menu close (mobile only)
@@ -267,11 +268,49 @@ async function onImageUploadFromDialog(file: File) {
   uiStore.openProjectSelector();
 }
 
+// AI : Fetch projects for picker when dropdown is focused
+async function fetchProjectsForPicker() {
+  try {
+    // AI : Fetch nearby projects based on current map view
+    await fetchNearbyProjects();
+  } catch (error) {
+    console.error('Error fetching projects for picker:', error);
+  }
+}
+
 // AI : Handle project creation/update from dialog
-function handleProjectSubmitted(project: any) {
+async function handleProjectSubmitted(project: any) {
   uiStore.closeProjectDialog();
-  // AI : For creation, this will trigger the lastCreatedProjectId watcher
-  // AI : For updates, the project data will be refreshed automatically through stores
+  
+  // AI : Create the project in the store if it doesn't already have an ID
+  if (project && !project.id) {
+    try {
+      // AI : Create the project and get the generated ID
+      const projectId = await createProject(project);
+      setLastCreatedProject(projectId);
+      
+      // AI : Re-open the project selector so the ProjectPicker can auto-select the new project
+      // AI : and continue with the file upload workflow
+      if (pendingImageFile.value) {
+        uiStore.openProjectSelector();
+      }
+    } catch (error) {
+      console.error('Error creating project:', error);
+      toast.add({
+        severity: 'error',
+        summary: 'Project Creation Failed',
+        detail: 'Failed to create the project. Please try again.',
+        life: 3000
+      });
+    }
+  } else if (project && project.id) {
+    // AI : Project already exists (edit mode), just set it as last created for consistency
+    setLastCreatedProject(project.id);
+    
+    if (pendingImageFile.value) {
+      uiStore.openProjectSelector();
+    }
+  }
 }
 
 onMounted(async () => {
@@ -282,8 +321,8 @@ onMounted(async () => {
     isModerator.value = true
   }
 
-  // AI : Add window blur listener to close UI elements gracefully
-  window.addEventListener('blur', handleWindowBlur);
+  // AI : Add visibility change listener to close UI elements when user switches tabs/apps
+  document.addEventListener('visibilitychange', handleVisibilityChange);
   
   // AI : Update overlayStore to use the new UI store for dialog control
   overlayStore.closeAllUIElements = uiStore.closeAllDialogs;
@@ -336,7 +375,7 @@ function getErrorMessage(error: string): string {
 }
 
 onUnmounted(() => {
-  window.removeEventListener('blur', handleWindowBlur);
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
 })
 </script>
 
