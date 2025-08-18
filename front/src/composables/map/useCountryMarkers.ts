@@ -74,7 +74,7 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
 export async function addCountryMarkersToMap(): Promise<void> {
   if (!map.value) {
     onMapInitialized(() => {
-      void addCountryMarkersToMapInternal();
+      addCountryMarkersToMapInternal();
     });
     return;
   }
@@ -244,7 +244,7 @@ function cleanupCountryMouseTooltip(): void {
 
 export async function initializeCountryMarkers(): Promise<void> {
   await loadCountriesWithProjects();
-  void addCountryMarkersToMap();
+  addCountryMarkersToMap();
 }
 
 export function cleanupCountryMarkers(): void {
