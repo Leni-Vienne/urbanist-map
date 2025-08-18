@@ -110,7 +110,6 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { toggleEditMode } from '@composables/overlay/useEditMode';
 import { useToast } from '@composables/ui/useToast';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useAuthStore } from '@stores/authStore';

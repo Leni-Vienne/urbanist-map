@@ -80,7 +80,7 @@ export async function initializeMap() {
   L.control.scale().addTo(map.value);
   // AI : Ensure the map initialization is complete
   // AI : Use nextTick for better timing than arbitrary timeout
-  void nextTick(() => {
+  nextTick(() => {
     if (map.value) {
       map.value.invalidateSize();
       debouncedUpdateMapSize();

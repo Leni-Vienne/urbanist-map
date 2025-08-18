@@ -2,8 +2,8 @@ import { ref } from 'vue';
 import { useToast } from '@composables/ui/useToast';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { loadCityProjects } from '@composables/map/useCityMarkers';
 import { allMarkers, updateMarkerTooltip } from '@composables/overlay/useOverlay';
+import { map } from '@composables/core/useMap';
 import { trpc } from '@client';
 import { storeToRefs } from 'pinia';
 import type { OverlayObject, Project } from '@types';
@@ -260,9 +260,12 @@ export function useOverlayPublisher() {
         // AI : Update overlay ID and reset modified flag since it's now saved
         overlay.id = newId;
         overlay.isModified = false;
+        // AI : Mark overlay as saved to backend (this affects marker color)
+        overlay.savedToBackend = true;
 
         // AI : If ID changed, update the overlays store with new key
         if (oldId !== newId) {
+          console.log(`AI: Publishing changed overlay ID from ${oldId} to ${newId}`);
           const updatedOverlays = { ...overlays.value };
           delete updatedOverlays[oldId]; // Remove old entry
           updatedOverlays[newId] = overlay; // Add with new ID
@@ -273,13 +276,14 @@ export function useOverlayPublisher() {
             const marker = allMarkers.value[oldId];
             delete allMarkers.value[oldId];
             allMarkers.value[newId] = marker;
+            console.log(`AI: Updated marker ID from ${oldId} to ${newId}`);
           }
 
           // AI : Update project's overlayIds array to use new ID
           if (project?.id) {
             const updatedProjects = { ...projects.value };
             const projectToUpdate = { ...updatedProjects[project.id] };
-            
+
             // Replace old overlay ID with new ID in the project's overlayIds array
             const overlayIndex = projectToUpdate.overlayIds.indexOf(oldId);
             if (overlayIndex !== -1) {
@@ -298,17 +302,17 @@ export function useOverlayPublisher() {
 
         // AI : Update marker tooltip to reflect new published state (green color)
         updateMarkerTooltip(overlay);
-      }
 
-      // AI : Refresh project overlays from backend to update marker colors
-      // AI : Skip refresh for locally created projects to avoid overwriting the just-published overlay
-      if (project?.cityId && project.savedRemotely) {
-        try {
-          await loadCityProjects(project.cityId, project.city?.name ?? 'Unknown City');
-        } catch (error) {
-          console.warn('AI : Failed to refresh project overlays after publishing:', error);
+        // AI : Ensure the overlay stays visible on the map after ID change
+        if (overlay.overlay && map.value && !map.value.hasLayer(overlay.overlay)) {
+          console.log(`AI: Re-adding overlay ${newId} to map after publishing`);
+          overlay.overlay.addTo(map.value);
         }
       }
+
+      // AI : Don't refresh city overlays immediately after publishing to avoid overwriting
+      // AI : the just-published overlay with stale backend data. The overlay is already
+      // AI : updated locally with the correct state and ID from the publish response.
     } catch (error) {
       console.error('AI : Failed to publish overlay:', error);
       toast.add({
