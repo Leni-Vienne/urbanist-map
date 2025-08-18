@@ -15,6 +15,7 @@ AI_RULES.md
 .github/instructions
 
 junk
+*report.md
 .nyc_output
 coverage
 *.puml

@@ -9,6 +9,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AuthModal: typeof import('./src/components/auth/AuthModal.vue')['default']
+    BaseEditableForm: typeof import('./src/components/forms/BaseEditableForm.vue')['default']
     Button: typeof import('primevue/button')['default']
     DatePicker: typeof import('primevue/datepicker')['default']
     Dialog: typeof import('primevue/dialog')['default']
