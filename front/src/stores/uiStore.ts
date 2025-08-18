@@ -1,0 +1,142 @@
+import { defineStore } from 'pinia';
+import { ref } from 'vue';
+import type { Project, OverlayObject } from '@types';
+
+export interface ProjectDialogState {
+  visible: boolean;
+  project?: Project;
+  mode: 'create' | 'edit';
+}
+
+export interface EditFormState {
+  visible: boolean;
+  data?: Project | OverlayObject;
+}
+
+export const useUiStore = defineStore('ui', () => {
+  // AI : Dialog visibility states
+  const authModalVisible = ref(false);
+  const imageUploadDialogVisible = ref(false);
+  const projectSelectorVisible = ref(false);
+
+  // AI : Project dialog state
+  const projectDialog = ref<ProjectDialogState>({
+    visible: false,
+    mode: 'create'
+  });
+
+  // AI : Edit form states
+  const projectEditForm = ref<EditFormState>({
+    visible: false
+  });
+
+  const overlayEditForm = ref<EditFormState>({
+    visible: false
+  });
+
+  // AI : Auth modal actions
+  function openAuthModal() {
+    authModalVisible.value = true;
+  }
+
+  function closeAuthModal() {
+    authModalVisible.value = false;
+  }
+
+  // AI : Image upload dialog actions
+  function openImageUploadDialog() {
+    imageUploadDialogVisible.value = true;
+  }
+
+  function closeImageUploadDialog() {
+    imageUploadDialogVisible.value = false;
+  }
+
+  // AI : Project selector actions
+  function openProjectSelector() {
+    projectSelectorVisible.value = true;
+  }
+
+  function closeProjectSelector() {
+    projectSelectorVisible.value = false;
+  }
+
+  // AI : Project dialog actions
+  function openProjectDialog(project?: Project, mode: 'create' | 'edit' = 'create') {
+    projectDialog.value = {
+      visible: true,
+      project,
+      mode
+    };
+  }
+
+  function closeProjectDialog() {
+    projectDialog.value = {
+      visible: false,
+      mode: 'create'
+    };
+  }
+
+  // AI : Project edit form actions
+  function openProjectEditForm(project: Project) {
+    projectEditForm.value = {
+      visible: true,
+      data: project
+    };
+  }
+
+  function closeProjectEditForm() {
+    projectEditForm.value = {
+      visible: false
+    };
+  }
+
+  // AI : Overlay edit form actions
+  function openOverlayEditForm(overlay: OverlayObject) {
+    overlayEditForm.value = {
+      visible: true,
+      data: overlay
+    };
+  }
+
+  function closeOverlayEditForm() {
+    overlayEditForm.value = {
+      visible: false
+    };
+  }
+
+  // AI : Close all UI elements (used for cleanup)
+  function closeAllDialogs() {
+    authModalVisible.value = false;
+    imageUploadDialogVisible.value = false;
+    projectSelectorVisible.value = false;
+    projectDialog.value.visible = false;
+    projectEditForm.value.visible = false;
+    overlayEditForm.value.visible = false;
+  }
+
+  return {
+    // AI : State
+    authModalVisible,
+    imageUploadDialogVisible,
+    projectSelectorVisible,
+    projectDialog,
+    projectEditForm,
+    overlayEditForm,
+
+    // AI : Actions
+    openAuthModal,
+    closeAuthModal,
+    openImageUploadDialog,
+    closeImageUploadDialog,
+    openProjectSelector,
+    closeProjectSelector,
+    openProjectDialog,
+    closeProjectDialog,
+    openProjectEditForm,
+    closeProjectEditForm,
+    openOverlayEditForm,
+    closeOverlayEditForm,
+    closeAllDialogs
+  };
+});
