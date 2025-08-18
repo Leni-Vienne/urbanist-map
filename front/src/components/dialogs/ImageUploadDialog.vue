@@ -123,7 +123,7 @@ function clearFile() {
 // AI : Cancel dialog
 function onCancel() {
   clearFile();
-  visible.value = false;
+  emit('update:visible', false);
 }
 
 // AI : Continue with selected file
@@ -131,7 +131,7 @@ function onContinue() {
   if (selectedFile.value) {
     emit('file-selected', selectedFile.value);
     clearFile();
-    visible.value = false;
+    emit('update:visible', false);
   }
 }
 
