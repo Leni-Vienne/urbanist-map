@@ -61,14 +61,4 @@ const overlayData = computed(() => ({
   flex: 1;
 }
 
-/* AI : Reserve space for change indicators to prevent dialog jumping */
-.form-group {
-  position: relative;
-}
-
-.form-group small.change-indicator,
-.form-group .change-indicator-placeholder {
-  min-height: 1.25rem;
-  margin-top: 0.25rem;
-}
 </style>
