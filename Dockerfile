@@ -1,11 +1,11 @@
 # AI : Use official bun image as base
-FROM oven/bun:1 AS base
+FROM oven/bun:1.2.20-alpine AS base
 
 # AI : Set working directory
 WORKDIR /app
 
 # AI : Copy package.json and bun lockfile for dependency installation
-COPY package.json bun.lockb ./
+COPY package.json bun.lock ./
 
 # AI : Install dependencies
 RUN bun install --frozen-lockfile --production
@@ -17,7 +17,7 @@ COPY back/ ./back/
 RUN bun run build-back
 
 # AI : Production stage - minimal image with only the bundled server
-FROM oven/bun:1-alpine AS production
+FROM oven/bun:1.2.20-alpine AS production
 
 # AI : Set working directory
 WORKDIR /app
