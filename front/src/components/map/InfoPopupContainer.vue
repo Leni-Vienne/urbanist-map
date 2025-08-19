@@ -28,6 +28,7 @@ import { useToast } from '@composables/ui/useToast';
 import { fetchNearbyProjects } from '@composables/project/useNearbyProjects';
 import { useOverlayPublisher } from '@composables/overlay/useOverlayPublisher';
 import { citiesWithProjects } from '@composables/map/useCityMarkers';
+import { convertNearbyProjectToLocal, convertNearbyProjectToBackend } from '../../utils/projectConverters';
 import type { OverlayObject, Project } from '@types';
 
 const overlayStore = useOverlayStore();
@@ -140,61 +141,14 @@ async function handleProjectChange(projectId: string) {
       const nearbyProject = nearbyProjects.find((p: any) => p.id === projectId);
 
       if (nearbyProject) {
-        // AI : Convert nearby project to local project format and add to store
-        const localProject = {
-          id: nearbyProject.id,
-          name: nearbyProject.name,
-          description: nearbyProject.description ?? '',
-          overlayIds: [],
-          color: '#007bff',
-          cityId: nearbyProject.cityId,
-          status: 'approved' as const,
-          ownerId: nearbyProject.ownerId,
-          createdAt: nearbyProject.createdAt,
-          updatedAt: nearbyProject.updatedAt,
-          metadata: nearbyProject.metadata,
-          city: nearbyProject.city ? {
-            id: nearbyProject.city.id,
-            name: nearbyProject.city.name,
-            countryCode: nearbyProject.city.countryCode,
-            coordinates: { x: nearbyProject.city.lng, y: nearbyProject.city.lat },
-            createdAt: null,
-            updatedAt: new Date()
-          } : undefined,
-          sourceUrl: null,
-          startDate: null,
-          endDate: null,
-          latestUpdateOn: null,
-          savedRemotely: true
-        };
+        // AI : Convert nearby project to local project format using shared utility
+        const localProject = convertNearbyProjectToLocal(nearbyProject);
 
         // AI : Add project to local store
         projects.value[projectId] = localProject;
 
-        // AI : Also set project data on overlay object for InfoPopup display
-        overlay.project = {
-          id: nearbyProject.id,
-          status: 'approved' as const,
-          name: nearbyProject.name,
-          description: nearbyProject.description ?? null,
-          createdAt: nearbyProject.createdAt,
-          updatedAt: nearbyProject.updatedAt,
-          ownerId: nearbyProject.ownerId,
-          cityId: nearbyProject.cityId,
-          startDate: null,
-          endDate: null,
-          sourceUrl: null,
-          latestUpdateOn: null,
-          metadata: nearbyProject.metadata,
-          city: nearbyProject.city ? {
-            id: nearbyProject.city.id,
-            name: nearbyProject.city.name,
-            countryCode: nearbyProject.city.countryCode,
-            coordinates: { x: nearbyProject.city.lng, y: nearbyProject.city.lat },
-            createdAt: null,
-            updatedAt: new Date()
-          } : null
-        };
+        // AI : Also set project data on overlay object for InfoPopup display using shared utility
+        overlay.project = convertNearbyProjectToBackend(nearbyProject);
       } else {
         throw new Error(`Project ${projectId} not found in local store or nearby projects`);
       }
