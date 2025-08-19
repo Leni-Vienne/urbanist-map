@@ -1,4 +1,5 @@
 // AI : Common utility functions for the application
+import { getApiUrl } from '@client';
 
 /**
  * Creates a debounced function that delays invoking the provided function
@@ -34,9 +35,8 @@ export function buildImageUrl(filename: string): string {
     return `${r2PublicUrl}/${filename}`;
   }
   
-  // AI : In development, use local server
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
-  return `${apiBaseUrl}/uploads/${filename}`;
+  // AI : In development, use local server via shared getApiUrl function
+  return `${getApiUrl()}/uploads/${filename}`;
 }
 
 /**

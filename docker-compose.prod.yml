@@ -1,0 +1,81 @@
+services:
+  # AI : PostGIS database service
+  postgres:
+    image: postgis/postgis:17-3.5-alpine
+    container_name: construction-map-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: construction_map
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - construction-map
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d construction_map"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # AI : Backend web server service using vanilla Bun
+  backend:
+    image: oven/bun:1.2.20-alpine
+    container_name: construction-map-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/construction_map
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+    volumes:
+      - ./server.bundle.js:/app/server.bundle.js:ro
+      - backend_uploads:/app/uploads
+    working_dir: /app
+    command: ["bun", "./server.bundle.js"]
+    networks:
+      - construction-map
+    healthcheck:
+      test: ["CMD", "sh", "-c", "nc -z localhost 3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # AI : Caddy reverse proxy
+  caddy:
+    image: caddy:2.10-alpine
+    container_name: construction-map-caddy
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - construction-map
+
+volumes:
+  postgres_data:
+    driver: local
+  backend_uploads:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
+
+networks:
+  construction-map:
+    driver: bridge

@@ -4,7 +4,7 @@ import { useProjectStore } from '@stores/pinia/projectStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { allMarkers, updateMarkerTooltip } from '@composables/overlay/useOverlay';
 import { map } from '@composables/core/useMap';
-import { trpc } from '@client';
+import { trpc, getApiUrl } from '@client';
 import { storeToRefs } from 'pinia';
 import type { OverlayObject, Project } from '@types';
 
@@ -165,12 +165,7 @@ export function useOverlayPublisher() {
       formData.append('image', imageFile);
 
       // AI : Get API URL based on environment (same logic as tRPC client)
-      const getApiUrl = () => {
-        if (import.meta.env.PROD) {
-          return ''; // AI : Same origin in production
-        }
-        return import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
-      };
+      // AI : Use shared getApiUrl function
 
       const uploadResponse = await fetch(`${getApiUrl()}/api/upload-image`, {
         method: 'POST',

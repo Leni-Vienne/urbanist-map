@@ -22,20 +22,23 @@ const app = new Hono<{
 // AI : Mount the core app routes
 app.route('/', coreApp)
 
-// AI : Static file serving for frontend
-app.use('*', serveStatic({ root: './front/dist' }))
+// AI : Only serve frontend files in development mode
+if (process.env.VITE_DEV_MODE === "true") {
+    // AI : Static file serving for frontend
+    app.use('*', serveStatic({ root: './front/dist' }))
 
-// AI : SPA fallback - serve index.html for client-side routing
-app.notFound(async (c) => {
-    try {
-        const indexFile = Bun.file('./front/dist/index.html')
-        const content = await indexFile.text()
-        return c.html(content)
-    } catch (error) {
-        console.error('Error loading index.html:', error)
-        return c.html('<h1>404 Not Found</h1>', 404)
-    }
-})
+    // AI : SPA fallback - serve index.html for client-side routing
+    app.notFound(async (c) => {
+        try {
+            const indexFile = Bun.file('./front/dist/index.html')
+            const content = await indexFile.text()
+            return c.html(content)
+        } catch (error) {
+            console.error('Error loading index.html:', error)
+            return c.html('<h1>404 Not Found</h1>', 404)
+        }
+    })
+}
 
 export type AppRouter = typeof appRouter
 
