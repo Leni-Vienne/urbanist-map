@@ -29,6 +29,7 @@
 import { ref, onMounted, watch } from 'vue';
 
 import { initializeMap, disableLeafletKeyboardEvents, map } from '@composables/core/useMap';
+import { addTileLayer } from '@composables/map/useTileLayers';
 import { initializeCameraBounds } from '@composables/map/useCameraBounds';
 import { toggleEditMode } from '@composables/overlay/useEditMode';
 import { undo, redo } from '@composables/overlay/useOverlayActions';
@@ -140,6 +141,7 @@ function handleKeyDown(event: KeyboardEvent) {
 async function initializeMapAndOverlays() {
   try {
     await initializeMap();
+    addTileLayer(); // AI : Initialize tile layers after map is created
     initializeCameraBounds(); // AI : Initialize camera bounds tracking
     await initializeCountryMarkers(); // AI : Initialize country markers by default
     window.addEventListener('keydown', handleKeyDown, true);

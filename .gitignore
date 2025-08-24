@@ -14,8 +14,11 @@ AI_RULES.md
 .clinerules
 .github/instructions
 .serena
+
 junk
+components.d.ts
 *report.md
+deps-analysis.json
 .nyc_output
 coverage
 *.puml
@@ -36,7 +39,6 @@ node_modules
 .DS_Store
 dist
 dist-ssr
-coverage
 *.local
 .env
 
