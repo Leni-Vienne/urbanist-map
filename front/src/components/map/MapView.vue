@@ -19,7 +19,6 @@
 
     <!-- AI : Map Controls Component -->
     <MapControls
-      @add-overlay-clicked="handleAddOverlayClick"
       @filter-overlays="filterOverlaysByCompletionStatus"
     />
   </div>
@@ -31,7 +30,6 @@ import { ref, onMounted, watch } from 'vue';
 import { initializeMap, disableLeafletKeyboardEvents, map } from '@composables/core/useMap';
 import { addTileLayer } from '@composables/map/useTileLayers';
 import { initializeCameraBounds } from '@composables/map/useCameraBounds';
-import { toggleEditMode } from '@composables/overlay/useEditMode';
 import { undo, redo } from '@composables/overlay/useOverlayActions';
 import { renderViewModeOverlays, removeOverlay } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
@@ -59,23 +57,6 @@ const { filterByCompletionStatus } = useCompletionFilters();
 
 // AI : Use view mode overlays for displaying overlays when camera moves
 const { startCameraTracking, stopCameraTracking } = useViewModeOverlays();
-// AI : Handle add overlay button click - enable edit mode if in view mode, otherwise open dialog
-async function handleAddOverlayClick() {
-  if (!(isEditMode?.value ?? false)) {
-    // AI : Enable edit mode first if currently in view mode
-    await handleToggleEditMode();
-    // AI : Show toast notification to inform user about mode switch
-    toast.add({
-      severity: 'info',
-      summary: 'Switched to Edit Mode',
-      detail: 'Click the button again to add an overlay',
-      life: 4000
-    });
-  } else {
-    // AI : Already in edit mode, open the dialog
-    uiStore.openImageUploadDialog();
-  }
-}
 
 // AI : Filter overlays based on completion status
 async function filterOverlaysByCompletionStatus() {
@@ -168,20 +149,6 @@ async function initializeMapAndOverlays() {
   }
 }
 
-// AI : Handle toggle edit mode with loading state
-async function handleToggleEditMode() {
-  try {
-    await toggleEditMode();
-  } catch (error) {
-    console.error('AI : Error toggling edit mode:', error);
-    toast.add({
-      severity: 'error',
-      summary: 'Mode Switch Error',
-      detail: 'Failed to switch mode. Please try again.',
-      life: 3000
-    });
-  }
-}
 </script>
 
 <style scoped>

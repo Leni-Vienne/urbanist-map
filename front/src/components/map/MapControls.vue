@@ -114,6 +114,7 @@ import { useToast } from '@composables/ui/useToast';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useAuthStore } from '@stores/authStore';
 import { useUiStore } from '@stores/uiStore';
+import { toggleEditMode } from '@composables/overlay/useEditMode';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import { createButtonSVG } from '@composables/ui/colorMarkers';
 import { map } from '@composables/core/useMap';
@@ -130,16 +131,39 @@ const { visibleCompletionStates, toggleFilter } = useCompletionFilters();
 
 // AI : Emit events to parent for complex operations that require access to map state
 const emit = defineEmits<{
-  'add-overlay-clicked': [];
   'filter-overlays': [status: 'green' | 'orange' | 'grey'];
 }>();
 
-// AI : Handle add overlay button click - check auth first
-function handleAddOverlayButtonClick() {
-  if (authStore.isAuthenticated) {
-    emit('add-overlay-clicked');
-  } else {
+// AI : Handle add overlay button click - check auth first and handle edit mode logic
+async function handleAddOverlayButtonClick() {
+  if (!authStore.isAuthenticated) {
     uiStore.openAuthModal();
+    return;
+  }
+
+  if (!(isEditMode?.value ?? false)) {
+    // AI : Enable edit mode first if currently in view mode
+    try {
+      await toggleEditMode();
+      // AI : Show toast notification to inform user about mode switch
+      toast.add({
+        severity: 'info',
+        summary: 'Switched to Edit Mode',
+        detail: 'Click the button again to add an overlay',
+        life: 4000
+      });
+    } catch (error) {
+      console.error('AI : Error toggling edit mode:', error);
+      toast.add({
+        severity: 'error',
+        summary: 'Mode Switch Error',
+        detail: 'Failed to switch mode. Please try again.',
+        life: 3000
+      });
+    }
+  } else {
+    // AI : Already in edit mode, open the dialog
+    uiStore.openImageUploadDialog();
   }
 }
 

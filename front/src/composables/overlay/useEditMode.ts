@@ -2,7 +2,7 @@
 import { updateOverlayEditingState, clearAllOverlays, renderViewModeOverlays, updateMarkerTooltip } from '@composables/overlay/useOverlay';
 import { initializeEditModeOverlays, clearEditModeOverlays, startEditModeTracking, stopEditModeTracking } from '@composables/overlay/useEditModeOverlays';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
-import { latestClickedCity, getCachedCityProjectsData, hasCachedCityProjectsData, renderOverlayMarkersFromCache, MIN_ZOOM_FOR_OVERLAYS } from '@composables/map/useCityMarkers';
+import { latestClickedCity, getCachedCityProjectsData, hasCachedCityProjectsData, renderOverlayMarkersFromCache, MIN_ZOOM_FOR_OVERLAYS, updateOverlayMarkersForFilters } from '@composables/map/useCityMarkers';
 import { map } from '@composables/core/useMap';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { storeToRefs } from 'pinia';
@@ -44,6 +44,9 @@ export async function toggleEditMode(): Promise<void> {
     // AI : Initialize edit mode overlay markers for overlays that don't have images loaded yet
     initializeEditModeOverlays();
     
+    // AI : Update overlay markers colors for edit mode (when zoomed out)
+    updateOverlayMarkersForFilters();
+    
     // AI : Start camera tracking for edit mode
     startEditModeTracking();
   } else {
@@ -84,6 +87,9 @@ export async function toggleEditMode(): Promise<void> {
         // AI : Zoom is too low, render markers only (view mode markers)
         renderOverlayMarkersFromCache(latestClickedCity.value.id, latestClickedCity.value.name);
       }
+      
+      // AI : Update overlay markers colors for view mode (when zoomed out)
+      updateOverlayMarkersForFilters();
     } else {
       // AI : No city data available, just update editing state for existing overlays
       Object.values(overlays.value).forEach((overlayObject) => {
