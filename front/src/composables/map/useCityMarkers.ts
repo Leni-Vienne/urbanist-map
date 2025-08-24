@@ -744,6 +744,27 @@ export function updateOverlayMarkers(): void {
 }
 
 /**
+ * AI : Update overlay markers when completion filters change
+ * This function updates markers based on current filter state (works in both edit and view mode)
+ */
+export function updateOverlayMarkersForFilters(): void {
+  const { selectedCity } = getStoreRefs();
+  
+  // AI : Only update if we have overlay markers visible
+  if (!overlayMarkersLayer || !map.value?.hasLayer(overlayMarkersLayer)) {
+    return;
+  }
+
+  // AI : Get the current city data from cache
+  if (!selectedCity.value || !cityProjectsCache.has(selectedCity.value.id)) {
+    return;
+  }
+
+  // AI : Re-render overlay markers with current filters applied
+  renderOverlayMarkersFromCache(selectedCity.value.id, selectedCity.value.name);
+}
+
+/**
  * AI : Update cached overlay data when an overlay is modified
  * This stores modifications in a separate edit cache to keep original backend data pristine
  */
