@@ -282,7 +282,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { buildImageUrl, formatRelativeTime } from '../../utils'
-import { navigateToOverlay } from '@composables/overlay/useOverlayActions'
+import { navigateToOverlay } from '@composables/overlay/useOverlay'
 import Tag from 'primevue/tag'
 import Accordion from 'primevue/accordion'
 import AccordionPanel from 'primevue/accordionpanel'
