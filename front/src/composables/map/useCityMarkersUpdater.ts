@@ -42,7 +42,6 @@ export function updateCachedOverlayData(overlayId: string, newCorners: { lat: nu
   if (!overlayId || !newCorners || newCorners.length !== 4) {
     return;
   }
-
   // AI : Store the updated corners in cache
   overlayDataCache.set(overlayId, {
     corners: [...newCorners]
