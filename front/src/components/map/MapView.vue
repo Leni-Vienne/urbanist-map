@@ -36,7 +36,7 @@ import { undo, redo } from '@composables/overlay/useOverlayActions';
 import { renderViewModeOverlays, removeOverlay } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
-import { currentCityOverlays } from '@composables/map/useCityMarkers';
+import { currentCityOverlays, updateOverlayMarkersForFilters } from '@composables/map/useCityMarkers';
 import { initializeCountryMarkers } from '@composables/map/useCountryMarkers';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useUiStore } from '@stores/uiStore';
@@ -79,7 +79,13 @@ async function handleAddOverlayClick() {
 
 // AI : Filter overlays based on completion status
 async function filterOverlaysByCompletionStatus() {
-  if (!map.value || !currentCityOverlays.value?.length) return;
+  if (!map.value) return;
+  
+  // AI : If we have overlay markers visible (when zoomed out), update them with filters
+  updateOverlayMarkersForFilters();
+  
+  // AI : Handle full overlays (when zoomed in)
+  if (!currentCityOverlays.value?.length) return;
   
   // AI : Use the shared filtering utility
   const visibleOverlays = filterByCompletionStatus(currentCityOverlays.value);
