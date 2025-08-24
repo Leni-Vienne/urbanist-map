@@ -13,7 +13,7 @@ const markerColors: Record<MarkerColor, string> = {
   red: '#DC143C',
   gold: '#FFD700',
   yellow: '#FFFF00',
-  violet: '#9932CC',
+  purple: '#9932CC',
   grey: '#A0A0A0',
   black: '#2F2F2F'
 };
@@ -119,7 +119,7 @@ export const redIcon = () => createSVGIcon('red');
 export const greenIcon = () => createSVGIcon('green');
 export const orangeIcon = () => createSVGIcon('orange');
 export const yellowIcon = () => createSVGIcon('yellow');
-export const violetIcon = () => createSVGIcon('violet');
+export const purpleIcon = () => createSVGIcon('purple');
 export const greyIcon = () => createSVGIcon('grey');
 export const blackIcon = () => createSVGIcon('black');
 

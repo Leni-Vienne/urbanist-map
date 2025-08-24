@@ -1,5 +1,4 @@
-import { isEditMode } from '@composables/overlay/useOverlay';
-import { getConstructionMarkerColor } from '@composables/map/useCityMarkers';
+import { getConstructionMarkerColor } from '@composables/ui/markerColors';
 import type { OverlayObject, CDNOverlayData, MarkerColor } from '@types';
 
 /**
@@ -8,7 +7,7 @@ import type { OverlayObject, CDNOverlayData, MarkerColor } from '@types';
  */
 export function getOverlayMarkerColor(
   overlayData: OverlayObject | CDNOverlayData,
-  mode: 'edit' | 'view' = isEditMode.value ? 'edit' : 'view'
+  mode: 'edit' | 'view'
 ): MarkerColor {
 
   if (mode === 'edit') {
@@ -16,12 +15,12 @@ export function getOverlayMarkerColor(
 
     // AI : Check if this is a replacement overlay first (highest priority)
     if (overlayData.replacesOverlayId) {
-      return 'violet';
+      return 'purple';
     }
 
     // AI : Check if overlay was loaded from CDN or has been saved to backend
     const isRemoteOverlay = overlayData.project !== undefined ||
-      ('savedToBackend' in overlayData && overlayData.savedToBackend === true);
+      ('savedRemotely' in overlayData && overlayData.savedRemotely === true);
 
     // AI : Check if overlay has been modified locally
     const hasBeenModified = 'isModified' in overlayData ? overlayData.isModified : false;

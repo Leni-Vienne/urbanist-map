@@ -7,7 +7,7 @@ import type { OverlayObject, CDNOverlayData } from '@types';
 import { createColorIcon } from '@composables/ui/colorMarkers';
 import { trpc } from '@client';
 import type { BackendOverlay } from '../../types/api';
-import { updateCachedOverlayData } from '@composables/map/useCityMarkers';
+import { updateCachedOverlayData } from '@composables/map/useCityMarkersUpdater';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
 
 const toast = useToast();
@@ -96,6 +96,7 @@ function createNewOverlayObject(id: string, imageUrl: string, projectId: string)
     currentResolution: imageUrl,
     corners: [],
     isModified: true, // AI : New overlays are considered modified since they need to be uploaded
+    savedRemotely: false, // AI : New overlays are not yet saved to backend
   };
 }
 
@@ -183,7 +184,7 @@ function createMarker(overlayObject: any, projectId: string, markerType: 'new' |
   }
 
   // AI : Determine marker color based on type and overlay state
-  const markerColor = markerType === 'replacement' ? 'violet' : getOverlayMarkerColor(overlayObject, 'edit');
+  const markerColor = markerType === 'replacement' ? 'purple' : getOverlayMarkerColor(overlayObject, 'edit');
   const colorIcon = createColorIcon(markerColor);
 
   const marker = L.marker(center, {
@@ -214,7 +215,7 @@ function createMarker(overlayObject: any, projectId: string, markerType: 'new' |
 }
 
 /**
- * AI : Create a violet marker for replacement overlays
+ * AI : Create a purple marker for replacement overlays
  */
 function createReplacementMarker(overlayObject: any, projectId: string): void {
   createMarker(overlayObject, projectId, 'replacement');

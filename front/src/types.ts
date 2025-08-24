@@ -8,7 +8,7 @@ import type {
 } from '../../back/src/db/schema';
 
 // AI : Type for marker colors used throughout the application
-export type MarkerColor = 'blue' | 'green' | 'orange' | 'red' | 'gold' | 'yellow' | 'violet' | 'grey' | 'black';
+export type MarkerColor = 'blue' | 'green' | 'orange' | 'red' | 'gold' | 'yellow' | 'purple' | 'grey' | 'black';
 
 // AI : Type for project manager modes
 export type ProjectManagerMode = 'list' | 'edit' | 'view' | 'create';
@@ -139,4 +139,5 @@ export interface OverlayObject extends DBOverlay {
   corners: { lat: number, lng: number }[];
   // AI : Track if overlay has been modified locally (moved, rotated, scaled, etc.)
   isModified: boolean;
+  savedRemotely: boolean;
 }

@@ -16,49 +16,6 @@ export function useOverlayPublisher() {
   const { projects } = storeToRefs(projectStore);
   const { overlays, idSelectedOverlay } = storeToRefs(overlayStore);
 
-  // AI : Helper function to convert data URL to WebP if needed
-  async function convertToWebPIfNeeded(dataUrl: string, filename: string): Promise<File> {
-    const response = await fetch(dataUrl);
-    const blob = await response.blob();
-
-    // AI : If already WebP, return as is
-    if (blob.type === 'image/webp') {
-      return new File([blob], filename.replace(/\.[^/.]+$/, '.webp'), { type: 'image/webp' });
-    }
-
-    // AI : Convert to WebP
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('Could not get canvas context'));
-          return;
-        }
-
-        ctx.drawImage(img, 0, 0);
-
-        canvas.toBlob((blob) => {
-          if (!blob) {
-            reject(new Error('Failed to convert image to WebP'));
-            return;
-          }
-
-          const webpFilename = filename.replace(/\.[^/.]+$/, '.webp');
-          const file = new File([blob], webpFilename, { type: 'image/webp' });
-          resolve(file);
-        }, 'image/webp', 1.0);
-      };
-
-      img.onerror = () => reject(new Error('Failed to load image'));
-      img.src = dataUrl;
-    });
-  }
-
   function getCornersFromOverlay(overlay: OverlayObject) {
     if (overlay.overlay) {
       return overlay.overlay.getCorners();
@@ -158,11 +115,15 @@ export function useOverlayPublisher() {
   // AI : Prepare image for server (upload or extract filename)
   async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
     if (overlay.imageUrl.startsWith('data:')) {
-      // AI : Convert data URL to WebP if needed and upload
-      const imageFile = await convertToWebPIfNeeded(overlay.imageUrl, `overlay-${overlay.id}.webp`);
-
+      // AI : Convert data URL to Blob with proper MIME type
+      const response = await fetch(overlay.imageUrl);
+      const blob = await response.blob();
+      
+      // AI : Create a File object with proper name and type
+      const file = new File([blob], 'overlay-image.webp', { type: blob.type || 'image/webp' });
+      
       const formData = new FormData();
-      formData.append('image', imageFile);
+      formData.append('image', file);
 
       // AI : Get API URL based on environment (same logic as tRPC client)
       // AI : Use shared getApiUrl function
@@ -256,7 +217,7 @@ export function useOverlayPublisher() {
         overlay.id = newId;
         overlay.isModified = false;
         // AI : Mark overlay as saved to backend (this affects marker color)
-        overlay.savedToBackend = true;
+        overlay.savedRemotely = true;
 
         // AI : If ID changed, update the overlays store with new key
         if (oldId !== newId) {
