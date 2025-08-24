@@ -83,14 +83,31 @@ export function createApp(options: AppOptions) {
                 return c.json({ error: 'File too large. Maximum size is 10MB' } as FileUploadError, 400)
             }
 
-            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
-            if (!allowedTypes.includes(file.type)) {
+            // AI : Better file type validation with MIME type and extension checking
+            const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp']
+            const allowedExtensions = ['jpg', 'jpeg', 'png', 'webp']
+            
+            // AI : Extract file extension in a case-insensitive way
+            function getFileExtension(filename: string | undefined | null): string | null {
+                if (!filename || typeof filename !== 'string') {
+                    return null
+                }
+                const lastDot = filename.lastIndexOf('.')
+                if (lastDot === -1 || lastDot === filename.length - 1) {
+                    return null
+                }
+                return filename.slice(lastDot + 1).toLowerCase()
+            }
+            
+            const fileExtension = getFileExtension(file.name)
+            
+            // AI : Validate both MIME type and file extension
+            if (!allowedMimeTypes.includes(file.type) || !fileExtension || !allowedExtensions.includes(fileExtension)) {
                 return c.json({ error: 'Invalid file type. Only JPEG, PNG, and WebP are allowed' } as FileUploadError, 400)
             }
             
             const timestamp = Date.now()
             const randomString = Math.random().toString(36).substring(2, 15)
-            const fileExtension = file.name.split('.').pop() ?? 'webp'
             const filename = `${timestamp}-${randomString}.${fileExtension}`
             
             const buffer = await file.arrayBuffer()

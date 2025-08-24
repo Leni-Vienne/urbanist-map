@@ -3,6 +3,8 @@ import { createColorIcon } from '@composables/ui/colorMarkers';
 import { ref, computed } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
 import { renderViewModeOverlays, clearAllOverlays } from '@composables/overlay/useOverlay';
+import { initializeCityMarkersUpdater } from '@composables/map/useCityMarkersUpdater';
+import { useProjectStore } from '@stores/pinia/projectStore';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import { trpc, RouterOutput } from '@client';
@@ -28,6 +30,16 @@ function getStoreRefs() {
 async function getSelectedProjectId() {
   const { selectedProjectId } = useSelectedProject();
   return selectedProjectId;
+}
+
+// AI : Initialize city markers with store references
+export function initializeCityMarkers() {
+  const { overlays, isEditMode } = getStoreRefs();
+  const projectStore = useProjectStore();
+  const { projects } = projectStore;
+  
+  // AI : Initialize the city markers updater with store refs and city overlays
+  initializeCityMarkersUpdater({ overlays, projects, isEditMode }, currentCityOverlays);
 }
 
 // AI : Minimum zoom level required to load city projects and overlays
@@ -70,6 +82,7 @@ let selectedCityMarker: L.Marker | null = null;
 // AI : Initialize zoom event listener when map is ready
 onMapInitialized(() => {
   setupZoomEventListener();
+  initializeCityMarkers();
 });
 
 /**
@@ -652,25 +665,6 @@ export function checkZoomAndHideOverlays(): void {
   }
 }
 
-/**
- * AI : Get marker color based on construction start and end dates
- * @param startDate - The construction start date (string or Date or null)
- * @param endDate - The construction end date (string or Date or null)
- * @returns 'blue' | 'grey' | 'orange'
- */
-export function getConstructionMarkerColor(startDate: string | Date | null | undefined, endDate: string | Date | null | undefined): MarkerColor {
-  const now = new Date();
-  const start = startDate ? new Date(startDate) : null;
-  const end = endDate ? new Date(endDate) : null;
-  if (start && start > now) {
-    return 'green';
-  } else if (start && start <= now && (!end || end > now)) {
-    return 'orange';
-  } else if (end && end <= now) {
-    return 'grey';
-  }
-  return 'grey';
-}
 
 /**
  * AI : Get marker color and position based on overlay state, considering edit mode and current overlay status

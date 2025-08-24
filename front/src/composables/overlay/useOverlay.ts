@@ -1,6 +1,5 @@
-// AI : Import utility functions from useCityMarkers
-import { updateOverlayMarkers, updateCachedOverlayData } from '@composables/map/useCityMarkers';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
+import { updateOverlayMarkers, updateCachedOverlayData } from '@composables/map/useCityMarkersUpdater';
 import { buildImageUrl } from '../../utils';
 import L from "leaflet";
 import 'leaflet-toolbar'
@@ -50,6 +49,9 @@ export function initializeStores() {
   idSelectedOverlay = overlayStoreRefs.idSelectedOverlay;
   isEditMode = overlayStoreRefs.isEditMode;
   projects = projectStoreRefs.projects;
+
+  // We need to initialize city markers updater with city overlays reference
+  // This will be done by useCityMarkers when it loads
 
   return { ...overlayStoreRefs, ...projectStoreRefs };
 }
@@ -408,9 +410,7 @@ export function saveToHistory(overlayObject: OverlayObject): void {
   updateMarkerTooltip(overlayObject);
 
   // AI : Update city overlay markers if they are visible
-  if (typeof updateOverlayMarkers === 'function') {
-    updateOverlayMarkers();
-  }
+  updateOverlayMarkers();
 }
 
 // Event handler that blocks movement events but allows click events
@@ -677,6 +677,7 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData, createMar
     project: cdnOverlay.project,
     corners: corners,
     isModified: cdnOverlay.isModified ?? false, // AI : Preserve isModified flag from cached data
+    savedRemotely: true, // AI : Overlays from backend are considered saved remotely
   };
 
   if (createMarkers) {
@@ -738,7 +739,7 @@ export function updateMarkerTooltip(overlayObject: OverlayObject): void {
 
   overlayObject.marker.unbindTooltip();
 
-  const markerColor = getOverlayMarkerColor(overlayObject);
+  const markerColor = getOverlayMarkerColor(overlayObject, isEditMode.value ? 'edit' : 'view');
   const colorIcon = createColorIcon(markerColor);
   overlayObject.marker.setIcon(colorIcon);
 
@@ -789,7 +790,7 @@ function createSingleMarker(savedOverlay: StoredOverlayData): void {
   const center = overlayBounds.getCenter();
 
   const tempOverlayObject = createOverlayObject(savedOverlay);
-  const markerColor = getOverlayMarkerColor(tempOverlayObject);
+  const markerColor = getOverlayMarkerColor(tempOverlayObject, isEditMode.value ? 'edit' : 'view');
   const colorIcon = createColorIcon(markerColor);
 
   const marker = L.marker(center, {
