@@ -51,7 +51,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useToast } from '@composables/ui/useToast';
-import { updateTooltipText, updateOverlayInfo } from '@composables/overlay/useOverlayActions';
+import { updateTooltipText, updateOverlayInfo } from '@composables/overlay/useOverlay';
 import type { OverlayObject } from '@types';
 
 // AI : Define document.body as a variable to avoid TypeScript errors

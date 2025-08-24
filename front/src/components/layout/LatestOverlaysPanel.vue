@@ -80,7 +80,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { trpc } from '@client'
-import { navigateToOverlay } from '@composables/overlay/useOverlayActions'
+import { navigateToOverlay } from '@composables/overlay/useOverlay'
 import { buildImageUrl, formatRelativeTime } from '../../utils'
 
 // AI : Reactive state

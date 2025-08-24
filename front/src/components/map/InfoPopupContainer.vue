@@ -23,7 +23,7 @@ import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useUiStore } from '@stores/uiStore';
 import InfoPopup from './InfoPopup.vue';
-import { updateTooltipText } from '@composables/overlay/useOverlayActions';
+import { updateTooltipText } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
 import { fetchNearbyProjects } from '@composables/project/useNearbyProjects';
 import { useOverlayPublisher } from '@composables/overlay/useOverlayPublisher';
