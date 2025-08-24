@@ -2,7 +2,6 @@ import L from "leaflet";
 import 'leaflet-doubletapdragzoom';
 import { ref, shallowRef, nextTick } from 'vue';
 import { debounce } from '../../utils';
-import { addTileLayer } from '@composables/map/useTileLayers';
 
 // shallowRef is used to avoid reactivity issues with Leaflet, see https://stackoverflow.com/a/73588115/12498040
 export const map = shallowRef<L.Map | null>(null);
@@ -76,7 +75,6 @@ export async function initializeMap() {
   // AI : Update map size when window is resized (debounced to trigger only on resize end)
   window.addEventListener('resize', debouncedUpdateMapSize);
 
-  addTileLayer();
   L.control.scale().addTo(map.value);
   // AI : Ensure the map initialization is complete
   // AI : Use nextTick for better timing than arbitrary timeout

@@ -1,0 +1,17 @@
+{
+  "fileExtensions": ["ts", "js", "vue"],
+  "tsConfig": "./tsconfig.json",
+  "webpackConfig": {
+    "resolve": {
+      "alias": {
+        "@assets": "./front/src/assets",
+        "@composables": "./front/src/composables",
+        "@components": "./front/src/components", 
+        "@stores": "./front/src/stores",
+        "@types": "./front/src/types",
+        "@client": "./front/src/client",
+        "@services": "./front/src/services"
+      }
+    }
+  }
+}
