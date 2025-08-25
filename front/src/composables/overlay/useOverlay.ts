@@ -171,20 +171,20 @@ export async function createOverlay(imageUrl: string, overlayObject?: OverlayObj
       corners: leafletCorners,
     }) as L.DistortableImageOverlay;
 
-    // AI : Wait for any ongoing zoom animation to complete before adding overlay to prevent visual glitch
-    // AI : This fixes the bug when zooming multiple levels past the render threshold at once
+    // IMPORTANT : this waits for any ongoing zoom animation to complete before adding overlay to prevent visual glitch
+    // This fixes the bug when zooming multiple levels past the render threshold at once
     const addOverlayWhenReady = () => {
       if (map.value && newOverlay) {
         newOverlay.addTo(map.value);
       }
     };
 
-    // Check if map is currently zooming, _animatingZoom isn't document for some reason
+    // Check if map is currently zooming, _animatingZoom isn't documented for some reason
     if (map.value && (map.value as any)._animatingZoom) {
       // AI : Wait for zoom animation to complete
       map.value.once('zoomend', addOverlayWhenReady);
     } else {
-      // AI : No zoom animation, add immediately
+      // No zoom animation, add immediately
       addOverlayWhenReady();
     }
     overlayObject.overlay = newOverlay;
@@ -274,27 +274,28 @@ function initializeOverlayHistory(overlayObject: OverlayObject): void {
 function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayObject: OverlayObject): void {
 
   overlay.on('select', () => {
+    console.log('AI : Overlay selected:', overlayObject.id);
     // AI : Update the selected overlay ID (this updates the store since we're using store refs)
     idSelectedOverlay.value = overlayObject.id;
 
     // AI : Apply selection outline
     applySelectionOutline(overlayObject);
-
-    // AI : Overlay selected - URL updates are no longer needed without routing
   });
 
   overlay.on('deselect', () => {
-    idSelectedOverlay.value = null;
+    // AI : Only handle deselect for the overlay that was actually selected
+    if (idSelectedOverlay.value === overlayObject.id) {
+      console.log('AI : Overlay deselected:', overlayObject.id);
+      idSelectedOverlay.value = null;
 
-    // AI : Remove selection outline
-    removeSelectionOutline(overlayObject);
+      // AI : Remove selection outline
+      removeSelectionOutline(overlayObject);
 
-    // AI : Overlay deselected (no URL updates needed without routing)
-
-    // AI : Hide InfoPopup when overlay is deselected
-    const overlayStore = useOverlayStore();
-    if (overlayStore.showInfoPopup) {
-      overlayStore.hideInfoPopup();
+      // AI : Hide InfoPopup when overlay is deselected
+      const overlayStore = useOverlayStore();
+      if (overlayStore.showInfoPopup) {
+        overlayStore.hideInfoPopup();
+      }
     }
   });
 
@@ -307,19 +308,14 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
   overlay.on('edit', () => {
     // AI : Handle transition from backend to local copy when edited
     updateMarkerPosition(overlayObject);
-    overlayObject.isModified = true;
-    updateMarkerTooltip(overlayObject);
 
     const newCorners = overlayObject.overlay?.getCorners();
     if (newCorners && newCorners.length === 4) {
       updateCachedOverlayData(overlayObject.id, newCorners);
 
-      // AI : Save to history - saveToHistory already handles deduplication
+      // AI : Save to history - saveToHistory handles all modification tracking
       saveToHistory(overlayObject);
     }
-
-    // AI : Update city overlay markers if they are visible
-    updateOverlayMarkers();
   });
 
   // AI : Set up comprehensive event handlers for overlay manipulation
@@ -331,7 +327,7 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
  * AI : Get corners for overlay based on priority: history > coordinates > default
  */
 function getCornersForOverlay(overlayObject: OverlayObject) {
-  // AI : Priority 1: Use history if available
+  // AI : Priority 1: Use history if available (for undo/redo)
   if (overlayObject.history?.length > 0) {
     const lastCorners = overlayObject.history.at(-1);
     if (lastCorners?.length === 4) return lastCorners;
@@ -340,10 +336,9 @@ function getCornersForOverlay(overlayObject: OverlayObject) {
   // ugly but since the type expects non null AND DistortableImage needs null corners for the initial state
   // AI : Priority 2: Use individual lat/lng fields (skip if all zeros - indicates new overlay)
   if (overlayObject.topLeftLat != null && overlayObject.topLeftLng != null &&
-    !(overlayObject.topLeftLat === 0 && overlayObject.topLeftLng === 0 &&
-      overlayObject.topRightLat === 0 && overlayObject.topRightLng === 0 &&
-      overlayObject.bottomRightLat === 0 && overlayObject.bottomRightLng === 0 &&
-      overlayObject.bottomLeftLat === 0 && overlayObject.bottomLeftLng === 0)) {
+    overlayObject.topRightLat != null && overlayObject.topRightLng != null &&
+    overlayObject.bottomRightLat != null && overlayObject.bottomRightLng != null &&
+    overlayObject.bottomLeftLat != null && overlayObject.bottomLeftLng != null) {
     return [
       { lat: overlayObject.topLeftLat, lng: overlayObject.topLeftLng },
       { lat: overlayObject.topRightLat, lng: overlayObject.topRightLng },
@@ -449,8 +444,7 @@ function disableOverlayEditing(overlay: L.DistortableImageOverlay, element: HTML
   // Disable editing
   element.style.cursor = 'not-allowed';
 
-  // We'll keep pointer-events enabled so clicks work, but block specific events
-  // that would cause movement
+  // We'll keep pointer-events enabled so clicks work, but block specific events that would cause movement
   element.addEventListener('mousedown', blockMovementEvent, true);
   element.addEventListener('touchstart', blockMovementEvent, { capture: true, passive: true });
   element.addEventListener('dragstart', blockMovementEvent, true);
@@ -476,9 +470,6 @@ function enableOverlayEditing(overlay: L.DistortableImageOverlay, element: HTMLE
   element.removeEventListener('mousedown', blockMovementEvent, true);
   element.removeEventListener('touchstart', blockMovementEvent, { capture: true, passive: true } as any);
   element.removeEventListener('dragstart', blockMovementEvent, true);
-
-  // AI : Make sure the overlay is editable
-  (overlay as any).options.editable = true;
 }
 
 /**
