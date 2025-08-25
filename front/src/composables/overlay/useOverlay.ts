@@ -107,33 +107,16 @@ export function updateOverlayEditingState(): void {
  * AI : Create a new overlay object from saved data
  */
 export function createOverlayObject(savedOverlay: StoredOverlayData): OverlayObject {
-  // AI : Provide default coordinates if missing
-  const defaultLat = 50.8503; // AI : Brussels, Belgium
-  const defaultLng = 4.3517;
-
-  const coordinates = {
-    topLeftLat: savedOverlay.topLeftLat ?? defaultLat - 0.001,
-    topLeftLng: savedOverlay.topLeftLng ?? defaultLng - 0.001,
-    topRightLat: savedOverlay.topRightLat ?? defaultLat - 0.001,
-    topRightLng: savedOverlay.topRightLng ?? defaultLng + 0.001,
-    bottomRightLat: savedOverlay.bottomRightLat ?? defaultLat + 0.001,
-    bottomRightLng: savedOverlay.bottomRightLng ?? defaultLng + 0.001,
-    bottomLeftLat: savedOverlay.bottomLeftLat ?? defaultLat + 0.001,
-    bottomLeftLng: savedOverlay.bottomLeftLng ?? defaultLng - 0.001,
-  };
-
   const project = savedOverlay.projectId ? projects.value[savedOverlay.projectId] : null;
-
   const corners = [
-    { lat: coordinates.topLeftLat, lng: coordinates.topLeftLng },
-    { lat: coordinates.topRightLat, lng: coordinates.topRightLng },
-    { lat: coordinates.bottomRightLat, lng: coordinates.bottomRightLng },
-    { lat: coordinates.bottomLeftLat, lng: coordinates.bottomLeftLng },
+    { lat: savedOverlay.topLeftLat, lng: savedOverlay.topLeftLng },
+    { lat: savedOverlay.topRightLat, lng: savedOverlay.topRightLng },
+    { lat: savedOverlay.bottomRightLat, lng: savedOverlay.bottomRightLng },
+    { lat: savedOverlay.bottomLeftLat, lng: savedOverlay.bottomLeftLng },
   ];
 
   return {
     ...savedOverlay,
-    ...coordinates,
     overlay: null,
     marker: null,
     whitePixelsHidden: false,
@@ -141,7 +124,7 @@ export function createOverlayObject(savedOverlay: StoredOverlayData): OverlayObj
     currentResolution: savedOverlay.imageUrl,
     corners,
     project: project ? { ...project, city: project.city ?? null } : null,
-    isModified: savedOverlay.isModified ?? false, // AI : Preserve isModified flag from saved data
+    isModified: savedOverlay.isModified ?? false,
   };
 }
 
@@ -369,6 +352,19 @@ function isValidCorners(corners: any[]): boolean {
     !isNaN(corner.lat) &&
     !isNaN(corner.lng)
   );
+}
+
+function createMarkerTitle(overlay: any, projectId: string | null, markerType?: 'new' | 'replacement'): string {
+  let baseTitle = markerType === 'replacement' ? 'Replacement Overlay' :
+    markerType === 'new' ? 'New Overlay' : 'Overlay';
+
+  if (projectId && projects.value[projectId]) {
+    const project = projects.value[projectId];
+    const captionPart = overlay.caption ? ` - ${overlay.caption}` : '';
+    return markerType ? `${project.name} - ${baseTitle}${captionPart}` : `${project.name}${captionPart}`;
+  }
+
+  return baseTitle;
 }
 
 /**
@@ -644,7 +640,7 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData, createMar
     ];
 
   // AI : Use buildImageUrl utility to construct image URL from Cloudflare R2 via worker
-  const storedOverlayData: StoredOverlayData = {
+  const storedOverlayData = {
     id: cdnOverlay.id,
     imageUrl: buildImageUrl(cdnOverlay.filename),
     history: [],
@@ -656,6 +652,17 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData, createMar
     createdAt: new Date(cdnOverlay.createdAt ?? Date.now()),
     updatedAt: new Date(),
     replacesOverlayId: cdnOverlay.replacesOverlayId ?? null,
+    centroid: {
+      x: cdnOverlay.centroid.lng,
+      y: cdnOverlay.centroid.lat,
+    },
+    status: 'approved' as const,
+    authorId: null,
+    currentResolution: buildImageUrl(cdnOverlay.filename),
+    project: cdnOverlay.project,
+    isModified: cdnOverlay.isModified ?? false,
+    savedRemotely: true,
+    corners: corners,
     topLeftLat: corners[0].lat,
     topLeftLng: corners[0].lng,
     topRightLat: corners[1].lat,
@@ -664,22 +671,11 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData, createMar
     bottomRightLng: corners[2].lng,
     bottomLeftLat: corners[3].lat,
     bottomLeftLng: corners[3].lng,
-    centroid: {
-      x: cdnOverlay.centroid.lng,
-      y: cdnOverlay.centroid.lat,
-    },
-    status: 'approved',
-    authorId: null,
     overlay: null,
     marker: null,
     whitePixelsHidden: false,
     isFlipped: false,
-    currentResolution: buildImageUrl(cdnOverlay.filename),
-    project: cdnOverlay.project,
-    corners: corners,
-    isModified: cdnOverlay.isModified ?? false, // AI : Preserve isModified flag from cached data
-    savedRemotely: true, // AI : Overlays from backend are considered saved remotely
-  };
+  }
 
   if (createMarkers) {
     createSingleMarker(storedOverlayData);
@@ -781,15 +777,8 @@ function createSingleMarker(savedOverlay: StoredOverlayData): void {
   const overlayBounds = getOverlayBounds(savedOverlay);
   if (!overlayBounds) return;
 
-  let markerTitle = 'Overlay';
-  if (savedOverlay.projectId && projects.value[savedOverlay.projectId]) {
-    const project = projects.value[savedOverlay.projectId];
-    const captionPart = savedOverlay.caption ? ` - ${savedOverlay.caption}` : '';
-    markerTitle = `${project.name}${captionPart}`;
-  }
-
+  const markerTitle = createMarkerTitle(savedOverlay, savedOverlay.projectId);
   const center = overlayBounds.getCenter();
-
   const tempOverlayObject = createOverlayObject(savedOverlay);
   const markerColor = getOverlayMarkerColor(tempOverlayObject, isEditMode.value ? 'edit' : 'view');
   const colorIcon = createColorIcon(markerColor);
@@ -800,7 +789,6 @@ function createSingleMarker(savedOverlay: StoredOverlayData): void {
   }).addTo(map.value);
 
   allMarkers.value[savedOverlay.id] = marker;
-
   tempOverlayObject.marker = marker;
   updateMarkerTooltip(tempOverlayObject);
 }
@@ -1049,19 +1037,7 @@ function createMarker(overlayObject: any, projectId: string, markerType: 'new' |
 
   // AI : Use current map center as initial marker position
   const center = map.value.getCenter();
-
-  // AI : Determine marker title based on type
-  const baseTitle = markerType === 'replacement' ? 'Replacement Overlay' : 'New Overlay';
-  let markerTitle = baseTitle;
-
-  if (projectId) {
-    const { projects } = useProjects();
-    if (projects.value[projectId]) {
-      const project = projects.value[projectId];
-      const captionPart = overlayObject.caption ? ` - ${overlayObject.caption}` : '';
-      markerTitle = `${project.name} - ${baseTitle}${captionPart}`;
-    }
-  }
+  const markerTitle = createMarkerTitle(overlayObject, projectId, markerType);
 
   // AI : Determine marker color based on type and overlay state
   const markerColor = markerType === 'replacement' ? 'purple' : getOverlayMarkerColor(overlayObject, 'edit');
