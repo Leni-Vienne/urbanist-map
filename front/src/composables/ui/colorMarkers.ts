@@ -79,7 +79,7 @@ function createMarkerSVG(color: MarkerColor): string {
 }
 
 // AI : Create SVG icon for Leaflet
-function createSVGIcon(color: MarkerColor): L.DivIcon {
+export function createColorIcon(color: MarkerColor): L.DivIcon {
   const svgString = createMarkerSVG(color);
   
   return L.divIcon({
@@ -110,9 +110,4 @@ export function createButtonSVG(color: MarkerColor): string {
       <circle cx="25" cy="25" r="9.5" fill="#ffffff" stroke="#e6f2ff" stroke-width="1"/>
     </svg>
   `;
-}
-
-// AI : Helper function to create instances of color icons
-export function createColorIcon(color: MarkerColor): L.DivIcon {
-  return createSVGIcon(color);
 }
