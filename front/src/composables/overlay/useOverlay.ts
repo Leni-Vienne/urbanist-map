@@ -1,5 +1,5 @@
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
-import { updateOverlayMarkers, updateCachedOverlayData } from '@composables/map/useCityMarkersUpdater';
+import { updateOverlayMarkersColors, updateCachedOverlayDataForMarkers } from '@composables/map/useOverlayMarkerUpdates';
 import { buildImageUrl } from '../../utils';
 import L from "leaflet";
 import 'leaflet-toolbar';
@@ -52,8 +52,9 @@ export function initializeStores() {
   isEditMode = overlayStoreRefs.isEditMode;
   projects = projectStoreRefs.projects;
 
-  // We need to initialize city markers updater with city overlays reference
-  // This will be done by useCityMarkers when it loads
+  // AI : Initialize overlay marker updates with store refs
+  // We need to get currentCityOverlays from useCityMarkers, but we can't import it due to circular dep
+  // So we'll initialize it when currentCityOverlays is set elsewhere
 
   return { ...overlayStoreRefs, ...projectStoreRefs };
 }
@@ -292,7 +293,7 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
 
     const newCorners = overlayObject.overlay?.getCorners();
     if (newCorners && newCorners.length === 4) {
-      updateCachedOverlayData(overlayObject.id, newCorners);
+      updateCachedOverlayDataForMarkers(overlayObject.id, newCorners);
 
       // AI : Save to history - saveToHistory handles all modification tracking
       saveToHistory(overlayObject);
@@ -317,9 +318,10 @@ function getCornersForOverlay(overlayObject: OverlayObject) {
   // ugly but since the type expects non null AND DistortableImage needs null corners for the initial state
   // AI : Priority 2: Use individual lat/lng fields (skip if all zeros - indicates new overlay)
   if (overlayObject.topLeftLat != null && overlayObject.topLeftLng != null &&
-    overlayObject.topRightLat != null && overlayObject.topRightLng != null &&
-    overlayObject.bottomRightLat != null && overlayObject.bottomRightLng != null &&
-    overlayObject.bottomLeftLat != null && overlayObject.bottomLeftLng != null) {
+    !(overlayObject.topLeftLat === 0 && overlayObject.topLeftLng === 0 &&
+      overlayObject.topRightLat === 0 && overlayObject.topRightLng === 0 &&
+      overlayObject.bottomRightLat === 0 && overlayObject.bottomRightLng === 0 &&
+      overlayObject.bottomLeftLat === 0 && overlayObject.bottomLeftLng === 0)) {
     return [
       { lat: overlayObject.topLeftLat, lng: overlayObject.topLeftLng },
       { lat: overlayObject.topRightLat, lng: overlayObject.topRightLng },
@@ -409,7 +411,7 @@ export function saveToHistory(overlayObject: OverlayObject): void {
   updateMarkerTooltip(overlayObject);
 
   // AI : Update city overlay markers if they are visible
-  updateOverlayMarkers();
+  updateOverlayMarkersColors();
 }
 
 // Event handler that blocks movement events but allows click events
@@ -852,7 +854,7 @@ function setupOverlayMovementTracking(overlay: L.DistortableImageOverlay, overla
       updateMarkerPosition(overlayObject);
 
       // AI : Update city overlay markers if they are visible
-      updateOverlayMarkers();
+      updateOverlayMarkersColors();
     };
 
     // AI : Track mouse and touch events for real-time updates
@@ -1005,7 +1007,7 @@ function saveOverlayWithCurrentCorners(overlayObject: OverlayObject): void {
 
     // AI : Update cached overlay data with new corners
     if (newCorners && newCorners.length === 4) {
-      updateCachedOverlayData(overlayObject.id, newCorners);
+      updateCachedOverlayDataForMarkers(overlayObject.id, newCorners);
     }
 
     // AI : Update marker tooltip after corners are saved

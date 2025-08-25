@@ -51,6 +51,7 @@
     "@types/leaflet": "^1.9.20",
     "@vitejs/plugin-vue": "^6.0.1",
     "drizzle-kit": "^0.31.4",
+    "madge": "^8.0.0",
     "oxlint": "^1.12.0",
     "unplugin-vue-components": "^28.8.0",
     "vite": "npm:rolldown-vite@latest",

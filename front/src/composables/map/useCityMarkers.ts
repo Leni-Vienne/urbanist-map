@@ -3,8 +3,6 @@ import { createColorIcon } from '@composables/ui/colorMarkers';
 import { ref, computed } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
 import { renderViewModeOverlays, clearAllOverlays } from '@composables/overlay/useOverlay';
-import { initializeCityMarkersUpdater } from '@composables/map/useCityMarkersUpdater';
-import { useProjectStore } from '@stores/pinia/projectStore';
 import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import { trpc, RouterOutput } from '@client';
@@ -30,16 +28,6 @@ function getStoreRefs() {
 async function getSelectedProjectId() {
   const { selectedProjectId } = useSelectedProject();
   return selectedProjectId;
-}
-
-// AI : Initialize city markers with store references
-export function initializeCityMarkers() {
-  const { overlays, isEditMode } = getStoreRefs();
-  const projectStore = useProjectStore();
-  const { projects } = projectStore;
-  
-  // AI : Initialize the city markers updater with store refs and city overlays
-  initializeCityMarkersUpdater({ overlays, projects, isEditMode }, currentCityOverlays);
 }
 
 // AI : Minimum zoom level required to load city projects and overlays
@@ -82,7 +70,6 @@ let selectedCityMarker: L.Marker | null = null;
 // AI : Initialize zoom event listener when map is ready
 onMapInitialized(() => {
   setupZoomEventListener();
-  initializeCityMarkers();
 });
 
 /**
