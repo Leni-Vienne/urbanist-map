@@ -112,17 +112,6 @@ export function createButtonSVG(color: MarkerColor): string {
   `;
 }
 
-// AI : Export individual colored icon functions for backward compatibility
-export const blueIcon = () => createSVGIcon('blue');
-export const goldIcon = () => createSVGIcon('gold');
-export const redIcon = () => createSVGIcon('red');
-export const greenIcon = () => createSVGIcon('green');
-export const orangeIcon = () => createSVGIcon('orange');
-export const yellowIcon = () => createSVGIcon('yellow');
-export const purpleIcon = () => createSVGIcon('purple');
-export const greyIcon = () => createSVGIcon('grey');
-export const blackIcon = () => createSVGIcon('black');
-
 // AI : Helper function to create instances of color icons
 export function createColorIcon(color: MarkerColor): L.DivIcon {
   return createSVGIcon(color);

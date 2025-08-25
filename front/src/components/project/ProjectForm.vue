@@ -195,13 +195,6 @@ const filteredCities = computed(() => {
     }));
 });
 
-// AI : Watch for cityId changes to update location field for backward compatibility
-watch(() => localProject.value.cityId, (newCityId) => {
-    if (newCityId && cities.value.length > 0) {
-        // AI : Add logic here if you want to update another field based on city selection
-    }
-});
-
 // AI : Get center coordinates of currently selected overlay or camera center as fallback
 function getOverlayCenter(): { lat: number; lng: number } | null {
 

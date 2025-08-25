@@ -10,11 +10,6 @@ export function useViewModeOverlays() {
   const overlayStore = useOverlayStore();
   const { viewModeOverlays, overlaysLoading, overlaysError } = storeToRefs(overlayStore);
 
-  // AI : No-op functions for backward compatibility
-  function startCameraTracking() {
-    // AI : No longer needed - overlays are rendered directly when set
-  }
-
   function stopCameraTracking() {
     // AI : Clear view mode overlays state using store action
     overlayStore.clearViewModeOverlays();
@@ -59,7 +54,6 @@ export function useViewModeOverlays() {
     // AI : Methods
     renderCurrentOverlays,
     setViewModeOverlays,
-    startCameraTracking,
     stopCameraTracking,
     clearOverlays
   };
