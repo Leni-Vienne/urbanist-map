@@ -257,7 +257,6 @@ function initializeOverlayHistory(overlayObject: OverlayObject): void {
 function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayObject: OverlayObject): void {
 
   overlay.on('select', () => {
-    console.log('AI : Overlay selected:', overlayObject.id);
     // AI : Update the selected overlay ID (this updates the store since we're using store refs)
     idSelectedOverlay.value = overlayObject.id;
 
@@ -268,7 +267,6 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
   overlay.on('deselect', () => {
     // AI : Only handle deselect for the overlay that was actually selected
     if (idSelectedOverlay.value === overlayObject.id) {
-      console.log('AI : Overlay deselected:', overlayObject.id);
       idSelectedOverlay.value = null;
 
       // AI : Remove selection outline
@@ -1473,9 +1471,7 @@ export async function navigateToOverlay(overlayId: string, centerMap: boolean = 
 
       // AI : Also render intersecting overlays if they exist
       if (result?.intersectingOverlays.length > 0) {
-
         const intersectingCdnOverlays = result.intersectingOverlays.map(transformBackendOverlayToCDN);
-
         await renderViewModeOverlays(intersectingCdnOverlays, true, false);
 
         toast.add({
@@ -1500,24 +1496,8 @@ export async function navigateToOverlay(overlayId: string, centerMap: boolean = 
     }
   }
 
-  // AI : Select the overlay (URL updates no longer needed without routing)
-  idSelectedOverlay.value = overlayId;
-
-  // AI : Center map if requested
-  if (centerMap && targetOverlay.overlay) {
-    await centerMapOnOverlay(targetOverlay);
-  }
-
-  // AI : Click on overlay to select it
-  if (targetOverlay.overlay) {
-    const element = targetOverlay.overlay.getElement();
-    if (element) {
-      element.click();
-    }
-    return true;
-  }
-
-  return false;
+  // AI : Use existing selectAndCenterOverlay function to avoid duplication
+  return await selectAndCenterOverlay(overlayId, undefined, undefined, centerMap);
 }
 
 async function selectAndCenterOverlay(overlayId: string, index?: number, total?: number, centerMap: boolean = true): Promise<boolean> {
@@ -1619,7 +1599,7 @@ export function updateTooltipText() {
   }
 }
 
-export async function deleteOverlay(id: string) {
+export async function deleteOverlayButtonPressed(id: string) {
   const overlayObject = overlays.value[id];
   if (!overlayObject) return;
 
@@ -1677,6 +1657,7 @@ export const infoTool = L.Toolbar2.Action.extend({
       })],
     })
   },
+  // very fragile code but necessary to plug into the leaflet toolbar. If you have a better idea, please contribute!
   addHooks() {
     const link = this._link;
     const overlayStore = useOverlayStore();
@@ -1821,7 +1802,7 @@ export const customDeleteTool = L.Toolbar2.Action.extend({
       return;
     }
     if (confirm('Are you sure you want to delete this overlay from local storage?')) {
-      deleteOverlay(idSelectedOverlay.value);
+      deleteOverlayButtonPressed(idSelectedOverlay.value);
       idSelectedOverlay.value = null;
     }
   },
