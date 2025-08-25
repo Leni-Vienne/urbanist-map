@@ -106,19 +106,3 @@ export async function toggleEditMode(): Promise<void> {
     }
   }
 }
-
-// AI : Export isEditMode getter for backward compatibility
-export function getIsEditMode() {
-  const overlayStore = useOverlayStore();
-  const { isEditMode } = storeToRefs(overlayStore);
-  return isEditMode;
-}
-
-/**
- * AI : Set edit mode state without toggling
- */
-export function setEditMode(editMode: boolean): void {
-  const overlayStore = useOverlayStore();
-  const { isEditMode } = storeToRefs(overlayStore);
-  isEditMode.value = editMode;
-}

@@ -1442,63 +1442,77 @@ async function selectFirstOrLastOverlayInAnyProject(direction: 'next' | 'previou
  * @returns boolean indicating whether navigation was successful
  */
 export async function navigateToOverlay(overlayId: string, centerMap: boolean = true): Promise<boolean> {
-  if (!map.value) {
-    toast.add({ severity: 'warn', summary: 'Map not available', detail: 'Cannot navigate to overlay', life: 3000 });
-    return false;
+
+  // AI : Check if overlay is already loaded locally
+  const existingOverlay = overlays.value[overlayId];
+
+  if (existingOverlay) {
+
+    return await selectAndCenterOverlay(overlayId, undefined, undefined, centerMap);
+
+  } else {
+    // AI : Overlay not found locally - fetch from backend
+    return await loadAndNavigateToOverlay(overlayId, centerMap);
   }
+}
 
-  let targetOverlay = overlays.value[overlayId];
+async function loadAndNavigateToOverlay(overlayId: string, centerMap: boolean): Promise<boolean> {
+  try {
+    
+    // AI : Fetch overlay and intersecting overlays from backend
+    const result = await trpc.overlay.getOverlay.query({
+      id: overlayId,
+      includeIntersecting: true,
+    });
 
-  // AI : If overlay is not loaded locally, fetch from backend
-  if (!targetOverlay) {
-    try {
-      toast.add({ severity: 'info', summary: 'Loading overlay', detail: 'Fetching overlay from server...', life: 2000 });
-
-      const result = await trpc.overlay.getOverlay.query({
-        id: overlayId,
-        includeIntersecting: true,
+    if (!result.overlay) {
+      toast.add({
+        severity: 'error',
+        summary: 'Overlay not found',
+        detail: 'The requested overlay could not be found on the server',
+        life: 3000
       });
-
-      if (!result.overlay) {
-        toast.add({ severity: 'error', summary: 'Overlay not found', detail: 'The requested overlay could not be found on the server', life: 3000 });
-        return false;
-      }
-
-      // AI : Transform backend overlay to CDN format
-      const cdnOverlay = transformBackendOverlayToCDN(result.overlay);
-
-      await renderViewModeOverlays([cdnOverlay], true, false);
-
-      // AI : Also render intersecting overlays if they exist
-      if (result?.intersectingOverlays.length > 0) {
-        const intersectingCdnOverlays = result.intersectingOverlays.map(transformBackendOverlayToCDN);
-        await renderViewModeOverlays(intersectingCdnOverlays, true, false);
-
-        toast.add({
-          severity: 'info',
-          summary: 'Overlays Loaded',
-          detail: `Loaded main overlay and ${result.intersectingOverlays.length} intersecting overlays`,
-          life: 3000
-        });
-      }
-
-      targetOverlay = overlays.value[overlayId];
-
-      if (!targetOverlay) {
-        toast.add({ severity: 'error', summary: 'Loading failed', detail: 'Failed to load overlay after fetching from server', life: 3000 });
-        return false;
-      }
-
-    } catch (error) {
-      console.error('Error fetching overlay:', error);
-      toast.add({ severity: 'error', summary: 'Loading failed', detail: 'Failed to fetch overlay from server', life: 3000 });
       return false;
     }
-  }
 
-  // AI : Use existing selectAndCenterOverlay function to avoid duplication
-  return await selectAndCenterOverlay(overlayId, undefined, undefined, centerMap);
+    // AI : Render the main overlay
+    const cdnOverlay = transformBackendOverlayToCDN(result.overlay);
+    await renderViewModeOverlays([cdnOverlay], true, false);
+
+    // AI : Render intersecting overlays if they exist
+    if (result.intersectingOverlays.length > 0) {
+      const intersectingCdnOverlays = result.intersectingOverlays.map(transformBackendOverlayToCDN);
+      await renderViewModeOverlays(intersectingCdnOverlays, true, false);
+    }
+
+    // AI : Verify overlay was successfully loaded
+    const loadedOverlay = overlays.value[overlayId];
+    if (!loadedOverlay) {
+      toast.add({
+        severity: 'error',
+        summary: 'Loading failed',
+        detail: 'Failed to load overlay after fetching from server',
+        life: 3000
+      });
+      return false;
+    }
+
+    // AI : Navigate to the successfully loaded overlay
+    return await selectAndCenterOverlay(overlayId, undefined, undefined, centerMap);
+
+  } catch (error) {
+    console.error('Error fetching overlay:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Loading failed',
+      detail: 'Failed to fetch overlay from server',
+      life: 3000
+    });
+    return false;
+  }
 }
+
+
 
 async function selectAndCenterOverlay(overlayId: string, index?: number, total?: number, centerMap: boolean = true): Promise<boolean> {
   const overlay = overlays.value[overlayId];

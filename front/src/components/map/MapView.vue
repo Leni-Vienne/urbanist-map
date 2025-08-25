@@ -55,7 +55,7 @@ const { isEditMode, overlays } = storeToRefs(overlayStore);
 const { filterByCompletionStatus } = useCompletionFilters();
 
 // AI : Use view mode overlays for displaying overlays when camera moves
-const { startCameraTracking, stopCameraTracking } = useViewModeOverlays();
+const { stopCameraTracking } = useViewModeOverlays();
 
 // AI : Filter overlays based on completion status
 async function filterOverlaysByCompletionStatus() {
@@ -97,14 +97,12 @@ watch(() => isEditMode?.value, (editMode) => {
     // AI : Stop view mode tracking when entering edit mode
     stopCameraTracking();
   } else {
-    // AI : Start view mode tracking when exiting edit mode
-    startCameraTracking();
-    // AI : Apply filters when entering view mode
+    // AI : Apply filters when entering view mode //TODO may not work on slow internet
     setTimeout(async () => await filterOverlaysByCompletionStatus(), 100);
   }
 });
 
-// AI : Watch for overlays changes to apply filters
+// AI : Watch for overlays changes to apply filters //TODO may not work on slow internet
 watch(() => overlays.value ? Object.keys(overlays.value).length : 0, () => {
   if (!isEditMode?.value) {
     setTimeout(async () => await filterOverlaysByCompletionStatus(), 100);
@@ -133,10 +131,6 @@ async function initializeMapAndOverlays() {
     window.addEventListener('keydown', handleKeyDown, true);
     disableLeafletKeyboardEvents();
 
-    // AI : Start camera tracking if in view mode
-    if (!(isEditMode?.value ?? false)) {
-      startCameraTracking();
-    }
   } catch (error) {
     console.error('Error initializing map and overlays:', error);
     toast.add({
