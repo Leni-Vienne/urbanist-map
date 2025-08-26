@@ -3,7 +3,7 @@ import L from 'leaflet';
 import { map, onMapInitialized, currentZoomLevel } from '@composables/core/useMap';
 import { onCameraStop } from '@composables/map/useCameraBounds';
 import { clearAllOverlays, createOverlay } from '@composables/overlay/useOverlay';
-import { createColorIcon } from '@composables/ui/colorMarkers';
+import { createColorIcon } from '@composables/ui/markerIcons';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
