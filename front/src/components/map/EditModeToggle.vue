@@ -14,7 +14,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { toggleEditMode } from '@composables/overlay/useEditMode';
+import { toggleEditMode } from '@composables/overlay/useOverlayModes';
+import { handleEditModeExit } from '@composables/map/useCityMarkers';
 import { useToast } from '@composables/ui/useToast';
 import { storeToRefs } from 'pinia';
 
@@ -48,7 +49,7 @@ const tooltipText = computed(() => {
 // AI : Handle toggle change
 async function handleModeToggle() {
     try {
-        await toggleEditMode();
+        await toggleEditMode(handleEditModeExit);
 
         // AI : Show toast notification for mode change
         const modeText = isEditMode?.value ? 'Edit Mode' : 'View Mode';

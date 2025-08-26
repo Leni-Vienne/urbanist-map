@@ -3,7 +3,7 @@ import { createColorIcon } from '@composables/ui/markerIcons';
 import { ref, computed } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
 import { renderViewModeOverlays, clearAllOverlays } from '@composables/overlay/useOverlay';
-import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
+import { useViewModeOverlays } from '@composables/overlay/useOverlayModes';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import { trpc, RouterOutput } from '@client';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
@@ -797,3 +797,38 @@ export function getSelectedCity() {
 
 // AI : Backward compatibility - computed property that behaves like the old latestClickedCity
 export const latestClickedCity = computed(() => getSelectedCity());
+
+/**
+ * AI : Handle city-specific logic when exiting edit mode
+ * This function contains the city-related overlay re-rendering logic
+ */
+export async function handleEditModeExit(): Promise<void> {
+  // AI : Force re-render overlays to show original backend positions instead of modified ones
+  // AI : Check if we have a current city with cached data
+  if (latestClickedCity.value && hasCachedCityProjectsData(latestClickedCity.value.id)) {
+    const overlaysData = getCachedCityProjectsData(latestClickedCity.value.id)!;;
+
+    // AI : Clear all current overlays first
+    clearAllOverlays();
+
+    // AI : Check current zoom level to decide what to render
+    const currentZoom = map.value?.getZoom() ?? 0;
+
+    if (currentZoom >= MIN_ZOOM_FOR_OVERLAYS) {
+      // AI : Zoom is high enough for full overlays
+      const { setViewModeOverlays } = useViewModeOverlays();
+      setViewModeOverlays(overlaysData);
+
+      // AI : Render the overlays on the map
+      renderViewModeOverlays(overlaysData, true, true).catch((error: any) => {
+        console.error('AI : Error re-rendering overlays in view mode:', error);
+      });
+    } else {
+      // AI : Zoom is too low, render markers only (view mode markers)
+      renderOverlayMarkersFromCache(latestClickedCity.value.id, latestClickedCity.value.name);
+    }
+
+    // AI : Update overlay markers colors for view mode (when zoomed out)
+    updateOverlayMarkersForFilters();
+  }
+}

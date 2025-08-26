@@ -1,25 +1,35 @@
+// AI : Combined overlay modes management - handles both edit and view modes
 import { watch } from 'vue';
 import L from 'leaflet';
 import { map, onMapInitialized, currentZoomLevel } from '@composables/core/useMap';
 import { onCameraStop } from '@composables/map/useCameraBounds';
-import { clearAllOverlays, createOverlay } from '@composables/overlay/useOverlay';
+import { updateOverlayEditingState, clearAllOverlays, renderViewModeOverlays, updateMarkerTooltip, createOverlay } from '@composables/overlay/useOverlay';
 import { createColorIcon } from '@composables/ui/markerIcons';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { storeToRefs } from 'pinia';
-import type { CameraBounds, OverlayObject } from '@types';
+import type { CameraBounds, OverlayObject, CDNOverlayData } from '@types';
 
-// AI : Function to get store refs when needed
+// AI : Function to get store refs when needed to avoid module-level initialization
 function getStoreRefs() {
   const overlayStore = useOverlayStore();
   const projectStore = useProjectStore();
-  const { overlays, loadedEditOverlays } = storeToRefs(overlayStore);
+  const { overlays, loadedEditOverlays, viewModeOverlays, overlaysLoading, overlaysError, isEditMode } = storeToRefs(overlayStore);
   const { projects } = storeToRefs(projectStore);
-  return { overlays, projects, loadedEditOverlays, overlayStore };
+  return { 
+    overlays, 
+    projects, 
+    loadedEditOverlays, 
+    viewModeOverlays, 
+    overlaysLoading, 
+    overlaysError, 
+    isEditMode,
+    overlayStore 
+  };
 }
 
-// AI : Distance threshold for loading full overlay images in edit mode (in meters)
+// AI : Constants for edit mode
 const EDIT_MODE_LOAD_DISTANCE = 1000; // 1km - closer than view mode since edit mode needs more precision
 const MIN_ZOOM_FOR_EDIT_OVERLAYS = 12; // AI : Minimum zoom level to load full overlays in edit mode
 
@@ -28,6 +38,10 @@ let editModeOverlayMarkers: L.LayerGroup | null = null;
 
 // AI : Track camera subscription
 let unsubscribeFromCamera: (() => void) | null = null;
+
+// ================================
+// EDIT MODE FUNCTIONS
+// ================================
 
 /**
  * AI : Initialize edit mode overlay markers - show markers for all overlays without images
@@ -378,11 +392,150 @@ function watchOverlayChanges(): void {
   }, { deep: true });
 }
 
-// AI : Initialize watch when this module is imported
-onMapInitialized(() => {
-  watchOverlayChanges();
-  watchZoomLevel();
-});
+// ================================
+// VIEW MODE FUNCTIONS
+// ================================
+
+/**
+ * AI : Stop camera tracking for view mode
+ */
+function stopViewModeTracking() {
+  // AI : Clear view mode overlays state using store action
+  const { overlayStore } = getStoreRefs();
+  overlayStore.clearViewModeOverlays();
+}
+
+/**
+ * AI : Set overlays loaded from city markers
+ */
+function setViewModeOverlays(overlays: CDNOverlayData[]) {
+  const { overlayStore } = getStoreRefs();
+  overlayStore.setViewModeOverlays(overlays);
+  // AI : Do not automatically render overlays - let the caller handle rendering
+  // AI : This prevents double-rendering when switching cities
+}
+
+/**
+ * AI : Render all current overlays in view mode
+ */
+async function renderCurrentOverlays() {
+  const { viewModeOverlays, overlayStore } = getStoreRefs();
+  
+  if (viewModeOverlays.value.length === 0) return;
+  
+  overlayStore.setOverlaysLoading(true);
+
+  try {
+    // AI : Render all overlays - no filtering needed since overlays are already city-specific
+    await renderViewModeOverlays(viewModeOverlays.value);
+  } catch (err) {
+    console.error('Error rendering overlays:', err);
+    overlayStore.setOverlaysError('Failed to render overlays');
+  } finally {
+    overlayStore.setOverlaysLoading(false);
+  }
+}
+
+/**
+ * AI : Clear view mode overlays
+ */
+function clearViewModeOverlays() {
+  const { overlayStore } = getStoreRefs();
+  overlayStore.clearViewModeOverlays();
+  // AI : Don't call clearAllOverlays here - let the mode switching handle it
+}
+
+// ================================
+// MODE SWITCHING LOGIC
+// ================================
+
+/**
+ * AI : Toggle between edit and view modes
+ * @param onModeExit - Optional callback function to handle city-specific logic when exiting edit mode
+ */
+export async function toggleEditMode(onModeExit?: () => Promise<void>): Promise<void> {
+  // AI : Get store refs when needed to avoid module-level initialization
+  const { overlays, isEditMode } = getStoreRefs();
+  
+  isEditMode.value = !isEditMode.value;
+
+  if (isEditMode.value) {
+    // AI : ENTERING EDIT MODE
+    // AI : Stop view mode tracking
+    stopViewModeTracking();
+    
+    // AI : For overlays that already have images loaded (from city markers), 
+    // AI : ensure they're properly added to the map and update their editing state
+    Object.values(overlays.value).forEach((overlayObject) => {
+      if (overlayObject.overlay && map.value) {
+        // AI : Make sure the overlay is added to the map
+        if (!map.value.hasLayer(overlayObject.overlay)) {
+          overlayObject.overlay.addTo(map.value);
+        }
+      }
+      
+      // AI : Update marker colors and tooltips for edit mode
+      if (overlayObject.marker) {
+        updateMarkerTooltip(overlayObject);
+      }
+    });
+    
+    // AI : Update overlay editing state for existing overlays
+    updateOverlayEditingState();
+    
+    // AI : Initialize edit mode overlay markers for overlays that don't have images loaded yet
+    initializeEditModeOverlays();
+    
+    // AI : Start camera tracking for edit mode
+    startEditModeTracking();
+  } else {
+    // AI : EXITING EDIT MODE
+    // AI : Stop edit mode tracking
+    stopEditModeTracking();
+    
+    // AI : Clear only the edit mode markers, not the full overlays
+    clearEditModeOverlays();
+    
+    // AI : Update markers for view mode (remove tooltips, update colors)
+    Object.values(overlays.value).forEach((overlayObject) => {
+      if (overlayObject.marker) {
+        updateMarkerTooltip(overlayObject);
+      }
+    });
+    
+    // AI : Update overlay editing state for existing overlays (disable editing)
+    updateOverlayEditingState();
+    
+    // AI : Call city-specific exit logic if provided
+    if (onModeExit) {
+      await onModeExit();
+    }
+  }
+}
+
+// ================================
+// COMPOSABLE FUNCTIONS
+// ================================
+
+/**
+ * AI : Composable to manage view mode overlays
+ */
+export function useViewModeOverlays() {
+  const { viewModeOverlays, overlaysLoading, overlaysError } = getStoreRefs();
+
+  return {
+    // AI : Reactive state from store
+    viewModeOverlays,
+    loading: overlaysLoading,
+    error: overlaysError,
+
+    // AI : Methods
+    renderCurrentOverlays,
+    setViewModeOverlays,
+    stopCameraTracking: stopViewModeTracking,
+    clearOverlays: clearViewModeOverlays
+  };
+}
 
 /**
  * AI : Composable to manage edit mode overlays
@@ -405,3 +558,9 @@ export function useEditModeOverlays() {
     loadFullOverlay
   };
 }
+
+// AI : Initialize watch when this module is imported
+onMapInitialized(() => {
+  watchOverlayChanges();
+  watchZoomLevel();
+});
