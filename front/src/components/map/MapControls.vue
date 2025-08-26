@@ -44,7 +44,17 @@
     />
     <LayerControl />
 
-    <EditModeToggle v-if="authStore.isAuthenticated" />
+    <!-- AI : Edit Mode Toggle Button (inline) -->
+    <Button
+        v-if="authStore.isAuthenticated"
+        :icon="currentIcon"
+        @click="handleModeToggle"
+        @dblclick.stop
+        :severity="buttonSeverity"
+        class="map-control-button"
+        v-tooltip.right="tooltipText"
+        aria-label="Toggle Edit Mode"
+    />
 
     <!-- AI : Overlay Completion Status Filter Buttons (View Mode Only) -->
     <div v-if="!isEditMode" class="overlay-status-filters">
@@ -110,6 +120,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
+import { computed } from 'vue';
 import { useToast } from '@composables/ui/useToast';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useAuthStore } from '@stores/authStore';
@@ -120,7 +131,6 @@ import { useCompletionFilters } from '@composables/overlay/useCompletionFilters'
 import { createButtonSVG } from '@composables/ui/markerIcons';
 import { map } from '@composables/core/useMap';
 import LayerControl from '@components/map/LayerControl.vue';
-import EditModeToggle from '@components/map/EditModeToggle.vue';
 
 const authStore = useAuthStore();
 const overlayStore = useOverlayStore();
@@ -134,6 +144,53 @@ const { visibleCompletionStates, toggleFilter } = useCompletionFilters();
 const emit = defineEmits<{
   'filter-overlays': [status: 'green' | 'orange' | 'grey'];
 }>();
+
+// AI : Edit mode toggle computed properties
+const currentIcon = computed(() => {
+    return isEditMode?.value ? 'pi pi-pencil' : 'pi pi-eye';
+});
+
+const buttonSeverity = computed(() => {
+    if (isEditMode?.value) {
+        return 'warning'; // Orange/yellow for edit mode
+    }
+    return 'secondary'; // Gray for view mode
+});
+
+const tooltipText = computed(() => {
+    const currentMode = isEditMode?.value ? 'Edit Mode' : 'View Mode';
+    const actionText = isEditMode?.value ? 'Switch to View Mode' : 'Switch to Edit Mode';
+
+    // Show current state and what clicking will do
+    return `Currently in ${currentMode} - Click to ${actionText.toLowerCase()}`;
+});
+
+// AI : Handle edit mode toggle
+async function handleModeToggle() {
+    try {
+        await toggleEditMode(handleEditModeExit);
+
+        // AI : Show toast notification for mode change
+        const modeText = isEditMode?.value ? 'Edit Mode' : 'View Mode';
+        toast.add({
+            severity: 'info',
+            summary: `Switched to ${modeText}`,
+            detail: isEditMode?.value
+                ? 'You can now add and edit overlays'
+                : 'Overlays are now in view-only mode',
+            life: 3000
+        });
+    } catch (error) {
+        console.error('AI : Error toggling edit mode:', error);
+
+        toast.add({
+            severity: 'error',
+            summary: 'Mode Switch Error',
+            detail: 'Failed to switch mode. Please try again.',
+            life: 3000
+        });
+    }
+}
 
 // AI : Handle add overlay button click - check auth first and handle edit mode logic
 async function handleAddOverlayButtonClick() {
@@ -240,5 +297,11 @@ function handleZoomOut() {
 .status-filter-btn :deep(svg) {
   display: block;
   margin: auto;
+}
+
+/* AI : Map control button styling (for edit mode toggle) */
+.map-control-button {
+  min-width: 40px;
+  min-height: 40px;
 }
 </style>
