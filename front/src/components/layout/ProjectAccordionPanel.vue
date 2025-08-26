@@ -283,6 +283,7 @@
 import { ref, computed } from 'vue'
 import { buildImageUrl, formatRelativeTime } from '../../utils'
 import { navigateToOverlay } from '@composables/overlay/useOverlay'
+import { useToast } from '@composables/ui/useToast'
 import Tag from 'primevue/tag'
 import Accordion from 'primevue/accordion'
 import AccordionPanel from 'primevue/accordionpanel'
@@ -311,6 +312,7 @@ const props = withDefaults(defineProps<Props>(), {
 // AI : Reactive state for image errors and expanded panels
 const imageErrors = ref<Record<string, boolean>>({})
 const activeAccordionPanels = ref<string[]>([])
+const toast = useToast()
 
 // AI : Computed expanded panels set for easier checking
 const expandedPanels = computed(() => new Set(activeAccordionPanels.value))
@@ -442,6 +444,12 @@ async function handleOverlayClick(overlay: any) {
     await navigateToOverlay(overlay.id)
   } catch (error) {
     console.error('Failed to navigate to overlay:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Navigation Failed',
+      detail: error instanceof Error ? error.message : 'Failed to navigate to overlay',
+      life: 3000
+    })
   }
 }
 

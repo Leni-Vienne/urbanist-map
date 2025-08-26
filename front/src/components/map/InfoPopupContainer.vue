@@ -176,19 +176,42 @@ async function handleProjectChange(projectId: string) {
     console.error('AI : Failed to assign overlay to project:', error);
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to assign overlay to project',
+      summary: 'Assignment Failed',
+      detail: error instanceof Error ? error.message : 'Failed to assign overlay to project',
       life: 3000
     });
   }
 }
 
 // AI : Handle publish overlay
-function handlePublishOverlay() {
+async function handlePublishOverlay() {
   const overlay = overlayObject.value;
   const proj = overlay ? getProjectForOverlay(overlay) : null;
   if (overlay && proj) {
-    publishOverlay(overlay, proj);
+    try {
+      await publishOverlay(overlay, proj);
+      
+      // AI : Success feedback
+      const summaryText = overlay.replacesOverlayId ? 'Replacement Submitted' : 'Overlay Published';
+      const detailText = overlay.replacesOverlayId
+        ? 'Replacement overlay has been submitted for moderation review'
+        : 'Overlay has been saved to the server database';
+      
+      toast.add({
+        severity: 'success',
+        summary: summaryText,
+        detail: detailText,
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Failed to publish overlay:', error);
+      toast.add({
+        severity: 'error',
+        summary: 'Publish Failed',
+        detail: error instanceof Error ? error.message : 'Failed to save to server. Please try again.',
+        life: 3000
+      });
+    }
   }
 }
 

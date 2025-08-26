@@ -81,12 +81,14 @@
 import { ref, onMounted } from 'vue'
 import { trpc } from '@client'
 import { navigateToOverlay } from '@composables/overlay/useOverlay'
+import { useToast } from '@composables/ui/useToast'
 import { buildImageUrl, formatRelativeTime } from '../../utils'
 
 // AI : Reactive state
 const overlays = ref<any[]>([])
 const isLoading = ref(false)
 const imageErrors = ref<Record<string, boolean>>({})
+const toast = useToast()
 
 // AI : Get overlay image URL using the utility function
 function getOverlayImageUrl(filename: string): string {
@@ -135,6 +137,12 @@ async function handleOverlayClick(overlay: any) {
     await navigateToOverlay(overlay.id)
   } catch (error) {
     console.error('Failed to navigate to overlay:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Navigation Failed',
+      detail: error instanceof Error ? error.message : 'Failed to navigate to overlay',
+      life: 3000
+    })
   }
 }
 
