@@ -114,7 +114,8 @@ import { useToast } from '@composables/ui/useToast';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useAuthStore } from '@stores/authStore';
 import { useUiStore } from '@stores/uiStore';
-import { toggleEditMode } from '@composables/overlay/useEditMode';
+import { toggleEditMode } from '@composables/overlay/useOverlayModes';
+import { handleEditModeExit } from '@composables/map/useCityMarkers';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import { createButtonSVG } from '@composables/ui/markerIcons';
 import { map } from '@composables/core/useMap';
@@ -144,7 +145,7 @@ async function handleAddOverlayButtonClick() {
   if (!(isEditMode?.value ?? false)) {
     // AI : Enable edit mode first if currently in view mode
     try {
-      await toggleEditMode();
+      await toggleEditMode(handleEditModeExit);
       // AI : Show toast notification to inform user about mode switch
       toast.add({
         severity: 'info',

@@ -32,7 +32,7 @@ import { addTileLayer } from '@composables/map/useTileLayers';
 import { initializeCameraBounds } from '@composables/map/useCameraBounds';
 import { renderViewModeOverlays, removeOverlay, undo, redo } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
-import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
+import { useViewModeOverlays } from '@composables/overlay/useOverlayModes';
 import { currentCityOverlays, updateOverlayMarkersForFilters } from '@composables/map/useCityMarkers';
 import { initializeCountryMarkers } from '@composables/map/useCountryMarkers';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
