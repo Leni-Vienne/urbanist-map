@@ -1,5 +1,5 @@
 import L from "leaflet";
-import { createColorIcon } from '@composables/ui/colorMarkers';
+import { createColorIcon } from '@composables/ui/markerIcons';
 import { ref, computed } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
 import { renderViewModeOverlays, clearAllOverlays } from '@composables/overlay/useOverlay';

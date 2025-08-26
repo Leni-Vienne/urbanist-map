@@ -1,4 +1,3 @@
-import { getConstructionMarkerColor } from '@composables/ui/markerColors';
 import type { OverlayObject, CDNOverlayData, MarkerColor } from '@types';
 
 /**
@@ -51,6 +50,18 @@ export function getOverlayMarkerColor(
       endDate = (overlayData as any).endDate;
     }
 
-    return getConstructionMarkerColor(startDate, endDate);
+    // AI : Inline construction date logic - no need for separate function
+    const now = new Date();
+    const start = startDate ? new Date(startDate) : null;
+    const end = endDate ? new Date(endDate) : null;
+    
+    if (start && start > now) {
+      return 'green';
+    } else if (start && start <= now && (!end || end > now)) {
+      return 'orange';
+    } else if (end && end <= now) {
+      return 'grey';
+    }
+    return 'grey';
   }
 }

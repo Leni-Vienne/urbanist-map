@@ -1,5 +1,5 @@
 // AI : Overlay marker update functions extracted to break circular dependency
-import { createColorIcon } from '@composables/ui/colorMarkers';
+import { createColorIcon } from '@composables/ui/markerIcons';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
 import type { CDNOverlayData } from '@types';
 

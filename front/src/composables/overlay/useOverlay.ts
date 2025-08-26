@@ -18,7 +18,7 @@ type StoredOverlayData = OverlayObject & {
   redoStack: { lat: number, lng: number }[][];
   isModified: boolean;
 };
-import { createColorIcon } from '@composables/ui/colorMarkers';
+import { createColorIcon } from '@composables/ui/markerIcons';
 import { useToast } from '@composables/ui/useToast';
 import { useProjects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import { trpc } from '@client';

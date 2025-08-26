@@ -8,7 +8,7 @@ import { trpc } from '@client';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { storeToRefs } from 'pinia';
-import { createColorIcon } from '@composables/ui/colorMarkers';
+import { createColorIcon } from '@composables/ui/markerIcons';
 
 // AI : Function to get countries when needed
 function getCountries() {
