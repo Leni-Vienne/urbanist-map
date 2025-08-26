@@ -116,7 +116,7 @@ import { useAuthStore } from '@stores/authStore';
 import { useUiStore } from '@stores/uiStore';
 import { toggleEditMode } from '@composables/overlay/useEditMode';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
-import { createButtonSVG } from '@composables/ui/colorMarkers';
+import { createButtonSVG } from '@composables/ui/markerIcons';
 import { map } from '@composables/core/useMap';
 import LayerControl from '@components/map/LayerControl.vue';
 import EditModeToggle from '@components/map/EditModeToggle.vue';
