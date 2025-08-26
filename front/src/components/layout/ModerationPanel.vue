@@ -75,6 +75,7 @@
 import { computed, ref, onMounted } from 'vue'
 import { useModeration } from '@composables/overlay/useModeration'
 import { navigateToOverlay } from '@composables/overlay/useOverlay'
+import { useToast } from '@composables/ui/useToast'
 import Button from 'primevue/button'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 
@@ -91,6 +92,7 @@ const {
 
 // AI : Create isLoading ref
 const isLoading = ref(false)
+const toast = useToast()
 
 // AI : Computed properties for undo functionality
 const canUndo = computed(() => recentActions.value.length > 0)
@@ -117,6 +119,12 @@ async function handleOverlayClick(overlay: any) {
     await navigateToOverlay(overlay.id)
   } catch (error) {
     console.error('Failed to navigate to overlay:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Navigation Failed',
+      detail: error instanceof Error ? error.message : 'Failed to navigate to overlay',
+      life: 3000
+    })
   }
 }
 </script>

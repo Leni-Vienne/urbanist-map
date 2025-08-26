@@ -1,5 +1,4 @@
 import { ref } from 'vue';
-import { useToast } from '@composables/ui/useToast';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { allMarkers, updateMarkerTooltip } from '@composables/overlay/useOverlay';
@@ -10,7 +9,6 @@ import type { OverlayObject, Project } from '@types';
 
 export function useOverlayPublisher() {
   const isPublishing = ref(false);
-  const toast = useToast();
   const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
   const { projects } = storeToRefs(projectStore);
@@ -31,24 +29,12 @@ export function useOverlayPublisher() {
   // AI : Validate if overlay can be published
   function validateOverlayForPublishing(overlay: OverlayObject, project: Project | null): boolean {
     if (!project) {
-      toast.add({
-        severity: 'error',
-        summary: 'Cannot Publish',
-        detail: 'Overlay must be assigned to a project',
-        life: 3000
-      });
-      return false;
+      throw new Error('Cannot Publish: Overlay must be assigned to a project');
     }
 
     const corners = getCornersFromOverlay(overlay);
     if (!corners || corners.length !== 4 || corners.some(c => !c.lat || !c.lng)) {
-      toast.add({
-        severity: 'error',
-        summary: 'Cannot Publish',
-        detail: 'Overlay must have valid position (4 corners)',
-        life: 3000
-      });
-      return false;
+      throw new Error('Cannot Publish: Overlay must have valid position (4 corners)');
     }
     return true;
   }
@@ -90,25 +76,10 @@ export function useOverlayPublisher() {
         }
       }
 
-      // AI : Show appropriate message
-      const actionText = projectResult.exists ? 'updated on' : 'saved to';
-      if (!projectResult.exists) {
-        toast.add({
-          severity: 'info',
-          summary: 'Project Published',
-          detail: `Project has been ${actionText} the server database`,
-          life: 2000
-        });
-      }
       return false; // AI : Project ID didn't change
     } catch (error) {
-      toast.add({
-        severity: 'error',
-        summary: 'Project Publish Failed',
-        detail: `Failed to publish project "${project.name}" to server: ${error instanceof Error ? error.message : String(error)}`,
-        life: 5000
-      });
-      throw error;
+      const errorMessage = `Failed to publish project "${project.name}" to server: ${error instanceof Error ? error.message : String(error)}`;
+      throw new Error(errorMessage);
     }
   }
 
@@ -165,18 +136,6 @@ export function useOverlayPublisher() {
     const overlayResult = await trpc.overlay.publishOverlay.mutate(payload);
 
     if (overlayResult.success) {
-      const actionText = overlayResult.exists ? 'updated on' : 'saved to';
-      const summaryText = overlay.replacesOverlayId ? 'Replacement Submitted' : 'Overlay Published';
-      const detailText = overlay.replacesOverlayId
-        ? 'Replacement overlay has been submitted for moderation review'
-        : `Overlay has been ${actionText} the server database`;
-
-      toast.add({
-        severity: 'success',
-        summary: summaryText,
-        detail: detailText,
-        life: 3000
-      });
       return { success: true, exists: overlayResult.exists, id: overlayResult.id };
     }
 
@@ -271,12 +230,7 @@ export function useOverlayPublisher() {
       // AI : updated locally with the correct state and ID from the publish response.
     } catch (error) {
       console.error('AI : Failed to publish overlay:', error);
-      toast.add({
-        severity: 'error',
-        summary: 'Publish Failed',
-        detail: 'Failed to save to server. Please try again.',
-        life: 3000
-      });
+      throw new Error('Publish Failed: Failed to save to server. Please try again.');
     } finally {
       isPublishing.value = false;
     }

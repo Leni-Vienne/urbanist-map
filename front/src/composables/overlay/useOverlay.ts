@@ -19,7 +19,6 @@ type StoredOverlayData = OverlayObject & {
   isModified: boolean;
 };
 import { createColorIcon } from '@composables/ui/markerIcons';
-import { useToast } from '@composables/ui/useToast';
 import { useProjects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import { trpc } from '@client';
 
@@ -878,8 +877,6 @@ function setupOverlayMovementTracking(overlay: L.DistortableImageOverlay, overla
 
 // AI : Overlay Action Functions (moved from useOverlayActions.ts to break circular dependency)
 
-const toast = useToast();
-
 // AI : Helper function to transform backend overlay to CDN format
 function transformBackendOverlayToCDN(backendOverlay: any): any {
   return {
@@ -1093,8 +1090,7 @@ export async function addOverlay(imageUrl: string, projectId: string, replacesOv
 
   if (!map.value) return;
   if (!projectId) {
-    toast.add({ severity: 'error', summary: 'Project Required', detail: 'A project must be selected to add an overlay', life: 3000 });
-    return;
+    throw new Error('Project Required: A project must be selected to add an overlay');
   }
 
   const id = crypto.randomUUID();
@@ -1157,12 +1153,6 @@ function applyHistoryAction(action: 'undo' | 'redo') {
   const isUndo = action === 'undo';
 
   if ((isUndo && history.length <= 1) || (!isUndo && redoStack.length === 0)) {
-    toast.add({
-      severity: 'warn',
-      summary: `Cannot ${action}`,
-      detail: `No more actions to ${action}`,
-      life: 3000
-    });
     return;
   }
 
@@ -1183,19 +1173,13 @@ function applyHistoryAction(action: 'undo' | 'redo') {
     updateMarkerAndSaveOverlay(overlayObject);
   } catch (error) {
     console.error(`AI : Error during ${action}:`, error);
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: `Failed to ${action}`,
-      life: 3000
-    });
+    throw error;
   }
 }
 
 export function resetImageRatio() {
   if (!idSelectedOverlay.value) {
-    toast.add({ severity: 'warn', summary: 'No image selected', detail: 'Please select an image first', life: 3000 });
-    return;
+    throw new Error('No image selected: Please select an image first');
   }
 
   const overlayObject = overlays.value[idSelectedOverlay.value];
@@ -1338,22 +1322,12 @@ function handleFlipIfNeeded(overlayObject: any) {
     const mirroredCorners = [corners[1], corners[0], corners[3], corners[2]];
     overlayObject.overlay.setCorners(mirroredCorners);
 
-    toast.add({
-      severity: 'success',
-      summary: 'Image ratio reset and mirrored',
-      detail: 'Image has been reset to original ratio and mirrored horizontally',
-      life: 5000
-    });
+    // AI : Image ratio reset and mirrored
   } else {
     // First click, just set the flag for potential mirroring on next click
     overlayObject.isFlipped = true;
 
-    toast.add({
-      severity: 'success',
-      summary: 'Image ratio reset',
-      detail: 'Click again to mirror the image horizontally',
-      life: 5000
-    });
+    // AI : Image ratio reset - click again to mirror horizontally
   }
 }
 
@@ -1364,8 +1338,7 @@ function handleFlipIfNeeded(overlayObject: any) {
  */
 export async function focusCameraToOverlay(direction: 'next' | 'previous'): Promise<boolean> {
   if (!map.value) {
-    toast.add({ severity: 'warn', summary: 'Map not available', detail: 'Cannot navigate between overlays', life: 3000 });
-    return false;
+    throw new Error('Map not available: Cannot navigate between overlays');
   }
 
   // Handle case when no overlay is selected
@@ -1393,7 +1366,6 @@ export async function focusCameraToOverlay(direction: 'next' | 'previous'): Prom
   }
 
   if (projectOverlayIds.length <= 1) {
-    toast.add({ severity: 'info', summary: 'Navigation', detail: 'No other overlays in this project', life: 3000 });
     return false;
   }
 
@@ -1410,8 +1382,7 @@ async function selectFirstOrLastOverlayInAnyProject(direction: 'next' | 'previou
   const { projects } = useProjects();
   const projectIds = Object.keys(projects.value);
   if (!projectIds.length) {
-    toast.add({ severity: 'warn', summary: 'No projects', detail: 'Please create a project first', life: 3000 });
-    return false;
+    throw new Error('No projects: Please create a project first');
   }
 
   for (const projectId of projectIds) {
@@ -1422,18 +1393,12 @@ async function selectFirstOrLastOverlayInAnyProject(direction: 'next' | 'previou
       const overlayId = project.overlayIds[index];
 
       if (await selectAndCenterOverlay(overlayId)) {
-        toast.add({
-          severity: 'info',
-          summary: 'Navigation',
-          detail: `Selected ${direction === 'next' ? 'first' : 'last'} overlay in project ${project.name}`,
-          life: 3000
-        });
+        // AI : Selected first/last overlay in project
         return true;
       }
     }
   }
 
-  toast.add({ severity: 'warn', summary: 'No overlays', detail: 'No overlays found in any project', life: 3000 });
   return false;
 }
 
@@ -1468,12 +1433,7 @@ async function loadAndNavigateToOverlay(overlayId: string, centerMap: boolean): 
     });
 
     if (!result.overlay) {
-      toast.add({
-        severity: 'error',
-        summary: 'Overlay not found',
-        detail: 'The requested overlay could not be found on the server',
-        life: 3000
-      });
+      throw new Error('Overlay not found: The requested overlay could not be found on the server');
       return false;
     }
 
@@ -1490,12 +1450,7 @@ async function loadAndNavigateToOverlay(overlayId: string, centerMap: boolean): 
     // AI : Verify overlay was successfully loaded
     const loadedOverlay = overlays.value[overlayId];
     if (!loadedOverlay) {
-      toast.add({
-        severity: 'error',
-        summary: 'Loading failed',
-        detail: 'Failed to load overlay after fetching from server',
-        life: 3000
-      });
+      throw new Error('Loading failed: Failed to load overlay after fetching from server');
       return false;
     }
 
@@ -1504,12 +1459,7 @@ async function loadAndNavigateToOverlay(overlayId: string, centerMap: boolean): 
 
   } catch (error) {
     console.error('Error fetching overlay:', error);
-    toast.add({
-      severity: 'error',
-      summary: 'Loading failed',
-      detail: 'Failed to fetch overlay from server',
-      life: 3000
-    });
+    throw new Error('Loading failed: Failed to fetch overlay from server');
     return false;
   }
 }
@@ -1548,12 +1498,7 @@ async function selectAndCenterOverlay(overlayId: string, index?: number, total?:
     return true;
   }
 
-  toast.add({
-    severity: 'warn',
-    summary: 'Navigation issue',
-    detail: 'The overlay exists but could not be shown on the map',
-    life: 3000
-  });
+  console.warn('Navigation issue: The overlay exists but could not be shown on the map');
   return false;
 }
 
@@ -1564,19 +1509,9 @@ function showNavigationToast(overlay: OverlayObject, index?: number, total?: num
   if (index !== undefined && total !== undefined) {
     const captionSuffix = overlay.caption ? ` (${overlay.caption})` : '';
     const detailMessage = `Moved to overlay ${index + 1} of ${total}${captionSuffix}`;
-    toast.add({
-      severity: 'info',
-      summary: 'Navigation',
-      detail: detailMessage,
-      life: 3000
-    });
+    // AI : Navigation toast removed
   } else if (overlay.caption) {
-    toast.add({
-      severity: 'info',
-      summary: 'Navigation',
-      detail: `Navigated to overlay: ${overlay.caption}`,
-      life: 3000
-    });
+    // AI : Navigation toast removed
   }
 }
 

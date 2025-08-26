@@ -1,11 +1,8 @@
-import { useToast } from '@composables/ui/useToast';
 import { trpc } from '@client';
 import type { Project, OverlayObject } from '@types';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { storeToRefs } from 'pinia';
-
-const toast = useToast();
 
 // AI : Export composable function that gets store refs when called (not at module level)
 export function useProjects() {
@@ -92,24 +89,12 @@ export async function addOverlayToProjectWithId(projectId: string, overlayId: st
   
   if (!projects.value[projectId]) {
     console.error('AI : Project not found in memory store:', projectId);
-    toast.add({
-      severity: 'error',
-      summary: 'Project not found',
-      detail: 'The selected project could not be found',
-      life: 3000
-    });
-    return;
+    throw new Error('Project not found');
   }
 
   if (!overlays.value[overlayId]) {
     console.error('AI : Overlay not found in memory store:', overlayId);
-    toast.add({
-      severity: 'error',
-      summary: 'Overlay not found',
-      detail: 'The selected overlay could not be found',
-      life: 3000
-    });
-    return;
+    throw new Error('Overlay not found');
   }
 
   // AI : Create new references to ensure reactivity with shallowRef
@@ -128,13 +113,6 @@ export async function addOverlayToProjectWithId(projectId: string, overlayId: st
   // Update overlay with project reference
   const overlayObject = overlays.value[overlayId];
   overlayObject.projectId = projectId;
-
-  toast.add({
-    severity: 'success',
-    summary: 'Overlay added to project',
-    detail: `Overlay has been added to project "${project.name}"`,
-    life: 3000
-  });
 }
 
 export async function removeOverlayFromProjectWithId(projectId: string, overlayId: string): Promise<void> {
@@ -142,7 +120,7 @@ export async function removeOverlayFromProjectWithId(projectId: string, overlayI
   
   if (!projects.value[projectId]) {
     console.error('Project not found:', projectId);
-    return;
+    throw new Error('Project not found');
   }
 
   // AI : Create new references to ensure reactivity with shallowRef
@@ -164,13 +142,6 @@ export async function removeOverlayFromProjectWithId(projectId: string, overlayI
     // Remove project styling
     removeProjectStyling(overlayObject);
   }
-
-  toast.add({
-    severity: 'info',
-    summary: 'Overlay removed from project',
-    detail: `Overlay has been removed from project "${project.name}"`,
-    life: 3000
-  });
 }
 
 export function removeProjectStyling(overlayObject: OverlayObject): void {
@@ -230,7 +201,7 @@ export async function deleteProjectById(projectId: string): Promise<void> {
   const project = projects.value[projectId];
   if (!project) {
     console.error('Project not found:', projectId);
-    return;
+    throw new Error('Project not found');
   }
 
   // Remove project reference from all its overlays
@@ -251,26 +222,13 @@ export async function deleteProjectById(projectId: string): Promise<void> {
   if (selectedProjectId.value === projectId) {
     selectedProjectId.value = null;
   }
-
-  toast.add({
-    severity: 'info',
-    summary: 'Project deleted',
-    detail: `Project "${project.name}" has been deleted`,
-    life: 3000
-  });
 }
 
 export async function updateProject(projectId: string, projectData: Partial<Omit<Project, 'id' | 'overlayIds' | 'color'>>): Promise<void> {
   const { projects } = useProjects();
   const project = projects.value[projectId];
   if (!project) {
-    toast.add({
-      severity: 'error',
-      summary: 'Project not found',
-      detail: 'The project to update could not be found',
-      life: 3000
-    });
-    return;
+    throw new Error('Project not found');
   }
 
   // AI : Filter out non-serializable properties from projectData before merging (File objects, city objects)
