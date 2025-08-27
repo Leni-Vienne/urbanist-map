@@ -177,7 +177,7 @@ export function createOverlayRouter(db: PostgresJsDatabase<typeof schema>) {
             filename: input.filename,
             caption: input.caption,
             projectId: input.projectId,
-            authorId: ctx.user.id, // AI : Use authenticated user's ID from Supabase
+            authorId: ctx.user.id,
             replacesOverlayId: input.replacesOverlayId ?? null,
             metadata: null, // AI : Keep metadata empty as requested
             topLeftLat: topLeft.lat,

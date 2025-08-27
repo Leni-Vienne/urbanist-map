@@ -32,7 +32,7 @@ export function createProjectRouter(db: PostgresJsDatabase<typeof schema>) {
 
         const data = {
           ...input,
-          ownerId: ctx.user.id, // AI : Use authenticated user's ID from Supabase
+          ownerId: ctx.user.id,
           cityId: input.cityId ?? null,
           startDate: input.startDate ? new Date(input.startDate) : null,
           endDate: input.endDate ? new Date(input.endDate) : null,

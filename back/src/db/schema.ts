@@ -1,5 +1,5 @@
 import {
-  pgTable, uuid, text, timestamp, jsonb, index, doublePrecision, geometry, char, pgEnum,
+  pgTable, uuid, text, timestamp, jsonb, index, doublePrecision, geometry, char, pgEnum, boolean,
 } from 'drizzle-orm/pg-core';
 import {
   sql, InferSelectModel, relations,
@@ -7,14 +7,25 @@ import {
 
 export const approvalStatusEnum = pgEnum('approval_status', ['pending', 'approved', 'rejected']);
 
-// AI : Profiles table that references Supabase auth.users
+// AI : Users table for custom authentication
 export const users = pgTable('users', {
-  id: uuid('id').primaryKey(), // AI : This will be the auth.users.id from Supabase
+  id: uuid('id').defaultRandom().primaryKey(),
+  email: text('email').unique().notNull(),
   username: text('username').unique(),
+  passwordHash: text('password_hash').notNull(),
   role: text('role').default('user'), // AI : Role can be 'user', 'admin', etc.
+  emailVerified: boolean('email_verified').default(false).notNull(),
+  emailVerificationToken: text('email_verification_token'),
+  passwordResetToken: text('password_reset_token'),
+  passwordResetExpiresAt: timestamp('password_reset_expires_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
-});
+}, (users) => ({
+  emailIndex: index('idx_users_email').on(users.email),
+  emailVerificationIndex: index('idx_users_email_verification').on(users.emailVerificationToken),
+  passwordResetIndex: index('idx_users_password_reset').on(users.passwordResetToken),
+}));
+
 
 export const usersRelations = relations(users, ({ many }) => ({
   projects: many(projects),

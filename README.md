@@ -9,7 +9,6 @@ This application deploys both frontend and backend as a single Cloudflare Worker
 ### Prerequisites
 - [Cloudflare account](https://cloudflare.com)
 - [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/) installed
-- Supabase database (optional for development)
 
 ### Quick Deploy
 1. **Build the frontend:**
@@ -25,9 +24,7 @@ This application deploys both frontend and backend as a single Cloudflare Worker
 ### Environment Variables
 Set these in your Cloudflare Workers dashboard:
 - `SESSION_ENCRYPTION_KEY` - 32+ character encryption key
-- `DATABASE_URL` - Supabase PostgreSQL connection string
-- `SUPABASE_URL` - Your Supabase project URL
-- `SUPABASE_ANON_KEY` - Supabase anonymous key
+- `DATABASE_URL` - PostgreSQL connection string
 - `CF_ACCOUNT_ID` - Cloudflare account ID (for R2 uploads)
 - `CF_API_TOKEN` - Cloudflare API token
 

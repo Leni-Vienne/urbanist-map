@@ -97,11 +97,9 @@ onMounted(async () => {
   overlayStore.closeAllUIElements = uiStore.closeAllDialogs;
 
   try {
-    // AI : Initialize Supabase authentication
     await authStore.initialize()
     
-    // AI : Check if user is a moderator based on their role in Supabase
-    if (authStore.user?.user_metadata?.role === 'admin') {
+    if (authStore.user?.role === 'admin') {
       isModerator.value = true
     }
 

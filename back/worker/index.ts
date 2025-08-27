@@ -8,7 +8,6 @@ interface Env {
     CORS_ORIGIN?: string
     R2_PUBLIC_URL?: string
     DATABASE_URL?: string
-    JWT_SECRET?: string
 }
 
 export default {
@@ -47,7 +46,6 @@ export default {
                 r2Bucket: env.R2_BUCKET,
                 r2PublicUrl: env.R2_PUBLIC_URL,
                 isProduction: !isLocal,
-                supabaseJwtSecret: env.JWT_SECRET
             })
             
             return await app.fetch(request, env)

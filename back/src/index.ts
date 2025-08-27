@@ -2,20 +2,19 @@ import { Hono } from 'hono'
 import { serveStatic } from 'hono/bun'
 import { config } from './config'
 import { createApp } from './app'
-import type { AuthUser } from './shared/auth'
+import type { DBUser } from './shared/auth'
 
 // AI : Create the unified app for local development
 const { app: coreApp, appRouter } = createApp({
     corsOrigin: config.CORS_ORIGIN,
     databaseUrl: config.DATABASE_URL,
     isProduction: false,
-    supabaseJwtSecret: process.env.JWT_SECRET
 })
 
 // AI : Wrap with static file serving for bun
 const app = new Hono<{
     Variables: {
-        user: AuthUser | null
+        user: DBUser | null
     }
 }>()
 

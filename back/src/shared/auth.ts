@@ -1,62 +1,47 @@
-import * as jose from 'jose'
 import { Context, Next } from 'hono'
 import { TRPCError } from '@trpc/server'
+import { eq } from 'drizzle-orm'
+import { db } from '../db'
+import { users } from '../db/schema'
+import type { DBUser } from '../db/schema'
+import { getCookie } from 'hono/cookie'
 
-// AI : Lightweight user type from JWT payload (no external dependencies)
-export interface AuthUser {
-  id: string
-  email?: string
-  user_metadata?: {
-    username?: string
-  }
-  role?: string
-}
-
-// AI : Extract JWT token from Authorization header
-export function extractBearerToken(authHeader?: string): string | null {
-  if (!authHeader) return null
-  
-  const parts = authHeader.split(' ')
-  if (parts.length !== 2 || parts[0] !== 'Bearer') return null
-  
-  return parts[1]
-}
-
-// AI : Lightweight JWT verification using Supabase JWT secret
-export async function verifySupabaseJWT(token: string, jwtSecret: string): Promise<AuthUser | null> {
+// AI : Get user from user ID stored in cookie
+export async function getUserFromCookie(c: Context): Promise<DBUser | null> {
   try {
-    const secret = new TextEncoder().encode(jwtSecret)
-    const { payload } = await jose.jwtVerify(token, secret)
-    return {
-      id: payload.sub as string,
-      email: payload.email as string,
-      user_metadata: payload.user_metadata as { username?: string },
-      role: payload.user_role as string
+    const userId = getCookie(c, 'user_id')
+    
+    if (!userId) {
+      return null
     }
+
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1)
+
+    if (!user || !user.emailVerified) {
+      return null
+    }
+
+    return user
   } catch (error) {
-    console.error('JWT verification failed:', error)
+    console.error('Get user from cookie error:', error)
     return null
   }
 }
 
-// AI : Hono middleware for JWT authentication (no Supabase client needed)
-export function createSupabaseAuthMiddleware(jwtSecret: string) {
+// AI : Custom auth middleware for cookie-based authentication
+export function createAuthMiddleware() {
   return async (c: Context, next: Next) => {
     try {
-      const authHeader = c.req.header('Authorization')
-      const token = extractBearerToken(authHeader)
-      
-      if (!token) {
-        c.set('user', null)
-        return next()
-      }
-
-      const user = await verifySupabaseJWT(token, jwtSecret)
+      const user = await getUserFromCookie(c)
       c.set('user', user)
       return next()
       
     } catch (error) {
-      console.error('Supabase auth middleware error:', error)
+      console.error('Auth middleware error:', error)
       c.set('user', null)
       return next()
     }
@@ -64,15 +49,29 @@ export function createSupabaseAuthMiddleware(jwtSecret: string) {
 }
 
 // AI : Helper to get authenticated user from Hono context
-export function getAuthenticatedUser(c: Context): AuthUser | null {
+export function getAuthenticatedUser(c: Context): DBUser | null {
   return c.get('user') ?? null
 }
 
 // AI : Helper to require authentication
-export function requireAuth(c: Context): AuthUser {
+export function requireAuth(c: Context): DBUser {
   const user = getAuthenticatedUser(c)
   if (!user) {
     throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required' })
   }
   return user
+}
+
+// AI : Helper to require specific role
+export function requireRole(c: Context, role: string): DBUser {
+  const user = requireAuth(c)
+  if (user.role !== role && user.role !== 'admin') {
+    throw new TRPCError({ code: 'FORBIDDEN', message: 'Insufficient permissions' })
+  }
+  return user
+}
+
+// AI : Helper to require admin role
+export function requireAdmin(c: Context): DBUser {
+  return requireRole(c, 'admin')
 }

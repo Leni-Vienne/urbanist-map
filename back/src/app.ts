@@ -6,7 +6,7 @@ import postgres from "postgres"
 import * as schema from './db/schema'
 import { createAppRouter } from './shared/routers'
 import { LocalFileStorage, R2Storage } from './shared/storage'
-import { createSupabaseAuthMiddleware, getAuthenticatedUser, type AuthUser } from './shared/auth'
+import { createAuthMiddleware, getAuthenticatedUser, type DBUser } from './shared/auth'
 import type { FileUploadResult, FileUploadError } from './shared/types'
 
 interface AppOptions {
@@ -15,7 +15,6 @@ interface AppOptions {
     r2Bucket?: R2Bucket
     r2PublicUrl?: string
     isProduction?: boolean
-    supabaseJwtSecret?: string
 }
 
 // AI : Create database connection with appropriate settings
@@ -31,7 +30,7 @@ function createDatabase(databaseUrl: string, isProduction = false) {
 export function createApp(options: AppOptions) {
     const app = new Hono<{
         Variables: {
-            user: AuthUser | null
+            user: DBUser | null
         }
     }>()
 
@@ -46,16 +45,8 @@ export function createApp(options: AppOptions) {
         credentials: true
     }))
 
-    // AI : Supabase JWT authentication middleware
-    if (options.supabaseJwtSecret) {
-        app.use('*', createSupabaseAuthMiddleware(options.supabaseJwtSecret))
-    } else {
-        // AI : For development without Supabase auth, set user to null
-        app.use('*', (c, next) => {
-            c.set('user', null)
-            return next()
-        })
-    }
+    // AI : Custom session-based authentication middleware
+    app.use('*', createAuthMiddleware())
 
     // AI : tRPC routes
     const appRouter = createAppRouter(db)
@@ -63,7 +54,8 @@ export function createApp(options: AppOptions) {
         router: appRouter,
         createContext(_opts: any, c: any) {
             return {
-                user: c.get('user')
+                user: c.get('user'),
+                hono: c
             }
         }
     }))
@@ -157,10 +149,11 @@ export function createApp(options: AppOptions) {
         return c.json({
             isAuthenticated: !!user,
             user: user ? {
-                userId: user.id,
+                id: user.id,
                 email: user.email,
-                username: user.user_metadata?.username ?? user.email?.split('@')[0],
-                role: user.role
+                username: user.username,
+                role: user.role,
+                emailVerified: user.emailVerified
             } : null
         })
     })
