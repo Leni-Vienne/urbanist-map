@@ -13,6 +13,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+      # needed for wrangler deploy (cloudflare)
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
@@ -45,7 +46,7 @@ jobs:
         DATABASE_URL: postgres://postgres:${{ secrets.POSTGRES_PASSWORD }}@${{ secrets.REMOTE_HOST }}:5432/construction_map
 
     - name: Build frontend
-      run: bun run build-front
+      run: bun run build-front-workflow
       env:
         VITE_R2_PUBLIC_URL: ${{ vars.VITE_R2_PUBLIC_URL }}
         VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
@@ -53,19 +54,13 @@ jobs:
     - name: Build backend bundle
       run: bun run build-back
 
-    - name: Show deployment target
-      run: |
-        echo "🚀 Deploying to: ${{ env.DEPLOY_TARGET }} environment"
-        echo "📦 Wrangler environment: '${{ env.WRANGLER_ENV }}'"
-
-    - name: Deploy to Cloudflare Workers
+    - name: Deploy frontend to Cloudflare Pages
       uses: cloudflare/wrangler-action@v3
       with:
         apiToken: ${{ secrets.CF_API_TOKEN }}
         accountId: ${{ secrets.CF_ACCOUNT_ID }}
-        command: deploy --env="${{ env.WRANGLER_ENV }}"
-      env:
-        JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        command: pages deploy front/dist --project-name=${{ env.WRANGLER_ENV == '' && 'construction-map' || 'construction-map-preview' }}
+        gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Deploy backend with docker compose to remote server
       env:
