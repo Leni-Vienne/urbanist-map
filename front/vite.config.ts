@@ -37,8 +37,6 @@ export default defineConfig({
     alias: {
       // AI : Redirect leaflet imports to our CDN shim
       'leaflet': path.resolve(__dirname, './src/lib/leaflet-umd-shim.ts'),
-      // AI : Redirect supabase imports to our CDN shim
-      '@supabase/supabase-js': path.resolve(__dirname, './src/lib/supabase-umd-shim.ts'),
       '@tables': path.resolve(__dirname, './back/src/db/schema'),
       '@assets': path.resolve(__dirname, './src/assets'),
       '@composables': path.resolve(__dirname, './src/composables'),
@@ -77,12 +75,12 @@ export default defineConfig({
       'primevue/usetoast'
     ]
   },
-  // AI : External leaflet and supabase to prevent bundling 
+  // AI : External leaflet to prevent bundling 
   build: {
     rollupOptions: {
       external: (id) => {
         // AI : Mark CDN URLs as external so they don't get bundled
-        return id.includes('unpkg.com/leaflet') || id.includes('jsdelivr.net/npm/@supabase/supabase-js')
+        return id.includes('unpkg.com/leaflet')
       }
     }
   }

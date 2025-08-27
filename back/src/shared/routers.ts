@@ -7,11 +7,13 @@ import { createCitiesRouter } from '../routes/cities';
 import { createCountriesRouter } from '../routes/countries';
 import { createModerationRouter } from '../routes/moderation';
 import { createChangesRouter } from '../routes/changes';
+import { authRouter } from '../routes/auth';
 
 // AI : Main router factory that combines all sub-routers
 export function createAppRouter(db: PostgresJsDatabase<typeof schema>) {
   // AI : Return the full router with all routes, passing database to each factory
   return router({
+    auth: authRouter,
     project: createProjectRouter(db),
     moderation: createModerationRouter(db),
     cities: createCitiesRouter(db),

@@ -1336,7 +1336,7 @@ function handleFlipIfNeeded(overlayObject: any) {
  * @param direction - Either 'next' or 'previous' to determine navigation direction
  * @returns boolean indicating whether navigation was successful
  */
-export async function focusCameraToOverlay(direction: 'next' | 'previous'): Promise<boolean> {
+async function focusCameraToOverlay(direction: 'next' | 'previous'): Promise<boolean> {
   if (!map.value) {
     throw new Error('Map not available: Cannot navigate between overlays');
   }
@@ -1486,10 +1486,6 @@ async function selectAndCenterOverlay(overlayId: string, index?: number, total?:
     if (centerMap && map.value) {
       // AI : Wait for overlay to be properly initialized before zooming
       const zoomSuccess = await centerMapOnOverlay(overlay);
-
-      if (zoomSuccess) {
-        showNavigationToast(overlay, index, total);
-      }
     }
     return true;
   } else if (overlay.marker && centerMap && map.value) {
@@ -1500,19 +1496,6 @@ async function selectAndCenterOverlay(overlayId: string, index?: number, total?:
 
   console.warn('Navigation issue: The overlay exists but could not be shown on the map');
   return false;
-}
-
-/**
- * AI : Show appropriate toast message when navigating to overlay
- */
-function showNavigationToast(overlay: OverlayObject, index?: number, total?: number): void {
-  if (index !== undefined && total !== undefined) {
-    const captionSuffix = overlay.caption ? ` (${overlay.caption})` : '';
-    const detailMessage = `Moved to overlay ${index + 1} of ${total}${captionSuffix}`;
-    // AI : Navigation toast removed
-  } else if (overlay.caption) {
-    // AI : Navigation toast removed
-  }
 }
 
 /**

@@ -1,9 +1,11 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
-import type { AuthUser } from './shared/auth';
+import type { DBUser } from './shared/auth';
+import type { Context as HonoContext } from 'hono';
 
 export type Context = {
-    user?: AuthUser | null;
+    user?: DBUser | null;
+    hono?: HonoContext;
 };
 
 /**

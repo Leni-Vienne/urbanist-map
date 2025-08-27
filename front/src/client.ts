@@ -1,14 +1,7 @@
 import { createTRPCClient, httpBatchLink, TRPCClientError } from '@trpc/client';
 import { inferRouterOutputs, inferRouterInputs } from '@trpc/server';
 import type { AppRouter } from '../../back/src/shared/routers';
-import { supabase } from './lib/supabase';
 import superjson from 'superjson';
-
-// AI : Get Supabase access token
-async function getAuthToken(): Promise<string | null> {
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token ?? null;
-}
 
 export type RouterInput = inferRouterInputs<AppRouter>;
 export type RouterOutput = inferRouterOutputs<AppRouter>;
@@ -26,19 +19,9 @@ const trpc = createTRPCClient<AppRouter>({
       url: `${getApiUrl()}/trpc`,
       
       async fetch(url, options) {
-        const token = await getAuthToken();
-        const headers: Record<string, string> = {
-          ...(options?.headers as Record<string, string>),
-        };
-        
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
-        
         return fetch(url, {
           ...options,
-          headers,
-          credentials: 'include',
+          credentials: 'include', // AI : Include cookies in requests
         });
       },
       transformer: superjson, // AI : Send Date datatype

@@ -1,7 +1,15 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { supabase } from '../lib/supabase'
-import type { User } from '@supabase/supabase-js'
+import { trpc } from '../client'
+
+// AI : User type for our custom authentication
+interface User {
+  id: string
+  email: string
+  username: string | null
+  role: string | null
+  emailVerified: boolean
+}
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
@@ -14,8 +22,10 @@ export const useAuthStore = defineStore('auth', () => {
   async function initialize() {
     try {
       loading.value = true
-      const { data: { session } } = await supabase.auth.getSession()
-      user.value = session?.user ?? null
+      
+      // AI : Try to get current user from server (will use cookies)
+      const result = await trpc.auth.me.query()
+      user.value = result.user
     } catch (error) {
       console.error('Error initializing auth:', error)
       user.value = null
@@ -27,105 +37,132 @@ export const useAuthStore = defineStore('auth', () => {
   // AI : Sign up with email and password
   async function signUp(email: string, password: string, username?: string) {
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const result = await trpc.auth.register.mutate({
         email,
         password,
-        options: {
-          data: {
-            username: username ?? email.split('@')[0]
-          }
-        }
+        username,
       })
 
-      if (error) throw error
-
-      // AI : User creation will be handled by backend/database triggers
-      return { success: true, user: data.user, error: null }
+      return {
+        success: result.success,
+        user: result.user,
+        error: result.success ? null : result.message
+      }
     } catch (error: any) {
       console.error('Sign up error:', error)
-      return { success: false, user: null, error: error.message }
+      return { 
+        success: false, 
+        user: null, 
+        error: error.message ?? 'Registration failed'
+      }
     }
   }
 
   // AI : Sign in with email and password
   async function signIn(email: string, password: string) {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const result = await trpc.auth.login.mutate({
         email,
-        password
+        password,
       })
 
-      if (error) throw error
+      if (result.success) {
+        user.value = result.user
+      }
 
-      user.value = data.user
-      return { success: true, user: data.user, error: null }
+      return {
+        success: result.success,
+        user: result.user,
+        error: result.success ? null : result.message
+      }
     } catch (error: any) {
       console.error('Sign in error:', error)
-      return { success: false, user: null, error: error.message }
+      return { 
+        success: false, 
+        user: null, 
+        error: error.message ?? 'Login failed'
+      }
     }
   }
 
-  // AI : Sign in with OAuth provider (Google, GitHub, etc.)
+  // AI : OAuth not implemented in custom auth (placeholder)
   async function signInWithOAuth(provider: 'google' | 'github' | 'discord' | 'facebook') {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`
-        }
-      })
-
-      if (error) throw error
-
-      return { success: true, error: null }
-    } catch (error: any) {
-      console.error('OAuth sign in error:', error)
-      return { success: false, error: error.message }
+    console.warn('OAuth authentication not implemented in custom auth system')
+    return { 
+      success: false, 
+      error: 'OAuth authentication not available' 
     }
   }
 
   // AI : Sign out
   async function signOut() {
     try {
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
-
+      await trpc.auth.logout.mutate()
       user.value = null
       return { success: true, error: null }
     } catch (error: any) {
       console.error('Sign out error:', error)
-      return { success: false, error: error.message }
+      // AI : Clear local data even if server logout fails
+      user.value = null
+      return { success: false, error: error.message ?? 'Logout failed' }
     }
   }
 
-  // AI : Get current session
-  async function getSession() {
-    const { data: { session } } = await supabase.auth.getSession()
-    return session
-  }
-
-  // AI : Get access token for API calls
-  async function getAccessToken() {
-    const session = await getSession()
-    return session?.access_token ?? null
-  }
-
-  // AI : Get authorization header for API calls
-  async function getAuthHeader() {
-    const token = await getAccessToken()
-    return token ? `Bearer ${token}` : null
-  }
-
-  // AI : Setup auth state change listener
-  supabase.auth.onAuthStateChange((event, session) => {
-    user.value = session?.user ?? null
-    
-    if (event === 'SIGNED_IN') {
-      console.log('User signed in:', session?.user?.email)
-    } else if (event === 'SIGNED_OUT') {
-      console.log('User signed out')
+  // AI : Verify email
+  async function verifyEmail(token: string) {
+    try {
+      const result = await trpc.auth.verifyEmail.mutate({ token })
+      return {
+        success: result.success,
+        error: result.success ? null : result.message
+      }
+    } catch (error: any) {
+      console.error('Email verification error:', error)
+      return {
+        success: false,
+        error: error.message ?? 'Email verification failed'
+      }
     }
-  })
+  }
+
+  // AI : Request password reset
+  async function requestPasswordReset(email: string) {
+    try {
+      const result = await trpc.auth.requestPasswordReset.mutate({ email })
+      return {
+        success: result.success,
+        error: result.success ? null : result.message
+      }
+    } catch (error: any) {
+      console.error('Password reset request error:', error)
+      return {
+        success: false,
+        error: error.message ?? 'Password reset request failed'
+      }
+    }
+  }
+
+  // AI : Reset password
+  async function resetPassword(token: string, password: string) {
+    try {
+      const result = await trpc.auth.resetPassword.mutate({ token, password })
+      return {
+        success: result.success,
+        error: result.success ? null : result.message
+      }
+    } catch (error: any) {
+      console.error('Password reset error:', error)
+      return {
+        success: false,
+        error: error.message ?? 'Password reset failed'
+      }
+    }
+  }
+
+  // AI : Get authorization header for API calls (cookies are handled automatically)
+  function getAuthHeader() {
+    return null // AI : No need for auth headers with cookie-based auth
+  }
 
   return {
     user,
@@ -136,8 +173,9 @@ export const useAuthStore = defineStore('auth', () => {
     signIn,
     signInWithOAuth,
     signOut,
-    getSession,
-    getAccessToken,
+    verifyEmail,
+    requestPasswordReset,
+    resetPassword,
     getAuthHeader,
   }
 })
