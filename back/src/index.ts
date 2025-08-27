@@ -1,25 +1,143 @@
 import { Hono } from 'hono'
 import { serveStatic } from 'hono/bun'
+import { cors } from 'hono/cors'
+import { trpcServer } from '@hono/trpc-server'
+import { appRouter } from './shared/routers'
+import { LocalFileStorage } from './shared/storage'
+import { createAuthMiddleware, getAuthenticatedUser } from './shared/auth'
+import type { DBUser } from './db/schema'
+import type { FileUploadResult, FileUploadError } from './shared/types'
 import { config } from './config'
-import { createApp } from './app'
-import type { DBUser } from './shared/auth'
 
-// AI : Create the unified app for local development
-const { app: coreApp, appRouter } = createApp({
-    corsOrigin: config.CORS_ORIGIN,
-    databaseUrl: config.DATABASE_URL,
-    isProduction: false,
-})
-
-// AI : Wrap with static file serving for bun
+// AI : Main application setup
 const app = new Hono<{
     Variables: {
         user: DBUser | null
     }
 }>()
 
-// AI : Mount the core app routes
-app.route('/', coreApp)
+const storage = new LocalFileStorage()
+
+// AI : CORS for local development
+app.use('*', cors({
+    origin: config.CORS_ORIGIN,
+    credentials: true
+}))
+
+// AI : Custom session-based authentication middleware
+app.use('*', createAuthMiddleware())
+
+// AI : tRPC routes
+app.use('/trpc/*', trpcServer({
+    router: appRouter,
+    createContext(_opts: any, c: any) {
+        return {
+            user: c.get('user'),
+            hono: c
+        }
+    }
+}))
+
+// AI : File upload endpoint
+app.post('/api/upload-image', async (c) => {
+    try {
+        const body = await c.req.formData()
+        const file = body.get('image') as File
+
+        if (!file) {
+            return c.json({ error: 'No file provided' } as FileUploadError, 400)
+        }
+
+        const maxFileSize = 10 * 1024 * 1024
+        if (file.size > maxFileSize) {
+            return c.json({ error: 'File too large. Maximum size is 10MB' } as FileUploadError, 400)
+        }
+
+        // AI : Better file type validation with MIME type and extension checking
+        const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp']
+        const allowedExtensions = ['jpg', 'jpeg', 'png', 'webp']
+        
+        // AI : Extract file extension in a case-insensitive way
+        function getFileExtension(filename: string | undefined | null): string | null {
+            if (!filename || typeof filename !== 'string') {
+                return null
+            }
+            const lastDot = filename.lastIndexOf('.')
+            if (lastDot === -1 || lastDot === filename.length - 1) {
+                return null
+            }
+            return filename.slice(lastDot + 1).toLowerCase()
+        }
+        
+        const fileExtension = getFileExtension(file.name)
+        
+        // AI : Validate both MIME type and file extension
+        if (!allowedMimeTypes.includes(file.type) || !fileExtension || !allowedExtensions.includes(fileExtension)) {
+            return c.json({ error: 'Invalid file type. Only JPEG, PNG, and WebP are allowed' } as FileUploadError, 400)
+        }
+        
+        const timestamp = Date.now()
+        const randomString = Math.random().toString(36).substring(2, 15)
+        const filename = `${timestamp}-${randomString}.${fileExtension}`
+        
+        const buffer = await file.arrayBuffer()
+        await storage.put(filename, buffer)
+        
+        // AI : Local development uses local URL
+        const imageUrl = `/uploads/${filename}`
+        
+        return c.json({ 
+            success: true, 
+            filename: filename,
+            url: imageUrl
+        } as FileUploadResult)
+    } catch (error) {
+        console.error('Error uploading file:', error)
+        return c.json({ error: 'Failed to upload file' } as FileUploadError, 500)
+    }
+})
+
+// AI : Serve uploaded files - only for local development
+app.get('/uploads/*', async (c) => {
+    try {
+        const filename = c.req.path.replace('/uploads/', '')
+        const file = await storage.get(filename)
+        
+        if (file) {
+            return new Response(file.body, {
+                headers: {
+                    'Content-Type': file.contentType ?? 'application/octet-stream',
+                    'Cache-Control': 'public, max-age=31536000'
+                }
+            })
+        }
+        
+        return c.json({ error: 'File not found' }, 404)
+    } catch (error) {
+        console.error('Error serving file:', error)
+        return c.json({ error: 'Failed to serve file' }, 500)
+    }
+})
+
+// AI : Check authentication status endpoint
+app.get('/api/auth/me', (c) => {
+    const user = getAuthenticatedUser(c)
+    return c.json({
+        isAuthenticated: !!user,
+        user: user ? {
+            id: user.id,
+            email: user.email,
+            username: user.username,
+            role: user.role,
+            emailVerified: user.emailVerified
+        } : null
+    })
+})
+
+// AI : Health check endpoint
+app.get('/api/health', (c) => {
+    return c.json({ status: 'ok', timestamp: new Date().toISOString() })
+})
 
 // AI : Only serve frontend files in development mode
 if (process.env.VITE_DEV_MODE === "true") {
@@ -39,7 +157,7 @@ if (process.env.VITE_DEV_MODE === "true") {
     })
 }
 
-export type AppRouter = typeof appRouter
+export type { AppRouter } from './shared/routers'
 
 export default {
     port: config.PORT,

@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { db } from '../db';
+import { db } from '../database';
 import { cities, countries } from '../db/schema';
 import { sql } from 'drizzle-orm';
 

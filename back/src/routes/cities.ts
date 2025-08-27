@@ -6,8 +6,7 @@ import {
 import {
   sql, eq, isNotNull, and,
 } from 'drizzle-orm';
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import * as schema from '../db/schema';
+import { db } from '../database';
 
 const getCitiesNearLocationSchema = z.object({
   lat: z.number().min(-90).max(90), // AI : Valid latitude range
@@ -26,8 +25,7 @@ const getCityProjectsSchema = z.object({
   cityId: z.uuid()
 });
 
-export function createCitiesRouter(db: PostgresJsDatabase<typeof schema>) {
-  return router({
+export const citiesRouter = router({
     // AI : Get cities closest to given coordinates ordered by distance
     getCitiesNearLocation: publicProcedure
       .input(getCitiesNearLocationSchema)
@@ -208,5 +206,4 @@ export function createCitiesRouter(db: PostgresJsDatabase<typeof schema>) {
           throw new Error('Failed to fetch city projects');
         }
       }),
-  });
-}
+});

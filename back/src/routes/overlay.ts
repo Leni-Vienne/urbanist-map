@@ -2,8 +2,7 @@ import { publicProcedure, protectedProcedure, router } from '../trpc';
 import { z } from 'zod';
 import { overlays, projects, cities, countries } from '../db/schema';
 import { sql, eq, and } from 'drizzle-orm';
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import * as schema from '../db/schema';
+import { db } from '../database';
 
 const publishOverlaySchema = z.object({
   id: z.string().min(1).max(36), // AI : UUID length limit
@@ -100,8 +99,7 @@ async function findIntersectingOverlays(db: PostgresJsDatabase<typeof schema>, e
   }
 }
 
-export function createOverlayRouter(db: PostgresJsDatabase<typeof schema>) {
-  return router({
+export const overlayRouter = router({
     getLatestOverlays: publicProcedure
       .input(getLatestOverlaysSchema)
       .query(async ({ input }) => {
@@ -228,5 +226,4 @@ export function createOverlayRouter(db: PostgresJsDatabase<typeof schema>) {
           throw new Error('Failed to publish overlay');
         }
       }),
-  });
-}
+});

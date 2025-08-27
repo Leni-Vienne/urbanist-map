@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import crypto from 'crypto';
-import { eq, and, gt } from 'drizzle-orm';
+import { eq, gt } from 'drizzle-orm';
 import { publicProcedure, router, protectedProcedure } from '../trpc';
-import { db } from '../db';
+import { db } from '../database';
 import { users } from '../db/schema';
 import { setCookie, deleteCookie } from 'hono/cookie';
 

@@ -3,8 +3,7 @@ import { z } from 'zod';
 import { projects, cities, overlays, countries } from '../db/schema';
 import { eq, sql, and, inArray } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import * as schema from '../db/schema';
+import { db } from '../database';
 
 const publishProjectSchema = z.object({
   id: z.string().uuid().optional(),
@@ -17,8 +16,7 @@ const publishProjectSchema = z.object({
   latestUpdateOn: z.string().optional()
 });
 
-export function createProjectRouter(db: PostgresJsDatabase<typeof schema>) {
-  return router({
+export const projectRouter = router({
   publishProject: protectedProcedure
     .input(publishProjectSchema)
     .mutation(async ({ input, ctx }) => {
@@ -280,5 +278,4 @@ export function createProjectRouter(db: PostgresJsDatabase<typeof schema>) {
           throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch all projects' });
         }
       })
-  });
-}
+});
