@@ -3,8 +3,7 @@ import { z } from 'zod';
 import { projects, overlays, changeRequests, changeHistory } from '../db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import * as schema from '../db/schema';
+import { db } from '../database';
 
 const submitChangeRequestSchema = z.object({
   entityType: z.enum(['project', 'overlay']),
@@ -25,8 +24,7 @@ const rejectChangeRequestSchema = z.object({
   changeRequestIds: z.array(z.string().uuid()),
 });
 
-export function createChangesRouter(db: PostgresJsDatabase<typeof schema>) {
-  return router({
+export const changesRouter = router({
     submitChangeRequest: publicProcedure
       .input(submitChangeRequestSchema)
       .mutation(async ({ input, ctx }) => {
@@ -181,5 +179,4 @@ export function createChangesRouter(db: PostgresJsDatabase<typeof schema>) {
           throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch change history' });
         }
       }),
-  });
-}
+});

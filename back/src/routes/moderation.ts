@@ -3,16 +3,14 @@ import { z } from 'zod';
 import { projects, overlays, approvalStatusEnum, cities, countries, changeRequests } from '../db/schema';
 import { eq, inArray, sql, or } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import * as schema from '../db/schema';
+import { db } from '../database';
 
 const setApprovalStatusSchema = z.object({
   ids: z.array(z.string().uuid()),
   status: z.enum(approvalStatusEnum.enumValues),
 });
 
-export function createModerationRouter(db: PostgresJsDatabase<typeof schema>) {
-  return router({
+export const moderationRouter = router({
     getPendingSubmissions: adminProcedure
       .query(async () => {
         try {
@@ -158,5 +156,4 @@ export function createModerationRouter(db: PostgresJsDatabase<typeof schema>) {
           throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update overlay status' });
         }
       }),
-  });
-}
+});

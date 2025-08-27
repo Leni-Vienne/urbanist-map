@@ -1,7 +1,7 @@
 import { Context, Next } from 'hono'
 import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
-import { db } from '../db'
+import { db } from '../database'
 import { users } from '../db/schema'
 import type { DBUser } from '../db/schema'
 import { getCookie } from 'hono/cookie'

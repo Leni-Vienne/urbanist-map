@@ -1,28 +1,22 @@
 import { router } from '../trpc';
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import * as schema from '../db/schema';
-import { createProjectRouter } from '../routes/project';
-import { createOverlayRouter } from '../routes/overlay';
-import { createCitiesRouter } from '../routes/cities';
-import { createCountriesRouter } from '../routes/countries';
-import { createModerationRouter } from '../routes/moderation';
-import { createChangesRouter } from '../routes/changes';
+import { projectRouter } from '../routes/project';
+import { overlayRouter } from '../routes/overlay';
+import { citiesRouter } from '../routes/cities';
+import { countriesRouter } from '../routes/countries';
+import { moderationRouter } from '../routes/moderation';
+import { changesRouter } from '../routes/changes';
 import { authRouter } from '../routes/auth';
 
-// AI : Main router factory that combines all sub-routers
-export function createAppRouter(db: PostgresJsDatabase<typeof schema>) {
-  // AI : Return the full router with all routes, passing database to each factory
-  return router({
-    auth: authRouter,
-    project: createProjectRouter(db),
-    moderation: createModerationRouter(db),
-    cities: createCitiesRouter(db),
-    country: createCountriesRouter(db),
-    overlay: createOverlayRouter(db),
-    changes: createChangesRouter(db),
-  });
-
-}
+// AI : Main router that combines all sub-routers
+export const appRouter = router({
+  auth: authRouter,
+  project: projectRouter,
+  moderation: moderationRouter,
+  cities: citiesRouter,
+  country: countriesRouter,
+  overlay: overlayRouter,
+  changes: changesRouter,
+});
 
 // AI : Export types
-export type AppRouter = ReturnType<typeof createAppRouter>;
+export type AppRouter = typeof appRouter;

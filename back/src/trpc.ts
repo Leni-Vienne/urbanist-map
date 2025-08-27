@@ -1,6 +1,6 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
-import type { DBUser } from './shared/auth';
+import type { DBUser } from './db/schema';
 import type { Context as HonoContext } from 'hono';
 
 export type Context = {
