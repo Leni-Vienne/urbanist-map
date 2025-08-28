@@ -4,6 +4,10 @@ on:
   push:
     branches: "**"
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy-and-migrate:
     runs-on: self-hosted
@@ -69,7 +73,7 @@ jobs:
         if [ "${{ env.WRANGLER_ENV }}" = "" ]; then
           FRONTEND_URL="https://construction-map.pages.dev"
         else
-          FRONTEND_URL="https://construction-map-preview.pages.dev"
+          FRONTEND_URL="https://preview.construction-map-preview.pages.dev"
         fi
         echo "FRONTEND_URL=$FRONTEND_URL" >> $GITHUB_ENV
         echo "Frontend deployed to: $FRONTEND_URL"
