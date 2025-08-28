@@ -34,6 +34,10 @@ services:
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/construction_map
       JWT_SECRET: ${JWT_SECRET}
       CORS_ORIGIN: ${CORS_ORIGIN}
+      SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SES_REGION: ${SES_REGION}
+      FROM_EMAIL: ${FROM_EMAIL}
     volumes:
       - ./server.bundle.js:/app/server.bundle.js:ro
       - backend_uploads:/app/uploads
