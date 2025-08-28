@@ -226,10 +226,16 @@ export const authRouter = router({
         // AI : Check if user already exists
         const existingUser = await db.select().from(users).where(eq(users.email, email)).limit(1);
         if (existingUser.length > 0) {
-          throw new TRPCError({
-            code: 'CONFLICT',
-            message: 'User already exists with this email',
-          });
+          // AI : If user exists but email is not verified, allow re-registration (overwrite)
+          if (!existingUser[0].emailVerified) {
+            // AI : Delete the unverified user
+            await db.delete(users).where(eq(users.id, existingUser[0].id));
+          } else {
+            throw new TRPCError({
+              code: 'CONFLICT',
+              message: 'User already exists with this email',
+            });
+          }
         }
 
         // AI : Check username uniqueness if provided
@@ -535,4 +541,4 @@ export const authRouter = router({
       };
     }),
 
-});
+});;
