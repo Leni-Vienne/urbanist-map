@@ -55,12 +55,24 @@ jobs:
       run: bun run build-back
 
     - name: Deploy frontend to Cloudflare Pages
+      id: deploy-frontend
       uses: cloudflare/wrangler-action@v3
       with:
         apiToken: ${{ secrets.CF_API_TOKEN }}
         accountId: ${{ secrets.CF_ACCOUNT_ID }}
         command: pages deploy front/dist --project-name=${{ env.WRANGLER_ENV == '' && 'construction-map' || 'construction-map-preview' }}
         gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract frontend URL
+      id: extract-url
+      run: |
+        if [ "${{ env.WRANGLER_ENV }}" = "" ]; then
+          FRONTEND_URL="https://construction-map.pages.dev"
+        else
+          FRONTEND_URL="https://construction-map-preview.pages.dev"
+        fi
+        echo "FRONTEND_URL=$FRONTEND_URL" >> $GITHUB_ENV
+        echo "Frontend deployed to: $FRONTEND_URL"
 
     - name: Deploy backend with docker compose to remote server
       env:
@@ -69,7 +81,10 @@ jobs:
         REMOTE_PASSWORD: ${{ secrets.REMOTE_PASSWORD }}
         POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
         JWT_SECRET: ${{ secrets.JWT_SECRET }}
-        CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
+        SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+        SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+        SES_REGION: ${{ vars.SES_REGION }}
+        FROM_EMAIL: ${{ vars.FROM_EMAIL }}
       run: |
         # AI : Install sshpass for password authentication
         sudo apt-get update && sudo apt-get install -y sshpass
@@ -102,8 +117,8 @@ jobs:
           sudo cp /tmp/Caddyfile ./
           
           # AI : Create .env file from GitHub secrets/vars
-          printf 'POSTGRES_PASSWORD=%s\nDATABASE_URL=postgres://postgres:%s@postgres:5432/construction_map\nJWT_SECRET=%s\nCORS_ORIGIN=%s\nPORT=3000\n' \
-            "${POSTGRES_PASSWORD}" "${POSTGRES_PASSWORD}" "${JWT_SECRET}" "${CORS_ORIGIN}" > .env
+          printf 'POSTGRES_PASSWORD=%s\nDATABASE_URL=postgres://postgres:%s@postgres:5432/construction_map\nJWT_SECRET=%s\nCORS_ORIGIN=%s\nFRONTEND_URL=%s\nPORT=3000\nSMTP_USERNAME=%s\nSMTP_PASSWORD=%s\nSES_REGION=%s\nFROM_EMAIL=%s\n' \
+            "${POSTGRES_PASSWORD}" "${POSTGRES_PASSWORD}" "${JWT_SECRET}" "${FRONTEND_URL}" "${FRONTEND_URL}" "${SMTP_USERNAME}" "${SMTP_PASSWORD}" "${SES_REGION}" "${FROM_EMAIL}" > .env
           
           # AI : Start services (no build needed, using vanilla bun image)
           sudo docker compose -f docker-compose.prod.yml up -d

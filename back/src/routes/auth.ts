@@ -15,12 +15,12 @@ const registerSchema = z.object({
 });
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  email: z.email(),
   password: z.string(),
 });
 
 const resetPasswordRequestSchema = z.object({
-  email: z.string().email(),
+  email: z.email(),
 });
 
 const resetPasswordSchema = z.object({
@@ -34,16 +34,185 @@ function generateToken(): string {
 }
 
 // AI : Email placeholder service
+// AI : Email service using Amazon SES
+interface EmailServiceConfig {
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+  from: string;
+}
+
+class EmailService {
+  private config: EmailServiceConfig;
+
+  constructor(config: EmailServiceConfig) {
+    this.config = config;
+  }
+
+  async sendEmail(to: string, subject: string, html: string): Promise<void> {
+    try {
+      // AI : Use nodemailer for direct SMTP connection to Amazon SES
+      const nodemailer = await import('nodemailer');
+      
+      const transporter = nodemailer.createTransport({
+        host: this.config.host,
+        port: this.config.port,
+        secure: false, // Use STARTTLS
+        auth: {
+          user: this.config.user,
+          pass: this.config.password,
+        },
+      });
+
+      const mailOptions = {
+        from: this.config.from,
+        to: to,
+        subject: subject,
+        html: html,
+      };
+
+      const result = await transporter.sendMail(mailOptions);
+      console.log(`Email sent successfully to ${to}:`, result.messageId);
+      
+    } catch (error) {
+      console.error('Email sending error:', error);
+      
+      // AI : In development, fallback to console logging
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[DEV FALLBACK] Email to ${to}`);
+        console.log(`Subject: ${subject}`);
+        console.log('SMTP Config:', {
+          host: this.config.host,
+          port: this.config.port,
+          user: this.config.user,
+          from: this.config.from
+        });
+      } else {
+        throw error;
+      }
+    }
+  }
+}
+
+// AI : Initialize email service
+function getEmailService(): EmailService {
+  const config: EmailServiceConfig = {
+    // AI : Amazon SES SMTP endpoints par région
+    host: process.env.SES_REGION ? `email-smtp.${process.env.SES_REGION}.amazonaws.com` : 'email-smtp.us-east-1.amazonaws.com',
+    port: 587, // STARTTLS
+    user: process.env.SMTP_USERNAME ?? '', // Nom d'utilisateur SMTP de SES
+    password: process.env.SMTP_PASSWORD ?? '', // Mot de passe SMTP de SES  
+    from: process.env.FROM_EMAIL ?? '',
+  };
+
+  if (!config.user || !config.password || !config.from) {
+    console.warn('SES SMTP configuration incomplete. Required: SMTP_USERNAME, SMTP_PASSWORD, FROM_EMAIL');
+  }
+
+  return new EmailService(config);
+}
+
 async function sendVerificationEmail(email: string, token: string): Promise<void> {
-  // AI : Placeholder for email sending
-  console.log(`[EMAIL PLACEHOLDER] Verification email to ${email} with token: ${token}`);
-  console.log(`Verification link: ${process.env.FRONTEND_URL}/verify?token=${token}`);
+  try {
+    const emailService = getEmailService();
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${token}`;
+    
+    const subject = 'Verify your email address - Construction Map';
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Email Verification</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #f8f9fa; padding: 30px; border-radius: 8px;">
+            <h1 style="color: #2c3e50; margin-bottom: 20px;">Welcome to Construction Map!</h1>
+            <p style="color: #555; font-size: 16px; line-height: 1.5;">
+              Thank you for signing up. To activate your account, please click the link below:
+            </p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${verificationUrl}" 
+                 style="background-color: #3498db; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Verify my email
+              </a>
+            </div>
+            <p style="color: #777; font-size: 14px;">
+              If the button doesn't work, copy and paste this link in your browser:
+              <br><a href="${verificationUrl}" style="color: #3498db;">${verificationUrl}</a>
+            </p>
+            <p style="color: #777; font-size: 12px; margin-top: 30px;">
+              This link will expire in 24 hours. If you didn't request this verification, please ignore this email.
+            </p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    await emailService.sendEmail(email, subject, html);
+    console.log(`Verification email sent successfully to ${email}`);
+  } catch (error) {
+    console.error('Failed to send verification email:', error);
+    // AI : In development, fallback to console logging
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[DEV FALLBACK] Verification email to ${email} with token: ${token}`);
+      console.log(`Verification link: ${process.env.FRONTEND_URL}/verify?token=${token}`);
+    } else {
+      throw error;
+    }
+  }
 }
 
 async function sendPasswordResetEmail(email: string, token: string): Promise<void> {
-  // AI : Placeholder for email sending
-  console.log(`[EMAIL PLACEHOLDER] Password reset email to ${email} with token: ${token}`);
-  console.log(`Reset link: ${process.env.FRONTEND_URL}/reset-password?token=${token}`);
+  try {
+    const emailService = getEmailService();
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+    
+    const subject = 'Reset your password - Construction Map';
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Password Reset</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #f8f9fa; padding: 30px; border-radius: 8px;">
+            <h1 style="color: #e74c3c; margin-bottom: 20px;">Password Reset</h1>
+            <p style="color: #555; font-size: 16px; line-height: 1.5;">
+              You requested a password reset. Click the link below to create a new password:
+            </p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${resetUrl}" 
+                 style="background-color: #e74c3c; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Reset my password
+              </a>
+            </div>
+            <p style="color: #777; font-size: 14px;">
+              If the button doesn't work, copy and paste this link in your browser:
+              <br><a href="${resetUrl}" style="color: #e74c3c;">${resetUrl}</a>
+            </p>
+            <p style="color: #777; font-size: 12px; margin-top: 30px;">
+              This link will expire in 1 hour. If you didn't request this reset, please ignore this email.
+            </p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    await emailService.sendEmail(email, subject, html);
+    console.log(`Password reset email sent successfully to ${email}`);
+  } catch (error) {
+    console.error('Failed to send password reset email:', error);
+    // AI : In development, fallback to console logging
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[DEV FALLBACK] Password reset email to ${email} with token: ${token}`);
+      console.log(`Reset link: ${process.env.FRONTEND_URL}/reset-password?token=${token}`);
+    } else {
+      throw error;
+    }
+  }
 }
 
 export const authRouter = router({
