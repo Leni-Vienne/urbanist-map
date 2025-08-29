@@ -33,6 +33,9 @@
             "@client": [
                 "./front/src/client"
             ],
+            "@pages/*": [
+                "./front/src/pages/*"
+            ],
             "leaflet": [
                 "./node_modules/@types/leaflet"
             ]

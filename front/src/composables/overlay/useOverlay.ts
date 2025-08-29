@@ -1485,7 +1485,7 @@ async function selectAndCenterOverlay(overlayId: string, index?: number, total?:
 
     if (centerMap && map.value) {
       // AI : Wait for overlay to be properly initialized before zooming
-      const zoomSuccess = await centerMapOnOverlay(overlay);
+      await centerMapOnOverlay(overlay);
     }
     return true;
   } else if (overlay.marker && centerMap && map.value) {

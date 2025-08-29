@@ -140,7 +140,7 @@ app.get('/api/health', (c) => {
 })
 
 // AI : Only serve frontend files in development mode
-if (process.env.VITE_DEV_MODE === "true") {
+if (process.env.NODE_ENV === "development") {
     // AI : Static file serving for frontend
     app.use('*', serveStatic({ root: './front/dist' }))
 

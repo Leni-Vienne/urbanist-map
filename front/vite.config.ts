@@ -38,6 +38,7 @@ export default defineConfig({
       // AI : Redirect leaflet imports to our CDN shim
       'leaflet': path.resolve(__dirname, './src/lib/leaflet-umd-shim.ts'),
       '@tables': path.resolve(__dirname, './back/src/db/schema'),
+      '@pages': path.resolve(__dirname, './src/pages'),
       '@assets': path.resolve(__dirname, './src/assets'),
       '@composables': path.resolve(__dirname, './src/composables'),
       '@components': path.resolve(__dirname, './src/components'),

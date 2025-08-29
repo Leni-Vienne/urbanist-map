@@ -52,18 +52,24 @@ class EmailService {
 
   async sendEmail(to: string, subject: string, html: string): Promise<void> {
     try {
-      // AI : Use nodemailer for direct SMTP connection to Amazon SES
+      // AI : Use nodemailer for SMTP connection
       const nodemailer = await import('nodemailer');
       
-      const transporter = nodemailer.createTransport({
+      const transportConfig: any = {
         host: this.config.host,
         port: this.config.port,
-        secure: false, // Use STARTTLS
-        auth: {
+        secure: process.env.SMTP_SECURE === 'true', // Use TLS/SSL
+      };
+
+      // AI : Only add auth if credentials are provided (not needed for Mailpit)
+      if (this.config.user && this.config.password) {
+        transportConfig.auth = {
           user: this.config.user,
           pass: this.config.password,
-        },
-      });
+        };
+      }
+      
+      const transporter = nodemailer.createTransport(transportConfig);
 
       const mailOptions = {
         from: this.config.from,
@@ -98,16 +104,25 @@ class EmailService {
 // AI : Initialize email service
 function getEmailService(): EmailService {
   const config: EmailServiceConfig = {
-    // AI : Amazon SES SMTP endpoints par région
-    host: process.env.SES_REGION ? `email-smtp.${process.env.SES_REGION}.amazonaws.com` : 'email-smtp.us-east-1.amazonaws.com',
-    port: 587, // STARTTLS
-    user: process.env.SMTP_USERNAME ?? '', // Nom d'utilisateur SMTP de SES
-    password: process.env.SMTP_PASSWORD ?? '', // Mot de passe SMTP de SES  
+    // AI : Use Mailpit for development, AWS SES for production
+    host: process.env.SMTP_HOST ?? (process.env.SES_REGION ? `email-smtp.${process.env.SES_REGION}.amazonaws.com` : 'email-smtp.us-east-1.amazonaws.com'),
+    port: Number(process.env.SMTP_PORT) || 587,
+    user: process.env.SMTP_USERNAME ?? '',
+    password: process.env.SMTP_PASSWORD ?? '',
     from: process.env.FROM_EMAIL ?? '',
   };
 
-  if (!config.user || !config.password || !config.from) {
-    console.warn('SES SMTP configuration incomplete. Required: SMTP_USERNAME, SMTP_PASSWORD, FROM_EMAIL');
+  // AI : For Mailpit (dev), credentials are optional
+  if (process.env.NODE_ENV === 'development' && config.host === 'localhost') {
+    // AI : Mailpit doesn't need authentication
+    if (!config.from) {
+      console.warn('FROM_EMAIL configuration missing');
+    }
+  } else {
+    // AI : For production (AWS SES), credentials are required
+    if (!config.user || !config.password || !config.from) {
+      console.warn('SMTP configuration incomplete. Required: SMTP_USERNAME, SMTP_PASSWORD, FROM_EMAIL');
+    }
   }
 
   return new EmailService(config);
