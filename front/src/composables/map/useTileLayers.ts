@@ -84,19 +84,19 @@ export function addTileLayer(): void {
 /**
  * AI : Initialize all tile layers without layer control (using custom control instead)
  */
-async function addTileLayersToMap(): Promise<void> {
+function addTileLayersToMap(): void {
   if (!map.value) {
     return;
   }
 
   try {
     // AI : Create and add only the default ESRI layer
-    activeTileLayer = await createTileLayer('esri');
+    activeTileLayer = createTileLayer('esri');
     activeTileLayer.addTo(map.value);
   } catch (error) {
     console.error('Failed to initialize tile layers:', error);
     // AI : Fallback to simple ESRI layer on error
-    const fallbackLayer = await createTileLayer('esri');
+    const fallbackLayer = createTileLayer('esri');
     activeTileLayer = fallbackLayer;
     activeTileLayer.addTo(map.value);
   }
@@ -106,7 +106,7 @@ async function addTileLayersToMap(): Promise<void> {
 /**
  * AI : Create a tile layer based on configuration
  */
-async function createTileLayer(layerType: TileLayerType): Promise<L.TileLayer | L.GridLayer> {
+function createTileLayer(layerType: TileLayerType): L.TileLayer | L.GridLayer {
   const config = tileLayerConfigs[layerType];
 
   // AI : Create standard tile layer

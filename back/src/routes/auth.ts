@@ -342,8 +342,8 @@ export const authRouter = router({
         if (ctx.hono) {
           setCookie(ctx.hono, 'user_id', user.id, {
             httpOnly: true,
-            secure: true,
-            sameSite: 'Strict',
+            secure: process.env.NODE_ENV === 'production', // AI : Only secure in production (HTTPS)
+            sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax', // AI : None for cross-domain in prod, Lax for dev
             maxAge: 60 * 60 * 24 * 30, // AI : 30 days
           });
         }

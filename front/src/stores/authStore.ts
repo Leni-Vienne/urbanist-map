@@ -49,12 +49,12 @@ export const useAuthStore = defineStore('auth', () => {
         user: result.user,
         error: result.success ? null : result.message
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Sign up error:', error)
       return { 
         success: false, 
         user: null, 
-        error: error.message ?? 'Registration failed'
+        error:  error instanceof Error ? error.message : 'Registration failed'
       }
     }
   }
@@ -76,12 +76,12 @@ export const useAuthStore = defineStore('auth', () => {
         user: result.user,
         error: result.success ? null : result.message
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Sign in error:', error)
       return { 
         success: false, 
         user: null, 
-        error: error.message ?? 'Login failed'
+        error:  error instanceof Error ? error.message : 'Login failed'
       }
     }
   }
@@ -101,11 +101,11 @@ export const useAuthStore = defineStore('auth', () => {
       await trpc.auth.logout.mutate()
       user.value = null
       return { success: true, error: null }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Sign out error:', error)
       // AI : Clear local data even if server logout fails
       user.value = null
-      return { success: false, error: error.message ?? 'Logout failed' }
+      return { success: false, error:  error instanceof Error ? error.message : 'Logout failed' }
     }
   }
 
@@ -117,11 +117,11 @@ export const useAuthStore = defineStore('auth', () => {
         success: result.success,
         error: result.success ? null : result.message
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Email verification error:', error)
       return {
         success: false,
-        error: error.message ?? 'Email verification failed'
+        error:  error instanceof Error ? error.message : 'Email verification failed'
       }
     }
   }
@@ -134,11 +134,11 @@ export const useAuthStore = defineStore('auth', () => {
         success: result.success,
         error: result.success ? null : result.message
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Password reset request error:', error)
       return {
         success: false,
-        error: error.message ?? 'Password reset request failed'
+        error:  error instanceof Error ? error.message : 'Password reset request failed'
       }
     }
   }
@@ -151,11 +151,11 @@ export const useAuthStore = defineStore('auth', () => {
         success: result.success,
         error: result.success ? null : result.message
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Password reset error:', error)
       return {
         success: false,
-        error: error.message ?? 'Password reset failed'
+        error:  error instanceof Error ? error.message : 'Password reset failed'
       }
     }
   }
