@@ -244,7 +244,7 @@ function cleanupCountryMouseTooltip(): void {
 
 export async function initializeCountryMarkers(): Promise<void> {
   await loadCountriesWithProjects();
-  addCountryMarkersToMap();
+  await addCountryMarkersToMap();
 }
 
 export function cleanupCountryMarkers(): void {

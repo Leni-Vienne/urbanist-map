@@ -820,7 +820,7 @@ export async function handleEditModeExit(): Promise<void> {
       setViewModeOverlays(overlaysData);
 
       // AI : Render the overlays on the map
-      renderViewModeOverlays(overlaysData, true, true).catch((error: any) => {
+      renderViewModeOverlays(overlaysData, true, true).catch((error: unknown) => {
         console.error('AI : Error re-rendering overlays in view mode:', error);
       });
     } else {

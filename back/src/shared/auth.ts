@@ -38,12 +38,12 @@ export function createAuthMiddleware() {
     try {
       const user = await getUserFromCookie(c)
       c.set('user', user)
-      return next()
+      return await next()
       
     } catch (error) {
       console.error('Auth middleware error:', error)
       c.set('user', null)
-      return next()
+      return await next()
     }
   }
 }

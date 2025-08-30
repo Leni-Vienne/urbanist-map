@@ -23,11 +23,11 @@ const t = initTRPC.context<Context>().create({
 export const router = t.router;
 export const publicProcedure = t.procedure;
 
-export const isAuthed = t.middleware(({ ctx, next }) => {
+export const isAuthed = t.middleware(async ({ ctx, next }) => {
     if (!ctx.user) {
         throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Not authenticated' });
     }
-    return next({
+    return await next({
         ctx: {
             user: ctx.user,
         },
@@ -35,14 +35,14 @@ export const isAuthed = t.middleware(({ ctx, next }) => {
 });
 
 // AI : Middleware to check if user has admin role
-export const isAdmin = t.middleware(({ ctx, next }) => {
+export const isAdmin = t.middleware(async ({ ctx, next }) => {
     if (!ctx.user) {
         throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Not authenticated' });
     }
     if (ctx.user.role !== 'admin') {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin access required' });
     }
-    return next({
+    return await next({
         ctx: {
             user: ctx.user,
         },

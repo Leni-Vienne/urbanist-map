@@ -4,6 +4,7 @@
     "unused": "bunx nyc report --reporter=html --reporter=text --report-dir=coverage",
     "ts-check": "bunx vue-tsc@latest --noEmit",
     "oxlint": "bunx oxlint@latest --type-aware",
+    "tsgolint": "bunx oxlint-tsgolint",
     "preview": "vite preview front",
     "dev-front": "bunx --bun vite front",
     "build-front-workflow": "bun --bun vite build front --mode=production",
