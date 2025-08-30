@@ -10,7 +10,7 @@
       <div class="explanation-section">
         <h4>What kind of images are accepted?</h4>
         <p>
-          This website is about upcoming infrastructure and buildings. whether that's new trams lines,
+          This website is about upcoming infrastructure and buildings. whether that's new tram lines,
           cycle paths, redeveloppement and more.
         </p>
 
@@ -36,7 +36,11 @@
           />
           <label
             for="overlay-file-input"
-            class="file-input-label"
+            :class="['file-input-label', { 'drag-over': isDragOver }]"
+            @dragover.prevent="onDragOver"
+            @dragenter.prevent="onDragEnter"
+            @dragleave.prevent="onDragLeave"
+            @drop.prevent="onDrop"
           >
             <i class="pi pi-cloud-upload text-3xl mb-2"></i>
             <span class="upload-text">Choose Image File</span>
@@ -97,6 +101,7 @@ const emit = defineEmits<Emits>();
 // AI : Component state
 const fileInput = ref<HTMLInputElement>();
 const selectedFile = ref<File | null>(null);
+const isDragOver = ref(false);
 
 // AI : Handle visibility changes
 const visible = computed({
@@ -109,6 +114,37 @@ function onFileSelect(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (file) {
     selectedFile.value = file;
+  }
+}
+
+// AI : Drag and drop handlers
+function onDragOver(event: DragEvent) {
+  event.preventDefault();
+  isDragOver.value = true;
+}
+
+function onDragEnter(event: DragEvent) {
+  event.preventDefault();
+  isDragOver.value = true;
+}
+
+function onDragLeave(event: DragEvent) {
+  event.preventDefault();
+  isDragOver.value = false;
+}
+
+function onDrop(event: DragEvent) {
+  event.preventDefault();
+  isDragOver.value = false;
+  
+  const files = event.dataTransfer?.files;
+  if (files && files.length > 0) {
+    const file = files[0];
+    // AI : Check if file type is accepted
+    const acceptedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+    if (acceptedTypes.includes(file.type)) {
+      selectedFile.value = file;
+    }
   }
 }
 
@@ -213,6 +249,12 @@ watch(() => props.visible, (newVisible) => {
 .file-input-label:hover {
   border-color: var(--p-primary-600);
   background: #f5f5f5;
+}
+
+.file-input-label.drag-over {
+  border-color: var(--p-primary-600);
+  background: var(--p-primary-50);
+  transform: scale(1.02);
 }
 
 .upload-text {

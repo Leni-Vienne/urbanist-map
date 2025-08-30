@@ -262,9 +262,11 @@
         v-else-if="!isLoading"
         class="flex flex-col items-center justify-center p-12 text-center text-surface-600"
       >
-        <i class="pi pi-folder text-5xl text-surface-400 mb-4"></i>
-        <p class="text-base mb-2">{{ emptyMessage }}</p>
-        <p class="text-sm">{{ emptySubMessage }}</p>
+        <slot name="empty-state">
+          <i class="pi pi-folder text-5xl text-surface-400 mb-4"></i>
+          <p class="text-base mb-2">{{ emptyMessage }}</p>
+          <p class="text-sm">{{ emptySubMessage }}</p>
+        </slot>
       </div>
 
       <!-- AI : Loading state -->

@@ -40,7 +40,7 @@
         My Contributions
       </button>
       <button
-        v-if="authStore.isAuthenticated"
+        v-if="authStore.isAdmin"
         :class="['tab-button', { active: activeTab === 'admin' }]"
         @click="activeTab = 'admin'"
       >
@@ -52,18 +52,22 @@
       <!-- AI : Show content based on active tab -->
       <LatestOverlaysPanel v-if="activeTab === 'latest'" />
       <MyContributionsPanel v-else-if="activeTab === 'uploads' && authStore.isAuthenticated" />
-      <ModerationPanel v-else-if="activeTab === 'admin' && authStore.isAuthenticated" />
+      <ModerationPanel v-else-if="activeTab === 'admin' && authStore.isAdmin" />
 
       <!-- AI : Show sign-in prompt for authenticated tabs when not signed in -->
       <div
-        v-else-if="!authStore.isAuthenticated && (activeTab === 'uploads' || activeTab === 'admin')"
+        v-else-if="(!authStore.isAuthenticated && (activeTab === 'uploads' || activeTab === 'admin')) || (activeTab === 'admin' && !authStore.isAdmin)"
         class="signin-prompt"
       >
         <div class="signin-content">
           <i class="pi pi-user text-4xl text-muted-color mb-4"></i>
-          <h3 class="text-lg font-semibold mb-2">Authentication Required</h3>
+          <h3 class="text-lg font-semibold mb-2">
+            {{ activeTab === 'admin' && authStore.isAuthenticated && !authStore.isAdmin ? 'Admin Access Required' : 'Authentication Required' }}
+          </h3>
           <p class="text-muted-color text-sm mb-4 text-center">
-            Please sign in using the button in the top-right corner to access this section.
+            {{ activeTab === 'admin' && authStore.isAuthenticated && !authStore.isAdmin 
+              ? 'You need administrator privileges to access this section.'
+              : 'Please sign in using the button in the top-right corner to access this section.' }}
           </p>
         </div>
       </div>
@@ -95,9 +99,16 @@ defineEmits<{
 // AI : Tab state - default to "latest" like the prototype
 const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
 
-// AI : Watch for authentication changes and reset tab if user signs out
+// AI : Watch for authentication changes and reset tab if user signs out or loses admin rights
 watch(() => authStore.isAuthenticated, (isAuthenticated) => {
   if (!isAuthenticated && (activeTab.value === 'uploads' || activeTab.value === 'admin')) {
+    activeTab.value = 'latest'
+  }
+})
+
+// AI : Watch for admin role changes and reset admin tab if user loses admin rights
+watch(() => authStore.isAdmin, (isAdmin) => {
+  if (!isAdmin && activeTab.value === 'admin') {
     activeTab.value = 'latest'
   }
 })

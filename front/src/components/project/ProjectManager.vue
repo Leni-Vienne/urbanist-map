@@ -72,7 +72,7 @@
 <script setup lang="ts">
 import { ref, defineAsyncComponent } from 'vue'
 import { storeToRefs } from 'pinia'
-import ImageUploadDialog from '@components/dialogs/ImageUploadDialog.vue'
+import ImageUploadDialog from '@components/map/ImageUploadDialog.vue'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useProjectStore } from '@stores/pinia/projectStore'
 import { useUiStore } from '@stores/uiStore'

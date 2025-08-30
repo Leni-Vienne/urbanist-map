@@ -34,14 +34,7 @@
         </svg>
       </template>
     </Button>
-    <Button
-      v-if="authStore.isAuthenticated"
-      icon="pi pi-cog"
-      @click="uiStore.openProjectDialog()"
-      @dblclick.stop
-      v-tooltip.right="'Test Project Dialog'"
-      severity="secondary"
-    />
+    
     <LayerControl />
 
     <!-- AI : Edit Mode Toggle Button (inline) -->

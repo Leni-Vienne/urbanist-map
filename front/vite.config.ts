@@ -16,7 +16,7 @@ export default defineConfig({
     visualizer({
       filename: 'stats.html',
       open: false,
-      template: 'treemap', // 'treemap', 'sunburst', 'network'
+      template: 'treemap', // 'treemap', 'sunburst', 'network', 'list', 'flamegraph', 'raw-data'
     }),
     tailwindcss(),
     vueDevTools(),
@@ -68,7 +68,7 @@ export default defineConfig({
       'primevue/radiobutton',
       'primevue/select',
       'primevue/toast',
-      'primevue/virtualscroller',
+      //'primevue/virtualscroller',
       'primevue/focustrap',
       'primevue/ripple',
       'primevue/tooltip',
@@ -78,11 +78,17 @@ export default defineConfig({
   },
   // AI : External leaflet to prevent bundling 
   build: {
+    sourcemap: 'hidden', // AI : Hide sourcemaps to silence istanbul warning
     rollupOptions: {
       external: (id) => {
         // AI : Mark CDN URLs as external so they don't get bundled
         return id.includes('unpkg.com/leaflet')
       }
     }
+  },
+  // removes vue devtools in production (and more, from 809Kb to 691Kb)
+  define: {
+    __VUE_PROD_DEVTOOLS__: false,
+    'process.env.NODE_ENV': JSON.stringify('production')
   }
 })
