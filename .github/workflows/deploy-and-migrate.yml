@@ -54,6 +54,7 @@ jobs:
       env:
         VITE_R2_PUBLIC_URL: ${{ vars.VITE_R2_PUBLIC_URL }}
         VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+        NODE_ENV: production
 
     - name: Build backend bundle
       run: bun run build-back
@@ -126,9 +127,6 @@ jobs:
           
           # AI : Start services (no build needed, using vanilla bun image)
           sudo docker compose -f docker-compose.prod.yml up -d
-          
-          # AI : Wait for services to be ready
-          sleep 10
           
           # AI : Show status
           sudo docker compose -f docker-compose.prod.yml ps

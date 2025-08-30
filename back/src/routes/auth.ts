@@ -9,9 +9,9 @@ import { setCookie, deleteCookie } from 'hono/cookie';
 
 // AI : Validation schemas
 const registerSchema = z.object({
-  email: z.string().email(),
+  email: z.email(),
   password: z.string().min(8),
-  username: z.string().min(3).max(50).optional(),
+  username: z.string().min(7).max(50),
 });
 
 const loginSchema = z.object({

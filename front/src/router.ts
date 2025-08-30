@@ -1,7 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Home from '@pages/Home.vue'
-import EmailVerification from '@pages/EmailVerification.vue'
-import PasswordReset from '@pages/PasswordReset.vue'
 
 const routes = [
   {
@@ -12,12 +10,12 @@ const routes = [
   {
     path: '/verify',
     name: 'EmailVerification',
-    component: EmailVerification
+    component: () => import('@pages/EmailVerification.vue') // Lazy load
   },
   {
     path: '/reset-password',
     name: 'PasswordReset', 
-    component: PasswordReset
+    component: () => import('@pages/PasswordReset.vue') // Lazy load
   }
 ]
 

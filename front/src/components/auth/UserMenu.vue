@@ -20,7 +20,7 @@
       <div class="user-avatar">
         <i class="pi pi-user"></i>
       </div>
-      <span class="username">{{ username }}</span>
+      <span class="username">{{ authStore.user?.username }}</span>
       <i
         class="pi pi-chevron-down"
         :class="{ 'rotated': isMenuOpen }"
@@ -32,12 +32,7 @@
       <div class="flex flex-col w-48">
         <div class="px-3 py-2 bg-surface-50 border-round">
           <div class="font-medium text-sm">{{ authStore.user?.email }}</div>
-          <div 
-            v-if="authStore.user?.user_metadata?.role"
-            class="text-xs text-surface-500 mt-1"
-          >
-            {{ authStore.user.user_metadata.role }}
-          </div>
+
         </div>
         <div
           class="flex items-center gap-2 px-3 py-2 hover:bg-surface-100 cursor-pointer border-round"
@@ -72,13 +67,6 @@ const showAuthModal = ref(false)
 const isMenuOpen = ref(false)
 const userPopover = ref()
 
-// AI : Computed username display
-const username = computed(() => {
-  return authStore.user?.user_metadata?.username ||
-    authStore.user?.email?.split('@')[0] ||
-    'User'
-})
-
 // AI : Toggle menu visibility using Popover
 function toggleMenu(event: Event) {
   userPopover.value.toggle(event)
@@ -111,8 +99,6 @@ watch(() => userPopover.value?.visible, (visible) => {
 </script>
 
 <style scoped>
-
-
 .sign-in-button {
   background: white;
   border: 1px solid var(--p-surface-300);
@@ -172,5 +158,4 @@ watch(() => userPopover.value?.visible, (visible) => {
 .pi-chevron-down.rotated {
   transform: rotate(180deg);
 }
-
 </style>

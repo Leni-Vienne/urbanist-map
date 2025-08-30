@@ -17,6 +17,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   // AI : Computed properties
   const isAuthenticated = computed(() => !!user.value)
+  const isAdmin = computed(() => user.value?.role === 'admin')
 
   // AI : Initialize auth state
   async function initialize() {
@@ -35,7 +36,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // AI : Sign up with email and password
-  async function signUp(email: string, password: string, username?: string) {
+  async function signUp(email: string, password: string, username: string) {
     try {
       const result = await trpc.auth.register.mutate({
         email,
@@ -168,6 +169,7 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     loading,
     isAuthenticated,
+    isAdmin,
     initialize,
     signUp,
     signIn,
