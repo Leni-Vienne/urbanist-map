@@ -10,7 +10,7 @@ import { getCookie } from 'hono/cookie'
 export async function getUserFromCookie(c: Context): Promise<DBUser | null> {
   try {
     const userId = getCookie(c, 'user_id')
-    
+
     if (!userId) {
       return null
     }
@@ -38,12 +38,12 @@ export function createAuthMiddleware() {
     try {
       const user = await getUserFromCookie(c)
       c.set('user', user)
-      return await next()
-      
+      await next()
+
     } catch (error) {
       console.error('Auth middleware error:', error)
       c.set('user', null)
-      return await next()
+      await next()
     }
   }
 }

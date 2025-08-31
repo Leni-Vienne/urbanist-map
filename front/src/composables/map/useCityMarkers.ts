@@ -122,7 +122,7 @@ export async function loadCityProjects(cityId: string, cityName: string, forceFu
 
     if (hasCachedData && shouldShowFullOverlays) {
       // AI : We have cached data and zoom is high enough - show full overlays immediately
-      await renderFullOverlaysFromCache(cityId, cityName);
+      renderFullOverlaysFromCache(cityId, cityName);
       return;
     } else if (hasCachedData && !shouldShowFullOverlays) {
       // AI : We have cached data but zoom is too low - show markers only
@@ -481,7 +481,7 @@ function updateMouseTooltipPosition(event: MouseEvent): void {
 /**
  * AI : Render full overlays from cached data
  */
-async function renderFullOverlaysFromCache(cityId: string, cityName: string): Promise<void> {
+function renderFullOverlaysFromCache(cityId: string, cityName: string) {
   const overlaysData = cityProjectsCache.get(cityId);
   if (!overlaysData) {
     console.warn(`AI : No cached data found for city ${cityName}`);
@@ -500,8 +500,8 @@ async function renderFullOverlaysFromCache(cityId: string, cityName: string): Pr
     currentCityOverlays.value = overlaysData;
 
     // AI : Filter overlays based on current completion status filters
-    const { filterByCompletionStatus } = useCompletionFilters();
-    const visibleOverlays = filterByCompletionStatus(overlaysData) as CDNOverlayData[];
+    const completionFilters = useCompletionFilters();
+    const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData) as CDNOverlayData[];
 
     // AI : Set overlays in view mode overlays and render them
     const { setViewModeOverlays } = useViewModeOverlays();
@@ -533,8 +533,8 @@ export function renderOverlayMarkersFromCache(cityId: string, cityName: string):
     stopCameraTracking();
 
     // AI : Filter overlays based on current completion status filters
-    const { filterByCompletionStatus } = useCompletionFilters();
-    const visibleOverlays = filterByCompletionStatus(overlaysData) as CDNOverlayData[];
+    const completionFilters = useCompletionFilters();
+    const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData) as CDNOverlayData[];
 
     // AI : Create new layer group for overlay markers
     overlayMarkersLayer = L.layerGroup();
@@ -572,7 +572,7 @@ export function setupZoomEventListener(): void {
 }
 
 // AI : Combined zoom handler for both cleanup and live overlay rendering
-const combinedZoomHandler = debounce(async () => {
+const combinedZoomHandler = debounce(() => {
   if (!map.value) return;
 
   const currentZoom = map.value.getZoom();
@@ -593,7 +593,7 @@ const combinedZoomHandler = debounce(async () => {
 
   // AI : If zoomed in enough and we have overlay markers, upgrade to full overlays during zoom
   if (currentZoom >= MIN_ZOOM_FOR_OVERLAYS && overlayMarkersLayer && map.value.hasLayer(overlayMarkersLayer)) {
-    await renderFullOverlaysFromCache(selectedCity.value.id, selectedCity.value.name);
+    renderFullOverlaysFromCache(selectedCity.value.id, selectedCity.value.name);
   }
 }, 200); // AI : 200ms debounce for responsive live updates during pinch-to-zoom
 
@@ -620,7 +620,7 @@ function setupZoomEventListenerInternal(): void {
 
     // AI : If zoomed in enough and we have overlay markers, upgrade to full overlays
     if (currentZoom >= MIN_ZOOM_FOR_OVERLAYS && overlayMarkersLayer && map.value.hasLayer(overlayMarkersLayer)) {
-      await renderFullOverlaysFromCache(selectedCity.value.id, selectedCity.value.name);
+      renderFullOverlaysFromCache(selectedCity.value.id, selectedCity.value.name);
     }
     // AI : If zoomed out from full overlays, show overlay markers again
     else if (currentZoom < MIN_ZOOM_FOR_OVERLAYS && currentCityOverlays.value.length > 0) {
@@ -834,3 +834,4 @@ export function handleEditModeExit() {
     updateOverlayMarkersForFilters();
   }
 }
+
