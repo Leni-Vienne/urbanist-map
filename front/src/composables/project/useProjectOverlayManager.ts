@@ -27,7 +27,7 @@ export function useProjectOverlayManager(projectId: string, onOverlaysChanged: (
     if (!projectId) return;
 
     try {
-      await addOverlayToProjectWithId(projectId, overlayId);
+      addOverlayToProjectWithId(projectId, overlayId);
       onOverlaysChanged();
       toast.add({
         severity: 'success',
@@ -51,7 +51,7 @@ export function useProjectOverlayManager(projectId: string, onOverlaysChanged: (
     if (!projectId) return;
 
     try {
-      await removeOverlayFromProjectWithId(projectId, overlayId);
+      removeOverlayFromProjectWithId(projectId, overlayId);
       onOverlaysChanged();
       toast.add({
         severity: 'success',
@@ -71,7 +71,7 @@ export function useProjectOverlayManager(projectId: string, onOverlaysChanged: (
   };
 
   // AI : Select overlay on map
-  const viewOverlay = async (overlayId: string) => {
+  const viewOverlay = (overlayId: string) => {
     const overlay = overlays.value[overlayId];
     if (!overlay) return;
     // AI : Select the overlay to view it on the map

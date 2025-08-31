@@ -19,7 +19,7 @@ export function getOverlayMarkerColor(
 
     // AI : Check if overlay was loaded from CDN or has been saved to backend
     const isRemoteOverlay = overlayData.project !== undefined ||
-      ('savedRemotely' in overlayData && overlayData.savedRemotely === true);
+      ('savedRemotely' in overlayData && overlayData.savedRemotely);
 
     // AI : Check if overlay has been modified locally
     const hasBeenModified = 'isModified' in overlayData ? overlayData.isModified : false;

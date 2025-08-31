@@ -1122,7 +1122,7 @@ export async function addOverlay(imageUrl: string, projectId: string, replacesOv
   // AI : Don't set up custom load handler - let the existing setupOverlayLoadHandler handle it
   // The existing system in useOverlay.ts will call onOverlayLoaded which handles all initialization
 
-  await addOverlayToProjectWithId(projectId, id);
+  addOverlayToProjectWithId(projectId, id);
 
   // AI : Select the new overlay (important for replacement overlays)
   idSelectedOverlay.value = id;
@@ -1343,7 +1343,7 @@ async function focusCameraToOverlay(direction: 'next' | 'previous'): Promise<boo
 
   // Handle case when no overlay is selected
   if (!idSelectedOverlay.value) {
-    return await selectFirstOrLastOverlayInAnyProject(direction);
+    return selectFirstOrLastOverlayInAnyProject(direction);
   }
 
   const currentOverlay = overlays.value[idSelectedOverlay.value];
@@ -1375,7 +1375,7 @@ async function focusCameraToOverlay(direction: 'next' | 'previous'): Promise<boo
   const newIndex = (currentIndex + step + projectOverlayIds.length) % projectOverlayIds.length;
   const newOverlayId = projectOverlayIds[newIndex];
 
-  return await selectAndCenterOverlay(newOverlayId, newIndex, projectOverlayIds.length);
+  return selectAndCenterOverlay(newOverlayId, newIndex, projectOverlayIds.length);
 }
 
 async function selectFirstOrLastOverlayInAnyProject(direction: 'next' | 'previous'): Promise<boolean> {
@@ -1415,11 +1415,11 @@ export async function navigateToOverlay(overlayId: string, centerMap: boolean = 
 
   if (existingOverlay) {
 
-    return await selectAndCenterOverlay(overlayId, undefined, undefined, centerMap);
+    return selectAndCenterOverlay(overlayId, undefined, undefined, centerMap);
 
   } else {
     // AI : Overlay not found locally - fetch from backend
-    return await loadAndNavigateToOverlay(overlayId, centerMap);
+    return loadAndNavigateToOverlay(overlayId, centerMap);
   }
 }
 
@@ -1455,7 +1455,7 @@ async function loadAndNavigateToOverlay(overlayId: string, centerMap: boolean): 
     }
 
     // AI : Navigate to the successfully loaded overlay
-    return await selectAndCenterOverlay(overlayId, undefined, undefined, centerMap);
+    return selectAndCenterOverlay(overlayId, undefined, undefined, centerMap);
 
   } catch (error) {
     console.error('Error fetching overlay:', error);

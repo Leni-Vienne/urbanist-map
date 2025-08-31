@@ -154,8 +154,8 @@ export async function loadCityProjects(cityId: string, cityName: string, forceFu
     currentCityOverlays.value = overlaysData;
 
     // AI : Filter overlays based on current completion status filters
-    const { filterByCompletionStatus } = useCompletionFilters();
-    const overlaysToRender = filterByCompletionStatus(overlaysData) as CDNOverlayData[];
+    const completionFilters = useCompletionFilters();
+    const overlaysToRender = completionFilters.filterByCompletionStatus(overlaysData) as CDNOverlayData[];
 
     // AI : Set overlays in view mode overlays and render them
     const { setViewModeOverlays } = useViewModeOverlays();
@@ -193,8 +193,8 @@ async function showOverlayMarkers(cityId: string): Promise<void> {
     const overlaysData = await fetchCityProjectsData(cityId);
 
     // AI : Filter overlays based on current completion status filters
-    const { filterByCompletionStatus } = useCompletionFilters();
-    const visibleOverlays = filterByCompletionStatus(overlaysData) as CDNOverlayData[];
+    const completionFilters = useCompletionFilters();
+    const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData) as CDNOverlayData[];
 
     // AI : Create new layer group for overlay markers
     overlayMarkersLayer = L.layerGroup();
@@ -606,7 +606,7 @@ function setupZoomEventListenerInternal(): void {
   // AI : Single zoom event listener that handles both cleanup and live rendering
   map.value.on('zoom', combinedZoomHandler);
 
-  map.value.on('zoomend', async () => {
+  map.value.on('zoomend', () => {
     if (!map.value) return;
 
     const { selectedCity } = getStoreRefs();
@@ -820,8 +820,8 @@ export function handleEditModeExit() {
       setViewModeOverlays(overlaysData);
 
       // AI : Filter overlays based on current completion status filters
-      const { filterByCompletionStatus } = useCompletionFilters();
-      const visibleOverlays = filterByCompletionStatus(overlaysData) as CDNOverlayData[];
+      const completionFilters = useCompletionFilters();
+      const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData) as CDNOverlayData[];
 
       // AI : Render the overlays on the map
       renderViewModeOverlays(visibleOverlays, true, true)
