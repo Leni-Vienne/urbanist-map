@@ -15,6 +15,9 @@ AI_RULES.md
 .github/instructions
 .serena
 
+test-results
+playwright-report
+
 junk
 components.d.ts
 *report.md
