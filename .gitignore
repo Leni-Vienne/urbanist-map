@@ -15,8 +15,14 @@ AI_RULES.md
 .github/instructions
 .serena
 
+.env.test
 test-results
 playwright-report
+playwright/.cache/
+
+# Test credentials - never commit
+.env.test.local
+tests/auth-state.json
 
 junk
 components.d.ts

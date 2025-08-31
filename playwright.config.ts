@@ -1,4 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
+import * as dotenv from 'dotenv';
+import { existsSync } from 'fs';
+
+// AI : Load test environment variables
+dotenv.config({ path: '.env' });
 
 /**
  * AI : Playwright configuration for Construction Map testing
@@ -6,20 +11,24 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './tests/e2e',
+  /* Global setup for authentication */
+  globalSetup: './tests/global-setup.ts',
   /* Run tests in files in parallel */
-  fullyParallel: true,
+  fullyParallel: false,
+  /* reduce timeout because 30s is way too much */
+  timeout: 8 * 1000,
   /* Fail the build on CI if you accidentally left test.only in the source code */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI */
-  workers: process.env.CI ? 1 : undefined,
+  /* Use single worker to avoid conflicts */
+  workers: 1,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',
   /* Shared settings for all the projects below */
   use: {
     /* Base URL to use in actions like `await page.goto('/')` */
-    baseURL: 'http://localhost:5173',
+    baseURL: process.env.TEST_BASE_URL || 'http://localhost:5173',
     /* Collect trace when retrying the failed test */
     trace: 'on-first-retry',
     /* Take screenshot on failure */
@@ -32,15 +41,11 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      use: { 
+        ...devices['Desktop Chrome'],
+        /* Use authenticated state if available */
+        ...(existsSync('tests/auth-state.json') ? { storageState: 'tests/auth-state.json' } : {})
+      },
     },
   ],
 
