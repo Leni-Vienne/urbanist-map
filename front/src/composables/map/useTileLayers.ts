@@ -117,7 +117,7 @@ function createTileLayer(layerType: TileLayerType): L.TileLayer | L.GridLayer {
 /**
  * AI : Switch to a different tile layer (for custom layer control)
  */
-export async function switchTileLayer(layerType: TileLayerType): Promise<void> {
+export function switchTileLayer(layerType: TileLayerType) {
   if (!map.value || currentTileLayer.value === layerType) {
     return;
   }

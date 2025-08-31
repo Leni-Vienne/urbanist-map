@@ -118,7 +118,7 @@ export const overlayRouter = router({
             .orderBy(sql`${overlays.updatedAt} DESC`)
             .limit(input.limit);
 
-          return await query;
+          return query;
         } catch (error) {
           console.error('Error fetching latest overlays:', error);
           throw new Error('Failed to fetch latest overlays');

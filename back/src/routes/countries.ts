@@ -8,7 +8,7 @@ export const countriesRouter = router({
   getCountriesWithProjects: publicProcedure
     .query(async () => {
       try {
-        return await db
+        return db
           .select({
             id: countries.id,
             code: countries.code,

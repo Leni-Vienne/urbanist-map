@@ -34,7 +34,7 @@ export const citiesRouter = router({
           const { lat, lng, limit } = input;
 
           // AI : Use PostGIS ST_Distance to calculate distance and order by closest
-          return await db
+          return db
             .select({
               id: cities.id,
               name: cities.name,
@@ -111,7 +111,7 @@ export const citiesRouter = router({
           }
 
           // AI : Join cities with projects and return cities that have projects
-          return await db
+          return db
             .selectDistinct({
               id: cities.id,
               name: cities.name,

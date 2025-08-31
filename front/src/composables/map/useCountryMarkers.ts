@@ -71,17 +71,17 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
 }
 
 
-export async function addCountryMarkersToMap(): Promise<void> {
+export function addCountryMarkersToMap() {
   if (!map.value) {
     onMapInitialized(() => {
       addCountryMarkersToMapInternal();
     });
     return;
   }
-  await addCountryMarkersToMapInternal();
+  addCountryMarkersToMapInternal();
 }
 
-async function addCountryMarkersToMapInternal(): Promise<void> {
+function addCountryMarkersToMapInternal() {
   if (!map.value) {
     return;
   }
@@ -117,10 +117,10 @@ async function addCountryMarkersToMapInternal(): Promise<void> {
       }
       marker.setOpacity(COUNTRY_MARKER_HOVER_OPACITY);
       selectedCountryMarker = marker;
-      
+
       // AI : Automatically switch to the appropriate tile layer for this country
-      await switchTileLayer(country.code as TileLayerType ?? 'esri');
-      
+      switchTileLayer(country.code as TileLayerType ?? 'esri');
+
       // AI : Clear previous city markers, overlays and selected city state before loading new ones
       removeCityMarkers();
       removeOverlayMarkers();
@@ -128,7 +128,7 @@ async function addCountryMarkersToMapInternal(): Promise<void> {
       currentCityOverlays.value = [];
       const mapStore = useMapStore();
       mapStore.clearSelectedCity();
-      
+
       await loadCitiesForCountry(country.code);
       const updatedCountries = getCountries();
       const updatedCountry = updatedCountries.value.find((c: any) => c.code === country.code);
@@ -244,7 +244,7 @@ function cleanupCountryMouseTooltip(): void {
 
 export async function initializeCountryMarkers(): Promise<void> {
   await loadCountriesWithProjects();
-  await addCountryMarkersToMap();
+  addCountryMarkersToMap();
 }
 
 export function cleanupCountryMarkers(): void {

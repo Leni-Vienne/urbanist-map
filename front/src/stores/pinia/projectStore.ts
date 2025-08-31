@@ -11,7 +11,7 @@ export const useProjectStore = defineStore('project', () => {
   const projects = ref<Record<string, Project>>({});
   const selectedProjectId = ref<string | null>(null);
   const countries = ref<Country[]>([]);
-  
+
   // AI : Centralized nearby projects data management
   const nearbyProjects = ref<NearbyProject[]>([]);
   const nearbyProjectsLoading = ref(false);
@@ -20,13 +20,21 @@ export const useProjectStore = defineStore('project', () => {
   // AI : Computed property for combined projects (local + nearby)
   const allProjects = computed(() => {
     const combined = { ...projects.value };
-    
+
     // AI : Add nearby projects that aren't already in local projects
     nearbyProjects.value.forEach((nearbyProject: NearbyProject) => {
       combined[nearbyProject.id] ??= convertNearbyProjectToLocal(nearbyProject);
     });
-    
+
     return combined;
+  });
+
+  // AI : Writable computed for selected project ID  
+  const selectedProjectIdRef = computed({
+    get: () => selectedProjectId.value,
+    set: (value: string | null) => {
+      selectedProjectId.value = value;
+    }
   });
 
   // AI : Nearby projects management actions
@@ -34,7 +42,7 @@ export const useProjectStore = defineStore('project', () => {
     try {
       nearbyProjectsLoading.value = true;
       nearbyProjectsError.value = null;
-      
+
       if (!map.value) {
         console.warn('Map not available for fetching nearby projects');
         return [];
@@ -42,7 +50,7 @@ export const useProjectStore = defineStore('project', () => {
 
       // AI : Get current map center coordinates
       const center = map.value.getCenter();
-      
+
       // AI : Call the TRPC endpoint to fetch nearby projects
       const response = await trpc.project.getProjectsNearLocation.query({
         lat: center.lat,
@@ -83,7 +91,7 @@ export const useProjectStore = defineStore('project', () => {
    * @param projectId - The ID of the project
    * @param overlayId - The ID of the overlay to add
    */
-  async function addOverlayToProjectWithId(projectId: string, overlayId: string) {
+  function addOverlayToProjectWithId(projectId: string, overlayId: string) {
     const project = projects.value[projectId];
     if (project) {
       if (!project.overlayIds.includes(overlayId)) {
@@ -98,7 +106,7 @@ export const useProjectStore = defineStore('project', () => {
    * @param projectId - The ID of the project
    * @param overlayId - The ID of the overlay to remove
    */
-  async function removeOverlayFromProjectWithId(projectId: string, overlayId: string) {
+  function removeOverlayFromProjectWithId(projectId: string, overlayId: string) {
     const project = projects.value[projectId];
     if (project) {
       project.overlayIds = project.overlayIds.filter(id => id !== overlayId);
@@ -114,14 +122,15 @@ export const useProjectStore = defineStore('project', () => {
     nearbyProjects,
     nearbyProjectsLoading,
     nearbyProjectsError,
-    
+
     // Computed properties
     allProjects,
-    
+    selectedProjectIdRef,
+
     // Local project actions
     addOverlayToProjectWithId,
     removeOverlayFromProjectWithId,
-    
+
     // Nearby projects actions
     fetchNearbyProjects,
     setNearbyProjects,
