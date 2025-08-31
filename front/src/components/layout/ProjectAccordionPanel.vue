@@ -285,6 +285,7 @@
 import { ref, computed } from 'vue'
 import { buildImageUrl, formatRelativeTime } from '../../utils'
 import { navigateToOverlay } from '@composables/overlay/useOverlay'
+import type { AccordionProject, AccordionOverlay } from '@types'
 import { useToast } from '@composables/ui/useToast'
 import Tag from 'primevue/tag'
 import Accordion from 'primevue/accordion'
@@ -296,7 +297,7 @@ import type { PendingChangeRequest } from '../../types/api'
 
 // AI : Props interface
 interface Props {
-  projects: any[]
+  projects: AccordionProject[]
   isLoading: boolean
   title: string
   panelClass: string
@@ -345,9 +346,9 @@ function getStatusSeverity(status: string): string {
 }
 
 // AI : Get project location display - always show country when available
-function getProjectLocation(project: any): string {
-  const cityName = project.cityName || project.city?.name
-  const countryName = project.countryName || project.city?.countryName || project.country?.name
+function getProjectLocation(project: AccordionProject): string {
+  const cityName = project.cityName
+  const countryName = project.countryName
 
   if (cityName && countryName) {
     return `${cityName}, ${countryName}`
@@ -378,10 +379,10 @@ function handleImageLoad(event: Event, overlayId: string) {
 }
 
 // AI : Get overlay location display (city, country) - avoid duplication
-function getOverlayLocationDisplay(overlay: any): string {
+function getOverlayLocationDisplay(overlay: AccordionOverlay): string {
   // AI : Try different property combinations to avoid duplication
-  const cityName = overlay.cityName || overlay.city?.name
-  const countryName = overlay.countryName || overlay.city?.countryName || overlay.country?.name
+  const cityName = overlay.cityName
+  const countryName = overlay.countryName
 
   if (cityName && countryName) {
     // AI : Avoid duplication if city name already contains country
@@ -398,10 +399,9 @@ function getOverlayLocationDisplay(overlay: any): string {
 }
 
 // AI : Format project dates nicely
-function formatProjectDate(dateString: string): string {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', {
+function formatProjectDate(date: Date | null): string {
+  if (!date) return ''
+  return new Date(date).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric'
@@ -409,7 +409,7 @@ function formatProjectDate(dateString: string): string {
 }
 
 // AI : Format project date range on single line with dash
-function formatProjectDateRange(startDate: string, endDate: string): string {
+function formatProjectDateRange(startDate: Date | null, endDate: Date | null): string {
   const start = startDate ? formatProjectDate(startDate) : null
   const end = endDate ? formatProjectDate(endDate) : null
 
@@ -436,12 +436,12 @@ function formatSourceUrl(url: string): string {
 
 
 // AI : Check if overlays should be shown (only for expanded panels)
-function shouldShowOverlays(project: any): boolean {
+function shouldShowOverlays(project: AccordionProject): boolean {
   return expandedPanels.value.has(project.id)
 }
 
 // AI : Handle overlay click - navigate to overlay
-async function handleOverlayClick(overlay: any) {
+async function handleOverlayClick(overlay: AccordionOverlay) {
   try {
     await navigateToOverlay(overlay.id)
   } catch (error) {
@@ -473,7 +473,7 @@ function getOverlayChangeRequests(overlayId: string): PendingChangeRequest[] {
   let overlay = null
   for (const project of props.projects) {
     if (project.overlays) {
-      overlay = project.overlays.find((o: any) => o.id === overlayId)
+      overlay = project.overlays.find((o: AccordionOverlay) => o.id === overlayId)
       if (overlay) break
     }
   }
@@ -487,7 +487,7 @@ function getOverlayChangeRequests(overlayId: string): PendingChangeRequest[] {
 }
 
 // AI : Format values for display
-function formatValue(value: any): string {
+function formatValue(value: unknown): string {
   if (value === null || value === undefined || value === '') {
     return 'Not set'
   }

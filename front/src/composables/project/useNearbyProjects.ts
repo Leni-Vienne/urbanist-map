@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { trpc } from '@client';
 import { map } from '@composables/core/useMap';
 import type { NearbyProject } from '../../types/api';
@@ -41,21 +41,3 @@ export async function fetchNearbyProjects(): Promise<NearbyProject[]> {
   }
 }
 
-/**
- * AI : Get the current nearby projects
- */
-export function getNearbyProjects() {
-  return {
-    projects: computed(() => nearbyProjects.value),
-    isLoading: computed(() => isLoading.value),
-    error: computed(() => error.value)
-  };
-}
-
-/**
- * AI : Clear the nearby projects cache
- */
-export function clearNearbyProjects() {
-  nearbyProjects.value = [];
-  error.value = null;
-}

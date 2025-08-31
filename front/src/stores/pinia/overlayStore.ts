@@ -51,7 +51,13 @@ export const useOverlayStore = defineStore('overlay', () => {
     loadedEditOverlays.value.delete(overlayId)
   }
 
-  const clearEditModeOverlays = () => {
+  const clearEditModeMarkersAndState = (mapInstance?: L.Map, editModeOverlayMarkers?: L.LayerGroup | null) => {
+    // AI : Clear map markers if provided
+    if (mapInstance && editModeOverlayMarkers) {
+      mapInstance.removeLayer(editModeOverlayMarkers);
+    }
+    
+    // AI : Clear state
     loadedEditOverlays.value.clear()
   }
 
@@ -132,7 +138,7 @@ export const useOverlayStore = defineStore('overlay', () => {
     setOverlaysError,
     addEditModeOverlay,
     removeEditModeOverlay,
-    clearEditModeOverlays,
+    clearEditModeMarkersAndState,
     setEditMode,
     handleFileSelected,
     clearPendingFile,

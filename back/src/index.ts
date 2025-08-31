@@ -8,6 +8,8 @@ import { createAuthMiddleware, getAuthenticatedUser } from './shared/auth'
 import type { DBUser } from './db/schema'
 import type { FileUploadResult, FileUploadError } from './shared/types'
 import { config } from './config'
+import type { FetchCreateContextFnOptions } from '@trpc/server/adapters/fetch'
+import type { Context } from 'hono'
 
 // AI : Main application setup
 const app = new Hono<{
@@ -30,7 +32,7 @@ app.use('*', createAuthMiddleware())
 // AI : tRPC routes
 app.use('/trpc/*', trpcServer({
     router: appRouter,
-    createContext(_opts: any, c: any) {
+    createContext(_opts: FetchCreateContextFnOptions, c: Context) {
         return {
             user: c.get('user'),
             hono: c
@@ -42,9 +44,9 @@ app.use('/trpc/*', trpcServer({
 app.post('/api/upload-image', async (c) => {
     try {
         const body = await c.req.formData()
-        const file = body.get('image') as File
+        const file = body.get('image')
 
-        if (!file) {
+        if (!(file instanceof File)) {
             return c.json({ error: 'No file provided' } as FileUploadError, 400)
         }
 

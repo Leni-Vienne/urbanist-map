@@ -82,10 +82,3 @@ export function onCameraStop(callback: (bounds: CameraBounds) => void) {
     }
   };
 }
-
-/**
- * AI : Manually update camera bounds (useful for testing)
- */
-export function updateCameraBounds(bounds: CameraBounds) {
-  currentCameraBounds.value = bounds;
-}

@@ -27,7 +27,7 @@ export const isAuthed = t.middleware(async ({ ctx, next }) => {
     if (!ctx.user) {
         throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Not authenticated' });
     }
-    return await next({
+    return next({
         ctx: {
             user: ctx.user,
         },
@@ -42,7 +42,7 @@ export const isAdmin = t.middleware(async ({ ctx, next }) => {
     if (ctx.user.role !== 'admin') {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin access required' });
     }
-    return await next({
+    return next({
         ctx: {
             user: ctx.user,
         },

@@ -1,4 +1,3 @@
-import { trpc } from '@client';
 import type { Project, OverlayObject } from '@types';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
@@ -13,23 +12,6 @@ export function useProjects() {
   return { overlays, projects, countries, selectedProjectId };
 }
 
-export async function loadCitiesForCountry(countryCode: string): Promise<void> {
-  try {
-    // AI : Get all cities that have projects for this specific country
-    const citiesData = await trpc.cities.getCitiesWithProjects.query({ countryCode });
-
-    const { countries } = useProjects();
-    const country = countries.value.find((c: any) => {
-      return c.code.trim() === countryCode.trim()
-    });
-    if (country) {
-      country.cities = citiesData as any;
-    }
-  } catch (error) {
-    console.error('Error loading cities for country:', error);
-    throw error;
-  }
-}
 
 export function createProject(projectData: Partial<Omit<Project, 'id' | 'overlayIds' | 'color'>>) {
   const id = crypto.randomUUID();
@@ -67,24 +49,7 @@ export function createProject(projectData: Partial<Omit<Project, 'id' | 'overlay
   return id;
 }
 
-export function getOverlaysForProject(projectId: string) {
-  const { projects, overlays } = useProjects();
-  const project = projects.value[projectId];
-  if (!project) return [];
-
-  const projectOverlays: OverlayObject[] = [];
-
-  for (const overlayId of project.overlayIds) {
-    if (overlays.value[overlayId]) {
-      // AI : Ensure we're pushing a proper OverlayObject with all expected properties
-      projectOverlays.push(overlays.value[overlayId]);
-    }
-  }
-
-  return projectOverlays;
-}
-
-export async function addOverlayToProjectWithId(projectId: string, overlayId: string): Promise<void> {
+export function addOverlayToProjectWithId(projectId: string, overlayId: string) {
   const { projects, overlays } = useProjects();
   
   if (!projects.value[projectId]) {
@@ -115,7 +80,7 @@ export async function addOverlayToProjectWithId(projectId: string, overlayId: st
   overlayObject.projectId = projectId;
 }
 
-export async function removeOverlayFromProjectWithId(projectId: string, overlayId: string): Promise<void> {
+export function removeOverlayFromProjectWithId(projectId: string, overlayId: string) {
   const { projects, overlays } = useProjects();
   
   if (!projects.value[projectId]) {
@@ -144,7 +109,7 @@ export async function removeOverlayFromProjectWithId(projectId: string, overlayI
   }
 }
 
-export function removeProjectStyling(overlayObject: OverlayObject): void {
+function removeProjectStyling(overlayObject: OverlayObject): void {
   if (!overlayObject.overlay) return;
 
   const element = overlayObject.overlay.getElement();
@@ -159,86 +124,4 @@ export function removeProjectStyling(overlayObject: OverlayObject): void {
     // Reset tooltip
     overlayObject.marker.setTooltipContent('Overlay');
   }
-}
-
-export function highlightProjectOverlays(projectId: string): void {
-  const { projects, overlays } = useProjects();
-  const project = projects.value[projectId];
-  if (!project) return;
-
-  for (const overlayId of project.overlayIds) {
-    const overlayObject = overlays.value[overlayId];
-    if (!overlayObject?.overlay) continue;
-
-    const element = overlayObject.overlay.getElement();
-    if (element) {
-      // Set CSS variable for the project color to use in animation
-      element.style.setProperty('--project-color', `${project.color}80`); // 80 = 50% opacity
-      // Highlight with a pulsing effect
-      element.style.animation = 'pulse 1.5s infinite';
-    }
-  }
-}
-
-export function clearProjectHighlight(projectId: string): void {
-  const { projects, overlays } = useProjects();
-  const project = projects.value[projectId];
-  if (!project) return;
-
-  for (const overlayId of project.overlayIds) {
-    const overlayObject = overlays.value[overlayId];
-    if (!overlayObject?.overlay) continue;
-
-    const element = overlayObject.overlay.getElement();
-    if (element) {
-      element.style.animation = '';
-    }
-  }
-}
-
-export async function deleteProjectById(projectId: string): Promise<void> {
-  const { projects, overlays, selectedProjectId } = useProjects();
-  const project = projects.value[projectId];
-  if (!project) {
-    console.error('Project not found:', projectId);
-    throw new Error('Project not found');
-  }
-
-  // Remove project reference from all its overlays
-  for (const overlayId of project.overlayIds) {
-    const overlayObject = overlays.value[overlayId];
-    if (overlayObject) {
-      overlayObject.projectId = ''; // Set to empty string instead of undefined
-      removeProjectStyling(overlayObject);
-    }
-  }
-
-  // Create a new object for projects.value to trigger reactivity with shallowRef
-  const updatedProjects = { ...projects.value };
-  delete updatedProjects[projectId];
-  projects.value = updatedProjects;
-
-  // Clear selection if this was the selected project
-  if (selectedProjectId.value === projectId) {
-    selectedProjectId.value = null;
-  }
-}
-
-export async function updateProject(projectId: string, projectData: Partial<Omit<Project, 'id' | 'overlayIds' | 'color'>>): Promise<void> {
-  const { projects } = useProjects();
-  const project = projects.value[projectId];
-  if (!project) {
-    throw new Error('Project not found');
-  }
-
-  // AI : Filter out non-serializable properties from projectData before merging (File objects, city objects)
-  const { city: _city, sourcePdf: _sourcePdf, ...safeProjectData } = projectData;
-
-  // AI : Create new project object with updated fields
-  const updatedProject = { ...project, ...safeProjectData };
-
-  // AI : Create a new projects object reference to trigger shallowRef reactivity
-  const updatedProjects = { ...projects.value };
-  updatedProjects[projectId] = updatedProject;
-  projects.value = updatedProjects;
 }

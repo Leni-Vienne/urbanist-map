@@ -61,6 +61,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { trpc } from '../../client'
+import type { AccordionProject } from '@types'
 import Checkbox from 'primevue/checkbox'
 import Button from 'primevue/button'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
@@ -73,7 +74,7 @@ import { handleEditModeExit } from '@composables/map/useCityMarkers'
 import { storeToRefs } from 'pinia'
 
 // AI : Reactive state
-const projects = ref<any[]>([])
+const projects = ref<AccordionProject[]>([])
 const isLoading = ref(false)
 const showApprovedRejected = ref(false)
 

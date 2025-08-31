@@ -9,15 +9,9 @@ import { map } from '@composables/core/useMap';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { storeToRefs } from 'pinia';
-import type { OverlayObject, CDNOverlayData } from '@types';
+import type { OverlayObject, CDNOverlayData, Project } from '@types';
+import type { BackendOverlay } from '../../types/api';
 
-// AI : Simple type for overlay data used internally  
-type StoredOverlayData = OverlayObject & {
-  imageUrl: string;
-  history: { lat: number, lng: number }[][];
-  redoStack: { lat: number, lng: number }[][];
-  isModified: boolean;
-};
 import { createColorIcon } from '@composables/ui/markerIcons';
 import { useProjects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import { trpc } from '@client';
@@ -26,17 +20,7 @@ import { trpc } from '@client';
 export let overlays: Ref<Record<string, OverlayObject>>;
 export let idSelectedOverlay: Ref<string | null>;
 export let isEditMode: Ref<boolean>;
-export let projects: Ref<Record<string, any>>;
-
-// AI : Export function to get store refs
-export function getStoreRefs() {
-  return {
-    overlays,
-    idSelectedOverlay,
-    isEditMode,
-    projects
-  };
-}
+export let projects: Ref<Record<string, Project>>;
 
 // AI : Initialize stores - will be called during app initialization
 export function initializeStores() {
@@ -88,12 +72,12 @@ export function updateOverlayEditingState(): void {
   });
 
   // AI : Recreate overlays with updated toolbar actions
-  Object.entries(overlayDataToRecreate).forEach(async ([overlayId, data]) => {
+  Object.entries(overlayDataToRecreate).forEach(([overlayId, data]) => {
     const overlayObject = overlays.value[overlayId];
     if (!overlayObject) return;
 
     // AI : Recreate the overlay with current mode's toolbar actions
-    const newOverlay = await createOverlay(data.imageUrl, overlayObject);
+    const newOverlay = createOverlay(data.imageUrl, overlayObject);
     if (newOverlay) {
       overlayObject.overlay = newOverlay;
 
@@ -106,7 +90,7 @@ export function updateOverlayEditingState(): void {
 /**
  * AI : Create a new overlay object from saved data
  */
-export function createOverlayObject(savedOverlay: StoredOverlayData): OverlayObject {
+export function createOverlayObject(savedOverlay: OverlayObject): OverlayObject {
   const project = savedOverlay.projectId ? projects.value[savedOverlay.projectId] : null;
   const corners = [
     { lat: savedOverlay.topLeftLat, lng: savedOverlay.topLeftLng },
@@ -145,14 +129,14 @@ export function createOverlay(imageUrl: string, overlayObject?: OverlayObject) {
       ? corners.map(corner => L.latLng(corner.lat, corner.lng))
       : undefined;
 
-    const newOverlay = (L as any).distortableImageOverlay(imageUrl, {
+    const newOverlay = L.distortableImageOverlay(imageUrl, {
       editable: true,
       keyboard: false,
       actions: [
         ...(isEditMode.value ? editTools : viewTools)
       ],
       corners: leafletCorners,
-    }) as L.DistortableImageOverlay;
+    });
 
     // IMPORTANT : this waits for any ongoing zoom animation to complete before adding overlay to prevent visual glitch
     // This fixes the bug when zooming multiple levels past the render threshold at once
@@ -343,7 +327,7 @@ function getCornersForOverlay(overlayObject: OverlayObject) {
 /**
  * AI : Validate corners data
  */
-function isValidCorners(corners: any[]): boolean {
+function isValidCorners(corners: { lat: number, lng: number }[]): boolean {
   return corners.every(corner =>
     corner &&
     typeof corner.lat === 'number' &&
@@ -353,7 +337,7 @@ function isValidCorners(corners: any[]): boolean {
   );
 }
 
-function createMarkerTitle(overlay: any, projectId: string | null, markerType?: 'new' | 'replacement'): string {
+function createMarkerTitle(overlay: OverlayObject, projectId: string | null, markerType?: 'new' | 'replacement'): string {
   let baseTitle = markerType === 'replacement' ? 'Replacement Overlay' :
     markerType === 'new' ? 'New Overlay' : 'Overlay';
 
@@ -401,7 +385,7 @@ export function saveToHistory(overlayObject: OverlayObject): void {
     }
   }
 
-  overlayObject.history.push(JSON.parse(JSON.stringify(currentState)));
+  overlayObject.history.push(JSON.parse(JSON.stringify(currentState)) as { lat: number; lng: number }[]);
   overlayObject.redoStack = [];
 
   // AI : Mark overlay as modified when it's moved/changed
@@ -410,12 +394,13 @@ export function saveToHistory(overlayObject: OverlayObject): void {
   updateMarkerTooltip(overlayObject);
 
   // AI : Update city overlay markers if they are visible
-  updateOverlayMarkersColors();
+  updateOverlayMarkersColors(overlays, isEditMode);
 }
 
 // Event handler that blocks movement events but allows click events
 function blockMovementEvent(e: Event) {
-  const target = e.target as HTMLElement;
+  const target = e.target;
+  if (!target || !(target instanceof HTMLElement)) return;
   const isToolbarClick = target.closest('.leaflet-toolbar-icon') !== null;
 
   if (isToolbarClick) {
@@ -463,7 +448,7 @@ function enableOverlayEditing(overlay: L.DistortableImageOverlay, element: HTMLE
 
   // AI : Remove event listeners that block editing
   element.removeEventListener('mousedown', blockMovementEvent, true);
-  element.removeEventListener('touchstart', blockMovementEvent, { capture: true, passive: true } as any);
+  element.removeEventListener('touchstart', blockMovementEvent, { capture: true });
   element.removeEventListener('dragstart', blockMovementEvent, true);
 }
 
@@ -626,7 +611,7 @@ export function renderViewModeOverlays(cdnOverlays: CDNOverlayData[], createMark
 /**
  * AI : Render a single CDN overlay as read-only distortable overlay on the map
  */
-async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData, createMarkers = true): Promise<void> {
+function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData, createMarkers = true) {
   if (!map.value || overlays.value[cdnOverlay.id]) return;
 
   const corners = cdnOverlay.corners?.length === 4
@@ -639,7 +624,7 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData, createMar
     ];
 
   // AI : Use buildImageUrl utility to construct image URL from Cloudflare R2 via worker
-  const storedOverlayData = {
+  const storedOverlayData: OverlayObject = {
     id: cdnOverlay.id,
     imageUrl: buildImageUrl(cdnOverlay.filename),
     history: [],
@@ -648,7 +633,7 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData, createMar
     caption: cdnOverlay.caption ?? null,
     filename: cdnOverlay.filename,
     metadata: null,
-    createdAt: new Date(cdnOverlay.createdAt ?? Date.now()),
+    createdAt: cdnOverlay.createdAt ? new Date(cdnOverlay.createdAt) : new Date(),
     updatedAt: new Date(),
     replacesOverlayId: cdnOverlay.replacesOverlayId ?? null,
     centroid: {
@@ -674,14 +659,14 @@ async function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData, createMar
     marker: null,
     whitePixelsHidden: false,
     isFlipped: false,
-  }
+  };
 
   if (createMarkers) {
     createSingleMarker(storedOverlayData);
   }
 
   const overlayObject = createOverlayObject(storedOverlayData);
-  const newOverlay = await createOverlay(overlayObject.imageUrl, overlayObject);
+  const newOverlay = createOverlay(overlayObject.imageUrl, overlayObject);
   if (!newOverlay) return;
 
   overlayObject.overlay = newOverlay;
@@ -770,7 +755,7 @@ export function updateMarkerTooltip(overlayObject: OverlayObject): void {
 /**
  * AI : Create a single marker for an overlay
  */
-function createSingleMarker(savedOverlay: StoredOverlayData): void {
+function createSingleMarker(savedOverlay: OverlayObject): void {
   if (!map.value || allMarkers.value[savedOverlay.id]) return;
 
   const overlayBounds = getOverlayBounds(savedOverlay);
@@ -792,7 +777,7 @@ function createSingleMarker(savedOverlay: StoredOverlayData): void {
   updateMarkerTooltip(tempOverlayObject);
 }
 
-function getOverlayBounds(overlay: StoredOverlayData): L.LatLngBounds | null {
+function getOverlayBounds(overlay: OverlayObject): L.LatLngBounds | null {
   // AI : Validate all corner coordinates exist and are valid numbers
   if (!overlay.topLeftLat || !overlay.topLeftLng ||
     !overlay.topRightLat || !overlay.topRightLng ||
@@ -853,7 +838,7 @@ function setupOverlayMovementTracking(overlay: L.DistortableImageOverlay, overla
       updateMarkerPosition(overlayObject);
 
       // AI : Update city overlay markers if they are visible
-      updateOverlayMarkersColors();
+      updateOverlayMarkersColors(overlays, isEditMode);
     };
 
     // AI : Track mouse and touch events for real-time updates
@@ -878,7 +863,7 @@ function setupOverlayMovementTracking(overlay: L.DistortableImageOverlay, overla
 // AI : Overlay Action Functions (moved from useOverlayActions.ts to break circular dependency)
 
 // AI : Helper function to transform backend overlay to CDN format
-function transformBackendOverlayToCDN(backendOverlay: any): any {
+function transformBackendOverlayToCDN(backendOverlay: BackendOverlay): CDNOverlayData {
   return {
     id: backendOverlay.id,
     filename: backendOverlay.filename,
@@ -1019,7 +1004,7 @@ function updateMarkerAndSaveOverlay(overlayObject: OverlayObject): void {
 }
 
 // AI : Helper function to center map on overlay with proper error handling
-async function centerMapOnOverlay(overlay: OverlayObject): Promise<boolean> {
+function centerMapOnOverlay(overlay: OverlayObject): boolean {
   if (!overlay.overlay) return false;
 
   // AI : No need to wait for overlay ready since corners are now provided during initialization
@@ -1029,7 +1014,7 @@ async function centerMapOnOverlay(overlay: OverlayObject): Promise<boolean> {
 /**
  * AI : Create a marker for overlays with specified type and color
  */
-function createMarker(overlayObject: any, projectId: string, markerType: 'new' | 'replacement'): void {
+function createMarker(overlayObject: OverlayObject, projectId: string, markerType: 'new' | 'replacement'): void {
   if (!map.value) return;
 
   // AI : Use current map center as initial marker position
@@ -1070,7 +1055,7 @@ function createMarker(overlayObject: any, projectId: string, markerType: 'new' |
 /**
  * AI : Create a purple marker for replacement overlays
  */
-function createReplacementMarker(overlayObject: any, projectId: string): void {
+function createReplacementMarker(overlayObject: OverlayObject, projectId: string): void {
   createMarker(overlayObject, projectId, 'replacement');
 }
 
@@ -1081,7 +1066,7 @@ function createReplacementMarker(overlayObject: any, projectId: string): void {
  * @param replacesOverlayId 
  * @returns the ID of the newly created overlay
  */
-export async function addOverlay(imageUrl: string, projectId: string, replacesOverlayId?: string) {
+export function addOverlay(imageUrl: string, projectId: string, replacesOverlayId?: string) {
   // AI : Only allow adding overlays in edit mode
   if (!isEditMode.value) {
     console.warn('Cannot add overlay in view mode');
@@ -1106,7 +1091,7 @@ export async function addOverlay(imageUrl: string, projectId: string, replacesOv
   }
 
   // Create the overlay
-  const newOverlay = await createOverlay(imageUrl, overlayObject);
+  const newOverlay = createOverlay(imageUrl, overlayObject);
   if (!newOverlay) return;
 
   // Store reference and initialize
@@ -1122,7 +1107,7 @@ export async function addOverlay(imageUrl: string, projectId: string, replacesOv
   // AI : Don't set up custom load handler - let the existing setupOverlayLoadHandler handle it
   // The existing system in useOverlay.ts will call onOverlayLoaded which handles all initialization
 
-  await addOverlayToProjectWithId(projectId, id);
+  addOverlayToProjectWithId(projectId, id);
 
   // AI : Select the new overlay (important for replacement overlays)
   idSelectedOverlay.value = id;
@@ -1131,7 +1116,7 @@ export async function addOverlay(imageUrl: string, projectId: string, replacesOv
 }
 
 // AI : Create marker for new overlay at map center (before image loads)
-function createMarkerForNewOverlay(overlayObject: any, projectId: string): void {
+function createMarkerForNewOverlay(overlayObject: OverlayObject, projectId: string): void {
   createMarker(overlayObject, projectId, 'new');
 }
 
@@ -1162,12 +1147,12 @@ function applyHistoryAction(action: 'undo' | 'redo') {
       const currentState = history.pop()!;
       redoStack.push(currentState);
       const previousState = history[history.length - 1];
-      (overlay as any).setCorners(previousState);
+      overlay.setCorners(previousState);
     } else {
       // AI : For redo: move state from redo stack to history and apply it
       const stateToRestore = redoStack.pop()!;
       history.push(stateToRestore);
-      (overlay as any).setCorners(stateToRestore);
+      overlay.setCorners(stateToRestore);
     }
 
     updateMarkerAndSaveOverlay(overlayObject);
@@ -1177,7 +1162,7 @@ function applyHistoryAction(action: 'undo' | 'redo') {
   }
 }
 
-export function resetImageRatio() {
+function resetImageRatio() {
   if (!idSelectedOverlay.value) {
     throw new Error('No image selected: Please select an image first');
   }
@@ -1192,12 +1177,15 @@ export function resetImageRatio() {
     const currentCorners = overlayObject.overlay.getCorners();
     if (!currentCorners?.length || currentCorners.length !== 4) return;
 
+    // AI : Convert corners to Leaflet LatLng objects for type compatibility
+    const leafletCorners = currentCorners.map(corner => L.latLng(corner.lat, corner.lng));
+
     // AI : Save state before applying ratio fix
     saveToHistory(overlayObject);
 
     const { originalRatio: _originalRatio, newDimensions, cornersInfo } = calculateRatioFixParameters(
       img.naturalWidth / img.naturalHeight,
-      currentCorners
+      leafletCorners
     );
 
     if (!cornersInfo) return;
@@ -1207,11 +1195,27 @@ export function resetImageRatio() {
     updateMarkerAndSaveOverlay(overlayObject);
   };
 
-  img.src = overlayObject.imageUrl ?? (overlayObject.overlay.getElement() as HTMLImageElement).src;
+  const element = overlayObject.overlay.getElement();
+  img.src = overlayObject.imageUrl ?? (element instanceof HTMLImageElement ? element.src : '');
 }
 
-function calculateRatioFixParameters(originalRatio: number, currentCorners: any[]) {
-  if (!map.value) return {};
+interface CornersInfo {
+  centerPoint: L.Point;
+  angleRad: number;
+  isClockwise: boolean;
+}
+
+interface Dimensions {
+  width: number;
+  height: number;
+}
+
+function calculateRatioFixParameters(originalRatio: number, currentCorners: L.LatLng[]) {
+  if (!map.value) return {
+    originalRatio,
+    newDimensions: { width: 0, height: 0 },
+    cornersInfo: { centerPoint: L.point(0, 0), angleRad: 0, isClockwise: false }
+  };
 
   // Convert corners to screen coordinates
   const nw = map.value.latLngToContainerPoint(currentCorners[0]);
@@ -1254,7 +1258,7 @@ function calculateRatioFixParameters(originalRatio: number, currentCorners: any[
   };
 }
 
-function applyImageRatioFix(overlayObject: any, cornersInfo: any, dimensions: any) {
+function applyImageRatioFix(overlayObject: OverlayObject, cornersInfo: CornersInfo, dimensions: Dimensions) {
   if (!map.value || !overlayObject.overlay) return;
 
   const { centerPoint, angleRad, isClockwise } = cornersInfo;
@@ -1310,7 +1314,7 @@ function calculateCornerOffsets(angleRad: number, halfWidth: number, halfHeight:
   ];
 }
 
-function handleFlipIfNeeded(overlayObject: any) {
+function handleFlipIfNeeded(overlayObject: OverlayObject) {
   if (!overlayObject.overlay) return;
 
   if (overlayObject.isFlipped) {
@@ -1336,14 +1340,15 @@ function handleFlipIfNeeded(overlayObject: any) {
  * @param direction - Either 'next' or 'previous' to determine navigation direction
  * @returns boolean indicating whether navigation was successful
  */
-async function focusCameraToOverlay(direction: 'next' | 'previous'): Promise<boolean> {
+
+function focusCameraToOverlay(direction: 'next' | 'previous') {
   if (!map.value) {
     throw new Error('Map not available: Cannot navigate between overlays');
   }
 
   // Handle case when no overlay is selected
   if (!idSelectedOverlay.value) {
-    return await selectFirstOrLastOverlayInAnyProject(direction);
+    return selectFirstOrLastOverlayInAnyProject(direction);
   }
 
   const currentOverlay = overlays.value[idSelectedOverlay.value];
@@ -1375,10 +1380,10 @@ async function focusCameraToOverlay(direction: 'next' | 'previous'): Promise<boo
   const newIndex = (currentIndex + step + projectOverlayIds.length) % projectOverlayIds.length;
   const newOverlayId = projectOverlayIds[newIndex];
 
-  return await selectAndCenterOverlay(newOverlayId, newIndex, projectOverlayIds.length);
+  return selectAndCenterOverlay(newOverlayId, newIndex, projectOverlayIds.length);
 }
 
-async function selectFirstOrLastOverlayInAnyProject(direction: 'next' | 'previous'): Promise<boolean> {
+function selectFirstOrLastOverlayInAnyProject(direction: 'next' | 'previous') {
   const { projects } = useProjects();
   const projectIds = Object.keys(projects.value);
   if (!projectIds.length) {
@@ -1392,7 +1397,7 @@ async function selectFirstOrLastOverlayInAnyProject(direction: 'next' | 'previou
       const index = direction === 'next' ? 0 : project.overlayIds.length - 1;
       const overlayId = project.overlayIds[index];
 
-      if (await selectAndCenterOverlay(overlayId)) {
+      if (selectAndCenterOverlay(overlayId)) {
         // AI : Selected first/last overlay in project
         return true;
       }
@@ -1415,17 +1420,17 @@ export async function navigateToOverlay(overlayId: string, centerMap: boolean = 
 
   if (existingOverlay) {
 
-    return await selectAndCenterOverlay(overlayId, undefined, undefined, centerMap);
+    return selectAndCenterOverlay(overlayId, undefined, undefined, centerMap);
 
   } else {
     // AI : Overlay not found locally - fetch from backend
-    return await loadAndNavigateToOverlay(overlayId, centerMap);
+    return loadAndNavigateToOverlay(overlayId, centerMap);
   }
 }
 
 async function loadAndNavigateToOverlay(overlayId: string, centerMap: boolean): Promise<boolean> {
   try {
-    
+
     // AI : Fetch overlay and intersecting overlays from backend
     const result = await trpc.overlay.getOverlay.query({
       id: overlayId,
@@ -1455,7 +1460,7 @@ async function loadAndNavigateToOverlay(overlayId: string, centerMap: boolean): 
     }
 
     // AI : Navigate to the successfully loaded overlay
-    return await selectAndCenterOverlay(overlayId, undefined, undefined, centerMap);
+    return selectAndCenterOverlay(overlayId, undefined, undefined, centerMap);
 
   } catch (error) {
     console.error('Error fetching overlay:', error);
@@ -1464,9 +1469,7 @@ async function loadAndNavigateToOverlay(overlayId: string, centerMap: boolean): 
   }
 }
 
-
-
-async function selectAndCenterOverlay(overlayId: string, index?: number, total?: number, centerMap: boolean = true): Promise<boolean> {
+function selectAndCenterOverlay(overlayId: string, index?: number, total?: number, centerMap: boolean = true) {
   const overlay = overlays.value[overlayId];
 
   if (!overlay) {
@@ -1485,7 +1488,7 @@ async function selectAndCenterOverlay(overlayId: string, index?: number, total?:
 
     if (centerMap && map.value) {
       // AI : Wait for overlay to be properly initialized before zooming
-      await centerMapOnOverlay(overlay);
+      centerMapOnOverlay(overlay);
     }
     return true;
   } else if (overlay.marker && centerMap && map.value) {
@@ -1502,16 +1505,16 @@ async function selectAndCenterOverlay(overlayId: string, index?: number, total?:
  * AI : Centers the map view on the next overlay in the current project.
  * Wrapper for focusCameraToOverlay('next')
  */
-export async function goToNextOverlay() {
-  await focusCameraToOverlay('next');
+function goToNextOverlay() {
+  focusCameraToOverlay('next');
 }
 
 /**
  * AI : Centers the map view on the previous overlay in the current project.
  * Wrapper for focusCameraToOverlay('previous')
  */
-export async function goToPreviousOverlay() {
-  await focusCameraToOverlay('previous');
+function goToPreviousOverlay() {
+  focusCameraToOverlay('previous');
 }
 
 export function updateTooltipText() {
@@ -1526,7 +1529,7 @@ export function updateTooltipText() {
     if (project) {
       const captionSuffix = overlayObject.caption ? ` - ${overlayObject.caption}` : '';
       const tooltipText = `${project.name}${captionSuffix}`;
-      overlayObject.overlay!.bindTooltip(tooltipText, { permanent: true, direction: 'top' }).openTooltip();
+      overlayObject.overlay?.bindTooltip(tooltipText, { permanent: true, direction: 'top' }).openTooltip();
     }
   } else {
     overlayObject.overlay.bindTooltip('Overlay', { permanent: true, direction: 'top' }).openTooltip();
@@ -1658,8 +1661,8 @@ export const infoTool = L.Toolbar2.Action.extend({
       }
     }
 
-    (L as any).IconUtil.toggleXlink(link, "information", "close");
-    (L as any).IconUtil.toggleTitle(link, "Close", "About");
+    L.IconUtil.toggleXlink(link, "information", "close");
+    L.IconUtil.toggleTitle(link, "Close", "About");
   }
 });
 
@@ -1670,8 +1673,8 @@ export const previousOverlayTool = L.Toolbar2.Action.extend({
       tooltip: 'Go to previous overlay',
     },
   },
-  addHooks: async function () {
-    await goToPreviousOverlay();
+  addHooks: function () {
+    goToPreviousOverlay();
   },
 });
 
@@ -1682,8 +1685,8 @@ export const nextOverlayTool = L.Toolbar2.Action.extend({
       tooltip: 'Go to next overlay',
     },
   },
-  addHooks: async function () {
-    await goToNextOverlay();
+  addHooks: function () {
+    goToNextOverlay();
   },
 });
 

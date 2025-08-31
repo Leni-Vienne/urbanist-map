@@ -1,4 +1,4 @@
-import { createTRPCClient, httpBatchLink, TRPCClientError } from '@trpc/client';
+import { createTRPCClient, httpBatchLink } from '@trpc/client';
 import { inferRouterOutputs, inferRouterInputs } from '@trpc/server';
 import type { AppRouter } from '../../back/src/shared/routers';
 import superjson from 'superjson';
@@ -32,8 +32,3 @@ const trpc = createTRPCClient<AppRouter>({
 // AI : Export as named export to prevent tree-shaking issues
 export { trpc };
 
-export function isTRPCClientError(
-  cause: unknown,
-): cause is TRPCClientError<AppRouter> {
-  return cause instanceof TRPCClientError;
-}

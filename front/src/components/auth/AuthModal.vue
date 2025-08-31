@@ -195,8 +195,8 @@ async function handleSubmit() {
         error.value = result.error || 'Sign up failed'
       }
     }
-  } catch (err: any) {
-    error.value = err.message || 'An error occurred'
+  } catch (err: unknown) {
+    error.value = err instanceof Error ? err.message : 'An error occurred'
   } finally {
     loading.value = false
   }
@@ -220,8 +220,8 @@ async function handleOAuthSignIn(provider: 'google' | 'github' | 'discord' | 'fa
     } else {
       error.value = result.error || `${provider} sign in failed`
     }
-  } catch (err: any) {
-    error.value = err.message || 'An error occurred'
+  } catch (err: unknown) {
+    error.value = err instanceof Error ? err.message : 'An error occurred'
   } finally {
     oauthLoading.value = false
   }

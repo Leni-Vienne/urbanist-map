@@ -19,8 +19,8 @@ export function useCompletionFilters() {
     /**
      * AI : Filter overlays array based on current completion status filters
      */
-    filterByCompletionStatus(overlays: OverlayObject[] | CDNOverlayData[]) {
-      return overlays.filter(overlay => {
+    filterByCompletionStatus<T extends OverlayObject | CDNOverlayData>(overlays: T[]): T[] {
+      return overlays.filter((overlay) => {
         const completionColor = getOverlayMarkerColor(overlay, 'view');
         return visibleCompletionStates.value[completionColor as keyof typeof visibleCompletionStates.value];
       });

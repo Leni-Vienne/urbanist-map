@@ -70,7 +70,7 @@ function toggleLayerPanel(event: Event) {
 // AI : Handle layer change from radio buttons
 async function onLayerChange() {
     try {
-        await switchTileLayer(selectedLayer.value);
+        switchTileLayer(selectedLayer.value);
     } catch (error) {
         console.error('AI : Failed to switch layer:', error);
         // AI : Reset to previous value on error

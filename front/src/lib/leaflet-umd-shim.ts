@@ -19,7 +19,7 @@ import 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
 import type * as LeafletTypes from 'leaflet';
 
 // AI : Get the global L object with proper typing
-const { L } = window as unknown as { L: typeof LeafletTypes };
+const { L } = window as { L: typeof LeafletTypes };
 
 // AI : Export as default to maintain compatibility with existing imports
 export default L;

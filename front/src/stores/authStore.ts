@@ -87,7 +87,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // AI : OAuth not implemented in custom auth (placeholder)
-  async function signInWithOAuth(provider: 'google' | 'github' | 'discord' | 'facebook') {
+  function signInWithOAuth(provider: 'google' | 'github' | 'discord' | 'facebook') {
     console.warn('OAuth authentication not implemented in custom auth system')
     return { 
       success: false, 

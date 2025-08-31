@@ -108,7 +108,7 @@ export function useOverlayPublisher() {
       if (!uploadResponse.ok) {
         throw new Error('Failed to upload image to server');
       }
-      const uploadResult = await uploadResponse.json() as { filename: string };
+      const uploadResult: { filename: string } = await uploadResponse.json();
 
       return uploadResult.filename;
     } else {

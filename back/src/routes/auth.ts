@@ -6,6 +6,7 @@ import { publicProcedure, router, protectedProcedure } from '../trpc';
 import { db } from '../database';
 import { users } from '../db/schema';
 import { setCookie, deleteCookie } from 'hono/cookie';
+import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 
 // AI : Validation schemas
 const registerSchema = z.object({
@@ -55,7 +56,7 @@ class EmailService {
       // AI : Use nodemailer for SMTP connection
       const nodemailer = await import('nodemailer');
       
-      const transportConfig: any = {
+      const transportConfig: SMTPTransport.Options = {
         host: this.config.host,
         port: this.config.port,
         secure: process.env.SMTP_SECURE === 'true', // Use TLS/SSL
@@ -373,7 +374,7 @@ export const authRouter = router({
 
   // AI : User logout
   logout: publicProcedure
-    .mutation(async ({ ctx }) => {
+    .mutation(({ ctx }) => {
       try {
         // AI : Clear the user cookie
         if (ctx.hono) {
@@ -544,7 +545,7 @@ export const authRouter = router({
 
   // AI : Get current user
   me: protectedProcedure
-    .query(async ({ ctx }) => {
+    .query(({ ctx }) => {
       return {
         user: ctx.user ? {
           id: ctx.user.id,

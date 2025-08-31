@@ -13,11 +13,11 @@ export function debounce<T extends (...args: any[]) => any>(
   func: T, 
   wait: number
 ): (...args: Parameters<T>) => void {
-  let timeout: number | undefined;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
 
   return function(...args: Parameters<T>): void {
     clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait) as unknown as number;
+    timeout = setTimeout(() => func(...args), wait);
   };
 }
 
@@ -81,4 +81,3 @@ export function formatRelativeTime(date: Date | string | null | undefined): stri
     return `${diffYears} year${diffYears === 1 ? '' : 's'} ago`
   }
 }
-
