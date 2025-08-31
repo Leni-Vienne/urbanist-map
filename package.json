@@ -18,7 +18,10 @@
     "db:drop": "cd back && bun run drizzle-kit drop",
     "import:cities": "cd back && bun run src/scripts/import-cities.ts",
     "deps:analyze": "madge --json front/src > deps-analysis.json",
-    "deps:circular": "madge --circular --warning front/src"
+    "deps:circular": "madge --circular --warning front/src",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug"
   },
   "dependencies": {
     "@hono/trpc-server": "^0.4.0",
@@ -44,6 +47,7 @@
     "zod": "^4.1.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@primevue/auto-import-resolver": "^4.3.7",
     "@types/bun": "^1.2.20",
     "@types/cors": "^2.8.19",
