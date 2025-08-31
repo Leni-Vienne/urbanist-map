@@ -131,7 +131,7 @@ export function createOverlayObject(savedOverlay: StoredOverlayData): OverlayObj
 /**
  * AI : Create a Leaflet overlay on the map
  */
-export async function createOverlay(imageUrl: string, overlayObject?: OverlayObject) {
+export function createOverlay(imageUrl: string, overlayObject?: OverlayObject) {
   if (!map.value || !overlayObject) return null;
 
   overlayObject.imageUrl ??= imageUrl;
@@ -604,7 +604,7 @@ function setupProjectHoverEvents(overlay: L.DistortableImageOverlay, overlayObje
 /**
  * AI : Render backend CDN overlays on the map for view mode
  */
-export async function renderViewModeOverlays(cdnOverlays: CDNOverlayData[], createMarkers = true, forceRerender = false): Promise<void> {
+export function renderViewModeOverlays(cdnOverlays: CDNOverlayData[], createMarkers = true, forceRerender = false) {
   if (!map.value) return;
 
   let overlaysToRender: CDNOverlayData[];
@@ -619,7 +619,7 @@ export async function renderViewModeOverlays(cdnOverlays: CDNOverlayData[], crea
   }
 
   for (const cdnOverlay of overlaysToRender) {
-    await renderSingleViewModeOverlay(cdnOverlay, createMarkers);
+    renderSingleViewModeOverlay(cdnOverlay, createMarkers);
   }
 }
 
@@ -1439,12 +1439,12 @@ async function loadAndNavigateToOverlay(overlayId: string, centerMap: boolean): 
 
     // AI : Render the main overlay
     const cdnOverlay = transformBackendOverlayToCDN(result.overlay);
-    await renderViewModeOverlays([cdnOverlay], true, false);
+    renderViewModeOverlays([cdnOverlay], true, false);
 
     // AI : Render intersecting overlays if they exist
     if (result.intersectingOverlays.length > 0) {
       const intersectingCdnOverlays = result.intersectingOverlays.map(transformBackendOverlayToCDN);
-      await renderViewModeOverlays(intersectingCdnOverlays, true, false);
+      renderViewModeOverlays(intersectingCdnOverlays, true, false);
     }
 
     // AI : Verify overlay was successfully loaded
@@ -1533,7 +1533,7 @@ export function updateTooltipText() {
   }
 }
 
-export async function deleteOverlayButtonPressed(id: string) {
+export function deleteOverlayButtonPressed(id: string) {
   const overlayObject = overlays.value[id];
   if (!overlayObject) return;
 
@@ -1749,7 +1749,7 @@ export const replaceOverlayTool = L.Toolbar2.Action.extend({
       tooltip: "Replace this overlay image",
     },
   },
-  addHooks: async function () {
+  addHooks: function () {
     const { idSelectedOverlay } = getStoreRefsForTools();
     if (!idSelectedOverlay.value) {
       return;

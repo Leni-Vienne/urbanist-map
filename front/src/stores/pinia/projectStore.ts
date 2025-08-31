@@ -60,7 +60,7 @@ export const useProjectStore = defineStore('project', () => {
     }
   }
 
-  function setNearbyProjects(projectsData: NearbyProject[]): void {
+  function setNearbyProjects(projectsData: NearbyProject[]) {
     nearbyProjects.value = projectsData;
     nearbyProjectsError.value = null;
   }
@@ -83,7 +83,7 @@ export const useProjectStore = defineStore('project', () => {
    * @param projectId - The ID of the project
    * @param overlayId - The ID of the overlay to add
    */
-  async function addOverlayToProjectWithId(projectId: string, overlayId: string): Promise<void> {
+  async function addOverlayToProjectWithId(projectId: string, overlayId: string) {
     const project = projects.value[projectId];
     if (project) {
       if (!project.overlayIds.includes(overlayId)) {
@@ -98,7 +98,7 @@ export const useProjectStore = defineStore('project', () => {
    * @param projectId - The ID of the project
    * @param overlayId - The ID of the overlay to remove
    */
-  async function removeOverlayFromProjectWithId(projectId: string, overlayId: string): Promise<void> {
+  async function removeOverlayFromProjectWithId(projectId: string, overlayId: string) {
     const project = projects.value[projectId];
     if (project) {
       project.overlayIds = project.overlayIds.filter(id => id !== overlayId);

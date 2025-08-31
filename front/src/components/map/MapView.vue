@@ -39,6 +39,7 @@ import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useUiStore } from '@stores/uiStore';
 import { storeToRefs } from 'pinia';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
+import type { CDNOverlayData } from '@types';
 
 import MapControls from '@components/map/MapControls.vue';
 import UserMenu from '@components/auth/UserMenu.vue';
@@ -68,7 +69,7 @@ async function filterOverlaysByCompletionStatus() {
   if (!currentCityOverlays.value?.length) return;
   
   // AI : Use the shared filtering utility
-  const visibleOverlays = filterByCompletionStatus(currentCityOverlays.value);
+  const visibleOverlays = filterByCompletionStatus(currentCityOverlays.value) as CDNOverlayData[];
   const visibleOverlayIds = new Set(visibleOverlays.map(o => o.id));
   
   // AI : Remove overlays that should be hidden
@@ -83,7 +84,7 @@ async function filterOverlaysByCompletionStatus() {
   
   // AI : Recreate missing overlays from scratch
   if (overlaysToRender.length > 0) {
-    await renderViewModeOverlays(overlaysToRender, true, false);
+    renderViewModeOverlays(overlaysToRender, true, false);
     
     // AI : Update view mode tracking with currently visible overlays
     const { setViewModeOverlays } = useViewModeOverlays();
