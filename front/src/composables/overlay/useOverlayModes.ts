@@ -17,15 +17,15 @@ function getStoreRefs() {
   const projectStore = useProjectStore();
   const { overlays, loadedEditOverlays, viewModeOverlays, overlaysLoading, overlaysError, isEditMode } = storeToRefs(overlayStore);
   const { projects } = storeToRefs(projectStore);
-  return { 
-    overlays, 
-    projects, 
-    loadedEditOverlays, 
-    viewModeOverlays, 
-    overlaysLoading, 
-    overlaysError, 
+  return {
+    overlays,
+    projects,
+    loadedEditOverlays,
+    viewModeOverlays,
+    overlaysLoading,
+    overlaysError,
     isEditMode,
-    overlayStore 
+    overlayStore
   };
 }
 
@@ -63,7 +63,7 @@ function initializeEditModeOverlaysInternal(): void {
   if (!map.value) return;
 
   // AI : Clear existing markers and overlays
-  clearEditModeOverlays();
+  clearEditModeUI();
 
   // AI : Create new layer group for overlay markers
   editModeOverlayMarkers = L.layerGroup();
@@ -102,7 +102,7 @@ function createEditModeOverlayMarker(overlay: OverlayObject): void {
   const markerIcon = createColorIcon(markerColor);
 
   // AI : Create marker with overlay ID stored for later reference
-  const marker = L.marker([centerLat, centerLng], { icon: markerIcon }) as any;
+  const marker = L.marker([centerLat, centerLng], { icon: markerIcon });
   marker.overlayId = overlay.id;
 
   // AI : Add tooltip with overlay info
@@ -113,9 +113,9 @@ function createEditModeOverlayMarker(overlay: OverlayObject): void {
     <div>
       <strong>${overlay.caption ?? 'Overlay'}</strong><br>
       Project: ${project?.name ?? 'Unknown'}<br>
-      <small>${currentZoom < MIN_ZOOM_FOR_EDIT_OVERLAYS ? 
-        `Zoom to level ${MIN_ZOOM_FOR_EDIT_OVERLAYS}+ to load overlay` : 
-        'Click to load full overlay'}</small>
+      <small>${currentZoom < MIN_ZOOM_FOR_EDIT_OVERLAYS ?
+      `Zoom to level ${MIN_ZOOM_FOR_EDIT_OVERLAYS}+ to load overlay` :
+      'Click to load full overlay'}</small>
     </div>
   `;
   marker.bindTooltip(tooltipContent, {
@@ -136,10 +136,10 @@ function createEditModeOverlayMarker(overlay: OverlayObject): void {
 /**
  * AI : Load full overlay image for a specific overlay
  */
-async function loadFullOverlay(overlayId: string): Promise<void> {
+function loadFullOverlay(overlayId: string) {
   const { overlays, loadedEditOverlays, overlayStore } = getStoreRefs();
   const overlay = overlays.value[overlayId];
-  
+
   if (!overlay || loadedEditOverlays.value.has(overlayId)) {
     return;
   }
@@ -157,7 +157,7 @@ async function loadFullOverlay(overlayId: string): Promise<void> {
     // AI : In edit mode, we need to ensure the overlay is loaded and visible
     // AI : Load the overlay if not already loaded - create the overlay if it doesn't exist
     if (!overlay.overlay) {
-      const newOverlay = await createOverlay(overlay.imageUrl, overlay);
+      const newOverlay = createOverlay(overlay.imageUrl, overlay);
       if (newOverlay) {
         overlay.overlay = newOverlay;
       }
@@ -197,11 +197,11 @@ export function stopEditModeTracking(): void {
 /**
  * AI : Handle camera stop events - load nearby overlays if zoom is high enough
  */
-async function handleCameraStop(_bounds: CameraBounds): Promise<void> {
+function handleCameraStop(_bounds: CameraBounds) {
   if (!map.value) return;
 
   const currentZoom = currentZoomLevel.value;
-  
+
   // AI : Only load full overlays if zoom is high enough
   if (currentZoom < MIN_ZOOM_FOR_EDIT_OVERLAYS) {
     return;
@@ -212,7 +212,7 @@ async function handleCameraStop(_bounds: CameraBounds): Promise<void> {
 
   // AI : Find overlays within loading distance
   const overlaysToLoad: string[] = [];
-  
+
   const { overlays, loadedEditOverlays } = getStoreRefs();
   Object.values(overlays.value).forEach(overlay => {
     if (!overlay.corners || overlay.corners.length < 4 || loadedEditOverlays.value.has(overlay.id)) {
@@ -234,50 +234,26 @@ async function handleCameraStop(_bounds: CameraBounds): Promise<void> {
 
   // AI : Load the nearby overlays
   for (const overlayId of overlaysToLoad) {
-    await loadFullOverlay(overlayId);
+    loadFullOverlay(overlayId);
   }
 }
 
 /**
  * AI : Clear all edit mode overlays and markers
  */
-export function clearEditModeOverlays(): void {
-  // AI : Remove overlay markers from map
-  if (map.value && editModeOverlayMarkers) {
-    map.value.removeLayer(editModeOverlayMarkers);
-    editModeOverlayMarkers = null;
-  }
-
-  // AI : Clear loaded overlays tracking using store action
+function clearEditModeUI(): void {
+  // AI : Use store to clear both markers and state
   const { overlayStore } = getStoreRefs();
-  overlayStore.clearEditModeOverlays();
+  overlayStore.clearEditModeMarkersAndState(map.value ?? undefined, editModeOverlayMarkers);
 
-  // AI : Only clear overlays when switching back to view mode
-  // AI : Don't clear all overlays here - let the mode switching handle it
-}
-
-/**
- * AI : Clear all edit mode overlays and markers including full overlays
- */
-export function clearAllEditModeOverlays(): void {
-  // AI : Clear markers first
-  if (map.value && editModeOverlayMarkers) {
-    map.value.removeLayer(editModeOverlayMarkers);
-    editModeOverlayMarkers = null;
-  }
-
-  // AI : Clear loaded overlays tracking using store action
-  const { overlayStore } = getStoreRefs();
-  overlayStore.clearEditModeOverlays();
-
-  // AI : Clear full overlays from map
-  clearAllOverlays();
+  // AI : Reset local marker reference
+  editModeOverlayMarkers = null;
 }
 
 /**
  * AI : Add a new overlay marker when an overlay is created
  */
-export function addEditModeOverlayMarker(overlay: OverlayObject): void {
+function addEditModeOverlayMarker(overlay: OverlayObject): void {
   if (!editModeOverlayMarkers) return;
 
   createEditModeOverlayMarker(overlay);
@@ -286,14 +262,14 @@ export function addEditModeOverlayMarker(overlay: OverlayObject): void {
 /**
  * AI : Remove an overlay marker when an overlay is deleted
  */
-export function removeEditModeOverlayMarker(overlayId: string): void {
+function removeEditModeOverlayMarker(overlayId: string): void {
   if (!editModeOverlayMarkers) return;
 
   // AI : Find and remove the marker
   const markersLayer = editModeOverlayMarkers;
-  markersLayer.eachLayer((layer) => {
-    if (layer instanceof L.Marker && (layer as any).overlayId === overlayId) {
-      markersLayer.removeLayer(layer);
+  markersLayer.eachLayer((marker) => {
+    if (marker instanceof L.Marker && marker.overlayId === overlayId) {
+      markersLayer.removeLayer(marker);
     }
   });
 
@@ -309,26 +285,26 @@ function updateTooltipsForZoomLevel(): void {
   if (!editModeOverlayMarkers) return;
 
   const currentZoom = currentZoomLevel.value;
-  
-  editModeOverlayMarkers.eachLayer((layer) => {
-    if (layer instanceof L.Marker) {
-      const marker = layer as any;
+
+  editModeOverlayMarkers.eachLayer((marker) => {
+    if (marker instanceof L.Marker) {
       const overlayId = marker.overlayId;
+      if (!overlayId) return;
       const { overlays, projects } = getStoreRefs();
       const overlay = overlays.value[overlayId];
-      
+
       if (overlay) {
         const project = overlay.projectId ? projects.value[overlay.projectId] : null;
         const tooltipContent = `
           <div>
             <strong>${overlay.caption ?? 'Overlay'}</strong><br>
             Project: ${project?.name ?? 'Unknown'}<br>
-            <small>${currentZoom < MIN_ZOOM_FOR_EDIT_OVERLAYS ? 
-              `Zoom to level ${MIN_ZOOM_FOR_EDIT_OVERLAYS}+ to load overlay` : 
-              'Click to load full overlay'}</small>
+            <small>${currentZoom < MIN_ZOOM_FOR_EDIT_OVERLAYS ?
+            `Zoom to level ${MIN_ZOOM_FOR_EDIT_OVERLAYS}+ to load overlay` :
+            'Click to load full overlay'}</small>
           </div>
         `;
-        
+
         // AI : Update tooltip content
         marker.unbindTooltip();
         marker.bindTooltip(tooltipContent, {
@@ -349,7 +325,7 @@ function unloadOverlaysForZoomLevel(): void {
     // AI : Clear all loaded overlays but keep markers
     clearAllOverlays();
     const { overlayStore } = getStoreRefs();
-    overlayStore.clearEditModeOverlays();
+    overlayStore.clearEditModeMarkersAndState();
   }
 }
 
@@ -360,7 +336,7 @@ function watchZoomLevel(): void {
   watch(currentZoomLevel, (newZoom, oldZoom) => {
     // AI : Update tooltips when zoom changes
     updateTooltipsForZoomLevel();
-    
+
     // AI : Unload overlays if zoom is too low
     if (newZoom < MIN_ZOOM_FOR_EDIT_OVERLAYS && oldZoom >= MIN_ZOOM_FOR_EDIT_OVERLAYS) {
       unloadOverlaysForZoomLevel();
@@ -418,11 +394,11 @@ function setViewModeOverlays(overlays: CDNOverlayData[]) {
 /**
  * AI : Render all current overlays in view mode
  */
-async function renderCurrentOverlays() {
+function renderCurrentOverlays() {
   const { viewModeOverlays, overlayStore } = getStoreRefs();
-  
+
   if (viewModeOverlays.value.length === 0) return;
-  
+
   overlayStore.setOverlaysLoading(true);
 
   try {
@@ -436,15 +412,6 @@ async function renderCurrentOverlays() {
   }
 }
 
-/**
- * AI : Clear view mode overlays
- */
-function clearViewModeOverlays() {
-  const { overlayStore } = getStoreRefs();
-  overlayStore.clearViewModeOverlays();
-  // AI : Don't call clearAllOverlays here - let the mode switching handle it
-}
-
 // ================================
 // MODE SWITCHING LOGIC
 // ================================
@@ -453,17 +420,17 @@ function clearViewModeOverlays() {
  * AI : Toggle between edit and view modes
  * @param onModeExit - Optional callback function to handle city-specific logic when exiting edit mode
  */
-export async function toggleEditMode(onModeExit?: () => void) {
+export function toggleEditMode(onModeExit?: () => void) {
   // AI : Get store refs when needed to avoid module-level initialization
   const { overlays, isEditMode } = getStoreRefs();
-  
+
   isEditMode.value = !isEditMode.value;
 
   if (isEditMode.value) {
     // AI : ENTERING EDIT MODE
     // AI : Stop view mode tracking
     stopViewModeTracking();
-    
+
     // AI : For overlays that already have images loaded (from city markers), 
     // AI : ensure they're properly added to the map and update their editing state
     Object.values(overlays.value).forEach((overlayObject) => {
@@ -473,39 +440,39 @@ export async function toggleEditMode(onModeExit?: () => void) {
           overlayObject.overlay.addTo(map.value);
         }
       }
-      
+
       // AI : Update marker colors and tooltips for edit mode
       if (overlayObject.marker) {
         updateMarkerTooltip(overlayObject);
       }
     });
-    
+
     // AI : Update overlay editing state for existing overlays
     updateOverlayEditingState();
-    
+
     // AI : Initialize edit mode overlay markers for overlays that don't have images loaded yet
     initializeEditModeOverlays();
-    
+
     // AI : Start camera tracking for edit mode
     startEditModeTracking();
   } else {
     // AI : EXITING EDIT MODE
     // AI : Stop edit mode tracking
     stopEditModeTracking();
-    
+
     // AI : Clear only the edit mode markers, not the full overlays
-    clearEditModeOverlays();
-    
+    clearEditModeUI();
+
     // AI : Update markers for view mode (remove tooltips, update colors)
     Object.values(overlays.value).forEach((overlayObject) => {
       if (overlayObject.marker) {
         updateMarkerTooltip(overlayObject);
       }
     });
-    
+
     // AI : Update overlay editing state for existing overlays (disable editing)
     updateOverlayEditingState();
-    
+
     // AI : Execute custom exit logic if provided
     if (onModeExit) {
       onModeExit();
@@ -533,29 +500,6 @@ export function useViewModeOverlays() {
     renderCurrentOverlays,
     setViewModeOverlays,
     stopCameraTracking: stopViewModeTracking,
-    clearOverlays: clearViewModeOverlays
-  };
-}
-
-/**
- * AI : Composable to manage edit mode overlays
- */
-export function useEditModeOverlays() {
-  const { loadedEditOverlays } = getStoreRefs();
-  
-  return {
-    // AI : State
-    loadedEditOverlays: loadedEditOverlays,
-
-    // AI : Methods
-    initializeEditModeOverlays,
-    startEditModeTracking,
-    stopEditModeTracking,
-    clearEditModeOverlays,
-    clearAllEditModeOverlays,
-    addEditModeOverlayMarker,
-    removeEditModeOverlayMarker,
-    loadFullOverlay
   };
 }
 

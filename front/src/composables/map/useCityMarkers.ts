@@ -25,7 +25,7 @@ function getStoreRefs() {
 }
 
 // AI : Function to get selected project ID when needed (kept for backward compatibility)
-async function getSelectedProjectId() {
+function getSelectedProjectId() {
   const { selectedProjectId } = useSelectedProject();
   return selectedProjectId;
 }
@@ -43,8 +43,7 @@ export type CityWithProjects = RouterOutput['cities']['getCitiesWithProjects'][n
 export const citiesWithProjects = ref<CityWithProjects[]>([]);
 
 // AI : Loading states
-export const isLoadingCities = ref(false);
-export const isLoadingCityProjects = ref(false);
+const isLoadingCityProjects = ref(false);
 
 // AI : Current city overlays displayed
 export const currentCityOverlays = ref<CDNOverlayData[]>([]);
@@ -113,7 +112,7 @@ export async function loadCityProjects(cityId: string, cityName: string, forceFu
     mapStore.setSelectedCity({ id: cityId, name: cityName, countryCode: cityCountryCode });
 
     // AI : Clear selected project when switching cities
-    const selectedProjectId = await getSelectedProjectId();
+    const selectedProjectId = getSelectedProjectId();
     selectedProjectId.value = null;
 
     // AI : Check if we have cached data and decide what to show
@@ -154,8 +153,8 @@ export async function loadCityProjects(cityId: string, cityName: string, forceFu
     currentCityOverlays.value = overlaysData;
 
     // AI : Filter overlays based on current completion status filters
-    const { filterByCompletionStatus } = useCompletionFilters();
-    const overlaysToRender = filterByCompletionStatus(overlaysData) as CDNOverlayData[];
+    const completionFilters = useCompletionFilters();
+    const overlaysToRender = completionFilters.filterByCompletionStatus(overlaysData);
 
     // AI : Set overlays in view mode overlays and render them
     const { setViewModeOverlays } = useViewModeOverlays();
@@ -193,8 +192,8 @@ async function showOverlayMarkers(cityId: string): Promise<void> {
     const overlaysData = await fetchCityProjectsData(cityId);
 
     // AI : Filter overlays based on current completion status filters
-    const { filterByCompletionStatus } = useCompletionFilters();
-    const visibleOverlays = filterByCompletionStatus(overlaysData) as CDNOverlayData[];
+    const completionFilters = useCompletionFilters();
+    const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData);
 
     // AI : Create new layer group for overlay markers
     overlayMarkersLayer = L.layerGroup();
@@ -280,12 +279,12 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
     });
 
     // AI : Add tooltip with city name, only on hover
-    marker.bindTooltip(`${city.name}`, {
+    marker.bindTooltip(city.name, {
       permanent: false, // AI : Tooltip appears only on hover
     });
 
     // AI : Add click event to load city projects directly and set marker as selected
-    marker.on('click', async () => {
+    marker.on('click', () => {
       // AI : Set all city markers to default opacity except the clicked one
       if (cityMarkersLayer) {
         cityMarkersLayer.eachLayer((layer) => {
@@ -296,7 +295,7 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
       }
       marker.setOpacity(CITY_MARKER_HOVER_OPACITY);
       selectedCityMarker = marker;
-      await loadCityProjects(city.id, city.name, false, city.countryCode);
+      void loadCityProjects(city.id, city.name, false, city.countryCode);
     });
 
     // AI : Add mouseover event to show guidance tooltip and increase marker opacity
@@ -336,50 +335,6 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
 }
 
 /**
- * AI : Toggle city markers visibility
- */
-export function toggleCityMarkers(): void {
-  if (cityMarkersLayer && map.value) {
-    if (map.value.hasLayer(cityMarkersLayer)) {
-      removeCityMarkers();
-    } else {
-      cityMarkersLayer.addTo(map.value);
-    }
-  }
-}
-
-/**
- * AI : Check if city markers are currently visible on the map
- */
-export function areCityMarkersVisible(): boolean {
-  return !!(cityMarkersLayer && map.value?.hasLayer(cityMarkersLayer));
-}
-
-/**
- * AI : Clean up mouse tooltip element
- */
-function cleanupMouseTooltip(): void {
-  if (mouseTooltip) {
-    document.body.removeChild(mouseTooltip);
-    mouseTooltip = null;
-  }
-}
-
-/**
- * AI : Clear city projects cache
- */
-export function clearCityProjectsCache(): void {
-  cityProjectsCache.clear();
-}
-
-/**
- * AI : Clear edit mode cache for overlay modifications
- */
-export function clearEditModeOverlayCache(): void {
-  editModeOverlayCache.clear();
-}
-
-/**
  * AI : Get overlay data with edit modifications applied (for edit mode)
  * @param overlayData - Original overlay data
  * @returns Overlay data with edit modifications applied if in edit mode
@@ -401,28 +356,6 @@ function getOverlayDataWithEditModifications(overlayData: CDNOverlayData): CDNOv
   }
 
   return overlayData; // AI : No modifications found
-}
-
-/**
- * AI : Clear cache for a specific city
- */
-export function clearCityProjectsCacheForCity(cityId: string): void {
-  cityProjectsCache.delete(cityId);
-}
-
-/**
- * AI : Cleanup city markers system
- */
-export function cleanupCityMarkers(): void {
-  removeCityMarkers();
-  removeOverlayMarkers();
-  cleanupMouseTooltip();
-  clearCityProjectsCache();
-  clearEditModeOverlayCache(); // AI : Clear edit modifications on cleanup
-
-  // AI : Clear selected city from store
-  const { mapStore } = getStoreRefs();
-  mapStore.clearSelectedCity();
 }
 
 /**
@@ -501,7 +434,7 @@ function renderFullOverlaysFromCache(cityId: string, cityName: string) {
 
     // AI : Filter overlays based on current completion status filters
     const completionFilters = useCompletionFilters();
-    const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData) as CDNOverlayData[];
+    const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData);
 
     // AI : Set overlays in view mode overlays and render them
     const { setViewModeOverlays } = useViewModeOverlays();
@@ -534,7 +467,7 @@ export function renderOverlayMarkersFromCache(cityId: string, cityName: string):
 
     // AI : Filter overlays based on current completion status filters
     const completionFilters = useCompletionFilters();
-    const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData) as CDNOverlayData[];
+    const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData);
 
     // AI : Create new layer group for overlay markers
     overlayMarkersLayer = L.layerGroup();
@@ -561,7 +494,7 @@ export function renderOverlayMarkersFromCache(cityId: string, cityName: string):
 /**
  * AI : Set up zoom event listener to upgrade overlay markers to full overlays
  */
-export function setupZoomEventListener(): void {
+function setupZoomEventListener(): void {
   if (!map.value) {
     onMapInitialized(() => {
       setupZoomEventListenerInternal();
@@ -606,7 +539,7 @@ function setupZoomEventListenerInternal(): void {
   // AI : Single zoom event listener that handles both cleanup and live rendering
   map.value.on('zoom', combinedZoomHandler);
 
-  map.value.on('zoomend', async () => {
+  map.value.on('zoomend', () => {
     if (!map.value) return;
 
     const { selectedCity } = getStoreRefs();
@@ -701,36 +634,6 @@ function getOverlayMarkerInfo(overlayData: CDNOverlayData): { color: MarkerColor
 }
 
 /**
- * AI : Update overlay markers when overlays are modified in edit mode
- * This function should be called when overlays are moved, rotated, or modified
- */
-export function updateOverlayMarkers(): void {
-  // AI : Only update if we have overlay markers visible and we're in edit mode
-  const { isEditMode, selectedCity } = getStoreRefs();
-  if (!overlayMarkersLayer || !map.value?.hasLayer(overlayMarkersLayer) || !isEditMode.value) {
-    return;
-  }
-
-  // AI : Get the current city data from cache
-  if (!selectedCity.value || !cityProjectsCache.has(selectedCity.value.id)) {
-    return;
-  }
-
-  const overlaysData = cityProjectsCache.get(selectedCity.value.id)!;
-
-  // AI : Clear existing markers
-  overlayMarkersLayer.clearLayers();
-
-  // AI : Re-add markers with updated positions and colors
-  overlaysData.forEach(overlay => {
-    const { color: markerColor, position } = getOverlayMarkerInfo(overlay);
-    const markerIcon = createColorIcon(markerColor);
-    const marker = L.marker([position.lat, position.lng], { icon: markerIcon });
-    overlayMarkersLayer!.addLayer(marker);
-  });
-}
-
-/**
  * AI : Update overlay markers when completion filters change
  * This function updates markers based on current filter state (works in both edit and view mode)
  */
@@ -751,29 +654,13 @@ export function updateOverlayMarkersForFilters(): void {
   renderOverlayMarkersFromCache(selectedCity.value.id, selectedCity.value.name);
 }
 
-/**
- * AI : Update cached overlay data when an overlay is modified
- * This stores modifications in a separate edit cache to keep original backend data pristine
- */
-export function updateCachedOverlayData(overlayId: string, newCorners: { lat: number, lng: number }[]): void {
-  const { isEditMode } = getStoreRefs();
-  if (!isEditMode.value) {
-    return; // AI : Only update edit cache when in edit mode
-  }
-
-  // AI : Store modifications in separate edit cache, keeping original cityProjectsCache pristine
-  editModeOverlayCache.set(overlayId, {
-    corners: [...newCorners],
-    isModified: true
-  });
-}
 
 /**
  * AI : Get cached overlay data for a specific city
  * @param cityId - The city ID to get data for
  * @returns The cached overlay data or null if not found
  */
-export function getCachedCityProjectsData(cityId: string): CDNOverlayData[] | null {
+function getCachedCityProjectsData(cityId: string): CDNOverlayData[] | null {
   return cityProjectsCache.get(cityId) ?? null;
 }
 
@@ -782,7 +669,7 @@ export function getCachedCityProjectsData(cityId: string): CDNOverlayData[] | nu
  * @param cityId - The city ID to check
  * @returns True if data is cached, false otherwise
  */
-export function hasCachedCityProjectsData(cityId: string): boolean {
+function hasCachedCityProjectsData(cityId: string): boolean {
   return cityProjectsCache.has(cityId);
 }
 
@@ -820,8 +707,8 @@ export function handleEditModeExit() {
       setViewModeOverlays(overlaysData);
 
       // AI : Filter overlays based on current completion status filters
-      const { filterByCompletionStatus } = useCompletionFilters();
-      const visibleOverlays = filterByCompletionStatus(overlaysData) as CDNOverlayData[];
+      const completionFilters = useCompletionFilters();
+      const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData);
 
       // AI : Render the overlays on the map
       renderViewModeOverlays(visibleOverlays, true, true)
@@ -834,4 +721,3 @@ export function handleEditModeExit() {
     updateOverlayMarkersForFilters();
   }
 }
-

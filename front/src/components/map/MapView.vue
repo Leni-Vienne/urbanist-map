@@ -18,9 +18,7 @@
     </div>
 
     <!-- AI : Map Controls Component -->
-    <MapControls
-      @filter-overlays="filterOverlaysByCompletionStatus"
-    />
+    <MapControls @filter-overlays="filterOverlaysByCompletionStatus" />
   </div>
 </template>
 
@@ -52,40 +50,39 @@ const isLoading = ref(true);
 
 const { isEditMode, overlays } = storeToRefs(overlayStore);
 
-// AI : Use shared completion filter state
-const { filterByCompletionStatus } = useCompletionFilters();
-
 // AI : Use view mode overlays for displaying overlays when camera moves
 const { stopCameraTracking } = useViewModeOverlays();
 
 // AI : Filter overlays based on completion status
 async function filterOverlaysByCompletionStatus() {
   if (!map.value) return;
-  
+
   // AI : If we have overlay markers visible (when zoomed out), update them with filters
   updateOverlayMarkersForFilters();
-  
+
   // AI : Handle full overlays (when zoomed in)
   if (!currentCityOverlays.value?.length) return;
-  
+
   // AI : Use the shared filtering utility
-  const visibleOverlays = filterByCompletionStatus(currentCityOverlays.value) as CDNOverlayData[];
+  // AI : Use shared completion filter state
+  const completionFilters = useCompletionFilters();
+  const visibleOverlays = completionFilters.filterByCompletionStatus(currentCityOverlays.value) as CDNOverlayData[];
   const visibleOverlayIds = new Set(visibleOverlays.map(o => o.id));
-  
+
   // AI : Remove overlays that should be hidden
   const overlaysToHide = currentCityOverlays.value.filter(overlay => !visibleOverlayIds.has(overlay.id));
   overlaysToHide.forEach(overlay => removeOverlay(overlay.id));
-  
+
   // AI : Find overlays that should be visible but aren't currently rendered
   const overlaysToRender = visibleOverlays.filter(cdnOverlay => {
     const overlayObject = overlays.value[cdnOverlay.id];
     return !overlayObject || !overlayObject.overlay || !map.value!.hasLayer(overlayObject.overlay);
   });
-  
+
   // AI : Recreate missing overlays from scratch
   if (overlaysToRender.length > 0) {
     renderViewModeOverlays(overlaysToRender, true, false);
-    
+
     // AI : Update view mode tracking with currently visible overlays
     const { setViewModeOverlays } = useViewModeOverlays();
     setViewModeOverlays(visibleOverlays);
@@ -189,5 +186,4 @@ async function initializeMapAndOverlays() {
   border: none !important;
   box-shadow: none !important;
 }
-
 </style>

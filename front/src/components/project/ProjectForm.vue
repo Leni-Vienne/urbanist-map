@@ -153,7 +153,7 @@ import { getCameraBounds } from '@composables/map/useCameraBounds';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { storeToRefs } from 'pinia';
 import type { Project } from '@types';
-import FileUpload from 'primevue/fileupload';
+import FileUpload, { type FileUploadSelectEvent } from 'primevue/fileupload';
 
 // AI : Get store refs
 const overlayStore = useOverlayStore();
@@ -268,7 +268,7 @@ function handleSubmit() {
 }
 
 // AI : Handle PDF file selection
-function onPdfSelect(event: any) {
+function onPdfSelect(event: FileUploadSelectEvent) {
     const file = event.files[0];
     if (file) {
         localProject.value.sourcePdf = file;

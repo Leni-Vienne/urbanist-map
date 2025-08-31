@@ -4,7 +4,7 @@ import type { Project, OverlayObject } from '@types';
 
 export interface ProjectDialogState {
   visible: boolean;
-  project?: Project;
+  project?: Partial<Project>;
   mode: 'create' | 'edit';
 }
 
@@ -62,7 +62,7 @@ export const useUiStore = defineStore('ui', () => {
   }
 
   // AI : Project dialog actions
-  function openProjectDialog(project?: Project, mode: 'create' | 'edit' = 'create') {
+  function openProjectDialog(project?: Partial<Project>, mode: 'create' | 'edit' = 'create') {
     projectDialog.value = {
       visible: true,
       project,

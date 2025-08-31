@@ -15,6 +15,8 @@ export type GetOverlayResponse = RouterOutput['overlay']['getOverlay'];
 export type BackendOverlay = NonNullable<GetOverlayResponse['overlay']>;
 export type IntersectingOverlay = GetOverlayResponse['intersectingOverlays'][0];
 
+export type LatestOverlay = RouterOutput['overlay']['getLatestOverlays'][number];
+
 export type PublishOverlayInput = RouterInput['overlay']['publishOverlay'];
 export type PublishOverlayResponse = RouterOutput['overlay']['publishOverlay'];
 

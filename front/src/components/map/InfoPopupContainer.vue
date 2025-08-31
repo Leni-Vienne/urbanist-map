@@ -29,6 +29,7 @@ import { fetchNearbyProjects } from '@composables/project/useNearbyProjects';
 import { useOverlayPublisher } from '@composables/overlay/useOverlayPublisher';
 import { citiesWithProjects } from '@composables/map/useCityMarkers';
 import { convertNearbyProjectToLocal, convertNearbyProjectToBackend } from '../../utils/projectConverters';
+import { removeOverlayFromProjectWithId } from '@composables/project/useProjects';
 import type { OverlayObject, Project } from '@types';
 
 const overlayStore = useOverlayStore();
@@ -103,7 +104,7 @@ function getProjectForOverlay(overlay: OverlayObject): Project | null {
       const convertedProject: Project = {
         ...backendProject,
         name: backendProject.name,
-        city: backendProject.city as any,
+        city: backendProject.city,
         overlayIds: [],
         color: '#007bff'
       };
@@ -132,13 +133,13 @@ async function handleProjectChange(projectId: string) {
 
     // AI : If overlay already belongs to a project, remove it first
     if (originalProjectId) {
-      await projectStore.removeOverlayFromProjectWithId(originalProjectId, overlay.id);
+      removeOverlayFromProjectWithId(originalProjectId, overlay.id);
     }
 
     // AI : Check if project exists in local store, if not, try to get it from nearby projects
     if (!projects.value[projectId]) {
       const nearbyProjects = await fetchNearbyProjects();
-      const nearbyProject = nearbyProjects.find((p: any) => p.id === projectId);
+      const nearbyProject = nearbyProjects.find((p) => p.id === projectId);
 
       if (nearbyProject) {
         // AI : Convert nearby project to local project format using shared utility

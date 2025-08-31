@@ -25,17 +25,17 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
   const changeReason = ref('')
   
   // AI : Create reactive objects for original and current data
-  const originalData = reactive({ ...options.initialData } as T)
-  const formData = reactive({ ...options.initialData } as T)
+  const originalData = reactive({ ...options.initialData })
+  const formData = reactive({ ...options.initialData })
 
   // AI : Check if a specific field has changed
   function hasChanged(fieldName: keyof T): boolean {
-    const original = (originalData as any)[fieldName]
-    const current = (formData as any)[fieldName]
+    const original = (originalData as T)[fieldName]
+    const current = (formData as T)[fieldName]
     
     // AI : Handle Date objects comparison
-    if (original instanceof Date && current instanceof Date) {
-      return original.getTime() !== current.getTime()
+    if (original && typeof original === 'object' && 'getTime' in original && current && typeof current === 'object' && 'getTime' in current) {
+      return (original as Date).getTime() !== (current as Date).getTime()
     }
     
     return original !== current
@@ -61,8 +61,8 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
       if (hasChanged(fieldName)) {
         changes.push({
           fieldName: String(fieldName),
-          oldValue: (originalData as any)[fieldName],
-          newValue: (formData as any)[fieldName],
+          oldValue: (originalData as T)[fieldName],
+          newValue: (formData as T)[fieldName],
           changeReason: changeReason.value || undefined
         })
       }

@@ -50,7 +50,7 @@ export function createAuthMiddleware() {
 
 // AI : Helper to get authenticated user from Hono context
 export function getAuthenticatedUser(c: Context): DBUser | null {
-  return c.get('user') ?? null
+  return c.get('user') as DBUser | null ?? null
 }
 
 // AI : Helper to require authentication
@@ -69,9 +69,4 @@ export function requireRole(c: Context, role: string): DBUser {
     throw new TRPCError({ code: 'FORBIDDEN', message: 'Insufficient permissions' })
   }
   return user
-}
-
-// AI : Helper to require admin role
-export function requireAdmin(c: Context): DBUser {
-  return requireRole(c, 'admin')
 }

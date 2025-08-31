@@ -19,7 +19,7 @@ export function getOverlayMarkerColor(
 
     // AI : Check if overlay was loaded from CDN or has been saved to backend
     const isRemoteOverlay = overlayData.project !== undefined ||
-      ('savedRemotely' in overlayData && overlayData.savedRemotely === true);
+      ('savedRemotely' in overlayData && overlayData.savedRemotely);
 
     // AI : Check if overlay has been modified locally
     const hasBeenModified = 'isModified' in overlayData ? overlayData.isModified : false;
@@ -39,15 +39,15 @@ export function getOverlayMarkerColor(
     }
   } else {
     // AI : View mode - use construction timeline colors
-    let startDate: string | Date | null | undefined = null;
-    let endDate: string | Date | null | undefined = null;
+    let startDate: Date | null | undefined = null;
+    let endDate: Date | null | undefined = null;
 
     if (overlayData.project) {
       startDate = overlayData.project.startDate;
       endDate = overlayData.project.endDate;
-    } else if ('startDate' in overlayData || 'endDate' in overlayData) {
-      startDate = (overlayData as any).startDate;
-      endDate = (overlayData as any).endDate;
+    } else if ('startDate' in overlayData && 'endDate' in overlayData) {
+      startDate = (overlayData as { startDate?: Date | null }).startDate;
+      endDate = (overlayData as { endDate?: Date | null }).endDate;
     }
 
     // AI : Inline construction date logic - no need for separate function

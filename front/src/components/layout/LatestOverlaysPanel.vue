@@ -83,9 +83,10 @@ import { trpc } from '@client'
 import { navigateToOverlay } from '@composables/overlay/useOverlay'
 import { useToast } from '@composables/ui/useToast'
 import { buildImageUrl, formatRelativeTime } from '../../utils'
+import type { LatestOverlay } from '../../types/api'
 
 // AI : Reactive state
-const overlays = ref<any[]>([])
+const overlays = ref<LatestOverlay[]>([])
 const isLoading = ref(false)
 const imageErrors = ref<Record<string, boolean>>({})
 const toast = useToast()
@@ -120,7 +121,7 @@ function hideFlagOnError(event: Event) {
 }
 
 // AI : Get location display (city, country)
-function getLocationDisplay(overlay: any): string {
+function getLocationDisplay(overlay: LatestOverlay): string {
   if (overlay.cityName && overlay.countryName) {
     return `${overlay.cityName}, ${overlay.countryName}`
   } else if (overlay.cityName) {
@@ -132,7 +133,7 @@ function getLocationDisplay(overlay: any): string {
 }
 
 // AI : Handle overlay click - navigate to overlay
-async function handleOverlayClick(overlay: any) {
+async function handleOverlayClick(overlay: LatestOverlay) {
   try {
     await navigateToOverlay(overlay.id)
   } catch (error) {

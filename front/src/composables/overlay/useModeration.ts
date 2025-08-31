@@ -1,6 +1,7 @@
 import { ref, onMounted } from 'vue'
 import { trpc } from '@client'
 import type { PendingOverlay, PendingChangeRequest } from '../../types/api'
+import type { AccordionProject } from '@types'
 
 // AI : Interface for tracking recent actions for undo functionality
 interface RecentAction {
@@ -14,7 +15,7 @@ interface RecentAction {
 
 export function useModeration() {
   const overlays = ref<PendingOverlay[]>([])
-  const projects = ref<any[]>([])
+  const projects = ref<AccordionProject[]>([])
   const changeRequests = ref<PendingChangeRequest[]>([])
   const recentActions = ref<RecentAction[]>([])
 

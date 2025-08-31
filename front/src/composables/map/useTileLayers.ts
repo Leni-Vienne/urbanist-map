@@ -117,7 +117,7 @@ function createTileLayer(layerType: TileLayerType): L.TileLayer | L.GridLayer {
 /**
  * AI : Switch to a different tile layer (for custom layer control)
  */
-export async function switchTileLayer(layerType: TileLayerType): Promise<void> {
+export function switchTileLayer(layerType: TileLayerType) {
   if (!map.value || currentTileLayer.value === layerType) {
     return;
   }
@@ -149,9 +149,15 @@ export async function switchTileLayer(layerType: TileLayerType): Promise<void> {
 /**
  * AI : Get available tile layer options for UI
  */
-export function getTileLayerOptions() {
-  return Object.entries(tileLayerConfigs).map(([value, config]) => ({
-    label: config.label,
-    value: value as TileLayerType
-  }));
+export function getTileLayerOptions(): { label: string; value: TileLayerType }[] {
+  return Object.entries(tileLayerConfigs)
+    .filter(([value]) => isTileLayerType(value))
+    .map(([value, config]) => ({
+      label: config.label,
+      value: value as TileLayerType
+    }));
+}
+
+export function isTileLayerType(value: string): value is TileLayerType {
+  return ['FRA', 'esri', 'CHE'].includes(value);
 }

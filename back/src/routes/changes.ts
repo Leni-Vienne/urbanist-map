@@ -10,11 +10,15 @@ const submitChangeRequestSchema = z.object({
   entityId: z.string().uuid(),
   changes: z.array(z.object({
     fieldName: z.string(),
-    oldValue: z.any().optional(),
-    newValue: z.any(),
+    oldValue: z.json().optional(),
+    newValue: z.json(),
     changeReason: z.string().optional(),
   })),
 });
+
+// AI : Export types for frontend usage
+export type SubmitChangeRequestInput = z.infer<typeof submitChangeRequestSchema>;
+export type FieldChange = SubmitChangeRequestInput['changes'][0];
 
 const approveChangeRequestSchema = z.object({
   changeRequestIds: z.array(z.string().uuid()),

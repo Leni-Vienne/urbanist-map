@@ -1,4 +1,5 @@
 import { useChangeRequests } from './useChangeRequests';
+import type { FieldChange } from '../../../../back/src/routes/changes';
 
 export function useFieldChanges() {
   const { submitChangeRequest } = useChangeRequests();
@@ -6,12 +7,12 @@ export function useFieldChanges() {
   async function submitProjectFieldChange(
     projectId: string,
     fieldName: string,
-    oldValue: any,
+    oldValue: any, // don't know how to type this better since zod needs a "JsonType", whatever that is
     newValue: any,
     changeReason?: string
   ) {
     try {
-      return submitChangeRequest({
+      return await submitChangeRequest({
         entityType: 'project',
         entityId: projectId,
         changes: [{
@@ -54,12 +55,7 @@ export function useFieldChanges() {
   async function submitMultipleFieldChanges(
     entityType: 'project' | 'overlay',
     entityId: string,
-    fieldChanges: Array<{
-      fieldName: string;
-      oldValue: any;
-      newValue: any;
-      changeReason?: string;
-    }>
+    fieldChanges: FieldChange[]
   ) {
     try {
       return await submitChangeRequest({
@@ -74,14 +70,9 @@ export function useFieldChanges() {
   }
 
   function createFieldChangeHelper(entityType: 'project' | 'overlay', entityId: string) {
-    const pendingChanges: Array<{
-      fieldName: string;
-      oldValue: any;
-      newValue: any;
-      changeReason?: string;
-    }> = [];
+    const pendingChanges: FieldChange[] = [];
 
-    function addFieldChange(fieldName: string, oldValue: any, newValue: any, changeReason?: string) {
+    function addFieldChange(fieldName: string, oldValue: FieldChange['oldValue'], newValue: FieldChange['newValue'], changeReason?: string) {
       const existingIndex = pendingChanges.findIndex(change => change.fieldName === fieldName);
       
       if (existingIndex >= 0) {

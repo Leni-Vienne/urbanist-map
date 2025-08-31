@@ -78,6 +78,7 @@ import { navigateToOverlay } from '@composables/overlay/useOverlay'
 import { useToast } from '@composables/ui/useToast'
 import Button from 'primevue/button'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
+import type { AccordionOverlay } from '@types'
 
 // AI : Use moderation composable
 const {
@@ -114,7 +115,7 @@ async function handleUndo() {
 }
 
 // AI : Handle overlay click - navigate to overlay
-async function handleOverlayClick(overlay: any) {
+async function handleOverlayClick(overlay: AccordionOverlay) {
   try {
     await navigateToOverlay(overlay.id)
   } catch (error) {

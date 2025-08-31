@@ -38,10 +38,12 @@ export function convertNearbyProjectToLocal(nearbyProject: NearbyProject): Proje
  * AI : Converts a NearbyProject to backend project format for overlay object
  * This eliminates duplication in InfoPopupContainer
  */
-export function convertNearbyProjectToBackend(nearbyProject: NearbyProject) {
+export function convertNearbyProjectToBackend(nearbyProject: NearbyProject): Project {
   return {
     id: nearbyProject.id,
     status: 'approved' as const,
+    overlayIds: [],
+    color: '#007bff',
     name: nearbyProject.name,
     description: nearbyProject.description ?? null,
     createdAt: nearbyProject.createdAt,

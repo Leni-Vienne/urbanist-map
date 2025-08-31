@@ -24,25 +24,57 @@ export interface CameraBounds {
 
 // AI : Extend Leaflet namespace to include custom actions
 declare module "leaflet" {
+  interface MapOptions {
+    doubleTapDragZoom?: boolean | 'center';
+    doubleTapDragZoomOptions?: {
+      reverse?: boolean;
+    };
+  }
+
+  interface Marker {
+    overlayId?: string;
+  }
+
+  // AI : Leaflet.Toolbar type definitions
+  namespace Toolbar2 {
+    class Action extends L.Handler {
+      constructor(map: L.Map, options: any);
+      static extend(options: any): any;
+    }
+    class Toolbar extends L.Control {
+      constructor(options: any);
+    }
+  }
+
   // AI : Leaflet distortableimage types - prefixed with _ to indicate intentionally unused
-  const DistortAction: any;
-  const RotateAction: any;
-  const FreeRotateAction: any;
-  const OpacityAction: any;
-  const OpacitiesAction: any;
-  const DeleteAction: any;
-  const StackAction: any;
-  const Toolbar2: any;
-  const EditAction: any;
-  const DragAction: any;
-  const ResizeRotateAction: any;
+  const DistortAction: typeof L.Toolbar2.Action;
+  const RotateAction: typeof L.Toolbar2.Action;
+  const FreeRotateAction: typeof L.Toolbar2.Action;
+  const OpacityAction: typeof L.Toolbar2.Action;
+  const OpacitiesAction: typeof L.Toolbar2.Action;
+  const DeleteAction: typeof L.Toolbar2.Action;
+  const StackAction: typeof L.Toolbar2.Action;
+  //const Toolbar2: L.Toolbar2.Toolbar;
+  const EditAction: typeof L.Toolbar2.Action;
+  const DragAction: typeof L.Toolbar2.Action;
+  const ResizeRotateAction: typeof L.Toolbar2.Action;
+
+  const IconUtil: IconUtils;
+
+  interface IconUtils {
+    create: () => string;
+    addClassToSvg: () => void;
+    toggleXlink: (el: HTMLElement, on_class: string, off_class: string) => void;
+    toggleTitle: (el: HTMLElement, on_title: string, off_title: string) => void;
+  }
 
   // AI : Definition for DistortableImageOverlay
   interface DistortableImageOverlay extends L.ImageOverlay {
+    actions: L.Toolbar2.Action[];
     editing: {
       _disableKeyboard: () => void;
-      addTool: (tool: any) => void;
-      removeTool: (tool: any) => void;
+      addTool: (tool: L.Toolbar2.Action) => void;
+      removeTool: (tool: L.Toolbar2.Action) => void;
     };
     getCorners: () => { lat: number, lng: number }[];
     setCorners: (corners: { lat: number, lng: number }[]) => void;
@@ -50,7 +82,14 @@ declare module "leaflet" {
     openTooltip: () => this;
   }
 
-  function distortableImageOverlay(imageUrl: string, options?: any): DistortableImageOverlay;
+  interface DistortableImageOverlayOptions extends L.ImageOverlayOptions {
+    actions?: L.Toolbar2.Action[];
+    corners?: L.LatLng[];
+    editable?: boolean;
+    keyboard?: boolean;
+  }
+
+  function distortableImageOverlay(imageUrl: string, options?: DistortableImageOverlayOptions): DistortableImageOverlay;
 }
 
 // AI : tRPC-inferred types from backend API (for transformed data)
@@ -72,11 +111,11 @@ export type BackendCityOverlay = RouterOutput['cities']['getCityProjects'][numbe
 export interface CDNOverlayData {
   id: string;
   filename: string;
-  caption?: string;
+  caption?: string | null;
   projectId: string | null;
   replacesOverlayId?: string | null;
   project: (DBProject & {
-    city: DBCity | null;
+    city?: DBCity | null;
   }) | null;
   centroid: {
     lat: number;
@@ -108,7 +147,7 @@ export interface ProjectInfo {
 
 // AI : Runtime project data - directly extends Drizzle schema
 export interface Project extends DBProject {
-  city?: DBCity;
+  city?: DBCity | null;
   overlayIds: string[];
   color: string;
   // AI : Add computed property for name to maintain backward compatibility
@@ -137,7 +176,50 @@ export interface OverlayObject extends DBOverlay {
   project?: CDNOverlayData['project'];
   // AI : Temporary field for backward compatibility - will be removed in favor of individual lat/lng fields
   corners: { lat: number, lng: number }[];
-  // AI : Track if overlay has been modified locally (moved, rotated, scaled, etc.)
+// AI : Track if overlay has been modified locally (moved, rotated, scaled, etc.)
   isModified: boolean;
   savedRemotely: boolean;
+}
+
+// AI : Frontend version of backend's OverlayWithDetails
+export interface OverlayWithDetails {
+  id: string;
+  topLeftLng: number;
+  topLeftLat: number;
+  topRightLng: number;
+  topRightLat: number;
+  bottomRightLng: number;
+  bottomRightLat: number;
+  bottomLeftLng: number;
+  bottomLeftLat: number;
+}
+
+// AI : Specific types for accordion panels to ensure consistency
+export interface AccordionOverlay {
+  id: string;
+  name: string;
+  filename: string;
+  status: 'pending' | 'approved' | 'rejected';
+  projectId: string | null;
+  updatedAt: Date;
+  cityName: string | null;
+  countryCode: string | null;
+  countryName: string | null;
+}
+
+export interface AccordionProject {
+  id: string;
+  name: string;
+  description: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: Date | null;
+  updatedAt: Date;
+  startDate: Date | null;
+  endDate: Date | null;
+  sourceUrl: string | null;
+  cityName: string | null;
+  countryCode: string | null;
+  countryName: string | null;
+  overlays: AccordionOverlay[];
+  overlayCount?: number;
 }

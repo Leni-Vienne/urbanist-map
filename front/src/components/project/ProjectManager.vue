@@ -82,6 +82,7 @@ import { addOverlay } from '@composables/overlay/useOverlay'
 import { setLastCreatedProject } from '@composables/ui/useProjectState'
 import { createProject } from '@composables/project/useProjects'
 import type { Project, OverlayObject } from '@types'
+import type { NearbyProject } from '../../types/api'
 
 const ProjectPicker = defineAsyncComponent(() => import('@components/project/ProjectPicker.vue'))
 const ProjectDialog = defineAsyncComponent(() => import('@components/project/ProjectDialog.vue'))
@@ -104,7 +105,7 @@ async function onProjectSelected(projectId: string) {
     try {
       // AI : Fetch nearby projects to get the selected project data
       const nearbyProjects = await fetchNearbyProjects()
-      const nearbyProject = nearbyProjects.find((p: any) => p.id === projectId)
+      const nearbyProject = nearbyProjects.find((p: NearbyProject) => p.id === projectId)
 
       if (nearbyProject) {
         // AI : Convert nearby project to local project format and add to store
@@ -217,7 +218,7 @@ async function fetchProjectsForPicker() {
 }
 
 // AI : Handle project creation/update from dialog
-function handleProjectSubmitted(project: any) {
+function handleProjectSubmitted(project: Partial<Project>) {
   uiStore.closeProjectDialog()
   
   // AI : Create the project in the store if it doesn't already have an ID

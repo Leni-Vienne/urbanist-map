@@ -7,6 +7,7 @@ import {
   sql, eq, isNotNull, and,
 } from 'drizzle-orm';
 import { db } from '../database';
+import type { CDNOverlayData } from '../shared/types';
 
 const getCitiesNearLocationSchema = z.object({
   lat: z.number().min(-90).max(90), // AI : Valid latitude range
@@ -143,7 +144,7 @@ export const citiesRouter = router({
           // AI : Return overlays array directly from SQL using JSON_AGG
           const result = await db
             .select({
-              overlays: sql<any[]>`
+              overlays: sql<CDNOverlayData[]>`
                 COALESCE(
                   JSON_AGG(
                     JSON_BUILD_OBJECT(
