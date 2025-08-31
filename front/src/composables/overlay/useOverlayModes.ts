@@ -453,7 +453,7 @@ function clearViewModeOverlays() {
  * AI : Toggle between edit and view modes
  * @param onModeExit - Optional callback function to handle city-specific logic when exiting edit mode
  */
-export async function toggleEditMode(onModeExit?: () => Promise<void>): Promise<void> {
+export async function toggleEditMode(onModeExit?: () => void) {
   // AI : Get store refs when needed to avoid module-level initialization
   const { overlays, isEditMode } = getStoreRefs();
   
@@ -506,9 +506,9 @@ export async function toggleEditMode(onModeExit?: () => Promise<void>): Promise<
     // AI : Update overlay editing state for existing overlays (disable editing)
     updateOverlayEditingState();
     
-    // AI : Call city-specific exit logic if provided
+    // AI : Execute custom exit logic if provided
     if (onModeExit) {
-      await onModeExit();
+      onModeExit();
     }
   }
 }

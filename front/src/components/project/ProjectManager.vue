@@ -217,14 +217,14 @@ async function fetchProjectsForPicker() {
 }
 
 // AI : Handle project creation/update from dialog
-async function handleProjectSubmitted(project: any) {
+function handleProjectSubmitted(project: any) {
   uiStore.closeProjectDialog()
   
   // AI : Create the project in the store if it doesn't already have an ID
   if (project && !project.id) {
     try {
       // AI : Create the project and get the generated ID
-      const projectId = await createProject(project)
+      const projectId = createProject(project)
       setLastCreatedProject(projectId)
       
       // AI : Re-open the project selector so the ProjectPicker can auto-select the new project

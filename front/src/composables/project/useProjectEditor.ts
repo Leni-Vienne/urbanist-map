@@ -1,9 +1,9 @@
 import { ref, computed } from 'vue';
-import { 
+import {
   useProjects,
-  createProject, 
+  createProject,
   updateProject,
-  getOverlaysForProject 
+  getOverlaysForProject
 } from '@composables/project/useProjects';
 import { useToast } from '@composables/ui/useToast';
 import { setLastCreatedProject } from '@composables/ui/useProjectState';
@@ -17,7 +17,7 @@ export interface ProjectEditorOptions {
 
 // AI : Main composable for project editor business logic
 export function useProjectEditor(
-  projectId: string, 
+  projectId: string,
   mode: 'edit' | 'view' | 'create',
   options: ProjectEditorOptions = {}
 ) {
@@ -40,7 +40,7 @@ export function useProjectEditor(
   const projectOverlays = ref<OverlayObject[]>([]);
 
   // AI : Computed properties
-  const currentProject = computed(() => 
+  const currentProject = computed(() =>
     projectId ? projects.value[projectId] : null
   );
 
@@ -48,20 +48,20 @@ export function useProjectEditor(
   const initializeProject = async () => {
     if (mode === 'create') {
       editingProject.value = {
-    name: '',
-    description: '',
-    cityId: undefined, // AI : Initialize cityId as undefined
-    startDate: null,
-    endDate: null,
-    sourceUrl: '',
-    latestUpdateOn: null,
-    overlayIds: [],
+        name: '',
+        description: '',
+        cityId: undefined, // AI : Initialize cityId as undefined
+        startDate: null,
+        endDate: null,
+        sourceUrl: '',
+        latestUpdateOn: null,
+        overlayIds: [],
       };
     } else if (projectId && projects.value[projectId]) {
       if (mode === 'edit') {
         editingProject.value = { ...projects.value[projectId] };
       }
-      
+
       if (mode === 'view') {
         await loadProjectOverlays();
       }
@@ -71,9 +71,13 @@ export function useProjectEditor(
   // AI : Load overlays for the current project
   const loadProjectOverlays = async () => {
     if (projectId) {
-      projectOverlays.value = await getOverlaysForProject(projectId);
-    }
-  };
+      const overlays = getOverlaysForProject(projectId);
+      if (!overlays) {
+        return
+      }
+      projectOverlays.value = overlays;
+    };
+  }
 
   // AI : Save project (create or update)
   const saveProject = async (projectData: Partial<Project>) => {
@@ -89,10 +93,10 @@ export function useProjectEditor(
 
     try {
       const isExisting = !!projectData.id;
-      
+
       // AI : Extract PDF file for potential future upload, but don't include in main project data
       const _sourcePdfFile = projectData.sourcePdf;
-      
+
       const dataToSave = {
         name: projectData.name,
         description: projectData.description ?? '',
@@ -109,7 +113,7 @@ export function useProjectEditor(
         await updateProject(projectData.id, dataToSave);
         savedProjectId = projectData.id;
       } else {
-        savedProjectId = await createProject(dataToSave);
+        savedProjectId = createProject(dataToSave);
         setLastCreatedProject(savedProjectId);
       }
 
@@ -146,7 +150,7 @@ export function useProjectEditor(
     editingProject,
     projectOverlays,
     currentProject,
-    
+
     // Methods
     initializeProject,
     loadProjectOverlays,

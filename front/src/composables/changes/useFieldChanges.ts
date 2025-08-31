@@ -11,7 +11,7 @@ export function useFieldChanges() {
     changeReason?: string
   ) {
     try {
-      return await submitChangeRequest({
+      return submitChangeRequest({
         entityType: 'project',
         entityId: projectId,
         changes: [{

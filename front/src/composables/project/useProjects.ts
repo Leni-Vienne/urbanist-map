@@ -31,7 +31,7 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
   }
 }
 
-export async function createProject(projectData: Partial<Omit<Project, 'id' | 'overlayIds' | 'color'>>): Promise<string> {
+export function createProject(projectData: Partial<Omit<Project, 'id' | 'overlayIds' | 'color'>>) {
   const id = crypto.randomUUID();
 
   // AI : Filter out non-serializable properties from projectData (File objects, city objects)
@@ -67,7 +67,7 @@ export async function createProject(projectData: Partial<Omit<Project, 'id' | 'o
   return id;
 }
 
-export async function getOverlaysForProject(projectId: string): Promise<OverlayObject[]> {
+export function getOverlaysForProject(projectId: string) {
   const { projects, overlays } = useProjects();
   const project = projects.value[projectId];
   if (!project) return [];
