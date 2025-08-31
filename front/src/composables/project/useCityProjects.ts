@@ -26,7 +26,7 @@ export function useCityProjects() {
           overlayIds: [], // AI : We'll count overlays differently
           color: '#007bff', // AI : Default color
           cityId: project.cityId,
-          status: project.status as 'pending' | 'approved' | 'rejected',
+          status: project.status,
           ownerId: project.ownerId,
           createdAt: project.createdAt,
           updatedAt: project.updatedAt,

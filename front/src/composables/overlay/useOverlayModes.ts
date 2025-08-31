@@ -427,7 +427,7 @@ async function renderCurrentOverlays() {
 
   try {
     // AI : Render all overlays - no filtering needed since overlays are already city-specific
-    await renderViewModeOverlays(viewModeOverlays.value);
+    renderViewModeOverlays(viewModeOverlays.value);
   } catch (err) {
     console.error('Error rendering overlays:', err);
     overlayStore.setOverlaysError('Failed to render overlays');

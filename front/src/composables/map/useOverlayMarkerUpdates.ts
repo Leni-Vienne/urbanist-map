@@ -1,12 +1,13 @@
 // AI : Overlay marker update functions extracted to break circular dependency
 import { createColorIcon } from '@composables/ui/markerIcons';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
-import type { CDNOverlayData } from '@types';
+import type { CDNOverlayData, OverlayObject } from '@types';
+import type { Ref, ShallowRef } from 'vue';
 
 // AI : Store refs for marker updates (initialized by initializeOverlayMarkerUpdates)
-let overlaysForMarkerUpdates: any;
-let isEditModeForMarkerUpdates: any;
-let currentCityOverlaysForMarkerUpdates: any;
+let overlaysForMarkerUpdates: ShallowRef<Record<string, OverlayObject>>;
+let isEditModeForMarkerUpdates: Ref<boolean>;
+let currentCityOverlaysForMarkerUpdates: Ref<CDNOverlayData[]>;
 
 // AI : Cache for overlay marker updates 
 const overlayDataCache = new Map<string, { corners: { lat: number, lng: number }[] }>();
@@ -14,7 +15,13 @@ const overlayDataCache = new Map<string, { corners: { lat: number, lng: number }
 /**
  * AI : Initialize overlay marker updates with store refs and city overlays
  */
-export function initializeOverlayMarkerUpdates(storeRefs: any, cityOverlays: any) {
+export function initializeOverlayMarkerUpdates(
+  storeRefs: {
+    overlays: ShallowRef<Record<string, OverlayObject>>;
+    isEditMode: Ref<boolean>;
+  },
+  cityOverlays: Ref<CDNOverlayData[]>
+) {
   overlaysForMarkerUpdates = storeRefs.overlays;
   isEditModeForMarkerUpdates = storeRefs.isEditMode;
   currentCityOverlaysForMarkerUpdates = cityOverlays;

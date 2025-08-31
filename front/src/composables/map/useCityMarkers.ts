@@ -155,14 +155,14 @@ export async function loadCityProjects(cityId: string, cityName: string, forceFu
 
     // AI : Filter overlays based on current completion status filters
     const { filterByCompletionStatus } = useCompletionFilters();
-    const overlaysToRender = filterByCompletionStatus(overlaysData);
+    const overlaysToRender = filterByCompletionStatus(overlaysData) as CDNOverlayData[];
 
     // AI : Set overlays in view mode overlays and render them
     const { setViewModeOverlays } = useViewModeOverlays();
     setViewModeOverlays(overlaysToRender);
 
     // AI : Render only visible overlays on the map with markers
-    await renderViewModeOverlays(overlaysToRender, true, true);
+    renderViewModeOverlays(overlaysToRender, true, true);
 
     // AI : Check zoom level after loading to ensure overlays are hidden if zoom is too low
     checkZoomAndHideOverlays();
@@ -194,7 +194,7 @@ async function showOverlayMarkers(cityId: string): Promise<void> {
 
     // AI : Filter overlays based on current completion status filters
     const { filterByCompletionStatus } = useCompletionFilters();
-    const visibleOverlays = filterByCompletionStatus(overlaysData);
+    const visibleOverlays = filterByCompletionStatus(overlaysData) as CDNOverlayData[];
 
     // AI : Create new layer group for overlay markers
     overlayMarkersLayer = L.layerGroup();
@@ -501,14 +501,14 @@ async function renderFullOverlaysFromCache(cityId: string, cityName: string): Pr
 
     // AI : Filter overlays based on current completion status filters
     const { filterByCompletionStatus } = useCompletionFilters();
-    const visibleOverlays = filterByCompletionStatus(overlaysData);
+    const visibleOverlays = filterByCompletionStatus(overlaysData) as CDNOverlayData[];
 
     // AI : Set overlays in view mode overlays and render them
     const { setViewModeOverlays } = useViewModeOverlays();
     setViewModeOverlays(visibleOverlays);
 
     // AI : Render only visible overlays on the map with markers
-    await renderViewModeOverlays(visibleOverlays, true, true);
+    renderViewModeOverlays(visibleOverlays, true, true);
   } catch (error) {
     console.error('AI : Error rendering full overlays from cache:', error);
   }
@@ -534,7 +534,7 @@ export function renderOverlayMarkersFromCache(cityId: string, cityName: string):
 
     // AI : Filter overlays based on current completion status filters
     const { filterByCompletionStatus } = useCompletionFilters();
-    const visibleOverlays = filterByCompletionStatus(overlaysData);
+    const visibleOverlays = filterByCompletionStatus(overlaysData) as CDNOverlayData[];
 
     // AI : Create new layer group for overlay markers
     overlayMarkersLayer = L.layerGroup();
@@ -736,7 +736,7 @@ export function updateOverlayMarkers(): void {
  */
 export function updateOverlayMarkersForFilters(): void {
   const { selectedCity } = getStoreRefs();
-  
+
   // AI : Only update if we have overlay markers visible
   if (!overlayMarkersLayer || !map.value?.hasLayer(overlayMarkersLayer)) {
     return;
@@ -802,7 +802,7 @@ export const latestClickedCity = computed(() => getSelectedCity());
  * AI : Handle city-specific logic when exiting edit mode
  * This function contains the city-related overlay re-rendering logic
  */
-export async function handleEditModeExit(): Promise<void> {
+export function handleEditModeExit() {
   // AI : Force re-render overlays to show original backend positions instead of modified ones
   // AI : Check if we have a current city with cached data
   if (latestClickedCity.value && hasCachedCityProjectsData(latestClickedCity.value.id)) {
@@ -819,10 +819,12 @@ export async function handleEditModeExit(): Promise<void> {
       const { setViewModeOverlays } = useViewModeOverlays();
       setViewModeOverlays(overlaysData);
 
+      // AI : Filter overlays based on current completion status filters
+      const { filterByCompletionStatus } = useCompletionFilters();
+      const visibleOverlays = filterByCompletionStatus(overlaysData) as CDNOverlayData[];
+
       // AI : Render the overlays on the map
-      renderViewModeOverlays(overlaysData, true, true).catch((error: unknown) => {
-        console.error('AI : Error re-rendering overlays in view mode:', error);
-      });
+      renderViewModeOverlays(visibleOverlays, true, true)
     } else {
       // AI : Zoom is too low, render markers only (view mode markers)
       renderOverlayMarkersFromCache(latestClickedCity.value.id, latestClickedCity.value.name);

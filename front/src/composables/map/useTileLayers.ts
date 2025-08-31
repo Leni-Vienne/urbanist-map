@@ -129,7 +129,7 @@ export async function switchTileLayer(layerType: TileLayerType): Promise<void> {
 
   try {
     // AI : Add new tile layer
-    activeTileLayer = await createTileLayer(layerType);
+    activeTileLayer = createTileLayer(layerType);
     activeTileLayer.addTo(map.value);
 
     // AI : Update current layer reference
@@ -139,7 +139,7 @@ export async function switchTileLayer(layerType: TileLayerType): Promise<void> {
     console.error('AI : Failed to switch tile layer:', error);
     // AI : Fallback to previous layer or default ESRI on error
     if (layerType !== 'esri') {
-      activeTileLayer = await createTileLayer('esri');
+      activeTileLayer = createTileLayer('esri');
       activeTileLayer.addTo(map.value);
       currentTileLayer.value = 'esri';
     }
