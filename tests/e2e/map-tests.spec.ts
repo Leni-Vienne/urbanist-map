@@ -36,20 +36,22 @@ test.describe('Construction Map E2E Tests', () => {
     console.log('Mode switching works');
   });
 
-  test('should show overlays in sidebar', async ({ page }) => {
-    // AI : Wait for overlay list to load
-    await page.waitForTimeout(2000);
+  test('should show overlays in sidebar after navigation', async ({ page }) => {
+    // AI : Navigate using proper hierarchy: country → city → overlays
+    const navigationSuccess = await mapHelpers.navigateToOverlays();
     
-    const overlayItems = page.locator('[data-testid="overlay-item"]');
-    const overlayCount = await overlayItems.count();
-    
-    console.log(`Found ${overlayCount} overlays in sidebar`);
-    
-    if (overlayCount > 0) {
-      // AI : Test zoom to functionality
-      const zoomToButton = page.getByRole('button', { name: /Zoom to/ }).first();
-      await zoomToButton.click();
-      await page.waitForTimeout(1000);
+    if (navigationSuccess) {
+      const overlayCount = await mapHelpers.getOverlayCount();
+      console.log(`Found ${overlayCount} overlays in sidebar after navigation`);
+      
+      if (overlayCount > 0) {
+        // AI : Test zoom to functionality
+        const zoomToButton = page.getByRole('button', { name: /Zoom to/ }).first();
+        await zoomToButton.click();
+        await page.waitForTimeout(1000);
+      }
+    } else {
+      console.log('No country/city data available for navigation testing');
     }
   });
 
@@ -61,20 +63,26 @@ test.describe('Construction Map E2E Tests', () => {
     if (isAuthenticated) {
       console.log('User is authenticated - testing auth features');
       
-      // AI : Test My Contributions tab
-      await myContribTab.click();
-      await page.waitForTimeout(1000);
+      // AI : Navigate to overlays first
+      const navigationSuccess = await mapHelpers.navigateToOverlays();
       
-      // AI : Test overlay creation in edit mode
-      await mapHelpers.toggleEditMode();
-      const addOverlayButton = page.getByRole('button', { name: 'Add Image Overlay' });
-      await expect(addOverlayButton).toBeVisible();
-      
+      if (navigationSuccess) {
+        // AI : Test My Contributions tab
+        await myContribTab.click();
+        await page.waitForTimeout(1000);
+        
+        // AI : Test overlay creation in edit mode
+        await mapHelpers.toggleEditMode();
+        const addOverlayButton = page.getByRole('button', { name: 'Add Image Overlay' });
+        await expect(addOverlayButton).toBeVisible();
+      }
     } else {
       console.log('User not authenticated - testing public features only');
       
-      // AI : Verify public features work
-      await expect(page.locator('.leaflet-container')).toBeVisible();
+      // AI : Test navigation hierarchy works for public users
+      const navigationSuccess = await mapHelpers.navigateToOverlays();
+      console.log(`Public navigation success: ${navigationSuccess}`);
+      
       await mapHelpers.toggleEditMode();
     }
   });

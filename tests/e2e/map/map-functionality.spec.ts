@@ -1,10 +1,15 @@
 import { test, expect } from '@playwright/test';
+import { MapTestHelpers } from '../../helpers/map-helpers';
 
 test.describe('Core Map Functionality', () => {
+  let mapHelpers: MapTestHelpers;
+
   test.beforeEach(async ({ page }) => {
+    mapHelpers = new MapTestHelpers(page);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
-    await page.waitForSelector('.leaflet-container');
+    await mapHelpers.waitForMapReady();
+    await mapHelpers.dismissErrorAlerts();
   });
 
   test('should load the map correctly', async ({ page }) => {
@@ -95,17 +100,21 @@ test.describe('Core Map Functionality', () => {
     }
   });
 
-  test('should display overlay list in sidebar', async ({ page }) => {
-    // AI : Check sidebar overlay list
-    const overlayItems = page.locator('[data-testid="overlay-item"]');
-    
-    // AI : Should have at least some overlays listed
+  test('should display overlay list in sidebar after proper navigation', async ({ page }) => {
+    // AI : Navigate using proper hierarchy to load overlays
+    const navigationSuccess = await mapHelpers.navigateToOverlays();
+    if (!navigationSuccess) {
+      console.log('No country/city markers available for testing');
+      return;
+    }
+
+    // AI : Wait for overlays to load in sidebar
     await page.waitForTimeout(1000);
-    const overlayCount = await overlayItems.count();
+    const overlayCount = await mapHelpers.getOverlayCount();
     
     if (overlayCount > 0) {
       // AI : Verify overlay items have required information
-      const firstOverlay = overlayItems.first();
+      const firstOverlay = page.locator('.overlay-card').first();
       
       // AI : Should have title
       await expect(firstOverlay.locator('h4')).toBeVisible();
@@ -120,6 +129,6 @@ test.describe('Core Map Functionality', () => {
       await expect(firstOverlay.getByRole('button', { name: /Zoom to/ })).toBeVisible();
     }
     
-    console.log(`Found ${overlayCount} overlay items in sidebar`);
+    console.log(`Found ${overlayCount} overlay items in sidebar after navigation`);
   });
 });

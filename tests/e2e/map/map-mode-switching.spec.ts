@@ -1,24 +1,30 @@
 import { test, expect } from '@playwright/test';
+import { MapTestHelpers } from '../../helpers/map-helpers';
 
 test.describe('Map Mode Switching', () => {
+  let mapHelpers: MapTestHelpers;
+
   test.beforeEach(async ({ page }) => {
-    // AI : Navigate to the map application
+    mapHelpers = new MapTestHelpers(page);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
+    await mapHelpers.waitForMapReady();
+    await mapHelpers.dismissErrorAlerts();
   });
 
   test('should switch between view and edit modes', async ({ page }) => {
     // AI : Verify initial state (should be in view mode)
+    expect(await mapHelpers.isEditModeActive()).toBeFalsy();
+    
     const editModeButton = page.getByRole('button', { name: 'Toggle Edit Mode' });
     await expect(editModeButton).toBeVisible();
-    
-    // AI : Check that edit mode is not active initially
     await expect(editModeButton).not.toHaveAttribute('active');
 
     // AI : Switch to edit mode
-    await editModeButton.click();
+    await mapHelpers.toggleEditMode();
     
     // AI : Verify edit mode is now active
+    expect(await mapHelpers.isEditModeActive()).toBeTruthy();
     await expect(editModeButton).toHaveAttribute('active');
     
     // AI : Check for edit mode notification
@@ -28,9 +34,10 @@ test.describe('Map Mode Switching', () => {
     await expect(page.getByText('Currently in Edit Mode - Click to switch to view mode')).toBeVisible();
 
     // AI : Switch back to view mode
-    await editModeButton.click();
+    await mapHelpers.toggleEditMode();
     
     // AI : Verify we're back in view mode
+    expect(await mapHelpers.isEditModeActive()).toBeFalsy();
     await expect(editModeButton).not.toHaveAttribute('active');
   });
 
@@ -50,16 +57,16 @@ test.describe('Map Mode Switching', () => {
   });
 
   test('should persist edit mode state during navigation', async ({ page }) => {
-    const editModeButton = page.getByRole('button', { name: 'Toggle Edit Mode' });
-    
     // AI : Switch to edit mode
-    await editModeButton.click();
-    await expect(editModeButton).toHaveAttribute('active');
+    await mapHelpers.toggleEditMode();
+    expect(await mapHelpers.isEditModeActive()).toBeTruthy();
     
-    // AI : Navigate to different overlay or zoom
-    await page.getByRole('button', { name: /Zoom to/ }).first().click();
+    // AI : Navigate using proper hierarchy
+    const navigationSuccess = await mapHelpers.navigateToOverlays();
     
-    // AI : Edit mode should still be active
-    await expect(editModeButton).toHaveAttribute('active');
+    // AI : Edit mode should still be active after navigation
+    expect(await mapHelpers.isEditModeActive()).toBeTruthy();
+    
+    console.log(`Edit mode persisted through navigation: ${navigationSuccess}`);
   });
 });

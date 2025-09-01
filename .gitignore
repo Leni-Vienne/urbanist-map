@@ -14,9 +14,11 @@ AI_RULES.md
 .clinerules
 .github/instructions
 .serena
+.playwright-mcp
 
 .env.test
 test-results
+test-results.json
 playwright-report
 playwright/.cache/
 

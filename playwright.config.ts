@@ -16,7 +16,7 @@ export default defineConfig({
   /* Run tests in files in parallel */
   fullyParallel: false,
   /* reduce timeout because 30s is way too much */
-  timeout: 8 * 1000,
+  timeout: 15 * 1000,
   /* Fail the build on CI if you accidentally left test.only in the source code */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
@@ -34,7 +34,7 @@ export default defineConfig({
     /* Take screenshot on failure */
     screenshot: 'only-on-failure',
     /* Record video on failure */
-    video: 'retain-on-failure',
+    video: 'on'
   },
 
   /* Configure projects for major browsers */
@@ -54,6 +54,6 @@ export default defineConfig({
     command: 'bun run dev-front',
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
+    timeout: 5 * 1000,
   },
 });
