@@ -24,7 +24,10 @@ export default defineConfig({
   /* Use single worker to avoid conflicts */
   workers: 1,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
+  reporter: [
+    ['html', 'list'],
+    ['json', { outputFile: 'test-results.json' }]
+  ],
   /* Shared settings for all the projects below */
   use: {
     /* Base URL to use in actions like `await page.goto('/')` */
@@ -41,7 +44,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { 
+      use: {
         ...devices['Desktop Chrome'],
         /* Use authenticated state if available */
         ...(existsSync('tests/auth-state.json') ? { storageState: 'tests/auth-state.json' } : {})
