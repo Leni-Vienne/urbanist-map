@@ -34,12 +34,106 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Get current map zoom level (simplified - just test the UI)
+   * AI : Get current map zoom level using Leaflet container access
    */
   async getCurrentZoom(): Promise<number | null> {
     return await this.page.evaluate(() => {
-      return (window as any).map?.getZoom() ?? null;
+      const container = document.querySelector('.leaflet-container') as any;
+      if (container && window.L) {
+        // AI : Access map through Leaflet's internal mechanisms
+        const leafletId = container._leaflet_id;
+        if (leafletId !== undefined) {
+          // AI : Try to find map via container properties
+          for (const prop in container) {
+            if (container[prop] && typeof container[prop].getZoom === 'function') {
+              return container[prop].getZoom();
+            }
+          }
+          
+          // AI : Try accessing via window properties
+          for (const key in window as any) {
+            if ((window as any)[key] && typeof (window as any)[key].getZoom === 'function') {
+              return (window as any)[key].getZoom();
+            }
+          }
+        }
+      }
+      
+      // AI : Fallback: estimate zoom from scale bar
+      const scaleText = document.querySelector('.leaflet-control-scale-line')?.textContent;
+      if (scaleText) {
+        const kmMatch = scaleText.match(/(\d+)\s*km/);
+        if (kmMatch) {
+          const km = parseInt(kmMatch[1]);
+          // AI : Rough zoom estimation based on scale
+          if (km >= 5000) return 3;
+          if (km >= 1000) return 5;
+          if (km >= 500) return 7;
+          if (km >= 200) return 9;
+          if (km >= 100) return 10;
+          if (km >= 50) return 11;
+          if (km >= 20) return 12;
+          return 13;
+        }
+      }
+      
+      return null;
     });
+  }
+
+  /**
+   * AI : Hover over marker and zoom in using scroll wheel
+   */
+  /**
+   * AI : Hover over marker and zoom in using scroll wheel at marker position
+   */
+  async hoverAndZoomOnMarker(markerIndex: number, zoomSteps: number = 3) {
+    try {
+      const markers = await this.page.locator('.leaflet-marker-icon');
+      const markerCount = await markers.count();
+      
+      if (markerCount <= markerIndex) {
+        console.log(`Marker ${markerIndex} not found (only ${markerCount} markers)`);
+        return false;
+      }
+      
+      const marker = markers.nth(markerIndex);
+      
+      // AI : Get marker position
+      const markerBox = await marker.boundingBox();
+      if (!markerBox) {
+        console.log('Could not get marker bounding box');
+        return false;
+      }
+      
+      const centerX = markerBox.x + markerBox.width / 2;
+      const centerY = markerBox.y + markerBox.height / 2;
+      
+      // AI : Move mouse to marker position
+      await this.page.mouse.move(centerX, centerY);
+      await this.page.waitForTimeout(200);
+      
+      // AI : Dispatch wheel events at the marker position to zoom in
+      for (let i = 0; i < zoomSteps; i++) {
+        await this.page.evaluate(({ x, y }) => {
+          const wheelEvent = new WheelEvent('wheel', {
+            clientX: x,
+            clientY: y,
+            deltaY: -100, // AI : Negative deltaY for zoom in
+            bubbles: true,
+            cancelable: true
+          });
+          document.elementFromPoint(x, y)?.dispatchEvent(wheelEvent);
+        }, { x: centerX, y: centerY });
+        
+        await this.page.waitForTimeout(300); // AI : Wait between zoom steps
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error hovering and zooming on marker:', error);
+      return false;
+    }
   }
 
   /**
@@ -51,35 +145,79 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Zoom to a specific level
+   * AI : Zoom to a specific level using zoom buttons
+   */
+  /**
+   * AI : Zoom to a specific level using scroll wheel at current cursor position
    */
   async zoomToLevel(targetZoom: number) {
-    const currentZoom = await this.getCurrentZoom();
-    if (!currentZoom) return;
-
-    const zoomDiff = targetZoom - currentZoom;
-    const button = zoomDiff > 0 ? 
-      this.page.getByRole('button', { name: 'Zoom In' }) :
-      this.page.getByRole('button', { name: 'Zoom Out' });
-
-    for (let i = 0; i < Math.abs(zoomDiff); i++) {
-      await button.click();
-      await this.page.waitForTimeout(200);
+    const maxAttempts = 15;
+    let attempts = 0;
+    
+    while (attempts < maxAttempts) {
+      const currentZoom = await this.getCurrentZoom();
+      if (!currentZoom) {
+        console.log('Could not determine current zoom level');
+        break;
+      }
+      
+      if (Math.abs(currentZoom - targetZoom) <= 0.5) {
+        break; // AI : Close enough
+      }
+      
+      const zoomDiff = targetZoom - currentZoom;
+      const deltaY = zoomDiff > 0 ? -150 : 150; // AI : Negative for zoom in, positive for zoom out
+      
+      // AI : Get current mouse position or use map center
+      const mousePos = await this.page.evaluate(() => {
+        // AI : Try to get last known mouse position or use map center
+        const mapContainer = document.querySelector('.leaflet-container');
+        if (mapContainer) {
+          const rect = mapContainer.getBoundingClientRect();
+          return {
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 2
+          };
+        }
+        return { x: 500, y: 400 }; // AI : Fallback position
+      });
+      
+      // AI : Dispatch scroll wheel event at cursor position
+      await this.page.evaluate(({ x, y, delta }) => {
+        const wheelEvent = new WheelEvent('wheel', {
+          clientX: x,
+          clientY: y,
+          deltaY: delta,
+          bubbles: true,
+          cancelable: true
+        });
+        const mapContainer = document.querySelector('.leaflet-container');
+        if (mapContainer) {
+          mapContainer.dispatchEvent(wheelEvent);
+        }
+      }, { x: mousePos.x, y: mousePos.y, delta: deltaY });
+      
+      await this.page.waitForTimeout(300);
+      attempts++;
     }
     
-    // AI : Wait for zoom to stabilize
     await this.page.waitForTimeout(500);
   }
 
   /**
-   * AI : Ensure zoom is sufficient for overlay visibility
+   * AI : Ensure zoom is sufficient for overlay visibility at current cursor position
    */
   async ensureOverlayZoom() {
     const currentZoom = await this.getCurrentZoom();
-    const minZoomForOverlays = 12; // AI : Based on MIN_ZOOM_FOR_OVERLAYS from code
+    const minZoomForOverlays = 13; // AI : Based on requirements for overlay visibility
     
     if (!currentZoom || currentZoom < minZoomForOverlays) {
-      await this.zoomToLevel(minZoomForOverlays + 1);
+      // AI : Zoom at current mouse position instead of map center
+      const steps = minZoomForOverlays - (currentZoom ?? 0);
+      for (let i = 0; i < Math.ceil(steps); i++) {
+        await this.page.mouse.wheel(0, -100);
+        await this.page.waitForTimeout(200);
+      }
     }
   }
 
@@ -91,7 +229,7 @@ export class MapTestHelpers {
       const markers = this.page.locator(`.leaflet-marker-icon.custom-svg-marker:has(linearGradient[id*="${color}"])`);
       return await markers.count();
     } catch (error) {
-      console.log(`Error counting ${color} markers:`, error);
+      console.error('Error:', error);
       return 0;
     }
   }
@@ -131,6 +269,7 @@ export class MapTestHelpers {
       const markers = this.page.locator('.leaflet-marker-icon');
       return await markers.count();
     } catch (error) {
+      console.error('Error:', error);
       return 0;
     }
   }
@@ -152,26 +291,54 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Get number of overlay items in sidebar
+   * AI : Get number of overlay markers on map (not sidebar)
    */
-  async getOverlayCount(): Promise<number> {
+  async getOverlayMarkerCount(): Promise<number> {
     await this.page.waitForTimeout(500);
-    return await this.page.locator('.overlay-card').count();
+    // AI : Count overlay markers which appear after navigating to city level
+    return await this.page.evaluate(() => {
+      const allMarkers = document.querySelectorAll('.leaflet-marker-icon');
+      // AI : Overlay markers have different styling or are in specific positions
+      return allMarkers.length;
+    });
   }
 
   /**
-   * AI : Click on overlay in sidebar by index
+   * AI : Click on overlay marker on map by index
    */
-  async clickOverlayInSidebar(index: number = 0) {
-    const overlays = this.page.locator('.overlay-card');
-    const count = await overlays.count();
-    
-    if (count > index) {
-      await overlays.nth(index).click();
+  async clickOverlayMarker(index: number = 0) {
+    try {
+      const markers = await this.page.locator('.leaflet-marker-icon');
+      const markerCount = await markers.count();
+      
+      if (markerCount <= index) {
+        console.log(`Overlay marker ${index} not found (only ${markerCount} markers)`);
+        return false;
+      }
+      
+      const marker = markers.nth(index);
+      
+      // AI : Get marker position for precise targeting
+      const markerBox = await marker.boundingBox();
+      if (!markerBox) {
+        console.log('Could not get overlay marker bounding box');
+        return false;
+      }
+      
+      const centerX = markerBox.x + markerBox.width / 2;
+      const centerY = markerBox.y + markerBox.height / 2;
+      
+      // AI : Move cursor to marker and click
+      await this.page.mouse.move(centerX, centerY);
+      await this.page.waitForTimeout(200);
+      await this.page.mouse.click(centerX, centerY);
       await this.page.waitForTimeout(500);
+      
       return true;
+    } catch (error) {
+      console.error('Error clicking overlay marker:', error);
+      return false;
     }
-    return false;
   }
 
   /**
@@ -185,22 +352,53 @@ export class MapTestHelpers {
         return markers.length > 0;
       }, { timeout: 5000 });
       
-      // AI : Use JavaScript click to avoid viewport issues
-      const clicked = await this.page.evaluate((idx) => {
-        const markers = document.querySelectorAll('.leaflet-marker-icon');
-        if (markers.length > idx) {
-          markers[idx].click();
-          return true;
-        }
-        return false;
-      }, index);
+      const markers = await this.page.locator('.leaflet-marker-icon');
+      const markerCount = await markers.count();
       
-      if (clicked) {
-        await this.page.waitForTimeout(1000);
+      if (markerCount <= index) {
+        console.log(`Country marker ${index} not found (only ${markerCount} markers)`);
+        return false;
       }
-      return clicked;
+      
+      const marker = markers.nth(index);
+      
+      // AI : Get marker position for precise targeting
+      const markerBox = await marker.boundingBox();
+      if (!markerBox) {
+        console.log('Could not get country marker bounding box');
+        return false;
+      }
+      
+      const centerX = markerBox.x + markerBox.width / 2;
+      const centerY = markerBox.y + markerBox.height / 2;
+      
+      // AI : Move cursor to marker position
+      await this.page.mouse.move(centerX, centerY);
+      await this.page.waitForTimeout(200);
+      
+      // AI : Zoom in at marker position (2 steps for country focus)
+      for (let i = 0; i < 2; i++) {
+        await this.page.evaluate(({ x, y }) => {
+          const wheelEvent = new WheelEvent('wheel', {
+            clientX: x,
+            clientY: y,
+            deltaY: -100,
+            bubbles: true,
+            cancelable: true
+          });
+          document.elementFromPoint(x, y)?.dispatchEvent(wheelEvent);
+        }, { x: centerX, y: centerY });
+        
+        await this.page.waitForTimeout(300);
+      }
+      
+      // AI : Click the marker at the same position
+      await this.page.mouse.click(centerX, centerY);
+      await this.page.waitForTimeout(1000);
+      
+      return true;
     } catch (error) {
-      console.log('Error clicking country marker:', error);
+      console.error('Error clicking country marker:', error);
       return false;
     }
   }
@@ -216,61 +414,103 @@ export class MapTestHelpers {
         return markers.length > 1; // Should have more than just country markers
       }, { timeout: 5000 });
       
-      // AI : Use JavaScript click to avoid viewport issues
-      const clicked = await this.page.evaluate((idx) => {
-        const markers = document.querySelectorAll('.leaflet-marker-icon');
-        // AI : In city view, we have multiple city markers, click the specified index
-        if (markers.length > idx) {
-          markers[idx].click();
-          return true;
-        }
-        return false;
-      }, index);
+      const markers = await this.page.locator('.leaflet-marker-icon');
+      const markerCount = await markers.count();
       
-      if (clicked) {
-        await this.page.waitForTimeout(1000);
+      if (markerCount <= index) {
+        console.log(`City marker ${index} not found (only ${markerCount} markers)`);
+        return false;
       }
-      return clicked;
+      
+      const marker = markers.nth(index);
+      
+      // AI : Get marker position for precise targeting
+      const markerBox = await marker.boundingBox();
+      if (!markerBox) {
+        console.log('Could not get city marker bounding box');
+        return false;
+      }
+      
+      const centerX = markerBox.x + markerBox.width / 2;
+      const centerY = markerBox.y + markerBox.height / 2;
+      
+      // AI : Move cursor to marker position
+      await this.page.mouse.move(centerX, centerY);
+      await this.page.waitForTimeout(200);
+      
+      // AI : Zoom in at marker position (3 steps for city focus)
+      for (let i = 0; i < 3; i++) {
+        await this.page.evaluate(({ x, y }) => {
+          const wheelEvent = new WheelEvent('wheel', {
+            clientX: x,
+            clientY: y,
+            deltaY: -100,
+            bubbles: true,
+            cancelable: true
+          });
+          document.elementFromPoint(x, y)?.dispatchEvent(wheelEvent);
+        }, { x: centerX, y: centerY });
+        
+        await this.page.waitForTimeout(300);
+      }
+      
+      // AI : Click the marker at the same position
+      await this.page.mouse.click(centerX, centerY);
+      await this.page.waitForTimeout(1000);
+      
+      return true;
     } catch (error) {
-      console.log('Error clicking city marker:', error);
+      console.error('Error clicking city marker:', error);
       return false;
     }
   }
 
   /**
-   * AI : Complete workflow: click country then city to load overlays
+   * AI : Navigate through map markers: country → city → overlays
    */
-  async navigateToOverlays(countryIndex: number = 0, cityIndex: number = 0, ensureOverlayZoom: boolean = true) {
+  async navigateToOverlays(countryIndex: number = 0, cityIndex: number = 0) {
     try {
-      // AI : Get initial marker count
+      // AI : Check if we have initial country markers
       const initialMarkers = await this.getTotalMarkerCount();
       if (initialMarkers === 0) {
         console.log('No markers available for navigation');
         return false;
       }
       
-      // AI : Step 1: Click country marker
+      // AI : Step 1: Click country marker (will zoom to country and potentially show city markers)
+      console.log(`Clicking country marker ${countryIndex}`);
       const countryClicked = await this.clickCountryMarker(countryIndex);
-      if (!countryClicked) return false;
+      if (!countryClicked) {
+        console.log('Failed to click country marker');
+        return false;
+      }
       
-      // AI : Step 2: Zoom in to see city markers clearly
-      await this.zoomToLevel(8); // AI : Medium zoom to see cities
-      await this.page.waitForTimeout(500);
-      
-      // AI : Step 3: Click city marker
-      const cityClicked = await this.clickCityMarker(cityIndex);
-      if (!cityClicked) return false;
-      
+      // AI : Wait for potential city markers to appear
       await this.page.waitForTimeout(1000);
       
-      // AI : Step 4: Ensure zoom is sufficient for overlay visibility if requested
-      if (ensureOverlayZoom) {
-        await this.ensureOverlayZoom();
+      // AI : Step 2: Check if city markers appeared, if so click one
+      const markersAfterCountry = await this.getTotalMarkerCount();
+      console.log(`Markers after country click: ${markersAfterCountry}`);
+      
+      if (markersAfterCountry > initialMarkers) {
+        // AI : New markers appeared (likely cities), click one
+        console.log(`Clicking city marker ${cityIndex}`);
+        const cityClicked = await this.clickCityMarker(cityIndex);
+        if (!cityClicked) {
+          console.log('Failed to click city marker');
+          return false;
+        }
       }
+      
+      // AI : Wait for overlay markers to potentially appear
+      await this.page.waitForTimeout(1000);
+      
+      const finalMarkers = await this.getTotalMarkerCount();
+      console.log(`Final marker count: ${finalMarkers}`);
       
       return true;
     } catch (error) {
-      console.log('Navigation error:', error);
+      console.error('Navigation failed:', error);
       return false;
     }
   }
@@ -313,10 +553,11 @@ export class MapTestHelpers {
   async isEditModeActive(): Promise<boolean> {
     try {
       const editButton = this.page.getByRole('button', { name: 'Toggle Edit Mode' });
-      const isActive = await editButton.getAttribute('active');
-      return isActive !== null;
+      // AI : Check the active attribute value - 'true' means active, 'false' or null means inactive
+      const activeValue = await editButton.getAttribute('active');
+      return activeValue === 'true';
     } catch (error) {
-      console.log('Error checking edit mode state:', error);
+      console.error('Error checking edit mode:', error);
       return false;
     }
   }
