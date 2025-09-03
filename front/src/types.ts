@@ -123,7 +123,7 @@ export interface CDNOverlayData {
   };
   corners: { lat: number; lng: number }[];
   distance: number;
-  createdAt: Date | null;
+  createdAt: Date;
   isModified?: boolean; // AI : Track if overlay has been modified locally
 }
 
@@ -212,7 +212,7 @@ export interface AccordionProject {
   name: string;
   description: string | null;
   status: 'pending' | 'approved' | 'rejected';
-  createdAt: Date | null;
+  createdAt: Date;
   updatedAt: Date;
   startDate: Date | null;
   endDate: Date | null;

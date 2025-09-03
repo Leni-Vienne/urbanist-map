@@ -98,7 +98,8 @@
 
                 <!-- AI : Project change requests -->
                 <div v-if="getProjectChangeRequests(project.id).length > 0" class="project-change-requests">
-                  <h4 class="change-requests-title">Pending Changes</h4>
+                  <h4 class="change-requests-title">{{ isMyContributionsPanel ? 'Your Pending Changes' : 'Pending Changes' }}</h4>
+                  <p v-if="isMyContributionsPanel" class="change-requests-subtitle">A moderator needs to review and approve these changes</p>
                   <div class="change-requests-list">
                     <div 
                       v-for="change in getProjectChangeRequests(project.id)" 
@@ -115,6 +116,9 @@
                           </div>
                           <div v-if="change.changeReason" class="change-reason">
                             <em>Reason: {{ change.changeReason }}</em>
+                          </div>
+                          <div class="change-date">
+                            <em>Requested: {{ new Date(change.createdAt).toLocaleString() }}</em>
                           </div>
                         </div>
                         <div v-if="$slots['change-actions']" class="change-actions">
@@ -164,14 +168,6 @@
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 mb-1">
                       <p class="overlay-name">{{ overlay.name || 'Untitled' }}</p>
-                      <!-- AI : Change indicator badge -->
-                      <Tag
-                        v-if="getOverlayChangeRequests(overlay.id).length > 0"
-                        :value="`${getOverlayChangeRequests(overlay.id).length} pending change${getOverlayChangeRequests(overlay.id).length > 1 ? 's' : ''}`"
-                        severity="warning"
-                        class="text-xs"
-                        rounded
-                      />
                     </div>
                     <div class="flex items-center gap-1.5 text-surface-600 text-xs mb-1">
                       <i class="pi pi-map-marker text-surface-500"></i>
@@ -220,8 +216,9 @@
                   <div class="change-requests-header">
                     <div class="change-indicator">
                       <i class="pi pi-exclamation-triangle text-orange-500"></i>
-                      <span class="change-header-text">Pending Changes for "{{ overlay.name || 'Untitled' }}"</span>
+                      <span class="change-header-text">{{ isMyContributionsPanel ? 'Your Pending Changes' : 'Pending Changes' }} for "{{ overlay.name || 'Untitled' }}"</span>
                     </div>
+                    <p v-if="isMyContributionsPanel" class="change-requests-subtitle">A moderator needs to review and approve these changes</p>
                   </div>
                   <div class="change-requests-list">
                     <div 
@@ -239,6 +236,9 @@
                           </div>
                           <div v-if="change.changeReason" class="change-reason">
                             <em>Reason: {{ change.changeReason }}</em>
+                          </div>
+                          <div class="change-date">
+                            <em>Requested: {{ new Date(change.createdAt).toLocaleString() }}</em>
                           </div>
                         </div>
                         <div v-if="$slots['change-actions']" class="change-actions">
@@ -319,6 +319,9 @@ const toast = useToast()
 
 // AI : Computed expanded panels set for easier checking
 const expandedPanels = computed(() => new Set(activeAccordionPanels.value))
+
+// AI : Check if this is the My Contributions panel
+const isMyContributionsPanel = computed(() => props.panelClass === 'my-contributions-panel')
 
 // AI : Get flag URL for country
 function getFlagUrl(countryCode: string): string {
@@ -692,6 +695,13 @@ function formatValue(value: unknown): string {
   color: var(--p-surface-700);
 }
 
+.change-requests-subtitle {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.75rem;
+  color: var(--p-surface-500);
+  font-style: italic;
+}
+
 /* AI : Change requests header for overlays */
 .change-requests-header {
   margin-bottom: 0.75rem;
@@ -769,6 +779,12 @@ function formatValue(value: unknown): string {
 .change-reason {
   font-size: 0.75rem;
   color: var(--p-surface-600);
+  margin-top: 0.25rem;
+}
+
+.change-date {
+  font-size: 0.75rem;
+  color: var(--p-surface-400);
   margin-top: 0.25rem;
 }
 

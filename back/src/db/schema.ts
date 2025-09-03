@@ -18,13 +18,13 @@ export const users = pgTable('users', {
   emailVerificationToken: text('email_verification_token'),
   passwordResetToken: text('password_reset_token'),
   passwordResetExpiresAt: timestamp('password_reset_expires_at', { withTimezone: true }),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
-}, (users) => ({
-  emailIndex: index('idx_users_email').on(users.email),
-  emailVerificationIndex: index('idx_users_email_verification').on(users.emailVerificationToken),
-  passwordResetIndex: index('idx_users_password_reset').on(users.passwordResetToken),
-}));
+}, (users) => [
+  index('idx_users_email').on(users.email),
+  index('idx_users_email_verification').on(users.emailVerificationToken),
+  index('idx_users_password_reset').on(users.passwordResetToken)
+]);
 
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -44,7 +44,7 @@ export const projects = pgTable('projects', {
   startDate: timestamp('start_date', { withTimezone: true }),
   endDate: timestamp('end_date', { withTimezone: true }),
   latestUpdateOn: timestamp('latest_update_on', { withTimezone: true }),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
 });
 
@@ -84,12 +84,12 @@ export const overlays = pgTable('overlays', {
 
   centroid: geometry('centroid', { type: 'point', mode: 'xy', srid: 4326 }).notNull(),
 
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
-}, (overlays) => ({
-  projectIndex: index('idx_overlays_project').on(overlays.projectId),
-  centroidIndex: sql.raw('CREATE INDEX idx_overlays_centroid ON overlays USING GIST (centroid)'),
-}));
+}, (overlays) => [
+  index('idx_overlays_project').on(overlays.projectId),
+  sql.raw('CREATE INDEX idx_overlays_centroid ON overlays USING GIST (centroid)'),
+]);
 
 export const overlaysRelations = relations(overlays, ({ one }) => ({
   project: one(projects, {
@@ -112,12 +112,12 @@ export const cities = pgTable('cities', {
   name: text('name').notNull(),
   countryCode: char('country_code', { length: 3 }).notNull(), // AI : 3-letter country code (ISO 3166-1 alpha-3)
   coordinates: geometry('coordinates', { type: 'point', mode: 'xy', srid: 4326 }).notNull(), // AI : Geographic coordinates as PostGIS point
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
-}, (cities) => ({
-  countryIndex: index('idx_cities_country').on(cities.countryCode),
-  coordinatesIndex: sql.raw('CREATE INDEX idx_cities_coordinates ON cities USING GIST (coordinates)'),
-}));
+}, (cities) => [
+  index('idx_cities_country').on(cities.countryCode),
+  sql.raw('CREATE INDEX idx_cities_coordinates ON cities USING GIST (coordinates)'),
+]);
 
 export const citiesRelations = relations(cities, ({ many }) => ({
   projects: many(projects),
@@ -128,12 +128,12 @@ export const countries = pgTable('countries', {
   code: char('code', { length: 3 }).notNull().unique(), // AI : ISO 3166-1 alpha-3 country code
   name: text('name').notNull(), // AI : Country name in English
   centerCoordinates: geometry('center_coordinates', { type: 'point', mode: 'xy', srid: 4326 }).notNull(), // AI : Geographic center of the country
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date())
-}, (countries) => ({
-  codeIndex: index('idx_countries_code').on(countries.code),
-  centerIndex: sql.raw(`CREATE INDEX idx_countries_center ON countries USING GIST (center_coordinates)`)
-}));
+}, (countries) => [
+  index('idx_countries_code').on(countries.code),
+  sql.raw(`CREATE INDEX idx_countries_center ON countries USING GIST (center_coordinates)`)
+]);
 
 
 export const changeRequests = pgTable('change_requests', {
@@ -145,11 +145,11 @@ export const changeRequests = pgTable('change_requests', {
   newValue: jsonb('new_value').notNull(),
   changeReason: text('change_reason'),
   requestedBy: uuid('requested_by').references(() => users.id, { onDelete: 'set null', onUpdate: 'cascade' }),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-}, (table) => ({
-  entityIndex: index('idx_change_requests_entity').on(table.entityType, table.entityId),
-  requestedByIndex: index('idx_change_requests_requested_by').on(table.requestedBy),
-}));
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_change_requests_entity').on(table.entityType, table.entityId),
+  index('idx_change_requests_requested_by').on(table.requestedBy),
+]);
 
 export const changeHistory = pgTable('change_history', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -162,10 +162,10 @@ export const changeHistory = pgTable('change_history', {
   changedBy: uuid('changed_by').references(() => users.id, { onDelete: 'set null', onUpdate: 'cascade' }),
   approvedBy: uuid('approved_by').references(() => users.id, { onDelete: 'set null', onUpdate: 'cascade' }),
   appliedAt: timestamp('applied_at', { withTimezone: true }).defaultNow(),
-}, (table) => ({
-  entityIndex: index('idx_change_history_entity').on(table.entityType, table.entityId),
-  changeRequestIndex: index('idx_change_history_request').on(table.changeRequestId),
-}));
+}, (table) => [
+  index('idx_change_history_entity').on(table.entityType, table.entityId),
+  index('idx_change_history_request').on(table.changeRequestId),
+]);
 
 export const changeRequestsRelations = relations(changeRequests, ({ one }) => ({
   requestedByUser: one(users, {
