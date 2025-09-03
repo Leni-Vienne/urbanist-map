@@ -3,6 +3,7 @@
     entity-type="project"
     :entity-id="project.id"
     :initial-data="projectData"
+    :entity-status="project.status"
     container-class="editable-project-form"
     form-class="project-form"
     @close="$emit('close')"
@@ -114,7 +115,7 @@ interface Emits {
 const props = defineProps<Props>()
 defineEmits<Emits>()
 
-// AI : Transform project data for the form
+// AI : Transform project data for the form (include cityId to preserve it)
 const projectData = computed(() => ({
   name: props.project.name,
   description: props.project.description || '',
@@ -122,6 +123,7 @@ const projectData = computed(() => ({
   startDate: props.project.startDate,
   endDate: props.project.endDate,
   latestUpdateOn: props.project.latestUpdateOn,
+  cityId: props.project.cityId, // AI : Include cityId to prevent it from being lost
 }))
 </script>
 

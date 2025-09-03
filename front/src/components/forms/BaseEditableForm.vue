@@ -45,7 +45,7 @@
           type="submit"
           :disabled="!form.hasChanges.value"
           :loading="form.isSubmitting.value"
-          :label="submitLabel"
+          :label="dynamicSubmitLabel"
           icon="pi pi-send"
         />
       </div>
@@ -54,12 +54,14 @@
 </template>
 
 <script setup lang="ts" generic="T extends Record<string, any>">
+import { computed } from 'vue'
 import { useEditableForm, type EditableFormOptions } from '@composables/forms/useEditableForm'
 
 interface Props {
   entityType: 'project' | 'overlay'
   entityId: string
   initialData: T
+  entityStatus?: 'pending' | 'approved' | 'rejected'
   containerClass?: string
   formClass?: string
   submitLabel?: string
@@ -76,7 +78,7 @@ interface Emits {
 const props = withDefaults(defineProps<Props>(), {
   containerClass: 'base-editable-form',
   formClass: 'editable-form',
-  submitLabel: 'Submit Changes for Review',
+  submitLabel: '',
   cancelLabel: 'Cancel',
   showReset: true,
   showChangeReason: true
@@ -89,11 +91,18 @@ const formOptions: EditableFormOptions<T> = {
   entityType: props.entityType,
   entityId: props.entityId,
   initialData: props.initialData,
+  entityStatus: props.entityStatus,
   onSubmitted: () => emit('submitted'),
   onClose: () => emit('close')
 }
 
 const form = useEditableForm(formOptions)
+
+// AI : Dynamic submit label based on entity status
+const dynamicSubmitLabel = computed(() => {
+  if (props.submitLabel) return props.submitLabel
+  return props.entityStatus === 'pending' ? 'Save Changes' : 'Submit Changes for Review'
+})
 </script>
 
 <style>

@@ -1,6 +1,7 @@
 import { ref, computed, reactive } from 'vue'
 import { useFieldChanges } from '@composables/changes/useFieldChanges'
 import { useToast } from '@composables/ui/useToast'
+import { trpc } from '@client'
 
 export interface FieldChange {
   fieldName: string
@@ -13,6 +14,7 @@ export interface EditableFormOptions<T> {
   entityType: 'project' | 'overlay'
   entityId: string
   initialData: T
+  entityStatus?: 'pending' | 'approved' | 'rejected'
   onSubmitted?: () => void
   onClose?: () => void
 }
@@ -98,7 +100,7 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
     }
   }
 
-  // AI : Submit changes for moderation
+  // AI : Submit changes directly for pending entities or as change requests for approved entities
   async function submitChanges() {
     if (!hasChanges.value) return
 
@@ -107,14 +109,65 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
 
       const changes = getChangesToSubmit()
 
-      await submitMultipleFieldChanges(options.entityType, options.entityId, changes)
+      // AI : For pending entities, apply changes directly instead of creating change requests
+      if (options.entityStatus === 'pending') {
+        if (options.entityType === 'project') {
+          // AI : Fetch current project data to avoid losing fields not in the form
+          const currentProject = await trpc.project.getUsersContributions.query({ limit: 100 })
+          const project = currentProject.find(p => p.id === options.entityId)
+          
+          if (!project) {
+            throw new Error('Project not found')
+          }
+          
+          // AI : Merge form data with current project data, preserving all fields
+          const projectData = {
+            id: options.entityId,
+            name: formData.name,
+            description: formData.description || undefined,
+            cityId: project.cityId || undefined, // AI : Preserve existing cityId
+            startDate: formData.startDate?.toISOString(),
+            endDate: formData.endDate?.toISOString(),
+            sourceUrl: formData.sourceUrl || undefined,
+            latestUpdateOn: formData.latestUpdateOn?.toISOString(),
+          }
+          
+          await trpc.project.publishProject.mutate(projectData)
+          
+          toast.add({
+            severity: 'success',
+            summary: 'Project Updated',
+            detail: `Project changes saved successfully`,
+            life: 3000
+          })
+        } else if (options.entityType === 'overlay') {
+          // AI : Apply changes directly to pending overlay using updateOverlay
+          const overlayData: any = {}
+          changes.forEach(change => {
+            overlayData[change.fieldName] = change.newValue
+          })
+          overlayData.id = options.entityId
+          
+          await trpc.overlay.updateOverlay.mutate(overlayData)
+          
+          toast.add({
+            severity: 'success',
+            summary: 'Overlay Updated',
+            detail: `Overlay changes saved successfully`,
+            life: 3000
+          })
+        }
+      } else {
+        // AI : For approved entities, submit change requests for moderation
+        await submitMultipleFieldChanges(options.entityType, options.entityId, changes)
 
-      toast.add({
-        severity: 'success',
-        summary: 'Changes Submitted',
-        detail: `${changes.length} change(s) submitted for moderation review`,
-        life: 3000
-      })
+        toast.add({
+          severity: 'success',
+          summary: 'Changes Submitted',
+          detail: `${changes.length} change(s) submitted for moderation review`,
+          life: 3000
+        })
+      }
 
       options.onSubmitted?.()
       options.onClose?.()
