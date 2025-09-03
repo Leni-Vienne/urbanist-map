@@ -2,6 +2,7 @@
   <ProjectAccordionPanel
     :projects="filteredProjects"
     :is-loading="isLoading"
+    :change-requests="pendingChangeRequests"
     title="My Contributions"
     panel-class="my-contributions-panel"
     :empty-message="projects.length > 0 && filteredProjects.length === 0 ? 'No projects match the current filter.' : 'No projects found.'"
@@ -71,6 +72,7 @@ import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useToast } from '@composables/ui/useToast'
 import { toggleEditMode } from '@composables/overlay/useOverlayModes'
 import { handleEditModeExit } from '@composables/map/useCityMarkers'
+import { useChangeRequests } from '@composables/changes/useChangeRequests'
 import { storeToRefs } from 'pinia'
 
 // AI : Reactive state
@@ -83,6 +85,9 @@ const authStore = useAuthStore()
 const uiStore = useUiStore()
 const overlayStore = useOverlayStore()
 const toast = useToast()
+
+// AI : Change requests functionality
+const { pendingChangeRequests, refreshPendingChangeRequests, hasChangeRequests, isLoading: changeRequestsLoading } = useChangeRequests()
 
 const { isEditMode } = storeToRefs(overlayStore)
 
@@ -112,6 +117,7 @@ async function fetchAllProjects() {
 // AI : Load initial data
 onMounted(() => {
   fetchAllProjects()
+  refreshPendingChangeRequests()
 })
 
 // AI : Handle add overlay button click - same logic as MapControls

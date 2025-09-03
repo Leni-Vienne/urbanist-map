@@ -882,14 +882,14 @@ function transformBackendOverlayToCDN(backendOverlay: BackendOverlay): CDNOverla
       startDate: null,
       endDate: null,
       latestUpdateOn: null,
-      createdAt: null,
+      createdAt: new Date(),
       updatedAt: new Date(),
       city: backendOverlay.cityName ? {
         id: '',
         name: backendOverlay.cityName,
         countryCode: '',
         coordinates: { x: 0, y: 0 },
-        createdAt: null,
+        createdAt: new Date(),
         updatedAt: new Date()
       } : null
     } : null,
@@ -1580,6 +1580,7 @@ export const infoTool = L.Toolbar2.Action.extend({
       className: 'pi pi-info-circle',
       tooltip: 'Info'
     },
+    // @ts-ignore
     subToolbar: new L.Toolbar2({
       actions: [L.EditAction.extend({
         options: {
@@ -1589,6 +1590,7 @@ export const infoTool = L.Toolbar2.Action.extend({
           },
         },
         initialize: function () {
+          // @ts-ignore
           L.EditAction.prototype.initialize.apply(this, arguments);
         }
       })],

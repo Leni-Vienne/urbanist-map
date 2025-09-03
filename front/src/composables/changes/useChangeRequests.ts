@@ -5,6 +5,7 @@ import type {
   ChangeRequest,
   ChangeHistoryEntry 
 } from '../../types/api';
+import { useAuthStore } from '@stores/authStore';
 
 const pendingChangeRequests = ref<ChangeRequest[]>([]);
 const changeHistory = ref<ChangeHistoryEntry[]>([]);
@@ -34,7 +35,13 @@ export function useChangeRequests() {
   async function refreshPendingChangeRequests() {
     try {
       isLoading.value = true;
-      const result = await trpc.changes.getPendingChangeRequests.query();
+      const { isAdmin } = useAuthStore();
+      
+      // AI : Use admin route for admins, user route for regular users
+      const result = isAdmin 
+        ? await trpc.changes.getPendingChangeRequests.query()
+        : await trpc.changes.getMyChangeRequests.query();
+        
       pendingChangeRequests.value = result;
     } catch (error) {
       console.error('Failed to fetch pending change requests:', error);
