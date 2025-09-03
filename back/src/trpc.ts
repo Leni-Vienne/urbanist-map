@@ -3,6 +3,8 @@ import superjson from 'superjson';
 import type { DBUser } from './db/schema';
 import type { Context as HonoContext } from 'hono';
 
+export { TRPCError } from '@trpc/server';
+
 export type Context = {
     user?: DBUser | null;
     hono?: HonoContext;

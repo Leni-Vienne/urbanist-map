@@ -1,4 +1,4 @@
-import { publicProcedure, protectedProcedure, router } from '../trpc';
+import { publicProcedure, protectedProcedure, router, TRPCError } from '../trpc';
 import { z } from 'zod';
 import { overlays, projects, cities, countries } from '../db/schema';
 import { sql, eq, and } from 'drizzle-orm';
@@ -28,6 +28,12 @@ const getOverlaySchema = z.object({
 const getLatestOverlaysSchema = z.object({
   limit: z.number().min(1).max(100).optional().default(20),
   cityId: z.string().uuid().optional(), // AI : Filter by city if provided
+});
+
+// AI : Schema for updating overlay metadata fields directly
+const updateOverlaySchema = z.object({
+  id: z.uuid(),
+  caption: z.string().max(500).optional(), // AI : Allow updating caption
 });
 
 // AI : Shared select fields for overlay queries to reduce duplication
@@ -226,6 +232,50 @@ export const overlayRouter = router({
       } catch (error) {
         console.error('Error publishing overlay:', error);
         throw new Error('Failed to publish overlay');
+      }
+    }),
+
+  // AI : Update overlay metadata fields directly (for pending overlays)
+  updateOverlay: protectedProcedure
+    .input(updateOverlaySchema)
+    .mutation(async ({ input, ctx }) => {
+      try {
+        const userId = ctx.user?.id;
+        if (!userId) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Must be logged in to update overlay' });
+        }
+
+        // AI : Only allow owners to update their own overlays
+        const existingOverlay = await db
+          .select({ authorId: overlays.authorId })
+          .from(overlays)
+          .where(eq(overlays.id, input.id))
+          .limit(1);
+
+        if (existingOverlay.length === 0) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Overlay not found' });
+        }
+
+        if (existingOverlay[0].authorId !== userId) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Not authorized to update this overlay' });
+        }
+
+        // AI : Update only the provided fields
+        const updateData: Partial<{ caption: string }> = {};
+        if (input.caption !== undefined) {
+          updateData.caption = input.caption;
+        }
+
+        await db
+          .update(overlays)
+          .set({ ...updateData, updatedAt: new Date() })
+          .where(eq(overlays.id, input.id));
+
+        return { success: true };
+      } catch (error) {
+        console.error('Error updating overlay:', error);
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update overlay' });
       }
     }),
 });

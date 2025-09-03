@@ -3,6 +3,7 @@
     entity-type="overlay"
     :entity-id="overlay.id"
     :initial-data="overlayData"
+    :entity-status="overlay.status"
     container-class="editable-overlay-form"
     form-class="overlay-form"
     @close="$emit('close')"
