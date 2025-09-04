@@ -5,8 +5,8 @@ import { z } from 'zod';
 let env = process.env;
 
 const envSchema = z.object({
-  DATABASE_URL: z.string().url(),
-  CORS_ORIGIN: z.string().url(),
+  DATABASE_URL: z.url(),
+  CORS_ORIGIN: z.url(),
   PORT: z.coerce.number().default(3000),
 });
 

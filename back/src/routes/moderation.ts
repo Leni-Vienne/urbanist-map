@@ -6,7 +6,7 @@ import { TRPCError } from '@trpc/server';
 import { db } from '../database';
 
 const setApprovalStatusSchema = z.object({
-  ids: z.array(z.string().uuid()),
+  ids: z.array(z.uuid()),
   status: z.enum(approvalStatusEnum.enumValues),
 });
 

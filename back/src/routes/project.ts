@@ -6,13 +6,13 @@ import { TRPCError } from '@trpc/server';
 import { db } from '../database';
 
 const publishProjectSchema = z.object({
-  id: z.string().uuid().optional(),
-  name: z.string().min(1).max(200),
+  id: z.uuid().optional(),
+  name: z.string().min(8).max(200),
   description: z.string().max(2000).optional(),
-  cityId: z.string().uuid().optional(),
+  cityId: z.uuid().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
-  sourceUrl: z.string().url().optional(),
+  sourceUrl: z.url().optional(),
   latestUpdateOn: z.string().optional()
 });
 
@@ -144,7 +144,7 @@ export const projectRouter = router({
     // AI : Get projects by city
     getProjectsByCity: publicProcedure
       .input(z.object({
-        cityId: z.string().uuid(),
+        cityId: z.uuid(),
         limit: z.number().min(1).max(100).optional().default(20)
       }))
       .query(async ({ input }) => {
