@@ -21,11 +21,11 @@ export type SubmitChangeRequestInput = z.infer<typeof submitChangeRequestSchema>
 export type FieldChange = SubmitChangeRequestInput['changes'][0];
 
 const approveChangeRequestSchema = z.object({
-  changeRequestIds: z.array(z.string().uuid()),
+  changeRequestIds: z.array(z.uuid()),
 });
 
 const rejectChangeRequestSchema = z.object({
-  changeRequestIds: z.array(z.string().uuid()),
+  changeRequestIds: z.array(z.uuid()),
 });
 
 export const changesRouter = router({
@@ -204,7 +204,7 @@ export const changesRouter = router({
   getChangeHistory: adminProcedure
     .input(z.object({
       entityType: z.enum(['project', 'overlay']).optional(),
-      entityId: z.string().uuid().optional(),
+      entityId: z.uuid().optional(),
     }))
     .query(async ({ input }) => {
       try {

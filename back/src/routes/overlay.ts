@@ -8,11 +8,11 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../db/schema';
 
 const publishOverlaySchema = z.object({
-  id: z.string().min(1).max(36), // AI : UUID length limit
+  id: z.uuid(), // AI : UUID length limit
   filename: z.string().min(1).max(255), // AI : Standard filename length limit
   caption: z.string().max(500).optional(), // AI : Limit caption to 500 characters
-  projectId: z.string().min(1).max(36), // AI : UUID length limit for project reference
-  replacesOverlayId: z.string().min(1).max(36).optional(), // AI : UUID for overlay replacement
+  projectId: z.uuid(), // AI : UUID length limit for project reference
+  replacesOverlayId: z.uuid().optional(), // AI : UUID for overlay replacement
   metadata: z.json().optional(),
   corners: z.array(z.object({
     lat: z.number().min(-90).max(90), // AI : Valid latitude range
@@ -21,13 +21,13 @@ const publishOverlaySchema = z.object({
 });
 
 const getOverlaySchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   includeIntersecting: z.boolean().optional().default(false),
 });
 
 const getLatestOverlaysSchema = z.object({
   limit: z.number().min(1).max(100).optional().default(20),
-  cityId: z.string().uuid().optional(), // AI : Filter by city if provided
+  cityId: z.uuid().optional(), // AI : Filter by city if provided
 });
 
 // AI : Schema for updating overlay metadata fields directly
