@@ -53,6 +53,7 @@ export const projectRouter = router({
                 endDate: data.endDate,
                 sourceUrl: data.sourceUrl,
                 latestUpdateOn: data.latestUpdateOn,
+                version: sql`${projects.version} + 1`, // AI : Increment version on update for optimistic locking
                 updatedAt: new Date()
               }
             })
