@@ -15,13 +15,10 @@ interface RecentAction {
 
 // AI : Result types for approval operations
 type ApprovalResult = {
-  success: true
-  itemName: string
-} | {
-  success: false
-  error: 'not_found' | 'version_conflict' | 'unknown'
-  message: string
+  success: boolean
   itemName?: string
+  error?: 'not_found' | 'version_conflict' | 'unknown'
+  message?: string
 }
 
 export function useModeration() {
@@ -63,7 +60,7 @@ export function useModeration() {
         status,
       })
 
-      if (!result.success && result.conflicts.length > 0) {
+      if (!result.success) {
         // AI : Handle version conflicts - refresh data and return conflict info
         await fetchPendingSubmissions()
         return {
@@ -170,7 +167,7 @@ export function useModeration() {
         status,
       })
 
-      if (!result.success && result.conflicts.length > 0) {
+      if (!result.success) {
         // AI : Handle version conflicts - refresh data and return conflict info
         await fetchPendingSubmissions()
         return {

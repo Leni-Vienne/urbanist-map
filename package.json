@@ -18,7 +18,13 @@
     "db:drop": "cd back && bun run drizzle-kit drop",
     "import:cities": "cd back && bun run src/scripts/import-cities.ts",
     "deps:analyze": "madge --json front/src > deps-analysis.json",
-    "deps:circular": "madge --circular --warning front/src"
+    "deps:circular": "madge --circular --warning front/src",
+    "test": "bun run test:back && bun run test:front",
+    "test:back": "cd back && bun --env-file=../.env.test test --timeout 30000",
+    "test:front": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui"
   },
   "dependencies": {
     "@hono/trpc-server": "^0.4.0",
@@ -50,14 +56,19 @@
     "@types/leaflet": "^1.9.20",
     "@types/nodemailer": "^7.0.1",
     "@vitejs/plugin-vue": "^6.0.1",
+    "@vitest/coverage-v8": "^1.6.0",
+    "@vitest/ui": "^1.6.0",
+    "@vue/test-utils": "^2.4.6",
     "drizzle-kit": "^0.31.4",
     "istanbul-lib-coverage": "^3.2.2",
+    "jsdom": "^24.1.0",
     "madge": "^8.0.0",
     "oxlint": "^1.14.0",
     "rollup-plugin-visualizer": "^6.0.3",
     "unplugin-vue-components": "^28.8.0",
     "vite": "npm:rolldown-vite@latest",
     "vite-plugin-istanbul": "^7.1.0",
-    "vite-plugin-vue-devtools": "^8.0.1"
+    "vite-plugin-vue-devtools": "^8.0.1",
+    "vitest": "^1.6.0"
   }
 }
