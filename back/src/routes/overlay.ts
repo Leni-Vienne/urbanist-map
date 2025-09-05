@@ -219,6 +219,7 @@ export const overlayRouter = router({
               bottomLeftLat: overlayData.bottomLeftLat,
               bottomLeftLng: overlayData.bottomLeftLng,
               centroid: overlayData.centroid,
+              version: sql`${overlays.version} + 1`, // AI : Increment version on update for optimistic locking
               updatedAt: sql`NOW()`
             }
           })
@@ -268,7 +269,7 @@ export const overlayRouter = router({
 
         await db
           .update(overlays)
-          .set({ ...updateData, updatedAt: new Date() })
+          .set({ ...updateData, version: sql`${overlays.version} + 1`, updatedAt: new Date() }) // AI : Increment version on update for optimistic locking
           .where(eq(overlays.id, input.id));
 
         return { success: true };

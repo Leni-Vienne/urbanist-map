@@ -200,6 +200,7 @@ export interface AccordionOverlay {
   name: string;
   filename: string;
   status: 'pending' | 'approved' | 'rejected';
+  version: number; // AI : Version for optimistic locking
   projectId: string | null;
   updatedAt: Date;
   cityName: string | null;
@@ -212,6 +213,7 @@ export interface AccordionProject {
   name: string;
   description: string | null;
   status: 'pending' | 'approved' | 'rejected';
+  version: number; // AI : Version for optimistic locking
   createdAt: Date;
   updatedAt: Date;
   startDate: Date | null;

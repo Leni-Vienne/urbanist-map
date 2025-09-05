@@ -113,6 +113,13 @@
       "when": 1756889541020,
       "tag": "0015_nappy_baron_strucker",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1757060683064,
+      "tag": "0016_parallel_speed",
+      "breakpoints": true
     }
   ]
 }

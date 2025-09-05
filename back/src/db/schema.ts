@@ -1,5 +1,5 @@
 import {
-  pgTable, uuid, text, timestamp, jsonb, index, doublePrecision, geometry, char, pgEnum, boolean,
+  pgTable, uuid, text, timestamp, jsonb, index, doublePrecision, geometry, char, pgEnum, boolean, integer,
 } from 'drizzle-orm/pg-core';
 import {
   sql, InferSelectModel, relations,
@@ -44,6 +44,7 @@ export const projects = pgTable('projects', {
   startDate: timestamp('start_date', { withTimezone: true }),
   endDate: timestamp('end_date', { withTimezone: true }),
   latestUpdateOn: timestamp('latest_update_on', { withTimezone: true }),
+  version: integer('version').default(1).notNull(), // AI : Version for optimistic locking during moderation
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
 });
@@ -84,6 +85,7 @@ export const overlays = pgTable('overlays', {
 
   centroid: geometry('centroid', { type: 'point', mode: 'xy', srid: 4326 }).notNull(),
 
+  version: integer('version').default(1).notNull(), // AI : Version for optimistic locking during moderation
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
 }, (overlays) => [

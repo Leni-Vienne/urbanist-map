@@ -26,14 +26,14 @@
       <div v-if="project.status === 'pending'" class="project-action-buttons">
         <button
           class="action-btn approve-btn"
-          @click="approveProject(project.id)"
+          @click="handleApproveProject(project.id)"
           v-tooltip.top="'Approve Project'"
         >
           <i class="pi pi-check"></i>
         </button>
         <button
           class="action-btn reject-btn"
-          @click="rejectProject(project.id)"
+          @click="handleRejectProject(project.id)"
           v-tooltip.top="'Reject Project'"
         >
           <i class="pi pi-times"></i>
@@ -45,7 +45,7 @@
       <button 
         v-if="overlay.status === 'pending'"
         class="action-btn approve-btn" 
-        @click="approveOverlay(overlay.id)"
+        @click="handleApproveOverlay(overlay.id)"
         v-tooltip.top="'Approve Overlay'"
       >
         <i class="pi pi-check"></i>
@@ -53,7 +53,7 @@
       <button 
         v-if="overlay.status === 'pending'"
         class="action-btn reject-btn" 
-        @click="rejectOverlay(overlay.id)"
+        @click="handleRejectOverlay(overlay.id)"
         v-tooltip.top="'Reject Overlay'"
       >
         <i class="pi pi-times"></i>
@@ -112,6 +112,102 @@ const undoTooltip = computed(() => {
 // AI : Handle undo action
 async function handleUndo() {
   await undoLastAction()
+}
+
+// AI : Handle project approval with toast notifications
+async function handleApproveProject(id: string) {
+  const result = await approveProject(id)
+  
+  if (result.success) {
+    toast.add({
+      severity: 'success',
+      summary: 'Project Approved',
+      detail: `"${result.itemName}" has been approved`,
+      life: 3000
+    })
+  } else {
+    const severity = result.error === 'version_conflict' ? 'warn' : 'error'
+    const summary = result.error === 'version_conflict' ? 'Project Updated' : 'Approval Failed'
+    
+    toast.add({
+      severity,
+      summary,
+      detail: result.message,
+      life: result.error === 'version_conflict' ? 5000 : 3000
+    })
+  }
+}
+
+// AI : Handle project rejection with toast notifications  
+async function handleRejectProject(id: string) {
+  const result = await rejectProject(id)
+  
+  if (result.success) {
+    toast.add({
+      severity: 'info',
+      summary: 'Project Rejected',
+      detail: `"${result.itemName}" has been rejected`,
+      life: 3000
+    })
+  } else {
+    const severity = result.error === 'version_conflict' ? 'warn' : 'error'
+    const summary = result.error === 'version_conflict' ? 'Project Updated' : 'Rejection Failed'
+    
+    toast.add({
+      severity,
+      summary,
+      detail: result.message,
+      life: result.error === 'version_conflict' ? 5000 : 3000
+    })
+  }
+}
+
+// AI : Handle overlay approval with toast notifications
+async function handleApproveOverlay(id: string) {
+  const result = await approveOverlay(id)
+  
+  if (result.success) {
+    toast.add({
+      severity: 'success',
+      summary: 'Overlay Approved',
+      detail: `"${result.itemName}" has been approved`,
+      life: 3000
+    })
+  } else {
+    const severity = result.error === 'version_conflict' ? 'warn' : 'error'
+    const summary = result.error === 'version_conflict' ? 'Overlay Updated' : 'Approval Failed'
+    
+    toast.add({
+      severity,
+      summary,
+      detail: result.message,
+      life: result.error === 'version_conflict' ? 5000 : 3000
+    })
+  }
+}
+
+// AI : Handle overlay rejection with toast notifications
+async function handleRejectOverlay(id: string) {
+  const result = await rejectOverlay(id)
+  
+  if (result.success) {
+    toast.add({
+      severity: 'info',
+      summary: 'Overlay Rejected', 
+      detail: `"${result.itemName}" has been rejected`,
+      life: 3000
+    })
+  } else {
+    const severity = result.error === 'version_conflict' ? 'warn' : 'error'
+    const summary = result.error === 'version_conflict' ? 'Overlay Updated' : 'Rejection Failed'
+    
+    toast.add({
+      severity,
+      summary,
+      detail: result.message,
+      life: result.error === 'version_conflict' ? 5000 : 3000
+    })
+  }
 }
 
 // AI : Handle overlay click - navigate to overlay
