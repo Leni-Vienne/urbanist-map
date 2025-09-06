@@ -1,7 +1,7 @@
 import { adminProcedure, router } from '../trpc';
 import { z } from 'zod';
 import { projects, overlays, approvalStatusEnum, cities, countries, changeRequests } from '../db/schema';
-import { eq, inArray, sql, or } from 'drizzle-orm';
+import { eq, inArray, sql, or, and } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { db } from '../database';
 
@@ -178,43 +178,56 @@ export const moderationRouter = router({
           }
 
           const conflicts = [];
+          const successfulUpdates: string[] = [];
 
-          // AI : Check each item for version conflicts before approval
+          // AI : Process each item individually with atomic version check
           for (const item of input.items) {
-            const currentProject = await db
-              .select({ version: projects.version })
-              .from(projects)
-              .where(eq(projects.id, item.id))
-              .limit(1);
+            // AI : Atomic update with version check and pending status check in WHERE clause
+            const result = await db
+              .update(projects)
+              .set({ status: input.status })
+              .where(and(
+                eq(projects.id, item.id),
+                eq(projects.version, item.expectedVersion),
+                eq(projects.status, 'pending') // AI : Only update pending projects
+              ))
+              .returning({ id: projects.id, version: projects.version });
 
-            if (currentProject.length === 0) {
-              conflicts.push({ id: item.id, error: 'Project not found' });
-              continue;
-            }
+            if (result.length === 0) {
+              // AI : Either project doesn't exist, version mismatch, or already processed
+              const currentProject = await db
+                .select({ version: projects.version, status: projects.status })
+                .from(projects)
+                .where(eq(projects.id, item.id))
+                .limit(1);
 
-            if (currentProject[0].version !== item.expectedVersion) {
-              conflicts.push({ 
-                id: item.id, 
-                error: 'Version mismatch', 
-                expectedVersion: item.expectedVersion,
-                currentVersion: currentProject[0].version 
-              });
+              if (currentProject.length === 0) {
+                conflicts.push({ id: item.id, error: 'Project not found' });
+              } else if (currentProject[0].status !== 'pending') {
+                conflicts.push({ 
+                  id: item.id, 
+                  error: 'Project already processed', 
+                  currentStatus: currentProject[0].status 
+                });
+              } else {
+                conflicts.push({ 
+                  id: item.id, 
+                  error: 'Version mismatch', 
+                  expectedVersion: item.expectedVersion,
+                  currentVersion: currentProject[0].version 
+                });
+              }
+            } else {
+              successfulUpdates.push(item.id);
             }
           }
 
-          // AI : If there are conflicts, return them without making changes
-          if (conflicts.length > 0) {
-            return { success: false, conflicts };
-          }
-
-          // AI : All versions match, proceed with approval
-          const ids = input.items.map(item => item.id);
-          await db
-            .update(projects)
-            .set({ status: input.status })
-            .where(inArray(projects.id, ids));
-          
-          return { success: true, conflicts: [] };
+          // AI : Return success if at least one update succeeded, conflicts for others
+          return { 
+            success: conflicts.length === 0, 
+            conflicts,
+            successfulUpdates: successfulUpdates.length > 0 ? successfulUpdates : undefined
+          };
         } catch (error) {
           console.error('Error updating project status with version:', error);
           throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update project status' });
@@ -231,43 +244,56 @@ export const moderationRouter = router({
           }
 
           const conflicts = [];
+          const successfulUpdates: string[] = [];
 
-          // AI : Check each item for version conflicts before approval
+          // AI : Process each item individually with atomic version check
           for (const item of input.items) {
-            const currentOverlay = await db
-              .select({ version: overlays.version })
-              .from(overlays)
-              .where(eq(overlays.id, item.id))
-              .limit(1);
+            // AI : Atomic update with version check and pending status check in WHERE clause
+            const result = await db
+              .update(overlays)
+              .set({ status: input.status })
+              .where(and(
+                eq(overlays.id, item.id),
+                eq(overlays.version, item.expectedVersion),
+                eq(overlays.status, 'pending') // AI : Only update pending overlays
+              ))
+              .returning({ id: overlays.id, version: overlays.version });
 
-            if (currentOverlay.length === 0) {
-              conflicts.push({ id: item.id, error: 'Overlay not found' });
-              continue;
-            }
+            if (result.length === 0) {
+              // AI : Either overlay doesn't exist, version mismatch, or already processed
+              const currentOverlay = await db
+                .select({ version: overlays.version, status: overlays.status })
+                .from(overlays)
+                .where(eq(overlays.id, item.id))
+                .limit(1);
 
-            if (currentOverlay[0].version !== item.expectedVersion) {
-              conflicts.push({ 
-                id: item.id, 
-                error: 'Version mismatch', 
-                expectedVersion: item.expectedVersion,
-                currentVersion: currentOverlay[0].version 
-              });
+              if (currentOverlay.length === 0) {
+                conflicts.push({ id: item.id, error: 'Overlay not found' });
+              } else if (currentOverlay[0].status !== 'pending') {
+                conflicts.push({ 
+                  id: item.id, 
+                  error: 'Overlay already processed', 
+                  currentStatus: currentOverlay[0].status 
+                });
+              } else {
+                conflicts.push({ 
+                  id: item.id, 
+                  error: 'Version mismatch', 
+                  expectedVersion: item.expectedVersion,
+                  currentVersion: currentOverlay[0].version 
+                });
+              }
+            } else {
+              successfulUpdates.push(item.id);
             }
           }
 
-          // AI : If there are conflicts, return them without making changes
-          if (conflicts.length > 0) {
-            return { success: false, conflicts };
-          }
-
-          // AI : All versions match, proceed with approval
-          const ids = input.items.map(item => item.id);
-          await db
-            .update(overlays)
-            .set({ status: input.status })
-            .where(inArray(overlays.id, ids));
-          
-          return { success: true, conflicts: [] };
+          // AI : Return success if at least one update succeeded, conflicts for others
+          return { 
+            success: conflicts.length === 0, 
+            conflicts,
+            successfulUpdates: successfulUpdates.length > 0 ? successfulUpdates : undefined
+          };
         } catch (error) {
           console.error('Error updating overlay status with version:', error);
           throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update overlay status' });
