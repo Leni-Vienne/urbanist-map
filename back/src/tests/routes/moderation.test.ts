@@ -1,13 +1,16 @@
-import { describe, test, expect, beforeAll, beforeEach, afterEach, afterAll } from 'bun:test'
+import { describe, test, expect, beforeAll, beforeEach, afterAll } from 'bun:test'
 import { moderationRouter } from '../../routes/moderation'
 import { TestHelpers } from '../utils/test-helpers'
+import { getTestDb } from '../utils/test-database'
+import { projects } from '../../db/schema'
+import { eq } from 'drizzle-orm'
 
 // AI : Mock TRPC context for admin user
 const createMockAdminContext = () => ({
   user: {
-    id: 'admin-user',
-    email: 'admin@example.com',
-    username: 'admin',
+    id: 'mock-admin-user',
+    email: 'mock-admin@example.com',
+    username: 'mock-admin',
     passwordHash: 'mock-hash',
     role: 'admin',
     emailVerified: true,
@@ -36,7 +39,7 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
   beforeEach(async () => {
     await TestHelpers.cleanup()
     testUser = await TestHelpers.createTestUser({ role: 'user' })
-    testAdmin = await TestHelpers.createTestUser({ role: 'admin', email: 'admin@example.com' })
+    testAdmin = await TestHelpers.createTestUser({ role: 'admin' })
     testCity = await TestHelpers.getTestCity()
   })
 
@@ -131,16 +134,27 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
         status: 'approved'
       })
       
-      expect(result.success).toBe(false)
+      // AI : With atomic operations, project1 should succeed, project2 should fail
+      expect(result.success).toBe(false) // Overall operation fails due to project2 conflict
       expect(result.conflicts).toHaveLength(1)
       expect(result.conflicts[0].id).toBe(project2.id)
       expect(result.conflicts[0].error).toBe('Version mismatch')
+      expect(result.successfulUpdates).toEqual([project1.id]) // project1 was successfully approved
       
-      // AI : Neither project should be approved due to batch failure
+      // AI : Check actual project states in database
+      const db = getTestDb()
+      const [finalProject1] = await db.select().from(projects).where(eq(projects.id, project1.id)).limit(1)
+      const [finalProject2] = await db.select().from(projects).where(eq(projects.id, project2.id)).limit(1)
+      
+      expect(finalProject1.status).toBe('approved') // project1 succeeded
+      expect(finalProject2.status).toBe('pending')  // project2 failed, still pending
+      
+      // AI : Check getPendingSubmissions - project1 shouldn't appear (approved), project2 should appear (pending)
       const submissionData = await moderationRouter.createCaller(createMockAdminContext()).getPendingSubmissions()
-      const projects = submissionData.projects
-      expect(projects.find(p => p.id === project1.id)?.status).toBe('pending')
-      expect(projects.find(p => p.id === project2.id)?.status).toBe('pending')
+      const pendingProjects = submissionData.projects
+      
+      expect(pendingProjects.find(p => p.id === project1.id)).toBeUndefined() // Not in pending list anymore
+      expect(pendingProjects.find(p => p.id === project2.id)?.status).toBe('pending') // Still pending
     })
 
     test('handles non-existent project', async () => {
