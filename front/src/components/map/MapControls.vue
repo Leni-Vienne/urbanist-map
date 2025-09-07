@@ -47,6 +47,7 @@
         class="map-control-button"
         v-tooltip.right="tooltipText"
         aria-label="Toggle Edit Mode"
+        :active="isEditMode"
     />
 
     <!-- AI : Overlay Completion Status Filter Buttons (View Mode Only) -->
