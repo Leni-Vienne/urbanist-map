@@ -40,11 +40,11 @@ export type PendingProject = GetPendingSubmissionsResponse['projects'][0];
 export type PendingOverlay = GetPendingSubmissionsResponse['overlays'][0];
 export type PendingChangeRequest = GetPendingSubmissionsResponse['changeRequests'][0];
 
-export type SetProjectApprovalStatusInput = RouterInput['moderation']['setProjectApprovalStatus'];
-export type SetProjectApprovalStatusResponse = RouterOutput['moderation']['setProjectApprovalStatus'];
+export type UndoProjectApprovalStatusInput = RouterInput['moderation']['undoProjectApprovalStatus'];
+export type UndoProjectApprovalStatusResponse = RouterOutput['moderation']['undoProjectApprovalStatus'];
 
-export type SetOverlayApprovalStatusInput = RouterInput['moderation']['setOverlayApprovalStatus'];
-export type SetOverlayApprovalStatusResponse = RouterOutput['moderation']['setOverlayApprovalStatus'];
+export type UndoOverlayApprovalStatusInput = RouterInput['moderation']['undoOverlayApprovalStatus'];
+export type UndoOverlayApprovalStatusResponse = RouterOutput['moderation']['undoOverlayApprovalStatus'];
 
 // AI : Change tracking API types
 export type SubmitChangeRequestInput = RouterInput['changes']['submitChangeRequest'];

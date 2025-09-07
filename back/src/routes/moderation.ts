@@ -5,19 +5,20 @@ import { eq, inArray, sql, or, and } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { db } from '../database';
 
+// AI : Schema for legacy approval endpoints - supports arrays but frontend only sends single items
+// Used only for undo functionality in the frontend
 const setApprovalStatusSchema = z.object({
-  ids: z.array(z.uuid()),
+  id: z.string().uuid(),
   status: z.enum(approvalStatusEnum.enumValues),
-});
+});;
 
-// AI : New schema for version-aware approval to prevent race conditions
+// AI : Schema for version-aware approval to prevent race conditions
+// Supports arrays but frontend only sends single items for individual approval/rejection
 const setApprovalStatusWithVersionSchema = z.object({
-  items: z.array(z.object({
-    id: z.uuid(),
-    expectedVersion: z.number(), // AI : Version the moderator reviewed
-  })),
+  id: z.string().uuid(),
+  expectedVersion: z.number().int(),
   status: z.enum(approvalStatusEnum.enumValues),
-});
+});;
 
 export const moderationRouter = router({
     getPendingSubmissions: adminProcedure
@@ -128,19 +129,16 @@ export const moderationRouter = router({
         }
       }),
 
-    setProjectApprovalStatus: adminProcedure
+    // AI : Undo project approval - restores project to previous status (typically pending)
+    // Frontend always sends single ID wrapped in array: ids: [singleId]
+    undoProjectApprovalStatus: adminProcedure
       .input(setApprovalStatusSchema)
       .mutation(async ({ input }) => {
         try {
-          // AI : Guard against empty array to prevent SQL errors
-          if (input.ids.length === 0) {
-            return { success: true };
-          }
-          
           await db
             .update(projects)
             .set({ status: input.status })
-            .where(inArray(projects.id, input.ids));
+            .where(eq(projects.id, input.id));
           return { success: true };
         } catch (error) {
           console.error('Error updating project status:', error);
@@ -148,19 +146,16 @@ export const moderationRouter = router({
         }
       }),
 
-    setOverlayApprovalStatus: adminProcedure
+    // AI : Undo overlay approval - restores overlay to previous status (typically pending)
+    // Frontend always sends single ID wrapped in array: ids: [singleId]
+    undoOverlayApprovalStatus: adminProcedure
       .input(setApprovalStatusSchema)
       .mutation(async ({ input }) => {
         try {
-          // AI : Guard against empty array to prevent SQL errors
-          if (input.ids.length === 0) {
-            return { success: true };
-          }
-          
           await db
             .update(overlays)
             .set({ status: input.status })
-            .where(inArray(overlays.id, input.ids));
+            .where(eq(overlays.id, input.id));
           return { success: true };
         } catch (error) {
           console.error('Error updating overlay status:', error);
@@ -169,131 +164,99 @@ export const moderationRouter = router({
       }),
 
     // AI : Version-aware project approval to prevent race conditions
+    // Frontend always sends single item wrapped in array: items: [{ id, expectedVersion }]
     setProjectApprovalStatusWithVersion: adminProcedure
       .input(setApprovalStatusWithVersionSchema)
       .mutation(async ({ input }) => {
         try {
-          if (input.items.length === 0) {
-            return { success: true, conflicts: [] };
-          }
+          // AI : Atomic update with version check and pending status check in WHERE clause
+          const result = await db
+            .update(projects)
+            .set({ status: input.status })
+            .where(and(
+              eq(projects.id, input.id),
+              eq(projects.version, input.expectedVersion),
+              eq(projects.status, 'pending') // AI : Only update pending projects
+            ))
+            .returning({ id: projects.id, version: projects.version });
 
-          const conflicts = [];
-          const successfulUpdates: string[] = [];
+          if (result.length === 0) {
+            // AI : Either project doesn't exist, version mismatch, or already processed
+            const currentProject = await db
+              .select({ version: projects.version, status: projects.status })
+              .from(projects)
+              .where(eq(projects.id, input.id))
+              .limit(1);
 
-          // AI : Process each item individually with atomic version check
-          for (const item of input.items) {
-            // AI : Atomic update with version check and pending status check in WHERE clause
-            const result = await db
-              .update(projects)
-              .set({ status: input.status })
-              .where(and(
-                eq(projects.id, item.id),
-                eq(projects.version, item.expectedVersion),
-                eq(projects.status, 'pending') // AI : Only update pending projects
-              ))
-              .returning({ id: projects.id, version: projects.version });
-
-            if (result.length === 0) {
-              // AI : Either project doesn't exist, version mismatch, or already processed
-              const currentProject = await db
-                .select({ version: projects.version, status: projects.status })
-                .from(projects)
-                .where(eq(projects.id, item.id))
-                .limit(1);
-
-              if (currentProject.length === 0) {
-                conflicts.push({ id: item.id, error: 'Project not found' });
-              } else if (currentProject[0].status !== 'pending') {
-                conflicts.push({ 
-                  id: item.id, 
-                  error: 'Project already processed', 
-                  currentStatus: currentProject[0].status 
-                });
-              } else {
-                conflicts.push({ 
-                  id: item.id, 
-                  error: 'Version mismatch', 
-                  expectedVersion: item.expectedVersion,
-                  currentVersion: currentProject[0].version 
-                });
-              }
+            if (currentProject.length === 0) {
+              return { success: false, error: 'Project not found' };
+            } else if (currentProject[0].status !== 'pending') {
+              return { 
+                success: false, 
+                error: 'Project already processed', 
+                currentStatus: currentProject[0].status 
+              };
             } else {
-              successfulUpdates.push(item.id);
+              return { 
+                success: false, 
+                error: 'Version mismatch', 
+                expectedVersion: input.expectedVersion,
+                currentVersion: currentProject[0].version 
+              };
             }
           }
 
-          // AI : Return success if at least one update succeeded, conflicts for others
-          return { 
-            success: conflicts.length === 0, 
-            conflicts,
-            successfulUpdates: successfulUpdates.length > 0 ? successfulUpdates : undefined
-          };
+          return { success: true };
         } catch (error) {
           console.error('Error updating project status with version:', error);
           throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update project status' });
         }
       }),
 
-    // AI : Version-aware overlay approval to prevent race conditions  
+    // AI : Version-aware overlay approval to prevent race conditions
+    // Frontend always sends single item wrapped in array: items: [{ id, expectedVersion }]
     setOverlayApprovalStatusWithVersion: adminProcedure
       .input(setApprovalStatusWithVersionSchema)
       .mutation(async ({ input }) => {
         try {
-          if (input.items.length === 0) {
-            return { success: true, conflicts: [] };
-          }
+          // AI : Atomic update with version check and pending status check in WHERE clause
+          const result = await db
+            .update(overlays)
+            .set({ status: input.status })
+            .where(and(
+              eq(overlays.id, input.id),
+              eq(overlays.version, input.expectedVersion),
+              eq(overlays.status, 'pending') // AI : Only update pending overlays
+            ))
+            .returning({ id: overlays.id, version: overlays.version });
 
-          const conflicts = [];
-          const successfulUpdates: string[] = [];
+          if (result.length === 0) {
+            // AI : Either overlay doesn't exist, version mismatch, or already processed
+            const currentOverlay = await db
+              .select({ version: overlays.version, status: overlays.status })
+              .from(overlays)
+              .where(eq(overlays.id, input.id))
+              .limit(1);
 
-          // AI : Process each item individually with atomic version check
-          for (const item of input.items) {
-            // AI : Atomic update with version check and pending status check in WHERE clause
-            const result = await db
-              .update(overlays)
-              .set({ status: input.status })
-              .where(and(
-                eq(overlays.id, item.id),
-                eq(overlays.version, item.expectedVersion),
-                eq(overlays.status, 'pending') // AI : Only update pending overlays
-              ))
-              .returning({ id: overlays.id, version: overlays.version });
-
-            if (result.length === 0) {
-              // AI : Either overlay doesn't exist, version mismatch, or already processed
-              const currentOverlay = await db
-                .select({ version: overlays.version, status: overlays.status })
-                .from(overlays)
-                .where(eq(overlays.id, item.id))
-                .limit(1);
-
-              if (currentOverlay.length === 0) {
-                conflicts.push({ id: item.id, error: 'Overlay not found' });
-              } else if (currentOverlay[0].status !== 'pending') {
-                conflicts.push({ 
-                  id: item.id, 
-                  error: 'Overlay already processed', 
-                  currentStatus: currentOverlay[0].status 
-                });
-              } else {
-                conflicts.push({ 
-                  id: item.id, 
-                  error: 'Version mismatch', 
-                  expectedVersion: item.expectedVersion,
-                  currentVersion: currentOverlay[0].version 
-                });
-              }
+            if (currentOverlay.length === 0) {
+              return { success: false, error: 'Overlay not found' };
+            } else if (currentOverlay[0].status !== 'pending') {
+              return { 
+                success: false, 
+                error: 'Overlay already processed', 
+                currentStatus: currentOverlay[0].status 
+              };
             } else {
-              successfulUpdates.push(item.id);
+              return { 
+                success: false, 
+                error: 'Version mismatch', 
+                expectedVersion: input.expectedVersion,
+                currentVersion: currentOverlay[0].version 
+              };
             }
           }
 
-          // AI : Return success if at least one update succeeded, conflicts for others
-          return { 
-            success: conflicts.length === 0, 
-            conflicts,
-            successfulUpdates: successfulUpdates.length > 0 ? successfulUpdates : undefined
-          };
+          return { success: true };
         } catch (error) {
           console.error('Error updating overlay status with version:', error);
           throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update overlay status' });
