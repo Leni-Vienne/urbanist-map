@@ -12,6 +12,7 @@ export const useProjectStore = defineStore('project', () => {
   const selectedProjectId = ref<string | null>(null);
   const countries = ref<Country[]>([]);
 
+
   // AI : Centralized nearby projects data management
   const nearbyProjects = ref<NearbyProject[]>([]);
   const nearbyProjectsLoading = ref(false);
@@ -21,10 +22,12 @@ export const useProjectStore = defineStore('project', () => {
   const allProjects = computed(() => {
     const combined = { ...projects.value };
 
+
     // AI : Add nearby projects that aren't already in local projects
     nearbyProjects.value.forEach((nearbyProject: NearbyProject) => {
       combined[nearbyProject.id] ??= convertNearbyProjectToLocal(nearbyProject);
     });
+
 
     return combined;
   });
@@ -43,6 +46,7 @@ export const useProjectStore = defineStore('project', () => {
       nearbyProjectsLoading.value = true;
       nearbyProjectsError.value = null;
 
+
       if (!map.value) {
         console.warn('Map not available for fetching nearby projects');
         return [];
@@ -50,6 +54,7 @@ export const useProjectStore = defineStore('project', () => {
 
       // AI : Get current map center coordinates
       const center = map.value.getCenter();
+
 
       // AI : Call the TRPC endpoint to fetch nearby projects
       const response = await trpc.project.getProjectsNearLocation.query({
@@ -111,10 +116,10 @@ export const useProjectStore = defineStore('project', () => {
     nearbyProjectsLoading,
     nearbyProjectsError,
 
+
     // Computed properties
     allProjects,
     selectedProjectIdRef,
-
     // Local project actions
     addOverlayToProjectWithId,
 
@@ -125,4 +130,4 @@ export const useProjectStore = defineStore('project', () => {
     setNearbyProjectsLoading,
     setNearbyProjectsError
   };
-});
+})

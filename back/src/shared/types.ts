@@ -28,7 +28,7 @@ export interface CDNOverlayData {
     };
     corners: { lat: number; lng: number }[];
     distance: number;
-    createdAt: Date | null;
+    createdAt: Date;
 }
 
 // AI : Shared type for detailed overlay queries (used in overlay.ts)

@@ -80,6 +80,7 @@ export function addCountryMarkersToMap() {
     return;
   }
   addCountryMarkersToMapInternal();
+  addCountryMarkersToMapInternal();
 }
 
 function addCountryMarkersToMapInternal() {
@@ -118,6 +119,7 @@ function addCountryMarkersToMapInternal() {
       }
       marker.setOpacity(COUNTRY_MARKER_HOVER_OPACITY);
       selectedCountryMarker = marker;
+
 
       // AI : Automatically switch to the appropriate tile layer for this country
       switchTileLayer(isTileLayerType(country.code) ? country.code : 'esri');
