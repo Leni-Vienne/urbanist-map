@@ -56,7 +56,8 @@ export function useModeration() {
 
       // AI : Use version-aware approval endpoint
       const result = await trpc.moderation.setOverlayApprovalStatusWithVersion.mutate({
-        items: [{ id, expectedVersion: overlay.version }],
+        id,
+        expectedVersion: overlay.version,
         status,
       })
 
@@ -121,13 +122,13 @@ export function useModeration() {
 
       // AI : Restore to previous status (pending) based on item type
       if (lastAction.itemType === 'overlay') {
-        await trpc.moderation.setOverlayApprovalStatus.mutate({
-          ids: [lastAction.id],
+        await trpc.moderation.undoOverlayApprovalStatus.mutate({
+          id: lastAction.id,
           status: lastAction.previousStatus,
         })
       } else if (lastAction.itemType === 'project') {
-        await trpc.moderation.setProjectApprovalStatus.mutate({
-          ids: [lastAction.id],
+        await trpc.moderation.undoProjectApprovalStatus.mutate({
+          id: lastAction.id,
           status: lastAction.previousStatus,
         })
       }
@@ -163,7 +164,8 @@ export function useModeration() {
 
       // AI : Use version-aware approval endpoint
       const result = await trpc.moderation.setProjectApprovalStatusWithVersion.mutate({
-        items: [{ id, expectedVersion: project.version }],
+        id,
+        expectedVersion: project.version,
         status,
       })
 

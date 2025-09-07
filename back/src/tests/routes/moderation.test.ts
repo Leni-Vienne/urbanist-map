@@ -87,12 +87,13 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
       
       const caller = moderationRouter.createCaller(createMockAdminContext())
       const result = await caller.setProjectApprovalStatusWithVersion({
-        items: [{ id: project.id, expectedVersion: 1 }],
+        id: project.id,
+        expectedVersion: 1,
         status: 'approved'
       })
       
       expect(result.success).toBe(true)
-      expect(result.conflicts).toHaveLength(0)
+      // No conflicts expected for successful operations
       
       // AI : Verify project is actually approved
       const currentVersion = await TestHelpers.getProjectVersion(project.id)
@@ -107,18 +108,19 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
       
       const caller = moderationRouter.createCaller(createMockAdminContext())
       const result = await caller.setProjectApprovalStatusWithVersion({
-        items: [{ id: project.id, expectedVersion: 1 }], // Stale version
+        id: project.id,
+        expectedVersion: 1, // Stale version
         status: 'approved'
       })
       
       expect(result.success).toBe(false)
-      expect(result.conflicts).toHaveLength(1)
-      expect(result.conflicts[0].error).toBe('Version mismatch')
-      expect(result.conflicts[0].expectedVersion).toBe(1)
-      expect(result.conflicts[0].currentVersion).toBe(2)
+      expect(result.error).toBe('Version mismatch')
+      expect(result.error).toBe('Version mismatch')
+      expect(result.expectedVersion).toBe(1)
+      expect(result.currentVersion).toBe(2)
     })
 
-    test('handles multiple projects with mixed version states', async () => {
+    test('handles project with mixed version states individually', async () => {
       const project1 = await TestHelpers.createTestProject(testUser.id, testCity.id, 1, { status: 'pending', name: 'Project 1' })
       const project2 = await TestHelpers.createTestProject(testUser.id, testCity.id, 1, { status: 'pending', name: 'Project 2' })
       
@@ -126,20 +128,24 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
       await TestHelpers.updateProject(project2.id, { name: 'Modified Project 2' })
       
       const caller = moderationRouter.createCaller(createMockAdminContext())
-      const result = await caller.setProjectApprovalStatusWithVersion({
-        items: [
-          { id: project1.id, expectedVersion: 1 }, // Correct version
-          { id: project2.id, expectedVersion: 1 }  // Stale version
-        ],
+      
+      // AI : Try to approve project1 (correct version) - should succeed
+      const result1 = await caller.setProjectApprovalStatusWithVersion({
+        id: project1.id,
+        expectedVersion: 1,
         status: 'approved'
       })
       
-      // AI : With atomic operations, project1 should succeed, project2 should fail
-      expect(result.success).toBe(false) // Overall operation fails due to project2 conflict
-      expect(result.conflicts).toHaveLength(1)
-      expect(result.conflicts[0].id).toBe(project2.id)
-      expect(result.conflicts[0].error).toBe('Version mismatch')
-      expect(result.successfulUpdates).toEqual([project1.id]) // project1 was successfully approved
+      // AI : Try to approve project2 (stale version) - should fail
+      const result2 = await caller.setProjectApprovalStatusWithVersion({
+        id: project2.id,
+        expectedVersion: 1,
+        status: 'approved'
+      })
+      
+      expect(result1.success).toBe(true)
+      expect(result2.success).toBe(false)
+      expect(result2.error).toBe('Version mismatch')
       
       // AI : Check actual project states in database
       const db = getTestDb()
@@ -160,30 +166,36 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
     test('handles non-existent project', async () => {
       const caller = moderationRouter.createCaller(createMockAdminContext())
       const result = await caller.setProjectApprovalStatusWithVersion({
-        items: [{ id: '00000000-0000-0000-0000-000000000000', expectedVersion: 1 }], // AI : Use valid UUID format
+        id: '00000000-0000-0000-0000-000000000000',
+        expectedVersion: 1, // AI : Use valid UUID format
         status: 'approved'
       })
       
       expect(result.success).toBe(false)
-      expect(result.conflicts).toHaveLength(1)
-      expect(result.conflicts[0].error).toBe('Project not found')
+      expect(result.error).toBe('Version mismatch')
+      expect(result.error).toBe('Project not found')
     })
 
-    test('successfully approves multiple projects with correct versions', async () => {
+    test('successfully approves projects with correct versions individually', async () => {
       const project1 = await TestHelpers.createTestProject(testUser.id, testCity.id, 1, { status: 'pending' })
       const project2 = await TestHelpers.createTestProject(testUser.id, testCity.id, 1, { status: 'pending' })
       
       const caller = moderationRouter.createCaller(createMockAdminContext())
-      const result = await caller.setProjectApprovalStatusWithVersion({
-        items: [
-          { id: project1.id, expectedVersion: 1 },
-          { id: project2.id, expectedVersion: 1 }
-        ],
+      
+      const result1 = await caller.setProjectApprovalStatusWithVersion({
+        id: project1.id,
+        expectedVersion: 1,
         status: 'approved'
       })
       
-      expect(result.success).toBe(true)
-      expect(result.conflicts).toHaveLength(0)
+      const result2 = await caller.setProjectApprovalStatusWithVersion({
+        id: project2.id,
+        expectedVersion: 1,
+        status: 'approved'
+      })
+      
+      expect(result1.success).toBe(true)
+      expect(result2.success).toBe(true)
     })
   })
 
@@ -194,12 +206,13 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
       
       const caller = moderationRouter.createCaller(createMockAdminContext())
       const result = await caller.setOverlayApprovalStatusWithVersion({
-        items: [{ id: overlay.id, expectedVersion: 1 }],
+        id: overlay.id,
+        expectedVersion: 1,
         status: 'approved'
       })
       
       expect(result.success).toBe(true)
-      expect(result.conflicts).toHaveLength(0)
+      // No conflicts expected for successful operations
     })
 
     test('rejects approval with stale version', async () => {
@@ -211,15 +224,16 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
       
       const caller = moderationRouter.createCaller(createMockAdminContext())
       const result = await caller.setOverlayApprovalStatusWithVersion({
-        items: [{ id: overlay.id, expectedVersion: 1 }], // Stale version
+        id: overlay.id,
+        expectedVersion: 1, // Stale version
         status: 'approved'
       })
       
       expect(result.success).toBe(false)
-      expect(result.conflicts).toHaveLength(1)
-      expect(result.conflicts[0].error).toBe('Version mismatch')
-      expect(result.conflicts[0].expectedVersion).toBe(1)
-      expect(result.conflicts[0].currentVersion).toBe(2)
+      expect(result.error).toBe('Version mismatch')
+      expect(result.error).toBe('Version mismatch')
+      expect(result.expectedVersion).toBe(1)
+      expect(result.currentVersion).toBe(2)
     })
 
     test('handles rejection with version validation', async () => {
@@ -228,45 +242,51 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
       
       const caller = moderationRouter.createCaller(createMockAdminContext())
       const result = await caller.setOverlayApprovalStatusWithVersion({
-        items: [{ id: overlay.id, expectedVersion: 1 }],
+        id: overlay.id,
+        expectedVersion: 1,
         status: 'rejected'
       })
       
       expect(result.success).toBe(true)
-      expect(result.conflicts).toHaveLength(0)
+      // No conflicts expected for successful operations
     })
 
     test('handles non-existent overlay', async () => {
       const caller = moderationRouter.createCaller(createMockAdminContext())
       const result = await caller.setOverlayApprovalStatusWithVersion({
-        items: [{ id: '00000000-0000-0000-0000-000000000000', expectedVersion: 1 }], // AI : Use valid UUID format
+        id: '00000000-0000-0000-0000-000000000000',
+        expectedVersion: 1, // AI : Use valid UUID format
         status: 'approved'
       })
       
       expect(result.success).toBe(false)
-      expect(result.conflicts).toHaveLength(1)
-      expect(result.conflicts[0].error).toBe('Overlay not found')
+      expect(result.error).toBe('Version mismatch')
+      expect(result.error).toBe('Overlay not found')
     })
   })
 
   describe('Edge cases and error handling', () => {
-    test('handles empty items array', async () => {
+    test('handles individual approval calls', async () => {
+      const project = await TestHelpers.createTestProject(testUser.id, testCity.id, 1, { status: 'pending' })
+      const overlayProject = await TestHelpers.createTestProject(testUser.id, testCity.id)
+      const overlay = await TestHelpers.createTestOverlay(overlayProject.id, testUser.id, 1, { status: 'pending' })
+      
       const caller = moderationRouter.createCaller(createMockAdminContext())
       
       const projectResult = await caller.setProjectApprovalStatusWithVersion({
-        items: [],
+        id: project.id,
+        expectedVersion: 1,
         status: 'approved'
       })
       
       const overlayResult = await caller.setOverlayApprovalStatusWithVersion({
-        items: [],
-        status: 'approved'  
+        id: overlay.id,
+        expectedVersion: 1,
+        status: 'approved'
       })
       
       expect(projectResult.success).toBe(true)
-      expect(projectResult.conflicts).toHaveLength(0)
       expect(overlayResult.success).toBe(true)
-      expect(overlayResult.conflicts).toHaveLength(0)
     })
 
     test('validates version is a number', async () => {
@@ -274,12 +294,12 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
       
       const caller = moderationRouter.createCaller(createMockAdminContext())
       const result = await caller.setProjectApprovalStatusWithVersion({
-        items: [{ id: project.id, expectedVersion: 5 }],
+        id: project.id,
+        expectedVersion: 5,
         status: 'approved'
       })
       
       expect(result.success).toBe(true)
-      expect(typeof result.conflicts).toBe('object')
     })
 
     test('handles large version numbers', async () => {
@@ -295,7 +315,8 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
       
       const caller = moderationRouter.createCaller(createMockAdminContext())
       const result = await caller.setProjectApprovalStatusWithVersion({
-        items: [{ id: project.id, expectedVersion: 6 }],
+        id: project.id,
+        expectedVersion: 6,
         status: 'approved'
       })
       

@@ -81,7 +81,8 @@ describe('Race Condition Prevention Tests', () => {
           cityId: testCity.id,
         }),
         adminCaller.setProjectApprovalStatusWithVersion({
-          items: [{ id: project.id, expectedVersion: 1 }],
+          id: project.id,
+          expectedVersion: 1,
           status: 'approved'
         })
       ])
@@ -159,7 +160,8 @@ describe('Race Condition Prevention Tests', () => {
       // AI : Simulate multiple rapid approval attempts
       const approvalPromises = Array(10).fill(null).map(() =>
         adminCaller.setProjectApprovalStatusWithVersion({
-          items: [{ id: project.id, expectedVersion: 1 }],
+          id: project.id,
+          expectedVersion: 1,
           status: 'approved'
         })
       )
@@ -195,7 +197,8 @@ describe('Race Condition Prevention Tests', () => {
           caption: 'User Modified Caption'
         }),
         adminCaller.setOverlayApprovalStatusWithVersion({
-          items: [{ id: overlay.id, expectedVersion: 1 }],
+          id: overlay.id,
+          expectedVersion: 1,
           status: 'approved'
         })
       ])
@@ -290,12 +293,14 @@ describe('Race Condition Prevention Tests', () => {
         }),
         // Admin tries to approve project
         adminCaller.setProjectApprovalStatusWithVersion({
-          items: [{ id: project.id, expectedVersion: 1 }],
+          id: project.id,
+          expectedVersion: 1,
           status: 'approved'
         }),
         // Admin tries to approve overlay
         adminCaller.setOverlayApprovalStatusWithVersion({
-          items: [{ id: overlay.id, expectedVersion: 1 }],
+          id: overlay.id,
+          expectedVersion: 1,
           status: 'approved'
         })
       ])
@@ -355,7 +360,8 @@ describe('Race Condition Prevention Tests', () => {
       
       const approvals = Array(5).fill(null).map(() =>
         adminCaller.setProjectApprovalStatusWithVersion({
-          items: [{ id: project.id, expectedVersion: 1 }],
+          id: project.id,
+          expectedVersion: 1,
           status: 'approved'
         })
       )
@@ -425,7 +431,8 @@ describe('Race Condition Prevention Tests', () => {
       
       const adminCaller = moderationRouter.createCaller(createAdminContext(testAdmin.id))
       const result = await adminCaller.setProjectApprovalStatusWithVersion({
-        items: [{ id: project.id, expectedVersion: initialVersion }],
+        id: project.id,
+        expectedVersion: initialVersion,
         status: 'approved'
       })
       

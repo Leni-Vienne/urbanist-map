@@ -27,10 +27,10 @@ vi.mock('@client', () => ({
       setOverlayApprovalStatusWithVersion: {
         mutate: vi.fn()
       },
-      setProjectApprovalStatus: {
+      undoProjectApprovalStatus: {
         mutate: vi.fn()
       },
-      setOverlayApprovalStatus: {
+      undoOverlayApprovalStatus: {
         mutate: vi.fn()
       }
     }
@@ -52,11 +52,11 @@ const mockTrpc = {
     setOverlayApprovalStatusWithVersion: {
       mutate: vi.mocked(trpc.moderation.setOverlayApprovalStatusWithVersion.mutate)
     },
-    setProjectApprovalStatus: {
-      mutate: vi.mocked(trpc.moderation.setProjectApprovalStatus.mutate)
+    undoProjectApprovalStatus: {
+      mutate: vi.mocked(trpc.moderation.undoProjectApprovalStatus.mutate)
     },
-    setOverlayApprovalStatus: {
-      mutate: vi.mocked(trpc.moderation.setOverlayApprovalStatus.mutate)
+    undoOverlayApprovalStatus: {
+      mutate: vi.mocked(trpc.moderation.undoOverlayApprovalStatus.mutate)
     }
   }
 }
@@ -112,22 +112,20 @@ describe('useModeration Composable', () => {
     
     mockTrpc.moderation.setProjectApprovalStatusWithVersion.mutate
       .mockResolvedValue({
-        success: true,
-        conflicts: []
+        success: true
       })
     
     mockTrpc.moderation.setOverlayApprovalStatusWithVersion.mutate
       .mockResolvedValue({
-        success: true,
-        conflicts: []
+        success: true
       })
       
-    mockTrpc.moderation.setProjectApprovalStatus.mutate
+    mockTrpc.moderation.undoProjectApprovalStatus.mutate
       .mockResolvedValue({
         success: true
       })
       
-    mockTrpc.moderation.setOverlayApprovalStatus.mutate
+    mockTrpc.moderation.undoOverlayApprovalStatus.mutate
       .mockResolvedValue({
         success: true
       })
@@ -151,7 +149,8 @@ describe('useModeration Composable', () => {
       expect(result.success).toBe(true)
       expect(result.itemName).toBe('Test Project')
       expect(mockTrpc.moderation.setProjectApprovalStatusWithVersion.mutate).toHaveBeenCalledWith({
-        items: [{ id: 'test-project-1', expectedVersion: 1 }],
+        id: 'test-project-1',
+        expectedVersion: 1,
         status: 'approved'
       })
     })
@@ -168,12 +167,9 @@ describe('useModeration Composable', () => {
       mockTrpc.moderation.setProjectApprovalStatusWithVersion.mutate.mockClear()
       mockTrpc.moderation.setProjectApprovalStatusWithVersion.mutate.mockResolvedValueOnce({
         success: false,
-        conflicts: [{
-          id: 'test-project-1',
-          error: 'Version mismatch',
-          expectedVersion: 1,
-          currentVersion: 2
-        }]
+        error: 'Version mismatch',
+        expectedVersion: 1,
+        currentVersion: 2
       })
       
       const result = await approveProject('test-project-1')
@@ -235,7 +231,8 @@ describe('useModeration Composable', () => {
       expect(result.success).toBe(true)
       expect(result.itemName).toBe('Test Project')
       expect(mockTrpc.moderation.setProjectApprovalStatusWithVersion.mutate).toHaveBeenCalledWith({
-        items: [{ id: 'test-project-1', expectedVersion: 1 }],
+        id: 'test-project-1',
+        expectedVersion: 1,
         status: 'rejected'
       })
     })
@@ -255,7 +252,8 @@ describe('useModeration Composable', () => {
       expect(result.success).toBe(true)
       expect(result.itemName).toBe('Test Overlay')
       expect(mockTrpc.moderation.setOverlayApprovalStatusWithVersion.mutate).toHaveBeenCalledWith({
-        items: [{ id: 'test-overlay-1', expectedVersion: 1 }],
+        id: 'test-overlay-1',
+        expectedVersion: 1,
         status: 'approved'
       })
     })
@@ -272,12 +270,9 @@ describe('useModeration Composable', () => {
       mockTrpc.moderation.setOverlayApprovalStatusWithVersion.mutate.mockClear()
       mockTrpc.moderation.setOverlayApprovalStatusWithVersion.mutate.mockResolvedValueOnce({
         success: false,
-        conflicts: [{
-          id: 'test-overlay-1',
-          error: 'Version mismatch',
-          expectedVersion: 1,
-          currentVersion: 3
-        }]
+        error: 'Version mismatch',
+        expectedVersion: 1,
+        currentVersion: 3
       })
       
       const result = await approveOverlay('test-overlay-1')
@@ -301,7 +296,8 @@ describe('useModeration Composable', () => {
       expect(result.success).toBe(true)
       expect(result.itemName).toBe('Test Overlay')
       expect(mockTrpc.moderation.setOverlayApprovalStatusWithVersion.mutate).toHaveBeenCalledWith({
-        items: [{ id: 'test-overlay-1', expectedVersion: 1 }],
+        id: 'test-overlay-1',
+        expectedVersion: 1,
         status: 'rejected'
       })
     })
@@ -355,7 +351,7 @@ describe('useModeration Composable', () => {
       
       mockTrpc.moderation.setProjectApprovalStatusWithVersion.mutate.mockResolvedValue({
         success: false,
-        conflicts: [{ id: 'test-project-1', error: 'Version mismatch' }]
+        error: 'Version mismatch'
       })
       
       await approveProject('test-project-1')
@@ -412,8 +408,8 @@ describe('useModeration Composable', () => {
       const undoResult = await undoLastAction()
       
       expect(undoResult).toBe(true)
-      expect(mockTrpc.moderation.setProjectApprovalStatus.mutate).toHaveBeenCalledWith({
-        ids: ['test-project-1'],
+      expect(mockTrpc.moderation.undoProjectApprovalStatus.mutate).toHaveBeenCalledWith({
+        id: 'test-project-1',
         status: 'pending'
       })
       expect(recentActions.value).toHaveLength(0)
@@ -461,7 +457,7 @@ describe('useModeration Composable', () => {
       mockTrpc.moderation.setProjectApprovalStatusWithVersion.mutate.mockClear()
       mockTrpc.moderation.setProjectApprovalStatusWithVersion.mutate.mockResolvedValueOnce({
         success: false,
-        conflicts: [{ id: 'test-project-1', error: 'Version mismatch' }]
+        error: 'Version mismatch'
       })
       
       const initialCallCount = mockTrpc.moderation.getPendingSubmissions.query.mock.calls.length
