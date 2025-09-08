@@ -205,6 +205,17 @@ async function showOverlayMarkers(cityId: string): Promise<void> {
       const markerIcon = createColorIcon(markerColor);
       const marker = L.marker([position.lat, position.lng], { icon: markerIcon });
 
+      // AI : Add data-testid to the marker element after it's added to the DOM
+      marker.on('add', () => {
+        const markerElement = marker.getElement();
+        if (markerElement) {
+          markerElement.setAttribute('data-testid', `overlay-marker-${overlay.id}`);
+          markerElement.setAttribute('data-overlay-id', overlay.id);
+          markerElement.setAttribute('data-project-id', overlay.projectId);
+          markerElement.setAttribute('data-overlay-status', overlay.status);
+        }
+      });
+
       overlayMarkersLayer!.addLayer(marker);
     });
 
@@ -276,6 +287,17 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
     const marker = L.marker([city.lat, city.lng], {
       icon: markerIcon,
       opacity: CITY_MARKER_OPACITY // AI : Lower default opacity to suggest interactivity
+    });
+
+    // AI : Add data-testid to the marker element after it's added to the DOM
+    marker.on('add', () => {
+      const markerElement = marker.getElement();
+      if (markerElement) {
+        markerElement.setAttribute('data-testid', `city-marker-${city.id}`);
+        markerElement.setAttribute('data-city-id', city.id);
+        markerElement.setAttribute('data-city-name', city.name);
+        markerElement.setAttribute('data-country-code', city.countryCode);
+      }
     });
 
     // AI : Add tooltip with city name, only on hover
@@ -478,6 +500,17 @@ export function renderOverlayMarkersFromCache(cityId: string, cityName: string):
       const { color: markerColor, position } = getOverlayMarkerInfo(overlay);
       const markerIcon = createColorIcon(markerColor);
       const marker = L.marker([position.lat, position.lng], { icon: markerIcon });
+
+      // AI : Add data-testid to the marker element after it's added to the DOM
+      marker.on('add', () => {
+        const markerElement = marker.getElement();
+        if (markerElement) {
+          markerElement.setAttribute('data-testid', `overlay-marker-${overlay.id}`);
+          markerElement.setAttribute('data-overlay-id', overlay.id);
+          markerElement.setAttribute('data-project-id', overlay.projectId);
+          markerElement.setAttribute('data-overlay-status', overlay.status);
+        }
+      });
 
       overlayMarkersLayer!.addLayer(marker);
     });

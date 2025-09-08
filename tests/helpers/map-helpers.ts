@@ -89,7 +89,7 @@ export class MapTestHelpers {
    */
   async hoverAndZoomOnMarker(markerIndex: number, zoomSteps: number = 3) {
     try {
-      const markers = await this.page.locator('.leaflet-marker-icon');
+      const markers = this.page.locator('.leaflet-marker-icon');
       const markerCount = await markers.count();
       
       if (markerCount <= markerIndex) {
@@ -308,7 +308,7 @@ export class MapTestHelpers {
    */
   async clickOverlayMarker(index: number = 0) {
     try {
-      const markers = await this.page.locator('.leaflet-marker-icon');
+      const markers = this.page.locator('.leaflet-marker-icon');
       const markerCount = await markers.count();
       
       if (markerCount <= index) {
@@ -352,7 +352,7 @@ export class MapTestHelpers {
         return markers.length > 0;
       }, { timeout: 5000 });
       
-      const markers = await this.page.locator('.leaflet-marker-icon');
+      const markers = this.page.locator('.leaflet-marker-icon');
       const markerCount = await markers.count();
       
       if (markerCount <= index) {
@@ -414,7 +414,7 @@ export class MapTestHelpers {
         return markers.length > 1; // Should have more than just country markers
       }, { timeout: 5000 });
       
-      const markers = await this.page.locator('.leaflet-marker-icon');
+      const markers = this.page.locator('.leaflet-marker-icon');
       const markerCount = await markers.count();
       
       if (markerCount <= index) {

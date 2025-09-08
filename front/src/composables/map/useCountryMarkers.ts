@@ -99,7 +99,19 @@ function addCountryMarkersToMapInternal() {
     const markerIcon = createColorIcon('blue');
     const marker = L.marker([country.lat, country.lng], {
       icon: markerIcon,
-      opacity: COUNTRY_MARKER_OPACITY // AI : Lower default opacity to suggest interactivity
+      opacity: COUNTRY_MARKER_OPACITY, // AI : Lower default opacity to suggest interactivity
+      // AI : Add data-testid for Playwright testing
+      attribution: `data-testid="country-marker-${country.code}"`
+    });
+
+    // AI : Add data-testid to the marker element after it's added to the DOM
+    marker.on('add', () => {
+      const markerElement = marker.getElement();
+      if (markerElement) {
+        markerElement.setAttribute('data-testid', `country-marker-${country.code}`);
+        markerElement.setAttribute('data-country-code', country.code);
+        markerElement.setAttribute('data-country-name', country.name);
+      }
     });
 
     // AI : Add tooltip with country name, only on hover

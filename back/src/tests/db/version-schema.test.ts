@@ -1,6 +1,6 @@
-import { describe, test, expect, beforeAll, beforeEach, afterEach, afterAll } from 'bun:test'
+import { describe, test, expect, beforeAll, beforeEach, afterAll } from 'bun:test'
 import { eq } from 'drizzle-orm'
-import { projects, overlays } from '../../db/schema'
+import { projects } from '../../db/schema'
 import { getTestDb } from '../utils/test-database'
 import { TestHelpers } from '../utils/test-helpers'
 
