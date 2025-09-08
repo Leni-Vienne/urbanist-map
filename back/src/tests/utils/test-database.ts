@@ -40,7 +40,9 @@ export async function closeTestDatabase() {
       await Promise.race([
         testClient.end(),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Database close timeout')), 5000)
+          setTimeout(() => {
+            reject(new Error('Database close timeout'))
+          }, 5000)
         )
       ])
     } catch (error) {

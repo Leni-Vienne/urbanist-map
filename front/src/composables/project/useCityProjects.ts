@@ -31,6 +31,7 @@ export function useCityProjects() {
           createdAt: project.createdAt,
           updatedAt: project.updatedAt,
           metadata: project.metadata,
+          version: project.version ?? 1, // AI : Version for optimistic locking
           city: project.city ? {
             id: project.city.id,
             name: project.city.name,
@@ -44,7 +45,7 @@ export function useCityProjects() {
           endDate: project.endDate,
           latestUpdateOn: project.latestUpdateOn,
           savedRemotely: true
-        };
+        };;
         
         projectMap.set(project.id, frontendProject);
       }
