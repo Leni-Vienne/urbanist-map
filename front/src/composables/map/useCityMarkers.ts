@@ -211,8 +211,8 @@ async function showOverlayMarkers(cityId: string): Promise<void> {
         if (markerElement) {
           markerElement.setAttribute('data-testid', `overlay-marker-${overlay.id}`);
           markerElement.setAttribute('data-overlay-id', overlay.id);
-          markerElement.setAttribute('data-project-id', overlay.projectId);
-          markerElement.setAttribute('data-overlay-status', overlay.status);
+          markerElement.setAttribute('data-project-id', overlay.projectId ?? 'unknown');
+          markerElement.setAttribute('data-overlay-status', overlay.project?.status ?? 'unknown');
         }
       });
 
@@ -507,8 +507,8 @@ export function renderOverlayMarkersFromCache(cityId: string, cityName: string):
         if (markerElement) {
           markerElement.setAttribute('data-testid', `overlay-marker-${overlay.id}`);
           markerElement.setAttribute('data-overlay-id', overlay.id);
-          markerElement.setAttribute('data-project-id', overlay.projectId);
-          markerElement.setAttribute('data-overlay-status', overlay.status);
+          markerElement.setAttribute('data-project-id', overlay.projectId ?? 'unknown');
+          markerElement.setAttribute('data-overlay-status', overlay.project?.status ?? 'unknown');
         }
       });
 
