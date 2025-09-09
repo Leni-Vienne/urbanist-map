@@ -626,6 +626,7 @@ function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData, createMarkers =
   // AI : Use buildImageUrl utility to construct image URL from Cloudflare R2 via worker
   const storedOverlayData: OverlayObject = {
     id: cdnOverlay.id,
+    version: cdnOverlay.version ?? 1,
     imageUrl: buildImageUrl(cdnOverlay.filename),
     history: [],
     redoStack: [],
@@ -866,12 +867,14 @@ function setupOverlayMovementTracking(overlay: L.DistortableImageOverlay, overla
 function transformBackendOverlayToCDN(backendOverlay: BackendOverlay): CDNOverlayData {
   return {
     id: backendOverlay.id,
+    version: backendOverlay.version,
     filename: backendOverlay.filename,
     caption: backendOverlay.caption ?? undefined,
     projectId: backendOverlay.projectId,
     replacesOverlayId: backendOverlay.replacesOverlayId ?? undefined,
     project: backendOverlay.projectName ? {
       id: backendOverlay.projectId ?? '',
+      version: 1,
       name: backendOverlay.projectName,
       description: null,
       status: 'approved' as const,
@@ -915,6 +918,7 @@ function createNewOverlayObject(id: string, imageUrl: string, projectId: string)
   return {
     // AI : Core Drizzle schema fields
     id,
+    version: 1,
     filename,
     caption: null,
     status: 'pending',

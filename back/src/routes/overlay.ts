@@ -39,6 +39,7 @@ const updateOverlaySchema = z.object({
 // AI : Shared select fields for overlay queries to reduce duplication
 const overlaySelectFields = {
   id: overlays.id,
+  version: overlays.version,
   filename: overlays.filename,
   caption: overlays.caption,
   status: overlays.status,

@@ -110,6 +110,7 @@ export type BackendCityOverlay = RouterOutput['cities']['getCityProjects'][numbe
 // AI : Transform the backend overlay format to match our expected CDN format
 export interface CDNOverlayData {
   id: string;
+  version: number;
   filename: string;
   caption?: string | null;
   projectId: string | null;
