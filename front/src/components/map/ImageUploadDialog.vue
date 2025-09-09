@@ -1,20 +1,19 @@
 <template>
   <Dialog
     v-model:visible="visible"
-    header="Add Image Overlay"
+    :header="$t('overlay.addImageOverlay')"
     :modal="true"
     :style="{ width: '500px' }"
     @hide="onHide"
   >
     <div class="dialog-content">
       <div class="explanation-section">
-        <h4>What kind of images are accepted?</h4>
+        <h4>{{ $t('overlay.whatKindOfImages') }}</h4>
         <p>
-          This website is about upcoming infrastructure and buildings. whether that's new tram lines,
-          cycle paths, redeveloppement and more.
+          {{ $t('overlay.imageDescription') }}
         </p>
 
-        <h4>Good to know</h4>
+        <h4>{{ $t('overlay.goodToKnow') }}</h4>
 
         If you want to upload an image that comes from a PDF, please use programs like <a
           href="https://www.rptools.net/toolbox/token-tool/"
@@ -43,8 +42,8 @@
             @drop.prevent="onDrop"
           >
             <i class="pi pi-cloud-upload text-3xl mb-2"></i>
-            <span class="upload-text">Choose Image File</span>
-            <span class="upload-subtext">Click here or drag and drop</span>
+            <span class="upload-text">{{ $t('overlay.chooseImageFile') }}</span>
+            <span class="upload-subtext">{{ $t('overlay.clickOrDragDrop') }}</span>
           </label>
         </div>
 
@@ -66,13 +65,13 @@
     <template #footer>
       <div class="dialog-footer">
         <Button
-          label="Cancel"
+          :label="$t('common.cancel')"
           icon="pi pi-times"
           class="p-button-text"
           @click="onCancel"
         />
         <Button
-          label="Continue"
+          :label="$t('common.continue')"
           icon="pi pi-check"
           :disabled="!selectedFile"
           @click="onContinue"

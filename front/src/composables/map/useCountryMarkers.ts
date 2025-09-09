@@ -100,8 +100,6 @@ function addCountryMarkersToMapInternal() {
     const marker = L.marker([country.lat, country.lng], {
       icon: markerIcon,
       opacity: COUNTRY_MARKER_OPACITY, // AI : Lower default opacity to suggest interactivity
-      // AI : Add data-testid for Playwright testing
-      attribution: `data-testid="country-marker-${country.code}"`
     });
 
     // AI : Add data-testid to the marker element after it's added to the DOM

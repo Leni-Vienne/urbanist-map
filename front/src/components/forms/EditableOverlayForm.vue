@@ -11,15 +11,15 @@
   >
     <template #fields="{ formData, originalData, hasChanged, getFieldClasses }">
       <div class="form-group">
-        <label for="caption">Overlay Name/Caption</label>
+        <label for="caption">{{ $t('overlay.overlayNameCaption') }}</label>
         <InputText
           id="caption"
           v-model="formData.caption"
           :class="getFieldClasses('caption')"
-          placeholder="Enter overlay name or caption"
+          :placeholder="$t('overlay.enterOverlayName')"
         />
         <small v-if="hasChanged('caption')" class="change-indicator">
-          Changed from: "{{ originalData.caption || 'Not set' }}"
+          {{ $t('overlay.changedFrom') }}: "{{ originalData.caption || $t('overlay.notSet') }}"
         </small>
         <div v-else class="change-indicator-placeholder"></div>
       </div>

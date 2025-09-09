@@ -215,6 +215,7 @@ export const projectRouter = router({
           const allProjects = await db
             .select({
               id: projects.id,
+              version: projects.version,
               name: projects.name,
               description: projects.description,
               status: projects.status,
@@ -250,6 +251,7 @@ export const projectRouter = router({
           const projectOverlays = projectIds.length > 0 ? await db
             .select({
               id: overlays.id,
+              version: overlays.version,
               name: sql<string>`coalesce(${overlays.caption}, 'Unnamed')`,
               filename: overlays.filename,
               status: overlays.status,

@@ -3,7 +3,7 @@
     :projects="filteredProjects"
     :is-loading="isLoading"
     :change-requests="pendingChangeRequests"
-    title="My Contributions"
+    :title="$t('navigation.myContributions')"
     panel-class="my-contributions-panel"
     :empty-message="projects.length > 0 && filteredProjects.length === 0 ? 'No projects match the current filter.' : 'No projects found.'"
     :empty-sub-message="projects.length > 0 && filteredProjects.length === 0 ? 'Try changing your filter settings.' : 'Create your first construction project!'"

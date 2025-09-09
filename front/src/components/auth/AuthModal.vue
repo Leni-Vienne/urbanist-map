@@ -2,7 +2,7 @@
   <Dialog 
     v-model:visible="visible" 
     modal 
-    :header="isLoginMode ? 'Sign In' : 'Sign Up'" 
+    :header="isLoginMode ? $t('auth.signIn') : $t('auth.signUp')" 
     :style="{width: '450px'}" 
     class="p-fluid"
   >
@@ -11,7 +11,7 @@
       <div class="flex flex-col gap-3 mb-4">
         <Button
           icon="pi pi-google"
-          label="Continue with Google"
+          :label="$t('auth.continueWithGoogle')"
           @click="handleOAuthSignIn('google')"
           outlined
           :loading="oauthLoading"
@@ -20,7 +20,7 @@
         />
         <Button
           icon="pi pi-github"
-          label="Continue with GitHub" 
+          :label="$t('auth.continueWithGitHub')" 
           @click="handleOAuthSignIn('github')"
           outlined
           severity="secondary"
@@ -32,21 +32,21 @@
       
       <div class="flex items-center my-4">
         <div class="flex-1 border-t border-surface-300"></div>
-        <span class="px-3 text-sm text-muted-color">or continue with email</span>
+        <span class="px-3 text-sm text-muted-color">{{ $t('auth.orContinueWithEmail') }}</span>
         <div class="flex-1 border-t border-surface-300"></div>
       </div>
     </div>
 
     <form @submit.prevent="handleSubmit" class="flex flex-col gap-4" autocomplete="on">
       <div class="field">
-        <label for="auth-email" class="block text-sm font-medium mb-2">Email Address</label>
+        <label for="auth-email" class="block text-sm font-medium mb-2">{{ $t('auth.emailAddress') }}</label>
         <InputText 
           id="auth-email"
           v-model="form.email"
           type="email" 
           required
           :invalid="!!emailError"
-          placeholder="Enter your email address"
+          :placeholder="$t('auth.enterEmailAddress')"
           autocomplete="email"
           class="w-full"
         />
@@ -54,7 +54,7 @@
       </div>
 
       <div class="field">
-        <label for="auth-password" class="block text-sm font-medium mb-2">Password</label>
+        <label for="auth-password" class="block text-sm font-medium mb-2">{{ $t('auth.password') }}</label>
         <Password 
           id="auth-password"
           v-model="form.password"
@@ -62,7 +62,7 @@
           toggleMask
           required
           :invalid="!!passwordError"
-          :placeholder="isLoginMode ? 'Enter your password' : 'Choose a strong password'"
+          :placeholder="isLoginMode ? $t('auth.enterPassword') : $t('auth.chooseStrongPassword')"
           :autocomplete="isLoginMode ? 'current-password' : 'new-password'"
         />
         <small v-if="passwordError" class="p-error">{{ passwordError }}</small>
@@ -70,16 +70,16 @@
 
       <div v-if="!isLoginMode" class="field">
         <label for="auth-username" class="block text-sm font-medium mb-2">
-          Username <span class="text-muted-color text-xs">(optional)</span>
+          {{ $t('auth.username') }} <span class="text-muted-color text-xs">({{ $t('auth.optional') }})</span>
         </label>
         <InputText 
           id="auth-username"
           v-model="form.username"
-          placeholder="Choose a username"
+          :placeholder="$t('auth.chooseUsername')"
           autocomplete="nickname"
           class="w-full"
         />
-        <small class="text-muted-color text-xs">This will be your display name</small>
+        <small class="text-muted-color text-xs">{{ $t('auth.displayName') }}</small>
       </div>
 
       <div v-if="error" class="p-error flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded">
@@ -90,7 +90,7 @@
       <div class="flex flex-col gap-3 mt-2">
         <Button 
           type="submit" 
-          :label="isLoginMode ? 'Sign In' : 'Create Account'"
+          :label="isLoginMode ? $t('auth.signIn') : $t('auth.createAccount')"
           :loading="loading"
           :disabled="loading || oauthLoading"
           class="w-full"
@@ -98,11 +98,11 @@
         
         <div class="text-center pt-3 border-t border-surface-300">
           <span class="text-sm text-muted-color">
-            {{ isLoginMode ? "Don't have an account?" : "Already have an account?" }}
+            {{ isLoginMode ? $t('auth.dontHaveAccount') : $t('auth.alreadyHaveAccount') }}
           </span>
           <Button 
             type="button"
-            :label="isLoginMode ? 'Sign Up' : 'Sign In'"
+            :label="isLoginMode ? $t('auth.signUp') : $t('auth.signIn')"
             link
             @click="toggleMode"
             :disabled="loading || oauthLoading"

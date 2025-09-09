@@ -15,7 +15,7 @@
                     <label
                         for="project-name-input"
                         class="text-gray-600"
-                    >Project Name</label>
+                    >{{ $t('project.name') }}</label>
                 </FloatLabel>
             </div>
 
@@ -33,7 +33,7 @@
                     <label
                         for="project-description-input"
                         class="text-gray-600"
-                    >Description</label>
+                    >{{ $t('project.description') }}</label>
                 </FloatLabel>
             </div>
             <div class="field">
@@ -66,7 +66,7 @@
                     <label
                         for="location-select"
                         class="text-gray-600"
-                    >Location</label>
+                    >{{ $t('project.location') }}</label>
                 </FloatLabel>
             </div>
 
@@ -87,7 +87,7 @@
                         <label
                             for="start-date-input"
                             class="text-gray-600"
-                        >Start Date</label>
+                        >{{ $t('project.startDate') }}</label>
                     </FloatLabel>
                 </div>
                 <div class="flex-1 field">
@@ -106,7 +106,7 @@
                         <label
                             for="end-date-input"
                             class="text-gray-600"
-                        >End Date</label>
+                        >{{ $t('project.endDate') }}</label>
                     </FloatLabel>
                 </div>
             </div>
@@ -125,12 +125,15 @@
                     <label
                         for="source-url-input"
                         class="text-gray-600"
-                    >Source URL</label>
+                    >{{ $t('project.sourceUrl') }}</label>
                 </FloatLabel>
             </div>
 
             <div class="field">
-                <label for="source-pdf-input" class="text-gray-600 block mb-2">Source PDF</label>
+                <label
+                    for="source-pdf-input"
+                    class="text-gray-600 block mb-2"
+                >{{ $t('project.sourcePdf') }}</label>
                 <FileUpload
                     id="source-pdf-input"
                     mode="basic"
