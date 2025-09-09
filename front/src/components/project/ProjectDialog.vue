@@ -21,14 +21,14 @@
       <div class="flex gap-2 justify-end">
         <Button
           type="button"
-          label="Cancel"
+          :label="$t('common.cancel')"
           severity="secondary"
           icon="pi pi-times"
           @click="handleCancel"
         />
         <Button
           type="button"
-          :label="mode === 'create' ? 'Create Project' : 'Update Project'"
+          :label="mode === 'create' ? $t('project.create') : $t('common.save')"
           icon="pi pi-save"
           @click="handleFormSubmit"
         />

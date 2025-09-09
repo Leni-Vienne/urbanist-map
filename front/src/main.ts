@@ -6,6 +6,8 @@ import { definePreset } from '@primeuix/themes';
 import ToastService from 'primevue/toastservice';
 import { createPinia } from 'pinia';
 import { router } from './router';
+import { createI18n } from 'vue-i18n';
+import { messages, getStoredLocale } from './locales';
 
 
 // AI : Custom PrimeVue preset for Construction Map
@@ -43,10 +45,20 @@ const ConstructionMapPreset = definePreset(Aura, {
   }
 });
 
+// AI : Setup i18n with stored locale preference
+const i18n = createI18n({
+  locale: getStoredLocale(),
+  fallbackLocale: 'en',
+  messages,
+  legacy: false,
+  globalInjection: true
+});
+
 const app = createApp(App)
 
 app.use(createPinia());
 app.use(router);
+app.use(i18n);
 
 // @ts-ignore - AI : PrimeVue configuration type issue
 app.use(PrimeVue, {

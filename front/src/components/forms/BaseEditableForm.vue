@@ -14,12 +14,12 @@
       
       <!-- AI : Change reason field (shown conditionally) -->
       <div v-if="showChangeReason" class="form-group">
-        <label for="changeReason">Reason for Changes</label>
+        <label for="changeReason">{{ $t('common.reasonForChanges') }}</label>
         <Textarea
           id="changeReason"
           v-model="form.changeReason.value"
           rows="2"
-          placeholder="Briefly explain why you're making these changes"
+          :placeholder="$t('common.explainChanges')"
         />
       </div>
 
@@ -29,7 +29,7 @@
           v-if="form.hasChanges.value && showReset"
           type="button"
           @click="form.resetChanges"
-          label="Reset"
+          :label="$t('common.reset')"
           severity="secondary"
           outlined
           icon="pi pi-undo"

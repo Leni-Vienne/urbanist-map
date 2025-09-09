@@ -1,9 +1,12 @@
 <template>
   <div class="user-menu-container">
+    <!-- AI : Language switcher always visible -->
+    <LanguageSwitcherMenu />
+
     <!-- AI : Sign In Button for unauthenticated users -->
     <Button
       v-if="!authStore.isAuthenticated"
-      label="Sign In"
+      :label="$t('auth.signIn')"
       size="small"
       outlined
       @click="showAuthModal = true"
@@ -43,7 +46,7 @@
           @keydown.space="handleSignOut"
         >
           <i class="pi pi-sign-out"></i>
-          <span>Sign Out</span>
+          <span>{{ $t('auth.logout') }}</span>
         </div>
       </div>
     </Popover>
@@ -58,11 +61,14 @@ import { ref, computed, watch } from 'vue'
 import Button from 'primevue/button'
 import Popover from 'primevue/popover'
 import AuthModal from './AuthModal.vue'
+import LanguageSwitcherMenu from '../LanguageSwitcherMenu.vue'
 import { useAuthStore } from '@stores/authStore'
 import { useToast } from '@composables/ui/useToast'
+import { useI18n } from 'vue-i18n'
 
 const authStore = useAuthStore()
 const toast = useToast()
+const { t } = useI18n()
 const showAuthModal = ref(false)
 const isMenuOpen = ref(false)
 const userPopover = ref()
@@ -80,8 +86,8 @@ async function handleSignOut() {
     if (result.success) {
       toast.add({
         severity: 'success',
-        summary: 'Signed Out',
-        detail: 'You have successfully signed out.',
+        summary: t('auth.signedOut'),
+        detail: t('auth.signedOutMessage'),
         life: 3000
       })
     }
@@ -99,6 +105,12 @@ watch(() => userPopover.value?.visible, (visible) => {
 </script>
 
 <style scoped>
+.user-menu-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .sign-in-button {
   background: white;
   border: 1px solid var(--p-surface-300);

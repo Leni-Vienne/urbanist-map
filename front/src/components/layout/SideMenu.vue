@@ -12,13 +12,13 @@
   >
     <!-- AI : Common header for all panels -->
     <div class="sidecolumn__header">
-      <h2 class="site-title">ConstructionMap.org</h2>
+      <h2 class="site-title">{{ $t('app.title') }}</h2>
       <div class="header-actions">
         <Button
           icon="pi pi-times"
           class="p-button-text p-button-rounded close-button"
           @click="$emit('close')"
-          aria-label="Close panel"
+          :aria-label="$t('app.closePanel')"
         />
       </div>
     </div>
@@ -30,21 +30,21 @@
         :class="['tab-button', { active: activeTab === 'latest' }]"
         @click="activeTab = 'latest'"
       >
-        Latest
+        {{ $t('navigation.latest') }}
       </button>
       <button
         v-if="authStore.isAuthenticated"
         :class="['tab-button', { active: activeTab === 'uploads' }]"
         @click="activeTab = 'uploads'"
       >
-        My Contributions
+        {{ $t('navigation.myContributions') }}
       </button>
       <button
         v-if="authStore.isAdmin"
         :class="['tab-button', { active: activeTab === 'admin' }]"
         @click="activeTab = 'admin'"
       >
-        Admin
+        {{ $t('navigation.admin') }}
       </button>
     </div>
 
@@ -62,12 +62,12 @@
         <div class="signin-content">
           <i class="pi pi-user text-4xl text-muted-color mb-4"></i>
           <h3 class="text-lg font-semibold mb-2">
-            {{ activeTab === 'admin' && authStore.isAuthenticated && !authStore.isAdmin ? 'Admin Access Required' : 'Authentication Required' }}
+            {{ activeTab === 'admin' && authStore.isAuthenticated && !authStore.isAdmin ? $t('auth.adminAccessRequired') : $t('auth.authenticationRequired') }}
           </h3>
           <p class="text-muted-color text-sm mb-4 text-center">
             {{ activeTab === 'admin' && authStore.isAuthenticated && !authStore.isAdmin 
-              ? 'You need administrator privileges to access this section.'
-              : 'Please sign in using the button in the top-right corner to access this section.' }}
+              ? $t('auth.adminMessage')
+              : $t('auth.signInMessage') }}
           </p>
         </div>
       </div>
