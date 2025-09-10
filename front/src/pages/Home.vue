@@ -1,15 +1,23 @@
 <template>
   <div class="home-container">
+    <!-- AI : Desktop SideMenu -->
     <SideMenu
-      :is-open="sideMenuOpen"
+      v-if="!isMobile"
+      :is-open="desktopSideMenuOpen"
       :is-moderator="isModerator"
-      @close="handleSideMenuClose"
+      @close="() => desktopSideMenuOpen = false"
     />
+    
+    <!-- AI : Mobile Bottom Drawer -->
+    <MobileDrawer 
+      v-if="isMobile"
+      v-model:visible="mobileSideMenuOpen"
+    />
+    
     <div class="main-content">
       <button
-        v-if="authStore.isAuthenticated"
         class="menu-toggle-button"
-        @click="sideMenuOpen = !sideMenuOpen"
+        @click="isMobile ? (mobileSideMenuOpen = !mobileSideMenuOpen) : (desktopSideMenuOpen = !desktopSideMenuOpen)"
       >
         <i class="pi pi-bars" />
       </button>
@@ -31,12 +39,14 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, onUnmounted } from 'vue'
+import { onMounted, ref, onUnmounted, computed } from 'vue'
 import MapView from '@components/map/MapView.vue'
 import SideMenu from '@components/layout/SideMenu.vue'
 import InfoPopupContainer from '@components/map/InfoPopupContainer.vue'
 import ProjectManager from '@components/project/ProjectManager.vue'
 import AuthModal from '@components/auth/AuthModal.vue'
+import MobileDrawer from '@components/layout/MobileDrawer.vue'
+
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useAuthStore } from '@stores/authStore'
 import { useUiStore } from '@stores/uiStore'
@@ -48,12 +58,23 @@ import { useRoute } from 'vue-router'
 
 // AI : Create refs to track app state
 const isModerator = ref(false)
-const sideMenuOpen = ref(true) // AI : Open by default
+const desktopSideMenuOpen = ref(true) // AI : Open by default on desktop
+const mobileSideMenuOpen = ref(false) // AI : Closed by default on mobile
 const overlayStore = useOverlayStore()
 const authStore = useAuthStore()
 const uiStore = useUiStore()
 const toast = useToast()
 const route = useRoute()
+
+// AI : Mobile detection for responsive drawer behavior
+const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1024)
+const isMobile = computed(() => windowWidth.value <= 768)
+
+// AI : Update window width on resize
+function updateWindowWidth() {
+  windowWidth.value = window.innerWidth
+}
+
 
 const { pendingImageFile } = storeToRefs(overlayStore)
 
@@ -72,10 +93,7 @@ function handleVisibilityChange() {
   }
 }
 
-// AI : Handle side menu close (mobile only)
-function handleSideMenuClose() {
-  sideMenuOpen.value = false;
-}
+
 
 onMounted(async () => {
   // AI : Initialize stores first
@@ -83,6 +101,10 @@ onMounted(async () => {
 
   // AI : Add visibility change listener to close UI elements when user switches tabs/apps
   document.addEventListener('visibilitychange', handleVisibilityChange);
+  
+  // AI : Add window resize listener for mobile detection
+  window.addEventListener('resize', updateWindowWidth);
+  
   
   // AI : Update overlayStore to use the new UI store for dialog control
   overlayStore.closeAllUIElements = uiStore.closeAllDialogs;
@@ -133,6 +155,7 @@ function getErrorMessage(error: string): string {
 
 onUnmounted(() => {
   document.removeEventListener('visibilitychange', handleVisibilityChange);
+  window.removeEventListener('resize', updateWindowWidth);
 })
 </script>
 
@@ -183,4 +206,5 @@ onUnmounted(() => {
     display: flex;
   }
 }
+
 </style>
