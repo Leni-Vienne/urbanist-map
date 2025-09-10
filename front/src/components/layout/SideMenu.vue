@@ -274,11 +274,6 @@ watch(() => authStore.isAdmin, (isAdmin) => {
   }
 }
 
-@media (min-width: 769px) and (max-width: 1024px) {
-  .sidecolumn {
-    width: 500px;
-  }
-}
 
 .signin-prompt {
   display: flex;
