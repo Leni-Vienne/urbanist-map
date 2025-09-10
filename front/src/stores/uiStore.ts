@@ -34,6 +34,9 @@ export const useUiStore = defineStore('ui', () => {
     visible: false
   });
 
+  // AI : Mobile drawer state
+  const mobileDrawerActiveTab = ref<'latest' | 'uploads' | 'admin'>('latest');
+
   // AI : Auth modal actions
   function openAuthModal() {
     authModalVisible.value = true;
@@ -105,6 +108,11 @@ export const useUiStore = defineStore('ui', () => {
     };
   }
 
+  // AI : Mobile drawer actions
+  function setMobileDrawerActiveTab(tab: 'latest' | 'uploads' | 'admin') {
+    mobileDrawerActiveTab.value = tab;
+  }
+
   // AI : Close all UI elements (used for cleanup)
   function closeAllDialogs() {
     authModalVisible.value = false;
@@ -123,6 +131,7 @@ export const useUiStore = defineStore('ui', () => {
     projectDialog,
     projectEditForm,
     overlayEditForm,
+    mobileDrawerActiveTab,
 
     // AI : Actions
     openAuthModal,
@@ -137,6 +146,7 @@ export const useUiStore = defineStore('ui', () => {
     closeProjectEditForm,
     openOverlayEditForm,
     closeOverlayEditForm,
+    setMobileDrawerActiveTab,
     closeAllDialogs
   };
 });

@@ -8,9 +8,9 @@
       v-if="!authStore.isAuthenticated"
       :label="$t('auth.signIn')"
       size="small"
-      outlined
+      raised
+      @dblclick.stop
       @click="showAuthModal = true"
-      class="sign-in-button whitespace-nowrap"
     />
 
     <!-- AI : User Menu for authenticated users -->
@@ -18,6 +18,7 @@
       v-else
       class="user-menu"
       @click="toggleMenu"
+      @dblclick.stop
       ref="userMenuRef"
     >
       <div class="user-avatar">
@@ -106,22 +107,17 @@ watch(() => userPopover.value?.visible, (visible) => {
 
 <style scoped>
 .user-menu-container {
+  position: absolute;
+  top: 16px;
+  right: 16px;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  z-index: 10000;
+  isolation: isolate;
 }
 
-.sign-in-button {
-  background: white;
-  border: 1px solid var(--p-surface-300);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s ease;
-}
 
-.sign-in-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-}
 
 .user-menu {
   display: flex;

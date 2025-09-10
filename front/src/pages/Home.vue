@@ -15,12 +15,28 @@
     />
     
     <div class="main-content">
-      <button
-        class="menu-toggle-button"
-        @click="isMobile ? (mobileSideMenuOpen = !mobileSideMenuOpen) : (desktopSideMenuOpen = !desktopSideMenuOpen)"
+      <!-- AI : Mobile drawer handle - pull-up interface -->
+      <div
+        v-if="isMobile"
+        class="drawer-handle"
+        @click="mobileSideMenuOpen = !mobileSideMenuOpen"
+        role="button"
+        tabindex="0"
+        @keydown.enter="mobileSideMenuOpen = !mobileSideMenuOpen"
+        @keydown.space.prevent="mobileSideMenuOpen = !mobileSideMenuOpen"
+        :aria-label="mobileSideMenuOpen ? t('app.closePanel') : getToggleButtonText()"
+        :aria-expanded="mobileSideMenuOpen"
       >
-        <i class="pi pi-bars" />
-      </button>
+        <!-- AI : Visual handle indicator -->
+        <div class="handle-indicator"></div>
+        
+        <!-- AI : Handle content -->
+        <div class="handle-content">
+          <span class="handle-text">
+            {{ getToggleButtonText() }}
+          </span>
+        </div>
+      </div>
       <Toast />
 
       <!-- AI : Map is always present in the background -->
@@ -40,6 +56,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref, onUnmounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import MapView from '@components/map/MapView.vue'
 import SideMenu from '@components/layout/SideMenu.vue'
 import InfoPopupContainer from '@components/map/InfoPopupContainer.vue'
@@ -59,12 +76,13 @@ import { useRoute } from 'vue-router'
 // AI : Create refs to track app state
 const isModerator = ref(false)
 const desktopSideMenuOpen = ref(true) // AI : Open by default on desktop
-const mobileSideMenuOpen = ref(false) // AI : Closed by default on mobile
+const mobileSideMenuOpen = ref(true) // AI : Open by default on mobile
 const overlayStore = useOverlayStore()
 const authStore = useAuthStore()
 const uiStore = useUiStore()
 const toast = useToast()
 const route = useRoute()
+const { t } = useI18n()
 
 // AI : Mobile detection for responsive drawer behavior
 const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1024)
@@ -75,6 +93,26 @@ function updateWindowWidth() {
   windowWidth.value = window.innerWidth
 }
 
+// AI : Get the text for the mobile toggle button based on current drawer state
+function getToggleButtonText(): string {
+  if (!mobileSideMenuOpen.value) {
+    // AI : When drawer is closed, show site name
+    return t('app.title')
+  }
+  
+  // AI : When drawer is open, show current active panel name from UI store
+  const activeTab = uiStore.mobileDrawerActiveTab
+  switch (activeTab) {
+    case 'latest':
+      return t('navigation.latest')
+    case 'uploads':
+      return t('navigation.myContributions')
+    case 'admin':
+      return t('navigation.admin')
+    default:
+      return t('app.title')
+  }
+}
 
 const { pendingImageFile } = storeToRefs(overlayStore)
 
@@ -170,41 +208,63 @@ onUnmounted(() => {
   position: relative;
 }
 
-.menu-toggle-button {
+.drawer-handle {
   position: fixed;
-  top: 10px;
-  left: 10px;
-  z-index: 1001;
-  background-color: var(--p-surface-50);
-  border: 1px solid #dee2e6;
-  border-radius: 0.25rem;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1005;
+  background: var(--p-surface-0);
+  border-top-left-radius: 1.5rem;
+  border-top-right-radius: 1.5rem;
+  height: 4rem;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  box-shadow: 
+    0 -4px 16px rgba(0, 0, 0, 0.1),
+    0 -2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+  border-top: 1px solid var(--p-surface-100);
+}
+
+.drawer-handle:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 -6px 20px rgba(0, 0, 0, 0.15),
+    0 -4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.drawer-handle:active {
+  transform: translateY(-1px);
+}
+
+.handle-indicator {
   width: 2.5rem;
-  height: 2.5rem;
+  height: 0.25rem;
+  background: var(--p-surface-300);
+  border-radius: 0.125rem;
+  margin: 0.75rem auto 0;
+  transition: background-color 0.2s ease;
+}
+
+.drawer-handle:hover .handle-indicator {
+  background: var(--p-surface-400);
+}
+
+.handle-content {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s ease;
+  padding: 0 1.5rem;
 }
 
-.menu-toggle-button:hover {
-  background-color: var(--p-surface-100);
-  transform: scale(1.05);
-}
-
-/* AI : Hide toggle button on desktop when side menu is open */
-@media (min-width: 769px) {
-  .menu-toggle-button {
-    display: none;
-  }
-}
-
-/* AI : Show toggle button on mobile */
-@media (max-width: 768px) {
-  .menu-toggle-button {
-    display: flex;
-  }
+.handle-text {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--p-text-color);
+  text-align: center;
 }
 
 </style>

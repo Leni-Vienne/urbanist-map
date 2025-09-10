@@ -13,9 +13,7 @@
       </div>
     </div>
     <!-- AI : User Menu in top-right corner -->
-    <div class="user-menu-container">
-      <UserMenu />
-    </div>
+    <UserMenu />
 
     <!-- AI : Map Controls Component -->
     <MapControls @filter-overlays="filterOverlaysByCompletionStatus" />
@@ -169,16 +167,6 @@ async function initializeMapAndOverlays() {
 .loading-content {
   text-align: center;
 }
-
-.user-menu-container {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  z-index: 10000;
-  pointer-events: auto;
-  isolation: isolate;
-}
-
 
 /* AI : Global CSS for custom SVG markers */
 :global(.custom-svg-marker) {
