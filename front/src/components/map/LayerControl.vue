@@ -3,6 +3,7 @@
     <Button
         ref="layerButton"
         icon="pi pi-map"
+        raised
         @click="toggleLayerPanel"
         @dblclick.stop
         aria-label="Layer Control"

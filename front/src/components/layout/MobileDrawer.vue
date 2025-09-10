@@ -4,10 +4,10 @@
     v-model:visible="isVisible"
     position="bottom"
     :modal="false"
+    header="ConstructionMap.org"
     :dismissable="false"
     :show-close-icon="true"
-    class="mobile-drawer !h-[40vh]"
-    :header="$t('app.title')"
+    class="!h-[40vh] !rounded-t-2xl"
   >
     
     <div class="drawer-tabs">
@@ -61,20 +61,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, defineAsyncComponent, watch } from 'vue'
+import { defineAsyncComponent, watch, computed } from 'vue'
 import LatestOverlaysPanel from './LatestOverlaysPanel.vue' // AI : static import since it's the default panel
 import { useAuthStore } from '@stores/authStore'
+import { useUiStore } from '@stores/uiStore'
 
 // AI : Lazy load panels to reduce initial bundle size
 const ModerationPanel = defineAsyncComponent(() => import('./ModerationPanel.vue'))
 const MyContributionsPanel = defineAsyncComponent(() => import('./MyContributionsPanel.vue'))
 
 const authStore = useAuthStore()
+const uiStore = useUiStore()
 
 const isVisible = defineModel<boolean>('visible', { default: false })
 
-// AI : Tab state - default to "latest" like the prototype
-const activeTab = ref<'latest' | 'uploads' | 'admin'>('latest')
+// AI : Use UI store for active tab state (shared with Home component)
+const activeTab = computed({
+  get: () => uiStore.mobileDrawerActiveTab,
+  set: (value) => uiStore.setMobileDrawerActiveTab(value)
+})
 
 // AI : Watch for authentication changes and reset tab if user signs out or loses admin rights
 watch(() => authStore.isAuthenticated, (isAuthenticated) => {
@@ -93,21 +98,11 @@ watch(() => authStore.isAdmin, (isAdmin) => {
 
 <style scoped>
 /* AI : PrimeVue Mobile Drawer */
-:deep(.mobile-drawer .p-drawer) {
-  border-top-left-radius: 1rem;
-  border-top-right-radius: 1rem;
-}
-
 :deep(.mobile-drawer .p-drawer-content) {
   padding: 0;
   display: flex;
   flex-direction: column;
   height: 100%;
-}
-
-:deep(.mobile-drawer .p-drawer-header) {
-  text-align: center;
-  border-bottom: 1px solid var(--p-surface-100);
 }
 
 .drawer-tabs {

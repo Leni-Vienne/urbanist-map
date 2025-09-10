@@ -213,16 +213,6 @@ onMounted(() => {
   position: relative;
 }
 
-.fallback-letter {
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: var(--p-surface-500);
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-
 /* AI : Overlay info section */
 .overlay-info {
   flex: 1;

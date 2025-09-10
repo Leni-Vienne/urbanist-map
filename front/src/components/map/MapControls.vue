@@ -1,100 +1,13 @@
 <template>
   <div
     class="map-buttons"
-    @dblclick.stop
   >
-    <Button
-      @click="handleAddOverlayButtonClick"
-      @dblclick.stop
-      aria-label="Add Image Overlay"
-      v-tooltip.right="'Add Image Overlay'"
-      severity="secondary"
-    >
-      <template #icon>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="1em"
-          height="1em"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M16 5h6" />
-          <path d="M19 2v6" />
-          <path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5" />
-          <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-          <circle
-            cx="9"
-            cy="9"
-            r="2"
-          />
-        </svg>
-      </template>
-    </Button>
-    
-    <LayerControl />
-
-    <!-- AI : Edit Mode Toggle Button (inline) -->
-    <Button
-        v-if="authStore.isAuthenticated"
-        :icon="currentIcon"
-        @click="handleModeToggle"
-        @dblclick.stop
-        :severity="buttonSeverity"
-        class="map-control-button"
-        v-tooltip.right="tooltipText"
-        aria-label="Toggle Edit Mode"
-        :active="isEditMode"
-    />
-
-    <!-- AI : Overlay Completion Status Filter Buttons (View Mode Only) -->
-    <div v-if="!isEditMode" class="overlay-status-filters">
-      <Button
-        @click="toggleCompletionFilter('green')"
-        @dblclick.stop
-        :severity="visibleCompletionStates.green ? 'primary' : 'secondary'"
-        aria-label="Toggle not started projects"
-        v-tooltip.right="'Toggle not started projects'"
-        class="status-filter-btn"
-      >
-        <template #icon>
-          <div v-html="getMarkerSVG('green')"></div>
-        </template>
-      </Button>
-      <Button
-        @click="toggleCompletionFilter('orange')"
-        @dblclick.stop
-        :severity="visibleCompletionStates.orange ? 'primary' : 'secondary'"
-        aria-label="Toggle in progress projects"
-        v-tooltip.right="'Toggle in progress projects'"
-        class="status-filter-btn"
-      >
-        <template #icon>
-          <div v-html="getMarkerSVG('orange')"></div>
-        </template>
-      </Button>
-      <Button
-        @click="toggleCompletionFilter('grey')"
-        @dblclick.stop
-        :severity="visibleCompletionStates.grey ? 'primary' : 'secondary'"
-        aria-label="Toggle completed projects"
-        v-tooltip.right="'Toggle completed projects'"
-        class="status-filter-btn"
-      >
-        <template #icon>
-          <div v-html="getMarkerSVG('grey')"></div>
-        </template>
-      </Button>
-    </div>
-
     <!-- AI : Zoom Controls -->
-    <div class="zoom-controls">
+    <div class="buttons-stacked">
       <Button
         @click="handleZoomIn"
         @dblclick.stop
+        raised
         icon="pi pi-plus"
         aria-label="Zoom In"
         v-tooltip.right="'Zoom In'"
@@ -103,11 +16,107 @@
       <Button
         @click="handleZoomOut"
         @dblclick.stop
+        raised
         icon="pi pi-minus"
         aria-label="Zoom Out"
         v-tooltip.right="'Zoom Out'"
         severity="secondary"
       />
+    </div>
+
+    <div class="buttons-stacked">
+
+      <Button
+        @click="handleAddOverlayButtonClick"
+        @dblclick.stop
+        raised
+        aria-label="Add Image Overlay"
+        v-tooltip.right="'Add Image Overlay'"
+        severity="secondary"
+      >
+        <template #icon>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="1em"
+            height="1em"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M16 5h6" />
+            <path d="M19 2v6" />
+            <path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5" />
+            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+            <circle
+              cx="9"
+              cy="9"
+              r="2"
+            />
+          </svg>
+        </template>
+      </Button>
+
+      <LayerControl />
+
+      <!-- AI : Edit Mode Toggle Button (inline) -->
+      <Button
+        v-if="authStore.isAuthenticated"
+        :icon="currentIcon"
+        raised
+        @click="handleModeToggle"
+        @dblclick.stop
+        :severity="buttonSeverity"
+        v-tooltip.right="tooltipText"
+        aria-label="Toggle Edit Mode"
+        :active="isEditMode"
+      />
+
+    </div>
+
+    <!-- AI : Overlay Completion Status Filter Buttons (View Mode Only) -->
+    <div
+      v-if="!isEditMode"
+      class="buttons-stacked"
+    >
+      <Button
+        @click="toggleCompletionFilter('green')"
+        @dblclick.stop
+        raised
+        :severity="visibleCompletionStates.green ? 'primary' : 'secondary'"
+        aria-label="Toggle not started projects"
+        v-tooltip.right="'Toggle not started projects'"
+      >
+        <template #icon>
+          <div v-html="getMarkerSVG('green')"></div>
+        </template>
+      </Button>
+      <Button
+        @click="toggleCompletionFilter('orange')"
+        @dblclick.stop
+        raised
+        :severity="visibleCompletionStates.orange ? 'primary' : 'secondary'"
+        aria-label="Toggle in progress projects"
+        v-tooltip.right="'Toggle in progress projects'"
+      >
+        <template #icon>
+          <div v-html="getMarkerSVG('orange')"></div>
+        </template>
+      </Button>
+      <Button
+        @click="toggleCompletionFilter('grey')"
+        @dblclick.stop
+        raised
+        :severity="visibleCompletionStates.grey ? 'primary' : 'secondary'"
+        aria-label="Toggle completed projects"
+        v-tooltip.right="'Toggle completed projects'"
+      >
+        <template #icon>
+          <div v-html="getMarkerSVG('grey')"></div>
+        </template>
+      </Button>
     </div>
   </div>
 </template>
@@ -141,49 +150,49 @@ const emit = defineEmits<{
 
 // AI : Edit mode toggle computed properties
 const currentIcon = computed(() => {
-    return isEditMode?.value ? 'pi pi-pencil' : 'pi pi-eye';
+  return isEditMode?.value ? 'pi pi-pencil' : 'pi pi-eye';
 });
 
 const buttonSeverity = computed(() => {
-    if (isEditMode?.value) {
-        return 'warning'; // Orange/yellow for edit mode
-    }
-    return 'secondary'; // Gray for view mode
+  if (isEditMode?.value) {
+    return 'warning'; // Orange/yellow for edit mode
+  }
+  return 'secondary'; // Gray for view mode
 });
 
 const tooltipText = computed(() => {
-    const currentMode = isEditMode?.value ? 'Edit Mode' : 'View Mode';
-    const actionText = isEditMode?.value ? 'Switch to View Mode' : 'Switch to Edit Mode';
+  const currentMode = isEditMode?.value ? 'Edit Mode' : 'View Mode';
+  const actionText = isEditMode?.value ? 'Switch to View Mode' : 'Switch to Edit Mode';
 
-    // Show current state and what clicking will do
-    return `Currently in ${currentMode} - Click to ${actionText.toLowerCase()}`;
+  // Show current state and what clicking will do
+  return `Currently in ${currentMode} - Click to ${actionText.toLowerCase()}`;
 });
 
 // AI : Handle edit mode toggle
-async function handleModeToggle() {
-    try {
-        await toggleEditMode(handleEditModeExit);
+function handleModeToggle() {
+  try {
+    toggleEditMode(handleEditModeExit);
 
-        // AI : Show toast notification for mode change
-        const modeText = isEditMode?.value ? 'Edit Mode' : 'View Mode';
-        toast.add({
-            severity: 'info',
-            summary: `Switched to ${modeText}`,
-            detail: isEditMode?.value
-                ? 'You can now add and edit overlays'
-                : 'Overlays are now in view-only mode',
-            life: 3000
-        });
-    } catch (error) {
-        console.error('AI : Error toggling edit mode:', error);
+    // AI : Show toast notification for mode change
+    const modeText = isEditMode?.value ? 'Edit Mode' : 'View Mode';
+    toast.add({
+      severity: 'info',
+      summary: `Switched to ${modeText}`,
+      detail: isEditMode?.value
+        ? 'You can now add and edit overlays'
+        : 'Overlays are now in view-only mode',
+      life: 3000
+    });
+  } catch (error) {
+    console.error('AI : Error toggling edit mode:', error);
 
-        toast.add({
-            severity: 'error',
-            summary: 'Mode Switch Error',
-            detail: 'Failed to switch mode. Please try again.',
-            life: 3000
-        });
-    }
+    toast.add({
+      severity: 'error',
+      summary: 'Mode Switch Error',
+      detail: 'Failed to switch mode. Please try again.',
+      life: 3000
+    });
+  }
 }
 
 // AI : Handle add overlay button click - check auth first and handle edit mode logic
@@ -248,7 +257,7 @@ function handleZoomOut() {
 <style scoped>
 .map-buttons {
   position: absolute;
-  top: 80px;
+  top: 16px;
   left: 16px;
   z-index: 1000;
   display: flex;
@@ -257,45 +266,11 @@ function handleZoomOut() {
   transition: opacity 0.3s ease;
 }
 
-.buttons-hidden {
-  opacity: 0.2;
-  pointer-events: none;
-}
-
-.buttons-hidden:hover {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-/* AI : Simple container styling */
-.zoom-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-top: 12px;
-}
-
 /* AI : Overlay completion status filter buttons */
-.overlay-status-filters {
+.buttons-stacked {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-top: 12px;
-}
-
-.status-filter-btn {
-  min-width: 40px;
-  min-height: 40px;
-}
-
-.status-filter-btn :deep(svg) {
-  display: block;
-  margin: auto;
-}
-
-/* AI : Map control button styling (for edit mode toggle) */
-.map-control-button {
-  min-width: 40px;
-  min-height: 40px;
+  margin-bottom: 12px;
 }
 </style>
