@@ -26,7 +26,7 @@ const getOverlaySchema = z.object({
 });
 
 const getLatestOverlaysSchema = z.object({
-  limit: z.number().min(1).max(100).optional().default(20),
+  limit: z.number().min(1).max(20).optional().default(20),
   cityId: z.uuid().optional(), // AI : Filter by city if provided
 });
 

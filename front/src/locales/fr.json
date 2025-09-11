@@ -99,5 +99,9 @@
   "app": {
     "title": "ConstructionMap.org",
     "closePanel": "Fermer le panneau"
+  },
+  "footer": {
+    "legalMentions": "Mentions légales",
+    "contact": "Contact"
   }
 }

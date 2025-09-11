@@ -168,6 +168,42 @@ async function initializeMapAndOverlays() {
   text-align: center;
 }
 
+/* AI : Move Leaflet attribution above mobile drawer handle */
+@media (max-width: 768px) {
+  :deep(.leaflet-control-attribution) {
+    bottom: 4.5rem !important;
+    right: 0.5rem !important;
+    left: auto !important;
+    z-index: 1010 !important;
+    background: rgba(255, 255, 255, 0.9) !important;
+    backdrop-filter: blur(4px) !important;
+    border-radius: 0.5rem !important;
+    padding: 0.25rem 0.5rem !important;
+    margin: 0 !important;
+    font-size: 0.75rem !important;
+    max-width: calc(100vw - 8rem) !important; /* AI : Leave space for scale */
+    position: fixed !important;
+    display: block !important;
+    visibility: visible !important;
+    line-height: 1.3 !important;
+    white-space: normal !important; /* AI : Allow text wrapping */
+    word-break: break-word !important; /* AI : Break long words if needed */
+  }
+  
+  :deep(.leaflet-control-scale) {
+    bottom: 4.5rem !important; /* AI : Same level as attribution */
+    left: 0.5rem !important;
+    z-index: 1010 !important;
+    backdrop-filter: blur(4px) !important;
+    border-radius: 0.5rem !important;
+    padding: 0.25rem !important;
+    margin: 0 !important;
+    position: fixed !important;
+    display: block !important;
+    visibility: visible !important;
+  }
+}
+
 /* AI : Global CSS for custom SVG markers */
 :global(.custom-svg-marker) {
   background: none !important;
