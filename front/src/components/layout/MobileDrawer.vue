@@ -57,6 +57,13 @@
         </div>
       </div>
     </div>
+    
+    <!-- AI : Footer with legal links -->
+    <div class="drawer-footer">
+      <a href="/legal" class="footer-link">{{ $t('footer.legalMentions') }}</a>
+      <span class="footer-separator">•</span>
+      <a href="/contact" class="footer-link">{{ $t('footer.contact') }}</a>
+    </div>
   </Drawer>
 </template>
 
@@ -98,6 +105,31 @@ watch(() => authStore.isAdmin, (isAdmin) => {
 
 <style scoped>
 /* AI : PrimeVue Mobile Drawer */
+:deep(.p-drawer-mask.p-drawer-bottom) {
+  /* AI : Prevent drawer from being dragged below screen bottom */
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+:deep(.p-drawer.p-drawer-bottom) {
+  /* AI : Constrain drawer to bottom edge - prevent over-dragging */
+  bottom: 0 !important;
+  min-height: auto !important;
+  max-height: 100vh !important;
+  max-height: 100dvh !important; /* AI : Use dynamic viewport height where supported */
+  /* AI : Prevent any transform that would move it below bottom */
+  transform: translateY(0) !important;
+  /* AI : Disable touch-based dragging to prevent over-scroll */
+  touch-action: pan-x pan-y pinch-zoom;
+}
+
+/* AI : Additional constraints to prevent drawer positioning issues */
+:deep(.p-drawer-mask.p-drawer-bottom .p-drawer) {
+  position: fixed !important;
+  bottom: 0 !important;
+  top: auto !important;
+}
+
 :deep(.mobile-drawer .p-drawer-content) {
   padding: 0;
   display: flex;
@@ -141,6 +173,7 @@ watch(() => authStore.isAdmin, (isAdmin) => {
   flex: 1;
   overflow-y: auto;
   background-color: var(--p-surface-0);
+  padding-bottom: 3rem; /* AI : Account for footer height */
 }
 
 .signin-prompt {
@@ -157,5 +190,37 @@ watch(() => authStore.isAdmin, (isAdmin) => {
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+
+.drawer-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0.75rem 1rem;
+  background: var(--p-surface-50);
+  border-top: 1px solid var(--p-surface-100);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  z-index: 10;
+}
+
+.footer-link {
+  color: var(--p-surface-600);
+  text-decoration: none;
+  font-size: 0.75rem;
+  transition: color 0.2s ease;
+}
+
+.footer-link:hover {
+  color: var(--p-primary-600);
+  text-decoration: underline;
+}
+
+.footer-separator {
+  color: var(--p-surface-400);
+  font-size: 0.75rem;
 }
 </style>

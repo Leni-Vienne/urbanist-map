@@ -18,6 +18,7 @@
       <!-- AI : Mobile drawer handle - pull-up interface -->
       <div
         v-if="isMobile"
+        v-show="!mobileSideMenuOpen && !uiStore.imageUploadDialogVisible && !uiStore.projectSelectorVisible"
         class="drawer-handle"
         @click="mobileSideMenuOpen = !mobileSideMenuOpen"
         role="button"
@@ -91,7 +92,20 @@ const isMobile = computed(() => windowWidth.value <= 768)
 // AI : Update window width on resize
 function updateWindowWidth() {
   windowWidth.value = window.innerWidth
+  
+  // AI : Update mobile overflow constraints when window size changes
+  if (isMobile.value) {
+    document.documentElement.style.overflow = 'hidden'
+    document.body.style.overflow = 'hidden'
+    document.body.style.height = '100vh'
+    document.body.style.height = '100dvh'
+  } else {
+    document.documentElement.style.overflow = ''
+    document.body.style.overflow = ''
+    document.body.style.height = ''
+  }
 }
+
 
 // AI : Get the text for the mobile toggle button based on current drawer state
 function getToggleButtonText(): string {
@@ -144,6 +158,15 @@ onMounted(async () => {
   window.addEventListener('resize', updateWindowWidth);
   
   
+  // AI : Prevent page scrolling on mobile to avoid viewport issues
+  if (isMobile.value) {
+    document.documentElement.style.overflow = 'hidden'
+    document.body.style.overflow = 'hidden'
+    document.body.style.height = '100vh'
+    document.body.style.height = '100dvh' // Use dynamic viewport where supported
+  }
+  
+  
   // AI : Update overlayStore to use the new UI store for dialog control
   overlayStore.closeAllUIElements = uiStore.closeAllDialogs;
 
@@ -194,6 +217,11 @@ function getErrorMessage(error: string): string {
 onUnmounted(() => {
   document.removeEventListener('visibilitychange', handleVisibilityChange);
   window.removeEventListener('resize', updateWindowWidth);
+  
+  // AI : Restore normal overflow behavior when component unmounts
+  document.documentElement.style.overflow = ''
+  document.body.style.overflow = ''
+  document.body.style.height = ''
 })
 </script>
 
@@ -224,19 +252,27 @@ onUnmounted(() => {
   box-shadow: 
     0 -4px 16px rgba(0, 0, 0, 0.1),
     0 -2px 8px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+  transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
   border-top: 1px solid var(--p-surface-100);
+  
+  /* AI : Prevent layout shifts during Chrome viewport changes */
+  contain: layout style paint;
+  will-change: transform;
+  
+  /* AI : Ensure proper positioning on mobile browsers */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }
 
 .drawer-handle:hover {
-  transform: translateY(-2px);
+  transform: translateZ(0) translateY(-2px);
   box-shadow: 
     0 -6px 20px rgba(0, 0, 0, 0.15),
     0 -4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .drawer-handle:active {
-  transform: translateY(-1px);
+  transform: translateZ(0) translateY(-1px);
 }
 
 .handle-indicator {
