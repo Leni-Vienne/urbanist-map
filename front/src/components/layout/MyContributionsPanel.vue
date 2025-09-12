@@ -61,7 +61,6 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { trpc } from '../../client'
 import type { AccordionProject } from '@types'
 import Checkbox from 'primevue/checkbox'
 import Button from 'primevue/button'
@@ -73,11 +72,12 @@ import { useToast } from '@composables/ui/useToast'
 import { toggleEditMode } from '@composables/overlay/useOverlayModes'
 import { handleEditModeExit } from '@composables/map/useCityMarkers'
 import { useChangeRequests } from '@composables/changes/useChangeRequests'
+import { useUserContributions } from '@composables/project/useUserContributions'
 import { storeToRefs } from 'pinia'
 
-// AI : Reactive state
-const projects = ref<AccordionProject[]>([])
-const isLoading = ref(false)
+// AI : Use cached composable for user contributions
+const { projects, isLoading, fetchUserContributions } = useUserContributions()
+
 const showApprovedRejected = ref(false)
 
 // AI : Stores
@@ -99,24 +99,11 @@ const filteredProjects = computed(() => {
   return projects.value.filter(project => project.status === 'pending')
 })
 
-// AI : Fetch all projects from API
-async function fetchAllProjects() {
-  try {
-    isLoading.value = true
-    const result = await trpc.project.getUsersContributions.query({
-      limit: 50
-    })
-    projects.value = result
-  } catch (error) {
-    console.error('Error fetching projects:', error)
-  } finally {
-    isLoading.value = false
-  }
-}
+// AI : fetchUserContributions is now provided by the composable with caching
 
 // AI : Load initial data
 onMounted(() => {
-  fetchAllProjects()
+  fetchUserContributions()
   refreshPendingChangeRequests()
 })
 

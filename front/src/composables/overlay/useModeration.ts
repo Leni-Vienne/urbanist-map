@@ -27,16 +27,29 @@ export function useModeration() {
   const changeRequests = ref<PendingChangeRequest[]>([])
   const recentActions = ref<RecentAction[]>([])
 
+  // AI : Simple loaded flag for moderation data
+  const moderationLoaded = ref(false)
+
   const fetchPendingSubmissions = async () => {
     try {
+      // AI : Skip if already loaded
+      if (moderationLoaded.value) {
+        return
+      }
+
       const response = await trpc.moderation.getPendingSubmissions.query()
       overlays.value = response.overlays
       projects.value = response.projects
       changeRequests.value = response.changeRequests || []
+      moderationLoaded.value = true
     }
     catch (error) {
       console.error('Error fetching pending submissions:', error)
     }
+  }
+
+  const resetModerationLoaded = () => {
+    moderationLoaded.value = false
   }
 
   // AI : Helper function to set overlay approval status and track action with version validation
@@ -63,7 +76,9 @@ export function useModeration() {
 
       if (!result.success) {
         // AI : Handle version conflicts - refresh data and return conflict info
-        await fetchPendingSubmissions()
+        resetModerationLoaded()
+        resetModerationLoaded()
+      await fetchPendingSubmissions()
         return {
           success: false,
           error: 'version_conflict',
@@ -86,6 +101,7 @@ export function useModeration() {
       recentActions.value.unshift(action)
       recentActions.value = recentActions.value.slice(0, 5)
 
+      resetModerationLoaded()
       await fetchPendingSubmissions()
 
       return {
@@ -136,6 +152,7 @@ export function useModeration() {
       // AI : Remove the undone action from recent actions
       recentActions.value = recentActions.value.slice(1)
 
+      resetModerationLoaded()
       await fetchPendingSubmissions()
       return true
     }
@@ -171,7 +188,9 @@ export function useModeration() {
 
       if (!result.success) {
         // AI : Handle version conflicts - refresh data and return conflict info
-        await fetchPendingSubmissions()
+        resetModerationLoaded()
+        resetModerationLoaded()
+      await fetchPendingSubmissions()
         return {
           success: false,
           error: 'version_conflict',
@@ -194,6 +213,7 @@ export function useModeration() {
       recentActions.value.unshift(action)
       recentActions.value = recentActions.value.slice(0, 5)
 
+      resetModerationLoaded()
       await fetchPendingSubmissions()
 
       return {
@@ -229,5 +249,6 @@ export function useModeration() {
     approveProject,
     rejectProject,
     undoLastAction,
+    resetModerationLoaded,
   }
 }

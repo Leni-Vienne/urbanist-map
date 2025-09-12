@@ -3,7 +3,7 @@
   "scripts": {
     "unused": "bunx nyc report --reporter=html --reporter=text --report-dir=coverage",
     "ts-check": "bunx vue-tsc@latest --noEmit",
-    "oxlint": "bunx oxlint@latest --type-aware",
+    "oxlint": "bunx oxlint@latest",
     "tsgolint": "bunx oxlint-tsgolint",
     "preview": "vite preview front",
     "dev-front": "bunx --bun vite front",
@@ -66,7 +66,7 @@
     "istanbul-lib-coverage": "^3.2.2",
     "jsdom": "^26.1.0",
     "madge": "^8.0.0",
-    "oxlint": "^1.14.0",
+    "oxlint": "^1.15.0",
     "rollup-plugin-visualizer": "^6.0.3",
     "unplugin-vue-components": "^28.8.0",
     "vite-plugin-istanbul": "^7.1.0",

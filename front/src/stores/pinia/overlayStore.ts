@@ -17,6 +17,11 @@ export const useOverlayStore = defineStore('overlay', () => {
   const overlaysLoading = ref(false)
   const overlaysError = ref<string | null>(null)
 
+  // AI : Latest overlays cache - simple loaded flag
+  const latestOverlays = ref<any[]>([])
+  const latestOverlaysLoading = ref(false)
+  const latestOverlaysLoaded = ref(false)
+
   // AI : UI state
   const replacementOverlayId = ref<string | null>(null)
   const showImageUploadDialog = ref(false)
@@ -41,6 +46,16 @@ export const useOverlayStore = defineStore('overlay', () => {
 
   const setOverlaysError = (error: string | null) => {
     overlaysError.value = error
+  }
+
+  // AI : Latest overlays actions
+  const setLatestOverlays = (overlays: any[]) => {
+    latestOverlays.value = overlays
+    latestOverlaysLoaded.value = true
+  }
+
+  const setLatestOverlaysLoading = (loading: boolean) => {
+    latestOverlaysLoading.value = loading
   }
 
   const addEditModeOverlay = (overlayId: string) => {
@@ -125,6 +140,9 @@ export const useOverlayStore = defineStore('overlay', () => {
     loadedEditOverlays,
     overlaysLoading,
     overlaysError,
+    latestOverlays,
+    latestOverlaysLoading,
+    latestOverlaysLoaded,
     replacementOverlayId,
     showImageUploadDialog,
     pendingImageFile,
@@ -136,6 +154,8 @@ export const useOverlayStore = defineStore('overlay', () => {
     clearViewModeOverlays,
     setOverlaysLoading,
     setOverlaysError,
+    setLatestOverlays,
+    setLatestOverlaysLoading,
     addEditModeOverlay,
     removeEditModeOverlay,
     clearEditModeMarkersAndState,

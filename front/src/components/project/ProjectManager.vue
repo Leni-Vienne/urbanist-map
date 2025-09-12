@@ -109,9 +109,10 @@ async function onProjectSelected(projectId: string) {
 
       if (nearbyProject) {
         // AI : Convert nearby project to local project format and add to store
-        const localProject = {
+        const localProject: Project = {
           id: nearbyProject.id,
           name: nearbyProject.name,
+          version: nearbyProject.version,
           description: nearbyProject.description ?? '',
           overlayIds: [],
           color: '#007bff',
@@ -126,7 +127,7 @@ async function onProjectSelected(projectId: string) {
             name: nearbyProject.city.name,
             countryCode: nearbyProject.city.countryCode,
             coordinates: { x: nearbyProject.city.lng, y: nearbyProject.city.lat },
-            createdAt: null,
+            createdAt: new Date(),
             updatedAt: new Date()
           } : undefined,
           sourceUrl: null,
@@ -220,14 +221,14 @@ async function fetchProjectsForPicker() {
 // AI : Handle project creation/update from dialog
 function handleProjectSubmitted(project: Partial<Project>) {
   uiStore.closeProjectDialog()
-  
+
   // AI : Create the project in the store if it doesn't already have an ID
   if (project && !project.id) {
     try {
       // AI : Create the project and get the generated ID
       const projectId = createProject(project)
       setLastCreatedProject(projectId)
-      
+
       // AI : Re-open the project selector so the ProjectPicker can auto-select the new project
       // AI : and continue with the file upload workflow
       if (pendingImageFile.value) {
@@ -245,7 +246,7 @@ function handleProjectSubmitted(project: Partial<Project>) {
   } else if (project && project.id) {
     // AI : Project already exists (edit mode), just set it as last created for consistency
     setLastCreatedProject(project.id)
-    
+
     if (pendingImageFile.value) {
       uiStore.openProjectSelector()
     }
