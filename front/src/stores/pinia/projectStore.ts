@@ -12,22 +12,24 @@ export const useProjectStore = defineStore('project', () => {
   const selectedProjectId = ref<string | null>(null);
   const countries = ref<Country[]>([]);
 
-
   // AI : Centralized nearby projects data management
   const nearbyProjects = ref<NearbyProject[]>([]);
   const nearbyProjectsLoading = ref(false);
   const nearbyProjectsError = ref<string | null>(null);
 
+  // AI : User contributions cache - simple loaded flag
+  const userContributions = ref<any[]>([]);
+  const userContributionsLoading = ref(false);
+  const userContributionsLoaded = ref(false);
+
   // AI : Computed property for combined projects (local + nearby)
   const allProjects = computed(() => {
     const combined = { ...projects.value };
-
 
     // AI : Add nearby projects that aren't already in local projects
     nearbyProjects.value.forEach((nearbyProject: NearbyProject) => {
       combined[nearbyProject.id] ??= convertNearbyProjectToLocal(nearbyProject);
     });
-
 
     return combined;
   });
@@ -40,12 +42,21 @@ export const useProjectStore = defineStore('project', () => {
     }
   });
 
+  // AI : User contributions actions
+  const setUserContributions = (contributions: any[]) => {
+    userContributions.value = contributions;
+    userContributionsLoaded.value = true;
+  };
+
+  const setUserContributionsLoading = (loading: boolean) => {
+    userContributionsLoading.value = loading;
+  };
+
   // AI : Nearby projects management actions
   async function fetchNearbyProjects(): Promise<NearbyProject[]> {
     try {
       nearbyProjectsLoading.value = true;
       nearbyProjectsError.value = null;
-
 
       if (!map.value) {
         console.warn('Map not available for fetching nearby projects');
@@ -54,7 +65,6 @@ export const useProjectStore = defineStore('project', () => {
 
       // AI : Get current map center coordinates
       const center = map.value.getCenter();
-
 
       // AI : Call the TRPC endpoint to fetch nearby projects
       const response = await trpc.project.getProjectsNearLocation.query({
@@ -106,7 +116,6 @@ export const useProjectStore = defineStore('project', () => {
     }
   }
 
-
   return {
     // State
     projects,
@@ -115,13 +124,20 @@ export const useProjectStore = defineStore('project', () => {
     nearbyProjects,
     nearbyProjectsLoading,
     nearbyProjectsError,
-
+    userContributions,
+    userContributionsLoading,
+    userContributionsLoaded,
 
     // Computed properties
     allProjects,
     selectedProjectIdRef,
+    
     // Local project actions
     addOverlayToProjectWithId,
+
+    // User contributions actions
+    setUserContributions,
+    setUserContributionsLoading,
 
     // Nearby projects actions
     fetchNearbyProjects,

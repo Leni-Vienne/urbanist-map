@@ -8,6 +8,7 @@ import type { NearbyProject } from '../types/api'
 export function convertNearbyProjectToLocal(nearbyProject: NearbyProject): Project {
   return {
     id: nearbyProject.id,
+    version: 1,
     name: nearbyProject.name,
     description: nearbyProject.description ?? '',
     overlayIds: [],
@@ -23,7 +24,7 @@ export function convertNearbyProjectToLocal(nearbyProject: NearbyProject): Proje
       name: nearbyProject.city.name,
       countryCode: nearbyProject.city.countryCode,
       coordinates: { x: nearbyProject.city.lng, y: nearbyProject.city.lat },
-      createdAt: null,
+      createdAt: new Date(),
       updatedAt: new Date()
     } : undefined,
     sourceUrl: null,
@@ -41,6 +42,7 @@ export function convertNearbyProjectToLocal(nearbyProject: NearbyProject): Proje
 export function convertNearbyProjectToBackend(nearbyProject: NearbyProject): Project {
   return {
     id: nearbyProject.id,
+    version: 1,
     status: 'approved' as const,
     overlayIds: [],
     color: '#007bff',
@@ -60,7 +62,7 @@ export function convertNearbyProjectToBackend(nearbyProject: NearbyProject): Pro
       name: nearbyProject.city.name,
       countryCode: nearbyProject.city.countryCode,
       coordinates: { x: nearbyProject.city.lng, y: nearbyProject.city.lat },
-      createdAt: null,
+      createdAt: new Date(),
       updatedAt: new Date()
     } : null
   }

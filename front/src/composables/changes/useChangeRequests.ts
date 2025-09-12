@@ -11,6 +11,9 @@ const pendingChangeRequests = ref<ChangeRequest[]>([]);
 const changeHistory = ref<ChangeHistoryEntry[]>([]);
 const isLoading = ref(false);
 
+// AI : Simple loaded flag for change requests
+const changeRequestsLoaded = ref(false);
+
 export function useChangeRequests() {
   
   async function submitChangeRequest(input: SubmitChangeRequestInput) {
@@ -34,6 +37,11 @@ export function useChangeRequests() {
 
   async function refreshPendingChangeRequests() {
     try {
+      // AI : Skip if already loaded
+      if (changeRequestsLoaded.value) {
+        return;
+      }
+
       isLoading.value = true;
       const { isAdmin } = useAuthStore();
       
@@ -43,12 +51,17 @@ export function useChangeRequests() {
         : await trpc.changes.getMyChangeRequests.query();
         
       pendingChangeRequests.value = result;
+      changeRequestsLoaded.value = true;
     } catch (error) {
       console.error('Failed to fetch pending change requests:', error);
       throw error;
     } finally {
       isLoading.value = false;
     }
+  }
+
+  function resetChangeRequestsLoaded() {
+    changeRequestsLoaded.value = false;
   }
 
   async function approveChangeRequests(changeRequestIds: string[]) {
@@ -142,5 +155,6 @@ export function useChangeRequests() {
     approveChangeRequests,
     rejectChangeRequests,
     getChangeHistory,
+    resetChangeRequestsLoaded,
   };
 }

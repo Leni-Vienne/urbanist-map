@@ -79,15 +79,15 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { trpc } from '@client'
 import { navigateToOverlay } from '@composables/overlay/useOverlay'
 import { useToast } from '@composables/ui/useToast'
+import { useLatestOverlays } from '@composables/overlay/useLatestOverlays'
 import { buildImageUrl, formatRelativeTime } from '../../utils'
 import type { LatestOverlay } from '../../types/api'
 
-// AI : Reactive state
-const overlays = ref<LatestOverlay[]>([])
-const isLoading = ref(false)
+// AI : Use cached composable for latest overlays
+const { overlays, isLoading, fetchLatestOverlays } = useLatestOverlays()
+
 const imageErrors = ref<Record<string, boolean>>({})
 const toast = useToast()
 
@@ -147,20 +147,7 @@ async function handleOverlayClick(overlay: LatestOverlay) {
   }
 }
 
-// AI : Fetch latest overlays from API
-async function fetchLatestOverlays() {
-  try {
-    isLoading.value = true
-    const result = await trpc.overlay.getLatestOverlays.query({
-      limit: 20
-    })
-    overlays.value = result
-  } catch (error) {
-    console.error('Error fetching overlays:', error)
-  } finally {
-    isLoading.value = false
-  }
-}
+// AI : fetchLatestOverlays is now provided by the composable with caching
 
 // AI : Load initial data
 onMounted(() => {

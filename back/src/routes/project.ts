@@ -92,6 +92,7 @@ export const projectRouter = router({
           .select({
             id: projects.id,
             name: projects.name,
+            version: projects.version,
             description: projects.description,
             ownerId: projects.ownerId,
             cityId: projects.cityId,
