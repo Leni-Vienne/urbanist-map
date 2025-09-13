@@ -1,6 +1,7 @@
 import type { Project, OverlayObject } from '@types';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
+import { createProject as createProjectInstance } from '../../utils/typeFactories';
 import { storeToRefs } from 'pinia';
 
 // AI : Export composable function that gets store refs when called (not at module level)
@@ -14,41 +15,19 @@ export function useProjects() {
 
 
 export function createProject(projectData: Partial<Omit<Project, 'id' | 'overlayIds' | 'color'>>) {
-  const id = crypto.randomUUID();
-
-  // AI : Filter out non-serializable properties from projectData (File objects, city objects)
-  const { city: _city, sourcePdf: _sourcePdf, ...safeProjectData } = projectData;
-
-  const project: Project = {
-    ...safeProjectData,
-    id,
-    version: 1,
-    overlayIds: [],
-    color: '#007bff',
-    // AI : Use name from updated Drizzle schema
-    name: safeProjectData.name ?? '',
-    sourceUrl: safeProjectData.sourceUrl ?? null,
-    proposalDate: safeProjectData.proposalDate ?? null,
-    startDate: safeProjectData.startDate ?? null,
-    endDate: safeProjectData.endDate ?? null,
-    latestUpdateOn: safeProjectData.latestUpdateOn ?? null,
-    description: safeProjectData.description ?? null,
-    metadata: null,
-    cityId: safeProjectData.cityId ?? null,
-    // AI : Add missing Drizzle fields with default values
-    status: 'pending', // AI : Default status for new projects
-    ownerId: null, // AI : No user authentication system yet
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
+  // AI : Use factory function for consistent object creation
+  const project = createProjectInstance({
+    ...projectData,
+    ownerId: projectData.ownerId ?? null
+  });
 
   // AI : Create a new object reference to ensure shallowRef reactivity triggers
   const { projects } = useProjects();
   const updatedProjects = { ...projects.value };
-  updatedProjects[id] = project;
+  updatedProjects[project.id] = project;
   projects.value = updatedProjects;
 
-  return id;
+  return project.id;
 }
 
 export function addOverlayToProjectWithId(projectId: string, overlayId: string) {

@@ -1,6 +1,5 @@
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
 import { updateOverlayMarkersColors, updateCachedOverlayDataForMarkers } from '@composables/map/useOverlayMarkerUpdates';
-import { buildImageUrl } from '../../utils';
 import L from "leaflet";
 import 'leaflet-toolbar';
 import 'leaflet-distortableimage';
@@ -11,6 +10,7 @@ import { useProjectStore } from '@stores/pinia/projectStore';
 import { storeToRefs } from 'pinia';
 import type { OverlayObject, CDNOverlayData, Project } from '@types';
 import type { BackendOverlay } from '../../types/api';
+import { createOverlay as createOverlayInstance, createOverlayFromCDN, transformBackendOverlayToCDN } from '../../utils/typeFactories';
 
 import { createColorIcon } from '@composables/ui/markerIcons';
 import { useProjects, addOverlayToProjectWithId } from '@composables/project/useProjects';
@@ -92,24 +92,23 @@ export function updateOverlayEditingState(): void {
  */
 export function createOverlayObject(savedOverlay: OverlayObject): OverlayObject {
   const project = savedOverlay.projectId ? projects.value[savedOverlay.projectId] : null;
-  const corners = [
-    { lat: savedOverlay.topLeftLat, lng: savedOverlay.topLeftLng },
-    { lat: savedOverlay.topRightLat, lng: savedOverlay.topRightLng },
-    { lat: savedOverlay.bottomRightLat, lng: savedOverlay.bottomRightLng },
-    { lat: savedOverlay.bottomLeftLat, lng: savedOverlay.bottomLeftLng },
-  ];
-
-  return {
+  
+  // AI : Use factory function but preserve existing data
+  return createOverlayInstance({
     ...savedOverlay,
+    project: project ? { ...project, city: project.city ?? null } : null,
     overlay: null,
     marker: null,
     whitePixelsHidden: false,
     isFlipped: false,
     currentResolution: savedOverlay.imageUrl,
-    corners,
-    project: project ? { ...project, city: project.city ?? null } : null,
-    isModified: savedOverlay.isModified ?? false,
-  };
+    corners: [
+      { lat: savedOverlay.topLeftLat, lng: savedOverlay.topLeftLng },
+      { lat: savedOverlay.topRightLat, lng: savedOverlay.topRightLng },
+      { lat: savedOverlay.bottomRightLat, lng: savedOverlay.bottomRightLng },
+      { lat: savedOverlay.bottomLeftLat, lng: savedOverlay.bottomLeftLng },
+    ]
+  });
 }
 
 /**
@@ -614,77 +613,28 @@ export function renderViewModeOverlays(cdnOverlays: CDNOverlayData[], createMark
 function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData, createMarkers = true) {
   if (!map.value || overlays.value[cdnOverlay.id]) return;
 
-  const corners = cdnOverlay.corners?.length === 4
-    ? cdnOverlay.corners
-    : [
-      { lat: cdnOverlay.centroid.lat - 0.001, lng: cdnOverlay.centroid.lng - 0.001 },
-      { lat: cdnOverlay.centroid.lat - 0.001, lng: cdnOverlay.centroid.lng + 0.001 },
-      { lat: cdnOverlay.centroid.lat + 0.001, lng: cdnOverlay.centroid.lng + 0.001 },
-      { lat: cdnOverlay.centroid.lat + 0.001, lng: cdnOverlay.centroid.lng - 0.001 }
-    ];
-
-  // AI : Use buildImageUrl utility to construct image URL from Cloudflare R2 via worker
-  const storedOverlayData: OverlayObject = {
-    id: cdnOverlay.id,
-    version: cdnOverlay.version ?? 1,
-    imageUrl: buildImageUrl(cdnOverlay.filename),
-    history: [],
-    redoStack: [],
-    projectId: cdnOverlay.projectId ?? '',
-    caption: cdnOverlay.caption ?? null,
-    filename: cdnOverlay.filename,
-    metadata: null,
-    createdAt: cdnOverlay.createdAt ? new Date(cdnOverlay.createdAt) : new Date(),
-    updatedAt: new Date(),
-    replacesOverlayId: cdnOverlay.replacesOverlayId ?? null,
-    centroid: {
-      x: cdnOverlay.centroid.lng,
-      y: cdnOverlay.centroid.lat,
-    },
-    status: 'approved' as const,
-    authorId: null,
-    currentResolution: buildImageUrl(cdnOverlay.filename),
-    project: cdnOverlay.project,
-    isModified: cdnOverlay.isModified ?? false,
-    savedRemotely: true,
-    corners: corners,
-    topLeftLat: corners[0].lat,
-    topLeftLng: corners[0].lng,
-    topRightLat: corners[1].lat,
-    topRightLng: corners[1].lng,
-    bottomRightLat: corners[2].lat,
-    bottomRightLng: corners[2].lng,
-    bottomLeftLat: corners[3].lat,
-    bottomLeftLng: corners[3].lng,
-    overlay: null,
-    marker: null,
-    whitePixelsHidden: false,
-    isFlipped: false,
-  };
+  // AI : Use factory function to create overlay from CDN data
+  const overlayObject = createOverlayFromCDN(cdnOverlay);
 
   if (createMarkers) {
-    createSingleMarker(storedOverlayData);
+    createSingleMarker(overlayObject);
   }
 
-  const overlayObject = createOverlayObject(storedOverlayData);
-  const newOverlay = createOverlay(overlayObject.imageUrl, overlayObject);
+  const overlayObjectWithMethods = createOverlayObject(overlayObject);
+  const newOverlay = createOverlay(overlayObjectWithMethods.imageUrl, overlayObjectWithMethods);
   if (!newOverlay) return;
 
-  overlayObject.overlay = newOverlay;
-  overlayObject.marker = allMarkers.value[cdnOverlay.id];
-  overlays.value[cdnOverlay.id] = overlayObject;
+  overlayObjectWithMethods.overlay = newOverlay;
+  overlayObjectWithMethods.marker = allMarkers.value[cdnOverlay.id];
+  overlays.value[cdnOverlay.id] = overlayObjectWithMethods;
 
-  if (cdnOverlay.project) {
-    overlayObject.project = cdnOverlay.project;
-  }
-
-  if (overlayObject.overlay) {
-    setupProjectHoverEvents(overlayObject.overlay, overlayObject);
+  if (overlayObjectWithMethods.overlay) {
+    setupProjectHoverEvents(overlayObjectWithMethods.overlay, overlayObjectWithMethods);
   }
 
   // AI : Update marker tooltip with correct overlay object information
-  if (overlayObject.marker) {
-    updateMarkerTooltip(overlayObject);
+  if (overlayObjectWithMethods.marker) {
+    updateMarkerTooltip(overlayObjectWithMethods);
   }
 }
 
@@ -864,95 +814,23 @@ function setupOverlayMovementTracking(overlay: L.DistortableImageOverlay, overla
 // AI : Overlay Action Functions (moved from useOverlayActions.ts to break circular dependency)
 
 // AI : Helper function to transform backend overlay to CDN format
-function transformBackendOverlayToCDN(backendOverlay: BackendOverlay): CDNOverlayData {
-  return {
-    id: backendOverlay.id,
-    version: backendOverlay.version,
-    filename: backendOverlay.filename,
-    caption: backendOverlay.caption ?? undefined,
-    projectId: backendOverlay.projectId,
-    replacesOverlayId: backendOverlay.replacesOverlayId ?? undefined,
-    project: backendOverlay.projectName ? {
-      id: backendOverlay.projectId ?? '',
-      version: 1,
-      name: backendOverlay.projectName,
-      description: null,
-      status: 'approved' as const,
-      ownerId: null,
-      cityId: null,
-      metadata: null,
-      sourceUrl: null,
-      proposalDate: null,
-      startDate: null,
-      endDate: null,
-      latestUpdateOn: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      city: backendOverlay.cityName ? {
-        id: '',
-        name: backendOverlay.cityName,
-        countryCode: '',
-        coordinates: { x: 0, y: 0 },
-        createdAt: new Date(),
-        updatedAt: new Date()
-      } : null
-    } : null,
-    corners: [
-      { lat: backendOverlay.topLeftLat, lng: backendOverlay.topLeftLng },
-      { lat: backendOverlay.topRightLat, lng: backendOverlay.topRightLng },
-      { lat: backendOverlay.bottomRightLat, lng: backendOverlay.bottomRightLng },
-      { lat: backendOverlay.bottomLeftLat, lng: backendOverlay.bottomLeftLng }
-    ],
-    centroid: {
-      lat: backendOverlay.centroid.y,
-      lng: backendOverlay.centroid.x
-    },
-    distance: 0,
-    createdAt: backendOverlay.createdAt,
-  };
-}
+// AI : Use factory function from typeFactories.ts - removed local implementation
 
 // AI : Helper function to create new overlay with proper Drizzle schema structure
 function createNewOverlayObject(id: string, imageUrl: string, projectId: string): OverlayObject {
   const filename = imageUrl.split('/').pop() ?? '';
-
-  return {
-    // AI : Core Drizzle schema fields
+  
+  // AI : Use factory function for consistent object creation
+  return createOverlayInstance({
     id,
-    version: 1,
     filename,
-    caption: null,
-    status: 'pending',
     projectId,
     authorId: null,
-    replacesOverlayId: null,
-    metadata: null,
-    // AI : Use 0 for coordinates to indicate they need to be set by leaflet-distortableimage
-    topLeftLat: 0,
-    topLeftLng: 0,
-    topRightLat: 0,
-    topRightLng: 0,
-    bottomRightLat: 0,
-    bottomRightLng: 0,
-    bottomLeftLat: 0,
-    bottomLeftLng: 0,
-    centroid: { x: 0, y: 0 },
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    // AI : Frontend-specific fields
     imageUrl,
-    history: [],
-    redoStack: [],
-    // AI : Runtime properties
-    overlay: null,
-    marker: null,
-    whitePixelsHidden: false,
-    isFlipped: false,
     currentResolution: imageUrl,
-    corners: [],
-    isModified: true, // AI : New overlays are considered modified since they need to be uploaded
-    savedRemotely: false, // AI : New overlays are not yet saved to backend
-  };
+    isModified: true, // AI : New overlays need to be uploaded
+    savedRemotely: false
+  });
 }
 
 // AI : Helper function to zoom to overlay bounds with proper error handling
@@ -1453,7 +1331,7 @@ async function loadAndNavigateToOverlay(overlayId: string, centerMap: boolean): 
 
     // AI : Render intersecting overlays if they exist
     if (result.intersectingOverlays.length > 0) {
-      const intersectingCdnOverlays = result.intersectingOverlays.map(transformBackendOverlayToCDN);
+      const intersectingCdnOverlays = (result.intersectingOverlays as BackendOverlay[]).map(transformBackendOverlayToCDN);
       renderViewModeOverlays(intersectingCdnOverlays, true, false);
     }
 

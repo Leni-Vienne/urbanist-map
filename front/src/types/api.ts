@@ -27,8 +27,7 @@ export type NearbyCity = GetCitiesNearLocationResponse[0];
 
 export type GetCityProjectsQuery = RouterInput['cities']['getCityProjects'];
 export type GetCityProjectsResponse = RouterOutput['cities']['getCityProjects'];
-// AI : getCityProjects now returns CDNOverlayData array directly
-export type CityOverlay = GetCityProjectsResponse[0];
+// AI : getCityProjects now returns CDNOverlayData array directly - use CDNOverlayData from types.ts
 
 // AI : Country API types
 export type GetCountriesWithProjectsResponse = RouterOutput['country']['getCountriesWithProjects'];

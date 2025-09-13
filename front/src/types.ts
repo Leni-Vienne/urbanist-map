@@ -103,11 +103,43 @@ export interface Country extends DBCountry {
   cities: City[];
 }
 
-// AI : Extract backend project data from city projects
-// AI : getCityProjects now returns CDNOverlayData array directly
-export type BackendCityOverlay = RouterOutput['cities']['getCityProjects'][number];
+// AI : Base runtime project type - extends DB schema with computed fields
+export interface Project extends DBProject {
+  // AI : Computed fields for all contexts
+  city?: DBCity | null;
+  overlayIds: string[];
+  color: string;
+  name: string; // AI : Computed from project name field
+  savedRemotely: boolean;
+  // AI : Optional fields for specific contexts
+  sourcePdf?: File | null; // AI : For form uploads
+}
 
-// AI : Transform the backend overlay format to match our expected CDN format
+// AI : Base runtime overlay type - extends DB schema with frontend fields  
+export interface OverlayObject extends DBOverlay {
+  // AI : Core computed fields
+  imageUrl: string;
+  centroid: { x: number; y: number }; // AI : x=lng, y=lat
+  corners: { lat: number, lng: number }[];
+  isModified: boolean;
+  savedRemotely: boolean;
+  
+  // AI : Map interaction fields
+  overlay: L.DistortableImageOverlay | null;
+  marker: L.Marker | null;
+  
+  // AI : Editor state
+  history: { lat: number, lng: number }[][];
+  redoStack: { lat: number, lng: number }[][];
+  whitePixelsHidden: boolean;
+  isFlipped: boolean;
+  currentResolution?: string;
+  
+  // AI : Project reference for CDN overlays
+  project?: Project | null;
+}
+
+// AI : API data format for overlays from backend
 export interface CDNOverlayData {
   id: string;
   version: number;
@@ -115,74 +147,49 @@ export interface CDNOverlayData {
   caption?: string | null;
   projectId: string | null;
   replacesOverlayId?: string | null;
-  project: (DBProject & {
-    city?: DBCity | null;
-  }) | null;
-  centroid: {
-    lat: number;
-    lng: number;
-  };
+  project: (DBProject & { city?: DBCity | null }) | null;
+  centroid: { lat: number; lng: number };
   corners: { lat: number; lng: number }[];
   distance: number;
   createdAt: Date;
-  isModified?: boolean; // AI : Track if overlay has been modified locally
+  isModified?: boolean;
 }
 
+// AI : Utility types for specific use cases
+export type ProjectForForm = Pick<Project, 'name' | 'description' | 'sourceUrl' | 'startDate' | 'endDate'> & {
+  projectName: string; // AI : Alias for name in forms
+  sourceLink: string;  // AI : Alias for sourceUrl in forms
+};
+
+export type ProjectForList = Pick<Project, 'id' | 'name' | 'description' | 'createdAt' | 'updatedAt' | 'cityId'> & {
+  overlayCount?: number;
+  cityName?: string | null;
+  countryCode?: string | null;
+  countryName?: string | null;
+};
+
+export type OverlayForList = Pick<OverlayObject, 'id' | 'caption' | 'filename'> & {
+  distance?: number;
+};
+
+export type OverlayForModeration = Pick<OverlayObject, 'id' | 'filename' | 'status' | 'version' | 'projectId' | 'updatedAt'> & {
+  name: string; // AI : Display name
+  cityName: string | null;
+  countryCode: string | null;
+  countryName: string | null;
+};
+
+export type ProjectForModeration = Pick<Project, 'id' | 'name' | 'description' | 'status' | 'version' | 'createdAt' | 'updatedAt' | 'startDate' | 'endDate' | 'sourceUrl'> & {
+  cityName: string | null;
+  countryCode: string | null;
+  countryName: string | null;
+  overlays: OverlayForModeration[];
+  overlayCount?: number;
+};
+
+// AI : Keep specific types that have unique structure
 export type PendingOverlay = RouterOutput['moderation']['getPendingSubmissions']['overlays'][number];
 
-// AI : Define a simplified version of overlay data for the list component
-export interface OverlayListItem {
-  id: string;
-  caption?: string;
-  distance?: number; // AI : For view mode display
-  filename?: string; // AI : For CDN URL construction in view mode
-}
-
-// AI : Project information for forms
-export interface ProjectInfo {
-  projectName: string;
-  sourceLink: string;
-  startDate: Date | null;
-  endDate: Date | null;
-}
-
-// AI : Runtime project data - directly extends Drizzle schema
-export interface Project extends DBProject {
-  city?: DBCity | null;
-  overlayIds: string[];
-  color: string;
-  // AI : Add computed property for name to maintain backward compatibility
-  name: string;
-  // AI : Add sourcePdf field for PDF file uploads (File object or null)
-  sourcePdf?: File | null;
-  // AI : Track if project exists on server (vs locally created)
-  savedRemotely?: boolean;
-}
-
-// AI : Runtime overlay data - directly extends Drizzle schema with frontend-specific fields
-export interface OverlayObject extends DBOverlay {
-  // AI : Frontend-specific fields for local functionality
-  imageUrl: string; // AI : Derived from filename for display
-  history: { lat: number, lng: number }[][]; // AI : For undo/redo functionality
-  redoStack: { lat: number, lng: number }[][]; // AI : For undo/redo functionality
-  // AI : Override centroid from Drizzle geometry to simple coordinate format for frontend use
-  centroid: { x: number; y: number }; // AI : x=lng, y=lat
-  // AI : Runtime properties for map interactions
-  overlay: L.DistortableImageOverlay | null;
-  marker: L.Marker | null;
-  whitePixelsHidden: boolean;
-  isFlipped: boolean; // AI : Track if the image has been flipped after ratio reset
-  currentResolution?: string;
-  // AI : Project data for backend overlays (from CDN data)
-  project?: CDNOverlayData['project'];
-  // AI : Temporary field for backward compatibility - will be removed in favor of individual lat/lng fields
-  corners: { lat: number, lng: number }[];
-// AI : Track if overlay has been modified locally (moved, rotated, scaled, etc.)
-  isModified: boolean;
-  savedRemotely: boolean;
-}
-
-// AI : Frontend version of backend's OverlayWithDetails
 export interface OverlayWithDetails {
   id: string;
   topLeftLng: number;
@@ -195,34 +202,12 @@ export interface OverlayWithDetails {
   bottomLeftLat: number;
 }
 
-// AI : Specific types for accordion panels to ensure consistency
-export interface AccordionOverlay {
-  id: string;
-  name: string;
-  filename: string;
-  status: 'pending' | 'approved' | 'rejected';
-  version: number; // AI : Version for optimistic locking
-  projectId: string | null;
-  updatedAt: Date;
-  cityName: string | null;
-  countryCode: string | null;
-  countryName: string | null;
-}
-
-export interface AccordionProject {
-  id: string;
-  name: string;
-  description: string | null;
-  status: 'pending' | 'approved' | 'rejected';
-  version: number; // AI : Version for optimistic locking
-  createdAt: Date;
-  updatedAt: Date;
-  startDate: Date | null;
-  endDate: Date | null;
-  sourceUrl: string | null;
-  cityName: string | null;
-  countryCode: string | null;
-  countryName: string | null;
-  overlays: AccordionOverlay[];
-  overlayCount?: number;
-}
+// AI : Legacy aliases for backward compatibility - mark for removal
+/** @deprecated Use ProjectForForm instead */
+export type ProjectInfo = ProjectForForm;
+/** @deprecated Use OverlayForList instead */
+export type OverlayListItem = OverlayForList;
+/** @deprecated Use ProjectForModeration instead */
+export type AccordionProject = ProjectForModeration;
+/** @deprecated Use OverlayForModeration instead */
+export type AccordionOverlay = OverlayForModeration;

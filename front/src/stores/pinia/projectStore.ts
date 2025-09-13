@@ -4,7 +4,7 @@ import type { Project, Country } from '@types';
 import type { NearbyProject } from '../../types/api';
 import { map } from '@composables/core/useMap';
 import { trpc } from '@client';
-import { convertNearbyProjectToLocal } from '../../utils/projectConverters';
+import { createProjectFromAPI } from '../../utils/typeFactories';
 
 export const useProjectStore = defineStore('project', () => {
   // AI : Central store for project data to avoid circular dependencies
@@ -28,7 +28,7 @@ export const useProjectStore = defineStore('project', () => {
 
     // AI : Add nearby projects that aren't already in local projects
     nearbyProjects.value.forEach((nearbyProject: NearbyProject) => {
-      combined[nearbyProject.id] ??= convertNearbyProjectToLocal(nearbyProject);
+      combined[nearbyProject.id] ??= createProjectFromAPI(nearbyProject);
     });
 
     return combined;
