@@ -10,12 +10,12 @@ const routes = [
   {
     path: '/verify',
     name: 'EmailVerification',
-    component: () => import('@pages/EmailVerification.vue') // Lazy load
+    component: async () => import('@pages/EmailVerification.vue') // Lazy load
   },
   {
     path: '/reset-password',
     name: 'PasswordReset', 
-    component: () => import('@pages/PasswordReset.vue') // Lazy load
+    component: async () => import('@pages/PasswordReset.vue') // Lazy load
   }
 ]
 

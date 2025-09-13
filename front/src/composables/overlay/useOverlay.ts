@@ -1,5 +1,5 @@
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
-import { updateOverlayMarkersColors, updateCachedOverlayDataForMarkers } from '@composables/map/useOverlayMarkerUpdates';
+import { updateOverlayMarkersColors } from '@composables/map/useOverlayMarkerUpdates';
 import L from "leaflet";
 import 'leaflet-toolbar';
 import 'leaflet-distortableimage';
@@ -92,7 +92,7 @@ export function updateOverlayEditingState(): void {
  */
 export function createOverlayObject(savedOverlay: OverlayObject): OverlayObject {
   const project = savedOverlay.projectId ? projects.value[savedOverlay.projectId] : null;
-  
+
   // AI : Use factory function but preserve existing data
   return createOverlayInstance({
     ...savedOverlay,
@@ -146,7 +146,7 @@ export function createOverlay(imageUrl: string, overlayObject?: OverlayObject) {
     };
 
     // Check if map is currently zooming, _animatingZoom isn't documented for some reason
-    if (map.value && map.value._animatingZoom) {
+    if (map.value?._animatingZoom) {
       // AI : Wait for zoom animation to complete
       map.value.once('zoomend', addOverlayWhenReady);
     } else {
@@ -273,13 +273,7 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
     // AI : Handle transition from backend to local copy when edited
     updateMarkerPosition(overlayObject);
 
-    const newCorners = overlayObject.overlay?.getCorners();
-    if (newCorners && newCorners.length === 4) {
-      updateCachedOverlayDataForMarkers(overlayObject.id, newCorners);
-
-      // AI : Save to history - saveToHistory handles all modification tracking
-      saveToHistory(overlayObject);
-    }
+    saveToHistory(overlayObject);
   });
 
   // AI : Set up comprehensive event handlers for overlay manipulation
@@ -360,7 +354,6 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
   const bounds = overlayObject.overlay.getBounds();
   if (bounds?.isValid()) {
     overlayObject.marker.setLatLng(bounds.getCenter());
-    return;
   }
 }
 
@@ -819,7 +812,7 @@ function setupOverlayMovementTracking(overlay: L.DistortableImageOverlay, overla
 // AI : Helper function to create new overlay with proper Drizzle schema structure
 function createNewOverlayObject(id: string, imageUrl: string, projectId: string): OverlayObject {
   const filename = imageUrl.split('/').pop() ?? '';
-  
+
   // AI : Use factory function for consistent object creation
   return createOverlayInstance({
     id,
@@ -869,11 +862,6 @@ function saveOverlayWithCurrentCorners(overlayObject: OverlayObject): void {
   if (overlayObject.overlay) {
     const newCorners = overlayObject.overlay.getCorners();
     overlayObject.corners = newCorners;
-
-    // AI : Update cached overlay data with new corners
-    if (newCorners && newCorners.length === 4) {
-      updateCachedOverlayDataForMarkers(overlayObject.id, newCorners);
-    }
 
     // AI : Update marker tooltip after corners are saved
     updateMarkerTooltip(overlayObject);
@@ -1322,7 +1310,6 @@ async function loadAndNavigateToOverlay(overlayId: string, centerMap: boolean): 
 
     if (!result.overlay) {
       throw new Error('Overlay not found: The requested overlay could not be found on the server');
-      return false;
     }
 
     // AI : Render the main overlay
@@ -1339,7 +1326,6 @@ async function loadAndNavigateToOverlay(overlayId: string, centerMap: boolean): 
     const loadedOverlay = overlays.value[overlayId];
     if (!loadedOverlay) {
       throw new Error('Loading failed: Failed to load overlay after fetching from server');
-      return false;
     }
 
     // AI : Navigate to the successfully loaded overlay
@@ -1348,7 +1334,6 @@ async function loadAndNavigateToOverlay(overlayId: string, centerMap: boolean): 
   } catch (error) {
     console.error('Error fetching overlay:', error);
     throw new Error('Loading failed: Failed to fetch overlay from server');
-    return false;
   }
 }
 
