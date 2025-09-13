@@ -4,6 +4,7 @@ import type { CDNOverlayData, OverlayObject } from '@types';
 
 // AI : Global completion status filter state
 const visibleCompletionStates = ref({
+  yellow: true,  // Proposed
   green: true,   // Not started
   orange: true,  // In progress  
   grey: true     // Completed
@@ -29,7 +30,7 @@ export function useCompletionFilters() {
     /**
      * AI : Toggle a specific completion status filter
      */
-    toggleFilter(status: 'green' | 'orange' | 'grey') {
+    toggleFilter(status: 'yellow' | 'green' | 'orange' | 'grey') {
       visibleCompletionStates.value[status] = !visibleCompletionStates.value[status];
     },
 

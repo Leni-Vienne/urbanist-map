@@ -36,6 +36,27 @@
                     >{{ $t('project.description') }}</label>
                 </FloatLabel>
             </div>
+
+            <div class="field">
+                <FloatLabel
+                    class="w-full"
+                    variant="in"
+                >
+                    <DatePicker
+                        id="proposal-date-input"
+                        dateFormat="dd/mm/yy"
+                        v-model="localProject.proposalDate"
+                        class="w-full"
+                        showIcon
+                        :showClear="true"
+                    />
+                    <label
+                        for="proposal-date-input"
+                        class="text-gray-600"
+                    >{{ $t('project.proposalDate') }}</label>
+                </FloatLabel>
+            </div>
+
             <div class="field">
                 <FloatLabel
                     class="w-full"
@@ -151,12 +172,16 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { trpc, RouterOutput } from '@client';
 import { getCameraBounds } from '@composables/map/useCameraBounds';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { storeToRefs } from 'pinia';
 import type { Project } from '@types';
 import FileUpload, { type FileUploadSelectEvent } from 'primevue/fileupload';
+
+// AI : Get i18n
+const { t } = useI18n();
 
 // AI : Get store refs
 const overlayStore = useOverlayStore();
@@ -172,8 +197,11 @@ const emit = defineEmits<{
     submit: [project: Partial<Project>];
 }>();
 
-// AI : Project data
-const localProject = ref<Partial<Project>>({ ...props.project });
+// AI : Project data with default proposal date for new projects
+const localProject = ref<Partial<Project>>({ 
+    proposalDate: props.mode === 'create' ? new Date() : undefined, // AI : Default to current date for new proposals
+    ...props.project 
+});
 
 // AI : Cities data and state
 const cities = ref<RouterOutput['cities']['getCitiesNearLocation']>([]);
@@ -197,6 +225,7 @@ const filteredCities = computed(() => {
         displayName: `${city.name}, ${city.countryCode}`
     }));
 });
+
 
 // AI : Get center coordinates of currently selected overlay or camera center as fallback
 function getOverlayCenter(): { lat: number; lng: number } | null {

@@ -82,6 +82,18 @@
       class="buttons-stacked"
     >
       <Button
+        @click="toggleCompletionFilter('yellow')"
+        @dblclick.stop
+        raised
+        :severity="visibleCompletionStates.yellow ? 'primary' : 'secondary'"
+        aria-label="Toggle proposed projects"
+        v-tooltip.right="'Toggle proposed projects'"
+      >
+        <template #icon>
+          <div v-html="getMarkerSVG('yellow')"></div>
+        </template>
+      </Button>
+      <Button
         @click="toggleCompletionFilter('green')"
         @dblclick.stop
         raised
@@ -145,7 +157,7 @@ const { visibleCompletionStates, toggleFilter } = useCompletionFilters();
 
 // AI : Emit events to parent for complex operations that require access to map state
 const emit = defineEmits<{
-  'filter-overlays': [status: 'green' | 'orange' | 'grey'];
+  'filter-overlays': [status: 'yellow' | 'green' | 'orange' | 'grey'];
 }>();
 
 // AI : Edit mode toggle computed properties
@@ -229,13 +241,13 @@ async function handleAddOverlayButtonClick() {
 }
 
 // AI : Toggle completion status filter
-async function toggleCompletionFilter(status: 'green' | 'orange' | 'grey') {
+async function toggleCompletionFilter(status: 'yellow' | 'green' | 'orange' | 'grey') {
   toggleFilter(status);
   emit('filter-overlays', status);
 }
 
 // AI : Get marker SVG for button icons using button-specific SVG
-function getMarkerSVG(color: 'green' | 'orange' | 'grey'): string {
+function getMarkerSVG(color: 'yellow' | 'green' | 'orange' | 'grey'): string {
   return createButtonSVG(color);
 }
 

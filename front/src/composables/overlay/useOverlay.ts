@@ -882,6 +882,7 @@ function transformBackendOverlayToCDN(backendOverlay: BackendOverlay): CDNOverla
       cityId: null,
       metadata: null,
       sourceUrl: null,
+      proposalDate: null,
       startDate: null,
       endDate: null,
       latestUpdateOn: null,

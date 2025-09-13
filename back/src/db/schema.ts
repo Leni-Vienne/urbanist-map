@@ -41,6 +41,7 @@ export const projects = pgTable('projects', {
   cityId: uuid('city_id').references(() => cities.id, { onDelete: 'set null', onUpdate: 'cascade' }), // AI : Reference to the city where the project is located
   metadata: jsonb('metadata'),
   sourceUrl: text('source_url'),
+  proposalDate: timestamp('proposal_date', { withTimezone: true }), // AI : Date when project was proposed (for yellow markers)
   startDate: timestamp('start_date', { withTimezone: true }),
   endDate: timestamp('end_date', { withTimezone: true }),
   latestUpdateOn: timestamp('latest_update_on', { withTimezone: true }),

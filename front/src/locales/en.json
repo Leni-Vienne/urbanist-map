@@ -12,6 +12,7 @@
     "close": "Close",
     "continue": "Continue",
     "reset": "Reset",
+    "status": "Status",
     "reasonForChanges": "Reason for Changes",
     "explainChanges": "Briefly explain why you're making these changes"
   },
@@ -34,10 +35,19 @@
     "created": "Created",
     "updated": "Updated",
     "noProjects": "No projects found",
+    "proposalDate": "Proposal Date",
     "startDate": "Start Date",
     "endDate": "End Date",
     "sourceUrl": "Source URL",
     "sourcePdf": "Source PDF"
+  },
+  "status": {
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "planned": "Planned",
+    "inConstruction": "In Construction",
+    "completed": "Completed"
   },
   "overlay": {
     "title": "Overlays",
