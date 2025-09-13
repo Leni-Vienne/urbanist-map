@@ -22,6 +22,7 @@ export interface CDNOverlayData {
     filename: string;
     caption: string | null;
     projectId: string | null;
+    replacesOverlayId?: string | null;
     project: (DBProject & { city?: DBCity | null; }) | null;
     centroid: {
         lat: number;
@@ -30,6 +31,7 @@ export interface CDNOverlayData {
     corners: { lat: number; lng: number }[];
     distance: number;
     createdAt: Date;
+    isModified?: boolean;
 }
 
 // AI : Shared type for detailed overlay queries (used in overlay.ts)

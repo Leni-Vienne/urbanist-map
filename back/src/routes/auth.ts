@@ -55,7 +55,7 @@ class EmailService {
     try {
       // AI : Use nodemailer for SMTP connection
       const nodemailer = await import('nodemailer');
-      
+
       const transportConfig: SMTPTransport.Options = {
         host: this.config.host,
         port: this.config.port,
@@ -69,7 +69,7 @@ class EmailService {
           pass: this.config.password,
         };
       }
-      
+
       const transporter = nodemailer.createTransport(transportConfig);
 
       const mailOptions = {
@@ -81,10 +81,10 @@ class EmailService {
 
       const result = await transporter.sendMail(mailOptions);
       console.log(`Email sent successfully to ${to}:`, result.messageId);
-      
+
     } catch (error) {
       console.error('Email sending error:', error);
-      
+
       // AI : In development, fallback to console logging
       if (process.env.NODE_ENV === 'development') {
         console.log(`[DEV FALLBACK] Email to ${to}`);
@@ -119,11 +119,9 @@ function getEmailService(): EmailService {
     if (!config.from) {
       console.warn('FROM_EMAIL configuration missing');
     }
-  } else {
     // AI : For production (AWS SES), credentials are required
-    if (!config.user || !config.password || !config.from) {
-      console.warn('SMTP configuration incomplete. Required: SMTP_USERNAME, SMTP_PASSWORD, FROM_EMAIL');
-    }
+  } else if (!config.user || !config.password || !config.from) {
+    console.warn('SMTP configuration incomplete. Required: SMTP_USERNAME, SMTP_PASSWORD, FROM_EMAIL');
   }
 
   return new EmailService(config);
@@ -133,7 +131,7 @@ async function sendVerificationEmail(email: string, token: string): Promise<void
   try {
     const emailService = getEmailService();
     const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${token}`;
-    
+
     const subject = 'Verify your email address - Construction Map';
     const html = `
       <!DOCTYPE html>
@@ -184,7 +182,7 @@ async function sendPasswordResetEmail(email: string, token: string): Promise<voi
   try {
     const emailService = getEmailService();
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
-    
+
     const subject = 'Reset your password - Construction Map';
     const html = `
       <!DOCTYPE html>

@@ -162,9 +162,9 @@ export function transformBackendOverlayToCDN(backendOverlay: BackendOverlay): CD
     id: backendOverlay.id,
     version: backendOverlay.version,
     filename: backendOverlay.filename,
-    caption: backendOverlay.caption ?? undefined,
+    caption: backendOverlay.caption ?? null,
     projectId: backendOverlay.projectId,
-    replacesOverlayId: backendOverlay.replacesOverlayId ?? undefined,
+    replacesOverlayId: backendOverlay.replacesOverlayId ?? null,
     project: backendOverlay.projectName ? {
       id: backendOverlay.projectId ?? '',
       version: 1,

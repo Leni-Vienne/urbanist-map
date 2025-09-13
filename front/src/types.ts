@@ -35,6 +35,10 @@ declare module "leaflet" {
     overlayId?: string;
   }
 
+  interface Map {
+    _animatingZoom?: boolean; // _animatingZoom isn't documented for some reason
+  }
+
   // AI : Leaflet.Toolbar type definitions
   namespace Toolbar2 {
     class Action extends L.Handler {
@@ -176,25 +180,3 @@ export type ProjectForModeration = Pick<Project, 'id' | 'name' | 'description' |
 
 // AI : Keep specific types that have unique structure
 export type PendingOverlay = RouterOutput['moderation']['getPendingSubmissions']['overlays'][number];
-
-export interface OverlayWithDetails {
-  id: string;
-  topLeftLng: number;
-  topLeftLat: number;
-  topRightLng: number;
-  topRightLat: number;
-  bottomRightLng: number;
-  bottomRightLat: number;
-  bottomLeftLng: number;
-  bottomLeftLat: number;
-}
-
-// AI : Legacy aliases for backward compatibility - mark for removal
-/** @deprecated Use ProjectForForm instead */
-export type ProjectInfo = ProjectForForm;
-/** @deprecated Use OverlayForList instead */
-export type OverlayListItem = OverlayForList;
-/** @deprecated Use ProjectForModeration instead */
-export type AccordionProject = ProjectForModeration;
-/** @deprecated Use OverlayForModeration instead */
-export type AccordionOverlay = OverlayForModeration;

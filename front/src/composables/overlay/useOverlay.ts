@@ -146,7 +146,7 @@ export function createOverlay(imageUrl: string, overlayObject?: OverlayObject) {
     };
 
     // Check if map is currently zooming, _animatingZoom isn't documented for some reason
-    if (map.value && (map.value as any)._animatingZoom) {
+    if (map.value && map.value._animatingZoom) {
       // AI : Wait for zoom animation to complete
       map.value.once('zoomend', addOverlayWhenReady);
     } else {

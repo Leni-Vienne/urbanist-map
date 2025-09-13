@@ -46,7 +46,7 @@ test.describe('Comprehensive Map Testing', () => {
     expect(viewModeColors.length).toBeGreaterThan(0);
   });
 
-  test('should validate marker visibility and interaction', async ({ page }) => {
+  test('should validate marker visibility and interaction', async () => {
     // AI : Navigate through marker hierarchy
     const navigationSuccess = await mapHelpers.navigateToOverlays(0, 0);
     if (!navigationSuccess) {

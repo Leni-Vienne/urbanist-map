@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest'
 import { nextTick } from 'vue'
-import type { AccordionProject } from '@types'
+import type { ProjectForModeration } from '@types'
 
 // AI : Mock Vue's onMounted to prevent issues with lifecycle hooks in tests  
 vi.mock('vue', async () => {
@@ -62,7 +62,7 @@ const mockTrpc = {
 }
 
 // AI : Sample test data
-const mockProject: AccordionProject = {
+const mockProject: ProjectForModeration = {
   id: 'test-project-1',
   name: 'Test Project',
   description: 'Test Description',

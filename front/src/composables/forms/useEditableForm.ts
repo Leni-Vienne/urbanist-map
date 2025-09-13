@@ -3,6 +3,12 @@ import { useFieldChanges } from '@composables/changes/useFieldChanges'
 import { useToast } from '@composables/ui/useToast'
 import { trpc } from '@client'
 
+// AI : Type for overlay update payload based on updateOverlaySchema
+interface OverlayUpdateData {
+  id: string
+  caption?: string
+}
+
 export interface FieldChange {
   fieldName: string
   oldValue: any
@@ -142,11 +148,12 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
           })
         } else if (options.entityType === 'overlay') {
           // AI : Apply changes directly to pending overlay using updateOverlay
-          const overlayData: any = {}
+          const overlayData: OverlayUpdateData = { id: options.entityId }
           changes.forEach(change => {
-            overlayData[change.fieldName] = change.newValue
+            if (change.fieldName === 'caption') {
+              overlayData.caption = change.newValue
+            }
           })
-          overlayData.id = options.entityId
           
           await trpc.overlay.updateOverlay.mutate(overlayData)
           

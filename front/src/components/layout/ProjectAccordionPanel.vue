@@ -285,7 +285,7 @@
 import { ref, computed } from 'vue'
 import { buildImageUrl, formatRelativeTime } from '../../utils'
 import { navigateToOverlay } from '@composables/overlay/useOverlay'
-import type { AccordionProject, AccordionOverlay } from '@types'
+import type { ProjectForModeration, OverlayForModeration } from '@types'
 import { useToast } from '@composables/ui/useToast'
 import Tag from 'primevue/tag'
 import Accordion from 'primevue/accordion'
@@ -297,7 +297,7 @@ import type { PendingChangeRequest } from '../../types/api'
 
 // AI : Props interface
 interface Props {
-  projects: AccordionProject[]
+  projects: ProjectForModeration[]
   isLoading: boolean
   title: string
   panelClass: string
@@ -349,7 +349,7 @@ function getStatusSeverity(status: string): string {
 }
 
 // AI : Get project location display - always show country when available
-function getProjectLocation(project: AccordionProject): string {
+function getProjectLocation(project: ProjectForModeration): string {
   const cityName = project.cityName
   const countryName = project.countryName
 
@@ -382,7 +382,7 @@ function handleImageLoad(event: Event, overlayId: string) {
 }
 
 // AI : Get overlay location display (city, country) - avoid duplication
-function getOverlayLocationDisplay(overlay: AccordionOverlay): string {
+function getOverlayLocationDisplay(overlay: OverlayForModeration): string {
   // AI : Try different property combinations to avoid duplication
   const cityName = overlay.cityName
   const countryName = overlay.countryName
@@ -439,12 +439,12 @@ function formatSourceUrl(url: string): string {
 
 
 // AI : Check if overlays should be shown (only for expanded panels)
-function shouldShowOverlays(project: AccordionProject): boolean {
+function shouldShowOverlays(project: ProjectForModeration): boolean {
   return expandedPanels.value.has(project.id)
 }
 
 // AI : Handle overlay click - navigate to overlay
-async function handleOverlayClick(overlay: AccordionOverlay) {
+async function handleOverlayClick(overlay: OverlayForModeration) {
   try {
     await navigateToOverlay(overlay.id)
   } catch (error) {
@@ -476,7 +476,7 @@ function getOverlayChangeRequests(overlayId: string): PendingChangeRequest[] {
   let overlay = null
   for (const project of props.projects) {
     if (project.overlays) {
-      overlay = project.overlays.find((o: AccordionOverlay) => o.id === overlayId)
+      overlay = project.overlays.find((o: OverlayForModeration) => o.id === overlayId)
       if (overlay) break
     }
   }
