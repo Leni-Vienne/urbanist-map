@@ -38,19 +38,27 @@ export function getOverlayMarkerColor(
       return 'blue';
     }
   } else {
-    // AI : View mode - use construction timeline colors
+    // AI : View mode - check for proposed project first (yellow), then construction timeline colors
+    let proposalDate: Date | null | undefined = null;
     let startDate: Date | null | undefined = null;
     let endDate: Date | null | undefined = null;
 
     if (overlayData.project) {
+      proposalDate = overlayData.project.proposalDate;
       startDate = overlayData.project.startDate;
       endDate = overlayData.project.endDate;
-    } else if ('startDate' in overlayData && 'endDate' in overlayData) {
+    } else if ('proposalDate' in overlayData && 'startDate' in overlayData && 'endDate' in overlayData) {
+      proposalDate = (overlayData as { proposalDate?: Date | null }).proposalDate;
       startDate = (overlayData as { startDate?: Date | null }).startDate;
       endDate = (overlayData as { endDate?: Date | null }).endDate;
     }
 
-    // AI : Inline construction date logic - no need for separate function
+    // AI : If project has proposal date but no start date, it's still in proposal phase
+    if (proposalDate && !startDate) {
+      return 'yellow';
+    }
+
+    // AI : Otherwise use existing construction timeline logic
     const now = new Date();
     const start = startDate ? new Date(startDate) : null;
     const end = endDate ? new Date(endDate) : null;

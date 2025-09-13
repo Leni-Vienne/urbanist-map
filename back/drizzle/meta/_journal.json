@@ -120,6 +120,13 @@
       "when": 1757060683064,
       "tag": "0016_parallel_speed",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1757751648222,
+      "tag": "0017_right_susan_delgado",
+      "breakpoints": true
     }
   ]
 }

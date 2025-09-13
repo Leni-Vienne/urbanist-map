@@ -22,11 +22,13 @@ export function createProject(projectData: Partial<Omit<Project, 'id' | 'overlay
   const project: Project = {
     ...safeProjectData,
     id,
+    version: 1,
     overlayIds: [],
     color: '#007bff',
     // AI : Use name from updated Drizzle schema
     name: safeProjectData.name ?? '',
     sourceUrl: safeProjectData.sourceUrl ?? null,
+    proposalDate: safeProjectData.proposalDate ?? null,
     startDate: safeProjectData.startDate ?? null,
     endDate: safeProjectData.endDate ?? null,
     latestUpdateOn: safeProjectData.latestUpdateOn ?? null,

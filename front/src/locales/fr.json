@@ -12,6 +12,7 @@
     "close": "Fermer",
     "continue": "Continuer",
     "reset": "Réinitialiser",
+    "status": "Statut",
     "reasonForChanges": "Raison des modifications",
     "explainChanges": "Expliquez brièvement pourquoi vous apportez ces modifications"
   },
@@ -34,10 +35,19 @@
     "created": "Créé",
     "updated": "Mis à jour",
     "noProjects": "Aucun projet trouvé",
+    "proposalDate": "Date de proposition",
     "startDate": "Date de début",
     "endDate": "Date de fin",
     "sourceUrl": "URL source",
     "sourcePdf": "PDF source"
+  },
+  "status": {
+    "pending": "En attente",
+    "approved": "Approuvé",
+    "rejected": "Rejeté",
+    "planned": "Planifié",
+    "inConstruction": "En construction",
+    "completed": "Terminé"
   },
   "overlay": {
     "title": "Superpositions",

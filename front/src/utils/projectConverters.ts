@@ -28,6 +28,7 @@ export function convertNearbyProjectToLocal(nearbyProject: NearbyProject): Proje
       updatedAt: new Date()
     } : undefined,
     sourceUrl: null,
+    proposalDate: null,
     startDate: null,
     endDate: null,
     latestUpdateOn: null,
@@ -52,6 +53,7 @@ export function convertNearbyProjectToBackend(nearbyProject: NearbyProject): Pro
     updatedAt: nearbyProject.updatedAt,
     ownerId: nearbyProject.ownerId,
     cityId: nearbyProject.cityId,
+    proposalDate: null,
     startDate: null,
     endDate: null,
     sourceUrl: null,

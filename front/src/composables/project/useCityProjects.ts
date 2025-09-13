@@ -41,6 +41,7 @@ export function useCityProjects() {
             updatedAt: project.city.updatedAt
           } : undefined,
           sourceUrl: project.sourceUrl,
+          proposalDate: project.proposalDate,
           startDate: project.startDate,
           endDate: project.endDate,
           latestUpdateOn: project.latestUpdateOn,
