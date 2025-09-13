@@ -28,7 +28,7 @@ import { useToast } from '@composables/ui/useToast';
 import { fetchNearbyProjects } from '@composables/project/useNearbyProjects';
 import { useOverlayPublisher } from '@composables/overlay/useOverlayPublisher';
 import { citiesWithProjects } from '@composables/map/useCityMarkers';
-import { convertNearbyProjectToLocal, convertNearbyProjectToBackend } from '../../utils/projectConverters';
+import { createProjectFromAPI } from '../../utils/typeFactories';
 import { removeOverlayFromProjectWithId } from '@composables/project/useProjects';
 import type { OverlayObject, Project } from '@types';
 
@@ -143,13 +143,13 @@ async function handleProjectChange(projectId: string) {
 
       if (nearbyProject) {
         // AI : Convert nearby project to local project format using shared utility
-        const localProject = convertNearbyProjectToLocal(nearbyProject);
+        const localProject = createProjectFromAPI(nearbyProject);
 
         // AI : Add project to local store
         projects.value[projectId] = localProject;
 
         // AI : Also set project data on overlay object for InfoPopup display using shared utility
-        overlay.project = convertNearbyProjectToBackend(nearbyProject);
+        overlay.project = createProjectFromAPI(nearbyProject);
       } else {
         throw new Error(`Project ${projectId} not found in local store or nearby projects`);
       }
