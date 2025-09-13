@@ -1,6 +1,7 @@
 import { computed } from 'vue';
 import { currentCityOverlays } from '@composables/map/useCityMarkers';
 import type { Project } from '@types';
+import { createProject } from '../../utils/typeFactories';
 
 /**
  * AI : Composable to extract unique projects from city overlays data
@@ -18,35 +19,13 @@ export function useCityProjects() {
       if (overlay.project && overlay.project.id) {
         const project = overlay.project;
         
-        // AI : Convert backend project format to frontend Project type
-        const frontendProject: Project = {
-          id: project.id,
-          name: project.name,
-          description: project.description ?? '',
+        // AI : Use factory function for consistent project creation
+        const frontendProject = createProject({
+          ...project,
+          description: project.description ?? null,
           overlayIds: [], // AI : We'll count overlays differently
-          color: '#007bff', // AI : Default color
-          cityId: project.cityId,
-          status: project.status,
-          ownerId: project.ownerId,
-          createdAt: project.createdAt,
-          updatedAt: project.updatedAt,
-          metadata: project.metadata,
-          version: project.version ?? 1, // AI : Version for optimistic locking
-          city: project.city ? {
-            id: project.city.id,
-            name: project.city.name,
-            countryCode: project.city.countryCode,
-            coordinates: project.city.coordinates,
-            createdAt: project.city.createdAt,
-            updatedAt: project.city.updatedAt
-          } : undefined,
-          sourceUrl: project.sourceUrl,
-          proposalDate: project.proposalDate,
-          startDate: project.startDate,
-          endDate: project.endDate,
-          latestUpdateOn: project.latestUpdateOn,
           savedRemotely: true
-        };;
+        });
         
         projectMap.set(project.id, frontendProject);
       }

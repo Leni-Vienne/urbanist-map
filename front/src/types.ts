@@ -139,21 +139,8 @@ export interface OverlayObject extends DBOverlay {
   project?: Project | null;
 }
 
-// AI : API data format for overlays from backend
-export interface CDNOverlayData {
-  id: string;
-  version: number;
-  filename: string;
-  caption?: string | null;
-  projectId: string | null;
-  replacesOverlayId?: string | null;
-  project: (DBProject & { city?: DBCity | null }) | null;
-  centroid: { lat: number; lng: number };
-  corners: { lat: number; lng: number }[];
-  distance: number;
-  createdAt: Date;
-  isModified?: boolean;
-}
+// AI : Import shared API type from backend
+export type { CDNOverlayData } from '../../back/src/shared/types';
 
 // AI : Utility types for specific use cases
 export type ProjectForForm = Pick<Project, 'name' | 'description' | 'sourceUrl' | 'startDate' | 'endDate'> & {

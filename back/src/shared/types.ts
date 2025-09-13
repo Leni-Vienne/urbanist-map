@@ -18,6 +18,7 @@ import type { DBProject, DBCity } from '../db/schema';
 
 export interface CDNOverlayData {
     id: string;
+    version: number;
     filename: string;
     caption: string | null;
     projectId: string | null;

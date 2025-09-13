@@ -81,6 +81,7 @@ import { fetchNearbyProjects } from '@composables/project/useNearbyProjects'
 import { addOverlay } from '@composables/overlay/useOverlay'
 import { setLastCreatedProject } from '@composables/ui/useProjectState'
 import { createProject } from '@composables/project/useProjects'
+import { createProjectFromAPI } from '../../utils/typeFactories'
 import type { Project, OverlayObject } from '@types'
 import type { NearbyProject } from '../../types/api'
 
@@ -108,34 +109,8 @@ async function onProjectSelected(projectId: string) {
       const nearbyProject = nearbyProjects.find((p: NearbyProject) => p.id === projectId)
 
       if (nearbyProject) {
-        // AI : Convert nearby project to local project format and add to store
-        const localProject: Project = {
-          id: nearbyProject.id,
-          name: nearbyProject.name,
-          version: nearbyProject.version,
-          description: nearbyProject.description ?? '',
-          overlayIds: [],
-          color: '#007bff',
-          cityId: nearbyProject.cityId,
-          status: 'approved' as const,
-          ownerId: nearbyProject.ownerId,
-          createdAt: nearbyProject.createdAt,
-          updatedAt: nearbyProject.updatedAt,
-          metadata: nearbyProject.metadata,
-          city: nearbyProject.city ? {
-            id: nearbyProject.city.id,
-            name: nearbyProject.city.name,
-            countryCode: nearbyProject.city.countryCode,
-            coordinates: { x: nearbyProject.city.lng, y: nearbyProject.city.lat },
-            createdAt: new Date(),
-            updatedAt: new Date()
-          } : undefined,
-          sourceUrl: null,
-          startDate: null,
-          endDate: null,
-          latestUpdateOn: null,
-          savedRemotely: true
-        }
+        // AI : Convert nearby project to local project format using factory function
+        const localProject = createProjectFromAPI(nearbyProject)
 
         // AI : Add project to local store
         projects.value[projectId] = localProject

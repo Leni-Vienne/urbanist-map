@@ -149,6 +149,7 @@ export const citiesRouter = router({
                   JSON_AGG(
                     JSON_BUILD_OBJECT(
                       'id', ${overlays.id},
+                      'version', ${overlays.version},
                       'filename', ${overlays.filename},
                       'caption', ${overlays.caption},
                       'projectId', ${overlays.projectId},
