@@ -4,9 +4,6 @@ import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColo
 import type { OverlayObject } from '@types';
 import type { Ref, ShallowRef } from 'vue';
 
-// AI : Cache for overlay marker updates 
-const overlayDataCache = new Map<string, { corners: { lat: number, lng: number }[] }>();
-
 /**
  * AI : Update overlay markers colors for existing markers
  */
@@ -25,23 +22,4 @@ export function updateOverlayMarkersColors(
       overlayObject.marker.setIcon(colorIcon);
     }
   });
-}
-
-/**
- * AI : Update cached overlay data with new corner positions
- */
-export function updateCachedOverlayDataForMarkers(
-  overlayId: string, 
-  newCorners: { lat: number, lng: number }[]
-): void {
-  if (!overlayId || !newCorners || newCorners.length !== 4) {
-    return;
-  }
-  // AI : Store the updated corners in cache
-  overlayDataCache.set(overlayId, {
-    corners: [...newCorners]
-  });
-  
-  // AI : Note: currentCityOverlays updates removed to avoid circular dependency
-  // The overlay data will be updated when the city data is refreshed
 }

@@ -40,7 +40,7 @@ export function useModeration() {
       const response = await trpc.moderation.getPendingSubmissions.query()
       overlays.value = response.overlays
       projects.value = response.projects
-      changeRequests.value = response.changeRequests || []
+      changeRequests.value = response.changeRequests ?? []
       moderationLoaded.value = true
     }
     catch (error) {

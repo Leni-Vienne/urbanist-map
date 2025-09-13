@@ -36,8 +36,8 @@ export class AuthTestHelpers {
    * AI : Perform login with credentials from environment variables
    */
   async login(
-    email: string = process.env.TEST_USER_EMAIL || 'test@example.com', 
-    password: string = process.env.TEST_USER_PASSWORD || 'testpassword'
+    email: string = process.env.TEST_USER_EMAIL ?? 'test@example.com', 
+    password: string = process.env.TEST_USER_PASSWORD ?? 'testpassword'
   ) {
     await this.openAuthModal();
     
@@ -71,8 +71,8 @@ export class AuthTestHelpers {
    * AI : Create a test user account (if registration is available)
    */
   async createTestUser(
-    email: string = process.env.TEST_USER_EMAIL || 'playwright.test@example.com',
-    password: string = process.env.TEST_USER_PASSWORD || 'TestPassword123!',
+    email: string = process.env.TEST_USER_EMAIL ?? 'playwright.test@example.com',
+    password: string = process.env.TEST_USER_PASSWORD ?? 'TestPassword123!',
     username: string = 'PlaywrightTestUser'
   ) {
     await this.openAuthModal();
@@ -137,7 +137,7 @@ export class AuthTestHelpers {
 
     // AI : Try to restore previous session
     const storedAuth = await this.page.evaluate(() => {
-      return localStorage.getItem('auth-token') || sessionStorage.getItem('auth-token');
+      return localStorage.getItem('auth-token') ?? sessionStorage.getItem('auth-token');
     });
 
     if (storedAuth) {

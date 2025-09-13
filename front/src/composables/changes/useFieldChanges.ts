@@ -36,7 +36,7 @@ export function useFieldChanges() {
     changeReason?: string
   ) {
     try {
-      return submitChangeRequest({
+      return await submitChangeRequest({
         entityType: 'overlay',
         entityId: overlayId,
         changes: [{
@@ -58,7 +58,7 @@ export function useFieldChanges() {
     fieldChanges: FieldChange[]
   ) {
     try {
-      return submitChangeRequest({
+      return await submitChangeRequest({
         entityType,
         entityId,
         changes: fieldChanges

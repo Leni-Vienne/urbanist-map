@@ -71,7 +71,7 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
           fieldName: String(fieldName),
           oldValue: (originalData as T)[fieldName],
           newValue: (formData as T)[fieldName],
-          changeReason: changeReason.value || undefined
+          changeReason: changeReason.value ?? undefined
         })
       }
     })
@@ -130,11 +130,11 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
           const projectData = {
             id: options.entityId,
             name: formData.name,
-            description: formData.description || undefined,
-            cityId: project.cityId || undefined, // AI : Preserve existing cityId
+            description: formData.description ?? undefined,
+            cityId: project.cityId ?? undefined, // AI : Preserve existing cityId
             startDate: formData.startDate?.toISOString(),
             endDate: formData.endDate?.toISOString(),
-            sourceUrl: formData.sourceUrl || undefined,
+            sourceUrl: formData.sourceUrl ?? undefined,
             latestUpdateOn: formData.latestUpdateOn?.toISOString(),
           }
           
