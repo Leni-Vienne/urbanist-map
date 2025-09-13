@@ -371,10 +371,10 @@ describe('Race Condition Prevention Tests', () => {
       
       // AI : Check results
       const editResults = results.slice(0, 5)
-      const approvalResults = results.slice(5, 10)
+      results.slice(5, 10)
       
       const successfulEdits = editResults.filter(result => result.status === 'fulfilled')
-      const failedEdits = editResults.filter(result => result.status === 'rejected')
+      editResults.filter(result => result.status === 'rejected')
       
       // AI : At least one edit should succeed, others may fail due to version conflicts
       expect(successfulEdits.length).toBeGreaterThanOrEqual(1)

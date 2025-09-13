@@ -21,7 +21,7 @@ export async function getUserFromCookie(c: Context): Promise<DBUser | null> {
       .where(eq(users.id, userId))
       .limit(1)
 
-    if (!user || !user.emailVerified) {
+    if (!user?.emailVerified) {
       return null
     }
 

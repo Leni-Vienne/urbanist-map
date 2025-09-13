@@ -59,7 +59,7 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
 
     test('returns version field for overlays', async () => {
       const project = await TestHelpers.createTestProject(testUser.id, testCity.id)
-      const overlay = await TestHelpers.createTestOverlay(project.id, testUser.id, 1, { status: 'pending' })
+      await TestHelpers.createTestOverlay(project.id, testUser.id, 1, { status: 'pending' })
       
       const caller = moderationRouter.createCaller(createMockAdminContext())
       const result = await caller.getPendingSubmissions()

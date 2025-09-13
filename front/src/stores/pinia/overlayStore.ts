@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, shallowRef } from 'vue'
 import type { OverlayObject, CDNOverlayData } from '@types'
+import type { BackendOverlay } from '../../types/api'
 
 export const useOverlayStore = defineStore('overlay', () => {
   // AI : Central store for overlay data
@@ -18,7 +19,7 @@ export const useOverlayStore = defineStore('overlay', () => {
   const overlaysError = ref<string | null>(null)
 
   // AI : Latest overlays cache - simple loaded flag
-  const latestOverlays = ref<any[]>([])
+  const latestOverlays = ref<BackendOverlay[]>([])
   const latestOverlaysLoading = ref(false)
   const latestOverlaysLoaded = ref(false)
 
@@ -49,7 +50,7 @@ export const useOverlayStore = defineStore('overlay', () => {
   }
 
   // AI : Latest overlays actions
-  const setLatestOverlays = (overlays: any[]) => {
+  const setLatestOverlays = (overlays: BackendOverlay[]) => {
     latestOverlays.value = overlays
     latestOverlaysLoaded.value = true
   }

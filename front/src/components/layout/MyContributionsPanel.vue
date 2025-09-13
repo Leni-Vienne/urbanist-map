@@ -61,7 +61,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import type { AccordionProject } from '@types'
+import type { ProjectForModeration } from '@types'
 import Checkbox from 'primevue/checkbox'
 import Button from 'primevue/button'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'

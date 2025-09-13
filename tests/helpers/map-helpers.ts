@@ -414,7 +414,6 @@ export class MapTestHelpers {
       
       // AI : Log marker details for debugging
       const testId = await marker.getAttribute('data-testid');
-      const cityId = await marker.getAttribute('data-city-id');
       const cityName = await marker.getAttribute('data-city-name');
       const countryCode = await marker.getAttribute('data-country-code');
       console.log(`Clicking city marker: ${testId} (${cityName}, ${countryCode})`);

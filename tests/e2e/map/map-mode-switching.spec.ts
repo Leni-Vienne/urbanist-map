@@ -56,7 +56,7 @@ test.describe('Map Mode Switching', () => {
     await expect(addOverlayButton).toBeEnabled();
   });
 
-  test('should persist edit mode state during navigation', async ({ page }) => {
+  test('should persist edit mode state during navigation', async () => {
     // AI : Switch to edit mode
     await mapHelpers.toggleEditMode();
     expect(await mapHelpers.isEditModeActive()).toBeTruthy();

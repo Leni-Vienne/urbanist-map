@@ -77,7 +77,6 @@ export function useModeration() {
       if (!result.success) {
         // AI : Handle version conflicts - refresh data and return conflict info
         resetModerationLoaded()
-        resetModerationLoaded()
       await fetchPendingSubmissions()
         return {
           success: false,
@@ -188,7 +187,6 @@ export function useModeration() {
 
       if (!result.success) {
         // AI : Handle version conflicts - refresh data and return conflict info
-        resetModerationLoaded()
         resetModerationLoaded()
       await fetchPendingSubmissions()
         return {

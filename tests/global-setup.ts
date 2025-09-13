@@ -1,11 +1,11 @@
-import { chromium, FullConfig } from '@playwright/test';
+import { chromium } from '@playwright/test';
 import * as dotenv from 'dotenv';
 
 /**
  * AI : Global setup for Playwright tests
  * Handles authentication and state persistence
  */
-async function globalSetup(playwrightConfig: FullConfig) {
+async function globalSetup() {
   try {
     // AI : Load test environment variables
     dotenv.config({ path: '.env' });
