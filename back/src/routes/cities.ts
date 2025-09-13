@@ -161,6 +161,7 @@ export const citiesRouter = router({
                         'ownerId', ${projects.ownerId},
                         'metadata', ${projects.metadata},
                         'sourceUrl', ${projects.sourceUrl},
+                        'proposalDate', ${projects.proposalDate},
                         'startDate', ${projects.startDate},
                         'endDate', ${projects.endDate},
                         'latestUpdateOn', ${projects.latestUpdateOn},

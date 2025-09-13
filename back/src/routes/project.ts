@@ -10,11 +10,12 @@ const publishProjectSchema = z.object({
   name: z.string().min(8).max(200),
   description: z.string().max(2000).optional(),
   cityId: z.uuid().optional(),
+  proposalDate: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   sourceUrl: z.url().optional(),
   latestUpdateOn: z.string().optional()
-});
+});;
 
 export const projectRouter = router({
   publishProject: protectedProcedure
@@ -32,6 +33,7 @@ export const projectRouter = router({
           ...input,
           ownerId: ctx.user.id,
           cityId: input.cityId ?? null,
+          proposalDate: input.proposalDate ? new Date(input.proposalDate) : null,
           startDate: input.startDate ? new Date(input.startDate) : null,
           endDate: input.endDate ? new Date(input.endDate) : null,
           sourceUrl: input.sourceUrl,
@@ -49,6 +51,7 @@ export const projectRouter = router({
                 name: data.name,
                 description: data.description,
                 cityId: data.cityId,
+                proposalDate: data.proposalDate,
                 startDate: data.startDate,
                 endDate: data.endDate,
                 sourceUrl: data.sourceUrl,
@@ -97,6 +100,7 @@ export const projectRouter = router({
             ownerId: projects.ownerId,
             cityId: projects.cityId,
             metadata: projects.metadata,
+            proposalDate: projects.proposalDate,
             createdAt: projects.createdAt,
             updatedAt: projects.updatedAt,
             // AI : Count overlays for this project within the search radius
@@ -128,6 +132,7 @@ export const projectRouter = router({
             projects.ownerId,
             projects.cityId,
             projects.metadata,
+            projects.proposalDate,
             projects.createdAt,
             projects.updatedAt,
             cities.id,
@@ -158,6 +163,7 @@ export const projectRouter = router({
               description: projects.description,
               ownerId: projects.ownerId,
               cityId: projects.cityId,
+              proposalDate: projects.proposalDate,
               startDate: projects.startDate,
               endDate: projects.endDate,
               sourceUrl: projects.sourceUrl,
@@ -184,6 +190,7 @@ export const projectRouter = router({
               projects.description,
               projects.ownerId,
               projects.cityId,
+              projects.proposalDate,
               projects.startDate,
               projects.endDate,
               projects.sourceUrl,
@@ -222,6 +229,7 @@ export const projectRouter = router({
               status: projects.status,
               ownerId: projects.ownerId,
               cityId: projects.cityId,
+              proposalDate: projects.proposalDate,
               startDate: projects.startDate,
               endDate: projects.endDate,
               sourceUrl: projects.sourceUrl,

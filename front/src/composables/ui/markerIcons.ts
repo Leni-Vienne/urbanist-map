@@ -12,7 +12,7 @@ const markerColors: Record<MarkerColor, string> = {
   orange: '#FF8C00',
   red: '#DC143C',
   gold: '#FFD700',
-  yellow: '#FFFF00',
+  yellow: '#FFEA00',
   purple: '#9932CC',
   grey: '#A0A0A0',
   black: '#2F2F2F'
