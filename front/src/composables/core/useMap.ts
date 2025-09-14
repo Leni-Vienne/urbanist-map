@@ -59,6 +59,8 @@ export function initializeMap() {
   }).setView([22, 10], 3);
   if (!map.value) throw new Error('No map element found');
 
+  // TODO : may be temporary, prevents click + drag on overlay (needed to move it) from zooming in
+  map.value.doubleClickZoom.disable()
   // AI : Initialize reactive zoom level with Leaflet's default
   currentZoomLevel.value = map.value.getZoom();
 

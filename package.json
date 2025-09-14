@@ -34,7 +34,7 @@
     "@trpc/server": "^11.5.1",
     "drizzle-orm": "^0.44.5",
     "hono": "^4.9.6",
-    "leaflet-distortableimage": "Karelics/Leaflet.DistortableImage",
+    "leaflet-distortableimage": "Leni-vienne/Leaflet.DistortableImage",
     "leaflet-doubletapdragzoom": "^0.3.2",
     "leaflet-toolbar": "^0.4.0-alpha.2",
     "nodemailer": "^7.0.6",
