@@ -135,6 +135,9 @@ export function createOverlay(imageUrl: string, overlayObject?: OverlayObject) {
         ...(isEditMode.value ? editTools : viewTools)
       ],
       corners: leafletCorners,
+      dragBehavior: 'auto',
+      selectOnDrag: false,
+      draggable: isEditMode.value ? true : false,
     });
 
     // IMPORTANT : this waits for any ongoing zoom animation to complete before adding overlay to prevent visual glitch
@@ -391,7 +394,7 @@ export function saveToHistory(overlayObject: OverlayObject): void {
 
 // Event handler that blocks movement events but allows click events
 function blockMovementEvent(e: Event) {
-  const target = e.target;
+  /*const target = e.target;
   if (!target || !(target instanceof HTMLElement)) return;
   const isToolbarClick = target.closest('.leaflet-toolbar-icon') !== null;
 
@@ -403,7 +406,7 @@ function blockMovementEvent(e: Event) {
   // AI : Only call preventDefault if the event allows it (not passive)
   if (e.cancelable) {
     e.preventDefault();
-  }
+  }*/
   return false;
 }
 

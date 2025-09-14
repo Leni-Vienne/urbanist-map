@@ -91,6 +91,9 @@ declare module "leaflet" {
     corners?: L.LatLng[];
     editable?: boolean;
     keyboard?: boolean;
+    dragBehavior?: 'map' | 'overlay' | 'auto';
+    selectOnDrag: boolean;
+    draggable: boolean;
   }
 
   function distortableImageOverlay(imageUrl: string, options?: DistortableImageOverlayOptions): DistortableImageOverlay;
@@ -127,18 +130,18 @@ export interface OverlayObject extends DBOverlay {
   corners: { lat: number, lng: number }[];
   isModified: boolean;
   savedRemotely: boolean;
-  
+
   // AI : Map interaction fields
   overlay: L.DistortableImageOverlay | null;
   marker: L.Marker | null;
-  
+
   // AI : Editor state
   history: { lat: number, lng: number }[][];
   redoStack: { lat: number, lng: number }[][];
   whitePixelsHidden: boolean;
   isFlipped: boolean;
   currentResolution?: string;
-  
+
   // AI : Project reference for CDN overlays
   project?: Project | null;
 }
