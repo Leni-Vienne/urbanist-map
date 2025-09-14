@@ -60,7 +60,7 @@ export class AuthTestHelpers {
         await this.page.waitForTimeout(2000);
         
         // AI : Verify login succeeded
-        return await this.isAuthenticated();
+        return this.isAuthenticated();
       }
     }
     
@@ -100,7 +100,7 @@ export class AuthTestHelpers {
           await registerButton.click();
           
           await this.page.waitForTimeout(3000);
-          return await this.isAuthenticated();
+          return this.isAuthenticated();
         }
       }
     }

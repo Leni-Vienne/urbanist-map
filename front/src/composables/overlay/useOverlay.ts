@@ -161,15 +161,6 @@ export function createOverlay(imageUrl: string, overlayObject?: OverlayObject) {
     setupOverlayEventHandlers(newOverlay, overlayObject);
     setupOverlayLoadHandler(newOverlay, overlayObject);
 
-    // AI : Only disable editing if we're in view mode
-    // AI : The onOverlayLoaded function will set the proper state when the element is ready
-    if (!isEditMode.value) {
-      const element = newOverlay.getElement();
-      if (element) {
-        disableOverlayEditing(newOverlay, element);
-      }
-    }
-
     return newOverlay;
   } catch (error) {
     console.error('AI : Error creating overlay:', error);
@@ -208,16 +199,6 @@ function onOverlayLoaded(overlayObject: OverlayObject): void {
   updateMarkerPosition(overlayObject);
 
   initializeOverlayHistory(overlayObject);
-
-  // AI : Set proper editing state based on current mode
-  const element = overlayObject.overlay.getElement();
-  if (element) {
-    if (isEditMode.value) {
-      enableOverlayEditing(overlayObject.overlay, element);
-    } else {
-      disableOverlayEditing(overlayObject.overlay, element);
-    }
-  }
 
   updateMarkerTooltip(overlayObject);
 }
@@ -390,61 +371,6 @@ export function saveToHistory(overlayObject: OverlayObject): void {
 
   // AI : Update city overlay markers if they are visible
   updateOverlayMarkersColors(overlays, isEditMode);
-}
-
-// Event handler that blocks movement events but allows click events
-function blockMovementEvent(e: Event) {
-  /*const target = e.target;
-  if (!target || !(target instanceof HTMLElement)) return;
-  const isToolbarClick = target.closest('.leaflet-toolbar-icon') !== null;
-
-  if (isToolbarClick) {
-    return true;
-  }
-
-  e.stopPropagation();
-  // AI : Only call preventDefault if the event allows it (not passive)
-  if (e.cancelable) {
-    e.preventDefault();
-  }*/
-  return false;
-}
-
-/**
- * AI : Disable editing for an overlay
- * @param overlay - The overlay instance
- * @param element - The HTML element of the overlay
- */
-function disableOverlayEditing(overlay: L.DistortableImageOverlay, element: HTMLElement): void {
-  // Disable editing
-  element.style.cursor = 'not-allowed';
-
-  // We'll keep pointer-events enabled so clicks work, but block specific events that would cause movement
-  element.addEventListener('mousedown', blockMovementEvent, true);
-  element.addEventListener('touchstart', blockMovementEvent, { capture: true, passive: true });
-  element.addEventListener('dragstart', blockMovementEvent, true);
-
-  if (overlay.off) {
-    overlay.off('mousedown');
-    overlay.off('touchstart');
-    overlay.off('dragstart');
-    overlay.off('drag');
-    overlay.off('dragend');
-    // Do NOT remove 'click' as we need it for toolbar
-  }
-}
-
-/**
- * AI : Enable editing for an overlay
- */
-function enableOverlayEditing(overlay: L.DistortableImageOverlay, element: HTMLElement): void {
-  // AI : Remove disabled styling
-  element.style.cursor = '';
-
-  // AI : Remove event listeners that block editing
-  element.removeEventListener('mousedown', blockMovementEvent, true);
-  element.removeEventListener('touchstart', blockMovementEvent, { capture: true });
-  element.removeEventListener('dragstart', blockMovementEvent, true);
 }
 
 /**

@@ -1,6 +1,4 @@
 import { useI18n as useVueI18n } from 'vue-i18n'
-import { type Ref } from 'vue'
-import type { Locale } from '../locales'
 
 // AI : Composable for i18n with type safety
 export function useI18n() {
@@ -8,7 +6,7 @@ export function useI18n() {
   
   return {
     ...i18n,
-    locale: i18n.locale as Ref<Locale>,
+    locale: i18n.locale,
     t: i18n.t,
     tm: i18n.tm,
     rt: i18n.rt,
