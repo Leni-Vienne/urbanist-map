@@ -8,68 +8,35 @@ export function getOverlayMarkerColor(
   overlayData: OverlayObject | CDNOverlayData,
   mode: 'edit' | 'view'
 ): MarkerColor {
-
   if (mode === 'edit') {
-    // AI : Edit mode - show different colors based on overlay state
-
-    // AI : Check if this is a replacement overlay first (highest priority)
-    if (overlayData.replacesOverlayId) {
-      return 'purple';
-    }
-
-    // AI : Check if overlay was loaded from CDN or has been saved to backend
-    const isRemoteOverlay = overlayData.project !== undefined ||
-      ('savedRemotely' in overlayData && overlayData.savedRemotely);
-
-    // AI : Check if overlay has been modified locally
-    const hasBeenModified = 'isModified' in overlayData ? overlayData.isModified : false;
-
-    if (isRemoteOverlay && !hasBeenModified) {
-      // AI : Remote overlay, not modified = green
-      return 'green';
-    } else if (isRemoteOverlay && hasBeenModified) {
-      // AI : Remote overlay, modified locally = orange
-      return 'orange';
-    } else if (!isRemoteOverlay && hasBeenModified) {
-      // AI : Local overlay with changes = red
-      return 'red';
-    } else {
-      // AI : New overlay, no changes = blue
-      return 'blue';
-    }
-  } else {
-    // AI : View mode - check for proposed project first (yellow), then construction timeline colors
-    let proposalDate: Date | null | undefined = null;
-    let startDate: Date | null | undefined = null;
-    let endDate: Date | null | undefined = null;
-
-    if (overlayData.project) {
-      proposalDate = overlayData.project.proposalDate;
-      startDate = overlayData.project.startDate;
-      endDate = overlayData.project.endDate;
-    } else if ('proposalDate' in overlayData && 'startDate' in overlayData && 'endDate' in overlayData) {
-      proposalDate = (overlayData as { proposalDate?: Date | null }).proposalDate;
-      startDate = (overlayData as { startDate?: Date | null }).startDate;
-      endDate = (overlayData as { endDate?: Date | null }).endDate;
-    }
-
-    // AI : If project has proposal date but no start date, it's still in proposal phase
-    if (proposalDate && !startDate) {
-      return 'yellow';
-    }
-
-    // AI : Otherwise use existing construction timeline logic
-    const now = new Date();
-    const start = startDate ? new Date(startDate) : null;
-    const end = endDate ? new Date(endDate) : null;
+    if (overlayData.replacesOverlayId) return 'purple'; // Overlay is a replacement for another overlay
     
-    if (start && start > now) {
-      return 'green';
-    } else if (start && start <= now && (!end || end > now)) {
-      return 'orange';
-    } else if (end && end <= now) {
-      return 'grey';
+    const isRemoteOverlay = overlayData.project !== undefined || 
+      ('savedRemotely' in overlayData && overlayData.savedRemotely);
+    const hasBeenModified = 'isModified' in overlayData ? overlayData.isModified : false;
+    
+    if (!isRemoteOverlay) {
+      return 'red'; // Local overlay not saved remotely, meaning brand new
     }
-    return 'grey';
+    
+    if (hasBeenModified) return 'orange'; // Remote overlay with unsaved changes
+    return 'green'; // saved remotely and unmodified
   }
+  
+  const project = overlayData.project;
+  if (!project) return 'grey'; // No associated project
+  
+  const { proposalDate, startDate, endDate } = project;
+  
+  if (proposalDate && !startDate) return 'yellow'; // Proposed but not started
+  if (!startDate) return 'grey'; // TODO No start date, shouldn't happen?
+  
+  const now = new Date();
+  const start = new Date(startDate);
+  const end = endDate ? new Date(endDate) : null;
+  
+  if (start > now) return 'green'; // Upcoming
+  if (end && end <= now) return 'grey'; // Completed
+  return 'orange'; // Ongoing
 }
+

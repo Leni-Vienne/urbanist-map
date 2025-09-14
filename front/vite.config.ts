@@ -73,7 +73,8 @@ export default defineConfig({
       'primevue/ripple',
       'primevue/tooltip',
       'primevue/toastservice',
-      'primevue/usetoast'
+      'primevue/usetoast',
+      'primevue/drawer'
     ]
   },
   // AI : External leaflet to prevent bundling 
