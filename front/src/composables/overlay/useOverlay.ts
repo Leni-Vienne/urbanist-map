@@ -91,7 +91,8 @@ export function updateOverlayEditingState(): void {
  * AI : Create a new overlay object from saved data
  */
 export function createOverlayObject(savedOverlay: OverlayObject): OverlayObject {
-  const project = savedOverlay.projectId ? projects.value[savedOverlay.projectId] : null;
+  // AI : Prefer the project data already on the overlay object, fallback to projects store
+  const project = savedOverlay.project || (savedOverlay.projectId ? projects.value[savedOverlay.projectId] : null);
 
   // AI : Use factory function but preserve existing data
   return createOverlayInstance({
