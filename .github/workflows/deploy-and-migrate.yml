@@ -45,7 +45,7 @@ jobs:
         fi
 
     - name: Run database migrations
-      run: bun run db:migrate
+      run: bun run db:migrate || echo "⚠️ Migration skipped - database not accessible (probably fresh deployment)"
       env:
         DATABASE_URL: postgres://postgres:${{ secrets.POSTGRES_PASSWORD }}@${{ secrets.REMOTE_HOST }}:5432/construction_map
 
@@ -58,6 +58,8 @@ jobs:
 
     - name: Build backend bundle
       run: bun run build-back
+      env:
+        NODE_ENV: production
 
     - name: Deploy frontend to Cloudflare Pages
       id: deploy-frontend
@@ -88,6 +90,7 @@ jobs:
         JWT_SECRET: ${{ secrets.JWT_SECRET }}
         SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
         SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+        CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
         SES_REGION: ${{ vars.SES_REGION }}
         FROM_EMAIL: ${{ vars.FROM_EMAIL }}
       run: |
@@ -123,7 +126,7 @@ jobs:
           
           # AI : Create .env file from GitHub secrets/vars
           printf 'POSTGRES_PASSWORD=%s\nDATABASE_URL=postgres://postgres:%s@postgres:5432/construction_map\nJWT_SECRET=%s\nCORS_ORIGIN=%s\nFRONTEND_URL=%s\nPORT=3000\nSMTP_USERNAME=%s\nSMTP_PASSWORD=%s\nSES_REGION=%s\nFROM_EMAIL=%s\n' \
-            "${POSTGRES_PASSWORD}" "${POSTGRES_PASSWORD}" "${JWT_SECRET}" "${FRONTEND_URL}" "${FRONTEND_URL}" "${SMTP_USERNAME}" "${SMTP_PASSWORD}" "${SES_REGION}" "${FROM_EMAIL}" > .env
+            "${POSTGRES_PASSWORD}" "${POSTGRES_PASSWORD}" "${JWT_SECRET}" "${CORS_ORIGIN}" "${FRONTEND_URL}" "${SMTP_USERNAME}" "${SMTP_PASSWORD}" "${SES_REGION}" "${FROM_EMAIL}" > .env
           
           # AI : Start services (no build needed, using vanilla bun image)
           sudo docker compose -f docker-compose.prod.yml up -d

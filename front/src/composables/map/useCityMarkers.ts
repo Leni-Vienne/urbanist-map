@@ -726,7 +726,7 @@ export function handleEditModeExit() {
   // AI : Force re-render overlays to show original backend positions instead of modified ones
   // AI : Check if we have a current city with cached data
   if (latestClickedCity.value && hasCachedCityProjectsData(latestClickedCity.value.id)) {
-    const overlaysData = getCachedCityProjectsData(latestClickedCity.value.id)!;;
+    const overlaysData = getCachedCityProjectsData(latestClickedCity.value.id)!;
 
     // AI : Clear all current overlays first
     clearAllOverlays();

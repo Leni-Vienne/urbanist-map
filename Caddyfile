@@ -1,17 +1,12 @@
-# AI : Caddy reverse proxy configuration for construction-map
-:80 {
-    # AI : Proxy all requests to backend container
+api.constructionmap.org {
     reverse_proxy backend:3000 {
-        # AI : Health check
         health_uri /api/health
         health_interval 30s
         health_timeout 10s
     }
-    
-    # AI : Enable compression
+
     encode zstd gzip
-    
-    # AI : Access logging
+
     log {
         output stdout
         format console
