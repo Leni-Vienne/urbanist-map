@@ -6,7 +6,7 @@ let env = process.env;
 
 const envSchema = z.object({
   DATABASE_URL: z.url(),
-  CORS_ORIGIN: z.url(),
+  CORS_ORIGIN: z.string(),
   PORT: z.coerce.number().default(3000),
 });
 

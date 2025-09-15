@@ -15,7 +15,7 @@ const publishProjectSchema = z.object({
   endDate: z.string().optional(),
   sourceUrl: z.url().optional(),
   latestUpdateOn: z.string().optional()
-});;
+});
 
 export const projectRouter = router({
   publishProject: protectedProcedure

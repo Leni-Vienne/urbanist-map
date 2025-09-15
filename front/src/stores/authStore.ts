@@ -24,9 +24,17 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       loading.value = true
       
-      // AI : Try to get current user from server (will use cookies)
-      const result = await trpc.auth.me.query()
-      user.value = result.user
+      // AI : Try to get current user from server (will use session cookies)
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/check-session`, {
+        credentials: 'include'
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        user.value = result.user
+      } else {
+        user.value = null
+      }
     } catch (error) {
       console.error('Error initializing auth:', error)
       user.value = null
@@ -62,26 +70,37 @@ export const useAuthStore = defineStore('auth', () => {
   // AI : Sign in with email and password
   async function signIn(email: string, password: string) {
     try {
-      const result = await trpc.auth.login.mutate({
-        email,
-        password,
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+        credentials: 'include'
       })
 
-      if (result.success) {
-        user.value = result.user
-      }
+      const result = await response.json()
 
-      return {
-        success: result.success,
-        user: result.user,
-        error: result.success ? null : result.message
+      if (response.ok && result.success) {
+        user.value = result.user
+        return {
+          success: true,
+          user: result.user,
+          error: null
+        }
+      } else {
+        return {
+          success: false,
+          user: null,
+          error: result.error ?? result.message ?? 'Login failed'
+        }
       }
     } catch (error: unknown) {
       console.error('Sign in error:', error)
       return { 
         success: false, 
         user: null, 
-        error:  error instanceof Error ? error.message : 'Login failed'
+        error: error instanceof Error ? error.message : 'Login failed'
       }
     }
   }
@@ -98,14 +117,24 @@ export const useAuthStore = defineStore('auth', () => {
   // AI : Sign out
   async function signOut() {
     try {
-      await trpc.auth.logout.mutate()
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/logout`, {
+        method: 'POST',
+        credentials: 'include'
+      })
+
       user.value = null
-      return { success: true, error: null }
+
+      if (response.ok) {
+        return { success: true, error: null }
+      } else {
+        const result = await response.json()
+        return { success: false, error: result.error ?? 'Logout failed' }
+      }
     } catch (error: unknown) {
       console.error('Sign out error:', error)
       // AI : Clear local data even if server logout fails
       user.value = null
-      return { success: false, error:  error instanceof Error ? error.message : 'Logout failed' }
+      return { success: false, error: error instanceof Error ? error.message : 'Logout failed' }
     }
   }
 

@@ -2,10 +2,9 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import crypto from 'crypto';
 import { eq, gt } from 'drizzle-orm';
-import { publicProcedure, router, protectedProcedure } from '../trpc';
+import { publicProcedure, router } from '../trpc';
 import { db } from '../database';
 import { users } from '../db/schema';
-import { setCookie, deleteCookie } from 'hono/cookie';
 import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 
 // AI : Validation schemas
@@ -15,10 +14,6 @@ const registerSchema = z.object({
   username: z.string().min(7).max(50),
 });
 
-const loginSchema = z.object({
-  email: z.email(),
-  password: z.string(),
-});
 
 const resetPasswordRequestSchema = z.object({
   email: z.email(),
@@ -304,89 +299,6 @@ export const authRouter = router({
       }
     }),
 
-  // AI : User login
-  login: publicProcedure
-    .input(loginSchema)
-    .mutation(async ({ input, ctx }) => {
-      try {
-        const { email, password } = input;
-
-        // AI : Find user
-        const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-        if (!user) {
-          throw new TRPCError({
-            code: 'UNAUTHORIZED',
-            message: 'Invalid email or password',
-          });
-        }
-
-        // AI : Verify password with Bun
-        const isValidPassword = await Bun.password.verify(password, user.passwordHash);
-        if (!isValidPassword) {
-          throw new TRPCError({
-            code: 'UNAUTHORIZED',
-            message: 'Invalid email or password',
-          });
-        }
-
-        // AI : Check if email is verified
-        if (!user.emailVerified) {
-          throw new TRPCError({
-            code: 'FORBIDDEN',
-            message: 'Please verify your email before logging in',
-          });
-        }
-
-        // AI : Set secure cookie with user ID
-        if (ctx.hono) {
-          setCookie(ctx.hono, 'user_id', user.id, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production', // AI : Only secure in production (HTTPS)
-            sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax', // AI : None for cross-domain in prod, Lax for dev
-            maxAge: 60 * 60 * 24 * 30, // AI : 30 days
-          });
-        }
-
-        return {
-          success: true,
-          message: 'Logged in successfully',
-          user: {
-            id: user.id,
-            email: user.email,
-            username: user.username,
-            role: user.role,
-            emailVerified: user.emailVerified,
-          },
-        };
-      } catch (error) {
-        if (error instanceof TRPCError) {
-          throw error;
-        }
-        console.error('Login error:', error);
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Login failed',
-        });
-      }
-    }),
-
-  // AI : User logout
-  logout: publicProcedure
-    .mutation(({ ctx }) => {
-      try {
-        // AI : Clear the user cookie
-        if (ctx.hono) {
-          deleteCookie(ctx.hono, 'user_id');
-        }
-        return { success: true, message: 'Logged out successfully' };
-      } catch (error) {
-        console.error('Logout error:', error);
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Logout failed',
-        });
-      }
-    }),
 
   // AI : Verify email
   verifyEmail: publicProcedure
@@ -541,18 +453,5 @@ export const authRouter = router({
       }
     }),
 
-  // AI : Get current user
-  me: protectedProcedure
-    .query(({ ctx }) => {
-      return {
-        user: ctx.user ? {
-          id: ctx.user.id,
-          email: ctx.user.email,
-          username: ctx.user.username,
-          role: ctx.user.role,
-          emailVerified: ctx.user.emailVerified,
-        } : null,
-      };
-    }),
 
-});;
+});

@@ -72,9 +72,8 @@ export const overlays = pgTable('overlays', {
   projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
   authorId: uuid('author_id').references(() => users.id, { onDelete: 'set null', onUpdate: 'cascade' }),
   replacesOverlayId: uuid('replaces_overlay_id'), // AI : Reference to the overlay this replaces (self-reference added via relations)
-  metadata: jsonb('metadata'), // pour EXIF, etc.
+  metadata: jsonb('metadata'),
 
-  // Coordonnées des 4 coins (séparées)
   topLeftLat: doublePrecision('top_left_lat').notNull(),
   topLeftLng: doublePrecision('top_left_lng').notNull(),
   topRightLat: doublePrecision('top_right_lat').notNull(),

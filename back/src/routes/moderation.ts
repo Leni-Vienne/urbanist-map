@@ -10,7 +10,7 @@ import { db } from '../database';
 const setApprovalStatusSchema = z.object({
   id: z.string().uuid(),
   status: z.enum(approvalStatusEnum.enumValues),
-});;
+});
 
 // AI : Schema for version-aware approval to prevent race conditions
 // Supports arrays but frontend only sends single items for individual approval/rejection
@@ -18,7 +18,7 @@ const setApprovalStatusWithVersionSchema = z.object({
   id: z.string().uuid(),
   expectedVersion: z.number().int(),
   status: z.enum(approvalStatusEnum.enumValues),
-});;
+});
 
 export const moderationRouter = router({
     getPendingSubmissions: adminProcedure
