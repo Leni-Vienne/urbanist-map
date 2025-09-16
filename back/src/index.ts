@@ -30,8 +30,6 @@ const app = new Hono<{
 
 const storage = new LocalFileStorage()
 
-console.log("cors : ", config.CORS_ORIGIN.split(",") ?? [])
-
 app.use('*', cors({
     origin: config.CORS_ORIGIN.split(",") ?? [], // to allow for single env with multiple origins
     credentials: true
@@ -59,8 +57,6 @@ app.use('/trpc/*', trpcServer({
     router: appRouter,
     createContext(_opts: FetchCreateContextFnOptions, c: Context) {
         const session = c.get('session');
-        console.log("🍪 Cookie header:", c.req.header('cookie'));
-        console.log("📊 Session data:", session.get('user'));
         return {
             user: session.get('user') ?? null,
             session,
