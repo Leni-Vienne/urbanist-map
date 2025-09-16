@@ -158,7 +158,7 @@ describe('Race Condition Prevention Tests', () => {
       const adminCaller = moderationRouter.createCaller(createAdminContext(testAdmin.id))
       
       // AI : Simulate multiple rapid approval attempts
-      const approvalPromises = Array(10).fill(null).map(() =>
+      const approvalPromises = Array(10).fill(null).map(async () =>
         adminCaller.setProjectApprovalStatusWithVersion({
           id: project.id,
           expectedVersion: 1,

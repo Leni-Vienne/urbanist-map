@@ -230,11 +230,11 @@ export function useModeration() {
   }
 
   const approveProject = async (id: string): Promise<ApprovalResult> => {
-    return await setProjectStatus(id, 'approved')
+    return setProjectStatus(id, 'approved')
   }
 
   const rejectProject = async (id: string): Promise<ApprovalResult> => {
-    return await setProjectStatus(id, 'rejected')
+    return setProjectStatus(id, 'rejected')
   }
 
   return {
