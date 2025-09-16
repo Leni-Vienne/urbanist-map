@@ -58,7 +58,15 @@ export function initializeMap() {
     ...(isMobile && {
       zoomSnap: 0,
       zoomDelta: 0.1,
+      // AI : Enable inertia for smooth momentum on all interactions
+      inertia: true,
+      inertiaDeceleration: 2400, // slightly slower deceleration for smoother feel
+      inertiaMaxSpeed: 1500, // reasonable max speed limit
+      // AI : Enable bouncing at zoom limits for better UX
+      bounceAtZoomLimits: true,
     }),
+    // AI : Configure touch zoom to always zoom to center for consistent behavior
+    touchZoom: isMobile ? 'center' : true,
     // to have double tag + drag zoom on mobile, using Leaflet.DoubleTapDragZoom package. Doesn't seem to work
     doubleTapDragZoom: 'center',
     doubleTapDragZoomOptions: {
