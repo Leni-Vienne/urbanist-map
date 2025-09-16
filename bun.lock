@@ -12,6 +12,7 @@
         "hono": "^4.9.6",
         "hono-sessions": "^0.8.0",
         "leaflet-distortableimage": "Leni-vienne/Leaflet.DistortableImage",
+        "leaflet-doubletapdrag": "^0.1.2",
         "leaflet-doubletapdragzoom": "^0.3.2",
         "leaflet-toolbar": "^0.4.0-alpha.2",
         "nodemailer": "^7.0.6",
