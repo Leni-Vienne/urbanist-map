@@ -1,4 +1,5 @@
 import L from "leaflet";
+import 'leaflet-doubletapdrag';
 import 'leaflet-doubletapdragzoom';
 import { ref, shallowRef } from 'vue';
 import { debounce } from '../../utils';
@@ -47,10 +48,17 @@ const debouncedUpdateMapSize = debounce(function () {
 }, 250);
 
 export function initializeMap() {
+  // AI : Detect mobile device for conditional zoom settings
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
   map.value = L.map("viewerDiv", {
     maxZoom: 22,
     zoomControl: false, // because we have our own zoom control
+    // AI : Enable smooth zoom with no snapping only on mobile
+    ...(isMobile && {
+      zoomSnap: 0,
+      zoomDelta: 0.1,
+    }),
     // to have double tag + drag zoom on mobile, using Leaflet.DoubleTapDragZoom package. Doesn't seem to work
     doubleTapDragZoom: 'center',
     doubleTapDragZoomOptions: {
@@ -59,8 +67,6 @@ export function initializeMap() {
   }).setView([22, 10], 3);
   if (!map.value) throw new Error('No map element found');
 
-  // TODO : may be temporary, prevents click + drag on overlay (needed to move it) from zooming in
-  map.value.doubleClickZoom.disable()
   // AI : Initialize reactive zoom level with Leaflet's default
   currentZoomLevel.value = map.value.getZoom();
 
