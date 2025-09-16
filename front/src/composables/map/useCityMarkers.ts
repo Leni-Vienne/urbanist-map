@@ -60,9 +60,6 @@ const cityProjectsCache = new Map<string, CDNOverlayData[]>();
 // AI : Separate cache for edit mode modifications (keeps original cache pristine)
 const editModeOverlayCache = new Map<string, { corners: { lat: number, lng: number }[], isModified: boolean }>();
 
-// AI : Mouse tooltip element for guidance
-let mouseTooltip: HTMLElement | null = null;
-
 // AI : Track the currently selected (clicked) city marker
 let selectedCityMarker: L.Marker | null = null;
 
@@ -237,8 +234,6 @@ export function removeCityMarkers(): void {
   if (cityMarkersLayer && map.value?.hasLayer(cityMarkersLayer)) {
     map.value.removeLayer(cityMarkersLayer);
     cityMarkersLayer = null;
-    // AI : Hide tooltip when removing markers
-    hideMouseTooltip();
   }
 }
 
@@ -321,23 +316,15 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
     });
 
     // AI : Add mouseover event to show guidance tooltip and increase marker opacity
-    marker.on('mouseover', (event) => {
-      createMouseTooltip();
-      showMouseTooltip(event.originalEvent);
+    marker.on('mouseover', () => {
       // AI : Only increase opacity if not selected
       if (selectedCityMarker !== marker) {
         marker.setOpacity(CITY_MARKER_HOVER_OPACITY);
       }
     });
 
-    // AI : Add mousemove event to update tooltip position
-    marker.on('mousemove', (event) => {
-      updateMouseTooltipPosition(event.originalEvent);
-    });
-
     // AI : Add mouseout event to hide guidance tooltip and reset marker opacity if not selected
     marker.on('mouseout', () => {
-      hideMouseTooltip();
       // AI : Only reset opacity if not selected
       if (selectedCityMarker !== marker) {
         marker.setOpacity(CITY_MARKER_OPACITY);
@@ -378,59 +365,6 @@ function getOverlayDataWithEditModifications(overlayData: CDNOverlayData): CDNOv
   }
 
   return overlayData; // AI : No modifications found
-}
-
-/**
- * AI : Create and initialize mouse tooltip element
- */
-function createMouseTooltip(): void {
-  if (mouseTooltip) return;
-
-  mouseTooltip = document.createElement('div');
-  mouseTooltip.style.cssText = `
-    position: fixed;
-    background: rgba(0, 0, 0, 0.8);
-    color: white;
-    padding: 8px 12px;
-    border-radius: 4px;
-    font-size: 14px;
-    z-index: 10000;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    white-space: nowrap;
-  `;
-  mouseTooltip.textContent = 'Click on a city marker to view its projects';
-  document.body.appendChild(mouseTooltip);
-}
-
-/**
- * AI : Show mouse tooltip at cursor position
- */
-function showMouseTooltip(event: MouseEvent): void {
-  if (!mouseTooltip) return;
-
-  mouseTooltip.style.left = event.clientX + 15 + 'px';
-  mouseTooltip.style.top = event.clientY - 10 + 'px';
-  mouseTooltip.style.opacity = '1';
-}
-
-/**
- * AI : Hide mouse tooltip
- */
-function hideMouseTooltip(): void {
-  if (!mouseTooltip) return;
-  mouseTooltip.style.opacity = '0';
-}
-
-/**
- * AI : Update mouse tooltip position on mouse move
- */
-function updateMouseTooltipPosition(event: MouseEvent): void {
-  if (!mouseTooltip || mouseTooltip.style.opacity === '0') return;
-
-  mouseTooltip.style.left = event.clientX + 15 + 'px';
-  mouseTooltip.style.top = event.clientY - 10 + 'px';
 }
 
 /**

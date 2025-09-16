@@ -92,7 +92,7 @@ export class MapTestHelpers {
   /**
    * AI : Get current map center coordinates (simplified)
    */
-  async getMapCenter(): Promise<{ lat: number; lng: number } | null> {
+  getMapCenter(): { lat: number; lng: number } | null {
     // AI : Simplified for testing - just verify map is interactive
     return { lat: 49.0, lng: -1.0 }; // Mock center for testing
   }

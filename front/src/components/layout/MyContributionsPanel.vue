@@ -29,7 +29,7 @@
       <!-- AI : Add overlay button when no projects exist -->
       <Button
         v-if="projects.length === 0"
-        @click="handleAddOverlayButtonClick"
+        @click="handleAddOverlayClick"
         aria-label="Add Image Overlay"
         severity="secondary"
         class="add-overlay-button"
@@ -63,13 +63,10 @@
 import { ref, onMounted, computed } from 'vue'
 import Checkbox from 'primevue/checkbox'
 import Button from 'primevue/button'
+import { useAddOverlay } from '@composables/overlay/useAddOverlay'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
-import { useAuthStore } from '@stores/authStore'
-import { useUiStore } from '@stores/uiStore'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useToast } from '@composables/ui/useToast'
-import { toggleEditMode } from '@composables/overlay/useOverlayModes'
-import { handleEditModeExit } from '@composables/map/useCityMarkers'
 import { useChangeRequests } from '@composables/changes/useChangeRequests'
 import { useUserContributions } from '@composables/project/useUserContributions'
 import { storeToRefs } from 'pinia'
@@ -80,9 +77,30 @@ const { projects, isLoading, fetchUserContributions } = useUserContributions()
 const showApprovedRejected = ref(false)
 
 // AI : Stores
-const authStore = useAuthStore()
-const uiStore = useUiStore()
 const overlayStore = useOverlayStore()
+const { handleAddOverlayButtonClick } = useAddOverlay()
+
+function handleAddOverlayClick() {
+  const result = handleAddOverlayButtonClick()
+  
+  if (result.success) {
+    if (result.action === 'edit_mode_enabled') {
+      toast.add({
+        severity: 'info',
+        summary: 'Switched to Edit Mode',
+        detail: 'Click the button again to add an overlay',
+        life: 4000
+      })
+    }
+  } else if (result.reason === 'edit_mode_error') {
+    toast.add({
+      severity: 'error',
+      summary: 'Mode Switch Error',
+      detail: 'Failed to switch mode. Please try again.',
+      life: 3000
+    })
+  }
+}
 const toast = useToast()
 
 // AI : Change requests functionality
@@ -106,38 +124,6 @@ onMounted(() => {
   refreshPendingChangeRequests()
 })
 
-// AI : Handle add overlay button click - same logic as MapControls
-async function handleAddOverlayButtonClick() {
-  if (!authStore.isAuthenticated) {
-    uiStore.openAuthModal()
-    return
-  }
-
-  if (!(isEditMode?.value ?? false)) {
-    // AI : Enable edit mode first if currently in view mode
-    try {
-      await toggleEditMode(handleEditModeExit)
-      // AI : Show toast notification to inform user about mode switch
-      toast.add({
-        severity: 'info',
-        summary: 'Switched to Edit Mode',
-        detail: 'Click the button again to add an overlay',
-        life: 4000
-      })
-    } catch (error) {
-      console.error('AI : Error toggling edit mode:', error)
-      toast.add({
-        severity: 'error',
-        summary: 'Mode Switch Error',
-        detail: 'Failed to switch mode. Please try again.',
-        life: 3000
-      })
-    }
-  } else {
-    // AI : Already in edit mode, open the dialog
-    uiStore.openImageUploadDialog()
-  }
-}
 </script>
 
 <style scoped>

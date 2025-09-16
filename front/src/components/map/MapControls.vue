@@ -27,7 +27,8 @@
     <div class="buttons-stacked">
 
       <Button
-        @click="handleAddOverlayButtonClick"
+        v-if="authStore.isAuthenticated"
+        @click="handleAddOverlayClick"
         @dblclick.stop
         raised
         aria-label="Add Image Overlay"
@@ -146,11 +147,34 @@ import { useCompletionFilters } from '@composables/overlay/useCompletionFilters'
 import { createButtonSVG } from '@composables/ui/markerIcons';
 import { map } from '@composables/core/useMap';
 import LayerControl from '@components/map/LayerControl.vue';
+import { useAddOverlay } from '@composables/overlay/useAddOverlay';
 
 const authStore = useAuthStore();
 const overlayStore = useOverlayStore();
-const uiStore = useUiStore();
 const toast = useToast();
+const { handleAddOverlayButtonClick } = useAddOverlay();
+
+function handleAddOverlayClick() {
+  const result = handleAddOverlayButtonClick();
+  
+  if (result.success) {
+    if (result.action === 'edit_mode_enabled') {
+      toast.add({
+        severity: 'info',
+        summary: 'Switched to Edit Mode',
+        detail: 'Click the button again to add an overlay',
+        life: 4000
+      });
+    }
+  } else if (result.reason === 'edit_mode_error') {
+    toast.add({
+      severity: 'error',
+      summary: 'Mode Switch Error',
+      detail: 'Failed to switch mode. Please try again.',
+      life: 3000
+    });
+  }
+}
 
 const { isEditMode } = storeToRefs(overlayStore);
 const { visibleCompletionStates, toggleFilter } = useCompletionFilters();
@@ -207,38 +231,6 @@ function handleModeToggle() {
   }
 }
 
-// AI : Handle add overlay button click - check auth first and handle edit mode logic
-async function handleAddOverlayButtonClick() {
-  if (!authStore.isAuthenticated) {
-    uiStore.openAuthModal();
-    return;
-  }
-
-  if (!(isEditMode?.value ?? false)) {
-    // AI : Enable edit mode first if currently in view mode
-    try {
-      await toggleEditMode(handleEditModeExit);
-      // AI : Show toast notification to inform user about mode switch
-      toast.add({
-        severity: 'info',
-        summary: 'Switched to Edit Mode',
-        detail: 'Click the button again to add an overlay',
-        life: 4000
-      });
-    } catch (error) {
-      console.error('AI : Error toggling edit mode:', error);
-      toast.add({
-        severity: 'error',
-        summary: 'Mode Switch Error',
-        detail: 'Failed to switch mode. Please try again.',
-        life: 3000
-      });
-    }
-  } else {
-    // AI : Already in edit mode, open the dialog
-    uiStore.openImageUploadDialog();
-  }
-}
 
 // AI : Toggle completion status filter
 async function toggleCompletionFilter(status: 'yellow' | 'green' | 'orange' | 'grey') {

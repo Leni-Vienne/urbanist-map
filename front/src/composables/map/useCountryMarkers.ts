@@ -28,9 +28,6 @@ const isLoadingCountryProjects = ref(false);
 
 let countryMarkersLayer: L.LayerGroup | null = null;
 
-// AI : Mouse tooltip element for guidance
-let countryMouseTooltip: HTMLElement | null = null;
-
 // AI : Track the currently selected (clicked) country marker
 let selectedCountryMarker: L.Marker | null = null;
 
@@ -152,23 +149,15 @@ function addCountryMarkersToMapInternal() {
     });
 
     // AI : Add mouseover event to show guidance tooltip and increase marker opacity
-    marker.on('mouseover', (event) => {
-      createCountryMouseTooltip();
-      showCountryMouseTooltip(event.originalEvent);
+    marker.on('mouseover', () => {
       // AI : Only increase opacity if not selected
       if (selectedCountryMarker !== marker) {
         marker.setOpacity(COUNTRY_MARKER_HOVER_OPACITY);
       }
     });
 
-    // AI : Add mousemove event to update tooltip position
-    marker.on('mousemove', (event) => {
-      updateCountryMouseTooltipPosition(event.originalEvent);
-    });
-
     // AI : Add mouseout event to hide guidance tooltip and reset marker opacity if not selected
     marker.on('mouseout', () => {
-      hideCountryMouseTooltip();
       // AI : Only reset opacity if not selected
       if (selectedCountryMarker !== marker) {
         marker.setOpacity(COUNTRY_MARKER_OPACITY);
@@ -182,59 +171,6 @@ function addCountryMarkersToMapInternal() {
 
   // AI : Reset selected marker when new markers are added
   selectedCountryMarker = null;
-}
-
-/**
- * AI : Create and initialize country mouse tooltip element
- */
-function createCountryMouseTooltip(): void {
-  if (countryMouseTooltip) return;
-
-  countryMouseTooltip = document.createElement('div');
-  countryMouseTooltip.style.cssText = `
-    position: fixed;
-    background: rgba(0, 0, 0, 0.8);
-    color: white;
-    padding: 8px 12px;
-    border-radius: 4px;
-    font-size: 14px;
-    z-index: 10000;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    white-space: nowrap;
-  `;
-  countryMouseTooltip.textContent = 'Click on a country marker to view its cities';
-  document.body.appendChild(countryMouseTooltip);
-}
-
-/**
- * AI : Show country mouse tooltip at cursor position
- */
-function showCountryMouseTooltip(event: MouseEvent): void {
-  if (!countryMouseTooltip) return;
-
-  countryMouseTooltip.style.left = event.clientX + 15 + 'px';
-  countryMouseTooltip.style.top = event.clientY - 10 + 'px';
-  countryMouseTooltip.style.opacity = '1';
-}
-
-/**
- * AI : Hide country mouse tooltip
- */
-function hideCountryMouseTooltip(): void {
-  if (!countryMouseTooltip) return;
-  countryMouseTooltip.style.opacity = '0';
-}
-
-/**
- * AI : Update country mouse tooltip position on mouse move
- */
-function updateCountryMouseTooltipPosition(event: MouseEvent): void {
-  if (!countryMouseTooltip || countryMouseTooltip.style.opacity === '0') return;
-
-  countryMouseTooltip.style.left = event.clientX + 15 + 'px';
-  countryMouseTooltip.style.top = event.clientY - 10 + 'px';
 }
 
 export async function initializeCountryMarkers(): Promise<void> {

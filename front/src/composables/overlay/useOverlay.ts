@@ -9,7 +9,6 @@ import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { storeToRefs } from 'pinia';
 import type { OverlayObject, CDNOverlayData, Project } from '@types';
-import type { BackendOverlay } from '../../types/api';
 import { createOverlay as createOverlayInstance, createOverlayFromCDN, transformBackendOverlayToCDN } from '../../utils/typeFactories';
 
 import { createColorIcon } from '@composables/ui/markerIcons';
@@ -1248,7 +1247,7 @@ async function loadAndNavigateToOverlay(overlayId: string, centerMap: boolean): 
 
     // AI : Render intersecting overlays if they exist
     if (result.intersectingOverlays.length > 0) {
-      const intersectingCdnOverlays = (result.intersectingOverlays as BackendOverlay[]).map(transformBackendOverlayToCDN);
+      const intersectingCdnOverlays = result.intersectingOverlays.map(transformBackendOverlayToCDN);
       renderViewModeOverlays(intersectingCdnOverlays, true, false);
     }
 
