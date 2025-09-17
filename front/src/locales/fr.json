@@ -49,6 +49,30 @@
     "inConstruction": "En construction",
     "completed": "Terminé"
   },
+  "help": {
+    "title": "Guide des contrôles",
+    "intro": "Voici un guide des différents boutons disponibles sur la carte pour vous aider à naviguer et interagir avec l'application.",
+    "gotIt": "J'ai compris !",
+    "dontShowAgain": "Ne plus afficher cette aide",
+    "zoom": {
+      "title": "Contrôles de zoom",
+      "in": "Zoomer (agrandir la vue)",
+      "out": "Dézoomer (réduire la vue)"
+    },
+    "edit": {
+      "title": "Outils d'édition",
+      "addOverlay": "Ajouter une nouvelle image de projet",
+      "viewMode": "Mode visualisation - Les projets sont en lecture seule",
+      "editMode": "Mode édition - Vous pouvez modifier et déplacer les projets"
+    },
+    "filters": {
+      "title": "Filtres de projets",
+      "proposed": "Afficher/masquer les projets proposés",
+      "planned": "Afficher/masquer les projets planifiés",
+      "inProgress": "Afficher/masquer les projets en cours",
+      "completed": "Afficher/masquer les projets terminés"
+    }
+  },
   "overlay": {
     "title": "Superpositions",
     "add": "Ajouter une superposition",

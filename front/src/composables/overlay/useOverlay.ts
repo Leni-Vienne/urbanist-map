@@ -689,6 +689,7 @@ function setupOverlayMovementTracking(overlay: L.DistortableImageOverlay, overla
       if (isManipulating) return;
       isManipulating = true;
 
+      // to make the marker follow the overlay being moved 
       const continuousUpdate = () => {
         if (isManipulating) {
           updateMarkerPosition(overlayObject);

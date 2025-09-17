@@ -1,9 +1,10 @@
 @import "tailwindcss";
-@import "tailwindcss-primeui"; /* doesn't seem useful? */
+@import "tailwindcss-primeui";
+/* doesn't seem useful? */
 
-/* AI : Override Tailwind's display: block for Leaflet toolbar icons */
+/* Override Tailwind's display: block for Leaflet toolbar icons */
 .leaflet-toolbar-icon svg {
-  display: inline !important;
+  display: inline;
 }
 
 /* to flip any icon */
@@ -12,4 +13,9 @@
   -moz-transform: scaleX(-1);
   -webkit-transform: scaleX(-1);
   -ms-transform: scaleX(-1);
+}
+
+/* making map background black to avoid white flash on load and on tilelayer change */
+#mapDiv {
+  background: black;
 }

@@ -49,6 +49,30 @@
     "inConstruction": "In Construction",
     "completed": "Completed"
   },
+  "help": {
+    "title": "Controls Guide",
+    "intro": "Here's a guide to the different buttons available on the map to help you navigate and interact with the application.",
+    "gotIt": "Got it!",
+    "dontShowAgain": "Don't show this help again",
+    "zoom": {
+      "title": "Zoom Controls",
+      "in": "Zoom in (enlarge the view)",
+      "out": "Zoom out (reduce the view)"
+    },
+    "edit": {
+      "title": "Editing Tools",
+      "addOverlay": "Add a new project image",
+      "viewMode": "View mode - Projects are read-only",
+      "editMode": "Edit mode - You can modify and move projects"
+    },
+    "filters": {
+      "title": "Project Filters",
+      "proposed": "Show/hide proposed projects",
+      "planned": "Show/hide planned projects",
+      "inProgress": "Show/hide in progress projects",
+      "completed": "Show/hide completed projects"
+    }
+  },
   "overlay": {
     "title": "Overlays",
     "add": "Add Overlay",
