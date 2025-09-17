@@ -13,7 +13,7 @@ export class MapTestHelpers {
   async waitForMapReady() {
     console.log('Waiting for map to be ready...');
     await this.page.waitForSelector('.leaflet-container');
-    await this.page.waitForSelector('.zoom-controls');
+    await this.page.waitForSelector('.map-buttons');
 
     // AI : Wait specifically for country markers to load (they should be the initial markers)
     console.log('Waiting for country markers to load...');
@@ -42,50 +42,31 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Get current map zoom level using Leaflet container access
+   * AI : Get current map zoom level using Leaflet API
    */
   async getCurrentZoom(): Promise<number | null> {
     return await this.page.evaluate(() => {
-      const container = document.querySelector('.leaflet-container') as any;
-      if (container && window.L) {
-        // AI : Access map through Leaflet's internal mechanisms
-        const leafletId = container._leaflet_id;
-        if (leafletId !== undefined) {
-          // AI : Try to find map via container properties
+      try {
+        // AI : Direct Leaflet container access (most reliable)
+        const container = document.querySelector('.leaflet-container') as any;
+        if (container?._leaflet_map?.getZoom) {
+          return container._leaflet_map.getZoom();
+        }
+
+        // AI : Search through container properties (fallback)
+        if (container) {
           for (const prop in container) {
-            if (container[prop] && typeof container[prop].getZoom === 'function') {
+            if (container[prop]?.getZoom) {
               return container[prop].getZoom();
             }
           }
-
-          // AI : Try accessing via window properties
-          for (const key in window as any) {
-            if ((window as any)[key] && typeof (window as any)[key].getZoom === 'function') {
-              return (window as any)[key].getZoom();
-            }
-          }
         }
-      }
 
-      // AI : Fallback: estimate zoom from scale bar
-      const scaleText = document.querySelector('.leaflet-control-scale-line')?.textContent;
-      if (scaleText) {
-        const kmMatch = scaleText.match(/(\d+)\s*km/);
-        if (kmMatch) {
-          const km = parseInt(kmMatch[1]);
-          // AI : Rough zoom estimation based on scale
-          if (km >= 5000) return 3;
-          if (km >= 1000) return 5;
-          if (km >= 500) return 7;
-          if (km >= 200) return 9;
-          if (km >= 100) return 10;
-          if (km >= 50) return 11;
-          if (km >= 20) return 12;
-          return 13;
-        }
+        return null;
+      } catch (error) {
+        console.error('Error getting zoom level:', error);
+        return null;
       }
-
-      return null;
     });
   }
 
@@ -98,14 +79,13 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Zoom to a specific level using zoom buttons
-   */
-  /**
    * AI : Zoom to a specific level using scroll wheel at current cursor position
    */
   async zoomToLevel(targetZoom: number) {
     const maxAttempts = 15;
     let attempts = 0;
+    let lastZoom = null;
+    let stableCount = 0;
 
     while (attempts < maxAttempts) {
       const currentZoom = await this.getCurrentZoom();
@@ -114,16 +94,32 @@ export class MapTestHelpers {
         break;
       }
 
+      // AI : Check if we've reached the target (with tolerance)
       if (Math.abs(currentZoom - targetZoom) <= 0.5) {
-        break; // AI : Close enough
+        console.log(`Reached target zoom: ${currentZoom} (target: ${targetZoom})`);
+        break;
       }
 
+      // AI : Detect if zoom is stable (not changing) to avoid infinite loops
+      if (lastZoom !== null && Math.abs(currentZoom - lastZoom) < 0.1) {
+        stableCount++;
+        if (stableCount >= 3) {
+          console.log(`Zoom appears stable at ${currentZoom}, stopping attempts`);
+          break;
+        }
+      } else {
+        stableCount = 0;
+      }
+      lastZoom = currentZoom;
+
       const zoomDiff = targetZoom - currentZoom;
-      const deltaY = zoomDiff > 0 ? -200 : 200; // AI : Negative for zoom in, positive for zoom out
+      
+      // AI : Use smaller steps to avoid overshooting
+      const steps = Math.min(Math.abs(zoomDiff), 2); // Max 2 levels per step
+      const deltaY = zoomDiff > 0 ? -100 * steps : 100 * steps; // Negative for zoom in
 
       // AI : Get current mouse position or use map center
       const mousePos = await this.page.evaluate(() => {
-        // AI : Try to get last known mouse position or use map center
         const mapContainer = document.querySelector('.leaflet-container');
         if (mapContainer) {
           const rect = mapContainer.getBoundingClientRect();
@@ -132,7 +128,7 @@ export class MapTestHelpers {
             y: rect.top + rect.height / 2
           };
         }
-        return { x: 500, y: 400 }; // AI : Fallback position
+        return { x: 500, y: 400 };
       });
 
       // AI : Dispatch scroll wheel event at cursor position
@@ -150,10 +146,13 @@ export class MapTestHelpers {
         }
       }, { x: mousePos.x, y: mousePos.y, delta: deltaY });
 
-      await this.page.waitForTimeout(300);
+      await this.page.waitForTimeout(400); // AI : Longer wait for zoom to settle
       attempts++;
     }
 
+    // AI : Final verification
+    const finalZoom = await this.getCurrentZoom();
+    console.log(`Final zoom after ${attempts} attempts: ${finalZoom} (target: ${targetZoom})`);
     await this.page.waitForTimeout(500);
   }
 
@@ -281,7 +280,7 @@ export class MapTestHelpers {
       await this.page.mouse.move(centerX, centerY);
       await this.page.waitForTimeout(200);
       await this.page.mouse.click(centerX, centerY);
-      await this.page.waitForTimeout(500);
+      await this.page.waitForTimeout(200);
 
       return true;
     } catch (error) {
@@ -377,7 +376,7 @@ export class MapTestHelpers {
       // AI : Click the marker at its NEW position after zooming
       console.log('Clicking country marker at new position...');
       await this.page.mouse.click(newCenterX, newCenterY);
-      await this.page.waitForTimeout(800);
+      await this.page.waitForTimeout(200);
 
       console.log('Country marker click completed');
       return true;
@@ -399,7 +398,7 @@ export class MapTestHelpers {
         const markers = document.querySelectorAll('[data-testid^="city-marker-"]');
         console.log(`Found ${markers.length} city markers`);
         return markers.length > 0;
-      }, { timeout: 10000 });
+      }, { timeout: 1000 });
       
       const markers = this.page.locator('[data-testid^="city-marker-"]');
       const markerCount = await markers.count();
@@ -431,7 +430,7 @@ export class MapTestHelpers {
       // AI : Click the city marker first
       console.log('Clicking city marker...');
       await this.page.mouse.click(initialCenterX, initialCenterY);
-      await this.page.waitForTimeout(500);
+      await this.page.waitForTimeout(200);
       
       // AI : Get current zoom before zooming
       const currentZoom = await this.getCurrentZoom();
@@ -439,8 +438,8 @@ export class MapTestHelpers {
       
       // AI : Zoom to level 13 AT THE CITY MARKER POSITION (updating position after each zoom)
       console.log('Zooming to level 13 at city marker position...');
-      const targetZoom = 13;
-      const maxAttempts = 15;
+      const targetZoom = 14;
+      const maxAttempts = 25;
       let attempts = 0;
       
       while (attempts < maxAttempts) {
@@ -528,10 +527,6 @@ export class MapTestHelpers {
         return false;
       }
 
-      // AI : Wait for potential city markers to appear
-      console.log('Waiting for city markers to appear...');
-      await this.page.waitForTimeout(2000);
-
       // AI : Step 2: Check if city markers appeared, if so click one
       const cityMarkersAfterCountry = await this.getCityMarkerCount();
       console.log(`City markers after country click: ${cityMarkersAfterCountry}`);
@@ -544,10 +539,6 @@ export class MapTestHelpers {
           console.log('Failed to click city marker');
           return false;
         }
-
-        // AI : Wait for overlay markers to potentially appear
-        console.log('Waiting for overlay markers to appear...');
-        await this.page.waitForTimeout(2000);
 
         const overlayMarkers = await this.getOverlayMarkerCount();
         console.log(`Overlay markers after city click: ${overlayMarkers}`);
@@ -577,13 +568,42 @@ export class MapTestHelpers {
    */
   async isEditModeActive(): Promise<boolean> {
     try {
+      // AI : First check if user is authenticated (edit mode only available for authenticated users)
+      const authHelper = await import('./auth-helpers');
+      const authHelperInstance = new authHelper.AuthTestHelpers(this.page);
+      const isAuthenticated = await authHelperInstance.isAuthenticated();
+      
+      if (!isAuthenticated) {
+        console.log('User not authenticated - edit mode not available');
+        return false;
+      }
+      
       const editButton = this.page.getByRole('button', { name: 'Toggle Edit Mode' });
+      await editButton.waitFor({ timeout: 5000 });
       // AI : Check the active attribute value - 'true' means active, 'false' or null means inactive
       const activeValue = await editButton.getAttribute('active');
       return activeValue === 'true';
     } catch (error) {
       console.error('Error checking edit mode:', error);
       return false;
+    }
+  }
+
+  /**
+   * AI : Count the number of visible overlays on the map
+   */
+  async getOverlayCount(): Promise<number> {
+    try {
+      // AI : Wait for overlays to be potentially loaded
+      await this.page.waitForTimeout(500);
+      
+      // AI : Count visible overlay elements on the map
+      const overlayCount = await this.page.locator('.leaflet-overlay-pane img').count();
+      console.log(`Found ${overlayCount} overlays on the map`);
+      return overlayCount;
+    } catch (error) {
+      console.error('Error counting overlays:', error);
+      return 0;
     }
   }
 

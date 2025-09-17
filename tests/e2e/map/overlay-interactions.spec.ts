@@ -1,10 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { MapTestHelpers } from '../../helpers/map-helpers';
+import { disableHelpModal } from '../helpers/test-helpers';
 
 test.describe('Overlay Interactions', () => {
   let mapHelpers: MapTestHelpers;
 
   test.beforeEach(async ({ page }) => {
+    // AI : Disable help modal to prevent test interference
+    await disableHelpModal(page);
+    
     mapHelpers = new MapTestHelpers(page);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
@@ -146,8 +150,8 @@ test.describe('Overlay Interactions', () => {
     await page.waitForTimeout(1000);
     
     // AI : Get initial map center/zoom
-    const initialZoom = await page.evaluate(() => {
-      return (window as any).map?.getZoom();
+    const initialZoom = await page.evaluate(async () => {
+      return mapHelpers.getCurrentZoom();
     });
     
     // AI : Click zoom to button if overlays are available
@@ -157,8 +161,8 @@ test.describe('Overlay Interactions', () => {
       await page.waitForTimeout(1000);
       
       // AI : Verify map position changed
-      const newZoom = await page.evaluate(() => {
-        return (window as any).map?.getZoom();
+      const newZoom = await page.evaluate(async () => {
+        return mapHelpers.getCurrentZoom();
       });
       
       // AI : Zoom level should have changed (increased)
