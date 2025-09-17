@@ -32,7 +32,7 @@ async function globalSetup() {
       await page.waitForLoadState('networkidle');
       
       // AI : Look for sign in button in header (not in modal)
-      const headerSignInButton = page.locator('#viewerDiv').getByRole('button', { name: 'Sign In' });
+      const headerSignInButton = page.locator('#mapDiv').getByRole('button', { name: 'Sign In' });
       
       if (await headerSignInButton.count() > 0) {
         await headerSignInButton.click();

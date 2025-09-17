@@ -1,6 +1,6 @@
 <template>
   <div
-    id="viewerDiv"
+    id="mapDiv"
     class="map-container"
   >
     <div

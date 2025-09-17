@@ -51,7 +51,7 @@ export function initializeMap() {
   // AI : Detect mobile device for conditional zoom settings
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-  map.value = L.map("viewerDiv", {
+  map.value = L.map("mapDiv", {
     maxZoom: 22,
     zoomControl: false, // because we have our own zoom control
     // AI : Enable smooth zoom with no snapping only on mobile

@@ -22,6 +22,15 @@
         v-tooltip.right="'Zoom Out'"
         severity="secondary"
       />
+      <Button
+        @click="showHelpModal"
+        @dblclick.stop
+        raised
+        icon="pi pi-question-circle"
+        aria-label="Help"
+        v-tooltip.right="'Help'"
+        severity="help"
+      />
     </div>
 
     <div class="buttons-stacked">
@@ -131,22 +140,25 @@
         </template>
       </Button>
     </div>
+
+    <!-- AI : Help Modal -->
+    <MapHelpModal v-model="showHelp" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useToast } from '@composables/ui/useToast';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useAuthStore } from '@stores/authStore';
-import { useUiStore } from '@stores/uiStore';
 import { toggleEditMode } from '@composables/overlay/useOverlayModes';
 import { handleEditModeExit } from '@composables/map/useCityMarkers';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import { createButtonSVG } from '@composables/ui/markerIcons';
 import { map } from '@composables/core/useMap';
 import LayerControl from '@components/map/LayerControl.vue';
+import MapHelpModal from '@components/map/MapHelpModal.vue';
 import { useAddOverlay } from '@composables/overlay/useAddOverlay';
 
 const authStore = useAuthStore();
@@ -154,27 +166,8 @@ const overlayStore = useOverlayStore();
 const toast = useToast();
 const { handleAddOverlayButtonClick } = useAddOverlay();
 
-function handleAddOverlayClick() {
-  const result = handleAddOverlayButtonClick();
-  
-  if (result.success) {
-    if (result.action === 'edit_mode_enabled') {
-      toast.add({
-        severity: 'info',
-        summary: 'Switched to Edit Mode',
-        detail: 'Click the button again to add an overlay',
-        life: 4000
-      });
-    }
-  } else if (result.reason === 'edit_mode_error') {
-    toast.add({
-      severity: 'error',
-      summary: 'Mode Switch Error',
-      detail: 'Failed to switch mode. Please try again.',
-      life: 3000
-    });
-  }
-}
+// AI : Help modal state
+const showHelp = ref(false);
 
 const { isEditMode } = storeToRefs(overlayStore);
 const { visibleCompletionStates, toggleFilter } = useCompletionFilters();
@@ -203,6 +196,28 @@ const tooltipText = computed(() => {
   // Show current state and what clicking will do
   return `Currently in ${currentMode} - Click to ${actionText.toLowerCase()}`;
 });
+
+function handleAddOverlayClick() {
+  const result = handleAddOverlayButtonClick();
+  
+  if (result.success) {
+    if (result.action === 'edit_mode_enabled') {
+      toast.add({
+        severity: 'info',
+        summary: 'Switched to Edit Mode',
+        detail: 'Click the button again to add an overlay',
+        life: 4000
+      });
+    }
+  } else if (result.reason === 'edit_mode_error') {
+    toast.add({
+      severity: 'error',
+      summary: 'Mode Switch Error',
+      detail: 'Failed to switch mode. Please try again.',
+      life: 3000
+    });
+  }
+}
 
 // AI : Handle edit mode toggle
 function handleModeToggle() {
@@ -255,6 +270,11 @@ function handleZoomOut() {
   if (map.value) {
     map.value.zoomOut();
   }
+}
+
+// AI : Show help modal
+function showHelpModal() {
+  showHelp.value = true;
 }
 </script>
 
