@@ -1,10 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { MapTestHelpers } from '../../helpers/map-helpers';
+import { disableHelpModal } from '../helpers/test-helpers';
 
 test.describe('Overlay Loading & Zoom-based Display', () => {
   let mapHelpers: MapTestHelpers;
 
   test.beforeEach(async ({ page }) => {
+    // AI : Disable help modal to prevent test interference
+    await disableHelpModal(page);
+    
     mapHelpers = new MapTestHelpers(page);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
@@ -29,7 +33,7 @@ test.describe('Overlay Loading & Zoom-based Display', () => {
     const lowZoomImageCount = await overlayImages.count();
     
     // AI : Now zoom in to trigger overlay loading
-    await mapHelpers.zoomToLevel(15);
+    await mapHelpers.zoomToLevel(13);
     await page.waitForTimeout(2000);
     
     // AI : At high zoom, overlays should be loaded
@@ -49,7 +53,7 @@ test.describe('Overlay Loading & Zoom-based Display', () => {
     }
 
     // AI : Zoom in to ensure overlays are loaded
-    await mapHelpers.zoomToLevel(15);
+    await mapHelpers.zoomToLevel(13);
     await page.waitForTimeout(1000);
     
     // AI : Check for loaded overlay images at high zoom

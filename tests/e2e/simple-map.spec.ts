@@ -1,11 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { setupMapTest } from './helpers/test-helpers';
 
 test.describe('Simple Map Tests', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    await page.waitForSelector('.leaflet-container');
-    await page.waitForTimeout(3000); // Wait for everything to load
+    // AI : Use helper to setup map without help modal interference
+    await setupMapTest(page);
   });
 
   test('should load the map application', async ({ page }) => {

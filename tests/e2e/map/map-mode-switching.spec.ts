@@ -1,10 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { MapTestHelpers } from '../../helpers/map-helpers';
+import { disableHelpModal } from '../helpers/test-helpers';
 
 test.describe('Map Mode Switching', () => {
   let mapHelpers: MapTestHelpers;
 
   test.beforeEach(async ({ page }) => {
+    // AI : Disable help modal to prevent test interference
+    await disableHelpModal(page);
+    
     mapHelpers = new MapTestHelpers(page);
     await page.goto('/');
     await page.waitForLoadState('networkidle');

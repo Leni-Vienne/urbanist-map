@@ -156,7 +156,7 @@ export class AuthTestHelpers {
     }
 
     // AI : If login fails, try creating a test user
-    return await this.createTestUser();
+    return this.createTestUser();
   }
 
   /**

@@ -6,6 +6,7 @@
     :style="{ width: '90vw', maxWidth: '500px' }"
     :dismissableMask="true"
     :closeOnEscape="true"
+    data-testid="map-help-modal"
   >
     <div class="help-content">
       <p class="help-intro">{{ $t('help.intro') }}</p>
