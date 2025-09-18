@@ -5,23 +5,7 @@ import { getTestDb } from '../utils/test-database'
 import { projects } from '../../db/schema'
 import { eq } from 'drizzle-orm'
 
-// AI : Mock TRPC context for admin user
-const createMockAdminContext = () => ({
-  user: {
-    id: 'mock-admin-user',
-    email: 'mock-admin@example.com',
-    username: 'mock-admin',
-    passwordHash: 'mock-hash',
-    role: 'admin',
-    emailVerified: true,
-    emailVerificationToken: null,
-    passwordResetToken: null,
-    passwordResetExpiresAt: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  hono: {} as any,
-})
+// AI : Use shared context creation from TestHelpers
 
 describe('Moderation Routes - Version-Aware Approval Tests', () => {
   let testUser: any
@@ -49,7 +33,7 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
     test('returns version field for projects', async () => {
       const project = await TestHelpers.createTestProject(testUser.id, testCity.id, 1, { status: 'pending' })
       
-      const caller = moderationRouter.createCaller(createMockAdminContext())
+      const caller = moderationRouter.createCaller(TestHelpers.createAdminContext(testAdmin.id))
       const result = await caller.getPendingSubmissions()
       
       expect(result.projects).toHaveLength(1)
@@ -61,7 +45,7 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
       const project = await TestHelpers.createTestProject(testUser.id, testCity.id)
       await TestHelpers.createTestOverlay(project.id, testUser.id, 1, { status: 'pending' })
       
-      const caller = moderationRouter.createCaller(createMockAdminContext())
+      const caller = moderationRouter.createCaller(TestHelpers.createAdminContext(testAdmin.id))
       const result = await caller.getPendingSubmissions()
       
       expect(result.projects[0].overlays).toHaveLength(1)
@@ -74,7 +58,7 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
       // AI : Simulate user modifying project
       await TestHelpers.updateProject(project.id, { name: 'Modified Name' })
       
-      const caller = moderationRouter.createCaller(createMockAdminContext())
+      const caller = moderationRouter.createCaller(TestHelpers.createAdminContext(testAdmin.id))
       const result = await caller.getPendingSubmissions()
       
       expect(result.projects[0].version).toBe(2)
@@ -85,7 +69,7 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
     test('approves project with correct version', async () => {
       const project = await TestHelpers.createTestProject(testUser.id, testCity.id, 1, { status: 'pending' })
       
-      const caller = moderationRouter.createCaller(createMockAdminContext())
+      const caller = moderationRouter.createCaller(TestHelpers.createAdminContext(testAdmin.id))
       const result = await caller.setProjectApprovalStatusWithVersion({
         id: project.id,
         expectedVersion: 1,
@@ -106,7 +90,7 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
       // AI : Simulate user modifying project (increments version to 2)
       await TestHelpers.updateProject(project.id, { name: 'Modified' })
       
-      const caller = moderationRouter.createCaller(createMockAdminContext())
+      const caller = moderationRouter.createCaller(TestHelpers.createAdminContext(testAdmin.id))
       const result = await caller.setProjectApprovalStatusWithVersion({
         id: project.id,
         expectedVersion: 1, // Stale version
@@ -126,7 +110,7 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
       // AI : Modify only project2
       await TestHelpers.updateProject(project2.id, { name: 'Modified Project 2' })
       
-      const caller = moderationRouter.createCaller(createMockAdminContext())
+      const caller = moderationRouter.createCaller(TestHelpers.createAdminContext(testAdmin.id))
       
       // AI : Try to approve project1 (correct version) - should succeed
       const result1 = await caller.setProjectApprovalStatusWithVersion({
@@ -155,7 +139,7 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
       expect(finalProject2.status).toBe('pending')  // project2 failed, still pending
       
       // AI : Check getPendingSubmissions - project1 shouldn't appear (approved), project2 should appear (pending)
-      const submissionData = await moderationRouter.createCaller(createMockAdminContext()).getPendingSubmissions()
+      const submissionData = await moderationRouter.createCaller(TestHelpers.createAdminContext(testAdmin.id)).getPendingSubmissions()
       const pendingProjects = submissionData.projects
       
       expect(pendingProjects.find(p => p.id === project1.id)).toBeUndefined() // Not in pending list anymore
@@ -163,7 +147,7 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
     })
 
     test('handles non-existent project', async () => {
-      const caller = moderationRouter.createCaller(createMockAdminContext())
+      const caller = moderationRouter.createCaller(TestHelpers.createAdminContext(testAdmin.id))
       const result = await caller.setProjectApprovalStatusWithVersion({
         id: '00000000-0000-0000-0000-000000000000',
         expectedVersion: 1, // AI : Use valid UUID format
@@ -178,7 +162,7 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
       const project1 = await TestHelpers.createTestProject(testUser.id, testCity.id, 1, { status: 'pending' })
       const project2 = await TestHelpers.createTestProject(testUser.id, testCity.id, 1, { status: 'pending' })
       
-      const caller = moderationRouter.createCaller(createMockAdminContext())
+      const caller = moderationRouter.createCaller(TestHelpers.createAdminContext(testAdmin.id))
       
       const result1 = await caller.setProjectApprovalStatusWithVersion({
         id: project1.id,
@@ -202,7 +186,7 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
       const project = await TestHelpers.createTestProject(testUser.id, testCity.id)
       const overlay = await TestHelpers.createTestOverlay(project.id, testUser.id, 1, { status: 'pending' })
       
-      const caller = moderationRouter.createCaller(createMockAdminContext())
+      const caller = moderationRouter.createCaller(TestHelpers.createAdminContext(testAdmin.id))
       const result = await caller.setOverlayApprovalStatusWithVersion({
         id: overlay.id,
         expectedVersion: 1,
@@ -220,7 +204,7 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
       // AI : Simulate user modifying overlay (increments version to 2)
       await TestHelpers.updateOverlay(overlay.id, { caption: 'Modified Caption' })
       
-      const caller = moderationRouter.createCaller(createMockAdminContext())
+      const caller = moderationRouter.createCaller(TestHelpers.createAdminContext(testAdmin.id))
       const result = await caller.setOverlayApprovalStatusWithVersion({
         id: overlay.id,
         expectedVersion: 1, // Stale version
@@ -237,7 +221,7 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
       const project = await TestHelpers.createTestProject(testUser.id, testCity.id)
       const overlay = await TestHelpers.createTestOverlay(project.id, testUser.id, 1, { status: 'pending' })
       
-      const caller = moderationRouter.createCaller(createMockAdminContext())
+      const caller = moderationRouter.createCaller(TestHelpers.createAdminContext(testAdmin.id))
       const result = await caller.setOverlayApprovalStatusWithVersion({
         id: overlay.id,
         expectedVersion: 1,
@@ -249,7 +233,7 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
     })
 
     test('handles non-existent overlay', async () => {
-      const caller = moderationRouter.createCaller(createMockAdminContext())
+      const caller = moderationRouter.createCaller(TestHelpers.createAdminContext(testAdmin.id))
       const result = await caller.setOverlayApprovalStatusWithVersion({
         id: '00000000-0000-0000-0000-000000000000',
         expectedVersion: 1, // AI : Use valid UUID format
@@ -267,7 +251,7 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
       const overlayProject = await TestHelpers.createTestProject(testUser.id, testCity.id)
       const overlay = await TestHelpers.createTestOverlay(overlayProject.id, testUser.id, 1, { status: 'pending' })
       
-      const caller = moderationRouter.createCaller(createMockAdminContext())
+      const caller = moderationRouter.createCaller(TestHelpers.createAdminContext(testAdmin.id))
       
       const projectResult = await caller.setProjectApprovalStatusWithVersion({
         id: project.id,
@@ -288,7 +272,7 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
     test('validates version is a number', async () => {
       const project = await TestHelpers.createTestProject(testUser.id, testCity.id, 5)
       
-      const caller = moderationRouter.createCaller(createMockAdminContext())
+      const caller = moderationRouter.createCaller(TestHelpers.createAdminContext(testAdmin.id))
       const result = await caller.setProjectApprovalStatusWithVersion({
         id: project.id,
         expectedVersion: 5,
@@ -309,7 +293,7 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
       const currentVersion = await TestHelpers.getProjectVersion(project.id)
       expect(currentVersion).toBe(6)
       
-      const caller = moderationRouter.createCaller(createMockAdminContext())
+      const caller = moderationRouter.createCaller(TestHelpers.createAdminContext(testAdmin.id))
       const result = await caller.setProjectApprovalStatusWithVersion({
         id: project.id,
         expectedVersion: 6,

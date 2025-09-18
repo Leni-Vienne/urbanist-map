@@ -7,40 +7,7 @@ import { projectRouter } from '../../routes/project'
 import { overlayRouter } from '../../routes/overlay'
 import { TestHelpers } from '../utils/test-helpers'
 
-// AI : Mock contexts for different user types
-const createUserContext = (userId: string) => ({
-  user: {
-    id: userId,
-    email: `user-${userId}@example.com`,
-    username: `user-${userId}`,
-    passwordHash: 'mock-hash',
-    role: 'user',
-    emailVerified: true,
-    emailVerificationToken: null,
-    passwordResetToken: null,
-    passwordResetExpiresAt: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  hono: {} as any,
-})
-
-const createAdminContext = (adminId: string) => ({
-  user: {
-    id: adminId,
-    email: `admin-${adminId}@example.com`,
-    username: `admin-${adminId}`,
-    passwordHash: 'mock-hash',
-    role: 'admin',
-    emailVerified: true,
-    emailVerificationToken: null,
-    passwordResetToken: null,
-    passwordResetExpiresAt: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  hono: {} as any,
-})
+// AI : Use shared context creation from TestHelpers
 
 describe('Race Condition Prevention Tests', () => {
   let testUser: any
@@ -69,8 +36,8 @@ describe('Race Condition Prevention Tests', () => {
     test('prevents approval when user modifies project simultaneously', async () => {
       const project = await TestHelpers.createTestProject(testUser.id, testCity.id, 1, { status: 'pending' })
       
-      const userCaller = projectRouter.createCaller(createUserContext(testUser.id))
-      const adminCaller = moderationRouter.createCaller(createAdminContext(testAdmin.id))
+      const userCaller = projectRouter.createCaller(TestHelpers.createUserContext(testUser.id))
+      const adminCaller = moderationRouter.createCaller(TestHelpers.createAdminContext(testAdmin.id))
       
       // AI : Simulate concurrent operations: user edits while moderator approves
       const [userEdit, moderatorApproval] = await Promise.allSettled([
@@ -123,7 +90,7 @@ describe('Race Condition Prevention Tests', () => {
     test('multiple concurrent user edits maintain version consistency', async () => {
       const project = await TestHelpers.createTestProject(testUser.id, testCity.id, 1, { status: 'pending' })
       
-      const userCaller = projectRouter.createCaller(createUserContext(testUser.id))
+      const userCaller = projectRouter.createCaller(TestHelpers.createUserContext(testUser.id))
       
       // AI : Simulate multiple concurrent edits from same user
       const editPromises = Array(5).fill(null).map((_, index) =>
@@ -155,7 +122,7 @@ describe('Race Condition Prevention Tests', () => {
     test('rapid approval attempts only succeed once', async () => {
       const project = await TestHelpers.createTestProject(testUser.id, testCity.id, 1, { status: 'pending' })
       
-      const adminCaller = moderationRouter.createCaller(createAdminContext(testAdmin.id))
+      const adminCaller = moderationRouter.createCaller(TestHelpers.createAdminContext(testAdmin.id))
       
       // AI : Simulate multiple rapid approval attempts
       const approvalPromises = Array(10).fill(null).map(async () =>
@@ -187,8 +154,8 @@ describe('Race Condition Prevention Tests', () => {
       const project = await TestHelpers.createTestProject(testUser.id, testCity.id)
       const overlay = await TestHelpers.createTestOverlay(project.id, testUser.id, 1, { status: 'pending' })
       
-      const userCaller = overlayRouter.createCaller(createUserContext(testUser.id))
-      const adminCaller = moderationRouter.createCaller(createAdminContext(testAdmin.id))
+      const userCaller = overlayRouter.createCaller(TestHelpers.createUserContext(testUser.id))
+      const adminCaller = moderationRouter.createCaller(TestHelpers.createAdminContext(testAdmin.id))
       
       // AI : Simulate concurrent operations
       const [userEdit, moderatorApproval] = await Promise.allSettled([
@@ -240,7 +207,7 @@ describe('Race Condition Prevention Tests', () => {
       const project = await TestHelpers.createTestProject(testUser.id, testCity.id)
       const overlay = await TestHelpers.createTestOverlay(project.id, testUser.id, 1, { status: 'pending' })
       
-      const userCaller = overlayRouter.createCaller(createUserContext(testUser.id))
+      const userCaller = overlayRouter.createCaller(TestHelpers.createUserContext(testUser.id))
       
       // AI : Multiple concurrent caption updates
       const updatePromises = Array(3).fill(null).map((_, index) =>
@@ -273,9 +240,9 @@ describe('Race Condition Prevention Tests', () => {
       const project = await TestHelpers.createTestProject(testUser.id, testCity.id, 1, { status: 'pending' })
       const overlay = await TestHelpers.createTestOverlay(project.id, testUser.id, 1, { status: 'pending' })
       
-      const userCaller = projectRouter.createCaller(createUserContext(testUser.id))
-      const overlayCaller = overlayRouter.createCaller(createUserContext(testUser.id))
-      const adminCaller = moderationRouter.createCaller(createAdminContext(testAdmin.id))
+      const userCaller = projectRouter.createCaller(TestHelpers.createUserContext(testUser.id))
+      const overlayCaller = overlayRouter.createCaller(TestHelpers.createUserContext(testUser.id))
+      const adminCaller = moderationRouter.createCaller(TestHelpers.createAdminContext(testAdmin.id))
       
       // AI : Simulate complex concurrent scenario
       const operations = await Promise.allSettled([
@@ -345,8 +312,8 @@ describe('Race Condition Prevention Tests', () => {
     test('stress test with high concurrency', async () => {
       const project = await TestHelpers.createTestProject(testUser.id, testCity.id, 1, { status: 'pending' })
       
-      const userCaller = projectRouter.createCaller(createUserContext(testUser.id))
-      const adminCaller = moderationRouter.createCaller(createAdminContext(testAdmin.id))
+      const userCaller = projectRouter.createCaller(TestHelpers.createUserContext(testUser.id))
+      const adminCaller = moderationRouter.createCaller(TestHelpers.createAdminContext(testAdmin.id))
       
       // AI : Create concurrent operations with proper name length (min 8 chars)
       const edits = Array(5).fill(null).map((_, i) =>
@@ -400,7 +367,7 @@ describe('Race Condition Prevention Tests', () => {
     test('version increments are atomic with other field updates', async () => {
       const project = await TestHelpers.createTestProject(testUser.id, testCity.id, 1, { status: 'pending' })
       
-      const userCaller = projectRouter.createCaller(createUserContext(testUser.id))
+      const userCaller = projectRouter.createCaller(TestHelpers.createUserContext(testUser.id))
       
       // AI : Perform update that should increment version atomically
       await userCaller.publishProject({
@@ -429,7 +396,7 @@ describe('Race Condition Prevention Tests', () => {
       // AI : Simulate version conflict
       await TestHelpers.simulateVersionConflict(project.id, 'project')
       
-      const adminCaller = moderationRouter.createCaller(createAdminContext(testAdmin.id))
+      const adminCaller = moderationRouter.createCaller(TestHelpers.createAdminContext(testAdmin.id))
       const result = await adminCaller.setProjectApprovalStatusWithVersion({
         id: project.id,
         expectedVersion: initialVersion,

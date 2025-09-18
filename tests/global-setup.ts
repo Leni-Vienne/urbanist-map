@@ -27,7 +27,7 @@ async function globalSetup() {
 
     try {
       // AI : Navigate to the app
-      const baseURL = process.env.TEST_BASE_URL || 'http://localhost:5173';
+      const baseURL = process.env.TEST_BASE_URL ?? 'http://localhost:5173';
       await page.goto(baseURL);
       await page.waitForLoadState('networkidle');
       

@@ -137,7 +137,7 @@ export function createOverlay(imageUrl: string, overlayObject?: OverlayObject) {
       corners: leafletCorners,
       dragBehavior: 'auto',
       selectOnDrag: false,
-      draggable: isEditMode.value ? true : false,
+      draggable: isEditMode.value,
     });
 
     // IMPORTANT : this waits for any ongoing zoom animation to complete before adding overlay to prevent visual glitch

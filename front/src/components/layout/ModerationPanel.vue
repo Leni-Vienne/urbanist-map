@@ -72,7 +72,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref } from 'vue'
 import { useModeration } from '@composables/overlay/useModeration'
 import { navigateToOverlay } from '@composables/overlay/useOverlay'
 import { useToast } from '@composables/ui/useToast'

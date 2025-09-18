@@ -3,6 +3,7 @@ import { join } from 'path';
 import { db } from '../database';
 import { cities, countries } from '../db/schema';
 import { sql } from 'drizzle-orm';
+import { parseCSVLine } from '../utils/csv-parser';
 
 interface CSVCity {
   city: string;
@@ -20,29 +21,6 @@ interface CSVCity {
 
 export class CitiesImportService {
   /**
-   * AI : Parse a CSV line handling quoted values
-   */
-  private static parseCSVLine(line: string): string[] {
-    const result: string[] = [];
-    let current = '';
-    let inQuotes = false;
-    
-    for (const char of line) {
-      if (char === '"') {
-        inQuotes = !inQuotes;
-      } else if (char === ',' && !inQuotes) {
-        result.push(current.trim());
-        current = '';
-      } else {
-        current += char;
-      }
-    }
-    
-    result.push(current.trim());
-    return result;
-  }
-
-  /**
    * AI : Load cities data from CSV file
    */  private static loadCitiesFromCSV(): CSVCity[] {
     try {
@@ -52,14 +30,14 @@ export class CitiesImportService {
       
       // AI : Parse CSV manually
       const lines = csvContent.split('\n');
-      const headers = this.parseCSVLine(lines[0]);
+      const headers = parseCSVLine(lines[0]);
       
       const cities: CSVCity[] = [];
       
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (line) {
-          const values = this.parseCSVLine(line);
+          const values = parseCSVLine(line);
           if (values.length >= headers.length) {
             const city: CSVCity = {
               city: values[0],
