@@ -1,24 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { MapTestHelpers } from '../../helpers/map-helpers';
-import { disableHelpModal } from '../../helpers/test-helpers';
+import { setupMapTest } from '../../helpers/test-helpers';
 
 test.describe('Comprehensive Map Testing', () => {
   let mapHelpers: MapTestHelpers;
 
   test.beforeEach(async ({ page }) => {
-    // AI : Disable help modal to prevent test interference
-    await disableHelpModal(page);
-    
-    mapHelpers = new MapTestHelpers(page);
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    await mapHelpers.waitForMapReady();
-    await mapHelpers.dismissErrorAlerts();
-    
-    // AI : Setup authentication for tests that require it
-    const { AuthTestHelpers } = await import('../../helpers/auth-helpers');
-    const authHelpers = new AuthTestHelpers(page);
-    await authHelpers.setupAuthenticatedState();
+    mapHelpers = await setupMapTest(page);
   });
 
   test('should demonstrate full map workflow: country → city → overlays → modes → filtering', async ({ page }) => {

@@ -1,4 +1,27 @@
 import { Page } from '@playwright/test';
+import { MapTestHelpers } from './map-helpers';
+
+/**
+ * AI : Common setup function for E2E tests to reduce duplication
+ * Sets up authentication, map helpers, and common initialization
+ */
+export async function setupMapTest(page: Page): Promise<MapTestHelpers> {
+  // AI : Disable help modal to prevent test interference
+  await disableHelpModal(page);
+  
+  const mapHelpers = new MapTestHelpers(page);
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  await mapHelpers.waitForMapReady();
+  await mapHelpers.dismissErrorAlerts();
+  
+  // AI : Setup authentication for tests that require it
+  const { AuthTestHelpers } = await import('./auth-helpers');
+  const authHelpers = new AuthTestHelpers(page);
+  await authHelpers.setupAuthenticatedState();
+  
+  return mapHelpers;
+}
 
 /**
  * AI : Disable the help modal for the current test session
