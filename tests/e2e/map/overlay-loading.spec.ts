@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { MapTestHelpers } from '../../helpers/map-helpers';
-import { disableHelpModal } from '../helpers/test-helpers';
+import { disableHelpModal } from '../../helpers/test-helpers';
 
 test.describe('Overlay Loading & Zoom-based Display', () => {
   let mapHelpers: MapTestHelpers;

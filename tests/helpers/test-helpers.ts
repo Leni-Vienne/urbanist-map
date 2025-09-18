@@ -1,8 +1,5 @@
 import { Page } from '@playwright/test';
 
-// AI : Storage key used by the help modal to remember if it was seen
-const HELP_MODAL_STORAGE_KEY = 'construction-map-help-modal-seen';
-
 /**
  * AI : Disable the help modal for the current test session
  * This prevents the modal from showing automatically on first load
@@ -39,20 +36,4 @@ export async function closeHelpModalIfVisible(page: Page): Promise<void> {
     
     // AI : Wait for modal to be hidden
     await helpModal.waitFor({ state: 'hidden', timeout: 1000 });
-}
-
-/**
- * AI : Setup function for most tests - disables help modal and waits for map to load
- */
-export async function setupMapTest(page: Page): Promise<void> {
-  // AI : Disable help modal to prevent interference
-  await disableHelpModal(page);
-  
-  // AI : Navigate to the map
-  await page.goto('/');
-  
-  // AI : Wait for map to be ready
-  await page.waitForLoadState('networkidle');
-  await page.waitForSelector('.leaflet-container');
-  await page.waitForTimeout(1000); // Small buffer for map initialization
 }

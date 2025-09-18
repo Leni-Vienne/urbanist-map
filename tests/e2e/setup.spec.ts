@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { enableHelpModal, disableHelpModal } from './helpers/test-helpers';
+import { enableHelpModal, disableHelpModal } from '../helpers/test-helpers';
 
 test.describe('Application Setup', () => {
   test('should install Playwright browsers', async ({ page }) => {

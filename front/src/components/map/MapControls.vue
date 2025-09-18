@@ -184,7 +184,7 @@ const currentIcon = computed(() => {
 
 const buttonSeverity = computed(() => {
   if (isEditMode?.value) {
-    return 'warning'; // Orange/yellow for edit mode
+    return 'primary'; // Orange/yellow for edit mode
   }
   return 'secondary'; // Gray for view mode
 });

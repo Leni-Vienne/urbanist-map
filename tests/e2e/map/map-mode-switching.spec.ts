@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { MapTestHelpers } from '../../helpers/map-helpers';
-import { disableHelpModal } from '../helpers/test-helpers';
+import { disableHelpModal } from '../../helpers/test-helpers';
 
 test.describe('Map Mode Switching', () => {
   let mapHelpers: MapTestHelpers;
@@ -14,6 +14,11 @@ test.describe('Map Mode Switching', () => {
     await page.waitForLoadState('networkidle');
     await mapHelpers.waitForMapReady();
     await mapHelpers.dismissErrorAlerts();
+    
+    // AI : Setup authentication for tests that require it
+    const { AuthTestHelpers } = await import('../../helpers/auth-helpers');
+    const authHelpers = new AuthTestHelpers(page);
+    await authHelpers.setupAuthenticatedState();
   });
 
   test('should switch between view and edit modes', async ({ page }) => {
@@ -22,14 +27,14 @@ test.describe('Map Mode Switching', () => {
     
     const editModeButton = page.getByRole('button', { name: 'Toggle Edit Mode' });
     await expect(editModeButton).toBeVisible();
-    await expect(editModeButton).not.toHaveAttribute('active');
+    await expect(editModeButton).toHaveAttribute('active', 'false');
 
     // AI : Switch to edit mode
     await mapHelpers.toggleEditMode();
     
     // AI : Verify edit mode is now active
     expect(await mapHelpers.isEditModeActive()).toBeTruthy();
-    await expect(editModeButton).toHaveAttribute('active');
+    await expect(editModeButton).toHaveAttribute('active', 'true');
     
     // AI : Check for edit mode notification
     await expect(page.getByText('Switched to Edit Mode')).toBeVisible();
@@ -42,7 +47,7 @@ test.describe('Map Mode Switching', () => {
     
     // AI : Verify we're back in view mode
     expect(await mapHelpers.isEditModeActive()).toBeFalsy();
-    await expect(editModeButton).not.toHaveAttribute('active');
+    await expect(editModeButton).toHaveAttribute('active', 'false');
   });
 
   test('should show Add Image Overlay button only in edit mode', async ({ page }) => {

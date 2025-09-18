@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { MapTestHelpers } from '../helpers/map-helpers';
-import { disableHelpModal } from './helpers/test-helpers';
+import { disableHelpModal } from '../helpers/test-helpers';
 
 test.describe('Construction Map E2E Tests', () => {
   let mapHelpers: MapTestHelpers;
@@ -14,6 +14,11 @@ test.describe('Construction Map E2E Tests', () => {
     await page.waitForLoadState('networkidle');
     await mapHelpers.waitForMapReady();
     await mapHelpers.dismissErrorAlerts();
+    
+    // AI : Setup authentication for tests that require it
+    const { AuthTestHelpers } = await import('../helpers/auth-helpers');
+    const authHelpers = new AuthTestHelpers(page);
+    await authHelpers.setupAuthenticatedState();
   });
 
   test('should load map and basic controls', async ({ page }) => {

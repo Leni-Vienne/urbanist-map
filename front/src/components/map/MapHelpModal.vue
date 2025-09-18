@@ -81,7 +81,7 @@
               <Button
                 icon="pi pi-pencil"
                 size="small"
-                severity="warning"
+                severity="primary"
                 disabled
               />
             </div>

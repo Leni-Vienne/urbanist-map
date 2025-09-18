@@ -54,6 +54,7 @@
     "zod": "^4.1.9"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250917.0",
     "@playwright/test": "^1.55.0",
     "@primevue/auto-import-resolver": "^4.3.9",
     "@types/bun": "^1.2.22",

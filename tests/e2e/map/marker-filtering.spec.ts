@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { MapTestHelpers } from '../../helpers/map-helpers';
-import { disableHelpModal } from '../helpers/test-helpers';
+import { disableHelpModal } from '../../helpers/test-helpers';
 
 test.describe('Marker Filtering', () => {
   let mapHelpers: MapTestHelpers;
@@ -14,6 +14,11 @@ test.describe('Marker Filtering', () => {
     await page.waitForLoadState('networkidle');
     await mapHelpers.waitForMapReady();
     await mapHelpers.dismissErrorAlerts();
+    
+    // AI : Setup authentication for tests that require it
+    const { AuthTestHelpers } = await import('../../helpers/auth-helpers');
+    const authHelpers = new AuthTestHelpers(page);
+    await authHelpers.setupAuthenticatedState();
   });
 
   test('should toggle project status filters', async ({ page }) => {
@@ -112,7 +117,7 @@ test.describe('Marker Filtering', () => {
     expect(editModeColors.length).toBeGreaterThan(0);
   });
 
-  test('should maintain filter state when switching between view/edit modes', async ({ page }) => {
+  test('should maintain filter state when switching between view/edit modes', async () => {
     // AI : Navigate to overlays first
     const navigationSuccess = await mapHelpers.navigateToOverlays();
     if (!navigationSuccess) {
