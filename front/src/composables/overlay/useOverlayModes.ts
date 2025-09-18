@@ -4,12 +4,10 @@ import L from 'leaflet';
 import { map, onMapInitialized, currentZoomLevel } from '@composables/core/useMap';
 import { onCameraStop } from '@composables/map/useCameraBounds';
 import { updateOverlayEditingState, clearAllOverlays, renderViewModeOverlays, updateMarkerTooltip, createOverlay } from '@composables/overlay/useOverlay';
-import { createColorIcon } from '@composables/ui/markerIcons';
-import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { storeToRefs } from 'pinia';
-import type { CameraBounds, OverlayObject, CDNOverlayData } from '@types';
+import type { CameraBounds, CDNOverlayData } from '@types';
 
 // AI : Function to get store refs when needed to avoid module-level initialization
 function getStoreRefs() {
@@ -64,53 +62,6 @@ function initializeEditModeOverlaysInternal(): void {
 
   // AI : Clear existing edit mode UI
   clearEditModeUI();
-}
-
-/**
- * AI : Create a marker for an overlay in edit mode
- */
-function createEditModeOverlayMarker(overlay: OverlayObject): void {
-  if (!map.value || !overlay.corners || !editModeOverlayMarkers) return;
-
-  // AI : Calculate center point from corners - Leaflet distortable uses: NW, NE, SW, SE
-  // AI : Center should be between NW (corners[0]) and SE (corners[3])
-  const centerLat = (overlay.corners[0].lat + overlay.corners[3].lat) / 2;
-  const centerLng = (overlay.corners[0].lng + overlay.corners[3].lng) / 2;
-
-  // AI : Get marker color based on edit mode storage status
-  const markerColor = getOverlayMarkerColor(overlay, 'edit');
-  const markerIcon = createColorIcon(markerColor);
-
-  // AI : Create marker with overlay ID stored for later reference
-  const marker = L.marker([centerLat, centerLng], { icon: markerIcon });
-  marker.overlayId = overlay.id;
-
-  // AI : Add tooltip with overlay info
-  const { projects } = getStoreRefs();
-  const project = overlay.projectId ? projects.value[overlay.projectId] : null;
-  const currentZoom = currentZoomLevel.value;
-  const tooltipContent = `
-    <div>
-      <strong>${overlay.caption ?? 'Overlay'}</strong><br>
-      Project: ${project?.name ?? 'Unknown'}<br>
-      <small>${currentZoom < MIN_ZOOM_FOR_EDIT_OVERLAYS ?
-      `Zoom to level ${MIN_ZOOM_FOR_EDIT_OVERLAYS}+ to load overlay` :
-      'Click to load full overlay'}</small>
-    </div>
-  `;
-  marker.bindTooltip(tooltipContent, {
-    permanent: false,
-    direction: 'top',
-    offset: [0, -10]
-  });
-
-  // AI : Add click handler to load full overlay
-  marker.on('click', () => {
-    loadFullOverlay(overlay.id);
-  });
-
-  // AI : Add marker to layer group
-  editModeOverlayMarkers.addLayer(marker);
 }
 
 /**
@@ -231,34 +182,6 @@ function clearEditModeUI(): void {
 }
 
 /**
- * AI : Add a new overlay marker when an overlay is created
- */
-function addEditModeOverlayMarker(overlay: OverlayObject): void {
-  if (!editModeOverlayMarkers) return;
-
-  createEditModeOverlayMarker(overlay);
-}
-
-/**
- * AI : Remove an overlay marker when an overlay is deleted
- */
-function removeEditModeOverlayMarker(overlayId: string): void {
-  if (!editModeOverlayMarkers) return;
-
-  // AI : Find and remove the marker
-  const markersLayer = editModeOverlayMarkers;
-  markersLayer.eachLayer((marker) => {
-    if (marker instanceof L.Marker && marker.overlayId === overlayId) {
-      markersLayer.removeLayer(marker);
-    }
-  });
-
-  // AI : Remove from loaded set using store action
-  const { overlayStore } = getStoreRefs();
-  overlayStore.removeEditModeOverlay(overlayId);
-}
-
-/**
  * AI : Update tooltips based on current zoom level
  */
 function updateTooltipsForZoomLevel(): void {
@@ -323,34 +246,6 @@ function watchZoomLevel(): void {
     }
   });
 }
-
-/**
- * AI : Watch for changes in the overlays store and update markers accordingly
- */
-function watchOverlayChanges(): void {
-  const { overlays } = getStoreRefs();
-  watch(overlays, (newOverlays, oldOverlays) => {
-    // AI : Check for new overlays
-    Object.keys(newOverlays).forEach(overlayId => {
-      if (!oldOverlays[overlayId] && newOverlays[overlayId]) {
-        // AI : New overlay added
-        addEditModeOverlayMarker(newOverlays[overlayId]);
-      }
-    });
-
-    // AI : Check for removed overlays
-    Object.keys(oldOverlays).forEach(overlayId => {
-      if (!newOverlays[overlayId] && oldOverlays[overlayId]) {
-        // AI : Overlay removed
-        removeEditModeOverlayMarker(overlayId);
-      }
-    });
-  }, { deep: true });
-}
-
-// ================================
-// VIEW MODE FUNCTIONS
-// ================================
 
 /**
  * AI : Stop camera tracking for view mode
@@ -485,6 +380,5 @@ export function useViewModeOverlays() {
 
 // AI : Initialize watch when this module is imported
 onMapInitialized(() => {
-  watchOverlayChanges();
   watchZoomLevel();
 });
