@@ -177,4 +177,44 @@ export class TestHelpers {
   static async wait(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms))
   }
+
+  // AI : Create mock user context for tRPC testing
+  static createUserContext(userId: string) {
+    return {
+      user: {
+        id: userId,
+        email: `user-${userId}@example.com`,
+        username: `user-${userId}`,
+        passwordHash: 'mock-hash',
+        role: 'user' as const,
+        emailVerified: true,
+        emailVerificationToken: null,
+        passwordResetToken: null,
+        passwordResetExpiresAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      hono: {} as any,
+    }
+  }
+
+  // AI : Create mock admin context for tRPC testing
+  static createAdminContext(adminId: string) {
+    return {
+      user: {
+        id: adminId,
+        email: `admin-${adminId}@example.com`,
+        username: `admin-${adminId}`,
+        passwordHash: 'mock-hash',
+        role: 'admin' as const,
+        emailVerified: true,
+        emailVerificationToken: null,
+        passwordResetToken: null,
+        passwordResetExpiresAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      hono: {} as any,
+    }
+  }
 }

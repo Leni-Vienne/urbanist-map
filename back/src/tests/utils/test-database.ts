@@ -12,7 +12,7 @@ export function initTestDatabase() {
   }
 
   // AI : Use test database URL from environment
-  const testDatabaseUrl = process.env.DATABASE_URL || 'postgresql://user:password@localhost:5432/test'
+  const testDatabaseUrl = process.env.DATABASE_URL ?? 'postgresql://user:password@localhost:5432/test'
   testClient = postgres(testDatabaseUrl, {
     max: 1, // AI : Single connection for tests to avoid conflicts
     idle_timeout: 30, // AI : Give more time for cleanup operations  

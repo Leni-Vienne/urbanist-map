@@ -3,6 +3,7 @@ import { join } from 'path';
 import { db } from '../database';
 import { countries } from '../db/schema';
 import { sql, eq } from 'drizzle-orm';
+import { parseCSVLine } from '../utils/csv-parser';
 
 interface CSVCountry {
   country: string;
@@ -14,29 +15,6 @@ interface CSVCountry {
 }
 
 export class CountriesImportService {
-  /**
-   * AI : Parse a CSV line handling quoted values
-   */
-  private static parseCSVLine(line: string): string[] {
-    const result: string[] = [];
-    let current = '';
-    let inQuotes = false;
-    
-    for (const char of line) {
-      if (char === '"') {
-        inQuotes = !inQuotes;
-      } else if (char === ',' && !inQuotes) {
-        result.push(current.trim());
-        current = '';
-      } else {
-        current += char;
-      }
-    }
-    
-    result.push(current.trim());
-    return result;
-  }
-
   /**
    * AI : Load countries data from CSV file
    */
@@ -61,7 +39,7 @@ export class CountriesImportService {
         if (!line) continue;
 
         try {
-          const fields = this.parseCSVLine(line);
+          const fields = parseCSVLine(line);
           
           if (fields.length >= 6) {
             const country: CSVCountry = {

@@ -110,7 +110,7 @@ export class MapTestHelpers {
       lastZoom = currentZoom;
 
       const zoomDiff = targetZoom - currentZoom;
-      
+
       // AI : Use smaller steps to avoid overshooting
       const steps = Math.min(Math.abs(zoomDiff), 2); // Max 2 levels per step
       const deltaY = zoomDiff > 0 ? -100 * steps : 100 * steps; // Negative for zoom in
@@ -387,83 +387,83 @@ export class MapTestHelpers {
   async clickCityMarker(index: number = 0) {
     try {
       console.log(`Attempting to click city marker ${index}`);
-      
+
       // AI : Wait for city markers to appear after country click using data-testid
       await this.page.waitForFunction(() => {
         const markers = document.querySelectorAll('[data-testid^="city-marker-"]');
         console.log(`Found ${markers.length} city markers`);
         return markers.length > 0;
       }, { timeout: 1000 });
-      
+
       const markers = this.page.locator('[data-testid^="city-marker-"]');
       const markerCount = await markers.count();
       console.log(`City markers found: ${markerCount}`);
-      
+
       if (markerCount <= index) {
         console.log(`City marker ${index} not found (only ${markerCount} markers)`);
         return false;
       }
-      
+
       const marker = markers.nth(index);
-      
+
       // AI : Log marker details for debugging
       const testId = await marker.getAttribute('data-testid');
       const cityName = await marker.getAttribute('data-city-name');
       const countryCode = await marker.getAttribute('data-country-code');
       console.log(`Clicking city marker: ${testId} (${cityName}, ${countryCode})`);
-      
+
       // AI : Get initial marker position and click first
       const initialMarkerBox = await marker.boundingBox();
       if (!initialMarkerBox) {
         console.log('Could not get city marker bounding box');
         return false;
       }
-      
+
       const initialCenterX = initialMarkerBox.x + initialMarkerBox.width / 2;
       const initialCenterY = initialMarkerBox.y + initialMarkerBox.height / 2;
-      
+
       // AI : Click the city marker first
       console.log('Clicking city marker...');
       await this.page.mouse.click(initialCenterX, initialCenterY);
       await this.page.waitForTimeout(200);
-      
+
       // AI : Get current zoom before zooming
       const currentZoom = await this.getCurrentZoom();
       console.log(`Current zoom level before city zoom: ${currentZoom}`);
-      
+
       // AI : Zoom to level 13 AT THE CITY MARKER POSITION (updating position after each zoom)
       console.log('Zooming to level 13 at city marker position...');
       const targetZoom = 14;
       const maxAttempts = 25;
       let attempts = 0;
-      
+
       while (attempts < maxAttempts) {
         const currentLevel = await this.getCurrentZoom();
         if (!currentLevel) {
           console.log('Could not determine current zoom level');
           break;
         }
-        
+
         if (Math.abs(currentLevel - targetZoom) <= 0.5) {
           console.log(`Reached target zoom level ${currentLevel}`);
           break; // AI : Close enough
         }
-        
+
         // AI : Get CURRENT marker position before each zoom step
         const currentMarkerBox = await marker.boundingBox();
         if (!currentMarkerBox) {
           console.log('Could not get marker bounding box for zoom step');
           break;
         }
-        
+
         const currentCenterX = currentMarkerBox.x + currentMarkerBox.width / 2;
         const currentCenterY = currentMarkerBox.y + currentMarkerBox.height / 2;
-        
+
         const zoomDiff = targetZoom - currentLevel;
         const deltaY = zoomDiff > 0 ? -200 : 200; // AI : Negative for zoom in, positive for zoom out
-        
+
         console.log(`Zoom step ${attempts + 1}: current=${currentLevel}, target=${targetZoom}, pos=${currentCenterX},${currentCenterY}`);
-        
+
         // AI : Dispatch scroll wheel event AT CURRENT MARKER POSITION
         await this.page.evaluate(({ x, y, delta }) => {
           const wheelEvent = new WheelEvent('wheel', {
@@ -475,21 +475,21 @@ export class MapTestHelpers {
           });
           document.elementFromPoint(x, y)?.dispatchEvent(wheelEvent);
         }, { x: currentCenterX, y: currentCenterY, delta: deltaY });
-        
+
         await this.page.waitForTimeout(300);
         attempts++;
       }
-      
+
       // AI : Verify final zoom level
       const finalZoom = await this.getCurrentZoom();
       console.log(`Final zoom level after city zoom: ${finalZoom}`);
-      
+
       if (finalZoom && finalZoom < 13) {
         console.warn(`Warning: Final zoom ${finalZoom} may not be sufficient for overlays (need 13+)`);
       }
-      
+
       await this.page.waitForTimeout(1000); // AI : Wait for overlays to load
-      
+
       console.log('City marker click and zoom completed');
       return true;
     } catch (error) {
@@ -567,12 +567,12 @@ export class MapTestHelpers {
       const authHelper = await import('./auth-helpers');
       const authHelperInstance = new authHelper.AuthTestHelpers(this.page);
       const isAuthenticated = await authHelperInstance.isAuthenticated();
-      
+
       if (!isAuthenticated) {
         console.log('User not authenticated - edit mode not available');
         return false;
       }
-      
+
       const editButton = this.page.getByRole('button', { name: 'Toggle Edit Mode' });
       await editButton.waitFor({ timeout: 5000 });
       // AI : Check the active attribute value - 'true' means active, 'false' or null means inactive
@@ -591,7 +591,7 @@ export class MapTestHelpers {
     try {
       // AI : Wait for overlays to be potentially loaded
       await this.page.waitForTimeout(500);
-      
+
       // AI : Count visible overlay elements on the map
       const overlayCount = await this.page.locator('.leaflet-overlay-pane img').count();
       console.log(`Found ${overlayCount} overlays on the map`);

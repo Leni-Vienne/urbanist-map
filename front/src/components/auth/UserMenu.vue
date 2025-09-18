@@ -61,7 +61,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, watch } from 'vue'
 import Button from 'primevue/button'
 import Popover from 'primevue/popover'
 import AuthModal from './AuthModal.vue'
