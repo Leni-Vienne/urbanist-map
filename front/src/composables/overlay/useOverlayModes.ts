@@ -62,28 +62,8 @@ export function initializeEditModeOverlays(): void {
 function initializeEditModeOverlaysInternal(): void {
   if (!map.value) return;
 
-  // AI : Clear existing markers and overlays
+  // AI : Clear existing edit mode UI
   clearEditModeUI();
-
-  // AI : Create new layer group for overlay markers
-  editModeOverlayMarkers = L.layerGroup();
-
-  // AI : Add markers for overlays that don't have images loaded yet
-  const { overlays } = getStoreRefs();
-  Object.values(overlays.value).forEach(overlay => {
-    if (overlay.corners && overlay.corners.length >= 4 && !overlay.overlay) {
-      // AI : Only create markers for overlays that don't have images loaded yet
-      createEditModeOverlayMarker(overlay);
-    }
-  });
-
-  // AI : Add markers to map
-  if (editModeOverlayMarkers) {
-    editModeOverlayMarkers.addTo(map.value);
-  }
-
-  // AI : Update tooltips based on current zoom level
-  updateTooltipsForZoomLevel();
 }
 
 /**
@@ -153,9 +133,7 @@ function loadFullOverlay(overlayId: string) {
     // AI : Mark as loaded to prevent duplicate loading using store action
     overlayStore.addEditModeOverlay(overlayId);
 
-    // AI : Load the full overlay by triggering its display
-    // AI : In edit mode, we need to ensure the overlay is loaded and visible
-    // AI : Load the overlay if not already loaded - create the overlay if it doesn't exist
+    // AI : Only create a new overlay if it doesn't exist to preserve position and modifications
     if (!overlay.overlay) {
       const newOverlay = createOverlay(overlay.imageUrl, overlay);
       if (newOverlay) {
@@ -163,7 +141,9 @@ function loadFullOverlay(overlayId: string) {
       }
     } else if (overlay.overlay && map.value) {
       // AI : If already loaded, just make sure it's visible on the map
-      overlay.overlay.addTo(map.value);
+      if (!map.value.hasLayer(overlay.overlay)) {
+        overlay.overlay.addTo(map.value);
+      }
     }
 
   } catch (error) {
@@ -322,7 +302,7 @@ function updateTooltipsForZoomLevel(): void {
  */
 function unloadOverlaysForZoomLevel(): void {
   if (currentZoomLevel.value < MIN_ZOOM_FOR_EDIT_OVERLAYS) {
-    // AI : Clear all loaded overlays but keep markers
+    // AI : Clear all loaded overlays but keep regular markers (they handle click-to-load)
     clearAllOverlays();
     const { overlayStore } = getStoreRefs();
     overlayStore.clearEditModeMarkersAndState();
