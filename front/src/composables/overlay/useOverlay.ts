@@ -120,8 +120,8 @@ export function createOverlay(imageUrl: string, overlayObject?: OverlayObject) {
   overlayObject.imageUrl ??= imageUrl;
 
   try {
-    // AI : Get corners before creating overlay to provide them during initialization
-    const corners = getCornersForOverlay(overlayObject);
+    // AI : Get corners with edit mode cache awareness for position persistence
+    const corners = getCornersForOverlayWithCache(overlayObject);
 
     // AI : Convert corners to Leaflet LatLng objects if available
     const leafletCorners = corners && isValidCorners(corners)
@@ -302,6 +302,26 @@ function getCornersForOverlay(overlayObject: OverlayObject) {
 }
 
 /**
+ * AI : Get corners for overlay with edit mode cache fallback
+ * This function prioritizes edit mode cached modifications for position persistence
+ */
+function getCornersForOverlayWithCache(overlayObject: OverlayObject) {
+  // AI : Priority 1: Check edit mode cache if in edit mode
+  if (isEditMode.value) {
+    const cachedModifications = getFromEditModeOverlayCache(overlayObject.id);
+    if (cachedModifications?.corners?.length === 4) {
+      // AI : Update object history with cached modifications
+      overlayObject.history = [cachedModifications.corners];
+      overlayObject.isModified = cachedModifications.isModified;
+      return cachedModifications.corners;
+    }
+  }
+
+  // AI : Priority 2: Use existing logic
+  return getCornersForOverlay(overlayObject);
+}
+
+/**
  * AI : Validate corners data
  */
 function isValidCorners(corners: { lat: number, lng: number }[]): boolean {
@@ -367,6 +387,9 @@ export function saveToHistory(overlayObject: OverlayObject): void {
   // AI : Mark overlay as modified when it's moved/changed
   overlayObject.isModified = true;
 
+  // AI : Save modifications to edit mode cache if in edit mode for persistence across zoom changes
+  saveOverlayModificationsToCache(overlayObject);
+
   updateMarkerTooltip(overlayObject);
 
   // AI : Update city overlay markers if they are visible
@@ -374,10 +397,64 @@ export function saveToHistory(overlayObject: OverlayObject): void {
 }
 
 /**
+ * AI : Save overlay modifications to edit mode cache for persistence across zoom changes
+ */
+/**
+ * AI : Save overlay modifications to edit mode cache for persistence across zoom changes
+ */
+function saveOverlayModificationsToCache(overlayObject: OverlayObject): void {
+  if (!isEditMode.value || !overlayObject.overlay) return;
+  
+  const corners = overlayObject.overlay.getCorners();
+  if (!corners?.length) return;
+
+  // AI : Save to persistent cache for zoom persistence
+  saveToEditModeOverlayCache(overlayObject.id, {
+    corners: corners.map(corner => ({ lat: corner.lat, lng: corner.lng })),
+    isModified: overlayObject.isModified
+  });
+}
+
+/**
+ * AI : Edit mode overlay cache - stores overlay modifications for persistence across zoom changes
+ */
+const editModeOverlayCache = new Map<string, { corners: { lat: number, lng: number }[], isModified: boolean }>();
+
+/**
+ * AI : Save overlay modifications to edit mode cache
+ */
+export function saveToEditModeOverlayCache(overlayId: string, data: { corners: { lat: number, lng: number }[], isModified: boolean }): void {
+  editModeOverlayCache.set(overlayId, data);
+}
+
+/**
+ * AI : Get overlay modifications from edit mode cache
+ */
+export function getFromEditModeOverlayCache(overlayId: string): { corners: { lat: number, lng: number }[], isModified: boolean } | undefined {
+  return editModeOverlayCache.get(overlayId);
+}
+
+/**
+ * AI : Clear all edit mode cache
+ */
+export function clearEditModeOverlayCache(): void {
+  editModeOverlayCache.clear();
+}
+
+/**
  * AI : Clear all overlays from the map and reset collections
  */
 export function clearAllOverlays(): void {
   if (!map.value) return;
+
+  // AI : Save edit mode modifications before clearing overlays
+  if (isEditMode.value) {
+    Object.values(overlays.value).forEach((overlayObject: OverlayObject) => {
+      if (overlayObject.overlay && overlayObject.isModified) {
+        saveOverlayModificationsToCache(overlayObject);
+      }
+    });
+  }
 
   Object.values(overlays.value).forEach((overlayObject: OverlayObject) => {
     if (overlayObject.overlay) {
