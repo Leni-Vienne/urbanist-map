@@ -435,6 +435,30 @@ export function getFromEditModeOverlayCache(overlayId: string): { corners: { lat
 }
 
 /**
+ * AI : Get overlay data with edit modifications applied (for edit mode)
+ * @param overlayData - Original overlay data
+ * @returns Overlay data with edit modifications applied if in edit mode
+ */
+function getOverlayDataWithEditModifications(overlayData: CDNOverlayData): CDNOverlayData {
+  if (!isEditMode.value) {
+    return overlayData; // AI : Return original data in view mode
+  }
+
+  // AI : Get edit modifications from the main overlay cache
+  const editModifications = getFromEditModeOverlayCache(overlayData.id);
+  if (editModifications) {
+    // AI : Apply edit modifications
+    return {
+      ...overlayData,
+      corners: editModifications.corners,
+      isModified: editModifications.isModified
+    };
+  }
+
+  return overlayData; // AI : No modifications found
+}
+
+/**
  * AI : Clear all edit mode cache
  */
 export function clearEditModeOverlayCache(): void {
@@ -612,8 +636,11 @@ export function renderViewModeOverlays(cdnOverlays: CDNOverlayData[], createMark
 function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData, createMarkers = true) {
   if (!map.value || overlays.value[cdnOverlay.id]) return;
 
-  // AI : Use factory function to create overlay from CDN data
-  const overlayObject = createOverlayFromCDN(cdnOverlay);
+  // AI : Apply edit modifications if in edit mode before creating the overlay object
+  const overlayDataToUse = getOverlayDataWithEditModifications(cdnOverlay);
+
+  // AI : Use factory function to create overlay from CDN data (with potential edit modifications)
+  const overlayObject = createOverlayFromCDN(overlayDataToUse);
 
   if (createMarkers) {
     createSingleMarker(overlayObject);
