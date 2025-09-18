@@ -626,14 +626,14 @@ export function renderViewModeOverlays(cdnOverlays: CDNOverlayData[], createMark
   }
 
   for (const cdnOverlay of overlaysToRender) {
-    renderSingleViewModeOverlay(cdnOverlay, createMarkers);
+    renderSingleOverlay(cdnOverlay, createMarkers);
   }
 }
 
 /**
  * AI : Render a single CDN overlay as read-only distortable overlay on the map
  */
-function renderSingleViewModeOverlay(cdnOverlay: CDNOverlayData, createMarkers = true) {
+function renderSingleOverlay(cdnOverlay: CDNOverlayData, createMarkers = true) {
   if (!map.value || overlays.value[cdnOverlay.id]) return;
 
   // AI : Apply edit modifications if in edit mode before creating the overlay object
@@ -755,7 +755,22 @@ function createSingleMarker(savedOverlay: OverlayObject): void {
 }
 
 function getOverlayBounds(overlay: OverlayObject): L.LatLngBounds | null {
-  // AI : Validate all corner coordinates exist and are valid numbers
+  // AI : Priority 1: Check edit mode cache if in edit mode for the most current position
+  if (isEditMode.value) {
+    const cachedModifications = getFromEditModeOverlayCache(overlay.id);
+    if (cachedModifications?.corners?.length === 4) {
+      const corners = cachedModifications.corners.map(corner => L.latLng(corner.lat, corner.lng));
+      return L.latLngBounds(corners);
+    }
+  }
+
+  // AI : Priority 2: Use overlay corners from history if available
+  if (overlay.corners?.length === 4) {
+    const corners = overlay.corners.map(corner => L.latLng(corner.lat, corner.lng));
+    return L.latLngBounds(corners);
+  }
+
+  // AI : Priority 3: Validate all corner coordinates exist and are valid numbers
   if (!overlay.topLeftLat || !overlay.topLeftLng ||
     !overlay.topRightLat || !overlay.topRightLng ||
     !overlay.bottomRightLat || !overlay.bottomRightLng ||

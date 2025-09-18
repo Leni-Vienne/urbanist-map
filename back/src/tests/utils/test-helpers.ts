@@ -2,6 +2,7 @@ import { eq, sql } from 'drizzle-orm'
 import { projects, overlays, users, cities } from '../../db/schema'
 import { initTestDatabase, getTestDb, closeTestDatabase } from './test-database'
 import type { DBProject, DBOverlay, DBUser, DBCity } from '../../db/schema'
+import type { Context } from 'hono'
 
 // AI : Test utilities for version-based optimistic locking tests
 export class TestHelpers {
@@ -194,7 +195,7 @@ export class TestHelpers {
         createdAt: new Date(),
         updatedAt: new Date(),
       },
-      hono: {} as any,
+      hono: {} as Context,
     }
   }
 
@@ -214,7 +215,7 @@ export class TestHelpers {
         createdAt: new Date(),
         updatedAt: new Date(),
       },
-      hono: {} as any,
+      hono: {} as Context,
     }
   }
 }

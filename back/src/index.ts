@@ -65,6 +65,7 @@ app.use('/trpc/*', trpcServer({
     }
 }))
 
+// TODO zod validation for inputs
 // AI : Auth routes using Hono (for session management)
 app.post('/api/login', async (c) => {
     try {

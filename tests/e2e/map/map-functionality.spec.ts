@@ -72,12 +72,9 @@ test.describe('Core Map Functionality', () => {
   test('should handle map pan and drag interactions', async ({ page }) => {
     // AI : Get initial map center using Leaflet API
     const initialCenter = await page.evaluate(() => {
-      const container = document.querySelector('.leaflet-container') as any;
-      if (container?._leaflet_map?.getCenter) {
-        const center = container._leaflet_map.getCenter();
-        return { lat: center.lat, lng: center.lng };
-      }
-      return null;
+      const map = (document.querySelector('.leaflet-container') as any)._leaflet_map as L.Map;
+      const center = map.getCenter() as { lat: number; lng: number };
+      return { lat: center.lat, lng: center.lng };
     });
 
     // AI : Perform drag operation on map
@@ -91,12 +88,9 @@ test.describe('Core Map Functionality', () => {
 
     // AI : Get new map center using Leaflet API
     const newCenter = await page.evaluate(() => {
-      const container = document.querySelector('.leaflet-container') as any;
-      if (container?._leaflet_map?.getCenter) {
-        const center = container._leaflet_map.getCenter();
-        return { lat: center.lat, lng: center.lng };
-      }
-      return null;
+      const map = (document.querySelector('.leaflet-container') as any)._leaflet_map as L.Map;
+      const center = map.getCenter()
+      return { lat: center.lat, lng: center.lng };
     });
 
     // AI : Verify map position changed

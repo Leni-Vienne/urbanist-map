@@ -142,11 +142,11 @@ export function useModeration() {
   }
 
   const approveOverlay = async (id: string): Promise<ApprovalResult> => {
-    return await setOverlayStatus(id, 'approved')
+    return setOverlayStatus(id, 'approved')
   }
 
   const rejectOverlay = async (id: string): Promise<ApprovalResult> => {
-    return await setOverlayStatus(id, 'rejected')
+    return setOverlayStatus(id, 'rejected')
   }
 
   const undoLastAction = async () => {
