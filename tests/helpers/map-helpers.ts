@@ -90,13 +90,11 @@ export class MapTestHelpers {
     while (attempts < maxAttempts) {
       const currentZoom = await this.getCurrentZoom();
       if (!currentZoom) {
-        console.log('Could not determine current zoom level');
         break;
       }
 
       // AI : Check if we've reached the target (with tolerance)
       if (Math.abs(currentZoom - targetZoom) <= 0.5) {
-        console.log(`Reached target zoom: ${currentZoom} (target: ${targetZoom})`);
         break;
       }
 
@@ -104,7 +102,6 @@ export class MapTestHelpers {
       if (lastZoom !== null && Math.abs(currentZoom - lastZoom) < 0.1) {
         stableCount++;
         if (stableCount >= 3) {
-          console.log(`Zoom appears stable at ${currentZoom}, stopping attempts`);
           break;
         }
       } else {
@@ -151,8 +148,6 @@ export class MapTestHelpers {
     }
 
     // AI : Final verification
-    const finalZoom = await this.getCurrentZoom();
-    console.log(`Final zoom after ${attempts} attempts: ${finalZoom} (target: ${targetZoom})`);
     await this.page.waitForTimeout(500);
   }
 

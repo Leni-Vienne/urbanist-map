@@ -8,7 +8,8 @@
         "strictNullChecks": true,
         "allowSyntheticDefaultImports": true,
         "types": [
-            "@types/bun"
+            "@types/bun",
+            "@cloudflare/workers-types" // for R2Bucket type
         ],
         "paths": {
             "@tables": [

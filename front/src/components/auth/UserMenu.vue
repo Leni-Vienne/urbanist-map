@@ -9,6 +9,7 @@
       :label="$t('auth.signIn')"
       size="small"
       raised
+      data-testid="sign-in-button"
       @dblclick.stop
       @click="showAuthModal = true"
     />
@@ -17,6 +18,7 @@
     <div
       v-else
       class="user-menu"
+      data-testid="user-menu"
       @click="toggleMenu"
       @dblclick.stop
       ref="userMenuRef"
@@ -40,6 +42,7 @@
         </div>
         <div
           class="flex items-center gap-2 px-3 py-2 hover:bg-surface-100 cursor-pointer border-round"
+          data-testid="sign-out-button"
           @click="handleSignOut"
           role="button"
           tabindex="0"

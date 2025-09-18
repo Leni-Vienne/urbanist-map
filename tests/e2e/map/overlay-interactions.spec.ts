@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { MapTestHelpers } from '../../helpers/map-helpers';
-import { disableHelpModal } from '../helpers/test-helpers';
+import { disableHelpModal } from '../../helpers/test-helpers';
 
 test.describe('Overlay Interactions', () => {
   let mapHelpers: MapTestHelpers;
@@ -14,6 +14,11 @@ test.describe('Overlay Interactions', () => {
     await page.waitForLoadState('networkidle');
     await mapHelpers.waitForMapReady();
     await mapHelpers.dismissErrorAlerts();
+    
+    // AI : Setup authentication for tests that require it
+    const { AuthTestHelpers } = await import('../../helpers/auth-helpers');
+    const authHelpers = new AuthTestHelpers(page);
+    await authHelpers.setupAuthenticatedState();
   });
 
   test('should show different marker colors in edit mode based on overlay state', async ({ page }) => {
@@ -150,9 +155,7 @@ test.describe('Overlay Interactions', () => {
     await page.waitForTimeout(1000);
     
     // AI : Get initial map center/zoom
-    const initialZoom = await page.evaluate(async () => {
-      return mapHelpers.getCurrentZoom();
-    });
+    const initialZoom = await mapHelpers.getCurrentZoom();
     
     // AI : Click zoom to button if overlays are available
     const zoomToButton = page.getByRole('button', { name: /Zoom to/ }).first();
@@ -161,9 +164,7 @@ test.describe('Overlay Interactions', () => {
       await page.waitForTimeout(1000);
       
       // AI : Verify map position changed
-      const newZoom = await page.evaluate(async () => {
-        return mapHelpers.getCurrentZoom();
-      });
+      const newZoom = await mapHelpers.getCurrentZoom();
       
       // AI : Zoom level should have changed (increased)
       if (initialZoom && newZoom) {

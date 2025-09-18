@@ -5,6 +5,7 @@
     :header="isLoginMode ? $t('auth.signIn') : $t('auth.signUp')" 
     :style="{width: '450px'}" 
     class="p-fluid"
+    data-testid="auth-modal"
   >
     <!-- AI : Social Login Section -->
     <div class="mb-6">
@@ -49,6 +50,7 @@
           :placeholder="$t('auth.enterEmailAddress')"
           autocomplete="email"
           class="w-full"
+          data-testid="auth-email-input"
         />
         <small v-if="emailError" class="p-error">{{ emailError }}</small>
       </div>
@@ -64,6 +66,7 @@
           :invalid="!!passwordError"
           :placeholder="isLoginMode ? $t('auth.enterPassword') : $t('auth.chooseStrongPassword')"
           :autocomplete="isLoginMode ? 'current-password' : 'new-password'"
+          data-testid="auth-password-input"
         />
         <small v-if="passwordError" class="p-error">{{ passwordError }}</small>
       </div>
@@ -78,6 +81,7 @@
           :placeholder="$t('auth.chooseUsername')"
           autocomplete="nickname"
           class="w-full"
+          data-testid="auth-username-input"
         />
         <small class="text-muted-color text-xs">{{ $t('auth.displayName') }}</small>
       </div>
@@ -94,6 +98,7 @@
           :loading="loading"
           :disabled="loading || oauthLoading"
           class="w-full"
+          data-testid="auth-submit-button"
         />
         
         <div class="text-center pt-3 border-t border-surface-300">
@@ -107,6 +112,7 @@
             @click="toggleMode"
             :disabled="loading || oauthLoading"
             class="ml-1 p-0"
+            data-testid="auth-mode-toggle"
           />
         </div>
       </div>
