@@ -1,12 +1,12 @@
 import { describe, test, expect, beforeAll, beforeEach, afterAll } from 'bun:test'
 import { eq } from 'drizzle-orm'
-import { projects } from '../../db/schema'
+import { projects, DBUser, DBCity } from '../../db/schema'
 import { getTestDb } from '../utils/test-database'
 import { TestHelpers } from '../utils/test-helpers'
 
 describe('Database Schema - Version Field Tests', () => {
-  let testUser: any
-  let testCity: any
+  let testUser: DBUser
+  let testCity: DBCity
 
   beforeAll(async () => {
     await TestHelpers.initialize()

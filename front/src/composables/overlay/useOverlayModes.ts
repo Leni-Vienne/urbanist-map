@@ -315,14 +315,10 @@ export function toggleEditMode(onModeExit?: () => void) {
           overlayObject.overlay.addTo(map.value);
         }
       }
-
-      // AI : Update marker colors and tooltips for edit mode
-      if (overlayObject.marker) {
-        updateMarkerTooltip(overlayObject);
-      }
     });
 
-    // AI : Update overlay editing state for existing overlays
+    // AI : Update overlay editing state for existing overlays - this will recreate overlays with cached corners
+    // and then update marker tooltips with correct positions
     updateOverlayEditingState();
 
     // AI : Initialize edit mode overlay markers for overlays that don't have images loaded yet

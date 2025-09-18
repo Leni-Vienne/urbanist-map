@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeAll, beforeEach, afterAll } from 'bun:test'
 import { eq } from 'drizzle-orm'
-import { projects, overlays } from '../../db/schema'
+import { projects, overlays, DBUser, DBCity } from '../../db/schema'
 import { getTestDb } from '../utils/test-database'
 import { moderationRouter } from '../../routes/moderation'
 import { projectRouter } from '../../routes/project'
@@ -10,9 +10,9 @@ import { TestHelpers } from '../utils/test-helpers'
 // AI : Use shared context creation from TestHelpers
 
 describe('Race Condition Prevention Tests', () => {
-  let testUser: any
-  let testAdmin: any
-  let testCity: any
+  let testUser: DBUser
+  let testAdmin: DBUser
+  let testCity: DBCity
 
   beforeAll(async () => {
     await TestHelpers.initialize()
@@ -93,7 +93,7 @@ describe('Race Condition Prevention Tests', () => {
       const userCaller = projectRouter.createCaller(TestHelpers.createUserContext(testUser.id))
       
       // AI : Simulate multiple concurrent edits from same user
-      const editPromises = Array(5).fill(null).map((_, index) =>
+      const editPromises = Array(5).fill(null).map(async (_, index) =>
         userCaller.publishProject({
           id: project.id,
           name: `Concurrent Edit ${index}`,
@@ -316,7 +316,7 @@ describe('Race Condition Prevention Tests', () => {
       const adminCaller = moderationRouter.createCaller(TestHelpers.createAdminContext(testAdmin.id))
       
       // AI : Create concurrent operations with proper name length (min 8 chars)
-      const edits = Array(5).fill(null).map((_, i) =>
+      const edits = Array(5).fill(null).map(async (_, i) =>
         userCaller.publishProject({
           id: project.id,
           name: `Concurrent Edit ${i}`, // AI : Fixed name length requirement
@@ -325,7 +325,7 @@ describe('Race Condition Prevention Tests', () => {
         })
       )
       
-      const approvals = Array(5).fill(null).map(() =>
+      const approvals = Array(5).fill(null).map(async () =>
         adminCaller.setProjectApprovalStatusWithVersion({
           id: project.id,
           expectedVersion: 1,

@@ -45,24 +45,11 @@ export class MapTestHelpers {
    * AI : Get current map zoom level using Leaflet API
    */
   async getCurrentZoom(): Promise<number | null> {
-    return await this.page.evaluate(() => {
+    return this.page.evaluate(() => {
       try {
         // AI : Direct Leaflet container access (most reliable)
-        const container = document.querySelector('.leaflet-container') as any;
-        if (container?._leaflet_map?.getZoom) {
-          return container._leaflet_map.getZoom();
-        }
-
-        // AI : Search through container properties (fallback)
-        if (container) {
-          for (const prop in container) {
-            if (container[prop]?.getZoom) {
-              return container[prop].getZoom();
-            }
-          }
-        }
-
-        return null;
+        const map = (document.querySelector('.leaflet-container') as any)._leaflet_map as L.Map;
+        return map.getZoom();
       } catch (error) {
         console.error('Error getting zoom level:', error);
         return null;

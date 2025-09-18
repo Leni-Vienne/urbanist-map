@@ -2,15 +2,15 @@ import { describe, test, expect, beforeAll, beforeEach, afterAll } from 'bun:tes
 import { moderationRouter } from '../../routes/moderation'
 import { TestHelpers } from '../utils/test-helpers'
 import { getTestDb } from '../utils/test-database'
-import { projects } from '../../db/schema'
+import { projects, DBUser, DBCity } from '../../db/schema'
 import { eq } from 'drizzle-orm'
 
 // AI : Use shared context creation from TestHelpers
 
 describe('Moderation Routes - Version-Aware Approval Tests', () => {
-  let testUser: any
-  let testAdmin: any
-  let testCity: any
+  let testUser: DBUser
+  let testAdmin: DBUser
+  let testCity: DBCity
 
   beforeAll(async () => {
     await TestHelpers.initialize()
