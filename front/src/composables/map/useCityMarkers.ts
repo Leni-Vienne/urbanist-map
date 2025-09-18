@@ -2,7 +2,7 @@ import L from "leaflet";
 import { createColorIcon } from '@composables/ui/markerIcons';
 import { ref, computed } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
-import { renderViewModeOverlays, clearAllOverlays } from '@composables/overlay/useOverlay';
+import { renderViewModeOverlays, clearAllOverlays, getFromEditModeOverlayCache } from '@composables/overlay/useOverlay';
 import { useViewModeOverlays } from '@composables/overlay/useOverlayModes';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import { trpc, RouterOutput } from '@client';
@@ -57,8 +57,6 @@ let overlayMarkersLayer: L.LayerGroup | null = null;
 // AI : Cache for city projects data to avoid repeated API calls
 const cityProjectsCache = new Map<string, CDNOverlayData[]>();
 
-// AI : Separate cache for edit mode modifications (keeps original cache pristine)
-const editModeOverlayCache = new Map<string, { corners: { lat: number, lng: number }[], isModified: boolean }>();
 
 // AI : Track the currently selected (clicked) city marker
 let selectedCityMarker: L.Marker | null = null;
@@ -354,7 +352,8 @@ function getOverlayDataWithEditModifications(overlayData: CDNOverlayData): CDNOv
     return overlayData; // AI : Return original data in view mode
   }
 
-  const editModifications = editModeOverlayCache.get(overlayData.id);
+  // AI : Get edit modifications from the main overlay cache
+  const editModifications = getFromEditModeOverlayCache(overlayData.id);
   if (editModifications) {
     // AI : Apply edit modifications
     return {
