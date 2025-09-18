@@ -52,36 +52,45 @@ export function useModeration() {
     moderationLoaded.value = false
   }
 
-  // AI : Helper function to set overlay approval status and track action with version validation
-  const setOverlayStatus = async (id: string, status: 'approved' | 'rejected'): Promise<ApprovalResult> => {
+  // AI : Generic approval handler for any moderation item type
+  const setApprovalStatus = async <T extends { id: string; name?: string; version: number }>(
+    id: string, 
+    status: 'approved' | 'rejected',
+    itemType: 'overlay' | 'project',
+    items: T[],
+    apiCall: (params: { id: string; expectedVersion: number; status: 'approved' | 'rejected' }) => Promise<{ success: boolean }>,
+    notFoundMessage: string,
+    conflictMessage: string,
+    failureMessage: string
+  ): Promise<ApprovalResult> => {
     try {
-      // AI : Find overlay name and version for tracking
-      const overlay = overlays.value.find(o => o.id === id)
-      if (!overlay) {
+      // AI : Find item by ID and validate existence
+      const item = items.find(i => i.id === id)
+      if (!item) {
         return {
           success: false,
           error: 'not_found',
-          message: 'Overlay not found'
+          message: notFoundMessage
         }
       }
 
-      const itemName = overlay.name ?? 'Unknown'
+      const itemName = item.name ?? (itemType === 'project' ? 'Unknown Project' : 'Unknown')
 
       // AI : Use version-aware approval endpoint
-      const result = await trpc.moderation.setOverlayApprovalStatusWithVersion.mutate({
+      const result = await apiCall({
         id,
-        expectedVersion: overlay.version,
+        expectedVersion: item.version,
         status,
       })
 
       if (!result.success) {
         // AI : Handle version conflicts - refresh data and return conflict info
         resetModerationLoaded()
-      await fetchPendingSubmissions()
+        await fetchPendingSubmissions()
         return {
           success: false,
           error: 'version_conflict',
-          message: 'This overlay was modified by another user. Please review the updated version before approving.',
+          message: conflictMessage,
           itemName
         }
       }
@@ -90,7 +99,7 @@ export function useModeration() {
       const action: RecentAction = {
         id,
         itemName,
-        itemType: 'overlay',
+        itemType,
         previousStatus: 'pending',
         newStatus: status,
         timestamp: new Date()
@@ -109,13 +118,27 @@ export function useModeration() {
       }
     }
     catch (error) {
-      console.error(`Error ${status === 'approved' ? 'approving' : 'rejecting'} overlay ${id}:`, error)
+      console.error(`Error ${status === 'approved' ? 'approving' : 'rejecting'} ${itemType} ${id}:`, error)
       return {
         success: false,
         error: 'unknown',
-        message: `Failed to ${status === 'approved' ? 'approve' : 'reject'} overlay`
+        message: failureMessage
       }
     }
+  }
+
+  // AI : Helper function to set overlay approval status using the generic handler
+  const setOverlayStatus = async (id: string, status: 'approved' | 'rejected'): Promise<ApprovalResult> => {
+    return setApprovalStatus(
+      id,
+      status,
+      'overlay',
+      overlays.value,
+      trpc.moderation.setOverlayApprovalStatusWithVersion.mutate,
+      'Overlay not found',
+      'This overlay was modified by another user. Please review the updated version before approving.',
+      `Failed to ${status === 'approved' ? 'approve' : 'reject'} overlay`
+    )
   }
 
   const approveOverlay = async (id: string): Promise<ApprovalResult> => {
@@ -163,70 +186,18 @@ export function useModeration() {
 
   onMounted(fetchPendingSubmissions)
 
-  // AI : Project approval functions with tracking and version validation
+  // AI : Helper function to set project approval status using the generic handler
   const setProjectStatus = async (id: string, status: 'approved' | 'rejected'): Promise<ApprovalResult> => {
-    try {
-      // AI : Find project name and version for tracking
-      const project = projects.value.find(p => p.id === id)
-      if (!project) {
-        return {
-          success: false,
-          error: 'not_found',
-          message: 'Project not found'
-        }
-      }
-
-      const itemName = project.name ?? 'Unknown Project'
-
-      // AI : Use version-aware approval endpoint
-      const result = await trpc.moderation.setProjectApprovalStatusWithVersion.mutate({
-        id,
-        expectedVersion: project.version,
-        status,
-      })
-
-      if (!result.success) {
-        // AI : Handle version conflicts - refresh data and return conflict info
-        resetModerationLoaded()
-      await fetchPendingSubmissions()
-        return {
-          success: false,
-          error: 'version_conflict',
-          message: 'This project was modified by another user. Please review the updated version before approving.',
-          itemName
-        }
-      }
-
-      // AI : Track action for potential undo
-      const action: RecentAction = {
-        id,
-        itemName,
-        itemType: 'project',
-        previousStatus: 'pending',
-        newStatus: status,
-        timestamp: new Date()
-      }
-
-      // AI : Add to recent actions and limit to last 5 actions
-      recentActions.value.unshift(action)
-      recentActions.value = recentActions.value.slice(0, 5)
-
-      resetModerationLoaded()
-      await fetchPendingSubmissions()
-
-      return {
-        success: true,
-        itemName
-      }
-    }
-    catch (error) {
-      console.error(`Error ${status === 'approved' ? 'approving' : 'rejecting'} project ${id}:`, error)
-      return {
-        success: false,
-        error: 'unknown',
-        message: `Failed to ${status === 'approved' ? 'approve' : 'reject'} project`
-      }
-    }
+    return setApprovalStatus(
+      id,
+      status,
+      'project',
+      projects.value,
+      trpc.moderation.setProjectApprovalStatusWithVersion.mutate,
+      'Project not found',
+      'This project was modified by another user. Please review the updated version before approving.',
+      `Failed to ${status === 'approved' ? 'approve' : 'reject'} project`
+    )
   }
 
   const approveProject = async (id: string): Promise<ApprovalResult> => {

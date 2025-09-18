@@ -115,7 +115,6 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
       
       expect(result.success).toBe(false)
       expect(result.error).toBe('Version mismatch')
-      expect(result.error).toBe('Version mismatch')
       expect(result.expectedVersion).toBe(1)
       expect(result.currentVersion).toBe(2)
     })
@@ -172,7 +171,6 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
       })
       
       expect(result.success).toBe(false)
-      expect(result.error).toBe('Version mismatch')
       expect(result.error).toBe('Project not found')
     })
 
@@ -231,7 +229,6 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
       
       expect(result.success).toBe(false)
       expect(result.error).toBe('Version mismatch')
-      expect(result.error).toBe('Version mismatch')
       expect(result.expectedVersion).toBe(1)
       expect(result.currentVersion).toBe(2)
     })
@@ -260,7 +257,6 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
       })
       
       expect(result.success).toBe(false)
-      expect(result.error).toBe('Version mismatch')
       expect(result.error).toBe('Overlay not found')
     })
   })
