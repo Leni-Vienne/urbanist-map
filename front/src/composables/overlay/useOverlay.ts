@@ -49,40 +49,35 @@ export const allMarkers = shallowRef<Record<string, L.Marker>>({});
  * AI : This function recreates overlays to update toolbar actions properly
  */
 export function updateOverlayEditingState(): void {
-  // AI : Store overlay data before recreating
-  const overlayDataToRecreate: { [key: string]: { imageUrl: string; overlayObject: OverlayObject } } = {};
-
+  // AI : Update existing overlays in-place instead of recreating them
   Object.values(overlays.value).forEach((overlayObject: OverlayObject) => {
     if (!overlayObject.overlay) return;
 
-    // AI : Store the overlay data for recreation
-    overlayDataToRecreate[overlayObject.id] = {
-      imageUrl: overlayObject.imageUrl,
-      overlayObject: { ...overlayObject }
-    };
+    // AI : Update overlay options using the new setOptions method
+    overlayObject.overlay.setOptions({
+      actions: [...(isEditMode.value ? editTools : viewTools)],
+      draggable: isEditMode.value,
+    });
 
-    // AI : Remove the old overlay from the map
-    if (map.value) {
-      map.value.removeLayer(overlayObject.overlay);
+    // AI : When entering edit mode, restore cached corner positions if they exist
+    if (isEditMode.value) {
+      const cachedModifications = getFromEditModeOverlayCache(overlayObject.id);
+      if (cachedModifications?.corners?.length === 4) {
+        // AI : Restore cached corners to overlay
+        const leafletCorners = cachedModifications.corners.map(corner => L.latLng(corner.lat, corner.lng));
+        overlayObject.overlay.setCorners(leafletCorners);
+        
+        // AI : Update overlay object state
+        overlayObject.history = [cachedModifications.corners];
+        overlayObject.isModified = cachedModifications.isModified;
+        
+        // AI : Update marker position to match restored corners
+        updateMarkerPosition(overlayObject);
+      }
     }
 
-    // AI : Clear the overlay reference but keep the object
-    overlayObject.overlay = null;
-  });
-
-  // AI : Recreate overlays with updated toolbar actions
-  Object.entries(overlayDataToRecreate).forEach(([overlayId, data]) => {
-    const overlayObject = overlays.value[overlayId];
-    if (!overlayObject) return;
-
-    // AI : Recreate the overlay with current mode's toolbar actions
-    const newOverlay = createOverlay(data.imageUrl, overlayObject);
-    if (newOverlay) {
-      overlayObject.overlay = newOverlay;
-
-      // AI : Update marker color and tooltip
-      updateMarkerTooltip(overlayObject);
-    }
+    // AI : Update marker color and tooltip
+    updateMarkerTooltip(overlayObject);
   });
 }
 

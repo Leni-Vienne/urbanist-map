@@ -82,6 +82,7 @@ declare module "leaflet" {
     };
     getCorners: () => { lat: number, lng: number }[];
     setCorners: (corners: { lat: number, lng: number }[]) => void;
+    setOptions: (options: Partial<DistortableImageOverlayOptions>) => void;
     bindTooltip: (content: string, options?: L.TooltipOptions) => this;
     openTooltip: () => this;
   }
