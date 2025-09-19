@@ -2,7 +2,7 @@ import { useAuthStore } from '@stores/authStore'
 import { useUiStore } from '@stores/uiStore'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { toggleEditMode } from '@composables/overlay/useOverlayModes'
-import { handleEditModeExit } from '@composables/map/useCityMarkers'
+import { handleEditModeExit } from '@composables/overlay/useOverlayModes'
 import { storeToRefs } from 'pinia'
 
 // AI : Composable for handling add overlay button click logic

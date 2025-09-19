@@ -1,7 +1,8 @@
 import L from "leaflet";
 import { ref } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
-import { addCityMarkersForCountry, removeCityMarkers, currentCityOverlays, removeOverlayMarkers } from '@composables/map/useCityMarkers';
+import { addCityMarkersForCountry, removeCityMarkers } from '@composables/map/useCityMarkers';
+import { currentCityOverlays, removeOverlayMarkers } from '@composables/map/useCityOverlays';
 import { clearAllOverlays } from '@composables/overlay/useOverlay';
 import { switchTileLayer, isTileLayerType } from '@composables/map/useTileLayers';
 import { trpc } from '@client';
