@@ -3,11 +3,14 @@ import { watch } from 'vue';
 import L from 'leaflet';
 import { map, onMapInitialized, currentZoomLevel } from '@composables/core/useMap';
 import { onCameraStop } from '@composables/map/useCameraBounds';
-import { updateOverlayEditingState, clearAllOverlays, renderViewModeOverlays, updateMarkerTooltip, createOverlay } from '@composables/overlay/useOverlay';
+import { updateOverlayEditingState, clearAllOverlays, renderViewModeOverlays, updateMarkerTooltip, createOverlay, updateMarkerPosition } from '@composables/overlay/useOverlay';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { storeToRefs } from 'pinia';
 import type { CameraBounds, CDNOverlayData } from '@types';
+import { latestClickedCity, hasCachedCityProjectsData, getCachedCityProjectsData } from '@composables/map/useCityData';
+import { renderOverlayMarkersFromCache, updateOverlayMarkersForFilters } from '@composables/map/useCityOverlays';
+import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 
 // AI : Function to get store refs when needed to avoid module-level initialization
 function getStoreRefs() {
@@ -245,6 +248,66 @@ function watchZoomLevel(): void {
       unloadOverlaysForZoomLevel();
     }
   });
+}
+
+/**
+ * AI : Handle edit mode exit - reset overlays to backend positions for view mode display
+ * This function contains the city-related overlay re-rendering logic
+ */
+export function handleEditModeExit() {
+  // AI : Force re-render overlays to show original backend positions instead of modified ones
+  // AI : Check if we have a current city with cached data
+  if (latestClickedCity.value && hasCachedCityProjectsData(latestClickedCity.value.id)) {
+    const overlaysData = getCachedCityProjectsData(latestClickedCity.value.id)!;
+
+    // AI : Get store refs for overlays
+    const { overlays } = getStoreRefs();
+
+    // AI : Check current zoom level to decide what to render
+    const currentZoom = map.value?.getZoom() ?? 0;
+
+    if (currentZoom >= MIN_ZOOM_FOR_EDIT_OVERLAYS) {
+      // AI : Zoom is high enough for full overlays
+      const { setViewModeOverlays } = useViewModeOverlays();
+      setViewModeOverlays(overlaysData);
+
+      // AI : Reset overlay positions to backend values for VIEW MODE DISPLAY ONLY
+      // AI : DO NOT clear isModified or edit mode cache - these need to persist for edit mode restoration
+      overlaysData.forEach(cdnOverlay => {
+        const existingOverlay = overlays.value[cdnOverlay.id];
+        if (existingOverlay?.overlay && cdnOverlay.corners?.length === 4) {
+          // AI : Reset to backend corners (for view mode display only)
+          const backendCorners = cdnOverlay.corners.map(corner => L.latLng(corner.lat, corner.lng));
+          
+          existingOverlay.overlay.setCorners(backendCorners);
+          // AI : IMPORTANT: Do NOT clear isModified flag or edit mode cache
+          // The edit mode cache must persist so positions can be restored when returning to edit mode
+          
+          // AI : Update marker position and tooltip
+          updateMarkerPosition(existingOverlay);
+          updateMarkerTooltip(existingOverlay);
+        }
+      });
+
+      // AI : Filter overlays based on current completion status filters
+      const completionFilters = useCompletionFilters();
+      const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData);
+
+      // AI : Only render new overlays that don't exist yet
+      const existingOverlayIds = new Set(Object.keys(overlays.value));
+      const newOverlays = visibleOverlays.filter(overlay => !existingOverlayIds.has(overlay.id));
+      if (newOverlays.length > 0) {
+        renderViewModeOverlays(newOverlays, true, false);
+      }
+    } else {
+      // AI : Zoom is too low, clear overlays and render markers only
+      clearAllOverlays();
+      renderOverlayMarkersFromCache(latestClickedCity.value.id, latestClickedCity.value.name);
+    }
+
+    // AI : Update overlay markers colors for view mode (when zoomed out)
+    updateOverlayMarkersForFilters();
+  }
 }
 
 /**

@@ -29,7 +29,7 @@ import { initializeCameraBounds } from '@composables/map/useCameraBounds';
 import { renderViewModeOverlays, removeOverlay, undo, redo } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
 import { useViewModeOverlays } from '@composables/overlay/useOverlayModes';
-import { currentCityOverlays, updateOverlayMarkersForFilters } from '@composables/map/useCityMarkers';
+import { currentCityOverlays, updateOverlayMarkersForFilters } from '@composables/map/useCityOverlays';
 import { initializeCountryMarkers } from '@composables/map/useCountryMarkers';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useUiStore } from '@stores/uiStore';

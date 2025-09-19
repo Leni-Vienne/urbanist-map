@@ -1,5 +1,5 @@
 import { computed } from 'vue';
-import { currentCityOverlays } from '@composables/map/useCityMarkers';
+import { currentCityOverlays } from '@composables/map/useCityOverlays';
 import type { Project } from '@types';
 import { createProject } from '../../utils/typeFactories';
 
