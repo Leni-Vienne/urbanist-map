@@ -2,7 +2,7 @@ import L from "leaflet";
 import { createColorIcon } from '@composables/ui/markerIcons';
 import { ref, computed } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
-import { renderViewModeOverlays, clearAllOverlays, getFromEditModeOverlayCache } from '@composables/overlay/useOverlay';
+import { renderViewModeOverlays, clearAllOverlays, getFromEditModeOverlayCache, updateMarkerPosition, updateMarkerTooltip } from '@composables/overlay/useOverlay';
 import { useViewModeOverlays } from '@composables/overlay/useOverlayModes';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import { trpc, RouterOutput } from '@client';
@@ -630,8 +630,8 @@ export function handleEditModeExit() {
   if (latestClickedCity.value && hasCachedCityProjectsData(latestClickedCity.value.id)) {
     const overlaysData = getCachedCityProjectsData(latestClickedCity.value.id)!;
 
-    // AI : Clear all current overlays first
-    clearAllOverlays();
+    // AI : Get store refs for overlays
+    const { overlays } = getStoreRefs();
 
     // AI : Check current zoom level to decide what to render
     const currentZoom = map.value?.getZoom() ?? 0;
@@ -641,14 +641,37 @@ export function handleEditModeExit() {
       const { setViewModeOverlays } = useViewModeOverlays();
       setViewModeOverlays(overlaysData);
 
+      // AI : Reset overlay positions to backend values for VIEW MODE DISPLAY ONLY
+      // AI : DO NOT clear isModified or edit mode cache - these need to persist for edit mode restoration
+      overlaysData.forEach(cdnOverlay => {
+        const existingOverlay = overlays.value[cdnOverlay.id];
+        if (existingOverlay?.overlay && cdnOverlay.corners?.length === 4) {
+          // AI : Reset to backend corners (for view mode display only)
+          const backendCorners = cdnOverlay.corners.map(corner => L.latLng(corner.lat, corner.lng));
+          
+          existingOverlay.overlay.setCorners(backendCorners);
+          // AI : IMPORTANT: Do NOT clear isModified flag or edit mode cache
+          // The edit mode cache must persist so positions can be restored when returning to edit mode
+          
+          // AI : Update marker position and tooltip
+          updateMarkerPosition(existingOverlay);
+          updateMarkerTooltip(existingOverlay);
+        }
+      });
+
       // AI : Filter overlays based on current completion status filters
       const completionFilters = useCompletionFilters();
       const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData);
 
-      // AI : Render the overlays on the map
-      renderViewModeOverlays(visibleOverlays, true, true)
+      // AI : Only render new overlays that don't exist yet
+      const existingOverlayIds = new Set(Object.keys(overlays.value));
+      const newOverlays = visibleOverlays.filter(overlay => !existingOverlayIds.has(overlay.id));
+      if (newOverlays.length > 0) {
+        renderViewModeOverlays(newOverlays, true, false);
+      }
     } else {
-      // AI : Zoom is too low, render markers only (view mode markers)
+      // AI : Zoom is too low, clear overlays and render markers only
+      clearAllOverlays();
       renderOverlayMarkersFromCache(latestClickedCity.value.id, latestClickedCity.value.name);
     }
 

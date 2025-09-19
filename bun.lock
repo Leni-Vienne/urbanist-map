@@ -8,10 +8,10 @@
         "@tailwindcss/vite": "^4.1.13",
         "@trpc/client": "^11.5.1",
         "@trpc/server": "^11.5.1",
+        "leaflet-distortableimage": "Leni-vienne/Leaflet.DistortableImage",
         "drizzle-orm": "^0.44.5",
         "hono": "^4.9.7",
         "hono-sessions": "^0.8.0",
-        "leaflet-distortableimage": "Leni-vienne/Leaflet.DistortableImage",
         "leaflet-doubletapdrag": "^0.1.2",
         "leaflet-doubletapdragzoom": "^0.3.2",
         "leaflet-toolbar": "^0.4.0-alpha.2",
@@ -973,7 +973,7 @@
 
     "leaflet": ["leaflet@1.9.4", "", {}, "sha512-nxS1ynzJOmOlHp+iL3FyWqK89GtNL8U8rvlMOsQdTTssxZwCXh8N2NB3GDQOL+YR3XnWyZAxwQixURb+FA74PA=="],
 
-    "leaflet-distortableimage": ["leaflet-distortableimage@github:Leni-vienne/Leaflet.DistortableImage#0170e4c", { "dependencies": { "exif-js": "^2.3.0", "glfx": "0.0.4", "leaflet-google-places-autocomplete": "^0.0.9", "leaflet-toolbar": "0.4.0-alpha.2", "webgl-distort": "0.0.2" }, "peerDependencies": { "leaflet": "1.x" } }, "Leni-Vienne-Leaflet.DistortableImage-0170e4c"],
+    "leaflet-distortableimage": ["leaflet-distortableimage@github:Leni-vienne/Leaflet.DistortableImage#35665be", { "dependencies": { "exif-js": "^2.3.0", "glfx": "0.0.4", "leaflet-google-places-autocomplete": "^0.0.9", "leaflet-toolbar": "0.4.0-alpha.2", "webgl-distort": "0.0.2" }, "peerDependencies": { "leaflet": "1.x" } }, "Leni-Vienne-Leaflet.DistortableImage-35665be"],
 
     "leaflet-doubletapdrag": ["leaflet-doubletapdrag@0.1.2", "", { "peerDependencies": { "leaflet": "^1.0.0" } }, "sha512-YE7fyTrAAMxy+tX4VxqM14TuSvLPaiXzmYGCQnp3D1phmCg7AEe6KZqgQa/gJ8w5oocG1RTSNMQDlMIDAwmCWA=="],
 
