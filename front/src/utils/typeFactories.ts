@@ -110,7 +110,6 @@ export function createOverlay(data: Partial<OverlayObject> = {}): OverlayObject 
     // AI : Editor state
     history: data.history ?? [],
     redoStack: data.redoStack ?? [],
-    whitePixelsHidden: data.whitePixelsHidden ?? false,
     isFlipped: data.isFlipped ?? false,
     currentResolution: data.currentResolution,
     project: data.project ?? null,

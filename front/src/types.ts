@@ -138,7 +138,6 @@ export interface OverlayObject extends DBOverlay {
   // AI : Editor state
   history: { lat: number, lng: number }[][];
   redoStack: { lat: number, lng: number }[][];
-  whitePixelsHidden: boolean;
   isFlipped: boolean;
   currentResolution?: string;
 

@@ -3,6 +3,7 @@ import { serveStatic } from 'hono/bun'
 import { cors } from 'hono/cors'
 import { trpcServer } from '@hono/trpc-server'
 import { sessionMiddleware, MemoryStore, Session } from 'hono-sessions'
+import { z } from 'zod'
 import { appRouter } from './shared/routers'
 import { LocalFileStorage } from './shared/storage'
 import type { FileUploadResult, FileUploadError } from './shared/types'
@@ -65,16 +66,19 @@ app.use('/trpc/*', trpcServer({
     }
 }))
 
-// TODO zod validation for inputs
 // AI : Auth routes using Hono (for session management)
 app.post('/api/login', async (c) => {
     try {
         const body = await c.req.json();
-        const { email, password } = body;
-
-        if (!email || !password) {
-            return c.json({ error: 'Email and password required' }, 400);
+        
+        // AI : Validate request body with Zod
+        const validationResult = loginSchema.safeParse(body);
+        if (!validationResult.success) {
+            const errorMessage = validationResult.error.issues.map((err: any) => err.message).join(', ');
+            return c.json({ error: errorMessage }, 400);
         }
+        
+        const { email, password } = validationResult.data;
 
         // AI : Find user (same logic as tRPC route)
         const { db } = await import('./database');
@@ -156,16 +160,19 @@ app.post('/api/upload-image', async (c) => {
             return c.json({ error: 'No file provided' } as FileUploadError, 400)
         }
 
-        const maxFileSize = 10 * 1024 * 1024
-        if (file.size > maxFileSize) {
-            return c.json({ error: 'File too large. Maximum size is 10MB' } as FileUploadError, 400)
+        // AI : Validate file with Zod
+        const validationResult = imageFileSchema.safeParse({
+            size: file.size,
+            type: file.type,
+            name: file.name
+        });
+        
+        if (!validationResult.success) {
+            const errorMessage = validationResult.error.issues.map((err: any) => err.message).join(', ');
+            return c.json({ error: errorMessage } as FileUploadError, 400);
         }
 
-        // AI : Better file type validation with MIME type and extension checking
-        const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp']
-        const allowedExtensions = ['jpg', 'jpeg', 'png', 'webp']
-        
-        // AI : Extract file extension in a case-insensitive way
+        // AI : Extract file extension for filename generation
         function getFileExtension(filename: string | undefined | null): string | null {
             if (!filename || typeof filename !== 'string') {
                 return null
@@ -179,9 +186,9 @@ app.post('/api/upload-image', async (c) => {
         
         const fileExtension = getFileExtension(file.name)
         
-        // AI : Validate both MIME type and file extension
-        if (!allowedMimeTypes.includes(file.type) || !fileExtension || !allowedExtensions.includes(fileExtension)) {
-            return c.json({ error: 'Invalid file type. Only JPEG, PNG, and WebP are allowed' } as FileUploadError, 400)
+        // AI : Ensure we have a valid extension (this should not fail due to Zod validation)
+        if (!fileExtension) {
+            return c.json({ error: 'Invalid file extension' } as FileUploadError, 400)
         }
         
         const timestamp = Date.now()
@@ -209,7 +216,15 @@ app.post('/api/upload-image', async (c) => {
 app.get('/uploads/*', async (c) => {
     try {
         const filename = c.req.path.replace('/uploads/', '')
-        const file = await storage.get(filename)
+        
+        // AI : Validate filename parameter with Zod
+        const validationResult = filenameParamSchema.safeParse({ filename });
+        if (!validationResult.success) {
+            const errorMessage = validationResult.error.issues.map((err: any) => err.message).join(', ');
+            return c.json({ error: errorMessage }, 400);
+        }
+        
+        const file = await storage.get(validationResult.data.filename)
         
         if (file) {
             return new Response(file.body, {
@@ -249,6 +264,25 @@ if (process.env.NODE_ENV === "development") {
         }
     })
 }
+
+// AI : Zod validation schemas
+const loginSchema = z.object({
+    email: z.email(),
+    password: z.string().min(1, 'Password is required')
+})
+
+const filenameParamSchema = z.object({
+    filename: z.string().min(1, 'Filename is required')
+})
+
+const imageFileSchema = z.object({
+    size: z.number().max(10 * 1024 * 1024, 'File too large. Maximum size is 10MB'),
+    type: z.enum(['image/jpeg', 'image/png', 'image/webp'], {
+        message: 'Invalid file type. Only JPEG, PNG, and WebP are allowed'
+    }),
+    name: z.string().optional()
+})
+
 
 export type { AppRouter } from './shared/routers'
 

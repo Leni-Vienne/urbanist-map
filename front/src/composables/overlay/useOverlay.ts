@@ -99,7 +99,6 @@ export function createOverlayObject(savedOverlay: OverlayObject): OverlayObject 
     project: project ? { ...project, city: project.city ?? null } : null,
     overlay: null,
     marker: null,
-    whitePixelsHidden: false,
     isFlipped: false,
     currentResolution: savedOverlay.imageUrl,
     corners: [
