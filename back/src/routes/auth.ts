@@ -366,6 +366,16 @@ export const authRouter = router({
           };
         }
 
+        // AI : SECURITY: Check if this is an OAuth-only user
+        if (user.googleId && !user.passwordHash) {
+          // AI : User signed up with Google OAuth and has no password
+          return {
+            success: false,
+            message: 'This email is connected to Google Sign-In. Please use "Continue with Google" to access your account.',
+            authMethod: 'google'
+          };
+        }
+
         // AI : Generate reset token and expiry (1 hour)
         const plainResetToken = generateToken();
         const resetToken = await Bun.password.hash(plainResetToken);

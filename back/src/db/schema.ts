@@ -12,19 +12,22 @@ export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
   email: text('email').unique().notNull(),
   username: text('username').unique(),
-  passwordHash: text('password_hash').notNull(),
+  passwordHash: text('password_hash'), // AI : Now nullable for OAuth users
   role: text('role').default('user'), // AI : Role can be 'user', 'admin', etc.
   emailVerified: boolean('email_verified').default(false).notNull(),
   emailVerificationToken: text('email_verification_token'),
   passwordResetToken: text('password_reset_token'),
   passwordResetExpiresAt: timestamp('password_reset_expires_at', { withTimezone: true }),
+  // AI : OAuth provider IDs for secure authentication
+  googleId: text('google_id').unique(), // AI : Google's unique user ID (sub field)
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
 }, (users) => [
   index('idx_users_email').on(users.email),
   index('idx_users_email_verification').on(users.emailVerificationToken),
-  index('idx_users_password_reset').on(users.passwordResetToken)
-]);
+  index('idx_users_password_reset').on(users.passwordResetToken),
+  index('idx_users_google_id').on(users.googleId), // AI : Index for Google OAuth lookups
+]);;
 
 
 export const usersRelations = relations(users, ({ many }) => ({
