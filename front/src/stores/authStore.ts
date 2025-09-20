@@ -125,7 +125,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // AI : Google OAuth authentication using simple One Tap
-  async function signInWithOAuth(provider: 'google' | 'facebook') {
+  async function signInWithOAuth(provider: 'google' | 'facebook'): Promise<{ success: boolean; user: User | null; error: string | null }> {
     try {
       if (provider !== 'google') {
         return { 

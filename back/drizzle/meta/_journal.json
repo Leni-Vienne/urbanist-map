@@ -127,6 +127,13 @@
       "when": 1757751648222,
       "tag": "0017_right_susan_delgado",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1758409862977,
+      "tag": "0018_unusual_cloak",
+      "breakpoints": true
     }
   ]
 }
