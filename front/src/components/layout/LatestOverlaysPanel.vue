@@ -84,6 +84,7 @@ import { useToast } from '@composables/ui/useToast'
 import { useLatestOverlays } from '@composables/overlay/useLatestOverlays'
 import { buildImageUrl, formatRelativeTime } from '../../utils'
 import type { LatestOverlay } from '../../types/api'
+import type { TileLayerType } from '@composables/map/useTileLayers'
 
 // AI : Use cached composable for latest overlays
 const { overlays, isLoading, fetchLatestOverlays } = useLatestOverlays()
@@ -132,9 +133,19 @@ function getLocationDisplay(overlay: LatestOverlay): string {
   return 'Unknown Location'
 }
 
-// AI : Handle overlay click - navigate to overlay
+// AI : Handle overlay click - switch tile layer and navigate to overlay
 async function handleOverlayClick(overlay: LatestOverlay) {
   try {
+    console.log('Navigating to overlay:', overlay.countryCode)
+    // AI : Switch tile layer based on overlay's country if available
+    if (overlay.countryCode) {
+      const { switchTileLayer, isTileLayerType } = await import('@composables/map/useTileLayers')
+      
+      // AI : Use country code directly if it's a valid tile layer, otherwise default to esri
+      const tileLayerType = isTileLayerType(overlay.countryCode) ? overlay.countryCode : 'esri'
+      switchTileLayer(tileLayerType as TileLayerType)
+    }
+
     await navigateToOverlay(overlay.id)
   } catch (error) {
     console.error('Failed to navigate to overlay:', error)

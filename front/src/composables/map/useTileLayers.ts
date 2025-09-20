@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
 
 // AI : Available tile layer types
-export type TileLayerType = 'FRA' | 'esri' | 'CHE';
+export type TileLayerType = 'FRA' | 'esri' | 'CHE' | 'USA';
 
 // AI : Current active tile layer
 export const currentTileLayer = ref<TileLayerType>('esri');
@@ -13,20 +13,9 @@ let activeTileLayer: L.TileLayer | L.GridLayer | null = null;
 
 // AI : Tile layer configurations with UI labels
 const tileLayerConfigs = {
-  FRA: {
-    label: 'France (IGN)',
-    url: 'https://data.geopf.fr/wmts?service=WMTS&request=GetTile&version=1.0.0&tilematrixset=PM&tilematrix={z}&tilecol={x}&tilerow={y}&layer=ORTHOIMAGERY.ORTHOPHOTOS&format=image/jpeg&style=normal',
-    options: {
-      minZoom: 0,
-      maxZoom: 22,
-      maxNativeZoom: 19,
-      tileSize: 256,
-      attribution: "IGN-F/Géoportail",
-      noWrap: true
-    }
-  },
   esri: {
     label: 'World (default)',
+    flagUrl: 'https://flagcdn.com/16x12/un.png', // UN flag for world
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     options: {
       minZoom: 0,
@@ -37,8 +26,22 @@ const tileLayerConfigs = {
       noWrap: true
     }
   },
+  FRA: {
+    label: 'France',
+    flagUrl: 'https://flagcdn.com/16x12/fr.png',
+    url: 'https://data.geopf.fr/wmts?service=WMTS&request=GetTile&version=1.0.0&tilematrixset=PM&tilematrix={z}&tilecol={x}&tilerow={y}&layer=ORTHOIMAGERY.ORTHOPHOTOS&format=image/jpeg&style=normal',
+    options: {
+      minZoom: 0,
+      maxZoom: 22,
+      maxNativeZoom: 19,
+      tileSize: 256,
+      attribution: "IGN-F/Géoportail",
+      noWrap: true
+    }
+  },
   USA: {
-    label: 'USA (ESRI)',
+    label: 'USA',
+    flagUrl: 'https://flagcdn.com/16x12/us.png',
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     options: {
       minZoom: 0,
@@ -50,7 +53,8 @@ const tileLayerConfigs = {
     }
   },
   CHE: {
-    label: 'Switzerland (swisstopo)',
+    label: 'Switzerland',
+    flagUrl: 'https://flagcdn.com/16x12/ch.png',
     url: 'https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg',
     options: {
       minZoom: 2,
@@ -149,15 +153,16 @@ export function switchTileLayer(layerType: TileLayerType) {
 /**
  * AI : Get available tile layer options for UI
  */
-export function getTileLayerOptions(): { label: string; value: TileLayerType }[] {
+export function getTileLayerOptions(): { label: string; value: TileLayerType; flagUrl: string }[] {
   return Object.entries(tileLayerConfigs)
     .filter(([value]) => isTileLayerType(value))
     .map(([value, config]) => ({
       label: config.label,
-      value: value as TileLayerType
+      value: value as TileLayerType,
+      flagUrl: config.flagUrl
     }));
 }
 
 export function isTileLayerType(value: string): value is TileLayerType {
-  return ['FRA', 'esri', 'CHE'].includes(value);
+  return ['FRA', 'esri', 'USA', 'CHE'].includes(value);
 }

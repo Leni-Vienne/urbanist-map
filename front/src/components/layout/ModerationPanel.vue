@@ -79,6 +79,7 @@ import { useToast } from '@composables/ui/useToast'
 import Button from 'primevue/button'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import type { OverlayForModeration } from '@types'
+import type { TileLayerType } from '@composables/map/useTileLayers'
 
 // AI : Use moderation composable
 const {
@@ -210,9 +211,18 @@ async function handleRejectOverlay(id: string) {
   }
 }
 
-// AI : Handle overlay click - navigate to overlay
+// AI : Handle overlay click - switch tile layer and navigate to overlay
 async function handleOverlayClick(overlay: OverlayForModeration) {
   try {
+    // AI : Switch tile layer based on overlay's country if available
+    if (overlay.countryCode) {
+      const { switchTileLayer, isTileLayerType } = await import('@composables/map/useTileLayers')
+      
+      // AI : Use country code directly if it's a valid tile layer, otherwise default to esri
+      const tileLayerType = isTileLayerType(overlay.countryCode) ? overlay.countryCode : 'esri'
+      switchTileLayer(tileLayerType as TileLayerType)
+    }
+
     await navigateToOverlay(overlay.id)
   } catch (error) {
     console.error('Failed to navigate to overlay:', error)

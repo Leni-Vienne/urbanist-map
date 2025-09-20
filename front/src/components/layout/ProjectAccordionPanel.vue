@@ -287,6 +287,7 @@ import { buildImageUrl, formatRelativeTime } from '../../utils'
 import { navigateToOverlay } from '@composables/overlay/useOverlay'
 import type { ProjectForModeration, OverlayForModeration } from '@types'
 import { useToast } from '@composables/ui/useToast'
+import type { TileLayerType } from '@composables/map/useTileLayers'
 import Tag from 'primevue/tag'
 import Accordion from 'primevue/accordion'
 import AccordionPanel from 'primevue/accordionpanel'
@@ -443,9 +444,18 @@ function shouldShowOverlays(project: ProjectForModeration): boolean {
   return expandedPanels.value.has(project.id)
 }
 
-// AI : Handle overlay click - navigate to overlay
+// AI : Handle overlay click - switch tile layer and navigate to overlay
 async function handleOverlayClick(overlay: OverlayForModeration) {
   try {
+    // AI : Switch tile layer based on overlay's country if available
+    if (overlay.countryCode) {
+      const { switchTileLayer, isTileLayerType } = await import('@composables/map/useTileLayers')
+      
+      // AI : Use country code directly if it's a valid tile layer, otherwise default to esri
+      const tileLayerType = isTileLayerType(overlay.countryCode) ? overlay.countryCode : 'esri'
+      switchTileLayer(tileLayerType as TileLayerType)
+    }
+
     await navigateToOverlay(overlay.id)
   } catch (error) {
     console.error('Failed to navigate to overlay:', error)
