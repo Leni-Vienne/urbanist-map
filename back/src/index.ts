@@ -128,6 +128,103 @@ app.post('/api/login', async (c) => {
     }
 });
 
+// AI : Google OAuth login endpoint
+app.post('/api/google-login', async (c) => {
+    try {
+        const body = await c.req.json();
+        
+        // AI : Validate request body with Zod
+        const googleLoginSchema = z.object({
+            token: z.string().min(1, 'Google token is required'),
+        });
+        
+        const validationResult = googleLoginSchema.safeParse(body);
+        if (!validationResult.success) {
+            const errorMessage = validationResult.error.issues.map((err: any) => err.message).join(', ');
+            return c.json({ error: errorMessage }, 400);
+        }
+        
+        const { token } = validationResult.data;
+
+        // AI : Import Google auth utility
+        const { verifyGoogleToken } = await import('./utils/googleAuth');
+        const { db } = await import('./database');
+        const { users } = await import('./db/schema');
+        const { eq } = await import('drizzle-orm');
+
+        // AI : Verify Google token
+        const googleUser = await verifyGoogleToken(token);
+        if (!googleUser) {
+            return c.json({ error: 'Invalid Google token' }, 401);
+        }
+
+        // AI : Check if user already exists
+        let [existingUser] = await db.select().from(users).where(eq(users.email, googleUser.email)).limit(1);
+
+        if (existingUser) {
+            // AI : User exists, update username if needed and mark as verified
+            if (!existingUser.emailVerified || existingUser.username !== googleUser.name) {
+                await db.update(users)
+                    .set({
+                        emailVerified: true,
+                        username: googleUser.name,
+                        emailVerificationToken: null,
+                    })
+                    .where(eq(users.id, existingUser.id));
+                
+                // AI : Refetch updated user
+                [existingUser] = await db.select().from(users).where(eq(users.id, existingUser.id)).limit(1);
+            }
+        } else {
+            // AI : Create new user for Google OAuth
+            const username = googleUser.name;
+            
+            // AI : Check if username is taken and generate unique one if needed
+            let finalUsername = username;
+            let counter = 1;
+            while (true) {
+                const existingUsername = await db.select().from(users).where(eq(users.username, finalUsername)).limit(1);
+                if (existingUsername.length === 0) break;
+                finalUsername = `${username}${counter}`;
+                counter++;
+            }
+
+            // AI : Create user with verified email (since Google provides verified email)
+            [existingUser] = await db.insert(users).values({
+                email: googleUser.email,
+                username: finalUsername,
+                emailVerified: true,
+                passwordHash: '', // AI : Empty password for OAuth users
+            }).returning();
+        }
+
+        // AI : Set session with full user data
+        const session = c.get('session');
+        session.set('user', {
+            id: existingUser.id,
+            email: existingUser.email,
+            username: existingUser.username,
+            role: existingUser.role,
+            emailVerified: existingUser.emailVerified,
+        });
+
+        return c.json({
+            success: true,
+            message: 'Google authentication successful',
+            user: {
+                id: existingUser.id,
+                email: existingUser.email,
+                username: existingUser.username,
+                role: existingUser.role,
+                emailVerified: existingUser.emailVerified,
+            },
+        });
+    } catch (error) {
+        console.error('Google login error:', error);
+        return c.json({ error: 'Google authentication failed' }, 500);
+    }
+});
+
 app.post('/api/logout', (c) => {
     try {
         const session = c.get('session');

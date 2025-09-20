@@ -299,7 +299,6 @@ export const authRouter = router({
       }
     }),
 
-
   // AI : Verify email
   verifyEmail: publicProcedure
     .input(z.object({ token: z.string() }))
@@ -452,6 +451,4 @@ export const authRouter = router({
         });
       }
     }),
-
-
 });

@@ -34,6 +34,7 @@ services:
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/construction_map
       JWT_SECRET: ${JWT_SECRET}
       CORS_ORIGIN: "${CORS_ORIGIN}"
+      VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
       SMTP_USERNAME: ${SMTP_USERNAME}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       SES_REGION: ${SES_REGION}
