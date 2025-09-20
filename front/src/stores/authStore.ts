@@ -11,6 +11,25 @@ interface User {
   emailVerified: boolean
 }
 
+// AI : Helper function to load Google Identity Services script
+function loadGoogleIdentityScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (window.google) {
+      resolve()
+      return
+    }
+
+    const script = document.createElement('script')
+    script.src = 'https://accounts.google.com/gsi/client'
+    script.async = true
+    script.defer = true
+    
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error('Failed to load Google Identity Services'))
+    
+    document.head.appendChild(script)
+  })
+}
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const loading = ref(true)
@@ -30,7 +49,7 @@ export const useAuthStore = defineStore('auth', () => {
       })
       
       if (response.ok) {
-        const result = await response.json()
+        const result = await response.json() as { user: User }
         user.value = result.user
       } else {
         user.value = null
@@ -79,13 +98,13 @@ export const useAuthStore = defineStore('auth', () => {
         credentials: 'include'
       })
 
-      const result = await response.json()
+      const result = await response.json() as { success: boolean; user?: User; error?: string; message?: string }
 
       if (response.ok && result.success) {
-        user.value = result.user
+        user.value = result.user ?? null
         return {
           success: true,
-          user: result.user,
+          user: result.user ?? null,
           error: null
         }
       } else {
@@ -105,12 +124,109 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // AI : OAuth not implemented in custom auth (placeholder)
-  function signInWithOAuth(provider: 'google' | 'github' | 'discord' | 'facebook') {
-    console.warn('OAuth authentication not implemented in custom auth system')
-    return { 
-      success: false, 
-      error: 'OAuth authentication not available' 
+  // AI : Google OAuth authentication using simple One Tap
+  async function signInWithOAuth(provider: 'google' | 'facebook') {
+    try {
+      if (provider !== 'google') {
+        return { 
+          success: false, 
+          user: null,
+          error: 'Only Google OAuth is currently supported' 
+        }
+      }
+
+      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+      if (!clientId) {
+        return { 
+          success: false, 
+          user: null,
+          error: 'Google Client ID not configured' 
+        }
+      }
+
+      // AI : Load Google Identity Services script if not already loaded
+      if (!window.google) {
+        console.log('Loading Google Identity Services script...')
+        await loadGoogleIdentityScript()
+        console.log('Google Identity Services script loaded')
+      }
+      
+      return new Promise((resolve) => {
+        if (!window.google) {
+          resolve({
+            success: false,
+            user: null,
+            error: 'Google Identity Services not loaded'
+          })
+          return
+        }
+
+        // AI : Set up timeout to handle cases where user doesn't interact
+        const timeout = setTimeout(() => {
+          resolve({
+            success: false,
+            user: null,
+            error: 'Google authentication timed out'
+          })
+        }, 60000) // 60 second timeout
+
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: async (response: { credential: string }) => {
+            clearTimeout(timeout)
+            console.log('Google OAuth callback received')
+
+            try {
+              // AI : Send the Google token to our backend
+              const result = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/google-login`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ token: response.credential }),
+                credentials: 'include'
+              })
+
+              const data = await result.json() as { success: boolean; user?: User; error?: string }
+
+              if (result.ok && data.success) {
+                user.value = data.user ?? null
+                resolve({
+                  success: true,
+                  user: data.user ?? null,
+                  error: null
+                })
+              } else {
+                resolve({
+                  success: false,
+                  user: null,
+                  error: data.error ?? 'Google authentication failed'
+                })
+              }
+            } catch (error: unknown) {
+              console.error('Google OAuth error:', error)
+              resolve({ 
+                success: false, 
+                user: null,
+                error: error instanceof Error ? error.message : 'Google authentication failed'
+              })
+            }
+          },
+          auto_select: false,
+          cancel_on_tap_outside: true
+        })
+
+        // AI : Show Google One Tap - simple approach
+        console.log('Showing Google One Tap')
+        window.google.accounts.id.prompt()
+      })
+    } catch (error: unknown) {
+      console.error('Google OAuth initialization error:', error)
+      return { 
+        success: false, 
+        user: null,
+        error: error instanceof Error ? error.message : 'Google authentication not available'
+      }
     }
   }
 
@@ -127,7 +243,7 @@ export const useAuthStore = defineStore('auth', () => {
       if (response.ok) {
         return { success: true, error: null }
       } else {
-        const result = await response.json()
+        const result = await response.json() as { error?: string }
         return { success: false, error: result.error ?? 'Logout failed' }
       }
     } catch (error: unknown) {

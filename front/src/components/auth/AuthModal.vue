@@ -19,16 +19,6 @@
           :disabled="oauthLoading"
           class="w-full"
         />
-        <Button
-          icon="pi pi-github"
-          :label="$t('auth.continueWithGitHub')" 
-          @click="handleOAuthSignIn('github')"
-          outlined
-          severity="secondary"
-          :loading="oauthLoading"
-          :disabled="oauthLoading"
-          class="w-full"
-        />
       </div>
       
       <div class="flex items-center my-4">
@@ -209,20 +199,21 @@ async function handleSubmit() {
 }
 
 // AI : Handle OAuth sign in
-async function handleOAuthSignIn(provider: 'google' | 'github' | 'discord' | 'facebook') {
+async function handleOAuthSignIn(provider: 'google' | 'facebook') {
   oauthLoading.value = true
   error.value = ''
 
   try {
     const result = await authStore.signInWithOAuth(provider)
     if (result.success) {
-      // AI : OAuth will redirect to provider, then back to our callback
       toast.add({ 
-        severity: 'info', 
-        summary: 'Redirecting...', 
-        detail: `Redirecting to ${provider} for authentication...`,
+        severity: 'success', 
+        summary: 'Success', 
+        detail: `Successfully signed in with ${provider}!`,
         life: 3000
       })
+      visible.value = false
+      resetForm()
     } else {
       error.value = result.error || `${provider} sign in failed`
     }

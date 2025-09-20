@@ -33,6 +33,7 @@
     "@trpc/client": "^11.5.1",
     "@trpc/server": "^11.5.1",
     "drizzle-orm": "^0.44.5",
+    "google-auth-library": "^10.3.0",
     "hono": "^4.9.7",
     "hono-sessions": "^0.8.0",
     "leaflet-distortableimage": "Leni-vienne/Leaflet.DistortableImage",
