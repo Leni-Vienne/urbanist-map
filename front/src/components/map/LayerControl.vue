@@ -22,8 +22,8 @@
                 <div
                     v-for="layer in layerOptions"
                     :key="layer.value"
+                    class="flex items-center gap-2"
                 >
-                
                     <RadioButton
                         :id="layer.value"
                         v-model="selectedLayer"
@@ -31,8 +31,14 @@
                         :value="layer.value"
                         @change="onLayerChange"
                     />
-                    <label :for="layer.value">
-                        &nbsp;{{ layer.label }}
+                    <label :for="layer.value" class="flex items-center gap-2">
+                        <img 
+                            :src="layer.flagUrl" 
+                            :alt="`${layer.label} flag`"
+                            class="flag-icon"
+                            @error="hideFlagOnError"
+                        />
+                        {{ layer.label }}
                     </label>
                 </div>
             </div>
@@ -83,4 +89,19 @@ async function onLayerChange() {
 watch(() => layerPanel.value?.visible, (visible) => {
     showLayerPanel.value = visible ?? false;
 });
+
+// AI : Hide flag on error
+function hideFlagOnError(event: Event) {
+    const target = event.target as HTMLImageElement;
+    target.style.display = 'none';
+}
 </script>
+
+<style scoped>
+.flag-icon {
+    width: 16px;
+    height: 12px;
+    border-radius: 0.125rem;
+    flex-shrink: 0;
+}
+</style>

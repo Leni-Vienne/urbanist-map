@@ -65,7 +65,7 @@
           required
           :invalid="!!passwordError"
           :placeholder="isLoginMode ? $t('auth.enterPassword') : $t('auth.chooseStrongPassword')"
-          :autocomplete="isLoginMode ? 'current-password' : 'new-password'"
+          :inputProps="{ autocomplete: isLoginMode ? 'current-password' : 'new-password' }"
           data-testid="auth-password-input"
         />
         <small v-if="passwordError" class="p-error">{{ passwordError }}</small>
