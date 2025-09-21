@@ -347,7 +347,11 @@ app.get('/uploads/*', async (c) => {
             return new Response(file.body, {
                 headers: {
                     'Content-Type': file.contentType ?? 'application/octet-stream',
-                    'Cache-Control': 'public, max-age=31536000'
+                    'Cache-Control': 'public, max-age=31536000, must-revalidate',
+                    'ETag': `"${filename}-${Date.now()}"`,
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type'
                 }
             })
         }
