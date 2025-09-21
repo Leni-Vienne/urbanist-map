@@ -180,16 +180,6 @@ function setupOverlayLoadHandler(overlay: L.DistortableImageOverlay, overlayObje
     }
   });
 
-  // AI : Handle image load errors and retry with cache-busting
-  L.DomEvent.on(element, 'error', () => {
-    console.warn('AI : Image failed to load, retrying with cache-busting:', overlayObject.imageUrl);
-    
-    // AI : Extract filename from URL and rebuild with cache-busting
-    const filename = overlayObject.filename || overlayObject.imageUrl?.split('/').pop() || '';
-    if (filename) {
-      element.src = buildImageUrl(filename, true); // true = bust cache
-    }
-  });
 
   if (element.complete && element.naturalWidth > 0) {
     onOverlayLoaded(overlayObject);
