@@ -25,32 +25,17 @@ export function debounce<T extends (...args: any[]) => any>(
  * AI : Build image URL for overlay files
  * AI : Uses direct R2 public URL in production to avoid worker CPU usage
  * @param filename - The filename of the image
- * @param bustCache - Whether to add cache-busting parameter (default: false)
  * @returns The complete URL to access the image
  */
-export function buildImageUrl(filename: string, bustCache: boolean = false): string {
+export function buildImageUrl(filename: string): string {
   // AI : In production, use direct R2 public URL to bypass worker
   if (import.meta.env.PROD) {
     const r2PublicUrl = import.meta.env.VITE_R2_PUBLIC_URL;
-    const baseUrl = `${r2PublicUrl}/${filename}`;
-    
-    // AI : Add cache-busting parameter to prevent corrupted cache entries
-    if (bustCache) {
-      return `${baseUrl}?v=${Date.now()}`;
-    }
-    
-    return baseUrl;
+    return `${r2PublicUrl}/${filename}`;
   }
   
   // AI : In development, use local server via shared getApiUrl function
-  const baseUrl = `${getApiUrl()}/uploads/${filename}`;
-  
-  // AI : Add cache-busting for development too if requested
-  if (bustCache) {
-    return `${baseUrl}?v=${Date.now()}`;
-  }
-  
-  return baseUrl;
+  return `${getApiUrl()}/uploads/${filename}`;
 }
 
 /**
