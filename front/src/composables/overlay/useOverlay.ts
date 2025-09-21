@@ -14,6 +14,7 @@ import { createOverlay as createOverlayInstance, createOverlayFromCDN, transform
 import { createColorIcon } from '@composables/ui/markerIcons';
 import { useProjects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import { trpc } from '@client';
+import { buildImageUrl } from '../../utils';
 
 // AI : Export reactive refs from stores
 export let overlays: Ref<Record<string, OverlayObject>>;
@@ -176,6 +177,17 @@ function setupOverlayLoadHandler(overlay: L.DistortableImageOverlay, overlayObje
   L.DomEvent.on(element, 'load', () => {
     if (element.complete && element.naturalWidth > 0) {
       onOverlayLoaded(overlayObject);
+    }
+  });
+
+  // AI : Handle image load errors and retry with cache-busting
+  L.DomEvent.on(element, 'error', () => {
+    console.warn('AI : Image failed to load, retrying with cache-busting:', overlayObject.imageUrl);
+    
+    // AI : Extract filename from URL and rebuild with cache-busting
+    const filename = overlayObject.filename || overlayObject.imageUrl?.split('/').pop() || '';
+    if (filename) {
+      element.src = buildImageUrl(filename, true); // true = bust cache
     }
   });
 
