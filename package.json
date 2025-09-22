@@ -45,7 +45,7 @@
     "postgres": "^3.4.7",
     "primeicons": "^7.0.0",
     "primevue": "^4.3.9",
-    "rolldown-vite": "^7.1.10",
+    "rolldown-vite": "^7.1.12",
     "superjson": "^2.2.2",
     "tailwindcss": "^4.1.13",
     "tailwindcss-primeui": "^0.6.1",

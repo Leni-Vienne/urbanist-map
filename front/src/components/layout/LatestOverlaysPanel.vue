@@ -84,7 +84,7 @@ import { useToast } from '@composables/ui/useToast'
 import { useLatestOverlays } from '@composables/overlay/useLatestOverlays'
 import { buildImageUrl, formatRelativeTime } from '../../utils'
 import type { LatestOverlay } from '../../types/api'
-import type { TileLayerType } from '@composables/map/useTileLayers'
+import { switchTileLayer, isTileLayerType, type TileLayerType } from '@composables/map/useTileLayers'
 
 // AI : Use cached composable for latest overlays
 const { overlays, isLoading, fetchLatestOverlays } = useLatestOverlays()
@@ -139,8 +139,6 @@ async function handleOverlayClick(overlay: LatestOverlay) {
     console.log('Navigating to overlay:', overlay.countryCode)
     // AI : Switch tile layer based on overlay's country if available
     if (overlay.countryCode) {
-      const { switchTileLayer, isTileLayerType } = await import('@composables/map/useTileLayers')
-      
       // AI : Use country code directly if it's a valid tile layer, otherwise default to esri
       const tileLayerType = isTileLayerType(overlay.countryCode) ? overlay.countryCode : 'esri'
       switchTileLayer(tileLayerType as TileLayerType)
