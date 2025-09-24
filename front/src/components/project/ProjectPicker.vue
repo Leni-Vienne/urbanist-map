@@ -162,14 +162,14 @@ function getOverlayCountForProject(projectId: string): number {
   return 0;
 }
 
-// AI : Compute the project list based on the mode
+// AI : Compute the project list based on the mode, excluding marker projects
 const projectList = computed(() => {
   if (props.useCityProjects) {
-    // AI : Use city projects data extracted from overlay data (most efficient)
-    return cityProjectsData.value;
+    // AI : Use city projects data extracted from overlay data, exclude marker projects
+    return cityProjectsData.value.filter(project => !project.isMarker);
   } else {
-    // AI : Use local projects from store
-    return Object.values(projects.value);
+    // AI : Use local projects from store, exclude marker projects
+    return Object.values(projects.value).filter(project => !project.isMarker);
   }
 });
 

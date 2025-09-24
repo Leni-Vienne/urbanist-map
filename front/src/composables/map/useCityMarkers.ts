@@ -6,14 +6,19 @@ import { loadCityOverlays } from '@composables/map/useCityOverlays';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useSelectedProject } from '@composables/project/useSelectedProject';
 import { storeToRefs } from 'pinia';
-import { RouterOutput } from '@client';
+import { RouterOutput, trpc } from '@client';
 
 // AI : Function to get store refs when needed
+import { useUiStore } from '@stores/uiStore';
+import { useProjects } from '@composables/project/useProjects';
+import type { Project } from '@types';
+
 function getStoreRefs() {
   const mapStore = useMapStore();
+  const uiStore = useUiStore();
   const { selectedCity } = storeToRefs(mapStore);
   const { selectedProjectId } = useSelectedProject();
-  return { selectedProjectId, selectedCity, mapStore };
+  return { selectedProjectId, selectedCity, mapStore, uiStore };
 }
 
 // AI : Function to get selected project ID when needed (kept for backward compatibility)
@@ -35,24 +40,189 @@ export const citiesWithProjects = ref<CityWithProjects[]>([]);
 // AI : Layer group for city markers
 let cityMarkersLayer: L.LayerGroup | null = null;
 
+// AI : Layer group for marker projects (building markers)
+let markerProjectsLayer: L.LayerGroup | null = null;
+
 // AI : Track the currently selected (clicked) city marker
 let selectedCityMarker: L.Marker | null = null;
+
+// AI : Store the current marker for position tracking
+let currentMarkerForPopup: L.CircleMarker | null = null;
+
+/**
+ * AI : Update teleport target position based on current marker
+ */
+function updateTeleportTargetPosition() {
+  if (!currentMarkerForPopup || !map.value) return;
+  
+  const teleportTarget = document.querySelector('#project-info-popup-teleport-target') as HTMLElement;
+  if (!teleportTarget) return;
+
+  // AI : Get updated marker position in screen coordinates
+  const markerLatLng = currentMarkerForPopup.getLatLng();
+  const markerPoint = map.value.latLngToContainerPoint(markerLatLng);
+
+  // AI : Update position
+  teleportTarget.style.left = `${markerPoint.x}px`;
+  teleportTarget.style.top = `${markerPoint.y}px`;
+}
+
+/**
+ * AI : Create teleport target for project info popup at marker position
+ */
+function createProjectInfoTeleportTarget(marker: L.CircleMarker, event: L.LeafletMouseEvent) {
+  if (!map.value) return;
+
+  // AI : Remove any existing teleport target and event listeners
+  cleanupProjectInfoTeleportTarget();
+
+  // AI : Store marker reference for position tracking
+  currentMarkerForPopup = marker;
+
+  // AI : Get marker position in screen coordinates
+  const markerLatLng = marker.getLatLng();
+  const markerPoint = map.value.latLngToContainerPoint(markerLatLng);
+
+  // AI : Create teleport target div
+  const teleportTarget = document.createElement('div');
+  teleportTarget.id = 'project-info-popup-teleport-target';
+  
+  // AI : Position it at the marker location
+  teleportTarget.style.cssText = `
+    pointer-events: none; 
+    position: absolute; 
+    left: ${markerPoint.x}px; 
+    top: ${markerPoint.y}px; 
+    width: 0; 
+    height: 0; 
+    overflow: visible;
+    z-index: 1000;
+  `;
+
+  // AI : Add to map container
+  const mapContainer = map.value.getContainer();
+  mapContainer.appendChild(teleportTarget);
+
+  // AI : Set up event listeners to update position when map moves
+  map.value.on('move', updateTeleportTargetPosition);
+  map.value.on('zoom', updateTeleportTargetPosition);
+  map.value.on('resize', updateTeleportTargetPosition);
+
+}
+
+/**
+ * AI : Clean up teleport target and event listeners
+ */
+export function cleanupProjectInfoTeleportTarget() {
+  // AI : Remove event listeners if map exists
+  if (map.value) {
+    map.value.off('move', updateTeleportTargetPosition);
+    map.value.off('zoom', updateTeleportTargetPosition);
+    map.value.off('resize', updateTeleportTargetPosition);
+  }
+
+  // AI : Remove teleport target
+  const existingTarget = document.querySelector('#project-info-popup-teleport-target');
+  if (existingTarget) {
+    existingTarget.remove();
+  }
+
+  // AI : Clear marker reference
+  currentMarkerForPopup = null;
+}
+
+/**
+ * AI : Load marker projects for a specific city and display them on map
+ */
+async function loadCityMarkerProjects(cityId: string | null): Promise<void> {
+  if (!map.value) return;
+
+  try {
+    // AI : Get marker projects for this city from backend (skip if cityId is null)
+    const backendMarkerProjects = cityId ? await trpc.project.getProjectsByCity.query({ cityId }) : [];
+    const backendMarkerProjectsOnly = backendMarkerProjects.filter(project => project.isMarker);
+
+    // AI : Get local marker projects for this city (handle null cityId case)
+    const { projects: localProjects } = useProjects();
+    const allLocalProjects = Object.values(localProjects.value);
+    
+    const localMarkerProjects = allLocalProjects
+      .filter(project => project.isMarker && (project.cityId === cityId || (cityId === null && (project.cityId === null || project.cityId === undefined))));
+
+    // AI : Combine backend and local projects, avoiding duplicates
+    const allMarkerProjects = [
+      ...backendMarkerProjectsOnly,
+      ...localMarkerProjects.filter(local => 
+        !backendMarkerProjectsOnly.some(backend => backend.id === local.id)
+      )
+    ];
+
+    // AI : Remove existing marker projects layer
+    if (markerProjectsLayer) {
+      map.value.removeLayer(markerProjectsLayer);
+    }
+    markerProjectsLayer = L.layerGroup();
+
+    // AI : Add each marker project to the map
+    let markersAdded = 0;
+    allMarkerProjects.forEach(project => {
+      if (project.lat && project.lng) {
+        // AI : Create marker - use circle marker to avoid positioning issues
+        const marker = L.circleMarker([project.lat, project.lng], {
+          radius: 8,
+          fillColor: '#10b981',
+          color: '#047857',
+          weight: 2,
+          opacity: 1,
+          fillOpacity: 0.8
+        });
+
+        // AI : Add click handler for marker project - show info popup first
+        marker.on('click', (e) => {
+          const { uiStore } = getStoreRefs();
+          
+          // AI : Create teleport target at marker position
+          createProjectInfoTeleportTarget(marker, e);
+          
+          // AI : Use uiStore to show project info popup
+          uiStore.openProjectInfoPopup(project.id);
+        });
+
+        marker.addTo(markerProjectsLayer!);
+        markersAdded++;
+      }
+    });
+
+    // AI : Add layer to map
+    markerProjectsLayer.addTo(map.value);
+  } catch (error) {
+    console.error('Error loading marker projects:', error);
+  }
+}
 
 /**
  * AI : Load projects for a specific city and display overlays on map
  */
-export async function loadCityProjects(cityId: string, cityName: string, forceFullLoad = false, cityCountryCode?: string): Promise<void> {
+export async function loadCityProjects(cityId: string | null, cityName: string, forceFullLoad = false, cityCountryCode?: string): Promise<void> {
   try {
-    // AI : Update selected city in store
-    const { mapStore } = getStoreRefs();
-    mapStore.setSelectedCity({ id: cityId, name: cityName, countryCode: cityCountryCode });
+    // AI : Update selected city in store (only if cityId is not null)
+    if (cityId) {
+      const { mapStore } = getStoreRefs();
+      mapStore.setSelectedCity({ id: cityId, name: cityName, countryCode: cityCountryCode });
 
-    // AI : Clear selected project when switching cities
-    const selectedProjectId = getSelectedProjectId();
-    selectedProjectId.value = null;
+      // AI : Clear selected project when switching cities
+      const selectedProjectId = getSelectedProjectId();
+      selectedProjectId.value = null;
 
-    // AI : Delegate overlay loading to the dedicated overlay module
-    await loadCityOverlays(cityId, cityName, forceFullLoad);
+      // AI : Load both overlay projects and marker projects
+      await Promise.all([
+        loadCityOverlays(cityId, cityName, forceFullLoad),
+        loadCityMarkerProjects(cityId)
+      ]);
+    } else {
+      // AI : Just load local marker projects when no city is selected
+      await loadCityMarkerProjects(null);
+    }
   } catch (error) {
     console.error('AI : Error loading city projects:', error);
   }
@@ -65,6 +235,12 @@ export function removeCityMarkers(): void {
   if (cityMarkersLayer && map.value?.hasLayer(cityMarkersLayer)) {
     map.value.removeLayer(cityMarkersLayer);
     cityMarkersLayer = null;
+  }
+  
+  // AI : Also remove marker projects layer
+  if (markerProjectsLayer && map.value?.hasLayer(markerProjectsLayer)) {
+    map.value.removeLayer(markerProjectsLayer);
+    markerProjectsLayer = null;
   }
 }
 

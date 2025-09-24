@@ -17,11 +17,14 @@
 
     <!-- AI : Map Controls Component -->
     <MapControls @filter-overlays="filterOverlaysByCompletionStatus" />
+    
+    <!-- AI : Project Info Popup Container -->
+    <ProjectInfoPopupContainer />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 
 import { initializeMap, disableLeafletKeyboardEvents, map } from '@composables/core/useMap';
 import { addTileLayer } from '@composables/map/useTileLayers';
@@ -39,12 +42,14 @@ import type { CDNOverlayData } from '@types';
 
 import MapControls from '@components/map/MapControls.vue';
 import UserMenu from '@components/auth/UserMenu.vue';
+import ProjectInfoPopupContainer from '@components/map/ProjectInfoPopupContainer.vue';
 
 // AI: Get Pinia stores
 const overlayStore = useOverlayStore();
 const uiStore = useUiStore();
 const toast = useToast();
 const isLoading = ref(true);
+
 
 const { isEditMode, overlays } = storeToRefs(overlayStore);
 
@@ -110,12 +115,18 @@ onMounted(async () => {
   isLoading.value = false;
 });
 
+onUnmounted(() => {
+  // AI : Clean up event listeners
+  window.removeEventListener('keydown', handleKeyDown, true);
+});
+
 
 // AI : Keyboard shortcuts handler
 function handleKeyDown(event: KeyboardEvent) {
   if (event.ctrlKey && event.key === 'z') undo();
   else if (event.ctrlKey && event.key === 'y') redo();
 }
+
 
 // AI : Initialize map and overlays
 async function initializeMapAndOverlays() {

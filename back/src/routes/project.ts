@@ -10,6 +10,9 @@ const publishProjectSchema = z.object({
   name: z.string().min(8).max(200),
   description: z.string().max(2000).optional(),
   cityId: z.uuid().optional(),
+  isMarker: z.boolean().optional().default(false), // AI : true for marker projects, false for overlay projects
+  lat: z.number().optional(), // AI : latitude for marker projects
+  lng: z.number().optional(), // AI : longitude for marker projects
   proposalDate: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
@@ -29,6 +32,11 @@ export const projectRouter = router({
           }
         }
 
+        // AI : Validate marker project requirements
+        if (input.isMarker && (!input.lat || !input.lng)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Marker projects require lat and lng coordinates' });
+        }
+
         const data = {
           ...input,
           ownerId: ctx.user.id,
@@ -38,6 +46,10 @@ export const projectRouter = router({
           endDate: input.endDate ? new Date(input.endDate) : null,
           sourceUrl: input.sourceUrl,
           latestUpdateOn: input.latestUpdateOn ? new Date(input.latestUpdateOn) : null,
+          // AI : Set coordinates for marker projects using PostGIS
+          coordinates: input.isMarker && input.lat && input.lng 
+            ? sql`ST_SetSRID(ST_MakePoint(${input.lng}, ${input.lat}), 4326)`
+            : null,
         };
 
         if (input.id) {
@@ -51,6 +63,10 @@ export const projectRouter = router({
                 name: data.name,
                 description: data.description,
                 cityId: data.cityId,
+                isMarker: data.isMarker,
+                lat: data.lat,
+                lng: data.lng,
+                coordinates: data.coordinates,
                 proposalDate: data.proposalDate,
                 startDate: data.startDate,
                 endDate: data.endDate,
@@ -163,6 +179,9 @@ export const projectRouter = router({
               description: projects.description,
               ownerId: projects.ownerId,
               cityId: projects.cityId,
+              isMarker: projects.isMarker,
+              lat: projects.lat,
+              lng: projects.lng,
               proposalDate: projects.proposalDate,
               startDate: projects.startDate,
               endDate: projects.endDate,
@@ -190,6 +209,9 @@ export const projectRouter = router({
               projects.description,
               projects.ownerId,
               projects.cityId,
+              projects.isMarker,
+              projects.lat,
+              projects.lng,
               projects.proposalDate,
               projects.startDate,
               projects.endDate,
@@ -229,6 +251,9 @@ export const projectRouter = router({
               status: projects.status,
               ownerId: projects.ownerId,
               cityId: projects.cityId,
+              isMarker: projects.isMarker,
+              lat: projects.lat,
+              lng: projects.lng,
               proposalDate: projects.proposalDate,
               startDate: projects.startDate,
               endDate: projects.endDate,

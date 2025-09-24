@@ -14,7 +14,6 @@ import { createOverlay as createOverlayInstance, createOverlayFromCDN, transform
 import { createColorIcon } from '@composables/ui/markerIcons';
 import { useProjects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import { trpc } from '@client';
-import { buildImageUrl } from '../../utils';
 
 // AI : Export reactive refs from stores
 export let overlays: Ref<Record<string, OverlayObject>>;
