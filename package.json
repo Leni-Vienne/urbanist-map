@@ -71,6 +71,7 @@
     "jsdom": "^27.0.0",
     "madge": "^8.0.0",
     "oxlint": "^1.16.0",
+    "oxlint-tsgolint": "^0.2.0",
     "rollup-plugin-visualizer": "^6.0.3",
     "unplugin-vue-components": "^29.0.0",
     "vite-plugin-istanbul": "^7.2.0",

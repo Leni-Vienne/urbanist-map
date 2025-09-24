@@ -1,5 +1,5 @@
 <template>
-  <Teleport to="#project-info-popup-teleport-target" v-if="shouldShowPopup">
+  <Teleport to="#project-info-popup-teleport-target" v-if="shouldShowPopup && selectedProject">
     <ProjectInfoPopup
       :project="selectedProject"
       :viewMode="!isEditMode"
@@ -14,7 +14,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, nextTick } from 'vue';
+import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
@@ -77,8 +77,8 @@ async function handlePublishProject() {
       name: project.name!,
       description: project.description ?? undefined,
       isMarker: project.isMarker,
-      lat: project.lat,
-      lng: project.lng,
+      lat: project.lat ?? undefined,
+      lng: project.lng ?? undefined,
       cityId: project.cityId ?? undefined,
     });
     

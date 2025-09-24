@@ -11,7 +11,6 @@ import { RouterOutput, trpc } from '@client';
 // AI : Function to get store refs when needed
 import { useUiStore } from '@stores/uiStore';
 import { useProjects } from '@composables/project/useProjects';
-import type { Project } from '@types';
 
 function getStoreRefs() {
   const mapStore = useMapStore();
@@ -54,7 +53,7 @@ let currentMarkerForPopup: L.CircleMarker | null = null;
  */
 function updateTeleportTargetPosition() {
   if (!currentMarkerForPopup || !map.value) return;
-  
+
   const teleportTarget = document.querySelector('#project-info-popup-teleport-target') as HTMLElement;
   if (!teleportTarget) return;
 
@@ -70,7 +69,7 @@ function updateTeleportTargetPosition() {
 /**
  * AI : Create teleport target for project info popup at marker position
  */
-function createProjectInfoTeleportTarget(marker: L.CircleMarker, event: L.LeafletMouseEvent) {
+function createProjectInfoTeleportTarget(marker: L.CircleMarker) {
   if (!map.value) return;
 
   // AI : Remove any existing teleport target and event listeners
@@ -86,7 +85,7 @@ function createProjectInfoTeleportTarget(marker: L.CircleMarker, event: L.Leafle
   // AI : Create teleport target div
   const teleportTarget = document.createElement('div');
   teleportTarget.id = 'project-info-popup-teleport-target';
-  
+
   // AI : Position it at the marker location
   teleportTarget.style.cssText = `
     pointer-events: none; 
@@ -145,14 +144,14 @@ async function loadCityMarkerProjects(cityId: string | null): Promise<void> {
     // AI : Get local marker projects for this city (handle null cityId case)
     const { projects: localProjects } = useProjects();
     const allLocalProjects = Object.values(localProjects.value);
-    
+
     const localMarkerProjects = allLocalProjects
       .filter(project => project.isMarker && (project.cityId === cityId || (cityId === null && (project.cityId === null || project.cityId === undefined))));
 
     // AI : Combine backend and local projects, avoiding duplicates
     const allMarkerProjects = [
       ...backendMarkerProjectsOnly,
-      ...localMarkerProjects.filter(local => 
+      ...localMarkerProjects.filter(local =>
         !backendMarkerProjectsOnly.some(backend => backend.id === local.id)
       )
     ];
@@ -163,8 +162,6 @@ async function loadCityMarkerProjects(cityId: string | null): Promise<void> {
     }
     markerProjectsLayer = L.layerGroup();
 
-    // AI : Add each marker project to the map
-    let markersAdded = 0;
     allMarkerProjects.forEach(project => {
       if (project.lat && project.lng) {
         // AI : Create marker - use circle marker to avoid positioning issues
@@ -178,18 +175,17 @@ async function loadCityMarkerProjects(cityId: string | null): Promise<void> {
         });
 
         // AI : Add click handler for marker project - show info popup first
-        marker.on('click', (e) => {
+        marker.on('click', () => {
           const { uiStore } = getStoreRefs();
-          
+
           // AI : Create teleport target at marker position
-          createProjectInfoTeleportTarget(marker, e);
-          
+          createProjectInfoTeleportTarget(marker);
+
           // AI : Use uiStore to show project info popup
           uiStore.openProjectInfoPopup(project.id);
         });
 
         marker.addTo(markerProjectsLayer!);
-        markersAdded++;
       }
     });
 
@@ -236,7 +232,7 @@ export function removeCityMarkers(): void {
     map.value.removeLayer(cityMarkersLayer);
     cityMarkersLayer = null;
   }
-  
+
   // AI : Also remove marker projects layer
   if (markerProjectsLayer && map.value?.hasLayer(markerProjectsLayer)) {
     map.value.removeLayer(markerProjectsLayer);
