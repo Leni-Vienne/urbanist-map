@@ -89,7 +89,6 @@ import { addOverlay } from '@composables/overlay/useOverlay'
 import { setLastCreatedProject } from '@composables/ui/useProjectState'
 import { createProject } from '@composables/project/useProjects'
 import { createProjectFromAPI } from '../../utils/typeFactories'
-import { trpc } from '@client'
 import type { Project, OverlayObject } from '@types'
 import type { NearbyProject } from '../../types/api'
 
@@ -106,7 +105,6 @@ const toast = useToast()
 const projectPickerRef = ref()
 const imageUploadDialog = ref()
 const tempMarker = ref<L.Marker | null>(null)
-const directMarkersLayer = ref<L.LayerGroup | null>(null)
 
 const { projects } = storeToRefs(projectStore)
 const { pendingImageFile, replacementOverlayId } = storeToRefs(overlayStore)
@@ -212,8 +210,8 @@ async function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: numb
     const projectId = createProject(projectData);
     
     // AI : Clean up temporary marker
-    if (tempMarker.value) {
-      map.value?.removeLayer(tempMarker.value);
+    if (tempMarker.value && map.value) {
+      map.value.removeLayer(tempMarker.value as unknown as L.Layer);
       tempMarker.value = null;
     }
     
@@ -254,8 +252,8 @@ function onMarkerModeEnabled() {
     const coordinates = { lat: e.latlng.lat, lng: e.latlng.lng };
     
     // AI : Remove previous temp marker if exists
-    if (tempMarker.value) {
-      map.value?.removeLayer(tempMarker.value);
+    if (tempMarker.value && map.value) {
+      map.value.removeLayer(tempMarker.value as unknown as L.Layer);
     }
     
     // AI : Create temporary marker for visual feedback
