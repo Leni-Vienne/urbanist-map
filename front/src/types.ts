@@ -121,6 +121,8 @@ export interface Project extends DBProject {
   savedRemotely: boolean;
   // AI : Optional fields for specific contexts
   sourcePdf?: File | null; // AI : For form uploads
+  // AI : Coordinates for marker projects (null for overlay projects)
+  coordinates?: { lat: number; lng: number } | null;
 }
 
 // AI : Base runtime overlay type - extends DB schema with frontend fields  
