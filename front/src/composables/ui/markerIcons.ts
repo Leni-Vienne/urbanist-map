@@ -78,6 +78,49 @@ function createMarkerSVG(color: MarkerColor): string {
   `;
 }
 
+// AI : Create building marker SVG with building icon instead of circle
+function createBuildingMarkerSVG(color: MarkerColor): string {
+  const baseColor = markerColors[color];
+  const lightColor = lightenColor(baseColor, 40);
+  const darkColor = darkenColor(baseColor, 40);
+  const width = markerSize;
+  const height = Math.round(markerSize * 1.6);
+  
+  return `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 50 82" role="img" aria-label="Project marker">
+      <defs>
+        <!-- Simple gradient for marker body -->
+        <linearGradient id="g-${color}-building" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="${lightColor}"/>
+          <stop offset="55%" stop-color="${baseColor}"/>
+          <stop offset="100%" stop-color="${darkColor}"/>
+        </linearGradient>
+        
+        <!-- Shadow gradient -->
+        <linearGradient id="shadow-grad-${color}-building" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="black" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="black" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+
+      <!-- Cast shadow (skewed ellipse to the right) -->
+      <ellipse cx="38" cy="80" rx="18" ry="6"
+               fill="url(#shadow-grad-${color}-building)" transform="rotate(-8 38 80)"/>
+
+      <!-- Pin body with darker contrasting edge -->
+      <path d="M25 1
+               C38.807 1 50 12.193 50 26
+               C50 45 25 81 25 81
+               S0 45 0 26
+               C0 12.193 11.193 1 25 1Z"
+            fill="url(#g-${color}-building)" stroke="rgba(0,0,0,0.3)" stroke-width="1.5" />
+
+      <!-- Inner white circle background -->
+      <circle cx="25" cy="25" r="9.5" fill="#ffffff" stroke="#e6f2ff" stroke-width="1"/>
+    </svg>
+  `;
+}
+
 // AI : Create SVG icon for Leaflet
 export function createColorIcon(color: MarkerColor): L.DivIcon {
   const svgString = createMarkerSVG(color);
@@ -85,6 +128,19 @@ export function createColorIcon(color: MarkerColor): L.DivIcon {
   return L.divIcon({
     html: svgString,
     className: 'custom-svg-marker',
+    iconSize: [markerSize, markerSize + 10],
+    iconAnchor: [markerSize/2, markerSize + 5],
+    popupAnchor: [0, -(markerSize + 5)],
+  });
+}
+
+// AI : Create building/project marker icon with building icon instead of circle
+export function createBuildingIcon(color: MarkerColor): L.DivIcon {
+  const svgString = createBuildingMarkerSVG(color);
+  
+  return L.divIcon({
+    html: svgString,
+    className: 'custom-svg-marker building-marker',
     iconSize: [markerSize, markerSize + 10],
     iconAnchor: [markerSize/2, markerSize + 5],
     popupAnchor: [0, -(markerSize + 5)],

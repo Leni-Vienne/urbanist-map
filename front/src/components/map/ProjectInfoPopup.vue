@@ -82,7 +82,7 @@ const emit = defineEmits<{
 }>()
 
 const isPublishedToBackend = computed(() => {
-  return props.project?.backendId != null
+  return props.project?.savedRemotely ?? false
 })
 </script>
 

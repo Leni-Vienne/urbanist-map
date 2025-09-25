@@ -27,7 +27,7 @@
 
       <!-- Project Information Section -->
       <ProjectInfoCard
-        :project="project"
+        :project="project ?? null"
         :show-description="false"
         :show-coordinates="false"
         :available-cities="availableCities"
@@ -154,7 +154,7 @@ const overlayEditorRef = ref<InstanceType<typeof OverlayEditor> | null>(null);
 // AI : Computed for project picker v-model
 const selectedProjectId = computed({
   get: () => props.overlayObject.projectId ?? '',
-  set: (value: string) => {
+  set: (_value: string) => {
     // AI : Don't set local state, just emit the change
   }
 });
