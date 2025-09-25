@@ -26,69 +26,31 @@
       </div>
 
       <!-- Project Information Section -->
-      <div
-        v-if="project"
-        class="project-meta mb-3"
+      <ProjectInfoCard
+        :project="project"
+        :show-description="false"
+        :show-coordinates="false"
+        :available-cities="availableCities"
       >
-        <div class="section-header-row">
-          <div class="section-header">Project Information</div>
-          <div class="project-actions">
-            <!-- AI : Direct edit button (for owned projects or moderator pending projects) -->
-            <Button
-              v-if="!viewMode && project && user && project.ownerId === user.id"
-              icon="pi pi-pencil"
-              class="p-button-sm p-button-text p-button-info"
-              @click="emit('edit-project', project)"
-              v-tooltip.top="'Edit Project'"
-            />
-            <!-- AI : Suggest changes button (for non-owned projects) -->
-            <Button
-              v-else-if="!viewMode && project && user && project.ownerId !== user.id"
-              icon="pi pi-file-edit"
-              class="p-button-sm p-button-text p-button-secondary"
-              @click="emit('edit-project', project)"
-              v-tooltip.top="'Suggest Changes'"
-            />
-          </div>
-        </div>
-        <div class="info-card">
-          <div class="info-row">
-            <span class="info-label">Name:</span>
-            <span class="info-value">{{ project.name ?? 'Not specified' }}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">Location:</span>
-            <span class="info-value">{{ getProjectLocationDisplay(project) }}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">Period:</span>
-            <span class="info-value info-small">
-              <span v-if="!project.startDate && !project.endDate">Not specified</span>
-              <span v-else>
-                {{ formatDate(project.startDate) }} - {{ project.endDate ? formatDate(project.endDate) : 'Present' }}
-              </span>
-            </span>
-          </div>
-          <div
-            v-if="project.sourceUrl"
-            class="info-row"
-          >
-            <span class="info-label">Source:</span>
-            <a
-              :href="project.sourceUrl"
-              target="_blank"
-              class="info-link"
-            >{{ project.sourceUrl }}</a>
-          </div>
-          <div
-            v-if="project.latestUpdateOn"
-            class="info-row"
-          >
-            <span class="info-label">Latest Update:</span>
-            <span class="info-value info-small">{{ formatDate(project.latestUpdateOn) }}</span>
-          </div>
-        </div>
-      </div>
+        <template #actions="{ project }">
+          <!-- AI : Direct edit button (for owned projects or moderator pending projects) -->
+          <Button
+            v-if="!viewMode && project && user && project.ownerId === user.id"
+            icon="pi pi-pencil"
+            class="p-button-sm p-button-text p-button-info"
+            @click="emit('edit-project', project)"
+            v-tooltip.top="'Edit Project'"
+          />
+          <!-- AI : Suggest changes button (for non-owned projects) -->
+          <Button
+            v-else-if="!viewMode && project && user && project.ownerId !== user.id"
+            icon="pi pi-file-edit"
+            class="p-button-sm p-button-text p-button-secondary"
+            @click="emit('edit-project', project)"
+            v-tooltip.top="'Suggest Changes'"
+          />
+        </template>
+      </ProjectInfoCard>
 
       <!-- Overlay Information Section -->
       <div class="overlay-meta mb-3">
@@ -158,6 +120,7 @@ import { ref, computed, defineAsyncComponent } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@stores/authStore';
 import type { OverlayObject, Project } from '@types';
+import ProjectInfoCard from './ProjectInfoCard.vue';
 
 const ProjectPicker = defineAsyncComponent(() => import('@components/project/ProjectPicker.vue'));
 const OverlayEditor = defineAsyncComponent(() => import('@components/map/OverlayEditor.vue'));
@@ -195,28 +158,6 @@ const selectedProjectId = computed({
     // AI : Don't set local state, just emit the change
   }
 });
-
-// AI : Simple presentation helper functions
-function formatDate(date: Date | null): string {
-  if (!date) return 'Not specified';
-  return new Date(date).toLocaleDateString();
-}
-
-function getProjectLocationDisplay(project: Project): string {
-  if (project.city?.name) {
-    return `${project.city.name}, ${project.city.countryCode}`;
-  }
-
-  // AI : Use available cities if provided by parent
-  if (project.cityId && props.availableCities) {
-    const city = props.availableCities.find(c => c.id === project.cityId);
-    if (city) {
-      return `${city.name}, ${city.countryCode}`;
-    }
-  }
-
-  return 'Not specified';
-}
 
 // AI : Handle project selection from picker
 function handleProjectSelected(projectId: string) {
@@ -267,13 +208,6 @@ function openOverlayEditor() {
   font-size: 0.75rem;
 }
 
-.project-actions,
-.overlay-actions {
-  display: flex;
-  gap: 0.25rem;
-}
-
-/* AI : Section styling */
 .project-selection {
   margin-bottom: 1rem;
 }
@@ -292,7 +226,11 @@ function openOverlayEditor() {
   margin-bottom: 0.5rem;
 }
 
-/* AI : Info card styling */
+.overlay-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
 .info-card {
   background-color: var(--p-surface-50);
   border: 1px solid var(--p-surface-200);

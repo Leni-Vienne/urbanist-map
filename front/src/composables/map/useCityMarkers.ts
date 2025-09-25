@@ -47,6 +47,7 @@ let selectedCityMarker: L.Marker | null = null;
 
 // AI : Store the current marker for position tracking
 let currentMarkerForPopup: L.CircleMarker | null = null;
+let mapClickHandler: (() => void) | null = null;
 
 /**
  * AI : Update teleport target position based on current marker
@@ -106,6 +107,15 @@ function createProjectInfoTeleportTarget(marker: L.CircleMarker) {
   map.value.on('move', updateTeleportTargetPosition);
   map.value.on('zoom', updateTeleportTargetPosition);
   map.value.on('resize', updateTeleportTargetPosition);
+  
+  // AI : Add map click handler to close project popup
+  mapClickHandler = () => {
+    const { uiStore } = getStoreRefs();
+    if (uiStore.projectInfoPopup.visible) {
+      uiStore.closeProjectInfoPopup();
+    }
+  };
+  map.value.on('click', mapClickHandler);
 
 }
 
@@ -118,6 +128,12 @@ export function cleanupProjectInfoTeleportTarget() {
     map.value.off('move', updateTeleportTargetPosition);
     map.value.off('zoom', updateTeleportTargetPosition);
     map.value.off('resize', updateTeleportTargetPosition);
+    
+    // AI : Remove map click handler
+    if (mapClickHandler) {
+      map.value.off('click', mapClickHandler);
+      mapClickHandler = null;
+    }
   }
 
   // AI : Remove teleport target
@@ -181,8 +197,8 @@ async function loadCityMarkerProjects(cityId: string | null): Promise<void> {
           // AI : Create teleport target at marker position
           createProjectInfoTeleportTarget(marker);
 
-          // AI : Use uiStore to show project info popup
-          uiStore.openProjectInfoPopup(project.id);
+          // AI : Use uiStore to show project info popup, pass project data for backend projects
+          uiStore.openProjectInfoPopup(project.id, project);
         });
 
         marker.addTo(markerProjectsLayer!);

@@ -1,0 +1,287 @@
+<template>
+  <!-- Overlay Info Popup -->
+  <Teleport to="#info-popup-teleport-target" v-if="mode === 'overlay' && showOverlayPopup && overlayObject && teleportTargetExists">
+    <InfoPopup
+      :overlayObject="overlayObject"
+      :project="getProjectForOverlay(overlayObject)"
+      :viewMode="!isEditMode"
+      :publishLoading="isPublishingOverlay"
+      :loading="false"
+      :availableCities="availableCities"
+      @project-change="handleProjectChange"
+      @publish-overlay="handlePublishOverlay"
+      @edit-project="handleEditProject"
+      @edit-overlay="handleEditOverlay"
+      @overlay-update="handleOverlayUpdate"
+    />
+  </Teleport>
+
+  <!-- Project Info Popup -->
+  <Teleport to="#project-info-popup-teleport-target" v-if="mode === 'project' && showProjectPopup && selectedProject">
+    <ProjectInfoPopup
+      :project="selectedProject"
+      :viewMode="!isEditMode"
+      :publishLoading="isPublishingProject"
+      :loading="false"
+      :availableCities="availableCities"
+      @publish-project="handlePublishProject"
+      @edit-project="handleEditProject"
+      @close-popup="closeProjectInfoPopup"
+    />
+  </Teleport>
+</template>
+
+<script setup lang="ts">
+import { computed, ref, onMounted, onUnmounted, nextTick } from 'vue';
+import { storeToRefs } from 'pinia';
+import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { useProjectStore } from '@stores/pinia/projectStore';
+import { useMapStore } from '@stores/pinia/mapStore';
+import { useUiStore } from '@stores/uiStore';
+import InfoPopup from './InfoPopup.vue';
+import ProjectInfoPopup from './ProjectInfoPopup.vue';
+import { updateTooltipText } from '@composables/overlay/useOverlay';
+import { useToast } from '@composables/ui/useToast';
+import { fetchNearbyProjects } from '@composables/project/useNearbyProjects';
+import { useOverlayPublisher } from '@composables/overlay/useOverlayPublisher';
+import { citiesWithProjects, loadCityProjects, cleanupProjectInfoTeleportTarget } from '@composables/map/useCityMarkers';
+import { createProjectFromAPI } from '../../utils/typeFactories';
+import { removeOverlayFromProjectWithId } from '@composables/project/useProjects';
+import { trpc } from '@client';
+import type { OverlayObject, Project } from '@types';
+
+interface Props {
+  mode: 'overlay' | 'project'
+}
+
+const props = defineProps<Props>()
+
+const overlayStore = useOverlayStore();
+const projectStore = useProjectStore();
+const mapStore = useMapStore();
+const uiStore = useUiStore();
+const { overlays, showInfoPopup, infoPopupOverlayId, isEditMode, replacementOverlayId } = storeToRefs(overlayStore);
+const { projects } = storeToRefs(projectStore);
+const { projectInfoPopup } = storeToRefs(uiStore);
+const toast = useToast();
+const { isPublishing: isPublishingOverlay, publishOverlay } = useOverlayPublisher();
+
+// AI : Local state for project publishing
+const isPublishingProject = ref(false);
+
+// AI : Computed for available cities
+const availableCities = computed(() => {
+  return citiesWithProjects.value.map(city => ({
+    id: city.id,
+    name: city.name,
+    countryCode: city.countryCode
+  }));
+});
+
+// AI : Computed for overlay popup visibility
+const showOverlayPopup = computed(() => showInfoPopup.value);
+
+// AI : Computed for project popup visibility  
+const showProjectPopup = computed(() => {
+  const result = projectInfoPopup.value.visible && selectedProject.value && teleportTargetExists.value;
+  console.log('showProjectPopup computed:', {
+    visible: projectInfoPopup.value.visible,
+    hasProject: !!selectedProject.value,
+    targetExists: teleportTargetExists.value,
+    result
+  });
+  return result;
+});
+
+// AI : Get selected project for project popup
+const selectedProject = computed(() => {
+  if (!projectInfoPopup.value.projectId) return null;
+  
+  // AI : First try to get from local projects store
+  const localProject = projects.value[projectInfoPopup.value.projectId];
+  if (localProject) return localProject;
+  
+  // AI : If not found locally, try to get from projectInfoPopup (for backend projects)
+  return projectInfoPopup.value.project || null;
+});
+
+// AI : Track teleport target existence
+let targetObserver: MutationObserver | null = null;
+const teleportTargetExists = ref(false);
+
+const checkTeleportTarget = () => {
+  const overlayTarget = document.getElementById('info-popup-teleport-target');
+  const projectTarget = document.getElementById('project-info-popup-teleport-target');
+  
+  if (props.mode === 'overlay') {
+    teleportTargetExists.value = !!overlayTarget;
+  } else {
+    teleportTargetExists.value = !!projectTarget;
+  }
+};
+
+onMounted(() => {
+  checkTeleportTarget();
+  
+  targetObserver = new MutationObserver(() => {
+    checkTeleportTarget();
+  });
+  
+  targetObserver.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+});
+
+onUnmounted(() => {
+  if (targetObserver) {
+    targetObserver.disconnect();
+  }
+});
+
+// AI : Get the overlay object for the info popup
+const overlayObject = computed(() => {
+  if (!infoPopupOverlayId.value || !overlays.value[infoPopupOverlayId.value]) {
+    return null;
+  }
+  return overlays.value[infoPopupOverlayId.value];
+});
+
+// AI : Get project for overlay - either from local projects store or overlay project data
+function getProjectForOverlay(overlay: OverlayObject): Project | null {
+  if (overlay.projectId) {
+    // AI : First try to get from local projects store
+    const localProject = projects.value[overlay.projectId];
+    if (localProject) {
+      return localProject;
+    }
+
+    // AI : If not found locally, check if this overlay has backend project data
+    if (overlay.project && overlay.project.id === overlay.projectId) {
+      // AI : Convert backend project data to frontend format
+      const backendProject = overlay.project;
+      const convertedProject: Project = {
+        ...backendProject,
+        name: backendProject.name,
+        city: backendProject.city,
+        overlayIds: [],
+        color: '#007bff'
+      };
+
+      // AI : Add the project to the projects store so other components can access it
+      if (!projects.value[overlay.projectId]) {
+        projects.value = {
+          ...projects.value,
+          [overlay.projectId]: convertedProject
+        };
+      }
+
+      return convertedProject;
+    }
+  }
+  return null;
+}
+
+// AI : Handle project change (overlay mode only)
+async function handleProjectChange(projectId: string) {
+  const overlay = overlayObject.value;
+  if (!overlay) return;
+
+  // AI : Update the overlay's project assignment
+  overlay.projectId = projectId;
+  overlay.markAsModified();
+
+  // AI : Update tooltip text
+  const overlayProject = getProjectForOverlay(overlay);
+  updateTooltipText(overlay, overlayProject);
+}
+
+// AI : Handle overlay publishing (overlay mode only)
+async function handlePublishOverlay() {
+  const overlay = overlayObject.value;
+  if (!overlay) return;
+
+  await publishOverlay(overlay);
+}
+
+// AI : Handle project publishing (project mode only)
+async function handlePublishProject() {
+  const project = selectedProject.value;
+  if (!project || !project.isMarker) return;
+
+  isPublishingProject.value = true;
+  
+  try {
+    const publishResult = await trpc.project.publishProject.mutate({
+      id: project.id,
+      name: project.name!,
+      description: project.description ?? undefined,
+      isMarker: project.isMarker,
+      lat: project.lat ?? undefined,
+      lng: project.lng ?? undefined,
+      cityId: project.cityId ?? undefined,
+    });
+    
+    if (publishResult.success) {
+      // AI : Mark project as saved remotely
+      if (projects.value[project.id]) {
+        projects.value[project.id] = {
+          ...projects.value[project.id],
+          savedRemotely: true
+        };
+      }
+      
+      toast.add({
+        severity: 'success',
+        summary: 'Project Published',
+        detail: 'Marker project has been saved to the backend',
+        life: 3000
+      });
+      
+      // AI : Refresh city projects to show updated marker
+      if (mapStore.selectedCity) {
+        await loadCityProjects(mapStore.selectedCity.id, mapStore.selectedCity.name, true, mapStore.selectedCity.countryCode);
+      } else {
+        await loadCityProjects(null as any, '', true);
+      }
+    } else {
+      throw new Error('Backend publish failed');
+    }
+  } catch (error) {
+    console.error('Error publishing project:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Publish Failed',
+      detail: 'Failed to save marker project to the backend',
+      life: 5000
+    });
+  } finally {
+    isPublishingProject.value = false;
+  }
+}
+
+// AI : Handle project editing (both modes)
+function handleEditProject(project: Project) {
+  uiStore.openProjectDialog(project, 'edit');
+}
+
+// AI : Handle overlay editing (overlay mode only)
+function handleEditOverlay(overlay: OverlayObject) {
+  // AI : Handle overlay editing logic here
+  console.log('Edit overlay:', overlay);
+}
+
+// AI : Handle overlay update (overlay mode only)
+function handleOverlayUpdate(overlayId: string, caption?: string) {
+  const overlay = overlays.value[overlayId];
+  if (overlay && caption !== undefined) {
+    overlay.caption = caption;
+    overlay.markAsModified();
+  }
+}
+
+// AI : Close project info popup (project mode only)
+function closeProjectInfoPopup() {
+  uiStore.closeProjectInfoPopup();
+}
+</script>

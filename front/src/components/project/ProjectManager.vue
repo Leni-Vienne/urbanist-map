@@ -218,7 +218,8 @@ async function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: numb
     toast.add({ 
       severity: 'success', 
       summary: 'Success', 
-      detail: 'Marker project created successfully' 
+      detail: 'Marker project created successfully',
+      life: 3000
     });
     setLastCreatedProject(projectId);
     
@@ -237,7 +238,8 @@ async function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: numb
     toast.add({ 
       severity: 'error', 
       summary: 'Error', 
-      detail: 'Failed to create marker project' 
+      detail: 'Failed to create marker project' ,
+      life: 3000
     });
   }
 }
