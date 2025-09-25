@@ -1,5 +1,6 @@
 import L from "leaflet";
-import { createColorIcon } from '@composables/ui/markerIcons';
+import { createBuildingIcon, createColorIcon } from '@composables/ui/markerIcons';
+import type { MarkerColor, Project } from '@types';
 import { ref, nextTick } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
 import { loadCityOverlays } from '@composables/map/useCityOverlays';
@@ -11,6 +12,23 @@ import { RouterOutput, trpc } from '@client';
 // AI : Function to get store refs when needed
 import { useUiStore } from '@stores/uiStore';
 import { useProjects } from '@composables/project/useProjects';
+import { createProject } from '../../utils/typeFactories';
+
+// AI : Get project timeline-based marker color
+function getProjectMarkerColor(project: Project): MarkerColor {
+  const { proposalDate, startDate, endDate } = project;
+  
+  if (proposalDate && !startDate) return 'yellow'; // Proposed but not started
+  if (!startDate) return 'grey'; // No start date, shouldn't happen?
+  
+  const now = new Date();
+  const start = new Date(startDate);
+  const end = endDate ? new Date(endDate) : null;
+  
+  if (start > now) return 'green'; // Upcoming
+  if (end && end <= now) return 'grey'; // Completed
+  return 'orange'; // Ongoing
+}
 
 function getStoreRefs() {
   const mapStore = useMapStore();
@@ -46,7 +64,7 @@ let markerProjectsLayer: L.LayerGroup | null = null;
 let selectedCityMarker: L.Marker | null = null;
 
 // AI : Store the current marker for position tracking
-let currentMarkerForPopup: L.CircleMarker | null = null;
+let currentMarkerForPopup: L.Marker | L.CircleMarker | null = null;
 let mapClickHandler: (() => void) | null = null;
 
 /**
@@ -70,7 +88,7 @@ function updateTeleportTargetPosition() {
 /**
  * AI : Create teleport target for project info popup at marker position
  */
-function createProjectInfoTeleportTarget(marker: L.CircleMarker) {
+function createProjectInfoTeleportTarget(marker: L.Marker | L.CircleMarker) {
   if (!map.value) return;
 
   // AI : Remove any existing teleport target and event listeners
@@ -180,14 +198,27 @@ async function loadCityMarkerProjects(cityId: string | null): Promise<void> {
 
     allMarkerProjects.forEach(project => {
       if (project.lat && project.lng) {
-        // AI : Create marker - use circle marker to avoid positioning issues
-        const marker = L.circleMarker([project.lat, project.lng], {
-          radius: 8,
-          fillColor: '#10b981',
-          color: '#047857',
-          weight: 2,
-          opacity: 1,
-          fillOpacity: 0.8
+        // AI : Get timeline-based color for project marker
+        const projectData = 'overlayIds' in project ? project : createProject({
+          ...project,
+          city: project.city ? {
+            ...project.city,
+            coordinates: { x: project.city.lng, y: project.city.lat },
+            createdAt: new Date(),
+            updatedAt: new Date()
+          } : null,
+          savedRemotely: true,
+          status: 'approved'
+        });
+        const markerColor = getProjectMarkerColor(projectData);
+        const markerIcon = createBuildingIcon(markerColor);
+        
+        // AI : Create marker with timeline-based color icon
+        const marker = L.marker([project.lat, project.lng], { icon: markerIcon });
+
+        // AI : Prevent double-click zoom on markers
+        marker.on('dblclick', (e) => {
+          L.DomEvent.stopPropagation(e);
         });
 
         // AI : Add click handler for marker project - show info popup first
@@ -210,8 +241,19 @@ async function loadCityMarkerProjects(cityId: string | null): Promise<void> {
           // AI : Wait for next tick to ensure DOM is updated before showing popup
           await nextTick();
 
-          // AI : Use uiStore to show project info popup, pass project data for backend projects
-          uiStore.openProjectInfoPopup(project.id, project);
+          // AI : Use uiStore to show project info popup, convert backend projects to local format
+          const projectData = 'overlayIds' in project ? project : createProject({
+            ...project,
+            city: project.city ? {
+              ...project.city,
+              coordinates: { x: project.city.lng, y: project.city.lat },
+              createdAt: new Date(),
+              updatedAt: new Date()
+            } : null,
+            savedRemotely: true,
+            status: 'approved'
+          });
+          uiStore.openProjectInfoPopup(project.id, projectData);
         });
 
         marker.addTo(markerProjectsLayer!);
