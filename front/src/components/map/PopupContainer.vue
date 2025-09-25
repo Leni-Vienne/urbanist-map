@@ -32,7 +32,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, nextTick } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
@@ -42,11 +42,8 @@ import InfoPopup from './InfoPopup.vue';
 import ProjectInfoPopup from './ProjectInfoPopup.vue';
 import { updateTooltipText } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
-import { fetchNearbyProjects } from '@composables/project/useNearbyProjects';
 import { useOverlayPublisher } from '@composables/overlay/useOverlayPublisher';
-import { citiesWithProjects, loadCityProjects, cleanupProjectInfoTeleportTarget } from '@composables/map/useCityMarkers';
-import { createProjectFromAPI } from '../../utils/typeFactories';
-import { removeOverlayFromProjectWithId } from '@composables/project/useProjects';
+import { citiesWithProjects, loadCityProjects } from '@composables/map/useCityMarkers';
 import { trpc } from '@client';
 import type { OverlayObject, Project } from '@types';
 
@@ -60,7 +57,7 @@ const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
 const mapStore = useMapStore();
 const uiStore = useUiStore();
-const { overlays, showInfoPopup, infoPopupOverlayId, isEditMode, replacementOverlayId } = storeToRefs(overlayStore);
+const { overlays, showInfoPopup, infoPopupOverlayId, isEditMode } = storeToRefs(overlayStore);
 const { projects } = storeToRefs(projectStore);
 const { projectInfoPopup } = storeToRefs(uiStore);
 const toast = useToast();
@@ -83,14 +80,7 @@ const showOverlayPopup = computed(() => showInfoPopup.value);
 
 // AI : Computed for project popup visibility  
 const showProjectPopup = computed(() => {
-  const result = projectInfoPopup.value.visible && selectedProject.value && teleportTargetExists.value;
-  console.log('showProjectPopup computed:', {
-    visible: projectInfoPopup.value.visible,
-    hasProject: !!selectedProject.value,
-    targetExists: teleportTargetExists.value,
-    result
-  });
-  return result;
+  return projectInfoPopup.value.visible && selectedProject.value && teleportTargetExists.value;
 });
 
 // AI : Get selected project for project popup
@@ -189,11 +179,10 @@ async function handleProjectChange(projectId: string) {
 
   // AI : Update the overlay's project assignment
   overlay.projectId = projectId;
-  overlay.markAsModified();
+  overlay.isModified = true;
 
-  // AI : Update tooltip text
-  const overlayProject = getProjectForOverlay(overlay);
-  updateTooltipText(overlay, overlayProject);
+  // AI : Update tooltip text (updateTooltipText works on selected overlay)
+  updateTooltipText();
 }
 
 // AI : Handle overlay publishing (overlay mode only)
@@ -201,7 +190,8 @@ async function handlePublishOverlay() {
   const overlay = overlayObject.value;
   if (!overlay) return;
 
-  await publishOverlay(overlay);
+  const project = getProjectForOverlay(overlay);
+  await publishOverlay(overlay, project);
 }
 
 // AI : Handle project publishing (project mode only)
@@ -276,7 +266,7 @@ function handleOverlayUpdate(overlayId: string, caption?: string) {
   const overlay = overlays.value[overlayId];
   if (overlay && caption !== undefined) {
     overlay.caption = caption;
-    overlay.markAsModified();
+    overlay.isModified = true;
   }
 }
 

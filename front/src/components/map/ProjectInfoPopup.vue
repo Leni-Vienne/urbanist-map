@@ -57,7 +57,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Project } from '~/types/api'
+import type { Project } from '@types'
 import ProjectInfoCard from './ProjectInfoCard.vue'
 
 interface Props {

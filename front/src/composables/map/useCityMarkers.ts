@@ -1,6 +1,6 @@
 import L from "leaflet";
 import { createColorIcon } from '@composables/ui/markerIcons';
-import { ref } from 'vue';
+import { ref, nextTick } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
 import { loadCityOverlays } from '@composables/map/useCityOverlays';
 import { useMapStore } from '@stores/pinia/mapStore';
@@ -191,11 +191,24 @@ async function loadCityMarkerProjects(cityId: string | null): Promise<void> {
         });
 
         // AI : Add click handler for marker project - show info popup first
-        marker.on('click', () => {
+        marker.on('click', async (e) => {
+          // AI : Stop all event propagation using Leaflet's method
+          L.DomEvent.stopPropagation(e);
+          
           const { uiStore } = getStoreRefs();
+
+          // AI : Check if popup is already open for this project - toggle behavior
+          if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
+            // AI : Close the popup if it's already open for this project
+            uiStore.closeProjectInfoPopup();
+            return;
+          }
 
           // AI : Create teleport target at marker position
           createProjectInfoTeleportTarget(marker);
+
+          // AI : Wait for next tick to ensure DOM is updated before showing popup
+          await nextTick();
 
           // AI : Use uiStore to show project info popup, pass project data for backend projects
           uiStore.openProjectInfoPopup(project.id, project);
