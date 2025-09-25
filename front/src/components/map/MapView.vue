@@ -19,7 +19,7 @@
     <MapControls @filter-overlays="filterOverlaysByCompletionStatus" />
     
     <!-- AI : Project Info Popup Container -->
-    <ProjectInfoPopupContainer />
+    <PopupContainer mode="project" />
   </div>
 </template>
 
@@ -42,7 +42,7 @@ import type { CDNOverlayData } from '@types';
 
 import MapControls from '@components/map/MapControls.vue';
 import UserMenu from '@components/auth/UserMenu.vue';
-import ProjectInfoPopupContainer from '@components/map/ProjectInfoPopupContainer.vue';
+import PopupContainer from '@components/map/PopupContainer.vue';
 
 // AI: Get Pinia stores
 const overlayStore = useOverlayStore();

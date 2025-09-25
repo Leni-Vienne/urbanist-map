@@ -40,7 +40,8 @@ export const useUiStore = defineStore('ui', () => {
   // AI : Project info popup state (for marker projects)
   const projectInfoPopup = ref({
     visible: false,
-    projectId: null as string | null
+    projectId: null as string | null,
+    project: null as Project | null
   });
 
   // AI : Auth modal actions
@@ -120,18 +121,23 @@ export const useUiStore = defineStore('ui', () => {
   }
   
   // AI : Project info popup actions
-  function openProjectInfoPopup(projectId: string) {
+  function openProjectInfoPopup(projectId: string, project?: Project) {
     projectInfoPopup.value = {
       visible: true,
-      projectId
+      projectId,
+      project: project || null
     };
   }
   
   function closeProjectInfoPopup() {
     projectInfoPopup.value = {
       visible: false,
-      projectId: null
+      projectId: null,
+      project: null
     };
+    
+    // AI : Don't clean up teleport target immediately - let it stay for next click
+    // The cleanup will happen when switching markers or cities
   }
 
   // AI : Close all UI elements (used for cleanup)

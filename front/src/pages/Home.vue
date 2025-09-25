@@ -44,7 +44,7 @@
       <MapView />
 
       <!-- AI : InfoPopup with teleport mechanism -->
-      <InfoPopupContainer />
+      <PopupContainer mode="overlay" />
     </div>
 
     <!-- AI : Project Management Dialogs -->
@@ -60,7 +60,7 @@ import { onMounted, ref, onUnmounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MapView from '@components/map/MapView.vue'
 import SideMenu from '@components/layout/SideMenu.vue'
-import InfoPopupContainer from '@components/map/InfoPopupContainer.vue'
+import PopupContainer from '@components/map/PopupContainer.vue'
 import ProjectManager from '@components/project/ProjectManager.vue'
 import AuthModal from '@components/auth/AuthModal.vue'
 import MobileDrawer from '@components/layout/MobileDrawer.vue'
