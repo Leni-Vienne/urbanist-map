@@ -45,8 +45,9 @@ function getSelectedProjectId() {
 }
 
 // AI : Opacity constants for city markers
-const CITY_MARKER_OPACITY = 0.6; // AI : Default opacity for city markers
-const CITY_MARKER_HOVER_OPACITY = 1; // AI : Opacity for city markers on hover
+const MARKER_OPACITY = 0.6; // AI : Default opacity for city markers
+const BUILDING_MARKER_OPACITY = 0.8; // AI : Default opacity for building markers
+const MARKER_HOVER_OPACITY = 1; // AI : Opacity for city markers on hover
 
 // AI : Type aliases using RouterOutput from tRPC
 export type CityWithProjects = RouterOutput['cities']['getCitiesWithProjects'][number];
@@ -213,12 +214,25 @@ async function loadCityMarkerProjects(cityId: string | null): Promise<void> {
         const markerColor = getProjectMarkerColor(projectData);
         const markerIcon = createBuildingIcon(markerColor);
         
-        // AI : Create marker with timeline-based color icon
-        const marker = L.marker([project.lat, project.lng], { icon: markerIcon });
+        // AI : Create marker with timeline-based color icon and default opacity
+        const marker = L.marker([project.lat, project.lng], { 
+          icon: markerIcon,
+          opacity: BUILDING_MARKER_OPACITY // AI : Lower default opacity to suggest interactivity
+        });
 
         // AI : Prevent double-click zoom on markers
         marker.on('dblclick', (e) => {
           L.DomEvent.stopPropagation(e);
+        });
+
+        // AI : Add mouseover event to increase marker opacity
+        marker.on('mouseover', () => {
+          marker.setOpacity(MARKER_HOVER_OPACITY);
+        });
+
+        // AI : Add mouseout event to reset marker opacity
+        marker.on('mouseout', () => {
+          marker.setOpacity(BUILDING_MARKER_OPACITY);
         });
 
         // AI : Add click handler for marker project - show info popup first
@@ -343,7 +357,7 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
     const markerIcon = createColorIcon('blue');
     const marker = L.marker([city.lat, city.lng], {
       icon: markerIcon,
-      opacity: CITY_MARKER_OPACITY // AI : Lower default opacity to suggest interactivity
+      opacity: MARKER_OPACITY // AI : Lower default opacity to suggest interactivity
     });
 
     // AI : Add data-testid to the marker element after it's added to the DOM
@@ -368,11 +382,11 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
       if (cityMarkersLayer) {
         cityMarkersLayer.eachLayer((layer) => {
           if (layer instanceof L.Marker) {
-            layer.setOpacity(CITY_MARKER_OPACITY);
+            layer.setOpacity(MARKER_OPACITY);
           }
         });
       }
-      marker.setOpacity(CITY_MARKER_HOVER_OPACITY);
+      marker.setOpacity(MARKER_HOVER_OPACITY);
       selectedCityMarker = marker;
       void loadCityProjects(city.id, city.name, false, city.countryCode);
     });
@@ -381,7 +395,7 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
     marker.on('mouseover', () => {
       // AI : Only increase opacity if not selected
       if (selectedCityMarker !== marker) {
-        marker.setOpacity(CITY_MARKER_HOVER_OPACITY);
+        marker.setOpacity(MARKER_HOVER_OPACITY);
       }
     });
 
@@ -389,7 +403,7 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
     marker.on('mouseout', () => {
       // AI : Only reset opacity if not selected
       if (selectedCityMarker !== marker) {
-        marker.setOpacity(CITY_MARKER_OPACITY);
+        marker.setOpacity(MARKER_OPACITY);
       }
     });
 
