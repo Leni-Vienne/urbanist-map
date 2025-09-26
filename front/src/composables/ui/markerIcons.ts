@@ -42,7 +42,7 @@ function createMarkerSVG(color: MarkerColor): string {
   const darkColor = darkenColor(baseColor, 40);
   const width = markerSize;
   const height = Math.round(markerSize * 1.6);
-  
+
   return `
     <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 50 82" role="img" aria-label="Map pin">
       <defs>
@@ -85,9 +85,9 @@ function createBuildingMarkerSVG(color: MarkerColor): string {
   const darkColor = darkenColor(baseColor, 40);
   const width = markerSize;
   const height = Math.round(markerSize * 1.6);
-  
+
   return `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 50 82" role="img" aria-label="Project marker">
+     <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 52 82" role="img" aria-label="Project marker">
       <defs>
         <!-- Simple gradient for marker body -->
         <linearGradient id="g-${color}-building" x1="0" x2="0" y1="0" y2="1">
@@ -117,6 +117,16 @@ function createBuildingMarkerSVG(color: MarkerColor): string {
 
       <!-- Inner white circle background -->
       <circle cx="25" cy="25" r="9.5" fill="#ffffff" stroke="#e6f2ff" stroke-width="1"/>
+
+    <!-- House icon bottom-left -->
+    <g transform="translate(24,52) scale(1.6)">
+        <!-- Roof -->
+        <polygon points="10,0 20,10 0,10" fill="black" stroke="white" stroke-width="1.5"/>
+        <!-- Body -->
+        <rect x="3" y="10" width="14" height="12" fill="black" stroke="white" stroke-width="1.5"/>
+        <!-- Door -->
+        <rect x="8" y="14" width="4" height="8" fill="white" stroke="white" stroke-width="1"/>
+      </g>
     </svg>
   `;
 }
@@ -124,12 +134,12 @@ function createBuildingMarkerSVG(color: MarkerColor): string {
 // AI : Create SVG icon for Leaflet
 export function createColorIcon(color: MarkerColor): L.DivIcon {
   const svgString = createMarkerSVG(color);
-  
+
   return L.divIcon({
     html: svgString,
     className: 'custom-svg-marker',
     iconSize: [markerSize, markerSize + 10],
-    iconAnchor: [markerSize/2, markerSize + 5],
+    iconAnchor: [markerSize / 2, markerSize + 5],
     popupAnchor: [0, -(markerSize + 5)],
   });
 }
@@ -137,12 +147,12 @@ export function createColorIcon(color: MarkerColor): L.DivIcon {
 // AI : Create building/project marker icon with building icon instead of circle
 export function createBuildingIcon(color: MarkerColor): L.DivIcon {
   const svgString = createBuildingMarkerSVG(color);
-  
+
   return L.divIcon({
     html: svgString,
     className: 'custom-svg-marker building-marker',
     iconSize: [markerSize, markerSize + 10],
-    iconAnchor: [markerSize/2, markerSize + 5],
+    iconAnchor: [markerSize / 2, markerSize + 5],
     popupAnchor: [0, -(markerSize + 5)],
   });
 }
@@ -151,7 +161,7 @@ export function createBuildingIcon(color: MarkerColor): L.DivIcon {
 export function createButtonSVG(color: MarkerColor): string {
   const baseColor = markerColors[color];
   const size = 16;
-  
+
   return `
     <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 50 82" role="img" aria-label="Map pin">
       <!-- Pin body -->
