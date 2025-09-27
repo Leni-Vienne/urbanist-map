@@ -288,12 +288,15 @@ export async function loadCityProjects(cityId: string | null, cityName: string, 
   try {
     // AI : Update selected city in store (only if cityId is not null)
     if (cityId) {
-      const { mapStore } = getStoreRefs();
+      const { mapStore, uiStore } = getStoreRefs();
       mapStore.setSelectedCity({ id: cityId, name: cityName, countryCode: cityCountryCode });
 
       // AI : Clear selected project when switching cities
       const selectedProjectId = getSelectedProjectId();
       selectedProjectId.value = null;
+
+      // AI : Close project info popup when switching cities
+      uiStore.closeProjectInfoPopup();
 
       // AI : Load both overlay projects and marker projects
       await Promise.all([

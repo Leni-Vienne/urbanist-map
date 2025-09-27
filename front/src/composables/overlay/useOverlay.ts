@@ -497,8 +497,44 @@ export function clearAllOverlays(): void {
 }
 
 /**
- * AI : Apply selection outline to overlay when selected
+ * AI : Calculate appropriate outline size based on overlay dimensions and aspect ratio
+ * This ensures consistent visual outline regardless of overlay shape
  */
+function calculateOutlineSize(overlayElement: HTMLElement, baseSize: number): number {
+  if (!overlayElement) return baseSize;
+  
+  try {
+    // AI : Get the actual image element
+    const imgElement = overlayElement instanceof HTMLImageElement 
+      ? overlayElement 
+      : overlayElement.querySelector('img');
+      
+    if (!imgElement) return baseSize;
+    
+    // AI : Get natural image dimensions
+    const naturalWidth = imgElement.naturalWidth;
+    const naturalHeight = imgElement.naturalHeight;
+    
+    if (naturalWidth <= 0 || naturalHeight <= 0) return baseSize;
+    
+    // AI : Calculate outline size based on image resolution
+    // Use the smaller dimension to get consistent visual thickness
+    const naturalSmallerDimension = Math.min(naturalWidth, naturalHeight);
+    
+    // AI : Scale the base outline size by the image resolution
+    // Larger images need proportionally larger outlines to appear the same thickness
+    const scaleFactor = naturalSmallerDimension / 1000; // 500px as reference size
+    const scaledOutline = baseSize * scaleFactor;
+    
+    // AI : Clamp to reasonable bounds
+    return Math.max(1, Math.min(50, Math.round(scaledOutline)));
+    
+  } catch (error) {
+    console.warn('AI : Error calculating outline size, using base size:', error);
+    return baseSize;
+  }
+}
+
 function applySelectionOutline(overlayObject: OverlayObject): void {
   if (!overlayObject.overlay || !overlayObject.projectId) return;
 
@@ -509,8 +545,11 @@ function applySelectionOutline(overlayObject: OverlayObject): void {
     if (obj.projectId === overlayObject.projectId && obj.overlay) {
       const element = obj.overlay.getElement();
       if (element) {
+        // AI : Calculate appropriate outline size based on overlay dimensions
+        const outlineSize = calculateOutlineSize(element, 20);
+        
         // AI : Use box-shadow instead of outline to avoid scaling issues
-        element.style.boxShadow = `0 0 0 20px ${color}`;
+        element.style.boxShadow = `0 0 0 ${outlineSize}px ${color}`;
         element.style.outline = 'none';
       }
     }
@@ -529,8 +568,11 @@ function removeSelectionOutline(overlayObject: OverlayObject): void {
     if (obj.projectId === overlayObject.projectId && obj.overlay) {
       const element = obj.overlay.getElement();
       if (element) {
+        // AI : Calculate appropriate outline size for the default state
+        const outlineSize = calculateOutlineSize(element, 2);
+        
         // AI : Use box-shadow instead of outline for consistency
-        element.style.boxShadow = project ? `0 0 0 2px ${project.color}` : '';
+        element.style.boxShadow = project ? `0 0 0 ${outlineSize}px ${project.color}` : '';
         element.style.outline = 'none';
       }
     }
@@ -550,8 +592,11 @@ function highlightProjectOverlaysOnHover(projectId: string): void {
     if (overlayObject.projectId === projectId && overlayObject.overlay) {
       const element = overlayObject.overlay.getElement();
       if (element) {
+        // AI : Calculate appropriate outline size based on overlay dimensions
+        const outlineSize = calculateOutlineSize(element, 20);
+        
         // AI : Use box-shadow instead of outline to avoid scaling issues
-        element.style.boxShadow = `0 0 0 20px ${color}`;
+        element.style.boxShadow = `0 0 0 ${outlineSize}px ${color}`;
         element.style.outline = 'none';
       }
     }
@@ -573,8 +618,11 @@ function removeProjectHighlightOnHover(projectId: string): void {
     if (overlayObject.projectId === projectId && overlayObject.overlay) {
       const element = overlayObject.overlay.getElement();
       if (element) {
+        // AI : Calculate appropriate outline size for the default state
+        const outlineSize = calculateOutlineSize(element, 2);
+        
         // AI : Use box-shadow instead of outline for consistency
-        element.style.boxShadow = project ? `0 0 0 2px ${project.color}` : '';
+        element.style.boxShadow = project ? `0 0 0 ${outlineSize}px ${project.color}` : '';
         element.style.outline = 'none';
       }
     }

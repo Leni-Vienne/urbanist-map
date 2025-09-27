@@ -25,13 +25,6 @@
         <span class="info-label">{{ $t('project.location') }}:</span>
         <span class="info-value">{{ getProjectLocationDisplay(project) }}</span>
       </div>
-      <div 
-        v-if="showCoordinates"
-        class="info-row"
-      >
-        <span class="info-label">{{ $t('project.coordinates') }}:</span>
-        <span class="info-value info-small">{{ project.lat?.toFixed(5) }}, {{ project.lng?.toFixed(5) }}</span>
-      </div>
       <div class="info-row">
         <span class="info-label">{{ $t('project.period') }}:</span>
         <span class="info-value info-small">
@@ -69,13 +62,11 @@ import type { Project } from '@types'
 interface Props {
   project: Project | null
   showDescription?: boolean
-  showCoordinates?: boolean
   availableCities?: Array<{ id: string; name: string; countryCode: string; }>
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showDescription: false,
-  showCoordinates: false,
   availableCities: () => []
 })
 
