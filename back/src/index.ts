@@ -168,12 +168,11 @@ app.post('/api/google-login', async (c) => {
 
         if (existingUser) {
             // AI : User found by Google ID - this is definitely the same person
-            // Update their info if needed (email might have changed on Google's side)
-            if (existingUser.email !== googleUser.email || existingUser.username !== googleUser.name) {
+            // Update email if it changed on Google's side, but keep username stable
+            if (existingUser.email !== googleUser.email) {
                 await db.update(users)
                     .set({
                         email: googleUser.email, // AI : Email might have changed on Google
-                        username: googleUser.name, // AI : Name might have changed on Google
                         emailVerified: true,
                         emailVerificationToken: null,
                     })
