@@ -2,12 +2,11 @@
 import { watch } from 'vue';
 import L from 'leaflet';
 import { map, onMapInitialized, currentZoomLevel } from '@composables/core/useMap';
-import { onCameraStop } from '@composables/map/useCameraBounds';
-import { updateOverlayEditingState, clearAllOverlays, renderViewModeOverlays, updateMarkerTooltip, createOverlay, updateMarkerPosition } from '@composables/overlay/useOverlay';
+import { updateOverlayEditingState, clearAllOverlays, renderViewModeOverlays, updateMarkerTooltip, updateMarkerPosition } from '@composables/overlay/useOverlay';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { storeToRefs } from 'pinia';
-import type { CameraBounds, CDNOverlayData } from '@types';
+import type { CDNOverlayData } from '@types';
 import { latestClickedCity, hasCachedCityProjectsData, getCachedCityProjectsData } from '@composables/map/useCityData';
 import { renderOverlayMarkersFromCache, updateOverlayMarkersForFilters } from '@composables/map/useCityOverlays';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
@@ -31,7 +30,6 @@ function getStoreRefs() {
 }
 
 // AI : Constants for edit mode
-const EDIT_MODE_LOAD_DISTANCE = 1000; // 1km - closer than view mode since edit mode needs more precision
 const MIN_ZOOM_FOR_EDIT_OVERLAYS = 12; // AI : Minimum zoom level to load full overlays in edit mode
 
 // AI : Layer group for overlay markers in edit mode
@@ -68,107 +66,12 @@ function initializeEditModeOverlaysInternal(): void {
 }
 
 /**
- * AI : Load full overlay image for a specific overlay
- */
-function loadFullOverlay(overlayId: string) {
-  const { overlays, loadedEditOverlays, overlayStore } = getStoreRefs();
-  const overlay = overlays.value[overlayId];
-
-  if (!overlay || loadedEditOverlays.value.has(overlayId)) {
-    return;
-  }
-
-  // AI : Check if zoom level is sufficient to load full overlay
-  if (!map.value || currentZoomLevel.value < MIN_ZOOM_FOR_EDIT_OVERLAYS) {
-    return;
-  }
-
-  try {
-    // AI : Mark as loaded to prevent duplicate loading using store action
-    overlayStore.addEditModeOverlay(overlayId);
-
-    // AI : Only create a new overlay if it doesn't exist to preserve position and modifications
-    if (!overlay.overlay) {
-      const newOverlay = createOverlay(overlay.imageUrl, overlay);
-      if (newOverlay) {
-        overlay.overlay = newOverlay;
-      }
-    } else if (overlay.overlay && map.value) {
-      // AI : If already loaded, just make sure it's visible on the map
-      if (!map.value.hasLayer(overlay.overlay)) {
-        overlay.overlay.addTo(map.value);
-      }
-    }
-
-  } catch (error) {
-    console.error(`AI : Error loading full overlay ${overlayId}:`, error);
-    // AI : Remove from loaded set if loading failed using store action
-    const { overlayStore } = getStoreRefs();
-    overlayStore.removeEditModeOverlay(overlayId);
-  }
-}
-
-/**
- * AI : Start camera tracking for edit mode - load nearby overlays when camera moves
- */
-export function startEditModeTracking(): void {
-  if (!map.value) return;
-
-  // AI : Subscribe to camera stop events
-  unsubscribeFromCamera = onCameraStop(handleCameraStop);
-}
-
-/**
  * AI : Stop camera tracking for edit mode
  */
 export function stopEditModeTracking(): void {
   if (unsubscribeFromCamera) {
     unsubscribeFromCamera();
     unsubscribeFromCamera = null;
-  }
-}
-
-/**
- * AI : Handle camera stop events - load nearby overlays if zoom is high enough
- */
-function handleCameraStop(_bounds: CameraBounds) {
-  if (!map.value) return;
-
-  const currentZoom = currentZoomLevel.value;
-
-  // AI : Only load full overlays if zoom is high enough
-  if (currentZoom < MIN_ZOOM_FOR_EDIT_OVERLAYS) {
-    return;
-  }
-
-  // AI : Get camera center for distance calculations
-  const center = map.value.getCenter();
-
-  // AI : Find overlays within loading distance
-  const overlaysToLoad: string[] = [];
-
-  const { overlays, loadedEditOverlays } = getStoreRefs();
-  Object.values(overlays.value).forEach(overlay => {
-    if (!overlay.corners || overlay.corners.length < 4 || loadedEditOverlays.value.has(overlay.id)) {
-      return;
-    }
-
-    // AI : Calculate distance to overlay center - Leaflet distortable uses: NW, NE, SW, SE
-    // AI : Center should be between NW (corners[0]) and SE (corners[3])
-    const centerLat = (overlay.corners[0].lat + overlay.corners[3].lat) / 2;
-    const centerLng = (overlay.corners[0].lng + overlay.corners[3].lng) / 2;
-    const overlayCenter = L.latLng(centerLat, centerLng);
-    const distance = center.distanceTo(overlayCenter);
-
-    // AI : Load if within distance threshold
-    if (distance <= EDIT_MODE_LOAD_DISTANCE) {
-      overlaysToLoad.push(overlay.id);
-    }
-  });
-
-  // AI : Load the nearby overlays
-  for (const overlayId of overlaysToLoad) {
-    loadFullOverlay(overlayId);
   }
 }
 
@@ -387,8 +290,6 @@ export function toggleEditMode(onModeExit?: () => void) {
     // AI : Initialize edit mode overlay markers for overlays that don't have images loaded yet
     initializeEditModeOverlays();
 
-    // AI : Start camera tracking for edit mode
-    startEditModeTracking();
   } else {
     // AI : EXITING EDIT MODE
     // AI : Stop edit mode tracking
