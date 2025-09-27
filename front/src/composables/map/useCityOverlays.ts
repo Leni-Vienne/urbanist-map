@@ -127,6 +127,46 @@ export async function loadCityOverlays(cityId: string, cityName: string, forceFu
 /**
  * AI : Show overlay markers without loading images for performance
  */
+// AI : Common function to render overlay markers from overlay data
+function renderOverlayMarkersFromData(overlaysData: CDNOverlayData[]): void {
+  // AI : Clear view mode overlays state using store
+  const { overlayStore } = getStoreRefs();
+  overlayStore.clearViewModeOverlays();
+
+  // AI : Filter overlays based on current completion status filters
+  const completionFilters = useCompletionFilters();
+  const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData);
+
+  // AI : Create new layer group for overlay markers
+  overlayMarkersLayer = L.layerGroup();
+
+  // AI : Add simple markers for each visible overlay location
+  visibleOverlays.forEach(overlay => {
+    // AI : Use getOverlayMarkerInfo which considers edit mode, current overlay state, and position
+    const { color: markerColor, position } = getOverlayMarkerInfo(overlay);
+    const markerIcon = createColorIcon(markerColor);
+    const marker = L.marker([position.lat, position.lng], { icon: markerIcon });
+
+    // AI : Add data-testid to the marker element after it's added to the DOM
+    marker.on('add', () => {
+      const markerElement = marker.getElement();
+      if (markerElement) {
+        markerElement.setAttribute('data-testid', `overlay-marker-${overlay.id}`);
+        markerElement.setAttribute('data-overlay-id', overlay.id);
+        markerElement.setAttribute('data-project-id', overlay.projectId ?? 'unknown');
+        markerElement.setAttribute('data-overlay-status', overlay.project?.status ?? 'unknown');
+      }
+    });
+
+    overlayMarkersLayer!.addLayer(marker);
+  });
+
+  // AI : Add overlay markers to map
+  if (map.value) {
+    overlayMarkersLayer.addTo(map.value);
+  }
+}
+
 async function showOverlayMarkers(cityId: string): Promise<void> {
   try {
     isLoadingCityProjects.value = true;
@@ -135,45 +175,11 @@ async function showOverlayMarkers(cityId: string): Promise<void> {
     clearAllOverlays();
     removeOverlayMarkers();
 
-    // AI : Clear view mode overlays state using store
-    const { overlayStore } = getStoreRefs();
-    overlayStore.clearViewModeOverlays();
-
     // AI : Get overlays data (cached or fresh)
     const overlaysData = await fetchCityProjectsData(cityId);
 
-    // AI : Filter overlays based on current completion status filters
-    const completionFilters = useCompletionFilters();
-    const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData);
-
-    // AI : Create new layer group for overlay markers
-    overlayMarkersLayer = L.layerGroup();
-
-    // AI : Add simple markers for each visible overlay location
-    visibleOverlays.forEach(overlay => {
-      // AI : Use getOverlayMarkerInfo which considers edit mode, current overlay state, and position
-      const { color: markerColor, position } = getOverlayMarkerInfo(overlay);
-      const markerIcon = createColorIcon(markerColor);
-      const marker = L.marker([position.lat, position.lng], { icon: markerIcon });
-
-      // AI : Add data-testid to the marker element after it's added to the DOM
-      marker.on('add', () => {
-        const markerElement = marker.getElement();
-        if (markerElement) {
-          markerElement.setAttribute('data-testid', `overlay-marker-${overlay.id}`);
-          markerElement.setAttribute('data-overlay-id', overlay.id);
-          markerElement.setAttribute('data-project-id', overlay.projectId ?? 'unknown');
-          markerElement.setAttribute('data-overlay-status', overlay.project?.status ?? 'unknown');
-        }
-      });
-
-      overlayMarkersLayer!.addLayer(marker);
-    });
-
-    // AI : Add overlay markers to map
-    if (map.value) {
-      overlayMarkersLayer.addTo(map.value);
-    }
+    // AI : Use shared function to render markers
+    renderOverlayMarkersFromData(overlaysData);
   } catch (error) {
     console.error('AI : Error loading overlay markers:', error);
   } finally {
@@ -265,42 +271,8 @@ export function renderOverlayMarkersFromCache(cityId: string, cityName: string):
     // AI : Only remove overlay markers if they exist, don't clear all overlays
     removeOverlayMarkers();
 
-    // AI : Clear view mode overlays state using store
-    const { overlayStore } = getStoreRefs();
-    overlayStore.clearViewModeOverlays();
-
-    // AI : Filter overlays based on current completion status filters
-    const completionFilters = useCompletionFilters();
-    const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData);
-
-    // AI : Create new layer group for overlay markers
-    overlayMarkersLayer = L.layerGroup();
-
-    // AI : Add simple markers for each visible overlay location
-    visibleOverlays.forEach(overlay => {
-      // AI : Use getOverlayMarkerInfo which considers edit mode, current overlay state, and position
-      const { color: markerColor, position } = getOverlayMarkerInfo(overlay);
-      const markerIcon = createColorIcon(markerColor);
-      const marker = L.marker([position.lat, position.lng], { icon: markerIcon });
-
-      // AI : Add data-testid to the marker element after it's added to the DOM
-      marker.on('add', () => {
-        const markerElement = marker.getElement();
-        if (markerElement) {
-          markerElement.setAttribute('data-testid', `overlay-marker-${overlay.id}`);
-          markerElement.setAttribute('data-overlay-id', overlay.id);
-          markerElement.setAttribute('data-project-id', overlay.projectId ?? 'unknown');
-          markerElement.setAttribute('data-overlay-status', overlay.project?.status ?? 'unknown');
-        }
-      });
-
-      overlayMarkersLayer!.addLayer(marker);
-    });
-
-    // AI : Add overlay markers to map
-    if (map.value) {
-      overlayMarkersLayer.addTo(map.value);
-    }
+    // AI : Use shared function to render markers
+    renderOverlayMarkersFromData(overlaysData);
   } catch (error) {
     console.error('AI : Error rendering overlay markers from cache:', error);
   }

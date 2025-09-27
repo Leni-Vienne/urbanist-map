@@ -785,7 +785,7 @@ export function updateMarkerTooltip(overlayObject: OverlayObject): void {
     return;
   }
   // AI : Generate tooltip text based on overlay state
-  const isRemoteOverlay = overlayObject.project !== undefined;
+  const isRemoteOverlay = overlayObject?.savedRemotely;
   const hasBeenModified = overlayObject.isModified;
   const isReplacement = overlayObject.replacesOverlayId !== null;
 
