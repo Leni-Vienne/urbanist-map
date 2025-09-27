@@ -196,6 +196,15 @@ function onOverlayLoaded(overlayObject: OverlayObject): void {
   initializeOverlayHistory(overlayObject);
 
   updateMarkerTooltip(overlayObject);
+
+  // AI : Ensure new overlays start with no outline unless they're selected
+  if (idSelectedOverlay.value !== overlayObject.id) {
+    const element = overlayObject.overlay.getElement();
+    if (element) {
+      element.style.boxShadow = '';
+      element.style.outline = 'none';
+    }
+  }
 }
 
 /**
@@ -219,20 +228,15 @@ function initializeOverlayHistory(overlayObject: OverlayObject): void {
 function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayObject: OverlayObject): void {
 
   overlay.on('select', () => {
-    // AI : Update the selected overlay ID (this updates the store since we're using store refs)
-    idSelectedOverlay.value = overlayObject.id;
-
-    // AI : Apply selection outline
-    applySelectionOutline(overlayObject);
+    // AI : Use centralized selection function for consistent behavior
+    selectOverlay(overlayObject.id);
   });
 
   overlay.on('deselect', () => {
     // AI : Only handle deselect for the overlay that was actually selected
     if (idSelectedOverlay.value === overlayObject.id) {
-      idSelectedOverlay.value = null;
-
-      // AI : Remove selection outline
-      removeSelectionOutline(overlayObject);
+      // AI : Use centralized selection function (null = deselect all)
+      selectOverlay(null);
 
       // AI : Hide InfoPopup when overlay is deselected
       const overlayStore = useOverlayStore();
@@ -523,7 +527,7 @@ function calculateOutlineSize(overlayElement: HTMLElement, baseSize: number): nu
     
     // AI : Scale the base outline size by the image resolution
     // Larger images need proportionally larger outlines to appear the same thickness
-    const scaleFactor = naturalSmallerDimension / 1000; // 500px as reference size
+    const scaleFactor = naturalSmallerDimension / 500; // 500px as reference size
     const scaledOutline = baseSize * scaleFactor;
     
     // AI : Clamp to reasonable bounds
@@ -532,6 +536,46 @@ function calculateOutlineSize(overlayElement: HTMLElement, baseSize: number): nu
   } catch (error) {
     console.warn('AI : Error calculating outline size, using base size:', error);
     return baseSize;
+  }
+}
+
+/**
+ * AI : Select an overlay with proper cleanup of previous selection
+ * This ensures consistent selection behavior regardless of how selection is triggered
+ */
+function selectOverlay(overlayId: string | null): void {
+  // AI : Clean up previous selection if different from new selection
+  if (idSelectedOverlay.value && idSelectedOverlay.value !== overlayId) {
+    const previouslySelected = overlays.value[idSelectedOverlay.value];
+    if (previouslySelected) {
+      removeSelectionOutline(previouslySelected);
+    }
+  }
+
+  // AI : Update selected overlay ID
+  idSelectedOverlay.value = overlayId;
+
+  // AI : Apply selection outline to new selection
+  if (overlayId) {
+    const newlySelected = overlays.value[overlayId];
+    if (newlySelected) {
+      // AI : Wait for image to load before applying outline to avoid massive border
+      const imgElement = newlySelected.overlay?.getElement();
+      if (imgElement instanceof HTMLImageElement) {
+        if (imgElement.complete && imgElement.naturalWidth > 0) {
+          // AI : Image is already loaded, apply outline immediately
+          applySelectionOutline(newlySelected);
+        } else {
+          // AI : Image not loaded yet, wait for load event
+          imgElement.addEventListener('load', () => {
+            applySelectionOutline(newlySelected);
+          }, { once: true });
+        }
+      } else {
+        // AI : Fallback for non-image elements
+        applySelectionOutline(newlySelected);
+      }
+    }
   }
 }
 
@@ -561,18 +605,11 @@ function applySelectionOutline(overlayObject: OverlayObject): void {
  */
 function removeSelectionOutline(overlayObject: OverlayObject): void {
   if (!overlayObject.overlay || !overlayObject.projectId) return;
-
-  const project = projects.value[overlayObject.projectId];
-
   Object.values(overlays.value).forEach((obj: OverlayObject) => {
     if (obj.projectId === overlayObject.projectId && obj.overlay) {
       const element = obj.overlay.getElement();
       if (element) {
-        // AI : Calculate appropriate outline size for the default state
-        const outlineSize = calculateOutlineSize(element, 2);
-        
-        // AI : Use box-shadow instead of outline for consistency
-        element.style.boxShadow = project ? `0 0 0 ${outlineSize}px ${project.color}` : '';
+        element.style.boxShadow = '';
         element.style.outline = 'none';
       }
     }
@@ -1072,9 +1109,6 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
 
   addOverlayToProjectWithId(projectId, id);
 
-  // AI : Select the new overlay (important for replacement overlays)
-  idSelectedOverlay.value = id;
-
   return id;
 }
 
@@ -1436,7 +1470,8 @@ function selectAndCenterOverlay(overlayId: string, index?: number, total?: numbe
     return false;
   }
 
-  idSelectedOverlay.value = overlayId;
+  // AI : Select the overlay with proper cleanup
+  selectOverlay(overlayId);
 
   if (overlay.overlay) {
     // Click on the overlay to properly select it and open the toolbar
