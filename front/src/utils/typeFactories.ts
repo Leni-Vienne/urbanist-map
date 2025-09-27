@@ -15,6 +15,7 @@ export function createProject(data: Partial<Project> = {}): Project {
     version: data.version ?? 1,
     name: data.name ?? '',
     description: data.description ?? null,
+    isMarker: data.isMarker ?? false,
     sourceUrl: data.sourceUrl ?? null,
     proposalDate: data.proposalDate ?? null,
     startDate: data.startDate ?? null,
@@ -26,6 +27,10 @@ export function createProject(data: Partial<Project> = {}): Project {
     cityId: data.cityId ?? null,
     status: data.status ?? 'pending',
     metadata: data.metadata ?? null,
+    // AI : DB geometry and coordinate fields
+    coordinates: data.coordinates ?? null,
+    lat: data.lat ?? null,
+    lng: data.lng ?? null,
     // AI : Computed fields
     city: data.city ?? null,
     overlayIds: data.overlayIds ?? [],
@@ -33,6 +38,8 @@ export function createProject(data: Partial<Project> = {}): Project {
     savedRemotely: data.savedRemotely ?? false,
     // AI : Optional fields
     sourcePdf: data.sourcePdf ?? null,
+    // AI : Map coordinates (renamed to avoid DB conflict)
+    mapCoordinates: data.mapCoordinates ?? null,
     ...data
   };
 }
@@ -169,6 +176,7 @@ export function transformBackendOverlayToCDN(backendOverlay: BackendOverlay): CD
       version: 1,
       name: backendOverlay.projectName,
       description: null,
+      isMarker: false, // AI : Overlay projects are not markers
       sourceUrl: null,
       proposalDate: null,
       startDate: null,
@@ -180,6 +188,10 @@ export function transformBackendOverlayToCDN(backendOverlay: BackendOverlay): CD
       cityId: backendOverlay.cityName ? 'unknown' : null,
       status: 'approved',
       metadata: null,
+      // AI : DB coordinate fields  
+      coordinates: null,
+      lat: null,
+      lng: null,
       city: backendOverlay.cityName ? {
         id: 'unknown',
         name: backendOverlay.cityName,
