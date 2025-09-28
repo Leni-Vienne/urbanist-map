@@ -66,11 +66,11 @@ export function updateOverlayEditingState(): void {
         // AI : Restore cached corners to overlay
         const leafletCorners = cachedModifications.corners.map(corner => L.latLng(corner.lat, corner.lng));
         overlayObject.overlay.setCorners(leafletCorners);
-        
+
         // AI : Update overlay object state
         overlayObject.history = [cachedModifications.corners];
         overlayObject.isModified = cachedModifications.isModified;
-        
+
         // AI : Update marker position to match restored corners
         updateMarkerPosition(overlayObject);
       }
@@ -121,7 +121,6 @@ export function createOverlay(imageUrl: string, overlayObject?: OverlayObject) {
     const leafletCorners = corners && isValidCorners(corners)
       ? corners.map(corner => L.latLng(corner.lat, corner.lng))
       : undefined;
-
     const newOverlay = L.distortableImageOverlay(imageUrl, {
       editable: true,
       keyboard: false,
@@ -403,7 +402,6 @@ export function saveToHistory(overlayObject: OverlayObject): void {
  */
 function saveOverlayModificationsToCache(overlayObject: OverlayObject): void {
   if (!isEditMode.value || !overlayObject.overlay) return;
-  
   const corners = overlayObject.overlay.getCorners();
   if (!corners?.length) return;
 
@@ -465,6 +463,61 @@ export function clearEditModeOverlayCache(): void {
 }
 
 /**
+ * AI : Convert OverlayObject to CDNOverlayData format for caching
+ */
+function convertOverlayObjectToCDNData(overlayObject: OverlayObject): CDNOverlayData {
+  // AI : Calculate centroid from corners
+  const centroid = overlayObject.corners && overlayObject.corners.length >= 4 
+    ? {
+        lat: (overlayObject.corners[0].lat + overlayObject.corners[3].lat) / 2,
+        lng: (overlayObject.corners[0].lng + overlayObject.corners[3].lng) / 2
+      }
+    : { lat: 0, lng: 0 }; // AI : Fallback if corners not available
+
+  return {
+    id: overlayObject.id,
+    version: overlayObject.version,
+    filename: overlayObject.imageUrl, // AI : Use imageUrl (data URL) for new overlays, not filename
+    caption: overlayObject.caption,
+    projectId: overlayObject.projectId,
+    replacesOverlayId: overlayObject.replacesOverlayId ?? undefined,
+    project: null, // AI : New overlays don't have project details populated yet
+    centroid,
+    corners: overlayObject.corners ?? [],
+    distance: 0, // AI : Not relevant for new overlays
+    createdAt: new Date(),
+    isModified: overlayObject.isModified
+  };
+}
+
+/**
+ * AI : Add new overlay to city cache so it persists across zoom changes
+ */
+export async function addNewOverlayToCityCache(overlayObject: OverlayObject, cityId: string): Promise<void> {
+  const { cityProjectsCache } = await import('@composables/map/useCityData');
+  
+  // AI : Convert overlay to CDN format
+  const cdnOverlay = convertOverlayObjectToCDNData(overlayObject);
+  
+  // AI : Get current city cache or create empty array
+  const currentCache = cityProjectsCache.get(cityId) ?? [];
+  
+  // AI : Add new overlay to cache (avoid duplicates)
+  const existingIndex = currentCache.findIndex(item => item.id === overlayObject.id);
+  if (existingIndex >= 0) {
+    // AI : Update existing entry
+    currentCache[existingIndex] = cdnOverlay;
+  } else {
+    // AI : Add new entry
+    currentCache.push(cdnOverlay);
+  }
+  
+  cityProjectsCache.set(cityId, currentCache);
+  
+  console.log(`AI : Added new overlay ${overlayObject.id} to city cache for ${cityId}`);
+}
+
+/**
  * AI : Clear all overlays from the map and reset collections
  */
 export function clearAllOverlays(): void {
@@ -506,33 +559,33 @@ export function clearAllOverlays(): void {
  */
 function calculateOutlineSize(overlayElement: HTMLElement, baseSize: number): number {
   if (!overlayElement) return baseSize;
-  
+
   try {
     // AI : Get the actual image element
-    const imgElement = overlayElement instanceof HTMLImageElement 
-      ? overlayElement 
+    const imgElement = overlayElement instanceof HTMLImageElement
+      ? overlayElement
       : overlayElement.querySelector('img');
-      
+
     if (!imgElement) return baseSize;
-    
+
     // AI : Get natural image dimensions
     const naturalWidth = imgElement.naturalWidth;
     const naturalHeight = imgElement.naturalHeight;
-    
+
     if (naturalWidth <= 0 || naturalHeight <= 0) return baseSize;
-    
+
     // AI : Calculate outline size based on image resolution
     // Use the smaller dimension to get consistent visual thickness
     const naturalSmallerDimension = Math.min(naturalWidth, naturalHeight);
-    
+
     // AI : Scale the base outline size by the image resolution
     // Larger images need proportionally larger outlines to appear the same thickness
     const scaleFactor = naturalSmallerDimension / 500; // 500px as reference size
     const scaledOutline = baseSize * scaleFactor;
-    
+
     // AI : Clamp to reasonable bounds
     return Math.max(1, Math.min(50, Math.round(scaledOutline)));
-    
+
   } catch (error) {
     console.warn('AI : Error calculating outline size, using base size:', error);
     return baseSize;
@@ -591,7 +644,7 @@ function applySelectionOutline(overlayObject: OverlayObject): void {
       if (element) {
         // AI : Calculate appropriate outline size based on overlay dimensions
         const outlineSize = calculateOutlineSize(element, 20);
-        
+
         // AI : Use box-shadow instead of outline to avoid scaling issues
         element.style.boxShadow = `0 0 0 ${outlineSize}px ${color}`;
         element.style.outline = 'none';
@@ -631,7 +684,7 @@ function highlightProjectOverlaysOnHover(projectId: string): void {
       if (element) {
         // AI : Calculate appropriate outline size based on overlay dimensions
         const outlineSize = calculateOutlineSize(element, 20);
-        
+
         // AI : Use box-shadow instead of outline to avoid scaling issues
         element.style.boxShadow = `0 0 0 ${outlineSize}px ${color}`;
         element.style.outline = 'none';
@@ -657,7 +710,7 @@ function removeProjectHighlightOnHover(projectId: string): void {
       if (element) {
         // AI : Calculate appropriate outline size for the default state
         const outlineSize = calculateOutlineSize(element, 2);
-        
+
         // AI : Use box-shadow instead of outline for consistency
         element.style.boxShadow = project ? `0 0 0 ${outlineSize}px ${project.color}` : '';
         element.style.outline = 'none';
@@ -1093,21 +1146,42 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
   // Create the overlay
   const newOverlay = createOverlay(imageUrl, overlayObject);
   if (!newOverlay) return;
-
-  // Store reference and initialize
-  overlays.value[id] = overlayObject;
-
-  // AI : Create marker with appropriate color based on replacement status
-  if (replacesOverlayId) {
-    createReplacementMarker(overlayObject, projectId);
-  } else {
-    createMarkerForNewOverlay(overlayObject, projectId);
+  const element = newOverlay.getElement();
+  if (!element) {
+    console.error('Failed to get overlay element');
+    throw new Error('Overlay element not found');
   }
 
-  // AI : Don't set up custom load handler - let the existing setupOverlayLoadHandler handle it
-  // The existing system in useOverlay.ts will call onOverlayLoaded which handles all initialization
+  L.DomEvent.on(element, 'load', async () => {
+    if (element.complete && element.naturalWidth > 0) {
+      overlayObject.overlay = newOverlay;
+      overlayObject.corners = newOverlay.getCorners() ?? [];
 
-  addOverlayToProjectWithId(projectId, id);
+      // Store reference and initialize
+      overlays.value[id] = overlayObject;
+
+      // AI : Create marker with appropriate color based on replacement status
+      if (replacesOverlayId) {
+        createReplacementMarker(overlayObject, projectId);
+      } else {
+        createMarkerForNewOverlay(overlayObject, projectId);
+      }
+
+      // AI : Add to project AFTER storing in overlays to avoid "not found" error
+      addOverlayToProjectWithId(projectId, id);
+
+      // AI : Add new overlay to city cache so it persists across zoom changes
+      try {
+        const { getSelectedCity } = await import('@composables/map/useCityData');
+        const selectedCity = getSelectedCity();
+        if (selectedCity) {
+          await addNewOverlayToCityCache(overlayObject, selectedCity.id);
+        }
+      } catch (error) {
+        console.warn('AI : Failed to add new overlay to city cache:', error);
+      }
+    }
+  })
 
   return id;
 }

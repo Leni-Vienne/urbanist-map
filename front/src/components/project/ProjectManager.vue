@@ -150,11 +150,11 @@ async function handleFileUpload(projectId: string, isReplacement: boolean = fals
   }
 
   const reader = new FileReader()
-  reader.onload = async () => {
+  reader.onload = () => {
     try {
       if (isReplacement && replacementOverlayId.value) {
         // AI : Create replacement overlay using the standard overlay creation process
-        const overlayId = await addOverlay(reader.result as string, projectId, replacementOverlayId.value)
+        const overlayId = addOverlay(reader.result as string, projectId, replacementOverlayId.value)
 
         if (overlayId) {
           toast.add({
@@ -166,7 +166,7 @@ async function handleFileUpload(projectId: string, isReplacement: boolean = fals
         }
       } else {
         // AI : Regular overlay addition
-        await addOverlay(reader.result as string, projectId)
+        addOverlay(reader.result as string, projectId)
         // AI : Don't show toast here - addOverlayToProjectWithId will show a more specific toast
       }
     } catch (error) {

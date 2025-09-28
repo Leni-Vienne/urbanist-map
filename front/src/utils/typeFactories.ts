@@ -135,6 +135,10 @@ export function createOverlayFromCDN(cdnOverlay: CDNOverlayData): OverlayObject 
     { lat: cdnOverlay.centroid.lat + 0.001, lng: cdnOverlay.centroid.lng - 0.001 }
   ];
 
+  // AI : Detect if this is a new unsaved overlay (filename is a data URL)
+  const isDataUrl = cdnOverlay.filename.startsWith('data:');
+  const imageUrl = isDataUrl ? cdnOverlay.filename : buildImageUrl(cdnOverlay.filename);
+
   return createOverlay({
     id: cdnOverlay.id,
     version: cdnOverlay.version,
@@ -143,7 +147,7 @@ export function createOverlayFromCDN(cdnOverlay: CDNOverlayData): OverlayObject 
     projectId: cdnOverlay.projectId ?? null,
     replacesOverlayId: cdnOverlay.replacesOverlayId ?? null,
     createdAt: new Date(cdnOverlay.createdAt),
-    imageUrl: buildImageUrl(cdnOverlay.filename),
+    imageUrl,
     centroid: { x: cdnOverlay.centroid.lng, y: cdnOverlay.centroid.lat },
     corners,
     topLeftLat: corners[0].lat,
@@ -155,7 +159,8 @@ export function createOverlayFromCDN(cdnOverlay: CDNOverlayData): OverlayObject 
     bottomLeftLat: corners[3].lat,
     bottomLeftLng: corners[3].lng,
     isModified: cdnOverlay.isModified ?? false,
-    savedRemotely: true,
+    // AI : Mark as unsaved if filename is a data URL (new overlay)
+    savedRemotely: !isDataUrl,
     project: cdnOverlay.project as Project | null
   });
 }
