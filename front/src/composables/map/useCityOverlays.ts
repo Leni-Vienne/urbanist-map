@@ -1,7 +1,7 @@
 // AI : City-specific overlay management - handles loading and displaying overlays for cities
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import L from 'leaflet';
-import { map, onMapInitialized } from '@composables/core/useMap';
+import { map, onMapInitialized, currentZoomLevel } from '@composables/core/useMap';
 import { renderViewModeOverlays, clearAllOverlays, getFromEditModeOverlayCache } from '@composables/overlay/useOverlay';
 import { cityProjectsCache, hasCachedCityProjectsData, getSelectedCity } from '@composables/map/useCityData';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
@@ -377,30 +377,25 @@ function setupZoomEventListener(): void {
  * AI : Internal function to set up zoom event listener
  */
 function setupZoomEventListenerInternal(): void {
-  if (!map.value) return;
-
-  map.value.on('zoomend', () => {
-    if (!map.value) return;
-
+  // AI : Watch currentZoomLevel instead of listening to zoomend to avoid duplicate event handling
+  watch(currentZoomLevel, (currentZoom) => {
     const selectedCity = getSelectedCity();
     if (!selectedCity) return;
 
-    const currentZoom = map.value.getZoom();
     const hasCachedData = hasCachedCityProjectsData(selectedCity.id);
 
     // AI : Only act if we have cached data to avoid unnecessary API calls
     if (!hasCachedData) return;
 
     // AI : If zoomed in enough and we have overlay markers, upgrade to full overlays
-    if (currentZoom >= MIN_ZOOM_FOR_OVERLAYS && overlayMarkersLayer && map.value.hasLayer(overlayMarkersLayer)) {
+    if (currentZoom >= MIN_ZOOM_FOR_OVERLAYS && overlayMarkersLayer && map.value?.hasLayer(overlayMarkersLayer)) {
       renderFullOverlaysFromCache(selectedCity.id, selectedCity.name);
     }
     // AI : If zoomed out from full overlays, show overlay markers again
     else if (currentZoom < MIN_ZOOM_FOR_OVERLAYS && currentCityOverlays.value.length > 0) {
-      // AI : Clear current overlays first
-      clearAllOverlays();
+      // AI : Don't call clearAllOverlays() here - useOverlayModes handles clearing
+      // AI : Just reset the city overlays array and show markers
       currentCityOverlays.value = [];
-      // AI : Then show overlay markers
       renderOverlayMarkersFromCache(selectedCity.id, selectedCity.name);
     }
   });
