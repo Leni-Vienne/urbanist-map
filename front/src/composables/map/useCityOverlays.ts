@@ -262,6 +262,7 @@ function renderFullOverlaysFromCache(cityId: string, cityName: string) {
  */
 export function renderOverlayMarkersFromCache(cityId: string, cityName: string): void {
   const overlaysData = cityProjectsCache.get(cityId);
+  console.log('AI : Rendering overlay markers from cache for city:', cityName, overlaysData);
   if (!overlaysData) {
     console.warn(`AI : No cached data found for city ${cityName}`);
     return;
