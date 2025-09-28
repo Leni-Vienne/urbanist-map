@@ -35,9 +35,6 @@ const MIN_ZOOM_FOR_EDIT_OVERLAYS = 12; // AI : Minimum zoom level to load full o
 // AI : Layer group for overlay markers in edit mode
 let editModeOverlayMarkers: L.LayerGroup | null = null;
 
-// AI : Track camera subscription
-let unsubscribeFromCamera: (() => void) | null = null;
-
 // ================================
 // EDIT MODE FUNCTIONS
 // ================================
@@ -66,16 +63,6 @@ function initializeEditModeOverlaysInternal(): void {
 }
 
 /**
- * AI : Stop camera tracking for edit mode
- */
-export function stopEditModeTracking(): void {
-  if (unsubscribeFromCamera) {
-    unsubscribeFromCamera();
-    unsubscribeFromCamera = null;
-  }
-}
-
-/**
  * AI : Clear all edit mode overlays and markers
  */
 function clearEditModeUI(): void {
@@ -85,45 +72,6 @@ function clearEditModeUI(): void {
 
   // AI : Reset local marker reference
   editModeOverlayMarkers = null;
-}
-
-/**
- * AI : Update tooltips based on current zoom level
- */
-function updateTooltipsForZoomLevel(): void {
-  if (!editModeOverlayMarkers) return;
-
-  const currentZoom = currentZoomLevel.value;
-
-  editModeOverlayMarkers.eachLayer((marker) => {
-    if (marker instanceof L.Marker) {
-      const overlayId = marker.overlayId;
-      if (!overlayId) return;
-      const { overlays, projects } = getStoreRefs();
-      const overlay = overlays.value[overlayId];
-
-      if (overlay) {
-        const project = overlay.projectId ? projects.value[overlay.projectId] : null;
-        const tooltipContent = `
-          <div>
-            <strong>${overlay.caption ?? 'Overlay'}</strong><br>
-            Project: ${project?.name ?? 'Unknown'}<br>
-            <small>${currentZoom < MIN_ZOOM_FOR_EDIT_OVERLAYS ?
-            `Zoom to level ${MIN_ZOOM_FOR_EDIT_OVERLAYS}+ to load overlay` :
-            'Click to load full overlay'}</small>
-          </div>
-        `;
-
-        // AI : Update tooltip content
-        marker.unbindTooltip();
-        marker.bindTooltip(tooltipContent, {
-          permanent: false,
-          direction: 'top',
-          offset: [0, -10]
-        });
-      }
-    }
-  });
 }
 
 /**
@@ -143,8 +91,6 @@ function unloadOverlaysForZoomLevel(): void {
  */
 function watchZoomLevel(): void {
   watch(currentZoomLevel, (newZoom, oldZoom) => {
-    // AI : Update tooltips when zoom changes
-    updateTooltipsForZoomLevel();
 
     // AI : Unload overlays if zoom is too low
     if (newZoom < MIN_ZOOM_FOR_EDIT_OVERLAYS && oldZoom >= MIN_ZOOM_FOR_EDIT_OVERLAYS) {
@@ -291,10 +237,6 @@ export function toggleEditMode(onModeExit?: () => void) {
     initializeEditModeOverlays();
 
   } else {
-    // AI : EXITING EDIT MODE
-    // AI : Stop edit mode tracking
-    stopEditModeTracking();
-
     // AI : Clear only the edit mode markers, not the full overlays
     clearEditModeUI();
 

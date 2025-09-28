@@ -469,7 +469,7 @@ export function clearEditModeOverlayCache(): void {
  */
 export function clearAllOverlays(): void {
   if (!map.value) return;
-
+  console.log("in clearAllOverlays");
   // AI : Save edit mode modifications before clearing overlays
   if (isEditMode.value) {
     Object.values(overlays.value).forEach((overlayObject: OverlayObject) => {
