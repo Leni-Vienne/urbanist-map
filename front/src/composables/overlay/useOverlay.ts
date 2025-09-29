@@ -96,12 +96,7 @@ export function createOverlayObject(savedOverlay: OverlayObject): OverlayObject 
     marker: null,
     isFlipped: false,
     currentResolution: savedOverlay.imageUrl,
-    corners: [
-      { lat: savedOverlay.topLeftLat, lng: savedOverlay.topLeftLng },
-      { lat: savedOverlay.topRightLat, lng: savedOverlay.topRightLng },
-      { lat: savedOverlay.bottomRightLat, lng: savedOverlay.bottomRightLng },
-      { lat: savedOverlay.bottomLeftLat, lng: savedOverlay.bottomLeftLng },
-    ]
+    corners: savedOverlay.corners
   });
 }
 
@@ -273,19 +268,10 @@ function getCornersForOverlay(overlayObject: OverlayObject) {
     if (lastCorners?.length === 4) return lastCorners;
   }
 
-  // ugly but since the type expects non null AND DistortableImage needs null corners for the initial state
-  // AI : Priority 2: Use individual lat/lng fields (skip if all zeros - indicates new overlay)
-  if (overlayObject.topLeftLat != null && overlayObject.topLeftLng != null &&
-    !(overlayObject.topLeftLat === 0 && overlayObject.topLeftLng === 0 &&
-      overlayObject.topRightLat === 0 && overlayObject.topRightLng === 0 &&
-      overlayObject.bottomRightLat === 0 && overlayObject.bottomRightLng === 0 &&
-      overlayObject.bottomLeftLat === 0 && overlayObject.bottomLeftLng === 0)) {
-    return [
-      { lat: overlayObject.topLeftLat, lng: overlayObject.topLeftLng },
-      { lat: overlayObject.topRightLat, lng: overlayObject.topRightLng },
-      { lat: overlayObject.bottomRightLat, lng: overlayObject.bottomRightLng },
-      { lat: overlayObject.bottomLeftLat, lng: overlayObject.bottomLeftLng },
-    ];
+  // AI : Priority 2: Use corners from overlayObject (skip if all zeros - indicates new overlay)
+  if (overlayObject.corners && overlayObject.corners.length === 4 &&
+    !(overlayObject.corners.every(c => c.lat === 0 && c.lng === 0))) {
+    return overlayObject.corners;
   }
 
   // AI : Priority 3: Initialize from current overlay state
@@ -408,7 +394,7 @@ function saveOverlayModificationsToCache(overlayObject: OverlayObject): void {
   // AI : Save to persistent cache for zoom persistence
   saveToEditModeOverlayCache(overlayObject.id, {
     corners: corners.map(corner => ({ lat: corner.lat, lng: corner.lng })),
-    isModified: overlayObject.isModified
+    isModified: overlayObject.isModified ?? false
   });
 }
 
@@ -479,13 +465,17 @@ function convertOverlayObjectToCDNData(overlayObject: OverlayObject): CDNOverlay
     version: overlayObject.version,
     filename: overlayObject.imageUrl, // AI : Use imageUrl (data URL) for new overlays, not filename
     caption: overlayObject.caption,
+    status: overlayObject.status,
     projectId: overlayObject.projectId,
-    replacesOverlayId: overlayObject.replacesOverlayId ?? undefined,
+    authorId: overlayObject.authorId,
+    replacesOverlayId: overlayObject.replacesOverlayId,
+    metadata: overlayObject.metadata,
     project: null, // AI : New overlays don't have project details populated yet
     centroid,
     corners: overlayObject.corners ?? [],
     distance: 0, // AI : Not relevant for new overlays
-    createdAt: new Date(),
+    createdAt: overlayObject.createdAt,
+    updatedAt: overlayObject.updatedAt,
     isModified: overlayObject.isModified
   };
 }
@@ -904,20 +894,12 @@ function getOverlayBounds(overlay: OverlayObject): L.LatLngBounds | null {
   }
 
   // AI : Priority 3: Validate all corner coordinates exist and are valid numbers
-  if (!overlay.topLeftLat || !overlay.topLeftLng ||
-    !overlay.topRightLat || !overlay.topRightLng ||
-    !overlay.bottomRightLat || !overlay.bottomRightLng ||
-    !overlay.bottomLeftLat || !overlay.bottomLeftLng) {
-    console.warn('AI : Invalid overlay coordinates for overlay:', overlay.id);
+  if (!overlay.corners || overlay.corners.length !== 4) {
+    console.warn('AI : Invalid overlay corners for overlay:', overlay.id);
     return null;
   }
 
-  const corners = [
-    L.latLng(overlay.topLeftLat, overlay.topLeftLng),
-    L.latLng(overlay.topRightLat, overlay.topRightLng),
-    L.latLng(overlay.bottomRightLat, overlay.bottomRightLng),
-    L.latLng(overlay.bottomLeftLat, overlay.bottomLeftLng),
-  ];
+  const corners = overlay.corners.map(c => L.latLng(c.lat, c.lng));
 
   // AI : Check if all corners are valid
   if (corners.some(c => !c.lat || !c.lng)) {

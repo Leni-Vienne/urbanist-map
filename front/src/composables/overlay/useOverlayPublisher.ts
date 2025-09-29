@@ -18,12 +18,8 @@ export function useOverlayPublisher() {
     if (overlay.overlay) {
       return overlay.overlay.getCorners();
     }
-    return [
-      { lat: overlay.topLeftLat, lng: overlay.topLeftLng },
-      { lat: overlay.topRightLat, lng: overlay.topRightLng },
-      { lat: overlay.bottomRightLat, lng: overlay.bottomRightLng },
-      { lat: overlay.bottomLeftLat, lng: overlay.bottomLeftLng },
-    ];
+    console.log("Corners undefined, using stored corners");
+    return overlay.corners;
   }
 
   // AI : Validate if overlay can be published

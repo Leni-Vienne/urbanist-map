@@ -13,36 +13,32 @@ export interface FileUploadError {
     error: string;
 }
 
-// AI : Shared type for overlay data sent to the frontend (used in cities.ts)
+// AI : Shared type for overlay data sent to the frontend
 import type { DBProject, DBCity } from '../db/schema';
 
-export interface CDNOverlayData {
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+
+export interface OverlayData {
     id: string;
     version: number;
     filename: string;
     caption: string | null;
+    status: ApprovalStatus;
     projectId: string | null;
-    replacesOverlayId?: string | null;
-    project: (DBProject & { city?: DBCity | null; }) | null;
+    authorId: string | null;
+    replacesOverlayId: string | null;
+    metadata: any | null;
+    createdAt: Date;
+    updatedAt: Date;
     centroid: {
         lat: number;
         lng: number;
     };
     corners: { lat: number; lng: number }[];
-    distance: number;
-    createdAt: Date;
+    project?: (DBProject & { city?: DBCity | null; }) | null;
+    distance?: number;
     isModified?: boolean;
 }
 
-// AI : Shared type for detailed overlay queries (used in overlay.ts)
-export interface OverlayWithDetails {
-    id: string;
-    topLeftLng: number;
-    topLeftLat: number;
-    topRightLng: number;
-    topRightLat: number;
-    bottomRightLng: number;
-    bottomRightLat: number;
-    bottomLeftLng: number;
-    bottomLeftLat: number;
-}
+// AI : Legacy type alias for backwards compatibility during migration
+export type CDNOverlayData = OverlayData;

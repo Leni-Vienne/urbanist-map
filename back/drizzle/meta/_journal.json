@@ -141,6 +141,20 @@
       "when": 1758630734818,
       "tag": "0019_damp_tony_stark",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1759174828342,
+      "tag": "0020_narrow_doctor_strange",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1759188154774,
+      "tag": "0021_bouncy_triathlon",
+      "breakpoints": true
     }
   ]
 }

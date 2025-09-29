@@ -155,7 +155,8 @@ function getProjectForOverlay(overlay: OverlayObject): Project | null {
         name: backendProject.name,
         city: backendProject.city,
         overlayIds: [],
-        color: '#007bff'
+        color: '#007bff',
+        savedRemotely: true
       };
 
       // AI : Add the project to the projects store so other components can access it
