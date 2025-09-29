@@ -181,12 +181,9 @@ export const citiesRouter = router({
                         'lat', ST_Y(${overlays.centroid}),
                         'lng', ST_X(${overlays.centroid})
                       ),
-                      'corners', JSON_BUILD_ARRAY(
-                        JSON_BUILD_OBJECT('lat', ${overlays.topLeftLat}, 'lng', ${overlays.topLeftLng}),
-                        JSON_BUILD_OBJECT('lat', ${overlays.topRightLat}, 'lng', ${overlays.topRightLng}),
-                        JSON_BUILD_OBJECT('lat', ${overlays.bottomRightLat}, 'lng', ${overlays.bottomRightLng}),
-                        JSON_BUILD_OBJECT('lat', ${overlays.bottomLeftLat}, 'lng', ${overlays.bottomLeftLng})
-                      ),
+                      'corners', (SELECT json_agg(json_build_object('lat', ST_Y(geom), 'lng', ST_X(geom)) ORDER BY path[2])
+                                  FROM ST_DumpPoints(${overlays.corners}) AS dump(path, geom)
+                                  WHERE path[2] <= 4),
                       'distance', 0,
                       'createdAt', ${overlays.createdAt}
                     ) ORDER BY ${overlays.createdAt}

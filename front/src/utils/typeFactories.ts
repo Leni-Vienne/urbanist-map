@@ -84,37 +84,26 @@ export function createProjectFromAPI(nearbyProject: NearbyProject): Project {
  */
 export function createOverlay(data: Partial<OverlayObject> = {}): OverlayObject {
   const id = data.id ?? uuidv4();
-  
+
   return {
     id,
     version: data.version ?? 1,
     filename: data.filename ?? '',
     caption: data.caption ?? null,
+    status: data.status ?? 'pending',
     authorId: data.authorId ?? '',
     projectId: data.projectId ?? null,
     replacesOverlayId: data.replacesOverlayId ?? null,
+    metadata: data.metadata ?? null,
     createdAt: data.createdAt ?? new Date(),
     updatedAt: data.updatedAt ?? new Date(),
-    status: data.status ?? 'pending',
-    topLeftLat: data.topLeftLat ?? 0,
-    topLeftLng: data.topLeftLng ?? 0,
-    topRightLat: data.topRightLat ?? 0,
-    topRightLng: data.topRightLng ?? 0,
-    bottomRightLat: data.bottomRightLat ?? 0,
-    bottomRightLng: data.bottomRightLng ?? 0,
-    bottomLeftLat: data.bottomLeftLat ?? 0,
-    bottomLeftLng: data.bottomLeftLng ?? 0,
-    metadata: data.metadata ?? null,
-    // AI : Computed fields
-    imageUrl: data.imageUrl ?? buildImageUrl(data.filename ?? ''),
-    centroid: data.centroid ?? { x: 0, y: 0 },
+    centroid: data.centroid ?? { lat: 0, lng: 0 },
     corners: data.corners ?? [],
+    imageUrl: data.imageUrl ?? buildImageUrl(data.filename ?? ''),
     isModified: data.isModified ?? false,
     savedRemotely: data.savedRemotely ?? false,
-    // AI : Map interaction fields
     overlay: data.overlay ?? null,
     marker: data.marker ?? null,
-    // AI : Editor state
     history: data.history ?? [],
     redoStack: data.redoStack ?? [],
     isFlipped: data.isFlipped ?? false,
@@ -125,101 +114,27 @@ export function createOverlay(data: Partial<OverlayObject> = {}): OverlayObject 
 }
 
 /**
- * AI : Convert CDNOverlayData to OverlayObject
+ * AI : Convert OverlayData from backend to OverlayObject with UI state
  */
-export function createOverlayFromCDN(cdnOverlay: CDNOverlayData): OverlayObject {
-  const corners = cdnOverlay.corners?.length === 4 ? cdnOverlay.corners : [
-    { lat: cdnOverlay.centroid.lat - 0.001, lng: cdnOverlay.centroid.lng - 0.001 },
-    { lat: cdnOverlay.centroid.lat - 0.001, lng: cdnOverlay.centroid.lng + 0.001 },
-    { lat: cdnOverlay.centroid.lat + 0.001, lng: cdnOverlay.centroid.lng + 0.001 },
-    { lat: cdnOverlay.centroid.lat + 0.001, lng: cdnOverlay.centroid.lng - 0.001 }
-  ];
-
-  // AI : Detect if this is a new unsaved overlay (filename is a data URL)
-  const isDataUrl = cdnOverlay.filename.startsWith('data:');
-  const imageUrl = isDataUrl ? cdnOverlay.filename : buildImageUrl(cdnOverlay.filename);
+export function createOverlayFromCDN(overlayData: CDNOverlayData): OverlayObject {
+  const isDataUrl = overlayData.filename.startsWith('data:');
+  const imageUrl = isDataUrl ? overlayData.filename : buildImageUrl(overlayData.filename);
 
   return createOverlay({
-    id: cdnOverlay.id,
-    version: cdnOverlay.version,
-    filename: cdnOverlay.filename,
-    caption: cdnOverlay.caption,
-    projectId: cdnOverlay.projectId ?? null,
-    replacesOverlayId: cdnOverlay.replacesOverlayId ?? null,
-    createdAt: new Date(cdnOverlay.createdAt),
+    ...overlayData,
     imageUrl,
-    centroid: { x: cdnOverlay.centroid.lng, y: cdnOverlay.centroid.lat },
-    corners,
-    topLeftLat: corners[0].lat,
-    topLeftLng: corners[0].lng,
-    topRightLat: corners[1].lat,
-    topRightLng: corners[1].lng,
-    bottomRightLat: corners[2].lat,
-    bottomRightLng: corners[2].lng,
-    bottomLeftLat: corners[3].lat,
-    bottomLeftLng: corners[3].lng,
-    isModified: cdnOverlay.isModified ?? false,
-    // AI : Mark as unsaved if filename is a data URL (new overlay)
     savedRemotely: !isDataUrl,
-    project: cdnOverlay.project as Project | null
+    createdAt: new Date(overlayData.createdAt),
+    updatedAt: new Date(overlayData.updatedAt ?? overlayData.createdAt),
   });
 }
 
 /**
- * AI : Convert BackendOverlay API data to CDNOverlayData format
+ * AI : Convert BackendOverlay API data to OverlayData format
+ * After migration, BackendOverlay already has corners/centroid in correct format
  */
 export function transformBackendOverlayToCDN(backendOverlay: BackendOverlay): CDNOverlayData {
-  return {
-    id: backendOverlay.id,
-    version: backendOverlay.version,
-    filename: backendOverlay.filename,
-    caption: backendOverlay.caption ?? null,
-    projectId: backendOverlay.projectId,
-    replacesOverlayId: backendOverlay.replacesOverlayId ?? null,
-    project: backendOverlay.projectName ? {
-      id: backendOverlay.projectId ?? '',
-      version: 1,
-      name: backendOverlay.projectName,
-      description: null,
-      isMarker: false, // AI : Overlay projects are not markers
-      sourceUrl: null,
-      proposalDate: null,
-      startDate: null,
-      endDate: null,
-      latestUpdateOn: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      ownerId: '',
-      cityId: backendOverlay.cityName ? 'unknown' : null,
-      status: 'approved',
-      metadata: null,
-      // AI : DB coordinate fields  
-      coordinates: null,
-      lat: null,
-      lng: null,
-      city: backendOverlay.cityName ? {
-        id: 'unknown',
-        name: backendOverlay.cityName,
-        countryCode: 'unknown',
-        coordinates: { x: 0, y: 0 },
-        createdAt: new Date(),
-        updatedAt: new Date()
-      } : null
-    } : null,
-    corners: [
-      { lat: backendOverlay.topLeftLat, lng: backendOverlay.topLeftLng },
-      { lat: backendOverlay.topRightLat, lng: backendOverlay.topRightLng },
-      { lat: backendOverlay.bottomRightLat, lng: backendOverlay.bottomRightLng },
-      { lat: backendOverlay.bottomLeftLat, lng: backendOverlay.bottomLeftLng }
-    ],
-    centroid: {
-      lat: backendOverlay.centroid.y,
-      lng: backendOverlay.centroid.x
-    },
-    distance: 0,
-    createdAt: backendOverlay.createdAt,
-    isModified: false
-  };
+  return backendOverlay as CDNOverlayData;
 }
 
 // AI : buildImageUrl imported from utils.ts

@@ -84,15 +84,7 @@ export const overlays = pgTable('overlays', {
   replacesOverlayId: uuid('replaces_overlay_id'), // AI : Reference to the overlay this replaces (self-reference added via relations)
   metadata: jsonb('metadata'),
 
-  topLeftLat: doublePrecision('top_left_lat').notNull(),
-  topLeftLng: doublePrecision('top_left_lng').notNull(),
-  topRightLat: doublePrecision('top_right_lat').notNull(),
-  topRightLng: doublePrecision('top_right_lng').notNull(),
-  bottomRightLat: doublePrecision('bottom_right_lat').notNull(),
-  bottomRightLng: doublePrecision('bottom_right_lng').notNull(),
-  bottomLeftLat: doublePrecision('bottom_left_lat').notNull(),
-  bottomLeftLng: doublePrecision('bottom_left_lng').notNull(),
-
+  corners: geometry('corners', { type: 'polygon', mode: 'xy', srid: 4326 }).notNull(),
   centroid: geometry('centroid', { type: 'point', mode: 'xy', srid: 4326 }).notNull(),
 
   version: integer('version').default(1).notNull(), // AI : Version for optimistic locking during moderation
@@ -100,7 +92,8 @@ export const overlays = pgTable('overlays', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
 }, (overlays) => [
   index('idx_overlays_project').on(overlays.projectId),
-  sql.raw('CREATE INDEX idx_overlays_centroid ON overlays USING GIST (centroid)'),
+  sql.raw('CREATE INDEX IF NOT EXISTS idx_overlays_corners ON overlays USING GIST (corners)'),
+  sql.raw('CREATE INDEX IF NOT EXISTS idx_overlays_centroid ON overlays USING GIST (centroid)'),
 ]);
 
 export const overlaysRelations = relations(overlays, ({ one }) => ({

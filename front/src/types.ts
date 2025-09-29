@@ -125,13 +125,14 @@ export interface Project extends DBProject {
   mapCoordinates?: { lat: number; lng: number } | null;
 }
 
-// AI : Base runtime overlay type - extends DB schema with frontend fields  
-export interface OverlayObject extends DBOverlay {
-  // AI : Core computed fields
+// AI : Import shared overlay data type from backend
+export type { OverlayData, CDNOverlayData } from '../../back/src/shared/types';
+import type { OverlayData } from '../../back/src/shared/types';
+
+// AI : Frontend overlay type - extends backend OverlayData with UI state
+export interface OverlayObject extends OverlayData {
+  // AI : Computed fields
   imageUrl: string;
-  centroid: { x: number; y: number }; // AI : x=lng, y=lat
-  corners: { lat: number, lng: number }[];
-  isModified: boolean;
   savedRemotely: boolean;
 
   // AI : Map interaction fields
@@ -143,13 +144,7 @@ export interface OverlayObject extends DBOverlay {
   redoStack: { lat: number, lng: number }[][];
   isFlipped: boolean;
   currentResolution?: string;
-
-  // AI : Project reference for CDN overlays
-  project?: Project | null;
 }
-
-// AI : Import shared API type from backend
-export type { CDNOverlayData } from '../../back/src/shared/types';
 
 // AI : Utility types for specific use cases
 export type ProjectForForm = Pick<Project, 'name' | 'description' | 'sourceUrl' | 'startDate' | 'endDate'> & {

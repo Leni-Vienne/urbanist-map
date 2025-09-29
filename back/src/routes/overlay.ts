@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { overlays, projects, cities, countries } from '../db/schema';
 import { sql, eq, and } from 'drizzle-orm';
 import { db } from '../database';
-import type { OverlayWithDetails } from '../shared/types';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../db/schema';
 
@@ -47,15 +46,16 @@ const overlaySelectFields = {
   authorId: overlays.authorId,
   replacesOverlayId: overlays.replacesOverlayId,
   metadata: overlays.metadata,
-  topLeftLat: overlays.topLeftLat,
-  topLeftLng: overlays.topLeftLng,
-  topRightLat: overlays.topRightLat,
-  topRightLng: overlays.topRightLng,
-  bottomRightLat: overlays.bottomRightLat,
-  bottomRightLng: overlays.bottomRightLng,
-  bottomLeftLat: overlays.bottomLeftLat,
-  bottomLeftLng: overlays.bottomLeftLng,
-  centroid: overlays.centroid,
+  // AI : Extract corners from polygon geometry as array of {lat, lng}
+  corners: sql<{lat: number, lng: number}[]>`
+    (SELECT json_agg(json_build_object('lat', ST_Y(geom), 'lng', ST_X(geom)) ORDER BY path[2])
+     FROM ST_DumpPoints(${overlays.corners}) AS dump(path, geom)
+     WHERE path[2] <= 4)
+  `,
+  // AI : Extract centroid as {lat, lng}
+  centroid: sql<{lat: number, lng: number}>`
+    json_build_object('lat', ST_Y(${overlays.centroid}), 'lng', ST_X(${overlays.centroid}))
+  `,
   createdAt: overlays.createdAt,
   updatedAt: overlays.updatedAt,
   projectName: projects.name,
@@ -76,10 +76,11 @@ function buildOverlayQuery(db: PostgresJsDatabase<typeof schema>) {
 }
 
 // AI : Find overlays that intersect with a given overlay using PostGIS spatial queries
-async function findIntersectingOverlays(db: PostgresJsDatabase<typeof schema>, excludeId: string, targetOverlay: OverlayWithDetails) {
+async function findIntersectingOverlays(db: PostgresJsDatabase<typeof schema>, excludeId: string, targetOverlay: { corners: {lat: number, lng: number}[] }) {
   try {
     // AI : Construct the target polygon once as WKT string - avoids expensive polygon construction for every row
-    const targetPolygonWKT = `POLYGON((${targetOverlay.topLeftLng} ${targetOverlay.topLeftLat}, ${targetOverlay.topRightLng} ${targetOverlay.topRightLat}, ${targetOverlay.bottomRightLng} ${targetOverlay.bottomRightLat}, ${targetOverlay.bottomLeftLng} ${targetOverlay.bottomLeftLat}, ${targetOverlay.topLeftLng} ${targetOverlay.topLeftLat}))`;
+    const [topLeft, topRight, bottomRight, bottomLeft] = targetOverlay.corners;
+    const targetPolygonWKT = `POLYGON((${topLeft.lng} ${topLeft.lat}, ${topRight.lng} ${topRight.lat}, ${bottomRight.lng} ${bottomRight.lat}, ${bottomLeft.lng} ${bottomLeft.lat}, ${topLeft.lng} ${topLeft.lat}))`;
 
     // AI : Use PostGIS ST_Intersects with precomputed target polygon for optimal performance
     const intersectingOverlays = await db
@@ -92,13 +93,7 @@ async function findIntersectingOverlays(db: PostgresJsDatabase<typeof schema>, e
         ${overlays.id} != ${excludeId} AND
         ST_Intersects(
           ST_GeomFromText(${targetPolygonWKT}, 4326),
-          ST_SetSRID(ST_MakePolygon(ST_MakeLine(ARRAY[
-            ST_MakePoint(${overlays.topLeftLng}, ${overlays.topLeftLat}),
-            ST_MakePoint(${overlays.topRightLng}, ${overlays.topRightLat}),
-            ST_MakePoint(${overlays.bottomRightLng}, ${overlays.bottomRightLat}),
-            ST_MakePoint(${overlays.bottomLeftLng}, ${overlays.bottomLeftLat}),
-            ST_MakePoint(${overlays.topLeftLng}, ${overlays.topLeftLat})
-          ])), 4326)
+          ${overlays.corners}
         )
       `);
 
@@ -187,14 +182,7 @@ export const overlayRouter = router({
           authorId: ctx.user.id,
           replacesOverlayId: input.replacesOverlayId ?? null,
           metadata: null, // AI : Keep metadata empty as requested
-          topLeftLat: topLeft.lat,
-          topLeftLng: topLeft.lng,
-          topRightLat: topRight.lat,
-          topRightLng: topRight.lng,
-          bottomRightLat: bottomRight.lat,
-          bottomRightLng: bottomRight.lng,
-          bottomLeftLat: bottomLeft.lat,
-          bottomLeftLng: bottomLeft.lng,
+          corners: sql`ST_GeomFromText('POLYGON((${topLeft.lng} ${topLeft.lat}, ${topRight.lng} ${topRight.lat}, ${bottomRight.lng} ${bottomRight.lat}, ${bottomLeft.lng} ${bottomLeft.lat}, ${topLeft.lng} ${topLeft.lat}))', 4326)`,
           centroid: sql`ST_SetSRID(ST_MakePoint(${centroidLng}, ${centroidLat}), 4326)`
         };
 
@@ -211,14 +199,7 @@ export const overlayRouter = router({
               authorId: overlayData.authorId,
               replacesOverlayId: overlayData.replacesOverlayId,
               metadata: overlayData.metadata,
-              topLeftLat: overlayData.topLeftLat,
-              topLeftLng: overlayData.topLeftLng,
-              topRightLat: overlayData.topRightLat,
-              topRightLng: overlayData.topRightLng,
-              bottomRightLat: overlayData.bottomRightLat,
-              bottomRightLng: overlayData.bottomRightLng,
-              bottomLeftLat: overlayData.bottomLeftLat,
-              bottomLeftLng: overlayData.bottomLeftLng,
+              corners: overlayData.corners,
               centroid: overlayData.centroid,
               version: sql`${overlays.version} + 1`, // AI : Increment version on update for optimistic locking
               updatedAt: sql`NOW()`
