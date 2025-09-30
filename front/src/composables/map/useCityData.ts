@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { storeToRefs } from 'pinia';
-import type { CDNOverlayData } from '@types';
+import type { OverlayData } from '@types';
 
 // AI : Function to get store refs when needed
 function getStoreRefs() {
@@ -12,14 +12,14 @@ function getStoreRefs() {
 }
 
 // AI : Cache for city projects data to avoid repeated API calls
-export const cityProjectsCache = new Map<string, CDNOverlayData[]>();
+export const cityProjectsCache = new Map<string, OverlayData[]>();
 
 /**
  * AI : Get cached overlay data for a specific city
  * @param cityId - The city ID to get data for
  * @returns The cached overlay data or null if not found
  */
-export function getCachedCityProjectsData(cityId: string): CDNOverlayData[] | null {
+export function getCachedCityProjectsData(cityId: string): OverlayData[] | null {
   return cityProjectsCache.get(cityId) ?? null;
 }
 

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, shallowRef } from 'vue'
-import type { OverlayObject, CDNOverlayData } from '@types'
+import type { OverlayObject, OverlayData } from '@types'
 import type { BackendOverlay } from '../../types/api'
 
 export const useOverlayStore = defineStore('overlay', () => {
@@ -13,7 +13,7 @@ export const useOverlayStore = defineStore('overlay', () => {
   const isTogglingMode = ref(false)
 
   // AI : Overlay data for different modes
-  const viewModeOverlays = ref<CDNOverlayData[]>([])
+  const viewModeOverlays = ref<OverlayData[]>([])
   const loadedEditOverlays = ref<Set<string>>(new Set())
   const overlaysLoading = ref(false)
   const overlaysError = ref<string | null>(null)
@@ -31,7 +31,7 @@ export const useOverlayStore = defineStore('overlay', () => {
   const infoPopupOverlayId = ref<string | null>(null)
 
   // AI : Basic actions
-  const setViewModeOverlays = (overlayData: CDNOverlayData[]) => {
+  const setViewModeOverlays = (overlayData: OverlayData[]) => {
     viewModeOverlays.value = overlayData
     overlaysError.value = null
   }

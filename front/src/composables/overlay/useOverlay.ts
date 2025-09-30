@@ -8,7 +8,7 @@ import { map } from '@composables/core/useMap';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { storeToRefs } from 'pinia';
-import type { OverlayObject, CDNOverlayData, Project } from '@types';
+import type { OverlayObject, OverlayData, Project } from '@types';
 import { createOverlay as createOverlayInstance, createOverlayFromCDN, transformBackendOverlayToCDN } from '../../utils/typeFactories';
 
 import { createColorIcon } from '@composables/ui/markerIcons';
@@ -422,7 +422,7 @@ export function getFromEditModeOverlayCache(overlayId: string): { corners: { lat
  * @param overlayData - Original overlay data
  * @returns Overlay data with edit modifications applied if in edit mode
  */
-function getOverlayDataWithEditModifications(overlayData: CDNOverlayData): CDNOverlayData {
+function getOverlayDataWithEditModifications(overlayData: OverlayData): OverlayData {
   if (!isEditMode.value) {
     return overlayData; // AI : Return original data in view mode
   }
@@ -449,9 +449,9 @@ export function clearEditModeOverlayCache(): void {
 }
 
 /**
- * AI : Convert OverlayObject to CDNOverlayData format for caching
+ * AI : Convert OverlayObject to OverlayData format for caching
  */
-function convertOverlayObjectToCDNData(overlayObject: OverlayObject): CDNOverlayData {
+function convertOverlayObjectToCDNData(overlayObject: OverlayObject): OverlayData {
   // AI : Calculate centroid from corners
   const centroid = overlayObject.corners && overlayObject.corners.length >= 4 
     ? {
@@ -734,10 +734,10 @@ function setupProjectHoverEvents(overlay: L.DistortableImageOverlay, overlayObje
 /**
  * AI : Render backend CDN overlays on the map for view mode
  */
-export function renderViewModeOverlays(cdnOverlays: CDNOverlayData[], createMarkers = true, forceRerender = false) {
+export function renderViewModeOverlays(cdnOverlays: OverlayData[], createMarkers = true, forceRerender = false) {
   if (!map.value) return;
 
-  let overlaysToRender: CDNOverlayData[];
+  let overlaysToRender: OverlayData[];
 
   if (forceRerender) {
     // AI : Force re-render all overlays (for city switching)
@@ -756,7 +756,7 @@ export function renderViewModeOverlays(cdnOverlays: CDNOverlayData[], createMark
 /**
  * AI : Render a single CDN overlay as read-only distortable overlay on the map
  */
-function renderSingleOverlay(cdnOverlay: CDNOverlayData, createMarkers = true) {
+function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   if (!map.value || overlays.value[cdnOverlay.id]) return;
 
   // AI : Apply edit modifications if in edit mode before creating the overlay object

@@ -1,6 +1,6 @@
 import { ref } from 'vue';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
-import type { CDNOverlayData, OverlayObject } from '@types';
+import type { OverlayData, OverlayObject } from '@types';
 
 // AI : Global completion status filter state
 const visibleCompletionStates = ref({
@@ -20,7 +20,7 @@ export function useCompletionFilters() {
     /**
      * AI : Filter overlays array based on current completion status filters
      */
-    filterByCompletionStatus<T extends OverlayObject | CDNOverlayData>(overlays: T[]): T[] {
+    filterByCompletionStatus<T extends OverlayObject | OverlayData>(overlays: T[]): T[] {
       return overlays.filter((overlay) => {
         const completionColor = getOverlayMarkerColor(overlay, 'view');
         return visibleCompletionStates.value[completionColor as keyof typeof visibleCompletionStates.value];
@@ -37,7 +37,7 @@ export function useCompletionFilters() {
     /**
      * AI : Check if a specific overlay should be visible based on current filters
      */
-    shouldShowOverlay(overlay: OverlayObject | CDNOverlayData) {
+    shouldShowOverlay(overlay: OverlayObject | OverlayData) {
       const completionColor = getOverlayMarkerColor(overlay, 'view');
       return visibleCompletionStates.value[completionColor as keyof typeof visibleCompletionStates.value];
     }
