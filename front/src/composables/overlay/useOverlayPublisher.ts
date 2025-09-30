@@ -123,9 +123,7 @@ export function useOverlayPublisher() {
       caption: overlay.caption ?? undefined,
       projectId: overlay.projectId!,
       replacesOverlayId: overlay.replacesOverlayId ?? undefined,
-      metadata: {
-        // AI : Keep metadata empty as requested - no caption or history data
-      },
+      metadata: {},
       corners: corners.map(c => ({ lat: c.lat, lng: c.lng })),
     };
 

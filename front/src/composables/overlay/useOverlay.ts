@@ -9,7 +9,7 @@ import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { storeToRefs } from 'pinia';
 import type { OverlayObject, OverlayData, Project } from '@types';
-import { createOverlay as createOverlayInstance, createOverlayFromCDN, transformBackendOverlayToCDN } from '../../utils/typeFactories';
+import { createOverlay as createOverlayInstance, createOverlayFromCDN, convertOverlayToData } from '../../utils/typeFactories';
 
 import { createColorIcon } from '@composables/ui/markerIcons';
 import { useProjects, addOverlayToProjectWithId } from '@composables/project/useProjects';
@@ -368,6 +368,9 @@ export function saveToHistory(overlayObject: OverlayObject): void {
   overlayObject.history.push(JSON.parse(JSON.stringify(currentState)) as { lat: number; lng: number }[]);
   overlayObject.redoStack = [];
 
+  // AI : Update overlayObject.corners to keep it in sync with the actual overlay position
+  overlayObject.corners = currentState.map(corner => ({ lat: corner.lat, lng: corner.lng }));
+
   // AI : Mark overlay as modified when it's moved/changed
   overlayObject.isModified = true;
 
@@ -448,58 +451,27 @@ export function clearEditModeOverlayCache(): void {
   editModeOverlayCache.clear();
 }
 
-/**
- * AI : Convert OverlayObject to OverlayData format for caching
- */
-function convertOverlayObjectToCDNData(overlayObject: OverlayObject): OverlayData {
-  // AI : Calculate centroid from corners
-  const centroid = overlayObject.corners && overlayObject.corners.length >= 4 
-    ? {
-        lat: (overlayObject.corners[0].lat + overlayObject.corners[3].lat) / 2,
-        lng: (overlayObject.corners[0].lng + overlayObject.corners[3].lng) / 2
-      }
-    : { lat: 0, lng: 0 }; // AI : Fallback if corners not available
-
-  return {
-    id: overlayObject.id,
-    version: overlayObject.version,
-    filename: overlayObject.imageUrl, // AI : Use imageUrl (data URL) for new overlays, not filename
-    caption: overlayObject.caption,
-    status: overlayObject.status,
-    projectId: overlayObject.projectId,
-    authorId: overlayObject.authorId,
-    replacesOverlayId: overlayObject.replacesOverlayId,
-    metadata: overlayObject.metadata,
-    project: null, // AI : New overlays don't have project details populated yet
-    centroid,
-    corners: overlayObject.corners ?? [],
-    distance: 0, // AI : Not relevant for new overlays
-    createdAt: overlayObject.createdAt,
-    updatedAt: overlayObject.updatedAt,
-    isModified: overlayObject.isModified
-  };
-}
 
 /**
  * AI : Add new overlay to city cache so it persists across zoom changes
  */
 export async function addNewOverlayToCityCache(overlayObject: OverlayObject, cityId: string): Promise<void> {
   const { cityProjectsCache } = await import('@composables/map/useCityData');
-  
-  // AI : Convert overlay to CDN format
-  const cdnOverlay = convertOverlayObjectToCDNData(overlayObject);
+
+  // AI : Convert overlay to data format for caching
+  const overlayData = convertOverlayToData(overlayObject);
   
   // AI : Get current city cache or create empty array
   const currentCache = cityProjectsCache.get(cityId) ?? [];
-  
+
   // AI : Add new overlay to cache (avoid duplicates)
   const existingIndex = currentCache.findIndex(item => item.id === overlayObject.id);
   if (existingIndex >= 0) {
     // AI : Update existing entry
-    currentCache[existingIndex] = cdnOverlay;
+    currentCache[existingIndex] = overlayData;
   } else {
     // AI : Add new entry
-    currentCache.push(cdnOverlay);
+    currentCache.push(overlayData);
   }
   
   cityProjectsCache.set(cityId, currentCache);
@@ -512,35 +484,22 @@ export async function addNewOverlayToCityCache(overlayObject: OverlayObject, cit
  */
 export function clearAllOverlays(): void {
   if (!map.value) return;
-  console.log("in clearAllOverlays");
-  // AI : Save edit mode modifications before clearing overlays
-  if (isEditMode.value) {
-    Object.values(overlays.value).forEach((overlayObject: OverlayObject) => {
-      if (overlayObject.overlay && overlayObject.isModified) {
-        saveOverlayModificationsToCache(overlayObject);
-      }
-    });
-  }
 
   Object.values(overlays.value).forEach((overlayObject: OverlayObject) => {
     if (overlayObject.overlay) {
-      map.value!.removeLayer(overlayObject.overlay);
+      map.value?.removeLayer(overlayObject.overlay);
     }
-  });
-
-  Object.values(allMarkers.value).forEach((marker) => {
-    if (marker) {
-      map.value!.removeLayer(marker);
+    if (overlayObject.marker) {
+      map.value?.removeLayer(overlayObject.marker);
     }
   });
 
   overlays.value = {};
   allMarkers.value = {};
-  idSelectedOverlay.value = null;
 
-  // AI : Reset UI states when clearing overlays
-  const overlayStore = useOverlayStore();
-  overlayStore.resetAllUIStates();
+  if (idSelectedOverlay.value) {
+    idSelectedOverlay.value = null;
+  }
 }
 
 /**
@@ -1495,13 +1454,11 @@ async function loadAndNavigateToOverlay(overlayId: string, centerMap: boolean): 
     }
 
     // AI : Render the main overlay
-    const cdnOverlay = transformBackendOverlayToCDN(result.overlay);
-    renderViewModeOverlays([cdnOverlay], true, false);
+    renderViewModeOverlays([result.overlay as OverlayData], true, false);
 
     // AI : Render intersecting overlays if they exist
     if (result.intersectingOverlays.length > 0) {
-      const intersectingCdnOverlays = result.intersectingOverlays.map(transformBackendOverlayToCDN);
-      renderViewModeOverlays(intersectingCdnOverlays, true, false);
+      renderViewModeOverlays(result.intersectingOverlays as OverlayData[], true, false);
     }
 
     // AI : Verify overlay was successfully loaded
