@@ -40,5 +40,3 @@ export interface OverlayData {
     isModified?: boolean;
 }
 
-// AI : Legacy type alias for backwards compatibility during migration
-export type CDNOverlayData = OverlayData;

@@ -1,17 +1,17 @@
-import type { OverlayObject, CDNOverlayData, MarkerColor } from '@types';
+import type { OverlayObject, OverlayData, MarkerColor } from '@types';
 
 /**
  * AI : Centralized function to determine marker color based on overlay state
  * This replaces the duplicated logic in multiple files
  */
 export function getOverlayMarkerColor(
-  overlayData: OverlayObject | CDNOverlayData,
+  overlayData: OverlayObject | OverlayData,
   mode: 'edit' | 'view'
 ): MarkerColor {
   if (mode === 'edit') {
     if (overlayData.replacesOverlayId) return 'purple'; // Overlay is a replacement for another overlay
 
-    // AI : CDNOverlayData objects are always remote overlays (they come from the backend)
+    // AI : OverlayData objects are always remote overlays (they come from the backend)
     const isRemoteOverlay = 'savedRemotely' in overlayData ? overlayData.savedRemotely : true;
     const hasBeenModified = 'isModified' in overlayData ? overlayData.isModified : false;
 

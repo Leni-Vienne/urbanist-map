@@ -10,7 +10,7 @@ import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColo
 import { createColorIcon } from '@composables/ui/markerIcons';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { storeToRefs } from 'pinia';
-import type { CDNOverlayData, MarkerColor } from '@types';
+import type { OverlayData, MarkerColor } from '@types';
 
 // AI : Function to get store refs when needed
 function getStoreRefs() {
@@ -23,7 +23,7 @@ function getStoreRefs() {
 export const MIN_ZOOM_FOR_OVERLAYS = 12;
 
 // AI : Current city overlays displayed
-export const currentCityOverlays = ref<CDNOverlayData[]>([]);
+export const currentCityOverlays = ref<OverlayData[]>([]);
 
 // AI : Layer group for overlay markers (markers without images)
 let overlayMarkersLayer: L.LayerGroup | null = null;
@@ -34,7 +34,7 @@ const isLoadingCityProjects = ref(false);
 /**
  * AI : Fetch city projects data with caching to avoid repeated API calls
  */
-export async function fetchCityProjectsData(cityId: string): Promise<CDNOverlayData[]> {
+export async function fetchCityProjectsData(cityId: string): Promise<OverlayData[]> {
   // AI : Check if we already have cached data for this city
   const cachedData = cityProjectsCache.get(cityId);
   if (cachedData) {
@@ -42,7 +42,7 @@ export async function fetchCityProjectsData(cityId: string): Promise<CDNOverlayD
   }
 
   try {
-    // AI : Backend now returns data in CDNOverlayData format directly
+    // AI : Backend now returns data in OverlayData format directly
     const overlaysData = await trpc.cities.getCityProjects.query({ cityId });
 
     // AI : Cache the data for future use
@@ -128,7 +128,7 @@ export async function loadCityOverlays(cityId: string, cityName: string, forceFu
  * AI : Show overlay markers without loading images for performance
  */
 // AI : Common function to render overlay markers from overlay data
-function renderOverlayMarkersFromData(overlaysData: CDNOverlayData[]): void {
+function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void {
   // AI : Clear view mode overlays state using store
   const { overlayStore } = getStoreRefs();
   overlayStore.clearViewModeOverlays();
@@ -202,7 +202,7 @@ export function removeOverlayMarkers(): void {
  * @param overlayData - Original overlay data
  * @returns Overlay data with edit modifications applied if in edit mode
  */
-function getOverlayDataWithEditModifications(overlayData: CDNOverlayData): CDNOverlayData {
+function getOverlayDataWithEditModifications(overlayData: OverlayData): OverlayData {
   const { isEditMode } = getStoreRefs();
   if (!isEditMode.value) {
     return overlayData; // AI : Return original data in view mode
@@ -298,7 +298,7 @@ export function checkZoomAndHideOverlays(): void {
  * @param overlayData - The CDN overlay data
  * @returns Object with marker color and position
  */
-function getOverlayMarkerInfo(overlayData: CDNOverlayData): { color: MarkerColor, position: { lat: number, lng: number } } {
+function getOverlayMarkerInfo(overlayData: OverlayData): { color: MarkerColor, position: { lat: number, lng: number } } {
   let position = { lat: overlayData.centroid.lat, lng: overlayData.centroid.lng };
   // AI : Check if we're in edit mode and if the overlay exists in the overlays store
   const { isEditMode, overlays } = getStoreRefs();

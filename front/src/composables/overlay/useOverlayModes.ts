@@ -6,7 +6,7 @@ import { updateOverlayEditingState, clearAllOverlays, renderViewModeOverlays, up
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { storeToRefs } from 'pinia';
-import type { CDNOverlayData } from '@types';
+import type { OverlayData } from '@types';
 import { latestClickedCity, hasCachedCityProjectsData, getCachedCityProjectsData } from '@composables/map/useCityData';
 import { renderOverlayMarkersFromCache, updateOverlayMarkersForFilters } from '@composables/map/useCityOverlays';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
@@ -171,7 +171,7 @@ function stopViewModeTracking() {
 /**
  * AI : Set overlays loaded from city markers
  */
-function setViewModeOverlays(overlays: CDNOverlayData[]) {
+function setViewModeOverlays(overlays: OverlayData[]) {
   const { overlayStore } = getStoreRefs();
   overlayStore.setViewModeOverlays(overlays);
   // AI : Do not automatically render overlays - let the caller handle rendering

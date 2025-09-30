@@ -1,5 +1,5 @@
 // AI : Factory functions for creating type instances to reduce duplication
-import type { Project, OverlayObject, CDNOverlayData } from '@types';
+import type { Project, OverlayObject, OverlayData } from '@types';
 import type { NearbyProject, BackendOverlay } from '../types/api';
 import { v4 as uuidv4 } from 'uuid';
 import { buildImageUrl } from '../utils';
@@ -116,7 +116,7 @@ export function createOverlay(data: Partial<OverlayObject> = {}): OverlayObject 
 /**
  * AI : Convert OverlayData from backend to OverlayObject with UI state
  */
-export function createOverlayFromCDN(overlayData: CDNOverlayData): OverlayObject {
+export function createOverlayFromCDN(overlayData: OverlayData): OverlayObject {
   const isDataUrl = overlayData.filename.startsWith('data:');
   const imageUrl = isDataUrl ? overlayData.filename : buildImageUrl(overlayData.filename);
 
@@ -133,8 +133,8 @@ export function createOverlayFromCDN(overlayData: CDNOverlayData): OverlayObject
  * AI : Convert BackendOverlay API data to OverlayData format
  * After migration, BackendOverlay already has corners/centroid in correct format
  */
-export function transformBackendOverlayToCDN(backendOverlay: BackendOverlay): CDNOverlayData {
-  return backendOverlay as CDNOverlayData;
+export function transformBackendOverlayToCDN(backendOverlay: BackendOverlay): OverlayData {
+  return backendOverlay as OverlayData;
 }
 
 // AI : buildImageUrl imported from utils.ts
