@@ -168,10 +168,11 @@ export const overlayRouter = router({
         const [topLeft, topRight, bottomRight, bottomLeft] = input.corners;
 
         // AI : Calculate centroid (center point)
-        //const centroidLat = input.corners.reduce((sum, corner) => sum + corner.lat, 0) / 4;
-        //const centroidLng = input.corners.reduce((sum, corner) => sum + corner.lng, 0) / 4;
         const centroidLat = (topLeft.lat + bottomLeft.lat) / 2;
         const centroidLng = (topLeft.lng + bottomLeft.lng) / 2;
+
+        // AI : Build WKT string with corner coordinates concatenated as a string literal
+        const polygonWKT = `POLYGON((${topLeft.lng} ${topLeft.lat}, ${topRight.lng} ${topRight.lat}, ${bottomRight.lng} ${bottomRight.lat}, ${bottomLeft.lng} ${bottomLeft.lat}, ${topLeft.lng} ${topLeft.lat}))`;
 
         // AI : Prepare overlay data for insert/update
         const overlayData = {
@@ -182,7 +183,7 @@ export const overlayRouter = router({
           authorId: ctx.user.id,
           replacesOverlayId: input.replacesOverlayId ?? null,
           metadata: null, // AI : Keep metadata empty as requested
-          corners: sql`ST_GeomFromText('POLYGON((${topLeft.lng} ${topLeft.lat}, ${topRight.lng} ${topRight.lat}, ${bottomRight.lng} ${bottomRight.lat}, ${bottomLeft.lng} ${bottomLeft.lat}, ${topLeft.lng} ${topLeft.lat}))', 4326)`,
+          corners: sql.raw(`ST_GeomFromText('${polygonWKT}', 4326)`),
           centroid: sql`ST_SetSRID(ST_MakePoint(${centroidLng}, ${centroidLat}), 4326)`
         };
 
@@ -205,7 +206,11 @@ export const overlayRouter = router({
               updatedAt: sql`NOW()`
             }
           })
-          .returning();
+          .returning({
+            id: overlays.id,
+            createdAt: overlays.createdAt,
+            updatedAt: overlays.updatedAt
+          });
 
         return {
           success: true,
