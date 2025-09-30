@@ -1,6 +1,6 @@
 // AI : Factory functions for creating type instances to reduce duplication
 import type { Project, OverlayObject, OverlayData } from '@types';
-import type { NearbyProject, BackendOverlay } from '../types/api';
+import type { NearbyProject } from '../types/api';
 import { v4 as uuidv4 } from 'uuid';
 import { buildImageUrl } from '../utils';
 
@@ -130,11 +130,35 @@ export function createOverlayFromCDN(overlayData: OverlayData): OverlayObject {
 }
 
 /**
- * AI : Convert BackendOverlay API data to OverlayData format
- * After migration, BackendOverlay already has corners/centroid in correct format
+ * AI : Convert OverlayObject to OverlayData format (strips UI state for caching)
  */
-export function transformBackendOverlayToCDN(backendOverlay: BackendOverlay): OverlayData {
-  return backendOverlay as OverlayData;
+export function convertOverlayToData(overlayObject: OverlayObject): OverlayData {
+  // AI : Calculate centroid from corners
+  const centroid = overlayObject.corners && overlayObject.corners.length >= 4
+    ? {
+        lat: (overlayObject.corners[0].lat + overlayObject.corners[3].lat) / 2,
+        lng: (overlayObject.corners[0].lng + overlayObject.corners[3].lng) / 2
+      }
+    : { lat: 0, lng: 0 };
+
+  return {
+    id: overlayObject.id,
+    version: overlayObject.version,
+    filename: overlayObject.imageUrl,
+    caption: overlayObject.caption,
+    status: overlayObject.status,
+    projectId: overlayObject.projectId,
+    authorId: overlayObject.authorId,
+    replacesOverlayId: overlayObject.replacesOverlayId,
+    metadata: overlayObject.metadata,
+    project: null,
+    centroid,
+    corners: overlayObject.corners ?? [],
+    distance: 0,
+    createdAt: overlayObject.createdAt,
+    updatedAt: overlayObject.updatedAt,
+    isModified: overlayObject.isModified
+  };
 }
 
 // AI : buildImageUrl imported from utils.ts
