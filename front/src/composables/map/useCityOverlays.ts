@@ -4,6 +4,7 @@ import L from 'leaflet';
 import { map, onMapInitialized, currentZoomLevel } from '@composables/core/useMap';
 import { renderViewModeOverlays, clearAllOverlays, getFromEditModeOverlayCache } from '@composables/overlay/useOverlay';
 import { cityProjectsCache, hasCachedCityProjectsData, getSelectedCity } from '@composables/map/useCityData';
+import { calculateCenterFromCorners } from '../../utils/typeFactories';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import { trpc } from '@client';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
@@ -20,7 +21,7 @@ function getStoreRefs() {
 }
 
 // AI : Minimum zoom level required to load city projects and overlays
-export const MIN_ZOOM_FOR_OVERLAYS = 12;
+const MIN_ZOOM_FOR_OVERLAYS = 12;
 
 // AI : Current city overlays displayed
 export const currentCityOverlays = ref<OverlayData[]>([]);
@@ -306,12 +307,9 @@ function getOverlayMarkerInfo(overlayData: OverlayData): { color: MarkerColor, p
 
     if (overlayObject) {
       // AI : Use current overlay position if it has been moved
-      if (overlayObject.corners && overlayObject.corners.length >= 4) {
-        // AI : Calculate center from current corners - Leaflet distortable uses: NW, NE, SW, SE
-        // AI : Center should be between NW (corners[0]) and SE (corners[3])
-        const centerLat = (overlayObject.corners[0].lat + overlayObject.corners[3].lat) / 2;
-        const centerLng = (overlayObject.corners[0].lng + overlayObject.corners[3].lng) / 2;
-        position = { lat: centerLat, lng: centerLng };
+      const calculatedCenter = calculateCenterFromCorners(overlayObject.corners);
+      if (calculatedCenter) {
+        position = calculatedCenter;
       }
 
       // AI : Use centralized color logic
@@ -322,10 +320,9 @@ function getOverlayMarkerInfo(overlayData: OverlayData): { color: MarkerColor, p
       const overlayDataWithMods = getOverlayDataWithEditModifications(overlayData);
 
       // AI : Use modified position if available
-      if (overlayDataWithMods.corners && overlayDataWithMods.corners.length >= 4) {
-        const centerLat = (overlayDataWithMods.corners[0].lat + overlayDataWithMods.corners[3].lat) / 2;
-        const centerLng = (overlayDataWithMods.corners[0].lng + overlayDataWithMods.corners[3].lng) / 2;
-        position = { lat: centerLat, lng: centerLng };
+      const calculatedCenter = calculateCenterFromCorners(overlayDataWithMods.corners);
+      if (calculatedCenter) {
+        position = calculatedCenter;
       }
 
       // AI : Use centralized color logic with modified data
