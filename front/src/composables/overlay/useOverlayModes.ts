@@ -233,6 +233,12 @@ export function toggleEditMode(onModeExit?: () => void) {
     // and then update marker tooltips with correct positions
     updateOverlayEditingState();
 
+    // AI : If zoomed out, re-render overlay markers with edit mode colors and cached positions
+    const currentZoom = map.value?.getZoom() ?? 0;
+    if (currentZoom < MIN_ZOOM_FOR_EDIT_OVERLAYS && latestClickedCity.value) {
+      renderOverlayMarkersFromCache(latestClickedCity.value.id, latestClickedCity.value.name);
+    }
+
     // AI : Initialize edit mode overlay markers for overlays that don't have images loaded yet
     initializeEditModeOverlays();
 

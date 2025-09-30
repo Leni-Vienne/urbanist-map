@@ -62,7 +62,7 @@
               v-if="!viewMode && overlayObject && user && overlayObject.authorId === user.id"
               icon="pi pi-pencil"
               class="p-button-sm p-button-text p-button-info"
-              @click="openOverlayEditor"
+              @click="emit('edit-overlay', overlayObject)"
               v-tooltip.top="'Edit Overlay'"
             />
             <!-- AI : Suggest changes button (for non-owned overlays) -->
@@ -88,11 +88,6 @@
             <span class="info-value replacement-type">Replacement Overlay</span>
           </div>
         </div>
-        <OverlayEditor
-          ref="overlayEditorRef"
-          :overlayObject="overlayObject"
-          @update="handleOverlayUpdate"
-        />
       </div>
     </div> 
     
@@ -123,7 +118,6 @@ import type { OverlayObject, Project } from '@types';
 import ProjectInfoCard from './ProjectInfoCard.vue';
 
 const ProjectPicker = defineAsyncComponent(() => import('@components/project/ProjectPicker.vue'));
-const OverlayEditor = defineAsyncComponent(() => import('@components/map/OverlayEditor.vue'));
 
 // AI : Props - all data comes from parent
 const props = defineProps<{
@@ -148,9 +142,6 @@ const emit = defineEmits<{
 const authStore = useAuthStore();
 const { user } = storeToRefs(authStore);
 
-// AI : Local state for UI components
-const overlayEditorRef = ref<InstanceType<typeof OverlayEditor> | null>(null);
-
 // AI : Computed for project picker v-model
 const selectedProjectId = computed({
   get: () => props.overlayObject.projectId ?? '',
@@ -167,11 +158,6 @@ function handleProjectSelected(projectId: string) {
 // AI : Handle overlay update from editor
 function handleOverlayUpdate(overlayId: string, caption?: string) {
   emit('overlay-update', overlayId, caption);
-}
-
-// AI : Open overlay editor dialog
-function openOverlayEditor() {
-  overlayEditorRef.value?.openDialog();
 }
 </script>
 

@@ -693,18 +693,18 @@ function setupProjectHoverEvents(overlay: L.DistortableImageOverlay, overlayObje
 /**
  * AI : Render backend CDN overlays on the map for view mode
  */
-export function renderViewModeOverlays(cdnOverlays: OverlayData[], createMarkers = true, forceRerender = false) {
+export function renderViewModeOverlays(viewModeOverlays: OverlayData[], createMarkers = true, forceRerender = false) {
   if (!map.value) return;
 
   let overlaysToRender: OverlayData[];
 
   if (forceRerender) {
     // AI : Force re-render all overlays (for city switching)
-    overlaysToRender = cdnOverlays;
+    overlaysToRender = viewModeOverlays;
   } else {
     // AI : Only render overlays that aren't already rendered
     const currentOverlayIds = new Set(Object.keys(overlays.value));
-    overlaysToRender = cdnOverlays.filter(cdnOverlay => !currentOverlayIds.has(cdnOverlay.id));
+    overlaysToRender = viewModeOverlays.filter(cdnOverlay => !currentOverlayIds.has(cdnOverlay.id));
   }
 
   for (const cdnOverlay of overlaysToRender) {

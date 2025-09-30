@@ -29,6 +29,14 @@
       @close-popup="closeProjectInfoPopup"
     />
   </Teleport>
+
+  <!-- Overlay Editor Dialog -->
+  <OverlayEditor
+    v-if="overlayObject"
+    ref="overlayEditorRef"
+    :overlayObject="overlayObject"
+    @update="handleOverlayUpdate"
+  />
 </template>
 
 <script setup lang="ts">
@@ -40,6 +48,7 @@ import { useMapStore } from '@stores/pinia/mapStore';
 import { useUiStore } from '@stores/uiStore';
 import InfoPopup from './InfoPopup.vue';
 import ProjectInfoPopup from './ProjectInfoPopup.vue';
+import OverlayEditor from './OverlayEditor.vue';
 import { updateTooltipText } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
 import { useOverlayPublisher } from '@composables/overlay/useOverlayPublisher';
@@ -98,6 +107,9 @@ const selectedProject = computed(() => {
 // AI : Track teleport target existence
 let targetObserver: MutationObserver | null = null;
 const teleportTargetExists = ref(false);
+
+// AI : Ref for overlay editor component
+const overlayEditorRef = ref<InstanceType<typeof OverlayEditor> | null>(null);
 
 const checkTeleportTarget = () => {
   const overlayTarget = document.getElementById('info-popup-teleport-target');
@@ -233,7 +245,7 @@ async function handlePublishProject() {
       if (mapStore.selectedCity) {
         await loadCityProjects(mapStore.selectedCity.id, mapStore.selectedCity.name, true, mapStore.selectedCity.countryCode);
       } else {
-        await loadCityProjects(null as any, '', true);
+        await loadCityProjects(null, '', true);
       }
     } else {
       throw new Error('Backend publish failed');
@@ -258,8 +270,7 @@ function handleEditProject(project: Project) {
 
 // AI : Handle overlay editing (overlay mode only)
 function handleEditOverlay(overlay: OverlayObject) {
-  // AI : Handle overlay editing logic here
-  console.log('Edit overlay:', overlay);
+  overlayEditorRef.value?.openDialog();
 }
 
 // AI : Handle overlay update (overlay mode only)
