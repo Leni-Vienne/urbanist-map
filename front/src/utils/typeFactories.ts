@@ -5,6 +5,22 @@ import { v4 as uuidv4 } from 'uuid';
 import { buildImageUrl } from '../utils';
 
 /**
+ * AI : Calculate center position from 4 corner coordinates
+ * Assumes Leaflet distortable image corner order: NW, NE, SW, SE
+ * Center is calculated as midpoint between NW (corners[0]) and SE (corners[3])
+ */
+export function calculateCenterFromCorners(corners: Array<{ lat: number; lng: number }>): { lat: number; lng: number } | null {
+  if (!corners || corners.length < 4) {
+    return null;
+  }
+
+  return {
+    lat: (corners[0].lat + corners[3].lat) / 2,
+    lng: (corners[0].lng + corners[3].lng) / 2
+  };
+}
+
+/**
  * AI : Create a new Project instance with defaults
  */
 export function createProject(data: Partial<Project> = {}): Project {
@@ -134,12 +150,7 @@ export function createOverlayFromCDN(overlayData: OverlayData): OverlayObject {
  */
 export function convertOverlayToData(overlayObject: OverlayObject): OverlayData {
   // AI : Calculate centroid from corners
-  const centroid = overlayObject.corners && overlayObject.corners.length >= 4
-    ? {
-        lat: (overlayObject.corners[0].lat + overlayObject.corners[3].lat) / 2,
-        lng: (overlayObject.corners[0].lng + overlayObject.corners[3].lng) / 2
-      }
-    : { lat: 0, lng: 0 };
+  const centroid = calculateCenterFromCorners(overlayObject.corners) ?? { lat: 0, lng: 0 };
 
   return {
     id: overlayObject.id,

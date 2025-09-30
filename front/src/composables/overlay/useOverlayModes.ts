@@ -30,7 +30,7 @@ function getStoreRefs() {
 }
 
 // AI : Constants for edit mode
-const MIN_ZOOM_FOR_EDIT_OVERLAYS = 12; // AI : Minimum zoom level to load full overlays in edit mode
+const MIN_ZOOM_FOR_OVERLAYS = 12; // AI : Minimum zoom level to load full overlays in edit mode
 
 // AI : Layer group for overlay markers in edit mode
 let editModeOverlayMarkers: L.LayerGroup | null = null;
@@ -78,7 +78,7 @@ function clearEditModeUI(): void {
  * AI : Unload overlays when zoom level is too low
  */
 function unloadOverlaysForZoomLevel(): void {
-  if (currentZoomLevel.value < MIN_ZOOM_FOR_EDIT_OVERLAYS) {
+  if (currentZoomLevel.value < MIN_ZOOM_FOR_OVERLAYS) {
     // AI : Clear all loaded overlays but keep regular markers (they handle click-to-load)
     clearAllOverlays();
     const { overlayStore } = getStoreRefs();
@@ -93,7 +93,7 @@ function watchZoomLevel(): void {
   watch(currentZoomLevel, (newZoom, oldZoom) => {
 
     // AI : Unload overlays if zoom is too low
-    if (newZoom < MIN_ZOOM_FOR_EDIT_OVERLAYS && oldZoom >= MIN_ZOOM_FOR_EDIT_OVERLAYS) {
+    if (newZoom < MIN_ZOOM_FOR_OVERLAYS && oldZoom >= MIN_ZOOM_FOR_OVERLAYS) {
       unloadOverlaysForZoomLevel();
     }
   });
@@ -115,7 +115,7 @@ export function handleEditModeExit() {
     // AI : Check current zoom level to decide what to render
     const currentZoom = map.value?.getZoom() ?? 0;
 
-    if (currentZoom >= MIN_ZOOM_FOR_EDIT_OVERLAYS) {
+    if (currentZoom >= MIN_ZOOM_FOR_OVERLAYS) {
       // AI : Zoom is high enough for full overlays
       const { setViewModeOverlays } = useViewModeOverlays();
       setViewModeOverlays(overlaysData);
@@ -235,7 +235,7 @@ export function toggleEditMode(onModeExit?: () => void) {
 
     // AI : If zoomed out, re-render overlay markers with edit mode colors and cached positions
     const currentZoom = map.value?.getZoom() ?? 0;
-    if (currentZoom < MIN_ZOOM_FOR_EDIT_OVERLAYS && latestClickedCity.value) {
+    if (currentZoom < MIN_ZOOM_FOR_OVERLAYS && latestClickedCity.value) {
       renderOverlayMarkersFromCache(latestClickedCity.value.id, latestClickedCity.value.name);
     }
 
