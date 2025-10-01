@@ -12,6 +12,10 @@ export const useOverlayStore = defineStore('overlay', () => {
   const isEditMode = ref(false)
   const isTogglingMode = ref(false)
 
+  // AI : Edit mode overlay cache - stores overlay modifications for persistence across zoom changes
+  type EditModeCache = { corners: { lat: number, lng: number }[], isModified: boolean }
+  const editModeOverlayCache = ref<Map<string, EditModeCache>>(new Map())
+
   // AI : Overlay data for different modes
   const viewModeOverlays = ref<OverlayData[]>([])
   const loadedEditOverlays = ref<Set<string>>(new Set())
@@ -72,13 +76,26 @@ export const useOverlayStore = defineStore('overlay', () => {
     if (mapInstance && editModeOverlayMarkers) {
       mapInstance.removeLayer(editModeOverlayMarkers);
     }
-    
+
     // AI : Clear state
     loadedEditOverlays.value.clear()
   }
 
   const setEditMode = (editMode: boolean) => {
     isEditMode.value = editMode
+  }
+
+  // AI : Edit mode cache management
+  function saveToEditModeCache(overlayId: string, data: EditModeCache) {
+    editModeOverlayCache.value.set(overlayId, data)
+  }
+
+  function getFromEditModeCache(overlayId: string): EditModeCache | undefined {
+    return editModeOverlayCache.value.get(overlayId)
+  }
+
+  function clearEditModeCache() {
+    editModeOverlayCache.value.clear()
   }
 
   const handleFileSelected = (file: File) => {
@@ -137,6 +154,7 @@ export const useOverlayStore = defineStore('overlay', () => {
     idSelectedOverlay,
     isEditMode,
     isTogglingMode,
+    editModeOverlayCache,
     viewModeOverlays,
     loadedEditOverlays,
     overlaysLoading,
@@ -149,7 +167,7 @@ export const useOverlayStore = defineStore('overlay', () => {
     pendingImageFile,
     showInfoPopup,
     infoPopupOverlayId,
-    
+
     // Actions
     setViewModeOverlays,
     clearViewModeOverlays,
@@ -161,6 +179,9 @@ export const useOverlayStore = defineStore('overlay', () => {
     removeEditModeOverlay,
     clearEditModeMarkersAndState,
     setEditMode,
+    saveToEditModeCache,
+    getFromEditModeCache,
+    clearEditModeCache,
     handleFileSelected,
     clearPendingFile,
     requestOverlayReplacement,

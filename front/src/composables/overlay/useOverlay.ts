@@ -8,6 +8,7 @@ import { map } from '@composables/core/useMap';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { storeToRefs } from 'pinia';
+import { useStores } from '@composables/core/useStores';
 import type { OverlayObject, OverlayData, Project } from '@types';
 import { createOverlay as createOverlayInstance, createOverlayFromCDN, convertOverlayToData } from '../../utils/typeFactories';
 
@@ -402,22 +403,19 @@ function saveOverlayModificationsToCache(overlayObject: OverlayObject): void {
 }
 
 /**
- * AI : Edit mode overlay cache - stores overlay modifications for persistence across zoom changes
- */
-const editModeOverlayCache = new Map<string, { corners: { lat: number, lng: number }[], isModified: boolean }>();
-
-/**
- * AI : Save overlay modifications to edit mode cache
+ * AI : Save overlay modifications to edit mode cache (now uses store)
  */
 export function saveToEditModeOverlayCache(overlayId: string, data: { corners: { lat: number, lng: number }[], isModified: boolean }): void {
-  editModeOverlayCache.set(overlayId, data);
+  const overlayStore = useOverlayStore();
+  overlayStore.saveToEditModeCache(overlayId, data);
 }
 
 /**
  * AI : Get overlay modifications from edit mode cache
  */
 export function getFromEditModeOverlayCache(overlayId: string): { corners: { lat: number, lng: number }[], isModified: boolean } | undefined {
-  return editModeOverlayCache.get(overlayId);
+  const overlayStore = useOverlayStore();
+  return overlayStore.getFromEditModeCache(overlayId);
 }
 
 /**
@@ -448,7 +446,8 @@ function getOverlayDataWithEditModifications(overlayData: OverlayData): OverlayD
  * AI : Clear all edit mode cache
  */
 export function clearEditModeOverlayCache(): void {
-  editModeOverlayCache.clear();
+  const overlayStore = useOverlayStore();
+  overlayStore.clearEditModeCache();
 }
 
 
@@ -1577,11 +1576,6 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
 // AI : Toolbar Actions (moved from useTools.ts to break circular dependency)
 
 // AI : Function to get store refs directly from the store
-function getStoreRefsForTools() {
-  const overlayStore = useOverlayStore();
-  const { overlays, idSelectedOverlay, isEditMode } = storeToRefs(overlayStore);
-  return { overlays, idSelectedOverlay, isEditMode };
-}
 
 export const infoTool = L.Toolbar2.Action.extend({
   options: {
@@ -1609,9 +1603,9 @@ export const infoTool = L.Toolbar2.Action.extend({
   addHooks() {
     const link = this._link;
     const overlayStore = useOverlayStore();
-    const { idSelectedOverlay } = getStoreRefsForTools();
+    const { overlay } = useStores();
 
-    if (!idSelectedOverlay.value) {
+    if (!overlay.store.idSelectedOverlay) {
       return;
     }
 
@@ -1745,13 +1739,13 @@ export const customDeleteTool = L.Toolbar2.Action.extend({
     },
   },
   addHooks: function () {
-    const { idSelectedOverlay } = getStoreRefsForTools();
-    if (!idSelectedOverlay.value) {
+    const { overlay } = useStores();
+    if (!overlay.store.idSelectedOverlay) {
       return;
     }
     if (confirm('Are you sure you want to delete this overlay from local storage?')) {
-      deleteOverlayButtonPressed(idSelectedOverlay.value);
-      idSelectedOverlay.value = null;
+      deleteOverlayButtonPressed(overlay.store.idSelectedOverlay);
+      overlay.store.idSelectedOverlay = null;
     }
   },
 });
@@ -1764,8 +1758,8 @@ export const replaceOverlayTool = L.Toolbar2.Action.extend({
     },
   },
   addHooks: function () {
-    const { idSelectedOverlay } = getStoreRefsForTools();
-    if (!idSelectedOverlay.value) {
+    const { overlay } = useStores();
+    if (!overlay.store.idSelectedOverlay) {
       return;
     }
 
@@ -1773,7 +1767,7 @@ export const replaceOverlayTool = L.Toolbar2.Action.extend({
     const overlayStore = useOverlayStore();
 
     // AI : Request overlay replacement using the store
-    overlayStore.requestOverlayReplacement(idSelectedOverlay.value);
+    overlayStore.requestOverlayReplacement(overlay.store.idSelectedOverlay);
   },
 });
 
