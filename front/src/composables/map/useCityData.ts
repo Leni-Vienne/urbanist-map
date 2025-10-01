@@ -1,18 +1,7 @@
-// AI : Shared city data utilities to avoid circular dependencies
-import { computed } from 'vue';
+// AI : Shared city data utilities - now properly using store instead of module-level state
 import { useMapStore } from '@stores/pinia/mapStore';
 import { storeToRefs } from 'pinia';
 import type { OverlayData } from '@types';
-
-// AI : Function to get store refs when needed
-function getStoreRefs() {
-  const mapStore = useMapStore();
-  const { selectedCity } = storeToRefs(mapStore);
-  return { selectedCity, mapStore };
-}
-
-// AI : Cache for city projects data to avoid repeated API calls
-export const cityProjectsCache = new Map<string, OverlayData[]>();
 
 /**
  * AI : Get cached overlay data for a specific city
@@ -20,7 +9,8 @@ export const cityProjectsCache = new Map<string, OverlayData[]>();
  * @returns The cached overlay data or null if not found
  */
 export function getCachedCityProjectsData(cityId: string): OverlayData[] | null {
-  return cityProjectsCache.get(cityId) ?? null;
+  const mapStore = useMapStore();
+  return mapStore.getCityProjectsCache(cityId);
 }
 
 /**
@@ -29,7 +19,8 @@ export function getCachedCityProjectsData(cityId: string): OverlayData[] | null 
  * @returns True if data is cached, false otherwise
  */
 export function hasCachedCityProjectsData(cityId: string): boolean {
-  return cityProjectsCache.has(cityId);
+  const mapStore = useMapStore();
+  return mapStore.hasCityProjectsCache(cityId);
 }
 
 /**
@@ -37,9 +28,7 @@ export function hasCachedCityProjectsData(cityId: string): boolean {
  * @returns The selected city or null if none selected
  */
 export function getSelectedCity() {
-  const { selectedCity } = getStoreRefs();
+  const mapStore = useMapStore();
+  const { selectedCity } = storeToRefs(mapStore);
   return selectedCity.value;
 }
-
-// AI : Backward compatibility - computed property that behaves like the old latestClickedCity
-export const latestClickedCity = computed(() => getSelectedCity());

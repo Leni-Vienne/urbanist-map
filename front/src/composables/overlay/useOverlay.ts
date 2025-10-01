@@ -456,16 +456,17 @@ export function clearEditModeOverlayCache(): void {
  * AI : Add new overlay to city cache so it persists across zoom changes
  */
 export async function addNewOverlayToCityCache(overlayObject: OverlayObject, cityId: string): Promise<void> {
-  const { cityProjectsCache } = await import('@composables/map/useCityData');
+  const { useMapStore } = await import('@stores/pinia/mapStore');
+  const mapStore = useMapStore();
 
   // AI : Convert overlay to data format for caching
   const overlayData = convertOverlayToData(overlayObject);
-  
+
   // AI : Get current city cache or create empty array
-  const currentCache = cityProjectsCache.get(cityId) ?? [];
+  const currentCache = mapStore.getCityProjectsCache(cityId) ?? [];
 
   // AI : Add new overlay to cache (avoid duplicates)
-  const existingIndex = currentCache.findIndex(item => item.id === overlayObject.id);
+  const existingIndex = currentCache.findIndex((item) => item.id === overlayObject.id);
   if (existingIndex >= 0) {
     // AI : Update existing entry
     currentCache[existingIndex] = overlayData;
@@ -473,9 +474,9 @@ export async function addNewOverlayToCityCache(overlayObject: OverlayObject, cit
     // AI : Add new entry
     currentCache.push(overlayData);
   }
-  
-  cityProjectsCache.set(cityId, currentCache);
-  
+
+  mapStore.setCityProjectsCache(cityId, currentCache);
+
   console.log(`AI : Added new overlay ${overlayObject.id} to city cache for ${cityId}`);
 }
 
