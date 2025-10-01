@@ -1,7 +1,7 @@
 import L from "leaflet";
 import { ref } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
-import { addCityMarkersForCountry, removeCityMarkers } from '@composables/map/useCityMarkers';
+import { addCityMarkersForCountry, removeCityMarkers, resetLayerMarkersOpacity } from '@composables/map/useCityMarkers';
 import { currentCityOverlays, removeOverlayMarkers } from '@composables/map/useCityOverlays';
 import { clearAllOverlays } from '@composables/overlay/useOverlay';
 import { switchTileLayer, isTileLayerType } from '@composables/map/useTileLayers';
@@ -116,15 +116,8 @@ function addCountryMarkersToMapInternal() {
     });
 
     // AI : Add click event to load cities and set marker as selected
-    marker.on('click', () => {
-      // AI : Set all country markers to default opacity except the clicked one
-      if (countryMarkersLayer) {
-        countryMarkersLayer.eachLayer((layer) => {
-          if (layer instanceof L.Marker) {
-            layer.setOpacity(COUNTRY_MARKER_OPACITY);
-          }
-        });
-      }
+    marker.on('click', async () => {
+      resetLayerMarkersOpacity(countryMarkersLayer, COUNTRY_MARKER_OPACITY);
       marker.setOpacity(COUNTRY_MARKER_HOVER_OPACITY);
       selectedCountryMarker = marker;
 
@@ -139,13 +132,12 @@ function addCountryMarkersToMapInternal() {
       const mapStore = useMapStore();
       mapStore.clearSelectedCity();
 
-      void loadCitiesForCountry(country.code).then(() => {
-        const updatedCountries = getCountries();
-        const updatedCountry = updatedCountries.value.find((c: Country) => c.code === country.code);
-        if (updatedCountry) {
-          addCityMarkersForCountry(updatedCountry.cities.map((c) => ({ ...c, projectCount: 0 })));
-        }
-      });
+      await loadCitiesForCountry(country.code);
+      const updatedCountries = getCountries();
+      const updatedCountry = updatedCountries.value.find((c: Country) => c.code === country.code);
+      if (updatedCountry) {
+        addCityMarkersForCountry(updatedCountry.cities.map((c) => ({ ...c, projectCount: 0 })));
+      }
     });
 
     // AI : Add mouseover event to show guidance tooltip and increase marker opacity

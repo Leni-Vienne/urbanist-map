@@ -111,7 +111,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, defineAsyncComponent } from 'vue';
+import { computed, defineAsyncComponent } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@stores/authStore';
 import type { OverlayObject, Project } from '@types';

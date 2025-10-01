@@ -288,9 +288,6 @@ export const authRouter = router({
           },
         };
       } catch (error) {
-        if (error instanceof TRPCError) {
-          throw error;
-        }
         console.error('Registration error:', error);
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
@@ -338,9 +335,6 @@ export const authRouter = router({
           message: 'Email verified successfully',
         };
       } catch (error) {
-        if (error instanceof TRPCError) {
-          throw error;
-        }
         console.error('Email verification error:', error);
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
@@ -451,9 +445,6 @@ export const authRouter = router({
           message: 'Password reset successfully. Please log in with your new password.',
         };
       } catch (error) {
-        if (error instanceof TRPCError) {
-          throw error;
-        }
         console.error('Password reset error:', error);
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
