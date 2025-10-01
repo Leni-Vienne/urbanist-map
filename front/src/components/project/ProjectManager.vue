@@ -291,43 +291,28 @@ async function fetchProjectsForPicker() {
 
 // AI : Handle project creation/update from dialog
 async function handleProjectSubmitted(project: Partial<Project>) {
-  uiStore.closeProjectDialog()
+  if (!project) return;
 
-  // AI : Create the project in the store if it doesn't already have an ID
-  if (project && !project.id) {
-    try {
+  try {
+    uiStore.closeProjectDialog()
+
+    if (!project.id) {
       // AI : Create the project and get the generated ID
       const projectId = createProject(project)
       setLastCreatedProject(projectId)
-
-      // AI : Re-open the project selector so the ProjectPicker can auto-select the new project
-      // AI : and continue with the file upload workflow
-      if (pendingImageFile.value) {
-        uiStore.openProjectSelector()
-      }
-    } catch (error) {
-      console.error('Error creating project:', error)
-      toast.add({
-        severity: 'error',
-        summary: 'Project Creation Failed',
-        detail: 'Failed to create the project. Please try again.',
-        life: 3000
-      })
-    }
-  } else if (project && project.id) {
-    // AI : Project already exists (edit mode), update the existing project data
-    try {
+    } else {
+      // AI : Project already exists (edit mode), update the existing project data
       if (projects.value[project.id]) {
         // AI : Update the existing project in the store with proper merge
-        projects.value[project.id] = { 
-          ...projects.value[project.id], 
+        projects.value[project.id] = {
+          ...projects.value[project.id],
           ...project,
           // AI : Ensure we preserve important fields that might not be in the edit form
           id: project.id,
           overlayIds: projects.value[project.id].overlayIds || [],
           color: projects.value[project.id].color || '#007bff'
         };
-        
+
         // AI : Just save locally for all projects (no auto-publishing)
         toast.add({
           severity: 'success',
@@ -335,7 +320,7 @@ async function handleProjectSubmitted(project: Partial<Project>) {
           detail: 'Project changes saved locally',
           life: 3000
         });
-        
+
         // AI : Refresh city projects to show updated marker on map
         if (project.isMarker && mapStore.selectedCity) {
           await loadCityProjects(mapStore.selectedCity.id, mapStore.selectedCity.name, true, mapStore.selectedCity.countryCode);
@@ -344,21 +329,25 @@ async function handleProjectSubmitted(project: Partial<Project>) {
           await loadCityProjects(null as any, '', true);
         }
       }
-      
-      setLastCreatedProject(project.id);
 
-      if (pendingImageFile.value) {
-        uiStore.openProjectSelector();
-      }
-    } catch (error) {
-      console.error('Error updating project:', error);
-      toast.add({
-        severity: 'error',
-        summary: 'Update Failed',
-        detail: 'Failed to save project changes',
-        life: 3000
-      });
+      setLastCreatedProject(project.id);
     }
+
+    // AI : Re-open the project selector so the ProjectPicker can auto-select the new project
+    // AI : and continue with the file upload workflow
+    if (pendingImageFile.value) {
+      uiStore.openProjectSelector();
+    }
+  } catch (error) {
+    console.error('Error with project:', error);
+    toast.add({
+      severity: 'error',
+      summary: project.id ? 'Update Failed' : 'Project Creation Failed',
+      detail: project.id
+        ? 'Failed to save project changes'
+        : 'Failed to create the project. Please try again.',
+      life: 3000
+    });
   }
 }
 </script>

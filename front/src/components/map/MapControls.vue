@@ -100,7 +100,7 @@
         v-tooltip.right="'Toggle proposed projects'"
       >
         <template #icon>
-          <div v-html="getMarkerSVG('yellow')"></div>
+          <div v-html="createButtonSVG('yellow')"></div>
         </template>
       </Button>
       <Button
@@ -112,7 +112,7 @@
         v-tooltip.right="'Toggle not started projects'"
       >
         <template #icon>
-          <div v-html="getMarkerSVG('green')"></div>
+          <div v-html="createButtonSVG('green')"></div>
         </template>
       </Button>
       <Button
@@ -124,7 +124,7 @@
         v-tooltip.right="'Toggle in progress projects'"
       >
         <template #icon>
-          <div v-html="getMarkerSVG('orange')"></div>
+          <div v-html="createButtonSVG('orange')"></div>
         </template>
       </Button>
       <Button
@@ -136,7 +136,7 @@
         v-tooltip.right="'Toggle completed projects'"
       >
         <template #icon>
-          <div v-html="getMarkerSVG('grey')"></div>
+          <div v-html="createButtonSVG('grey')"></div>
         </template>
       </Button>
     </div>
@@ -152,14 +152,14 @@ import { computed, ref } from 'vue';
 import { useToast } from '@composables/ui/useToast';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useAuthStore } from '@stores/authStore';
-import { toggleEditMode } from '@composables/overlay/useOverlayModes';
-import { handleEditModeExit } from '@composables/overlay/useOverlayModes';
+import { toggleEditMode, handleEditModeExit } from '@composables/overlay/useOverlayModes';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import { createButtonSVG } from '@composables/ui/markerIcons';
 import { map } from '@composables/core/useMap';
 import LayerControl from '@components/map/LayerControl.vue';
 import MapHelpModal from '@components/map/MapHelpModal.vue';
 import { useAddOverlay } from '@composables/overlay/useAddOverlay';
+import type { viewModeMarkerColor } from '@types';
 
 const authStore = useAuthStore();
 const overlayStore = useOverlayStore();
@@ -174,7 +174,7 @@ const { visibleCompletionStates, toggleFilter } = useCompletionFilters();
 
 // AI : Emit events to parent for complex operations that require access to map state
 const emit = defineEmits<{
-  'filter-overlays': [status: 'yellow' | 'green' | 'orange' | 'grey'];
+  'filter-overlays': [status: viewModeMarkerColor];
 }>();
 
 // AI : Edit mode toggle computed properties
@@ -248,14 +248,9 @@ function handleModeToggle() {
 
 
 // AI : Toggle completion status filter
-async function toggleCompletionFilter(status: 'yellow' | 'green' | 'orange' | 'grey') {
-  toggleFilter(status);
-  emit('filter-overlays', status);
-}
-
-// AI : Get marker SVG for button icons using button-specific SVG
-function getMarkerSVG(color: 'yellow' | 'green' | 'orange' | 'grey'): string {
-  return createButtonSVG(color);
+async function toggleCompletionFilter(color: viewModeMarkerColor) {
+  toggleFilter(color);
+  emit('filter-overlays', color);
 }
 
 // AI : Handle zoom in

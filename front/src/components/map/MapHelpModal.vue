@@ -94,25 +94,25 @@
           <h4 class="help-section-title">{{ $t('help.filters.title') }}</h4>
           <div class="help-item">
             <div class="help-icon">
-              <div v-html="getMarkerSVG('yellow')"></div>
+              <div v-html="createButtonSVG('yellow')"></div>
             </div>
             <div class="help-text">{{ $t('help.filters.proposed') }}</div>
           </div>
           <div class="help-item">
             <div class="help-icon">
-              <div v-html="getMarkerSVG('green')"></div>
+              <div v-html="createButtonSVG('green')"></div>
             </div>
             <div class="help-text">{{ $t('help.filters.planned') }}</div>
           </div>
           <div class="help-item">
             <div class="help-icon">
-              <div v-html="getMarkerSVG('orange')"></div>
+              <div v-html="createButtonSVG('orange')"></div>
             </div>
             <div class="help-text">{{ $t('help.filters.inProgress') }}</div>
           </div>
           <div class="help-item">
             <div class="help-icon">
-              <div v-html="getMarkerSVG('grey')"></div>
+              <div v-html="createButtonSVG('grey')"></div>
             </div>
             <div class="help-text">{{ $t('help.filters.completed') }}</div>
           </div>
@@ -175,11 +175,6 @@ watch(visible, (newValue) => {
 });
 
 const HELP_MODAL_STORAGE_KEY = 'construction-map-help-modal-seen';
-
-// AI : Get marker SVG for button icons
-function getMarkerSVG(color: 'yellow' | 'green' | 'orange' | 'grey'): string {
-  return createButtonSVG(color);
-}
 
 // AI : Close modal and handle "don't show again" preference
 function closeModal() {

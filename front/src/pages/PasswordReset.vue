@@ -126,7 +126,7 @@ async function resetPassword() {
     const token = route.query.token as string
     
     // AI : Call auth store method to reset password
-    // AI : This would need to be implemented in authStore
+    // TODO This would need to be implemented in authStore
     // await authStore.resetPassword(token, newPassword.value)
     
     toast.add({

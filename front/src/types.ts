@@ -3,12 +3,12 @@ import type { RouterOutput } from '@client';
 import type {
   DBCountry,
   DBProject,
-  DBOverlay,
   DBCity,
 } from '../../back/src/db/schema';
 
 // AI : Type for marker colors used throughout the application
 export type MarkerColor = 'blue' | 'green' | 'orange' | 'red' | 'gold' | 'yellow' | 'purple' | 'grey' | 'black';
+export type viewModeMarkerColor = 'yellow' | 'orange' | 'grey' | 'green'
 
 // AI : Type for project manager modes
 export type ProjectManagerMode = 'list' | 'edit' | 'view' | 'create';
@@ -58,7 +58,6 @@ declare module "leaflet" {
   const OpacitiesAction: typeof L.Toolbar2.Action;
   const DeleteAction: typeof L.Toolbar2.Action;
   const StackAction: typeof L.Toolbar2.Action;
-  //const Toolbar2: L.Toolbar2.Toolbar;
   const EditAction: typeof L.Toolbar2.Action;
   const DragAction: typeof L.Toolbar2.Action;
   const ResizeRotateAction: typeof L.Toolbar2.Action;

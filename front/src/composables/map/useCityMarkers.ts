@@ -49,6 +49,17 @@ const MARKER_OPACITY = 0.6; // AI : Default opacity for city markers
 const BUILDING_MARKER_OPACITY = 0.8; // AI : Default opacity for building markers
 const MARKER_HOVER_OPACITY = 1; // AI : Opacity for city markers on hover
 
+// AI : Utility function to reset all markers in a layer group to default opacity
+export function resetLayerMarkersOpacity(layerGroup: L.LayerGroup | null, defaultOpacity: number) {
+  if (!layerGroup) return;
+
+  layerGroup.eachLayer((layer) => {
+    if (layer instanceof L.Marker) {
+      layer.setOpacity(defaultOpacity);
+    }
+  });
+}
+
 // AI : Type aliases using RouterOutput from tRPC
 export type CityWithProjects = RouterOutput['cities']['getCitiesWithProjects'][number];
 
@@ -381,14 +392,7 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
 
     // AI : Add click event to load city projects directly and set marker as selected
     marker.on('click', () => {
-      // AI : Set all city markers to default opacity except the clicked one
-      if (cityMarkersLayer) {
-        cityMarkersLayer.eachLayer((layer) => {
-          if (layer instanceof L.Marker) {
-            layer.setOpacity(MARKER_OPACITY);
-          }
-        });
-      }
+      resetLayerMarkersOpacity(cityMarkersLayer, MARKER_OPACITY);
       marker.setOpacity(MARKER_HOVER_OPACITY);
       selectedCityMarker = marker;
       void loadCityProjects(city.id, city.name, false, city.countryCode);

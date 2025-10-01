@@ -1,6 +1,6 @@
 import { ref } from 'vue';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
-import type { OverlayData, OverlayObject } from '@types';
+import type { OverlayData, OverlayObject, viewModeMarkerColor } from '@types';
 
 // AI : Global completion status filter state
 const visibleCompletionStates = ref({
@@ -30,8 +30,8 @@ export function useCompletionFilters() {
     /**
      * AI : Toggle a specific completion status filter
      */
-    toggleFilter(status: 'yellow' | 'green' | 'orange' | 'grey') {
-      visibleCompletionStates.value[status] = !visibleCompletionStates.value[status];
+    toggleFilter(color: viewModeMarkerColor) {
+      visibleCompletionStates.value[color] = !visibleCompletionStates.value[color];
     },
 
     /**
