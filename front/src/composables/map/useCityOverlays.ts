@@ -3,13 +3,14 @@ import { ref, watch } from 'vue';
 import L from 'leaflet';
 import { map, onMapInitialized, currentZoomLevel } from '@composables/core/useMap';
 import { renderViewModeOverlays, clearAllOverlays, getFromEditModeOverlayCache } from '@composables/overlay/useOverlay';
-import { cityProjectsCache, hasCachedCityProjectsData, getSelectedCity } from '@composables/map/useCityData';
+import { hasCachedCityProjectsData, getSelectedCity } from '@composables/map/useCityData';
 import { calculateCenterFromCorners } from '../../utils/typeFactories';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import { trpc } from '@client';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
 import { createColorIcon } from '@composables/ui/markerIcons';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { useMapStore } from '@stores/pinia/mapStore';
 import { storeToRefs } from 'pinia';
 import type { OverlayData, MarkerColor } from '@types';
 
@@ -36,8 +37,10 @@ const isLoadingCityProjects = ref(false);
  * AI : Fetch city projects data with caching to avoid repeated API calls
  */
 export async function fetchCityProjectsData(cityId: string): Promise<OverlayData[]> {
+  const mapStore = useMapStore();
+
   // AI : Check if we already have cached data for this city
-  const cachedData = cityProjectsCache.get(cityId);
+  const cachedData = mapStore.getCityProjectsCache(cityId);
   if (cachedData) {
     return cachedData;
   }
@@ -46,8 +49,8 @@ export async function fetchCityProjectsData(cityId: string): Promise<OverlayData
     // AI : Backend now returns data in OverlayData format directly
     const overlaysData = await trpc.cities.getCityProjects.query({ cityId });
 
-    // AI : Cache the data for future use
-    cityProjectsCache.set(cityId, overlaysData);
+    // AI : Cache the data for future use in store
+    mapStore.setCityProjectsCache(cityId, overlaysData);
     return overlaysData;
   } catch (error) {
     console.error('Error fetching city projects data:', error);
@@ -69,7 +72,7 @@ export async function loadCityOverlays(cityId: string, cityName: string, forceFu
     const currentZoom = map.value.getZoom();
 
     // AI : Check if we have cached data and decide what to show
-    const hasCachedData = cityProjectsCache.has(cityId);
+    const hasCachedData = hasCachedCityProjectsData(cityId);
     const shouldShowFullOverlays = currentZoom >= MIN_ZOOM_FOR_OVERLAYS || forceFullLoad;
 
     if (hasCachedData && shouldShowFullOverlays) {
@@ -227,7 +230,8 @@ function getOverlayDataWithEditModifications(overlayData: OverlayData): OverlayD
  * AI : Render full overlays from cached data
  */
 function renderFullOverlaysFromCache(cityId: string, cityName: string) {
-  const overlaysData = cityProjectsCache.get(cityId);
+  const mapStore = useMapStore();
+  const overlaysData = mapStore.getCityProjectsCache(cityId);
   if (!overlaysData) {
     console.warn(`AI : No cached data found for city ${cityName}`);
     return;
@@ -262,7 +266,8 @@ function renderFullOverlaysFromCache(cityId: string, cityName: string) {
  * AI : Render overlay markers from cached data
  */
 export function renderOverlayMarkersFromCache(cityId: string, cityName: string): void {
-  const overlaysData = cityProjectsCache.get(cityId);
+  const mapStore = useMapStore();
+  const overlaysData = mapStore.getCityProjectsCache(cityId);
   if (!overlaysData) {
     console.warn(`AI : No cached data found for city ${cityName}`);
     return;

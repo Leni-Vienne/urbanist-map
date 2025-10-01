@@ -7,7 +7,7 @@ import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { storeToRefs } from 'pinia';
 import type { OverlayData } from '@types';
-import { latestClickedCity, hasCachedCityProjectsData, getCachedCityProjectsData } from '@composables/map/useCityData';
+import { hasCachedCityProjectsData, getCachedCityProjectsData, getSelectedCity } from '@composables/map/useCityData';
 import { renderOverlayMarkersFromCache, updateOverlayMarkersForFilters } from '@composables/map/useCityOverlays';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 
@@ -106,8 +106,9 @@ function watchZoomLevel(): void {
 export function handleEditModeExit() {
   // AI : Force re-render overlays to show original backend positions instead of modified ones
   // AI : Check if we have a current city with cached data
-  if (latestClickedCity.value && hasCachedCityProjectsData(latestClickedCity.value.id)) {
-    const overlaysData = getCachedCityProjectsData(latestClickedCity.value.id)!;
+  const selectedCity = getSelectedCity();
+  if (selectedCity && hasCachedCityProjectsData(selectedCity.id)) {
+    const overlaysData = getCachedCityProjectsData(selectedCity.id)!;
 
     // AI : Get store refs for overlays
     const { overlays } = getStoreRefs();
@@ -151,7 +152,7 @@ export function handleEditModeExit() {
     } else {
       // AI : Zoom is too low, clear overlays and render markers only
       clearAllOverlays();
-      renderOverlayMarkersFromCache(latestClickedCity.value.id, latestClickedCity.value.name);
+      renderOverlayMarkersFromCache(selectedCity.id, selectedCity.name);
     }
 
     // AI : Update overlay markers colors for view mode (when zoomed out)
@@ -235,8 +236,9 @@ export function toggleEditMode(onModeExit?: () => void) {
 
     // AI : If zoomed out, re-render overlay markers with edit mode colors and cached positions
     const currentZoom = map.value?.getZoom() ?? 0;
-    if (currentZoom < MIN_ZOOM_FOR_OVERLAYS && latestClickedCity.value) {
-      renderOverlayMarkersFromCache(latestClickedCity.value.id, latestClickedCity.value.name);
+    const selectedCity = getSelectedCity();
+    if (currentZoom < MIN_ZOOM_FOR_OVERLAYS && selectedCity) {
+      renderOverlayMarkersFromCache(selectedCity.id, selectedCity.name);
     }
 
     // AI : Initialize edit mode overlay markers for overlays that don't have images loaded yet
