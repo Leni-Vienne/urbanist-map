@@ -9,17 +9,9 @@ import { useCompletionFilters } from '@composables/overlay/useCompletionFilters'
 import { trpc } from '@client';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
 import { createColorIcon } from '@composables/ui/markerIcons';
-import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { useStores } from '@composables/core/useStores';
 import { useMapStore } from '@stores/pinia/mapStore';
-import { storeToRefs } from 'pinia';
 import type { OverlayData, MarkerColor } from '@types';
-
-// AI : Function to get store refs when needed
-function getStoreRefs() {
-  const overlayStore = useOverlayStore();
-  const { overlays, isEditMode } = storeToRefs(overlayStore);
-  return { overlays, isEditMode, overlayStore };
-}
 
 // AI : Minimum zoom level required to load city projects and overlays
 const MIN_ZOOM_FOR_OVERLAYS = 12;
@@ -100,8 +92,8 @@ export async function loadCityOverlays(cityId: string, cityName: string, forceFu
     removeOverlayMarkers();
 
     // AI : Clear view mode overlays state using store
-    const { overlayStore } = getStoreRefs();
-    overlayStore.clearViewModeOverlays();
+    const { overlay } = useStores();
+    overlay.clearViewModeOverlays();
 
     // AI : Get overlays data (cached or fresh)
     const overlaysData = await fetchCityProjectsData(cityId);
@@ -113,7 +105,7 @@ export async function loadCityOverlays(cityId: string, cityName: string, forceFu
     const overlaysToRender = completionFilters.filterByCompletionStatus(overlaysData);
 
     // AI : Set overlays in view mode overlays and render them
-    overlayStore.setViewModeOverlays(overlaysToRender);
+    overlay.setViewModeOverlays(overlaysToRender);
 
     // AI : Render only visible overlays on the map with markers
     renderViewModeOverlays(overlaysToRender, true, true);
@@ -134,8 +126,8 @@ export async function loadCityOverlays(cityId: string, cityName: string, forceFu
 // AI : Common function to render overlay markers from overlay data
 function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void {
   // AI : Clear view mode overlays state using store
-  const { overlayStore } = getStoreRefs();
-  overlayStore.clearViewModeOverlays();
+  const { overlay } = useStores();
+  overlay.clearViewModeOverlays();
 
   // AI : Filter overlays based on current completion status filters
   const completionFilters = useCompletionFilters();
@@ -207,8 +199,8 @@ export function removeOverlayMarkers(): void {
  * @returns Overlay data with edit modifications applied if in edit mode
  */
 function getOverlayDataWithEditModifications(overlayData: OverlayData): OverlayData {
-  const { isEditMode } = getStoreRefs();
-  if (!isEditMode.value) {
+  const { overlay } = useStores();
+  if (!overlay.store.isEditMode) {
     return overlayData; // AI : Return original data in view mode
   }
 
@@ -243,8 +235,8 @@ function renderFullOverlaysFromCache(cityId: string, cityName: string) {
     removeOverlayMarkers();
 
     // AI : Clear view mode overlays state using store
-    const { overlayStore } = getStoreRefs();
-    overlayStore.clearViewModeOverlays();
+    const { overlay } = useStores();
+    overlay.clearViewModeOverlays();
 
     currentCityOverlays.value = overlaysData;
 
@@ -253,7 +245,7 @@ function renderFullOverlaysFromCache(cityId: string, cityName: string) {
     const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData);
 
     // AI : Set overlays in view mode overlays and render them
-    overlayStore.setViewModeOverlays(visibleOverlays);
+    overlay.setViewModeOverlays(visibleOverlays);
 
     // AI : Render only visible overlays on the map with markers
     renderViewModeOverlays(visibleOverlays, true, true);
@@ -306,9 +298,9 @@ export function checkZoomAndHideOverlays(): void {
 function getOverlayMarkerInfo(overlayData: OverlayData): { color: MarkerColor, position: { lat: number, lng: number } } {
   let position = { lat: overlayData.centroid.lat, lng: overlayData.centroid.lng };
   // AI : Check if we're in edit mode and if the overlay exists in the overlays store
-  const { isEditMode, overlays } = getStoreRefs();
-  if (isEditMode.value) {
-    const overlayObject = overlays.value[overlayData.id];
+  const { overlay } = useStores();
+  if (overlay.store.isEditMode) {
+    const overlayObject = overlay.store.overlays[overlayData.id];
 
     if (overlayObject) {
       // AI : Use current overlay position if it has been moved
