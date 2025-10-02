@@ -7,6 +7,7 @@ import { shallowRef, type Ref } from 'vue';
 import { map } from '@composables/core/useMap';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
+import { useMapStore } from '@stores/pinia/mapStore';
 import { storeToRefs } from 'pinia';
 import { useStores } from '@composables/core/useStores';
 import type { OverlayObject, OverlayData, Project } from '@types';
@@ -15,6 +16,7 @@ import { createOverlay as createOverlayInstance, createOverlayFromCDN, convertOv
 import { createColorIcon } from '@composables/ui/markerIcons';
 import { useProjects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import { trpc } from '@client';
+import { getSelectedCity } from '@composables/map/useCityData';
 
 // AI : Export reactive refs from stores
 export let overlays: Ref<Record<string, OverlayObject>>;
@@ -455,7 +457,6 @@ export function clearEditModeOverlayCache(): void {
  * AI : Add new overlay to city cache so it persists across zoom changes
  */
 export async function addNewOverlayToCityCache(overlayObject: OverlayObject, cityId: string): Promise<void> {
-  const { useMapStore } = await import('@stores/pinia/mapStore');
   const mapStore = useMapStore();
 
   // AI : Convert overlay to data format for caching
@@ -1113,7 +1114,6 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
 
       // AI : Add new overlay to city cache so it persists across zoom changes
       try {
-        const { getSelectedCity } = await import('@composables/map/useCityData');
         const selectedCity = getSelectedCity();
         if (selectedCity) {
           await addNewOverlayToCityCache(overlayObject, selectedCity.id);

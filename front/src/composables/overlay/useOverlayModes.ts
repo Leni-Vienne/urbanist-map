@@ -114,7 +114,7 @@ export function toggleEditMode(onModeExit?: () => void): void {
   // AI : Execute state transition
   transitionToState(newState)
 
-  // AI : Execute custom exit logic if provided (for backward compatibility)
+  // AI : Execute custom exit logic if provided (used by useAddOverlay and MapControls)
   if (!overlay.store.isEditMode && onModeExit) {
     onModeExit()
   }

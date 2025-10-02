@@ -11,6 +11,7 @@ import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColo
 import { createColorIcon } from '@composables/ui/markerIcons';
 import { useStores } from '@composables/core/useStores';
 import { useMapStore } from '@stores/pinia/mapStore';
+import { withErrorToast } from '@composables/core/useErrorHandling';
 import type { OverlayData, MarkerColor } from '@types';
 
 // AI : Minimum zoom level required to load city projects and overlays
@@ -37,17 +38,15 @@ export async function fetchCityProjectsData(cityId: string): Promise<OverlayData
     return cachedData;
   }
 
-  try {
-    // AI : Backend now returns data in OverlayData format directly
-    const overlaysData = await trpc.cities.getCityProjects.query({ cityId });
+  // AI : Backend now returns data in OverlayData format directly
+  const overlaysData = await withErrorToast(
+    () => trpc.cities.getCityProjects.query({ cityId }),
+    'Error fetching city projects data'
+  );
 
-    // AI : Cache the data for future use in store
-    mapStore.setCityProjectsCache(cityId, overlaysData);
-    return overlaysData;
-  } catch (error) {
-    console.error('Error fetching city projects data:', error);
-    throw error;
-  }
+  // AI : Cache the data for future use in store
+  mapStore.setCityProjectsCache(cityId, overlaysData);
+  return overlaysData;
 }
 
 /**

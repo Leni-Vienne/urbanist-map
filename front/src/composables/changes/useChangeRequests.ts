@@ -1,11 +1,12 @@
 import { ref, computed } from 'vue';
 import { trpc } from '@client';
-import type { 
-  SubmitChangeRequestInput, 
+import type {
+  SubmitChangeRequestInput,
   ChangeRequest,
-  ChangeHistoryEntry 
+  ChangeHistoryEntry
 } from '../../types/api';
 import { useAuthStore } from '@stores/authStore';
+import { withErrorHandling } from '@composables/core/useErrorHandling';
 
 const pendingChangeRequests = ref<ChangeRequest[]>([]);
 const changeHistory = ref<ChangeHistoryEntry[]>([]);
@@ -17,44 +18,45 @@ const changeRequestsLoaded = ref(false);
 export function useChangeRequests() {
   
   async function submitChangeRequest(input: SubmitChangeRequestInput) {
+    isLoading.value = true;
     try {
-      isLoading.value = true;
-      
-      const result = await trpc.changes.submitChangeRequest.mutate(input);
-      
-      if (result.success) {
+      const result = await withErrorHandling(
+        async () => trpc.changes.submitChangeRequest.mutate(input),
+        { errorMessage: 'Failed to submit change request' }
+      );
+
+      if (result?.success) {
         await refreshPendingChangeRequests();
       }
-      
+
       return result;
-    } catch (error) {
-      console.error('Failed to submit change request:', error);
-      throw error;
     } finally {
       isLoading.value = false;
     }
   }
 
   async function refreshPendingChangeRequests() {
-    try {
-      // AI : Skip if already loaded
-      if (changeRequestsLoaded.value) {
-        return;
-      }
+    // AI : Skip if already loaded
+    if (changeRequestsLoaded.value) {
+      return;
+    }
 
-      isLoading.value = true;
+    isLoading.value = true;
+    try {
       const { isAdmin } = useAuthStore();
-      
+
       // AI : Use admin route for admins, user route for regular users
-      const result = isAdmin 
-        ? await trpc.changes.getPendingChangeRequests.query()
-        : await trpc.changes.getMyChangeRequests.query();
-        
-      pendingChangeRequests.value = result;
-      changeRequestsLoaded.value = true;
-    } catch (error) {
-      console.error('Failed to fetch pending change requests:', error);
-      throw error;
+      const result = await withErrorHandling(
+        async () => isAdmin
+          ? trpc.changes.getPendingChangeRequests.query()
+          : trpc.changes.getMyChangeRequests.query(),
+        { errorMessage: 'Failed to fetch pending change requests' }
+      );
+
+      if (result) {
+        pendingChangeRequests.value = result;
+        changeRequestsLoaded.value = true;
+      }
     } finally {
       isLoading.value = false;
     }
@@ -65,61 +67,53 @@ export function useChangeRequests() {
   }
 
   async function approveChangeRequests(changeRequestIds: string[]) {
+    isLoading.value = true;
     try {
-      isLoading.value = true;
-      
-      const result = await trpc.changes.approveChangeRequests.mutate({
-        changeRequestIds
-      });
-      
-      if (result.success) {
+      const result = await withErrorHandling(
+        async () => trpc.changes.approveChangeRequests.mutate({ changeRequestIds }),
+        { errorMessage: 'Failed to approve change requests' }
+      );
+
+      if (result?.success) {
         await refreshPendingChangeRequests();
       }
-      
+
       return result;
-    } catch (error) {
-      console.error('Failed to approve change requests:', error);
-      throw error;
     } finally {
       isLoading.value = false;
     }
   }
 
   async function rejectChangeRequests(changeRequestIds: string[]) {
+    isLoading.value = true;
     try {
-      isLoading.value = true;
-      
-      const result = await trpc.changes.rejectChangeRequests.mutate({
-        changeRequestIds
-      });
-      
-      if (result.success) {
+      const result = await withErrorHandling(
+        async () => trpc.changes.rejectChangeRequests.mutate({ changeRequestIds }),
+        { errorMessage: 'Failed to reject change requests' }
+      );
+
+      if (result?.success) {
         await refreshPendingChangeRequests();
       }
-      
+
       return result;
-    } catch (error) {
-      console.error('Failed to reject change requests:', error);
-      throw error;
     } finally {
       isLoading.value = false;
     }
   }
 
   async function getChangeHistory(entityType?: 'project' | 'overlay', entityId?: string) {
+    isLoading.value = true;
     try {
-      isLoading.value = true;
-      
-      const result = await trpc.changes.getChangeHistory.query({
-        entityType,
-        entityId
-      });
-      
-      changeHistory.value = result;
+      const result = await withErrorHandling(
+        async () => trpc.changes.getChangeHistory.query({ entityType, entityId }),
+        { errorMessage: 'Failed to fetch change history' }
+      );
+
+      if (result) {
+        changeHistory.value = result;
+      }
       return result;
-    } catch (error) {
-      console.error('Failed to fetch change history:', error);
-      throw error;
     } finally {
       isLoading.value = false;
     }

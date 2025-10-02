@@ -1,5 +1,6 @@
 import { useChangeRequests } from './useChangeRequests';
 import type { FieldChange } from '../../../../back/src/routes/changes';
+import { withErrorToast } from '@composables/core/useErrorHandling';
 
 export function useFieldChanges() {
   const { submitChangeRequest } = useChangeRequests();
@@ -11,8 +12,8 @@ export function useFieldChanges() {
     newValue: any,
     changeReason?: string
   ) {
-    try {
-      return await submitChangeRequest({
+    return withErrorToast(
+      () => submitChangeRequest({
         entityType: 'project',
         entityId: projectId,
         changes: [{
@@ -21,11 +22,9 @@ export function useFieldChanges() {
           newValue,
           changeReason,
         }]
-      });
-    } catch (error) {
-      console.error('Failed to submit project field change:', error);
-      throw error;
-    }
+      }),
+      'Failed to submit project field change'
+    );
   }
 
   async function submitOverlayFieldChange(
@@ -35,8 +34,8 @@ export function useFieldChanges() {
     newValue: any,
     changeReason?: string
   ) {
-    try {
-      return await submitChangeRequest({
+    return withErrorToast(
+      () => submitChangeRequest({
         entityType: 'overlay',
         entityId: overlayId,
         changes: [{
@@ -45,11 +44,9 @@ export function useFieldChanges() {
           newValue,
           changeReason,
         }]
-      });
-    } catch (error) {
-      console.error('Failed to submit overlay field change:', error);
-      throw error;
-    }
+      }),
+      'Failed to submit overlay field change'
+    );
   }
 
   async function submitMultipleFieldChanges(
@@ -57,16 +54,14 @@ export function useFieldChanges() {
     entityId: string,
     fieldChanges: FieldChange[]
   ) {
-    try {
-      return await submitChangeRequest({
+    return withErrorToast(
+      () => submitChangeRequest({
         entityType,
         entityId,
         changes: fieldChanges
-      });
-    } catch (error) {
-      console.error('Failed to submit multiple field changes:', error);
-      throw error;
-    }
+      }),
+      'Failed to submit multiple field changes'
+    );
   }
 
   function createFieldChangeHelper(entityType: 'project' | 'overlay', entityId: string) {
@@ -95,11 +90,11 @@ export function useFieldChanges() {
       }
 
       const result = await submitMultipleFieldChanges(entityType, entityId, [...pendingChanges]);
-      
-      if (result.success) {
+
+      if (result?.success) {
         pendingChanges.length = 0;
       }
-      
+
       return result;
     }
 
