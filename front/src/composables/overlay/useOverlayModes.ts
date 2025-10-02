@@ -144,32 +144,6 @@ function watchZoomLevel(): void {
   })
 }
 
-/**
- * AI : Composable to manage view mode overlays (for backward compatibility)
- */
-export function useViewModeOverlays() {
-  const { overlay } = useStores()
-
-  return {
-    viewModeOverlays: overlay.viewModeOverlays,
-    loading: overlay.overlaysLoading,
-    error: overlay.overlaysError,
-
-    renderCurrentOverlays: () => {
-      const newState = getCurrentState()
-      transitionToState(newState)
-    },
-
-    setViewModeOverlays: (overlaysData: any[]) => {
-      overlay.setViewModeOverlays(overlaysData)
-    },
-
-    stopCameraTracking: () => {
-      overlay.clearViewModeOverlays()
-    },
-  }
-}
-
 // AI : Initialize watch when map is ready
 onMapInitialized(() => {
   watchZoomLevel()

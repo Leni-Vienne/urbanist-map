@@ -31,12 +31,9 @@ import { addTileLayer } from '@composables/map/useTileLayers';
 import { initializeCameraBounds } from '@composables/map/useCameraBounds';
 import { renderViewModeOverlays, removeOverlay, undo, redo } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
-import { useViewModeOverlays } from '@composables/overlay/useOverlayModes';
 import { currentCityOverlays, updateOverlayMarkersForFilters } from '@composables/map/useCityOverlays';
 import { initializeCountryMarkers } from '@composables/map/useCountryMarkers';
-import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { useUiStore } from '@stores/uiStore';
-import { storeToRefs } from 'pinia';
+import { useStores } from '@composables/core/useStores';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import type { OverlayData } from '@types';
 
@@ -44,17 +41,10 @@ import MapControls from '@components/map/MapControls.vue';
 import UserMenu from '@components/auth/UserMenu.vue';
 import PopupContainer from '@components/map/PopupContainer.vue';
 
-// AI: Get Pinia stores
-const overlayStore = useOverlayStore();
-const uiStore = useUiStore();
+// AI: Get stores
+const { overlay } = useStores();
 const toast = useToast();
 const isLoading = ref(true);
-
-
-const { isEditMode, overlays } = storeToRefs(overlayStore);
-
-// AI : Use view mode overlays for displaying overlays when camera moves
-const { stopCameraTracking } = useViewModeOverlays();
 
 // AI : Filter overlays based on completion status
 async function filterOverlaysByCompletionStatus() {
@@ -67,7 +57,6 @@ async function filterOverlaysByCompletionStatus() {
   if (!currentCityOverlays.value?.length) return;
 
   // AI : Use the shared filtering utility
-  // AI : Use shared completion filter state
   const completionFilters = useCompletionFilters();
   const visibleOverlays = completionFilters.filterByCompletionStatus(currentCityOverlays.value) as OverlayData[];
   const visibleOverlayIds = new Set(visibleOverlays.map(o => o.id));
@@ -78,34 +67,31 @@ async function filterOverlaysByCompletionStatus() {
 
   // AI : Find overlays that should be visible but aren't currently rendered
   const overlaysToRender = visibleOverlays.filter(cdnOverlay => {
-    const overlayObject = overlays.value[cdnOverlay.id];
+    const overlayObject = overlay.store.overlays[cdnOverlay.id];
     return !overlayObject || !overlayObject.overlay || !map.value!.hasLayer(overlayObject.overlay);
   });
 
   // AI : Recreate missing overlays from scratch
   if (overlaysToRender.length > 0) {
     renderViewModeOverlays(overlaysToRender, true, false);
-
-    // AI : Update view mode tracking with currently visible overlays
-    const { setViewModeOverlays } = useViewModeOverlays();
-    setViewModeOverlays(visibleOverlays);
+    overlay.setViewModeOverlays(visibleOverlays);
   }
 }
 
 // AI : Watch for edit mode changes to start/stop camera tracking
-watch(() => isEditMode?.value, (editMode) => {
+watch(() => overlay.store.isEditMode, (editMode) => {
   if (editMode) {
     // AI : Stop view mode tracking when entering edit mode
-    stopCameraTracking();
+    overlay.clearViewModeOverlays();
   } else {
-    // AI : Apply filters when entering view mode //TODO may not work on slow internet
+    // AI : Apply filters when entering view mode
     setTimeout(async () => await filterOverlaysByCompletionStatus(), 100);
   }
 });
 
-// AI : Watch for overlays changes to apply filters //TODO may not work on slow internet
-watch(() => overlays.value ? Object.keys(overlays.value).length : 0, () => {
-  if (!isEditMode?.value) {
+// AI : Watch for overlays changes to apply filters
+watch(() => overlay.store.overlays ? Object.keys(overlay.store.overlays).length : 0, () => {
+  if (!overlay.store.isEditMode) {
     setTimeout(async () => await filterOverlaysByCompletionStatus(), 100);
   }
 });
