@@ -17,7 +17,6 @@ export function renderForStrategy(
   strategy: RenderStrategy,
   overlaysData: OverlayData[],
   cityId: string,
-  cityName: string
 ): void {
   const { overlay } = useStores()
 
@@ -55,7 +54,7 @@ export function renderForStrategy(
   } else if (strategy.shouldRenderMarkers) {
     // AI : Clear full overlays and render markers only (low zoom)
     clearAllOverlays()
-    renderOverlayMarkersFromCache(cityId, cityName)
+    renderOverlayMarkersFromCache(cityId)
   }
 
   // AI : Update marker colors for edit/view mode

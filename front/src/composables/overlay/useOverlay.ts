@@ -17,6 +17,12 @@ import { createColorIcon } from '@composables/ui/markerIcons';
 import { useProjects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import { trpc } from '@client';
 import { getSelectedCity } from '@composables/map/useCityData';
+import {
+  getOverlayDataWithEditModifications,
+  getFromEditModeOverlayCache,
+  saveToEditModeOverlayCache,
+} from '@composables/overlay/useOverlayEditCache';
+import { withErrorHandling } from '@composables/core/useErrorHandling';
 
 // AI : Export reactive refs from stores
 export let overlays: Ref<Record<string, OverlayObject>>;
@@ -154,7 +160,11 @@ export function createOverlay(imageUrl: string, overlayObject?: OverlayObject) {
 
     return newOverlay;
   } catch (error) {
-    console.error('AI : Error creating overlay:', error);
+    // AI : Use error handling utility with toast notification
+    withErrorHandling(
+      async () => { throw error; },
+      { errorMessage: 'Failed to create overlay', logError: true }
+    );
     return null;
   }
 }
@@ -405,79 +415,33 @@ function saveOverlayModificationsToCache(overlayObject: OverlayObject): void {
 }
 
 /**
- * AI : Save overlay modifications to edit mode cache (now uses store)
- */
-export function saveToEditModeOverlayCache(overlayId: string, data: { corners: { lat: number, lng: number }[], isModified: boolean }): void {
-  const overlayStore = useOverlayStore();
-  overlayStore.saveToEditModeCache(overlayId, data);
-}
-
-/**
- * AI : Get overlay modifications from edit mode cache
- */
-export function getFromEditModeOverlayCache(overlayId: string): { corners: { lat: number, lng: number }[], isModified: boolean } | undefined {
-  const overlayStore = useOverlayStore();
-  return overlayStore.getFromEditModeCache(overlayId);
-}
-
-/**
- * AI : Get overlay data with edit modifications applied (for edit mode)
- * @param overlayData - Original overlay data
- * @returns Overlay data with edit modifications applied if in edit mode
- */
-function getOverlayDataWithEditModifications(overlayData: OverlayData): OverlayData {
-  if (!isEditMode.value) {
-    return overlayData; // AI : Return original data in view mode
-  }
-
-  // AI : Get edit modifications from the main overlay cache
-  const editModifications = getFromEditModeOverlayCache(overlayData.id);
-  if (editModifications) {
-    // AI : Apply edit modifications
-    return {
-      ...overlayData,
-      corners: editModifications.corners,
-      isModified: editModifications.isModified
-    };
-  }
-
-  return overlayData; // AI : No modifications found
-}
-
-/**
- * AI : Clear all edit mode cache
- */
-export function clearEditModeOverlayCache(): void {
-  const overlayStore = useOverlayStore();
-  overlayStore.clearEditModeCache();
-}
-
-
-/**
  * AI : Add new overlay to city cache so it persists across zoom changes
  */
 export async function addNewOverlayToCityCache(overlayObject: OverlayObject, cityId: string): Promise<void> {
-  const mapStore = useMapStore();
+  return withErrorHandling(
+    async () => {
+      const mapStore = useMapStore();
 
-  // AI : Convert overlay to data format for caching
-  const overlayData = convertOverlayToData(overlayObject);
+      // AI : Convert overlay to data format for caching
+      const overlayData = convertOverlayToData(overlayObject);
 
-  // AI : Get current city cache or create empty array
-  const currentCache = mapStore.getCityProjectsCache(cityId) ?? [];
+      // AI : Get current city cache or create empty array
+      const currentCache = mapStore.getCityProjectsCache(cityId) ?? [];
 
-  // AI : Add new overlay to cache (avoid duplicates)
-  const existingIndex = currentCache.findIndex((item) => item.id === overlayObject.id);
-  if (existingIndex >= 0) {
-    // AI : Update existing entry
-    currentCache[existingIndex] = overlayData;
-  } else {
-    // AI : Add new entry
-    currentCache.push(overlayData);
-  }
+      // AI : Add new overlay to cache (avoid duplicates)
+      const existingIndex = currentCache.findIndex((item) => item.id === overlayObject.id);
+      if (existingIndex >= 0) {
+        // AI : Update existing entry
+        currentCache[existingIndex] = overlayData;
+      } else {
+        // AI : Add new entry
+        currentCache.push(overlayData);
+      }
 
-  mapStore.setCityProjectsCache(cityId, currentCache);
-
-  console.log(`AI : Added new overlay ${overlayObject.id} to city cache for ${cityId}`);
+      mapStore.setCityProjectsCache(cityId, currentCache);
+    },
+    { errorMessage: 'Failed to cache overlay', logError: true }
+  ) as Promise<void>;
 }
 
 /**
@@ -536,8 +500,8 @@ function calculateOutlineSize(overlayElement: HTMLElement, baseSize: number): nu
     // AI : Clamp to reasonable bounds
     return Math.max(1, Math.min(50, Math.round(scaledOutline)));
 
-  } catch (error) {
-    console.warn('AI : Error calculating outline size, using base size:', error);
+  } catch {
+    // AI : Silently fall back to base size on error
     return baseSize;
   }
 }
@@ -549,36 +513,31 @@ function calculateOutlineSize(overlayElement: HTMLElement, baseSize: number): nu
 function selectOverlay(overlayId: string | null): void {
   // AI : Clean up previous selection if different from new selection
   if (idSelectedOverlay.value && idSelectedOverlay.value !== overlayId) {
-    const previouslySelected = overlays.value[idSelectedOverlay.value];
-    if (previouslySelected) {
-      removeSelectionOutline(previouslySelected);
-    }
+    removeSelectionOutline(overlays.value[idSelectedOverlay.value]);
   }
 
   // AI : Update selected overlay ID
   idSelectedOverlay.value = overlayId;
+  if (!overlayId) return;
 
   // AI : Apply selection outline to new selection
-  if (overlayId) {
-    const newlySelected = overlays.value[overlayId];
-    if (newlySelected) {
-      // AI : Wait for image to load before applying outline to avoid massive border
-      const imgElement = newlySelected.overlay?.getElement();
-      if (imgElement instanceof HTMLImageElement) {
-        if (imgElement.complete && imgElement.naturalWidth > 0) {
-          // AI : Image is already loaded, apply outline immediately
-          applySelectionOutline(newlySelected);
-        } else {
-          // AI : Image not loaded yet, wait for load event
-          imgElement.addEventListener('load', () => {
-            applySelectionOutline(newlySelected);
-          }, { once: true });
-        }
-      } else {
-        // AI : Fallback for non-image elements
-        applySelectionOutline(newlySelected);
-      }
-    }
+  const newlySelected = overlays.value[overlayId];
+  if (!newlySelected) return;
+
+  // AI : Wait for image to load before applying outline to avoid massive border
+  const imgElement = newlySelected.overlay?.getElement();
+  if (!(imgElement instanceof HTMLImageElement)) {
+    // AI : Fallback for non-image elements
+    applySelectionOutline(newlySelected);
+    return;
+  }
+
+  if (imgElement.complete && imgElement.naturalWidth > 0) {
+    // AI : Image is already loaded, apply outline immediately
+    applySelectionOutline(newlySelected);
+  } else {
+    // AI : Image not loaded yet, wait for load event
+    imgElement.addEventListener("load", () => applySelectionOutline(newlySelected), { once: true });
   }
 }
 
@@ -855,7 +814,6 @@ function getOverlayBounds(overlay: OverlayObject): L.LatLngBounds | null {
 
   // AI : Priority 3: Validate all corner coordinates exist and are valid numbers
   if (!overlay.corners || overlay.corners.length !== 4) {
-    console.warn('AI : Invalid overlay corners for overlay:', overlay.id);
     return null;
   }
 
@@ -971,8 +929,8 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
         return true;
       }
     }
-  } catch (error) {
-    console.error('Error zooming to overlay bounds:', error);
+  } catch {
+    // AI : Fall back to marker position on error
     if (overlay.marker) {
       map.value.setView(overlay.marker.getLatLng(), 18);
       return true;
@@ -1064,7 +1022,6 @@ function createReplacementMarker(overlayObject: OverlayObject, projectId: string
 export function addOverlay(imageUrl: string, projectId: string, replacesOverlayId?: string) {
   // AI : Only allow adding overlays in edit mode
   if (!isEditMode.value) {
-    console.warn('Cannot add overlay in view mode');
     return;
   }
 
@@ -1090,7 +1047,6 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
   if (!newOverlay) return;
   const element = newOverlay.getElement();
   if (!element) {
-    console.error('Failed to get overlay element');
     throw new Error('Overlay element not found');
   }
 
@@ -1113,13 +1069,9 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
       addOverlayToProjectWithId(projectId, id);
 
       // AI : Add new overlay to city cache so it persists across zoom changes
-      try {
-        const selectedCity = getSelectedCity();
-        if (selectedCity) {
-          await addNewOverlayToCityCache(overlayObject, selectedCity.id);
-        }
-      } catch (error) {
-        console.warn('AI : Failed to add new overlay to city cache:', error);
+      const selectedCity = getSelectedCity();
+      if (selectedCity) {
+        await addNewOverlayToCityCache(overlayObject, selectedCity.id);
       }
     }
   })
@@ -1169,8 +1121,7 @@ function applyHistoryAction(action: 'undo' | 'redo') {
 
     updateMarkerAndSaveOverlay(overlayObject);
   } catch (error) {
-    console.error(`AI : Error during ${action}:`, error);
-    throw error;
+    throw new Error(`Failed to ${action} overlay: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -1441,39 +1392,37 @@ export async function navigateToOverlay(overlayId: string, centerMap: boolean = 
 }
 
 async function loadAndNavigateToOverlay(overlayId: string, centerMap: boolean): Promise<boolean> {
-  try {
+  return withErrorHandling(
+    async () => {
+      // AI : Fetch overlay and intersecting overlays from backend
+      const result = await trpc.overlay.getOverlay.query({
+        id: overlayId,
+        includeIntersecting: true,
+      });
 
-    // AI : Fetch overlay and intersecting overlays from backend
-    const result = await trpc.overlay.getOverlay.query({
-      id: overlayId,
-      includeIntersecting: true,
-    });
+      if (!result.overlay) {
+        throw new Error('Overlay not found');
+      }
 
-    if (!result.overlay) {
-      throw new Error('Overlay not found: The requested overlay could not be found on the server');
-    }
+      // AI : Render the main overlay
+      renderViewModeOverlays([result.overlay as OverlayData], true, false);
 
-    // AI : Render the main overlay
-    renderViewModeOverlays([result.overlay as OverlayData], true, false);
+      // AI : Render intersecting overlays if they exist
+      if (result.intersectingOverlays.length > 0) {
+        renderViewModeOverlays(result.intersectingOverlays as OverlayData[], true, false);
+      }
 
-    // AI : Render intersecting overlays if they exist
-    if (result.intersectingOverlays.length > 0) {
-      renderViewModeOverlays(result.intersectingOverlays as OverlayData[], true, false);
-    }
+      // AI : Verify overlay was successfully loaded
+      const loadedOverlay = overlays.value[overlayId];
+      if (!loadedOverlay) {
+        throw new Error('Failed to load overlay after fetching');
+      }
 
-    // AI : Verify overlay was successfully loaded
-    const loadedOverlay = overlays.value[overlayId];
-    if (!loadedOverlay) {
-      throw new Error('Loading failed: Failed to load overlay after fetching from server');
-    }
-
-    // AI : Navigate to the successfully loaded overlay
-    return selectAndCenterOverlay(overlayId, undefined, undefined, centerMap);
-
-  } catch (error) {
-    console.error('Error fetching overlay:', error);
-    throw new Error('Loading failed: Failed to fetch overlay from server');
-  }
+      // AI : Navigate to the successfully loaded overlay
+      return selectAndCenterOverlay(overlayId, undefined, undefined, centerMap);
+    },
+    { errorMessage: 'Failed to load overlay', rethrow: true }
+  ) as Promise<boolean>;
 }
 
 function selectAndCenterOverlay(overlayId: string, index?: number, total?: number, centerMap: boolean = true) {
@@ -1505,7 +1454,6 @@ function selectAndCenterOverlay(overlayId: string, index?: number, total?: numbe
     return true;
   }
 
-  console.warn('Navigation issue: The overlay exists but could not be shown on the map');
   return false;
 }
 

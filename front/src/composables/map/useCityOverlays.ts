@@ -2,7 +2,8 @@
 import { ref, watch } from 'vue';
 import L from 'leaflet';
 import { map, onMapInitialized, currentZoomLevel } from '@composables/core/useMap';
-import { renderViewModeOverlays, clearAllOverlays, getFromEditModeOverlayCache } from '@composables/overlay/useOverlay';
+import { renderViewModeOverlays, clearAllOverlays } from '@composables/overlay/useOverlay';
+import { getOverlayDataWithEditModifications } from '@composables/overlay/useOverlayEditCache';
 import { hasCachedCityProjectsData, getSelectedCity } from '@composables/map/useCityData';
 import { calculateCenterFromCorners } from '../../utils/typeFactories';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
@@ -11,7 +12,7 @@ import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColo
 import { createColorIcon } from '@composables/ui/markerIcons';
 import { useStores } from '@composables/core/useStores';
 import { useMapStore } from '@stores/pinia/mapStore';
-import { withErrorToast } from '@composables/core/useErrorHandling';
+import { withErrorHandling, withErrorToast } from '@composables/core/useErrorHandling';
 import type { OverlayData, MarkerColor } from '@types';
 
 // AI : Minimum zoom level required to load city projects and overlays
@@ -52,71 +53,75 @@ export async function fetchCityProjectsData(cityId: string): Promise<OverlayData
 /**
  * AI : Load projects for a specific city and display overlays on map
  */
-export async function loadCityOverlays(cityId: string, cityName: string, forceFullLoad = false): Promise<void> {
-  try {
-    // AI : Check if user is zoomed in enough to load full overlays
-    if (!map.value) {
-      console.warn('AI : Map not available for zoom check');
-      return;
+export async function loadCityOverlays(cityId: string, forceFullLoad = false): Promise<void> {
+  return withErrorHandling(
+    async () => {
+      // AI : Check if user is zoomed in enough to load full overlays
+      if (!map.value) {
+        return;
+      }
+
+      const currentZoom = map.value.getZoom();
+
+      // AI : Check if we have cached data and decide what to show
+      const hasCachedData = hasCachedCityProjectsData(cityId);
+      const shouldShowFullOverlays = currentZoom >= MIN_ZOOM_FOR_OVERLAYS || forceFullLoad;
+
+      if (hasCachedData && shouldShowFullOverlays) {
+        // AI : We have cached data and zoom is high enough - show full overlays immediately
+        renderFullOverlaysFromCache(cityId);
+        return;
+      } else if (hasCachedData && !shouldShowFullOverlays) {
+        // AI : We have cached data but zoom is too low - show markers only
+        renderOverlayMarkersFromCache(cityId);
+        return;
+      }
+
+      // AI : No cached data - need to fetch from API
+      // AI : If zoom is too low and not forcing full load, show overlay markers only
+      if (currentZoom < MIN_ZOOM_FOR_OVERLAYS && !forceFullLoad) {
+        await showOverlayMarkers(cityId);
+        return;
+      }
+
+      // AI : Load full overlays
+      isLoadingCityProjects.value = true;
+
+      // AI : Clear any existing overlays and markers before loading new city
+      clearAllOverlays();
+      removeOverlayMarkers();
+
+      // AI : Clear view mode overlays state using store
+      const { overlay } = useStores();
+      overlay.clearViewModeOverlays();
+
+      // AI : Get overlays data (cached or fresh)
+      const overlaysData = await fetchCityProjectsData(cityId);
+
+      currentCityOverlays.value = overlaysData;
+
+      // AI : Filter overlays based on current completion status filters
+      const completionFilters = useCompletionFilters();
+      const overlaysToRender = completionFilters.filterByCompletionStatus(overlaysData);
+
+      // AI : Set overlays in view mode overlays and render them
+      overlay.setViewModeOverlays(overlaysToRender);
+
+      // AI : Render only visible overlays on the map with markers
+      renderViewModeOverlays(overlaysToRender, true, true);
+
+      // AI : Check zoom level after loading to ensure overlays are hidden if zoom is too low
+      checkZoomAndHideOverlays();
+    },
+    {
+      errorMessage: 'Failed to load city overlays',
+      logError: true,
+      onError: () => {
+        currentCityOverlays.value = [];
+        isLoadingCityProjects.value = false;
+      }
     }
-
-    const currentZoom = map.value.getZoom();
-
-    // AI : Check if we have cached data and decide what to show
-    const hasCachedData = hasCachedCityProjectsData(cityId);
-    const shouldShowFullOverlays = currentZoom >= MIN_ZOOM_FOR_OVERLAYS || forceFullLoad;
-
-    if (hasCachedData && shouldShowFullOverlays) {
-      // AI : We have cached data and zoom is high enough - show full overlays immediately
-      renderFullOverlaysFromCache(cityId, cityName);
-      return;
-    } else if (hasCachedData && !shouldShowFullOverlays) {
-      // AI : We have cached data but zoom is too low - show markers only
-      renderOverlayMarkersFromCache(cityId, cityName);
-      return;
-    }
-
-    // AI : No cached data - need to fetch from API
-    // AI : If zoom is too low and not forcing full load, show overlay markers only
-    if (currentZoom < MIN_ZOOM_FOR_OVERLAYS && !forceFullLoad) {
-      await showOverlayMarkers(cityId);
-      return;
-    }
-
-    // AI : Load full overlays
-    isLoadingCityProjects.value = true;
-
-    // AI : Clear any existing overlays and markers before loading new city
-    clearAllOverlays();
-    removeOverlayMarkers();
-
-    // AI : Clear view mode overlays state using store
-    const { overlay } = useStores();
-    overlay.clearViewModeOverlays();
-
-    // AI : Get overlays data (cached or fresh)
-    const overlaysData = await fetchCityProjectsData(cityId);
-
-    currentCityOverlays.value = overlaysData;
-
-    // AI : Filter overlays based on current completion status filters
-    const completionFilters = useCompletionFilters();
-    const overlaysToRender = completionFilters.filterByCompletionStatus(overlaysData);
-
-    // AI : Set overlays in view mode overlays and render them
-    overlay.setViewModeOverlays(overlaysToRender);
-
-    // AI : Render only visible overlays on the map with markers
-    renderViewModeOverlays(overlaysToRender, true, true);
-
-    // AI : Check zoom level after loading to ensure overlays are hidden if zoom is too low
-    checkZoomAndHideOverlays();
-  } catch (error) {
-    console.error('AI : Error loading city projects:', error);
-    currentCityOverlays.value = [];
-  } finally {
-    isLoadingCityProjects.value = false;
-  }
+  ) as Promise<void>;
 }
 
 /**
@@ -163,23 +168,28 @@ function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void {
 }
 
 async function showOverlayMarkers(cityId: string): Promise<void> {
-  try {
-    isLoadingCityProjects.value = true;
+  return withErrorHandling(
+    async () => {
+      isLoadingCityProjects.value = true;
 
-    // AI : Clear any existing overlays and markers before loading new city
-    clearAllOverlays();
-    removeOverlayMarkers();
+      // AI : Clear any existing overlays and markers before loading new city
+      clearAllOverlays();
+      removeOverlayMarkers();
 
-    // AI : Get overlays data (cached or fresh)
-    const overlaysData = await fetchCityProjectsData(cityId);
+      // AI : Get overlays data (cached or fresh)
+      const overlaysData = await fetchCityProjectsData(cityId);
 
-    // AI : Use shared function to render markers
-    renderOverlayMarkersFromData(overlaysData);
-  } catch (error) {
-    console.error('AI : Error loading overlay markers:', error);
-  } finally {
-    isLoadingCityProjects.value = false;
-  }
+      // AI : Use shared function to render markers
+      renderOverlayMarkersFromData(overlaysData);
+    },
+    {
+      errorMessage: 'Failed to load overlay markers',
+      logError: true,
+      onError: () => {
+        isLoadingCityProjects.value = false;
+      }
+    }
+  ) as Promise<void>;
 }
 
 /**
@@ -192,87 +202,64 @@ export function removeOverlayMarkers(): void {
   }
 }
 
-/**
- * AI : Get overlay data with edit modifications applied (for edit mode)
- * @param overlayData - Original overlay data
- * @returns Overlay data with edit modifications applied if in edit mode
- */
-function getOverlayDataWithEditModifications(overlayData: OverlayData): OverlayData {
-  const { overlay } = useStores();
-  if (!overlay.store.isEditMode) {
-    return overlayData; // AI : Return original data in view mode
-  }
-
-  // AI : Get edit modifications from the main overlay cache
-  const editModifications = getFromEditModeOverlayCache(overlayData.id);
-  if (editModifications) {
-    // AI : Apply edit modifications
-    return {
-      ...overlayData,
-      corners: editModifications.corners,
-      isModified: editModifications.isModified
-    };
-  }
-
-  return overlayData; // AI : No modifications found
-}
+// AI : getOverlayDataWithEditModifications is now imported from useOverlayEditCache
 
 /**
  * AI : Render full overlays from cached data
  */
-function renderFullOverlaysFromCache(cityId: string, cityName: string) {
+function renderFullOverlaysFromCache(cityId: string) {
   const mapStore = useMapStore();
   const overlaysData = mapStore.getCityProjectsCache(cityId);
   if (!overlaysData) {
-    console.warn(`AI : No cached data found for city ${cityName}`);
     return;
   }
 
-  try {
-    // AI : Clear any existing overlays and markers before loading
-    clearAllOverlays();
-    removeOverlayMarkers();
+  withErrorHandling(
+    async () => {
+      // AI : Clear any existing overlays and markers before loading
+      clearAllOverlays();
+      removeOverlayMarkers();
 
-    // AI : Clear view mode overlays state using store
-    const { overlay } = useStores();
-    overlay.clearViewModeOverlays();
+      // AI : Clear view mode overlays state using store
+      const { overlay } = useStores();
+      overlay.clearViewModeOverlays();
 
-    currentCityOverlays.value = overlaysData;
+      currentCityOverlays.value = overlaysData;
 
-    // AI : Filter overlays based on current completion status filters
-    const completionFilters = useCompletionFilters();
-    const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData);
+      // AI : Filter overlays based on current completion status filters
+      const completionFilters = useCompletionFilters();
+      const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData);
 
-    // AI : Set overlays in view mode overlays and render them
-    overlay.setViewModeOverlays(visibleOverlays);
+      // AI : Set overlays in view mode overlays and render them
+      overlay.setViewModeOverlays(visibleOverlays);
 
-    // AI : Render only visible overlays on the map with markers
-    renderViewModeOverlays(visibleOverlays, true, true);
-  } catch (error) {
-    console.error('AI : Error rendering full overlays from cache:', error);
-  }
+      // AI : Render only visible overlays on the map with markers
+      renderViewModeOverlays(visibleOverlays, true, true);
+    },
+    { errorMessage: 'Failed to render cached overlays', logError: true }
+  );
 }
 
 /**
  * AI : Render overlay markers from cached data
  */
-export function renderOverlayMarkersFromCache(cityId: string, cityName: string): void {
+export function renderOverlayMarkersFromCache(cityId: string): void {
   const mapStore = useMapStore();
   const overlaysData = mapStore.getCityProjectsCache(cityId);
   if (!overlaysData) {
-    console.warn(`AI : No cached data found for city ${cityName}`);
     return;
   }
 
-  try {
-    // AI : Only remove overlay markers if they exist, don't clear all overlays
-    removeOverlayMarkers();
+  withErrorHandling(
+    async () => {
+      // AI : Only remove overlay markers if they exist, don't clear all overlays
+      removeOverlayMarkers();
 
-    // AI : Use shared function to render markers
-    renderOverlayMarkersFromData(overlaysData);
-  } catch (error) {
-    console.error('AI : Error rendering overlay markers from cache:', error);
-  }
+      // AI : Use shared function to render markers
+      renderOverlayMarkersFromData(overlaysData);
+    },
+    { errorMessage: 'Failed to render cached overlay markers', logError: true }
+  );
 }
 
 /**
@@ -350,7 +337,7 @@ export function updateOverlayMarkersForFilters(): void {
   }
 
   // AI : Re-render overlay markers with current filters applied
-  renderOverlayMarkersFromCache(selectedCity.id, selectedCity.name);
+  renderOverlayMarkersFromCache(selectedCity.id);
 }
 
 /**
@@ -382,14 +369,14 @@ function setupZoomEventListenerInternal(): void {
 
     // AI : If zoomed in enough and we have overlay markers, upgrade to full overlays
     if (currentZoom >= MIN_ZOOM_FOR_OVERLAYS && overlayMarkersLayer && map.value?.hasLayer(overlayMarkersLayer)) {
-      renderFullOverlaysFromCache(selectedCity.id, selectedCity.name);
+      renderFullOverlaysFromCache(selectedCity.id);
     }
     // AI : If zoomed out from full overlays, show overlay markers again
     else if (currentZoom < MIN_ZOOM_FOR_OVERLAYS && currentCityOverlays.value.length > 0) {
       // AI : Don't call clearAllOverlays() here - useOverlayModes handles clearing
       // AI : Just reset the city overlays array and show markers
       currentCityOverlays.value = [];
-      renderOverlayMarkersFromCache(selectedCity.id, selectedCity.name);
+      renderOverlayMarkersFromCache(selectedCity.id);
     }
   });
 }
