@@ -291,7 +291,7 @@ export async function loadCityProjects(cityId: string | null, cityName: string, 
 
       // AI : Load both overlay projects and marker projects
       await Promise.all([
-        loadCityOverlays(cityId, cityName, forceFullLoad),
+        loadCityOverlays(cityId, forceFullLoad),
         loadCityMarkerProjects(cityId)
       ]);
     } else {

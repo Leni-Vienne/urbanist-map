@@ -83,7 +83,6 @@ function performFullRender(newState: OverlayModeState, transition: StateTransiti
       transition.renderStrategy,
       overlaysData,
       newState.selectedCityId,
-      selectedCity.name
     )
   }
 }
