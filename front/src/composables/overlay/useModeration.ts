@@ -2,6 +2,7 @@ import { ref, onMounted } from 'vue'
 import { trpc } from '@client'
 import type { PendingOverlay, PendingChangeRequest } from '../../types/api'
 import type { ProjectForModeration } from '@types'
+import { withErrorHandling } from '@composables/core/useErrorHandling'
 
 // AI : Interface for tracking recent actions for undo functionality
 interface RecentAction {
@@ -31,20 +32,21 @@ export function useModeration() {
   const moderationLoaded = ref(false)
 
   async function fetchPendingSubmissions() {
-    try {
-      // AI : Skip if already loaded
-      if (moderationLoaded.value) {
-        return
-      }
+    // AI : Skip if already loaded
+    if (moderationLoaded.value) {
+      return
+    }
 
-      const response = await trpc.moderation.getPendingSubmissions.query()
+    const response = await withErrorHandling(
+      async () => trpc.moderation.getPendingSubmissions.query(),
+      { errorMessage: 'Failed to load pending submissions. Please refresh the page.' }
+    )
+
+    if (response) {
       overlays.value = response.overlays
       projects.value = response.projects
       changeRequests.value = response.changeRequests ?? []
       moderationLoaded.value = true
-    }
-    catch (error) {
-      console.error('Error fetching pending submissions:', error)
     }
   }
 
@@ -54,7 +56,7 @@ export function useModeration() {
 
   // AI : Generic approval handler for any moderation item type
   const setApprovalStatus = async <T extends { id: string; name?: string; version: number }>(
-    id: string, 
+    id: string,
     status: 'approved' | 'rejected',
     itemType: 'overlay' | 'project',
     items: T[],
@@ -63,67 +65,68 @@ export function useModeration() {
     conflictMessage: string,
     failureMessage: string
   ): Promise<ApprovalResult> => {
-    try {
-      // AI : Find item by ID and validate existence
-      const item = items.find(i => i.id === id)
-      if (!item) {
-        return {
-          success: false,
-          error: 'not_found',
-          message: notFoundMessage
-        }
+    // AI : Find item by ID and validate existence
+    const item = items.find(i => i.id === id)
+    if (!item) {
+      return {
+        success: false,
+        error: 'not_found',
+        message: notFoundMessage
       }
+    }
 
-      const itemName = item.name ?? (itemType === 'project' ? 'Unknown Project' : 'Unknown')
+    const itemName = item.name ?? (itemType === 'project' ? 'Unknown Project' : 'Unknown')
 
-      // AI : Use version-aware approval endpoint
-      const result = await apiCall({
+    // AI : Use version-aware approval endpoint with error handling
+    const result = await withErrorHandling(
+      async () => apiCall({
         id,
         expectedVersion: item.version,
         status,
-      })
+      }),
+      { errorMessage: `Failed to ${status === 'approved' ? 'approve' : 'reject'} ${itemType}. Please try again.` }
+    )
 
-      if (!result.success) {
-        // AI : Handle version conflicts - refresh data and return conflict info
-        resetModerationLoaded()
-        await fetchPendingSubmissions()
-        return {
-          success: false,
-          error: 'version_conflict',
-          message: conflictMessage,
-          itemName
-        }
-      }
-
-      // AI : Track action for potential undo
-      const action: RecentAction = {
-        id,
-        itemName,
-        itemType,
-        previousStatus: 'pending',
-        newStatus: status,
-        timestamp: new Date()
-      }
-
-      // AI : Add to recent actions and limit to last 5 actions
-      recentActions.value.unshift(action)
-      recentActions.value = recentActions.value.slice(0, 5)
-
-      resetModerationLoaded()
-      await fetchPendingSubmissions()
-
-      return {
-        success: true,
-        itemName
-      }
-    }
-    catch (error) {
-      console.error(`Error ${status === 'approved' ? 'approving' : 'rejecting'} ${itemType} ${id}:`, error)
+    if (!result) {
       return {
         success: false,
         error: 'unknown',
         message: failureMessage
       }
+    }
+
+    if (!result.success) {
+      // AI : Handle version conflicts - refresh data and return conflict info
+      resetModerationLoaded()
+      await fetchPendingSubmissions()
+      return {
+        success: false,
+        error: 'version_conflict',
+        message: conflictMessage,
+        itemName
+      }
+    }
+
+    // AI : Track action for potential undo
+    const action: RecentAction = {
+      id,
+      itemName,
+      itemType,
+      previousStatus: 'pending',
+      newStatus: status,
+      timestamp: new Date()
+    }
+
+    // AI : Add to recent actions and limit to last 5 actions
+    recentActions.value.unshift(action)
+    recentActions.value = recentActions.value.slice(0, 5)
+
+    resetModerationLoaded()
+    await fetchPendingSubmissions()
+
+    return {
+      success: true,
+      itemName
     }
   }
 
@@ -150,38 +153,37 @@ export function useModeration() {
   }
 
   async function undoLastAction() {
-    try {
-      if (recentActions.value.length === 0) {
-        console.warn('No recent actions to undo')
-        return false
-      }
-
-      const lastAction = recentActions.value[0]
-
-      // AI : Restore to previous status (pending) based on item type
-      if (lastAction.itemType === 'overlay') {
-        await trpc.moderation.undoOverlayApprovalStatus.mutate({
-          id: lastAction.id,
-          status: lastAction.previousStatus,
-        })
-      } else if (lastAction.itemType === 'project') {
-        await trpc.moderation.undoProjectApprovalStatus.mutate({
-          id: lastAction.id,
-          status: lastAction.previousStatus,
-        })
-      }
-
-      // AI : Remove the undone action from recent actions
-      recentActions.value = recentActions.value.slice(1)
-
-      resetModerationLoaded()
-      await fetchPendingSubmissions()
-      return true
-    }
-    catch (error) {
-      console.error('Error undoing last action:', error)
+    if (recentActions.value.length === 0) {
+      console.warn('No recent actions to undo')
       return false
     }
+
+    const lastAction = recentActions.value[0]
+
+    // AI : Restore to previous status (pending) based on item type
+    const result = await withErrorHandling(
+      async () => lastAction.itemType === 'overlay'
+        ? trpc.moderation.undoOverlayApprovalStatus.mutate({
+            id: lastAction.id,
+            status: lastAction.previousStatus,
+          })
+        : trpc.moderation.undoProjectApprovalStatus.mutate({
+            id: lastAction.id,
+            status: lastAction.previousStatus,
+          }),
+      { errorMessage: 'Failed to undo action. Please try again.' }
+    )
+
+    if (!result) {
+      return false
+    }
+
+    // AI : Remove the undone action from recent actions
+    recentActions.value = recentActions.value.slice(1)
+
+    resetModerationLoaded()
+    await fetchPendingSubmissions()
+    return true
   }
 
   onMounted(fetchPendingSubmissions)

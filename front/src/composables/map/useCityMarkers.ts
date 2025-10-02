@@ -1,7 +1,7 @@
 import L from "leaflet";
 import { createBuildingIcon, createColorIcon } from '@composables/ui/markerIcons';
 import type { MarkerColor, Project } from '@types';
-import { ref, nextTick } from 'vue';
+import { ref } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
 import { loadCityOverlays } from '@composables/map/useCityOverlays';
 import { useSelectedProject } from '@composables/project/useSelectedProject';
@@ -27,11 +27,6 @@ function getProjectMarkerColor(project: Project): MarkerColor {
   return 'orange'; // Ongoing
 }
 
-// AI : Function to get selected project ID when needed (kept for backward compatibility)
-function getSelectedProjectId() {
-  const { selectedProjectId } = useSelectedProject();
-  return selectedProjectId;
-}
 
 // AI : Opacity constants for city markers
 const MARKER_OPACITY = 0.6; // AI : Default opacity for city markers
@@ -135,7 +130,6 @@ function createProjectInfoTeleportTarget(marker: L.Marker | L.CircleMarker) {
     }
   };
   map.value.on('click', mapClickHandler);
-
 }
 
 /**
@@ -236,7 +230,7 @@ async function loadCityMarkerProjects(cityId: string | null): Promise<void> {
         });
 
         // AI : Add click handler for marker project - show info popup first
-        marker.on('click', async (e) => {
+        marker.on('click', (e) => {
           // AI : Stop all event propagation using Leaflet's method
           L.DomEvent.stopPropagation(e);
 
@@ -251,9 +245,6 @@ async function loadCityMarkerProjects(cityId: string | null): Promise<void> {
 
           // AI : Create teleport target at marker position
           createProjectInfoTeleportTarget(marker);
-
-          // AI : Wait for next tick to ensure DOM is updated before showing popup
-          await nextTick();
 
           // AI : Use uiStore to show project info popup, convert backend projects to local format
           const projectData = 'overlayIds' in project ? project : createProject({
@@ -292,7 +283,7 @@ export async function loadCityProjects(cityId: string | null, cityName: string, 
       mapStores.setSelectedCity({ id: cityId, name: cityName, countryCode: cityCountryCode });
 
       // AI : Clear selected project when switching cities
-      const selectedProjectId = getSelectedProjectId();
+      const { selectedProjectId } = useSelectedProject();
       selectedProjectId.value = null;
 
       // AI : Close project info popup when switching cities

@@ -10,6 +10,7 @@ import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { storeToRefs } from 'pinia';
 import { createColorIcon } from '@composables/ui/markerIcons';
+import { withErrorHandling } from '@composables/core/useErrorHandling';
 import type { Country } from '@types';
 
 // AI : Function to get countries when needed
@@ -33,37 +34,45 @@ let countryMarkersLayer: L.LayerGroup | null = null;
 let selectedCountryMarker: L.Marker | null = null;
 
 export async function loadCountriesWithProjects(): Promise<void> {
+  isLoadingCountries.value = true;
   try {
-    isLoadingCountries.value = true;
-    const countriesData = await trpc.country.getCountriesWithProjects.query();
-    const countries = getCountries();
-    countries.value = countriesData.map((country): Country => ({
-      ...country,
-      lat: country.centerCoordinates.y,
-      lng: country.centerCoordinates.x,
-      projectCount: 0, // AI : This will be updated later
-      cities: [], // AI : Empty array, cities will be loaded when user clicks on country
-      createdAt: new Date(), // AI : Add fallback
-      updatedAt: new Date(), // AI : Add fallback
-    }));
-  } catch (error) {
-    console.error('Error loading countries with projects:', error);
+    const countriesData = await withErrorHandling(
+      async () => trpc.country.getCountriesWithProjects.query(),
+      { errorMessage: 'Failed to load countries. Please refresh the page.' }
+    );
+
+    if (countriesData) {
+      const countries = getCountries();
+      countries.value = countriesData.map((country): Country => ({
+        ...country,
+        lat: country.centerCoordinates.y,
+        lng: country.centerCoordinates.x,
+        projectCount: 0, // AI : This will be updated later
+        cities: [], // AI : Empty array, cities will be loaded when user clicks on country
+        createdAt: new Date(), // AI : Add fallback
+        updatedAt: new Date(), // AI : Add fallback
+      }));
+    }
   } finally {
     isLoadingCountries.value = false;
   }
 }
 
 export async function loadCitiesForCountry(countryCode: string): Promise<void> {
+  isLoadingCountryProjects.value = true;
   try {
-    isLoadingCountryProjects.value = true;
-    const citiesData = await trpc.cities.getCitiesWithProjects.query({ countryCode });
-    const countries = getCountries();
-    const country = countries.value.find((c: Country) => c.code === countryCode);
-    if (country) {
-      country.cities = citiesData.map((c) => ({ ...c, distance: 0 }));
+    const citiesData = await withErrorHandling(
+      async () => trpc.cities.getCitiesWithProjects.query({ countryCode }),
+      { errorMessage: 'Failed to load cities. Please try again.' }
+    );
+
+    if (citiesData) {
+      const countries = getCountries();
+      const country = countries.value.find((c: Country) => c.code === countryCode);
+      if (country) {
+        country.cities = citiesData.map((c) => ({ ...c, distance: 0 }));
+      }
     }
-  } catch (error) {
-    console.error(`Error loading cities for country ${countryCode}:`, error);
   } finally {
     isLoadingCountryProjects.value = false;
   }

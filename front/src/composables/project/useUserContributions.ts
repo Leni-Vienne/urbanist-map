@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useProjectStore } from '@stores/pinia/projectStore'
 import { trpc } from '@client'
+import { withErrorHandling } from '@composables/core/useErrorHandling'
 
 export function useUserContributions() {
   const projectStore = useProjectStore()
@@ -11,19 +12,21 @@ export function useUserContributions() {
 
   // AI : Fetch user contributions - load once
   async function fetchUserContributions() {
-    try {
-      // AI : Skip if already loaded
-      if (projectStore.userContributionsLoaded) {
-        return
-      }
+    // AI : Skip if already loaded
+    if (projectStore.userContributionsLoaded) {
+      return
+    }
 
-      projectStore.setUserContributionsLoading(true)
-      const result = await trpc.project.getUsersContributions.query({
-        limit: 50
-      })
-      projectStore.setUserContributions(result)
-    } catch (error) {
-      console.error('Error fetching user contributions:', error)
+    projectStore.setUserContributionsLoading(true)
+    try {
+      const result = await withErrorHandling(
+        async () => trpc.project.getUsersContributions.query({ limit: 50 }),
+        { errorMessage: 'Failed to load contributions. Please refresh the page.' }
+      )
+
+      if (result) {
+        projectStore.setUserContributions(result)
+      }
     } finally {
       projectStore.setUserContributionsLoading(false)
     }

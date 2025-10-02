@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { trpc } from '@client'
+import { withErrorHandling } from '@composables/core/useErrorHandling'
 
 export function useLatestOverlays() {
   const overlayStore = useOverlayStore()
@@ -11,19 +12,21 @@ export function useLatestOverlays() {
 
   // AI : Fetch latest overlays - load once
   async function fetchLatestOverlays() {
-    try {
-      // AI : Skip if already loaded
-      if (overlayStore.latestOverlaysLoaded) {
-        return
-      }
+    // AI : Skip if already loaded
+    if (overlayStore.latestOverlaysLoaded) {
+      return
+    }
 
-      overlayStore.setLatestOverlaysLoading(true)
-      const result = await trpc.overlay.getLatestOverlays.query({
-        limit: 20
-      })
-      overlayStore.setLatestOverlays(result)
-    } catch (error) {
-      console.error('Error fetching latest overlays:', error)
+    overlayStore.setLatestOverlaysLoading(true)
+    try {
+      const result = await withErrorHandling(
+        async () => trpc.overlay.getLatestOverlays.query({ limit: 20 }),
+        { errorMessage: 'Failed to load latest overlays. Please refresh the page.' }
+      )
+
+      if (result) {
+        overlayStore.setLatestOverlays(result)
+      }
     } finally {
       overlayStore.setLatestOverlaysLoading(false)
     }

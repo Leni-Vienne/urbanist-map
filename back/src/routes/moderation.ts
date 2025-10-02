@@ -120,7 +120,7 @@ export const moderationRouter = router({
 
           return {
             projects: projectsWithOverlays,
-            overlays: overlaysResult.filter(overlay => overlay.status === 'pending'), // Keep for backward compatibility
+            overlays: overlaysResult.filter(overlay => overlay.status === 'pending'), // AI : Used by useModeration composable
             changeRequests: changeRequestsResult,
           };
         } catch (error) {

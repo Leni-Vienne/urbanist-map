@@ -98,15 +98,8 @@ export class TestHelpers {
       projectId,
       authorId,
       version,
-      // AI : Default corner coordinates (rough rectangle over Paris)
-      topLeftLat: 48.8606,
-      topLeftLng: 2.3376,
-      topRightLat: 48.8606,
-      topRightLng: 2.3668,
-      bottomRightLat: 48.8526,
-      bottomRightLng: 2.3668,
-      bottomLeftLat: 48.8526,
-      bottomLeftLng: 2.3376,
+      corners: sql.raw(`ST_GeomFromText('POLYGON((2.3376 48.8606, 2.3668 48.8606, 2.3668 48.8526, 2.3376 48.8526, 2.3376 48.8606))', 4326)`),
+      // AI : Default centroid (approx center of Paris)
       centroid: sql`ST_SetSRID(ST_MakePoint(2.3522, 48.8566), 4326)`,
     }
 
@@ -192,6 +185,7 @@ export class TestHelpers {
         emailVerificationToken: null,
         passwordResetToken: null,
         passwordResetExpiresAt: null,
+        googleId: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -212,6 +206,7 @@ export class TestHelpers {
         emailVerificationToken: null,
         passwordResetToken: null,
         passwordResetExpiresAt: null,
+        googleId: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       },
