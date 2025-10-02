@@ -35,11 +35,11 @@ export function useCityProjects() {
   });
   
   // AI : Function to get overlay count for a specific project
-  const getOverlayCountForProject = (projectId: string): number => {
-    return currentCityOverlays.value.filter(overlay => 
+  function getOverlayCountForProject(projectId: string): number {
+    return currentCityOverlays.value.filter(overlay =>
       overlay.project && overlay.project.id === projectId
     ).length;
-  };
+  }
   
   // AI : Projects with overlay counts attached
   const projectsWithCounts = computed(() => {

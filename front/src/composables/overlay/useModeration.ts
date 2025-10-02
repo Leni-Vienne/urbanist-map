@@ -30,7 +30,7 @@ export function useModeration() {
   // AI : Simple loaded flag for moderation data
   const moderationLoaded = ref(false)
 
-  const fetchPendingSubmissions = async () => {
+  async function fetchPendingSubmissions() {
     try {
       // AI : Skip if already loaded
       if (moderationLoaded.value) {
@@ -48,7 +48,7 @@ export function useModeration() {
     }
   }
 
-  const resetModerationLoaded = () => {
+  function resetModerationLoaded() {
     moderationLoaded.value = false
   }
 
@@ -128,7 +128,7 @@ export function useModeration() {
   }
 
   // AI : Helper function to set overlay approval status using the generic handler
-  const setOverlayStatus = async (id: string, status: 'approved' | 'rejected'): Promise<ApprovalResult> => {
+  async function setOverlayStatus(id: string, status: 'approved' | 'rejected'): Promise<ApprovalResult> {
     return setApprovalStatus(
       id,
       status,
@@ -141,15 +141,15 @@ export function useModeration() {
     )
   }
 
-  const approveOverlay = async (id: string): Promise<ApprovalResult> => {
+  async function approveOverlay(id: string): Promise<ApprovalResult> {
     return setOverlayStatus(id, 'approved')
   }
 
-  const rejectOverlay = async (id: string): Promise<ApprovalResult> => {
+  async function rejectOverlay(id: string): Promise<ApprovalResult> {
     return setOverlayStatus(id, 'rejected')
   }
 
-  const undoLastAction = async () => {
+  async function undoLastAction() {
     try {
       if (recentActions.value.length === 0) {
         console.warn('No recent actions to undo')
@@ -187,7 +187,7 @@ export function useModeration() {
   onMounted(fetchPendingSubmissions)
 
   // AI : Helper function to set project approval status using the generic handler
-  const setProjectStatus = async (id: string, status: 'approved' | 'rejected'): Promise<ApprovalResult> => {
+  async function setProjectStatus(id: string, status: 'approved' | 'rejected'): Promise<ApprovalResult> {
     return setApprovalStatus(
       id,
       status,
@@ -200,11 +200,11 @@ export function useModeration() {
     )
   }
 
-  const approveProject = async (id: string): Promise<ApprovalResult> => {
+  async function approveProject(id: string): Promise<ApprovalResult> {
     return setProjectStatus(id, 'approved')
   }
 
-  const rejectProject = async (id: string): Promise<ApprovalResult> => {
+  async function rejectProject(id: string): Promise<ApprovalResult> {
     return setProjectStatus(id, 'rejected')
   }
 

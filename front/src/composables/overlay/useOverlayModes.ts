@@ -1,274 +1,179 @@
-// AI : Combined overlay modes management - handles both edit and view modes
-import { watch } from 'vue';
-import L from 'leaflet';
-import { map, onMapInitialized, currentZoomLevel } from '@composables/core/useMap';
-import { updateOverlayEditingState, clearAllOverlays, renderViewModeOverlays, updateMarkerTooltip, updateMarkerPosition } from '@composables/overlay/useOverlay';
-import { useStores } from '@composables/core/useStores';
-import type { OverlayData } from '@types';
-import { hasCachedCityProjectsData, getCachedCityProjectsData, getSelectedCity } from '@composables/map/useCityData';
-import { renderOverlayMarkersFromCache, updateOverlayMarkersForFilters } from '@composables/map/useCityOverlays';
-import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
+// AI : Overlay mode management - orchestrates edit/view mode switching using state machine
+import { ref, watch } from 'vue'
+import { map, onMapInitialized, currentZoomLevel } from '@composables/core/useMap'
+import { useStores } from '@composables/core/useStores'
+import { getSelectedCity, hasCachedCityProjectsData, getCachedCityProjectsData } from '@composables/map/useCityData'
+import type { OverlayModeState, ZoomLevel, StateTransition } from './useOverlayModeStateMachine'
+import { calculateTransition, shouldFullRerender } from './useOverlayModeStateMachine'
+import { renderForStrategy, updateExistingOverlays, clearAllRenderedContent } from './useOverlayRenderer'
+import { cacheCurrentPosition } from './useOverlayPositionCache'
 
-// AI : Constants for edit mode
-const MIN_ZOOM_FOR_OVERLAYS = 12; // AI : Minimum zoom level to load full overlays in edit mode
+// AI : Constants
+const MIN_ZOOM_FOR_OVERLAYS = 12
 
-// AI : Layer group for overlay markers in edit mode
-let editModeOverlayMarkers: L.LayerGroup | null = null;
-
-// ================================
-// EDIT MODE FUNCTIONS
-// ================================
+// AI : Current state of the overlay system
+const currentState = ref<OverlayModeState>({
+  mode: 'view',
+  zoomLevel: 'low',
+  hasLoadedOverlays: false,
+  selectedCityId: null,
+})
 
 /**
- * AI : Initialize edit mode overlay markers - show markers for all overlays without images
+ * AI : Convert numeric zoom to zoom level category
  */
-export function initializeEditModeOverlays(): void {
-  if (!map.value) {
-    onMapInitialized(() => {
-      initializeEditModeOverlaysInternal();
-    });
-    return;
-  }
-  initializeEditModeOverlaysInternal();
+function getZoomLevel(zoom: number): ZoomLevel {
+  return zoom >= MIN_ZOOM_FOR_OVERLAYS ? 'high' : 'low'
 }
 
 /**
- * AI : Internal function to initialize edit mode overlay markers
+ * AI : Get current state based on runtime values
  */
-function initializeEditModeOverlaysInternal(): void {
-  if (!map.value) return;
+function getCurrentState(): OverlayModeState {
+  const { overlay } = useStores()
+  const selectedCity = getSelectedCity()
+  const zoom = map.value?.getZoom() ?? 0
 
-  // AI : Clear existing edit mode UI
-  clearEditModeUI();
-}
-
-/**
- * AI : Clear all edit mode overlays and markers
- */
-function clearEditModeUI(): void {
-  // AI : Use store to clear both markers and state
-  const { overlay } = useStores();
-  overlay.clearEditModeMarkersAndState(map.value ?? undefined, editModeOverlayMarkers);
-
-  // AI : Reset local marker reference
-  editModeOverlayMarkers = null;
-}
-
-/**
- * AI : Unload overlays when zoom level is too low
- */
-function unloadOverlaysForZoomLevel(): void {
-  if (currentZoomLevel.value < MIN_ZOOM_FOR_OVERLAYS) {
-    // AI : Clear all loaded overlays but keep regular markers (they handle click-to-load)
-    clearAllOverlays();
-    const { overlay } = useStores();
-    overlay.clearEditModeMarkersAndState();
+  return {
+    mode: overlay.store.isEditMode ? 'edit' : 'view',
+    zoomLevel: getZoomLevel(zoom),
+    hasLoadedOverlays: Object.keys(overlay.store.overlays).length > 0,
+    selectedCityId: selectedCity?.id ?? null,
   }
 }
 
 /**
- * AI : Watch for zoom level changes
+ * AI : Execute a state transition
  */
-function watchZoomLevel(): void {
-  watch(currentZoomLevel, (newZoom, oldZoom) => {
+function transitionToState(newState: OverlayModeState): void {
+  const transition = calculateTransition(currentState.value, newState)
 
-    // AI : Unload overlays if zoom is too low
-    if (newZoom < MIN_ZOOM_FOR_OVERLAYS && oldZoom >= MIN_ZOOM_FOR_OVERLAYS) {
-      unloadOverlaysForZoomLevel();
-    }
-  });
+  // AI : Cache current positions before transitioning out of edit mode
+  if (currentState.value.mode === 'edit' && newState.mode === 'view') {
+    const { overlay } = useStores()
+    Object.values(overlay.store.overlays).forEach(cacheCurrentPosition)
+  }
+
+  // AI : Determine if we need full re-render or just updates
+  if (shouldFullRerender(transition)) {
+    performFullRender(newState, transition)
+  } else {
+    performPartialUpdate(newState, transition)
+  }
+
+  // AI : Update current state
+  currentState.value = newState
 }
 
 /**
- * AI : Handle edit mode exit - reset overlays to backend positions for view mode display
- * This function contains the city-related overlay re-rendering logic
+ * AI : Perform full re-render with new state
  */
-export function handleEditModeExit() {
-  // AI : Force re-render overlays to show original backend positions instead of modified ones
-  // AI : Check if we have a current city with cached data
-  const selectedCity = getSelectedCity();
-  if (selectedCity && hasCachedCityProjectsData(selectedCity.id)) {
-    const overlaysData = getCachedCityProjectsData(selectedCity.id)!;
+function performFullRender(newState: OverlayModeState, transition: StateTransition): void {
+  const selectedCity = getSelectedCity()
 
-    // AI : Get store refs for overlays
-    const { overlay } = useStores();
+  if (!selectedCity || !newState.selectedCityId) {
+    clearAllRenderedContent()
+    return
+  }
 
-    // AI : Check current zoom level to decide what to render
-    const currentZoom = map.value?.getZoom() ?? 0;
-
-    if (currentZoom >= MIN_ZOOM_FOR_OVERLAYS) {
-      // AI : Zoom is high enough for full overlays
-      const { setViewModeOverlays } = useViewModeOverlays();
-      setViewModeOverlays(overlaysData);
-
-      // AI : Reset overlay positions to backend values for VIEW MODE DISPLAY ONLY
-      // AI : DO NOT clear isModified or edit mode cache - these need to persist for edit mode restoration
-      overlaysData.forEach(cdnOverlay => {
-        const existingOverlay = overlay.store.overlays[cdnOverlay.id];
-        if (existingOverlay?.overlay && cdnOverlay.corners?.length === 4) {
-          // AI : Reset to backend corners (for view mode display only)
-          const backendCorners = cdnOverlay.corners.map(corner => L.latLng(corner.lat, corner.lng));
-          
-          existingOverlay.overlay.setCorners(backendCorners);
-          // AI : IMPORTANT: Do NOT clear isModified flag or edit mode cache
-          // The edit mode cache must persist so positions can be restored when returning to edit mode
-          
-          // AI : Update marker position and tooltip
-          updateMarkerPosition(existingOverlay);
-          updateMarkerTooltip(existingOverlay);
-        }
-      });
-
-      // AI : Filter overlays based on current completion status filters
-      const completionFilters = useCompletionFilters();
-      const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData);
-
-      // AI : Only render new overlays that don't exist yet
-      const existingOverlayIds = new Set(Object.keys(overlay.store.overlays));
-      const newOverlays = visibleOverlays.filter(overlay => !existingOverlayIds.has(overlay.id));
-      if (newOverlays.length > 0) {
-        renderViewModeOverlays(newOverlays, true, false);
-      }
-    } else {
-      // AI : Zoom is too low, clear overlays and render markers only
-      clearAllOverlays();
-      renderOverlayMarkersFromCache(selectedCity.id, selectedCity.name);
-    }
-
-    // AI : Update overlay markers colors for view mode (when zoomed out)
-    updateOverlayMarkersForFilters();
+  // AI : Get overlays data for the city
+  if (hasCachedCityProjectsData(newState.selectedCityId)) {
+    const overlaysData = getCachedCityProjectsData(newState.selectedCityId)!
+    renderForStrategy(
+      transition.renderStrategy,
+      overlaysData,
+      newState.selectedCityId,
+      selectedCity.name
+    )
   }
 }
 
 /**
- * AI : Stop camera tracking for view mode
+ * AI : Perform partial update (positions/controls only)
  */
-function stopViewModeTracking() {
-  // AI : Clear view mode overlays state using store action
-  const { overlay } = useStores();
-  overlay.clearViewModeOverlays();
-}
-
-/**
- * AI : Set overlays loaded from city markers
- */
-function setViewModeOverlays(overlays: OverlayData[]) {
-  const { overlay } = useStores();
-  overlay.setViewModeOverlays(overlays);
-  // AI : Do not automatically render overlays - let the caller handle rendering
-  // AI : This prevents double-rendering when switching cities
-}
-
-/**
- * AI : Render all current overlays in view mode
- */
-function renderCurrentOverlays() {
-  const { overlay } = useStores();
-
-  if (overlay.store.viewModeOverlays.length === 0) return;
-
-  overlay.setOverlaysLoading(true);
-
-  try {
-    // AI : Render all overlays - no filtering needed since overlays are already city-specific
-    renderViewModeOverlays(overlay.store.viewModeOverlays);
-  } catch (err) {
-    console.error('Error rendering overlays:', err);
-    overlay.setOverlaysError('Failed to render overlays');
-  } finally {
-    overlay.setOverlaysLoading(false);
-  }
+function performPartialUpdate(newState: OverlayModeState, transition: StateTransition): void {
+  updateExistingOverlays(transition.renderStrategy)
 }
 
 // ================================
-// MODE SWITCHING LOGIC
+// PUBLIC API
 // ================================
 
 /**
  * AI : Toggle between edit and view modes
- * @param onModeExit - Optional callback function to handle city-specific logic when exiting edit mode
  */
-export function toggleEditMode(onModeExit?: () => void) {
-  // AI : Get store refs when needed to avoid module-level initialization
-  const { overlay } = useStores();
+export function toggleEditMode(onModeExit?: () => void): void {
+  const { overlay } = useStores()
 
-  overlay.store.isEditMode = !overlay.store.isEditMode;
+  // AI : Toggle mode in store
+  overlay.store.isEditMode = !overlay.store.isEditMode
 
-  if (overlay.store.isEditMode) {
-    // AI : ENTERING EDIT MODE
-    // AI : Stop view mode tracking
-    stopViewModeTracking();
+  // AI : Calculate new state
+  const newState = getCurrentState()
 
-    // AI : For overlays that already have images loaded (from city markers),
-    // AI : ensure they're properly added to the map and update their editing state
-    Object.values(overlay.store.overlays).forEach((overlayObject) => {
-      if (overlayObject.overlay && map.value) {
-        // AI : Make sure the overlay is added to the map
-        if (!map.value.hasLayer(overlayObject.overlay)) {
-          overlayObject.overlay.addTo(map.value);
-        }
-      }
-    });
+  // AI : Execute state transition
+  transitionToState(newState)
 
-    // AI : Update overlay editing state for existing overlays - this will recreate overlays with cached corners
-    // and then update marker tooltips with correct positions
-    updateOverlayEditingState();
-
-    // AI : If zoomed out, re-render overlay markers with edit mode colors and cached positions
-    const currentZoom = map.value?.getZoom() ?? 0;
-    const selectedCity = getSelectedCity();
-    if (currentZoom < MIN_ZOOM_FOR_OVERLAYS && selectedCity) {
-      renderOverlayMarkersFromCache(selectedCity.id, selectedCity.name);
-    }
-
-    // AI : Initialize edit mode overlay markers for overlays that don't have images loaded yet
-    initializeEditModeOverlays();
-
-  } else {
-    // AI : Clear only the edit mode markers, not the full overlays
-    clearEditModeUI();
-
-    // AI : Update markers for view mode (remove tooltips, update colors)
-    Object.values(overlay.store.overlays).forEach((overlayObject) => {
-      if (overlayObject.marker) {
-        updateMarkerTooltip(overlayObject);
-      }
-    });
-
-    // AI : Update overlay editing state for existing overlays (disable editing)
-    updateOverlayEditingState();
-
-    // AI : Execute custom exit logic if provided
-    if (onModeExit) {
-      onModeExit();
-    }
+  // AI : Execute custom exit logic if provided (for backward compatibility)
+  if (!overlay.store.isEditMode && onModeExit) {
+    onModeExit()
   }
 }
 
-// ================================
-// COMPOSABLE FUNCTIONS
-// ================================
+/**
+ * AI : Handle edit mode exit - reset overlays to backend positions
+ */
+export function handleEditModeExit(): void {
+  const newState = getCurrentState()
+  newState.mode = 'view'
+  transitionToState(newState)
+}
 
 /**
- * AI : Composable to manage view mode overlays
+ * AI : Watch for zoom level changes and update state
+ */
+function watchZoomLevel(): void {
+  watch(currentZoomLevel, (newZoom) => {
+    const newState = getCurrentState()
+    newState.zoomLevel = getZoomLevel(newZoom)
+
+    // AI : Only transition if zoom level actually changed categories
+    if (newState.zoomLevel !== currentState.value.zoomLevel) {
+      transitionToState(newState)
+    }
+  })
+}
+
+/**
+ * AI : Composable to manage view mode overlays (for backward compatibility)
  */
 export function useViewModeOverlays() {
-  const { overlay } = useStores();
+  const { overlay } = useStores()
 
   return {
-    // AI : Reactive state from store
     viewModeOverlays: overlay.viewModeOverlays,
     loading: overlay.overlaysLoading,
     error: overlay.overlaysError,
 
-    // AI : Methods
-    renderCurrentOverlays,
-    setViewModeOverlays,
-    stopCameraTracking: stopViewModeTracking,
-  };
+    renderCurrentOverlays: () => {
+      const newState = getCurrentState()
+      transitionToState(newState)
+    },
+
+    setViewModeOverlays: (overlaysData: any[]) => {
+      overlay.setViewModeOverlays(overlaysData)
+    },
+
+    stopCameraTracking: () => {
+      overlay.clearViewModeOverlays()
+    },
+  }
 }
 
-// AI : Initialize watch when this module is imported
+// AI : Initialize watch when map is ready
 onMapInitialized(() => {
-  watchZoomLevel();
-});
+  watchZoomLevel()
+
+  // AI : Set initial state
+  currentState.value = getCurrentState()
+})

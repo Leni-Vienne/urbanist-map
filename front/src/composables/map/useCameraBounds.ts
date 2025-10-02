@@ -17,27 +17,27 @@ export function initializeCameraBounds() {
     return;
   }
   
-  
+
   // AI : Update bounds when map moves or zooms
-  const updateBounds = () => {
+  function updateBounds() {
     if (!map.value) {
       console.warn('Map not available in updateBounds');
       return;
     }
-    
+
     try {
       const bounds = map.value.getBounds();
       if (!bounds) {
         console.warn('Map bounds not available');
         return;
       }
-      
+
       const zoom = map.value.getZoom();
       if (zoom === undefined || zoom === null) {
         console.warn('Map zoom not available');
         return;
       }
-      
+
       const newBounds: CameraBounds = {
         north: bounds.getNorth(),
         south: bounds.getSouth(),
@@ -46,13 +46,13 @@ export function initializeCameraBounds() {
         zoom: zoom
       };
         currentCameraBounds.value = newBounds;
-          
+
       // AI : Call all registered callbacks when camera stops moving
       onCameraStopCallbacks.forEach(callback => { callback(newBounds); });
     } catch (error) {
       console.error('Error updating camera bounds:', error);
     }
-  };  // AI : Set initial bounds immediately - no delay needed as map is ready
+  }  // AI : Set initial bounds immediately - no delay needed as map is ready
   updateBounds();
 
   // AI : Listen for map events - these fire when camera stops moving
