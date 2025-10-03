@@ -290,7 +290,8 @@ function getCornersForOverlay(overlayObject: OverlayObject) {
 function getCornersForOverlayWithCache(overlayObject: OverlayObject) {
   const overlayStore = useOverlayStore();
 
-  // AI : Priority 1: Check edit mode cache if in edit mode
+  // AI : Check edit mode cache only if in edit mode
+  // AI : This ensures view mode always uses backend positions, not stale cached positions
   if (overlayStore.isEditMode) {
     const cachedModifications = getFromEditModeOverlayCache(overlayObject.id);
     if (cachedModifications?.corners?.length === 4) {
@@ -301,7 +302,7 @@ function getCornersForOverlayWithCache(overlayObject: OverlayObject) {
     }
   }
 
-  // AI : Priority 2: Use existing logic
+  // AI : Use backend corners (view mode or no cache available)
   return getCornersForOverlay(overlayObject);
 }
 
@@ -369,9 +370,6 @@ export function saveToHistory(overlayObject: OverlayObject): void {
 
   overlayObject.history.push(JSON.parse(JSON.stringify(currentState)) as { lat: number; lng: number }[]);
   overlayObject.redoStack = [];
-
-  // AI : Update overlayObject.corners to keep it in sync with the actual overlay position
-  overlayObject.corners = currentState.map(corner => ({ lat: corner.lat, lng: corner.lng }));
 
   // AI : Mark overlay as modified when it's moved/changed
   overlayObject.isModified = true;
@@ -958,10 +956,7 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
 // AI : Helper function to save overlay with updated corners (no local storage)
 function saveOverlayWithCurrentCorners(overlayObject: OverlayObject): void {
   if (overlayObject.overlay) {
-    const newCorners = overlayObject.overlay.getCorners();
-    overlayObject.corners = newCorners;
-
-    // AI : Update marker tooltip after corners are saved
+    // AI : Update marker tooltip
     updateMarkerTooltip(overlayObject);
   }
 }
