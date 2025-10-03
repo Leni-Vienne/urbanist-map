@@ -64,7 +64,7 @@
       <!-- AI : Social Login Section -->
       <div class="mb-6">
         <div class="flex flex-col gap-3 mb-4">
-          <div class="relative">
+          <div class="relative overflow-visible">
             <Button
               icon="pi pi-google"
               :label="$t('auth.continueWithGoogle')"
