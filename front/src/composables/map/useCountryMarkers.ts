@@ -2,7 +2,7 @@ import L from "leaflet";
 import { ref } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
 import { addCityMarkersForCountry, removeCityMarkers, resetLayerMarkersOpacity } from '@composables/map/useCityMarkers';
-import { currentCityOverlays, removeOverlayMarkers } from '@composables/map/useCityOverlays';
+import { removeOverlayMarkers } from '@composables/map/useCityOverlays';
 import { clearAllOverlays } from '@composables/overlay/useOverlay';
 import { switchTileLayer, isTileLayerType } from '@composables/map/useTileLayers';
 import { trpc } from '@client';
@@ -137,8 +137,8 @@ function addCountryMarkersToMapInternal() {
       removeCityMarkers();
       removeOverlayMarkers();
       clearAllOverlays();
-      currentCityOverlays.value = [];
       const mapStore = useMapStore();
+      mapStore.currentCityOverlays = [];
       mapStore.clearSelectedCity();
 
       await loadCitiesForCountry(country.code);

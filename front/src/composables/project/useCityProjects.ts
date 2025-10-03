@@ -1,5 +1,5 @@
 import { computed } from 'vue';
-import { currentCityOverlays } from '@composables/map/useCityOverlays';
+import { useMapStore } from '@stores/pinia/mapStore';
 import type { Project } from '@types';
 import { createProject } from '../../utils/typeFactories';
 
@@ -11,14 +11,16 @@ import { createProject } from '../../utils/typeFactories';
 
 // AI : Extract unique projects from the current city overlays data
 export function useCityProjects() {
+  const mapStore = useMapStore();
+
   const projects = computed(() => {
     const projectMap = new Map<string, Project>();
-    
+
     // AI : Extract projects from overlay data
-    currentCityOverlays.value.forEach(overlay => {
+    mapStore.currentCityOverlays.forEach(overlay => {
       if (overlay.project && overlay.project.id) {
         const project = overlay.project;
-        
+
         // AI : Use factory function for consistent project creation
         const frontendProject = createProject({
           ...project,
@@ -26,17 +28,17 @@ export function useCityProjects() {
           overlayIds: [], // AI : We'll count overlays differently
           savedRemotely: true
         });
-        
+
         projectMap.set(project.id, frontendProject);
       }
     });
-    
+
     return Array.from(projectMap.values());
   });
-  
+
   // AI : Function to get overlay count for a specific project
   function getOverlayCountForProject(projectId: string): number {
-    return currentCityOverlays.value.filter(overlay =>
+    return mapStore.currentCityOverlays.filter(overlay =>
       overlay.project && overlay.project.id === projectId
     ).length;
   }

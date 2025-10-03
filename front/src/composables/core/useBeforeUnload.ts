@@ -1,4 +1,4 @@
-import { overlays } from '@composables/overlay/useOverlay';
+import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { onMounted, onUnmounted } from 'vue';
 
 /**
@@ -6,9 +6,10 @@ import { onMounted, onUnmounted } from 'vue';
  */
 export function useBeforeUnload() {
   function checkForModifiedOverlays(): boolean {
-    if (!overlays?.value) return false;
-    
-    return Object.values(overlays.value).some(overlay => overlay.isModified);
+    const overlayStore = useOverlayStore();
+    if (!overlayStore?.overlays) return false;
+
+    return Object.values(overlayStore.overlays).some(overlay => overlay.isModified);
   }
 
   function handleBeforeUnload(event: BeforeUnloadEvent) {
