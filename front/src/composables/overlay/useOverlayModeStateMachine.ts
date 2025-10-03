@@ -4,6 +4,15 @@
 export type OverlayMode = 'view' | 'edit'
 export type ZoomLevel = 'high' | 'low'
 
+// AI : Explicit transition types for clarity and type safety
+export type TransitionType =
+  | 'toggleMode'           // AI : Switch between edit and view mode
+  | 'zoomIn'              // AI : Zoom level increased to high
+  | 'zoomOut'             // AI : Zoom level decreased to low
+  | 'changeCity'          // AI : Selected city changed
+  | 'loadOverlays'        // AI : Overlays loaded for first time
+  | 'clearOverlays'       // AI : Clear all overlays
+
 // AI : Represents the complete state of the overlay system
 export interface OverlayModeState {
   mode: OverlayMode
@@ -136,4 +145,59 @@ export function shouldFullRerender(transition: StateTransition): boolean {
   }
 
   return false
+}
+
+// ================================
+// AI : Transition Predicates - Pure functions to check state changes
+// ================================
+
+/**
+ * AI : Check if we should cache overlay positions
+ * AI : This happens when leaving edit mode (transitioning to view mode)
+ */
+export function shouldCachePositions(from: OverlayModeState, to: OverlayModeState): boolean {
+  return from.mode === 'edit' && to.mode === 'view'
+}
+
+/**
+ * AI : Check if we should apply cached overlay positions
+ * AI : This happens when entering edit mode from view mode
+ */
+export function shouldApplyCachedPositions(from: OverlayModeState, to: OverlayModeState): boolean {
+  return from.mode === 'view' && to.mode === 'edit' && from.hasLoadedOverlays
+}
+
+/**
+ * AI : Check if mode is changing (edit ↔ view)
+ */
+export function isModeChanging(from: OverlayModeState, to: OverlayModeState): boolean {
+  return from.mode !== to.mode
+}
+
+/**
+ * AI : Check if zoom level is changing (high ↔ low)
+ */
+export function isZoomChanging(from: OverlayModeState, to: OverlayModeState): boolean {
+  return from.zoomLevel !== to.zoomLevel
+}
+
+/**
+ * AI : Check if selected city is changing
+ */
+export function isCityChanging(from: OverlayModeState, to: OverlayModeState): boolean {
+  return from.selectedCityId !== to.selectedCityId
+}
+
+/**
+ * AI : Check if switching to edit mode (from any state)
+ */
+export function isSwitchingToEditMode(from: OverlayModeState, to: OverlayModeState): boolean {
+  return from.mode === 'view' && to.mode === 'edit'
+}
+
+/**
+ * AI : Check if switching to view mode (from any state)
+ */
+export function isSwitchingToViewMode(from: OverlayModeState, to: OverlayModeState): boolean {
+  return from.mode === 'edit' && to.mode === 'view'
 }

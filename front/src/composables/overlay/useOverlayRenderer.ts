@@ -7,7 +7,7 @@ import { map } from '@composables/core/useMap'
 import { renderViewModeOverlays, updateOverlayEditingState, clearAllOverlays, updateMarkerTooltip, updateMarkerPosition } from '@composables/overlay/useOverlay'
 import { renderOverlayMarkersFromCache, updateOverlayMarkersForFilters } from '@composables/map/useCityOverlays'
 import { applyPositionsToOverlays } from './useOverlayPositionCache'
-import { useStores } from '@composables/core/useStores'
+import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters'
 
 /**
@@ -18,7 +18,7 @@ export function renderForStrategy(
   overlaysData: OverlayData[],
   cityId: string,
 ): void {
-  const { overlay } = useStores()
+  const overlayStore = useOverlayStore()
 
   // AI : Apply completion filters
   const completionFilters = useCompletionFilters()
@@ -26,18 +26,18 @@ export function renderForStrategy(
 
   if (strategy.shouldRenderFullOverlays) {
     // AI : Check if overlays are already loaded - if so, just update positions
-    const hasExistingOverlays = Object.keys(overlay.store.overlays).length > 0
+    const hasExistingOverlays = Object.keys(overlayStore.overlays).length > 0
 
     if (!hasExistingOverlays) {
       // AI : First time loading - clear and render fresh
       clearAllOverlays()
-      overlay.setViewModeOverlays(visibleOverlays)
+      overlayStore.setViewModeOverlays(visibleOverlays)
       renderViewModeOverlays(visibleOverlays, strategy.shouldRenderMarkers, false)
     }
 
     // AI : Apply correct positions (cached for edit mode, backend for view mode)
     // AI : applyPosition now guards against overlays not on map yet
-    const overlayObjects = Object.values(overlay.store.overlays)
+    const overlayObjects = Object.values(overlayStore.overlays)
     applyPositionsToOverlays(overlayObjects, strategy.shouldUseCachedPositions)
 
     // AI : Update marker tooltips and positions after applying positions
@@ -68,8 +68,8 @@ export function renderForStrategy(
  * AI : Used when only editing state or positions need to change
  */
 export function updateExistingOverlays(strategy: RenderStrategy): void {
-  const { overlay } = useStores()
-  const overlayObjects = Object.values(overlay.store.overlays)
+  const overlayStore = useOverlayStore()
+  const overlayObjects = Object.values(overlayStore.overlays)
 
   // AI : Update positions if needed
   applyPositionsToOverlays(overlayObjects, strategy.shouldUseCachedPositions)
@@ -103,6 +103,6 @@ export function updateExistingOverlays(strategy: RenderStrategy): void {
  */
 export function clearAllRenderedContent(): void {
   clearAllOverlays()
-  const { overlay } = useStores()
-  overlay.clearViewModeOverlays()
+  const overlayStore = useOverlayStore()
+  overlayStore.clearViewModeOverlays()
 }

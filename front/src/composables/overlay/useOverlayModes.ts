@@ -1,12 +1,22 @@
 // AI : Overlay mode management - orchestrates edit/view mode switching using state machine
 import { ref, watch } from 'vue'
 import { map, onMapInitialized, currentZoomLevel } from '@composables/core/useMap'
-import { useStores } from '@composables/core/useStores'
+import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { getSelectedCity, hasCachedCityProjectsData, getCachedCityProjectsData } from '@composables/map/useCityData'
 import type { OverlayModeState, ZoomLevel, StateTransition } from './useOverlayModeStateMachine'
-import { calculateTransition, shouldFullRerender } from './useOverlayModeStateMachine'
+import {
+  calculateTransition,
+  shouldFullRerender,
+  shouldCachePositions
+} from './useOverlayModeStateMachine'
 import { renderForStrategy, updateExistingOverlays, clearAllRenderedContent } from './useOverlayRenderer'
 import { cacheCurrentPosition } from './useOverlayPositionCache'
+
+// AI : Transition effects - callbacks executed during state transitions
+interface TransitionEffects {
+  beforeTransition?: (from: OverlayModeState, to: OverlayModeState) => void
+  afterTransition?: (to: OverlayModeState) => void
+}
 
 // AI : Constants
 const MIN_ZOOM_FOR_OVERLAYS = 12
@@ -30,29 +40,26 @@ function getZoomLevel(zoom: number): ZoomLevel {
  * AI : Get current state based on runtime values
  */
 function getCurrentState(): OverlayModeState {
-  const { overlay } = useStores()
+  const overlayStore = useOverlayStore()
   const selectedCity = getSelectedCity()
   const zoom = map.value?.getZoom() ?? 0
 
   return {
-    mode: overlay.store.isEditMode ? 'edit' : 'view',
+    mode: overlayStore.isEditMode ? 'edit' : 'view',
     zoomLevel: getZoomLevel(zoom),
-    hasLoadedOverlays: Object.keys(overlay.store.overlays).length > 0,
+    hasLoadedOverlays: Object.keys(overlayStore.overlays).length > 0,
     selectedCityId: selectedCity?.id ?? null,
   }
 }
 
 /**
- * AI : Execute a state transition
+ * AI : Execute a state transition with optional side effects
  */
-function transitionToState(newState: OverlayModeState): void {
+function transitionToState(newState: OverlayModeState, effects?: TransitionEffects): void {
   const transition = calculateTransition(currentState.value, newState)
 
-  // AI : Cache current positions before transitioning out of edit mode
-  if (currentState.value.mode === 'edit' && newState.mode === 'view') {
-    const { overlay } = useStores()
-    Object.values(overlay.store.overlays).forEach(cacheCurrentPosition)
-  }
+  // AI : Execute before-transition effects
+  effects?.beforeTransition?.(currentState.value, newState)
 
   // AI : Determine if we need full re-render or just updates
   if (shouldFullRerender(transition)) {
@@ -63,6 +70,9 @@ function transitionToState(newState: OverlayModeState): void {
 
   // AI : Update current state
   currentState.value = newState
+
+  // AI : Execute after-transition effects
+  effects?.afterTransition?.(newState)
 }
 
 /**
@@ -102,30 +112,48 @@ function performPartialUpdate(newState: OverlayModeState, transition: StateTrans
  * AI : Toggle between edit and view modes
  */
 export function toggleEditMode(onModeExit?: () => void): void {
-  const { overlay } = useStores()
+  const overlayStore = useOverlayStore()
 
   // AI : Toggle mode in store
-  overlay.store.isEditMode = !overlay.store.isEditMode
+  overlayStore.isEditMode = !overlayStore.isEditMode
 
   // AI : Calculate new state
   const newState = getCurrentState()
 
-  // AI : Execute state transition
-  transitionToState(newState)
-
-  // AI : Execute custom exit logic if provided (used by useAddOverlay and MapControls)
-  if (!overlay.store.isEditMode && onModeExit) {
-    onModeExit()
-  }
+  // AI : Execute state transition with side effects
+  transitionToState(newState, {
+    beforeTransition: (from, to) => {
+      // AI : Cache positions when leaving edit mode (using predicate)
+      if (shouldCachePositions(from, to)) {
+        Object.values(overlayStore.overlays).forEach(cacheCurrentPosition)
+      }
+    },
+    afterTransition: () => {
+      // AI : Execute custom exit logic if provided (used by useAddOverlay and MapControls)
+      if (!overlayStore.isEditMode && onModeExit) {
+        onModeExit()
+      }
+    }
+  })
 }
 
 /**
  * AI : Handle edit mode exit - reset overlays to backend positions
  */
 export function handleEditModeExit(): void {
+  const overlayStore = useOverlayStore()
   const newState = getCurrentState()
   newState.mode = 'view'
-  transitionToState(newState)
+
+  // AI : Transition with caching side effect
+  transitionToState(newState, {
+    beforeTransition: (from, to) => {
+      // AI : Cache positions when leaving edit mode (using predicate)
+      if (shouldCachePositions(from, to)) {
+        Object.values(overlayStore.overlays).forEach(cacheCurrentPosition)
+      }
+    }
+  })
 }
 
 /**
