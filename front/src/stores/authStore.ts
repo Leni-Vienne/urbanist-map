@@ -151,7 +151,7 @@ export const useAuthStore = defineStore('auth', () => {
         console.log('Google Identity Services script loaded')
       }
       
-      return new Promise((resolve) => {
+      return await new Promise((resolve) => {
         if (!window.google) {
           resolve({
             success: false,

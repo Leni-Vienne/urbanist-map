@@ -49,6 +49,7 @@
                         class="w-full"
                         showIcon
                         :showClear="true"
+                        updateModelType="dd/MM/yyyy"
                     />
                     <label
                         for="proposal-date-input"
@@ -104,6 +105,7 @@
                             class="w-full"
                             required
                             showIcon
+                            updateModelType="dd/MM/yyyy"
                         />
                         <label
                             for="start-date-input"
@@ -123,6 +125,7 @@
                             class="w-full"
                             required
                             showIcon
+                            updateModelType="dd/MM/yyyy"
                         />
                         <label
                             for="end-date-input"

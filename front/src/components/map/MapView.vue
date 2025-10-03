@@ -111,15 +111,21 @@ onUnmounted(() => {
 
 // AI : Keyboard shortcuts handler
 function handleKeyDown(event: KeyboardEvent) {
-  if (event.ctrlKey && event.key === 'z') undo();
-  else if (event.ctrlKey && event.key === 'y') redo();
+  // AI : Undo: Ctrl+Z (works on all keyboard layouts)
+  if (event.ctrlKey && !event.shiftKey && event.key.toLowerCase() === 'z') {
+    undo();
+  }
+  // AI : Redo: Ctrl+Y (AZERTY) or Ctrl+Shift+Z (QWERTY)
+  else if (event.ctrlKey && (event.key.toLowerCase() === 'y' || (event.shiftKey && event.key.toLowerCase() === 'z'))) {
+    redo();
+  }
 }
 
 
 // AI : Initialize map and overlays
 async function initializeMapAndOverlays() {
   try {
-    await initializeMap();
+    initializeMap();
     addTileLayer(); // AI : Initialize tile layers after map is created
     initializeCameraBounds(); // AI : Initialize camera bounds tracking
     await initializeCountryMarkers(); // AI : Initialize country markers by default
