@@ -55,8 +55,10 @@ export function updateOverlayEditingState(): void {
         const leafletCorners = cachedModifications.corners.map(corner => L.latLng(corner.lat, corner.lng));
         overlayObject.overlay.setCorners(leafletCorners);
 
-        // AI : Update overlay object state
-        overlayObject.history = [cachedModifications.corners];
+        // AI : Only initialize history if it's empty (preserve existing undo/redo history)
+        if (overlayObject.history.length === 0) {
+          overlayObject.history = [cachedModifications.corners];
+        }
         overlayObject.isModified = cachedModifications.isModified;
 
         // AI : Update marker position to match restored corners

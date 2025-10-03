@@ -60,6 +60,7 @@
             :class="getFieldClasses('startDate')"
             dateFormat="yy-mm-dd"
             placeholder="Select start date"
+            updateModelType="yyyy-MM-dd"
           />
           <small v-if="hasChanged('startDate')" class="change-indicator">
             Changed from: "{{ formatDate(originalData.startDate) || 'Not set' }}"
@@ -74,6 +75,7 @@
             :class="getFieldClasses('endDate')"
             dateFormat="yy-mm-dd"
             placeholder="Select end date"
+            updateModelType="yyyy-MM-dd"
           />
           <small v-if="hasChanged('endDate')" class="change-indicator">
             Changed from: "{{ formatDate(originalData.endDate) || 'Not set' }}"
@@ -89,6 +91,7 @@
           :class="getFieldClasses('latestUpdateOn')"
           dateFormat="yy-mm-dd"
           placeholder="Select latest update date"
+          updateModelType="yyyy-MM-dd"
         />
         <small v-if="hasChanged('latestUpdateOn')" class="change-indicator">
           Changed from: "{{ formatDate(originalData.latestUpdateOn) || 'Not set' }}"
