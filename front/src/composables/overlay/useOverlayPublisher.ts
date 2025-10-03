@@ -1,7 +1,7 @@
 import { ref } from 'vue';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { allMarkers, updateMarkerTooltip } from '@composables/overlay/useOverlay';
+import { updateMarkerTooltip } from '@composables/overlay/useOverlay';
 import { map } from '@composables/core/useMap';
 import { trpc, getApiUrl } from '@client';
 import { storeToRefs } from 'pinia';
@@ -181,10 +181,10 @@ export function useOverlayPublisher() {
           overlays.value = updatedOverlays;
 
           // AI : Also update marker in allMarkers if it exists
-          if (allMarkers.value[oldId]) {
-            const marker = allMarkers.value[oldId];
-            delete allMarkers.value[oldId];
-            allMarkers.value[newId] = marker;
+          if (overlayStore.allMarkers[oldId]) {
+            const marker = overlayStore.allMarkers[oldId];
+            delete overlayStore.allMarkers[oldId];
+            overlayStore.allMarkers[newId] = marker;
             console.log(`AI: Updated marker ID from ${oldId} to ${newId}`);
           }
 

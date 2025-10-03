@@ -10,16 +10,13 @@ import { useCompletionFilters } from '@composables/overlay/useCompletionFilters'
 import { trpc } from '@client';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
 import { createColorIcon } from '@composables/ui/markerIcons';
-import { useStores } from '@composables/core/useStores';
 import { useMapStore } from '@stores/pinia/mapStore';
+import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { withErrorHandling, withErrorToast } from '@composables/core/useErrorHandling';
 import type { OverlayData, MarkerColor } from '@types';
 
 // AI : Minimum zoom level required to load city projects and overlays
 const MIN_ZOOM_FOR_OVERLAYS = 12;
-
-// AI : Current city overlays displayed
-export const currentCityOverlays = ref<OverlayData[]>([]);
 
 // AI : Layer group for overlay markers (markers without images)
 let overlayMarkersLayer: L.LayerGroup | null = null;
@@ -56,6 +53,8 @@ export async function fetchCityProjectsData(cityId: string): Promise<OverlayData
 export async function loadCityOverlays(cityId: string, forceFullLoad = false): Promise<void> {
   return withErrorHandling(
     async () => {
+      const mapStore = useMapStore();
+
       // AI : Check if user is zoomed in enough to load full overlays
       if (!map.value) {
         return;
@@ -92,20 +91,20 @@ export async function loadCityOverlays(cityId: string, forceFullLoad = false): P
       removeOverlayMarkers();
 
       // AI : Clear view mode overlays state using store
-      const { overlay } = useStores();
-      overlay.clearViewModeOverlays();
+      const overlayStore = useOverlayStore();
+      overlayStore.clearViewModeOverlays();
 
       // AI : Get overlays data (cached or fresh)
       const overlaysData = await fetchCityProjectsData(cityId);
 
-      currentCityOverlays.value = overlaysData;
+      mapStore.currentCityOverlays = overlaysData;
 
       // AI : Filter overlays based on current completion status filters
       const completionFilters = useCompletionFilters();
       const overlaysToRender = completionFilters.filterByCompletionStatus(overlaysData);
 
       // AI : Set overlays in view mode overlays and render them
-      overlay.setViewModeOverlays(overlaysToRender);
+      overlayStore.setViewModeOverlays(overlaysToRender);
 
       // AI : Render only visible overlays on the map with markers
       renderViewModeOverlays(overlaysToRender, true, true);
@@ -117,7 +116,8 @@ export async function loadCityOverlays(cityId: string, forceFullLoad = false): P
       errorMessage: 'Failed to load city overlays',
       logError: true,
       onError: () => {
-        currentCityOverlays.value = [];
+        const mapStore = useMapStore();
+        mapStore.currentCityOverlays = [];
         isLoadingCityProjects.value = false;
       }
     }
@@ -130,8 +130,8 @@ export async function loadCityOverlays(cityId: string, forceFullLoad = false): P
 // AI : Common function to render overlay markers from overlay data
 function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void {
   // AI : Clear view mode overlays state using store
-  const { overlay } = useStores();
-  overlay.clearViewModeOverlays();
+  const overlayStore = useOverlayStore();
+  overlayStore.clearViewModeOverlays();
 
   // AI : Filter overlays based on current completion status filters
   const completionFilters = useCompletionFilters();
@@ -221,17 +221,17 @@ function renderFullOverlaysFromCache(cityId: string) {
       removeOverlayMarkers();
 
       // AI : Clear view mode overlays state using store
-      const { overlay } = useStores();
-      overlay.clearViewModeOverlays();
+      const overlayStore = useOverlayStore();
+      overlayStore.clearViewModeOverlays();
 
-      currentCityOverlays.value = overlaysData;
+      mapStore.currentCityOverlays = overlaysData;
 
       // AI : Filter overlays based on current completion status filters
       const completionFilters = useCompletionFilters();
       const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData);
 
       // AI : Set overlays in view mode overlays and render them
-      overlay.setViewModeOverlays(visibleOverlays);
+      overlayStore.setViewModeOverlays(visibleOverlays);
 
       // AI : Render only visible overlays on the map with markers
       renderViewModeOverlays(visibleOverlays, true, true);
@@ -266,13 +266,15 @@ export function renderOverlayMarkersFromCache(cityId: string): void {
  * AI : Check current zoom and hide overlays if needed
  */
 export function checkZoomAndHideOverlays(): void {
+  const mapStore = useMapStore();
+
   if (!map.value) return;
 
   const currentZoom = map.value.getZoom();
 
   if (currentZoom < MIN_ZOOM_FOR_OVERLAYS) {
     clearAllOverlays();
-    currentCityOverlays.value = [];
+    mapStore.currentCityOverlays = [];
   }
 }
 
@@ -284,9 +286,9 @@ export function checkZoomAndHideOverlays(): void {
 function getOverlayMarkerInfo(overlayData: OverlayData): { color: MarkerColor, position: { lat: number, lng: number } } {
   let position = { lat: overlayData.centroid.lat, lng: overlayData.centroid.lng };
   // AI : Check if we're in edit mode and if the overlay exists in the overlays store
-  const { overlay } = useStores();
-  if (overlay.store.isEditMode) {
-    const overlayObject = overlay.store.overlays[overlayData.id];
+  const overlayStore = useOverlayStore();
+  if (overlayStore.isEditMode) {
+    const overlayObject = overlayStore.overlays[overlayData.id];
 
     if (overlayObject) {
       // AI : Use current overlay position if it has been moved
@@ -357,6 +359,8 @@ function setupZoomEventListener(): void {
  * AI : Internal function to set up zoom event listener
  */
 function setupZoomEventListenerInternal(): void {
+  const mapStore = useMapStore();
+
   // AI : Watch currentZoomLevel instead of listening to zoomend to avoid duplicate event handling
   watch(currentZoomLevel, (currentZoom) => {
     const selectedCity = getSelectedCity();
@@ -372,10 +376,10 @@ function setupZoomEventListenerInternal(): void {
       renderFullOverlaysFromCache(selectedCity.id);
     }
     // AI : If zoomed out from full overlays, show overlay markers again
-    else if (currentZoom < MIN_ZOOM_FOR_OVERLAYS && currentCityOverlays.value.length > 0) {
+    else if (currentZoom < MIN_ZOOM_FOR_OVERLAYS && mapStore.currentCityOverlays.length > 0) {
       // AI : Don't call clearAllOverlays() here - useOverlayModes handles clearing
       // AI : Just reset the city overlays array and show markers
-      currentCityOverlays.value = [];
+      mapStore.currentCityOverlays = [];
       renderOverlayMarkersFromCache(selectedCity.id);
     }
   });

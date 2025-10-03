@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, shallowRef } from 'vue'
+import type L from 'leaflet'
 import type { OverlayObject, OverlayData } from '@types'
 import type { BackendOverlay } from '../../types/api'
 
@@ -7,7 +8,10 @@ export const useOverlayStore = defineStore('overlay', () => {
   // AI : Central store for overlay data
   const overlays = shallowRef<Record<string, OverlayObject>>({})
   const idSelectedOverlay = ref<string | null>(null)
-  
+
+  // AI : Tracking of all markers, even for images not currently loaded
+  const allMarkers = shallowRef<Record<string, L.Marker>>({})
+
   // AI : Edit mode state
   const isEditMode = ref(false)
   const isTogglingMode = ref(false)
@@ -147,6 +151,7 @@ export const useOverlayStore = defineStore('overlay', () => {
     // State
     overlays,
     idSelectedOverlay,
+    allMarkers,
     isEditMode,
     isTogglingMode,
     editModeOverlayCache,

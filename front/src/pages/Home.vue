@@ -69,7 +69,6 @@ import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useAuthStore } from '@stores/authStore'
 import { useUiStore } from '@stores/uiStore'
 import { useToast } from '@composables/ui/useToast'
-import { initializeStores } from '@composables/overlay/useOverlay'
 import { useBeforeUnload } from '@composables/core/useBeforeUnload'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
@@ -148,9 +147,6 @@ function handleVisibilityChange() {
 
 
 onMounted(async () => {
-  // AI : Initialize stores first
-  initializeStores();
-
   // AI : Add visibility change listener to close UI elements when user switches tabs/apps
   document.addEventListener('visibilitychange', handleVisibilityChange);
   
