@@ -44,10 +44,16 @@ declare module "leaflet" {
     class Action extends L.Handler {
       constructor(map: L.Map, options: any);
       static extend(options: any): any;
+      initialize?(...args: any[]): void;
     }
     class Toolbar extends L.Control {
       constructor(options: any);
     }
+  }
+
+  // AI : Toolbar2 constructor (used in toolbar actions)
+  class Toolbar2 extends L.Evented {
+    constructor(options?: { actions?: Array<typeof Toolbar2.Action> });
   }
 
   // AI : Leaflet distortableimage types - prefixed with _ to indicate intentionally unused

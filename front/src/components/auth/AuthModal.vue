@@ -1,53 +1,141 @@
 <template>
-  <Dialog 
-    v-model:visible="visible" 
-    modal 
-    :header="isLoginMode ? $t('auth.signIn') : $t('auth.signUp')" 
-    :style="{width: '450px'}" 
+  <Dialog
+    v-model:visible="visible"
+    modal
+    :header="isForgotPasswordMode ? $t('auth.forgotPasswordTitle') : (isLoginMode ? $t('auth.signIn') : $t('auth.signUp'))"
+    :style="{width: '450px'}"
     class="p-fluid"
     data-testid="auth-modal"
   >
-    <!-- AI : Social Login Section -->
-    <div class="mb-6">
-      <div class="flex flex-col gap-3 mb-4">
-        <Button
-          icon="pi pi-google"
-          :label="$t('auth.continueWithGoogle')"
-          @click="handleOAuthSignIn('google')"
-          outlined
-          :loading="oauthLoading"
-          :disabled="oauthLoading"
-          class="w-full"
-        />
-      </div>
-      
-      <div class="flex items-center my-4">
-        <div class="flex-1 border-t border-surface-300"></div>
-        <span class="px-3 text-sm text-muted-color">{{ $t('auth.orContinueWithEmail') }}</span>
-        <div class="flex-1 border-t border-surface-300"></div>
-      </div>
+    <!-- AI : Forgot Password Mode -->
+    <div v-if="isForgotPasswordMode">
+      <p class="text-muted-color mb-4">{{ $t('auth.forgotPasswordMessage') }}</p>
+
+      <form @submit.prevent="handleForgotPassword" class="flex flex-col gap-4" autocomplete="on">
+        <div class="field">
+          <label for="forgot-email" class="block text-sm font-medium mb-2">{{ $t('auth.emailAddress') }}</label>
+          <InputText
+            id="forgot-email"
+            v-model="forgotPasswordEmail"
+            type="email"
+            required
+            :placeholder="$t('auth.enterEmailAddress')"
+            autocomplete="email"
+            class="w-full"
+            data-testid="forgot-email-input"
+          />
+        </div>
+
+        <div v-if="error" class="p-error flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded">
+          <i class="pi pi-exclamation-triangle"></i>
+          {{ error }}
+        </div>
+
+        <div v-if="resetLinkSent" class="p-info flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded">
+          <i class="pi pi-info-circle"></i>
+          {{ $t('auth.resetLinkSent') }}
+        </div>
+
+        <div class="flex flex-col gap-3 mt-2">
+          <Button
+            type="submit"
+            :label="$t('auth.sendResetLink')"
+            :loading="loading"
+            :disabled="loading"
+            class="w-full"
+            data-testid="send-reset-button"
+          />
+
+          <Button
+            type="button"
+            :label="$t('auth.backToSignIn')"
+            link
+            @click="isForgotPasswordMode = false"
+            :disabled="loading"
+            class="p-0"
+            data-testid="back-to-signin"
+          />
+        </div>
+      </form>
     </div>
 
-    <form @submit.prevent="handleSubmit" class="flex flex-col gap-4" autocomplete="on">
-      <div class="field">
+    <!-- AI : Normal Auth Mode (Sign In / Sign Up) -->
+    <div v-else>
+      <!-- AI : Social Login Section -->
+      <div class="mb-6">
+        <div class="flex flex-col gap-3 mb-4">
+          <div class="relative">
+            <Button
+              icon="pi pi-google"
+              :label="$t('auth.continueWithGoogle')"
+              @click="handleOAuthSignIn('google')"
+              outlined
+              :loading="oauthLoading"
+              :disabled="oauthLoading"
+              class="w-full"
+              :class="{ 'last-used-method': lastLoginMethod === 'google' && isLoginMode }"
+            />
+            <!-- AI : Last used badge for Google -->
+            <span
+              v-if="lastLoginMethod === 'google' && isLoginMode"
+              class="absolute top-0 -right-1 translate-y-[-33%] text-xs px-3 py-1.5 rounded-full font-semibold z-10"
+              style="background-color: var(--p-primary-color); color: var(--p-primary-contrast-color); box-shadow: var(--p-button-shadow);"
+              :title="$t('auth.lastUsedGoogle')"
+            >
+              {{ $t('auth.lastUsed') }}
+            </span>
+          </div>
+        </div>
+
+        <div class="flex items-center my-4">
+          <div class="flex-1 border-t border-surface-300"></div>
+          <span class="px-3 text-sm text-muted-color">{{ $t('auth.orContinueWithEmail') }}</span>
+          <div class="flex-1 border-t border-surface-300"></div>
+        </div>
+      </div>
+
+      <form @submit.prevent="handleSubmit" class="flex flex-col gap-4" autocomplete="on">
+      <div class="field relative">
         <label for="auth-email" class="block text-sm font-medium mb-2">{{ $t('auth.emailAddress') }}</label>
-        <InputText 
+        <InputText
           id="auth-email"
           v-model="form.email"
-          type="email" 
+          type="email"
           required
           :invalid="!!emailError"
           :placeholder="$t('auth.enterEmailAddress')"
           autocomplete="email"
           class="w-full"
+          :class="{ 'last-used-input': lastLoginMethod === 'email' && isLoginMode }"
           data-testid="auth-email-input"
         />
+        <!-- AI : Last used badge for email method -->
+        <span
+          v-if="lastLoginMethod === 'email' && isLoginMode && form.email"
+          class="absolute top-[1.875rem] -right-1 translate-y-[-33%] text-xs px-3 py-1.5 rounded-full font-semibold z-10"
+          style="background-color: var(--p-primary-color); color: var(--p-primary-contrast-color); box-shadow: var(--p-button-shadow);"
+          :title="$t('auth.lastUsedEmail')"
+        >
+          {{ $t('auth.lastUsed') }}
+        </span>
         <small v-if="emailError" class="p-error">{{ emailError }}</small>
       </div>
 
       <div class="field">
-        <label for="auth-password" class="block text-sm font-medium mb-2">{{ $t('auth.password') }}</label>
-        <Password 
+        <div class="flex justify-between items-center mb-2">
+          <label for="auth-password" class="block text-sm font-medium">{{ $t('auth.password') }}</label>
+          <Button
+            v-if="isLoginMode"
+            type="button"
+            :label="$t('auth.forgotPassword')"
+            link
+            @click="showForgotPassword"
+            :disabled="loading || oauthLoading"
+            class="p-0 text-xs"
+            data-testid="forgot-password-link"
+          />
+        </div>
+        <Password
           id="auth-password"
           v-model="form.password"
           :feedback="!isLoginMode"
@@ -106,13 +194,15 @@
           />
         </div>
       </div>
-    </form>
+      </form>
+    </div>
   </Dialog>
 </template>
 
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Password from 'primevue/password'
@@ -128,15 +218,22 @@ const emit = defineEmits<{
   'update:visible': [visible: boolean]
 }>()
 
+const { t: $t } = useI18n()
 const authStore = useAuthStore()
-const toast = useToast();
+const toast = useToast()
 
 const isLoginMode = ref(true)
+const isForgotPasswordMode = ref(false)
 const loading = ref(false)
 const oauthLoading = ref(false)
 const error = ref('')
 const emailError = ref('')
 const passwordError = ref('')
+const forgotPasswordEmail = ref('')
+const resetLinkSent = ref(false)
+
+// AI : Track last login method hint
+const lastLoginMethod = ref<'email' | 'google' | null>(null)
 
 const visible = computed({
   get: () => props.visible,
@@ -149,6 +246,15 @@ const form = reactive({
   username: ''
 })
 
+// AI : Watch email field to show last login hint
+watch(() => form.email, (email) => {
+  if (email && isLoginMode.value && !isForgotPasswordMode.value) {
+    lastLoginMethod.value = authStore.getLastLoginMethod(email)
+  } else {
+    lastLoginMethod.value = null
+  }
+})
+
 function resetForm() {
   form.email = ''
   form.password = ''
@@ -156,6 +262,8 @@ function resetForm() {
   error.value = ''
   emailError.value = ''
   passwordError.value = ''
+  forgotPasswordEmail.value = ''
+  resetLinkSent.value = false
 }
 
 function toggleMode() {
@@ -163,6 +271,13 @@ function toggleMode() {
   error.value = ''
   emailError.value = ''
   passwordError.value = ''
+}
+
+function showForgotPassword() {
+  isForgotPasswordMode.value = true
+  error.value = ''
+  resetLinkSent.value = false
+  forgotPasswordEmail.value = form.email
 }
 
 async function handleSubmit() {
@@ -206,9 +321,9 @@ async function handleOAuthSignIn(provider: 'google' | 'facebook') {
   try {
     const result = await authStore.signInWithOAuth(provider)
     if (result.success) {
-      toast.add({ 
-        severity: 'success', 
-        summary: 'Success', 
+      toast.add({
+        severity: 'success',
+        summary: 'Success',
         detail: `Successfully signed in with ${provider}!`,
         life: 3000
       })
@@ -223,4 +338,43 @@ async function handleOAuthSignIn(provider: 'google' | 'facebook') {
     oauthLoading.value = false
   }
 }
+
+// AI : Handle forgot password request
+async function handleForgotPassword() {
+  loading.value = true
+  error.value = ''
+  resetLinkSent.value = false
+
+  try {
+    const result = await authStore.requestPasswordReset(forgotPasswordEmail.value)
+    if (result.success) {
+      resetLinkSent.value = true
+      toast.add({
+        severity: 'info',
+        summary: $t('auth.checkYourEmail'),
+        detail: $t('auth.resetLinkSent'),
+        life: 5000
+      })
+    } else {
+      error.value = result.error ?? 'Failed to send reset link'
+    }
+  } catch (err: unknown) {
+    error.value = err instanceof Error ? err.message : 'An error occurred'
+  } finally {
+    loading.value = false
+  }
+}
 </script>
+
+<style scoped>
+/* AI : Highlight last used login method with border color using PrimeVue tokens */
+.last-used-method {
+  border: 1px solid var(--p-primary-color) !important;
+  box-shadow: 0 0 0 2px var(--p-primary-50) !important;
+}
+
+.last-used-input {
+  border: 1px solid var(--p-primary-color) !important;
+  box-shadow: 0 0 0 2px var(--p-primary-50) !important;
+}
+</style>

@@ -1,3 +1,16 @@
+// AI : ============================================================================
+// AI : OVERLAY CORE - Central overlay management and rendering
+// AI : ============================================================================
+// AI : This file handles overlay lifecycle, rendering, and user interactions.
+// AI : It's large because overlays are the core domain object with many concerns:
+// AI : - Leaflet map integration (creation, rendering, event handling)
+// AI : - History management (undo/redo)
+// AI : - Navigation (next/prev overlay)
+// AI : - Toolbar actions (Leaflet UI glue code)
+// AI : - Marker management and positioning
+// AI : - Selection and highlighting
+// AI : ============================================================================
+
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
 import { updateOverlayMarkersColors } from '@composables/map/useOverlayMarkerUpdates';
 import L from "leaflet";
@@ -21,14 +34,6 @@ import {
   saveToEditModeOverlayCache,
 } from '@composables/overlay/useOverlayEditCache';
 import { withErrorHandling } from '@composables/core/useErrorHandling';
-
-/**
- * AI : No-op function for backward compatibility
- * AI : Stores are now automatically initialized when accessed
- */
-export function initializeStores() {
-  // AI : No longer needed - stores are automatically initialized when first accessed
-}
 
 /**
  * AI : Update overlay editing state based on current mode
@@ -389,9 +394,6 @@ export function saveToHistory(overlayObject: OverlayObject): void {
 /**
  * AI : Save overlay modifications to edit mode cache for persistence across zoom changes
  */
-/**
- * AI : Save overlay modifications to edit mode cache for persistence across zoom changes
- */
 function saveOverlayModificationsToCache(overlayObject: OverlayObject): void {
   const overlayStore = useOverlayStore();
 
@@ -483,7 +485,7 @@ function calculateOutlineSize(overlayElement: HTMLElement, baseSize: number): nu
 
     // AI : Scale the base outline size by the image resolution
     // Larger images need proportionally larger outlines to appear the same thickness
-    const scaleFactor = naturalSmallerDimension / 500; // 500px as reference size
+    const scaleFactor = naturalSmallerDimension / 500;
     const scaledOutline = baseSize * scaleFactor;
 
     // AI : Clamp to reasonable bounds
@@ -1555,17 +1557,12 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
   saveOverlayWithCurrentCorners(overlayObject);
 }
 
-// AI : Toolbar Actions (moved from useTools.ts to break circular dependency)
-
-// AI : Function to get store refs directly from the store
-
 export const infoTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       className: 'pi pi-info-circle',
       tooltip: 'Info'
     },
-    // @ts-ignore
     subToolbar: new L.Toolbar2({
       actions: [L.EditAction.extend({
         options: {
@@ -1575,8 +1572,7 @@ export const infoTool = L.Toolbar2.Action.extend({
           },
         },
         initialize: function () {
-          // @ts-ignore
-          L.EditAction.prototype.initialize.apply(this, arguments);
+          L.EditAction.prototype.initialize?.apply(this, Array.from(arguments));
         }
       })],
     })

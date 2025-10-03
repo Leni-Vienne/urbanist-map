@@ -1,10 +1,11 @@
 import { publicProcedure, protectedProcedure, router, TRPCError } from '../trpc';
 import { z } from 'zod';
-import { overlays, projects, cities, countries } from '../db/schema';
+import { overlays, projects } from '../db/schema';
 import { sql, eq, and } from 'drizzle-orm';
 import { db } from '../database';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../db/schema';
+import { buildOverlayQuery } from '../db/queryBuilders';
 
 const publishOverlaySchema = z.object({
   id: z.uuid(), // AI : UUID length limit
@@ -35,45 +36,7 @@ const updateOverlaySchema = z.object({
   caption: z.string().max(500).optional(), // AI : Allow updating caption
 });
 
-// AI : Shared select fields for overlay queries to reduce duplication
-const overlaySelectFields = {
-  id: overlays.id,
-  version: overlays.version,
-  filename: overlays.filename,
-  caption: overlays.caption,
-  status: overlays.status,
-  projectId: overlays.projectId,
-  authorId: overlays.authorId,
-  replacesOverlayId: overlays.replacesOverlayId,
-  metadata: overlays.metadata,
-  // AI : Extract corners from polygon geometry as array of {lat, lng}
-  corners: sql<{lat: number, lng: number}[]>`
-    (SELECT json_agg(json_build_object('lat', ST_Y(geom), 'lng', ST_X(geom)) ORDER BY path[2])
-     FROM ST_DumpPoints(${overlays.corners}) AS dump(path, geom)
-     WHERE path[2] <= 4)
-  `,
-  // AI : Extract centroid as {lat, lng}
-  centroid: sql<{lat: number, lng: number}>`
-    json_build_object('lat', ST_Y(${overlays.centroid}), 'lng', ST_X(${overlays.centroid}))
-  `,
-  createdAt: overlays.createdAt,
-  updatedAt: overlays.updatedAt,
-  projectName: projects.name,
-  cityName: cities.name,
-  cityId: cities.id,
-  countryCode: countries.code,
-  countryName: countries.name,
-};
-
-// AI : Base query builder for overlays with joins
-function buildOverlayQuery(db: PostgresJsDatabase<typeof schema>) {
-  return db
-    .select(overlaySelectFields)
-    .from(overlays)
-    .leftJoin(projects, eq(overlays.projectId, projects.id))
-    .leftJoin(cities, eq(projects.cityId, cities.id))
-    .leftJoin(countries, eq(cities.countryCode, countries.code));
-}
+// AI : Shared select fields and query builder moved to back/src/db/queryBuilders.ts to eliminate duplication
 
 // AI : Find overlays that intersect with a given overlay using PostGIS spatial queries
 async function findIntersectingOverlays(db: PostgresJsDatabase<typeof schema>, excludeId: string, targetOverlay: { corners: {lat: number, lng: number}[] }) {
@@ -83,12 +46,7 @@ async function findIntersectingOverlays(db: PostgresJsDatabase<typeof schema>, e
     const targetPolygonWKT = `POLYGON((${topLeft.lng} ${topLeft.lat}, ${topRight.lng} ${topRight.lat}, ${bottomRight.lng} ${bottomRight.lat}, ${bottomLeft.lng} ${bottomLeft.lat}, ${topLeft.lng} ${topLeft.lat}))`;
 
     // AI : Use PostGIS ST_Intersects with precomputed target polygon for optimal performance
-    const intersectingOverlays = await db
-      .select(overlaySelectFields)
-      .from(overlays)
-      .leftJoin(projects, eq(overlays.projectId, projects.id))
-      .leftJoin(cities, eq(projects.cityId, cities.id))
-      .leftJoin(countries, eq(cities.countryCode, countries.code))
+    const intersectingOverlays = await buildOverlayQuery(db)
       .where(sql`
         ${overlays.id} != ${excludeId} AND
         ST_Intersects(

@@ -124,9 +124,6 @@ export async function loadCityOverlays(cityId: string, forceFullLoad = false): P
   ) as Promise<void>;
 }
 
-/**
- * AI : Show overlay markers without loading images for performance
- */
 // AI : Common function to render overlay markers from overlay data
 function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void {
   // AI : Clear view mode overlays state using store

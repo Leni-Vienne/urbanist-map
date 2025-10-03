@@ -1,9 +1,10 @@
 import { adminProcedure, router } from '../trpc';
 import { z } from 'zod';
-import { projects, overlays, approvalStatusEnum, cities, countries, changeRequests } from '../db/schema';
-import { eq, inArray, sql, or, and } from 'drizzle-orm';
+import { projects, overlays, approvalStatusEnum, changeRequests } from '../db/schema';
+import { eq, inArray, or, and } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { db } from '../database';
+import { buildProjectModerationQuery, buildOverlayModerationQuery } from '../db/queryBuilders';
 
 // AI : Schema for legacy approval endpoints - supports arrays but frontend only sends single items
 // Used only for undo functionality in the frontend
@@ -35,25 +36,7 @@ export const moderationRouter = router({
           const projectIdsWithPendingOverlays = projectsWithPendingOverlays.map(p => p.projectId).filter((id): id is string => id !== null);
 
           // AI : Query projects that need moderation - either directly pending OR have pending overlays
-          const moderationProjects = db
-            .select({
-              id: projects.id,
-              name: projects.name,
-              description: projects.description,
-              status: projects.status,
-              version: projects.version, // AI : Include version for optimistic locking
-              createdAt: projects.createdAt,
-              updatedAt: projects.updatedAt,
-              startDate: projects.startDate,
-              endDate: projects.endDate,
-              sourceUrl: projects.sourceUrl,
-              cityName: cities.name,
-              countryCode: countries.code,
-              countryName: countries.name,
-            })
-            .from(projects)
-            .leftJoin(cities, eq(projects.cityId, cities.id))
-            .leftJoin(countries, eq(cities.countryCode, countries.code))
+          const moderationProjects = buildProjectModerationQuery(db)
             .where(
               or(
                 eq(projects.status, 'pending'),
@@ -65,23 +48,7 @@ export const moderationRouter = router({
             .orderBy(projects.createdAt);
 
           // AI : Get all overlays for these moderation projects (to show what needs review)
-          const projectOverlays = db
-            .select({
-              id: overlays.id,
-              name: sql<string>`coalesce(${overlays.caption}, 'Unnamed')`,
-              filename: overlays.filename,
-              status: overlays.status,
-              version: overlays.version, // AI : Include version for optimistic locking
-              projectId: overlays.projectId,
-              updatedAt: overlays.updatedAt,
-              cityName: cities.name,
-              countryCode: countries.code,
-              countryName: countries.name,
-            })
-            .from(overlays)
-            .leftJoin(projects, eq(overlays.projectId, projects.id))
-            .leftJoin(cities, eq(projects.cityId, cities.id))
-            .leftJoin(countries, eq(cities.countryCode, countries.code))
+          const projectOverlays = buildOverlayModerationQuery(db)
             .where(
               or(
                 eq(projects.status, 'pending'),

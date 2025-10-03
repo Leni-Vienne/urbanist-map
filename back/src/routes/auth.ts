@@ -347,57 +347,53 @@ export const authRouter = router({
   requestPasswordReset: publicProcedure
     .input(resetPasswordRequestSchema)
     .mutation(async ({ input }) => {
-      try {
-        const { email } = input;
+      const { email } = input;
 
-        // AI : Find user
-        const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-        if (!user) {
-          // AI : Don't reveal if user exists or not for security
-          return {
-            success: true,
-            message: 'If an account with this email exists, a password reset link has been sent.',
-          };
+      // AI : SECURITY: Fire and forget - respond immediately to prevent ALL timing attacks
+      // AI : Do ALL work asynchronously including DB lookup
+      (async () => {
+        try {
+          // AI : Find user
+          const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+
+          if (!user) {
+            // AI : User doesn't exist - silently fail for security
+            return;
+          }
+
+          // AI : SECURITY: Check if OAuth-only user - silently fail (don't reveal auth method)
+          if (user.googleId && !user.passwordHash) {
+            // AI : OAuth-only users can't reset password - silently fail to prevent enumeration
+            return;
+          }
+
+          // AI : Generate reset token and expiry (1 hour)
+          const plainResetToken = generateToken();
+          const resetToken = await Bun.password.hash(plainResetToken);
+          const resetExpiry = new Date();
+          resetExpiry.setHours(resetExpiry.getHours() + 1);
+
+          // AI : Update user with reset token
+          await db.update(users)
+            .set({
+              passwordResetToken: resetToken,
+              passwordResetExpiresAt: resetExpiry,
+            })
+            .where(eq(users.id, user.id));
+
+          // AI : Send password reset email
+          await sendPasswordResetEmail(email, plainResetToken);
+        } catch (error) {
+          // AI : Log error but don't expose it to client
+          console.error('Password reset background processing error:', error);
         }
+      })();
 
-        // AI : SECURITY: Check if this is an OAuth-only user
-        if (user.googleId && !user.passwordHash) {
-          // AI : User signed up with Google OAuth and has no password
-          return {
-            success: false,
-            message: 'This email is connected to Google Sign-In. Please use "Continue with Google" to access your account.',
-            authMethod: 'google'
-          };
-        }
-
-        // AI : Generate reset token and expiry (1 hour)
-        const plainResetToken = generateToken();
-        const resetToken = await Bun.password.hash(plainResetToken);
-        const resetExpiry = new Date();
-        resetExpiry.setHours(resetExpiry.getHours() + 1);
-
-        // AI : Update user with reset token
-        await db.update(users)
-          .set({
-            passwordResetToken: resetToken,
-            passwordResetExpiresAt: resetExpiry,
-          })
-          .where(eq(users.id, user.id));
-
-        // AI : Send password reset email
-        await sendPasswordResetEmail(email, plainResetToken);
-
-        return {
-          success: true,
-          message: 'If an account with this email exists, a password reset link has been sent.',
-        };
-      } catch (error) {
-        console.error('Password reset request error:', error);
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Password reset request failed',
-        });
-      }
+      // AI : SECURITY: Always return the same response immediately (no timing leak, no info leak)
+      return {
+        success: true,
+        message: 'If an account with this email exists, a password reset link has been sent.',
+      };
     }),
 
   // AI : Reset password
