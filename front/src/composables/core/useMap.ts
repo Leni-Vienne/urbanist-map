@@ -66,7 +66,8 @@ export function initializeMap() {
       bounceAtZoomLimits: true,
     }),
     // AI : Configure touch zoom to always zoom to center for consistent behavior
-    touchZoom: isMobile ? 'center' : true,
+    //touchZoom: isMobile ? 'center' : true,
+    touchZoom: true,
     // to have double tag + drag zoom on mobile, using Leaflet.DoubleTapDragZoom package. Doesn't seem to work
     doubleTapDragZoom: 'center',
     doubleTapDragZoomOptions: {

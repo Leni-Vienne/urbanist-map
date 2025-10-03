@@ -18,6 +18,7 @@
     <div
       v-else
       class="user-menu"
+      :class="{ 'user-menu-mobile': isMobile }"
       data-testid="user-menu"
       @click="toggleMenu"
       @dblclick.stop
@@ -26,8 +27,9 @@
       <div class="user-avatar">
         <i class="pi pi-user"></i>
       </div>
-      <span class="username">{{ authStore.user?.username }}</span>
+      <span v-if="!isMobile" class="username">{{ authStore.user?.username }}</span>
       <i
+        v-if="!isMobile"
         class="pi pi-chevron-down"
         :class="{ 'rotated': isMenuOpen }"
       ></i>
@@ -76,6 +78,9 @@ const { t } = useI18n()
 const showAuthModal = ref(false)
 const isMenuOpen = ref(false)
 const userPopover = ref()
+
+// AI : Detect mobile device for conditional layout
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 
 // AI : Toggle menu visibility using Popover
 function toggleMenu(event: Event) {
@@ -136,6 +141,16 @@ watch(() => userPopover.value?.visible, (visible) => {
   min-width: 120px;
 }
 
+.user-menu-mobile {
+  min-width: auto;
+  padding: 0;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  justify-content: center;
+  gap: 0;
+}
+
 .user-menu:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
@@ -151,6 +166,12 @@ watch(() => userPopover.value?.visible, (visible) => {
   justify-content: center;
   color: var(--p-primary-600);
   font-size: 0.75rem;
+}
+
+.user-menu-mobile .user-avatar {
+  background: transparent;
+  color: var(--p-surface-600);
+  font-size: 16px;
 }
 
 .username {

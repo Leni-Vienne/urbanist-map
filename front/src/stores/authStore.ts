@@ -150,9 +150,7 @@ export const useAuthStore = defineStore('auth', () => {
 
       // AI : Load Google Identity Services script if not already loaded
       if (!window.google) {
-        console.log('Loading Google Identity Services script...')
         await loadGoogleIdentityScript()
-        console.log('Google Identity Services script loaded')
       }
       
       return await new Promise((resolve) => {
@@ -178,7 +176,6 @@ export const useAuthStore = defineStore('auth', () => {
           client_id: clientId,
           callback: async (response: { credential: string }) => {
             clearTimeout(timeout)
-            console.log('Google OAuth callback received')
 
             try {
               // AI : Send the Google token to our backend
@@ -224,8 +221,6 @@ export const useAuthStore = defineStore('auth', () => {
           cancel_on_tap_outside: true
         })
 
-        // AI : Show Google One Tap - simple approach
-        console.log('Showing Google One Tap')
         window.google.accounts.id.prompt()
       })
     } catch (error: unknown) {
