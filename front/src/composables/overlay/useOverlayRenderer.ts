@@ -36,7 +36,7 @@ export function renderForStrategy(
     }
 
     // AI : Apply correct positions (cached for edit mode, backend for view mode)
-    // AI : applyPosition now guards against overlays not on map yet
+    // AI : Must be called after overlays are added to map (after renderViewModeOverlays)
     const overlayObjects = Object.values(overlayStore.overlays)
     applyPositionsToOverlays(overlayObjects, strategy.shouldUseCachedPositions)
 
