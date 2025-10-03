@@ -3,54 +3,56 @@
     <div class="reset-card">
       <div v-if="loading" class="loading-state">
         <i class="pi pi-spin pi-spinner" style="font-size: 2rem; color: var(--p-primary-color);"></i>
-        <p>AI : Validating reset token...</p>
+        <p>{{ $t('common.loading') }}</p>
       </div>
-      
+
       <div v-else-if="tokenValid" class="form-state">
         <i class="pi pi-key" style="font-size: 3rem; color: var(--p-primary-color);"></i>
-        <h2>Reset Your Password</h2>
-        <form @submit.prevent="resetPassword" class="reset-form">
+        <h2>{{ $t('auth.resetPasswordTitle') }}</h2>
+        <form @submit.prevent="handleResetPassword" class="reset-form">
           <div class="field">
-            <label for="password">New Password</label>
-            <Password 
+            <label for="password">{{ $t('auth.newPassword') }}</label>
+            <Password
               id="password"
-              v-model="newPassword" 
-              :feedback="false"
-              placeholder="Enter new password"
+              v-model="newPassword"
+              :feedback="true"
+              toggleMask
+              :placeholder="$t('auth.chooseStrongPassword')"
               :class="{ 'p-invalid': passwordError }"
               required
             />
             <small v-if="passwordError" class="p-error">{{ passwordError }}</small>
           </div>
-          
+
           <div class="field">
-            <label for="confirmPassword">Confirm Password</label>
-            <Password 
+            <label for="confirmPassword">{{ $t('auth.confirmPassword') }}</label>
+            <Password
               id="confirmPassword"
-              v-model="confirmPassword" 
+              v-model="confirmPassword"
               :feedback="false"
-              placeholder="Confirm new password"
+              toggleMask
+              :placeholder="$t('auth.confirmPassword')"
               :class="{ 'p-invalid': confirmError }"
               required
             />
             <small v-if="confirmError" class="p-error">{{ confirmError }}</small>
           </div>
-          
-          <Button 
-            type="submit" 
-            label="Reset Password" 
+
+          <Button
+            type="submit"
+            :label="$t('auth.resetPassword')"
             :loading="submitting"
             :disabled="!isFormValid"
             class="w-full"
           />
         </form>
       </div>
-      
+
       <div v-else class="error-state">
         <i class="pi pi-times-circle" style="font-size: 3rem; color: var(--p-red-500);"></i>
-        <h2>Invalid Reset Link</h2>
+        <h2>{{ $t('auth.invalidResetToken') }}</h2>
         <p>{{ errorMessage }}</p>
-        <Button @click="goToApp" label="Back to App" severity="secondary" />
+        <Button @click="goToApp" :label="$t('auth.backToSignIn')" severity="secondary" />
       </div>
     </div>
   </div>
@@ -59,10 +61,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@stores/authStore'
 import { useToast } from '@composables/ui/useToast'
 import Button from 'primevue/button'
 import Password from 'primevue/password'
+
+const { t: $t } = useI18n()
 
 const route = useRoute()
 const router = useRouter()
@@ -88,62 +93,61 @@ const isFormValid = computed(() => {
 function validatePasswords() {
   passwordError.value = ''
   confirmError.value = ''
-  
+
   if (newPassword.value && newPassword.value.length < 8) {
-    passwordError.value = 'AI : Password must be at least 8 characters'
+    passwordError.value = $t('auth.chooseStrongPassword')
   }
-  
+
   if (confirmPassword.value && newPassword.value !== confirmPassword.value) {
-    confirmError.value = 'AI : Passwords do not match'
+    confirmError.value = $t('auth.passwordsDontMatch')
   }
 }
 
 async function validateToken() {
   try {
     const token = route.query.token as string
-    
+
     if (!token) {
-      throw new Error('AI : No reset token provided')
+      throw new Error($t('auth.invalidResetToken'))
     }
 
-    // AI : For now, assume token is valid if present
-    // AI : In real implementation, you might want to validate token with backend first
     tokenValid.value = true
   } catch (error) {
     console.error('Token validation failed:', error)
-    errorMessage.value = error instanceof Error ? error.message : 'AI : Invalid or expired reset token'
+    errorMessage.value = error instanceof Error ? error.message : $t('auth.invalidResetToken')
   } finally {
     loading.value = false
   }
 }
 
-async function resetPassword() {
+async function handleResetPassword() {
   try {
     validatePasswords()
     if (!isFormValid.value) return
-    
+
     submitting.value = true
     const token = route.query.token as string
-    
-    // AI : Call auth store method to reset password
-    // TODO This would need to be implemented in authStore
-    // await authStore.resetPassword(token, newPassword.value)
-    
-    toast.add({
-      severity: 'success',
-      summary: 'Success',
-      detail: 'Password reset successfully!',
-      life: 3000
-    })
-    
-    // AI : Redirect to home after success
-    router.push('/')
+
+    const result = await authStore.resetPassword(token, newPassword.value)
+
+    if (result.success) {
+      toast.add({
+        severity: 'success',
+        summary: $t('common.success'),
+        detail: $t('auth.passwordResetSuccess'),
+        life: 3000
+      })
+
+      router.push('/')
+    } else {
+      throw new Error(result.error ?? $t('auth.invalidResetToken'))
+    }
   } catch (error) {
     console.error('Password reset failed:', error)
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: error instanceof Error ? error.message : 'AI : Password reset failed',
+      summary: $t('common.error'),
+      detail: error instanceof Error ? error.message : $t('auth.invalidResetToken'),
       life: 5000
     })
   } finally {

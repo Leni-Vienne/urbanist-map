@@ -1,9 +1,13 @@
 import { publicProcedure, protectedProcedure, router } from '../trpc';
 import { z } from 'zod';
-import { projects, cities, overlays, countries } from '../db/schema';
+import { projects, cities, overlays } from '../db/schema';
 import { eq, sql, and, inArray } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { db } from '../database';
+import { buildProjectWithLocationQuery, buildOverlayModerationQuery } from '../db/queryBuilders';
+
+// AI : Nearby search radius configuration
+const NEARBY_SEARCH_RADIUS_METERS = 10 * 1000; // 10km
 
 const publishProjectSchema = z.object({
   id: z.uuid().optional(),
@@ -137,7 +141,7 @@ export const projectRouter = router({
             sql`ST_DWithin(
               ${overlays.centroid},
               ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
-              ${10 * 1000}
+              ${NEARBY_SEARCH_RADIUS_METERS}
             )`
           ))
           .groupBy(
@@ -241,63 +245,14 @@ export const projectRouter = router({
       .query(async ({ input, ctx }) => {
         try {
           // AI : Get all projects with full location info
-          const allProjects = await db
-            .select({
-              id: projects.id,
-              version: projects.version,
-              name: projects.name,
-              description: projects.description,
-              status: projects.status,
-              ownerId: projects.ownerId,
-              cityId: projects.cityId,
-              isMarker: projects.isMarker,
-              lat: projects.lat,
-              lng: projects.lng,
-              proposalDate: projects.proposalDate,
-              startDate: projects.startDate,
-              endDate: projects.endDate,
-              sourceUrl: projects.sourceUrl,
-              latestUpdateOn: projects.latestUpdateOn,
-              createdAt: projects.createdAt,
-              updatedAt: projects.updatedAt,
-              cityName: cities.name,
-              countryCode: countries.code,
-              countryName: countries.name,
-              city: {
-                id: cities.id,
-                name: cities.name,
-                countryCode: cities.countryCode,
-                countryName: countries.name,
-                lat: sql<number>`ST_Y(${cities.coordinates})`,
-                lng: sql<number>`ST_X(${cities.coordinates})`
-              }
-            })
-            .from(projects)
-            .leftJoin(cities, eq(projects.cityId, cities.id))
-            .leftJoin(countries, eq(cities.countryCode, countries.code))
+          const allProjects = await buildProjectWithLocationQuery(db)
             .where(eq(projects.ownerId, ctx.user.id))
             .orderBy(sql`${projects.updatedAt} DESC`)
             .limit(input.limit);
 
           // AI : Get overlays for all projects with full location info
           const projectIds = allProjects.map(p => p.id);
-          const projectOverlays = projectIds.length > 0 ? await db
-            .select({
-              id: overlays.id,
-              version: overlays.version,
-              name: sql<string>`coalesce(${overlays.caption}, 'Unnamed')`,
-              filename: overlays.filename,
-              status: overlays.status,
-              projectId: overlays.projectId,
-              updatedAt: overlays.updatedAt,
-              cityName: cities.name,
-              countryCode: countries.code,
-              countryName: countries.name,
-            })
-            .from(overlays)
-            .leftJoin(projects, eq(overlays.projectId, projects.id))
-            .leftJoin(cities, eq(projects.cityId, cities.id))
-            .leftJoin(countries, eq(cities.countryCode, countries.code))
+          const projectOverlays = projectIds.length > 0 ? await buildOverlayModerationQuery(db)
             .where(inArray(overlays.projectId, projectIds))
             .orderBy(overlays.updatedAt) : [];
 

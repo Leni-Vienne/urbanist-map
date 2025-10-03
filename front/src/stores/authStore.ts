@@ -102,6 +102,10 @@ export const useAuthStore = defineStore('auth', () => {
 
       if (response.ok && result.success) {
         user.value = result.user ?? null
+        // AI : Store last login method for UX hint
+        if (result.user?.email) {
+          localStorage.setItem(`lastLoginMethod:${result.user.email}`, 'email')
+        }
         return {
           success: true,
           user: result.user ?? null,
@@ -116,9 +120,9 @@ export const useAuthStore = defineStore('auth', () => {
       }
     } catch (error: unknown) {
       console.error('Sign in error:', error)
-      return { 
-        success: false, 
-        user: null, 
+      return {
+        success: false,
+        user: null,
         error: error instanceof Error ? error.message : 'Login failed'
       }
     }
@@ -191,6 +195,10 @@ export const useAuthStore = defineStore('auth', () => {
 
               if (result.ok && data.success) {
                 user.value = data.user ?? null
+                // AI : Store last login method for UX hint
+                if (data.user?.email) {
+                  localStorage.setItem(`lastLoginMethod:${data.user.email}`, 'google')
+                }
                 resolve({
                   success: true,
                   user: data.user ?? null,
@@ -310,6 +318,16 @@ export const useAuthStore = defineStore('auth', () => {
     return null // AI : No need for auth headers with cookie-based auth
   }
 
+  // AI : Get last login method for a given email (for UX hint)
+  function getLastLoginMethod(email: string): 'email' | 'google' | null {
+    try {
+      const method = localStorage.getItem(`lastLoginMethod:${email}`)
+      return method as 'email' | 'google' | null
+    } catch {
+      return null
+    }
+  }
+
   return {
     user,
     loading,
@@ -324,5 +342,6 @@ export const useAuthStore = defineStore('auth', () => {
     requestPasswordReset,
     resetPassword,
     getAuthHeader,
+    getLastLoginMethod,
   }
 })
