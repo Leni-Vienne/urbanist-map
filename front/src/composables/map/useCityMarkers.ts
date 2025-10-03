@@ -7,7 +7,8 @@ import { loadCityOverlays } from '@composables/map/useCityOverlays';
 import { useSelectedProject } from '@composables/project/useSelectedProject';
 import { RouterOutput, trpc } from '@client';
 
-import { useStores } from '@composables/core/useStores';
+import { useUiStore } from '@stores/uiStore';
+import { useMapStore } from '@stores/pinia/mapStore';
 import { useProjects } from '@composables/project/useProjects';
 import { createProject } from '../../utils/typeFactories';
 
@@ -124,9 +125,9 @@ function createProjectInfoTeleportTarget(marker: L.Marker | L.CircleMarker) {
   
   // AI : Add map click handler to close project popup
   mapClickHandler = () => {
-    const { ui } = useStores();
-    if (ui.store.projectInfoPopup.visible) {
-      ui.closeProjectInfoPopup();
+    const uiStore = useUiStore();
+    if (uiStore.projectInfoPopup.visible) {
+      uiStore.closeProjectInfoPopup();
     }
   };
   map.value.on('click', mapClickHandler);
@@ -234,12 +235,12 @@ async function loadCityMarkerProjects(cityId: string | null): Promise<void> {
           // AI : Stop all event propagation using Leaflet's method
           L.DomEvent.stopPropagation(e);
 
-          const { ui } = useStores();
+          const uiStore = useUiStore();
 
           // AI : Check if popup is already open for this project - toggle behavior
-          if (ui.store.projectInfoPopup.visible && ui.store.projectInfoPopup.projectId === project.id) {
+          if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
             // AI : Close the popup if it's already open for this project
-            ui.closeProjectInfoPopup();
+            uiStore.closeProjectInfoPopup();
             return;
           }
 
@@ -258,7 +259,7 @@ async function loadCityMarkerProjects(cityId: string | null): Promise<void> {
             savedRemotely: true,
             status: 'approved'
           });
-          ui.openProjectInfoPopup(project.id, projectData);
+          uiStore.openProjectInfoPopup(project.id, projectData);
         });
 
         marker.addTo(markerProjectsLayer!);
@@ -279,15 +280,17 @@ export async function loadCityProjects(cityId: string | null, cityName: string, 
   try {
     // AI : Update selected city in store (only if cityId is not null)
     if (cityId) {
-      const { map: mapStores, ui } = useStores();
-      mapStores.setSelectedCity({ id: cityId, name: cityName, countryCode: cityCountryCode });
+      const mapStore = useMapStore();
+      const uiStore = useUiStore();
+
+      mapStore.setSelectedCity({ id: cityId, name: cityName, countryCode: cityCountryCode });
 
       // AI : Clear selected project when switching cities
       const { selectedProjectId } = useSelectedProject();
       selectedProjectId.value = null;
 
       // AI : Close project info popup when switching cities
-      ui.closeProjectInfoPopup();
+      uiStore.closeProjectInfoPopup();
 
       // AI : Load both overlay projects and marker projects
       await Promise.all([

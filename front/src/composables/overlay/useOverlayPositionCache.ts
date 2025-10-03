@@ -2,7 +2,7 @@
 // AI : Separates cache logic from rendering and mode switching
 
 import type { OverlayObject } from '@types'
-import { useStores } from '@composables/core/useStores'
+import { useOverlayStore } from '@stores/pinia/overlayStore'
 import L from 'leaflet'
 
 // AI : Cache entry structure (matches what's in overlayStore)
@@ -15,8 +15,8 @@ export interface CachedPosition {
  * AI : Get cached position for an overlay
  */
 export function getCachedPosition(overlayId: string): CachedPosition | null {
-  const { overlay } = useStores()
-  const cached = overlay.getFromEditModeCache(overlayId)
+  const overlayStore = useOverlayStore()
+  const cached = overlayStore.getFromEditModeCache(overlayId)
   return cached ?? null
 }
 
@@ -24,14 +24,14 @@ export function getCachedPosition(overlayId: string): CachedPosition | null {
  * AI : Save overlay position to cache
  */
 export function saveCachedPosition(overlayId: string, corners: L.LatLng[], isModified: boolean): void {
-  const { overlay } = useStores()
+  const overlayStore = useOverlayStore()
 
   const cacheData: CachedPosition = {
     corners: corners.map(corner => ({ lat: corner.lat, lng: corner.lng })),
     isModified,
   }
 
-  overlay.saveToEditModeCache(overlayId, cacheData)
+  overlayStore.saveToEditModeCache(overlayId, cacheData)
 }
 
 /**
@@ -52,8 +52,8 @@ export function cacheCurrentPosition(overlayObject: OverlayObject): void {
  * AI : Clear all cached positions
  */
 export function clearAllCachedPositions(): void {
-  const { overlay } = useStores()
-  overlay.clearEditModeCache()
+  const overlayStore = useOverlayStore()
+  overlayStore.clearEditModeCache()
 }
 
 /**
