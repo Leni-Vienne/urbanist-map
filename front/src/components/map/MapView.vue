@@ -17,7 +17,10 @@
 
     <!-- AI : Map Controls Component -->
     <MapControls @filter-overlays="filterOverlaysByCompletionStatus" />
-    
+
+    <!-- AI : Help button to guide user to click markers -->
+    <MarkerHelpButton />
+
     <!-- AI : Project Info Popup Container -->
     <PopupContainer mode="project" />
   </div>
@@ -41,6 +44,7 @@ import type { OverlayData } from '@types';
 import MapControls from '@components/map/MapControls.vue';
 import UserMenu from '@components/auth/UserMenu.vue';
 import PopupContainer from '@components/map/PopupContainer.vue';
+import MarkerHelpButton from '@components/map/MarkerHelpButton.vue';
 
 // AI: Get stores
 const mapStore = useMapStore();

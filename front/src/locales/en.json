@@ -119,7 +119,9 @@
     "layers": "Layers",
     "satellite": "Satellite",
     "terrain": "Terrain",
-    "street": "Street Map"
+    "street": "Street Map",
+    "clickCountryMarker": "Click on a country marker to explore",
+    "clickCityMarker": "Click on a city marker to see projects"
   },
   "auth": {
     "login": "Login",

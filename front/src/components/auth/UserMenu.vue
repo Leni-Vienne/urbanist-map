@@ -18,7 +18,6 @@
     <div
       v-else
       class="user-menu"
-      :class="{ 'user-menu-mobile': isMobile }"
       data-testid="user-menu"
       @click="toggleMenu"
       @dblclick.stop
@@ -27,9 +26,8 @@
       <div class="user-avatar">
         <i class="pi pi-user"></i>
       </div>
-      <span v-if="!isMobile" class="username">{{ authStore.user?.username }}</span>
+      <span class="username">{{ authStore.user?.username }}</span>
       <i
-        v-if="!isMobile"
         class="pi pi-chevron-down"
         :class="{ 'rotated': isMenuOpen }"
       ></i>
@@ -67,7 +65,7 @@ import { ref, watch } from 'vue'
 import Button from 'primevue/button'
 import Popover from 'primevue/popover'
 import AuthModal from './AuthModal.vue'
-import LanguageSwitcherMenu from '../LanguageSwitcherMenu.vue'
+import LanguageSwitcherMenu from '../map/LanguageSwitcherMenu.vue'
 import { useAuthStore } from '@stores/authStore'
 import { useToast } from '@composables/ui/useToast'
 import { useI18n } from 'vue-i18n'
@@ -78,9 +76,6 @@ const { t } = useI18n()
 const showAuthModal = ref(false)
 const isMenuOpen = ref(false)
 const userPopover = ref()
-
-// AI : Detect mobile device for conditional layout
-const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 
 // AI : Toggle menu visibility using Popover
 function toggleMenu(event: Event) {
@@ -141,18 +136,7 @@ watch(() => userPopover.value?.visible, (visible) => {
   min-width: 120px;
 }
 
-.user-menu-mobile {
-  min-width: auto;
-  padding: 0;
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  justify-content: center;
-  gap: 0;
-}
-
 .user-menu:hover {
-  transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
@@ -168,10 +152,27 @@ watch(() => userPopover.value?.visible, (visible) => {
   font-size: 0.75rem;
 }
 
-.user-menu-mobile .user-avatar {
-  background: transparent;
-  color: var(--p-surface-600);
-  font-size: 16px;
+@media (max-width: 768px) {
+  .user-menu {
+    min-width: auto;
+    padding: 0;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    justify-content: center;
+    gap: 0;
+  }
+
+  .user-avatar {
+    background: transparent;
+    color: var(--p-surface-600);
+    font-size: 16px;
+  }
+
+  .username,
+  .pi-chevron-down {
+    display: none;
+  }
 }
 
 .username {

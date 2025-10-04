@@ -116,6 +116,8 @@ function addCountryMarkersToMapInternal() {
         markerElement.setAttribute('data-testid', `country-marker-${country.code}`);
         markerElement.setAttribute('data-country-code', country.code);
         markerElement.setAttribute('data-country-name', country.name);
+        markerElement.setAttribute('data-lat', country.lat.toString());
+        markerElement.setAttribute('data-lng', country.lng.toString());
       }
     });
 

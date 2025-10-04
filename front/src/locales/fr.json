@@ -119,7 +119,9 @@
     "layers": "Couches",
     "satellite": "Satellite",
     "terrain": "Terrain",
-    "street": "Plan de rue"
+    "street": "Plan de rue",
+    "clickCountryMarker": "Cliquez sur un pays",
+    "clickCityMarker": "Cliquez sur un marqueur de ville pour voir les projets"
   },
   "auth": {
     "login": "Connexion",
