@@ -16,7 +16,7 @@ export default defineConfig({
     visualizer({
       filename: 'stats.html',
       open: false,
-      template: 'raw-data', // 'treemap', 'sunburst', 'network', 'list', 'flamegraph', 'raw-data'
+      template: 'treemap', // 'treemap', 'sunburst', 'network', 'list', 'flamegraph', 'raw-data'
     }),
     tailwindcss(),
     vueDevTools(),
@@ -37,6 +37,8 @@ export default defineConfig({
     alias: {
       // AI : Redirect leaflet imports to our CDN shim
       'leaflet': path.resolve(__dirname, './src/lib/leaflet-umd-shim.ts'),
+      // AI : Use vue-i18n runtime-only build (no message compiler, uses JIT compilation)
+      'vue-i18n': 'vue-i18n/dist/vue-i18n.runtime.esm-bundler.js',
       '@tables': path.resolve(__dirname, './back/src/db/schema'),
       '@pages': path.resolve(__dirname, './src/pages'),
       '@assets': path.resolve(__dirname, './src/assets'),
@@ -87,9 +89,12 @@ export default defineConfig({
       }
     }
   },
-  // removes vue devtools in production (and more, from 809Kb to 691Kb)
   define: {
     __VUE_PROD_DEVTOOLS__: false,
-    'process.env.NODE_ENV': JSON.stringify('production')
+    'process.env.NODE_ENV': JSON.stringify('production'),
+    // AI : vue-i18n optimizations - tree-shake unused features
+    __INTLIFY_PROD_DEVTOOLS__: false,
+    __VUE_I18N_FULL_INSTALL__: true, // we use globalInjection
+    __VUE_I18N_LEGACY_API__: false   // we use composition API (legacy: false)
   }
 })

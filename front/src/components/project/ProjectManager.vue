@@ -76,7 +76,6 @@
 import { ref, defineAsyncComponent } from 'vue'
 import { storeToRefs } from 'pinia'
 import L from 'leaflet'
-import ImageUploadDialog from '@components/map/ImageUploadDialog.vue'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useProjectStore } from '@stores/pinia/projectStore'
 import { useMapStore } from '@stores/pinia/mapStore'
@@ -92,6 +91,8 @@ import { createProjectFromAPI } from '../../utils/typeFactories'
 import type { Project, OverlayObject } from '@types'
 import type { NearbyProject } from '../../types/api'
 
+// AI : Lazy load all dialog components to reduce initial bundle size
+const ImageUploadDialog = defineAsyncComponent(() => import('@components/map/ImageUploadDialog.vue'))
 const ProjectPicker = defineAsyncComponent(() => import('@components/project/ProjectPicker.vue'))
 const ProjectDialog = defineAsyncComponent(() => import('@components/project/ProjectDialog.vue'))
 const EditableProjectForm = defineAsyncComponent(() => import('@components/forms/EditableProjectForm.vue'))

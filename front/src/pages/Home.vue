@@ -56,12 +56,11 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, onUnmounted, computed } from 'vue'
+import { onMounted, ref, onUnmounted, computed, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MapView from '@components/map/MapView.vue'
 import SideMenu from '@components/layout/SideMenu.vue'
 import PopupContainer from '@components/map/PopupContainer.vue'
-import ProjectManager from '@components/project/ProjectManager.vue'
 import AuthModal from '@components/auth/AuthModal.vue'
 import MobileDrawer from '@components/layout/MobileDrawer.vue'
 
@@ -72,6 +71,8 @@ import { useToast } from '@composables/ui/useToast'
 import { useBeforeUnload } from '@composables/core/useBeforeUnload'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
+
+const ProjectManager = defineAsyncComponent(() => import('@components/project/ProjectManager.vue'))
 
 // AI : Create refs to track app state
 const isModerator = ref(false)
