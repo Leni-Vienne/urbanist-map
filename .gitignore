@@ -44,6 +44,8 @@ server.bundle.js
 countries.csv
 worldcities.csv
 specs.md
+bundle.md
+analyze_index_only.cjs
 
 uploads
 node_modules
