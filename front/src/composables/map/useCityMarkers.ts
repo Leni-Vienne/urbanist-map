@@ -365,6 +365,8 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
         markerElement.setAttribute('data-city-id', city.id);
         markerElement.setAttribute('data-city-name', city.name);
         markerElement.setAttribute('data-country-code', city.countryCode);
+        markerElement.setAttribute('data-lat', city.lat.toString());
+        markerElement.setAttribute('data-lng', city.lng.toString());
       }
     });
 

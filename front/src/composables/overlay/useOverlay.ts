@@ -929,7 +929,7 @@ function createNewOverlayObject(id: string, imageUrl: string, projectId: string)
 // AI : Helper function to zoom to overlay bounds with proper error handling
 function zoomToOverlayBounds(overlay: OverlayObject): boolean {
   if (!overlay.overlay || !map.value) return false;
-
+  
   try {
     const bounds = overlay.overlay.getBounds();
     if (bounds) {

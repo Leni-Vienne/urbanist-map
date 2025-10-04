@@ -7,6 +7,7 @@
       ref="languageMenuRef"
       role="button"
       tabindex="0"
+      @dblclick.stop
       @keydown.enter="toggleMenu"
       @keydown.space="toggleMenu"
     >
@@ -39,7 +40,7 @@
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Popover from 'primevue/popover'
-import { availableLocales, saveLocale, type Locale } from '../locales'
+import { availableLocales, saveLocale, type Locale } from '../../locales'
 
 const { locale } = useI18n()
 const currentLocale = ref<Locale>('en')
@@ -82,12 +83,7 @@ function changeLocale(newLocale: Locale): void {
   background: var(--p-surface-50);
   border-color: var(--p-surface-400);
   color: var(--p-primary-600);
-  transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.language-menu-trigger:active {
-  transform: translateY(0);
 }
 
 .pi-language {
