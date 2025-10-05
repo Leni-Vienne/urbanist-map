@@ -43,8 +43,8 @@
       <!-- AI : Map is always present in the background -->
       <MapView />
 
-      <!-- AI : Popup container handles both overlay and project popups -->
-      <PopupContainer />
+      <!-- AI : InfoPopup with teleport mechanism -->
+      <PopupContainer mode="overlay" />
     </div>
 
     <!-- AI : Project Management Dialogs -->
@@ -60,6 +60,7 @@ import { onMounted, ref, onUnmounted, computed, defineAsyncComponent } from 'vue
 import { useI18n } from 'vue-i18n'
 import MapView from '@components/map/MapView.vue'
 import SideMenu from '@components/layout/SideMenu.vue'
+import PopupContainer from '@components/map/PopupContainer.vue'
 import AuthModal from '@components/auth/AuthModal.vue'
 import MobileDrawer from '@components/layout/MobileDrawer.vue'
 
@@ -71,8 +72,6 @@ import { useBeforeUnload } from '@composables/core/useBeforeUnload'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
 
-// AI : Lazy load components that only appear after user interaction
-const PopupContainer = defineAsyncComponent(() => import('@components/map/PopupContainer.vue'))
 const ProjectManager = defineAsyncComponent(() => import('@components/project/ProjectManager.vue'))
 
 // AI : Create refs to track app state

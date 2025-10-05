@@ -9,10 +9,6 @@ import { router } from './router';
 import { createI18n } from 'vue-i18n';
 import { messages, getStoredLocale } from './locales';
 
-// AI : Load initial locale asynchronously
-const storedLocale = getStoredLocale();
-const localeLoader = messages[storedLocale as keyof typeof messages];
-const initialMessages = await localeLoader();
 
 // AI : Custom PrimeVue preset for Construction Map
 const ConstructionMapPreset = definePreset(Aura, {
@@ -49,13 +45,11 @@ const ConstructionMapPreset = definePreset(Aura, {
   }
 });
 
-// AI : Setup i18n with lazy-loaded locale
+// AI : Setup i18n with stored locale preference
 const i18n = createI18n({
-  locale: storedLocale,
+  locale: getStoredLocale(),
   fallbackLocale: 'en',
-  messages: {
-    [storedLocale]: initialMessages.default
-  },
+  messages,
   legacy: false,
   globalInjection: true
 });
