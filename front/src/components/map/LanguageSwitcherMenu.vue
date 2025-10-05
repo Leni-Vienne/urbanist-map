@@ -40,14 +40,14 @@
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Popover from 'primevue/popover'
-import { availableLocales, saveLocale, type Locale } from '../../locales'
+import { availableLocales, saveLocale, loadLocale, type Locale } from '../../locales'
 
-const { locale } = useI18n()
+const i18n = useI18n()
 const currentLocale = ref<Locale>('en')
 const languagePopover = ref()
 
 onMounted(() => {
-  currentLocale.value = locale.value as Locale
+  currentLocale.value = i18n.locale.value as Locale
 })
 
 // AI : Toggle language menu visibility using Popover
@@ -55,9 +55,15 @@ function toggleMenu(event: Event) {
   languagePopover.value.toggle(event)
 }
 
-// AI : Change language and persist preference
-function changeLocale(newLocale: Locale): void {
-  locale.value = newLocale
+// AI : Change language, load locale dynamically if needed, and persist preference
+async function changeLocale(newLocale: Locale): Promise<void> {
+  if (!i18n.availableLocales.includes(newLocale)) {
+    const messages = await loadLocale(newLocale)
+    if (messages) {
+      i18n.setLocaleMessage(newLocale, messages)
+    }
+  }
+  i18n.locale.value = newLocale
   currentLocale.value = newLocale
   saveLocale(newLocale)
   languagePopover.value.hide()
