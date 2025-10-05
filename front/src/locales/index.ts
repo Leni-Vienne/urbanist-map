@@ -1,7 +1,9 @@
-// AI : Lazy-load locale messages to reduce initial bundle size
+import en from './en.json'
+import fr from './fr.json'
+
 export const messages = {
-  en: () => import('./en.json'),
-  fr: () => import('./fr.json')
+  en,
+  fr
 }
 
 export const availableLocales = [
@@ -27,12 +29,4 @@ export function saveLocale(locale: Locale): void {
 export function getStoredLocale(): Locale {
   const stored = localStorage.getItem('construction-map-locale') as Locale
   return stored && messages[stored] ? stored : getBrowserLocale()
-}
-
-// AI : Load a specific locale dynamically
-export async function loadLocale(locale: Locale) {
-  const loader = messages[locale];
-  if (!loader) return null;
-  const module = await loader();
-  return module.default;
 }
