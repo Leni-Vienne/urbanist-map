@@ -1,6 +1,6 @@
 <template>
   <!-- Overlay Info Popup -->
-  <Teleport to="#info-popup-teleport-target" v-if="mode === 'overlay' && showOverlayPopup && overlayObject && teleportTargetExists">
+  <Teleport to="#info-popup-teleport-target" v-if="showOverlayPopup && overlayObject && teleportTargetExists">
     <InfoPopup
       :overlayObject="overlayObject"
       :project="getProjectForOverlay(overlayObject)"
@@ -17,7 +17,7 @@
   </Teleport>
 
   <!-- Project Info Popup -->
-  <Teleport to="#project-info-popup-teleport-target" v-if="mode === 'project' && showProjectPopup && selectedProject">
+  <Teleport to="#project-info-popup-teleport-target" v-if="showProjectPopup && selectedProject">
     <ProjectInfoPopup
       :project="selectedProject"
       :viewMode="!isEditMode"
@@ -40,15 +40,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue';
+import { computed, ref, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useUiStore } from '@stores/uiStore';
-import InfoPopup from './InfoPopup.vue';
-import ProjectInfoPopup from './ProjectInfoPopup.vue';
-import OverlayEditor from './OverlayEditor.vue';
 import { updateTooltipText } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
 import { useOverlayPublisher } from '@composables/overlay/useOverlayPublisher';
@@ -56,11 +53,9 @@ import { citiesWithProjects, loadCityProjects } from '@composables/map/useCityMa
 import { trpc } from '@client';
 import type { OverlayObject, Project } from '@types';
 
-interface Props {
-  mode: 'overlay' | 'project'
-}
-
-const props = defineProps<Props>()
+const InfoPopup = defineAsyncComponent(() => import('./InfoPopup.vue'));
+const ProjectInfoPopup = defineAsyncComponent(() => import('./ProjectInfoPopup.vue'));
+const OverlayEditor = defineAsyncComponent(() => import('./OverlayEditor.vue'));
 
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
@@ -111,15 +106,10 @@ const teleportTargetExists = ref(false);
 // AI : Ref for overlay editor component
 const overlayEditorRef = ref<InstanceType<typeof OverlayEditor> | null>(null);
 
+// AI : Check if teleport targets exist (we need both for overlay and project popups)
 const checkTeleportTarget = () => {
   const overlayTarget = document.getElementById('info-popup-teleport-target');
-  const projectTarget = document.getElementById('project-info-popup-teleport-target');
-  
-  if (props.mode === 'overlay') {
-    teleportTargetExists.value = !!overlayTarget;
-  } else {
-    teleportTargetExists.value = !!projectTarget;
-  }
+  teleportTargetExists.value = !!overlayTarget;
 };
 
 onMounted(() => {

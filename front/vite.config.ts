@@ -7,12 +7,18 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 import path from 'path'
 import { visualizer } from "rollup-plugin-visualizer";
 import istanbul from 'vite-plugin-istanbul';
+import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite';
 
 // https://vite.dev/config/
 export default defineConfig({
   envDir: '../', // only way that .env can be imported, '../.env' don't work for some reason
   plugins: [
     vue(),
+    VueI18nPlugin({
+      include: [path.resolve(__dirname, './src/locales/**/*.json')],
+      strictMessage: false,
+      escapeHtml: false
+    }),
     visualizer({
       filename: 'stats.html',
       open: false,
@@ -79,13 +85,22 @@ export default defineConfig({
       'primevue/drawer'
     ]
   },
-  // AI : External leaflet to prevent bundling 
+  // AI : External leaflet to prevent bundling
   build: {
-    sourcemap: 'hidden', // AI : Hide sourcemaps to silence istanbul warning
+    sourcemap: true,
+    //sourcemap: 'hidden', // AI : Hide sourcemaps to silence istanbul warning
     rollupOptions: {
       external: (id) => {
         // AI : Mark CDN URLs as external so they don't get bundled
         return id.includes('unpkg.com/leaflet')
+      },
+      output: {
+        manualChunks: (id) => {
+          // AI : Only split locale files, keep everything else in main bundle
+          if (id.includes('locales/en.json') || id.includes('locales/fr.json')) {
+            return id.includes('en.json') ? 'en' : 'fr'
+          }
+        }
       }
     }
   },
@@ -93,6 +108,8 @@ export default defineConfig({
     __VUE_PROD_DEVTOOLS__: false,
     'process.env.NODE_ENV': JSON.stringify('production'),
     // AI : vue-i18n optimizations - tree-shake unused features
+    __INTLIFY_JIT_COMPILATION__: true,
+    __INTLIFY_DROP_MESSAGE_COMPILER__: true,
     __INTLIFY_PROD_DEVTOOLS__: false,
     __VUE_I18N_FULL_INSTALL__: true, // we use globalInjection
     __VUE_I18N_LEGACY_API__: false   // we use composition API (legacy: false)
