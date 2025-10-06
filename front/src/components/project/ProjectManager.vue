@@ -91,9 +91,8 @@ import { createProjectFromAPI } from '../../utils/typeFactories'
 import type { Project, OverlayObject } from '@types'
 import type { NearbyProject } from '../../types/api'
 
-// AI : Lazy load all dialog components to reduce initial bundle size
-const ImageUploadDialog = defineAsyncComponent(() => import('@components/map/ImageUploadDialog.vue'))
-const ProjectPicker = defineAsyncComponent(() => import('@components/project/ProjectPicker.vue'))
+import ImageUploadDialog from '@components/map/ImageUploadDialog.vue'
+import ProjectPicker from '@components/project/ProjectPicker.vue'
 const ProjectDialog = defineAsyncComponent(() => import('@components/project/ProjectDialog.vue'))
 const EditableProjectForm = defineAsyncComponent(() => import('@components/forms/EditableProjectForm.vue'))
 const EditableOverlayForm = defineAsyncComponent(() => import('@components/forms/EditableOverlayForm.vue'))

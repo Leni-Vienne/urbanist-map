@@ -80,11 +80,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { navigateToOverlay } from '@composables/overlay/useOverlay'
+import { navigateToOverlayWithCity } from '@composables/navigation/useOverlayNavigation'
 import { useToast } from '@composables/ui/useToast'
 import { useLatestOverlays } from '@composables/overlay/useLatestOverlays'
 import { buildImageUrl, formatRelativeTime } from '../../utils'
 import type { LatestOverlay } from '../../types/api'
-import { switchTileLayer, isTileLayerType, type TileLayerType } from '@composables/map/useTileLayers'
 
 // AI : Use cached composable for latest overlays
 const { overlays, isLoading, fetchLatestOverlays } = useLatestOverlays()
@@ -133,16 +133,16 @@ function getLocationDisplay(overlay: LatestOverlay): string {
   return 'Unknown Location'
 }
 
-// AI : Handle overlay click - switch tile layer and navigate to overlay
+// AI : Handle overlay click - simulate clicking country marker → city marker → overlay
 async function handleOverlayClick(overlay: LatestOverlay) {
   try {
-    if (overlay.countryCode) {
-      // AI : Use country code directly if it's a valid tile layer, otherwise default to esri
-      const tileLayerType = isTileLayerType(overlay.countryCode) ? overlay.countryCode : 'esri'
-      switchTileLayer(tileLayerType as TileLayerType)
+    // AI : If overlay has city info, navigate via city (loads city markers and overlays first)
+    if (overlay.cityId && overlay.cityName) {
+      await navigateToOverlayWithCity(overlay.id, overlay.cityId, overlay.cityName, overlay.countryCode ?? undefined)
+    } else {
+      // AI : Fallback to direct navigation if no city info
+      await navigateToOverlay(overlay.id)
     }
-
-    await navigateToOverlay(overlay.id)
   } catch (error) {
     console.error('Failed to navigate to overlay:', error)
     toast.add({

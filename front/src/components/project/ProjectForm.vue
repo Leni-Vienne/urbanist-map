@@ -49,7 +49,7 @@
                         class="w-full"
                         showIcon
                         :showClear="true"
-                        updateModelType="dd/MM/yyyy"
+                        :updateModelType="'date'"
                     />
                     <label
                         for="proposal-date-input"
@@ -105,7 +105,7 @@
                             class="w-full"
                             required
                             showIcon
-                            updateModelType="dd/MM/yyyy"
+                            :updateModelType="'date'"
                         />
                         <label
                             for="start-date-input"
@@ -125,7 +125,7 @@
                             class="w-full"
                             required
                             showIcon
-                            updateModelType="dd/MM/yyyy"
+                            :updateModelType="'date'"
                         />
                         <label
                             for="end-date-input"
@@ -299,6 +299,22 @@ async function loadCitiesNearLocation(lat: number, lng: number) {
 function handleSubmit() {
     // AI : Create a clean project object without File objects to prevent serialization issues
     const { sourcePdf, ...cleanProjectData } = localProject.value;
+
+    // AI : Include city object if cityId is set and city data is available
+    if (cleanProjectData.cityId && cities.value.length > 0) {
+        const selectedCity = cities.value.find(c => c.id === cleanProjectData.cityId);
+        if (selectedCity) {
+            cleanProjectData.city = {
+                id: selectedCity.id,
+                name: selectedCity.name,
+                countryCode: selectedCity.countryCode,
+                coordinates: { x: selectedCity.lng, y: selectedCity.lat },
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
+        }
+    }
+
     emit('submit', cleanProjectData);
 }
 

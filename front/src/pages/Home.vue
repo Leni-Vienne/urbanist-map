@@ -7,13 +7,13 @@
       :is-moderator="isModerator"
       @close="() => desktopSideMenuOpen = false"
     />
-    
+
     <!-- AI : Mobile Bottom Drawer -->
-    <MobileDrawer 
+    <MobileDrawer
       v-if="isMobile"
       v-model:visible="mobileSideMenuOpen"
     />
-    
+
     <div class="main-content">
       <!-- AI : Mobile drawer handle - pull-up interface -->
       <div
@@ -30,7 +30,7 @@
       >
         <!-- AI : Visual handle indicator -->
         <div class="handle-indicator"></div>
-        
+
         <!-- AI : Handle content -->
         <div class="handle-content">
           <span class="handle-text">
@@ -43,12 +43,12 @@
       <!-- AI : Map is always present in the background -->
       <MapView />
 
-      <!-- AI : InfoPopup with teleport mechanism -->
-      <PopupContainer mode="overlay" />
+      <!-- AI : Popup container handles both overlay and project popups -->
+      <PopupContainer v-if="overlayStore.showInfoPopup || uiStore.projectInfoPopup.visible" />
     </div>
 
     <!-- AI : Project Management Dialogs -->
-    <ProjectManager />
+    <ProjectManager v-if="uiStore.projectDialog.visible || uiStore.imageUploadDialogVisible || uiStore.projectSelectorVisible" />
 
     <!-- AI : Auth Modal for unauthenticated users -->
     <AuthModal v-model:visible="uiStore.authModalVisible" />
@@ -60,7 +60,6 @@ import { onMounted, ref, onUnmounted, computed, defineAsyncComponent } from 'vue
 import { useI18n } from 'vue-i18n'
 import MapView from '@components/map/MapView.vue'
 import SideMenu from '@components/layout/SideMenu.vue'
-import PopupContainer from '@components/map/PopupContainer.vue'
 import AuthModal from '@components/auth/AuthModal.vue'
 import MobileDrawer from '@components/layout/MobileDrawer.vue'
 
@@ -72,6 +71,7 @@ import { useBeforeUnload } from '@composables/core/useBeforeUnload'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
 
+const PopupContainer = defineAsyncComponent(() => import('@components/map/PopupContainer.vue'))
 const ProjectManager = defineAsyncComponent(() => import('@components/project/ProjectManager.vue'))
 
 // AI : Create refs to track app state
@@ -92,7 +92,7 @@ const isMobile = computed(() => windowWidth.value <= 768)
 // AI : Update window width on resize
 function updateWindowWidth() {
   windowWidth.value = window.innerWidth
-  
+
   // AI : Update mobile overflow constraints when window size changes
   if (isMobile.value) {
     document.documentElement.style.overflow = 'hidden'
@@ -113,7 +113,7 @@ function getToggleButtonText(): string {
     // AI : When drawer is closed, show site name
     return t('app.title')
   }
-  
+
   // AI : When drawer is open, show current active panel name from UI store
   const activeTab = uiStore.mobileDrawerActiveTab
   switch (activeTab) {
@@ -150,11 +150,11 @@ function handleVisibilityChange() {
 onMounted(async () => {
   // AI : Add visibility change listener to close UI elements when user switches tabs/apps
   document.addEventListener('visibilitychange', handleVisibilityChange);
-  
+
   // AI : Add window resize listener for mobile detection
   window.addEventListener('resize', updateWindowWidth);
-  
-  
+
+
   // AI : Prevent page scrolling on mobile to avoid viewport issues
   if (isMobile.value) {
     document.documentElement.style.overflow = 'hidden'
@@ -162,14 +162,14 @@ onMounted(async () => {
     document.body.style.height = '100vh'
     document.body.style.height = '100dvh' // Use dynamic viewport where supported
   }
-  
-  
+
+
   // AI : Update overlayStore to use the new UI store for dialog control
   overlayStore.closeAllUIElements = uiStore.closeAllDialogs;
 
   try {
     await authStore.initialize()
-    
+
     if (authStore.user?.role === 'admin') {
       isModerator.value = true
     }
@@ -214,7 +214,7 @@ function getErrorMessage(error: string): string {
 onUnmounted(() => {
   document.removeEventListener('visibilitychange', handleVisibilityChange);
   window.removeEventListener('resize', updateWindowWidth);
-  
+
   // AI : Restore normal overflow behavior when component unmounts
   document.documentElement.style.overflow = ''
   document.body.style.overflow = ''
@@ -246,16 +246,16 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   cursor: pointer;
-  box-shadow: 
+  box-shadow:
     0 -4px 16px rgba(0, 0, 0, 0.1),
     0 -2px 8px rgba(0, 0, 0, 0.05);
   transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
   border-top: 1px solid var(--p-surface-100);
-  
+
   /* AI : Prevent layout shifts during Chrome viewport changes */
   contain: layout style paint;
   will-change: transform;
-  
+
   /* AI : Ensure proper positioning on mobile browsers */
   -webkit-transform: translateZ(0);
   transform: translateZ(0);
@@ -263,7 +263,7 @@ onUnmounted(() => {
 
 .drawer-handle:hover {
   transform: translateZ(0) translateY(-2px);
-  box-shadow: 
+  box-shadow:
     0 -6px 20px rgba(0, 0, 0, 0.15),
     0 -4px 12px rgba(0, 0, 0, 0.08);
 }
@@ -299,5 +299,4 @@ onUnmounted(() => {
   color: var(--p-text-color);
   text-align: center;
 }
-
 </style>
