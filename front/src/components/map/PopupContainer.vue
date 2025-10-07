@@ -150,7 +150,7 @@ function getProjectForOverlay(overlay: OverlayObject): Project | null {
     }
 
     // AI : If not found locally, check if this overlay has backend project data
-    if (overlay.project && overlay.project.id === overlay.projectId) {
+    if (overlay.project?.id === overlay.projectId) {
       // AI : Convert backend project data to frontend format
       const backendProject = overlay.project;
       const convertedProject: Project = {

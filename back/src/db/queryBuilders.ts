@@ -111,6 +111,7 @@ export function buildOverlayModerationQuery(db: PostgresJsDatabase<typeof schema
       version: overlays.version,
       projectId: overlays.projectId,
       updatedAt: overlays.updatedAt,
+      cityId: cities.id,
       cityName: cities.name,
       countryCode: countries.code,
       countryName: countries.name,

@@ -18,7 +18,7 @@ export function useCityProjects() {
 
     // AI : Extract projects from overlay data
     mapStore.currentCityOverlays.forEach(overlay => {
-      if (overlay.project && overlay.project.id) {
+      if (overlay.project?.id) {
         const project = overlay.project;
 
         // AI : Use factory function for consistent project creation
@@ -35,13 +35,6 @@ export function useCityProjects() {
 
     return Array.from(projectMap.values());
   });
-
-  // AI : Function to get overlay count for a specific project
-  function getOverlayCountForProject(projectId: string): number {
-    return mapStore.currentCityOverlays.filter(overlay =>
-      overlay.project && overlay.project.id === projectId
-    ).length;
-  }
   
   // AI : Projects with overlay counts attached
   const projectsWithCounts = computed(() => {
@@ -50,7 +43,14 @@ export function useCityProjects() {
       overlayCount: getOverlayCountForProject(project.id)
     }));
   });
-  
+
+  // AI : Function to get overlay count for a specific project
+  function getOverlayCountForProject(projectId: string): number {
+    return mapStore.currentCityOverlays.filter(overlay =>
+      overlay.project?.id === projectId
+    ).length;
+  }
+
   return {
     projects,
     projectsWithCounts,
