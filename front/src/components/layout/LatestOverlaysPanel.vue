@@ -16,7 +16,7 @@
           <div class="overlay-thumbnail">
             <img
               :src="getOverlayImageUrl(overlay.filename)"
-              :alt="overlay.caption || 'Overlay'"
+              :alt="overlay.caption || t('overlay.untitled')"
               class="w-full h-full object-cover"
               @error="(event) => handleImageError(event, overlay.id)"
               @load="(event) => handleImageLoad(event, overlay.id)"
@@ -30,7 +30,7 @@
 
           <!-- AI : Overlay info -->
           <div class="overlay-info">
-            <h4 class="overlay-name">{{ overlay.caption || 'Untitled' }}</h4>
+            <h2 class="overlay-name">{{ overlay.caption || t('overlay.untitled') }}</h2>
             <div class="overlay-time">{{ formatRelativeTime(overlay.updatedAt) }}</div>
             <div class="overlay-location">
               <i class="pi pi-map-marker"></i>
@@ -49,10 +49,10 @@
           <button
             class="zoom-button"
             @click.stop="handleOverlayClick(overlay)"
-            :title="`Zoom to ${overlay.caption || 'overlay'}`"
+            :title="t('overlay.zoomTo') + ' ' + (overlay.caption || t('overlay.untitled'))"
           >
             <i class="pi pi-search"></i>
-            <span class="sr-only">Zoom to {{ overlay.caption }}</span>
+            <span class="sr-only">{{ t('overlay.zoomTo') }} {{ overlay.caption || t('overlay.untitled') }}</span>
           </button>
         </div>
       </div>
@@ -62,8 +62,8 @@
         class="flex flex-col items-center justify-center p-12 text-center text-surface-600"
       >
         <i class="pi pi-image text-5xl text-surface-400 mb-4"></i>
-        <p class="text-base mb-2">No overlays found.</p>
-        <p class="text-sm">Be the first to add a construction overlay!</p>
+        <p class="text-base mb-2">{{ t('overlay.noOverlaysFound') }}</p>
+        <p class="text-sm">{{ t('overlay.beFirstToAdd') }}</p>
       </div>
 
       <div
@@ -71,7 +71,7 @@
         class="flex flex-col items-center justify-center p-12 text-center text-surface-600"
       >
         <i class="pi pi-spin pi-spinner text-2xl mb-4"></i>
-        <p>Loading overlays...</p>
+        <p>{{ t('overlay.loadingOverlays') }}</p>
       </div>
     </div>
   </div>
@@ -79,12 +79,15 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { navigateToOverlay } from '@composables/overlay/useOverlay'
 import { navigateToOverlayWithCity } from '@composables/navigation/useOverlayNavigation'
 import { useToast } from '@composables/ui/useToast'
 import { useLatestOverlays } from '@composables/overlay/useLatestOverlays'
 import { buildImageUrl, formatRelativeTime } from '../../utils'
 import type { LatestOverlay } from '../../types/api'
+
+const { t } = useI18n()
 
 // AI : Use cached composable for latest overlays
 const { overlays, isLoading, fetchLatestOverlays } = useLatestOverlays()
@@ -130,7 +133,7 @@ function getLocationDisplay(overlay: LatestOverlay): string {
   } else if (overlay.countryName) {
     return overlay.countryName
   }
-  return 'Unknown Location'
+  return t('overlay.unknownLocation')
 }
 
 // AI : Handle overlay click - simulate clicking country marker → city marker → overlay
@@ -147,8 +150,8 @@ async function handleOverlayClick(overlay: LatestOverlay) {
     console.error('Failed to navigate to overlay:', error)
     toast.add({
       severity: 'error',
-      summary: 'Navigation Failed',
-      detail: error instanceof Error ? error.message : 'Failed to navigate to overlay',
+      summary: t('overlay.navigationFailed'),
+      detail: error instanceof Error ? error.message : t('overlay.failedToNavigate'),
       life: 3000
     })
   }

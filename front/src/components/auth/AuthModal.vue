@@ -4,7 +4,7 @@
     modal
     :header="isForgotPasswordMode ? $t('auth.forgotPasswordTitle') : (isLoginMode ? $t('auth.signIn') : $t('auth.signUp'))"
     :style="{width: '450px'}"
-    class="p-fluid"
+    class="p-fluid auth-modal-overflow"
     data-testid="auth-modal"
   >
     <!-- AI : Forgot Password Mode -->
@@ -60,10 +60,10 @@
     </div>
 
     <!-- AI : Normal Auth Mode (Sign In / Sign Up) -->
-    <div v-else>
+    <div v-else :class="{ 'pt-3': lastLoginMethod === 'google' && isLoginMode }">
       <!-- AI : Social Login Section -->
-      <div class="mb-6">
-        <div class="flex flex-col gap-3 mb-4">
+      <div class="mb-6 overflow-visible">
+        <div class="flex flex-col gap-3 mb-4 overflow-visible">
           <div class="relative overflow-visible">
             <Button
               icon="pi pi-google"
@@ -78,7 +78,7 @@
             <!-- AI : Last used badge for Google -->
             <span
               v-if="lastLoginMethod === 'google' && isLoginMode"
-              class="absolute top-0 -right-1 translate-y-[-33%] text-xs px-3 py-1.5 rounded-full font-semibold z-10"
+              class="absolute top-0 -right-1 translate-y-[-33%] text-xs px-3 py-1.5 rounded-full font-semibold z-50"
               style="background-color: var(--p-primary-color); color: var(--p-primary-contrast-color); box-shadow: var(--p-button-shadow);"
               :title="$t('auth.lastUsedGoogle')"
             >
@@ -112,7 +112,7 @@
         <!-- AI : Last used badge for email method -->
         <span
           v-if="lastLoginMethod === 'email' && isLoginMode && form.email"
-          class="absolute top-[1.875rem] -right-1 translate-y-[-33%] text-xs px-3 py-1.5 rounded-full font-semibold z-10"
+          class="absolute top-[1.875rem] -right-1 translate-y-[-33%] text-xs px-3 py-1.5 rounded-full font-semibold z-50"
           style="background-color: var(--p-primary-color); color: var(--p-primary-contrast-color); box-shadow: var(--p-button-shadow);"
           :title="$t('auth.lastUsedEmail')"
         >
@@ -380,6 +380,18 @@ async function handleForgotPassword() {
   }
 }
 </script>
+
+<style>
+/* AI : Allow overflow for badges to appear above dialog content */
+.auth-modal-overflow :deep(.p-dialog-content) {
+  overflow: visible !important;
+  padding-top: 1.5rem !important;
+}
+
+.auth-modal-overflow :deep(.p-dialog-header) {
+  overflow: visible !important;
+}
+</style>
 
 <style scoped>
 /* AI : Highlight last used login method with border color using PrimeVue tokens */

@@ -96,6 +96,7 @@
   },
   "overlay": {
     "title": "Superpositions",
+    "overlayImages": "images",
     "add": "Ajouter une superposition",
     "addImageOverlay": "Ajouter une superposition d'image",
     "upload": "Télécharger une image",
@@ -111,7 +112,15 @@
     "overlayNameCaption": "Nom/Légende de la superposition",
     "enterOverlayName": "Entrez le nom ou la légende de la superposition",
     "notSet": "Non défini",
-    "changedFrom": "Modifié depuis"
+    "changedFrom": "Modifié depuis",
+    "untitled": "Sans titre",
+    "unknownLocation": "Lieu inconnu",
+    "noOverlaysFound": "Aucune superposition trouvée.",
+    "beFirstToAdd": "Soyez le premier à ajouter une superposition de construction !",
+    "loadingOverlays": "Chargement des superpositions...",
+    "zoomTo": "Zoomer sur",
+    "navigationFailed": "Échec de la navigation",
+    "failedToNavigate": "Échec de la navigation vers la superposition"
   },
   "map": {
     "zoom": "Zoom",
