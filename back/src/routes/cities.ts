@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
 import { publicProcedure, router } from '../trpc';
 import {
   cities, projects, overlays,

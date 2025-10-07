@@ -167,7 +167,25 @@
     "passwordsDontMatch": "Les mots de passe ne correspondent pas",
     "lastUsedEmail": "La dernière fois, vous vous êtes connecté avec email & mot de passe",
     "lastUsedGoogle": "La dernière fois, vous vous êtes connecté avec Google",
-    "lastUsed": "Dernier utilisé"
+    "lastUsed": "Dernier utilisé",
+    "error": {
+      "emailUsesGoogleSignIn": "Cet email est enregistré avec Google Sign-In. Veuillez vous connecter avec Google.",
+      "emailAlreadyExists": "Un compte avec cet email existe déjà.",
+      "usernameTaken": "Ce nom d'utilisateur est déjà pris.",
+      "registrationFailed": "L'inscription a échoué. Veuillez réessayer.",
+      "invalidCredentials": "Email ou mot de passe invalide.",
+      "accountUsesGoogleSignIn": "Ce compte utilise Google Sign-In. Veuillez utiliser \"Continuer avec Google\" pour vous connecter.",
+      "emailNotVerified": "Veuillez vérifier votre email avant de vous connecter.",
+      "loginFailed": "La connexion a échoué. Veuillez réessayer.",
+      "invalidGoogleToken": "Authentification Google invalide. Veuillez réessayer.",
+      "emailLinkedToDifferentGoogle": "Cet email est déjà associé à un autre compte Google.",
+      "googleAuthFailed": "L'authentification Google a échoué. Veuillez réessayer."
+    },
+    "success": {
+      "registered": "Compte créé avec succès ! Veuillez vérifier votre email pour valider votre compte.",
+      "loggedIn": "Connecté avec succès !",
+      "googleAuthSuccess": "Authentification Google réussie !"
+    }
   },
   "app": {
     "title": "ConstructionMap.org",

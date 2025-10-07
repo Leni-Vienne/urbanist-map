@@ -255,6 +255,21 @@ watch(() => form.email, (email) => {
   }
 })
 
+// AI : Helper to translate error messages (handles both i18n keys and plain text)
+function translateError(errorMessage: string | null | undefined): string {
+  if (!errorMessage) return ''
+
+  // AI : Check if it looks like an i18n key (contains dots and starts with 'auth.')
+  if (errorMessage.startsWith('auth.')) {
+    // AI : Try to translate, fallback to original if key doesn't exist
+    const translated = $t(errorMessage)
+    return translated !== errorMessage ? translated : errorMessage
+  }
+
+  // AI : Return as-is for non-i18n error messages
+  return errorMessage
+}
+
 function resetForm() {
   form.email = ''
   form.password = ''
@@ -290,24 +305,24 @@ async function handleSubmit() {
     if (isLoginMode.value) {
       const result = await authStore.signIn(form.email, form.password)
       if (result.success) {
-        toast.add({ severity: 'success', summary: 'Success', detail: 'Successfully signed in!', life: 3000 })
+        toast.add({ severity: 'success', summary: $t('common.success'), detail: $t('auth.success.loggedIn'), life: 3000 })
         visible.value = false
         resetForm()
       } else {
-        error.value = result.error || 'Sign in failed'
+        error.value = translateError(result.error) || $t('auth.error.loginFailed')
       }
     } else {
       const result = await authStore.signUp(form.email, form.password, form.username)
       if (result.success) {
-        toast.add({ severity: 'success', summary: 'Success', detail: 'Successfully signed up!', life: 3000 })
+        toast.add({ severity: 'success', summary: $t('common.success'), detail: $t('auth.success.registered'), life: 3000 })
         visible.value = false
         resetForm()
       } else {
-        error.value = result.error || 'Sign up failed'
+        error.value = translateError(result.error) || $t('auth.error.registrationFailed')
       }
     }
   } catch (err: unknown) {
-    error.value = err instanceof Error ? err.message : 'An error occurred'
+    error.value = translateError(err instanceof Error ? err.message : null) || $t('common.error')
   } finally {
     loading.value = false
   }
@@ -323,17 +338,17 @@ async function handleOAuthSignIn(provider: 'google' | 'facebook') {
     if (result.success) {
       toast.add({
         severity: 'success',
-        summary: 'Success',
-        detail: `Successfully signed in with ${provider}!`,
+        summary: $t('common.success'),
+        detail: $t('auth.success.googleAuthSuccess'),
         life: 3000
       })
       visible.value = false
       resetForm()
     } else {
-      error.value = result.error || `${provider} sign in failed`
+      error.value = translateError(result.error) || $t('auth.error.googleAuthFailed')
     }
   } catch (err: unknown) {
-    error.value = err instanceof Error ? err.message : 'An error occurred'
+    error.value = translateError(err instanceof Error ? err.message : null) || $t('common.error')
   } finally {
     oauthLoading.value = false
   }
@@ -356,10 +371,10 @@ async function handleForgotPassword() {
         life: 5000
       })
     } else {
-      error.value = result.error ?? 'Failed to send reset link'
+      error.value = translateError(result.error) || $t('common.error')
     }
   } catch (err: unknown) {
-    error.value = err instanceof Error ? err.message : 'An error occurred'
+    error.value = translateError(err instanceof Error ? err.message : null) || $t('common.error')
   } finally {
     loading.value = false
   }

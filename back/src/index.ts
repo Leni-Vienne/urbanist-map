@@ -3,7 +3,7 @@ import { serveStatic } from 'hono/bun'
 import { cors } from 'hono/cors'
 import { trpcServer } from '@hono/trpc-server'
 import { sessionMiddleware, MemoryStore, Session } from 'hono-sessions'
-import { z } from 'zod'
+import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod'
 import { appRouter } from './shared/routers'
 import { LocalFileStorage } from './shared/storage'
 import type { FileUploadResult, FileUploadError } from './shared/types'
@@ -87,23 +87,23 @@ app.post('/api/login', async (c) => {
 
         const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
         if (!user) {
-            return c.json({ error: 'Invalid email or password' }, 401);
+            return c.json({ error: 'auth.error.invalidCredentials' }, 401);
         }
 
         // AI : Check if user has a password (not an OAuth-only account)
         if (!user.passwordHash) {
-            return c.json({ error: 'This account uses Google Sign-In. Please use "Continue with Google" to access your account.' }, 401);
+            return c.json({ error: 'auth.error.accountUsesGoogleSignIn' }, 401);
         }
 
         // AI : Verify password
         const isValidPassword = await Bun.password.verify(password, user.passwordHash);
         if (!isValidPassword) {
-            return c.json({ error: 'Invalid email or password' }, 401);
+            return c.json({ error: 'auth.error.invalidCredentials' }, 401);
         }
 
         // AI : Check if email is verified
         if (!user.emailVerified) {
-            return c.json({ error: 'Please verify your email before logging in' }, 403);
+            return c.json({ error: 'auth.error.emailNotVerified' }, 403);
         }
 
         // AI : Set session with full user data
@@ -118,7 +118,7 @@ app.post('/api/login', async (c) => {
 
         return c.json({
             success: true,
-            message: 'Logged in successfully',
+            message: 'auth.success.loggedIn',
             user: {
                 id: user.id,
                 email: user.email,
@@ -129,7 +129,7 @@ app.post('/api/login', async (c) => {
         });
     } catch (error) {
         console.error('Login error:', error);
-        return c.json({ error: 'Login failed' }, 500);
+        return c.json({ error: 'auth.error.loginFailed' }, 500);
     }
 });
 
@@ -160,7 +160,7 @@ app.post('/api/google-login', async (c) => {
         // AI : Verify Google token
         const googleUser = await verifyGoogleToken(token);
         if (!googleUser) {
-            return c.json({ error: 'Invalid Google token' }, 401);
+            return c.json({ error: 'auth.error.invalidGoogleToken' }, 401);
         }
 
         // AI : SECURE: First check by googleId (not email!)
@@ -185,36 +185,52 @@ app.post('/api/google-login', async (c) => {
             // AI : No user found by Google ID - check if email exists with different auth method
             const [emailUser] = await db.select().from(users).where(eq(users.email, googleUser.email)).limit(1);
             
-            if (emailUser && !emailUser.googleId) {
-                // AI : SECURITY: Email exists but with different auth method (email/password)
-                // DO NOT auto-link - this could be an account takeover attempt
-                return c.json({ 
-                    error: 'An account with this email already exists. Please sign in with your email and password first, then link your Google account in settings.',
-                    action: 'account_linking_required'
-                }, 409);
-            }
-            
-            // AI : Safe to create new Google OAuth user
-            const username = googleUser.name;
-            
-            // AI : Check if username is taken and generate unique one if needed
-            let finalUsername = username;
-            let counter = 1;
-            while (true) {
-                const existingUsername = await db.select().from(users).where(eq(users.username, finalUsername)).limit(1);
-                if (existingUsername.length === 0) break;
-                finalUsername = `${username}${counter}`;
-                counter++;
-            }
+            if (emailUser) {
+                // AI : Email exists with password-based account
+                if (emailUser.googleId) {
+                    // AI : SECURITY: Email already linked to a different Google account - block
+                    return c.json({
+                        error: 'auth.error.emailLinkedToDifferentGoogle',
+                        action: 'account_conflict'
+                    }, 409);
+                }
 
-            // AI : Create user with Google ID as primary identifier
-            [existingUser] = await db.insert(users).values({
-                email: googleUser.email,
-                username: finalUsername,
-                emailVerified: true,
-                passwordHash: null, // AI : No password for OAuth users
-                googleId: googleUser.googleId, // AI : Secure identifier from Google
-            }).returning();
+                // AI : SECURE AUTO-LINKING: User authenticated via Google OAuth proves they control the email
+                // AI : Link Google account to existing email/password account
+                await db.update(users)
+                    .set({
+                        googleId: googleUser.googleId,
+                        emailVerified: true,
+                        emailVerificationToken: null,
+                    })
+                    .where(eq(users.id, emailUser.id));
+
+                existingUser = emailUser;
+                existingUser.googleId = googleUser.googleId;
+                existingUser.emailVerified = true;
+            } else {
+                // AI : Safe to create new Google OAuth user
+                const username = googleUser.name;
+
+                // AI : Check if username is taken and generate unique one if needed
+                let finalUsername = username;
+                let counter = 1;
+                while (true) {
+                    const existingUsername = await db.select().from(users).where(eq(users.username, finalUsername)).limit(1);
+                    if (existingUsername.length === 0) break;
+                    finalUsername = `${username}${counter}`;
+                    counter++;
+                }
+
+                // AI : Create user with Google ID as primary identifier
+                [existingUser] = await db.insert(users).values({
+                    email: googleUser.email,
+                    username: finalUsername,
+                    emailVerified: true,
+                    passwordHash: null, // AI : No password for OAuth users
+                    googleId: googleUser.googleId, // AI : Secure identifier from Google
+                }).returning();
+            }
         }
 
         // AI : Set session with full user data
@@ -229,7 +245,7 @@ app.post('/api/google-login', async (c) => {
 
         return c.json({
             success: true,
-            message: 'Google authentication successful',
+            message: 'auth.success.googleAuthSuccess',
             user: {
                 id: existingUser.id,
                 email: existingUser.email,
@@ -240,7 +256,7 @@ app.post('/api/google-login', async (c) => {
         });
     } catch (error) {
         console.error('Google login error:', error);
-        return c.json({ error: 'Google authentication failed' }, 500);
+        return c.json({ error: 'auth.error.googleAuthFailed' }, 500);
     }
 });
 

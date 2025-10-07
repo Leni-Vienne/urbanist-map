@@ -1,5 +1,5 @@
 import { adminProcedure, router } from '../trpc';
-import { z } from 'zod';
+import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
 import { projects, overlays, approvalStatusEnum, changeRequests } from '../db/schema';
 import { eq, inArray, or, and } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';

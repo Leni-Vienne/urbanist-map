@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
 
 // AI : Support for both local development and Cloudflare Pages
 // AI : For local development, use Bun's built-in .env support or manual loading
