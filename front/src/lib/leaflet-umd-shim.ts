@@ -2,18 +2,9 @@
 // Based on https://stackoverflow.com/questions/73091042/importing-leaflet-into-module-from-cdn-with-typescript-support
 
 /*
-This loads (and executes) the UMD Leaflet script the first time that
-this module is imported into the module graph, which assigns
-the UMD Leaflet object to `window.L`. This is scope pollution, and is
-one of the things that ES modules avoid, but is necessary here because
-we want to use Leaflet from CDN while maintaining TypeScript support.
-
-This proxy technique works well here because Leaflet
-is an object export/namespace and is documented to be used this way.
+AI : Leaflet is now loaded directly in index.html to avoid critical request chaining.
+This shim just provides the ESM export with TypeScript typing for the global L object.
 */
-
-// AI : Load Leaflet from CDN
-import 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
 
 // AI : Use type-only import to avoid bundling
 import type * as LeafletTypes from 'leaflet';
