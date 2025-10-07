@@ -37,7 +37,7 @@ export const useUiStore = defineStore('ui', () => {
   // AI : Mobile drawer state
   const mobileDrawerActiveTab = ref<'latest' | 'uploads' | 'admin'>('latest');
   
-  // AI : Project info popup state (for marker projects)
+  // AI : Project info popup state (for development projects)
   const projectInfoPopup = ref({
     visible: false,
     projectId: null as string | null,

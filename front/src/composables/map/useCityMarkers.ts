@@ -1,5 +1,5 @@
 import L from "leaflet";
-import { createBuildingIcon, createColorIcon } from '@composables/ui/markerIcons';
+import { createDevelopmentIcon, createColorIcon } from '@composables/ui/markerIcons';
 import type { MarkerColor, Project } from '@types';
 import { ref } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
@@ -31,7 +31,7 @@ function getProjectMarkerColor(project: Project): MarkerColor {
 
 // AI : Opacity constants for city markers
 const MARKER_OPACITY = 0.6; // AI : Default opacity for city markers
-const BUILDING_MARKER_OPACITY = 0.8; // AI : Default opacity for building markers
+const BUILDING_MARKER_OPACITY = 0.8; // AI : Default opacity for development markers
 const MARKER_HOVER_OPACITY = 1; // AI : Opacity for city markers on hover
 
 // AI : Utility function to reset all markers in a layer group to default opacity
@@ -54,7 +54,7 @@ export const citiesWithProjects = ref<CityWithProjects[]>([]);
 // AI : Layer group for city markers
 let cityMarkersLayer: L.LayerGroup | null = null;
 
-// AI : Layer group for marker projects (building markers)
+// AI : Layer group for development projects (development markers)
 let markerProjectsLayer: L.LayerGroup | null = null;
 
 // AI : Track the currently selected (clicked) city marker
@@ -161,17 +161,17 @@ export function cleanupProjectInfoTeleportTarget() {
 }
 
 /**
- * AI : Load marker projects for a specific city and display them on map
+ * AI : Load development projects for a specific city and display them on map
  */
 async function loadCityMarkerProjects(cityId: string | null): Promise<void> {
   if (!map.value) return;
 
   try {
-    // AI : Get marker projects for this city from backend (skip if cityId is null)
+    // AI : Get development projects for this city from backend (skip if cityId is null)
     const backendMarkerProjects = cityId ? await trpc.project.getProjectsByCity.query({ cityId }) : [];
     const backendMarkerProjectsOnly = backendMarkerProjects.filter(project => project.isMarker);
 
-    // AI : Get local marker projects for this city (handle null cityId case)
+    // AI : Get local development projects for this city (handle null cityId case)
     const { projects: localProjects } = useProjects();
     const allLocalProjects = Object.values(localProjects.value);
 
@@ -186,7 +186,7 @@ async function loadCityMarkerProjects(cityId: string | null): Promise<void> {
       )
     ];
 
-    // AI : Remove existing marker projects layer
+    // AI : Remove existing development projects layer
     if (markerProjectsLayer) {
       map.value.removeLayer(markerProjectsLayer);
     }
@@ -207,7 +207,7 @@ async function loadCityMarkerProjects(cityId: string | null): Promise<void> {
           status: 'approved'
         });
         const markerColor = getProjectMarkerColor(projectData);
-        const markerIcon = createBuildingIcon(markerColor);
+        const markerIcon = createDevelopmentIcon(markerColor);
         
         // AI : Create marker with timeline-based color icon and default opacity
         const marker = L.marker([project.lat, project.lng], { 
@@ -230,7 +230,7 @@ async function loadCityMarkerProjects(cityId: string | null): Promise<void> {
           marker.setOpacity(BUILDING_MARKER_OPACITY);
         });
 
-        // AI : Add click handler for marker project - show info popup first
+        // AI : Add click handler for development project - show info popup first
         marker.on('click', (e) => {
           // AI : Stop all event propagation using Leaflet's method
           L.DomEvent.stopPropagation(e);
@@ -269,7 +269,7 @@ async function loadCityMarkerProjects(cityId: string | null): Promise<void> {
     // AI : Add layer to map
     markerProjectsLayer.addTo(map.value);
   } catch (error) {
-    console.error('Error loading marker projects:', error);
+    console.error('Error loading development projects:', error);
   }
 }
 
@@ -292,13 +292,13 @@ export async function loadCityProjects(cityId: string | null, cityName: string, 
       // AI : Close project info popup when switching cities
       uiStore.closeProjectInfoPopup();
 
-      // AI : Load both overlay projects and marker projects
+      // AI : Load both overlay projects and development projects
       await Promise.all([
         loadCityOverlays(cityId, forceFullLoad),
         loadCityMarkerProjects(cityId)
       ]);
     } else {
-      // AI : Just load local marker projects when no city is selected
+      // AI : Just load local development projects when no city is selected
       await loadCityMarkerProjects(null);
     }
   } catch (error) {
@@ -315,7 +315,7 @@ export function removeCityMarkers(): void {
     cityMarkersLayer = null;
   }
 
-  // AI : Also remove marker projects layer
+  // AI : Also remove development projects layer
   if (markerProjectsLayer && map.value?.hasLayer(markerProjectsLayer)) {
     map.value.removeLayer(markerProjectsLayer);
     markerProjectsLayer = null;

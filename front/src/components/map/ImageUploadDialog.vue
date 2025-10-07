@@ -52,7 +52,7 @@
 
       </div>
       
-      <!-- AI : Marker project flow -->
+      <!-- AI : Development project flow -->
       <div v-else-if="selectedProjectType === 'marker'" class="marker-section">
         <div v-if="!markerPlacementMode">
           <h4>{{ $t('project.placeMarkerOnMap') }}</h4>

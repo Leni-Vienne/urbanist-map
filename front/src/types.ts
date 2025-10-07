@@ -126,7 +126,7 @@ export interface Project extends DBProject {
   savedRemotely: boolean;
   // AI : Optional fields for specific contexts
   sourcePdf?: File | null; // AI : For form uploads
-  // AI : Map coordinates for marker projects (null for overlay projects) - renamed to avoid DB conflict
+  // AI : Map coordinates for development projects (null for overlay projects) - renamed to avoid DB conflict
   mapCoordinates?: { lat: number; lng: number } | null;
 }
 
@@ -176,7 +176,7 @@ export type OverlayForModeration = Pick<OverlayObject, 'id' | 'filename' | 'stat
   countryName: string | null;
 };
 
-export type ProjectForModeration = Pick<Project, 'id' | 'name' | 'description' | 'status' | 'version' | 'createdAt' | 'updatedAt' | 'startDate' | 'endDate' | 'sourceUrl'> & {
+export type ProjectForModeration = Pick<Project, 'id' | 'name' | 'description' | 'status' | 'version' | 'createdAt' | 'updatedAt' | 'startDate' | 'endDate' | 'sourceUrl' | 'isMarker' | 'lat' | 'lng' | 'cityId'> & {
   cityName: string | null;
   countryCode: string | null;
   countryName: string | null;

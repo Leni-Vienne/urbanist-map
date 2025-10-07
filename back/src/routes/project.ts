@@ -14,9 +14,9 @@ const publishProjectSchema = z.object({
   name: z.string().min(8).max(200),
   description: z.string().max(2000).optional(),
   cityId: z.uuid().optional(),
-  isMarker: z.boolean().optional().default(false), // AI : true for marker projects, false for overlay projects
-  lat: z.number().optional(), // AI : latitude for marker projects
-  lng: z.number().optional(), // AI : longitude for marker projects
+  isMarker: z.boolean().optional().default(false), // AI : true for development projects, false for overlay projects
+  lat: z.number().optional(), // AI : latitude for development projects
+  lng: z.number().optional(), // AI : longitude for development projects
   proposalDate: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
@@ -36,9 +36,9 @@ export const projectRouter = router({
           }
         }
 
-        // AI : Validate marker project requirements
+        // AI : Validate development project requirements
         if (input.isMarker && (!input.lat || !input.lng)) {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Marker projects require lat and lng coordinates' });
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Development projects require lat and lng coordinates' });
         }
 
         const data = {
@@ -50,7 +50,7 @@ export const projectRouter = router({
           endDate: input.endDate ? new Date(input.endDate) : null,
           sourceUrl: input.sourceUrl,
           latestUpdateOn: input.latestUpdateOn ? new Date(input.latestUpdateOn) : null,
-          // AI : Set coordinates for marker projects using PostGIS
+          // AI : Set coordinates for development projects using PostGIS
           coordinates: input.isMarker && input.lat && input.lng 
             ? sql`ST_SetSRID(ST_MakePoint(${input.lng}, ${input.lat}), 4326)`
             : null,

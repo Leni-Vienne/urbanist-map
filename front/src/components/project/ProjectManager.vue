@@ -196,9 +196,9 @@ async function onImageUploadFromDialog(file: File) {
 // AI : Handle marker coordinates selection from dialog
 async function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: number }) {
   try {
-    // AI : Create marker project locally (user can edit details before publishing)
+    // AI : Create development project locally (user can edit details before publishing)
     const projectData = {
-      name: 'Building Marker', // AI : Default name, user can edit later
+      name: 'Development Marker', // AI : Default name, user can edit later
       description: '',
       isMarker: true,
       lat: coordinates.lat,
@@ -218,7 +218,7 @@ async function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: numb
     toast.add({ 
       severity: 'success', 
       summary: 'Success', 
-      detail: 'Marker project created successfully',
+      detail: 'Development project created successfully',
       life: 3000
     });
     setLastCreatedProject(projectId);
@@ -234,11 +234,11 @@ async function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: numb
       await loadCityProjects(null as any, '', true);
     }
   } catch (error) {
-    console.error('Error creating marker project:', error);
+    console.error('Error creating development project:', error);
     toast.add({ 
       severity: 'error', 
       summary: 'Error', 
-      detail: 'Failed to create marker project' ,
+      detail: 'Failed to create development project' ,
       life: 3000
     });
   }
@@ -377,7 +377,7 @@ async function handleProjectSubmitted(project: Partial<Project>) {
   justify-content: center !important;
 }
 
-/* AI : Marker project styles */
+/* AI : Development project styles */
 :global(.marker-project-icon) {
   background: transparent !important;
   border: none !important;

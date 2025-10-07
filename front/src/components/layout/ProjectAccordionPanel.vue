@@ -34,7 +34,11 @@
             </div>
           </AccordionHeader>
           <AccordionContent>
-            <Card class="project-details-card">
+            <Card
+              class="project-details-card"
+              :class="{ 'marker-project-card': project.isMarker }"
+              @click="project.isMarker ? handleMarkerProjectClick(project) : null"
+            >
               <template #content>
                 <div class="project-content-wrapper">
                   <div class="project-info-section">
@@ -56,10 +60,10 @@
                         <i class="pi pi-map-marker"></i>
                         <span>{{ getProjectLocation(project) }}</span>
                       </div>
-                      <div class="metadata-item">
+                      <div v-if="!project.isMarker" class="metadata-item">
                         <i class="pi pi-images"></i>
                         <span>{{ project.overlayCount || (project.overlays ? project.overlays.length : 0) }}
-                          overlays</span>
+                          {{ $t('overlay.overlayImages') }}</span>
                       </div>
                       <div
                         class="metadata-item"
@@ -94,6 +98,16 @@
                       :project="project"
                     ></slot>
                   </div>
+
+                  <!-- AI : Zoom icon for development projects -->
+                  <button
+                    v-if="project.isMarker && !$slots['project-actions']"
+                    class="bg-surface-50 border border-surface-200 rounded-md w-8 h-8 flex items-center justify-center text-surface-500 hover:bg-surface-100 hover:text-surface-600 transition-all flex-shrink-0"
+                    @click.stop="handleMarkerProjectClick(project)"
+                  >
+                    <i class="pi pi-search"></i>
+                    <span class="sr-only">Zoom to {{ project.name }}</span>
+                  </button>
                 </div>
 
                 <!-- AI : Project change requests -->
@@ -284,8 +298,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { buildImageUrl, formatRelativeTime } from '../../utils'
+import { navigateToOverlayWithCity, navigateToMarkerProject } from '@composables/navigation/useOverlayNavigation'
 import { navigateToOverlay } from '@composables/overlay/useOverlay'
-import { navigateToOverlayWithCity } from '@composables/navigation/useOverlayNavigation'
 import type { ProjectForModeration, OverlayForModeration } from '@types'
 import { useToast } from '@composables/ui/useToast'
 import Tag from 'primevue/tag'
@@ -465,6 +479,54 @@ async function handleOverlayClick(overlay: OverlayForModeration) {
   }
 }
 
+// AI : Handle development project click - zoom to marker location
+async function handleMarkerProjectClick(project: ProjectForModeration) {
+  try {
+    if (!project.lat || !project.lng) {
+      toast.add({
+        severity: 'warn',
+        summary: 'No Location',
+        detail: 'This development project has no coordinates',
+        life: 3000
+      })
+      return
+    }
+
+    if (!project.cityId || !project.cityName) {
+      toast.add({
+        severity: 'warn',
+        summary: 'Missing City Info',
+        detail: 'Cannot navigate without city information',
+        life: 3000
+      })
+      return
+    }
+
+    await navigateToMarkerProject(
+      project.lat,
+      project.lng,
+      project.cityId,
+      project.cityName,
+      project.countryCode ?? undefined
+    )
+
+    toast.add({
+      severity: 'success',
+      summary: 'Navigated',
+      detail: `Viewing ${project.name}`,
+      life: 2000
+    })
+  } catch (error) {
+    console.error('Failed to navigate to development project:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Navigation Failed',
+      detail: error instanceof Error ? error.message : 'Failed to navigate to development project',
+      life: 3000
+    })
+  }
+}
+
 // AI : Get change requests for a specific project (only for approved projects)
 function getProjectChangeRequests(projectId: string): PendingChangeRequest[] {
   const project = props.projects.find(p => p.id === projectId)
@@ -571,6 +633,16 @@ function formatValue(value: unknown): string {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
+}
+
+/* AI : Development project card styling - similar to overlay cards */
+.marker-project-card {
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.marker-project-card:hover {
+  background-color: var(--p-surface-50) !important;
 }
 
 /* AI : Improved project information styling */
