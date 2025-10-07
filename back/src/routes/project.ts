@@ -1,5 +1,5 @@
 import { publicProcedure, protectedProcedure, router } from '../trpc';
-import { z } from 'zod';
+import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
 import { projects, cities, overlays } from '../db/schema';
 import { eq, sql, and, inArray } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';

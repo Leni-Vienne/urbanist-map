@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import crypto from 'crypto';
 import { eq, gt } from 'drizzle-orm';
@@ -240,9 +240,17 @@ export const authRouter = router({
             // AI : Delete the unverified user
             await db.delete(users).where(eq(users.id, existingUser[0].id));
           } else {
+            // AI : Check if this is an OAuth-only account
+            if (existingUser[0].googleId && !existingUser[0].passwordHash) {
+              throw new TRPCError({
+                code: 'CONFLICT',
+                message: 'auth.error.emailUsesGoogleSignIn',
+              });
+            }
+
             throw new TRPCError({
               code: 'CONFLICT',
-              message: 'User already exists with this email',
+              message: 'auth.error.emailAlreadyExists',
             });
           }
         }
@@ -253,7 +261,7 @@ export const authRouter = router({
           if (existingUsername.length > 0) {
             throw new TRPCError({
               code: 'CONFLICT',
-              message: 'Username already taken',
+              message: 'auth.error.usernameTaken',
             });
           }
         }
@@ -279,7 +287,7 @@ export const authRouter = router({
 
         return {
           success: true,
-          message: 'User registered successfully. Please check your email to verify your account.',
+          message: 'auth.success.registered',
           user: {
             id: newUser.id,
             email: newUser.email,
@@ -291,7 +299,7 @@ export const authRouter = router({
         console.error('Registration error:', error);
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
-          message: 'Registration failed',
+          message: 'auth.error.registrationFailed',
         });
       }
     }),
