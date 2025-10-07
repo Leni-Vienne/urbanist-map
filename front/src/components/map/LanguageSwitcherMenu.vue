@@ -6,6 +6,7 @@
       @click="toggleMenu"
       ref="languageMenuRef"
       role="button"
+      name="Language Selector"
       tabindex="0"
       @dblclick.stop
       @keydown.enter="toggleMenu"
