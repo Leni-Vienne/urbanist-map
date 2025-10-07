@@ -285,9 +285,9 @@
 import { ref, computed } from 'vue'
 import { buildImageUrl, formatRelativeTime } from '../../utils'
 import { navigateToOverlay } from '@composables/overlay/useOverlay'
+import { navigateToOverlayWithCity } from '@composables/navigation/useOverlayNavigation'
 import type { ProjectForModeration, OverlayForModeration } from '@types'
 import { useToast } from '@composables/ui/useToast'
-import { switchTileLayer, isTileLayerType, type TileLayerType } from '@composables/map/useTileLayers'
 import Tag from 'primevue/tag'
 import Accordion from 'primevue/accordion'
 import AccordionPanel from 'primevue/accordionpanel'
@@ -444,17 +444,16 @@ function shouldShowOverlays(project: ProjectForModeration): boolean {
   return expandedPanels.value.has(project.id)
 }
 
-// AI : Handle overlay click - switch tile layer and navigate to overlay
+// AI : Handle overlay click - simulate clicking country marker → city marker → overlay
 async function handleOverlayClick(overlay: OverlayForModeration) {
   try {
-    // AI : Switch tile layer based on overlay's country if available
-    if (overlay.countryCode) {
-      // AI : Use country code directly if it's a valid tile layer, otherwise default to esri
-      const tileLayerType = isTileLayerType(overlay.countryCode) ? overlay.countryCode : 'esri'
-      switchTileLayer(tileLayerType as TileLayerType)
+    // AI : If overlay has city info, navigate via city (loads city markers and overlays first)
+    if (overlay.cityId && overlay.cityName) {
+      await navigateToOverlayWithCity(overlay.id, overlay.cityId, overlay.cityName, overlay.countryCode ?? undefined)
+    } else {
+      // AI : Fallback to direct navigation if no city info
+      await navigateToOverlay(overlay.id)
     }
-
-    await navigateToOverlay(overlay.id)
   } catch (error) {
     console.error('Failed to navigate to overlay:', error)
     toast.add({

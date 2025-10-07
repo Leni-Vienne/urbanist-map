@@ -170,6 +170,7 @@ export type OverlayForList = Pick<OverlayObject, 'id' | 'caption' | 'filename'> 
 
 export type OverlayForModeration = Pick<OverlayObject, 'id' | 'filename' | 'status' | 'version' | 'projectId' | 'updatedAt'> & {
   name: string; // AI : Display name
+  cityId: string | null;
   cityName: string | null;
   countryCode: string | null;
   countryName: string | null;
