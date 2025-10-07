@@ -39,7 +39,7 @@ export const projects = pgTable('projects', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull(),
   description: text('description'),
-  isMarker: boolean('is_marker').default(false).notNull(), // AI : true for simple building markers, false for overlay projects
+  isMarker: boolean('is_marker').default(false).notNull(), // AI : true for simple development markers, false for overlay projects
   status: approvalStatusEnum('status').default('pending').notNull(),
   ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'set null', onUpdate: 'cascade' }),
   cityId: uuid('city_id').references(() => cities.id, { onDelete: 'set null', onUpdate: 'cascade' }), // AI : Reference to the city where the project is located
@@ -49,7 +49,7 @@ export const projects = pgTable('projects', {
   startDate: timestamp('start_date', { withTimezone: true }),
   endDate: timestamp('end_date', { withTimezone: true }),
   latestUpdateOn: timestamp('latest_update_on', { withTimezone: true }),
-  // AI : Coordinates for marker projects (null for overlay projects)
+  // AI : Coordinates for development projects (null for overlay projects)
   lat: doublePrecision('lat'),
   lng: doublePrecision('lng'),
   coordinates: geometry('coordinates', { type: 'point', mode: 'xy', srid: 4326 }), // AI : PostGIS point for spatial queries (computed from lat/lng)
@@ -57,7 +57,7 @@ export const projects = pgTable('projects', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
 }, (_projects) => [
-  sql.raw('CREATE INDEX idx_projects_coordinates ON projects USING GIST (coordinates)'), // AI : Spatial index for marker projects
+  sql.raw('CREATE INDEX idx_projects_coordinates ON projects USING GIST (coordinates)'), // AI : Spatial index for development projects
 ]);
 
 export const projectsRelations = relations(projects, ({

@@ -110,7 +110,8 @@ const overlayEditorRef = ref<InstanceType<typeof OverlayEditor> | null>(null);
 // AI : Check if teleport targets exist (we need both for overlay and project popups)
 const checkTeleportTarget = () => {
   const overlayTarget = document.getElementById('info-popup-teleport-target');
-  teleportTargetExists.value = !!overlayTarget;
+  const projectTarget = document.getElementById('project-info-popup-teleport-target');
+  teleportTargetExists.value = !!(overlayTarget || projectTarget);
 };
 
 onMounted(() => {
@@ -228,7 +229,7 @@ async function handlePublishProject() {
       toast.add({
         severity: 'success',
         summary: 'Project Published',
-        detail: 'Marker project has been saved to the backend',
+        detail: 'Development project has been saved to the backend',
         life: 3000
       });
       
@@ -246,7 +247,7 @@ async function handlePublishProject() {
     toast.add({
       severity: 'error',
       summary: 'Publish Failed',
-      detail: 'Failed to save marker project to the backend',
+      detail: 'Failed to save development project to the backend',
       life: 5000
     });
   } finally {

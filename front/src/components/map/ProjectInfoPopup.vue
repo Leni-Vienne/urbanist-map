@@ -37,7 +37,7 @@
       </ProjectInfoCard>
     </div>
 
-    <!-- Publish Project Section - Only for marker projects that haven't been published yet -->
+    <!-- Publish Project Section - Only for development projects that haven't been published yet -->
     <div
       v-if="!viewMode && !isPublishedToBackend"
       class="publish-section"
