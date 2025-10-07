@@ -112,7 +112,15 @@
     "overlayNameCaption": "Overlay Name/Caption",
     "enterOverlayName": "Enter image name or caption",
     "notSet": "Not set",
-    "changedFrom": "Changed from"
+    "changedFrom": "Changed from",
+    "untitled": "Untitled",
+    "unknownLocation": "Unknown Location",
+    "noOverlaysFound": "No overlays found.",
+    "beFirstToAdd": "Be the first to add a construction overlay!",
+    "loadingOverlays": "Loading overlays...",
+    "zoomTo": "Zoom to",
+    "navigationFailed": "Navigation Failed",
+    "failedToNavigate": "Failed to navigate to overlay"
   },
   "map": {
     "zoom": "Zoom",

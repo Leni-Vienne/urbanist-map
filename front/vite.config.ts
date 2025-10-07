@@ -7,7 +7,7 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 import path from 'path'
 import { visualizer } from "rollup-plugin-visualizer";
 import istanbul from 'vite-plugin-istanbul';
-import type { Plugin } from 'vite';
+/*import type { Plugin } from 'vite';
 
 // AI : Vite plugin to replace font-display: block with font-display: swap for better performance
 function fontDisplaySwapPlugin(): Plugin {
@@ -38,13 +38,13 @@ function fontDisplaySwapPlugin(): Plugin {
       }
     }
   };
-}
+}*/
 
 // https://vite.dev/config/
 export default defineConfig({
   envDir: '../', // only way that .env can be imported, '../.env' don't work for some reason
   plugins: [
-    fontDisplaySwapPlugin(),
+    //fontDisplaySwapPlugin(),
     vue(),
     visualizer({
       filename: 'stats.html',

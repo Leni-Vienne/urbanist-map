@@ -11,8 +11,8 @@
     <template #header-actions>
       <div class="filter-controls">
         <div class="field-checkbox">
-          <Checkbox v-model="showApprovedRejected" inputId="showApprovedRejected" binary />
-          <label for="showApprovedRejected">Show all</label>
+          <Checkbox v-model="onlyShowPending" inputId="onlyShowPending" binary />
+          <label for="onlyShowPending">Only show pending</label>
         </div>
       </div>
     </template>
@@ -65,19 +65,16 @@ import Checkbox from 'primevue/checkbox'
 import Button from 'primevue/button'
 import { useAddOverlay } from '@composables/overlay/useAddOverlay'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
-import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useToast } from '@composables/ui/useToast'
 import { useChangeRequests } from '@composables/changes/useChangeRequests'
 import { useUserContributions } from '@composables/project/useUserContributions'
-import { storeToRefs } from 'pinia'
 
 // AI : Use cached composable for user contributions
 const { projects, isLoading, fetchUserContributions } = useUserContributions()
 
-const showApprovedRejected = ref(false)
+const onlyShowPending = ref(true)
 
 // AI : Stores
-const overlayStore = useOverlayStore()
 const { handleAddOverlayButtonClick } = useAddOverlay()
 
 function handleAddOverlayClick() {
@@ -104,19 +101,15 @@ function handleAddOverlayClick() {
 const toast = useToast()
 
 // AI : Change requests functionality
-const { pendingChangeRequests, refreshPendingChangeRequests, hasChangeRequests, isLoading: changeRequestsLoading } = useChangeRequests()
-
-const { isEditMode } = storeToRefs(overlayStore)
+const { pendingChangeRequests, refreshPendingChangeRequests } = useChangeRequests()
 
 // AI : Computed filtered projects
 const filteredProjects = computed(() => {
-  if (showApprovedRejected.value) {
-    return projects.value
+  if (onlyShowPending.value) {
+    return projects.value.filter(project => project.status === 'pending')
   }
-  return projects.value.filter(project => project.status === 'pending')
+  return projects.value
 })
-
-// AI : fetchUserContributions is now provided by the composable with caching
 
 // AI : Load initial data
 onMounted(() => {

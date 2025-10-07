@@ -2,7 +2,7 @@
   <div :class="panelClass">
     <div class="panel-content">
       <div class="panel-header">
-        <h3 class="panel-title">{{ title }}</h3>
+        <h2 class="panel-title">{{ title }}</h2>
         <div
           v-if="$slots['header-actions']"
           class="header-actions"
@@ -112,7 +112,7 @@
 
                 <!-- AI : Project change requests -->
                 <div v-if="getProjectChangeRequests(project.id).length > 0" class="project-change-requests">
-                  <h4 class="change-requests-title">{{ isMyContributionsPanel ? 'Your Pending Changes' : 'Pending Changes' }}</h4>
+                  <h3 class="change-requests-title">{{ isMyContributionsPanel ? 'Your Pending Changes' : 'Pending Changes' }}</h3>
                   <p v-if="isMyContributionsPanel" class="change-requests-subtitle">A moderator needs to review and approve these changes</p>
                   <div class="change-requests-list">
                     <div 
