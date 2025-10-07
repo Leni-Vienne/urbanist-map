@@ -47,13 +47,36 @@ const debouncedUpdateMapSize = debounce(function () {
   }
 }, 250);
 
+// AI : Calculate minimum zoom based on viewport to avoid black borders
+// AI : Higher resolution displays need higher minimum zoom to fill the viewport
+function calculateMinZoom(): number {
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const largerDimension = Math.max(viewportWidth, viewportHeight);
+
+  // AI : For displays wider/taller than 2560px (typical 4K), use zoom level 3
+  // AI : For standard HD (1920px and below), use zoom level 2
+  // AI : Linear interpolation between these thresholds
+  if (largerDimension >= 2560) {
+    return 3;
+  } else if (largerDimension <= 1920) {
+    return 2;
+  } else {
+    // AI : Interpolate between 2 and 3 for resolutions between 1920 and 2560
+    return 2 + ((largerDimension - 1920) / (2560 - 1920));
+  }
+}
+
 export function initializeMap() {
   // AI : Detect mobile device for conditional zoom settings
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
   map.value = L.map("mapDiv", {
+    minZoom: calculateMinZoom(),
     maxZoom: 22,
     zoomControl: false, // because we have our own zoom control
+    maxBounds: L.latLngBounds([-85, -180], [85, 180]),
+    maxBoundsViscosity: 0.8, // gently bounce back
     // AI : Enable smooth zoom with no snapping only on mobile
     ...(isMobile && {
       zoomSnap: 0,
@@ -70,7 +93,7 @@ export function initializeMap() {
     doubleTapDragZoomOptions: {
       reverse: true,
     },
-  }).setView([22, 10], 3);
+  }).setView([22, 10], calculateMinZoom());
   if (!map.value) throw new Error('No map element found');
 
   // AI : Initialize reactive zoom level with Leaflet's default

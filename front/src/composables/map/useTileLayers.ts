@@ -11,6 +11,9 @@ export const currentTileLayer = ref<TileLayerType>('esri');
 // AI : Reference to the currently active tile layer instance
 let activeTileLayer: L.TileLayer | L.GridLayer | null = null;
 
+// To prevent requesting the tileLayer server for tiles outside the valid range
+const tileLayerBounds = L.latLngBounds([-85, -180], [85, 180]);
+
 // AI : Tile layer configurations with UI labels
 const tileLayerConfigs = {
   esri: {
@@ -23,8 +26,9 @@ const tileLayerConfigs = {
       maxNativeZoom: 19,
       tileSize: 256,
       attribution: "Esri, Maxar, Earthstar Geographics, and the GIS User Community",
-      noWrap: true
-    }
+      noWrap: true,
+      bounds: tileLayerBounds,
+    },
   },
   FRA: {
     label: 'France',
@@ -36,7 +40,8 @@ const tileLayerConfigs = {
       maxNativeZoom: 19,
       tileSize: 256,
       attribution: "IGN-F/Géoportail",
-      noWrap: true
+      noWrap: true,
+      bounds: tileLayerBounds
     }
   },
   USA: {
@@ -49,7 +54,8 @@ const tileLayerConfigs = {
       maxNativeZoom: 21,
       tileSize: 256,
       attribution: "Esri, Maxar, Earthstar Geographics, and the GIS User Community",
-      noWrap: true
+      noWrap: true,
+      bounds: tileLayerBounds
     }
   },
   CHE: {
@@ -62,7 +68,8 @@ const tileLayerConfigs = {
       maxNativeZoom: 20,
       tileSize: 256,
       attribution: "© swisstopo",
-      noWrap: true
+      noWrap: true,
+      bounds: tileLayerBounds
     }
   },
 };

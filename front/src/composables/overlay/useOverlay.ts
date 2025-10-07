@@ -929,28 +929,26 @@ function createNewOverlayObject(id: string, imageUrl: string, projectId: string)
 // AI : Helper function to zoom to overlay bounds with proper error handling
 function zoomToOverlayBounds(overlay: OverlayObject): boolean {
   if (!overlay.overlay || !map.value) return false;
-  
+
   try {
-    const bounds = overlay.overlay.getBounds();
+    // AI : Get bounds from overlay or construct from corners
+    const bounds = overlay.overlay.getBounds() ??
+      (overlay.overlay.getCorners()?.length === 4 ? L.latLngBounds(overlay.overlay.getCorners()) : null);
+
     if (bounds) {
-      map.value.fitBounds(bounds, { padding: [50, 50] });
+      map.value.flyToBounds(bounds, { padding: [50, 50] as [number, number], duration: 1.5, easeLinearity: 0.25 });
       return true;
-    } else {
-      // AI : Try to get corners for zoom calculation
-      const corners = overlay.overlay.getCorners();
-      if (corners && corners.length === 4) {
-        const overlayBounds = L.latLngBounds(corners);
-        map.value.fitBounds(overlayBounds, { padding: [50, 50] });
-        return true;
-      } else if (overlay.marker) {
-        map.value.setView(overlay.marker.getLatLng(), 18);
-        return true;
-      }
+    }
+
+    // AI : Fallback to marker position
+    if (overlay.marker) {
+      map.value.flyTo(overlay.marker.getLatLng(), 18, { duration: 1.5, easeLinearity: 0.25 });
+      return true;
     }
   } catch {
-    // AI : Fall back to marker position on error
+    // AI : Error fallback to marker position
     if (overlay.marker) {
-      map.value.setView(overlay.marker.getLatLng(), 18);
+      map.value.flyTo(overlay.marker.getLatLng(), 18, { duration: 1.5, easeLinearity: 0.25 });
       return true;
     }
   }
