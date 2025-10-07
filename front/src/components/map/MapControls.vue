@@ -206,7 +206,7 @@ function handleAddOverlayClick() {
         severity: 'info',
         summary: 'Switched to Edit Mode',
         detail: 'Click the button again to add an overlay',
-        life: 4000
+        life: 4000,
       });
     }
   } else if (result.reason === 'edit_mode_error') {
@@ -232,7 +232,8 @@ function handleModeToggle() {
       detail: isEditMode?.value
         ? 'You can now add and edit overlays'
         : 'Overlays are now in view-only mode',
-      life: 3000
+      life: 3000,
+
     });
   } catch (error) {
     console.error('AI : Error toggling edit mode:', error);

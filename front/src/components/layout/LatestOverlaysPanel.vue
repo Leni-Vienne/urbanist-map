@@ -16,7 +16,7 @@
           <div class="overlay-thumbnail">
             <img
               :src="getOverlayImageUrl(overlay.filename)"
-              :alt="overlay.caption || t('overlay.untitled')"
+              :alt="overlay.caption ?? overlay.projectName ?? t('overlay.untitled')"
               class="w-full h-full object-cover"
               @error="(event) => handleImageError(event, overlay.id)"
               @load="(event) => handleImageLoad(event, overlay.id)"
@@ -30,7 +30,7 @@
 
           <!-- AI : Overlay info -->
           <div class="overlay-info">
-            <h2 class="overlay-name">{{ overlay.caption || t('overlay.untitled') }}</h2>
+            <h2 class="overlay-name">{{ overlay.caption ?? overlay.projectName ?? t('overlay.untitled') }}</h2>
             <div class="overlay-time">{{ formatRelativeTime(overlay.updatedAt) }}</div>
             <div class="overlay-location">
               <i class="pi pi-map-marker"></i>
@@ -299,17 +299,17 @@ onMounted(() => {
   .panel-content {
     padding: 0.75rem;
   }
-  
+
   .overlay-card {
     padding: 0.625rem;
     gap: 0.625rem;
   }
-  
+
   .overlay-thumbnail {
     width: 50px;
     height: 50px;
   }
-  
+
   .overlay-name {
     font-size: 0.8125rem;
   }

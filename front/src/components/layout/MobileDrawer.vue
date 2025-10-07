@@ -197,20 +197,20 @@ watch(() => authStore.isAdmin, (isAdmin) => {
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 0.75rem 1rem;
+  padding: 0.2rem 1rem;
   background: var(--p-surface-50);
   border-top: 1px solid var(--p-surface-100);
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
   z-index: 10;
 }
 
 .footer-link {
   color: var(--p-surface-600);
   text-decoration: none;
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   transition: color 0.2s ease;
 }
 
@@ -221,6 +221,6 @@ watch(() => authStore.isAdmin, (isAdmin) => {
 
 .footer-separator {
   color: var(--p-surface-400);
-  font-size: 0.75rem;
+  font-size: 0.65rem;
 }
 </style>

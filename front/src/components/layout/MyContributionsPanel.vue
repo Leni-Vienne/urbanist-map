@@ -86,7 +86,7 @@ function handleAddOverlayClick() {
         severity: 'info',
         summary: 'Switched to Edit Mode',
         detail: 'Click the button again to add an overlay',
-        life: 4000
+        life: 4000,
       })
     }
   } else if (result.reason === 'edit_mode_error') {

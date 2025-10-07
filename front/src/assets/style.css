@@ -19,3 +19,7 @@
 #mapDiv {
   background: black;
 }
+
+.leaflet-control-attribution a {
+  color: #005a7d !important; /* Darker blue that passes WCAG AA against #ccc, otherwise ANDI flags the attribution link */
+}
