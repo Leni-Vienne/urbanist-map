@@ -8,8 +8,8 @@ describe('Database Schema - Version Field Tests', () => {
   let testUser: DBUser
   let testCity: DBCity
 
-  beforeAll(async () => {
-    await TestHelpers.initialize()
+  beforeAll(() => {
+    TestHelpers.initialize()
   })
 
   afterAll(async () => {
