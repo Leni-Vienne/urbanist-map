@@ -35,9 +35,9 @@ async function prepareNavigationToCity(
     await loadCitiesForCountry(countryCode);
 
     // AI : Get updated countries and add city markers
-    const country = projectStore.countries.find((c: any) => c.code === countryCode);
+    const country = projectStore.countries.find((country) => country.code === countryCode);
     if (country) {
-      addCityMarkersForCountry(country.cities.map((c: any) => ({ ...c, projectCount: 0 })));
+      addCityMarkersForCountry(country.cities.map((city) => ({ ...city, projectCount: 0 })));
     }
   }
 

@@ -108,8 +108,8 @@
         @dblclick.stop
         raised
         :severity="visibleCompletionStates.green ? 'primary' : 'secondary'"
-        aria-label="Toggle not started projects"
-        v-tooltip.right="'Toggle not started projects'"
+        aria-label="Toggle planned projects"
+        v-tooltip.right="'Toggle planned projects'"
       >
         <template #icon>
           <div v-html="createButtonSVG('green')"></div>

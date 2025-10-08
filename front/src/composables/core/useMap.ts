@@ -16,7 +16,7 @@ export const currentZoomLevel = ref<number>(13);
 type InitListener = () => void;
 const initListeners: InitListener[] = [];
 
-export function onMapInitialized(callback: InitListener): void {
+export function onMapInitialized(callback: InitListener) {
   if (mapInitialized.value) {
     // AI : If already initialized, execute callback immediately
     callback();
@@ -74,16 +74,18 @@ export function initializeMap() {
   map.value = L.map("mapDiv", {
     minZoom: calculateMinZoom(),
     maxZoom: 22,
+    zoomAnimation: true, // true by default
+    zoomAnimationThreshold: 4, // default is 4
     zoomControl: false, // because we have our own zoom control
     maxBounds: L.latLngBounds([-85, -180], [85, 180]),
     maxBoundsViscosity: 0.8, // gently bounce back
     // AI : Enable smooth zoom with no snapping only on mobile
     ...(isMobile && {
       zoomSnap: 0,
-      zoomDelta: 0.1,
+      zoomDelta: 0.25,
       // AI : Enable inertia for smooth momentum on all interactions
       inertia: true,
-      inertiaDeceleration: 2400, // slightly slower deceleration for smoother feel
+      inertiaDeceleration: 1500, // slightly slower deceleration for smoother feel
       inertiaMaxSpeed: 1500, // reasonable max speed limit
       // AI : Enable bouncing at zoom limits for better UX
       bounceAtZoomLimits: true,

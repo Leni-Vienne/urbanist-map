@@ -73,6 +73,10 @@ const mockProject: ProjectForModeration = {
   startDate: null,
   endDate: null,
   sourceUrl: null,
+  isMarker: false,
+  lat: null,
+  lng: null,
+  cityId: 'test-city-1',
   cityName: 'Test City',
   countryCode: 'TST',
   countryName: 'Test Country',
@@ -88,6 +92,7 @@ const mockOverlay = {
   version: 1,
   projectId: 'test-project-1',
   updatedAt: new Date(),
+  cityId: 'test-city-1',
   cityName: 'Test City',
   countryCode: 'TST',
   countryName: 'Test Country'

@@ -50,7 +50,7 @@ export async function fetchCityProjectsData(cityId: string): Promise<OverlayData
 /**
  * AI : Load projects for a specific city and display overlays on map
  */
-export async function loadCityOverlays(cityId: string, forceFullLoad = false): Promise<void> {
+export async function loadCityOverlays(cityId: string, forceFullLoad = false): Promise<void | null> {
   return withErrorHandling(
     async () => {
       const mapStore = useMapStore();
@@ -121,7 +121,7 @@ export async function loadCityOverlays(cityId: string, forceFullLoad = false): P
         isLoadingCityProjects.value = false;
       }
     }
-  ) as Promise<void>;
+  );
 }
 
 // AI : Common function to render overlay markers from overlay data

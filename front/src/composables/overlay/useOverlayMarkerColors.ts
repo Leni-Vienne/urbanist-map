@@ -28,7 +28,7 @@ export function getOverlayMarkerColor(
 
   const { proposalDate, startDate, endDate } = project;
 
-  if (proposalDate && !startDate) return 'yellow'; // Proposed but not started
+  if (proposalDate && !startDate) return 'yellow'; // Proposed but not started (nor planned)
   if (!startDate) return 'grey'; // TODO No start date, shouldn't happen?
 
   const now = new Date();

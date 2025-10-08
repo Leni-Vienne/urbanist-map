@@ -8,7 +8,7 @@ import type { Context } from 'hono'
 export class TestHelpers {
   
   // AI : Initialize test database
-  static async initialize() {
+  static initialize() {
     initTestDatabase()
   }
 
@@ -164,7 +164,7 @@ export class TestHelpers {
         version: sql`${table.version} + 1`,
         updatedAt: new Date() 
       })
-      .where(eq(table.id as any, entityId))
+      .where(eq(table.id, entityId))
   }
 
   // AI : Wait for specified milliseconds (for race condition testing)

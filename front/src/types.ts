@@ -94,7 +94,7 @@ declare module "leaflet" {
 
   interface DistortableImageOverlayOptions extends L.ImageOverlayOptions {
     actions?: L.Toolbar2.Action[];
-    corners?: L.LatLng[];
+    corners?: { lat: number, lng: number }[];
     editable?: boolean;
     keyboard?: boolean;
     dragBehavior?: 'map' | 'overlay' | 'auto';

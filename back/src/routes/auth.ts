@@ -354,7 +354,7 @@ export const authRouter = router({
   // AI : Request password reset
   requestPasswordReset: publicProcedure
     .input(resetPasswordRequestSchema)
-    .mutation(async ({ input }) => {
+    .mutation( ({ input }) => {
       const { email } = input;
 
       // AI : SECURITY: Fire and forget - respond immediately to prevent ALL timing attacks
