@@ -14,8 +14,8 @@ describe('Race Condition Prevention Tests', () => {
   let testAdmin: DBUser
   let testCity: DBCity
 
-  beforeAll(async () => {
-    await TestHelpers.initialize()
+  beforeAll(() => {
+    TestHelpers.initialize()
   })
 
   afterAll(async () => {
