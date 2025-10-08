@@ -103,7 +103,7 @@ export async function withErrorToast<T>(
   fn: () => Promise<T>,
   errorMessage: string
 ): Promise<T> {
-  return withErrorHandling(fn, { errorMessage, rethrow: true }) as Promise<T>
+  return withErrorHandling(fn, { errorMessage, rethrow: true }) as Promise<T>;
 }
 
 /**

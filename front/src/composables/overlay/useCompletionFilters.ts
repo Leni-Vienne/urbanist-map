@@ -5,7 +5,7 @@ import type { OverlayData, OverlayObject, viewModeMarkerColor } from '@types';
 // AI : Global completion status filter state
 const visibleCompletionStates = ref({
   yellow: true,  // Proposed
-  green: true,   // Not started
+  green: true,   // Planned
   orange: true,  // In progress  
   grey: true     // Completed
 });

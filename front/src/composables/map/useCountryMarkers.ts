@@ -70,7 +70,7 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
       const countries = getCountries();
       const country = countries.value.find((c: Country) => c.code === countryCode);
       if (country) {
-        country.cities = citiesData.map((c) => ({ ...c, distance: 0 }));
+        country.cities = citiesData.map((city) => ({ ...city, distance: 0 }));
       }
     }
   } finally {

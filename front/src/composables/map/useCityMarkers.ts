@@ -16,7 +16,7 @@ import { createProject } from '../../utils/typeFactories';
 function getProjectMarkerColor(project: Project): MarkerColor {
   const { proposalDate, startDate, endDate } = project;
   
-  if (proposalDate && !startDate) return 'yellow'; // Proposed but not started
+  if (proposalDate && !startDate) return 'yellow'; // Proposed but not started (nor planned)
   if (!startDate) return 'grey'; // No start date, shouldn't happen?
   
   const now = new Date();
@@ -376,11 +376,11 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
     });
 
     // AI : Add click event to load city projects directly and set marker as selected
-    marker.on('click', () => {
+    marker.on('click', async () => {
       resetLayerMarkersOpacity(cityMarkersLayer, MARKER_OPACITY);
       marker.setOpacity(MARKER_HOVER_OPACITY);
       selectedCityMarker = marker;
-      void loadCityProjects(city.id, city.name, false, city.countryCode);
+      await loadCityProjects(city.id, city.name, false, city.countryCode);
     });
 
     // AI : Add mouseover event to show guidance tooltip and increase marker opacity

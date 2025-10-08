@@ -35,7 +35,7 @@ export function useFieldChanges() {
     changeReason?: string
   ) {
     return withErrorToast(
-      () => submitChangeRequest({
+      async () => submitChangeRequest({
         entityType: 'overlay',
         entityId: overlayId,
         changes: [{
@@ -55,7 +55,7 @@ export function useFieldChanges() {
     fieldChanges: FieldChange[]
   ) {
     return withErrorToast(
-      () => submitChangeRequest({
+      async () => submitChangeRequest({
         entityType,
         entityId,
         changes: fieldChanges

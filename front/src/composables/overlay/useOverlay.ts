@@ -955,27 +955,6 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
   return false;
 }
 
-// AI : Helper function to save overlay with updated corners (no local storage)
-function saveOverlayWithCurrentCorners(overlayObject: OverlayObject): void {
-  if (overlayObject.overlay) {
-    // AI : Update marker tooltip
-    updateMarkerTooltip(overlayObject);
-  }
-}
-
-// AI : Helper function to update marker position and save overlay data
-function updateMarkerAndSaveOverlay(overlayObject: OverlayObject): void {
-  updateMarkerPosition(overlayObject);
-  saveOverlayWithCurrentCorners(overlayObject);
-}
-
-// AI : Helper function to center map on overlay with proper error handling
-function centerMapOnOverlay(overlay: OverlayObject): boolean {
-  if (!overlay.overlay) return false;
-
-  // AI : No need to wait for overlay ready since corners are now provided during initialization
-  return zoomToOverlayBounds(overlay);
-}
 
 /**
  * AI : Create a marker for overlays with specified type and color
@@ -1021,17 +1000,10 @@ function createMarker(overlayObject: OverlayObject, projectId: string, markerTyp
 }
 
 /**
- * AI : Create a purple marker for replacement overlays
- */
-function createReplacementMarker(overlayObject: OverlayObject, projectId: string): void {
-  createMarker(overlayObject, projectId, 'replacement');
-}
-
-/**
- * 
- * @param imageUrl 
- * @param projectId 
- * @param replacesOverlayId 
+ *
+ * @param imageUrl
+ * @param projectId
+ * @param replacesOverlayId
  * @returns the ID of the newly created overlay
  */
 export function addOverlay(imageUrl: string, projectId: string, replacesOverlayId?: string) {
@@ -1077,9 +1049,9 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
 
       // AI : Create marker with appropriate color based on replacement status
       if (replacesOverlayId) {
-        createReplacementMarker(overlayObject, projectId);
+        createMarker(overlayObject, projectId, 'replacement');
       } else {
-        createMarkerForNewOverlay(overlayObject, projectId);
+        createMarker(overlayObject, projectId, 'new');
       }
 
       // AI : Add to project AFTER storing in overlays to avoid "not found" error
@@ -1094,11 +1066,6 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
   })
 
   return id;
-}
-
-// AI : Create marker for new overlay at map center (before image loads)
-function createMarkerForNewOverlay(overlayObject: OverlayObject, projectId: string): void {
-  createMarker(overlayObject, projectId, 'new');
 }
 
 export function undo() {
@@ -1138,7 +1105,8 @@ function applyHistoryAction(action: 'undo' | 'redo') {
       overlay.setCorners(stateToRestore);
     }
 
-    updateMarkerAndSaveOverlay(overlayObject);
+    updateMarkerPosition(overlayObject);
+    updateMarkerTooltip(overlayObject);
   } catch (error) {
     throw new Error(`Failed to ${action} overlay: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
@@ -1176,7 +1144,8 @@ function resetImageRatio() {
 
     applyImageRatioFix(overlayObject, cornersInfo, newDimensions);
     handleFlipIfNeeded(overlayObject);
-    updateMarkerAndSaveOverlay(overlayObject);
+    updateMarkerPosition(overlayObject);
+    updateMarkerTooltip(overlayObject);
   };
 
   const element = overlayObject.overlay.getElement();
@@ -1366,7 +1335,7 @@ function focusCameraToOverlay(direction: 'next' | 'previous') {
   const newIndex = (currentIndex + step + projectOverlayIds.length) % projectOverlayIds.length;
   const newOverlayId = projectOverlayIds[newIndex];
 
-  return selectAndCenterOverlay(newOverlayId, newIndex, projectOverlayIds.length);
+  return selectAndCenterOverlay(newOverlayId);
 }
 
 function selectFirstOrLastOverlayInAnyProject(direction: 'next' | 'previous') {
@@ -1394,30 +1363,20 @@ function selectFirstOrLastOverlayInAnyProject(direction: 'next' | 'previous') {
 }
 
 /**
- * AI : Navigates directly to a specific overlay by ID
- * @param overlayId - The ID of the overlay to navigate to
- * @param centerMap - Whether to center the map on the overlay (defaults to true)
- * @returns boolean indicating whether navigation was successful
+ * AI : Loads an overlay by ID, fetching from backend if needed
+ * AI : This function only handles loading/rendering, not navigation
+ * @param overlayId - The ID of the overlay to load
+ * @returns true if overlay was loaded successfully
  */
-export async function navigateToOverlay(overlayId: string, centerMap: boolean = true): Promise<boolean> {
+export async function loadOverlay(overlayId: string): Promise<boolean | null> {
   const overlayStore = useOverlayStore();
 
   // AI : Check if overlay is already loaded locally
-  const existingOverlay = overlayStore.overlays[overlayId];
-
-  if (existingOverlay) {
-
-    return selectAndCenterOverlay(overlayId, undefined, undefined, centerMap);
-
-  } else {
-    // AI : Overlay not found locally - fetch from backend
-    return loadAndNavigateToOverlay(overlayId, centerMap);
+  if (overlayStore.overlays[overlayId]) {
+    return true;
   }
-}
 
-async function loadAndNavigateToOverlay(overlayId: string, centerMap: boolean): Promise<boolean> {
-  const overlayStore = useOverlayStore();
-
+  // AI : Overlay not found locally - fetch from backend
   return withErrorHandling(
     async () => {
       // AI : Fetch overlay and intersecting overlays from backend
@@ -1439,19 +1398,31 @@ async function loadAndNavigateToOverlay(overlayId: string, centerMap: boolean): 
       }
 
       // AI : Verify overlay was successfully loaded
-      const loadedOverlay = overlayStore.overlays[overlayId];
-      if (!loadedOverlay) {
+      if (!overlayStore.overlays[overlayId]) {
         throw new Error('Failed to load overlay after fetching');
       }
 
-      // AI : Navigate to the successfully loaded overlay
-      return selectAndCenterOverlay(overlayId, undefined, undefined, centerMap);
+      return true;
     },
     { errorMessage: 'Failed to load overlay', rethrow: true }
-  ) as Promise<boolean>;
+  );
 }
 
-function selectAndCenterOverlay(overlayId: string, index?: number, total?: number, centerMap: boolean = true) {
+/**
+ * AI : Navigates to a specific overlay by ID (loads + selects + centers)
+ * @param overlayId - The ID of the overlay to navigate to
+ * @param centerMap - Whether to center the map on the overlay (defaults to true)
+ * @returns boolean indicating whether navigation was successful
+ */
+export async function navigateToOverlay(overlayId: string, centerMap: boolean = true): Promise<boolean> {
+  // AI : Load the overlay first
+  await loadOverlay(overlayId);
+
+  // AI : Then navigate to it
+  return selectAndCenterOverlay(overlayId, centerMap);
+}
+
+function selectAndCenterOverlay(overlayId: string, centerMap: boolean = true) {
   const overlayStore = useOverlayStore();
 
   const overlay = overlayStore.overlays[overlayId];
@@ -1471,9 +1442,9 @@ function selectAndCenterOverlay(overlayId: string, index?: number, total?: numbe
       element.click();
     }
 
-    if (centerMap && map.value) {
+    if (centerMap && map.value && overlay.overlay) {
       // AI : Wait for overlay to be properly initialized before zooming
-      centerMapOnOverlay(overlay);
+      zoomToOverlayBounds(overlay);
     }
     return true;
   } else if (overlay.marker && centerMap && map.value) {
@@ -1481,24 +1452,7 @@ function selectAndCenterOverlay(overlayId: string, index?: number, total?: numbe
     map.value.setView(overlay.marker.getLatLng(), 18);
     return true;
   }
-
   return false;
-}
-
-/**
- * AI : Centers the map view on the next overlay in the current project.
- * Wrapper for focusCameraToOverlay('next')
- */
-function goToNextOverlay() {
-  focusCameraToOverlay('next');
-}
-
-/**
- * AI : Centers the map view on the previous overlay in the current project.
- * Wrapper for focusCameraToOverlay('previous')
- */
-function goToPreviousOverlay() {
-  focusCameraToOverlay('previous');
 }
 
 export function updateTooltipText() {
@@ -1552,7 +1506,7 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
   updateTooltipText();
 
   // AI : Save only the specific overlay being updated, not all overlays
-  saveOverlayWithCurrentCorners(overlayObject);
+  updateMarkerTooltip(overlayObject);
 }
 
 export const infoTool = L.Toolbar2.Action.extend({
@@ -1653,7 +1607,7 @@ export const previousOverlayTool = L.Toolbar2.Action.extend({
     },
   },
   addHooks: function () {
-    goToPreviousOverlay();
+    focusCameraToOverlay('previous');
   },
 });
 
@@ -1665,7 +1619,7 @@ export const nextOverlayTool = L.Toolbar2.Action.extend({
     },
   },
   addHooks: function () {
-    goToNextOverlay();
+    focusCameraToOverlay('next');
   },
 });
 

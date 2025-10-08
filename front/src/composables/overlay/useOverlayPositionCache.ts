@@ -40,10 +40,10 @@ export function saveCachedPosition(overlayId: string, corners: L.LatLng[], isMod
 export function cacheCurrentPosition(overlayObject: OverlayObject): void {
   if (!overlayObject.overlay) return
 
-  const corners: L.LatLng[] = overlayObject.overlay.getCorners() as L.LatLng[]
+  const corners = overlayObject.overlay.getCorners()
   saveCachedPosition(
     overlayObject.id,
-    corners,
+    corners as L.LatLng[],
     overlayObject.isModified ?? false
   )
 }
@@ -95,7 +95,9 @@ export function applyPositionToOverlay(overlayObject: OverlayObject, useCache: b
  * AI : Apply positions to multiple overlays (batch operation)
  */
 export function applyPositionsToOverlays(overlays: OverlayObject[], useCache: boolean): void {
-  overlays.forEach(overlay => applyPositionToOverlay(overlay, useCache))
+  overlays.forEach(overlay => {
+    applyPositionToOverlay(overlay, useCache)
+  })
 }
 
 /**

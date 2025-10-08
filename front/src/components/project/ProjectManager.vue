@@ -231,7 +231,7 @@ async function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: numb
       await loadCityProjects(mapStore.selectedCity.id, mapStore.selectedCity.name, true, mapStore.selectedCity.countryCode);
     } else {
       // AI : If no city is selected, force load for null cityId to include local projects
-      await loadCityProjects(null as any, '', true);
+      await loadCityProjects(null, '', true);
     }
   } catch (error) {
     console.error('Error creating development project:', error);
@@ -326,7 +326,7 @@ async function handleProjectSubmitted(project: Partial<Project>) {
           await loadCityProjects(mapStore.selectedCity.id, mapStore.selectedCity.name, true, mapStore.selectedCity.countryCode);
         } else if (project.isMarker) {
           // AI : Refresh for local projects if no city is selected
-          await loadCityProjects(null as any, '', true);
+          await loadCityProjects(null, '', true);
         }
       }
 

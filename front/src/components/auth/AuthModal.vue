@@ -381,7 +381,7 @@ async function handleForgotPassword() {
 }
 </script>
 
-<style>
+<style scoped>
 /* AI : Allow overflow for badges to appear above dialog content */
 .auth-modal-overflow :deep(.p-dialog-content) {
   overflow: visible !important;
