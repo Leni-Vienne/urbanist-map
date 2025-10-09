@@ -125,9 +125,9 @@ export const overlayRouter = router({
         // AI : Extract corner coordinates
         const [topLeft, topRight, bottomRight, bottomLeft] = input.corners;
 
-        // AI : Calculate centroid (center point)
-        const centroidLat = (topLeft.lat + bottomLeft.lat) / 2;
-        const centroidLng = (topLeft.lng + bottomLeft.lng) / 2;
+        // AI : Calculate centroid (center point) using all 4 corners for distorted overlays
+        const centroidLat = (topLeft.lat + topRight.lat + bottomRight.lat + bottomLeft.lat) / 4;
+        const centroidLng = (topLeft.lng + topRight.lng + bottomRight.lng + bottomLeft.lng) / 4;
 
         // AI : Build WKT string with corner coordinates concatenated as a string literal
         const polygonWKT = `POLYGON((${topLeft.lng} ${topLeft.lat}, ${topRight.lng} ${topRight.lat}, ${bottomRight.lng} ${bottomRight.lat}, ${bottomLeft.lng} ${bottomLeft.lat}, ${topLeft.lng} ${topLeft.lat}))`;

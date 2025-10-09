@@ -29,7 +29,6 @@ import { useProjects, addOverlayToProjectWithId } from '@composables/project/use
 import { trpc } from '@client';
 import { getSelectedCity } from '@composables/map/useCityData';
 import {
-  getOverlayDataWithEditModifications,
   getFromEditModeOverlayCache,
   saveToEditModeOverlayCache,
 } from '@composables/overlay/useOverlayEditCache';
@@ -354,9 +353,13 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
     return;
   }
 
-  const bounds = overlayObject.overlay.getBounds();
-  if (bounds?.isValid()) {
-    overlayObject.marker.setLatLng(bounds.getCenter());
+  // AI : Calculate centroid from corners (average of all 4 corners) to match backend calculation
+  // AI : This ensures marker position doesn't jump when zooming in/out
+  const corners = overlayObject.overlay.getCorners();
+  if (corners?.length === 4) {
+    const centroidLat = (corners[0].lat + corners[1].lat + corners[2].lat + corners[3].lat) / 4;
+    const centroidLng = (corners[0].lng + corners[1].lng + corners[2].lng + corners[3].lng) / 4;
+    overlayObject.marker.setLatLng([centroidLat, centroidLng]);
   }
 }
 
@@ -691,11 +694,8 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
 
   if (!map.value || overlayStore.overlays[cdnOverlay.id]) return;
 
-  // AI : Apply edit modifications if in edit mode before creating the overlay object
-  const overlayDataToUse = getOverlayDataWithEditModifications(cdnOverlay);
-
-  // AI : Use factory function to create overlay from CDN data (with potential edit modifications)
-  const overlayObject = createOverlayFromCDN(overlayDataToUse);
+  // AI : Always use backend data to create overlay object (cached positions applied later via applyPositionToOverlay)
+  const overlayObject = createOverlayFromCDN(cdnOverlay);
 
   if (createMarkers) {
     createSingleMarker(overlayObject);
@@ -796,11 +796,14 @@ function createSingleMarker(savedOverlay: OverlayObject): void {
 
   if (!map.value || overlayStore.allMarkers[savedOverlay.id]) return;
 
-  const overlayBounds = getOverlayBounds(savedOverlay);
-  if (!overlayBounds) return;
+  // AI : Calculate centroid from corners (average of all 4 corners) to match backend calculation
+  if (!savedOverlay.corners || savedOverlay.corners.length !== 4) return;
+
+  const centroidLat = (savedOverlay.corners[0].lat + savedOverlay.corners[1].lat + savedOverlay.corners[2].lat + savedOverlay.corners[3].lat) / 4;
+  const centroidLng = (savedOverlay.corners[0].lng + savedOverlay.corners[1].lng + savedOverlay.corners[2].lng + savedOverlay.corners[3].lng) / 4;
+  const center = L.latLng(centroidLat, centroidLng);
 
   const markerTitle = createMarkerTitle(savedOverlay, savedOverlay.projectId);
-  const center = overlayBounds.getCenter();
   const tempOverlayObject = createOverlayObject(savedOverlay);
   const markerColor = getOverlayMarkerColor(tempOverlayObject, overlayStore.isEditMode ? 'edit' : 'view');
   const colorIcon = createColorIcon(markerColor);
@@ -809,6 +812,38 @@ function createSingleMarker(savedOverlay: OverlayObject): void {
     title: markerTitle,
     icon: colorIcon
   }).addTo(map.value);
+
+  // AI : Add click handler to select/deselect overlay when marker is clicked
+  marker.on('click', () => {
+    const overlayObject = overlayStore.overlays[savedOverlay.id];
+    if (!overlayObject) return;
+
+    if (overlayObject.overlay) {
+      // AI : If overlay exists, click it to select/deselect (mimics clicking on overlay)
+      const element = overlayObject.overlay.getElement();
+      if (element) {
+        element.click();
+      }
+    } else {
+      // AI : If overlay not rendered yet, toggle selection directly
+      if (overlayStore.idSelectedOverlay === savedOverlay.id) {
+        selectOverlay(null);
+      } else {
+        selectOverlay(savedOverlay.id);
+      }
+    }
+  });
+
+  // AI : Add hover handlers to highlight overlay on marker hover
+  if (savedOverlay.projectId) {
+    marker.on('mouseover', () => {
+      highlightProjectOverlaysOnHover(savedOverlay.projectId!);
+    });
+
+    marker.on('mouseout', () => {
+      removeProjectHighlightOnHover(savedOverlay.projectId!);
+    });
+  }
 
   overlayStore.allMarkers[savedOverlay.id] = marker;
   tempOverlayObject.marker = marker;
