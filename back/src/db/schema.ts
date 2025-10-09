@@ -39,13 +39,12 @@ export const projects = pgTable('projects', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull(),
   description: text('description'),
-  isMarker: boolean('is_marker').default(false).notNull(), // AI : true for simple development markers, false for overlay projects
+  isDevelopment: boolean('is_development').default(false).notNull(), // AI : true for simple development markers, false for overlay projects
   status: approvalStatusEnum('status').default('pending').notNull(),
   ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'set null', onUpdate: 'cascade' }),
-  cityId: uuid('city_id').references(() => cities.id, { onDelete: 'set null', onUpdate: 'cascade' }), // AI : Reference to the city where the project is located
-  metadata: jsonb('metadata'),
+  cityId: uuid('city_id').references(() => cities.id, { onDelete: 'set null', onUpdate: 'cascade' }).notNull(), // AI : Reference to the city where the project is located
   sourceUrl: text('source_url'),
-  proposalDate: timestamp('proposal_date', { withTimezone: true }), // AI : Date when project was proposed (for yellow markers)
+  proposalDate: timestamp('proposal_date', { withTimezone: true }),
   startDate: timestamp('start_date', { withTimezone: true }),
   endDate: timestamp('end_date', { withTimezone: true }),
   latestUpdateOn: timestamp('latest_update_on', { withTimezone: true }),
@@ -82,7 +81,6 @@ export const overlays = pgTable('overlays', {
   projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
   authorId: uuid('author_id').references(() => users.id, { onDelete: 'set null', onUpdate: 'cascade' }),
   replacesOverlayId: uuid('replaces_overlay_id'), // AI : Reference to the overlay this replaces (self-reference added via relations)
-  metadata: jsonb('metadata'),
 
   corners: geometry('corners', { type: 'polygon', mode: 'xy', srid: 4326 }).notNull(),
   centroid: geometry('centroid', { type: 'point', mode: 'xy', srid: 4326 }).notNull(),

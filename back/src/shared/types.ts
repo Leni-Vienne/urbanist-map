@@ -27,7 +27,6 @@ export interface OverlayData {
     projectId: string | null;
     authorId: string | null;
     replacesOverlayId: string | null;
-    metadata: any | null;
     createdAt: Date;
     updatedAt: Date;
     centroid: {
@@ -35,7 +34,7 @@ export interface OverlayData {
         lng: number;
     };
     corners: { lat: number; lng: number }[];
-    project?: (DBProject & { city?: DBCity | null; }) | null;
+    project?: (DBProject & { city: DBCity; }) | null;
     distance?: number;
     isModified?: boolean;
 }

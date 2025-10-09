@@ -83,7 +83,7 @@ export async function navigateToOverlayWithCity(
  * @param cityName - The name of the city
  * @param countryCode - The country code for proper tile layer switching
  */
-export async function navigateToMarkerProject(
+export async function navigateToDevelopmentProject(
   lat: number,
   lng: number,
   cityId: string,

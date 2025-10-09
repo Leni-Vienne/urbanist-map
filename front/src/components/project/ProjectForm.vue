@@ -200,10 +200,27 @@ const emit = defineEmits<{
     submit: [project: Partial<Project>];
 }>();
 
+// AI : Convert date strings to Date objects for DatePicker compatibility
+function convertDatesToObjects(project: Partial<Project>): Partial<Project> {
+    const converted = { ...project };
+
+    if (converted.startDate && typeof converted.startDate === 'string') {
+        converted.startDate = new Date(converted.startDate);
+    }
+    if (converted.endDate && typeof converted.endDate === 'string') {
+        converted.endDate = new Date(converted.endDate);
+    }
+    if (converted.proposalDate && typeof converted.proposalDate === 'string') {
+        converted.proposalDate = new Date(converted.proposalDate);
+    }
+
+    return converted;
+}
+
 // AI : Project data with default proposal date for new projects
-const localProject = ref<Partial<Project>>({ 
-    proposalDate: props.mode === 'create' ? new Date() : undefined, // AI : Default to current date for new proposals
-    ...props.project 
+const localProject = ref<Partial<Project>>({
+    proposalDate: props.mode === 'create' ? new Date() : undefined,
+    ...convertDatesToObjects(props.project)
 });
 
 // AI : Cities data and state

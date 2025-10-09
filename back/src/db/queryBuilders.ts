@@ -23,7 +23,6 @@ export const overlaySelectFields = {
   projectId: overlays.projectId,
   authorId: overlays.authorId,
   replacesOverlayId: overlays.replacesOverlayId,
-  metadata: overlays.metadata,
   // AI : Extract corners from polygon geometry as array of {lat, lng}
   corners: sql<{lat: number, lng: number}[]>`
     (SELECT json_agg(json_build_object('lat', ST_Y(geom), 'lng', ST_X(geom)) ORDER BY path[2])
@@ -52,7 +51,7 @@ export function buildOverlayQuery(db: PostgresJsDatabase<typeof schema>) {
     .select(overlaySelectFields)
     .from(overlays)
     .leftJoin(projects, eq(overlays.projectId, projects.id))
-    .leftJoin(cities, eq(projects.cityId, cities.id))
+    .innerJoin(cities, eq(projects.cityId, cities.id))
     .leftJoin(countries, eq(cities.countryCode, countries.code));
 }
 
@@ -70,7 +69,7 @@ export function buildProjectWithLocationQuery(db: PostgresJsDatabase<typeof sche
       version: projects.version,
       ownerId: projects.ownerId,
       cityId: projects.cityId,
-      isMarker: projects.isMarker,
+      isDevelopment: projects.isDevelopment,
       lat: projects.lat,
       lng: projects.lng,
       proposalDate: projects.proposalDate,
@@ -83,17 +82,10 @@ export function buildProjectWithLocationQuery(db: PostgresJsDatabase<typeof sche
       cityName: cities.name,
       countryCode: countries.code,
       countryName: countries.name,
-      city: {
-        id: cities.id,
-        name: cities.name,
-        countryCode: cities.countryCode,
-        countryName: countries.name,
-        lat: sql<number>`ST_Y(${cities.coordinates})`,
-        lng: sql<number>`ST_X(${cities.coordinates})`
-      }
+      city: cities
     })
     .from(projects)
-    .leftJoin(cities, eq(projects.cityId, cities.id))
+    .innerJoin(cities, eq(projects.cityId, cities.id))
     .leftJoin(countries, eq(cities.countryCode, countries.code));
 }
 
@@ -118,7 +110,7 @@ export function buildOverlayModerationQuery(db: PostgresJsDatabase<typeof schema
     })
     .from(overlays)
     .leftJoin(projects, eq(overlays.projectId, projects.id))
-    .leftJoin(cities, eq(projects.cityId, cities.id))
+    .innerJoin(cities, eq(projects.cityId, cities.id))
     .leftJoin(countries, eq(cities.countryCode, countries.code));
 }
 
@@ -138,7 +130,7 @@ export function buildProjectModerationQuery(db: PostgresJsDatabase<typeof schema
       startDate: projects.startDate,
       endDate: projects.endDate,
       sourceUrl: projects.sourceUrl,
-      isMarker: projects.isMarker,
+      isDevelopment: projects.isDevelopment,
       lat: projects.lat,
       lng: projects.lng,
       cityId: projects.cityId,
@@ -147,6 +139,6 @@ export function buildProjectModerationQuery(db: PostgresJsDatabase<typeof schema
       countryName: countries.name,
     })
     .from(projects)
-    .leftJoin(cities, eq(projects.cityId, cities.id))
+    .innerJoin(cities, eq(projects.cityId, cities.id))
     .leftJoin(countries, eq(cities.countryCode, countries.code));
 }

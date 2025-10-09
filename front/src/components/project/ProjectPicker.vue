@@ -166,10 +166,10 @@ function getOverlayCountForProject(projectId: string): number {
 const projectList = computed(() => {
   if (props.useCityProjects) {
     // AI : Use city projects data extracted from overlay data, exclude development projects
-    return cityProjectsData.value.filter(project => !project.isMarker);
+    return cityProjectsData.value.filter(project => !project.isDevelopment);
   } else {
     // AI : Use local projects from store, exclude development projects
-    return Object.values(projects.value).filter(project => !project.isMarker);
+    return Object.values(projects.value).filter(project => !project.isDevelopment);
   }
 });
 
