@@ -119,7 +119,7 @@ export interface Country extends DBCountry {
 // AI : Base runtime project type - extends DB schema with computed fields
 export interface Project extends DBProject {
   // AI : Computed fields for all contexts
-  city?: DBCity | null;
+  city: DBCity;
   overlayIds: string[];
   color: string;
   name: string; // AI : Computed from project name field
@@ -176,7 +176,7 @@ export type OverlayForModeration = Pick<OverlayObject, 'id' | 'filename' | 'stat
   countryName: string | null;
 };
 
-export type ProjectForModeration = Pick<Project, 'id' | 'name' | 'description' | 'status' | 'version' | 'createdAt' | 'updatedAt' | 'startDate' | 'endDate' | 'sourceUrl' | 'isMarker' | 'lat' | 'lng' | 'cityId'> & {
+export type ProjectForModeration = Pick<Project, 'id' | 'name' | 'description' | 'status' | 'version' | 'createdAt' | 'updatedAt' | 'startDate' | 'endDate' | 'sourceUrl' | 'isDevelopment' | 'lat' | 'lng' | 'cityId'> & {
   cityName: string | null;
   countryCode: string | null;
   countryName: string | null;

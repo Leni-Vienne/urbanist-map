@@ -46,6 +46,8 @@ describe('Race Condition Prevention Tests', () => {
           name: 'User Modified Name',
           description: project.description ?? undefined,
           cityId: testCity.id,
+          startDate: project.startDate ?? undefined,
+          endDate: project.endDate ?? undefined,
         }),
         adminCaller.setProjectApprovalStatusWithVersion({
           id: project.id,

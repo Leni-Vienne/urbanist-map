@@ -43,10 +43,10 @@ export function useOverlayPublisher() {
         name: project.name,
         description: project.description ?? undefined,
         cityId: project.cityId ?? undefined,
-        startDate: project.startDate?.toISOString(),
-        endDate: project.endDate?.toISOString(),
+        startDate: project.startDate ?? undefined,
+        endDate: project.endDate ?? undefined,
         sourceUrl: project.sourceUrl ?? undefined,
-        latestUpdateOn: project.latestUpdateOn?.toISOString()
+        latestUpdateOn: project.latestUpdateOn ?? undefined
       });
 
       if (!projectResult.success) {
@@ -123,7 +123,6 @@ export function useOverlayPublisher() {
       caption: overlay.caption ?? undefined,
       projectId: overlay.projectId!,
       replacesOverlayId: overlay.replacesOverlayId ?? undefined,
-      metadata: {},
       corners: corners.map(c => ({ lat: c.lat, lng: c.lng })),
     };
 

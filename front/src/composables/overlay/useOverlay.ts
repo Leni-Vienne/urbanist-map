@@ -824,13 +824,11 @@ function createSingleMarker(savedOverlay: OverlayObject): void {
       if (element) {
         element.click();
       }
-    } else {
       // AI : If overlay not rendered yet, toggle selection directly
-      if (overlayStore.idSelectedOverlay === savedOverlay.id) {
-        selectOverlay(null);
-      } else {
-        selectOverlay(savedOverlay.id);
-      }
+    } else if (overlayStore.idSelectedOverlay === savedOverlay.id) {
+      selectOverlay(null);
+    } else {
+      selectOverlay(savedOverlay.id);
     }
   });
 

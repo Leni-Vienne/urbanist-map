@@ -141,65 +141,67 @@ export const citiesRouter = router({
         try {
           const { cityId } = input;
 
-          // AI : Return overlays array directly from SQL using JSON_AGG
-          const result = await db
+          // AI : Single optimized query that extracts all data including corners as JSON
+          // AI : Uses Drizzle ORM for main data to preserve Date objects through superjson
+          const overlaysData = await db
             .select({
-              overlays: sql<OverlayData[]>`
-                COALESCE(
-                  JSON_AGG(
-                    JSON_BUILD_OBJECT(
-                      'id', ${overlays.id},
-                      'version', ${overlays.version},
-                      'filename', ${overlays.filename},
-                      'caption', ${overlays.caption},
-                      'projectId', ${overlays.projectId},
-                      'project', JSON_BUILD_OBJECT(
-                        'id', ${projects.id},
-                        'name', ${projects.name},
-                        'description', ${projects.description},
-                        'status', ${projects.status},
-                        'cityId', ${projects.cityId},
-                        'ownerId', ${projects.ownerId},
-                        'metadata', ${projects.metadata},
-                        'sourceUrl', ${projects.sourceUrl},
-                        'proposalDate', ${projects.proposalDate},
-                        'startDate', ${projects.startDate},
-                        'endDate', ${projects.endDate},
-                        'latestUpdateOn', ${projects.latestUpdateOn},
-                        'createdAt', ${projects.createdAt},
-                        'updatedAt', ${projects.updatedAt},
-                        'city', JSON_BUILD_OBJECT(
-                          'id', ${cities.id},
-                          'name', ${cities.name},
-                          'countryCode', ${cities.countryCode},
-                          'coordinates', ${cities.coordinates},
-                          'createdAt', ${cities.createdAt},
-                          'updatedAt', ${cities.updatedAt}
-                        )
-                      ),
-                      'centroid', JSON_BUILD_OBJECT(
-                        'lat', ST_Y(${overlays.centroid}),
-                        'lng', ST_X(${overlays.centroid})
-                      ),
-                      'corners', (SELECT json_agg(json_build_object('lat', ST_Y(geom), 'lng', ST_X(geom)) ORDER BY path[2])
-                                  FROM ST_DumpPoints(${overlays.corners}) AS dump(path, geom)
-                                  WHERE path[2] <= 4),
-                      'distance', 0,
-                      'createdAt', ${overlays.createdAt}
-                    ) ORDER BY ${overlays.createdAt}
-                  ),
-                  '[]'::json
-                )
-              `.as('overlays')
+              // AI : Select overlay fields individually to avoid geometry column issues
+              overlayId: overlays.id,
+              overlayVersion: overlays.version,
+              overlayFilename: overlays.filename,
+              overlayCaption: overlays.caption,
+              overlayStatus: overlays.status,
+              overlayProjectId: overlays.projectId,
+              overlayAuthorId: overlays.authorId,
+              overlayReplacesOverlayId: overlays.replacesOverlayId,
+              overlayCreatedAt: overlays.createdAt,
+              overlayUpdatedAt: overlays.updatedAt,
+              // AI : Extract centroid and corners directly in the query
+              centroidLat: sql<number>`ST_Y(${overlays.centroid})`,
+              centroidLng: sql<number>`ST_X(${overlays.centroid})`,
+              // AI : Extract corners as JSON array in a single query
+              corners: sql<Array<{ lat: number; lng: number }>>`(
+                SELECT json_agg(json_build_object('lat', ST_Y(geom), 'lng', ST_X(geom)) ORDER BY path[2])
+                FROM ST_DumpPoints(${overlays.corners}) AS dump(path, geom)
+                WHERE path[2] <= 4
+              )`,
+              // AI : Select project fields (all are safe - no geometry columns)
+              project: projects,
+              // AI : Select city fields individually, extract coordinates from geometry
+              cityId: cities.id,
+              city: cities
             })
             .from(overlays)
             .innerJoin(projects, eq(projects.id, overlays.projectId))
             .innerJoin(cities, eq(cities.id, projects.cityId))
             .where(eq(projects.cityId, cityId))
-            .limit(1);
+            .orderBy(overlays.createdAt);
 
-          // AI : Return the aggregated array directly
-          return result[0]?.overlays ?? [];
+          // AI : Transform the result into OverlayData format
+          const result: OverlayData[] = overlaysData.map((row) => ({
+            id: row.overlayId,
+            version: row.overlayVersion,
+            filename: row.overlayFilename,
+            caption: row.overlayCaption,
+            status: row.overlayStatus,
+            projectId: row.overlayProjectId,
+            authorId: row.overlayAuthorId,
+            replacesOverlayId: row.overlayReplacesOverlayId,
+            createdAt: row.overlayCreatedAt,
+            updatedAt: row.overlayUpdatedAt,
+            centroid: {
+              lat: row.centroidLat,
+              lng: row.centroidLng,
+            },
+            corners: row.corners ?? [],
+            distance: 0,
+            project: {
+              ...row.project,
+              city: row.city
+            }
+          }));
+
+          return result;
 
         } catch (error) {
           console.error('Error fetching city projects:', error);

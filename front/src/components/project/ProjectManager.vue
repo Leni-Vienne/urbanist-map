@@ -200,7 +200,7 @@ async function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: numb
     const projectData = {
       name: 'Development Marker', // AI : Default name, user can edit later
       description: '',
-      isMarker: true,
+      isDevelopment: true,
       lat: coordinates.lat,
       lng: coordinates.lng,
       cityId: mapStore.selectedCity?.id, // AI : Use currently selected city if available
@@ -322,9 +322,9 @@ async function handleProjectSubmitted(project: Partial<Project>) {
         });
 
         // AI : Refresh city projects to show updated marker on map
-        if (project.isMarker && mapStore.selectedCity) {
+        if (project.isDevelopment && mapStore.selectedCity) {
           await loadCityProjects(mapStore.selectedCity.id, mapStore.selectedCity.name, true, mapStore.selectedCity.countryCode);
-        } else if (project.isMarker) {
+        } else if (project.isDevelopment) {
           // AI : Refresh for local projects if no city is selected
           await loadCityProjects(null, '', true);
         }

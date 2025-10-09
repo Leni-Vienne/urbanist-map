@@ -13,7 +13,6 @@ const publishOverlaySchema = z.object({
   caption: z.string().max(500).optional(), // AI : Limit caption to 500 characters
   projectId: z.uuid(), // AI : UUID length limit for project reference
   replacesOverlayId: z.uuid().optional(), // AI : UUID for overlay replacement
-  metadata: z.json().optional(),
   corners: z.array(z.object({
     lat: z.number().min(-90).max(90), // AI : Valid latitude range
     lng: z.number().min(-180).max(180) // AI : Valid longitude range
@@ -30,7 +29,7 @@ const getLatestOverlaysSchema = z.object({
   cityId: z.uuid().optional(), // AI : Filter by city if provided
 });
 
-// AI : Schema for updating overlay metadata fields directly
+// AI : Schema for updating overlay fields directly
 const updateOverlaySchema = z.object({
   id: z.uuid(),
   caption: z.string().max(500).optional(), // AI : Allow updating caption
@@ -140,7 +139,6 @@ export const overlayRouter = router({
           projectId: input.projectId,
           authorId: ctx.user.id,
           replacesOverlayId: input.replacesOverlayId ?? null,
-          metadata: null, // AI : Keep metadata empty as requested
           corners: sql.raw(`ST_GeomFromText('${polygonWKT}', 4326)`),
           centroid: sql`ST_SetSRID(ST_MakePoint(${centroidLng}, ${centroidLat}), 4326)`
         };
@@ -157,7 +155,6 @@ export const overlayRouter = router({
               projectId: overlayData.projectId,
               authorId: overlayData.authorId,
               replacesOverlayId: overlayData.replacesOverlayId,
-              metadata: overlayData.metadata,
               corners: overlayData.corners,
               centroid: overlayData.centroid,
               version: sql`${overlays.version} + 1`, // AI : Increment version on update for optimistic locking
@@ -181,7 +178,7 @@ export const overlayRouter = router({
       }
     }),
 
-  // AI : Update overlay metadata fields directly (for pending overlays)
+  // AI : Update overlay fields directly (for pending overlays)
   updateOverlay: protectedProcedure
     .input(updateOverlaySchema)
     .mutation(async ({ input, ctx }) => {

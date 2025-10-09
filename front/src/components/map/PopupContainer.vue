@@ -202,7 +202,7 @@ async function handlePublishOverlay() {
 // AI : Handle project publishing (project mode only)
 async function handlePublishProject() {
   const project = selectedProject.value;
-  if (!project || !project.isMarker) return;
+  if (!project || !project.isDevelopment) return;
 
   isPublishingProject.value = true;
   
@@ -211,7 +211,7 @@ async function handlePublishProject() {
       id: project.id,
       name: project.name!,
       description: project.description ?? undefined,
-      isMarker: project.isMarker,
+      isDevelopment: project.isDevelopment,
       lat: project.lat ?? undefined,
       lng: project.lng ?? undefined,
       cityId: project.cityId ?? undefined,

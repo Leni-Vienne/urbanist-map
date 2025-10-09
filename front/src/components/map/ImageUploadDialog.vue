@@ -3,7 +3,7 @@
   <Dialog
     v-if="!markerPlacementMode"
     v-model:visible="visible"
-    :header="selectedProjectType ? (selectedProjectType === 'overlay' ? $t('overlay.addImageOverlay') : $t('project.addMarkerProject')) : $t('project.chooseProjectType')"
+    :header="selectedProjectType ? (selectedProjectType === 'overlay' ? $t('overlay.addImageOverlay') : $t('project.addDevelopmentProject')) : $t('project.chooseProjectType')"
     :modal="true"
     :style="{ width: '500px' }"
     @hide="onHide"
@@ -29,8 +29,8 @@
             class="project-type-button marker-button"
           >
             <i class="pi pi-home text-4xl mb-2"></i>
-            <span class="button-title">{{ $t('project.markerProject') }}</span>
-            <span class="button-description">{{ $t('project.markerProjectDescription') }}</span>
+            <span class="button-title">{{ $t('project.developmentProject') }}</span>
+            <span class="button-description">{{ $t('project.developmentProjectDescription') }}</span>
           </button>
         </div>
       </div>

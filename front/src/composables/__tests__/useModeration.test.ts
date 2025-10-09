@@ -73,7 +73,7 @@ const mockProject: ProjectForModeration = {
   startDate: null,
   endDate: null,
   sourceUrl: null,
-  isMarker: false,
+  isDevelopment: false,
   lat: null,
   lng: null,
   cityId: 'test-city-1',

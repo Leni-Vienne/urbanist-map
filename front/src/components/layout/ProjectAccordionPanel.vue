@@ -36,8 +36,8 @@
           <AccordionContent>
             <Card
               class="project-details-card"
-              :class="{ 'marker-project-card': project.isMarker }"
-              @click="project.isMarker ? handleMarkerProjectClick(project) : null"
+              :class="{ 'marker-project-card': project.isDevelopment }"
+              @click="project.isDevelopment ? handleDevelopmentProjectClick(project) : null"
             >
               <template #content>
                 <div class="project-content-wrapper">
@@ -60,7 +60,7 @@
                         <i class="pi pi-map-marker"></i>
                         <span>{{ getProjectLocation(project) }}</span>
                       </div>
-                      <div v-if="!project.isMarker" class="metadata-item">
+                      <div v-if="!project.isDevelopment" class="metadata-item">
                         <i class="pi pi-images"></i>
                         <span>{{ project.overlayCount || (project.overlays ? project.overlays.length : 0) }}
                           {{ $t('overlay.overlayImages') }}</span>
@@ -101,9 +101,9 @@
 
                   <!-- AI : Zoom icon for development projects -->
                   <button
-                    v-if="project.isMarker && !$slots['project-actions']"
+                    v-if="project.isDevelopment && !$slots['project-actions']"
                     class="bg-surface-50 border border-surface-200 rounded-md w-8 h-8 flex items-center justify-center text-surface-500 hover:bg-surface-100 hover:text-surface-600 transition-all flex-shrink-0"
-                    @click.stop="handleMarkerProjectClick(project)"
+                    @click.stop="handleDevelopmentProjectClick(project)"
                   >
                     <i class="pi pi-search"></i>
                     <span class="sr-only">Zoom to {{ project.name }}</span>
@@ -298,7 +298,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { buildImageUrl, formatRelativeTime } from '../../utils'
-import { navigateToOverlayWithCity, navigateToMarkerProject } from '@composables/navigation/useOverlayNavigation'
+import { navigateToOverlayWithCity, navigateToDevelopmentProject } from '@composables/navigation/useOverlayNavigation'
 import { navigateToOverlay } from '@composables/overlay/useOverlay'
 import type { ProjectForModeration, OverlayForModeration } from '@types'
 import { useToast } from '@composables/ui/useToast'
@@ -480,7 +480,7 @@ async function handleOverlayClick(overlay: OverlayForModeration) {
 }
 
 // AI : Handle development project click - zoom to marker location
-async function handleMarkerProjectClick(project: ProjectForModeration) {
+async function handleDevelopmentProjectClick(project: ProjectForModeration) {
   try {
     if (!project.lat || !project.lng) {
       toast.add({
@@ -502,7 +502,7 @@ async function handleMarkerProjectClick(project: ProjectForModeration) {
       return
     }
 
-    await navigateToMarkerProject(
+    await navigateToDevelopmentProject(
       project.lat,
       project.lng,
       project.cityId,

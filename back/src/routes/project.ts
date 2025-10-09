@@ -13,15 +13,15 @@ const publishProjectSchema = z.object({
   id: z.uuid().optional(),
   name: z.string().min(8).max(200),
   description: z.string().max(2000).optional(),
-  cityId: z.uuid().optional(),
-  isMarker: z.boolean().optional().default(false), // AI : true for development projects, false for overlay projects
+  cityId: z.uuid(),
+  isDevelopment: z.boolean().optional().default(false), // AI : true for development projects, false for overlay projects
   lat: z.number().optional(), // AI : latitude for development projects
   lng: z.number().optional(), // AI : longitude for development projects
-  proposalDate: z.string().optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
+  proposalDate: z.date().optional(),
+  startDate: z.date().optional(),
+  endDate: z.date().optional(),
   sourceUrl: z.url().optional(),
-  latestUpdateOn: z.string().optional()
+  latestUpdateOn: z.date().optional()
 });
 
 export const projectRouter = router({
@@ -37,7 +37,7 @@ export const projectRouter = router({
         }
 
         // AI : Validate development project requirements
-        if (input.isMarker && (!input.lat || !input.lng)) {
+        if (input.isDevelopment && (!input.lat || !input.lng)) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: 'Development projects require lat and lng coordinates' });
         }
 
@@ -45,13 +45,13 @@ export const projectRouter = router({
           ...input,
           ownerId: ctx.user.id,
           cityId: input.cityId ?? null,
-          proposalDate: input.proposalDate ? new Date(input.proposalDate) : null,
-          startDate: input.startDate ? new Date(input.startDate) : null,
-          endDate: input.endDate ? new Date(input.endDate) : null,
+          proposalDate: input.proposalDate,
+          startDate: input.startDate,
+          endDate: input.endDate,
           sourceUrl: input.sourceUrl,
           latestUpdateOn: input.latestUpdateOn ? new Date(input.latestUpdateOn) : null,
           // AI : Set coordinates for development projects using PostGIS
-          coordinates: input.isMarker && input.lat && input.lng 
+          coordinates: input.isDevelopment && input.lat && input.lng 
             ? sql`ST_SetSRID(ST_MakePoint(${input.lng}, ${input.lat}), 4326)`
             : null,
         };
@@ -67,7 +67,7 @@ export const projectRouter = router({
                 name: data.name,
                 description: data.description,
                 cityId: data.cityId,
-                isMarker: data.isMarker,
+                isDevelopment: data.isDevelopment,
                 lat: data.lat,
                 lng: data.lng,
                 coordinates: data.coordinates,
@@ -118,23 +118,16 @@ export const projectRouter = router({
             description: projects.description,
             ownerId: projects.ownerId,
             cityId: projects.cityId,
-            metadata: projects.metadata,
             proposalDate: projects.proposalDate,
             createdAt: projects.createdAt,
             updatedAt: projects.updatedAt,
             // AI : Count overlays for this project within the search radius
             overlayCount: sql<number>`COUNT(${overlays.id})::int`,
             // AI : Include city information when available
-            city: {
-              id: cities.id,
-              name: cities.name,
-              countryCode: cities.countryCode,
-              lat: sql<number>`ST_Y(${cities.coordinates})`,
-              lng: sql<number>`ST_X(${cities.coordinates})`
-            }
+            city: cities
           })
           .from(projects)
-          .leftJoin(cities, eq(projects.cityId, cities.id))
+          .innerJoin(cities, eq(projects.cityId, cities.id))
           .innerJoin(overlays, eq(overlays.projectId, projects.id))
           .where(and(
             sql`${overlays.centroid} IS NOT NULL`,
@@ -150,7 +143,6 @@ export const projectRouter = router({
             projects.description,
             projects.ownerId,
             projects.cityId,
-            projects.metadata,
             projects.proposalDate,
             projects.createdAt,
             projects.updatedAt,
@@ -182,7 +174,7 @@ export const projectRouter = router({
               description: projects.description,
               ownerId: projects.ownerId,
               cityId: projects.cityId,
-              isMarker: projects.isMarker,
+              isDevelopment: projects.isDevelopment,
               lat: projects.lat,
               lng: projects.lng,
               proposalDate: projects.proposalDate,
@@ -194,16 +186,10 @@ export const projectRouter = router({
               updatedAt: projects.updatedAt,
               // AI : Count approved overlays for each project
               overlayCount: sql<number>`COUNT(CASE WHEN ${overlays.status} = 'approved' THEN 1 END)::int`,
-              city: {
-                id: cities.id,
-                name: cities.name,
-                countryCode: cities.countryCode,
-                lat: sql<number>`ST_Y(${cities.coordinates})`,
-                lng: sql<number>`ST_X(${cities.coordinates})`
-              }
+              city: cities
             })
             .from(projects)
-            .leftJoin(cities, eq(projects.cityId, cities.id))
+            .innerJoin(cities, eq(projects.cityId, cities.id))
             .leftJoin(overlays, eq(overlays.projectId, projects.id))
             .where(eq(projects.cityId, input.cityId))
             .groupBy(
@@ -212,7 +198,7 @@ export const projectRouter = router({
               projects.description,
               projects.ownerId,
               projects.cityId,
-              projects.isMarker,
+              projects.isDevelopment,
               projects.lat,
               projects.lng,
               projects.proposalDate,

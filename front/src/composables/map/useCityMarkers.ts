@@ -55,7 +55,7 @@ export const citiesWithProjects = ref<CityWithProjects[]>([]);
 let cityMarkersLayer: L.LayerGroup | null = null;
 
 // AI : Layer group for development projects (development markers)
-let markerProjectsLayer: L.LayerGroup | null = null;
+let developmentProjectsLayer: L.LayerGroup | null = null;
 
 // AI : Track the currently selected (clicked) city marker
 let selectedCityMarker: L.Marker | null = null;
@@ -163,46 +163,46 @@ export function cleanupProjectInfoTeleportTarget() {
 /**
  * AI : Load development projects for a specific city and display them on map
  */
-async function loadCityMarkerProjects(cityId: string | null): Promise<void> {
+async function loadCityDevelopmentProjects(cityId: string | null): Promise<void> {
   if (!map.value) return;
 
   try {
     // AI : Get development projects for this city from backend (skip if cityId is null)
-    const backendMarkerProjects = cityId ? await trpc.project.getProjectsByCity.query({ cityId }) : [];
-    const backendMarkerProjectsOnly = backendMarkerProjects.filter(project => project.isMarker);
+    const backendDevelopmentProjects = cityId ? await trpc.project.getProjectsByCity.query({ cityId }) : [];
+    const backendDevelopmentProjectsOnly = backendDevelopmentProjects.filter(project => project.isDevelopment);
 
     // AI : Get local development projects for this city (handle null cityId case)
     const { projects: localProjects } = useProjects();
     const allLocalProjects = Object.values(localProjects.value);
 
-    const localMarkerProjects = allLocalProjects
-      .filter(project => project.isMarker && (project.cityId === cityId || (cityId === null && (project.cityId === null || project.cityId === undefined))));
+    const localDevelopmentProjects = allLocalProjects
+      .filter(project => project.isDevelopment && (project.cityId === cityId || (cityId === null && (project.cityId === null || project.cityId === undefined))));
 
     // AI : Combine backend and local projects, avoiding duplicates
-    const allMarkerProjects = [
-      ...backendMarkerProjectsOnly,
-      ...localMarkerProjects.filter(local =>
-        !backendMarkerProjectsOnly.some(backend => backend.id === local.id)
+    const allDevelopmentProjects = [
+      ...backendDevelopmentProjectsOnly,
+      ...localDevelopmentProjects.filter(local =>
+        !backendDevelopmentProjectsOnly.some(backend => backend.id === local.id)
       )
     ];
 
     // AI : Remove existing development projects layer
-    if (markerProjectsLayer) {
-      map.value.removeLayer(markerProjectsLayer);
+    if (developmentProjectsLayer) {
+      map.value.removeLayer(developmentProjectsLayer);
     }
-    markerProjectsLayer = L.layerGroup();
+    developmentProjectsLayer = L.layerGroup();
 
-    allMarkerProjects.forEach(project => {
+    allDevelopmentProjects.forEach(project => {
       if (project.lat && project.lng) {
         // AI : Get timeline-based color for project marker
         const projectData = 'overlayIds' in project ? project : createProject({
           ...project,
-          city: project.city ? {
+          city: {
             ...project.city,
-            coordinates: { x: project.city.lng, y: project.city.lat },
+            coordinates: { x: project.city.coordinates.x, y: project.city.coordinates.y },
             createdAt: new Date(),
             updatedAt: new Date()
-          } : null,
+          },
           savedRemotely: true,
           status: 'approved'
         });
@@ -250,24 +250,19 @@ async function loadCityMarkerProjects(cityId: string | null): Promise<void> {
           // AI : Use uiStore to show project info popup, convert backend projects to local format
           const projectData = 'overlayIds' in project ? project : createProject({
             ...project,
-            city: project.city ? {
-              ...project.city,
-              coordinates: { x: project.city.lng, y: project.city.lat },
-              createdAt: new Date(),
-              updatedAt: new Date()
-            } : null,
+            city: project.city,
             savedRemotely: true,
             status: 'approved'
           });
           uiStore.openProjectInfoPopup(project.id, projectData);
         });
 
-        marker.addTo(markerProjectsLayer!);
+        marker.addTo(developmentProjectsLayer!);
       }
     });
 
     // AI : Add layer to map
-    markerProjectsLayer.addTo(map.value);
+    developmentProjectsLayer.addTo(map.value);
   } catch (error) {
     console.error('Error loading development projects:', error);
   }
@@ -295,11 +290,11 @@ export async function loadCityProjects(cityId: string | null, cityName: string, 
       // AI : Load both overlay projects and development projects
       await Promise.all([
         loadCityOverlays(cityId, forceFullLoad),
-        loadCityMarkerProjects(cityId)
+        loadCityDevelopmentProjects(cityId)
       ]);
     } else {
       // AI : Just load local development projects when no city is selected
-      await loadCityMarkerProjects(null);
+      await loadCityDevelopmentProjects(null);
     }
   } catch (error) {
     console.error('AI : Error loading city projects:', error);
@@ -316,9 +311,9 @@ export function removeCityMarkers(): void {
   }
 
   // AI : Also remove development projects layer
-  if (markerProjectsLayer && map.value?.hasLayer(markerProjectsLayer)) {
-    map.value.removeLayer(markerProjectsLayer);
-    markerProjectsLayer = null;
+  if (developmentProjectsLayer && map.value?.hasLayer(developmentProjectsLayer)) {
+    map.value.removeLayer(developmentProjectsLayer);
+    developmentProjectsLayer = null;
   }
 }
 

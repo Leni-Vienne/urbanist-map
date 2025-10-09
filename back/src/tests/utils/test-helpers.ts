@@ -75,6 +75,8 @@ export class TestHelpers {
       ownerId,
       cityId,
       version,
+      startdate: new Date(),
+      enddate: new Date(Date.now() + 30*24*60*60*1000), // default to 30 days later
     }
 
     const [project] = await db.insert(projects).values(projectData).returning()
