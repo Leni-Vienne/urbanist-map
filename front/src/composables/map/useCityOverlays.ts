@@ -3,7 +3,7 @@ import { ref, watch } from 'vue';
 import L from 'leaflet';
 import { map, onMapInitialized, currentZoomLevel } from '@composables/core/useMap';
 import { renderViewModeOverlays, clearAllOverlays } from '@composables/overlay/useOverlay';
-import { getOverlayDataWithEditModifications } from '@composables/overlay/useOverlayEditCache';
+import { getFromEditModeOverlayCache } from '@composables/overlay/useOverlayEditCache';
 import { hasCachedCityProjectsData, getSelectedCity } from '@composables/map/useCityData';
 import { calculateCenterFromCorners } from '../../utils/typeFactories';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
@@ -299,16 +299,23 @@ function getOverlayMarkerInfo(overlayData: OverlayData): { color: MarkerColor, p
       return { color, position };
     } else {
       // AI : No overlay object loaded, check edit cache for modifications
-      const overlayDataWithMods = getOverlayDataWithEditModifications(overlayData);
+      const cachedPosition = getFromEditModeOverlayCache(overlayData.id);
 
-      // AI : Use modified position if available
-      const calculatedCenter = calculateCenterFromCorners(overlayDataWithMods.corners);
-      if (calculatedCenter) {
-        position = calculatedCenter;
+      if (cachedPosition?.corners) {
+        // AI : Use cached position if available
+        const calculatedCenter = calculateCenterFromCorners(cachedPosition.corners);
+        if (calculatedCenter) {
+          position = calculatedCenter;
+        }
+
+        // AI : Use centralized color logic with cached modification flag
+        const overlayWithCacheInfo = { ...overlayData, isModified: cachedPosition.isModified };
+        const color = getOverlayMarkerColor(overlayWithCacheInfo, 'edit');
+        return { color, position };
       }
 
-      // AI : Use centralized color logic with modified data
-      const color = getOverlayMarkerColor(overlayDataWithMods, 'edit');
+      // AI : No cache, use original data with edit mode coloring
+      const color = getOverlayMarkerColor(overlayData, 'edit');
       return { color, position };
     }
   }
