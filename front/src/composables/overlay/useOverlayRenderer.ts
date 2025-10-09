@@ -81,10 +81,14 @@ export function updateExistingOverlays(strategy: RenderStrategy): void {
       updateMarkerPosition(overlayObject)
     }
 
-    // AI : Ensure overlays are on the map if they should be visible
+    // AI : Manage overlay visibility based on zoom level
     if (overlayObject.overlay && map.value) {
       if (strategy.shouldRenderFullOverlays && !map.value.hasLayer(overlayObject.overlay)) {
+        // AI : Add overlay to map if zoom is high enough
         overlayObject.overlay.addTo(map.value)
+      } else if (!strategy.shouldRenderFullOverlays && map.value.hasLayer(overlayObject.overlay)) {
+        // AI : Remove overlay from map if zoom is too low (but keep in store)
+        map.value.removeLayer(overlayObject.overlay)
       }
     }
   })
