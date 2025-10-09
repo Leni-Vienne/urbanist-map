@@ -127,10 +127,15 @@ export function createOverlay(imageUrl: string, overlayObject?: OverlayObject) {
       draggable: overlayStore.isEditMode,
     });
 
+    // AI : Check if we should add overlay to map based on current zoom level
+    const MIN_ZOOM_FOR_OVERLAYS = 12;
+    const currentZoom = map.value.getZoom();
+    const shouldRenderOverlay = currentZoom >= MIN_ZOOM_FOR_OVERLAYS;
+
     // IMPORTANT : this waits for any ongoing zoom animation to complete before adding overlay to prevent visual glitch
     // This fixes the bug when zooming multiple levels past the render threshold at once
     const addOverlayWhenReady = () => {
-      if (map.value && newOverlay) {
+      if (map.value && newOverlay && shouldRenderOverlay) {
         newOverlay.addTo(map.value);
       }
     };
@@ -140,7 +145,7 @@ export function createOverlay(imageUrl: string, overlayObject?: OverlayObject) {
       // AI : Wait for zoom animation to complete
       map.value.once('zoomend', addOverlayWhenReady);
     } else {
-      // No zoom animation, add immediately
+      // Only add if zoom is appropriate
       addOverlayWhenReady();
     }
     overlayObject.overlay = newOverlay;
@@ -928,30 +933,21 @@ function createNewOverlayObject(id: string, imageUrl: string, projectId: string)
 
 // AI : Helper function to zoom to overlay bounds with proper error handling
 function zoomToOverlayBounds(overlay: OverlayObject): boolean {
-  if (!overlay.overlay || !map.value) return false;
+  if (!map.value) return false;
 
-  try {
-    // AI : Get bounds from overlay or construct from corners
-    const bounds = overlay.overlay.getBounds() ??
-      (overlay.overlay.getCorners()?.length === 4 ? L.latLngBounds(overlay.overlay.getCorners()) : null);
-
-    if (bounds) {
-      map.value.flyToBounds(bounds, { padding: [50, 50] as [number, number], duration: 1.5, easeLinearity: 0.25 });
-      return true;
-    }
-
-    // AI : Fallback to marker position
-    if (overlay.marker) {
-      map.value.flyTo(overlay.marker.getLatLng(), 18, { duration: 1.5, easeLinearity: 0.25 });
-      return true;
-    }
-  } catch {
-    // AI : Error fallback to marker position
-    if (overlay.marker) {
-      map.value.flyTo(overlay.marker.getLatLng(), 18, { duration: 1.5, easeLinearity: 0.25 });
-      return true;
-    }
+  // AI : Try to get bounds from overlay data (works whether Leaflet overlay exists or not)
+  const overlayBounds = getOverlayBounds(overlay);
+  if (overlayBounds) {
+    map.value.flyToBounds(overlayBounds, { padding: [50, 50] as [number, number], duration: 1.5, easeLinearity: 0.25 });
+    return true;
   }
+
+  // AI : Fallback to marker position if bounds unavailable
+  if (overlay.marker) {
+    map.value.flyTo(overlay.marker.getLatLng(), 17, { duration: 1.5, easeLinearity: 0.25 });
+    return true;
+  }
+
   return false;
 }
 
@@ -1415,7 +1411,7 @@ export async function loadOverlay(overlayId: string): Promise<boolean | null> {
  * @returns boolean indicating whether navigation was successful
  */
 export async function navigateToOverlay(overlayId: string, centerMap: boolean = true): Promise<boolean> {
-  // AI : Load the overlay first
+  // AI : Load the overlay first (fetches from backend if needed)
   await loadOverlay(overlayId);
 
   // AI : Then navigate to it
@@ -1435,24 +1431,19 @@ function selectAndCenterOverlay(overlayId: string, centerMap: boolean = true) {
   selectOverlay(overlayId);
 
   if (overlay.overlay) {
-    // Click on the overlay to properly select it and open the toolbar
+    // AI : Click on the overlay to properly select it and open the toolbar
     const element = overlay.overlay.getElement();
-
     if (element) {
       element.click();
     }
-
-    if (centerMap && map.value && overlay.overlay) {
-      // AI : Wait for overlay to be properly initialized before zooming
-      zoomToOverlayBounds(overlay);
-    }
-    return true;
-  } else if (overlay.marker && centerMap && map.value) {
-    // AI : If overlay is not loaded yet but marker exists
-    map.value.setView(overlay.marker.getLatLng(), 18);
-    return true;
   }
-  return false;
+
+  // AI : Center map on overlay if requested
+  if (centerMap) {
+    zoomToOverlayBounds(overlay);
+  }
+
+  return true;
 }
 
 export function updateTooltipText() {

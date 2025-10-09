@@ -38,7 +38,7 @@ export class TestHelpers {
     const userData = {
       email: overrides.email ?? `test-${timestamp}-${random}@example.com`,
       username: overrides.username ?? `user-${timestamp}-${random}`,
-      passwordHash: 'test-hash',
+      passwordHash: await Bun.password.hash('testpassword'),
       role: overrides.role ?? 'user',
       emailVerified: true,
     }
