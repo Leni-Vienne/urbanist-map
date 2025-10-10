@@ -55,6 +55,7 @@
     "validationError": "Validation Error",
     "nameRequired": "Project name is required",
     "locationRequired": "Location is required",
+    "proposalDateRequired": "Proposal date is required for proposed projects",
     "datesRequired": "Start date and end date are required for planned projects",
     "chooseProjectType": "Choose Project Type",
     "whatTypeOfProject": "What type of project do you want to create?",

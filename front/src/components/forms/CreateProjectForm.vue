@@ -81,14 +81,14 @@
                         dateFormat="dd/mm/yy"
                         v-model="localProject.proposalDate"
                         class="w-full"
+                        required
                         showIcon
-                        :showClear="true"
                         :updateModelType="'date'"
                     />
                     <label
                         for="proposal-date-input"
                         class="text-gray-600"
-                    >{{ $t('project.proposalDate') }} ({{ $t('project.optionalField') }})</label>
+                    >{{ $t('project.proposalDate') }} *</label>
                 </FloatLabel>
                 <small class="text-gray-500 block mt-1">{{ $t('project.proposalDateHelp') }}</small>
             </div>
@@ -449,8 +449,19 @@ function handleSubmit() {
         return;
     }
 
-    // AI : For planned projects, start and end dates are required
-    if (!isProposed.value) {
+    // AI : For proposed projects, proposal date is required
+    if (isProposed.value) {
+        if (!localProject.value.proposalDate) {
+            toast.add({
+                severity: 'error',
+                summary: t('project.validationError'),
+                detail: t('project.proposalDateRequired'),
+                life: 3000
+            });
+            return;
+        }
+    } else {
+        // AI : For planned projects, start and end dates are required
         if (!localProject.value.startDate || !localProject.value.endDate) {
             toast.add({
                 severity: 'error',
@@ -469,11 +480,11 @@ function handleSubmit() {
     // AI : Use null instead of undefined to ensure database values are actually cleared
     if (isProposed.value) {
         // AI : Proposed projects should not have start/end dates
-        cleanProjectData.startDate = null
-        cleanProjectData.endDate = null;
+        cleanProjectData.startDate = null as any;
+        cleanProjectData.endDate = null as any;
     } else {
         // AI : Planned projects should not have proposal date
-        cleanProjectData.proposalDate = null;
+        cleanProjectData.proposalDate = null as any;
     }
 
     // AI : Include city object if cityId is set and city data is available

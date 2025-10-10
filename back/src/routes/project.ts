@@ -22,6 +22,28 @@ const publishProjectSchema = z.object({
   endDate: z.date().nullable().optional(),
   sourceUrl: z.url().optional(),
   latestUpdateOn: z.date().nullable().optional()
+}).superRefine((data, ctx) => {
+  // AI : Validate development projects have coordinates
+  if (data.isDevelopment && (!data.lat || !data.lng)) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Development projects require lat and lng coordinates',
+      path: ['lat', 'lng']
+    });
+  }
+
+  // AI : Validate project has either proposalDate OR both startDate and endDate
+  const hasProposalDate = data.proposalDate !== null && data.proposalDate !== undefined;
+  const hasPlannedDates = (data.startDate !== null && data.startDate !== undefined) &&
+                          (data.endDate !== null && data.endDate !== undefined);
+
+  if (!hasProposalDate && !hasPlannedDates) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Project must have either a proposal date or both start and end dates',
+      path: ['proposalDate', 'startDate', 'endDate']
+    });
+  }
 });
 
 export const projectRouter = router({
@@ -29,6 +51,7 @@ export const projectRouter = router({
     .input(publishProjectSchema)
     .mutation(async ({ input, ctx }) => {
       try {
+        // AI : Validate city exists
         if (input.cityId) {
           const city = await db.select().from(cities).where(eq(cities.id, input.cityId)).limit(1);
           if (city.length === 0) {
@@ -36,22 +59,18 @@ export const projectRouter = router({
           }
         }
 
-        // AI : Validate development project requirements
-        if (input.isDevelopment && (!input.lat || !input.lng)) {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Development projects require lat and lng coordinates' });
-        }
-
+        // AI : Build data object with proper null handling for dates
         const data = {
           ...input,
           ownerId: ctx.user.id,
           cityId: input.cityId ?? null,
-          proposalDate: input.proposalDate,
-          startDate: input.startDate,
-          endDate: input.endDate,
+          proposalDate: input.proposalDate ?? null,
+          startDate: input.startDate ?? null,
+          endDate: input.endDate ?? null,
           sourceUrl: input.sourceUrl,
           latestUpdateOn: input.latestUpdateOn ? new Date(input.latestUpdateOn) : null,
           // AI : Set coordinates for development projects using PostGIS
-          coordinates: input.isDevelopment && input.lat && input.lng 
+          coordinates: input.isDevelopment && input.lat && input.lng
             ? sql`ST_SetSRID(ST_MakePoint(${input.lng}, ${input.lat}), 4326)`
             : null,
         };

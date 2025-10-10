@@ -51,7 +51,7 @@ import { updateTooltipText } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
 import { useOverlayPublisher } from '@composables/overlay/useOverlayPublisher';
 import { useProjectPublisher } from '@composables/project/useProjectPublisher';
-import { citiesWithProjects, loadCityProjects } from '@composables/map/useCityMarkers';
+import { citiesWithProjects } from '@composables/map/useCityMarkers';
 import type { OverlayObject, Project } from '@types';
 
 const OverlayPopup = defineAsyncComponent(() => import('./popups/OverlayPopup.vue'));

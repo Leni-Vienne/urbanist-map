@@ -1,6 +1,7 @@
 import { ref, computed, reactive } from 'vue'
 import { useFieldChanges } from '@composables/changes/useFieldChanges'
 import { useToast } from '@composables/ui/useToast'
+import { buildProjectPayload } from '@composables/project/useProjectMutations'
 import { trpc } from '@client'
 
 // AI : Type for overlay update payload based on updateOverlaySchema
@@ -130,16 +131,20 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
           const projectData = {
             id: options.entityId,
             name: formData.name,
-            description: formData.description ?? undefined,
-            cityId: project.cityId ?? undefined, // AI : Preserve existing cityId
-            proposalDate: formData.proposalDate ?? undefined,
-            startDate: formData.startDate ?? undefined,
-            endDate: formData.endDate ?? undefined,
-            sourceUrl: formData.sourceUrl ?? undefined,
-            latestUpdateOn: formData.latestUpdateOn ?? undefined,
+            description: formData.description,
+            cityId: project.cityId, // AI : Preserve existing cityId
+            isDevelopment: project.isDevelopment,
+            lat: project.lat,
+            lng: project.lng,
+            proposalDate: formData.proposalDate,
+            startDate: formData.startDate,
+            endDate: formData.endDate,
+            sourceUrl: formData.sourceUrl,
+            latestUpdateOn: formData.latestUpdateOn,
           }
-          
-          await trpc.project.publishProject.mutate(projectData)
+
+          // AI : Use shared helper to build consistent payload
+          await trpc.project.publishProject.mutate(buildProjectPayload(projectData))
           
           toast.add({
             severity: 'success',
