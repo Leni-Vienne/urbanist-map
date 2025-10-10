@@ -5,7 +5,7 @@
     <!-- AI : Zoom Controls -->
     <div class="buttons-stacked">
       <Button
-        @click="handleZoomIn"
+        @click.stop="handleZoomIn"
         @dblclick.stop
         raised
         icon="pi pi-plus"
@@ -14,7 +14,7 @@
         severity="secondary"
       />
       <Button
-        @click="handleZoomOut"
+        @click.stop="handleZoomOut"
         @dblclick.stop
         raised
         icon="pi pi-minus"
@@ -23,7 +23,7 @@
         severity="secondary"
       />
       <Button
-        @click="showHelpModal"
+        @click.stop="showHelpModal"
         @dblclick.stop
         raised
         icon="pi pi-question-circle"
@@ -37,7 +37,7 @@
 
       <Button
         v-if="authStore.isAuthenticated"
-        @click="handleAddOverlayClick"
+        @click.stop="handleAddOverlayClick"
         @dblclick.stop
         raised
         aria-label="Add Image Overlay"
@@ -76,7 +76,7 @@
         v-if="authStore.isAuthenticated"
         :icon="currentIcon"
         raised
-        @click="handleModeToggle"
+        @click.stop="handleModeToggle"
         @dblclick.stop
         :severity="buttonSeverity"
         v-tooltip.right="tooltipText"
@@ -92,7 +92,7 @@
       class="buttons-stacked"
     >
       <Button
-        @click="toggleCompletionFilter('yellow')"
+        @click.stop="toggleCompletionFilter('yellow')"
         @dblclick.stop
         raised
         :severity="visibleCompletionStates.yellow ? 'primary' : 'secondary'"
@@ -104,7 +104,7 @@
         </template>
       </Button>
       <Button
-        @click="toggleCompletionFilter('green')"
+        @click.stop="toggleCompletionFilter('green')"
         @dblclick.stop
         raised
         :severity="visibleCompletionStates.green ? 'primary' : 'secondary'"
@@ -116,7 +116,7 @@
         </template>
       </Button>
       <Button
-        @click="toggleCompletionFilter('orange')"
+        @click.stop="toggleCompletionFilter('orange')"
         @dblclick.stop
         raised
         :severity="visibleCompletionStates.orange ? 'primary' : 'secondary'"
@@ -128,7 +128,7 @@
         </template>
       </Button>
       <Button
-        @click="toggleCompletionFilter('grey')"
+        @click.stop="toggleCompletionFilter('grey')"
         @dblclick.stop
         raised
         :severity="visibleCompletionStates.grey ? 'primary' : 'secondary'"
