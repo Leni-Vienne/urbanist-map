@@ -4,6 +4,7 @@ import { useMapStore } from '@stores/pinia/mapStore';
 import { trpc } from '@client';
 import { storeToRefs } from 'pinia';
 import { loadCityProjects } from '@composables/map/useCityMarkers';
+import { buildProjectPayload } from './useProjectMutations';
 import type { Project } from '@types';
 
 export function useProjectPublisher() {
@@ -12,25 +13,20 @@ export function useProjectPublisher() {
   const mapStore = useMapStore();
   const { projects } = storeToRefs(projectStore);
 
-  // AI : Publish development project to backend
+  // AI : Publish project to backend (both overlay and development projects)
   async function publishProject(project: Project): Promise<boolean> {
-    if (!project || !project.isDevelopment) {
-      console.warn('AI: Only development projects can be published via this function');
+    if (!project) {
+      console.warn('AI: Project is required for publishing');
       return false;
     }
 
     isPublishing.value = true;
 
     try {
-      const publishResult = await trpc.project.publishProject.mutate({
-        id: project.id,
-        name: project.name!,
-        description: project.description ?? undefined,
-        isDevelopment: project.isDevelopment,
-        lat: project.lat ?? undefined,
-        lng: project.lng ?? undefined,
-        cityId: project.cityId ?? undefined,
-      });
+      // AI : Use shared helper to build consistent payload
+      const publishResult = await trpc.project.publishProject.mutate(
+        buildProjectPayload(project)
+      );
 
       if (publishResult.success) {
         // AI : Mark project as saved remotely

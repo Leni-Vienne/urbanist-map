@@ -5,6 +5,7 @@ import { updateMarkerTooltip } from '@composables/overlay/useOverlay';
 import { map } from '@composables/core/useMap';
 import { trpc, getApiUrl } from '@client';
 import { storeToRefs } from 'pinia';
+import { buildProjectPayload } from '@composables/project/useProjectMutations';
 import type { OverlayObject, Project } from '@types';
 
 export function useOverlayPublisher() {
@@ -38,16 +39,10 @@ export function useOverlayPublisher() {
   // AI : Ensure project exists on server and handle project publishing
   async function ensureProjectOnServer(project: Project): Promise<boolean> {
     try {
-      const projectResult = await trpc.project.publishProject.mutate({
-        id: project.id,
-        name: project.name,
-        description: project.description ?? undefined,
-        cityId: project.cityId ?? undefined,
-        startDate: project.startDate ?? undefined,
-        endDate: project.endDate ?? undefined,
-        sourceUrl: project.sourceUrl ?? undefined,
-        latestUpdateOn: project.latestUpdateOn ?? undefined
-      });
+      // AI : Use shared helper to build consistent payload
+      const projectResult = await trpc.project.publishProject.mutate(
+        buildProjectPayload(project)
+      );
 
       if (!projectResult.success) {
         throw new Error('Failed to publish project to server');
