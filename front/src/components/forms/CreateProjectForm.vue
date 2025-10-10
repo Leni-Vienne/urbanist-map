@@ -93,40 +93,6 @@
                 <small class="text-gray-500 block mt-1">{{ $t('project.proposalDateHelp') }}</small>
             </div>
 
-            <div class="field">
-                <FloatLabel
-                    class="w-full"
-                    variant="in"
-                >
-                    <Select
-                        id="location-select"
-                        v-model="localProject.cityId"
-                        :options="filteredCities"
-                        optionLabel="displayName"
-                        optionValue="id"
-                        class="w-full"
-                        :showClear="true"
-                        :loading="citiesLoading"
-                        :disabled="false"
-                        required
-                        @show="onSelectShow"
-                    ><template #option="{ option }">
-                            <div class="flex items-center justify-between w-full">
-                                <span>{{ option.name }}</span>
-                                <span class="text-xs text-gray-500">{{ option.countryCode }}
-                                    <span v-if="option.distance > 0"> ({{ Math.round(option.distance) / 1000 }}
-                                        km)</span>
-                                </span>
-                            </div>
-                        </template>
-                    </Select>
-                    <label
-                        for="location-select"
-                        class="text-gray-600"
-                    >{{ $t('project.location') }} *</label>
-                </FloatLabel>
-            </div>
-
             <div class="flex gap-3" v-if="!isProposed">
                 <div class="flex-1 field">
                     <FloatLabel
@@ -170,6 +136,40 @@
                     </FloatLabel>
                     <small class="text-gray-500 block mt-1">{{ $t('project.endDateHelp') }}</small>
                 </div>
+            </div>
+
+                        <div class="field">
+                <FloatLabel
+                    class="w-full"
+                    variant="in"
+                >
+                    <Select
+                        id="location-select"
+                        v-model="localProject.cityId"
+                        :options="filteredCities"
+                        optionLabel="displayName"
+                        optionValue="id"
+                        class="w-full"
+                        :showClear="true"
+                        :loading="citiesLoading"
+                        :disabled="false"
+                        required
+                        @show="onSelectShow"
+                    ><template #option="{ option }">
+                            <div class="flex items-center justify-between w-full">
+                                <span>{{ option.name }}</span>
+                                <span class="text-xs text-gray-500">{{ option.countryCode }}
+                                    <span v-if="option.distance > 0"> ({{ Math.round(option.distance) / 1000 }}
+                                        km)</span>
+                                </span>
+                            </div>
+                        </template>
+                    </Select>
+                    <label
+                        for="location-select"
+                        class="text-gray-600"
+                    >{{ $t('project.location') }} *</label>
+                </FloatLabel>
             </div>
 
             <div class="field" v-if="props.mode === 'edit'">
@@ -261,26 +261,6 @@ const emit = defineEmits<{
     submit: [project: Partial<Project>];
 }>();
 
-// AI : Convert date strings to Date objects for DatePicker compatibility
-function convertDatesToObjects(project: Partial<Project>): Partial<Project> {
-    const converted = { ...project };
-
-    if (converted.startDate && typeof converted.startDate === 'string') {
-        converted.startDate = new Date(converted.startDate);
-    }
-    if (converted.endDate && typeof converted.endDate === 'string') {
-        converted.endDate = new Date(converted.endDate);
-    }
-    if (converted.proposalDate && typeof converted.proposalDate === 'string') {
-        converted.proposalDate = new Date(converted.proposalDate);
-    }
-    if (converted.latestUpdateOn && typeof converted.latestUpdateOn === 'string') {
-        converted.latestUpdateOn = new Date(converted.latestUpdateOn);
-    }
-
-    return converted;
-}
-
 // AI : Determine initial status based on project data
 const initialIsProposed = computed(() => {
     const proj = props.project;
@@ -291,35 +271,50 @@ const initialIsProposed = computed(() => {
 // AI : Track if project is proposed or planned
 const isProposed = ref<boolean>(props.mode === 'create' ? true : initialIsProposed.value);
 
-// AI : Project data with default proposal date for new proposed projects
+// AI : Initialize project data - set default proposal date for new proposed projects
 const localProject = ref<Partial<Project>>({
-    proposalDate: props.mode === 'create' ? new Date() : undefined,
-    ...convertDatesToObjects(props.project)
+    ...props.project,
+    proposalDate: props.mode === 'create' ? new Date() : props.project.proposalDate
 });
 
-// AI : Clear dates when switching between proposed/planned
+// AI : Update dates when switching between proposed/planned
+// AI : Use null instead of undefined for proper serialization
 watch(isProposed, (newValue) => {
     if (newValue) {
-        localProject.value.startDate = undefined;
-        localProject.value.endDate = undefined;
+        // AI : Switching to proposed - clear planned dates and set proposal date
+        localProject.value.startDate = null as any;
+        localProject.value.endDate = null as any;
         if (!localProject.value.proposalDate) {
             localProject.value.proposalDate = new Date();
         }
     } else {
-        localProject.value.proposalDate = undefined;
+        // AI : Switching to planned - clear proposal date and restore original planned dates if available
+        localProject.value.proposalDate = null as any;
+        if (props.project.startDate) {
+            localProject.value.startDate = props.project.startDate;
+        }
+        if (props.project.endDate) {
+            localProject.value.endDate = props.project.endDate;
+        }
     }
 });
 
+// AI : Helper function to convert DBCity to city select format
+function convertDBCityToSelectFormat(dbCity: typeof props.project.city): RouterOutput['cities']['getCitiesNearLocation'][number] {
+    if (!dbCity) throw new Error('City is required');
+    return {
+        id: dbCity.id,
+        name: dbCity.name,
+        countryCode: dbCity.countryCode,
+        lat: dbCity.coordinates.y,
+        lng: dbCity.coordinates.x,
+        distance: 0
+    };
+}
+
 // AI : Cities data and state - prefill with existing city if available
 const cities = ref<RouterOutput['cities']['getCitiesNearLocation']>(
-    props.project.city ? [{
-        id: props.project.city.id,
-        name: props.project.city.name,
-        countryCode: props.project.city.countryCode,
-        lat: props.project.city.coordinates.y,
-        lng: props.project.city.coordinates.x,
-        distance: 0
-    }] : []
+    props.project.city ? [convertDBCityToSelectFormat(props.project.city)] : []
 );
 const citiesLoading = ref(false);
 const citiesLoaded = ref(!!props.project.city); // AI : Mark as loaded if we have a prefilled city
@@ -330,14 +325,7 @@ watch(() => props.project, (newProject) => {
 
     // AI : Update cities list if project city changes
     if (newProject.city && cities.value.length === 0) {
-        cities.value = [{
-            id: newProject.city.id,
-            name: newProject.city.name,
-            countryCode: newProject.city.countryCode,
-            lat: newProject.city.coordinates.y,
-            lng: newProject.city.coordinates.x,
-            distance: 0
-        }];
+        cities.value = [convertDBCityToSelectFormat(newProject.city)];
         citiesLoaded.value = true;
     }
 }, { deep: true, immediate: true });
@@ -420,16 +408,9 @@ async function loadCitiesNearLocation(lat: number, lng: number) {
             const cityAlreadyInResults = nearbyCities.some(c => c.id === prefilledCityId);
 
             if (!cityAlreadyInResults) {
-                // AI : Add prefilled city at the beginning
+                // AI : Add prefilled city at the beginning using helper function
                 cities.value = [
-                    {
-                        id: props.project.city.id,
-                        name: props.project.city.name,
-                        countryCode: props.project.city.countryCode,
-                        lat: props.project.city.coordinates.y,
-                        lng: props.project.city.coordinates.x,
-                        distance: 0
-                    },
+                    convertDBCityToSelectFormat(props.project.city),
                     ...nearbyCities
                 ];
             } else {
@@ -483,6 +464,17 @@ function handleSubmit() {
 
     // AI : Create a clean project object without File objects to prevent serialization issues
     const { sourcePdf, ...cleanProjectData } = localProject.value;
+
+    // AI : Clear inappropriate dates based on project status
+    // AI : Use null instead of undefined to ensure database values are actually cleared
+    if (isProposed.value) {
+        // AI : Proposed projects should not have start/end dates
+        cleanProjectData.startDate = null
+        cleanProjectData.endDate = null;
+    } else {
+        // AI : Planned projects should not have proposal date
+        cleanProjectData.proposalDate = null;
+    }
 
     // AI : Include city object if cityId is set and city data is available
     if (cleanProjectData.cityId && cities.value.length > 0) {

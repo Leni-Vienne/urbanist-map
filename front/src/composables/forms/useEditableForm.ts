@@ -132,10 +132,11 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
             name: formData.name,
             description: formData.description ?? undefined,
             cityId: project.cityId ?? undefined, // AI : Preserve existing cityId
-            startDate: formData.startDate?.toISOString(),
-            endDate: formData.endDate?.toISOString(),
+            proposalDate: formData.proposalDate ?? undefined,
+            startDate: formData.startDate ?? undefined,
+            endDate: formData.endDate ?? undefined,
             sourceUrl: formData.sourceUrl ?? undefined,
-            latestUpdateOn: formData.latestUpdateOn?.toISOString(),
+            latestUpdateOn: formData.latestUpdateOn ?? undefined,
           }
           
           await trpc.project.publishProject.mutate(projectData)
