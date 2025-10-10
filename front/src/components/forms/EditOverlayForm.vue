@@ -1,5 +1,5 @@
 <template>
-  <BaseEditableForm
+  <BaseEditForm
     entity-type="overlay"
     :entity-id="overlay.id"
     :initial-data="overlayData"
@@ -24,12 +24,12 @@
         <div v-else class="change-indicator-placeholder"></div>
       </div>
     </template>
-  </BaseEditableForm>
+  </BaseEditForm>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import BaseEditableForm from './BaseEditableForm.vue'
+import BaseEditForm from './BaseEditForm.vue'
 import type { OverlayObject } from '@types'
 
 interface Props {

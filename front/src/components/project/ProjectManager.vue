@@ -36,7 +36,7 @@
     @update:visible="uiStore.closeProjectEditForm"
     class="edit-form-dialog"
   >
-    <EditableProjectForm
+    <EditProjectForm
       v-if="uiStore.projectEditForm.data && uiStore.projectEditForm.visible"
       :project="(uiStore.projectEditForm.data as Project)"
       @close="uiStore.closeProjectEditForm"
@@ -54,7 +54,7 @@
     @update:visible="uiStore.closeOverlayEditForm"
     class="edit-form-dialog"
   >
-    <EditableOverlayForm
+    <EditOverlayForm
       v-if="uiStore.overlayEditForm.data && uiStore.overlayEditForm.visible"
       :overlay="(uiStore.overlayEditForm.data as OverlayObject)"
       @close="uiStore.closeOverlayEditForm"
@@ -94,8 +94,8 @@ import type { NearbyProject } from '../../types/api'
 import ImageUploadDialog from '@components/map/ImageUploadDialog.vue'
 import ProjectPicker from '@components/project/ProjectPicker.vue'
 const ProjectDialog = defineAsyncComponent(() => import('@components/project/ProjectDialog.vue'))
-const EditableProjectForm = defineAsyncComponent(() => import('@components/forms/EditableProjectForm.vue'))
-const EditableOverlayForm = defineAsyncComponent(() => import('@components/forms/EditableOverlayForm.vue'))
+const EditProjectForm = defineAsyncComponent(() => import('@components/forms/EditProjectForm.vue'))
+const EditOverlayForm = defineAsyncComponent(() => import('@components/forms/EditOverlayForm.vue'))
 
 const overlayStore = useOverlayStore()
 const projectStore = useProjectStore()

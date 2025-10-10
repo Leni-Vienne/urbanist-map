@@ -1,5 +1,5 @@
 <template>
-  <BaseEditableForm
+  <BaseEditForm
     entity-type="project"
     :entity-id="project.id"
     :initial-data="projectData"
@@ -11,35 +11,105 @@
   >
     <template #fields="{ formData, originalData, hasChanged, getFieldClasses, formatDate }">
       <div class="form-group">
-        <label for="name">Project Name *</label>
+        <label for="name">{{ $t('project.name') }} *</label>
         <InputText
           id="name"
           v-model="formData.name"
           :class="getFieldClasses('name')"
-          placeholder="Enter project name"
+          :placeholder="$t('project.name')"
           required
         />
         <small v-if="hasChanged('name')" class="change-indicator">
-          Changed from: "{{ originalData.name || 'Not set' }}"
+          {{ $t('overlay.changedFrom') }}: "{{ originalData.name || $t('overlay.notSet') }}"
         </small>
       </div>
 
       <div class="form-group">
-        <label for="description">Description</label>
+        <label for="description">{{ $t('project.description') }} ({{ $t('project.optionalField') }})</label>
         <Textarea
           id="description"
           v-model="formData.description"
           :class="getFieldClasses('description')"
           rows="3"
-          placeholder="Describe the construction project"
+          :placeholder="$t('project.description')"
         />
         <small v-if="hasChanged('description')" class="change-indicator">
-          Changed from: "{{ originalData.description || 'Not set' }}"
+          {{ $t('overlay.changedFrom') }}: "{{ originalData.description || $t('overlay.notSet') }}"
         </small>
       </div>
 
       <div class="form-group">
-        <label for="sourceUrl">Source URL</label>
+        <label for="proposalDate">{{ $t('project.proposalDate') }} ({{ $t('project.optionalField') }})</label>
+        <DatePicker
+          id="proposalDate"
+          v-model="formData.proposalDate"
+          :class="getFieldClasses('proposalDate')"
+          dateFormat="yy-mm-dd"
+          :placeholder="$t('project.proposalDate')"
+          updateModelType="yyyy-MM-dd"
+          showIcon
+        />
+        <small class="text-gray-500">{{ $t('project.proposalDateHelp') }}</small>
+        <small v-if="hasChanged('proposalDate')" class="change-indicator">
+          {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData.proposalDate) || $t('overlay.notSet') }}"
+        </small>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="startDate">{{ $t('project.startDate') }} ({{ $t('project.optionalField') }})</label>
+          <DatePicker
+            id="startDate"
+            v-model="formData.startDate"
+            :class="getFieldClasses('startDate')"
+            dateFormat="yy-mm-dd"
+            :placeholder="$t('project.startDate')"
+            updateModelType="yyyy-MM-dd"
+            showIcon
+          />
+          <small class="text-gray-500">{{ $t('project.startDateHelp') }}</small>
+          <small v-if="hasChanged('startDate')" class="change-indicator">
+            {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData.startDate) || $t('overlay.notSet') }}"
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label for="endDate">{{ $t('project.endDate') }} ({{ $t('project.optionalField') }})</label>
+          <DatePicker
+            id="endDate"
+            v-model="formData.endDate"
+            :class="getFieldClasses('endDate')"
+            dateFormat="yy-mm-dd"
+            :placeholder="$t('project.endDate')"
+            updateModelType="yyyy-MM-dd"
+            showIcon
+          />
+          <small class="text-gray-500">{{ $t('project.endDateHelp') }}</small>
+          <small v-if="hasChanged('endDate')" class="change-indicator">
+            {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData.endDate) || $t('overlay.notSet') }}"
+          </small>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="latestUpdateOn">{{ $t('project.latestUpdateOn') }} ({{ $t('project.optionalField') }})</label>
+        <DatePicker
+          id="latestUpdateOn"
+          v-model="formData.latestUpdateOn"
+          :class="getFieldClasses('latestUpdateOn')"
+          dateFormat="yy-mm-dd"
+          :placeholder="$t('project.latestUpdateOn')"
+          updateModelType="yyyy-MM-dd"
+          showIcon
+        />
+        <small class="text-gray-500">{{ $t('project.latestUpdateOnHelp') }}</small>
+        <small v-if="hasChanged('latestUpdateOn')" class="change-indicator">
+          {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData.latestUpdateOn) || $t('overlay.notSet') }}"
+        </small>
+      </div>
+
+      <div class="form-group">
+        <label for="sourceUrl">{{ $t('project.sourceUrl') }} ({{ $t('project.optionalField') }})</label>
         <InputText
           id="sourceUrl"
           v-model="formData.sourceUrl"
@@ -47,63 +117,16 @@
           placeholder="https://example.com/project-info"
         />
         <small v-if="hasChanged('sourceUrl')" class="change-indicator">
-          Changed from: "{{ originalData.sourceUrl || 'Not set' }}"
-        </small>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group">
-          <label for="startDate">Start Date</label>
-          <DatePicker
-            id="startDate"
-            v-model="formData.startDate"
-            :class="getFieldClasses('startDate')"
-            dateFormat="yy-mm-dd"
-            placeholder="Select start date"
-            updateModelType="yyyy-MM-dd"
-          />
-          <small v-if="hasChanged('startDate')" class="change-indicator">
-            Changed from: "{{ formatDate(originalData.startDate) || 'Not set' }}"
-          </small>
-        </div>
-
-        <div class="form-group">
-          <label for="endDate">End Date</label>
-          <DatePicker
-            id="endDate"
-            v-model="formData.endDate"
-            :class="getFieldClasses('endDate')"
-            dateFormat="yy-mm-dd"
-            placeholder="Select end date"
-            updateModelType="yyyy-MM-dd"
-          />
-          <small v-if="hasChanged('endDate')" class="change-indicator">
-            Changed from: "{{ formatDate(originalData.endDate) || 'Not set' }}"
-          </small>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label for="latestUpdateOn">Latest Update</label>
-        <DatePicker
-          id="latestUpdateOn"
-          v-model="formData.latestUpdateOn"
-          :class="getFieldClasses('latestUpdateOn')"
-          dateFormat="yy-mm-dd"
-          placeholder="Select latest update date"
-          updateModelType="yyyy-MM-dd"
-        />
-        <small v-if="hasChanged('latestUpdateOn')" class="change-indicator">
-          Changed from: "{{ formatDate(originalData.latestUpdateOn) || 'Not set' }}"
+          {{ $t('overlay.changedFrom') }}: "{{ originalData.sourceUrl || $t('overlay.notSet') }}"
         </small>
       </div>
     </template>
-  </BaseEditableForm>
+  </BaseEditForm>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import BaseEditableForm from './BaseEditableForm.vue'
+import BaseEditForm from './BaseEditForm.vue'
 import type { Project } from '@types'
 
 interface Props {
@@ -123,6 +146,7 @@ const projectData = computed(() => ({
   name: props.project.name,
   description: props.project.description || '',
   sourceUrl: props.project.sourceUrl || '',
+  proposalDate: props.project.proposalDate,
   startDate: props.project.startDate,
   endDate: props.project.endDate,
   latestUpdateOn: props.project.latestUpdateOn,
