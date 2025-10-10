@@ -17,11 +17,11 @@ const publishProjectSchema = z.object({
   isDevelopment: z.boolean().optional().default(false), // AI : true for development projects, false for overlay projects
   lat: z.number().optional(), // AI : latitude for development projects
   lng: z.number().optional(), // AI : longitude for development projects
-  proposalDate: z.date().optional(),
-  startDate: z.date().optional(),
-  endDate: z.date().optional(),
+  proposalDate: z.date().nullable().optional(),
+  startDate: z.date().nullable().optional(),
+  endDate: z.date().nullable().optional(),
   sourceUrl: z.url().optional(),
-  latestUpdateOn: z.date().optional()
+  latestUpdateOn: z.date().nullable().optional()
 });
 
 export const projectRouter = router({
