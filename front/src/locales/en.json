@@ -60,7 +60,11 @@
     "coordinates": "Coordinates",
     "period": "Period",
     "source": "Source",
-    "latestUpdate": "Latest Update"
+    "latestUpdate": "Latest Update",
+    "publishSuccess": "Project Published",
+    "publishSuccessDetail": "Development project has been saved successfully",
+    "publishFailed": "Publish Failed",
+    "publishFailedDetail": "Failed to save development project to the backend"
   },
   "status": {
     "pending": "Pending",
@@ -120,7 +124,11 @@
     "loadingOverlays": "Loading overlays...",
     "zoomTo": "Zoom to",
     "navigationFailed": "Navigation Failed",
-    "failedToNavigate": "Failed to navigate to overlay"
+    "failedToNavigate": "Failed to navigate to overlay",
+    "publishSuccess": "Overlay Published",
+    "publishSuccessDetail": "Overlay has been saved successfully",
+    "publishFailed": "Publish Failed",
+    "publishFailedDetail": "Failed to save overlay to the backend"
   },
   "map": {
     "zoom": "Zoom",

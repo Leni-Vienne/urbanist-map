@@ -26,7 +26,7 @@
       </div>
 
       <!-- Project Information Section -->
-      <ProjectInfoCard
+      <ProjectMetadataCard
         :project="project ?? null"
         :show-description="false"
         :show-coordinates="false"
@@ -50,7 +50,7 @@
             v-tooltip.top="'Suggest Changes'"
           />
         </template>
-      </ProjectInfoCard>
+      </ProjectMetadataCard>
 
       <!-- Overlay Information Section -->
       <div class="overlay-meta mb-3">
@@ -115,7 +115,7 @@ import { computed, defineAsyncComponent } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@stores/authStore';
 import type { OverlayObject, Project } from '@types';
-import ProjectInfoCard from './ProjectInfoCard.vue';
+import ProjectMetadataCard from './ProjectMetadataCard.vue';
 
 const ProjectPicker = defineAsyncComponent(() => import('@components/project/ProjectPicker.vue'));
 
