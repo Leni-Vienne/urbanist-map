@@ -8,7 +8,7 @@
     @update:visible="handleVisibilityChange"
   >
     <template #default>
-      <ProjectForm
+      <CreateProjectForm
         ref="projectFormRef"
         :project="project"
         :mode="mode"
@@ -39,7 +39,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import ProjectForm from './ProjectForm.vue';
+import CreateProjectForm from '@components/forms/CreateProjectForm.vue';
 import type { Project } from '@types';
 
 const props = defineProps<{
@@ -55,7 +55,7 @@ const emit = defineEmits<{
   cancel: [];
 }>();
 
-const projectFormRef = ref<InstanceType<typeof ProjectForm> | null>(null);
+const projectFormRef = ref<InstanceType<typeof CreateProjectForm> | null>(null);
 
 // AI : Computed dialog title with fallback
 const dialogTitle = computed(() => {
