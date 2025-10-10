@@ -1,4 +1,5 @@
 <template>
+  <!-- This is for development projects (single marker projects without overlay)-->
   <div class="project-info-popup">
     <div
       v-if="loading"
@@ -11,7 +12,7 @@
       class="project-details"
     >
       <!-- Project Information Section -->
-      <ProjectInfoCard
+      <ProjectMetadataCard
         :project="project"
         :show-description="true"
         :show-coordinates="true"
@@ -34,7 +35,7 @@
             v-tooltip.top="$t('common.close')"
           />
         </template>
-      </ProjectInfoCard>
+      </ProjectMetadataCard>
     </div>
 
     <!-- Publish Project Section - Only for development projects that haven't been published yet -->
@@ -58,7 +59,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Project } from '@types'
-import ProjectInfoCard from './ProjectInfoCard.vue'
+import ProjectMetadataCard from './ProjectMetadataCard.vue'
 
 interface Props {
   project: Project

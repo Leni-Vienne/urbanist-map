@@ -1,7 +1,7 @@
 <template>
-  <!-- Overlay Info Popup -->
+  <!-- Overlay Popup -->
   <Teleport to="#info-popup-teleport-target" v-if="showOverlayPopup && overlayObject && teleportTargetExists">
-    <InfoPopup
+    <OverlayPopup
       :overlayObject="overlayObject"
       :project="getProjectForOverlay(overlayObject)"
       :viewMode="!isEditMode"
@@ -16,9 +16,9 @@
     />
   </Teleport>
 
-  <!-- Project Info Popup -->
+  <!-- Development Project Popup -->
   <Teleport to="#project-info-popup-teleport-target" v-if="showProjectPopup && selectedProject">
-    <ProjectInfoPopup
+    <DevelopmentProjectPopup
       :project="selectedProject"
       :viewMode="!isEditMode"
       :publishLoading="isPublishingProject"
@@ -42,34 +42,32 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
 import { storeToRefs } from 'pinia';
+import { useI18n } from 'vue-i18n';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
-import { useMapStore } from '@stores/pinia/mapStore';
 import { useUiStore } from '@stores/uiStore';
 
 import { updateTooltipText } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
 import { useOverlayPublisher } from '@composables/overlay/useOverlayPublisher';
+import { useProjectPublisher } from '@composables/project/useProjectPublisher';
 import { citiesWithProjects, loadCityProjects } from '@composables/map/useCityMarkers';
-import { trpc } from '@client';
 import type { OverlayObject, Project } from '@types';
 
-const InfoPopup = defineAsyncComponent(() => import('./InfoPopup.vue'));
-const ProjectInfoPopup = defineAsyncComponent(() => import('./ProjectInfoPopup.vue'));
+const OverlayPopup = defineAsyncComponent(() => import('./popups/OverlayPopup.vue'));
+const DevelopmentProjectPopup = defineAsyncComponent(() => import('./popups/DevelopmentProjectPopup.vue'));
 const OverlayEditor = defineAsyncComponent(() => import('./OverlayEditor.vue'));
 
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
-const mapStore = useMapStore();
 const uiStore = useUiStore();
 const { overlays, showInfoPopup, infoPopupOverlayId, isEditMode } = storeToRefs(overlayStore);
 const { projects } = storeToRefs(projectStore);
 const { projectInfoPopup } = storeToRefs(uiStore);
 const toast = useToast();
+const { t } = useI18n();
 const { isPublishing: isPublishingOverlay, publishOverlay } = useOverlayPublisher();
-
-// AI : Local state for project publishing
-const isPublishingProject = ref(false);
+const { isPublishing: isPublishingProject, publishProject } = useProjectPublisher();
 
 // AI : Computed for available cities
 const availableCities = computed(() => {
@@ -196,62 +194,47 @@ async function handlePublishOverlay() {
   if (!overlay) return;
 
   const project = getProjectForOverlay(overlay);
-  await publishOverlay(overlay, project);
+
+  try {
+    await publishOverlay(overlay, project);
+    toast.add({
+      severity: 'success',
+      summary: t('overlay.publishSuccess'),
+      detail: t('overlay.publishSuccessDetail'),
+      life: 3000
+    });
+  } catch (error) {
+    console.error('Error publishing overlay:', error);
+    toast.add({
+      severity: 'error',
+      summary: t('overlay.publishFailed'),
+      detail: t('overlay.publishFailedDetail'),
+      life: 5000
+    });
+  }
 }
 
 // AI : Handle project publishing (project mode only)
 async function handlePublishProject() {
   const project = selectedProject.value;
-  if (!project || !project.isDevelopment) return;
+  if (!project) return;
 
-  isPublishingProject.value = true;
-  
   try {
-    const publishResult = await trpc.project.publishProject.mutate({
-      id: project.id,
-      name: project.name!,
-      description: project.description ?? undefined,
-      isDevelopment: project.isDevelopment,
-      lat: project.lat ?? undefined,
-      lng: project.lng ?? undefined,
-      cityId: project.cityId ?? undefined,
+    await publishProject(project);
+    toast.add({
+      severity: 'success',
+      summary: t('project.publishSuccess'),
+      detail: t('project.publishSuccessDetail'),
+      life: 3000
     });
-    
-    if (publishResult.success) {
-      // AI : Mark project as saved remotely
-      if (projects.value[project.id]) {
-        projects.value[project.id] = {
-          ...projects.value[project.id],
-          savedRemotely: true
-        };
-      }
-      
-      toast.add({
-        severity: 'success',
-        summary: 'Project Published',
-        detail: 'Development project has been saved to the backend',
-        life: 3000
-      });
-      
-      // AI : Refresh city projects to show updated marker
-      if (mapStore.selectedCity) {
-        await loadCityProjects(mapStore.selectedCity.id, mapStore.selectedCity.name, true, mapStore.selectedCity.countryCode);
-      } else {
-        await loadCityProjects(null, '', true);
-      }
-    } else {
-      throw new Error('Backend publish failed');
-    }
   } catch (error) {
     console.error('Error publishing project:', error);
     toast.add({
       severity: 'error',
-      summary: 'Publish Failed',
-      detail: 'Failed to save development project to the backend',
+      summary: t('project.publishFailed'),
+      detail: t('project.publishFailedDetail'),
       life: 5000
     });
-  } finally {
-    isPublishingProject.value = false;
   }
 }
 

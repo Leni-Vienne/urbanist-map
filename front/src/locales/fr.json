@@ -60,7 +60,11 @@
     "coordinates": "Coordonnées",
     "period": "Période",
     "source": "Source",
-    "latestUpdate": "Dernière mise à jour"
+    "latestUpdate": "Dernière mise à jour",
+    "publishSuccess": "Projet publié",
+    "publishSuccessDetail": "Le projet de bâtiment a été enregistré avec succès",
+    "publishFailed": "Échec de la publication",
+    "publishFailedDetail": "Échec de l'enregistrement du projet de bâtiment"
   },
   "status": {
     "pending": "En attente",
@@ -120,7 +124,11 @@
     "loadingOverlays": "Chargement des superpositions...",
     "zoomTo": "Zoomer sur",
     "navigationFailed": "Échec de la navigation",
-    "failedToNavigate": "Échec de la navigation vers la superposition"
+    "failedToNavigate": "Échec de la navigation vers la superposition",
+    "publishSuccess": "Superposition publiée",
+    "publishSuccessDetail": "La superposition a été enregistrée avec succès",
+    "publishFailed": "Échec de la publication",
+    "publishFailedDetail": "Échec de l'enregistrement de la superposition"
   },
   "map": {
     "zoom": "Zoom",
