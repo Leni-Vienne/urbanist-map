@@ -4,7 +4,7 @@
         ref="layerButton"
         icon="pi pi-map"
         raised
-        @click="toggleLayerPanel"
+        @click.stop="toggleLayerPanel"
         @dblclick.stop
         aria-label="Layer Control"
         v-tooltip.right="'Map Layers'"
