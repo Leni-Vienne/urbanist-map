@@ -118,7 +118,7 @@ function getToggleButtonText(): string {
   const activeTab = uiStore.mobileDrawerActiveTab
   switch (activeTab) {
     case 'latest':
-      return t('navigation.latest')
+      return t('navigation.latestContributions')
     case 'uploads':
       return t('navigation.myContributions')
     case 'admin':

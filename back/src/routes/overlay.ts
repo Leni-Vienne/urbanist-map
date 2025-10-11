@@ -22,11 +22,13 @@ const publishOverlaySchema = z.object({
 const getOverlaySchema = z.object({
   id: z.uuid(),
   includeIntersecting: z.boolean().optional().default(false),
+  includeStatus: z.array(z.enum(['pending', 'approved', 'rejected'])).optional(), // AI : Optional status filter for admins
 });
 
 const getLatestOverlaysSchema = z.object({
   limit: z.number().min(1).max(20).optional().default(20),
   cityId: z.uuid().optional(), // AI : Filter by city if provided
+  includeStatus: z.array(z.enum(['pending', 'approved', 'rejected'])).optional(), // AI : Optional status filter for admins
 });
 
 // AI : Schema for updating overlay fields directly
@@ -45,9 +47,11 @@ async function findIntersectingOverlays(db: PostgresJsDatabase<typeof schema>, e
     const targetPolygonWKT = `POLYGON((${topLeft.lng} ${topLeft.lat}, ${topRight.lng} ${topRight.lat}, ${bottomRight.lng} ${bottomRight.lat}, ${bottomLeft.lng} ${bottomLeft.lat}, ${topLeft.lng} ${topLeft.lat}))`;
 
     // AI : Use PostGIS ST_Intersects with precomputed target polygon for optimal performance
+    // AI : Only return approved overlays
     const intersectingOverlays = await buildOverlayQuery(db)
       .where(sql`
         ${overlays.id} != ${excludeId} AND
+        ${overlays.status} = 'approved' AND
         ST_Intersects(
           ST_GeomFromText(${targetPolygonWKT}, 4326),
           ${overlays.corners}
@@ -64,10 +68,22 @@ async function findIntersectingOverlays(db: PostgresJsDatabase<typeof schema>, e
 export const overlayRouter = router({
   getLatestOverlays: publicProcedure
     .input(getLatestOverlaysSchema)
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       try {
         // AI : Build the where conditions array dynamically
-        const whereConditions = [eq(overlays.status, 'approved')];
+        const whereConditions = [];
+
+        // AI : If includeStatus is provided and user is admin, filter by those statuses
+        // AI : Otherwise, only show approved overlays with approved parent projects
+        if (input.includeStatus && ctx.user?.role === 'admin') {
+          if (input.includeStatus.length > 0) {
+            whereConditions.push(sql`${overlays.status} = ANY(ARRAY[${sql.join(input.includeStatus.map(s => sql.raw(`'${s}'`)), sql.raw(', '))}])`);
+            whereConditions.push(sql`${projects.status} = ANY(ARRAY[${sql.join(input.includeStatus.map(s => sql.raw(`'${s}'`)), sql.raw(', '))}])`);
+          }
+        } else {
+          whereConditions.push(eq(overlays.status, 'approved'));
+          whereConditions.push(eq(projects.status, 'approved'));
+        }
 
         // AI : Add city filter if provided
         if (input.cityId) {
@@ -88,11 +104,24 @@ export const overlayRouter = router({
 
   getOverlay: publicProcedure
     .input(getOverlaySchema)
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       try {
+        // AI : Build where conditions based on status filter
+        const whereConditions = [eq(overlays.id, input.id)];
+
+        // AI : If includeStatus is provided and user is admin, filter by those statuses
+        // AI : Otherwise, only show approved overlays
+        if (input.includeStatus && ctx.user?.role === 'admin') {
+          if (input.includeStatus.length > 0) {
+            whereConditions.push(sql`${overlays.status} = ANY(ARRAY[${sql.join(input.includeStatus.map(s => sql.raw(`'${s}'`)), sql.raw(', '))}])`);
+          }
+        } else {
+          whereConditions.push(eq(overlays.status, 'approved'));
+        }
+
         // AI : Fetch the requested overlay
         const overlay = await buildOverlayQuery(db)
-          .where(eq(overlays.id, input.id))
+          .where(and(...whereConditions))
           .limit(1);
 
         if (!overlay.length) {

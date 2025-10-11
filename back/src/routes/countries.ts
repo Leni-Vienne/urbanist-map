@@ -1,13 +1,27 @@
 import { publicProcedure, router } from '../trpc';
 import { countries, cities, projects } from '../db/schema';
-import { eq, exists } from 'drizzle-orm';
+import { eq, exists, sql, and } from 'drizzle-orm';
 import { db } from '../database';
+import * as z from 'zod';
 
 export const countriesRouter = router({
-  // AI : Get all countries that have at least one city with a project
+  // AI : Get all countries that have at least one city with an approved project
   getCountriesWithProjects: publicProcedure
-    .query(async () => {
+    .input(z.object({
+      includeStatus: z.array(z.enum(['pending', 'approved', 'rejected'])).optional(), // AI : Optional status filter for admins
+    }).optional())
+    .query(async ({ input, ctx }) => {
       try {
+        // AI : Build status condition based on admin privileges
+        let statusCondition;
+        if (input?.includeStatus && ctx.user?.role === 'admin') {
+          if (input.includeStatus.length > 0) {
+            statusCondition = sql`${projects.status} = ANY(ARRAY[${sql.join(input.includeStatus.map(s => sql.raw(`'${s}'`)), sql.raw(', '))}])`;
+          }
+        } else {
+          statusCondition = eq(projects.status, 'approved');
+        }
+
         return await db
           .select({
             id: countries.id,
@@ -22,7 +36,10 @@ export const countriesRouter = router({
                 .select()
                 .from(cities)
                 .innerJoin(projects, eq(projects.cityId, cities.id))
-                .where(eq(cities.countryCode, countries.code))
+                .where(and(
+                  eq(cities.countryCode, countries.code),
+                  statusCondition
+                ))
             )
           )
           .orderBy(countries.name);

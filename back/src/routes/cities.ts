@@ -99,19 +99,22 @@ export const citiesRouter = router({
         }
       }),
 
-    // AI : Get all cities that have at least one project
+    // AI : Get all cities that have at least one approved project
     getCitiesWithProjects: publicProcedure
       .input(z.object({
         countryCode: z.string().optional(),
       }))
       .query(async ({ input }) => {
         try {
-          const conditions = [isNotNull(projects.cityId)];
+          const conditions = [
+            isNotNull(projects.cityId),
+            eq(projects.status, 'approved')
+          ];
           if (input.countryCode) {
             conditions.push(eq(cities.countryCode, input.countryCode));
           }
 
-          // AI : Join cities with projects and return cities that have projects
+          // AI : Join cities with approved projects and return cities that have projects
           return await db
             .selectDistinct({
               id: cities.id,
@@ -120,7 +123,7 @@ export const citiesRouter = router({
               // AI : Extract coordinates from PostGIS point
               lat: sql<number>`ST_Y(${cities.coordinates})`,
               lng: sql<number>`ST_X(${cities.coordinates})`,
-              // AI : Count number of projects in this city
+              // AI : Count number of approved projects in this city
               projectCount: sql<number>`COUNT(${projects.id})`
             })
             .from(cities)
@@ -134,7 +137,7 @@ export const citiesRouter = router({
           throw new Error('Failed to fetch cities with projects');
         }
       }),
-    // AI : Get all projects and overlays for a specific city, including projects with no overlays
+    // AI : Get all approved projects and overlays for a specific city
     getCityProjects: publicProcedure
       .input(getCityProjectsSchema)
       .query(async ({ input }) => {
@@ -143,6 +146,7 @@ export const citiesRouter = router({
 
           // AI : Single optimized query that extracts all data including corners as JSON
           // AI : Uses Drizzle ORM for main data to preserve Date objects through superjson
+          // AI : Only return approved projects and approved overlays
           const overlaysData = await db
             .select({
               // AI : Select overlay fields individually to avoid geometry column issues
@@ -174,7 +178,11 @@ export const citiesRouter = router({
             .from(overlays)
             .innerJoin(projects, eq(projects.id, overlays.projectId))
             .innerJoin(cities, eq(cities.id, projects.cityId))
-            .where(eq(projects.cityId, cityId))
+            .where(and(
+              eq(projects.cityId, cityId),
+              eq(projects.status, 'approved'),
+              eq(overlays.status, 'approved')
+            ))
             .orderBy(overlays.createdAt);
 
           // AI : Transform the result into OverlayData format
