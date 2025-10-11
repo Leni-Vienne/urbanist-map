@@ -167,6 +167,7 @@ function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void {
 async function showOverlayMarkers(cityId: string): Promise<void> {
   return withErrorHandling(
     async () => {
+      const mapStore = useMapStore();
       isLoadingCityProjects.value = true;
 
       // AI : Clear any existing overlays and markers before loading new city
@@ -175,6 +176,9 @@ async function showOverlayMarkers(cityId: string): Promise<void> {
 
       // AI : Get overlays data (cached or fresh)
       const overlaysData = await fetchCityProjectsData(cityId);
+
+      // AI : Store overlay data for navigation (even though we're only showing markers)
+      mapStore.currentCityOverlays = overlaysData;
 
       // AI : Use shared function to render markers
       renderOverlayMarkersFromData(overlaysData);
@@ -249,6 +253,9 @@ export function renderOverlayMarkersFromCache(cityId: string): void {
 
   withErrorHandling(
     async () => {
+      // AI : Store overlay data for navigation (even though we're only showing markers)
+      mapStore.currentCityOverlays = overlaysData;
+
       // AI : Only remove overlay markers if they exist, don't clear all overlays
       removeOverlayMarkers();
 
@@ -263,15 +270,14 @@ export function renderOverlayMarkersFromCache(cityId: string): void {
  * AI : Check current zoom and hide overlays if needed
  */
 export function checkZoomAndHideOverlays(): void {
-  const mapStore = useMapStore();
-
   if (!map.value) return;
 
   const currentZoom = map.value.getZoom();
 
   if (currentZoom < MIN_ZOOM_FOR_OVERLAYS) {
+    // AI : Clear overlays from map when zoom is too low
     clearAllOverlays();
-    mapStore.currentCityOverlays = [];
+    // AI : Note: We don't clear mapStore.currentCityOverlays because it's needed for navigation
   }
 }
 
