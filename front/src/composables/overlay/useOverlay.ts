@@ -509,7 +509,7 @@ function calculateOutlineSize(overlayElement: HTMLElement, baseSize: number): nu
  * AI : Select an overlay with proper cleanup of previous selection
  * This ensures consistent selection behavior regardless of how selection is triggered
  */
-function selectOverlay(overlayId: string | null): void {
+export function selectOverlay(overlayId: string | null): void {
   const overlayStore = useOverlayStore();
 
   // AI : Clean up previous selection if different from new selection

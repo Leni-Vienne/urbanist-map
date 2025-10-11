@@ -6,6 +6,7 @@ import { clearAllOverlays, navigateToOverlay } from '@composables/overlay/useOve
 import { switchTileLayer, isTileLayerType } from '@composables/map/useTileLayers';
 import { map } from '@composables/core/useMap';
 import { useMapStore } from '@stores/pinia/mapStore';
+import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 
 /**
@@ -81,6 +82,46 @@ export async function navigateToOverlayWithCity(
       if (corners?.length === 4) {
         const bounds = L.latLngBounds(corners.map(c => L.latLng(c.lat, c.lng)));
         map.value.flyToBounds(bounds, { padding: [50, 50] as [number, number], duration: 1.5, easeLinearity: 0.25 });
+
+        // AI : Select the overlay once zoom completes and it's rendered
+        // AI : Wait for zoom animation to complete, then poll for overlay to be rendered
+        map.value.once('moveend', () => {
+          const overlayStore = useOverlayStore();
+
+          // AI : Try to select overlay immediately
+          const trySelectOverlay = () => {
+            const overlayObject = overlayStore.overlays[overlayId];
+
+            if (overlayObject?.overlay) {
+              const element = overlayObject.overlay.getElement();
+              if (element) {
+                element.click();
+                return true; // Success
+              }
+            }
+            return false; // Not ready yet
+          };
+
+          // AI : Try immediate selection first
+          if (trySelectOverlay()) {
+            return;
+          }
+
+          // AI : If not rendered yet, poll every 100ms for up to 2 seconds
+          let attempts = 0;
+          const maxAttempts = 20; // 20 * 100ms = 2 seconds
+          const pollInterval = setInterval(() => {
+            attempts++;
+
+            if (trySelectOverlay()) {
+              clearInterval(pollInterval);
+            } else if (attempts >= maxAttempts) {
+              clearInterval(pollInterval);
+              console.warn(`Overlay ${overlayId} not rendered after ${maxAttempts * 100}ms, cannot select.`);
+            }
+          }, 100);
+        });
+
         return true;
       }
     }
