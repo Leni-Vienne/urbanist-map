@@ -59,6 +59,14 @@ export async function loadCountriesWithProjects(): Promise<void> {
 }
 
 export async function loadCitiesForCountry(countryCode: string): Promise<void> {
+  const countries = getCountries();
+  const country = countries.value.find((c: Country) => c.code === countryCode);
+
+  // AI : Optimization: Skip loading if country already has cities loaded
+  if (country && country.cities.length > 0) {
+    return;
+  }
+
   isLoadingCountryProjects.value = true;
   try {
     const citiesData = await withErrorHandling(
@@ -66,12 +74,8 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
       { errorMessage: 'Failed to load cities. Please try again.' }
     );
 
-    if (citiesData) {
-      const countries = getCountries();
-      const country = countries.value.find((c: Country) => c.code === countryCode);
-      if (country) {
-        country.cities = citiesData.map((city) => ({ ...city, distance: 0 }));
-      }
+    if (citiesData && country) {
+      country.cities = citiesData.map((city) => ({ ...city, distance: 0 }));
     }
   } finally {
     isLoadingCountryProjects.value = false;
