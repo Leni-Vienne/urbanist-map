@@ -63,7 +63,7 @@ export const projectRouter = router({
         const data = {
           ...input,
           ownerId: ctx.user.id,
-          cityId: input.cityId ?? null,
+          cityId: input.cityId,
           proposalDate: input.proposalDate ?? null,
           startDate: input.startDate ?? null,
           endDate: input.endDate ?? null,
@@ -128,7 +128,7 @@ export const projectRouter = router({
       try {
         const { lat, lng } = input;
 
-        // AI : Find projects that have at least one overlay within the specified radius
+        // AI : Find projects that have at least one approved overlay within the specified radius
         const nearbyProjects = await db
           .select({
             id: projects.id,
@@ -140,7 +140,7 @@ export const projectRouter = router({
             proposalDate: projects.proposalDate,
             createdAt: projects.createdAt,
             updatedAt: projects.updatedAt,
-            // AI : Count overlays for this project within the search radius
+            // AI : Count approved overlays for this project within the search radius
             overlayCount: sql<number>`COUNT(${overlays.id})::int`,
             // AI : Include city information when available
             city: cities
@@ -149,6 +149,8 @@ export const projectRouter = router({
           .innerJoin(cities, eq(projects.cityId, cities.id))
           .innerJoin(overlays, eq(overlays.projectId, projects.id))
           .where(and(
+            eq(projects.status, 'approved'),
+            eq(overlays.status, 'approved'),
             sql`${overlays.centroid} IS NOT NULL`,
             sql`ST_DWithin(
               ${overlays.centroid},
@@ -210,7 +212,10 @@ export const projectRouter = router({
             .from(projects)
             .innerJoin(cities, eq(projects.cityId, cities.id))
             .leftJoin(overlays, eq(overlays.projectId, projects.id))
-            .where(eq(projects.cityId, input.cityId))
+            .where(and(
+              eq(projects.cityId, input.cityId),
+              eq(projects.status, 'approved')
+            ))
             .groupBy(
               projects.id,
               projects.name,

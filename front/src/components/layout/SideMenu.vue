@@ -30,7 +30,7 @@
         :class="['tab-button', { active: activeTab === 'latest' }]"
         @click="activeTab = 'latest'"
       >
-        {{ $t('navigation.latest') }}
+        {{ $t('navigation.latestContributions') }}
       </button>
       <button
         v-if="authStore.isAuthenticated"
