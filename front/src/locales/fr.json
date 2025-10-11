@@ -145,7 +145,11 @@
     "publishSuccess": "Superposition publiée",
     "publishSuccessDetail": "La superposition a été enregistrée avec succès",
     "publishFailed": "Échec de la publication",
-    "publishFailedDetail": "Échec de l'enregistrement de la superposition"
+    "publishFailedDetail": "Échec de l'enregistrement de la superposition",
+    "moderationNotice": "Modération requise",
+    "moderationNewContent": "Votre contribution sera examinée par un modérateur avant d'apparaître publiquement sur la carte. Cela permet de maintenir la qualité et la précision.",
+    "moderationEditSuggestion": "Vos modifications suggérées seront examinées par un modérateur avant d'être appliquées. Le contenu original restera visible jusqu'à l'approbation de vos modifications.",
+    "proceedWithPublish": "Procéder à la publication"
   },
   "map": {
     "zoom": "Zoom",

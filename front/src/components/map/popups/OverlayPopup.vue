@@ -1,5 +1,28 @@
 <template>
   <div class="info-popup">
+    <Dialog
+      v-model:visible="showModerationDialog"
+      modal
+      :header="$t('overlay.moderationNotice')"
+      :style="{ width: '450px' }"
+    >
+      <div class="moderation-content">
+        <p>{{ isEditSuggestion ? $t('overlay.moderationEditSuggestion') : $t('overlay.moderationNewContent') }}</p>
+      </div>
+      <template #footer>
+        <Button
+          :label="$t('common.cancel')"
+          severity="secondary"
+          @click="showModerationDialog = false"
+        />
+        <Button
+          :label="$t('overlay.proceedWithPublish')"
+          severity="success"
+          @click="confirmPublish"
+        />
+      </template>
+    </Dialog>
+
     <div
       v-if="loading"
       class="loading-spinner"
@@ -103,7 +126,7 @@
         size="small"
         class="w-full"
         :loading="publishLoading"
-        @click="emit('publish-overlay')"
+        @click="handlePublishClick"
       />
     </div>
 
@@ -111,13 +134,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent } from 'vue';
+import { computed, defineAsyncComponent, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@stores/authStore';
 import type { OverlayObject, Project } from '@types';
 import ProjectMetadataCard from './ProjectMetadataCard.vue';
+import Dialog from 'primevue/dialog';
+import { useI18n } from 'vue-i18n';
 
 const ProjectPicker = defineAsyncComponent(() => import('@components/project/ProjectPicker.vue'));
+const { t: $t } = useI18n();
 
 // AI : Props - all data comes from parent
 const props = defineProps<{
@@ -142,6 +168,12 @@ const emit = defineEmits<{
 const authStore = useAuthStore();
 const { user } = storeToRefs(authStore);
 
+// AI : Moderation dialog state
+const showModerationDialog = ref(false);
+
+// AI : Determine if this is an edit suggestion (replacesOverlayId exists)
+const isEditSuggestion = computed(() => !!props.overlayObject.replacesOverlayId);
+
 // AI : Computed for project picker v-model
 const selectedProjectId = computed({
   get: () => props.overlayObject.projectId ?? '',
@@ -158,6 +190,17 @@ function handleProjectSelected(projectId: string) {
 // AI : Handle overlay update from editor
 function handleOverlayUpdate(overlayId: string, caption?: string) {
   emit('overlay-update', overlayId, caption);
+}
+
+// AI : Handle publish button click - show moderation dialog first
+function handlePublishClick() {
+  showModerationDialog.value = true;
+}
+
+// AI : Confirm publish after user acknowledges moderation notice
+function confirmPublish() {
+  showModerationDialog.value = false;
+  emit('publish-overlay');
 }
 </script>
 
@@ -277,5 +320,21 @@ function handleOverlayUpdate(overlayId: string, caption?: string) {
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid var(--p-surface-200);
+}
+
+.moderation-content {
+  padding: 0.5rem 0;
+  line-height: 1.6;
+}
+
+.moderation-content p {
+  margin-bottom: 1rem;
+  color: var(--p-surface-700);
+}
+
+.moderation-content {
+  font-weight: 500;
+  color: var(--p-primary-500);
+  margin-bottom: 0;
 }
 </style>

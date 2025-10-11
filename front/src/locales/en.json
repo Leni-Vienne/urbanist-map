@@ -145,7 +145,11 @@
     "publishSuccess": "Overlay Published",
     "publishSuccessDetail": "Overlay has been saved successfully",
     "publishFailed": "Publish Failed",
-    "publishFailedDetail": "Failed to save overlay to the backend"
+    "publishFailedDetail": "Failed to save overlay to the backend",
+    "moderationNotice": "Moderation Required",
+    "moderationNewContent": "Your contribution will be reviewed by a moderator before appearing publicly on the map. This helps maintain quality and accuracy.",
+    "moderationEditSuggestion": "Your suggested changes will be reviewed by a moderator before being applied. The original content will remain visible until your changes are approved.",
+    "proceedWithPublish": "Proceed with Publish"
   },
   "map": {
     "zoom": "Zoom",
