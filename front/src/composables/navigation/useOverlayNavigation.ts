@@ -48,6 +48,54 @@ async function prepareNavigationToCity(
 }
 
 /**
+ * AI : Zoom to overlay and select it once rendered
+ */
+function zoomToOverlayAndSelect(overlayId: string, corners: { lat: number; lng: number }[]): boolean {
+  if (!map.value || corners.length !== 4) {
+    return false;
+  }
+
+  const bounds = L.latLngBounds(corners.map(c => L.latLng(c.lat, c.lng)));
+  map.value.flyToBounds(bounds, { padding: [50, 50] as [number, number], duration: 1.5, easeLinearity: 0.25 });
+
+  // AI : Select the overlay once zoom completes
+  map.value.once('moveend', () => {
+    const overlayStore = useOverlayStore();
+
+    const trySelectOverlay = () => {
+      const overlayObject = overlayStore.overlays[overlayId];
+      if (overlayObject?.overlay) {
+        const element = overlayObject.overlay.getElement();
+        if (element) {
+          element.click();
+          return true;
+        }
+      }
+      return false;
+    };
+
+    if (trySelectOverlay()) {
+      return;
+    }
+
+    // AI : Poll for overlay to be rendered
+    let attempts = 0;
+    const maxAttempts = 20;
+    const pollInterval = setInterval(() => {
+      attempts++;
+
+      if (trySelectOverlay()) {
+        clearInterval(pollInterval);
+      } else if (attempts >= maxAttempts) {
+        clearInterval(pollInterval);
+      }
+    }, 100);
+  });
+
+  return true;
+}
+
+/**
  * AI : Navigates to an overlay by simulating the complete marker click flow
  * AI : This replicates exactly what happens when clicking country marker → city marker → overlay
  * @param overlayId - The ID of the overlay to navigate to
@@ -63,67 +111,41 @@ export async function navigateToOverlayWithCity(
   countryCode?: string
 ): Promise<boolean> {
   try {
-    // AI : Prepare navigation (load country cities and city projects)
+    const mapStore = useMapStore();
+    const overlayStore = useOverlayStore();
+
+    // AI : Optimization 1: Check if clicking the same overlay again
+    if (overlayStore.idSelectedOverlay === overlayId) {
+      const overlayObject = overlayStore.overlays[overlayId];
+      if (overlayObject?.corners) {
+        zoomToOverlayAndSelect(overlayId, overlayObject.corners);
+      }
+      return true;
+    }
+
+    // AI : Optimization 2: Check if overlay is from the currently selected city
+    const currentCity = mapStore.selectedCity;
+    const isSameCity = currentCity?.id === cityId;
+
+    if (isSameCity) {
+      const overlayData = mapStore.currentCityOverlays.find(o => o.id === overlayId);
+      if (overlayData?.corners) {
+        return zoomToOverlayAndSelect(overlayId, overlayData.corners);
+      }
+    }
+
+    // AI : Different city or no data - load everything
     await prepareNavigationToCity(cityId, cityName, countryCode);
 
-    // AI : The overlay data is already fetched by getCityProjects
-    // AI : Just zoom to it and let the zoom handler render it when zoom is sufficient
     if (!map.value) {
       return false;
     }
 
     // AI : Get the overlay data from mapStore (already loaded by getCityProjects)
-    const mapStore = useMapStore();
     const overlayData = mapStore.currentCityOverlays.find(o => o.id === overlayId);
 
-    if (overlayData) {
-      // AI : Zoom to overlay bounds
-      const corners = overlayData.corners;
-      if (corners?.length === 4) {
-        const bounds = L.latLngBounds(corners.map(c => L.latLng(c.lat, c.lng)));
-        map.value.flyToBounds(bounds, { padding: [50, 50] as [number, number], duration: 1.5, easeLinearity: 0.25 });
-
-        // AI : Select the overlay once zoom completes and it's rendered
-        // AI : Wait for zoom animation to complete, then poll for overlay to be rendered
-        map.value.once('moveend', () => {
-          const overlayStore = useOverlayStore();
-
-          // AI : Try to select overlay immediately
-          const trySelectOverlay = () => {
-            const overlayObject = overlayStore.overlays[overlayId];
-
-            if (overlayObject?.overlay) {
-              const element = overlayObject.overlay.getElement();
-              if (element) {
-                element.click();
-                return true; // Success
-              }
-            }
-            return false; // Not ready yet
-          };
-
-          // AI : Try immediate selection first
-          if (trySelectOverlay()) {
-            return;
-          }
-
-          // AI : If not rendered yet, poll every 100ms for up to 2 seconds
-          let attempts = 0;
-          const maxAttempts = 20; // 20 * 100ms = 2 seconds
-          const pollInterval = setInterval(() => {
-            attempts++;
-
-            if (trySelectOverlay()) {
-              clearInterval(pollInterval);
-            } else if (attempts >= maxAttempts) {
-              clearInterval(pollInterval);
-              console.warn(`Overlay ${overlayId} not rendered after ${maxAttempts * 100}ms, cannot select.`);
-            }
-          }, 100);
-        });
-
-        return true;
-      }
+    if (overlayData?.corners) {
+      return zoomToOverlayAndSelect(overlayId, overlayData.corners);
     }
 
     // AI : Fallback: if overlay not in current city overlays, use the old method
