@@ -41,6 +41,15 @@ import { withErrorHandling } from '@composables/core/useErrorHandling';
 export function updateOverlayEditingState(): void {
   const overlayStore = useOverlayStore();
 
+  // AI : Save popup state before toolbar rebuild destroys the teleport target
+  const wasPopupOpen = overlayStore.showInfoPopup;
+  const selectedOverlayId = overlayStore.idSelectedOverlay;
+
+  // AI : Close popup before toolbar rebuild to avoid orphaned teleport state
+  if (wasPopupOpen) {
+    overlayStore.hideInfoPopup();
+  }
+
   // AI : Update existing overlays in-place instead of recreating them
   Object.values(overlayStore.overlays).forEach((overlayObject: OverlayObject) => {
     if (!overlayObject.overlay) return;
@@ -73,6 +82,29 @@ export function updateOverlayEditingState(): void {
     // AI : Update marker color and tooltip
     updateMarkerTooltip(overlayObject);
   });
+
+  // AI : Reopen popup after toolbar is rebuilt with new actions
+  if (wasPopupOpen && selectedOverlayId) {
+    // AI : Wait for next frame to ensure toolbar DOM is ready
+    requestAnimationFrame(() => {
+      const overlay = overlayStore.overlays[selectedOverlayId];
+      if (overlay?.overlay) {
+        // AI : Find and click the info button to recreate teleport target and reopen popup
+        const overlayElement = overlay.overlay.getElement();
+        let infoButton = overlayElement?.parentElement?.querySelector('.leaflet-toolbar-icon.pi-info-circle') as HTMLElement;
+
+        if (!infoButton) {
+          // AI : Fallback to document-wide search if not found in parent
+          const allInfoButtons = document.querySelectorAll('.leaflet-toolbar-icon.pi-info-circle');
+          infoButton = allInfoButtons[0] as HTMLElement;
+        }
+
+        if (infoButton) {
+          infoButton.click();
+        }
+      }
+    });
+  }
 }
 
 /**
