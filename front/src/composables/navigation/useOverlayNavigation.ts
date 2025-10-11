@@ -1,3 +1,4 @@
+import L from 'leaflet';
 import { loadCitiesForCountry } from '@composables/map/useCountryMarkers';
 import { removeCityMarkers, loadCityProjects, addCityMarkersForCountry } from '@composables/map/useCityMarkers';
 import { removeOverlayMarkers } from '@composables/map/useCityOverlays';
@@ -64,10 +65,28 @@ export async function navigateToOverlayWithCity(
     // AI : Prepare navigation (load country cities and city projects)
     await prepareNavigationToCity(cityId, cityName, countryCode);
 
-    // AI : Navigate to the overlay
-    // AI : If the overlay was rendered by loadCityProjects, it will be selected
-    // AI : If not, navigateToOverlay will fetch it from the backend
-    return await navigateToOverlay(overlayId);
+    // AI : The overlay data is already fetched by getCityProjects
+    // AI : Just zoom to it and let the zoom handler render it when zoom is sufficient
+    if (!map.value) {
+      return false;
+    }
+
+    // AI : Get the overlay data from mapStore (already loaded by getCityProjects)
+    const mapStore = useMapStore();
+    const overlayData = mapStore.currentCityOverlays.find(o => o.id === overlayId);
+
+    if (overlayData) {
+      // AI : Zoom to overlay bounds
+      const corners = overlayData.corners;
+      if (corners?.length === 4) {
+        const bounds = L.latLngBounds(corners.map(c => L.latLng(c.lat, c.lng)));
+        map.value.flyToBounds(bounds, { padding: [50, 50] as [number, number], duration: 1.5, easeLinearity: 0.25 });
+        return true;
+      }
+    }
+
+    // AI : Fallback: if overlay not in current city overlays, use the old method
+    return await navigateToOverlay(overlayId, true, false);
   } catch (error) {
     console.error('Failed to navigate to overlay with city:', error);
     throw error;

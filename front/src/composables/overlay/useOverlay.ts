@@ -1395,9 +1395,10 @@ function selectFirstOrLastOverlayInAnyProject(direction: 'next' | 'previous') {
  * AI : Loads an overlay by ID, fetching from backend if needed
  * AI : This function only handles loading/rendering, not navigation
  * @param overlayId - The ID of the overlay to load
+ * @param includeIntersecting - Whether to fetch intersecting overlays (defaults to true for backward compatibility)
  * @returns true if overlay was loaded successfully
  */
-export async function loadOverlay(overlayId: string): Promise<boolean | null> {
+export async function loadOverlay(overlayId: string, includeIntersecting: boolean = true): Promise<boolean | null> {
   const overlayStore = useOverlayStore();
 
   // AI : Check if overlay is already loaded locally
@@ -1408,10 +1409,10 @@ export async function loadOverlay(overlayId: string): Promise<boolean | null> {
   // AI : Overlay not found locally - fetch from backend
   return withErrorHandling(
     async () => {
-      // AI : Fetch overlay and intersecting overlays from backend
+      // AI : Fetch overlay, optionally with intersecting overlays
       const result = await trpc.overlay.getOverlay.query({
         id: overlayId,
-        includeIntersecting: true,
+        includeIntersecting,
       });
 
       if (!result.overlay) {
@@ -1422,7 +1423,7 @@ export async function loadOverlay(overlayId: string): Promise<boolean | null> {
       renderViewModeOverlays([result.overlay as OverlayData], true, false);
 
       // AI : Render intersecting overlays if they exist
-      if (result.intersectingOverlays.length > 0) {
+      if (includeIntersecting && result.intersectingOverlays.length > 0) {
         renderViewModeOverlays(result.intersectingOverlays as OverlayData[], true, false);
       }
 
@@ -1441,11 +1442,12 @@ export async function loadOverlay(overlayId: string): Promise<boolean | null> {
  * AI : Navigates to a specific overlay by ID (loads + selects + centers)
  * @param overlayId - The ID of the overlay to navigate to
  * @param centerMap - Whether to center the map on the overlay (defaults to true)
+ * @param includeIntersecting - Whether to fetch intersecting overlays if overlay needs to be loaded (defaults to true)
  * @returns boolean indicating whether navigation was successful
  */
-export async function navigateToOverlay(overlayId: string, centerMap: boolean = true): Promise<boolean> {
+export async function navigateToOverlay(overlayId: string, centerMap: boolean = true, includeIntersecting: boolean = true): Promise<boolean> {
   // AI : Load the overlay first (fetches from backend if needed)
-  await loadOverlay(overlayId);
+  await loadOverlay(overlayId, includeIntersecting);
 
   // AI : Then navigate to it
   return selectAndCenterOverlay(overlayId, centerMap);
