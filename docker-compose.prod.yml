@@ -22,7 +22,7 @@ services:
 
   # AI : Backend web server service using vanilla Bun
   backend:
-    image: oven/bun:1.2.20-alpine
+    image: oven/bun:1.3-alpine
     container_name: construction-map-backend
     restart: unless-stopped
     depends_on:
