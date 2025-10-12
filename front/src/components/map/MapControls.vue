@@ -279,7 +279,7 @@ function showHelpModal() {
   position: absolute;
   top: 16px;
   left: 16px;
-  z-index: 1000;
+  z-index: 1000; /* important on mobile */
   display: flex;
   flex-direction: column;
   gap: 12px;

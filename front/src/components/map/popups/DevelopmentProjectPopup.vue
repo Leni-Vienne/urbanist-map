@@ -104,8 +104,7 @@ const isPublishedToBackend = computed(() => {
   pointer-events: auto;
   position: relative;
   /* AI : Position above the marker (teleport target is at marker position) */
-  transform: translateY(calc(-100% - 20px)) translateX(-50%);
-  z-index: 1000;
+  transform: translateY(calc(20px)) translateX(-50%);
 }
 
 .loading-spinner {

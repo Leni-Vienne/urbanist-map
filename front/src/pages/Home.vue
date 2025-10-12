@@ -238,7 +238,7 @@ onUnmounted(() => {
   bottom: 0;
   left: 0;
   right: 0;
-  z-index: 1005;
+  z-index: 1000; /* important */
   background: var(--p-surface-0);
   border-top-left-radius: 1.5rem;
   border-top-right-radius: 1.5rem;

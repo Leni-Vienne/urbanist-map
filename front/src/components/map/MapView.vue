@@ -152,9 +152,7 @@ async function initializeMapAndOverlays() {
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 1;
 }
-
 
 .loading-overlay {
   position: absolute;
@@ -166,7 +164,6 @@ async function initializeMapAndOverlays() {
   justify-content: center;
   align-items: center;
   background-color: black;
-  z-index: 1000;
 }
 
 .loading-content {
@@ -179,7 +176,6 @@ async function initializeMapAndOverlays() {
     bottom: 4.5rem !important;
     right: 0.5rem !important;
     left: auto !important;
-    z-index: 1010 !important;
     background: rgba(255, 255, 255, 0.9) !important;
     backdrop-filter: blur(4px) !important;
     border-radius: 0.5rem !important;
@@ -198,7 +194,6 @@ async function initializeMapAndOverlays() {
   :deep(.leaflet-control-scale) {
     bottom: 4.5rem !important; /* AI : Same level as attribution */
     left: 0.5rem !important;
-    z-index: 1010 !important;
     backdrop-filter: blur(4px) !important;
     border-radius: 0.5rem !important;
     padding: 0.25rem !important;

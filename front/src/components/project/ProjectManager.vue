@@ -356,15 +356,10 @@ async function handleProjectSubmitted(project: Partial<Project>) {
 :deep(.edit-form-dialog .p-dialog) {
   max-width: 90vw;
   max-height: 90vh;
-  z-index: 9999;
 }
 
 :deep(.edit-form-dialog .p-dialog-content) {
   padding: 0;
-}
-
-:deep(.edit-form-dialog .p-dialog-mask) {
-  z-index: 9998;
 }
 
 /* AI : Temporary marker styles */

@@ -112,8 +112,6 @@ export function createOverlay(data: Partial<OverlayObject> = {}): OverlayObject 
     marker: data.marker ?? null,
     history: data.history ?? [],
     redoStack: data.redoStack ?? [],
-    isFlipped: data.isFlipped ?? false,
-    currentResolution: data.currentResolution,
     project: data.project ?? null,
     ...data
   };

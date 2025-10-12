@@ -109,6 +109,7 @@ watch(() => userPopover.value?.visible, (visible) => {
 </script>
 
 <style scoped>
+
 .user-menu-container {
   position: absolute;
   top: 16px;
@@ -116,11 +117,9 @@ watch(() => userPopover.value?.visible, (visible) => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  z-index: 10000;
+  z-index: 10000; /* important on mobile */
   isolation: isolate;
 }
-
-
 
 .user-menu {
   display: flex;
