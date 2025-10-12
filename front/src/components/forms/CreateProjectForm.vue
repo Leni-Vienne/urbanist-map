@@ -40,9 +40,11 @@
             <div class="field">
                 <label class="text-gray-600 font-medium mb-2 block">{{ $t('project.projectStatus') }} *</label>
                 <div class="flex gap-4">
-                    <div class="flex items-center gap-2 flex-1 p-3 border rounded cursor-pointer hover:bg-gray-50"
-                         :class="{ 'bg-blue-50 border-blue-500': isProposed, 'border-gray-300': !isProposed }"
-                         @click="isProposed = true">
+                    <div
+                        class="flex items-center gap-2 flex-1 p-3 border rounded cursor-pointer hover:bg-gray-50"
+                        :class="{ 'bg-blue-50 border-blue-500': isProposed, 'border-gray-300': !isProposed }"
+                        @click="isProposed = true"
+                    >
                         <RadioButton
                             inputId="status-proposed"
                             name="projectStatus"
@@ -50,13 +52,18 @@
                             v-model="isProposed"
                         />
                         <div class="flex-1">
-                            <label for="status-proposed" class="font-medium cursor-pointer">{{ $t('project.proposed') }}</label>
+                            <label
+                                for="status-proposed"
+                                class="font-medium cursor-pointer"
+                            >{{ $t('project.proposed') }}</label>
                             <div class="text-xs text-gray-500">{{ $t('project.proposedDescription') }}</div>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2 flex-1 p-3 border rounded cursor-pointer hover:bg-gray-50"
-                         :class="{ 'bg-blue-50 border-blue-500': !isProposed, 'border-gray-300': isProposed }"
-                         @click="isProposed = false">
+                    <div
+                        class="flex items-center gap-2 flex-1 p-3 border rounded cursor-pointer hover:bg-gray-50"
+                        :class="{ 'bg-blue-50 border-blue-500': !isProposed, 'border-gray-300': isProposed }"
+                        @click="isProposed = false"
+                    >
                         <RadioButton
                             inputId="status-planned"
                             name="projectStatus"
@@ -64,14 +71,20 @@
                             v-model="isProposed"
                         />
                         <div class="flex-1">
-                            <label for="status-planned" class="font-medium cursor-pointer">{{ $t('project.plannedStatus') }}</label>
+                            <label
+                                for="status-planned"
+                                class="font-medium cursor-pointer"
+                            >{{ $t('project.plannedStatus') }}</label>
                             <div class="text-xs text-gray-500">{{ $t('project.plannedDescription') }}</div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="field" v-if="isProposed">
+            <div
+                class="field"
+                v-if="isProposed"
+            >
                 <FloatLabel
                     class="w-full"
                     variant="in"
@@ -93,7 +106,10 @@
                 <small class="text-gray-500 block mt-1">{{ $t('project.proposalDateHelp') }}</small>
             </div>
 
-            <div class="flex gap-3" v-if="!isProposed">
+            <div
+                class="flex gap-3"
+                v-if="!isProposed"
+            >
                 <div class="flex-1 field">
                     <FloatLabel
                         class="w-full"
@@ -138,7 +154,7 @@
                 </div>
             </div>
 
-                        <div class="field">
+            <div class="field">
                 <FloatLabel
                     class="w-full"
                     variant="in"
@@ -172,7 +188,10 @@
                 </FloatLabel>
             </div>
 
-            <div class="field" v-if="props.mode === 'edit'">
+            <div
+                class="field"
+                v-if="props.mode === 'edit'"
+            >
                 <FloatLabel
                     class="w-full"
                     variant="in"
@@ -189,7 +208,8 @@
                     <label
                         for="latest-update-input"
                         class="text-gray-600"
-                    >{{ $t('project.latestUpdateOn') }} ({{ $t('project.optionalField') }})</label>
+                    >{{ $t('project.latestUpdateOn') }} ({{
+                        $t('project.optionalField') }})</label>
                 </FloatLabel>
                 <small class="text-gray-500 block mt-1">{{ $t('project.latestUpdateOnHelp') }}</small>
             </div>
@@ -208,7 +228,8 @@
                     <label
                         for="source-url-input"
                         class="text-gray-600"
-                    >{{ $t('project.sourceUrl') }} ({{ $t('project.optionalField') }})</label>
+                    >{{ $t('project.sourceUrl') }} ({{
+                        $t('project.optionalField') }})</label>
                 </FloatLabel>
             </div>
 
@@ -216,7 +237,8 @@
                 <label
                     for="source-pdf-input"
                     class="text-gray-600 block mb-2"
-                >{{ $t('project.sourcePdf') }} ({{ $t('project.optionalField') }})</label>
+                >{{ $t('project.sourcePdf') }} ({{
+                    $t('project.optionalField') }})</label>
                 <FileUpload
                     id="source-pdf-input"
                     mode="basic"
@@ -460,17 +482,15 @@ function handleSubmit() {
             });
             return;
         }
-    } else {
         // AI : For planned projects, start and end dates are required
-        if (!localProject.value.startDate || !localProject.value.endDate) {
-            toast.add({
-                severity: 'error',
-                summary: t('project.validationError'),
-                detail: t('project.datesRequired'),
-                life: 3000
-            });
-            return;
-        }
+    } else if (!localProject.value.startDate || !localProject.value.endDate) {
+        toast.add({
+            severity: 'error',
+            summary: t('project.validationError'),
+            detail: t('project.datesRequired'),
+            life: 3000
+        });
+        return;
     }
 
     // AI : Create a clean project object without File objects to prevent serialization issues

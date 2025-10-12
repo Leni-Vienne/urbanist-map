@@ -32,7 +32,7 @@
     <div
       v-else
       class="project-details"
-    > 
+    >
       <!-- Project Selection Section - Only visible in edit mode -->
       <div
         v-if="!viewMode"
@@ -78,7 +78,7 @@
       <!-- Overlay Information Section -->
       <div class="overlay-meta mb-3">
         <div class="section-header-row">
-          <div class="section-header">Overlay Information</div>
+          <div class="section-header">{{ $t("overlay.overlayInformation") }}</div>
           <div class="overlay-actions">
             <!-- AI : Direct edit button (for owned overlays) -->
             <Button
@@ -112,15 +112,15 @@
           </div>
         </div>
       </div>
-    </div> 
-    
+    </div>
+
     <!-- Publish Overlay Section -->
     <div
       v-if="!viewMode && project"
       class="publish-section"
     >
       <Button
-        label="Publish Overlay"
+        :label="$t('overlay.publishOverlay')"
         icon="pi pi-cloud-upload"
         severity="success"
         size="small"
@@ -321,17 +321,14 @@ function confirmPublish() {
   border-top: 1px solid var(--p-surface-200);
 }
 
-.moderation-content {
-  padding: 0.5rem 0;
-  line-height: 1.6;
-}
-
 .moderation-content p {
   margin-bottom: 1rem;
   color: var(--p-surface-700);
 }
 
 .moderation-content {
+  padding: 0.5rem 0;
+  line-height: 1.6;
   font-weight: 500;
   color: var(--p-primary-500);
   margin-bottom: 0;

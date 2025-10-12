@@ -16,7 +16,8 @@ export const countriesRouter = router({
         let statusCondition;
         if (input?.includeStatus && ctx.user?.role === 'admin') {
           if (input.includeStatus.length > 0) {
-            statusCondition = sql`${projects.status} = ANY(ARRAY[${sql.join(input.includeStatus.map(s => sql.raw(`'${s}'`)), sql.raw(', '))}])`;
+            const statusValues = input.includeStatus.map(s => sql`${s}`);
+            statusCondition = sql`${projects.status} = ANY(ARRAY[${sql.join(statusValues, sql`, `)}])`;
           }
         } else {
           statusCondition = eq(projects.status, 'approved');

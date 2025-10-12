@@ -41,7 +41,7 @@
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Popover from 'primevue/popover'
-import { availableLocales, saveLocale, type Locale } from '../../locales'
+import { availableLocales, saveLocale, updateTranslationSettings, type Locale } from '../../locales'
 
 const { locale } = useI18n()
 const currentLocale = ref<Locale>('en')
@@ -62,6 +62,9 @@ function changeLocale(newLocale: Locale): void {
   currentLocale.value = newLocale
   saveLocale(newLocale)
   languagePopover.value.hide()
+  
+  // AI : Update HTML lang attribute and translation settings intelligently
+  updateTranslationSettings(newLocale)
 }
 </script>
 

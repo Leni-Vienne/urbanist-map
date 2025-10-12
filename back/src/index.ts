@@ -45,9 +45,10 @@ app.use('*', sessionMiddleware({
     expireAfterSeconds: 60 * 60, // AI : 1 hour
     cookieOptions: {
         httpOnly: true,
+        // AI : secure must be true when sameSite is 'None' for cross-site cookies
         secure: process.env.NODE_ENV === 'production',
         sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
-        domain: process.env.NODE_ENV === 'production' ? '.constructionmap.org' : undefined,
+        // AI : No domain restriction to allow the cookie to work with the backend domain
         path: '/',
     }
 }))
