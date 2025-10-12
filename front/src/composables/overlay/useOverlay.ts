@@ -1193,8 +1193,11 @@ function resetImageRatio() {
   const overlayObject = overlayStore.overlays[overlayStore.idSelectedOverlay];
   if (!overlayObject?.overlay) return;
 
-  const img = new Image();
-  img.onload = () => {
+  const element = overlayObject.overlay.getElement();
+  if (!(element instanceof HTMLImageElement)) return;
+
+  // AI : Use existing image element instead of creating a new one to avoid CDN fetch
+  const processRatio = () => {
     if (!overlayObject.overlay || !map.value) return;
 
     const currentCorners = overlayObject.overlay.getCorners();
@@ -1204,7 +1207,7 @@ function resetImageRatio() {
     const leafletCorners = currentCorners.map(corner => L.latLng(corner.lat, corner.lng));
 
     const { originalRatio: _originalRatio, newDimensions, cornersInfo } = calculateRatioFixParameters(
-      img.naturalWidth / img.naturalHeight,
+      element.naturalWidth / element.naturalHeight,
       leafletCorners
     );
 
@@ -1218,8 +1221,12 @@ function resetImageRatio() {
     updateMarkerPosition(overlayObject);
   };
 
-  const element = overlayObject.overlay.getElement();
-  img.src = overlayObject.imageUrl ?? (element instanceof HTMLImageElement ? element.src : '');
+  // AI : If image is already loaded, process immediately; otherwise wait for load
+  if (element.complete && element.naturalWidth > 0) {
+    processRatio();
+  } else {
+    element.addEventListener('load', processRatio, { once: true });
+  }
 }
 
 interface CornersInfo {
