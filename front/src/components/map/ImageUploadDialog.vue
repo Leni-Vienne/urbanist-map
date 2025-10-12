@@ -519,7 +519,6 @@ defineExpose({
   border: 1px solid var(--p-surface-300);
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
   display: flex;
   align-items: center;
   gap: 12px;

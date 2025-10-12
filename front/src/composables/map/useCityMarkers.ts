@@ -111,7 +111,6 @@ function createProjectInfoTeleportTarget(marker: L.Marker | L.CircleMarker) {
     width: 0; 
     height: 0; 
     overflow: visible;
-    z-index: 1000;
   `;
 
   // AI : Add to map container

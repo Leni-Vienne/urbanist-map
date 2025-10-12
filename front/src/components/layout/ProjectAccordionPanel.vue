@@ -630,7 +630,6 @@ function formatValue(value: unknown): string {
 .panel-header {
   position: sticky;
   top: 0;
-  z-index: 10;
   background-color: var(--p-surface-0);
   display: flex;
   align-items: center;

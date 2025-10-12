@@ -147,8 +147,6 @@ export interface OverlayObject extends OverlayData {
   // AI : Editor state
   history: { lat: number, lng: number }[][];
   redoStack: { lat: number, lng: number }[][];
-  isFlipped: boolean;
-  currentResolution?: string;
 }
 
 // AI : Utility types for specific use cases

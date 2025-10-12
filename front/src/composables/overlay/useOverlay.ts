@@ -122,8 +122,6 @@ export function createOverlayObject(savedOverlay: OverlayObject): OverlayObject 
     project: project ? { ...project, city: project.city ?? null } : null,
     overlay: null,
     marker: null,
-    isFlipped: false,
-    currentResolution: savedOverlay.imageUrl,
     corners: savedOverlay.corners
   });
 }
@@ -500,7 +498,7 @@ export function clearAllOverlays(): void {
 
 /**
  * AI : Calculate appropriate outline size based on overlay dimensions and aspect ratio
- * This ensures consistent visual outline regardless of overlay shape
+ * This ensures consistent visual outline regardless of overlay shape & resolution
  */
 function calculateOutlineSize(overlayElement: HTMLElement, baseSize: number): number {
   if (!overlayElement) return baseSize;
@@ -990,7 +988,6 @@ function createNewOverlayObject(id: string, imageUrl: string, projectId: string)
     projectId,
     authorId: null,
     imageUrl,
-    currentResolution: imageUrl,
     isModified: true, // AI : New overlays need to be uploaded
     savedRemotely: false
   });
@@ -1159,15 +1156,28 @@ function applyHistoryAction(action: 'undo' | 'redo') {
       redoStack.push(currentState);
       const previousState = history[history.length - 1];
       overlay.setCorners(previousState);
+
+      // AI : If we're back to the initial state (history.length === 1), mark as unmodified
+      if (history.length === 1 && overlayObject.savedRemotely) {
+        overlayObject.isModified = false;
+      }
     } else {
       // AI : For redo: move state from redo stack to history and apply it
       const stateToRestore = redoStack.pop()!;
       history.push(stateToRestore);
       overlay.setCorners(stateToRestore);
+
+      // AI : Redoing any change means the overlay is modified again
+      overlayObject.isModified = true;
     }
 
+    // AI : Update marker position and color after undo/redo
     updateMarkerPosition(overlayObject);
     updateMarkerTooltip(overlayObject);
+
+    // AI : Update cache and city markers (undo/redo only available in edit mode)
+    saveOverlayModificationsToCache(overlayObject);
+    updateOverlayMarkersColors(toRef(overlayStore, 'overlays'), toRef(overlayStore, 'isEditMode'));
   } catch (error) {
     throw new Error(`Failed to ${action} overlay: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
@@ -1193,9 +1203,6 @@ function resetImageRatio() {
     // AI : Convert corners to Leaflet LatLng objects for type compatibility
     const leafletCorners = currentCorners.map(corner => L.latLng(corner.lat, corner.lng));
 
-    // AI : Save state before applying ratio fix
-    saveToHistory(overlayObject);
-
     const { originalRatio: _originalRatio, newDimensions, cornersInfo } = calculateRatioFixParameters(
       img.naturalWidth / img.naturalHeight,
       leafletCorners
@@ -1204,9 +1211,11 @@ function resetImageRatio() {
     if (!cornersInfo) return;
 
     applyImageRatioFix(overlayObject, cornersInfo, newDimensions);
-    handleFlipIfNeeded(overlayObject);
+
+    // AI : Save to history after applying ratio fix to ensure changes are detected and overlay is marked as modified
+    saveToHistory(overlayObject);
+
     updateMarkerPosition(overlayObject);
-    updateMarkerTooltip(overlayObject);
   };
 
   const element = overlayObject.overlay.getElement();
@@ -1216,7 +1225,6 @@ function resetImageRatio() {
 interface CornersInfo {
   centerPoint: L.Point;
   angleRad: number;
-  isClockwise: boolean;
 }
 
 interface Dimensions {
@@ -1228,16 +1236,16 @@ function calculateRatioFixParameters(originalRatio: number, currentCorners: L.La
   if (!map.value) return {
     originalRatio,
     newDimensions: { width: 0, height: 0 },
-    cornersInfo: { centerPoint: L.point(0, 0), angleRad: 0, isClockwise: false }
+    cornersInfo: { centerPoint: L.point(0, 0), angleRad: 0 }
   };
 
-  // Convert corners to screen coordinates
+  // AI : Convert corners to screen coordinates
   const nw = map.value.latLngToContainerPoint(currentCorners[0]);
   const ne = map.value.latLngToContainerPoint(currentCorners[1]);
   const sw = map.value.latLngToContainerPoint(currentCorners[2]);
   const se = map.value.latLngToContainerPoint(currentCorners[3]);
 
-  // Calculate current dimensions
+  // AI : Calculate current dimensions by averaging opposite edges
   const topEdge = nw.distanceTo(ne);
   const rightEdge = ne.distanceTo(se);
   const bottomEdge = sw.distanceTo(se);
@@ -1246,7 +1254,7 @@ function calculateRatioFixParameters(originalRatio: number, currentCorners: L.La
   const currentWidth = (topEdge + bottomEdge) / 2;
   const currentHeight = (leftEdge + rightEdge) / 2;
 
-  // Calculate new dimensions that maintain original ratio
+  // AI : Calculate new dimensions that maintain original ratio
   let newWidth, newHeight;
   if (currentWidth / currentHeight > originalRatio) {
     newHeight = currentHeight;
@@ -1256,97 +1264,54 @@ function calculateRatioFixParameters(originalRatio: number, currentCorners: L.La
     newHeight = currentWidth / originalRatio;
   }
 
-  // Get rotation and center
+  // AI : Get rotation angle from top edge and center point
   const bounds = L.latLngBounds(currentCorners);
   const center = bounds.getCenter();
   const centerPoint = map.value.latLngToContainerPoint(center);
 
   const topVector = { x: ne.x - nw.x, y: ne.y - nw.y };
   const angleRad = Math.atan2(topVector.y, topVector.x);
-  const isClockwise = (ne.x - nw.x) * (se.y - nw.y) - (ne.y - nw.y) * (se.x - nw.x) > 0;
 
   return {
     originalRatio,
     newDimensions: { width: newWidth, height: newHeight },
-    cornersInfo: { centerPoint, angleRad, isClockwise }
+    cornersInfo: { centerPoint, angleRad }
   };
 }
 
 function applyImageRatioFix(overlayObject: OverlayObject, cornersInfo: CornersInfo, dimensions: Dimensions) {
   if (!map.value || !overlayObject.overlay) return;
 
-  const { centerPoint, angleRad, isClockwise } = cornersInfo;
+  const { centerPoint, angleRad } = cornersInfo;
   const { width, height } = dimensions;
   const halfWidth = width / 2;
   const halfHeight = height / 2;
 
-  // Calculate corner offsets
-  const cornerOffsets = calculateCornerOffsets(angleRad, halfWidth, halfHeight);
+  // AI : Calculate the four corners of a rectangle centered at centerPoint, rotated by angleRad
+  // AI : Using standard rotation matrix to ensure correct orientation
+  const cos = Math.cos(angleRad);
+  const sin = Math.sin(angleRad);
 
-  // Create new corner points
-  const newCornerPoints = cornerOffsets.map(offset => ({
-    x: centerPoint.x + offset.dx,
-    y: centerPoint.y + offset.dy
+  // AI : Define corners in local coordinate system (before rotation)
+  const localCorners = [
+    { x: -halfWidth, y: -halfHeight }, // NW
+    { x: halfWidth, y: -halfHeight },  // NE
+    { x: -halfWidth, y: halfHeight },  // SW
+    { x: halfWidth, y: halfHeight }    // SE
+  ];
+
+  // AI : Apply rotation and translation to get global coordinates
+  const newCornerPoints = localCorners.map(local => ({
+    x: centerPoint.x + (local.x * cos - local.y * sin),
+    y: centerPoint.y + (local.x * sin + local.y * cos)
   }));
 
-  // Check if we need to maintain orientation
-  const newIsClockwise = (newCornerPoints[1].x - newCornerPoints[0].x) *
-    (newCornerPoints[3].y - newCornerPoints[0].y) -
-    (newCornerPoints[1].y - newCornerPoints[0].y) *
-    (newCornerPoints[3].x - newCornerPoints[0].x) > 0;
-
-  const finalPoints = isClockwise !== newIsClockwise ?
-    [...newCornerPoints].reverse() : newCornerPoints;
-
-  // Convert back to geographical coordinates and apply
-  const newCorners = finalPoints.map(point =>
+  // AI : Convert back to geographical coordinates and apply
+  const newCorners = newCornerPoints.map(point =>
     map.value!.containerPointToLatLng([point.x, point.y])
   );
 
   overlayObject.overlay.setCorners(newCorners);
-}
-
-function calculateCornerOffsets(angleRad: number, halfWidth: number, halfHeight: number) {
-  return [
-    // NW, NE, SW, SE corners
-    {
-      dx: -halfWidth * Math.cos(angleRad) - halfHeight * Math.sin(angleRad),
-      dy: -halfWidth * Math.sin(angleRad) + halfHeight * Math.cos(angleRad)
-    },
-    {
-      dx: halfWidth * Math.cos(angleRad) - halfHeight * Math.sin(angleRad),
-      dy: halfWidth * Math.sin(angleRad) + halfHeight * Math.cos(angleRad)
-    },
-    {
-      dx: -halfWidth * Math.cos(angleRad) + halfHeight * Math.sin(angleRad),
-      dy: -halfWidth * Math.sin(angleRad) - halfHeight * Math.cos(angleRad)
-    },
-    {
-      dx: halfWidth * Math.cos(angleRad) + halfHeight * Math.sin(angleRad),
-      dy: halfWidth * Math.sin(angleRad) - halfHeight * Math.cos(angleRad)
-    }
-  ];
-}
-
-function handleFlipIfNeeded(overlayObject: OverlayObject) {
-  if (!overlayObject.overlay) return;
-
-  if (overlayObject.isFlipped) {
-    // This is the second click, apply horizontal mirroring
-    overlayObject.isFlipped = false;
-    const corners = overlayObject.overlay.getCorners();
-
-    // Swap corners for horizontal mirroring: NW<->NE and SW<->SE
-    const mirroredCorners = [corners[1], corners[0], corners[3], corners[2]];
-    overlayObject.overlay.setCorners(mirroredCorners);
-
-    // AI : Image ratio reset and mirrored
-  } else {
-    // First click, just set the flag for potential mirroring on next click
-    overlayObject.isFlipped = true;
-
-    // AI : Image ratio reset - click again to mirror horizontally
-  }
 }
 
 /**
@@ -1705,11 +1670,11 @@ export const redoTool = L.Toolbar2.Action.extend({
   },
 });
 
-export const mirrorResetTool = L.Toolbar2.Action.extend({
+export const resetRatioTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       html: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0078a8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 7 5 5-5 5V7" /><path d="m21 7-5 5 5 5V7" /><path d="M12 20v2" /><path d="M12 14v2" /><path d="M12 8v2" /><path d="M12 2v2" /></svg>',
-      tooltip: 'Mirror and reset Image',
+      tooltip: 'Reset Image Ratio',
     },
   },
   addHooks: function () {
@@ -1761,7 +1726,7 @@ export const editTools = [
   L.DragAction,
   L.ResizeRotateAction,
   L.DistortAction,
-  mirrorResetTool,
+  resetRatioTool,
   L.OpacityAction,
   L.OpacitiesAction,
   previousOverlayTool,

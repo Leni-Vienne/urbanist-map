@@ -204,7 +204,6 @@ watch(() => authStore.isAdmin, (isAdmin) => {
   justify-content: center;
   align-items: center;
   gap: 0.5rem;
-  z-index: 10;
 }
 
 .footer-link {

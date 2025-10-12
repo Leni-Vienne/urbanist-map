@@ -214,7 +214,7 @@ function confirmPublish() {
   user-select: text;
   border-radius: 0.75rem;
   /* AI : So that the popup sits above the toolbar, no matter its height */
-  translate: 0px calc(-100% - 32px);
+  translate: 0px calc(2px);
   box-shadow: var(--p-shadow-md);
   /* AI : Compact styles for InfoPopup */
   max-width: 300px;
@@ -222,7 +222,6 @@ function confirmPublish() {
   /* AI : Prevent dev tools interference */
   pointer-events: auto;
   position: relative;
-  z-index: 1000;
 }
 
 .loading-spinner {

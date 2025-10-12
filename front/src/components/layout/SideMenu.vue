@@ -1,10 +1,4 @@
 <template>
-  <!-- AI : Mobile backdrop overlay -->
-  <div
-    v-if="isOpen"
-    class="mobile-backdrop"
-    @click="$emit('close')"
-  ></div>
 
   <div
     class="sidecolumn"
@@ -116,17 +110,6 @@ watch(() => authStore.isAdmin, (isAdmin) => {
 </script>
 
 <style scoped>
-/* AI : Mobile backdrop for overlay */
-.mobile-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 999;
-  display: none;
-}
 
 .sidecolumn {
   /* to make the accordion header highlight on hover */
@@ -144,7 +127,6 @@ watch(() => authStore.isAdmin, (isAdmin) => {
   transition: all 300ms ease-in-out;
   display: flex;
   flex-direction: column;
-  z-index: 1000;
   overflow: hidden;
 }
 
@@ -234,9 +216,6 @@ watch(() => authStore.isAdmin, (isAdmin) => {
 
 /* AI : Mobile responsive styles */
 @media (max-width: 768px) {
-  .mobile-backdrop {
-    display: block;
-  }
 
   .close-button {
     display: flex;
