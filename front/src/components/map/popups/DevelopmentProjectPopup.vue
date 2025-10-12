@@ -88,6 +88,8 @@ const isPublishedToBackend = computed(() => {
 </script>
 
 <style scoped>
+@import '../../../assets/info-card-shared.css';
+
 .project-info-popup {
   padding: 1rem;
   width: 420px;
@@ -117,21 +119,6 @@ const isPublishedToBackend = computed(() => {
 .project-info-popup .p-button-sm {
   padding: 0.25rem 0.5rem;
   font-size: 0.75rem;
-}
-
-.section-header {
-  font-weight: 600;
-  font-size: 0.85rem;
-  color: var(--p-text-secondary);
-  margin-bottom: 0.5rem;
-  letter-spacing: 0.025em;
-}
-
-.section-header-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.75rem;
 }
 
 .project-actions {

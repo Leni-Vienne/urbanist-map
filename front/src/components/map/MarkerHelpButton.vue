@@ -26,6 +26,7 @@ const visible = ref(false)
 const mapStore = useMapStore()
 let timeoutId: number | null = null
 let observer: MutationObserver | null = null
+let checkMarkersDebounceId: number | null = null
 
 // AI : Determine which type of button to show: 'country' or 'city'
 const buttonType = ref<'country' | 'city' | null>(null)
@@ -47,7 +48,7 @@ watch(() => mapStore.selectedCity, (city) => {
   }
 })
 
-// AI : Check what markers exist and update button type
+// AI : Check what markers exist and update button type (debounced)
 function checkMarkers() {
   const cityMarkers = document.querySelectorAll('[data-city-id]')
   // AI : Country markers have data-country-code but NOT data-city-id
@@ -89,6 +90,16 @@ function checkMarkers() {
       timeoutId = null
     }
   }
+}
+
+// AI : Debounced version to prevent excessive calls during map interactions
+function debouncedCheckMarkers() {
+  if (checkMarkersDebounceId) {
+    clearTimeout(checkMarkersDebounceId)
+  }
+  checkMarkersDebounceId = window.setTimeout(() => {
+    checkMarkers()
+  }, 100) // AI : 100ms debounce
 }
 
 // AI : Handle button click - find nearest marker and fly to it
@@ -148,7 +159,7 @@ function handleClick() {
 onMounted(() => {
   // AI : Set up MutationObserver to watch for marker changes
   observer = new MutationObserver(() => {
-    checkMarkers()
+    debouncedCheckMarkers()
   })
 
   const mapContainer = document.getElementById('mapDiv')
@@ -168,6 +179,9 @@ onUnmounted(() => {
   }
   if (timeoutId) {
     clearTimeout(timeoutId)
+  }
+  if (checkMarkersDebounceId) {
+    clearTimeout(checkMarkersDebounceId)
   }
 })
 </script>
@@ -195,6 +209,7 @@ onUnmounted(() => {
   cursor: pointer;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.5);
   transition: all 0.2s ease;
+  z-index: 1000; /* important */
 }
 
 .help-button:hover {

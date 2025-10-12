@@ -1,6 +1,6 @@
 import { publicProcedure, router } from '../trpc';
 import { countries, cities, projects } from '../db/schema';
-import { eq, exists, sql, and } from 'drizzle-orm';
+import { eq, exists, and, inArray } from 'drizzle-orm';
 import { db } from '../database';
 import * as z from 'zod';
 
@@ -14,11 +14,8 @@ export const countriesRouter = router({
       try {
         // AI : Build status condition based on admin privileges
         let statusCondition;
-        if (input?.includeStatus && ctx.user?.role === 'admin') {
-          if (input.includeStatus.length > 0) {
-            const statusValues = input.includeStatus.map(s => sql`${s}`);
-            statusCondition = sql`${projects.status} = ANY(ARRAY[${sql.join(statusValues, sql`, `)}])`;
-          }
+        if (input?.includeStatus && ctx.user?.role === 'admin' && input.includeStatus.length > 0) {
+          statusCondition = inArray(projects.status, input.includeStatus);
         } else {
           statusCondition = eq(projects.status, 'approved');
         }
@@ -44,9 +41,9 @@ export const countriesRouter = router({
             )
           )
           .orderBy(countries.name);
-        } catch (error) {
-          console.error('Error fetching countries with projects:', error);
-          throw new Error('Failed to fetch countries with projects');
-        }
+      } catch (error) {
+        console.error('Error fetching countries with projects:', error);
+        throw new Error('Failed to fetch countries with projects');
+      }
     })
 });

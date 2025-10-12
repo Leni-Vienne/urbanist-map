@@ -76,7 +76,7 @@
       </ProjectMetadataCard>
 
       <!-- Overlay Information Section -->
-      <div class="overlay-meta mb-3">
+      <div class="">
         <div class="section-header-row">
           <div class="section-header">{{ $t("overlay.overlayInformation") }}</div>
           <div class="overlay-actions">
@@ -100,8 +100,8 @@
         </div>
         <div class="info-card">
           <div class="info-row">
-            <span class="info-label">Name:</span>
-            <span class="info-value">{{ overlayObject.caption ?? 'Not specified' }}</span>
+            <span class="info-label">{{$t("common.name")}}:</span>
+            <span class="info-value">{{ overlayObject.caption ?? '—' }}</span>
           </div>
           <div
             v-if="overlayObject.replacesOverlayId"
@@ -205,6 +205,8 @@ function confirmPublish() {
 </script>
 
 <style scoped>
+@import '../../../assets/info-card-shared.css';
+
 .info-popup {
   padding: 1rem;
   width: 420px;
@@ -240,74 +242,9 @@ function confirmPublish() {
   margin-bottom: 1rem;
 }
 
-.section-header {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--p-surface-700);
-  margin-bottom: 0.5rem;
-}
-
-.section-header-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
 .overlay-actions {
   display: flex;
   gap: 0.25rem;
-}
-
-.info-card {
-  background-color: var(--p-surface-50);
-  border: 1px solid var(--p-surface-200);
-  border-radius: 0.375rem;
-  padding: 0.75rem;
-  font-size: 0.875rem;
-}
-
-.info-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 0.5rem;
-}
-
-.info-row:last-child {
-  margin-bottom: 0;
-}
-
-.info-label {
-  font-weight: 500;
-  color: var(--p-surface-600);
-  flex-shrink: 0;
-  margin-right: 0.5rem;
-}
-
-.info-value {
-  text-align: right;
-  color: var(--p-surface-900);
-  flex-grow: 1;
-  word-wrap: break-word;
-}
-
-.info-small {
-  font-size: 0.75rem;
-}
-
-.info-link {
-  color: var(--p-primary-500);
-  text-decoration: none;
-  font-size: 0.75rem;
-  max-width: 8rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.info-link:hover {
-  text-decoration: underline;
 }
 
 .replacement-type {

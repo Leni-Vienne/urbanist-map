@@ -1,7 +1,7 @@
 import { publicProcedure, protectedProcedure, router, TRPCError } from '../trpc';
 import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
 import { overlays, projects } from '../db/schema';
-import { sql, eq, and } from 'drizzle-orm';
+import { sql, eq, and, inArray } from 'drizzle-orm';
 import { db } from '../database';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../db/schema';
@@ -40,7 +40,7 @@ const updateOverlaySchema = z.object({
 // AI : Shared select fields and query builder moved to back/src/db/queryBuilders.ts to eliminate duplication
 
 // AI : Find overlays that intersect with a given overlay using PostGIS spatial queries
-async function findIntersectingOverlays(db: PostgresJsDatabase<typeof schema>, excludeId: string, targetOverlay: { corners: {lat: number, lng: number}[] }) {
+async function findIntersectingOverlays(db: PostgresJsDatabase<typeof schema>, excludeId: string, targetOverlay: { corners: { lat: number, lng: number }[] }) {
   try {
     // AI : Construct the target polygon once as WKT string - avoids expensive polygon construction for every row
     const [topLeft, topRight, bottomRight, bottomLeft] = targetOverlay.corners;
@@ -75,12 +75,9 @@ export const overlayRouter = router({
 
         // AI : If includeStatus is provided and user is admin, filter by those statuses
         // AI : Otherwise, only show approved overlays with approved parent projects
-        if (input.includeStatus && ctx.user?.role === 'admin') {
-          if (input.includeStatus.length > 0) {
-            const statusValues = input.includeStatus.map(s => sql`${s}`);
-            whereConditions.push(sql`${overlays.status} = ANY(ARRAY[${sql.join(statusValues, sql`, `)}])`);
-            whereConditions.push(sql`${projects.status} = ANY(ARRAY[${sql.join(statusValues, sql`, `)}])`);
-          }
+        if (input.includeStatus && ctx.user?.role === 'admin' && input.includeStatus.length > 0) {
+          whereConditions.push(inArray(overlays.status, input.includeStatus));
+          whereConditions.push(inArray(projects.status, input.includeStatus));
         } else {
           whereConditions.push(eq(overlays.status, 'approved'));
           whereConditions.push(eq(projects.status, 'approved'));
