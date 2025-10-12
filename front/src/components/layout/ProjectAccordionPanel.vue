@@ -300,6 +300,9 @@ import { ref, computed } from 'vue'
 import { buildImageUrl, formatRelativeTime } from '../../utils'
 import { navigateToOverlayWithCity, navigateToDevelopmentProject } from '@composables/navigation/useOverlayNavigation'
 import { navigateToOverlay } from '@composables/overlay/useOverlay'
+import { toggleEditMode } from '@composables/overlay/useOverlayModes'
+import { useOverlayStore } from '@stores/pinia/overlayStore'
+import { useMapStore } from '@stores/pinia/mapStore'
 import type { ProjectForModeration, OverlayForModeration } from '@types'
 import { useToast } from '@composables/ui/useToast'
 import Tag from 'primevue/tag'
@@ -461,6 +464,29 @@ function shouldShowOverlays(project: ProjectForModeration): boolean {
 // AI : Handle overlay click - simulate clicking country marker → city marker → overlay
 async function handleOverlayClick(overlay: OverlayForModeration) {
   try {
+    const overlayStore = useOverlayStore()
+    const mapStore = useMapStore()
+
+    // AI : If overlay is pending, switch to edit mode first so it becomes visible
+    if (overlay.status === 'pending' && !overlayStore.isEditMode) {
+      toggleEditMode()
+
+      toast.add({
+        severity: 'info',
+        summary: 'Switched to Edit Mode',
+        detail: 'Pending overlays are only visible in edit mode',
+        life: 3000
+      })
+
+      // AI : Clear city cache to force reload with pending overlays visible
+      if (overlay.cityId) {
+        mapStore.clearCityProjectsCache(overlay.cityId)
+      }
+
+      // AI : Wait for edit mode transition to complete and overlays to re-render
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
+
     // AI : If overlay has city info, navigate via city (loads city markers and overlays first)
     if (overlay.cityId && overlay.cityName) {
       await navigateToOverlayWithCity(overlay.id, overlay.cityId, overlay.cityName, overlay.countryCode ?? undefined)

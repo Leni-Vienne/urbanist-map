@@ -140,13 +140,28 @@ export const citiesRouter = router({
     // AI : Get all approved projects and overlays for a specific city
     getCityProjects: publicProcedure
       .input(getCityProjectsSchema)
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
         try {
           const { cityId } = input;
 
+          // AI : Build where conditions based on user authentication
+          // AI : If user is logged in, show approved projects/overlays OR their own contributions (any status)
+          // AI : Otherwise (anonymous), only show approved projects and overlays
+          const whereConditions = [eq(projects.cityId, cityId)];
+
+          if (ctx.user) {
+            // AI : Logged in users can see approved projects OR their own projects (any status)
+            whereConditions.push(sql`(${projects.status} = 'approved' OR ${projects.ownerId} = ${ctx.user.id})`);
+            // AI : Logged in users can see approved overlays OR their own overlays (any status)
+            whereConditions.push(sql`(${overlays.status} = 'approved' OR ${overlays.authorId} = ${ctx.user.id})`);
+          } else {
+            // AI : Anonymous users only see approved projects and overlays
+            whereConditions.push(eq(projects.status, 'approved'));
+            whereConditions.push(eq(overlays.status, 'approved'));
+          }
+
           // AI : Single optimized query that extracts all data including corners as JSON
           // AI : Uses Drizzle ORM for main data to preserve Date objects through superjson
-          // AI : Only return approved projects and approved overlays
           const overlaysData = await db
             .select({
               // AI : Select overlay fields individually to avoid geometry column issues
@@ -178,11 +193,7 @@ export const citiesRouter = router({
             .from(overlays)
             .innerJoin(projects, eq(projects.id, overlays.projectId))
             .innerJoin(cities, eq(cities.id, projects.cityId))
-            .where(and(
-              eq(projects.cityId, cityId),
-              eq(projects.status, 'approved'),
-              eq(overlays.status, 'approved')
-            ))
+            .where(and(...whereConditions))
             .orderBy(overlays.createdAt);
 
           // AI : Transform the result into OverlayData format

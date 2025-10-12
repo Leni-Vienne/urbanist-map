@@ -186,8 +186,21 @@ export const projectRouter = router({
         cityId: z.uuid(),
         limit: z.number().min(1).max(100).optional().default(20)
       }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
         try {
+          // AI : Build where conditions based on user authentication
+          // AI : If user is logged in, show approved projects OR their own contributions (any status)
+          // AI : Otherwise (anonymous), only show approved projects
+          const whereConditions = [eq(projects.cityId, input.cityId)];
+
+          if (ctx.user) {
+            // AI : Logged in users can see approved projects OR their own contributions (any status)
+            whereConditions.push(sql`(${projects.status} = 'approved' OR ${projects.ownerId} = ${ctx.user.id})`);
+          } else {
+            // AI : Anonymous users only see approved projects
+            whereConditions.push(eq(projects.status, 'approved'));
+          }
+
           const projectsInCity = await db
             .select({
               id: projects.id,
@@ -212,10 +225,7 @@ export const projectRouter = router({
             .from(projects)
             .innerJoin(cities, eq(projects.cityId, cities.id))
             .leftJoin(overlays, eq(overlays.projectId, projects.id))
-            .where(and(
-              eq(projects.cityId, input.cityId),
-              eq(projects.status, 'approved')
-            ))
+            .where(and(...whereConditions))
             .groupBy(
               projects.id,
               projects.name,
