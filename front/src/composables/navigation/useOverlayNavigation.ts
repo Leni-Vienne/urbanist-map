@@ -84,9 +84,7 @@ function zoomToOverlayAndSelect(overlayId: string, corners: { lat: number; lng: 
     const pollInterval = setInterval(() => {
       attempts++;
 
-      if (trySelectOverlay()) {
-        clearInterval(pollInterval);
-      } else if (attempts >= maxAttempts) {
+      if (trySelectOverlay() || attempts >= maxAttempts) {
         clearInterval(pollInterval);
       }
     }, 100);

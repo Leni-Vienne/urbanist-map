@@ -218,8 +218,6 @@ onMounted(() => {
 
 .overlay-name {
   font-size: 0.9375rem;
-  font-weight: 700;
-  color: var(--p-surface-900);
   margin: 0 0 0.25rem 0;
   line-height: 1.3;
   overflow: hidden;

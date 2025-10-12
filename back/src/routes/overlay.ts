@@ -77,8 +77,9 @@ export const overlayRouter = router({
         // AI : Otherwise, only show approved overlays with approved parent projects
         if (input.includeStatus && ctx.user?.role === 'admin') {
           if (input.includeStatus.length > 0) {
-            whereConditions.push(sql`${overlays.status} = ANY(ARRAY[${sql.join(input.includeStatus.map(s => sql.raw(`'${s}'`)), sql.raw(', '))}])`);
-            whereConditions.push(sql`${projects.status} = ANY(ARRAY[${sql.join(input.includeStatus.map(s => sql.raw(`'${s}'`)), sql.raw(', '))}])`);
+            const statusValues = input.includeStatus.map(s => sql`${s}`);
+            whereConditions.push(sql`${overlays.status} = ANY(ARRAY[${sql.join(statusValues, sql`, `)}])`);
+            whereConditions.push(sql`${projects.status} = ANY(ARRAY[${sql.join(statusValues, sql`, `)}])`);
           }
         } else {
           whereConditions.push(eq(overlays.status, 'approved'));
@@ -114,7 +115,8 @@ export const overlayRouter = router({
         // AI : Otherwise (anonymous), only show approved overlays
         if (input.includeStatus && ctx.user?.role === 'admin') {
           if (input.includeStatus.length > 0) {
-            whereConditions.push(sql`${overlays.status} = ANY(ARRAY[${sql.join(input.includeStatus.map(s => sql.raw(`'${s}'`)), sql.raw(', '))}])`);
+            const statusValues = input.includeStatus.map(s => sql`${s}`);
+            whereConditions.push(sql`${overlays.status} = ANY(ARRAY[${sql.join(statusValues, sql`, `)}])`);
           }
         } else if (ctx.user) {
           // AI : Logged in users can see approved overlays OR their own contributions (any status)

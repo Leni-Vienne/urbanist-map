@@ -96,7 +96,6 @@ function getProjectLocationDisplay(project: Project): string {
 .section-header {
   font-weight: 600;
   font-size: 0.85rem;
-  text-transform: uppercase;
   color: var(--p-text-secondary);
   margin-bottom: 0.5rem;
   letter-spacing: 0.025em;
