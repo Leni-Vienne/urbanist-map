@@ -82,7 +82,6 @@ import { useMapStore } from '@stores/pinia/mapStore'
 import { useUiStore } from '@stores/uiStore'
 import { useToast } from '@composables/ui/useToast'
 import { map } from '@composables/core/useMap'
-import { fetchNearbyProjects } from '@composables/project/useNearbyProjects'
 import { loadCityProjects } from '@composables/map/useCityMarkers'
 import { addOverlay } from '@composables/overlay/useOverlay'
 import { setLastCreatedProject } from '@composables/ui/useProjectState'
@@ -115,7 +114,7 @@ async function onProjectSelected(projectId: string) {
   if (!projects.value[projectId]) {
     try {
       // AI : Fetch nearby projects to get the selected project data
-      const nearbyProjects = await fetchNearbyProjects()
+      const nearbyProjects = await projectStore.fetchNearbyProjects()
       const nearbyProject = nearbyProjects.find((p: NearbyProject) => p.id === projectId)
 
       if (nearbyProject) {
@@ -283,7 +282,7 @@ function onMarkerModeEnabled() {
 async function fetchProjectsForPicker() {
   try {
     // AI : Fetch nearby projects based on current map view
-    await fetchNearbyProjects()
+    await projectStore.fetchNearbyProjects()
   } catch (error) {
     console.error('Error fetching projects for picker:', error)
   }
