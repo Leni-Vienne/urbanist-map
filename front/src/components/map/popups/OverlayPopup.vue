@@ -205,7 +205,7 @@ function confirmPublish() {
 </script>
 
 <style scoped>
-@import '../../../assets/info-card-shared.css';
+@import '@assets/info-card-shared.css';
 
 .info-popup {
   padding: 1rem;

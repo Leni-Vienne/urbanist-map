@@ -5,6 +5,7 @@ import { addCityMarkersForCountry, removeCityMarkers, resetLayerMarkersOpacity }
 import { removeOverlayMarkers } from '@composables/map/useCityOverlays';
 import { clearAllOverlays } from '@composables/overlay/useOverlay';
 import { switchTileLayer, isTileLayerType } from '@composables/map/useTileLayers';
+import { flyToCountry } from '@composables/map/useFlyToCountry';
 import { trpc } from '@client';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
@@ -135,6 +136,9 @@ function addCountryMarkersToMapInternal() {
       resetLayerMarkersOpacity(countryMarkersLayer, COUNTRY_MARKER_OPACITY);
       marker.setOpacity(COUNTRY_MARKER_HOVER_OPACITY);
       selectedCountryMarker = marker;
+
+      // AI : Fly to the country using bounding box
+      flyToCountry(country.code, country.lat, country.lng);
 
       // AI : Automatically switch to the appropriate tile layer for this country
       switchTileLayer(isTileLayerType(country.code) ? country.code : 'esri');

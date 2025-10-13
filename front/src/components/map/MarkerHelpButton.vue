@@ -20,6 +20,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { map } from '@composables/core/useMap'
 import { useMapStore } from '@stores/pinia/mapStore'
 import { useI18n } from 'vue-i18n'
+import { flyToCountry } from '@composables/map/useFlyToCountry'
 
 const { t } = useI18n()
 const visible = ref(false)
@@ -142,12 +143,18 @@ function handleClick() {
     const lat = parseFloat(markerToClick.getAttribute('data-lat') ?? '0')
     const lng = parseFloat(markerToClick.getAttribute('data-lng') ?? '0')
 
-    // AI : Different zoom levels for country vs city
-    const zoomLevel = buttonType.value === 'country' ? 6 : 12
-
-    map.value.flyTo([lat, lng], zoomLevel, {
-      duration: 1.5
-    })
+    // AI : For country markers, use bounding box if available
+    if (buttonType.value === 'country') {
+      const countryCode = markerToClick.getAttribute('data-country-code')
+      if (countryCode) {
+        flyToCountry(countryCode, lat, lng)
+      }
+    } else {
+      // AI : For city markers, use flyTo with zoom level 12
+      map.value.flyTo([lat, lng], 12, {
+        duration: 1.5
+      })
+    }
 
     setTimeout(() => {
       markerToClick.click()
