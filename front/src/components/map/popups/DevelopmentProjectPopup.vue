@@ -88,7 +88,7 @@ const isPublishedToBackend = computed(() => {
 </script>
 
 <style scoped>
-@import '../../../assets/info-card-shared.css';
+@import '@assets/info-card-shared.css';
 
 .project-info-popup {
   padding: 1rem;

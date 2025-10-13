@@ -100,7 +100,7 @@ function getProjectLocationDisplay(project: Project): string {
 </script>
 
 <style scoped>
-@import '../../../assets/info-card-shared.css';
+@import '@assets/info-card-shared.css';
 
 .project-actions {
   display: flex;
