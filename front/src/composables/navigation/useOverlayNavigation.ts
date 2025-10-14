@@ -33,6 +33,9 @@ async function prepareNavigationToCity(
     mapStore.currentCityOverlays = [];
     mapStore.clearSelectedCity();
 
+    // AI : Set selected country code so edit mode can reload cities properly
+    mapStore.selectedCountryCode = countryCode;
+
     // AI : Load cities for the country
     await loadCitiesForCountry(countryCode);
 

@@ -152,7 +152,7 @@ import { computed, ref } from 'vue';
 import { useToast } from '@composables/ui/useToast';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useAuthStore } from '@stores/authStore';
-import { toggleEditMode, handleEditModeExit } from '@composables/overlay/useOverlayModes';
+import { toggleEditMode } from '@composables/overlay/useOverlayModes';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import { createButtonSVG } from '@composables/ui/markerIcons';
 import { map } from '@composables/core/useMap';
@@ -222,7 +222,7 @@ function handleAddOverlayClick() {
 // AI : Handle edit mode toggle
 function handleModeToggle() {
   try {
-    toggleEditMode(handleEditModeExit);
+    toggleEditMode();
 
     // AI : Show toast notification for mode change
     const modeText = isEditMode?.value ? 'Edit Mode' : 'View Mode';
