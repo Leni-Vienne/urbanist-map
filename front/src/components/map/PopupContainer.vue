@@ -3,7 +3,7 @@
   <Teleport to="#info-popup-teleport-target" v-if="showOverlayPopup && overlayObject && teleportTargetExists">
     <OverlayPopup
       :overlayObject="overlayObject"
-      :project="getProjectForOverlay(overlayObject)"
+      :project="currentProject"
       :viewMode="!isEditMode"
       :publishLoading="isPublishingOverlay"
       :loading="false"
@@ -139,50 +139,61 @@ const overlayObject = computed(() => {
   return overlays.value[infoPopupOverlayId.value];
 });
 
-// AI : Get project for overlay - either from local projects store or overlay project data
-function getProjectForOverlay(overlay: OverlayObject): Project | null {
-  if (overlay.projectId) {
-    // AI : First try to get from local projects store
-    const localProject = projects.value[overlay.projectId];
-    if (localProject) {
-      return localProject;
-    }
+// AI : Get project for overlay - computed to ensure reactivity when projectId changes
+const currentProject = computed((): Project | null => {
+  const overlay = overlayObject.value;
+  if (!overlay?.projectId) return null;
 
-    // AI : If not found locally, check if this overlay has backend project data
-    if (overlay.project?.id === overlay.projectId) {
-      // AI : Convert backend project data to frontend format
-      const backendProject = overlay.project;
-      const convertedProject: Project = {
-        ...backendProject,
-        name: backendProject.name,
-        city: backendProject.city,
-        overlayIds: [],
-        color: '#007bff',
-        savedRemotely: true
-      };
-
-      // AI : Add the project to the projects store so other components can access it
-      if (!projects.value[overlay.projectId]) {
-        projects.value = {
-          ...projects.value,
-          [overlay.projectId]: convertedProject
-        };
-      }
-
-      return convertedProject;
-    }
+  // AI : First try to get from local projects store
+  const localProject = projects.value[overlay.projectId];
+  if (localProject) {
+    return localProject;
   }
+
+  // AI : If not found locally, check if this overlay has backend project data
+  if (overlay.project?.id === overlay.projectId) {
+    // AI : Convert backend project data to frontend format
+    const backendProject = overlay.project;
+    const convertedProject: Project = {
+      ...backendProject,
+      name: backendProject.name,
+      city: backendProject.city,
+      overlayIds: [],
+      color: '#007bff',
+      savedRemotely: true
+    };
+
+    // AI : Add the project to the projects store so other components can access it
+    if (!projects.value[overlay.projectId]) {
+      projects.value = {
+        ...projects.value,
+        [overlay.projectId]: convertedProject
+      };
+    }
+
+    return convertedProject;
+  }
+
   return null;
-}
+});
 
 // AI : Handle project change (overlay mode only)
 async function handleProjectChange(projectId: string) {
   const overlay = overlayObject.value;
   if (!overlay) return;
+  
+  // AI : Create a new overlay object with updated projectId to trigger reactivity
+  const updatedOverlay = {
+    ...overlay,
+    projectId: projectId,
+    isModified: true
+  };
 
-  // AI : Update the overlay's project assignment
-  overlay.projectId = projectId;
-  overlay.isModified = true;
+  // AI : Update the overlays store with the new overlay object
+  overlays.value = {
+    ...overlays.value,
+    [overlay.id]: updatedOverlay
+  };
 
   // AI : Update tooltip text (updateTooltipText works on selected overlay)
   updateTooltipText();
@@ -193,7 +204,7 @@ async function handlePublishOverlay() {
   const overlay = overlayObject.value;
   if (!overlay) return;
 
-  const project = getProjectForOverlay(overlay);
+  const project = currentProject.value;
 
   try {
     await publishOverlay(overlay, project);

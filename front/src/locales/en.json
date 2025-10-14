@@ -27,6 +27,12 @@
     "myContributions": "My Contributions",
     "admin": "Admin"
   },
+  "projectPicker": {
+    "noProjectsAvailable": "No projects available. Create your first project to add overlays.",
+    "selectProject": "Select a project",
+    "overlaysCount": "{count} overlays",
+    "createNewProject": "Create a new project"
+  },
   "project": {
     "title": "Projects",
     "create": "Create Project",

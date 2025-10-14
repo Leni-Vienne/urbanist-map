@@ -2,10 +2,10 @@
   <div class="project-picker">
     <!-- AI : Show message when no projects exist -->
     <div v-if="projectList.length === 0 && !hideCreate" class="text-center p-4">
-      <p class="mb-4">No projects available. Create your first project to add overlays.</p>
+      <p class="mb-4">{{ $t('projectPicker.noProjectsAvailable') }}</p>
       <Button
         icon="pi pi-plus"
-        label="Create New Project"
+        :label="$t('project.create')"
         class="p-button-primary"
         @click="openNewProjectDialog"
       />
@@ -23,7 +23,7 @@
             :options="projectList"
             optionLabel="name"
             optionValue="id"
-            :placeholder="placeholder ?? 'Select a project'"
+            :placeholder="placeholder ?? $t('projectPicker.selectProject')"
             class="w-full"
             :filter="true"
             :showClear="true"
@@ -53,7 +53,7 @@
                 <div>
                   <div class="flex items-center gap-2">
                     <span>{{ option.name }}</span>
-                    <span class="text-sm opacity-75">({{ getOverlayCountForProject(option.id) }} overlays)</span>
+                    <span class="text-sm opacity-75">({{ $t('projectPicker.overlaysCount', { count: getOverlayCountForProject(option.id) }) }})</span>
                   </div>
                   <div v-if="option.city" class="text-xs opacity-60">
                     {{ option.city.name }}, {{ option.city.countryCode }}
@@ -69,10 +69,10 @@
               <div class="p-2 border-t">
                 <Button
                   icon="pi pi-plus"
-                  label="Create New Project"
+                  :label="$t('project.create')"
                   class="p-button-primary p-button-sm w-full"
                   @click="openNewProjectDialog"
-                  v-tooltip.top="'Create a new project'"
+                  v-tooltip.top="$t('projectPicker.createNewProject')"
                 />
               </div>
             </template>
@@ -84,7 +84,7 @@
             class="p-button-primary"
             @click="confirmSelection"
             :disabled="!selectedProjectId"
-            v-tooltip.top="'Confirm selection'"
+            v-tooltip.top="$t('common.confirm')"
           />
         </slot>
       </div>
@@ -93,13 +93,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onUnmounted } from 'vue';
 
 import { useProjects } from '@composables/project/useProjects';
 import { useCityProjects } from '@composables/project/useCityProjects';
 import { lastCreatedProjectId, setFileUploadFlow } from '@composables/ui/useProjectState';
 import { useSelectedProject } from '@composables/project/useSelectedProject';
-import { useProjectDialogState } from '@composables/ui/useProjectDialogState';
+import { useUiStore } from '@stores/uiStore';
 import type { Project } from '@types';
 
 const props = defineProps({
@@ -139,8 +139,8 @@ const loading = ref(false);
 // AI : Use centralized selected project state
 const { selectedProjectId } = useSelectedProject();
 
-// AI : Use global project dialog state
-const { openProjectDialog } = useProjectDialogState();
+// AI : Use UI store to open project dialog
+const uiStore = useUiStore();
 
 
 // AI : Get city projects composable
@@ -176,14 +176,39 @@ const projectList = computed(() => {
 // AI : Update loading state
 const isLoadingProjects = computed(() => loading.value);
 
-// AI : Watch for changes in the lastCreatedProjectId to auto-select newly created projects
-watch(() => lastCreatedProjectId.value, (newProjectId) => {
-  if (newProjectId && newProjectId !== selectedProjectId.value) {
-    selectedProjectId.value = newProjectId;
-    emit('update:modelValue', newProjectId);
-    emit('project-selected', newProjectId);
+// AI : Function to auto-select a project by ID
+function autoSelectProject(projectId: string) {
+  const projectExists = projectList.value.some(p => p.id === projectId);
+  
+  if (projectExists) {
+    selectedProjectId.value = projectId;
+    emit('update:modelValue', projectId);
+    emit('project-selected', projectId);
+    return true;
   }
-});
+  
+  return false;
+}
+
+// AI : Track if we've already auto-selected in this component instance
+const hasAutoSelected = ref(false);
+
+// AI : Watch for newly created projects and auto-select them
+const stopWatchingForAutoSelect = watch(
+  [projectList, () => lastCreatedProjectId.value],
+  ([newList, pendingId]) => {
+    // AI : Only auto-select if we haven't done it yet AND the project isn't already selected
+    if (pendingId && newList.length > 0 && !hasAutoSelected.value && selectedProjectId.value !== pendingId) {
+      const project = newList.find(p => p.id === pendingId);
+      if (project && autoSelectProject(pendingId)) {
+        hasAutoSelected.value = true;
+      }
+    } else if (selectedProjectId.value === pendingId) {
+      hasAutoSelected.value = true;
+    }
+  },
+  { immediate: true }
+);
 
 // AI : Initialize selectedProjectId from modelValue prop
 watch(() => props.modelValue, (newValue) => {
@@ -212,8 +237,8 @@ function openNewProjectDialog() {
   try {
     // AI : Set flag when creating from ProjectPicker
     setFileUploadFlow(true);
-    // AI : Use global state to trigger dialog opening
-    openProjectDialog();
+    // AI : Use UI store to trigger dialog opening
+    uiStore.openProjectDialog();
     // AI : Also emit event as fallback
     emit('create-project');
   } catch (err) {
@@ -225,6 +250,11 @@ function openNewProjectDialog() {
 function onSelectFocus() {
   emit('select-focus');
 }
+
+// AI : Cleanup watcher on unmount
+onUnmounted(() => {
+  stopWatchingForAutoSelect();
+});
 </script>
 
 <style scoped>
