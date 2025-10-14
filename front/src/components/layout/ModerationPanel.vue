@@ -41,26 +41,34 @@
       </div>
     </template>
 
-    <template #overlay-actions="{ overlay }">
+    <template #overlay-actions="{ overlay, project }">
       <button 
-        v-if="overlay.status === 'pending'"
+        v-if="overlay.status === 'pending' && project.status === 'approved'"
         class="action-btn approve-btn" 
-        @click="handleApproveOverlay(overlay.id)"
+        @click.stop="handleApproveOverlay(overlay.id)"
         v-tooltip.top="'Approve Overlay'"
       >
         <i class="pi pi-check"></i>
       </button>
       <button 
-        v-if="overlay.status === 'pending'"
+        v-if="overlay.status === 'pending' && project.status === 'approved'"
         class="action-btn reject-btn" 
-        @click="handleRejectOverlay(overlay.id)"
+        @click.stop="handleRejectOverlay(overlay.id)"
         v-tooltip.top="'Reject Overlay'"
       >
         <i class="pi pi-times"></i>
       </button>
       <button 
+        v-if="overlay.status === 'pending' && project.status !== 'approved'"
+        class="action-btn disabled-btn"
+        disabled
+        v-tooltip.top="'Approve project first to moderate overlays'"
+      >
+        <i class="pi pi-lock"></i>
+      </button>
+      <button 
         class="action-btn" 
-        @click="handleOverlayClick(overlay)"
+        @click.stop="handleOverlayClick(overlay)"
         v-tooltip.top="'Zoom to Overlay'"
       >
         <i class="pi pi-search"></i>
@@ -285,5 +293,16 @@ async function handleOverlayClick(overlay: OverlayForModeration) {
 .reject-btn:hover {
   background-color: #fef2f2;
   border-color: #fecaca;
+}
+
+.disabled-btn {
+  color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.disabled-btn:hover {
+  background-color: white;
+  border-color: #e5e7eb;
 }
 </style>
