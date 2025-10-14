@@ -75,6 +75,7 @@ export function useOverlayPublisher() {
   }
 
   // AI : Prepare image for server (upload or extract filename)
+  // AI : Images are uploaded to local storage immediately, then migrated to R2 only after moderator approval
   async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
     if (overlay.imageUrl.startsWith('data:')) {
       // AI : Convert data URL to Blob with proper MIME type
@@ -89,6 +90,7 @@ export function useOverlayPublisher() {
 
       // AI : Get API URL based on environment (same logic as tRPC client)
       // AI : Use shared getApiUrl function
+      // AI : Upload to server's local storage - will migrate to R2 on approval
 
       const uploadResponse = await fetch(`${getApiUrl()}/api/upload-image`, {
         method: 'POST',
