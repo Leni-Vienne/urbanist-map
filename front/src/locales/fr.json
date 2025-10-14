@@ -61,6 +61,7 @@
     "optionalField": "Optionnel",
     "validationError": "Erreur de validation",
     "nameRequired": "Le nom du projet est requis",
+    "nameTooShort": "Le nom du projet doit contenir au moins 8 caractères",
     "locationRequired": "La localisation est requise",
     "proposalDateRequired": "La date de proposition est requise pour les projets proposés",
     "datesRequired": "Les dates de début et de fin sont requises pour les projets prévus",

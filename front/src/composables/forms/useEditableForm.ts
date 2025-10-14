@@ -114,6 +114,20 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
     try {
       isSubmitting.value = true
 
+      // AI : Validate project name length if it's a project and name has changed
+      if (options.entityType === 'project' && formData.name) {
+        const trimmedName = String(formData.name).trim()
+        if (trimmedName.length < 8) {
+          toast.add({
+            severity: 'error',
+            summary: 'Validation Error',
+            detail: 'Project name must be at least 8 characters long',
+            life: 3000
+          })
+          return
+        }
+      }
+
       const changes = getChangesToSubmit()
 
       // AI : For pending entities, apply changes directly instead of creating change requests

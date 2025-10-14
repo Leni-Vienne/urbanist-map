@@ -218,8 +218,13 @@ watch(() => props.modelValue, (newValue) => {
 }, { immediate: true });
 
 // AI : Watch for changes to the selectedProjectId and emit them
-watch(selectedProjectId, (newValue) => {
+watch(selectedProjectId, (newValue, oldValue) => {
   emit('update:modelValue', newValue);
+  
+  // AI : Also emit project-selected when manually changing selection (not just on initial mount)
+  if (newValue && newValue !== oldValue) {
+    emit('project-selected', newValue);
+  }
 });
 
 
