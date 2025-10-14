@@ -126,6 +126,7 @@ export function toggleEditMode(onModeExit?: () => void): void {
   const selectedCity = getSelectedCity()
   if (selectedCity) {
     mapStore.clearCityProjectsCache(selectedCity.id)
+    mapStore.clearCityDevelopmentProjectsCache(selectedCity.id)
   }
 
   // AI : Calculate new state
@@ -167,6 +168,7 @@ export function handleEditModeExit(): void {
   const selectedCity = getSelectedCity()
   if (selectedCity) {
     mapStore.clearCityProjectsCache(selectedCity.id)
+    mapStore.clearCityDevelopmentProjectsCache(selectedCity.id)
   }
 
   const newState = getCurrentState()

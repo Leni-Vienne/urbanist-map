@@ -176,10 +176,24 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
   if (!map.value) return;
 
   try {
-    const overlayStore = useOverlayStore()
-    // AI : Get development projects for this city from backend (skip if cityId is null)
-    // AI : viewMode is opposite of isEditMode - in edit mode (false), we want to see user's own pending content
-    const backendDevelopmentProjects = cityId ? await trpc.project.getCityProjects.query({ cityId, viewMode: !overlayStore.isEditMode }) : [];
+    const mapStore = useMapStore();
+    const overlayStore = useOverlayStore();
+    
+    // AI : Check cache first for non-null cityId
+    let backendDevelopmentProjects: any[] = [];
+    if (cityId) {
+      const cachedData = mapStore.getCityDevelopmentProjectsCache(cityId);
+      if (cachedData) {
+        backendDevelopmentProjects = cachedData;
+      } else {
+        // AI : Get development projects for this city from backend
+        // AI : viewMode is opposite of isEditMode - in edit mode (false), we want to see user's own pending content
+        backendDevelopmentProjects = await trpc.project.getCityProjects.query({ cityId, viewMode: !overlayStore.isEditMode });
+        // AI : Cache the result
+        mapStore.setCityDevelopmentProjectsCache(cityId, backendDevelopmentProjects);
+      }
+    }
+    
     const backendDevelopmentProjectsOnly = backendDevelopmentProjects.filter(project => project.isDevelopment);
 
     // AI : Get local development projects for this city (handle null cityId case)
