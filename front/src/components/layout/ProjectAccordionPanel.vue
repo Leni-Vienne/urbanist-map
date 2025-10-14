@@ -213,6 +213,7 @@
                     <slot
                       name="overlay-actions"
                       :overlay="overlay"
+                      :project="project"
                     ></slot>
                   </div>
                   <button
