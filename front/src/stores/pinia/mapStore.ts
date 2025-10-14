@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { OverlayData } from '@types'
+import type { RouterOutput } from '@client'
 
 // AI : Type for selected city data (compatible with previous latestClickedCity interface)
 export interface SelectedCity {
@@ -23,7 +24,7 @@ export const useMapStore = defineStore('map', () => {
   const cityProjectsCache = ref<Map<string, OverlayData[]>>(new Map())
 
   // AI : City development projects cache (separate from overlays cache)
-  const cityDevelopmentProjectsCache = ref<Map<string, any[]>>(new Map())
+  const cityDevelopmentProjectsCache = ref<Map<string, RouterOutput['project']['getCityProjects']>>(new Map())
 
   // AI : Set the currently selected city
   function setSelectedCity(city: SelectedCity | null) {
@@ -62,7 +63,7 @@ export const useMapStore = defineStore('map', () => {
   }
 
   // AI : Development projects cache management
-  function getCityDevelopmentProjectsCache(cityId: string): any[] | null {
+  function getCityDevelopmentProjectsCache(cityId: string): RouterOutput['project']['getCityProjects'] | null {
     return cityDevelopmentProjectsCache.value.get(cityId) ?? null
   }
 
@@ -70,7 +71,7 @@ export const useMapStore = defineStore('map', () => {
     return cityDevelopmentProjectsCache.value.has(cityId)
   }
 
-  function setCityDevelopmentProjectsCache(cityId: string, data: any[]) {
+  function setCityDevelopmentProjectsCache(cityId: string, data: RouterOutput['project']['getCityProjects']) {
     cityDevelopmentProjectsCache.value.set(cityId, data)
   }
 

@@ -218,7 +218,7 @@ function renderFullOverlaysFromCache(cityId: string) {
   }
 
   withErrorHandling(
-    async () => {
+    () => {
       // AI : Clear any existing overlays and markers before loading
       clearAllOverlays();
       removeOverlayMarkers();
@@ -254,7 +254,7 @@ export function renderOverlayMarkersFromCache(cityId: string): void {
   }
 
   withErrorHandling(
-    async () => {
+    () => {
       // AI : Store overlay data for navigation (even though we're only showing markers)
       mapStore.currentCityOverlays = overlaysData;
 

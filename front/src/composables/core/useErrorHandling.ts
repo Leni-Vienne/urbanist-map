@@ -17,7 +17,7 @@ export interface ErrorHandlingOptions {
 }
 
 /**
- * AI : Execute an async function with automatic error handling and toast notifications
+ * AI : Execute a sync or async function with automatic error handling and toast notifications
  *
  * @example
  * const result = await withErrorHandling(
@@ -26,7 +26,7 @@ export interface ErrorHandlingOptions {
  * )
  */
 export async function withErrorHandling<T>(
-  fn: () => Promise<T>,
+  fn: () => T | Promise<T>,
   options: ErrorHandlingOptions = {}
 ): Promise<T | null> {
   const {
@@ -90,7 +90,7 @@ export async function withErrorHandling<T>(
 }
 
 /**
- * AI : Execute an async function with error toast notification (always returns result or throws)
+ * AI : Execute a sync or async function with error toast notification (always returns result or throws)
  * Use this when you want the error to propagate but still show a toast
  *
  * @example
@@ -100,14 +100,14 @@ export async function withErrorHandling<T>(
  * )
  */
 export async function withErrorToast<T>(
-  fn: () => Promise<T>,
+  fn: () => T | Promise<T>,
   errorMessage: string
 ): Promise<T> {
   return withErrorHandling(fn, { errorMessage, rethrow: true }) as Promise<T>;
 }
 
 /**
- * AI : Execute an async function with both success and error toast notifications
+ * AI : Execute a sync or async function with both success and error toast notifications
  *
  * @example
  * await withToasts(
@@ -117,7 +117,7 @@ export async function withErrorToast<T>(
  * )
  */
 export async function withToasts<T>(
-  fn: () => Promise<T>,
+  fn: () => T | Promise<T>,
   successMessage: string,
   errorMessage: string
 ): Promise<T | null> {
@@ -135,7 +135,7 @@ export async function withToasts<T>(
  * )
  */
 export function wrapWithErrorHandling<TArgs extends any[], TReturn>(
-  fn: (...args: TArgs) => Promise<TReturn>,
+  fn: (...args: TArgs) => TReturn | Promise<TReturn>,
   options: ErrorHandlingOptions = {}
 ): (...args: TArgs) => Promise<TReturn | null> {
   return async (...args: TArgs) => {
