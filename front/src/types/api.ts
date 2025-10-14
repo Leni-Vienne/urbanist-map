@@ -25,9 +25,9 @@ export type GetCitiesNearLocationQuery = RouterInput['cities']['getCitiesNearLoc
 export type GetCitiesNearLocationResponse = RouterOutput['cities']['getCitiesNearLocation'];
 export type NearbyCity = GetCitiesNearLocationResponse[0];
 
-export type GetCityProjectsQuery = RouterInput['cities']['getCityProjects'];
-export type GetCityProjectsResponse = RouterOutput['cities']['getCityProjects'];
-// AI : getCityProjects now returns OverlayData array directly - use OverlayData from types.ts
+export type getCityOverlaysAndProjectsQuery = RouterInput['cities']['getCityOverlaysAndProjects'];
+export type getCityOverlaysAndProjectsResponse = RouterOutput['cities']['getCityOverlaysAndProjects'];
+// AI : getCityOverlaysAndProjects now returns OverlayData array directly - use OverlayData from types.ts
 
 // AI : Country API types
 export type GetCountriesWithProjectsResponse = RouterOutput['country']['getCountriesWithProjects'];

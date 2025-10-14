@@ -29,16 +29,18 @@ const isLoadingCityProjects = ref(false);
  */
 export async function fetchCityProjectsData(cityId: string): Promise<OverlayData[]> {
   const mapStore = useMapStore();
+  const overlayStore = useOverlayStore();
 
   // AI : Check if we already have cached data for this city
-  const cachedData = mapStore.getCityProjectsCache(cityId);
+  const cachedData = mapStore.getCityOverlaysAndProjectsCache(cityId);
   if (cachedData) {
     return cachedData;
   }
 
   // AI : Backend now returns data in OverlayData format directly
+  // AI : viewMode is opposite of isEditMode - in edit mode (false), we want to see user's own pending content
   const overlaysData = await withErrorToast(
-    () => trpc.cities.getCityProjects.query({ cityId }),
+    () => trpc.cities.getCityOverlaysAndProjects.query({ cityId, viewMode: !overlayStore.isEditMode }),
     'Error fetching city projects data'
   );
 
@@ -210,7 +212,7 @@ export function removeOverlayMarkers(): void {
  */
 function renderFullOverlaysFromCache(cityId: string) {
   const mapStore = useMapStore();
-  const overlaysData = mapStore.getCityProjectsCache(cityId);
+  const overlaysData = mapStore.getCityOverlaysAndProjectsCache(cityId);
   if (!overlaysData) {
     return;
   }
@@ -246,7 +248,7 @@ function renderFullOverlaysFromCache(cityId: string) {
  */
 export function renderOverlayMarkersFromCache(cityId: string): void {
   const mapStore = useMapStore();
-  const overlaysData = mapStore.getCityProjectsCache(cityId);
+  const overlaysData = mapStore.getCityOverlaysAndProjectsCache(cityId);
   if (!overlaysData) {
     return;
   }
