@@ -12,7 +12,7 @@ import {
 } from './useOverlayModeStateMachine'
 import { renderForStrategy, updateExistingOverlays, clearAllRenderedContent } from './useOverlayRenderer'
 import { cacheCurrentPosition } from './useOverlayPositionCache'
-import { loadCityOverlays } from '@composables/map/useCityOverlays'
+import { loadCityOverlays, fetchCityProjectsData } from '@composables/map/useCityOverlays'
 import { loadCityDevelopmentProjects, removeCityMarkers, addCityMarkersForCountry } from '@composables/map/useCityMarkers'
 import { loadCitiesForCountry } from '@composables/map/useCountryMarkers'
 import { useProjectStore } from '@stores/pinia/projectStore'
@@ -189,8 +189,7 @@ export function toggleEditMode(onModeExit?: () => void): void {
       // AI : If overlays are already loaded at high zoom, just fetch data without re-rendering
       // AI : The state machine already updated the visual state
       if (selectedCity && newState.selectedCityId && newState.hasLoadedOverlays && newState.zoomLevel === 'high') {
-        // AI : Import fetchCityProjectsData dynamically to update cache only
-        const { fetchCityProjectsData } = await import('@composables/map/useCityOverlays')
+        // AI : Update cache only without re-rendering
         await fetchCityProjectsData(newState.selectedCityId)
         // AI : Also update development projects cache
         await loadCityDevelopmentProjects(newState.selectedCityId)
@@ -239,7 +238,6 @@ export function handleEditModeExit(): void {
 
       // AI : If overlays are already loaded at high zoom, just fetch data without re-rendering
       if (selectedCity && newState.selectedCityId && newState.hasLoadedOverlays && newState.zoomLevel === 'high') {
-        const { fetchCityProjectsData } = await import('@composables/map/useCityOverlays')
         await fetchCityProjectsData(newState.selectedCityId)
         await loadCityDevelopmentProjects(newState.selectedCityId)
       } else if (selectedCity && newState.selectedCityId) {

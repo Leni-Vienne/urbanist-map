@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { trpc } from '../client'
+import { useMapStore } from '@stores/pinia/mapStore'
+import { useProjectStore } from '@stores/pinia/projectStore'
 
 // AI : User type for our custom authentication
 interface User {
@@ -244,8 +246,6 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = null
       
       // AI : Clear all caches on logout (cities, projects, development projects)
-      const { useMapStore } = await import('./pinia/mapStore')
-      const { useProjectStore } = await import('./pinia/projectStore')
       const mapStore = useMapStore()
       const projectStore = useProjectStore()
       mapStore.clearCityProjectsCache()
