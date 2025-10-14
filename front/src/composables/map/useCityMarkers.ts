@@ -386,6 +386,14 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
       resetLayerMarkersOpacity(cityMarkersLayer, MARKER_OPACITY);
       marker.setOpacity(MARKER_HOVER_OPACITY);
       selectedCityMarker = marker;
+      
+      // AI : Zoom to the city marker position (same zoom level as MarkerHelpButton)
+      if (map.value) {
+        map.value.flyTo([city.lat, city.lng], 12, {
+          duration: 1.5
+        });
+      }
+      
       await loadCityProjects(city.id, city.name, false, city.countryCode);
     });
 
