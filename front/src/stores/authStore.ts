@@ -242,6 +242,15 @@ export const useAuthStore = defineStore('auth', () => {
       })
 
       user.value = null
+      
+      // AI : Clear all caches on logout (cities, projects, development projects)
+      const { useMapStore } = await import('./pinia/mapStore')
+      const { useProjectStore } = await import('./pinia/projectStore')
+      const mapStore = useMapStore()
+      const projectStore = useProjectStore()
+      mapStore.clearCityProjectsCache()
+      mapStore.clearCityDevelopmentProjectsCache()
+      projectStore.clearCitiesCache()
 
       if (response.ok) {
         return { success: true, error: null }

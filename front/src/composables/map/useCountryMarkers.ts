@@ -9,6 +9,7 @@ import { flyToCountry } from '@composables/map/useFlyToCountry';
 import { trpc } from '@client';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
+import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { storeToRefs } from 'pinia';
 import { createColorIcon } from '@composables/ui/markerIcons';
 import { withErrorHandling } from '@composables/core/useErrorHandling';
@@ -63,20 +64,34 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
   const countries = getCountries();
   const country = countries.value.find((c: Country) => c.code === countryCode);
 
-  // AI : Optimization: Skip loading if country already has cities loaded
-  if (country && country.cities.length > 0) {
-    return;
+  if (!country) return;
+
+  const projectStore = useProjectStore();
+  const overlayStore = useOverlayStore();
+  const viewMode = !overlayStore.isEditMode;
+
+  // AI : Check cache first for this country + viewMode combination
+  if (projectStore.hasCachedCities(countryCode, viewMode)) {
+    const cachedCities = projectStore.getCachedCities(countryCode, viewMode);
+    if (cachedCities) {
+      country.cities = cachedCities;
+      return;
+    }
   }
 
   isLoadingCountryProjects.value = true;
   try {
+    // AI : Pass viewMode to show user's pending contributions in edit mode
     const citiesData = await withErrorHandling(
-      async () => trpc.cities.getCitiesWithProjects.query({ countryCode }),
+      async () => trpc.cities.getCitiesWithProjects.query({ countryCode, viewMode }),
       { errorMessage: 'Failed to load cities. Please try again.' }
     );
 
-    if (citiesData && country) {
-      country.cities = citiesData.map((city) => ({ ...city, distance: 0 }));
+    if (citiesData) {
+      const cities = citiesData.map((city) => ({ ...city, distance: 0 }));
+      country.cities = cities;
+      // AI : Cache the cities for this country + viewMode
+      projectStore.setCachedCities(countryCode, viewMode, cities);
     }
   } finally {
     isLoadingCountryProjects.value = false;
@@ -150,7 +165,11 @@ function addCountryMarkersToMapInternal() {
       const mapStore = useMapStore();
       mapStore.currentCityOverlays = [];
       mapStore.clearSelectedCity();
+      
+      // AI : Set the selected country code
+      mapStore.selectedCountryCode = country.code;
 
+      // AI : Load cities (cache will handle whether to fetch from backend or use cached data)
       await loadCitiesForCountry(country.code);
       const updatedCountries = getCountries();
       const updatedCountry = updatedCountries.value.find((c: Country) => c.code === country.code);

@@ -13,7 +13,10 @@ import {
 import { renderForStrategy, updateExistingOverlays, clearAllRenderedContent } from './useOverlayRenderer'
 import { cacheCurrentPosition } from './useOverlayPositionCache'
 import { loadCityOverlays } from '@composables/map/useCityOverlays'
-import { loadCityDevelopmentProjects } from '@composables/map/useCityMarkers'
+import { loadCityDevelopmentProjects, removeCityMarkers, addCityMarkersForCountry } from '@composables/map/useCityMarkers'
+import { loadCitiesForCountry } from '@composables/map/useCountryMarkers'
+import { useProjectStore } from '@stores/pinia/projectStore'
+import { storeToRefs } from 'pinia'
 
 // AI : Transition effects - callbacks executed during state transitions
 interface TransitionEffects {
@@ -120,7 +123,7 @@ export function toggleEditMode(onModeExit?: () => void): void {
 
   // AI : Toggle mode in store
   overlayStore.isEditMode = !overlayStore.isEditMode
-
+  
   // AI : Invalidate cache for selected city when switching modes
   // AI : This forces a fresh fetch with the correct viewMode parameter
   const selectedCity = getSelectedCity()
@@ -141,6 +144,21 @@ export function toggleEditMode(onModeExit?: () => void): void {
       }
     },
     afterTransition: async () => {
+      // AI : Reload cities for the country (cities cache handles viewMode automatically)
+      const countryCode = mapStore.selectedCountryCode
+      if (countryCode) {
+        await loadCitiesForCountry(countryCode)
+        
+        // AI : Update city markers on the map with the new cities list
+        removeCityMarkers()
+        const projectStore = useProjectStore()
+        const { countries } = storeToRefs(projectStore)
+        const currentCountry = countries.value.find(c => c.code === countryCode)
+        if (currentCountry && currentCountry.cities.length > 0) {
+          addCityMarkersForCountry(currentCountry.cities.map(c => ({ ...c, projectCount: 0 })))
+        }
+      }
+      
       // AI : Reload both overlays and development projects with the new viewMode if we have a selected city
       if (selectedCity && newState.selectedCityId) {
         await Promise.all([
@@ -183,6 +201,21 @@ export function handleEditModeExit(): void {
       }
     },
     afterTransition: async () => {
+      // AI : Reload cities for the country (cities cache handles viewMode automatically)
+      const countryCode = mapStore.selectedCountryCode
+      if (countryCode) {
+        await loadCitiesForCountry(countryCode)
+        
+        // AI : Update city markers on the map with the new cities list
+        removeCityMarkers()
+        const projectStore = useProjectStore()
+        const { countries } = storeToRefs(projectStore)
+        const currentCountry = countries.value.find(c => c.code === countryCode)
+        if (currentCountry && currentCountry.cities.length > 0) {
+          addCityMarkersForCountry(currentCountry.cities.map(c => ({ ...c, projectCount: 0 })))
+        }
+      }
+      
       // AI : Reload both overlays and development projects with viewMode=true after exiting edit mode
       if (selectedCity && newState.selectedCityId) {
         await Promise.all([

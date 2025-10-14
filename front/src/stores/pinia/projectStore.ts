@@ -12,6 +12,9 @@ export const useProjectStore = defineStore('project', () => {
   const selectedProjectId = ref<string | null>(null);
   const countries = ref<Country[]>([]);
 
+  // AI : Cache for cities by country and view mode (key format: "countryCode:viewMode")
+  const citiesCache = ref<Map<string, any[]>>(new Map());
+
   // AI : Centralized nearby projects data management
   const nearbyProjects = ref<NearbyProject[]>([]);
   const nearbyProjectsLoading = ref(false);
@@ -116,6 +119,27 @@ export const useProjectStore = defineStore('project', () => {
     }
   }
 
+  // AI : Cities cache management
+  function getCitiesCacheKey(countryCode: string, viewMode: boolean): string {
+    return `${countryCode}:${viewMode}`
+  }
+
+  function getCachedCities(countryCode: string, viewMode: boolean): any[] | null {
+    return citiesCache.value.get(getCitiesCacheKey(countryCode, viewMode)) ?? null
+  }
+
+  function setCachedCities(countryCode: string, viewMode: boolean, cities: any[]): void {
+    citiesCache.value.set(getCitiesCacheKey(countryCode, viewMode), cities)
+  }
+
+  function hasCachedCities(countryCode: string, viewMode: boolean): boolean {
+    return citiesCache.value.has(getCitiesCacheKey(countryCode, viewMode))
+  }
+
+  function clearCitiesCache(): void {
+    citiesCache.value.clear()
+  }
+
   return {
     // State
     projects,
@@ -144,6 +168,12 @@ export const useProjectStore = defineStore('project', () => {
     setNearbyProjects,
     clearNearbyProjects,
     setNearbyProjectsLoading,
-    setNearbyProjectsError
+    setNearbyProjectsError,
+
+    // Cities cache actions
+    getCachedCities,
+    setCachedCities,
+    hasCachedCities,
+    clearCitiesCache
   };
 })
