@@ -9,20 +9,21 @@ import { RouterOutput, trpc } from '@client';
 
 import { useUiStore } from '@stores/uiStore';
 import { useMapStore } from '@stores/pinia/mapStore';
+import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjects } from '@composables/project/useProjects';
 import { createProject } from '../../utils/typeFactories';
 
 // AI : Get project timeline-based marker color
 function getProjectMarkerColor(project: Project): MarkerColor {
   const { proposalDate, startDate, endDate } = project;
-  
+
   if (proposalDate && !startDate) return 'yellow'; // Proposed but not started (nor planned)
   if (!startDate) return 'grey'; // No start date, shouldn't happen?
-  
+
   const now = new Date();
   const start = new Date(startDate);
   const end = endDate ? new Date(endDate) : null;
-  
+
   if (start > now) return 'green'; // Upcoming
   if (end && end <= now) return 'grey'; // Completed
   return 'orange'; // Ongoing
@@ -121,7 +122,7 @@ function createProjectInfoTeleportTarget(marker: L.Marker | L.CircleMarker) {
   map.value.on('move', updateTeleportTargetPosition);
   map.value.on('zoom', updateTeleportTargetPosition);
   map.value.on('resize', updateTeleportTargetPosition);
-  
+
   // AI : Add map click handler to close project popup
   mapClickHandler = () => {
     const uiStore = useUiStore();
@@ -141,7 +142,7 @@ export function cleanupProjectInfoTeleportTarget() {
     map.value.off('move', updateTeleportTargetPosition);
     map.value.off('zoom', updateTeleportTargetPosition);
     map.value.off('resize', updateTeleportTargetPosition);
-    
+
     // AI : Remove map click handler
     if (mapClickHandler) {
       map.value.off('click', mapClickHandler);
@@ -162,12 +163,14 @@ export function cleanupProjectInfoTeleportTarget() {
 /**
  * AI : Load development projects for a specific city and display them on map
  */
-async function loadCityDevelopmentProjects(cityId: string | null): Promise<void> {
+export async function loadCityDevelopmentProjects(cityId: string | null): Promise<void> {
   if (!map.value) return;
 
   try {
+    const overlayStore = useOverlayStore()
     // AI : Get development projects for this city from backend (skip if cityId is null)
-    const backendDevelopmentProjects = cityId ? await trpc.project.getProjectsByCity.query({ cityId }) : [];
+    // AI : viewMode is opposite of isEditMode - in edit mode (false), we want to see user's own pending content
+    const backendDevelopmentProjects = cityId ? await trpc.project.getCityProjects.query({ cityId, viewMode: !overlayStore.isEditMode }) : [];
     const backendDevelopmentProjectsOnly = backendDevelopmentProjects.filter(project => project.isDevelopment);
 
     // AI : Get local development projects for this city (handle null cityId case)
@@ -207,9 +210,9 @@ async function loadCityDevelopmentProjects(cityId: string | null): Promise<void>
         });
         const markerColor = getProjectMarkerColor(projectData);
         const markerIcon = createDevelopmentIcon(markerColor);
-        
+
         // AI : Create marker with timeline-based color icon and default opacity
-        const marker = L.marker([project.lat, project.lng], { 
+        const marker = L.marker([project.lat, project.lng], {
           icon: markerIcon,
           opacity: BUILDING_MARKER_OPACITY // AI : Lower default opacity to suggest interactivity
         });

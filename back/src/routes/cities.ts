@@ -22,8 +22,9 @@ const searchCitiesNearLocationSchema = z.object({
   limit: z.number().min(1).max(50).default(10) // AI : Limit results between 1-50, default 10
 });
 
-const getCityProjectsSchema = z.object({
-  cityId: z.uuid()
+const getCityOverlaysAndProjectsSchema = z.object({
+  cityId: z.uuid(),
+  viewMode: z.boolean().optional().default(true) // AI : true for view mode (approved only), false for edit mode (include user's own)
 });
 
 export const citiesRouter = router({
@@ -138,24 +139,24 @@ export const citiesRouter = router({
         }
       }),
     // AI : Get all approved projects and overlays for a specific city
-    getCityProjects: publicProcedure
-      .input(getCityProjectsSchema)
+    getCityOverlaysAndProjects: publicProcedure
+      .input(getCityOverlaysAndProjectsSchema)
       .query(async ({ input, ctx }) => {
         try {
-          const { cityId } = input;
+          const { cityId, viewMode } = input;
 
-          // AI : Build where conditions based on user authentication
-          // AI : If user is logged in, show approved projects/overlays OR their own contributions (any status)
-          // AI : Otherwise (anonymous), only show approved projects and overlays
+          // AI : Build where conditions based on user authentication and view mode
+          // AI : In edit mode (!viewMode) and logged in, show approved OR user's own contributions (any status)
+          // AI : In view mode (viewMode=true) or anonymous, only show approved
           const whereConditions = [eq(projects.cityId, cityId)];
 
-          if (ctx.user) {
-            // AI : Logged in users can see approved projects OR their own projects (any status)
+          if (ctx.user && !viewMode) {
+            // AI : Edit mode + logged in: users can see approved projects OR their own projects (any status)
             whereConditions.push(sql`(${projects.status} = 'approved' OR ${projects.ownerId} = ${ctx.user.id})`);
-            // AI : Logged in users can see approved overlays OR their own overlays (any status)
+            // AI : Edit mode + logged in: users can see approved overlays OR their own overlays (any status)
             whereConditions.push(sql`(${overlays.status} = 'approved' OR ${overlays.authorId} = ${ctx.user.id})`);
           } else {
-            // AI : Anonymous users only see approved projects and overlays
+            // AI : View mode or anonymous: only see approved projects and overlays
             whereConditions.push(eq(projects.status, 'approved'));
             whereConditions.push(eq(overlays.status, 'approved'));
           }

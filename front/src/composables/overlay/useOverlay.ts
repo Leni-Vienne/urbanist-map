@@ -456,7 +456,7 @@ export function addNewOverlayToCityCache(overlayObject: OverlayObject, cityId: s
   const overlayData = convertOverlayToData(overlayObject);
 
   // AI : Get current city cache or create empty array
-  const currentCache = mapStore.getCityProjectsCache(cityId) ?? [];
+  const currentCache = mapStore.getCityOverlaysAndProjectsCache(cityId) ?? [];
 
   // AI : Add new overlay to cache (avoid duplicates)
   const existingIndex = currentCache.findIndex((item) => item.id === overlayObject.id);

@@ -9,9 +9,8 @@ lerna-debug.log*
 
 .claude
 CLAUDE.md
-AI_RULES.md
 .mcp.json
-.clinerules
+*instructions.md
 .github/instructions
 .serena
 .playwright-mcp

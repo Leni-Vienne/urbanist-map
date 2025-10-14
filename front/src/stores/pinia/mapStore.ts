@@ -35,7 +35,7 @@ export const useMapStore = defineStore('map', () => {
   }
 
   // AI : City cache management
-  function getCityProjectsCache(cityId: string): OverlayData[] | null {
+  function getCityOverlaysAndProjectsCache(cityId: string): OverlayData[] | null {
     return cityProjectsCache.value.get(cityId) ?? null
   }
 
@@ -65,7 +65,7 @@ export const useMapStore = defineStore('map', () => {
     setSelectedCity,
     clearSelectedCity,
     hasSelectedCity,
-    getCityProjectsCache,
+    getCityOverlaysAndProjectsCache,
     hasCityProjectsCache,
     setCityProjectsCache,
     clearCityProjectsCache

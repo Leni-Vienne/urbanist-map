@@ -6,7 +6,7 @@ import { createProject } from '../../utils/typeFactories';
 /**
  * AI : Composable to extract unique projects from city overlays data
  * This avoids the need for additional API calls to getProjectsNearLocation
- * since getCityProjects already includes all project data we need
+ * since getCityOverlaysAndProjects already includes all project data we need
  */
 
 // AI : Extract unique projects from the current city overlays data

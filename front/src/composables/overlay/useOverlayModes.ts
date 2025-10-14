@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import { map, onMapInitialized, currentZoomLevel } from '@composables/core/useMap'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
+import { useMapStore } from '@stores/pinia/mapStore'
 import { getSelectedCity, hasCachedCityProjectsData, getCachedCityProjectsData } from '@composables/map/useCityData'
 import type { OverlayModeState, ZoomLevel, StateTransition } from './useOverlayModeStateMachine'
 import {
@@ -11,6 +12,8 @@ import {
 } from './useOverlayModeStateMachine'
 import { renderForStrategy, updateExistingOverlays, clearAllRenderedContent } from './useOverlayRenderer'
 import { cacheCurrentPosition } from './useOverlayPositionCache'
+import { loadCityOverlays } from '@composables/map/useCityOverlays'
+import { loadCityDevelopmentProjects } from '@composables/map/useCityMarkers'
 
 // AI : Transition effects - callbacks executed during state transitions
 interface TransitionEffects {
@@ -113,9 +116,17 @@ function performPartialUpdate(newState: OverlayModeState, transition: StateTrans
  */
 export function toggleEditMode(onModeExit?: () => void): void {
   const overlayStore = useOverlayStore()
+  const mapStore = useMapStore()
 
   // AI : Toggle mode in store
   overlayStore.isEditMode = !overlayStore.isEditMode
+
+  // AI : Invalidate cache for selected city when switching modes
+  // AI : This forces a fresh fetch with the correct viewMode parameter
+  const selectedCity = getSelectedCity()
+  if (selectedCity) {
+    mapStore.clearCityProjectsCache(selectedCity.id)
+  }
 
   // AI : Calculate new state
   const newState = getCurrentState()
@@ -128,7 +139,15 @@ export function toggleEditMode(onModeExit?: () => void): void {
         Object.values(overlayStore.overlays).forEach(cacheCurrentPosition)
       }
     },
-    afterTransition: () => {
+    afterTransition: async () => {
+      // AI : Reload both overlays and development projects with the new viewMode if we have a selected city
+      if (selectedCity && newState.selectedCityId) {
+        await Promise.all([
+          loadCityOverlays(newState.selectedCityId, false),
+          loadCityDevelopmentProjects(newState.selectedCityId)
+        ])
+      }
+
       // AI : Execute custom exit logic if provided (used by useAddOverlay and MapControls)
       if (!overlayStore.isEditMode && onModeExit) {
         onModeExit()
@@ -142,6 +161,14 @@ export function toggleEditMode(onModeExit?: () => void): void {
  */
 export function handleEditModeExit(): void {
   const overlayStore = useOverlayStore()
+  const mapStore = useMapStore()
+
+  // AI : Invalidate cache for selected city when exiting edit mode
+  const selectedCity = getSelectedCity()
+  if (selectedCity) {
+    mapStore.clearCityProjectsCache(selectedCity.id)
+  }
+
   const newState = getCurrentState()
   newState.mode = 'view'
 
@@ -151,6 +178,15 @@ export function handleEditModeExit(): void {
       // AI : Cache positions when leaving edit mode (using predicate)
       if (shouldCachePositions(from, to)) {
         Object.values(overlayStore.overlays).forEach(cacheCurrentPosition)
+      }
+    },
+    afterTransition: async () => {
+      // AI : Reload both overlays and development projects with viewMode=true after exiting edit mode
+      if (selectedCity && newState.selectedCityId) {
+        await Promise.all([
+          loadCityOverlays(newState.selectedCityId, false),
+          loadCityDevelopmentProjects(newState.selectedCityId)
+        ])
       }
     }
   })

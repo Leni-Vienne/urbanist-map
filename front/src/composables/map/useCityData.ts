@@ -10,7 +10,7 @@ import type { OverlayData } from '@types';
  */
 export function getCachedCityProjectsData(cityId: string): OverlayData[] | null {
   const mapStore = useMapStore();
-  return mapStore.getCityProjectsCache(cityId);
+  return mapStore.getCityOverlaysAndProjectsCache(cityId);
 }
 
 /**

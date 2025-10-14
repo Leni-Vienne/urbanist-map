@@ -77,7 +77,7 @@ test.describe('Overlay Loading & Zoom-based Display', () => {
     const overlayRequests = [];
     
     page.on('request', request => {
-      if (request.url().includes('overlay') || request.url().includes('cdn') || request.url().includes('cities.getCityProjects')) {
+      if (request.url().includes('overlay') || request.url().includes('cdn') || request.url().includes('cities.getCityOverlaysAndProjects')) {
         overlayRequests.push(request.url());
       }
     });

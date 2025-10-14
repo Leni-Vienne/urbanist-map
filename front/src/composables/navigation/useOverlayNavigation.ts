@@ -139,7 +139,7 @@ export async function navigateToOverlayWithCity(
       return false;
     }
 
-    // AI : Get the overlay data from mapStore (already loaded by getCityProjects)
+    // AI : Get the overlay data from mapStore (already loaded by getCityOverlaysAndProjects)
     const overlayData = mapStore.currentCityOverlays.find(o => o.id === overlayId);
 
     if (overlayData?.corners) {
