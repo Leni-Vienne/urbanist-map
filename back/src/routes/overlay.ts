@@ -150,68 +150,82 @@ export const overlayRouter = router({
       }
     }),
 
-  publishOverlay: protectedProcedure
-    .input(publishOverlaySchema)
-    .mutation(async ({ input, ctx }) => {
-      try {
-        // AI : Extract corner coordinates
-        const [topLeft, topRight, bottomRight, bottomLeft] = input.corners;
+    publishOverlay: protectedProcedure
+      .input(publishOverlaySchema)
+      .mutation(async ({ input, ctx }) => {
+        try {
+          // AI : Check if overlay already exists - approved overlays cannot be directly modified
+          const existingOverlay = await db
+            .select({ status: overlays.status })
+            .from(overlays)
+            .where(eq(overlays.id, input.id))
+            .limit(1);
 
-        // AI : Calculate centroid (center point) using all 4 corners for distorted overlays
-        const centroidLat = (topLeft.lat + topRight.lat + bottomRight.lat + bottomLeft.lat) / 4;
-        const centroidLng = (topLeft.lng + topRight.lng + bottomRight.lng + bottomLeft.lng) / 4;
+          // AI : Block any modification to approved overlays - must use change request system
+          if (existingOverlay.length > 0 && existingOverlay[0].status === 'approved') {
+            throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: 'APPROVED_OVERLAY_REQUIRES_CHANGE_REQUEST',
+              cause: 'Modifying an approved overlay requires moderation approval. Please submit a change request instead.'
+            });
+          }
 
-        // AI : Build WKT string with corner coordinates concatenated as a string literal
-        const polygonWKT = `POLYGON((${topLeft.lng} ${topLeft.lat}, ${topRight.lng} ${topRight.lat}, ${bottomRight.lng} ${bottomRight.lat}, ${bottomLeft.lng} ${bottomLeft.lat}, ${topLeft.lng} ${topLeft.lat}))`;
+          // AI : Extract corner coordinates
+          const [topLeft, topRight, bottomRight, bottomLeft] = input.corners;
 
-        // AI : Prepare overlay data for insert/update
-        const overlayData = {
-          id: input.id,
-          filename: input.filename,
-          caption: input.caption,
-          projectId: input.projectId,
-          authorId: ctx.user.id,
-          replacesOverlayId: input.replacesOverlayId ?? null,
-          corners: sql.raw(`ST_GeomFromText('${polygonWKT}', 4326)`),
-          centroid: sql`ST_SetSRID(ST_MakePoint(${centroidLng}, ${centroidLat}), 4326)`
-        };
+          // AI : Calculate centroid (center point) using all 4 corners for distorted overlays
+          const centroidLat = (topLeft.lat + topRight.lat + bottomRight.lat + bottomLeft.lat) / 4;
+          const centroidLng = (topLeft.lng + topRight.lng + bottomRight.lng + bottomLeft.lng) / 4;
 
-        // AI : Use upsert operation to avoid race conditions - atomic insert or update
-        const result = await db
-          .insert(overlays)
-          .values(overlayData)
-          .onConflictDoUpdate({
-            target: overlays.id,
-            set: {
-              filename: overlayData.filename,
-              caption: overlayData.caption,
-              projectId: overlayData.projectId,
-              authorId: overlayData.authorId,
-              replacesOverlayId: overlayData.replacesOverlayId,
-              corners: overlayData.corners,
-              centroid: overlayData.centroid,
-              version: sql`${overlays.version} + 1`, // AI : Increment version on update for optimistic locking
-              updatedAt: sql`NOW()`
-            }
-          })
-          .returning({
-            id: overlays.id,
-            createdAt: overlays.createdAt,
-            updatedAt: overlays.updatedAt
-          });
+          // AI : Build WKT string with corner coordinates concatenated as a string literal
+          const polygonWKT = `POLYGON((${topLeft.lng} ${topLeft.lat}, ${topRight.lng} ${topRight.lat}, ${bottomRight.lng} ${bottomRight.lat}, ${bottomLeft.lng} ${bottomLeft.lat}, ${topLeft.lng} ${topLeft.lat}))`;
 
-        return {
-          success: true,
-          id: result[0].id,
-          exists: result[0].createdAt !== result[0].updatedAt // AI : Determine if it was update or insert
-        };
-      } catch (error) {
-        console.error('Error publishing overlay:', error);
-        throw new Error('Failed to publish overlay');
-      }
-    }),
+          // AI : Prepare overlay data for insert/update
+          const overlayData = {
+            id: input.id,
+            filename: input.filename,
+            caption: input.caption,
+            projectId: input.projectId,
+            authorId: ctx.user.id,
+            replacesOverlayId: input.replacesOverlayId ?? null,
+            corners: sql.raw(`ST_GeomFromText('${polygonWKT}', 4326)`),
+            centroid: sql`ST_SetSRID(ST_MakePoint(${centroidLng}, ${centroidLat}), 4326)`
+          };
 
-  // AI : Update overlay fields directly (for pending overlays)
+          // AI : Use upsert operation to avoid race conditions - atomic insert or update
+          const result = await db
+            .insert(overlays)
+            .values(overlayData)
+            .onConflictDoUpdate({
+              target: overlays.id,
+              set: {
+                filename: overlayData.filename,
+                caption: overlayData.caption,
+                projectId: overlayData.projectId,
+                authorId: overlayData.authorId,
+                replacesOverlayId: overlayData.replacesOverlayId,
+                corners: overlayData.corners,
+                centroid: overlayData.centroid,
+                version: sql`${overlays.version} + 1`, // AI : Increment version on update for optimistic locking
+                updatedAt: sql`NOW()`
+              }
+            })
+            .returning({
+              id: overlays.id,
+              createdAt: overlays.createdAt,
+              updatedAt: overlays.updatedAt
+            });
+
+          return {
+            success: true,
+            id: result[0].id,
+            exists: result[0].createdAt !== result[0].updatedAt // AI : Determine if it was update or insert
+          };
+        } catch (error) {
+          console.error('Error publishing overlay:', error);
+          throw new Error('Failed to publish overlay');
+        }
+      }),  // AI : Update overlay fields directly (for pending overlays)
   updateOverlay: protectedProcedure
     .input(updateOverlaySchema)
     .mutation(async ({ input, ctx }) => {

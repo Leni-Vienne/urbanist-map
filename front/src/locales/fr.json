@@ -159,7 +159,13 @@
     "moderationNewContent": "Votre contribution sera examinée par un modérateur avant d'apparaître publiquement sur la carte.",
     "moderationEditSuggestion": "Vos modifications suggérées seront examinées par un modérateur avant d'être appliquées. Le contenu original restera visible jusqu'à l'approbation de vos modifications.",
     "proceedWithPublish": "Procéder à la publication",
-    "publishOverlay": "Publier l'image"
+    "publishOverlay": "Publier l'image",
+    "approvedOverlayModificationBlocked": "Modification nécessite une approbation",
+    "approvedOverlayRequiresChangeRequest": "La modification d'une image approuvée nécessite l'approbation d'un administrateur. Une demande de modification a été soumise pour examen.",
+    "changeRequestSubmitted": "Demande de modification soumise",
+    "changeRequestSubmittedDetail": "Vos modifications proposées seront examinées par un administrateur avant d'être appliquées.",
+    "changeRequestFailed": "Échec de la demande de modification",
+    "changeRequestFailedDetail": "Échec de la soumission de la demande de modification. Veuillez réessayer plus tard."
   },
   "map": {
     "zoom": "Zoom",
