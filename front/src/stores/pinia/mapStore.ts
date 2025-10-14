@@ -13,6 +13,9 @@ export const useMapStore = defineStore('map', () => {
   // AI : Currently selected city state (replaces the old latestClickedCity module variable)
   const selectedCity = ref<SelectedCity | null>(null)
 
+  // AI : Currently selected country code (set when clicking a country marker)
+  const selectedCountryCode = ref<string | null>(null)
+
   // AI : Current city overlays displayed
   const currentCityOverlays = ref<OverlayData[]>([])
 
@@ -82,6 +85,7 @@ export const useMapStore = defineStore('map', () => {
   return {
     // State
     selectedCity,
+    selectedCountryCode,
     currentCityOverlays,
     cityProjectsCache,
     cityDevelopmentProjectsCache,

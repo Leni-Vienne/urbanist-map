@@ -100,22 +100,31 @@ export const citiesRouter = router({
         }
       }),
 
-    // AI : Get all cities that have at least one approved project
+    // AI : Get all cities that have at least one approved project (or user's own pending contributions in edit mode)
     getCitiesWithProjects: publicProcedure
       .input(z.object({
         countryCode: z.string().optional(),
+        viewMode: z.boolean().optional().default(true) // AI : true for view mode (approved only), false for edit mode (include user's own)
       }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
         try {
           const conditions = [
-            isNotNull(projects.cityId),
-            eq(projects.status, 'approved')
+            isNotNull(projects.cityId)
           ];
+          
+          // AI : In edit mode and logged in, show cities with approved projects OR user's own contributions (any status)
+          // AI : In view mode or anonymous, only show cities with approved projects
+          if (ctx.user && !input.viewMode) {
+            conditions.push(sql`(${projects.status} = 'approved' OR ${projects.ownerId} = ${ctx.user.id})`);
+          } else {
+            conditions.push(eq(projects.status, 'approved'));
+          }
+          
           if (input.countryCode) {
             conditions.push(eq(cities.countryCode, input.countryCode));
           }
 
-          // AI : Join cities with approved projects and return cities that have projects
+          // AI : Join cities with projects and return cities that have matching projects
           return await db
             .selectDistinct({
               id: cities.id,
@@ -124,7 +133,7 @@ export const citiesRouter = router({
               // AI : Extract coordinates from PostGIS point
               lat: sql<number>`ST_Y(${cities.coordinates})`,
               lng: sql<number>`ST_X(${cities.coordinates})`,
-              // AI : Count number of approved projects in this city
+              // AI : Count number of matching projects in this city
               projectCount: sql<number>`COUNT(${projects.id})`
             })
             .from(cities)

@@ -402,7 +402,7 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
       selectedCityMarker = marker;
       
       // AI : Zoom to the city marker position (same zoom level as MarkerHelpButton)
-      if (map.value) {
+      if (map.value && map.value.getZoom() <= 9) {
         map.value.flyTo([city.lat, city.lng], 12, {
           duration: 1.5
         });
