@@ -74,12 +74,14 @@ import { ref, defineAsyncComponent, watch } from 'vue'
 import Button from 'primevue/button'
 import LatestOverlaysPanel from './LatestOverlaysPanel.vue' // static import since it's the default panel
 import { useAuthStore } from '@stores/authStore'
+import { useOverlayStore } from '@stores/pinia/overlayStore'
 
 // AI : Lazy load panels to reduce initial bundle size
 const ModerationPanel = defineAsyncComponent(() => import('./ModerationPanel.vue'))
 const MyContributionsPanel = defineAsyncComponent(() => import('./MyContributionsPanel.vue'))
 
 const authStore = useAuthStore()
+const overlayStore = useOverlayStore()
 
 const props = defineProps<{
   isOpen: boolean
@@ -104,6 +106,13 @@ watch(() => authStore.isAuthenticated, (isAuthenticated) => {
 watch(() => authStore.isAdmin, (isAdmin) => {
   if (!isAdmin && activeTab.value === 'admin') {
     activeTab.value = 'latest'
+  }
+})
+
+// AI : Watch for tab changes and enable edit mode when switching to "my contributions"
+watch(activeTab, (newTab) => {
+  if (newTab === 'uploads') {
+    overlayStore.setEditMode(true)
   }
 })
 
