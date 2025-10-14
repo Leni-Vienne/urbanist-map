@@ -186,7 +186,7 @@ export function createOverlay(imageUrl: string, overlayObject?: OverlayObject) {
   } catch (error) {
     // AI : Use error handling utility with toast notification
     withErrorHandling(
-      async () => { throw error; },
+      () => { throw error; },
       { errorMessage: 'Failed to create overlay', logError: true }
     );
     return null;

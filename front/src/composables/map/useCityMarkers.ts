@@ -180,7 +180,7 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
     const overlayStore = useOverlayStore();
     
     // AI : Check cache first for non-null cityId
-    let backendDevelopmentProjects: any[] = [];
+    let backendDevelopmentProjects: RouterOutput['project']['getCityProjects'] = [];
     if (cityId) {
       const cachedData = mapStore.getCityDevelopmentProjectsCache(cityId);
       if (cachedData) {

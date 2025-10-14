@@ -21,7 +21,7 @@ import { storeToRefs } from 'pinia'
 // AI : Transition effects - callbacks executed during state transitions
 interface TransitionEffects {
   beforeTransition?: (from: OverlayModeState, to: OverlayModeState) => void
-  afterTransition?: (to: OverlayModeState) => void
+  afterTransition?: (to: OverlayModeState) => void | Promise<void>
 }
 
 // AI : Constants
@@ -77,8 +77,8 @@ function transitionToState(newState: OverlayModeState, effects?: TransitionEffec
   // AI : Update current state
   currentState.value = newState
 
-  // AI : Execute after-transition effects
-  effects?.afterTransition?.(newState)
+  // AI : Execute after-transition effects (fire-and-forget for async effects)
+  void effects?.afterTransition?.(newState)
 }
 
 /**
