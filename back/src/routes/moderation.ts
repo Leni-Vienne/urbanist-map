@@ -5,6 +5,50 @@ import { eq, inArray, or, and } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { db } from '../database';
 import { buildProjectModerationQuery, buildOverlayModerationQuery } from '../db/queryBuilders';
+import { LocalFileStorage, R2StorageS3 } from '../shared/storage';
+
+// AI : Helper function to migrate image from local storage to R2 on approval
+async function migrateImageToR2(filename: string): Promise<void> {
+  const localStorage = new LocalFileStorage();
+  
+  // AI : Get image from local storage
+  const localFile = await localStorage.get(filename);
+  if (!localFile) {
+    throw new Error(`Local file not found: ${filename}`);
+  }
+  
+  // AI : Read the entire stream into a buffer
+  const reader = localFile.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalLength = 0;
+  
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    totalLength += value.length;
+  }
+  
+  // AI : Combine chunks into single buffer
+  const buffer = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    buffer.set(chunk, offset);
+    offset += chunk.length;
+  }
+  
+  // AI : Create R2 client and upload
+  const r2Storage = new R2StorageS3({
+    endpoint: process.env.R2_ENDPOINT!,
+    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+    bucketName: process.env.R2_BUCKET_NAME!
+  });
+  
+  await r2Storage.put(filename, buffer.buffer);
+  
+  console.log(`AI : Migrated image ${filename} from local storage to R2`);
+}
 
 // AI : Schema for legacy approval endpoints - supports arrays but frontend only sends single items
 // Used only for undo functionality in the frontend
@@ -186,6 +230,20 @@ export const moderationRouter = router({
       .input(setApprovalStatusWithVersionSchema)
       .mutation(async ({ input }) => {
         try {
+          // AI : If approving, first get the overlay filename for R2 migration
+          let overlayFilename: string | null = null;
+          if (input.status === 'approved') {
+            const overlayData = await db
+              .select({ filename: overlays.filename })
+              .from(overlays)
+              .where(eq(overlays.id, input.id))
+              .limit(1);
+            
+            if (overlayData.length > 0) {
+              overlayFilename = overlayData[0].filename;
+            }
+          }
+
           // AI : Atomic update with version check and pending status check in WHERE clause
           const result = await db
             .update(overlays)
@@ -220,6 +278,17 @@ export const moderationRouter = router({
                 expectedVersion: input.expectedVersion,
                 currentVersion: currentOverlay[0].version 
               };
+            }
+          }
+
+          // AI : If approval succeeded and we have a filename, migrate image to R2 in production
+          if (input.status === 'approved' && overlayFilename && process.env.R2_BUCKET_NAME) {
+            try {
+              await migrateImageToR2(overlayFilename);
+              console.log(`AI : Successfully migrated image ${overlayFilename} to R2`);
+            } catch (migrationError) {
+              console.error('AI : Failed to migrate image to R2:', migrationError);
+              // AI : Don't fail the approval if R2 migration fails - image is still accessible in local storage
             }
           }
 

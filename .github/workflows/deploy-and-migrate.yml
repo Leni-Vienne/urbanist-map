@@ -91,10 +91,15 @@ jobs:
         JWT_SECRET: ${{ secrets.JWT_SECRET }}
         SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
         SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+        R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+        R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+        R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
         VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
         CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
         SES_REGION: ${{ vars.SES_REGION }}
         FROM_EMAIL: ${{ vars.FROM_EMAIL }}
+
       run: |
         # AI : Install sshpass for password authentication
         sudo apt-get update && sudo apt-get install -y sshpass
@@ -127,8 +132,8 @@ jobs:
           sudo cp /tmp/Caddyfile ./
           
           # AI : Create .env file from GitHub secrets/vars
-          printf 'POSTGRES_PASSWORD=%s\nDATABASE_URL=postgres://postgres:%s@postgres:5432/construction_map\nJWT_SECRET=%s\nCORS_ORIGIN=%s\nVITE_GOOGLE_CLIENT_ID=%s\nFRONTEND_URL=%s\nPORT=3000\nSMTP_USERNAME=%s\nSMTP_PASSWORD=%s\nSES_REGION=%s\nFROM_EMAIL=%s\n' \
-            "${POSTGRES_PASSWORD}" "${POSTGRES_PASSWORD}" "${JWT_SECRET}" "${CORS_ORIGIN}" "${VITE_GOOGLE_CLIENT_ID}" "${FRONTEND_URL}" "${SMTP_USERNAME}" "${SMTP_PASSWORD}" "${SES_REGION}" "${FROM_EMAIL}" > .env
+          printf 'POSTGRES_PASSWORD=%s\nDATABASE_URL=postgres://postgres:%s@postgres:5432/construction_map\nJWT_SECRET=%s\nCORS_ORIGIN=%s\nVITE_GOOGLE_CLIENT_ID=%s\nFRONTEND_URL=%s\nPORT=3000\nSMTP_USERNAME=%s\nSMTP_PASSWORD=%s\nSES_REGION=%s\nFROM_EMAIL=%s\nR2_ENDPOINT=%s\nR2_ACCESS_KEY_ID=%s\nR2_SECRET_ACCESS_KEY=%s\nR2_BUCKET_NAME=%s\n' \
+            "${POSTGRES_PASSWORD}" "${POSTGRES_PASSWORD}" "${JWT_SECRET}" "${CORS_ORIGIN}" "${VITE_GOOGLE_CLIENT_ID}" "${FRONTEND_URL}" "${SMTP_USERNAME}" "${SMTP_PASSWORD}" "${SES_REGION}" "${FROM_EMAIL}" "${R2_ENDPOINT}" "${R2_ACCESS_KEY_ID}" "${R2_SECRET_ACCESS_KEY}" "${R2_BUCKET_NAME}" > .env
           
           # AI : Start services (no build needed, using vanilla bun image)
           sudo docker compose -f docker-compose.prod.yml up -d

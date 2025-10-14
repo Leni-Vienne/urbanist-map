@@ -29,6 +29,7 @@ const app = new Hono<{
     }
 }>()
 
+// AI : Always use local storage for initial uploads - images migrate to R2 on approval
 const storage = new LocalFileStorage()
 
 app.use('*', cors({
@@ -329,9 +330,10 @@ app.post('/api/upload-image', async (c) => {
         const filename = `${timestamp}-${randomString}.${fileExtension}`
         
         const buffer = await file.arrayBuffer()
+        // AI : Save to local storage - images are not uploaded to R2 until moderator approval
         await storage.put(filename, buffer)
         
-        // AI : Local development uses local URL
+        // AI : Always return local URL - images stay in local storage until approved
         const imageUrl = `/uploads/${filename}`
         
         return c.json({ 
