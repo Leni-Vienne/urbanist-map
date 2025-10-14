@@ -1,5 +1,6 @@
 import { computed } from 'vue';
 import { useMapStore } from '@stores/pinia/mapStore';
+import { useProjectStore } from '@stores/pinia/projectStore';
 import type { Project } from '@types';
 import { createProject } from '../../utils/typeFactories';
 
@@ -12,11 +13,12 @@ import { createProject } from '../../utils/typeFactories';
 // AI : Extract unique projects from the current city overlays data
 export function useCityProjects() {
   const mapStore = useMapStore();
+  const projectStore = useProjectStore();
 
   const projects = computed(() => {
     const projectMap = new Map<string, Project>();
 
-    // AI : Extract projects from overlay data
+    // AI : Extract projects from overlay data (backend projects)
     mapStore.currentCityOverlays.forEach(overlay => {
       if (overlay.project?.id) {
         const project = overlay.project;
@@ -30,6 +32,15 @@ export function useCityProjects() {
         });
 
         projectMap.set(project.id, frontendProject);
+      }
+    });
+
+    // AI : Also include local projects that might not be in currentCityOverlays yet
+    // AI : (e.g., newly created projects not yet saved to backend)
+    Object.values(projectStore.projects).forEach(project => {
+      // AI : Only add if not already in map (backend projects take precedence)
+      if (!projectMap.has(project.id)) {
+        projectMap.set(project.id, project);
       }
     });
 

@@ -27,6 +27,12 @@
     "myContributions": "Mes contributions",
     "admin": "Administration"
   },
+  "projectPicker": {
+    "noProjectsAvailable": "Aucun projet disponible. Créez votre premier projet pour ajouter des images.",
+    "selectProject": "Sélectionner un projet",
+    "overlaysCount": "{count} images",
+    "createNewProject": "Créer un nouveau projet"
+  },
   "project": {
     "title": "Projets",
     "create": "Créer un projet",

@@ -134,7 +134,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, ref } from 'vue';
+import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@stores/authStore';
 import type { OverlayObject, Project } from '@types';
@@ -174,16 +174,17 @@ const showModerationDialog = ref(false);
 // AI : Determine if this is an edit suggestion (replacesOverlayId exists)
 const isEditSuggestion = computed(() => !!props.overlayObject.replacesOverlayId);
 
-// AI : Computed for project picker v-model
-const selectedProjectId = computed({
-  get: () => props.overlayObject.projectId ?? '',
-  set: (_value: string) => {
-    // AI : Don't set local state, just emit the change
-  }
-});
+// AI : Local ref for selected project ID (synced with overlay's projectId)
+const selectedProjectId = ref(props.overlayObject.projectId ?? '');
+
+// AI : Watch for overlay projectId changes to sync local state
+watch(() => props.overlayObject.projectId, (newProjectId) => {
+  selectedProjectId.value = newProjectId ?? '';
+}, { immediate: true });
 
 // AI : Handle project selection from picker
 function handleProjectSelected(projectId: string) {
+  selectedProjectId.value = projectId;
   emit('project-change', projectId);
 }
 
