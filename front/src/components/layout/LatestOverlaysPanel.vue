@@ -84,7 +84,7 @@ import { navigateToOverlay } from '@composables/overlay/useOverlay'
 import { navigateToOverlayWithCity } from '@composables/navigation/useOverlayNavigation'
 import { useToast } from '@composables/ui/useToast'
 import { useLatestOverlays } from '@composables/overlay/useLatestOverlays'
-import { buildImageUrl, formatRelativeTime } from '../../utils'
+import { buildThumbnailUrl, formatRelativeTime } from '../../utils'
 import type { LatestOverlay } from '../../types/api'
 
 const { t } = useI18n()
@@ -95,9 +95,10 @@ const { overlays, isLoading, fetchLatestOverlays } = useLatestOverlays()
 const imageErrors = ref<Record<string, boolean>>({})
 const toast = useToast()
 
-// AI : Get overlay image URL using the utility function
+// AI : Get overlay thumbnail URL using the utility function
+// Thumbnails are much smaller (~3KB vs full image) for efficient list display
 function getOverlayImageUrl(filename: string): string {
-  return buildImageUrl(filename)
+  return buildThumbnailUrl(filename)
 }
 
 

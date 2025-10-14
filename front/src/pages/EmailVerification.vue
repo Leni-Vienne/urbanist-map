@@ -44,7 +44,7 @@ async function verifyEmail() {
     const token = route.query.token as string
     
     if (!token) {
-      throw new Error('AI : No verification token provided')
+      throw new Error('No verification token provided')
     }
 
     await authStore.verifyEmail(token)
@@ -58,7 +58,7 @@ async function verifyEmail() {
     })
   } catch (error) {
     console.error('Email verification failed:', error)
-    errorMessage.value = error instanceof Error ? error.message : 'AI : Verification failed. The token may be invalid or expired.'
+    errorMessage.value = error instanceof Error ? error.message : 'Verification failed. The token may be invalid or expired.'
   } finally {
     loading.value = false
   }

@@ -124,10 +124,10 @@ async function onProjectSelected(projectId: string) {
         // AI : Add project to local store
         projects.value[projectId] = localProject
       } else {
-        console.warn('AI : Project not found in nearby projects, overlay creation may not work properly')
+        console.warn('Project not found in nearby projects, overlay creation may not work properly')
       }
     } catch (error) {
-      console.error('AI : Error fetching nearby projects for project selection:', error)
+      console.error('Error fetching nearby projects for project selection:', error)
     }
   }
 

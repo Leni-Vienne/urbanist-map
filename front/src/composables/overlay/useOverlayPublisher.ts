@@ -219,7 +219,7 @@ export function useOverlayPublisher() {
       // AI : the just-published overlay with stale backend data. The overlay is already
       // AI : updated locally with the correct state and ID from the publish response.
     } catch (error) {
-      console.error('AI : Failed to publish overlay:', error);
+      console.error('Failed to publish overlay:', error);
       throw new Error('Publish Failed: Failed to save to server. Please try again.');
     } finally {
       isPublishing.value = false;

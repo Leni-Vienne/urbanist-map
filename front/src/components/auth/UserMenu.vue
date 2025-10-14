@@ -96,7 +96,7 @@ async function handleSignOut() {
       })
     }
   } catch (error) {
-    console.error('AI : Error signing out:', error)
+    console.error('Error signing out:', error)
   }
   userPopover.value.hide()
   isMenuOpen.value = false

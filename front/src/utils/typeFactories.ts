@@ -51,8 +51,6 @@ export function createProject(data: Partial<Project> = {}): Project {
     overlayIds: data.overlayIds ?? [],
     color: data.color ?? '#007bff',
     savedRemotely: data.savedRemotely ?? false,
-    // AI : Optional fields
-    sourcePdf: data.sourcePdf ?? null,
     // AI : Map coordinates (renamed to avoid DB conflict)
     mapCoordinates: data.mapCoordinates ?? null,
     ...data

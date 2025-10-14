@@ -109,12 +109,13 @@ jobs:
         echo "StrictHostKeyChecking no" >> ~/.ssh/config
         
         # AI : Check if files exist before transfer
-        ls -la server.bundle.js docker-compose.prod.yml Caddyfile
+        ls -la server.bundle.js docker-compose.prod.yml Caddyfile Dockerfile.bun-sharp
         
         # AI : Transfer files to remote server using password
         sshpass -p "$REMOTE_PASSWORD" scp ./server.bundle.js "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
         sshpass -p "$REMOTE_PASSWORD" scp ./docker-compose.prod.yml "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
         sshpass -p "$REMOTE_PASSWORD" scp ./Caddyfile "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
+        sshpass -p "$REMOTE_PASSWORD" scp ./Dockerfile.bun-sharp "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
 
 
         # AI : Deploy with docker compose on remote server
@@ -130,6 +131,15 @@ jobs:
           sudo cp /tmp/server.bundle.js ./
           sudo cp /tmp/docker-compose.prod.yml ./
           sudo cp /tmp/Caddyfile ./
+          sudo cp /tmp/Dockerfile.bun-sharp ./
+          
+          # AI : Build custom bun-sharp image if it doesn't exist
+          if ! sudo docker images | grep -q "bun-sharp.*1.3-alpine"; then
+            echo "Building custom bun-sharp image with libvips..."
+            sudo docker build -f Dockerfile.bun-sharp -t bun-sharp:1.3-alpine .
+          else
+            echo "Custom bun-sharp image already exists, skipping build"
+          fi
           
           # AI : Create .env file from GitHub secrets/vars
           printf 'POSTGRES_PASSWORD=%s\nDATABASE_URL=postgres://postgres:%s@postgres:5432/construction_map\nJWT_SECRET=%s\nCORS_ORIGIN=%s\nVITE_GOOGLE_CLIENT_ID=%s\nFRONTEND_URL=%s\nPORT=3000\nSMTP_USERNAME=%s\nSMTP_PASSWORD=%s\nSES_REGION=%s\nFROM_EMAIL=%s\nR2_ENDPOINT=%s\nR2_ACCESS_KEY_ID=%s\nR2_SECRET_ACCESS_KEY=%s\nR2_BUCKET_NAME=%s\n' \
@@ -142,7 +152,7 @@ jobs:
           sudo docker compose -f docker-compose.prod.yml ps
           
           # AI : Clean up temp files
-          rm -f /tmp/server.bundle.js /tmp/docker-compose.prod.yml /tmp/Caddyfile
+          rm -f /tmp/server.bundle.js /tmp/docker-compose.prod.yml /tmp/Caddyfile /tmp/Dockerfile.bun-sharp
         EOF
 
     - name: Comment on PR with deployment status

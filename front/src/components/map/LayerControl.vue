@@ -79,7 +79,7 @@ async function onLayerChange() {
     try {
         switchTileLayer(selectedLayer.value);
     } catch (error) {
-        console.error('AI : Failed to switch layer:', error);
+        console.error('Failed to switch layer:', error);
         // AI : Reset to previous value on error
         selectedLayer.value = currentTileLayer.value;
     }

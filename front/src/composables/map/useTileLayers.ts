@@ -147,7 +147,7 @@ export function switchTileLayer(layerType: TileLayerType) {
     currentTileLayer.value = layerType;
 
   } catch (error) {
-    console.error('AI : Failed to switch tile layer:', error);
+    console.error('Failed to switch tile layer:', error);
     // AI : Fallback to previous layer or default ESRI on error
     if (layerType !== 'esri') {
       activeTileLayer = createTileLayer('esri');
