@@ -13,12 +13,21 @@ import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjects } from '@composables/project/useProjects';
 import { createProject } from '../../utils/typeFactories';
 
-// AI : Get project timeline-based marker color
+// AI : Get project marker color based on status and timeline
 function getProjectMarkerColor(project: Project): MarkerColor {
+  // AI : Pending projects always show as yellow (proposed/awaiting approval)
+  if (project.status === 'pending') {
+    return 'yellow'; // Pending approval
+  }
+
+  // AI : Timeline-based colors for approved/rejected projects
   const { proposalDate, startDate, endDate } = project;
 
+  // AI : If only proposalDate is set (no start date), it's just a proposal
   if (proposalDate && !startDate) return 'yellow'; // Proposed but not started (nor planned)
-  if (!startDate) return 'grey'; // No start date, shouldn't happen?
+
+  // AI : If no start date but has other dates, consider it not yet scheduled
+  if (!startDate) return 'yellow'; // Not yet scheduled
 
   const now = new Date();
   const start = new Date(startDate);
@@ -196,7 +205,7 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
 
     allDevelopmentProjects.forEach(project => {
       if (project.lat && project.lng) {
-        // AI : Get timeline-based color for project marker
+        // AI : Get marker color based on edit mode and status
         const projectData = 'overlayIds' in project ? project : createProject({
           ...project,
           city: {
@@ -206,7 +215,7 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
             updatedAt: new Date()
           },
           savedRemotely: true,
-          status: 'approved'
+          status: ('status' in project ? project.status : 'approved') as 'pending' | 'approved' | 'rejected'
         });
         const markerColor = getProjectMarkerColor(projectData);
         const markerIcon = createDevelopmentIcon(markerColor);

@@ -14,13 +14,15 @@ export function getOverlayMarkerColor(
     // AI : OverlayData objects are always remote overlays (they come from the backend)
     const isRemoteOverlay = 'savedRemotely' in overlayData ? overlayData.savedRemotely : true;
     const hasBeenModified = 'isModified' in overlayData ? overlayData.isModified : false;
+    const isPending = overlayData.status === 'pending';
 
     if (!isRemoteOverlay) {
       return 'red'; // Local overlay not saved remotely, meaning brand new
     }
 
     if (hasBeenModified) return 'orange'; // Remote overlay with unsaved changes
-    return 'green'; // saved remotely and unmodified
+    if (isPending) return 'yellow'; // Remote overlay awaiting moderation approval
+    return 'green'; // Approved overlay, saved and unmodified
   }
 
   const project = overlayData.project;
@@ -29,7 +31,7 @@ export function getOverlayMarkerColor(
   const { proposalDate, startDate, endDate } = project;
 
   if (proposalDate && !startDate) return 'yellow'; // Proposed but not started (nor planned)
-  if (!startDate) return 'grey'; // TODO No start date, shouldn't happen?
+  if (!startDate) return 'yellow'; // Not yet scheduled
 
   const now = new Date();
   const start = new Date(startDate);

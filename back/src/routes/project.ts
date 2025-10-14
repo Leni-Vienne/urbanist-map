@@ -207,6 +207,7 @@ export const projectRouter = router({
               id: projects.id,
               name: projects.name,
               description: projects.description,
+              status: projects.status, // AI : Include status to distinguish pending/approved/rejected
               ownerId: projects.ownerId,
               cityId: projects.cityId,
               isDevelopment: projects.isDevelopment,
@@ -233,6 +234,7 @@ export const projectRouter = router({
               projects.id,
               projects.name,
               projects.description,
+              projects.status, // AI : Include status in groupBy
               projects.ownerId,
               projects.cityId,
               projects.isDevelopment,

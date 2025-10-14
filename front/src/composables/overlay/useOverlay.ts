@@ -797,10 +797,15 @@ export function updateMarkerTooltip(overlayObject: OverlayObject): void {
   const isRemoteOverlay = overlayObject?.savedRemotely;
   const hasBeenModified = overlayObject.isModified;
   const isReplacement = overlayObject.replacesOverlayId !== null;
+  const isPending = overlayObject.status === 'pending';
 
   let tooltipText = '';
   if (isReplacement) {
     tooltipText = 'Replacement overlay';
+  } else if (isPending && !hasBeenModified) {
+    tooltipText = 'Pending approval';
+  } else if (isPending && hasBeenModified) {
+    tooltipText = 'Pending approval (modified)';
   } else if (isRemoteOverlay && !hasBeenModified) {
     tooltipText = 'Saved remotely';
   } else if (isRemoteOverlay && hasBeenModified) {
