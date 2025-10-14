@@ -61,6 +61,7 @@
     "optionalField": "Optional",
     "validationError": "Validation Error",
     "nameRequired": "Project name is required",
+    "nameTooShort": "Project name must be at least 8 characters long",
     "locationRequired": "Location is required",
     "proposalDateRequired": "Proposal date is required for proposed projects",
     "datesRequired": "Start date and end date are required for planned projects",

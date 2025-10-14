@@ -104,11 +104,11 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
     })
 
     test('handles project with mixed version states individually', async () => {
-      const project1 = await TestHelpers.createTestProject(testUser.id, testCity.id, 1, { status: 'pending', name: 'Project 1' })
-      const project2 = await TestHelpers.createTestProject(testUser.id, testCity.id, 1, { status: 'pending', name: 'Project 2' })
+      const project1 = await TestHelpers.createTestProject(testUser.id, testCity.id, 1, { status: 'pending', name: 'Test Project 1' })
+      const project2 = await TestHelpers.createTestProject(testUser.id, testCity.id, 1, { status: 'pending', name: 'Test Project 2' })
       
       // AI : Modify only project2
-      await TestHelpers.updateProject(project2.id, { name: 'Modified Project 2' })
+      await TestHelpers.updateProject(project2.id, { name: 'Modified Test Project 2' })
       
       const caller = moderationRouter.createCaller(TestHelpers.createAdminContext(testAdmin.id))
       

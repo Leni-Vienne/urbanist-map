@@ -10,6 +10,7 @@
                         id="project-name-input"
                         v-model="localProject.name"
                         required
+                        minlength="8"
                         class="w-full"
                     />
                     <label
@@ -17,6 +18,7 @@
                         class="text-gray-600"
                     >{{ $t('project.name') }} *</label>
                 </FloatLabel>
+                <small class="text-gray-500 mt-1">{{ $t('project.nameTooShort') }}</small>
             </div>
 
             <div class="field">
@@ -456,6 +458,17 @@ function handleSubmit() {
             severity: 'error',
             summary: t('project.validationError'),
             detail: t('project.nameRequired'),
+            life: 3000
+        });
+        return;
+    }
+
+    // AI : Validate minimum name length
+    if (localProject.value.name.trim().length < 8) {
+        toast.add({
+            severity: 'error',
+            summary: t('project.validationError'),
+            detail: t('project.nameTooShort'),
             life: 3000
         });
         return;

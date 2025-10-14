@@ -18,7 +18,9 @@
           :class="getFieldClasses('name')"
           :placeholder="$t('project.name')"
           required
+          minlength="8"
         />
+        <small class="text-gray-500">{{ $t('project.nameTooShort') }}</small>
         <small v-if="hasChanged('name')" class="change-indicator">
           {{ $t('overlay.changedFrom') }}: "{{ originalData.name || $t('overlay.notSet') }}"
         </small>

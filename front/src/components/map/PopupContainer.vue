@@ -45,6 +45,7 @@ import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
+import { useMapStore } from '@stores/pinia/mapStore';
 import { useUiStore } from '@stores/uiStore';
 
 import { updateTooltipText } from '@composables/overlay/useOverlay';
@@ -60,9 +61,11 @@ const OverlayEditor = defineAsyncComponent(() => import('./OverlayEditor.vue'));
 
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
+const mapStore = useMapStore();
 const uiStore = useUiStore();
 const { overlays, showInfoPopup, infoPopupOverlayId, isEditMode } = storeToRefs(overlayStore);
 const { projects } = storeToRefs(projectStore);
+const { currentCityOverlays } = storeToRefs(mapStore);
 const { projectInfoPopup } = storeToRefs(uiStore);
 const toast = useToast();
 const { t } = useI18n();
@@ -139,6 +142,28 @@ const overlayObject = computed(() => {
   return overlays.value[infoPopupOverlayId.value];
 });
 
+// AI : Helper to convert backend project data and add to store
+function convertAndCacheBackendProject(backendProject: any): Project {
+  const convertedProject: Project = {
+    ...backendProject,
+    name: backendProject.name,
+    city: backendProject.city,
+    overlayIds: [],
+    color: '#007bff',
+    savedRemotely: true
+  };
+
+  // AI : Add to store for future use
+  if (!projects.value[backendProject.id]) {
+    projects.value = {
+      ...projects.value,
+      [backendProject.id]: convertedProject
+    };
+  }
+
+  return convertedProject;
+}
+
 // AI : Get project for overlay - computed to ensure reactivity when projectId changes
 const currentProject = computed((): Project | null => {
   const overlay = overlayObject.value;
@@ -150,28 +175,13 @@ const currentProject = computed((): Project | null => {
     return localProject;
   }
 
-  // AI : If not found locally, check if this overlay has backend project data
-  if (overlay.project?.id === overlay.projectId) {
-    // AI : Convert backend project data to frontend format
-    const backendProject = overlay.project;
-    const convertedProject: Project = {
-      ...backendProject,
-      name: backendProject.name,
-      city: backendProject.city,
-      overlayIds: [],
-      color: '#007bff',
-      savedRemotely: true
-    };
+  // AI : Try to find backend project data from overlay or city overlays
+  const backendProject = overlay.project?.id === overlay.projectId
+    ? overlay.project
+    : currentCityOverlays.value.find(cityOverlay => cityOverlay.project?.id === overlay.projectId)?.project;
 
-    // AI : Add the project to the projects store so other components can access it
-    if (!projects.value[overlay.projectId]) {
-      projects.value = {
-        ...projects.value,
-        [overlay.projectId]: convertedProject
-      };
-    }
-
-    return convertedProject;
+  if (backendProject) {
+    return convertAndCacheBackendProject(backendProject);
   }
 
   return null;

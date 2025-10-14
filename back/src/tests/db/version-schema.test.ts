@@ -59,7 +59,7 @@ describe('Database Schema - Version Field Tests', () => {
 
     test('version persists after database queries', async () => {
       const project = await TestHelpers.createTestProject(testUser.id, testCity.id)
-      await TestHelpers.updateProject(project.id, { name: 'Updated' })
+      await TestHelpers.updateProject(project.id, { name: 'Updated Project' })
       
       // AI : Query project multiple times
       const db = getTestDb()
