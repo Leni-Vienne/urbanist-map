@@ -481,6 +481,7 @@ async function handleOverlayClick(overlay: OverlayForModeration) {
       // AI : Clear city cache to force reload with pending overlays visible
       if (overlay.cityId) {
         mapStore.clearCityProjectsCache(overlay.cityId)
+        mapStore.clearCityDevelopmentProjectsCache(overlay.cityId)
       }
 
       // AI : Wait for edit mode transition to complete and overlays to re-render

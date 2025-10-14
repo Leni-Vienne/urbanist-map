@@ -19,6 +19,9 @@ export const useMapStore = defineStore('map', () => {
   // AI : City projects cache - moved from module-level to store for proper state management
   const cityProjectsCache = ref<Map<string, OverlayData[]>>(new Map())
 
+  // AI : City development projects cache (separate from overlays cache)
+  const cityDevelopmentProjectsCache = ref<Map<string, any[]>>(new Map())
+
   // AI : Set the currently selected city
   function setSelectedCity(city: SelectedCity | null) {
     selectedCity.value = city
@@ -55,11 +58,33 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
+  // AI : Development projects cache management
+  function getCityDevelopmentProjectsCache(cityId: string): any[] | null {
+    return cityDevelopmentProjectsCache.value.get(cityId) ?? null
+  }
+
+  function hasCityDevelopmentProjectsCache(cityId: string): boolean {
+    return cityDevelopmentProjectsCache.value.has(cityId)
+  }
+
+  function setCityDevelopmentProjectsCache(cityId: string, data: any[]) {
+    cityDevelopmentProjectsCache.value.set(cityId, data)
+  }
+
+  function clearCityDevelopmentProjectsCache(cityId?: string) {
+    if (cityId) {
+      cityDevelopmentProjectsCache.value.delete(cityId)
+    } else {
+      cityDevelopmentProjectsCache.value.clear()
+    }
+  }
+
   return {
     // State
     selectedCity,
     currentCityOverlays,
     cityProjectsCache,
+    cityDevelopmentProjectsCache,
 
     // Actions
     setSelectedCity,
@@ -68,6 +93,10 @@ export const useMapStore = defineStore('map', () => {
     getCityOverlaysAndProjectsCache,
     hasCityProjectsCache,
     setCityProjectsCache,
-    clearCityProjectsCache
+    clearCityProjectsCache,
+    getCityDevelopmentProjectsCache,
+    hasCityDevelopmentProjectsCache,
+    setCityDevelopmentProjectsCache,
+    clearCityDevelopmentProjectsCache
   }
 })
