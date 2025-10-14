@@ -134,13 +134,24 @@ export function shouldReloadOverlays(transition: StateTransition): boolean {
 export function shouldFullRerender(transition: StateTransition): boolean {
   const { from, to } = transition
 
-  // AI : Full re-render needed if mode changed
-  if (from.mode !== to.mode) {
+  // AI : City changed - always need full re-render
+  if (from.selectedCityId !== to.selectedCityId) {
     return true
   }
 
-  // AI : Full re-render needed if zoom level changed significantly
+  // AI : Zoom level changed - need full re-render to add/remove overlays
   if (from.zoomLevel !== to.zoomLevel) {
+    return true
+  }
+
+  // AI : Mode changed but overlays already loaded at high zoom - just update state
+  // AI : This prevents overlay recreation when toggling edit/view mode
+  if (from.mode !== to.mode && from.hasLoadedOverlays && to.hasLoadedOverlays && to.zoomLevel === 'high') {
+    return false
+  }
+
+  // AI : Mode changed without loaded overlays - need full re-render
+  if (from.mode !== to.mode) {
     return true
   }
 

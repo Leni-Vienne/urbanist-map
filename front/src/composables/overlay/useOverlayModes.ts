@@ -110,9 +110,51 @@ function performPartialUpdate(newState: OverlayModeState, transition: StateTrans
   updateExistingOverlays(transition.renderStrategy)
 }
 
-// ================================
-// PUBLIC API
-// ================================
+/**
+ * AI : Shared logic for invalidating cache when switching modes
+ */
+function invalidateCityCaches(cityId: string): void {
+  const mapStore = useMapStore()
+  mapStore.clearCityProjectsCache(cityId)
+  mapStore.clearCityDevelopmentProjectsCache(cityId)
+}
+
+/**
+ * AI : Shared logic for reloading cities and updating map markers
+ */
+async function reloadCitiesAndMarkers(countryCode: string): Promise<void> {
+  await loadCitiesForCountry(countryCode)
+  
+  // AI : Update city markers on the map with the new cities list
+  removeCityMarkers()
+  const projectStore = useProjectStore()
+  const { countries } = storeToRefs(projectStore)
+  const currentCountry = countries.value.find(c => c.code === countryCode)
+  if (currentCountry && currentCountry.cities.length > 0) {
+    addCityMarkersForCountry(currentCountry.cities.map(c => ({ ...c, projectCount: 0 })))
+  }
+}
+
+/**
+ * AI : Shared logic for reloading city data (overlays + development projects)
+ */
+async function reloadCityData(cityId: string): Promise<void> {
+  await Promise.all([
+    loadCityOverlays(cityId, false),
+    loadCityDevelopmentProjects(cityId)
+  ])
+}
+
+/**
+ * AI : Shared before-transition logic for caching overlay positions
+ */
+function handleBeforeTransition(from: OverlayModeState, to: OverlayModeState): void {
+  // AI : Cache positions when leaving edit mode (using predicate)
+  if (shouldCachePositions(from, to)) {
+    const overlayStore = useOverlayStore()
+    Object.values(overlayStore.overlays).forEach(cacheCurrentPosition)
+  }
+}
 
 /**
  * AI : Toggle between edit and view modes
@@ -124,47 +166,37 @@ export function toggleEditMode(onModeExit?: () => void): void {
   // AI : Toggle mode in store
   overlayStore.isEditMode = !overlayStore.isEditMode
   
-  // AI : Invalidate cache for selected city when switching modes
-  // AI : This forces a fresh fetch with the correct viewMode parameter
-  const selectedCity = getSelectedCity()
-  if (selectedCity) {
-    mapStore.clearCityProjectsCache(selectedCity.id)
-    mapStore.clearCityDevelopmentProjectsCache(selectedCity.id)
-  }
-
   // AI : Calculate new state
   const newState = getCurrentState()
+  const selectedCity = getSelectedCity()
+
+  // AI : Invalidate cache for selected city when switching modes
+  // AI : This forces a fresh fetch with the correct viewMode parameter
+  if (selectedCity) {
+    invalidateCityCaches(selectedCity.id)
+  }
 
   // AI : Execute state transition with side effects
   transitionToState(newState, {
-    beforeTransition: (from, to) => {
-      // AI : Cache positions when leaving edit mode (using predicate)
-      if (shouldCachePositions(from, to)) {
-        Object.values(overlayStore.overlays).forEach(cacheCurrentPosition)
-      }
-    },
+    beforeTransition: handleBeforeTransition,
     afterTransition: async () => {
-      // AI : Reload cities for the country (cities cache handles viewMode automatically)
+      // AI : Reload city list for the country (to show cities with user's pending contributions)
       const countryCode = mapStore.selectedCountryCode
       if (countryCode) {
-        await loadCitiesForCountry(countryCode)
-        
-        // AI : Update city markers on the map with the new cities list
-        removeCityMarkers()
-        const projectStore = useProjectStore()
-        const { countries } = storeToRefs(projectStore)
-        const currentCountry = countries.value.find(c => c.code === countryCode)
-        if (currentCountry && currentCountry.cities.length > 0) {
-          addCityMarkersForCountry(currentCountry.cities.map(c => ({ ...c, projectCount: 0 })))
-        }
+        await reloadCitiesAndMarkers(countryCode)
       }
-      
-      // AI : Reload both overlays and development projects with the new viewMode if we have a selected city
-      if (selectedCity && newState.selectedCityId) {
-        await Promise.all([
-          loadCityOverlays(newState.selectedCityId, false),
-          loadCityDevelopmentProjects(newState.selectedCityId)
-        ])
+
+      // AI : If overlays are already loaded at high zoom, just fetch data without re-rendering
+      // AI : The state machine already updated the visual state
+      if (selectedCity && newState.selectedCityId && newState.hasLoadedOverlays && newState.zoomLevel === 'high') {
+        // AI : Import fetchCityProjectsData dynamically to update cache only
+        const { fetchCityProjectsData } = await import('@composables/map/useCityOverlays')
+        await fetchCityProjectsData(newState.selectedCityId)
+        // AI : Also update development projects cache
+        await loadCityDevelopmentProjects(newState.selectedCityId)
+      } else if (selectedCity && newState.selectedCityId) {
+        // AI : Low zoom or no overlays loaded - need full reload with rendering
+        await reloadCityData(newState.selectedCityId)
       }
 
       // AI : Execute custom exit logic if provided (used by useAddOverlay and MapControls)
@@ -177,51 +209,42 @@ export function toggleEditMode(onModeExit?: () => void): void {
 
 /**
  * AI : Handle edit mode exit - reset overlays to backend positions
+ * AI : This is a specialized function for forcing exit from edit mode (not a toggle)
+ * AI : Currently unused - kept for potential future use cases
  */
 export function handleEditModeExit(): void {
   const overlayStore = useOverlayStore()
   const mapStore = useMapStore()
-
-  // AI : Invalidate cache for selected city when exiting edit mode
   const selectedCity = getSelectedCity()
+  
+  // AI : Force exit edit mode
+  overlayStore.isEditMode = false
+  
+  // AI : Invalidate cache for selected city when exiting edit mode
   if (selectedCity) {
-    mapStore.clearCityProjectsCache(selectedCity.id)
-    mapStore.clearCityDevelopmentProjectsCache(selectedCity.id)
+    invalidateCityCaches(selectedCity.id)
   }
 
   const newState = getCurrentState()
-  newState.mode = 'view'
 
   // AI : Transition with caching side effect
   transitionToState(newState, {
-    beforeTransition: (from, to) => {
-      // AI : Cache positions when leaving edit mode (using predicate)
-      if (shouldCachePositions(from, to)) {
-        Object.values(overlayStore.overlays).forEach(cacheCurrentPosition)
-      }
-    },
+    beforeTransition: handleBeforeTransition,
     afterTransition: async () => {
-      // AI : Reload cities for the country (cities cache handles viewMode automatically)
+      // AI : Reload city list for the country
       const countryCode = mapStore.selectedCountryCode
       if (countryCode) {
-        await loadCitiesForCountry(countryCode)
-        
-        // AI : Update city markers on the map with the new cities list
-        removeCityMarkers()
-        const projectStore = useProjectStore()
-        const { countries } = storeToRefs(projectStore)
-        const currentCountry = countries.value.find(c => c.code === countryCode)
-        if (currentCountry && currentCountry.cities.length > 0) {
-          addCityMarkersForCountry(currentCountry.cities.map(c => ({ ...c, projectCount: 0 })))
-        }
+        await reloadCitiesAndMarkers(countryCode)
       }
-      
-      // AI : Reload both overlays and development projects with viewMode=true after exiting edit mode
-      if (selectedCity && newState.selectedCityId) {
-        await Promise.all([
-          loadCityOverlays(newState.selectedCityId, false),
-          loadCityDevelopmentProjects(newState.selectedCityId)
-        ])
+
+      // AI : If overlays are already loaded at high zoom, just fetch data without re-rendering
+      if (selectedCity && newState.selectedCityId && newState.hasLoadedOverlays && newState.zoomLevel === 'high') {
+        const { fetchCityProjectsData } = await import('@composables/map/useCityOverlays')
+        await fetchCityProjectsData(newState.selectedCityId)
+        await loadCityDevelopmentProjects(newState.selectedCityId)
+      } else if (selectedCity && newState.selectedCityId) {
+        // AI : Low zoom or no overlays loaded - need full reload with rendering
+        await reloadCityData(newState.selectedCityId)
       }
     }
   })
