@@ -16,7 +16,7 @@ async function importData() {
     await CitiesImportService.getImportStats();
     
   } catch (error) {
-    console.error('AI : Import failed:', error);
+    console.error('Import failed:', error);
     process.exit(1);
   }
 }

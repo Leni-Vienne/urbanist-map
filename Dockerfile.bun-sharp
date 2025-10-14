@@ -1,0 +1,12 @@
+# AI : Custom Bun Alpine image with libvips for Sharp image processing
+# AI : This solves the Sharp native bindings issue on Alpine Linux (musl)
+# AI : Build once on server, reuse for all deployments
+FROM oven/bun:1.3-alpine
+
+# AI : Install libvips and its dependencies for Sharp to work on Alpine
+# AI : vips-dev includes C++ bindings (libvips-cpp.so) that Sharp needs
+# AI : libstdc++ is required for C++ runtime
+RUN apk add --no-cache libstdc++ vips-dev
+
+LABEL description="Bun 1.3 Alpine with libvips for Sharp image processing"
+LABEL maintainer="constructionmap.org"

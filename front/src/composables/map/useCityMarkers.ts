@@ -322,7 +322,7 @@ export async function loadCityProjects(cityId: string | null, cityName: string, 
       await loadCityDevelopmentProjects(null);
     }
   } catch (error) {
-    console.error('AI : Error loading city projects:', error);
+    console.error('Error loading city projects:', error);
   }
 }
 

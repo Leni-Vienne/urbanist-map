@@ -56,7 +56,6 @@
     "latestUpdateOn": "Latest Media Update",
     "latestUpdateOnHelp": "Last time this project was mentioned in news or media",
     "sourceUrl": "Source URL",
-    "sourcePdf": "Source PDF",
     "requiredField": "Required field",
     "optionalField": "Optional",
     "validationError": "Validation Error",

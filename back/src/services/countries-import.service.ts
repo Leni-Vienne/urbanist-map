@@ -55,16 +55,16 @@ export class CountriesImportService {
             if (country.alpha3Code && country.country && !isNaN(country.latitude) && !isNaN(country.longitude)) {
               countries.push(country);
             } else {
-              console.warn(`AI : Skipping invalid country at line ${i + 2}: ${line}`);
+              console.warn(`Skipping invalid country at line ${i + 2}: ${line}`);
             }
           }
         } catch (error) {
-          console.error(`AI : Error parsing line ${i + 2}: ${line}`, error);
+          console.error(`Error parsing line ${i + 2}: ${line}`, error);
         }
       }
       return countries;
     } catch (error) {
-      console.error('AI : Error loading countries CSV:', error);
+      console.error('Error loading countries CSV:', error);
       throw error;
     }
   }
@@ -119,14 +119,14 @@ export class CountriesImportService {
           }
 
         } catch (error) {
-          console.error(`AI : Error processing country ${csvCountry.country}:`, error);
+          console.error(`Error processing country ${csvCountry.country}:`, error);
           errors++;
         }
       }
 
       return { inserted, updated, errors };
     } catch (error) {
-      console.error('AI : Error importing countries:', error);
+      console.error('Error importing countries:', error);
       throw error;
     }
   }
@@ -141,7 +141,7 @@ export class CountriesImportService {
 
       return { totalCountries };
     } catch (error) {
-      console.error('AI : Error getting countries stats:', error);
+      console.error('Error getting countries stats:', error);
       throw error;
     }
   }

@@ -1,15 +1,43 @@
 import { StorageInterface } from './types';
 import { S3Client } from 'bun';
+import sharp from 'sharp';
+import { mkdir } from 'node:fs/promises';
 
 // AI : Local filesystem storage implementation for development
 export class LocalFileStorage implements StorageInterface {
     async put(filename: string, buffer: ArrayBuffer): Promise<void> {
         await Bun.write(`./uploads/${filename}`, buffer);
+        
+        // AI : Generate 120x120 thumbnail for image files using sharp
+        // 120x120 chosen over 60x60 for better quality on high-DPI screens while staying small (~2-5KB)
+        // Thumbnails stored in ./uploads/thumbnails/ for better organization
+        // Not stored in DB, derived from filename
+        // Two-phase strategy: Stays local during moderation (prevent R2 abuse), migrates to R2 on approval
+        try {
+            // AI : Ensure thumbnails directory exists
+            await mkdir('./uploads/thumbnails', { recursive: true });
+            
+            // AI : Use sharp to resize image to 120x120 with cover fit (maintains aspect ratio, crops to fill)
+            await sharp(Buffer.from(buffer))
+                .resize(120, 120, {
+                    fit: 'cover',
+                    position: 'center'
+                })
+                .webp({ quality: 80 })
+                .toFile(`./uploads/thumbnails/${filename}`);
+        } catch (error) {
+            // AI : Log thumbnail generation errors but don't fail the main upload
+            console.warn(`Failed to generate thumbnail for ${filename}:`, error);
+        }
     }
 
     async get(filename: string): Promise<{ body: ReadableStream; contentType?: string } | null> {
         try {
-            const file = Bun.file(`./uploads/${filename}`);
+            // AI : Check if requesting a thumbnail (check thumbnails folder first)
+            const isThumbnailRequest = filename.includes('/thumbnails/');
+            const filePath = isThumbnailRequest ? `./uploads/${filename}` : `./uploads/${filename}`;
+            
+            const file = Bun.file(filePath);
             const exists = await file.exists();
             
             if (!exists) {
@@ -22,6 +50,16 @@ export class LocalFileStorage implements StorageInterface {
             };
         } catch {
             return null;
+        }
+    }
+
+    async delete(filename: string): Promise<void> {
+        try {
+            const { unlink } = await import('node:fs/promises');
+            await unlink(`./uploads/${filename}`);
+        } catch (error) {
+            // AI : Log but don't throw - file might already be deleted
+            console.warn(`Failed to delete file ${filename}:`, error);
         }
     }
 }
@@ -77,6 +115,15 @@ export class R2StorageS3 implements StorageInterface {
             return null;
         }
     }
+
+    async delete(filename: string): Promise<void> {
+        try {
+            await this.client.delete(filename);
+        } catch (error) {
+            // AI : Log but don't throw - file might already be deleted
+            console.warn(`Failed to delete file ${filename} from R2:`, error);
+        }
+    }
 }
 
 // AI : Cloudflare R2 storage implementation for Cloudflare Workers runtime
@@ -103,4 +150,20 @@ export class R2Storage implements StorageInterface {
             return null;
         }
     }
+
+    async delete(filename: string): Promise<void> {
+        try {
+            await this.bucket.delete(filename);
+        } catch (error) {
+            // AI : Log but don't throw - file might already be deleted
+            console.warn(`Failed to delete file ${filename} from R2:`, error);
+        }
+    }
+}
+
+// AI : Helper function to derive thumbnail path from original filename
+// Thumbnails stored in separate folder for better organization
+// Used to request thumbnails without storing in DB (e.g., image.webp -> thumbnails/image.webp)
+export function getThumbnailFilename(filename: string): string {
+    return `thumbnails/${filename}`;
 }

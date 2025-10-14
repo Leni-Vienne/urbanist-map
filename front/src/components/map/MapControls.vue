@@ -236,7 +236,7 @@ function handleModeToggle() {
 
     });
   } catch (error) {
-    console.error('AI : Error toggling edit mode:', error);
+    console.error('Error toggling edit mode:', error);
 
     toast.add({
       severity: 'error',

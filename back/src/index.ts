@@ -5,11 +5,12 @@ import { trpcServer } from '@hono/trpc-server'
 import { sessionMiddleware, MemoryStore, Session } from 'hono-sessions'
 import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod'
 import { appRouter } from './shared/routers'
-import { LocalFileStorage } from './shared/storage'
+import { LocalFileStorage, getThumbnailFilename } from './shared/storage'
 import type { FileUploadResult, FileUploadError } from './shared/types'
 import { config } from './config'
 import type { FetchCreateContextFnOptions } from '@trpc/server/adapters/fetch'
 import type { Context } from 'hono'
+import { generateMissingThumbnails } from './shared/startup'
 
 // AI : Session data type
 type SessionData = {
@@ -331,15 +332,18 @@ app.post('/api/upload-image', async (c) => {
         
         const buffer = await file.arrayBuffer()
         // AI : Save to local storage - images are not uploaded to R2 until moderator approval
+        // AI : LocalFileStorage.put also automatically generates 120x120 thumbnail
         await storage.put(filename, buffer)
         
         // AI : Always return local URL - images stay in local storage until approved
         const imageUrl = `/uploads/${filename}`
+        const thumbnailUrl = `/uploads/${getThumbnailFilename(filename)}`
         
         return c.json({ 
             success: true, 
             filename: filename,
-            url: imageUrl
+            url: imageUrl,
+            thumbnailUrl: thumbnailUrl
         } as FileUploadResult)
     } catch (error) {
         console.error('Error uploading file:', error)
@@ -422,6 +426,11 @@ const imageFileSchema = z.object({
     name: z.string().optional()
 })
 
+// AI : Generate missing thumbnails on startup
+// This runs asynchronously and doesn't block server startup
+generateMissingThumbnails().catch(error => {
+    console.error('Failed to generate missing thumbnails:', error);
+});
 
 export type { AppRouter } from './shared/routers'
 

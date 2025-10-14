@@ -56,7 +56,6 @@
     "latestUpdateOn": "Dernière actualité média",
     "latestUpdateOnHelp": "Dernière mention de ce projet dans l'actualité ou les médias",
     "sourceUrl": "URL source",
-    "sourcePdf": "PDF source",
     "requiredField": "Champ requis",
     "optionalField": "Optionnel",
     "validationError": "Erreur de validation",

@@ -166,7 +166,7 @@
                   >
                     <img
                       v-if="shouldShowOverlays(project) && !imageErrors[overlay.id]"
-                      :src="getOverlayImageUrl(overlay.filename)"
+                      :src="getOverlayImageUrl(overlay.filename, overlay.status)"
                       :alt="overlay.name"
                       class="w-full h-full object-cover"
                       @error="(event) => handleImageError(event, overlay.id)"
@@ -298,7 +298,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { buildImageUrl, formatRelativeTime } from '../../utils'
+import { buildThumbnailUrl, formatRelativeTime } from '../../utils'
 import { navigateToOverlayWithCity, navigateToDevelopmentProject } from '@composables/navigation/useOverlayNavigation'
 import { navigateToOverlay } from '@composables/overlay/useOverlay'
 import { toggleEditMode } from '@composables/overlay/useOverlayModes'
@@ -382,9 +382,12 @@ function getProjectLocation(project: ProjectForModeration): string {
   return ''
 }
 
-// AI : Get overlay image URL using the utility function
-function getOverlayImageUrl(filename: string): string {
-  return buildImageUrl(filename)
+// AI : Get overlay thumbnail URL using the utility function
+// Thumbnails are much smaller (~3KB vs full image) for efficient list display
+// For pending overlays, always use backend URL (not migrated to R2 yet)
+function getOverlayImageUrl(filename: string, status?: string): string {
+  const forceBackendUrl = status === 'pending';
+  return buildThumbnailUrl(filename, forceBackendUrl)
 }
 
 

@@ -234,24 +234,6 @@
                         $t('project.optionalField') }})</label>
                 </FloatLabel>
             </div>
-
-            <div class="field">
-                <label
-                    for="source-pdf-input"
-                    class="text-gray-600 block mb-2"
-                >{{ $t('project.sourcePdf') }} ({{
-                    $t('project.optionalField') }})</label>
-                <FileUpload
-                    id="source-pdf-input"
-                    mode="basic"
-                    accept=".pdf"
-                    :maxFileSize="50000000"
-                    :auto="false"
-                    choose-label="Source PDF"
-                    @select="onPdfSelect"
-                    @clear="onPdfClear"
-                />
-            </div>
         </div>
     </form>
 </template>
@@ -507,7 +489,7 @@ function handleSubmit() {
     }
 
     // AI : Create a clean project object without File objects to prevent serialization issues
-    const { sourcePdf, ...cleanProjectData } = localProject.value;
+    const cleanProjectData = localProject.value;
 
     // AI : Clear inappropriate dates based on project status
     // AI : Use null instead of undefined to ensure database values are actually cleared
@@ -536,19 +518,6 @@ function handleSubmit() {
     }
 
     emit('submit', cleanProjectData);
-}
-
-// AI : Handle PDF file selection
-function onPdfSelect(event: FileUploadSelectEvent) {
-    const file = event.files[0];
-    if (file) {
-        localProject.value.sourcePdf = file;
-    }
-}
-
-// AI : Handle PDF file clear
-function onPdfClear() {
-    localProject.value.sourcePdf = null;
 }
 
 // AI : Expose methods to parent component

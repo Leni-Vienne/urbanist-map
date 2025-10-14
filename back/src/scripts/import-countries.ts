@@ -7,27 +7,27 @@ import { CountriesImportService } from '../services/countries-import.service';
  */
 async function importCountriesData() {
   try {
-    console.log('AI : Starting countries import process...');
+    console.log('Starting countries import process...');
     
     // AI : Show initial statistics
-    console.log('AI : Getting initial database statistics...');
+    console.log('Getting initial database statistics...');
     await CountriesImportService.getCountriesStats();
     
     // AI : Import/update countries
-    console.log('AI : Importing countries from CSV...');
+    console.log('Importing countries from CSV...');
     const result = await CountriesImportService.importCountries();
     
-    console.log(`AI : Import completed successfully!`);
-    console.log(`AI : - Countries inserted: ${result.inserted}`);
-    console.log(`AI : - Countries updated: ${result.updated}`);
-    console.log(`AI : - Errors: ${result.errors}`);
+    console.log(`Import completed successfully!`);
+    console.log(`- Countries inserted: ${result.inserted}`);
+    console.log(`- Countries updated: ${result.updated}`);
+    console.log(`- Errors: ${result.errors}`);
     
     // AI : Show final statistics
-    console.log('AI : Getting final database statistics...');
+    console.log('Getting final database statistics...');
     await CountriesImportService.getCountriesStats();
     
   } catch (error) {
-    console.error('AI : Countries import failed:', error);
+    console.error('Countries import failed:', error);
     process.exit(1);
   }
 }

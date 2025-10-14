@@ -22,7 +22,7 @@ export function useAddOverlay() {
         toggleEditMode()
         return { success: true, action: 'edit_mode_enabled' }
       } catch (error) {
-        console.error('AI : Error toggling edit mode:', error)
+        console.error('Error toggling edit mode:', error)
         return { success: false, reason: 'edit_mode_error', error }
       }
     } else {

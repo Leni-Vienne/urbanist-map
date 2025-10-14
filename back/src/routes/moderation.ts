@@ -5,20 +5,11 @@ import { eq, inArray, or, and } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { db } from '../database';
 import { buildProjectModerationQuery, buildOverlayModerationQuery } from '../db/queryBuilders';
-import { LocalFileStorage, R2StorageS3 } from '../shared/storage';
+import { LocalFileStorage, R2StorageS3, getThumbnailFilename } from '../shared/storage';
 
-// AI : Helper function to migrate image from local storage to R2 on approval
-async function migrateImageToR2(filename: string): Promise<void> {
-  const localStorage = new LocalFileStorage();
-  
-  // AI : Get image from local storage
-  const localFile = await localStorage.get(filename);
-  if (!localFile) {
-    throw new Error(`Local file not found: ${filename}`);
-  }
-  
-  // AI : Read the entire stream into a buffer
-  const reader = localFile.body.getReader();
+// AI : Helper function to read file stream into buffer
+async function streamToBuffer(stream: ReadableStream): Promise<Uint8Array> {
+  const reader = stream.getReader();
   const chunks: Uint8Array[] = [];
   let totalLength = 0;
   
@@ -29,7 +20,6 @@ async function migrateImageToR2(filename: string): Promise<void> {
     totalLength += value.length;
   }
   
-  // AI : Combine chunks into single buffer
   const buffer = new Uint8Array(totalLength);
   let offset = 0;
   for (const chunk of chunks) {
@@ -37,7 +27,15 @@ async function migrateImageToR2(filename: string): Promise<void> {
     offset += chunk.length;
   }
   
-  // AI : Create R2 client and upload
+  return buffer;
+}
+
+// AI : Helper function to migrate image and thumbnail from local storage to R2 on approval
+// Two-phase thumbnail strategy to prevent abuse:
+// 1. During upload: Thumbnail stays local (moderation UI only, served from backend's 1Gbit connection)
+// 2. After approval: Thumbnail migrates to R2 (public display, prevents R2 cost abuse from spam uploads)
+async function migrateImageToR2(filename: string): Promise<void> {
+  const localStorage = new LocalFileStorage();
   const r2Storage = new R2StorageS3({
     endpoint: process.env.R2_ENDPOINT!,
     accessKeyId: process.env.R2_ACCESS_KEY_ID!,
@@ -45,9 +43,43 @@ async function migrateImageToR2(filename: string): Promise<void> {
     bucketName: process.env.R2_BUCKET_NAME!
   });
   
-  await r2Storage.put(filename, buffer.buffer);
+  // AI : Upload main image to R2
+  const localFile = await localStorage.get(filename);
+  if (!localFile) {
+    throw new Error(`Local file not found: ${filename}`);
+  }
   
+  const buffer = await streamToBuffer(localFile.body);
+  await r2Storage.put(filename, buffer.buffer as ArrayBuffer);
   console.log(`AI : Migrated image ${filename} from local storage to R2`);
+  
+  // AI : Upload thumbnail to R2 (for public display after approval)
+  // Thumbnails are stored in ./uploads/thumbnails/ locally
+  const thumbnailFilename = getThumbnailFilename(filename);
+  const thumbnailFile = await localStorage.get(thumbnailFilename);
+  
+  if (thumbnailFile) {
+    const thumbnailBuffer = await streamToBuffer(thumbnailFile.body);
+    // AI : On R2, store thumbnails in thumbnails/ prefix for organization
+    await r2Storage.put(thumbnailFilename, thumbnailBuffer.buffer as ArrayBuffer);
+    console.log(`AI : Migrated thumbnail ${thumbnailFilename} to R2`);
+  } else {
+    console.warn(`AI : Thumbnail not found for ${filename}, skipping thumbnail upload`);
+  }
+  
+  // AI : Delete local files after successful migration to R2 to save disk space
+  try {
+    await localStorage.delete(filename);
+    console.log(`AI : Deleted local image ${filename}`);
+    
+    if (thumbnailFile) {
+      await localStorage.delete(thumbnailFilename);
+      console.log(`AI : Deleted local thumbnail ${thumbnailFilename}`);
+    }
+  } catch (error) {
+    console.error(`AI : Failed to delete local files for ${filename}:`, error);
+    // AI : Don't throw - migration was successful, deletion is cleanup
+  }
 }
 
 // AI : Schema for legacy approval endpoints - supports arrays but frontend only sends single items
@@ -285,9 +317,9 @@ export const moderationRouter = router({
           if (input.status === 'approved' && overlayFilename && process.env.R2_BUCKET_NAME) {
             try {
               await migrateImageToR2(overlayFilename);
-              console.log(`AI : Successfully migrated image ${overlayFilename} to R2`);
+              console.log(`Successfully migrated image ${overlayFilename} to R2`);
             } catch (migrationError) {
-              console.error('AI : Failed to migrate image to R2:', migrationError);
+              console.error('Failed to migrate image to R2:', migrationError);
               // AI : Don't fail the approval if R2 migration fails - image is still accessible in local storage
             }
           }

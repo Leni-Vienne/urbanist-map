@@ -124,8 +124,6 @@ export interface Project extends DBProject {
   color: string;
   name: string; // AI : Computed from project name field
   savedRemotely: boolean;
-  // AI : Optional fields for specific contexts
-  sourcePdf?: File | null; // AI : For form uploads
   // AI : Map coordinates for development projects (null for overlay projects) - renamed to avoid DB conflict
   mapCoordinates?: { lat: number; lng: number } | null;
 }

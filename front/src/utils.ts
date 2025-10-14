@@ -27,15 +27,23 @@ export function debounce<T extends (...args: any[]) => any>(
  * @param filename - The filename of the image
  * @returns The complete URL to access the image
  */
-export function buildImageUrl(filename: string): string {
-  // AI : In production, use direct R2 public URL to bypass worker
-  if (import.meta.env.PROD) {
+export function buildImageUrl(filename: string, forceBackendUrl = false): string {
+  // AI : Force backend URL for pending overlays in production (not yet migrated to R2)
+  // AI : In development, always use local server
+  if (import.meta.env.PROD && !forceBackendUrl) {
     const r2PublicUrl = import.meta.env.VITE_R2_PUBLIC_URL;
     return `${r2PublicUrl}/${filename}`;
   }
   
-  // AI : In development, use local server via shared getApiUrl function
+  // AI : Use backend server URL
   return `${getApiUrl()}/uploads/${filename}`;
+}
+
+// AI : Build thumbnail URL from original filename
+// Thumbnails stored in thumbnails/ subfolder both locally and on R2
+// forceBackendUrl=true for pending overlays (not yet migrated to R2)
+export function buildThumbnailUrl(filename: string, forceBackendUrl = false): string {
+  return buildImageUrl(`thumbnails/${filename}`, forceBackendUrl);
 }
 
 /**

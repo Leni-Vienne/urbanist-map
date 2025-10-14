@@ -63,7 +63,7 @@ export class CitiesImportService {
       
       return cities;
     } catch (error) {
-      console.error('AI : Error loading cities data:', error);
+      console.error('Error loading cities data:', error);
       return [];
     }
   }
@@ -103,7 +103,7 @@ export class CitiesImportService {
               coordinates: sql`ST_SetSRID(ST_MakePoint(${city.lng}, ${city.lat}), 4326)`,
             });
           } catch (error) {
-            console.error(`AI : Error preparing city ${city.city}:`, error);
+            console.error(`Error preparing city ${city.city}:`, error);
             errors++;
           }
         }
@@ -113,7 +113,7 @@ export class CitiesImportService {
             await db.insert(cities).values(insertData);
             imported += insertData.length;
           } catch (error) {
-            console.error(`AI : Error inserting batch:`, error);
+            console.error(`Error inserting batch:`, error);
             errors += insertData.length;
           }
         }
@@ -122,7 +122,7 @@ export class CitiesImportService {
       
       return { imported, skipped, errors };
     } catch (error) {
-      console.error('AI : Error importing cities:', error);
+      console.error('Error importing cities:', error);
       throw error;
     }
   }
@@ -169,7 +169,7 @@ export class CitiesImportService {
             centerCoordinates: sql`ST_SetSRID(ST_MakePoint(${data.lng}, ${data.lat}), 4326)`,
           });
         } catch (error) {
-          console.error(`AI : Error preparing country ${data.name}:`, error);
+          console.error(`Error preparing country ${data.name}:`, error);
           errors++;
         }
       }
@@ -179,7 +179,7 @@ export class CitiesImportService {
           await db.insert(countries).values(insertData);
           imported = insertData.length;
         } catch (error) {
-          console.error(`AI : Error inserting countries:`, error);
+          console.error(`Error inserting countries:`, error);
           errors = insertData.length;
         }
       }
@@ -187,7 +187,7 @@ export class CitiesImportService {
       
       return { imported, skipped: 0, errors };
     } catch (error) {
-      console.error('AI : Error importing countries:', error);
+      console.error('Error importing countries:', error);
       throw error;
     }
   }
@@ -205,7 +205,7 @@ export class CitiesImportService {
 
       return { totalCities, totalCountries };
     } catch (error) {
-      console.error('AI : Error getting import stats:', error);
+      console.error('Error getting import stats:', error);
       throw error;
     }
   }

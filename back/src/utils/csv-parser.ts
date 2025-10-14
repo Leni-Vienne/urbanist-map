@@ -46,7 +46,7 @@ export function parseCSVContent(csvContent: string): string[][] {
       const fields = parseCSVLine(line);
       parsedData.push(fields);
     } catch (error) {
-      console.error(`AI : Error parsing line ${i + 2}: ${line}`, error);
+      console.error(`Error parsing line ${i + 2}: ${line}`, error);
     }
   }
 
