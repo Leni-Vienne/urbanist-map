@@ -1,6 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest'
 import { nextTick } from 'vue'
-import type { ProjectForModeration } from '@types'
 
 // AI : Mock Vue's onMounted to prevent issues with lifecycle hooks in tests  
 vi.mock('vue', async () => {
@@ -38,7 +37,7 @@ vi.mock('@client', () => ({
 }))
 
 import { useModeration } from '../overlay/useModeration'
-import { trpc } from '@client'
+import { trpc, type RouterOutput } from '@client'
 
 // AI : Type-safe mock - cast to MockedFunction type
 const mockTrpc = {
@@ -61,8 +60,13 @@ const mockTrpc = {
   }
 }
 
+// AI : Use actual return types from tRPC router
+type PendingSubmissions = RouterOutput['moderation']['getPendingSubmissions']
+type ModerationProject = PendingSubmissions['projects'][number]
+type ModerationOverlay = PendingSubmissions['overlays'][number]
+
 // AI : Sample test data
-const mockProject: ProjectForModeration = {
+const mockProject: ModerationProject = {
   id: 'test-project-1',
   name: 'Test Project',
   description: 'Test Description',
@@ -80,11 +84,10 @@ const mockProject: ProjectForModeration = {
   cityName: 'Test City',
   countryCode: 'TST',
   countryName: 'Test Country',
-  overlays: [],
-  overlayCount: 0
+  overlays: []
 }
 
-const mockOverlay = {
+const mockOverlay: ModerationOverlay = {
   id: 'test-overlay-1',
   name: 'Test Overlay',
   filename: 'test.jpg',

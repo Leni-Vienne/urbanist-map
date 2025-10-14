@@ -159,13 +159,7 @@
     "moderationNewContent": "Your contribution will be reviewed by a moderator before appearing publicly on the map.",
     "moderationEditSuggestion": "Your suggested changes will be reviewed by a moderator before being applied. The original content will remain visible until your changes are approved.",
     "proceedWithPublish": "Proceed with Publish",
-    "publishOverlay": "Publish Image",
-    "approvedOverlayModificationBlocked": "Modification Requires Approval",
-    "approvedOverlayRequiresChangeRequest": "Modifying an approved overlay requires administrator approval. A change request has been submitted for review.",
-    "changeRequestSubmitted": "Change Request Submitted",
-    "changeRequestSubmittedDetail": "Your proposed changes will be reviewed by an administrator before being applied.",
-    "changeRequestFailed": "Change Request Failed",
-    "changeRequestFailedDetail": "Failed to submit change request. Please try again later."
+    "publishOverlay": "Publish Image"
   },
   "map": {
     "zoom": "Zoom",

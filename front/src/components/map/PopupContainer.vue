@@ -48,11 +48,11 @@ import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useUiStore } from '@stores/uiStore';
 
-import { updateTooltipText, updateMarkerTooltip } from '@composables/overlay/useOverlay';
+import { updateMarkerTooltip } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
 import { useOverlayPublisher } from '@composables/overlay/useOverlayPublisher';
 import { useProjectPublisher } from '@composables/project/useProjectPublisher';
-import { useFieldChanges } from '@composables/changes/useFieldChanges';
+import { useApprovedOverlayChanges } from '@composables/overlay/useApprovedOverlayChanges';
 import { citiesWithProjects } from '@composables/map/useCityMarkers';
 import { updateOverlayMarkersColors } from '@composables/map/useOverlayMarkerUpdates';
 import type { OverlayObject, Project } from '@types';
@@ -73,7 +73,7 @@ const toast = useToast();
 const { t } = useI18n();
 const { isPublishing: isPublishingOverlay, publishOverlay } = useOverlayPublisher();
 const { isPublishing: isPublishingProject, publishProject } = useProjectPublisher();
-const { submitMultipleFieldChanges } = useFieldChanges();
+const { submitApprovedOverlayChanges } = useApprovedOverlayChanges();
 
 // AI : Computed for available cities
 const availableCities = computed(() => {
@@ -228,11 +228,12 @@ async function handlePublishOverlay() {
   try {
     // AI : Check if this is an approved overlay being modified - submit change request instead
     if (overlay.status === 'approved' && overlay.isModified) {
-      await handleApprovedOverlayChangeRequest(overlay);
-      return;
+      await submitApprovedOverlayChanges(overlay);
+    } else {
+      await publishOverlay(overlay, project);
     }
 
-    await publishOverlay(overlay, project);
+    // AI : Show success message for both publish and change request
     toast.add({
       severity: 'success',
       summary: t('overlay.publishSuccess'),
@@ -241,91 +242,10 @@ async function handlePublishOverlay() {
     });
   } catch (error: any) {
     console.error('Error publishing overlay:', error);
-    
-    // AI : Check if this is the approved overlay modification error from backend
-    if (error?.message?.includes('APPROVED_OVERLAY_REQUIRES_CHANGE_REQUEST')) {
-      toast.add({
-        severity: 'warn',
-        summary: t('overlay.approvedOverlayModificationBlocked'),
-        detail: t('overlay.approvedOverlayRequiresChangeRequest'),
-        life: 7000
-      });
-      // AI : Automatically submit change request
-      await handleApprovedOverlayChangeRequest(overlay);
-    } else {
-      toast.add({
-        severity: 'error',
-        summary: t('overlay.publishFailed'),
-        detail: t('overlay.publishFailedDetail'),
-        life: 5000
-      });
-    }
-  }
-}
-
-// AI : Handle change request submission for approved overlays
-async function handleApprovedOverlayChangeRequest(overlay: OverlayObject) {
-  try {
-    // AI : Find the original overlay data from currentCityOverlays (backend-approved data)
-    const originalOverlay = currentCityOverlays.value.find(o => o.id === overlay.id);
-    if (!originalOverlay) {
-      throw new Error('Original overlay data not found');
-    }
-
-    // AI : Detect which fields have changed
-    const changes = [];
-
-    if (overlay.projectId !== originalOverlay.projectId) {
-      changes.push({
-        fieldName: 'projectId',
-        oldValue: originalOverlay.projectId,
-        newValue: overlay.projectId,
-        changeReason: 'User changed the parent project'
-      });
-    }
-
-    if (overlay.caption !== originalOverlay.caption) {
-      changes.push({
-        fieldName: 'caption',
-        oldValue: originalOverlay.caption ?? null,
-        newValue: overlay.caption,
-        changeReason: 'User modified the overlay caption'
-      });
-    }
-
-    if (JSON.stringify(overlay.corners) !== JSON.stringify(originalOverlay.corners)) {
-      changes.push({
-        fieldName: 'corners',
-        oldValue: originalOverlay.corners,
-        newValue: overlay.corners,
-        changeReason: 'User moved, rotated, or scaled the overlay'
-      });
-    }
-
-    if (changes.length === 0) {
-      changes.push({
-        fieldName: 'modified',
-        oldValue: null,
-        newValue: true,
-        changeReason: 'User requested modifications to approved overlay'
-      });
-    }
-
-    // AI : Use the standard field changes composable
-    await submitMultipleFieldChanges('overlay', overlay.id, changes);
-
-    toast.add({
-      severity: 'success',
-      summary: t('overlay.changeRequestSubmitted'),
-      detail: t('overlay.changeRequestSubmittedDetail'),
-      life: 5000
-    });
-  } catch (error) {
-    console.error('Error submitting change request:', error);
     toast.add({
       severity: 'error',
-      summary: t('overlay.changeRequestFailed'),
-      detail: t('overlay.changeRequestFailedDetail'),
+      summary: t('overlay.publishFailed'),
+      detail: t('overlay.publishFailedDetail'),
       life: 5000
     });
   }
