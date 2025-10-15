@@ -33,8 +33,27 @@ const app = new Hono<{
 // AI : Always use local storage for initial uploads - images migrate to R2 on approval
 const storage = new LocalFileStorage()
 
+const allowedDomains = (process.env.CORS_ORIGIN || '')
+    .split(',')
+    .map(d => d.trim())
+    .filter(Boolean)
+
+
 app.use('*', cors({
-    origin: config.CORS_ORIGIN.split(",") ?? [], // to allow for single env with multiple origins
+    origin: (origin) => {
+        if (!origin) return null
+
+        if(process.env.NODE_ENV !== 'production') {
+            return origin // Allow all origins in development
+        }
+
+        // Allow if matches any root domain or subdomain, usefull for checking older cloudflare deployments
+        const isAllowed = allowedDomains.some(domain =>
+            origin === `https://${domain}` || origin.endsWith(`.${domain}`)
+        )
+
+        return isAllowed ? origin : null
+    },
     credentials: true
 }))
 
@@ -73,14 +92,14 @@ app.use('/trpc/*', trpcServer({
 app.post('/api/login', async (c) => {
     try {
         const body = await c.req.json();
-        
+
         // AI : Validate request body with Zod
         const validationResult = loginSchema.safeParse(body);
         if (!validationResult.success) {
             const errorMessage = validationResult.error.issues.map((err: any) => err.message).join(', ');
             return c.json({ error: errorMessage }, 400);
         }
-        
+
         const { email, password } = validationResult.data;
 
         // AI : Find user (same logic as tRPC route)
@@ -140,18 +159,18 @@ app.post('/api/login', async (c) => {
 app.post('/api/google-login', async (c) => {
     try {
         const body = await c.req.json();
-        
+
         // AI : Validate request body with Zod
         const googleLoginSchema = z.object({
             token: z.string().min(1, 'Google token is required'),
         });
-        
+
         const validationResult = googleLoginSchema.safeParse(body);
         if (!validationResult.success) {
             const errorMessage = validationResult.error.issues.map((err: any) => err.message).join(', ');
             return c.json({ error: errorMessage }, 400);
         }
-        
+
         const { token } = validationResult.data;
 
         // AI : Import Google auth utility
@@ -180,14 +199,14 @@ app.post('/api/google-login', async (c) => {
                         emailVerificationToken: null,
                     })
                     .where(eq(users.id, existingUser.id));
-                
+
                 // AI : Refetch updated user
                 [existingUser] = await db.select().from(users).where(eq(users.id, existingUser.id)).limit(1);
             }
         } else {
             // AI : No user found by Google ID - check if email exists with different auth method
             const [emailUser] = await db.select().from(users).where(eq(users.email, googleUser.email)).limit(1);
-            
+
             if (emailUser) {
                 // AI : Email exists with password-based account
                 if (emailUser.googleId) {
@@ -277,7 +296,7 @@ app.post('/api/logout', (c) => {
 app.get('/api/check-session', (c) => {
     const session = c.get('session');
     const sessionUser = session.get('user');
-    
+
     return c.json({
         userId: sessionUser?.id,
         isAuthenticated: !!sessionUser,
@@ -301,7 +320,7 @@ app.post('/api/upload-image', async (c) => {
             type: file.type,
             name: file.name
         });
-        
+
         if (!validationResult.success) {
             const errorMessage = validationResult.error.issues.map((err: any) => err.message).join(', ');
             return c.json({ error: errorMessage } as FileUploadError, 400);
@@ -318,29 +337,29 @@ app.post('/api/upload-image', async (c) => {
             }
             return filename.slice(lastDot + 1).toLowerCase()
         }
-        
+
         const fileExtension = getFileExtension(file.name)
-        
+
         // AI : Ensure we have a valid extension (this should not fail due to Zod validation)
         if (!fileExtension) {
             return c.json({ error: 'Invalid file extension' } as FileUploadError, 400)
         }
-        
+
         const timestamp = Date.now()
         const randomString = Math.random().toString(36).substring(2, 15)
         const filename = `${timestamp}-${randomString}.${fileExtension}`
-        
+
         const buffer = await file.arrayBuffer()
         // AI : Save to local storage - images are not uploaded to R2 until moderator approval
         // AI : LocalFileStorage.put also automatically generates 120x120 thumbnail
         await storage.put(filename, buffer)
-        
+
         // AI : Always return local URL - images stay in local storage until approved
         const imageUrl = `/uploads/${filename}`
         const thumbnailUrl = `/uploads/${getThumbnailFilename(filename)}`
-        
-        return c.json({ 
-            success: true, 
+
+        return c.json({
+            success: true,
             filename: filename,
             url: imageUrl,
             thumbnailUrl: thumbnailUrl
@@ -355,16 +374,16 @@ app.post('/api/upload-image', async (c) => {
 app.get('/uploads/*', async (c) => {
     try {
         const filename = c.req.path.replace('/uploads/', '')
-        
+
         // AI : Validate filename parameter with Zod
         const validationResult = filenameParamSchema.safeParse({ filename });
         if (!validationResult.success) {
             const errorMessage = validationResult.error.issues.map((err: any) => err.message).join(', ');
             return c.json({ error: errorMessage }, 400);
         }
-        
+
         const file = await storage.get(validationResult.data.filename)
-        
+
         if (file) {
             return new Response(file.body, {
                 headers: {
@@ -377,7 +396,7 @@ app.get('/uploads/*', async (c) => {
                 }
             })
         }
-        
+
         return c.json({ error: 'File not found' }, 404)
     } catch (error) {
         console.error('Error serving file:', error)
