@@ -25,11 +25,10 @@ export function renderForStrategy(
   const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData)
 
   if (strategy.shouldRenderFullOverlays) {
-    // AI : Check if overlays are already loaded - if so, just update positions
-    const hasExistingOverlays = Object.keys(overlayStore.overlays).length > 0
-
-    if (!hasExistingOverlays) {
-      // AI : First time loading - clear and render fresh
+    // AI : Only clear and recreate if this is first load or overlays don't exist yet
+    const hasOverlays = Object.keys(overlayStore.overlays).length > 0
+    
+    if (!hasOverlays) {
       clearAllOverlays()
       overlayStore.setViewModeOverlays(visibleOverlays)
       renderViewModeOverlays(visibleOverlays, strategy.shouldRenderMarkers, false)

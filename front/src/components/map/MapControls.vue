@@ -197,8 +197,8 @@ const tooltipText = computed(() => {
   return `Currently in ${currentMode} - Click to ${actionText.toLowerCase()}`;
 });
 
-function handleAddOverlayClick() {
-  const result = handleAddOverlayButtonClick();
+async function handleAddOverlayClick() {
+  const result = await handleAddOverlayButtonClick();
   
   if (result.success) {
     if (result.action === 'edit_mode_enabled') {
@@ -220,9 +220,9 @@ function handleAddOverlayClick() {
 }
 
 // AI : Handle edit mode toggle
-function handleModeToggle() {
+async function handleModeToggle() {
   try {
-    toggleEditMode();
+    await toggleEditMode();
 
     // AI : Show toast notification for mode change
     const modeText = isEditMode?.value ? 'Edit Mode' : 'View Mode';

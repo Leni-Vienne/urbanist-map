@@ -11,7 +11,7 @@ export function useAddOverlay() {
   const overlayStore = useOverlayStore()
   const { isEditMode } = storeToRefs(overlayStore)
 
-  function handleAddOverlayButtonClick() {
+  async function handleAddOverlayButtonClick() {
     if (!authStore.isAuthenticated) {
       uiStore.openAuthModal()
       return { success: false, reason: 'not_authenticated' }
@@ -19,7 +19,7 @@ export function useAddOverlay() {
 
     if (!(isEditMode?.value ?? false)) {
       try {
-        toggleEditMode()
+        await toggleEditMode()
         return { success: true, action: 'edit_mode_enabled' }
       } catch (error) {
         console.error('Error toggling edit mode:', error)
