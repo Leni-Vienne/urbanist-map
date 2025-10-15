@@ -84,6 +84,7 @@
     "coordinates": "Coordinates",
     "period": "Period",
     "source": "Source",
+    "assignTo": "Assign To",
     "latestUpdate": "Latest Update",
     "publishSuccess": "Project Published",
     "publishSuccessDetail": "Development project has been saved successfully",
@@ -158,7 +159,8 @@
     "moderationNewContent": "Your contribution will be reviewed by a moderator before appearing publicly on the map.",
     "moderationEditSuggestion": "Your suggested changes will be reviewed by a moderator before being applied. The original content will remain visible until your changes are approved.",
     "proceedWithPublish": "Proceed with Publish",
-    "publishOverlay": "Publish Image"
+    "publishOverlay": "Publish Image",
+    "submitChangeRequest": "Submit Change Request"
   },
   "map": {
     "zoom": "Zoom",

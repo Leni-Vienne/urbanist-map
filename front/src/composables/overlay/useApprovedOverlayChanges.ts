@@ -1,6 +1,7 @@
 import { storeToRefs } from 'pinia';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useFieldChanges } from '@composables/changes/useFieldChanges';
+import { updateMarkerTooltip } from '@composables/overlay/useOverlay'
 import type { OverlayObject } from '@types';
 
 export function useApprovedOverlayChanges() {
@@ -37,11 +38,20 @@ export function useApprovedOverlayChanges() {
       });
     }
 
-    if (JSON.stringify(overlay.corners) !== JSON.stringify(originalOverlay.corners)) {
+    // AI : Get current corners from Leaflet overlay if available, otherwise use stored corners
+    const currentCorners = overlay.overlay
+      ? overlay.overlay.getCorners().map(c => ({ lat: c.lat, lng: c.lng }))
+      : overlay.corners;
+
+    // AI : Normalize both corner arrays to plain objects for comparison
+    const normalizedCurrentCorners = currentCorners.map(c => ({ lat: c.lat, lng: c.lng }));
+    const normalizedOriginalCorners = originalOverlay.corners.map(c => ({ lat: c.lat, lng: c.lng }));
+
+    if (JSON.stringify(normalizedCurrentCorners) !== JSON.stringify(normalizedOriginalCorners)) {
       changes.push({
         fieldName: 'corners',
-        oldValue: originalOverlay.corners,
-        newValue: overlay.corners,
+        oldValue: normalizedOriginalCorners,
+        newValue: normalizedCurrentCorners,
         changeReason: 'User moved, rotated, or scaled the overlay'
       });
     }
@@ -51,6 +61,10 @@ export function useApprovedOverlayChanges() {
     }
 
     await submitMultipleFieldChanges('overlay', overlay.id, changes);
+
+    // AI : Reset modified flag after successfully submitting change request
+    overlay.isModified = false;
+    updateMarkerTooltip(overlay);
   }
 
   return {
