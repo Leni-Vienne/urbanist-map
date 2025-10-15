@@ -51,7 +51,7 @@ async function migrateImageToR2(filename: string): Promise<void> {
   
   const buffer = await streamToBuffer(localFile.body);
   await r2Storage.put(filename, buffer.buffer as ArrayBuffer);
-  console.log(`AI : Migrated image ${filename} from local storage to R2`);
+  console.log(`Migrated image ${filename} from local storage to R2`);
   
   // AI : Upload thumbnail to R2 (for public display after approval)
   // Thumbnails are stored in ./uploads/thumbnails/ locally
@@ -61,23 +61,24 @@ async function migrateImageToR2(filename: string): Promise<void> {
   if (thumbnailFile) {
     const thumbnailBuffer = await streamToBuffer(thumbnailFile.body);
     // AI : On R2, store thumbnails in thumbnails/ prefix for organization
-    await r2Storage.put(thumbnailFilename, thumbnailBuffer.buffer as ArrayBuffer);
-    console.log(`AI : Migrated thumbnail ${thumbnailFilename} to R2`);
+    // skipThumbnail prevents recursive thumbnail generation
+    await r2Storage.put(thumbnailFilename, thumbnailBuffer.buffer as ArrayBuffer, { skipThumbnail: true });
+    console.log(`Migrated thumbnail ${thumbnailFilename} to R2`);
   } else {
-    console.warn(`AI : Thumbnail not found for ${filename}, skipping thumbnail upload`);
+    console.warn(`Thumbnail not found for ${filename}, skipping thumbnail upload`);
   }
   
   // AI : Delete local files after successful migration to R2 to save disk space
   try {
     await localStorage.delete(filename);
-    console.log(`AI : Deleted local image ${filename}`);
+    console.log(`Deleted local image ${filename}`);
     
     if (thumbnailFile) {
       await localStorage.delete(thumbnailFilename);
-      console.log(`AI : Deleted local thumbnail ${thumbnailFilename}`);
+      console.log(`Deleted local thumbnail ${thumbnailFilename}`);
     }
   } catch (error) {
-    console.error(`AI : Failed to delete local files for ${filename}:`, error);
+    console.error(`Failed to delete local files for ${filename}:`, error);
     // AI : Don't throw - migration was successful, deletion is cleanup
   }
 }
