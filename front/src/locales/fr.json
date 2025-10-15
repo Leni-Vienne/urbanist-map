@@ -84,6 +84,7 @@
     "coordinates": "Coordonnées",
     "period": "Période",
     "source": "Source",
+    "assignTo": "Assigner à",
     "latestUpdate": "Dernière mise à jour",
     "publishSuccess": "Projet publié",
     "publishSuccessDetail": "Le projet de bâtiment a été enregistré avec succès",
@@ -158,7 +159,8 @@
     "moderationNewContent": "Votre contribution sera examinée par un modérateur avant d'apparaître publiquement sur la carte.",
     "moderationEditSuggestion": "Vos modifications suggérées seront examinées par un modérateur avant d'être appliquées. Le contenu original restera visible jusqu'à l'approbation de vos modifications.",
     "proceedWithPublish": "Procéder à la publication",
-    "publishOverlay": "Publier l'image"
+    "publishOverlay": "Publier l'image",
+    "submitChangeRequest": "Soumettre une demande de modification"
   },
   "map": {
     "zoom": "Zoom",

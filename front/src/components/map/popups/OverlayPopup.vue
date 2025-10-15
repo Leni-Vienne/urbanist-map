@@ -38,7 +38,7 @@
         v-if="!viewMode"
         class="project-selection"
       >
-        <div class="section-header">Project Assignment</div>
+        <div class="section-header">{{ $t('project.assignTo') }}</div>
         <ProjectPicker
           v-model="selectedProjectId"
           @project-selected="handleProjectSelected"
@@ -115,14 +115,16 @@
     </div>
 
     <!-- Publish Overlay Section -->
+    <!-- AI : Always show publish button in edit mode, but disable if overlay hasn't been modified -->
     <div
       v-if="!viewMode && project"
       class="publish-section"
     >
       <Button
-        :label="$t('overlay.publishOverlay')"
-        icon="pi pi-cloud-upload"
-        severity="success"
+        :label="overlayObject.status === 'approved' ? $t('overlay.submitChangeRequest') : $t('overlay.publishOverlay')"
+        :icon="overlayObject.status === 'approved' ? 'pi pi-send' : 'pi pi-cloud-upload'"
+        :severity="overlayObject.status === 'approved' ? 'info' : 'success'"
+        :disabled="!overlayObject.isModified"
         size="small"
         class="w-full"
         :loading="publishLoading"
@@ -255,8 +257,6 @@ function confirmPublish() {
 
 .publish-section {
   margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--p-surface-200);
 }
 
 .moderation-content p {
