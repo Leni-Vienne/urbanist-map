@@ -1,34 +1,24 @@
 import L from 'leaflet'
 import type { FitBoundsOptions, ZoomPanOptions } from 'leaflet'
 import { map } from '@composables/core/useMap'
+import { useUiStore } from '@stores/uiStore'
 
 /**
- * AI : Check if current viewport is mobile size
+ * AI : Check if mobile drawer is covering the map
+ * AI : Only apply offset when on mobile AND drawer is open
  */
-function isMobile(): boolean {
-  return window.innerWidth <= 768
-}
-
-/**
- * AI : Calculate latitude offset to account for mobile drawer
- * AI : Returns the adjusted latitude that will appear centered above the drawer
- */
-function calculateMobileLatOffset(targetLat: number): number {
-  if (!map.value || !isMobile()) return targetLat
-
-  // AI : Calculate pixel offset for drawer (45% of viewport height)
-  const drawerOffsetPixels = window.innerHeight * 0.225 // AI : Half of 45% to shift center up
-  const mapCenter = map.value.getCenter()
-  const centerPoint = map.value.latLngToContainerPoint(mapCenter)
-  const offsetPoint = L.point(centerPoint.x, centerPoint.y - drawerOffsetPixels)
-  const offsetLatLng = map.value.containerPointToLatLng(offsetPoint)
+function shouldApplyMobileOffset(): boolean {
+  const isMobile = window.innerWidth <= 768
+  if (!isMobile) return false
   
-  // AI : Calculate lat offset from center
-  return targetLat + (offsetLatLng.lat - mapCenter.lat)
+  const uiStore = useUiStore()
+  return uiStore.mobileDrawerVisible
 }
 
 /**
  * AI : Mobile-aware flyTo - adjusts center on mobile to account for drawer
+ * AI : Strategy: Create a small bounds around the point and use flyToBounds with mobile-aware padding
+ * AI : This leverages Leaflet's built-in padding logic which already works correctly
  */
 export function mobileAwareFlyTo(
   latlng: L.LatLngExpression,
@@ -38,9 +28,30 @@ export function mobileAwareFlyTo(
   if (!map.value) return
 
   const latLng = L.latLng(latlng)
-  const targetLat = calculateMobileLatOffset(latLng.lat)
   
-  map.value.flyTo([targetLat, latLng.lng], zoom, options)
+  if (!shouldApplyMobileOffset()) {
+    // AI : Desktop or drawer closed - center normally
+    map.value.flyTo([latLng.lat, latLng.lng], zoom, options)
+    return
+  }
+
+  // AI : Mobile with drawer open - use flyToBounds with a tiny bounds around the point
+  // AI : This leverages the working padding logic from mobileAwareFlyToBounds
+  const offset = 0.001 // AI : Small offset to create minimal bounds
+  const bounds = L.latLngBounds(
+    [latLng.lat - offset, latLng.lng - offset],
+    [latLng.lat + offset, latLng.lng + offset]
+  )
+  
+  // AI : Use flyToBounds with mobile-aware padding and target zoom
+  const fitOptions: FitBoundsOptions = {
+    ...options,
+    maxZoom: zoom ?? map.value.getZoom(),
+    paddingTopLeft: [50, 50] as [number, number],
+    paddingBottomRight: [50, window.innerHeight * 0.45] as [number, number]
+  }
+  
+  map.value.flyToBounds(bounds, fitOptions)
 }
 
 /**
@@ -52,8 +63,8 @@ export function mobileAwareFlyToBounds(
 ): void {
   if (!map.value) return
 
-  const mobile = isMobile()
-  const flyOptions: FitBoundsOptions = mobile
+  const applyOffset = shouldApplyMobileOffset()
+  const flyOptions: FitBoundsOptions = applyOffset
     ? {
         ...options,
         paddingTopLeft: [50, 50] as [number, number],

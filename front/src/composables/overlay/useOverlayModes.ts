@@ -79,7 +79,7 @@ function transitionToState(newState: OverlayModeState, effects?: TransitionEffec
   currentState.value = newState
 
   // AI : Execute after-transition effects (fire-and-forget for async effects)
-  void effects?.afterTransition?.(newState)
+  effects?.afterTransition?.(newState)
 }
 
 /**

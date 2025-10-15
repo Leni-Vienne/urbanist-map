@@ -247,7 +247,6 @@ import { getCameraBounds } from '@composables/map/useCameraBounds';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { storeToRefs } from 'pinia';
 import type { Project } from '@types';
-import FileUpload, { type FileUploadSelectEvent } from 'primevue/fileupload';
 
 // AI : Get i18n and toast
 const { t } = useI18n();

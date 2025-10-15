@@ -36,6 +36,7 @@ export const useUiStore = defineStore('ui', () => {
 
   // AI : Mobile drawer state
   const mobileDrawerActiveTab = ref<'latest' | 'uploads' | 'admin'>('latest');
+  const mobileDrawerVisible = ref(true); // AI : Open by default on mobile
   
   // AI : Project info popup state (for development projects)
   const projectInfoPopup = ref({
@@ -160,6 +161,7 @@ export const useUiStore = defineStore('ui', () => {
     projectEditForm,
     overlayEditForm,
     mobileDrawerActiveTab,
+    mobileDrawerVisible,
     projectInfoPopup,
 
     // AI : Actions

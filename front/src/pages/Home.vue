@@ -77,13 +77,18 @@ const ProjectManager = defineAsyncComponent(() => import('@components/project/Pr
 // AI : Create refs to track app state
 const isModerator = ref(false)
 const desktopSideMenuOpen = ref(true) // AI : Open by default on desktop
-const mobileSideMenuOpen = ref(true) // AI : Open by default on mobile
 const overlayStore = useOverlayStore()
 const authStore = useAuthStore()
 const uiStore = useUiStore()
 const toast = useToast()
 const route = useRoute()
 const { t } = useI18n()
+
+// AI : Use mobile drawer state from UI store
+const mobileSideMenuOpen = computed({
+  get: () => uiStore.mobileDrawerVisible,
+  set: (value) => { uiStore.mobileDrawerVisible = value }
+})
 
 // AI : Mobile detection for responsive drawer behavior
 const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1024)
