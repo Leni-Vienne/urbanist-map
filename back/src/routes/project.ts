@@ -1,7 +1,7 @@
 import { publicProcedure, protectedProcedure, router } from '../trpc';
 import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
 import { projects, cities, overlays } from '../db/schema';
-import { eq, sql, and, inArray } from 'drizzle-orm';
+import { eq, sql, and, or, inArray } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { db } from '../database';
 import { buildProjectWithLocationQuery, buildOverlayModerationQuery } from '../db/queryBuilders';
@@ -119,16 +119,17 @@ export const projectRouter = router({
       }
     }),
   // AI : Get projects with overlays within 100km of camera center
-  getProjectsNearLocation: publicProcedure
+  getProjectsNearLocation: protectedProcedure
     .input(z.object({
       lat: z.number(),
       lng: z.number(),
     }))
-    .query(async ({ input }: { input: { lat: number; lng: number;} }) => {
+    .query(async ({ input, ctx }) => {
       try {
         const { lat, lng } = input;
+        const userId = ctx.user.id;
 
-        // AI : Find projects that have at least one approved overlay within the specified radius
+        // AI : Find projects within radius that are either approved OR pending and owned by user
         const nearbyProjects = await db
           .select({
             id: projects.id,
@@ -140,17 +141,17 @@ export const projectRouter = router({
             proposalDate: projects.proposalDate,
             createdAt: projects.createdAt,
             updatedAt: projects.updatedAt,
-            // AI : Count approved overlays for this project within the search radius
             overlayCount: sql<number>`COUNT(${overlays.id})::int`,
-            // AI : Include city information when available
             city: cities
           })
           .from(projects)
           .innerJoin(cities, eq(projects.cityId, cities.id))
           .innerJoin(overlays, eq(overlays.projectId, projects.id))
           .where(and(
-            eq(projects.status, 'approved'),
-            eq(overlays.status, 'approved'),
+            or(
+              and(eq(projects.status, 'approved'), eq(overlays.status, 'approved')),
+              and(eq(projects.status, 'pending'), eq(projects.ownerId, userId))
+            ),
             sql`${overlays.centroid} IS NOT NULL`,
             sql`ST_DWithin(
               ${overlays.centroid},

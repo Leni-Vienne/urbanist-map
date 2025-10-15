@@ -28,6 +28,8 @@
             :filter="true"
             :showClear="true"
             :loading="isLoadingProjects"
+            :optionGroupLabel="useGroupedView ? 'label' : undefined"
+            :optionGroupChildren="useGroupedView ? 'items' : undefined"
             @focus="onSelectFocus"
           >
             <template #value="{ value, placeholder }">
@@ -44,6 +46,13 @@
               <span v-else>{{ placeholder }}</span>
             </template>
 
+            <template #optiongroup="{ option }" v-if="useGroupedView">
+              <div class="flex items-center gap-2 font-semibold text-sm opacity-75">
+                <i class="pi pi-map-marker"></i>
+                <span>{{ option.label }}</span>
+              </div>
+            </template>
+
             <template #option="{ option }">
               <div class="flex items-center gap-2">
                 <div
@@ -55,7 +64,7 @@
                     <span>{{ option.name }}</span>
                     <span class="text-sm opacity-75">({{ $t('projectPicker.overlaysCount', { count: getOverlayCountForProject(option.id) }) }})</span>
                   </div>
-                  <div v-if="option.city" class="text-xs opacity-60">
+                  <div v-if="option.city && !useGroupedView" class="text-xs opacity-60">
                     {{ option.city.name }}, {{ option.city.countryCode }}
                   </div>
                 </div>
@@ -129,7 +138,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['update:modelValue', 'project-selected', 'project-created', 'select-focus', 'create-project']);
+const emit = defineEmits(['update:modelValue', 'project-selected', 'project-created', 'create-project']);
 
 // AI : Get store refs using the composable pattern
 const { projects } = useProjects();
@@ -142,9 +151,18 @@ const { selectedProjectId } = useSelectedProject();
 // AI : Use UI store to open project dialog
 const uiStore = useUiStore();
 
-
 // AI : Get city projects composable
-const { projectsWithCounts: cityProjectsData, getOverlayCountForProject: getCityOverlayCount } = useCityProjects();
+const { 
+  projectsWithCounts: cityProjectsData, 
+  projectsByCity: cityProjectsByCity,
+  getOverlayCountForProject: getCityOverlayCount,
+  loadNearbyProjects
+} = useCityProjects();
+
+// AI : Determine if we should use grouped view (when using city projects with multiple cities)
+const useGroupedView = computed(() => {
+  return props.useCityProjects && cityProjectsByCity.value.length > 1;
+});
 
 // AI : Function to count overlays for a project using the appropriate data source
 function getOverlayCountForProject(projectId: string): number {
@@ -154,7 +172,7 @@ function getOverlayCountForProject(projectId: string): number {
   }
   
   // AI : For local projects, check overlayIds array
-  const project = projectList.value.find(p => p.id === projectId);
+  const project = flatProjectList.value.find(p => p.id === projectId);
   if (project?.overlayIds && Array.isArray(project.overlayIds)) {
     return project.overlayIds.length;
   }
@@ -165,12 +183,27 @@ function getOverlayCountForProject(projectId: string): number {
 // AI : Compute the project list based on the mode, excluding development projects
 const projectList = computed(() => {
   if (props.useCityProjects) {
-    // AI : Use city projects data extracted from overlay data, exclude development projects
-    return cityProjectsData.value.filter(project => !project.isDevelopment);
+    // AI : Return grouped or flat list depending on view mode
+    if (useGroupedView.value) {
+      return cityProjectsByCity.value.map(group => ({
+        ...group,
+        items: group.items.filter(project => !project.isDevelopment)
+      })).filter(group => group.items.length > 0);
+    } else {
+      return cityProjectsData.value.filter(project => !project.isDevelopment);
+    }
   } else {
     // AI : Use local projects from store, exclude development projects
     return Object.values(projects.value).filter(project => !project.isDevelopment);
   }
+});
+
+// AI : Flatten grouped projects for easier searching
+const flatProjectList = computed(() => {
+  if (useGroupedView.value && Array.isArray(projectList.value)) {
+    return projectList.value.flatMap((group: any) => group.items || []);
+  }
+  return projectList.value as Project[];
 });
 
 // AI : Update loading state
@@ -178,7 +211,7 @@ const isLoadingProjects = computed(() => loading.value);
 
 // AI : Function to auto-select a project by ID
 function autoSelectProject(projectId: string) {
-  const projectExists = projectList.value.some(p => p.id === projectId);
+  const projectExists = flatProjectList.value.some(p => p.id === projectId);
   
   if (projectExists) {
     selectedProjectId.value = projectId;
@@ -195,7 +228,7 @@ const hasAutoSelected = ref(false);
 
 // AI : Watch for newly created projects and auto-select them
 const stopWatchingForAutoSelect = watch(
-  [projectList, () => lastCreatedProjectId.value],
+  [flatProjectList, () => lastCreatedProjectId.value],
   ([newList, pendingId]) => {
     // AI : Only auto-select if we haven't done it yet AND the project isn't already selected
     if (pendingId && newList.length > 0 && !hasAutoSelected.value && selectedProjectId.value !== pendingId) {
@@ -229,7 +262,7 @@ watch(selectedProjectId, (newValue, oldValue) => {
 
 
 function getProjectById(id: string): Project | undefined {
-  return projectList.value.find(project => project.id === id);
+  return flatProjectList.value.find(project => project.id === id);
 }
 
 function confirmSelection() {
@@ -251,9 +284,11 @@ function openNewProjectDialog() {
   }
 }
 
-// AI : Handle select focus/click to emit event for lazy loading
-function onSelectFocus() {
-  emit('select-focus');
+// AI : Handle select focus to lazy load nearby projects
+async function onSelectFocus() {
+  if (props.useCityProjects) {
+    await loadNearbyProjects();
+  }
 }
 
 // AI : Cleanup watcher on unmount
