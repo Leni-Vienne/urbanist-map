@@ -33,7 +33,7 @@ const app = new Hono<{
 // AI : Always use local storage for initial uploads - images migrate to R2 on approval
 const storage = new LocalFileStorage()
 
-const allowedDomains = (process.env.CORS_ORIGIN || '')
+const allowedDomains = (process.env.CORS_ORIGIN ?? '')
     .split(',')
     .map(d => d.trim())
     .filter(Boolean)

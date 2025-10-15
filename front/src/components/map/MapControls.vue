@@ -149,9 +149,11 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { computed, ref } from 'vue';
+import L from 'leaflet';
 import { useToast } from '@composables/ui/useToast';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useAuthStore } from '@stores/authStore';
+import { useUiStore } from '@stores/uiStore';
 import { toggleEditMode } from '@composables/overlay/useOverlayModes';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import { createButtonSVG } from '@composables/ui/markerIcons';
@@ -254,18 +256,51 @@ async function toggleCompletionFilter(color: viewModeMarkerColor) {
   emit('filter-overlays', color);
 }
 
+// AI : Helper to zoom with mobile offset - keeps focus on upper visible area
+function zoomWithMobileOffset(zoomDelta: number) {
+  if (!map.value) return
+  
+  const isMobile = window.innerWidth <= 768
+  const uiStore = useUiStore()
+  const shouldOffset = isMobile && uiStore.mobileDrawerVisible
+  
+  if (!shouldOffset) {
+    // AI : Desktop or drawer closed - use normal zoom with larger delta on mobile
+    if (zoomDelta > 0) {
+      map.value.zoomIn(isMobile ? 1.0 : undefined)
+    } else {
+      map.value.zoomOut(isMobile ? 1.0 : undefined)
+    }
+    return
+  }
+  
+  // AI : Mobile with drawer open - zoom but shift center to keep visible area stable
+  // AI : Strategy: Calculate where the "visual center" (accounting for drawer) currently is,
+  // AI : then zoom to that point so it stays in the same visible position
+  
+  // AI : The visual center is at 27.5% from top (middle of the 55% visible area)
+  const visualCenterY = window.innerHeight * 0.275
+  const screenCenterX = window.innerWidth / 2
+  
+  // AI : Get the lat/lng at the visual center point
+  const visualCenterPoint = L.point(screenCenterX, visualCenterY)
+  const visualCenterLatLng = map.value.containerPointToLatLng(visualCenterPoint)
+  
+  // AI : Now zoom to that lat/lng - when it centers on this point,
+  // AI : that point will be at screen center, but since our "visual center" was already
+  // AI : accounting for the drawer, the visible content stays stable
+  const newZoom = map.value.getZoom() + (zoomDelta > 0 ? 1 : -1)
+  map.value.setZoomAround(visualCenterLatLng, newZoom, { animate: true })
+}
+
 // AI : Handle zoom in
 function handleZoomIn() {
-  if (map.value) {
-    map.value.zoomIn();
-  }
+  zoomWithMobileOffset(1)
 }
 
 // AI : Handle zoom out  
 function handleZoomOut() {
-  if (map.value) {
-    map.value.zoomOut();
-  }
+  zoomWithMobileOffset(-1)
 }
 
 // AI : Show help modal
