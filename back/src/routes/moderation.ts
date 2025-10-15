@@ -5,30 +5,7 @@ import { eq, inArray, or, and } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { db } from '../database';
 import { buildProjectModerationQuery, buildOverlayModerationQuery } from '../db/queryBuilders';
-import { LocalFileStorage, R2StorageS3, getThumbnailFilename } from '../shared/storage';
-
-// AI : Helper function to read file stream into buffer
-async function streamToBuffer(stream: ReadableStream): Promise<Uint8Array> {
-  const reader = stream.getReader();
-  const chunks: Uint8Array[] = [];
-  let totalLength = 0;
-  
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    totalLength += value.length;
-  }
-  
-  const buffer = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    buffer.set(chunk, offset);
-    offset += chunk.length;
-  }
-  
-  return buffer;
-}
+import { LocalFileStorage, R2StorageS3, getThumbnailFilename, streamToBuffer } from '../shared/storage';
 
 // AI : Helper function to migrate image and thumbnail from local storage to R2 on approval
 // Two-phase thumbnail strategy to prevent abuse:

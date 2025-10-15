@@ -1,31 +1,8 @@
 import { db } from '../database';
 import { overlays } from '../db/schema';
 import { eq } from 'drizzle-orm';
-import { R2StorageS3, getThumbnailFilename } from '../shared/storage';
+import { R2StorageS3, getThumbnailFilename, streamToBuffer } from '../shared/storage';
 import sharp from 'sharp';
-
-// AI : Helper function to read stream into buffer
-async function streamToBuffer(stream: ReadableStream): Promise<Uint8Array> {
-  const reader = stream.getReader();
-  const chunks: Uint8Array[] = [];
-  let totalLength = 0;
-  
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    totalLength += value.length;
-  }
-  
-  const buffer = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    buffer.set(chunk, offset);
-    offset += chunk.length;
-  }
-  
-  return buffer;
-}
 
 // AI : Generate and upload thumbnails for existing approved overlays in R2
 // This is a one-time migration script for overlays that were approved before thumbnail feature
