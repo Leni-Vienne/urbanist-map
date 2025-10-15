@@ -9,7 +9,6 @@
     <ProjectPicker
       @project-selected="onProjectSelected"
       @create-project="uiStore.openProjectDialog()"
-      @select-focus="fetchProjectsForPicker"
       :useCityProjects="true"
       ref="projectPickerRef"
     />
@@ -276,16 +275,6 @@ function onMarkerModeEnabled() {
   };
   
   map.value.on('click', handleMapClick);
-}
-
-// AI : Fetch projects for picker when dropdown is focused
-async function fetchProjectsForPicker() {
-  try {
-    // AI : Fetch nearby projects based on current map view
-    await projectStore.fetchNearbyProjects()
-  } catch (error) {
-    console.error('Error fetching projects for picker:', error)
-  }
 }
 
 // AI : Handle project creation/update from dialog

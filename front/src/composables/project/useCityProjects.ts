@@ -2,15 +2,15 @@ import { computed } from 'vue';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import type { Project } from '@types';
-import { createProject } from '../../utils/typeFactories';
+import { createProject, createProjectFromAPI } from '../../utils/typeFactories';
 
 /**
- * AI : Composable to extract unique projects from city overlays data
- * This avoids the need for additional API calls to getProjectsNearLocation
- * since getCityOverlaysAndProjects already includes all project data we need
+ * AI : Composable to get all accessible projects including:
+ * - Projects from current city overlays
+ * - Nearby projects from other cities (lazy loaded)
+ * - Local unsaved projects
  */
 
-// AI : Extract unique projects from the current city overlays data
 export function useCityProjects() {
   const mapStore = useMapStore();
   const projectStore = useProjectStore();
@@ -18,27 +18,29 @@ export function useCityProjects() {
   const projects = computed(() => {
     const projectMap = new Map<string, Project>();
 
-    // AI : Extract projects from overlay data (backend projects)
+    // AI : 1. Extract projects from current city overlays (highest priority)
     mapStore.currentCityOverlays.forEach(overlay => {
       if (overlay.project?.id) {
-        const project = overlay.project;
-
-        // AI : Use factory function for consistent project creation
         const frontendProject = createProject({
-          ...project,
-          description: project.description ?? null,
-          overlayIds: [], // AI : We'll count overlays differently
+          ...overlay.project,
+          description: overlay.project.description ?? null,
+          overlayIds: [],
           savedRemotely: true
         });
-
-        projectMap.set(project.id, frontendProject);
+        projectMap.set(overlay.project.id, frontendProject);
       }
     });
 
-    // AI : Also include local projects that might not be in currentCityOverlays yet
-    // AI : (e.g., newly created projects not yet saved to backend)
+    // AI : 2. Include nearby projects from other cities
+    projectStore.nearbyProjects.forEach(nearbyProject => {
+      if (!projectMap.has(nearbyProject.id)) {
+        const frontendProject = createProjectFromAPI(nearbyProject);
+        projectMap.set(nearbyProject.id, frontendProject);
+      }
+    });
+
+    // AI : 3. Include local unsaved projects
     Object.values(projectStore.projects).forEach(project => {
-      // AI : Only add if not already in map (backend projects take precedence)
       if (!projectMap.has(project.id)) {
         projectMap.set(project.id, project);
       }
@@ -47,7 +49,6 @@ export function useCityProjects() {
     return Array.from(projectMap.values());
   });
   
-  // AI : Projects with overlay counts attached
   const projectsWithCounts = computed(() => {
     return projects.value.map(project => ({
       ...project,
@@ -55,16 +56,53 @@ export function useCityProjects() {
     }));
   });
 
-  // AI : Function to get overlay count for a specific project
+  // AI : Get overlay count, checking both current city and nearby project data
   function getOverlayCountForProject(projectId: string): number {
-    return mapStore.currentCityOverlays.filter(overlay =>
+    // AI : Count from current city overlays
+    const cityCount = mapStore.currentCityOverlays.filter(overlay =>
       overlay.project?.id === projectId
     ).length;
+    
+    // AI : If no overlays in current city, use count from nearby project data
+    if (cityCount === 0) {
+      const nearbyProject = projectStore.nearbyProjects.find(p => p.id === projectId);
+      return nearbyProject?.overlayCount ?? 0;
+    }
+    
+    return cityCount;
+  }
+
+  // AI : Group projects by city for visual organization
+  const projectsByCity = computed(() => {
+    const groups = new Map<string, Project[]>();
+    
+    projects.value.forEach(project => {
+      const cityKey = project.city 
+        ? `${project.city.name}, ${project.city.countryCode}`
+        : 'Unknown Location';
+      
+      if (!groups.has(cityKey)) {
+        groups.set(cityKey, []);
+      }
+      groups.get(cityKey)!.push(project);
+    });
+    
+    return Array.from(groups.entries()).map(([cityName, projects]) => ({
+      label: cityName,
+      items: projects
+    }));
+  });
+
+  // AI : Lazy load nearby projects
+  async function loadNearbyProjects() {
+    await projectStore.fetchNearbyProjects();
   }
 
   return {
     projects,
     projectsWithCounts,
-    getOverlayCountForProject
+    projectsByCity,
+    getOverlayCountForProject,
+    loadNearbyProjects
   };
 }
