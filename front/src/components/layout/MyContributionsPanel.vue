@@ -61,8 +61,6 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import Checkbox from 'primevue/checkbox'
-import Button from 'primevue/button'
 import { useAddOverlay } from '@composables/overlay/useAddOverlay'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import { useToast } from '@composables/ui/useToast'

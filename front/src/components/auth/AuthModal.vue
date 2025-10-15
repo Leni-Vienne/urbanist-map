@@ -203,10 +203,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import Dialog from 'primevue/dialog'
-import InputText from 'primevue/inputtext'
-import Password from 'primevue/password'
-import Button from 'primevue/button'
 import { useAuthStore } from '@stores/authStore'
 import { useToast } from '@composables/ui/useToast'
 

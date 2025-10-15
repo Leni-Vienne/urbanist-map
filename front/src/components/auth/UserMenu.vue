@@ -62,8 +62,6 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import Button from 'primevue/button'
-import Popover from 'primevue/popover'
 import AuthModal from './AuthModal.vue'
 import LanguageSwitcherMenu from '../map/LanguageSwitcherMenu.vue'
 import { useAuthStore } from '@stores/authStore'

@@ -24,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue';
 
 import { initializeMap, disableLeafletKeyboardEvents, map } from '@composables/core/useMap';
 import { addTileLayer } from '@composables/map/useTileLayers';
@@ -39,7 +39,8 @@ import { useCompletionFilters } from '@composables/overlay/useCompletionFilters'
 import type { OverlayData } from '@types';
 
 import MapControls from '@components/map/MapControls.vue';
-import UserMenu from '@components/auth/UserMenu.vue';
+//import UserMenu from '@components/auth/UserMenu.vue';
+const UserMenu = defineAsyncComponent(() => import('@components/auth/UserMenu.vue'));
 import MarkerHelpButton from '@components/map/MarkerHelpButton.vue';
 
 // AI: Get stores
