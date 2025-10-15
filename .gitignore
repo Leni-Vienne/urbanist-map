@@ -14,6 +14,8 @@ CLAUDE.md
 .github/instructions
 .serena
 .playwright-mcp
+prompts
+.specify
 
 .env.test
 test-results

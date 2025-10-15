@@ -5,8 +5,13 @@ import { mkdir } from 'node:fs/promises';
 
 // AI : Local filesystem storage implementation for development
 export class LocalFileStorage implements StorageInterface {
-    async put(filename: string, buffer: ArrayBuffer): Promise<void> {
+    async put(filename: string, buffer: ArrayBuffer, options?: { skipThumbnail?: boolean }): Promise<void> {
         await Bun.write(`./uploads/${filename}`, buffer);
+        
+        // AI : Skip thumbnail generation if explicitly requested (when uploading thumbnails themselves)
+        if (options?.skipThumbnail) {
+            return;
+        }
         
         // AI : Generate 120x120 thumbnail for image files using sharp
         // 120x120 chosen over 60x60 for better quality on high-DPI screens while staying small (~2-5KB)
@@ -23,7 +28,7 @@ export class LocalFileStorage implements StorageInterface {
                     fit: 'cover',
                     position: 'center'
                 })
-                .webp({ quality: 80 })
+                .webp()
                 .toFile(`./uploads/thumbnails/${filename}`);
         } catch (error) {
             // AI : Log thumbnail generation errors but don't fail the main upload
@@ -57,6 +62,15 @@ export class LocalFileStorage implements StorageInterface {
         try {
             const { unlink } = await import('node:fs/promises');
             await unlink(`./uploads/${filename}`);
+            
+            // AI : Also delete thumbnail if it exists
+            const thumbnailPath = `./uploads/thumbnails/${filename}`;
+            try {
+                await unlink(thumbnailPath);
+            } catch (error) {
+                // AI : Thumbnail might not exist, don't fail main deletion
+                console.warn(`Failed to delete thumbnail ${thumbnailPath}:`, error);
+            }
         } catch (error) {
             // AI : Log but don't throw - file might already be deleted
             console.warn(`Failed to delete file ${filename}:`, error);
@@ -84,7 +98,7 @@ export class R2StorageS3 implements StorageInterface {
         });
     }
 
-    async put(filename: string, buffer: ArrayBuffer): Promise<void> {
+    async put(filename: string, buffer: ArrayBuffer, options?: { skipThumbnail?: boolean }): Promise<void> {
         // AI : Get lazy reference to S3 file
         const s3file = this.client.file(filename);
         
@@ -92,6 +106,33 @@ export class R2StorageS3 implements StorageInterface {
         await s3file.write(buffer, {
             type: 'image/webp',
         });
+        
+        // AI : Skip thumbnail generation if explicitly requested (when uploading thumbnails themselves)
+        if (options?.skipThumbnail) {
+            return;
+        }
+        
+        // AI : Generate and upload 120x120 thumbnail for image files
+        // Same strategy as LocalFileStorage for consistency
+        try {
+            const thumbnailBuffer = await sharp(Buffer.from(buffer))
+                .resize(120, 120, {
+                    fit: 'cover',
+                    position: 'center'
+                })
+                .webp()
+                .toBuffer();
+            
+            // AI : Upload thumbnail with thumbnails/ prefix
+            const thumbnailFilename = getThumbnailFilename(filename);
+            const thumbnailS3file = this.client.file(thumbnailFilename);
+            await thumbnailS3file.write(thumbnailBuffer.buffer as ArrayBuffer, {
+                type: 'image/webp',
+            });
+        } catch (error) {
+            // AI : Log thumbnail generation errors but don't fail the main upload
+            console.warn(`Failed to generate thumbnail for ${filename}:`, error);
+        }
     }
 
     async get(filename: string): Promise<{ body: ReadableStream; contentType?: string } | null> {
@@ -119,6 +160,15 @@ export class R2StorageS3 implements StorageInterface {
     async delete(filename: string): Promise<void> {
         try {
             await this.client.delete(filename);
+            
+            // AI : Also delete thumbnail if it exists
+            const thumbnailFilename = getThumbnailFilename(filename);
+            try {
+                await this.client.delete(thumbnailFilename);
+            } catch (error) {
+                // AI : Thumbnail might not exist, don't fail main deletion
+                console.warn(`Failed to delete thumbnail ${thumbnailFilename} from R2:`, error);
+            }
         } catch (error) {
             // AI : Log but don't throw - file might already be deleted
             console.warn(`Failed to delete file ${filename} from R2:`, error);
