@@ -3,6 +3,7 @@ import { createDevelopmentIcon, createColorIcon } from '@composables/ui/markerIc
 import type { MarkerColor, Project } from '@types';
 import { ref } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
+import { mobileAwareFlyTo } from '@composables/map/useMobileAwareFly';
 import { loadCityOverlays } from '@composables/map/useCityOverlays';
 import { useSelectedProject } from '@composables/project/useSelectedProject';
 import { RouterOutput, trpc } from '@client';
@@ -403,7 +404,7 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
       
       // AI : Zoom to the city marker position (same zoom level as MarkerHelpButton)
       if (map.value && map.value.getZoom() <= 9) {
-        map.value.flyTo([city.lat, city.lng], 12, {
+        mobileAwareFlyTo([city.lat, city.lng], 12, {
           duration: 1.5
         });
       }

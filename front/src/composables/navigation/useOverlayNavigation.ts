@@ -5,6 +5,7 @@ import { removeOverlayMarkers } from '@composables/map/useCityOverlays';
 import { clearAllOverlays, navigateToOverlay } from '@composables/overlay/useOverlay';
 import { switchTileLayer, isTileLayerType } from '@composables/map/useTileLayers';
 import { map } from '@composables/core/useMap';
+import { mobileAwareFlyTo, mobileAwareFlyToBounds } from '@composables/map/useMobileAwareFly';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
@@ -59,7 +60,11 @@ function zoomToOverlayAndSelect(overlayId: string, corners: { lat: number; lng: 
   }
 
   const bounds = L.latLngBounds(corners.map(c => L.latLng(c.lat, c.lng)));
-  map.value.flyToBounds(bounds, { padding: [50, 50] as [number, number], duration: 1.5, easeLinearity: 0.25 });
+  mobileAwareFlyToBounds(bounds, {
+    padding: [50, 50] as [number, number],
+    duration: 1.5,
+    easeLinearity: 0.25
+  });
 
   // AI : Select the overlay once zoom completes
   map.value.once('moveend', () => {
@@ -182,7 +187,7 @@ export async function navigateToDevelopmentProject(
       throw new Error('Map is not initialized');
     }
 
-    map.value.flyTo([lat, lng], 18, {
+    mobileAwareFlyTo([lat, lng], 18, {
       duration: 1.5,
       easeLinearity: 0.25
     });

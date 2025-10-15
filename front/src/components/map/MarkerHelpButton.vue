@@ -18,6 +18,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { map } from '@composables/core/useMap'
+import { mobileAwareFlyTo } from '@composables/map/useMobileAwareFly'
 import { useMapStore } from '@stores/pinia/mapStore'
 import { useI18n } from 'vue-i18n'
 import { flyToCountry } from '@composables/map/useFlyToCountry'
@@ -151,7 +152,7 @@ function handleClick() {
       }
     } else {
       // AI : For city markers, use flyTo with zoom level 12
-      map.value.flyTo([lat, lng], 12, {
+      mobileAwareFlyTo([lat, lng], 12, {
         duration: 1.5
       })
     }

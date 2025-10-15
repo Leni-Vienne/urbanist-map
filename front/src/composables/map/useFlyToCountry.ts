@@ -1,4 +1,5 @@
 import { map } from '@composables/core/useMap'
+import { mobileAwareFlyTo, mobileAwareFlyToBounds } from '@composables/map/useMobileAwareFly'
 import countryBboxes from '@assets/country_bboxes.json'
 
 /**
@@ -22,19 +23,19 @@ export function flyToCountry(
 
   if (bbox) {
     // AI : bbox format is [minLng, minLat, maxLng, maxLat]
-    map.value.flyToBounds(
+    mobileAwareFlyToBounds(
       [
         [bbox[1], bbox[0]], // AI : southwest corner [lat, lng]
         [bbox[3], bbox[2]]  // AI : northeast corner [lat, lng]
       ],
       {
         duration,
-        padding: [-30, -30]
+        padding: [30, 30] as [number, number]
       }
     )
   } else if (fallbackLat !== undefined && fallbackLng !== undefined) {
     // AI : Fallback to flyTo if no bbox found
-    map.value.flyTo([fallbackLat, fallbackLng], fallbackZoom, {
+    mobileAwareFlyTo([fallbackLat, fallbackLng], fallbackZoom, {
       duration
     })
   }
