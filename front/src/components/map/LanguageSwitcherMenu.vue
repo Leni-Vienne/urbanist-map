@@ -40,7 +40,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import Popover from 'primevue/popover'
 import { availableLocales, saveLocale, updateTranslationSettings, type Locale } from '../../locales'
 
 const { locale } = useI18n()

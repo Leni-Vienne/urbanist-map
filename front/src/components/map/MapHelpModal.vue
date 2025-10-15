@@ -197,10 +197,7 @@ function showModal() {
 // AI : Auto-show on first visit
 onMounted(() => {
   if (shouldShowOnFirstVisit()) {
-    // AI : Small delay to ensure the page has loaded
-    setTimeout(() => {
       visible.value = true;
-    }, 1000);
   }
 });
 

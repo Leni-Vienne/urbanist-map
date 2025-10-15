@@ -148,7 +148,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed, ref } from 'vue';
+import { computed, defineAsyncComponent, ref } from 'vue';
 import L from 'leaflet';
 import { useToast } from '@composables/ui/useToast';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
@@ -158,10 +158,11 @@ import { toggleEditMode } from '@composables/overlay/useOverlayModes';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import { createButtonSVG } from '@composables/ui/markerIcons';
 import { map } from '@composables/core/useMap';
-import LayerControl from '@components/map/LayerControl.vue';
-import MapHelpModal from '@components/map/MapHelpModal.vue';
 import { useAddOverlay } from '@composables/overlay/useAddOverlay';
 import type { viewModeMarkerColor } from '@types';
+
+const LayerControl = defineAsyncComponent(() => import('@components/map/LayerControl.vue'));
+const MapHelpModal = defineAsyncComponent(() => import('@components/map/MapHelpModal.vue'));
 
 const authStore = useAuthStore();
 const overlayStore = useOverlayStore();

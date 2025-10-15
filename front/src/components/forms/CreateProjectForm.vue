@@ -241,7 +241,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useToast } from 'primevue/usetoast';
+import { useToast } from '@composables/ui/useToast'
 import { trpc, RouterOutput } from '@client';
 import { getCameraBounds } from '@composables/map/useCameraBounds';
 import { useOverlayStore } from '@stores/pinia/overlayStore';

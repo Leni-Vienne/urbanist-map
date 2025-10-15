@@ -28,7 +28,6 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@stores/authStore'
 import { useToast } from '@composables/ui/useToast'
-import Button from 'primevue/button'
 
 const route = useRoute()
 const router = useRouter()

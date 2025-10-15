@@ -49,9 +49,6 @@
 
     <!-- AI : Project Management Dialogs -->
     <ProjectManager v-if="uiStore.projectDialog.visible || uiStore.imageUploadDialogVisible || uiStore.projectSelectorVisible" />
-
-    <!-- AI : Auth Modal for unauthenticated users -->
-    <AuthModal v-model:visible="uiStore.authModalVisible" />
   </div>
 </template>
 
@@ -60,9 +57,7 @@ import { onMounted, ref, onUnmounted, computed, defineAsyncComponent } from 'vue
 import { useI18n } from 'vue-i18n'
 import MapView from '@components/map/MapView.vue'
 import SideMenu from '@components/layout/SideMenu.vue'
-import AuthModal from '@components/auth/AuthModal.vue'
 import MobileDrawer from '@components/layout/MobileDrawer.vue'
-import PopupContainer from '@components/map/PopupContainer.vue'
 
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useAuthStore } from '@stores/authStore'
@@ -72,6 +67,8 @@ import { useBeforeUnload } from '@composables/core/useBeforeUnload'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
 
+// AI : Split PopupContainer into separate chunk - loads when first popup is shown
+const PopupContainer = defineAsyncComponent(() => import('@components/map/PopupContainer.vue'))
 const ProjectManager = defineAsyncComponent(() => import('@components/project/ProjectManager.vue'))
 
 // AI : Create refs to track app state
@@ -159,6 +156,8 @@ onMounted(async () => {
   // AI : Add window resize listener for mobile detection
   window.addEventListener('resize', updateWindowWidth);
 
+  // preload PopupContainer chunk on page load. Not needed on page load but improves responsiveness when first popup is shown
+  import('@components/map/PopupContainer.vue')
 
   // AI : Prevent page scrolling on mobile to avoid viewport issues
   if (isMobile.value) {

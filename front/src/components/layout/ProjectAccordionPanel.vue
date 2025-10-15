@@ -306,12 +306,6 @@ import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useMapStore } from '@stores/pinia/mapStore'
 import type { ProjectForModeration, OverlayForModeration } from '@types'
 import { useToast } from '@composables/ui/useToast'
-import Tag from 'primevue/tag'
-import Accordion from 'primevue/accordion'
-import AccordionPanel from 'primevue/accordionpanel'
-import AccordionHeader from 'primevue/accordionheader'
-import AccordionContent from 'primevue/accordioncontent'
-import Card from 'primevue/card'
 import type { PendingChangeRequest } from '../../types/api'
 
 // AI : Props interface

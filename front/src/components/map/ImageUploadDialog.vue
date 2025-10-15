@@ -163,7 +163,6 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
-import Button from 'primevue/button';
 
 // AI : Component props and emits
 interface Props {

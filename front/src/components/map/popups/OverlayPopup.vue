@@ -141,7 +141,6 @@ import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@stores/authStore';
 import type { OverlayObject, Project } from '@types';
 import ProjectMetadataCard from './ProjectMetadataCard.vue';
-import Dialog from 'primevue/dialog';
 import { useI18n } from 'vue-i18n';
 
 const ProjectPicker = defineAsyncComponent(() => import('@components/project/ProjectPicker.vue'));
