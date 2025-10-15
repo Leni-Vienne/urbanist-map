@@ -17,6 +17,7 @@ import { loadCityDevelopmentProjects, removeCityMarkers, addCityMarkersForCountr
 import { loadCitiesForCountry } from '@composables/map/useCountryMarkers'
 import { useProjectStore } from '@stores/pinia/projectStore'
 import { storeToRefs } from 'pinia'
+import { renderViewModeOverlays } from '@composables/overlay/useOverlay'
 
 // AI : Transition effects - callbacks executed during state transitions
 interface TransitionEffects {
@@ -107,7 +108,28 @@ function performFullRender(newState: OverlayModeState, transition: StateTransiti
  * AI : Perform partial update (positions/controls only)
  */
 function performPartialUpdate(newState: OverlayModeState, transition: StateTransition): void {
-  updateExistingOverlays(transition.renderStrategy)
+  const overlayStore = useOverlayStore()
+  const selectedCity = getSelectedCity()
+  
+  // AI : Check if there are new overlays that need to be added
+  if (selectedCity && newState.selectedCityId && hasCachedCityProjectsData(newState.selectedCityId)) {
+    const overlaysData = getCachedCityProjectsData(newState.selectedCityId)!
+    const existingOverlayIds = new Set(Object.keys(overlayStore.overlays))
+    
+    // AI : Find only the new overlays that don't exist yet
+    const newOverlays = overlaysData.filter(o => !existingOverlayIds.has(o.id))
+    
+    if (newOverlays.length > 0) {
+      // AI : Add only the new overlays without clearing existing ones
+      renderViewModeOverlays(newOverlays, transition.renderStrategy.shouldRenderMarkers, false)
+    }
+    
+    // AI : Update all overlays (existing + newly added) without recreating them
+    updateExistingOverlays(transition.renderStrategy)
+  } else {
+    // AI : No data available, just update existing overlays
+    updateExistingOverlays(transition.renderStrategy)
+  }
 }
 
 /**
@@ -159,7 +181,7 @@ function handleBeforeTransition(from: OverlayModeState, to: OverlayModeState): v
 /**
  * AI : Toggle between edit and view modes
  */
-export function toggleEditMode(onModeExit?: () => void): void {
+export async function toggleEditMode(onModeExit?: () => void): Promise<void> {
   const overlayStore = useOverlayStore()
   const mapStore = useMapStore()
 
@@ -176,6 +198,14 @@ export function toggleEditMode(onModeExit?: () => void): void {
     invalidateCityCaches(selectedCity.id)
   }
 
+  // AI : Fetch new data BEFORE transitioning so it's available for rendering
+  if (selectedCity && newState.selectedCityId && newState.hasLoadedOverlays && newState.zoomLevel === 'high') {
+    await fetchCityProjectsData(newState.selectedCityId)
+    await loadCityDevelopmentProjects(newState.selectedCityId)
+  } else if (selectedCity && newState.selectedCityId) {
+    await reloadCityData(newState.selectedCityId)
+  }
+
   // AI : Execute state transition with side effects
   transitionToState(newState, {
     beforeTransition: handleBeforeTransition,
@@ -186,63 +216,9 @@ export function toggleEditMode(onModeExit?: () => void): void {
         await reloadCitiesAndMarkers(countryCode)
       }
 
-      // AI : If overlays are already loaded at high zoom, just fetch data without re-rendering
-      // AI : The state machine already updated the visual state
-      if (selectedCity && newState.selectedCityId && newState.hasLoadedOverlays && newState.zoomLevel === 'high') {
-        // AI : Update cache only without re-rendering
-        await fetchCityProjectsData(newState.selectedCityId)
-        // AI : Also update development projects cache
-        await loadCityDevelopmentProjects(newState.selectedCityId)
-      } else if (selectedCity && newState.selectedCityId) {
-        // AI : Low zoom or no overlays loaded - need full reload with rendering
-        await reloadCityData(newState.selectedCityId)
-      }
-
       // AI : Execute custom exit logic if provided (used by useAddOverlay and MapControls)
       if (!overlayStore.isEditMode && onModeExit) {
         onModeExit()
-      }
-    }
-  })
-}
-
-/**
- * AI : Handle edit mode exit - reset overlays to backend positions
- * AI : This is a specialized function for forcing exit from edit mode (not a toggle)
- * AI : Currently unused - kept for potential future use cases
- */
-export function handleEditModeExit(): void {
-  const overlayStore = useOverlayStore()
-  const mapStore = useMapStore()
-  const selectedCity = getSelectedCity()
-  
-  // AI : Force exit edit mode
-  overlayStore.isEditMode = false
-  
-  // AI : Invalidate cache for selected city when exiting edit mode
-  if (selectedCity) {
-    invalidateCityCaches(selectedCity.id)
-  }
-
-  const newState = getCurrentState()
-
-  // AI : Transition with caching side effect
-  transitionToState(newState, {
-    beforeTransition: handleBeforeTransition,
-    afterTransition: async () => {
-      // AI : Reload city list for the country
-      const countryCode = mapStore.selectedCountryCode
-      if (countryCode) {
-        await reloadCitiesAndMarkers(countryCode)
-      }
-
-      // AI : If overlays are already loaded at high zoom, just fetch data without re-rendering
-      if (selectedCity && newState.selectedCityId && newState.hasLoadedOverlays && newState.zoomLevel === 'high') {
-        await fetchCityProjectsData(newState.selectedCityId)
-        await loadCityDevelopmentProjects(newState.selectedCityId)
-      } else if (selectedCity && newState.selectedCityId) {
-        // AI : Low zoom or no overlays loaded - need full reload with rendering
-        await reloadCityData(newState.selectedCityId)
       }
     }
   })

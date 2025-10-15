@@ -473,7 +473,7 @@ async function handleOverlayClick(overlay: OverlayForModeration) {
 
     // AI : If overlay is pending, switch to edit mode first so it becomes visible
     if (overlay.status === 'pending' && !overlayStore.isEditMode) {
-      toggleEditMode()
+      await toggleEditMode()
 
       toast.add({
         severity: 'info',

@@ -77,8 +77,8 @@ const onlyShowPending = ref(true)
 // AI : Stores
 const { handleAddOverlayButtonClick } = useAddOverlay()
 
-function handleAddOverlayClick() {
-  const result = handleAddOverlayButtonClick()
+async function handleAddOverlayClick() {
+  const result = await handleAddOverlayButtonClick()
   
   if (result.success) {
     if (result.action === 'edit_mode_enabled') {
