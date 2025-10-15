@@ -17,6 +17,7 @@ import L from "leaflet";
 import 'leaflet-toolbar';
 import 'leaflet-distortableimage';
 import { map } from '@composables/core/useMap';
+import { mobileAwareFlyTo, mobileAwareFlyToBounds } from '@composables/map/useMobileAwareFly';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
@@ -1005,13 +1006,17 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
   // AI : Try to get bounds from overlay data (works whether Leaflet overlay exists or not)
   const overlayBounds = getOverlayBounds(overlay);
   if (overlayBounds) {
-    map.value.flyToBounds(overlayBounds, { padding: [50, 50] as [number, number], duration: 1.5, easeLinearity: 0.25 });
+    mobileAwareFlyToBounds(overlayBounds, {
+      padding: [50, 50] as [number, number],
+      duration: 1.5,
+      easeLinearity: 0.25
+    });
     return true;
   }
 
   // AI : Fallback to marker position if bounds unavailable
   if (overlay.marker) {
-    map.value.flyTo(overlay.marker.getLatLng(), 17, { duration: 1.5, easeLinearity: 0.25 });
+    mobileAwareFlyTo(overlay.marker.getLatLng(), 17, { duration: 1.5, easeLinearity: 0.25 });
     return true;
   }
 
