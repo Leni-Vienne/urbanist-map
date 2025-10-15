@@ -1,18 +1,20 @@
-import { LocalFileStorage } from './storage';
-import { readdir } from 'node:fs/promises';
+import { generateThumbnail } from './storage';
+import { readdir, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
 // AI : Generate missing thumbnails on server startup
-// Thumbnails stay local until approval to prevent R2 cost abuse from spam uploads
-// After approval, they migrate to R2 along with the main image for public CDN delivery
+// AI : Thumbnails stay local until approval to prevent R2 cost abuse from spam uploads
+// AI : After approval, they migrate to R2 along with the main image for public CDN delivery
 export async function generateMissingThumbnails(): Promise<void> {
   console.log('Checking for missing thumbnails...');
   
   const uploadsDir = './uploads';
   const thumbnailsDir = './uploads/thumbnails';
-  const localStorage = new LocalFileStorage();
   
   try {
+    // AI : Ensure thumbnails directory exists
+    await mkdir(thumbnailsDir, { recursive: true });
+    
     // AI : Read all files in uploads directory (not recursive, excludes thumbnails folder)
     const files = await readdir(uploadsDir);
     
@@ -41,17 +43,15 @@ export async function generateMissingThumbnails(): Promise<void> {
         // AI : Thumbnail doesn't exist, continue to generate
       }
       
-      // AI : Generate thumbnail by reading image and using LocalFileStorage.put
-      // which automatically generates thumbnails
+      // AI : Generate thumbnail directly without re-saving main image
       try {
         const imagePath = join(uploadsDir, imageFile);
         const imageFile_blob = Bun.file(imagePath);
         const buffer = await imageFile_blob.arrayBuffer();
         
-        // AI : Use LocalFileStorage to generate thumbnail
-        // We only want the thumbnail generation part, but put() does both
-        // So we re-save the image which triggers thumbnail generation
-        await localStorage.put(imageFile, buffer);
+        // AI : Generate and save thumbnail using centralized function
+        const thumbnailBuffer = await generateThumbnail(buffer);
+        await Bun.write(thumbnailPath, thumbnailBuffer);
         
         console.log(`Generated thumbnail for ${imageFile}`);
         generatedCount++;

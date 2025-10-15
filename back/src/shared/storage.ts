@@ -3,6 +3,21 @@ import { S3Client } from 'bun';
 import sharp from 'sharp';
 import { mkdir } from 'node:fs/promises';
 
+// AI : Centralized thumbnail generation function for consistency across storage implementations
+// AI : Generates 120x120 WebP thumbnail with cover fit (maintains aspect ratio, crops to fill)
+// AI : 120x120 chosen over 60x60 for better quality on high-DPI screens while staying small (~2-5KB)
+export async function generateThumbnail(buffer: ArrayBuffer): Promise<ArrayBuffer> {
+    const thumbnailBuffer = await sharp(Buffer.from(buffer))
+        .resize(120, 120, {
+            fit: 'cover',
+            position: 'center'
+        })
+        .webp()
+        .toBuffer();
+    
+    return thumbnailBuffer.buffer as ArrayBuffer;
+}
+
 // AI : Local filesystem storage implementation for development
 export class LocalFileStorage implements StorageInterface {
     async put(filename: string, buffer: ArrayBuffer, options?: { skipThumbnail?: boolean }): Promise<void> {
@@ -13,23 +28,16 @@ export class LocalFileStorage implements StorageInterface {
             return;
         }
         
-        // AI : Generate 120x120 thumbnail for image files using sharp
-        // 120x120 chosen over 60x60 for better quality on high-DPI screens while staying small (~2-5KB)
-        // Thumbnails stored in ./uploads/thumbnails/ for better organization
-        // Not stored in DB, derived from filename
-        // Two-phase strategy: Stays local during moderation (prevent R2 abuse), migrates to R2 on approval
+        // AI : Generate thumbnail for image files
+        // AI : Thumbnails stored in ./uploads/thumbnails/ for better organization
+        // AI : Not stored in DB, derived from filename
+        // AI : Two-phase strategy: Stays local during moderation (prevent R2 abuse), migrates to R2 on approval
         try {
             // AI : Ensure thumbnails directory exists
             await mkdir('./uploads/thumbnails', { recursive: true });
             
-            // AI : Use sharp to resize image to 120x120 with cover fit (maintains aspect ratio, crops to fill)
-            await sharp(Buffer.from(buffer))
-                .resize(120, 120, {
-                    fit: 'cover',
-                    position: 'center'
-                })
-                .webp()
-                .toFile(`./uploads/thumbnails/${filename}`);
+            const thumbnailBuffer = await generateThumbnail(buffer);
+            await Bun.write(`./uploads/thumbnails/${filename}`, thumbnailBuffer);
         } catch (error) {
             // AI : Log thumbnail generation errors but don't fail the main upload
             console.warn(`Failed to generate thumbnail for ${filename}:`, error);
@@ -38,9 +46,8 @@ export class LocalFileStorage implements StorageInterface {
 
     async get(filename: string): Promise<{ body: ReadableStream; contentType?: string } | null> {
         try {
-            // AI : Check if requesting a thumbnail (check thumbnails folder first)
-            const isThumbnailRequest = filename.includes('/thumbnails/');
-            const filePath = isThumbnailRequest ? `./uploads/${filename}` : `./uploads/${filename}`;
+            // AI : File path already includes full path from request (e.g., "thumbnails/image.webp" or "image.webp")
+            const filePath = `./uploads/${filename}`;
             
             const file = Bun.file(filePath);
             const exists = await file.exists();
@@ -112,21 +119,14 @@ export class R2StorageS3 implements StorageInterface {
             return;
         }
         
-        // AI : Generate and upload 120x120 thumbnail for image files
-        // Same strategy as LocalFileStorage for consistency
+        // AI : Generate and upload thumbnail for image files (same strategy as LocalFileStorage for consistency)
         try {
-            const thumbnailBuffer = await sharp(Buffer.from(buffer))
-                .resize(120, 120, {
-                    fit: 'cover',
-                    position: 'center'
-                })
-                .webp()
-                .toBuffer();
+            const thumbnailBuffer = await generateThumbnail(buffer);
             
             // AI : Upload thumbnail with thumbnails/ prefix
             const thumbnailFilename = getThumbnailFilename(filename);
             const thumbnailS3file = this.client.file(thumbnailFilename);
-            await thumbnailS3file.write(thumbnailBuffer.buffer as ArrayBuffer, {
+            await thumbnailS3file.write(thumbnailBuffer, {
                 type: 'image/webp',
             });
         } catch (error) {
