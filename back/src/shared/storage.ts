@@ -3,6 +3,30 @@ import { S3Client } from 'bun';
 import sharp from 'sharp';
 import { mkdir } from 'node:fs/promises';
 
+// AI : Helper function to read ReadableStream into Uint8Array buffer
+// AI : Used when migrating files between storage backends or processing streams
+export async function streamToBuffer(stream: ReadableStream): Promise<Uint8Array> {
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalLength = 0;
+  
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    totalLength += value.length;
+  }
+  
+  const buffer = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    buffer.set(chunk, offset);
+    offset += chunk.length;
+  }
+  
+  return buffer;
+}
+
 // AI : Centralized thumbnail generation function for consistency across storage implementations
 // AI : Generates 120x120 WebP thumbnail with cover fit (maintains aspect ratio, crops to fill)
 // AI : 120x120 chosen over 60x60 for better quality on high-DPI screens while staying small (~2-5KB)
