@@ -37,7 +37,7 @@
             <Card
               class="project-details-card"
               :class="{ 'marker-project-card': project.isDevelopment }"
-              @click="project.isDevelopment ? handleDevelopmentProjectClick(project) : null"
+              @click="project.isDevelopment && !$slots['project-actions'] ? handleDevelopmentProjectClick(project) : null"
             >
               <template #content>
                 <div class="project-content-wrapper">
@@ -51,7 +51,7 @@
                     <div class="project-metadata">
                       <div class="metadata-item">
                         <i class="pi pi-clock"></i>
-                        <span>Updated {{ formatRelativeTime(project.updatedAt) }}</span>
+                        <span>{{ $t('project.updatedAgo', { time: formatRelativeTime(project.updatedAt) }) }}</span>
                       </div>
                       <div
                         class="metadata-item"
@@ -100,20 +100,21 @@
                   </div>
 
                   <!-- AI : Zoom icon for development projects -->
-                  <button
+                  <Button
                     v-if="project.isDevelopment && !$slots['project-actions']"
-                    class="bg-surface-50 border border-surface-200 rounded-md w-8 h-8 flex items-center justify-center text-surface-500 hover:bg-surface-100 hover:text-surface-600 transition-all flex-shrink-0"
-                    @click.stop="handleDevelopmentProjectClick(project)"
-                  >
-                    <i class="pi pi-search"></i>
-                    <span class="sr-only">Zoom to {{ project.name }}</span>
-                  </button>
+                    icon="pi pi-search"
+                    :aria-label="$t('overlay.zoomTo') + ' ' + project.name"
+                    @click="handleDevelopmentProjectClick(project)"
+                    text
+                    rounded
+                    size="small"
+                  />
                 </div>
 
                 <!-- AI : Project change requests -->
                 <div v-if="getProjectChangeRequests(project.id).length > 0" class="project-change-requests">
-                  <h3 class="change-requests-title">{{ isMyContributionsPanel ? 'Your Pending Changes' : 'Pending Changes' }}</h3>
-                  <p v-if="isMyContributionsPanel" class="change-requests-subtitle">A moderator needs to review and approve these changes</p>
+                  <h3 class="change-requests-title">{{ isMyContributionsPanel ? $t('moderation.yourPendingChanges') : $t('moderation.pendingChanges') }}</h3>
+                  <p v-if="isMyContributionsPanel" class="change-requests-subtitle">{{ $t('moderation.moderatorReviewRequired') }}</p>
                   <div class="change-requests-list">
                     <div 
                       v-for="change in getProjectChangeRequests(project.id)" 
@@ -125,22 +126,22 @@
                           <strong>{{ change.fieldName }}:</strong>
                           <div v-if="isGeometryField(change.fieldName)" class="geometry-change-controls">
                             <div class="geometry-buttons">
-                              <button
-                                class="geometry-btn old-geometry"
-                                :class="{ 'active': activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'old' }"
+                              <Button
+                                icon="pi pi-map-marker"
+                                :label="$t('overlay.viewCurrentPosition')"
                                 @click.stop="previewGeometry(change.oldValue, 'old', change.id)"
-                              >
-                                <i class="pi pi-map-marker"></i>
-                                View Original Position
-                              </button>
-                              <button
-                                class="geometry-btn new-geometry"
-                                :class="{ 'active': activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'new' }"
+                                severity="danger"
+                                :outlined="!(activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'old')"
+                                size="small"
+                              />
+                              <Button
+                                icon="pi pi-map-marker"
+                                :label="$t('overlay.viewSuggestedPosition')"
                                 @click.stop="previewGeometry(change.newValue, 'new', change.id)"
-                              >
-                                <i class="pi pi-map-marker"></i>
-                                View New Position
-                              </button>
+                                severity="success"
+                                :outlined="!(activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'new')"
+                                size="small"
+                              />
                             </div>
                           </div>
                           <div v-else class="change-values">
@@ -149,10 +150,10 @@
                             <span class="new-value">{{ formatValue(change.newValue, change.fieldName) }}</span>
                           </div>
                           <div v-if="change.changeReason" class="change-reason">
-                            <em>Reason: {{ change.changeReason }}</em>
+                            <em>{{ $t('moderation.reason') }}: {{ change.changeReason }}</em>
                           </div>
                           <div class="change-date">
-                            <em>Requested: {{ new Date(change.createdAt).toLocaleString() }}</em>
+                            <em>{{ $t('moderation.requested') }}: {{ new Date(change.createdAt).toLocaleString() }}</em>
                           </div>
                         </div>
                         <div v-if="$slots['change-actions']" class="change-actions">
@@ -201,7 +202,7 @@
                   <!-- AI : Overlay info -->
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 mb-1">
-                      <p class="overlay-name">{{ overlay.name || 'Untitled' }}</p>
+                      <p class="overlay-name">{{ overlay.name || $t('overlay.untitled') }}</p>
                     </div>
                     <div class="flex items-center gap-1.5 text-surface-600 text-xs mb-1">
                       <i class="pi pi-map-marker text-surface-500"></i>
@@ -236,14 +237,15 @@
                       :project="project"
                     ></slot>
                   </div>
-                  <button
+                  <Button
                     v-else
-                    class="bg-surface-50 border border-surface-200 rounded-md w-8 h-8 flex items-center justify-center text-surface-500 hover:bg-surface-100 hover:text-surface-600 transition-all flex-shrink-0"
+                    icon="pi pi-search"
+                    :aria-label="$t('overlay.zoomTo') + ' ' + (overlay.name || $t('overlay.untitled'))"
                     @click.stop="handleOverlayClick(overlay)"
-                  >
-                    <i class="pi pi-search"></i>
-                    <span class="sr-only">Zoom to {{ overlay.name }}</span>
-                  </button>
+                    text
+                    rounded
+                    size="small"
+                  />
                 </div>
 
                 <!-- AI : Overlay change requests - visually connected to overlay -->
@@ -251,9 +253,9 @@
                   <div class="change-requests-header">
                     <div class="change-indicator">
                       <i class="pi pi-exclamation-triangle text-orange-500"></i>
-                      <span class="change-header-text">{{ isMyContributionsPanel ? 'Your Pending Changes' : 'Pending Changes' }} for "{{ overlay.name || 'Untitled' }}"</span>
+                      <span class="change-header-text">{{ isMyContributionsPanel ? $t('moderation.yourPendingChanges') : $t('moderation.pendingChangesFor', { name: overlay.name || $t('overlay.untitled') }) }}</span>
                     </div>
-                    <p v-if="isMyContributionsPanel" class="change-requests-subtitle">A moderator needs to review and approve these changes</p>
+                    <p v-if="isMyContributionsPanel" class="change-requests-subtitle">{{ $t('moderation.moderatorReviewRequired') }}</p>
                   </div>
                   <div class="change-requests-list">
                     <div 
@@ -266,22 +268,22 @@
                           <strong>{{ change.fieldName }}:</strong>
                           <div v-if="isGeometryField(change.fieldName)" class="geometry-change-controls">
                             <div class="geometry-buttons">
-                              <button
-                                class="geometry-btn old-geometry"
-                                :class="{ 'active': activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'old' }"
+                              <Button
+                                icon="pi pi-map-marker"
+                                :label="$t('overlay.viewCurrentPosition')"
                                 @click.stop="previewGeometry(change.oldValue, 'old', change.id)"
-                              >
-                                <i class="pi pi-map-marker"></i>
-                                View Original Position
-                              </button>
-                              <button
-                                class="geometry-btn new-geometry"
-                                :class="{ 'active': activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'new' }"
+                                severity="danger"
+                                :outlined="!(activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'old')"
+                                size="small"
+                              />
+                              <Button
+                                icon="pi pi-map-marker"
+                                :label="$t('overlay.viewSuggestedPosition')"
                                 @click.stop="previewGeometry(change.newValue, 'new', change.id)"
-                              >
-                                <i class="pi pi-map-marker"></i>
-                                View New Position
-                              </button>
+                                severity="success"
+                                :outlined="!(activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'new')"
+                                size="small"
+                              />
                             </div>
                           </div>
                           <div v-else class="change-values">
@@ -290,10 +292,10 @@
                             <span class="new-value">{{ formatValue(change.newValue, change.fieldName) }}</span>
                           </div>
                           <div v-if="change.changeReason" class="change-reason">
-                            <em>Reason: {{ change.changeReason }}</em>
+                            <em>{{ $t('moderation.reason') }}: {{ change.changeReason }}</em>
                           </div>
                           <div class="change-date">
-                            <em>Requested: {{ new Date(change.createdAt).toLocaleString() }}</em>
+                            <em>{{ $t('moderation.requested') }}: {{ new Date(change.createdAt).toLocaleString() }}</em>
                           </div>
                         </div>
                         <div v-if="$slots['change-actions']" class="change-actions">
@@ -330,7 +332,7 @@
         class="flex flex-col items-center justify-center p-12 text-center text-surface-600"
       >
         <i class="pi pi-spin pi-spinner text-2xl mb-4"></i>
-        <p>Loading projects...</p>
+        <p>{{ $t('overlay.loadingProjects') }}</p>
       </div>
     </div>
   </div>
@@ -338,17 +340,15 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import L from 'leaflet'
+import { useI18n } from 'vue-i18n'
 import { buildThumbnailUrl, formatRelativeTime } from '../../utils'
-import { navigateToOverlayWithCity, navigateToDevelopmentProject } from '@composables/navigation/useOverlayNavigation'
-import { navigateToOverlay } from '@composables/overlay/useOverlay'
-import { toggleEditMode } from '@composables/overlay/useOverlayModes'
-import { useOverlayStore } from '@stores/pinia/overlayStore'
-import { useMapStore } from '@stores/pinia/mapStore'
-import { mobileAwareFlyToBounds } from '@composables/map/useMobileAwareFly'
-import type { ProjectForModeration, OverlayForModeration } from '@types'
+import { navigateToDevelopmentProject } from '@composables/navigation/useOverlayNavigation'
+import { useOverlayClickHandler } from '@composables/overlay/useOverlayClickHandler'
+import { useChangeRequestDisplay } from '@composables/changes/useChangeRequestDisplay'
 import { useToast } from '@composables/ui/useToast'
+import type { ProjectForModeration, OverlayForModeration } from '@types'
 import type { PendingChangeRequest } from '../../types/api'
+import Button from 'primevue/button'
 
 // AI : Props interface
 interface Props {
@@ -362,16 +362,46 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  emptyMessage: 'No projects found.',
-  emptySubMessage: 'Create your first construction project!',
+  emptyMessage: '',
+  emptySubMessage: '',
   changeRequests: () => []
 })
 
-// AI : Reactive state for image errors, expanded panels, and active geometry preview
+// AI : Use i18n for translations
+const { t } = useI18n()
+const toast = useToast()
+
+// AI : Reactive state for image errors and expanded panels
 const imageErrors = ref<Record<string, boolean>>({})
 const activeAccordionPanels = ref<string[]>([])
-const activeGeometryPreview = ref<{ changeId: string, type: 'old' | 'new' } | null>(null)
-const toast = useToast()
+
+// AI : Use overlay click handler composable for shared navigation logic
+const { handleOverlayClickNavigation } = useOverlayClickHandler()
+
+// AI : Use change request display composable for shared change request logic
+const {
+  activeGeometryPreview,
+  isGeometryField,
+  getProjectChangeRequests,
+  getOverlayChangeRequests,
+  previewGeometry,
+  formatValue
+} = useChangeRequestDisplay(
+  () => props.changeRequests,
+  () => props.projects,
+  async (overlayId: string) => {
+    // AI : Find the overlay and call handleOverlayClick
+    for (const project of props.projects) {
+      if (project.overlays) {
+        const overlay = project.overlays.find(o => o.id === overlayId)
+        if (overlay) {
+          await handleOverlayClick(overlay)
+          return
+        }
+      }
+    }
+  }
+)
 
 // AI : Computed expanded panels set for easier checking
 const expandedPanels = computed(() => new Set(activeAccordionPanels.value))
@@ -502,49 +532,9 @@ function shouldShowOverlays(project: ProjectForModeration): boolean {
   return expandedPanels.value.has(project.id)
 }
 
-// AI : Handle overlay click - simulate clicking country marker → city marker → overlay
+// AI : Handle overlay click - delegate to shared composable
 async function handleOverlayClick(overlay: OverlayForModeration) {
-  try {
-    const overlayStore = useOverlayStore()
-    const mapStore = useMapStore()
-
-    // AI : If overlay is pending, switch to edit mode first so it becomes visible
-    if (overlay.status === 'pending' && !overlayStore.isEditMode) {
-      await toggleEditMode()
-
-      toast.add({
-        severity: 'info',
-        summary: 'Switched to Edit Mode',
-        detail: 'Pending overlays are only visible in edit mode',
-        life: 3000
-      })
-
-      // AI : Clear city cache to force reload with pending overlays visible
-      if (overlay.cityId) {
-        mapStore.clearCityProjectsCache(overlay.cityId)
-        mapStore.clearCityDevelopmentProjectsCache(overlay.cityId)
-      }
-
-      // AI : Wait for edit mode transition to complete and overlays to re-render
-      await new Promise(resolve => setTimeout(resolve, 100))
-    }
-
-    // AI : If overlay has city info, navigate via city (loads city markers and overlays first)
-    if (overlay.cityId && overlay.cityName) {
-      await navigateToOverlayWithCity(overlay.id, overlay.cityId, overlay.cityName, overlay.countryCode ?? undefined)
-    } else {
-      // AI : Fallback to direct navigation if no city info
-      await navigateToOverlay(overlay.id)
-    }
-  } catch (error) {
-    console.error('Failed to navigate to overlay:', error)
-    toast.add({
-      severity: 'error',
-      summary: 'Navigation Failed',
-      detail: error instanceof Error ? error.message : 'Failed to navigate to overlay',
-      life: 3000
-    })
-  }
+  await handleOverlayClickNavigation(overlay)
 }
 
 // AI : Handle development project click - zoom to marker location
@@ -553,8 +543,8 @@ async function handleDevelopmentProjectClick(project: ProjectForModeration) {
     if (!project.lat || !project.lng) {
       toast.add({
         severity: 'warn',
-        summary: 'No Location',
-        detail: 'This development project has no coordinates',
+        summary: t('project.noLocation'),
+        detail: t('project.noLocation'),
         life: 3000
       })
       return
@@ -563,8 +553,8 @@ async function handleDevelopmentProjectClick(project: ProjectForModeration) {
     if (!project.cityId || !project.cityName) {
       toast.add({
         severity: 'warn',
-        summary: 'Missing City Info',
-        detail: 'Cannot navigate without city information',
+        summary: t('project.missingCityInfo'),
+        detail: t('project.cannotNavigateWithoutCity'),
         life: 3000
       })
       return
@@ -577,161 +567,17 @@ async function handleDevelopmentProjectClick(project: ProjectForModeration) {
       project.cityName,
       project.countryCode ?? undefined
     )
-
-    toast.add({
-      severity: 'success',
-      summary: 'Navigated',
-      detail: `Viewing ${project.name}`,
-      life: 2000
-    })
   } catch (error) {
     console.error('Failed to navigate to development project:', error)
     toast.add({
       severity: 'error',
-      summary: 'Navigation Failed',
-      detail: error instanceof Error ? error.message : 'Failed to navigate to development project',
+      summary: t('overlay.navigationFailed'),
+      detail: error instanceof Error ? error.message : t('overlay.failedToNavigate'),
       life: 3000
     })
   }
 }
 
-// AI : Get change requests for a specific project (only for approved projects)
-function getProjectChangeRequests(projectId: string): PendingChangeRequest[] {
-  const project = props.projects.find(p => p.id === projectId)
-  // AI : Only show change requests for approved projects, not pending ones
-  if (!project || project.status === 'pending') {
-    return []
-  }
-  return props.changeRequests?.filter(
-    request => request.entityType === 'project' && request.entityId === projectId
-  ) ?? []
-}
-
-// AI : Get change requests for a specific overlay (only for approved overlays)
-function getOverlayChangeRequests(overlayId: string): PendingChangeRequest[] {
-  // AI : Find the overlay in the projects data
-  let overlay = null
-  for (const project of props.projects) {
-    if (project.overlays) {
-      overlay = project.overlays.find((o: OverlayForModeration) => o.id === overlayId)
-      if (overlay) break
-    }
-  }
-  // AI : Only show change requests for approved overlays, not pending ones
-  if (!overlay || overlay.status === 'pending') {
-    return []
-  }
-  return props.changeRequests?.filter(
-    request => request.entityType === 'overlay' && request.entityId === overlayId
-  ) ?? []
-}
-
-// AI : Check if field is a geometry field (coordinates)
-function isGeometryField(fieldName: string): boolean {
-  return fieldName === 'corners' || fieldName === 'centroid'
-}
-
-// AI : Preview geometry change on the map
-async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', changeId: string) {
-  try {
-    let corners: { lat: number, lng: number }[] = []
-
-    // AI : Handle different geometry formats
-    if (geometryValue && typeof geometryValue === 'object') {
-      const geo = geometryValue as any
-
-      // AI : Format 1: { lat, lng } for centroid
-      if ('lat' in geo && 'lng' in geo) {
-        corners = [{ lat: geo.lat, lng: geo.lng }]
-      }
-      // AI : Format 2: [{ lat, lng }] array for corners
-      else if (Array.isArray(geo) && geo.length > 0 && 'lat' in geo[0] && 'lng' in geo[0]) {
-        corners = geo
-      }
-      // AI : Format 3: GeoJSON-like { coordinates: [lng, lat] }
-      else if ('coordinates' in geo && Array.isArray(geo.coordinates)) {
-        corners = [{ lat: geo.coordinates[1], lng: geo.coordinates[0] }]
-      }
-    } else if (typeof geometryValue === 'string') {
-      try {
-        const parsed = JSON.parse(geometryValue)
-        return previewGeometry(parsed, type, changeId)
-      } catch {
-        // Ignore JSON parse errors
-      }
-    }
-
-    if (corners.length === 0) {
-      toast.add({
-        severity: 'warn',
-        summary: 'Invalid Coordinates',
-        detail: 'Could not parse geometry coordinates',
-        life: 3000
-      })
-      return
-    }
-
-    // AI : Create Leaflet bounds from corners
-    const latLngs = corners.map(c => L.latLng(c.lat, c.lng))
-    const bounds = L.latLngBounds(latLngs)
-
-    // AI : Find the overlay object and update its position
-    const overlayStore = useOverlayStore()
-    const change = props.changeRequests.find(c => c.id === changeId)
-
-    if (change && overlayStore.overlays[change.entityId]) {
-      const overlayObject = overlayStore.overlays[change.entityId]
-
-      if (overlayObject.overlay && corners.length === 4) {
-        overlayObject.overlay.setCorners(latLngs)
-      }
-    }
-
-    // AI : Use flyToBounds for proper overlay framing
-    mobileAwareFlyToBounds(bounds, { padding: [50, 50] })
-
-    // AI : Track active preview for button styling
-    activeGeometryPreview.value = { changeId, type }
-
-    toast.add({
-      severity: 'info',
-      summary: type === 'old' ? 'Original Position' : 'New Position',
-      detail: `Viewing ${type === 'old' ? 'approved' : 'suggested'} coordinates`,
-      life: 3000
-    })
-  } catch (error) {
-    console.error('Failed to preview geometry:', error)
-    toast.add({
-      severity: 'error',
-      summary: 'Preview Failed',
-      detail: 'Could not preview coordinates on map',
-      life: 3000
-    })
-  }
-}
-
-// AI : Format values for display with special handling for specific fields
-function formatValue(value: unknown, fieldName?: string): string {
-  if (value === null || value === undefined || value === '') {
-    return 'Not set'
-  }
-
-  // AI : Special handling for projectId - show project name instead of UUID
-  if (fieldName === 'projectId' && typeof value === 'string') {
-    const project = props.projects.find(p => p.id === value)
-    return project?.name ?? `Unknown Project (${value.slice(0, 8)}...)`
-  }
-
-  // AI : Special handling for geometry fields - don't show raw coordinates
-  if (fieldName === 'corners' || fieldName === 'centroid') {
-    return '📍 Coordinates (view on map)'
-  }
-
-  if (typeof value === 'object') {
-    return JSON.stringify(value, null, 2)
-  }
-  return String(value)
-}
 </script>
 
 <style scoped>
@@ -1046,63 +892,5 @@ function formatValue(value: unknown, fieldName?: string): string {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
-}
-
-.geometry-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--p-surface-300);
-  border-radius: 6px;
-  background: white;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.geometry-btn:hover {
-  background: var(--p-surface-50);
-  border-color: var(--p-surface-400);
-  transform: translateY(-1px);
-}
-
-.geometry-btn.old-geometry {
-  color: #dc2626;
-  border-color: #fca5a5;
-}
-
-.geometry-btn.old-geometry:hover {
-  background: #fef2f2;
-  border-color: #f87171;
-}
-
-.geometry-btn.old-geometry.active {
-  background: #fef2f2;
-  border-color: #dc2626;
-  border-width: 2px;
-  font-weight: 600;
-}
-
-.geometry-btn.new-geometry {
-  color: #059669;
-  border-color: #86efac;
-}
-
-.geometry-btn.new-geometry:hover {
-  background: #ecfdf5;
-  border-color: #34d399;
-}
-
-.geometry-btn.new-geometry.active {
-  background: #ecfdf5;
-  border-color: #059669;
-  border-width: 2px;
-  font-weight: 600;
-}
-
-.geometry-btn i {
-  font-size: 0.75rem;
 }
 </style>

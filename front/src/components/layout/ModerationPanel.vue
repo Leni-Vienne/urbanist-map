@@ -102,11 +102,10 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useModeration } from '@composables/overlay/useModeration'
 import { useChangeRequests } from '@composables/changes/useChangeRequests'
-import { navigateToOverlay } from '@composables/overlay/useOverlay'
+import { useOverlayClickHandler } from '@composables/overlay/useOverlayClickHandler'
 import { useToast } from '@composables/ui/useToast'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import type { OverlayForModeration } from '@types'
-import { switchTileLayer, isTileLayerType, type TileLayerType } from '@composables/map/useTileLayers'
 
 // AI : Use i18n for translations
 const { t } = useI18n()
@@ -134,6 +133,9 @@ const {
 // AI : Create isLoading ref
 const isLoading = ref(false)
 const toast = useToast()
+
+// AI : Use overlay click handler composable for shared navigation logic
+const { handleOverlayClickNavigation } = useOverlayClickHandler()
 
 // AI : Computed properties for undo functionality
 const canUndo = computed(() => recentActions.value.length > 0)
@@ -250,26 +252,9 @@ async function handleRejectOverlay(id: string) {
   }
 }
 
-// AI : Handle overlay click - switch tile layer and navigate to overlay
+// AI : Handle overlay click - delegate to shared composable
 async function handleOverlayClick(overlay: OverlayForModeration) {
-  try {
-    // AI : Switch tile layer based on overlay's country if available
-    if (overlay.countryCode) {
-      // AI : Use country code directly if it's a valid tile layer, otherwise default to esri
-      const tileLayerType = isTileLayerType(overlay.countryCode) ? overlay.countryCode : 'esri'
-      switchTileLayer(tileLayerType as TileLayerType)
-    }
-
-    await navigateToOverlay(overlay.id)
-  } catch (error) {
-    console.error('Failed to navigate to overlay:', error)
-    toast.add({
-      severity: 'error',
-      summary: 'Navigation Failed',
-      detail: error instanceof Error ? error.message : 'Failed to navigate to overlay',
-      life: 3000
-    })
-  }
+  await handleOverlayClickNavigation(overlay)
 }
 
 // AI : Handle change request approval with toast notifications
