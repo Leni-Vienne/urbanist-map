@@ -123,10 +123,30 @@
                       <div class="change-content">
                         <div class="change-field">
                           <strong>{{ change.fieldName }}:</strong>
-                          <div class="change-values">
-                            <span class="old-value">{{ formatValue(change.oldValue) }}</span>
+                          <div v-if="isGeometryField(change.fieldName)" class="geometry-change-controls">
+                            <div class="geometry-buttons">
+                              <button
+                                class="geometry-btn old-geometry"
+                                :class="{ 'active': activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'old' }"
+                                @click.stop="previewGeometry(change.oldValue, 'old', change.id)"
+                              >
+                                <i class="pi pi-map-marker"></i>
+                                View Original Position
+                              </button>
+                              <button
+                                class="geometry-btn new-geometry"
+                                :class="{ 'active': activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'new' }"
+                                @click.stop="previewGeometry(change.newValue, 'new', change.id)"
+                              >
+                                <i class="pi pi-map-marker"></i>
+                                View New Position
+                              </button>
+                            </div>
+                          </div>
+                          <div v-else class="change-values">
+                            <span class="old-value">{{ formatValue(change.oldValue, change.fieldName) }}</span>
                             <i class="pi pi-arrow-right"></i>
-                            <span class="new-value">{{ formatValue(change.newValue) }}</span>
+                            <span class="new-value">{{ formatValue(change.newValue, change.fieldName) }}</span>
                           </div>
                           <div v-if="change.changeReason" class="change-reason">
                             <em>Reason: {{ change.changeReason }}</em>
@@ -244,10 +264,30 @@
                       <div class="change-content">
                         <div class="change-field">
                           <strong>{{ change.fieldName }}:</strong>
-                          <div class="change-values">
-                            <span class="old-value">{{ formatValue(change.oldValue) }}</span>
+                          <div v-if="isGeometryField(change.fieldName)" class="geometry-change-controls">
+                            <div class="geometry-buttons">
+                              <button
+                                class="geometry-btn old-geometry"
+                                :class="{ 'active': activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'old' }"
+                                @click.stop="previewGeometry(change.oldValue, 'old', change.id)"
+                              >
+                                <i class="pi pi-map-marker"></i>
+                                View Original Position
+                              </button>
+                              <button
+                                class="geometry-btn new-geometry"
+                                :class="{ 'active': activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'new' }"
+                                @click.stop="previewGeometry(change.newValue, 'new', change.id)"
+                              >
+                                <i class="pi pi-map-marker"></i>
+                                View New Position
+                              </button>
+                            </div>
+                          </div>
+                          <div v-else class="change-values">
+                            <span class="old-value">{{ formatValue(change.oldValue, change.fieldName) }}</span>
                             <i class="pi pi-arrow-right"></i>
-                            <span class="new-value">{{ formatValue(change.newValue) }}</span>
+                            <span class="new-value">{{ formatValue(change.newValue, change.fieldName) }}</span>
                           </div>
                           <div v-if="change.changeReason" class="change-reason">
                             <em>Reason: {{ change.changeReason }}</em>
@@ -298,12 +338,14 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import L from 'leaflet'
 import { buildThumbnailUrl, formatRelativeTime } from '../../utils'
 import { navigateToOverlayWithCity, navigateToDevelopmentProject } from '@composables/navigation/useOverlayNavigation'
 import { navigateToOverlay } from '@composables/overlay/useOverlay'
 import { toggleEditMode } from '@composables/overlay/useOverlayModes'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useMapStore } from '@stores/pinia/mapStore'
+import { mobileAwareFlyToBounds } from '@composables/map/useMobileAwareFly'
 import type { ProjectForModeration, OverlayForModeration } from '@types'
 import { useToast } from '@composables/ui/useToast'
 import type { PendingChangeRequest } from '../../types/api'
@@ -325,9 +367,10 @@ const props = withDefaults(defineProps<Props>(), {
   changeRequests: () => []
 })
 
-// AI : Reactive state for image errors and expanded panels
+// AI : Reactive state for image errors, expanded panels, and active geometry preview
 const imageErrors = ref<Record<string, boolean>>({})
 const activeAccordionPanels = ref<string[]>([])
+const activeGeometryPreview = ref<{ changeId: string, type: 'old' | 'new' } | null>(null)
 const toast = useToast()
 
 // AI : Computed expanded panels set for easier checking
@@ -583,11 +626,107 @@ function getOverlayChangeRequests(overlayId: string): PendingChangeRequest[] {
   ) ?? []
 }
 
-// AI : Format values for display
-function formatValue(value: unknown): string {
+// AI : Check if field is a geometry field (coordinates)
+function isGeometryField(fieldName: string): boolean {
+  return fieldName === 'corners' || fieldName === 'centroid'
+}
+
+// AI : Preview geometry change on the map
+async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', changeId: string) {
+  try {
+    let corners: { lat: number, lng: number }[] = []
+
+    // AI : Handle different geometry formats
+    if (geometryValue && typeof geometryValue === 'object') {
+      const geo = geometryValue as any
+
+      // AI : Format 1: { lat, lng } for centroid
+      if ('lat' in geo && 'lng' in geo) {
+        corners = [{ lat: geo.lat, lng: geo.lng }]
+      }
+      // AI : Format 2: [{ lat, lng }] array for corners
+      else if (Array.isArray(geo) && geo.length > 0 && 'lat' in geo[0] && 'lng' in geo[0]) {
+        corners = geo
+      }
+      // AI : Format 3: GeoJSON-like { coordinates: [lng, lat] }
+      else if ('coordinates' in geo && Array.isArray(geo.coordinates)) {
+        corners = [{ lat: geo.coordinates[1], lng: geo.coordinates[0] }]
+      }
+    } else if (typeof geometryValue === 'string') {
+      try {
+        const parsed = JSON.parse(geometryValue)
+        return previewGeometry(parsed, type, changeId)
+      } catch {
+        // Ignore JSON parse errors
+      }
+    }
+
+    if (corners.length === 0) {
+      toast.add({
+        severity: 'warn',
+        summary: 'Invalid Coordinates',
+        detail: 'Could not parse geometry coordinates',
+        life: 3000
+      })
+      return
+    }
+
+    // AI : Create Leaflet bounds from corners
+    const latLngs = corners.map(c => L.latLng(c.lat, c.lng))
+    const bounds = L.latLngBounds(latLngs)
+
+    // AI : Find the overlay object and update its position
+    const overlayStore = useOverlayStore()
+    const change = props.changeRequests.find(c => c.id === changeId)
+
+    if (change && overlayStore.overlays[change.entityId]) {
+      const overlayObject = overlayStore.overlays[change.entityId]
+
+      if (overlayObject.overlay && corners.length === 4) {
+        overlayObject.overlay.setCorners(latLngs)
+      }
+    }
+
+    // AI : Use flyToBounds for proper overlay framing
+    mobileAwareFlyToBounds(bounds, { padding: [50, 50] })
+
+    // AI : Track active preview for button styling
+    activeGeometryPreview.value = { changeId, type }
+
+    toast.add({
+      severity: 'info',
+      summary: type === 'old' ? 'Original Position' : 'New Position',
+      detail: `Viewing ${type === 'old' ? 'approved' : 'suggested'} coordinates`,
+      life: 3000
+    })
+  } catch (error) {
+    console.error('Failed to preview geometry:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Preview Failed',
+      detail: 'Could not preview coordinates on map',
+      life: 3000
+    })
+  }
+}
+
+// AI : Format values for display with special handling for specific fields
+function formatValue(value: unknown, fieldName?: string): string {
   if (value === null || value === undefined || value === '') {
     return 'Not set'
   }
+
+  // AI : Special handling for projectId - show project name instead of UUID
+  if (fieldName === 'projectId' && typeof value === 'string') {
+    const project = props.projects.find(p => p.id === value)
+    return project?.name ?? `Unknown Project (${value.slice(0, 8)}...)`
+  }
+
+  // AI : Special handling for geometry fields - don't show raw coordinates
+  if (fieldName === 'corners' || fieldName === 'centroid') {
+    return '📍 Coordinates (view on map)'
+  }
+
   if (typeof value === 'object') {
     return JSON.stringify(value, null, 2)
   }
@@ -896,5 +1035,74 @@ function formatValue(value: unknown): string {
   gap: 0.25rem;
   justify-content: flex-end;
   flex-shrink: 0;
+}
+
+/* AI : Geometry change controls */
+.geometry-change-controls {
+  margin: 0.5rem 0;
+}
+
+.geometry-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.geometry-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--p-surface-300);
+  border-radius: 6px;
+  background: white;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.geometry-btn:hover {
+  background: var(--p-surface-50);
+  border-color: var(--p-surface-400);
+  transform: translateY(-1px);
+}
+
+.geometry-btn.old-geometry {
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+
+.geometry-btn.old-geometry:hover {
+  background: #fef2f2;
+  border-color: #f87171;
+}
+
+.geometry-btn.old-geometry.active {
+  background: #fef2f2;
+  border-color: #dc2626;
+  border-width: 2px;
+  font-weight: 600;
+}
+
+.geometry-btn.new-geometry {
+  color: #059669;
+  border-color: #86efac;
+}
+
+.geometry-btn.new-geometry:hover {
+  background: #ecfdf5;
+  border-color: #34d399;
+}
+
+.geometry-btn.new-geometry.active {
+  background: #ecfdf5;
+  border-color: #059669;
+  border-width: 2px;
+  font-weight: 600;
+}
+
+.geometry-btn i {
+  font-size: 0.75rem;
 }
 </style>
