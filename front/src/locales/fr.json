@@ -25,7 +25,7 @@
     "profile": "Profil",
     "latestContributions": "Contributions Récentes",
     "myContributions": "Mes contributions",
-    "admin": "Administration"
+    "moderation": "Modération"
   },
   "projectPicker": {
     "noProjectsAvailable": "Aucun projet disponible. Créez votre premier projet pour ajouter des images.",
@@ -217,9 +217,9 @@
     "orContinueWithEmail": "ou continuer avec l'email",
     "enterEmailAddress": "Entrez votre adresse e-mail",
     "authenticationRequired": "Authentification requise",
-    "adminAccessRequired": "Accès administrateur requis",
+    "moderationAccessRequired": "Accès moderationistrateur requis",
     "signInMessage": "Veuillez vous connecter en utilisant le bouton dans le coin supérieur droit pour accéder à cette section.",
-    "adminMessage": "Vous avez besoin de privilèges d'administrateur pour accéder à cette section.",
+    "moderationMessage": "Vous avez besoin de privilèges d'moderationistrateur pour accéder à cette section.",
     "signedOut": "Déconnecté",
     "signedOutMessage": "Vous vous êtes déconnecté avec succès.",
     "resetPassword": "Réinitialiser le mot de passe",

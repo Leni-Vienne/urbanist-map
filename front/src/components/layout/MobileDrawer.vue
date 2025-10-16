@@ -25,11 +25,11 @@
         {{ $t('navigation.myContributions') }}
       </button>
       <button
-        v-if="authStore.isAdmin"
-        :class="['drawer-tab', { active: activeTab === 'admin' }]"
-        @click="activeTab = 'admin'"
+        v-if="authStore.isModerator"
+        :class="['drawer-tab', { active: activeTab === 'moderation' }]"
+        @click="activeTab = 'moderation'"
       >
-        {{ $t('navigation.admin') }}
+        {{ $t('navigation.moderation') }}
       </button>
     </div>
 
@@ -37,21 +37,21 @@
       <!-- AI : Show content based on active tab -->
       <LatestOverlaysPanel v-if="activeTab === 'latest'" />
       <MyContributionsPanel v-else-if="activeTab === 'uploads' && authStore.isAuthenticated" />
-      <ModerationPanel v-else-if="activeTab === 'admin' && authStore.isAdmin" />
+      <ModerationPanel v-else-if="activeTab === 'moderation' && authStore.isModerator" />
 
       <!-- AI : Show sign-in prompt for authenticated tabs when not signed in -->
       <div
-        v-else-if="(!authStore.isAuthenticated && (activeTab === 'uploads' || activeTab === 'admin')) || (activeTab === 'admin' && !authStore.isAdmin)"
+        v-else-if="(!authStore.isAuthenticated && (activeTab === 'uploads' || activeTab === 'moderation')) || (activeTab === 'moderation' && !authStore.isModerator)"
         class="signin-prompt"
       >
         <div class="signin-content">
           <i class="pi pi-user text-4xl text-muted-color mb-4"></i>
           <h3 class="text-lg font-semibold mb-2">
-            {{ activeTab === 'admin' && authStore.isAuthenticated && !authStore.isAdmin ? $t('auth.adminAccessRequired') : $t('auth.authenticationRequired') }}
+            {{ activeTab === 'moderation' && authStore.isAuthenticated && !authStore.isModerator ? $t('auth.moderationAccessRequired') : $t('auth.authenticationRequired') }}
           </h3>
           <p class="text-muted-color text-sm mb-4 text-center">
-            {{ activeTab === 'admin' && authStore.isAuthenticated && !authStore.isAdmin 
-              ? $t('auth.adminMessage')
+            {{ activeTab === 'moderation' && authStore.isAuthenticated && !authStore.isModerator 
+              ? $t('auth.moderationMessage')
               : $t('auth.signInMessage') }}
           </p>
         </div>
@@ -88,16 +88,16 @@ const activeTab = computed({
   set: (value) => uiStore.setMobileDrawerActiveTab(value)
 })
 
-// AI : Watch for authentication changes and reset tab if user signs out or loses admin rights
+// AI : Watch for authentication changes and reset tab if user signs out or loses moderation rights
 watch(() => authStore.isAuthenticated, (isAuthenticated) => {
-  if (!isAuthenticated && (activeTab.value === 'uploads' || activeTab.value === 'admin')) {
+  if (!isAuthenticated && (activeTab.value === 'uploads' || activeTab.value === 'moderation')) {
     activeTab.value = 'latest'
   }
 })
 
-// AI : Watch for admin role changes and reset admin tab if user loses admin rights
-watch(() => authStore.isAdmin, (isAdmin) => {
-  if (!isAdmin && activeTab.value === 'admin') {
+// AI : Watch for moderation role changes and reset moderation tab if user loses moderation rights
+watch(() => authStore.isModerator, (isModerator) => {
+  if (!isModerator && activeTab.value === 'moderation') {
     activeTab.value = 'latest'
   }
 })

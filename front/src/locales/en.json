@@ -25,7 +25,7 @@
     "profile": "Profile",
     "latestContributions": "Latest Contributions",
     "myContributions": "My Contributions",
-    "admin": "Admin"
+    "moderation": "Moderation"
   },
   "projectPicker": {
     "noProjectsAvailable": "No projects available. Create your first project to add overlays.",
@@ -217,9 +217,9 @@
     "orContinueWithEmail": "or continue with email",
     "enterEmailAddress": "Enter your email address",
     "authenticationRequired": "Authentication Required",
-    "adminAccessRequired": "Admin Access Required",
+    "moderationAccessRequired": "Moderation Access Required",
     "signInMessage": "Please sign in using the button in the top-right corner to access this section.",
-    "adminMessage": "You need administrator privileges to access this section.",
+    "moderationMessage": "You need moderationistrator privileges to access this section.",
     "signedOut": "Signed Out",
     "signedOutMessage": "You have successfully signed out.",
     "resetPassword": "Reset Password",
