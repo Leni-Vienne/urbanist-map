@@ -38,7 +38,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   // AI : Computed properties
   const isAuthenticated = computed(() => !!user.value)
-  const isAdmin = computed(() => user.value?.role === 'admin')
+  const isModerator = computed(() => user.value?.role === 'moderation' || user.value?.role === 'admin')
 
   // AI : Initialize auth state
   async function initialize() {
@@ -336,7 +336,7 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     loading,
     isAuthenticated,
-    isAdmin,
+    isModerator,
     initialize,
     signUp,
     signIn,

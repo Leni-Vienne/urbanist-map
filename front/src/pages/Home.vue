@@ -124,8 +124,8 @@ function getToggleButtonText(): string {
       return t('navigation.latestContributions')
     case 'uploads':
       return t('navigation.myContributions')
-    case 'admin':
-      return t('navigation.admin')
+    case 'moderation':
+      return t('navigation.moderation')
     default:
       return t('app.title')
   }
@@ -175,7 +175,7 @@ onMounted(async () => {
   try {
     await authStore.initialize()
 
-    if (authStore.user?.role === 'admin') {
+    if (authStore.user?.role === 'moderation' || authStore.user?.role === 'admin') {
       isModerator.value = true
     }
 

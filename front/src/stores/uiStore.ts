@@ -35,7 +35,7 @@ export const useUiStore = defineStore('ui', () => {
   });
 
   // AI : Mobile drawer state
-  const mobileDrawerActiveTab = ref<'latest' | 'uploads' | 'admin'>('latest');
+  const mobileDrawerActiveTab = ref<'latest' | 'uploads' | 'moderation'>('latest');
   const mobileDrawerVisible = ref(true); // AI : Open by default on mobile
   
   // AI : Project info popup state (for development projects)
@@ -117,7 +117,7 @@ export const useUiStore = defineStore('ui', () => {
   }
 
   // AI : Mobile drawer actions
-  function setMobileDrawerActiveTab(tab: 'latest' | 'uploads' | 'admin') {
+  function setMobileDrawerActiveTab(tab: 'latest' | 'uploads' | 'moderation') {
     mobileDrawerActiveTab.value = tab;
   }
   

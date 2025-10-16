@@ -43,11 +43,11 @@ export function useChangeRequests() {
 
     isLoading.value = true;
     try {
-      const { isAdmin } = useAuthStore();
+      const { isModerator } = useAuthStore();
 
-      // AI : Use admin route for admins, user route for regular users
+      // AI : Use moderation route for moderations, user route for regular users
       const result = await withErrorHandling(
-        async () => isAdmin
+        async () => isModerator
           ? trpc.changes.getPendingChangeRequests.query()
           : trpc.changes.getMyChangeRequests.query(),
         { errorMessage: 'Failed to fetch pending change requests' }
