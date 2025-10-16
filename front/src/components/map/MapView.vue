@@ -38,10 +38,9 @@ import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import type { OverlayData } from '@types';
 
-import MapControls from '@components/map/MapControls.vue';
-//import UserMenu from '@components/auth/UserMenu.vue';
+const MapControls = defineAsyncComponent(() => import('@components/map/MapControls.vue'));
 const UserMenu = defineAsyncComponent(() => import('@components/auth/UserMenu.vue'));
-import MarkerHelpButton from '@components/map/MarkerHelpButton.vue';
+const MarkerHelpButton = defineAsyncComponent(() => import('@components/map/MarkerHelpButton.vue'));
 
 // AI: Get stores
 const mapStore = useMapStore();

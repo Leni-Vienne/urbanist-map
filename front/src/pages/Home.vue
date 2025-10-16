@@ -55,9 +55,6 @@
 <script setup lang="ts">
 import { onMounted, ref, onUnmounted, computed, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
-import MapView from '@components/map/MapView.vue'
-import SideMenu from '@components/layout/SideMenu.vue'
-import MobileDrawer from '@components/layout/MobileDrawer.vue'
 
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useAuthStore } from '@stores/authStore'
@@ -66,6 +63,10 @@ import { useToast } from '@composables/ui/useToast'
 import { useBeforeUnload } from '@composables/core/useBeforeUnload'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
+
+import MapView from '@components/map/MapView.vue'
+import SideMenu from '@components/layout/SideMenu.vue'
+import MobileDrawer from '@components/layout/MobileDrawer.vue'
 
 // AI : Split PopupContainer into separate chunk - loads when first popup is shown
 const PopupContainer = defineAsyncComponent(() => import('@components/map/PopupContainer.vue'))

@@ -123,7 +123,7 @@ export default defineConfig({
     }
   },
   define: {
-    __VUE_PROD_DEVTOOLS__: false,
+    __VUE_OPTIONS_API__: false,
     'process.env.NODE_ENV': JSON.stringify('production'),
     // AI : vue-i18n optimizations - tree-shake unused features
     __INTLIFY_PROD_DEVTOOLS__: false,
