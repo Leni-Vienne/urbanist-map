@@ -3,6 +3,7 @@
     <!-- AI : Projects Section - pure approve/reject workflow for pending items -->
     <ProjectAccordionPanel
       :projects="projects"
+      :change-requests="changeRequests"
       :is-loading="isLoading"
       title="Pending Projects"
       panel-class="moderation-panel"
@@ -42,23 +43,23 @@
     </template>
 
     <template #overlay-actions="{ overlay, project }">
-      <button 
+      <button
         v-if="overlay.status === 'pending' && project.status === 'approved'"
-        class="action-btn approve-btn" 
+        class="action-btn approve-btn"
         @click.stop="handleApproveOverlay(overlay.id)"
         v-tooltip.top="'Approve Overlay'"
       >
         <i class="pi pi-check"></i>
       </button>
-      <button 
+      <button
         v-if="overlay.status === 'pending' && project.status === 'approved'"
-        class="action-btn reject-btn" 
+        class="action-btn reject-btn"
         @click.stop="handleRejectOverlay(overlay.id)"
         v-tooltip.top="'Reject Overlay'"
       >
         <i class="pi pi-times"></i>
       </button>
-      <button 
+      <button
         v-if="overlay.status === 'pending' && project.status !== 'approved'"
         class="action-btn disabled-btn"
         disabled
@@ -66,12 +67,29 @@
       >
         <i class="pi pi-lock"></i>
       </button>
-      <button 
-        class="action-btn" 
+      <button
+        class="action-btn"
         @click.stop="handleOverlayClick(overlay)"
         v-tooltip.top="'Zoom to Overlay'"
       >
         <i class="pi pi-search"></i>
+      </button>
+    </template>
+
+    <template #change-actions="{ change }">
+      <button
+        class="action-btn approve-btn"
+        @click.stop="handleApproveChange(change.id)"
+        v-tooltip.top="'Approve Change'"
+      >
+        <i class="pi pi-check"></i>
+      </button>
+      <button
+        class="action-btn reject-btn"
+        @click.stop="handleRejectChange(change.id)"
+        v-tooltip.top="'Reject Change'"
+      >
+        <i class="pi pi-times"></i>
       </button>
     </template>
 
@@ -81,23 +99,37 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useModeration } from '@composables/overlay/useModeration'
+import { useChangeRequests } from '@composables/changes/useChangeRequests'
 import { navigateToOverlay } from '@composables/overlay/useOverlay'
 import { useToast } from '@composables/ui/useToast'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import type { OverlayForModeration } from '@types'
 import { switchTileLayer, isTileLayerType, type TileLayerType } from '@composables/map/useTileLayers'
 
+// AI : Use i18n for translations
+const { t } = useI18n()
+
 // AI : Use moderation composable
 const {
   projects,
+  changeRequests,
   approveProject,
   rejectProject,
   approveOverlay,
   rejectOverlay,
   undoLastAction,
-  recentActions
+  recentActions,
+  resetModerationLoaded
 } = useModeration()
+
+// AI : Use change requests composable
+const {
+  approveChangeRequests,
+  rejectChangeRequests,
+  resetChangeRequestsLoaded
+} = useChangeRequests()
 
 // AI : Create isLoading ref
 const isLoading = ref(false)
@@ -235,6 +267,56 @@ async function handleOverlayClick(overlay: OverlayForModeration) {
       severity: 'error',
       summary: 'Navigation Failed',
       detail: error instanceof Error ? error.message : 'Failed to navigate to overlay',
+      life: 3000
+    })
+  }
+}
+
+// AI : Handle change request approval with toast notifications
+async function handleApproveChange(changeId: string) {
+  const result = await approveChangeRequests([changeId])
+
+  if (result?.success) {
+    toast.add({
+      severity: 'success',
+      summary: t('moderation.changeApproved'),
+      detail: t('moderation.changeApprovedDetail'),
+      life: 3000
+    })
+
+    // AI : Reset moderation and change requests to refresh data
+    resetModerationLoaded()
+    resetChangeRequestsLoaded()
+  } else {
+    toast.add({
+      severity: 'error',
+      summary: t('moderation.approvalFailed'),
+      detail: t('moderation.approvalFailedDetail'),
+      life: 3000
+    })
+  }
+}
+
+// AI : Handle change request rejection with toast notifications
+async function handleRejectChange(changeId: string) {
+  const result = await rejectChangeRequests([changeId])
+
+  if (result?.success) {
+    toast.add({
+      severity: 'info',
+      summary: t('moderation.changeRejected'),
+      detail: t('moderation.changeRejectedDetail'),
+      life: 3000
+    })
+
+    // AI : Reset moderation and change requests to refresh data
+    resetModerationLoaded()
+    resetChangeRequestsLoaded()
+  } else {
+    toast.add({
+      severity: 'error',
+      summary: t('moderation.rejectionFailed'),
+      detail: t('moderation.rejectionFailedDetail'),
       life: 3000
     })
   }

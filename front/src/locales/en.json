@@ -240,6 +240,21 @@
     "title": "ConstructionMap.org",
     "closePanel": "Close panel"
   },
+  "moderation": {
+    "changeApproved": "Change Approved",
+    "changeApprovedDetail": "The change has been applied successfully",
+    "changeRejected": "Change Rejected",
+    "changeRejectedDetail": "The change request has been rejected",
+    "approvalFailed": "Approval Failed",
+    "approvalFailedDetail": "Failed to approve the change request",
+    "rejectionFailed": "Rejection Failed",
+    "rejectionFailedDetail": "Failed to reject the change request",
+    "approveChange": "Approve Change",
+    "rejectChange": "Reject Change",
+    "pendingChanges": "Pending Changes",
+    "yourPendingChanges": "Your Pending Changes",
+    "moderatorReviewRequired": "A moderator needs to review and approve these changes"
+  },
   "footer": {
     "legalMentions": "Legal Mentions",
     "contact": "Contact"
