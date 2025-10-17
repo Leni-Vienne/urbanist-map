@@ -62,13 +62,15 @@ export function clearAllCachedPositions(): void {
  * @param useCache - If true, use cached position; if false, use backend position
  */
 export function applyPositionToOverlay(overlayObject: OverlayObject, useCache: boolean): void {
-  if (!overlayObject.overlay) return
+  if (!overlayObject.overlay) {
+    return
+  }
 
   // AI : Check if overlay is actually on the map before manipulating it
   // AI : This prevents "Cannot read properties of null (reading 'getPane')" errors
   const map = (overlayObject.overlay as any)._map
   if (!map) {
-    console.warn('Overlay not on map yet, skipping position update for', overlayObject.id)
+    console.warn('[applyPositionToOverlay] Overlay not on map yet, skipping position update for', overlayObject.id)
     return
   }
 

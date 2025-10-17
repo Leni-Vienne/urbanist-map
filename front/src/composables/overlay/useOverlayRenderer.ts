@@ -5,15 +5,15 @@ import type { OverlayData } from '@types'
 import type { RenderStrategy } from './useOverlayModeStateMachine'
 import { map } from '@composables/core/useMap'
 import { renderViewModeOverlays, updateOverlayEditingState, clearAllOverlays, updateMarkerTooltip, updateMarkerPosition } from '@composables/overlay/useOverlay'
-import { renderOverlayMarkersFromCache, updateOverlayMarkersForFilters } from '@composables/map/useCityOverlays'
+import { renderOverlayMarkersFromCache, updateOverlayMarkersForFilters, removeOverlayMarkers } from '@composables/map/useCityOverlays'
 import { applyPositionsToOverlays } from './useOverlayPositionCache'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useMapStore } from '@stores/pinia/mapStore'
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters'
-import { calculateCenterFromCorners } from '../../utils/typeFactories'
 
 /**
  * AI : Render overlays based on the current render strategy
+ * AI : Core principle: Update existing overlay instances in-place rather than recreating them
  */
 export function renderForStrategy(
   strategy: RenderStrategy,
@@ -28,125 +28,124 @@ export function renderForStrategy(
   const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData)
 
   if (strategy.shouldRenderFullOverlays) {
-    const hasOverlays = Object.keys(overlayStore.overlays).length > 0
+    // AI : Remove low-zoom overlay markers layer if it exists
+    // AI : This prevents duplicate markers when zooming back in from low zoom
+    removeOverlayMarkers()
 
-    if (!hasOverlays) {
-      // AI : First load - render everything
-      clearAllOverlays()
-      overlayStore.setViewModeOverlays(visibleOverlays)
+    // AI : Update store state first (single source of truth)
+    overlayStore.setViewModeOverlays(visibleOverlays)
+
+    const existingIds = new Set(Object.keys(overlayStore.overlays))
+    const hasExistingOverlays = existingIds.size > 0
+
+    if (!hasExistingOverlays) {
+      // AI : No overlays exist yet - initial render (e.g., zooming in from low zoom with markers only)
       renderViewModeOverlays(visibleOverlays, strategy.shouldRenderMarkers, false)
+
+      // AI : Apply positions and update properties for newly rendered overlays
+      // AI : Wait for next tick to ensure overlays are on the map before updating positions
+      requestAnimationFrame(() => {
+        const overlayObjects = Object.values(overlayStore.overlays)
+        applyPositionsToOverlays(overlayObjects, strategy.shouldUseCachedPositions)
+
+        overlayObjects.forEach(overlayObject => {
+          if (overlayObject.marker && map.value && !map.value.hasLayer(overlayObject.marker)) {
+            overlayObject.marker.addTo(map.value)
+          }
+
+          if (overlayObject.marker) {
+            updateMarkerPosition(overlayObject)
+            updateMarkerTooltip(overlayObject)
+          }
+        })
+
+        updateOverlayEditingState()
+      })
     } else {
-      // AI : Smart update - only recreate overlays that changed
-      const existingIds = new Set(Object.keys(overlayStore.overlays))
+      // AI : Overlays exist - update them with fresh data
       const newDataMap = new Map(visibleOverlays.map(o => [o.id, o]))
 
-      // AI : Find overlays that need to be recreated (data changed)
-      const overlaysToRecreate: OverlayData[] = []
-      const overlaysToKeep: string[] = []
-
+      // AI : Update existing overlay objects with fresh backend data
       existingIds.forEach(id => {
         const existingOverlay = overlayStore.overlays[id]
         const newData = newDataMap.get(id)
 
         if (!newData) {
-          // AI : Overlay removed from data - will be cleared
+          // AI : Overlay removed from backend - will be cleaned up later
           return
         }
 
-        // AI : Update metadata in-place without recreating the overlay instance
+        // AI : Update metadata properties from backend
         existingOverlay.hasPendingChanges = newData.hasPendingChanges
         existingOverlay.status = newData.status
-
-        // AI : Update the actual Leaflet overlay corners if it exists, then sync the corners property
-        if (existingOverlay.overlay) {
-          existingOverlay.overlay.setCorners(newData.corners)
-          // AI : After setCorners, read back the actual corners from Leaflet to ensure sync
-          existingOverlay.corners = existingOverlay.overlay.getCorners()
-        } else {
-          // AI : No Leaflet overlay loaded, just update the data
-          existingOverlay.corners = newData.corners
-        }
-
-        // AI : Recalculate centroid from the updated corners
-        const newCentroid = calculateCenterFromCorners(existingOverlay.corners)
-        if (newCentroid) {
-          existingOverlay.centroid = newCentroid
-        } else {
-          // AI : Fallback to backend centroid if calculation fails
-          existingOverlay.centroid = newData.centroid
-        }
-
-        overlaysToKeep.push(id)
+        existingOverlay.corners = newData.corners
+        existingOverlay.centroid = newData.centroid
       })
 
-      // AI : Find new overlays that don't exist yet
+      // AI : Find new overlays that need to be created
       const newOverlays = visibleOverlays.filter(o => !existingIds.has(o.id))
+      if (newOverlays.length > 0) {
+        renderViewModeOverlays(newOverlays, strategy.shouldRenderMarkers, false)
+      }
 
-      // AI : Remove overlays that need recreation or are no longer in data
-      overlaysToRecreate.forEach(data => {
-        const overlay = overlayStore.overlays[data.id]
-        if (overlay?.overlay && map.value) {
-          map.value.removeLayer(overlay.overlay)
+      // AI : Apply positions and update all overlay properties (positions, colors, editing state)
+      // AI : For existing overlays, this is safe to do immediately
+      const overlayObjects = Object.values(overlayStore.overlays)
+      applyPositionsToOverlays(overlayObjects, strategy.shouldUseCachedPositions)
+
+      overlayObjects.forEach(overlayObject => {
+        // AI : Ensure individual overlay markers are visible at high zoom
+        if (overlayObject.marker && map.value && !map.value.hasLayer(overlayObject.marker)) {
+          overlayObject.marker.addTo(map.value)
         }
-        if (overlay?.marker && map.value) {
-          map.value.removeLayer(overlay.marker)
+
+        if (overlayObject.marker) {
+          updateMarkerPosition(overlayObject)
+          updateMarkerTooltip(overlayObject)
         }
-        delete overlayStore.overlays[data.id]
       })
 
-      // AI : Update view mode overlays list
-      overlayStore.setViewModeOverlays(visibleOverlays)
-
-      // AI : Render only overlays that need recreation or are new
-      const overlaysToRender = [...overlaysToRecreate, ...newOverlays]
-      if (overlaysToRender.length > 0) {
-        renderViewModeOverlays(overlaysToRender, strategy.shouldRenderMarkers, false)
-      }
+      updateOverlayEditingState()
     }
 
-    // AI : Apply correct positions (cached for edit mode, backend for view mode)
-    // AI : Must be called after overlays are added to map (after renderViewModeOverlays)
-    const overlayObjects = Object.values(overlayStore.overlays)
-    applyPositionsToOverlays(overlayObjects, strategy.shouldUseCachedPositions)
+  } else if (strategy.shouldRenderMarkers) {
 
-    // AI : Update marker tooltips and positions after applying positions
+    // AI : Cache current overlay positions BEFORE clearing (critical for edit mode!)
+    const overlayObjects = Object.values(overlayStore.overlays)
+
     overlayObjects.forEach(overlayObject => {
-      if (overlayObject.marker) {
-        updateMarkerPosition(overlayObject)
-        updateMarkerTooltip(overlayObject)
+      if (overlayObject.overlay) {
+        const corners = overlayObject.overlay.getCorners()
+        if (corners?.length === 4) {
+          // AI : Cache the current position so it can be restored later
+          const cornersData = corners.map(c => ({ lat: c.lat, lng: c.lng }))
+          overlayStore.saveToEditModeCache(overlayObject.id, {
+            corners: cornersData,
+            isModified: overlayObject.isModified ?? false
+          })
+        }
       }
     })
 
-    // AI : Update editing state (enable/disable controls)
-    updateOverlayEditingState()
+    overlayObjects.forEach(overlayObject => {
+      if (overlayObject.marker && map.value?.hasLayer(overlayObject.marker)) {
+        map.value.removeLayer(overlayObject.marker)
+      }
+    })
 
-  } else if (strategy.shouldRenderMarkers) {
-    // AI : Clear full overlays and render markers only (low zoom)
+    // AI : Clear overlay instances and render city-wide markers
     clearAllOverlays()
+
     renderOverlayMarkersFromCache(cityId)
   }
 
-  // AI : Update marker colors for edit/view mode
+  // AI : Update marker colors based on mode
   if (strategy.shouldUseEditColors) {
     updateOverlayMarkersForFilters()
   }
 
-  // AI : CRITICAL: Sync cache data with overlay objects AFTER all updates
-  // AI : This ensures markers at low zoom always use updated corners/centroids
-  visibleOverlays.forEach(data => {
-    const overlayObj = overlayStore.overlays[data.id]
-    if (overlayObj) {
-      // AI : Sync the data with the updated overlay object
-      data.corners = overlayObj.corners
-      data.centroid = overlayObj.centroid
-      data.hasPendingChanges = overlayObj.hasPendingChanges
-      data.status = overlayObj.status
-    }
-  })
-
-  // AI : Update cache with synced data
+  // AI : Update cache with final state (one-way flow: store → cache)
   mapStore.setCityProjectsCache(cityId, visibleOverlays)
-  overlayStore.setViewModeOverlays(visibleOverlays)
 }
 
 /**

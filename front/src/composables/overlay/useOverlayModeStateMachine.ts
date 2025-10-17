@@ -33,57 +33,57 @@ export interface RenderStrategy {
 
 // AI : State machine configuration - defines behavior for each state combination
 export function getRenderStrategy(state: OverlayModeState): RenderStrategy {
-  const { mode, zoomLevel, hasLoadedOverlays } = state
+  const { mode, zoomLevel } = state
 
-  // AI : State 1: View mode + High zoom + Has overlays
-  if (mode === 'view' && zoomLevel === 'high' && hasLoadedOverlays) {
-    return {
-      shouldRenderFullOverlays: true,
-      shouldRenderMarkers: true,
-      shouldShowEditControls: false,
-      shouldUseEditColors: false,
-      shouldShowTooltips: false,
-      shouldUseCachedPositions: false, // Use backend positions
+  // AI : High zoom states - should render full overlays
+  if (zoomLevel === 'high') {
+    if (mode === 'view') {
+      return {
+        shouldRenderFullOverlays: true,
+        shouldRenderMarkers: true,
+        shouldShowEditControls: false,
+        shouldUseEditColors: false,
+        shouldShowTooltips: false,
+        shouldUseCachedPositions: false, // Use backend positions
+      }
+    } else {
+      // Edit mode
+      return {
+        shouldRenderFullOverlays: true,
+        shouldRenderMarkers: true,
+        shouldShowEditControls: true,
+        shouldUseEditColors: true,
+        shouldShowTooltips: true,
+        shouldUseCachedPositions: true, // Use cached/modified positions
+      }
     }
   }
 
-  // AI : State 2: View mode + Low zoom
-  if (mode === 'view' && zoomLevel === 'low') {
-    return {
-      shouldRenderFullOverlays: false,
-      shouldRenderMarkers: true,
-      shouldShowEditControls: false,
-      shouldUseEditColors: false,
-      shouldShowTooltips: false,
-      shouldUseCachedPositions: false,
+  // AI : Low zoom states - markers only
+  if (zoomLevel === 'low') {
+    if (mode === 'view') {
+      return {
+        shouldRenderFullOverlays: false,
+        shouldRenderMarkers: true,
+        shouldShowEditControls: false,
+        shouldUseEditColors: false,
+        shouldShowTooltips: false,
+        shouldUseCachedPositions: false,
+      }
+    } else {
+      // Edit mode
+      return {
+        shouldRenderFullOverlays: false,
+        shouldRenderMarkers: true,
+        shouldShowEditControls: false,
+        shouldUseEditColors: true,
+        shouldShowTooltips: true,
+        shouldUseCachedPositions: true,
+      }
     }
   }
 
-  // AI : State 3: Edit mode + High zoom + Has overlays
-  if (mode === 'edit' && zoomLevel === 'high' && hasLoadedOverlays) {
-    return {
-      shouldRenderFullOverlays: true,
-      shouldRenderMarkers: true,
-      shouldShowEditControls: true,
-      shouldUseEditColors: true,
-      shouldShowTooltips: true,
-      shouldUseCachedPositions: true, // Use cached/modified positions
-    }
-  }
-
-  // AI : State 4: Edit mode + Low zoom
-  if (mode === 'edit' && zoomLevel === 'low') {
-    return {
-      shouldRenderFullOverlays: false,
-      shouldRenderMarkers: true,
-      shouldShowEditControls: false,
-      shouldUseEditColors: true,
-      shouldShowTooltips: true,
-      shouldUseCachedPositions: true,
-    }
-  }
-
-  // AI : Default fallback - view mode behavior
+  // AI : Default fallback - should never reach here
   return {
     shouldRenderFullOverlays: false,
     shouldRenderMarkers: true,
