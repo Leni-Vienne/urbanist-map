@@ -69,7 +69,7 @@
       </button>
       <button
         class="action-btn"
-        @click.stop="handleOverlayClick(overlay)"
+        @click.stop="handleOverlayClickNavigation(overlay)"
         v-tooltip.top="'Zoom to Overlay'"
       >
         <i class="pi pi-search"></i>
@@ -250,11 +250,6 @@ async function handleRejectOverlay(id: string) {
       life: result.error === 'version_conflict' ? 5000 : 3000
     })
   }
-}
-
-// AI : Handle overlay click - delegate to shared composable
-async function handleOverlayClick(overlay: OverlayForModeration) {
-  await handleOverlayClickNavigation(overlay)
 }
 
 // AI : Handle change request approval with toast notifications

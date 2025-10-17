@@ -10,7 +10,7 @@
           v-for="overlay in overlays"
           :key="overlay.id"
           class="overlay-card"
-          @click="handleOverlayClick(overlay)"
+          @click="handleOverlayClickNavigation(overlay)"
         >
           <!-- AI : Overlay thumbnail image -->
           <div class="overlay-thumbnail">
@@ -48,7 +48,7 @@
           <!-- AI : Zoom button like the prototype -->
           <button
             class="zoom-button"
-            @click.stop="handleOverlayClick(overlay)"
+            @click.stop="handleOverlayClickNavigation(overlay)"
             :title="t('overlay.zoomTo') + ' ' + (overlay.caption || t('overlay.untitled'))"
           >
             <i class="pi pi-search"></i>
@@ -138,13 +138,6 @@ function getLocationDisplay(overlay: LatestOverlay): string {
   }
   return t('overlay.unknownLocation')
 }
-
-// AI : Handle overlay click - use shared handler for consistent mode switching and cache clearing
-async function handleOverlayClick(overlay: LatestOverlay) {
-  await handleOverlayClickNavigation(overlay)
-}
-
-// AI : fetchLatestOverlays is now provided by the composable with caching
 
 // AI : Load initial data
 onMounted(() => {
