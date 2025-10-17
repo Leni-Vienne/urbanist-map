@@ -144,10 +144,10 @@ export function shouldFullRerender(transition: StateTransition): boolean {
     return true
   }
 
-  // AI : Mode changed but overlays already loaded at high zoom - just update state
-  // AI : This prevents overlay recreation when toggling edit/view mode
+  // AI : Mode changed with overlays loaded - need full re-render to pick up new data
+  // AI : Fresh data may have different hasPendingChanges flags and other metadata
   if (from.mode !== to.mode && from.hasLoadedOverlays && to.hasLoadedOverlays && to.zoomLevel === 'high') {
-    return false
+    return true
   }
 
   // AI : Mode changed without loaded overlays - need full re-render

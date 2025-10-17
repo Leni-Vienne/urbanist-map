@@ -8,7 +8,9 @@ import { renderViewModeOverlays, updateOverlayEditingState, clearAllOverlays, up
 import { renderOverlayMarkersFromCache, updateOverlayMarkersForFilters } from '@composables/map/useCityOverlays'
 import { applyPositionsToOverlays } from './useOverlayPositionCache'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
+import { useMapStore } from '@stores/pinia/mapStore'
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters'
+import { calculateCenterFromCorners } from '../../utils/typeFactories'
 
 /**
  * AI : Render overlays based on the current render strategy
@@ -19,19 +21,113 @@ export function renderForStrategy(
   cityId: string,
 ): void {
   const overlayStore = useOverlayStore()
+  const mapStore = useMapStore()
 
   // AI : Apply completion filters
   const completionFilters = useCompletionFilters()
   const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData)
 
   if (strategy.shouldRenderFullOverlays) {
-    // AI : Only clear and recreate if this is first load or overlays don't exist yet
     const hasOverlays = Object.keys(overlayStore.overlays).length > 0
-    
+
     if (!hasOverlays) {
+      // AI : First load - render everything
       clearAllOverlays()
       overlayStore.setViewModeOverlays(visibleOverlays)
       renderViewModeOverlays(visibleOverlays, strategy.shouldRenderMarkers, false)
+    } else {
+      // AI : Smart update - only recreate overlays that changed
+      const existingIds = new Set(Object.keys(overlayStore.overlays))
+      const newDataMap = new Map(visibleOverlays.map(o => [o.id, o]))
+
+      // AI : Find overlays that need to be recreated (data changed)
+      const overlaysToRecreate: OverlayData[] = []
+      const overlaysToKeep: string[] = []
+
+      existingIds.forEach(id => {
+        const existingOverlay = overlayStore.overlays[id]
+        const newData = newDataMap.get(id)
+
+        if (!newData) {
+          // AI : Overlay removed from data - will be cleared
+          return
+        }
+
+        if (id === '33949dc5-8769-428e-b702-bec1e7f21485') {
+          console.log('\n🔧 === UPDATING OVERLAY 33949dc5 ===');
+          console.log('📥 newData.centroid:', newData.centroid);
+          console.log('📥 newData.corners:', newData.corners);
+          console.log('🔍 BEFORE UPDATE:');
+          console.log('  existingOverlay.centroid:', existingOverlay.centroid);
+          console.log('  existingOverlay.corners:', existingOverlay.corners);
+          console.trace('Update call stack:');
+        }
+
+        // AI : Update metadata in-place without recreating the overlay instance
+        existingOverlay.hasPendingChanges = newData.hasPendingChanges
+        existingOverlay.status = newData.status
+
+        // AI : Update the actual Leaflet overlay corners if it exists, then sync the corners property
+        if (existingOverlay.overlay) {
+          existingOverlay.overlay.setCorners(newData.corners)
+          // AI : After setCorners, read back the actual corners from Leaflet to ensure sync
+          existingOverlay.corners = existingOverlay.overlay.getCorners()
+        } else {
+          // AI : No Leaflet overlay loaded, just update the data
+          existingOverlay.corners = newData.corners
+        }
+
+        // AI : Recalculate centroid from the updated corners
+        const newCentroid = calculateCenterFromCorners(existingOverlay.corners)
+        if (newCentroid) {
+          existingOverlay.centroid = newCentroid
+        } else {
+          // AI : Fallback to backend centroid if calculation fails
+          existingOverlay.centroid = newData.centroid
+        }
+
+        if (id === '33949dc5-8769-428e-b702-bec1e7f21485') {
+          console.log('✅ AFTER UPDATE:');
+          console.log('  existingOverlay.centroid:', existingOverlay.centroid);
+          console.log('  existingOverlay.corners:', existingOverlay.corners);
+        }
+
+        overlaysToKeep.push(id)
+      })
+
+      // AI : Find new overlays that don't exist yet
+      const newOverlays = visibleOverlays.filter(o => !existingIds.has(o.id))
+
+      console.log('🔄 Smart update:', {
+        toRecreate: overlaysToRecreate.length,
+        toKeep: overlaysToKeep.length,
+        new: newOverlays.length
+      })
+      console.log('🔧 Overlays to recreate:', overlaysToRecreate.map(o => ({ id: o.id, hasPendingChanges: o.hasPendingChanges })))
+      console.log('✅ Overlays to keep:', overlaysToKeep)
+      console.log('🆕 New overlays:', newOverlays.map(o => ({ id: o.id, hasPendingChanges: o.hasPendingChanges })))
+
+      // AI : Remove overlays that need recreation or are no longer in data
+      overlaysToRecreate.forEach(data => {
+        console.log('🗑️ Removing overlay for recreation:', data.id)
+        const overlay = overlayStore.overlays[data.id]
+        if (overlay?.overlay && map.value) {
+          map.value.removeLayer(overlay.overlay)
+        }
+        if (overlay?.marker && map.value) {
+          map.value.removeLayer(overlay.marker)
+        }
+        delete overlayStore.overlays[data.id]
+      })
+
+      // AI : Update view mode overlays list
+      overlayStore.setViewModeOverlays(visibleOverlays)
+
+      // AI : Render only overlays that need recreation or are new
+      const overlaysToRender = [...overlaysToRecreate, ...newOverlays]
+      if (overlaysToRender.length > 0) {
+        renderViewModeOverlays(overlaysToRender, strategy.shouldRenderMarkers, false)
+      }
     }
 
     // AI : Apply correct positions (cached for edit mode, backend for view mode)
@@ -59,6 +155,31 @@ export function renderForStrategy(
   // AI : Update marker colors for edit/view mode
   if (strategy.shouldUseEditColors) {
     updateOverlayMarkersForFilters()
+  }
+
+  // AI : CRITICAL: Sync cache data with overlay objects AFTER all updates
+  // AI : This ensures markers at low zoom always use updated corners/centroids
+  visibleOverlays.forEach(data => {
+    const overlayObj = overlayStore.overlays[data.id]
+    if (overlayObj) {
+      // AI : Sync the data with the updated overlay object
+      data.corners = overlayObj.corners
+      data.centroid = overlayObj.centroid
+      data.hasPendingChanges = overlayObj.hasPendingChanges
+      data.status = overlayObj.status
+    }
+  })
+
+  // AI : Update cache with synced data
+  mapStore.setCityProjectsCache(cityId, visibleOverlays)
+  overlayStore.setViewModeOverlays(visibleOverlays)
+
+  const overlay33949 = visibleOverlays.find(o => o.id === '33949dc5-8769-428e-b702-bec1e7f21485')
+  if (overlay33949) {
+    console.log('💾 CACHE SYNCED FINAL - overlay 33949dc5:', {
+      centroid: overlay33949.centroid,
+      hasPendingChanges: overlay33949.hasPendingChanges
+    });
   }
 }
 

@@ -1,6 +1,9 @@
 <template>
   <!-- Overlay Popup -->
-  <Teleport to="#info-popup-teleport-target" v-if="showOverlayPopup && overlayObject && teleportTargetExists">
+  <Teleport
+    to="#info-popup-teleport-target"
+    v-if="showOverlayPopup && overlayObject && teleportTargetExists"
+  >
     <OverlayPopup
       :overlayObject="overlayObject"
       :project="currentProject"
@@ -17,7 +20,10 @@
   </Teleport>
 
   <!-- Development Project Popup -->
-  <Teleport to="#project-info-popup-teleport-target" v-if="showProjectPopup && selectedProject">
+  <Teleport
+    to="#project-info-popup-teleport-target"
+    v-if="showProjectPopup && selectedProject"
+  >
     <DevelopmentProjectPopup
       :project="selectedProject"
       :viewMode="!isEditMode"
@@ -95,11 +101,11 @@ const showProjectPopup = computed(() => {
 // AI : Get selected project for project popup
 const selectedProject = computed(() => {
   if (!projectInfoPopup.value.projectId) return null;
-  
+
   // AI : First try to get from local projects store
   const localProject = projects.value[projectInfoPopup.value.projectId];
   if (localProject) return localProject;
-  
+
   // AI : If not found locally, try to get from projectInfoPopup (for backend projects)
   return projectInfoPopup.value.project || null;
 });
@@ -120,11 +126,11 @@ const checkTeleportTarget = () => {
 
 onMounted(() => {
   checkTeleportTarget();
-  
+
   targetObserver = new MutationObserver(() => {
     checkTeleportTarget();
   });
-  
+
   targetObserver.observe(document.body, {
     childList: true,
     subtree: true
@@ -194,7 +200,7 @@ const currentProject = computed((): Project | null => {
 async function handleProjectChange(projectId: string) {
   const overlay = overlayObject.value;
   if (!overlay) return;
-  
+
   // AI : Create a new overlay object with updated projectId to trigger reactivity
   const updatedOverlay = {
     ...overlay,
@@ -210,7 +216,7 @@ async function handleProjectChange(projectId: string) {
 
   // AI : Update marker color and tooltip to reflect modification
   updateMarkerTooltip(updatedOverlay);
-  
+
   // AI : Update all overlay marker colors if city markers are visible
   updateOverlayMarkersColors(
     computed(() => overlays.value),
@@ -298,4 +304,5 @@ function handleOverlayUpdate(overlayId: string, caption?: string) {
 function closeProjectInfoPopup() {
   uiStore.closeProjectInfoPopup();
 }
+
 </script>

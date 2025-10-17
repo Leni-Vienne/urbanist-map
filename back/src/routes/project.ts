@@ -1,6 +1,6 @@
 import { publicProcedure, protectedProcedure, router } from '../trpc';
 import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
-import { projects, cities, overlays } from '../db/schema';
+import { projects, cities, overlays, changeRequests } from '../db/schema';
 import { eq, sql, and, or, inArray } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { db } from '../database';
@@ -263,31 +263,116 @@ export const projectRouter = router({
         }
       }),
       
-    // AI : Get user's own projects for contributions panel with overlays
+    // AI : Get user's contributions including owned projects, projects with user-authored overlays, and projects with user's change requests
     getUsersContributions: protectedProcedure
       .input(z.object({
         limit: z.number().min(1).max(100).optional().default(50)
       }))
       .query(async ({ input, ctx }) => {
         try {
-          // AI : Get all projects with full location info
-          const allProjects = await buildProjectWithLocationQuery(db)
+          // AI : Get projects owned by user
+          const ownedProjects = await buildProjectWithLocationQuery(db)
             .where(eq(projects.ownerId, ctx.user.id))
             .orderBy(sql`${projects.updatedAt} DESC`)
             .limit(input.limit);
 
-          // AI : Get overlays for all projects with full location info
+          // AI : Get project IDs where user has authored overlays (but doesn't own the project)
+          const contributedProjectIdsFromOverlays = await db
+            .selectDistinct({ projectId: overlays.projectId })
+            .from(overlays)
+            .innerJoin(projects, eq(overlays.projectId, projects.id))
+            .where(
+              and(
+                eq(overlays.authorId, ctx.user.id),
+                sql`${projects.ownerId} != ${ctx.user.id}` // AI : Exclude projects already owned by user
+              )
+            )
+            .limit(input.limit);
+
+          // AI : Get project IDs where user has submitted change requests for overlays (but doesn't own the project)
+          const contributedProjectIdsFromChangeRequests = await db
+            .selectDistinct({
+              projectId: sql<string>`${overlays.projectId}`.as('projectId')
+            })
+            .from(changeRequests)
+            .innerJoin(overlays, eq(changeRequests.entityId, overlays.id))
+            .innerJoin(projects, eq(overlays.projectId, projects.id))
+            .where(
+              and(
+                eq(changeRequests.requestedBy, ctx.user.id),
+                eq(changeRequests.entityType, 'overlay'),
+                sql`${projects.ownerId} != ${ctx.user.id}` // AI : Exclude projects already owned by user
+              )
+            )
+            .limit(input.limit);
+
+          // AI : Combine and deduplicate project IDs from both sources
+          const allContributedProjectIds = [
+            ...contributedProjectIdsFromOverlays.map(p => p.projectId),
+            ...contributedProjectIdsFromChangeRequests.map(p => p.projectId)
+          ];
+          const contributedProjectIds = [...new Set(allContributedProjectIds)]
+            .filter((id): id is string => id !== null); // AI : Filter out nulls and assert non-null type
+
+          const contributedProjects = contributedProjectIds.length > 0
+            ? await buildProjectWithLocationQuery(db)
+                .where(inArray(projects.id, contributedProjectIds))
+                .orderBy(sql`${projects.updatedAt} DESC`)
+            : [];
+
+          // AI : Combine both sets of projects
+          const allProjects = [...ownedProjects, ...contributedProjects];
+
+          // AI : Get overlays for these projects
           const projectIds = allProjects.map(p => p.id);
-          const projectOverlays = projectIds.length > 0 ? await buildOverlayModerationQuery(db)
-            .where(inArray(overlays.projectId, projectIds))
-            .orderBy(overlays.updatedAt) : [];
+          let projectOverlays: Awaited<ReturnType<typeof buildOverlayModerationQuery>> = [];
+
+          if (projectIds.length > 0) {
+            // AI : For projects owned by user, get all overlays; for contributed projects, only get user's overlays
+            const ownedProjectIds = ownedProjects.map(p => p.id);
+
+            if (ownedProjectIds.length > 0 && contributedProjectIds.length > 0) {
+              // AI : Both owned and contributed projects exist
+              projectOverlays = await buildOverlayModerationQuery(db)
+                .where(
+                  or(
+                    // AI : All overlays for user's own projects
+                    inArray(overlays.projectId, ownedProjectIds),
+                    // AI : Only user's overlays for projects they contributed to
+                    and(
+                      inArray(overlays.projectId, contributedProjectIds),
+                      eq(overlays.authorId, ctx.user.id)
+                    )
+                  )
+                )
+                .orderBy(overlays.updatedAt);
+            } else if (ownedProjectIds.length > 0) {
+              // AI : Only owned projects exist
+              projectOverlays = await buildOverlayModerationQuery(db)
+                .where(inArray(overlays.projectId, ownedProjectIds))
+                .orderBy(overlays.updatedAt);
+            } else if (contributedProjectIds.length > 0) {
+              // AI : Only contributed projects exist
+              projectOverlays = await buildOverlayModerationQuery(db)
+                .where(
+                  and(
+                    inArray(overlays.projectId, contributedProjectIds),
+                    eq(overlays.authorId, ctx.user.id)
+                  )
+                )
+                .orderBy(overlays.updatedAt);
+            }
+          }
 
           // AI : Group overlays by project and add overlay count
-          const projectsWithOverlays = allProjects.map(project => ({
-            ...project,
-            overlays: projectOverlays.filter(overlay => overlay.projectId === project.id),
-            overlayCount: projectOverlays.filter(overlay => overlay.projectId === project.id).length,
-          }));
+          const projectsWithOverlays = allProjects.map(project => {
+            const projectOverlaysList = projectOverlays.filter(overlay => overlay.projectId === project.id);
+            return {
+              ...project,
+              overlays: projectOverlaysList,
+              overlayCount: projectOverlaysList.length,
+            };
+          });
 
           return projectsWithOverlays;
         } catch (error) {

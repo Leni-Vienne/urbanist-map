@@ -31,11 +31,20 @@ export async function fetchCityProjectsData(cityId: string): Promise<OverlayData
   const mapStore = useMapStore();
   const overlayStore = useOverlayStore();
 
+  console.log('\n🌍 === fetchCityProjectsData CALLED ===');
+  console.log('📍 cityId:', cityId);
+  console.log('🎮 isEditMode:', overlayStore.isEditMode);
+  console.log('📦 viewMode (sent to backend):', !overlayStore.isEditMode);
+
   // AI : Check if we already have cached data for this city
   const cachedData = mapStore.getCityOverlaysAndProjectsCache(cityId);
   if (cachedData) {
+    console.log('💾 Using CACHED data:', cachedData.length, 'overlays');
+    console.log('🏁 Cached hasPendingChanges flags:', cachedData.map(r => ({ id: r.id, hasPendingChanges: r.hasPendingChanges })));
     return cachedData;
   }
+
+  console.log('🌐 Fetching FRESH data from backend...');
 
   // AI : Backend now returns data in OverlayData format directly
   // AI : viewMode is opposite of isEditMode - in edit mode (false), we want to see user's own pending content
@@ -44,8 +53,13 @@ export async function fetchCityProjectsData(cityId: string): Promise<OverlayData
     'Error fetching city projects data'
   );
 
+  console.log('📥 Received from backend:', overlaysData.length, 'overlays');
+  console.log('🏁 Backend hasPendingChanges flags:', overlaysData.map(r => ({ id: r.id, hasPendingChanges: r.hasPendingChanges })));
+
   // AI : Cache the data for future use in store
   mapStore.setCityProjectsCache(cityId, overlaysData);
+  console.log('✅ Data cached for future use');
+
   return overlaysData;
 }
 
@@ -128,6 +142,13 @@ export async function loadCityOverlays(cityId: string, forceFullLoad = false): P
 
 // AI : Common function to render overlay markers from overlay data
 function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void {
+  const overlay33949 = overlaysData.find(o => o.id === '33949dc5-8769-428e-b702-bec1e7f21485');
+  if (overlay33949) {
+    console.log('\n🗺️ === renderOverlayMarkersFromData - overlay 33949dc5 ===');
+    console.log('📌 Data centroid:', overlay33949.centroid);
+    console.log('📌 Data hasPendingChanges:', overlay33949.hasPendingChanges);
+  }
+
   // AI : Clear view mode overlays state using store
   const overlayStore = useOverlayStore();
   overlayStore.clearViewModeOverlays();
@@ -300,6 +321,15 @@ function getOverlayMarkerInfo(overlayData: OverlayData): { color: MarkerColor, p
       const calculatedCenter = calculateCenterFromCorners(overlayObject.corners);
       if (calculatedCenter) {
         position = calculatedCenter;
+      }
+
+      if (overlayData.id === '33949dc5-8769-428e-b702-bec1e7f21485') {
+        console.log('\n🎯 getOverlayMarkerInfo - overlay 33949dc5:');
+        console.log('  📥 overlayData.centroid:', overlayData.centroid);
+        console.log('  🎯 overlayObject.centroid:', overlayObject.centroid);
+        console.log('  🎯 overlayObject.corners:', overlayObject.corners);
+        console.log('  📍 calculatedPosition:', position);
+        console.log('  ✅ usingCalculated:', !!calculatedCenter);
       }
 
       // AI : Use centralized color logic
