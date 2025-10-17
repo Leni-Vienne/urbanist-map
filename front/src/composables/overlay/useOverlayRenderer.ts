@@ -1,7 +1,7 @@
 // AI : Handles rendering of overlays and markers based on mode state
 // AI : Single responsibility: converting overlay data into visible map elements
 
-import type { OverlayData } from '@types'
+import type { OverlayData, OverlayObject } from '@types'
 import type { RenderStrategy } from './useOverlayModeStateMachine'
 import { map } from '@composables/core/useMap'
 import { renderViewModeOverlays, updateOverlayEditingState, clearAllOverlays, updateMarkerTooltip, updateMarkerPosition } from '@composables/overlay/useOverlay'
@@ -10,6 +10,24 @@ import { applyPositionsToOverlays } from './useOverlayPositionCache'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useMapStore } from '@stores/pinia/mapStore'
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters'
+
+/**
+ * AI : Update markers and editing state for all overlays
+ */
+function updateMarkersAndEditingState(overlayObjects: OverlayObject[]): void {
+  overlayObjects.forEach(overlayObject => {
+    if (overlayObject.marker && map.value && !map.value.hasLayer(overlayObject.marker)) {
+      overlayObject.marker.addTo(map.value)
+    }
+
+    if (overlayObject.marker) {
+      updateMarkerPosition(overlayObject)
+      updateMarkerTooltip(overlayObject)
+    }
+  })
+
+  updateOverlayEditingState()
+}
 
 /**
  * AI : Render overlays based on the current render strategy
@@ -47,19 +65,7 @@ export function renderForStrategy(
       requestAnimationFrame(() => {
         const overlayObjects = Object.values(overlayStore.overlays)
         applyPositionsToOverlays(overlayObjects, strategy.shouldUseCachedPositions)
-
-        overlayObjects.forEach(overlayObject => {
-          if (overlayObject.marker && map.value && !map.value.hasLayer(overlayObject.marker)) {
-            overlayObject.marker.addTo(map.value)
-          }
-
-          if (overlayObject.marker) {
-            updateMarkerPosition(overlayObject)
-            updateMarkerTooltip(overlayObject)
-          }
-        })
-
-        updateOverlayEditingState()
+        updateMarkersAndEditingState(overlayObjects)
       })
     } else {
       // AI : Overlays exist - update them with fresh data
@@ -92,32 +98,18 @@ export function renderForStrategy(
       // AI : For existing overlays, this is safe to do immediately
       const overlayObjects = Object.values(overlayStore.overlays)
       applyPositionsToOverlays(overlayObjects, strategy.shouldUseCachedPositions)
-
-      overlayObjects.forEach(overlayObject => {
-        // AI : Ensure individual overlay markers are visible at high zoom
-        if (overlayObject.marker && map.value && !map.value.hasLayer(overlayObject.marker)) {
-          overlayObject.marker.addTo(map.value)
-        }
-
-        if (overlayObject.marker) {
-          updateMarkerPosition(overlayObject)
-          updateMarkerTooltip(overlayObject)
-        }
-      })
-
-      updateOverlayEditingState()
+      updateMarkersAndEditingState(overlayObjects)
     }
 
   } else if (strategy.shouldRenderMarkers) {
-
-    // AI : Cache current overlay positions BEFORE clearing (critical for edit mode!)
+    // AI : Low zoom - cache positions, remove markers, clear overlays, render city-wide markers
     const overlayObjects = Object.values(overlayStore.overlays)
 
     overlayObjects.forEach(overlayObject => {
+      // AI : Cache current position BEFORE clearing (critical for edit mode!)
       if (overlayObject.overlay) {
         const corners = overlayObject.overlay.getCorners()
         if (corners?.length === 4) {
-          // AI : Cache the current position so it can be restored later
           const cornersData = corners.map(c => ({ lat: c.lat, lng: c.lng }))
           overlayStore.saveToEditModeCache(overlayObject.id, {
             corners: cornersData,
@@ -125,17 +117,14 @@ export function renderForStrategy(
           })
         }
       }
-    })
 
-    overlayObjects.forEach(overlayObject => {
+      // AI : Remove individual overlay marker to avoid duplicates with city-wide markers
       if (overlayObject.marker && map.value?.hasLayer(overlayObject.marker)) {
         map.value.removeLayer(overlayObject.marker)
       }
     })
 
-    // AI : Clear overlay instances and render city-wide markers
     clearAllOverlays()
-
     renderOverlayMarkersFromCache(cityId)
   }
 
