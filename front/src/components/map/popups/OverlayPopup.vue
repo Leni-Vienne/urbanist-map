@@ -98,6 +98,7 @@
             />
           </div>
         </div>
+
         <div class="info-card">
           <div class="info-row">
             <span class="info-label">{{$t("common.name")}}:</span>

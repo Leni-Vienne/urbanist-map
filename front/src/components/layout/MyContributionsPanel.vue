@@ -104,7 +104,32 @@ const { pendingChangeRequests, refreshPendingChangeRequests } = useChangeRequest
 // AI : Computed filtered projects
 const filteredProjects = computed(() => {
   if (onlyShowPending.value) {
-    return projects.value.filter(project => project.status === 'pending')
+    // AI : Show projects that are pending OR have pending overlays/change requests
+    return projects.value.filter(project => {
+      // AI : If the project itself is pending, include it
+      if (project.status === 'pending') {
+        return true
+      }
+
+      // AI : If project has pending overlays (user's suggestions on approved projects), include it
+      const hasPendingOverlays = project.overlays?.some((overlay: any) => overlay.status === 'pending') ?? false
+      if (hasPendingOverlays) {
+        return true
+      }
+
+      // AI : If project has pending change requests (user's suggestions), include it
+      const hasPendingChanges = pendingChangeRequests.value.some(change => {
+        if (change.entityType === 'project' && change.entityId === project.id) {
+          return true
+        }
+        // AI : Check if any overlay in this project has pending changes
+        return project.overlays?.some((overlay: any) =>
+          change.entityType === 'overlay' && change.entityId === overlay.id
+        ) ?? false
+      })
+
+      return hasPendingChanges
+    })
   }
   return projects.value
 })

@@ -5,6 +5,10 @@ import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useMapStore } from '@stores/pinia/mapStore'
 import { useToast } from '@composables/ui/useToast'
 import type { OverlayForModeration } from '@types'
+import type { LatestOverlay } from '../../types/api'
+
+// AI : Union type to accept overlays from both moderation panels and latest overlays panel
+type NavigableOverlay = OverlayForModeration | LatestOverlay
 
 /**
  * AI : Shared composable for handling overlay clicks from moderation/contribution panels
@@ -19,7 +23,7 @@ export function useOverlayClickHandler() {
    * AI : - Clears city cache to force reload
    * AI : - Uses city-aware navigation when possible for better UX
    */
-  async function handleOverlayClickNavigation(overlay: OverlayForModeration) {
+  async function handleOverlayClickNavigation(overlay: NavigableOverlay) {
     try {
       const overlayStore = useOverlayStore()
       const mapStore = useMapStore()

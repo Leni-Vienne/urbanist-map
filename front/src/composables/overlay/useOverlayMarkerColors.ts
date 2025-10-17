@@ -15,12 +15,14 @@ export function getOverlayMarkerColor(
     const isRemoteOverlay = 'savedRemotely' in overlayData ? overlayData.savedRemotely : true;
     const hasBeenModified = 'isModified' in overlayData ? overlayData.isModified : false;
     const isPending = overlayData.status === 'pending';
+    const hasPendingChanges = 'hasPendingChanges' in overlayData ? overlayData.hasPendingChanges : false;
 
     if (!isRemoteOverlay) {
       return 'red'; // Local overlay not saved remotely, meaning brand new
     }
 
     if (hasBeenModified) return 'orange'; // Remote overlay with unsaved changes
+    if (hasPendingChanges) return 'yellow'; // Approved overlay with pending change requests
     if (isPending) return 'yellow'; // Remote overlay awaiting moderation approval
     return 'green'; // Approved overlay, saved and unmodified
   }

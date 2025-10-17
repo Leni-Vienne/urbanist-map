@@ -88,6 +88,10 @@ function transitionToState(newState: OverlayModeState, effects?: TransitionEffec
 function performFullRender(newState: OverlayModeState, transition: StateTransition): void {
   const selectedCity = getSelectedCity()
 
+  console.log('\n🎨 === performFullRender CALLED ===');
+  console.log('🎮 newState.mode:', newState.mode);
+  console.log('📍 cityId:', newState.selectedCityId);
+
   if (!selectedCity || !newState.selectedCityId) {
     clearAllRenderedContent()
     return
@@ -96,11 +100,16 @@ function performFullRender(newState: OverlayModeState, transition: StateTransiti
   // AI : Get overlays data for the city
   if (hasCachedCityProjectsData(newState.selectedCityId)) {
     const overlaysData = getCachedCityProjectsData(newState.selectedCityId)!
+    console.log('📦 Using cached data for render:', overlaysData.length, 'overlays');
+    console.log('🏁 hasPendingChanges in render data:', overlaysData.map(r => ({ id: r.id, hasPendingChanges: r.hasPendingChanges })));
+
     renderForStrategy(
       transition.renderStrategy,
       overlaysData,
       newState.selectedCityId,
     )
+  } else {
+    console.log('❌ NO CACHED DATA AVAILABLE');
   }
 }
 

@@ -1,7 +1,7 @@
 import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
 import { publicProcedure, router } from '../trpc';
 import {
-  cities, projects, overlays,
+  cities, projects, overlays, changeRequests,
 } from '../db/schema';
 import {
   sql, eq, isNotNull, and,
@@ -154,16 +154,57 @@ export const citiesRouter = router({
         try {
           const { cityId, viewMode } = input;
 
+          console.log('\n🔍 === getCityOverlaysAndProjects CALLED ===');
+          console.log('📍 cityId:', cityId);
+          console.log('👁️  viewMode:', viewMode);
+          console.log('👤 userId:', ctx.user?.id);
+          console.trace('📞 Call stack:');
+
           // AI : Build where conditions based on user authentication and view mode
           // AI : In edit mode (!viewMode) and logged in, show approved OR user's own contributions (any status)
           // AI : In view mode (viewMode=true) or anonymous, only show approved
           const whereConditions = [eq(projects.cityId, cityId)];
 
+          // AI : First, get overlay IDs where user has pending change requests (in edit mode)
+          let overlayIdsWithChangeRequests: string[] = [];
+          if (ctx.user && !viewMode) {
+            console.log('🔄 Fetching change requests for user...');
+            const changeRequestResults = await db
+              .selectDistinct({ overlayId: changeRequests.entityId })
+              .from(changeRequests)
+              .innerJoin(overlays, eq(changeRequests.entityId, overlays.id))
+              .innerJoin(projects, eq(overlays.projectId, projects.id))
+              .where(
+                and(
+                  eq(changeRequests.requestedBy, ctx.user.id),
+                  eq(changeRequests.entityType, 'overlay'),
+                  eq(projects.cityId, cityId)
+                )
+              );
+
+            overlayIdsWithChangeRequests = changeRequestResults
+              .map(r => r.overlayId)
+              .filter((id): id is string => id !== null);
+
+            console.log('📝 Overlays with change requests:', overlayIdsWithChangeRequests.length, overlayIdsWithChangeRequests);
+          }
+
           if (ctx.user && !viewMode) {
             // AI : Edit mode + logged in: users can see approved projects OR their own projects (any status)
             whereConditions.push(sql`(${projects.status} = 'approved' OR ${projects.ownerId} = ${ctx.user.id})`);
-            // AI : Edit mode + logged in: users can see approved overlays OR their own overlays (any status)
-            whereConditions.push(sql`(${overlays.status} = 'approved' OR ${overlays.authorId} = ${ctx.user.id})`);
+            // AI : Edit mode + logged in: users can see approved overlays OR their own overlays (any status) OR overlays with their change requests
+            if (overlayIdsWithChangeRequests.length > 0) {
+              // AI : Build PostgreSQL array literal manually to avoid malformed array errors
+              const idsArray = `{${overlayIdsWithChangeRequests.join(',')}}`;
+              whereConditions.push(sql`(
+                ${overlays.status} = 'approved'
+                OR ${overlays.authorId} = ${ctx.user.id}
+                OR ${overlays.id} = ANY(${idsArray}::uuid[])
+              )`);
+            } else {
+              // AI : Simpler OR condition without change requests
+              whereConditions.push(sql`(${overlays.status} = 'approved' OR ${overlays.authorId} = ${ctx.user.id})`);
+            }
           } else {
             // AI : View mode or anonymous: only see approved projects and overlays
             whereConditions.push(eq(projects.status, 'approved'));
@@ -206,29 +247,81 @@ export const citiesRouter = router({
             .where(and(...whereConditions))
             .orderBy(overlays.createdAt);
 
-          // AI : Transform the result into OverlayData format
-          const result: OverlayData[] = overlaysData.map((row) => ({
-            id: row.overlayId,
-            version: row.overlayVersion,
-            filename: row.overlayFilename,
-            caption: row.overlayCaption,
-            status: row.overlayStatus,
-            projectId: row.overlayProjectId,
-            authorId: row.overlayAuthorId,
-            replacesOverlayId: row.overlayReplacesOverlayId,
-            createdAt: row.overlayCreatedAt,
-            updatedAt: row.overlayUpdatedAt,
-            centroid: {
-              lat: row.centroidLat,
-              lng: row.centroidLng,
-            },
-            corners: row.corners ?? [],
-            distance: 0,
-            project: {
-              ...row.project,
-              city: row.city
+          // AI : In edit mode, fetch user's pending change requests to merge with overlays
+          let userChangeRequests: Array<{
+            id: string;
+            entityType: string;
+            entityId: string;
+            fieldName: string;
+            newValue: unknown;
+          }> = [];
+
+          if (ctx.user && !viewMode) {
+            userChangeRequests = await db
+              .select({
+                id: changeRequests.id,
+                entityType: changeRequests.entityType,
+                entityId: changeRequests.entityId,
+                fieldName: changeRequests.fieldName,
+                newValue: changeRequests.newValue,
+              })
+              .from(changeRequests)
+              .where(
+                and(
+                  eq(changeRequests.requestedBy, ctx.user.id),
+                  eq(changeRequests.entityType, 'overlay')
+                )
+              );
+          }
+
+          // AI : Transform the result into OverlayData format, merging change requests
+          console.log('🗂️  Total overlays found:', overlaysData.length);
+          console.log('📋 Total user change requests:', userChangeRequests.length);
+
+          const result: OverlayData[] = overlaysData.map((row) => {
+            let corners = row.corners ?? [];
+            let centroid = { lat: row.centroidLat, lng: row.centroidLng };
+
+            // AI : Apply user's pending change requests to this overlay
+            const overlayChangeRequests = userChangeRequests.filter(cr => cr.entityId === row.overlayId);
+
+            if (overlayChangeRequests.length > 0) {
+              console.log(`\n🔧 Merging ${overlayChangeRequests.length} change requests for overlay ${row.overlayId}:`);
             }
-          }));
+
+            for (const changeRequest of overlayChangeRequests) {
+              if (changeRequest.fieldName === 'corners' && Array.isArray(changeRequest.newValue)) {
+                corners = changeRequest.newValue as Array<{ lat: number; lng: number }>;
+              } else if (changeRequest.fieldName === 'centroid' && typeof changeRequest.newValue === 'object' && changeRequest.newValue !== null) {
+                const newCentroid = changeRequest.newValue as { lat: number; lng: number };
+                centroid = { lat: newCentroid.lat, lng: newCentroid.lng };
+              }
+            }
+
+            return {
+              id: row.overlayId,
+              version: row.overlayVersion,
+              filename: row.overlayFilename,
+              caption: row.overlayCaption,
+              status: row.overlayStatus,
+              projectId: row.overlayProjectId,
+              authorId: row.overlayAuthorId,
+              replacesOverlayId: row.overlayReplacesOverlayId,
+              createdAt: row.overlayCreatedAt,
+              updatedAt: row.overlayUpdatedAt,
+              centroid,
+              corners,
+              distance: 0,
+              project: {
+                ...row.project,
+                city: row.city
+              },
+              // AI : Add flag to indicate if this overlay has pending change requests from the current user
+              hasPendingChanges: overlayChangeRequests.length > 0,
+            };
+          });
+
+          console.log('🏁 hasPendingChanges flags:', result.map(r => ({ id: r.id, hasPendingChanges: r.hasPendingChanges })));
 
           return result;
 

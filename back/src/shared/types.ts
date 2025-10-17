@@ -39,5 +39,6 @@ export interface OverlayData {
     project?: (DBProject & { city: DBCity; }) | null;
     distance?: number;
     isModified?: boolean;
+    hasPendingChanges?: boolean;
 }
 

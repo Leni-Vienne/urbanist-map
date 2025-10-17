@@ -80,10 +80,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { navigateToOverlay } from '@composables/overlay/useOverlay'
-import { navigateToOverlayWithCity } from '@composables/navigation/useOverlayNavigation'
 import { useToast } from '@composables/ui/useToast'
 import { useLatestOverlays } from '@composables/overlay/useLatestOverlays'
+import { useOverlayClickHandler } from '@composables/overlay/useOverlayClickHandler'
 import { buildThumbnailUrl, formatRelativeTime } from '../../utils'
 import type { LatestOverlay } from '../../types/api'
 
@@ -91,6 +90,9 @@ const { t } = useI18n()
 
 // AI : Use cached composable for latest overlays
 const { overlays, isLoading, fetchLatestOverlays } = useLatestOverlays()
+
+// AI : Use shared overlay click handler for consistent navigation behavior
+const { handleOverlayClickNavigation } = useOverlayClickHandler()
 
 const imageErrors = ref<Record<string, boolean>>({})
 const toast = useToast()
@@ -137,25 +139,9 @@ function getLocationDisplay(overlay: LatestOverlay): string {
   return t('overlay.unknownLocation')
 }
 
-// AI : Handle overlay click - simulate clicking country marker → city marker → overlay
+// AI : Handle overlay click - use shared handler for consistent mode switching and cache clearing
 async function handleOverlayClick(overlay: LatestOverlay) {
-  try {
-    // AI : If overlay has city info, navigate via city (loads city markers and overlays first)
-    if (overlay.cityId && overlay.cityName) {
-      await navigateToOverlayWithCity(overlay.id, overlay.cityId, overlay.cityName, overlay.countryCode ?? undefined)
-    } else {
-      // AI : Fallback to direct navigation if no city info
-      await navigateToOverlay(overlay.id)
-    }
-  } catch (error) {
-    console.error('Failed to navigate to overlay:', error)
-    toast.add({
-      severity: 'error',
-      summary: t('overlay.navigationFailed'),
-      detail: error instanceof Error ? error.message : t('overlay.failedToNavigate'),
-      life: 3000
-    })
-  }
+  await handleOverlayClickNavigation(overlay)
 }
 
 // AI : fetchLatestOverlays is now provided by the composable with caching
