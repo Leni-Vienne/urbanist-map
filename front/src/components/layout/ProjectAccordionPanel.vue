@@ -180,7 +180,7 @@
                 class="overlay-card-wrapper"
                 :class="{ 'has-changes': getOverlayChangeRequests(overlay.id).length > 0 }"
               >
-                <div class="overlay-card" @click="handleOverlayClick(overlay)">
+                <div class="overlay-card" @click="handleOverlayClickNavigation(overlay)">
                   <!-- AI : Overlay thumbnail -->
                   <div
                     class="w-15 h-15 rounded-md overflow-hidden bg-surface-100 flex items-center justify-center flex-shrink-0"
@@ -241,7 +241,7 @@
                     v-else
                     icon="pi pi-search"
                     :aria-label="$t('overlay.zoomTo') + ' ' + (overlay.name || $t('overlay.untitled'))"
-                    @click.stop="handleOverlayClick(overlay)"
+                    @click.stop="handleOverlayClickNavigation(overlay)"
                     text
                     rounded
                     size="small"
@@ -390,12 +390,12 @@ const {
   () => props.changeRequests,
   () => props.projects,
   async (overlayId: string) => {
-    // AI : Find the overlay and call handleOverlayClick
+    // AI : Find the overlay and call handleOverlayClickNavigation
     for (const project of props.projects) {
       if (project.overlays) {
         const overlay = project.overlays.find(o => o.id === overlayId)
         if (overlay) {
-          await handleOverlayClick(overlay)
+          await handleOverlayClickNavigation(overlay)
           return
         }
       }
@@ -530,11 +530,6 @@ function formatSourceUrl(url: string): string {
 // AI : Check if overlays should be shown (only for expanded panels)
 function shouldShowOverlays(project: ProjectForModeration): boolean {
   return expandedPanels.value.has(project.id)
-}
-
-// AI : Handle overlay click - delegate to shared composable
-async function handleOverlayClick(overlay: OverlayForModeration) {
-  await handleOverlayClickNavigation(overlay)
 }
 
 // AI : Handle development project click - zoom to marker location

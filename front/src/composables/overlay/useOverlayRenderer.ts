@@ -53,16 +53,6 @@ export function renderForStrategy(
           return
         }
 
-        if (id === '33949dc5-8769-428e-b702-bec1e7f21485') {
-          console.log('\n🔧 === UPDATING OVERLAY 33949dc5 ===');
-          console.log('📥 newData.centroid:', newData.centroid);
-          console.log('📥 newData.corners:', newData.corners);
-          console.log('🔍 BEFORE UPDATE:');
-          console.log('  existingOverlay.centroid:', existingOverlay.centroid);
-          console.log('  existingOverlay.corners:', existingOverlay.corners);
-          console.trace('Update call stack:');
-        }
-
         // AI : Update metadata in-place without recreating the overlay instance
         existingOverlay.hasPendingChanges = newData.hasPendingChanges
         existingOverlay.status = newData.status
@@ -86,30 +76,14 @@ export function renderForStrategy(
           existingOverlay.centroid = newData.centroid
         }
 
-        if (id === '33949dc5-8769-428e-b702-bec1e7f21485') {
-          console.log('✅ AFTER UPDATE:');
-          console.log('  existingOverlay.centroid:', existingOverlay.centroid);
-          console.log('  existingOverlay.corners:', existingOverlay.corners);
-        }
-
         overlaysToKeep.push(id)
       })
 
       // AI : Find new overlays that don't exist yet
       const newOverlays = visibleOverlays.filter(o => !existingIds.has(o.id))
 
-      console.log('🔄 Smart update:', {
-        toRecreate: overlaysToRecreate.length,
-        toKeep: overlaysToKeep.length,
-        new: newOverlays.length
-      })
-      console.log('🔧 Overlays to recreate:', overlaysToRecreate.map(o => ({ id: o.id, hasPendingChanges: o.hasPendingChanges })))
-      console.log('✅ Overlays to keep:', overlaysToKeep)
-      console.log('🆕 New overlays:', newOverlays.map(o => ({ id: o.id, hasPendingChanges: o.hasPendingChanges })))
-
       // AI : Remove overlays that need recreation or are no longer in data
       overlaysToRecreate.forEach(data => {
-        console.log('🗑️ Removing overlay for recreation:', data.id)
         const overlay = overlayStore.overlays[data.id]
         if (overlay?.overlay && map.value) {
           map.value.removeLayer(overlay.overlay)
@@ -173,14 +147,6 @@ export function renderForStrategy(
   // AI : Update cache with synced data
   mapStore.setCityProjectsCache(cityId, visibleOverlays)
   overlayStore.setViewModeOverlays(visibleOverlays)
-
-  const overlay33949 = visibleOverlays.find(o => o.id === '33949dc5-8769-428e-b702-bec1e7f21485')
-  if (overlay33949) {
-    console.log('💾 CACHE SYNCED FINAL - overlay 33949dc5:', {
-      centroid: overlay33949.centroid,
-      hasPendingChanges: overlay33949.hasPendingChanges
-    });
-  }
 }
 
 /**

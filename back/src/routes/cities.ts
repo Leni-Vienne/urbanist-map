@@ -154,12 +154,6 @@ export const citiesRouter = router({
         try {
           const { cityId, viewMode } = input;
 
-          console.log('\n🔍 === getCityOverlaysAndProjects CALLED ===');
-          console.log('📍 cityId:', cityId);
-          console.log('👁️  viewMode:', viewMode);
-          console.log('👤 userId:', ctx.user?.id);
-          console.trace('📞 Call stack:');
-
           // AI : Build where conditions based on user authentication and view mode
           // AI : In edit mode (!viewMode) and logged in, show approved OR user's own contributions (any status)
           // AI : In view mode (viewMode=true) or anonymous, only show approved
@@ -168,7 +162,6 @@ export const citiesRouter = router({
           // AI : First, get overlay IDs where user has pending change requests (in edit mode)
           let overlayIdsWithChangeRequests: string[] = [];
           if (ctx.user && !viewMode) {
-            console.log('🔄 Fetching change requests for user...');
             const changeRequestResults = await db
               .selectDistinct({ overlayId: changeRequests.entityId })
               .from(changeRequests)
@@ -185,8 +178,6 @@ export const citiesRouter = router({
             overlayIdsWithChangeRequests = changeRequestResults
               .map(r => r.overlayId)
               .filter((id): id is string => id !== null);
-
-            console.log('📝 Overlays with change requests:', overlayIdsWithChangeRequests.length, overlayIdsWithChangeRequests);
           }
 
           if (ctx.user && !viewMode) {
@@ -274,20 +265,12 @@ export const citiesRouter = router({
               );
           }
 
-          // AI : Transform the result into OverlayData format, merging change requests
-          console.log('🗂️  Total overlays found:', overlaysData.length);
-          console.log('📋 Total user change requests:', userChangeRequests.length);
-
           const result: OverlayData[] = overlaysData.map((row) => {
             let corners = row.corners ?? [];
             let centroid = { lat: row.centroidLat, lng: row.centroidLng };
 
             // AI : Apply user's pending change requests to this overlay
             const overlayChangeRequests = userChangeRequests.filter(cr => cr.entityId === row.overlayId);
-
-            if (overlayChangeRequests.length > 0) {
-              console.log(`\n🔧 Merging ${overlayChangeRequests.length} change requests for overlay ${row.overlayId}:`);
-            }
 
             for (const changeRequest of overlayChangeRequests) {
               if (changeRequest.fieldName === 'corners' && Array.isArray(changeRequest.newValue)) {
@@ -320,8 +303,6 @@ export const citiesRouter = router({
               hasPendingChanges: overlayChangeRequests.length > 0,
             };
           });
-
-          console.log('🏁 hasPendingChanges flags:', result.map(r => ({ id: r.id, hasPendingChanges: r.hasPendingChanges })));
 
           return result;
 
