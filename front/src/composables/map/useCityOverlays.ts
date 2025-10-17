@@ -1,7 +1,7 @@
 // AI : City-specific overlay management - handles loading and displaying overlays for cities
-import { ref, watch } from 'vue';
+import { ref } from 'vue';
 import L from 'leaflet';
-import { map, onMapInitialized, currentZoomLevel } from '@composables/core/useMap';
+import { map } from '@composables/core/useMap';
 import { renderViewModeOverlays, clearAllOverlays } from '@composables/overlay/useOverlay';
 import { getFromEditModeOverlayCache } from '@composables/overlay/useOverlayEditCache';
 import { hasCachedCityProjectsData, getSelectedCity } from '@composables/map/useCityData';
@@ -294,6 +294,7 @@ function getOverlayMarkerInfo(overlayData: OverlayData): { color: MarkerColor, p
   let position = { lat: overlayData.centroid.lat, lng: overlayData.centroid.lng };
   // AI : Check if we're in edit mode and if the overlay exists in the overlays store
   const overlayStore = useOverlayStore();
+
   if (overlayStore.isEditMode) {
     const overlayObject = overlayStore.overlays[overlayData.id];
 
@@ -355,54 +356,6 @@ export function updateOverlayMarkersForFilters(): void {
   // AI : Re-render overlay markers with current filters applied
   renderOverlayMarkersFromCache(selectedCity.id);
 }
-
-/**
- * AI : Set up zoom event listener to upgrade overlay markers to full overlays
- */
-function setupZoomEventListener(): void {
-  if (!map.value) {
-    onMapInitialized(() => {
-      setupZoomEventListenerInternal();
-    });
-    return;
-  }
-  setupZoomEventListenerInternal();
-}
-
-/**
- * AI : Internal function to set up zoom event listener
- */
-function setupZoomEventListenerInternal(): void {
-  const mapStore = useMapStore();
-
-  // AI : Watch currentZoomLevel instead of listening to zoomend to avoid duplicate event handling
-  watch(currentZoomLevel, (currentZoom) => {
-    const selectedCity = getSelectedCity();
-    if (!selectedCity) return;
-
-    const hasCachedData = hasCachedCityProjectsData(selectedCity.id);
-
-    // AI : Only act if we have cached data to avoid unnecessary API calls
-    if (!hasCachedData) return;
-
-    // AI : If zoomed in enough and we have overlay markers, upgrade to full overlays
-    if (currentZoom >= MIN_ZOOM_FOR_OVERLAYS && overlayMarkersLayer && map.value?.hasLayer(overlayMarkersLayer)) {
-      renderFullOverlaysFromCache(selectedCity.id);
-    }
-    // AI : If zoomed out from full overlays, show overlay markers again
-    else if (currentZoom < MIN_ZOOM_FOR_OVERLAYS && mapStore.currentCityOverlays.length > 0) {
-      // AI : Don't call clearAllOverlays() here - useOverlayModes handles clearing
-      // AI : Just reset the city overlays array and show markers
-      mapStore.currentCityOverlays = [];
-      renderOverlayMarkersFromCache(selectedCity.id);
-    }
-  });
-}
-
-// AI : Initialize zoom event listener when map is ready
-onMapInitialized(() => {
-  setupZoomEventListener();
-});
 
 // AI : Export loading state for external use
 export { isLoadingCityProjects };

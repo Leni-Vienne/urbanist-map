@@ -17,7 +17,6 @@ import { loadCityDevelopmentProjects, removeCityMarkers, addCityMarkersForCountr
 import { loadCitiesForCountry } from '@composables/map/useCountryMarkers'
 import { useProjectStore } from '@stores/pinia/projectStore'
 import { storeToRefs } from 'pinia'
-import { renderViewModeOverlays } from '@composables/overlay/useOverlay'
 
 // AI : Transition effects - callbacks executed during state transitions
 interface TransitionEffects {
@@ -72,7 +71,7 @@ function transitionToState(newState: OverlayModeState, effects?: TransitionEffec
   if (shouldFullRerender(transition)) {
     performFullRender(newState, transition)
   } else {
-    performPartialUpdate(newState, transition)
+    performPartialUpdate(transition)
   }
 
   // AI : Update current state
@@ -107,30 +106,12 @@ function performFullRender(newState: OverlayModeState, transition: StateTransiti
 
 /**
  * AI : Perform partial update (positions/controls only)
+ * AI : Used when state changes don't require full re-render (e.g., just zoom level change)
  */
-function performPartialUpdate(newState: OverlayModeState, transition: StateTransition): void {
-  const overlayStore = useOverlayStore()
-  const selectedCity = getSelectedCity()
-  
-  // AI : Check if there are new overlays that need to be added
-  if (selectedCity && newState.selectedCityId && hasCachedCityProjectsData(newState.selectedCityId)) {
-    const overlaysData = getCachedCityProjectsData(newState.selectedCityId)!
-    const existingOverlayIds = new Set(Object.keys(overlayStore.overlays))
-    
-    // AI : Find only the new overlays that don't exist yet
-    const newOverlays = overlaysData.filter(o => !existingOverlayIds.has(o.id))
-    
-    if (newOverlays.length > 0) {
-      // AI : Add only the new overlays without clearing existing ones
-      renderViewModeOverlays(newOverlays, transition.renderStrategy.shouldRenderMarkers, false)
-    }
-    
-    // AI : Update all overlays (existing + newly added) without recreating them
-    updateExistingOverlays(transition.renderStrategy)
-  } else {
-    // AI : No data available, just update existing overlays
-    updateExistingOverlays(transition.renderStrategy)
-  }
+function performPartialUpdate(transition: StateTransition): void {
+  // AI : Simply update properties of existing overlays (positions, editing state, visibility)
+  // AI : This preserves Leaflet instances and their internal state (selection, etc.)
+  updateExistingOverlays(transition.renderStrategy)
 }
 
 /**
