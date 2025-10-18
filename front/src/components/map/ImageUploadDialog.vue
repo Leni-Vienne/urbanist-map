@@ -524,6 +524,7 @@ defineExpose({
   padding: 12px 16px;
   max-width: calc(100vw - 40px);
   min-width: 280px;
+  z-index: 2000;
 }
 
 .placement-content {

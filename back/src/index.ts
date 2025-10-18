@@ -455,5 +455,6 @@ export type { AppRouter } from './shared/routers'
 
 export default {
     port: config.PORT,
+    hostname: '0.0.0.0',
     fetch: app.fetch
 }

@@ -7,38 +7,7 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 import path from 'path'
 import { visualizer } from "rollup-plugin-visualizer";
 import istanbul from 'vite-plugin-istanbul';
-/*import type { Plugin } from 'vite';
-
-// AI : Vite plugin to replace font-display: block with font-display: swap for better performance
-function fontDisplaySwapPlugin(): Plugin {
-  return {
-    name: 'font-display-swap',
-    enforce: 'post',
-    generateBundle(_options, bundle) {
-      // AI : Process all CSS assets in the bundle
-      for (const [fileName, asset] of Object.entries(bundle)) {
-        if (fileName.endsWith('.css') && asset.type === 'asset' && typeof asset.source === 'string') {
-          // AI : Replace font-display: block with font-display: swap
-          asset.source = asset.source.replace(
-            /font-display:\s*block/g,
-            'font-display: swap'
-          );
-
-          // AI : Add font-display: swap if missing from @font-face
-          asset.source = asset.source.replace(
-            /@font-face\s*\{([^}]*)\}/g,
-            (match, content) => {
-              if (!content.includes('font-display')) {
-                return `@font-face {${content}font-display: swap;}`;
-              }
-              return match;
-            }
-          );
-        }
-      }
-    }
-  };
-}*/
+import { qrcode } from 'vite-plugin-qrcode';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -46,6 +15,7 @@ export default defineConfig({
   plugins: [
     //fontDisplaySwapPlugin(),
     vue(),
+    qrcode(),
     visualizer({
       filename: 'stats.html',
       open: false,
@@ -99,6 +69,7 @@ export default defineConfig({
       'primevue/panel',
       'primevue/password',
       'primevue/popover',
+      'primevue/checkbox',
       'primevue/progressbar',
       'primevue/radiobutton',
       'primevue/select',

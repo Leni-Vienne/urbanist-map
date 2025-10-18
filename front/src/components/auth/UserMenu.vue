@@ -115,7 +115,7 @@ watch(() => userPopover.value?.visible, (visible) => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  z-index: 10000; /* important on mobile */
+  z-index: 1000; /* important on mobile */
   isolation: isolate;
 }
 

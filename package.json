@@ -27,7 +27,7 @@
     "test:coverage": "vitest run --coverage",
     "test:playwright": "playwright test"
   },
-    "overrides": {
+  "overrides": {
     "vite": "npm:rolldown-vite@latest"
   },
   "dependencies": {
@@ -41,8 +41,6 @@
     "hono": "^4.10.1",
     "hono-sessions": "^0.8.0",
     "leaflet-distortableimage": "Leni-vienne/Leaflet.DistortableImage",
-    "leaflet-doubletapdrag": "^0.1.2",
-    "leaflet-doubletapdragzoom": "^0.3.2",
     "leaflet-toolbar": "^0.4.0-alpha.2",
     "nodemailer": "^7.0.9",
     "pinia": "^3.0.3",
@@ -54,6 +52,7 @@
     "tailwindcss": "^4.1.14",
     "tailwindcss-primeui": "^0.6.1",
     "vite": "^7.1.10",
+    "vite-plugin-qrcode": "^0.3.0",
     "vue": "^3.5.22",
     "vue-i18n": "^11.1.12",
     "vue-router": "^4.6.3",
