@@ -105,7 +105,6 @@ import { useChangeRequests } from '@composables/changes/useChangeRequests'
 import { useOverlayClickHandler } from '@composables/overlay/useOverlayClickHandler'
 import { useToast } from '@composables/ui/useToast'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
-import type { OverlayForModeration } from '@types'
 
 // AI : Use i18n for translations
 const { t } = useI18n()

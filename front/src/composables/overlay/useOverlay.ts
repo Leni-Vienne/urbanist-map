@@ -854,6 +854,16 @@ function createSingleMarker(savedOverlay: OverlayObject): void {
     const overlayObject = overlayStore.overlays[savedOverlay.id];
     if (!overlayObject) return;
 
+    // AI : Fly to overlay bounds first
+    const bounds = getOverlayBounds(overlayObject);
+    if (bounds) {
+      mobileAwareFlyToBounds(bounds, {
+        padding: [50, 50] as [number, number],
+        duration: 1.5,
+        easeLinearity: 0.25
+      });
+    }
+
     if (overlayObject.overlay) {
       // AI : If overlay exists, click it to select/deselect (mimics clicking on overlay)
       const element = overlayObject.overlay.getElement();
@@ -1047,6 +1057,16 @@ function createMarker(overlayObject: OverlayObject, projectId: string, markerTyp
 
   // AI : Add click handler to marker to select the overlay
   marker.on('click', () => {
+    // AI : Fly to overlay bounds first
+    const bounds = getOverlayBounds(overlayObject);
+    if (bounds) {
+      mobileAwareFlyToBounds(bounds, {
+        padding: [50, 50] as [number, number],
+        duration: 1.5,
+        easeLinearity: 0.25
+      });
+    }
+
     if (overlayObject.overlay) {
       // AI : If overlay exists, click it to select
       const element = overlayObject.overlay.getElement();

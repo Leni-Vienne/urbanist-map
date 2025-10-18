@@ -61,7 +61,8 @@ const tileLayerConfigs = {
   CHE: {
     label: 'Switzerland',
     flagUrl: 'https://flagcdn.com/16x12/ch.png',
-    url: 'https://wmts.geo.moderation.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg',
+    //url: 'https://wmts.geo.moderation.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg',
+    url: 'https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage-product/default/2025/2056/{z}/{x}/{y}.png',
     options: {
       minZoom: 2,
       maxZoom: 22,
