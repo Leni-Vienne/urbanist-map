@@ -1,11 +1,16 @@
 import { publicProcedure, protectedProcedure, router, TRPCError } from '../trpc';
 import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
 import { overlays, projects } from '../db/schema';
-import { sql, eq, and, inArray } from 'drizzle-orm';
+import { sql, eq, and } from 'drizzle-orm';
 import { db } from '../database';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../db/schema';
 import { buildOverlayQuery } from '../db/queryBuilders';
+import {
+  buildProjectStatusCondition,
+  buildOverlayVisibilityCondition,
+  type ApprovalStatus
+} from '../db/visibilityHelpers';
 
 const publishOverlaySchema = z.object({
   id: z.uuid(), // AI : UUID length limit
@@ -70,18 +75,11 @@ export const overlayRouter = router({
     .input(getLatestOverlaysSchema)
     .query(async ({ input, ctx }) => {
       try {
-        // AI : Build the where conditions array dynamically
-        const whereConditions = [];
-
-        // AI : If includeStatus is provided and user is admin, filter by those statuses
-        // AI : Otherwise, only show approved overlays with approved parent projects
-        if (input.includeStatus && ctx.user?.role === 'admin' && input.includeStatus.length > 0) {
-          whereConditions.push(inArray(overlays.status, input.includeStatus));
-          whereConditions.push(inArray(projects.status, input.includeStatus));
-        } else {
-          whereConditions.push(eq(overlays.status, 'approved'));
-          whereConditions.push(eq(projects.status, 'approved'));
-        }
+        // AI : Build visibility conditions using helper functions
+        const whereConditions = [
+          buildOverlayVisibilityCondition(ctx.user, true, undefined, input.includeStatus as ApprovalStatus[] | undefined),
+          buildProjectStatusCondition(ctx.user, input.includeStatus as ApprovalStatus[] | undefined)
+        ];
 
         // AI : Add city filter if provided
         if (input.cityId) {
@@ -104,24 +102,12 @@ export const overlayRouter = router({
     .input(getOverlaySchema)
     .query(async ({ input, ctx }) => {
       try {
-        // AI : Build where conditions based on status filter
-        const whereConditions = [eq(overlays.id, input.id)];
-
-        // AI : If includeStatus is provided and user is admin, filter by those statuses
-        // AI : If user is logged in (but not admin), allow approved overlays + their own contributions
-        // AI : Otherwise (anonymous), only show approved overlays
-        if (input.includeStatus && ctx.user?.role === 'admin') {
-          if (input.includeStatus.length > 0) {
-            const statusValues = input.includeStatus.map(s => sql`${s}`);
-            whereConditions.push(sql`${overlays.status} = ANY(ARRAY[${sql.join(statusValues, sql`, `)}])`);
-          }
-        } else if (ctx.user) {
-          // AI : Logged in users can see approved overlays OR their own contributions (any status)
-          whereConditions.push(sql`(${overlays.status} = 'approved' OR ${overlays.authorId} = ${ctx.user.id})`);
-        } else {
-          // AI : Anonymous users only see approved overlays
-          whereConditions.push(eq(overlays.status, 'approved'));
-        }
+        // AI : Build visibility condition - if user is logged in but no admin filter, use edit mode (false) to allow own overlays
+        const viewMode = !ctx.user || !!(input.includeStatus && ctx.user?.role === 'admin');
+        const whereConditions = [
+          eq(overlays.id, input.id),
+          buildOverlayVisibilityCondition(ctx.user, viewMode, undefined, input.includeStatus as ApprovalStatus[] | undefined)
+        ];
 
         // AI : Fetch the requested overlay
         const overlay = await buildOverlayQuery(db)

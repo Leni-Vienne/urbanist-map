@@ -8,6 +8,12 @@ import {
 } from 'drizzle-orm';
 import { db } from '../database';
 import type { OverlayData } from '../shared/types';
+import {
+  getUserOverlayChangeRequestIds,
+  buildProjectVisibilityCondition,
+  buildOverlayVisibilityCondition,
+  buildProjectHasVisibleContentCondition
+} from '../db/visibilityHelpers';
 
 const getCitiesNearLocationSchema = z.object({
   lat: z.number().min(-90).max(90), // AI : Valid latitude range
@@ -108,18 +114,18 @@ export const citiesRouter = router({
       }))
       .query(async ({ input, ctx }) => {
         try {
+          // AI : Fetch user's overlay change request IDs if in edit mode
+          const overlayChangeRequestIds = ctx.user && !input.viewMode
+            ? await getUserOverlayChangeRequestIds(db, ctx.user.id)
+            : undefined;
+
+          // AI : Build visibility conditions using helper functions
           const conditions = [
-            isNotNull(projects.cityId)
+            isNotNull(projects.cityId),
+            buildProjectVisibilityCondition(ctx.user, input.viewMode),
+            buildProjectHasVisibleContentCondition(ctx.user, input.viewMode, overlayChangeRequestIds)
           ];
-          
-          // AI : In edit mode and logged in, show cities with approved projects OR user's own contributions (any status)
-          // AI : In view mode or anonymous, only show cities with approved projects
-          if (ctx.user && !input.viewMode) {
-            conditions.push(sql`(${projects.status} = 'approved' OR ${projects.ownerId} = ${ctx.user.id})`);
-          } else {
-            conditions.push(eq(projects.status, 'approved'));
-          }
-          
+
           if (input.countryCode) {
             conditions.push(eq(cities.countryCode, input.countryCode));
           }
@@ -154,53 +160,17 @@ export const citiesRouter = router({
         try {
           const { cityId, viewMode } = input;
 
-          // AI : Build where conditions based on user authentication and view mode
-          // AI : In edit mode (!viewMode) and logged in, show approved OR user's own contributions (any status)
-          // AI : In view mode (viewMode=true) or anonymous, only show approved
-          const whereConditions = [eq(projects.cityId, cityId)];
+          // AI : Fetch user's overlay change request IDs if in edit mode
+          const overlayChangeRequestIds = ctx.user && !viewMode
+            ? await getUserOverlayChangeRequestIds(db, ctx.user.id)
+            : undefined;
 
-          // AI : First, get overlay IDs where user has pending change requests (in edit mode)
-          let overlayIdsWithChangeRequests: string[] = [];
-          if (ctx.user && !viewMode) {
-            const changeRequestResults = await db
-              .selectDistinct({ overlayId: changeRequests.entityId })
-              .from(changeRequests)
-              .innerJoin(overlays, eq(changeRequests.entityId, overlays.id))
-              .innerJoin(projects, eq(overlays.projectId, projects.id))
-              .where(
-                and(
-                  eq(changeRequests.requestedBy, ctx.user.id),
-                  eq(changeRequests.entityType, 'overlay'),
-                  eq(projects.cityId, cityId)
-                )
-              );
-
-            overlayIdsWithChangeRequests = changeRequestResults
-              .map(r => r.overlayId)
-              .filter((id): id is string => id !== null);
-          }
-
-          if (ctx.user && !viewMode) {
-            // AI : Edit mode + logged in: users can see approved projects OR their own projects (any status)
-            whereConditions.push(sql`(${projects.status} = 'approved' OR ${projects.ownerId} = ${ctx.user.id})`);
-            // AI : Edit mode + logged in: users can see approved overlays OR their own overlays (any status) OR overlays with their change requests
-            if (overlayIdsWithChangeRequests.length > 0) {
-              // AI : Build PostgreSQL array literal manually to avoid malformed array errors
-              const idsArray = `{${overlayIdsWithChangeRequests.join(',')}}`;
-              whereConditions.push(sql`(
-                ${overlays.status} = 'approved'
-                OR ${overlays.authorId} = ${ctx.user.id}
-                OR ${overlays.id} = ANY(${idsArray}::uuid[])
-              )`);
-            } else {
-              // AI : Simpler OR condition without change requests
-              whereConditions.push(sql`(${overlays.status} = 'approved' OR ${overlays.authorId} = ${ctx.user.id})`);
-            }
-          } else {
-            // AI : View mode or anonymous: only see approved projects and overlays
-            whereConditions.push(eq(projects.status, 'approved'));
-            whereConditions.push(eq(overlays.status, 'approved'));
-          }
+          // AI : Build visibility conditions using helper functions
+          const whereConditions = [
+            eq(projects.cityId, cityId),
+            buildProjectVisibilityCondition(ctx.user, viewMode),
+            buildOverlayVisibilityCondition(ctx.user, viewMode, overlayChangeRequestIds)
+          ];
 
           // AI : Single optimized query that extracts all data including corners as JSON
           // AI : Uses Drizzle ORM for main data to preserve Date objects through superjson
