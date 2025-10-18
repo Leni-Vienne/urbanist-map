@@ -13,6 +13,7 @@ import { createColorIcon } from '@composables/ui/markerIcons';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { withErrorHandling, withErrorToast } from '@composables/core/useErrorHandling';
+import { mobileAwareFlyToBounds } from '@composables/map/useMobileAwareFly';
 import type { OverlayData, MarkerColor } from '@types';
 
 // AI : Minimum zoom level required to load city projects and overlays
@@ -148,6 +149,11 @@ function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void {
     const markerIcon = createColorIcon(markerColor);
     const marker = L.marker([position.lat, position.lng], { icon: markerIcon });
 
+    // AI : Add click handler to fly to overlay position
+    marker.on('click', () => {
+      flyToOverlayMarker(overlay);
+    });
+
     // AI : Add data-testid to the marker element after it's added to the DOM
     marker.on('add', () => {
       const markerElement = marker.getElement();
@@ -282,6 +288,34 @@ export function checkZoomAndHideOverlays(): void {
     // AI : Clear overlays from map when zoom is too low
     clearAllOverlays();
     // AI : Note: We don't clear mapStore.currentCityOverlays because it's needed for navigation
+  }
+}
+
+/**
+ * AI : Fly to overlay marker position with appropriate zoom level
+ */
+function flyToOverlayMarker(overlayData: OverlayData): void {
+  if (!map.value) return;
+
+  const overlayStore = useOverlayStore();
+
+  // AI : Check if overlay has corners data to create bounds
+  const corners = overlayData.corners;
+  if (corners && corners.length === 4) {
+    // AI : Check for edit mode cached positions
+    const cachedPosition = overlayStore.isEditMode ? getFromEditModeOverlayCache(overlayData.id) : null;
+    const cornersToUse = cachedPosition?.corners ?? corners;
+
+    // AI : Create bounds from corners
+    const leafletCorners = cornersToUse.map(corner => L.latLng(corner.lat, corner.lng));
+    const bounds = L.latLngBounds(leafletCorners);
+
+    // AI : Fly to bounds with padding
+    mobileAwareFlyToBounds(bounds, {
+      padding: [50, 50] as [number, number],
+      duration: 1.5,
+      easeLinearity: 0.25
+    });
   }
 }
 
