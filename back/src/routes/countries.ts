@@ -3,21 +3,36 @@ import { countries, cities, projects } from '../db/schema';
 import { eq, exists, and, inArray } from 'drizzle-orm';
 import { db } from '../database';
 import * as z from 'zod';
+import {
+  getUserOverlayChangeRequestIds,
+  buildProjectVisibilityCondition,
+  buildProjectHasVisibleContentCondition,
+  type ApprovalStatus
+} from '../db/visibilityHelpers';
 
 export const countriesRouter = router({
-  // AI : Get all countries that have at least one city with an approved project
+  // AI : Get all countries that have at least one city with a visible project
   getCountriesWithProjects: publicProcedure
     .input(z.object({
-      includeStatus: z.array(z.enum(['pending', 'approved', 'rejected'])).optional(), // AI : Optional status filter for admins
+      viewMode: z.boolean().optional().default(true), // AI : true for view mode (approved only), false for edit mode (include user's own)
+      includeStatus: z.array(z.enum(['pending', 'approved', 'rejected'])).optional(), // AI : Optional status filter for admins (overrides viewMode)
     }).optional())
     .query(async ({ input, ctx }) => {
       try {
-        // AI : Build status condition based on admin privileges
-        let statusCondition;
+        const viewMode = input?.viewMode ?? true;
+
+        // AI : Fetch user's overlay change request IDs if in edit mode
+        const overlayChangeRequestIds = ctx.user && !viewMode
+          ? await getUserOverlayChangeRequestIds(db, ctx.user.id)
+          : undefined;
+
+        // AI : Build visibility conditions using helper functions
+        // AI : Admin includeStatus filter overrides normal viewMode logic
+        let projectCondition;
         if (input?.includeStatus && ctx.user?.role === 'admin' && input.includeStatus.length > 0) {
-          statusCondition = inArray(projects.status, input.includeStatus);
+          projectCondition = inArray(projects.status, input.includeStatus as ApprovalStatus[]);
         } else {
-          statusCondition = eq(projects.status, 'approved');
+          projectCondition = buildProjectVisibilityCondition(ctx.user, viewMode);
         }
 
         return await db
@@ -36,7 +51,8 @@ export const countriesRouter = router({
                 .innerJoin(projects, eq(projects.cityId, cities.id))
                 .where(and(
                   eq(cities.countryCode, countries.code),
-                  statusCondition
+                  projectCondition,
+                  buildProjectHasVisibleContentCondition(ctx.user, viewMode, overlayChangeRequestIds)
                 ))
             )
           )
