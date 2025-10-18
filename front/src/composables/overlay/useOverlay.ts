@@ -57,7 +57,7 @@ export function updateOverlayEditingState(): void {
 
     // AI : Update overlay options using the new setOptions method
     overlayObject.overlay.setOptions({
-      actions: [...(overlayStore.isEditMode ? editTools : viewTools)],
+      actions: [...(overlayStore.isEditMode ? getEditToolsForOverlay(overlayObject) : viewTools)],
       draggable: overlayStore.isEditMode,
     });
 
@@ -149,7 +149,7 @@ export function createOverlay(imageUrl: string, overlayObject?: OverlayObject) {
       editable: true,
       keyboard: false,
       actions: [
-        ...(overlayStore.isEditMode ? editTools : viewTools)
+        ...(overlayStore.isEditMode ? getEditToolsForOverlay(overlayObject) : viewTools)
       ],
       corners: leafletCorners,
       dragBehavior: 'auto',
@@ -1710,7 +1710,7 @@ export const redoTool = L.Toolbar2.Action.extend({
 export const resetRatioTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
-      html: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0078a8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 7 5 5-5 5V7" /><path d="m21 7-5 5 5 5V7" /><path d="M12 20v2" /><path d="M12 14v2" /><path d="M12 8v2" /><path d="M12 2v2" /></svg>',
+      html: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0078a8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-move-diagonal-icon lucide-move-diagonal"><path d="M11 19H5v-6"/><path d="M13 5h6v6"/><path d="M19 5 5 19"/></svg>',
       tooltip: 'Reset Image Ratio',
     },
   },
@@ -1718,6 +1718,56 @@ export const resetRatioTool = L.Toolbar2.Action.extend({
     resetImageRatio();
   },
 });
+
+/**
+ * AI : Check if user can delete an overlay
+ * AI : Only allow deletion if:
+ * 1. Overlay is a new local overlay (not saved remotely)
+ * 2. Overlay has pending changes (user's modification)
+ */
+function canDeleteOverlay(overlayObject: OverlayObject): boolean {
+  // AI : Allow deletion of new local overlays (not saved to backend yet)
+  if (!overlayObject.savedRemotely) {
+    return true;
+  }
+
+  // AI : Allow deletion if overlay has pending changes (user's modification)
+  if (overlayObject.hasPendingChanges || overlayObject.isModified) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * AI : Get edit tools for an overlay based on user permissions
+ * AI : Dynamically builds toolbar with only tools the user has permission to use
+ */
+function getEditToolsForOverlay(overlayObject: OverlayObject): typeof L.Toolbar2.Action[] {
+
+  const baseTools: typeof L.Toolbar2.Action[] = [
+    infoTool,
+    undoTool,
+    redoTool,
+    L.DragAction,
+    L.ResizeRotateAction,
+    L.DistortAction,
+    resetRatioTool,
+    L.OpacityAction,
+    L.OpacitiesAction,
+    previousOverlayTool,
+    nextOverlayTool,
+    L.StackAction,
+    replaceOverlayTool,
+  ];
+
+  // AI : Only add delete tool if user has permission
+  if (canDeleteOverlay(overlayObject)) {
+    baseTools.push(customDeleteTool);
+  }
+
+  return baseTools;
+}
 
 export const customDeleteTool = L.Toolbar2.Action.extend({
   options: {
@@ -1731,6 +1781,7 @@ export const customDeleteTool = L.Toolbar2.Action.extend({
     if (!overlayStore.idSelectedOverlay) {
       return;
     }
+
     if (confirm('Are you sure you want to delete this overlay from local storage?')) {
       deleteOverlayButtonPressed(overlayStore.idSelectedOverlay);
       overlayStore.idSelectedOverlay = null;
@@ -1755,23 +1806,6 @@ export const replaceOverlayTool = L.Toolbar2.Action.extend({
     overlayStore.requestOverlayReplacement(overlayStore.idSelectedOverlay);
   },
 });
-
-export const editTools = [
-  infoTool,
-  undoTool,
-  redoTool,
-  L.DragAction,
-  L.ResizeRotateAction,
-  L.DistortAction,
-  resetRatioTool,
-  L.OpacityAction,
-  L.OpacitiesAction,
-  previousOverlayTool,
-  nextOverlayTool,
-  L.StackAction,
-  replaceOverlayTool,
-  customDeleteTool,
-];
 
 export const viewTools = [
   infoTool,
