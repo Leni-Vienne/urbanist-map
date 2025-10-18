@@ -1,6 +1,4 @@
 import L from "leaflet";
-import 'leaflet-doubletapdrag';
-import 'leaflet-doubletapdragzoom';
 import { ref, shallowRef } from 'vue';
 import { debounce } from '../../utils';
 
@@ -68,19 +66,16 @@ function calculateMinZoom(): number {
 }
 
 export function initializeMap() {
-  // AI : Detect mobile device for conditional zoom settings
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
   map.value = L.map("mapDiv", {
     minZoom: calculateMinZoom(),
     maxZoom: 22,
-    zoomAnimation: true, // true by default
-    zoomAnimationThreshold: 4, // default is 4
     zoomControl: false, // because we have our own zoom control
     maxBounds: L.latLngBounds([-85, -180], [85, 180]),
     maxBoundsViscosity: 0.8, // gently bounce back
-    // AI : Enable smooth zoom with no snapping only on mobile
-    ...(isMobile && {
+    touchZoom: true, // true otherwise the website is zoomed instead of the map on mobile,
+    keyboard: false,
+    /*...(isMobile && {
       zoomSnap: 0,
       zoomDelta: 0.25,
       // AI : Enable inertia for smooth momentum on all interactions
@@ -88,13 +83,12 @@ export function initializeMap() {
       inertiaDeceleration: 1500, // slightly slower deceleration for smoother feel
       inertiaMaxSpeed: 1500, // reasonable max speed limit
       // AI : Enable bouncing at zoom limits for better UX
-      bounceAtZoomLimits: true,
     }),
-    touchZoom: true,
+    // attempted to use double-tap-drag to zoom on mobile, it's really bad (unwanted movement, especially when doing short repeated drags)
     doubleTapDragZoom: true,
     doubleTapDragZoomOptions: {
       reverse: true,
-    },
+    },*/
   }).setView([22, 10], calculateMinZoom());
   if (!map.value) throw new Error('No map element found');
 

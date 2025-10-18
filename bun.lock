@@ -13,8 +13,6 @@
         "hono": "^4.10.1",
         "hono-sessions": "^0.8.0",
         "leaflet-distortableimage": "Leni-vienne/Leaflet.DistortableImage",
-        "leaflet-doubletapdrag": "^0.1.2",
-        "leaflet-doubletapdragzoom": "^0.3.2",
         "leaflet-toolbar": "^0.4.0-alpha.2",
         "nodemailer": "^7.0.9",
         "pinia": "^3.0.3",
@@ -26,6 +24,7 @@
         "tailwindcss": "^4.1.14",
         "tailwindcss-primeui": "^0.6.1",
         "vite": "^7.1.10",
+        "vite-plugin-qrcode": "^0.3.0",
         "vue": "^3.5.22",
         "vue-i18n": "^11.1.12",
         "vue-router": "^4.6.3",
@@ -1059,10 +1058,6 @@
 
     "leaflet-distortableimage": ["leaflet-distortableimage@github:Leni-vienne/Leaflet.DistortableImage#70e256f", { "dependencies": { "exif-js": "^2.3.0", "glfx": "0.0.4", "leaflet-google-places-autocomplete": "^0.0.9", "leaflet-toolbar": "0.4.0-alpha.2", "webgl-distort": "0.0.2" }, "peerDependencies": { "leaflet": "1.x" } }, "Leni-Vienne-Leaflet.DistortableImage-70e256f"],
 
-    "leaflet-doubletapdrag": ["leaflet-doubletapdrag@0.1.2", "", { "peerDependencies": { "leaflet": "^1.0.0" } }, "sha512-YE7fyTrAAMxy+tX4VxqM14TuSvLPaiXzmYGCQnp3D1phmCg7AEe6KZqgQa/gJ8w5oocG1RTSNMQDlMIDAwmCWA=="],
-
-    "leaflet-doubletapdragzoom": ["leaflet-doubletapdragzoom@0.3.2", "", { "dependencies": { "leaflet-doubletapdrag": "^0.1.0" }, "peerDependencies": { "leaflet": "^1.0.0" } }, "sha512-zwW9sWR2V8q0y5xFYvK8guKpHHZ9XDYAvVsyL78QmaCLkAeMpZwgV/yAMG9rRleF+k9zjVWQp/C5tu2OhkGnFw=="],
-
     "leaflet-google-places-autocomplete": ["leaflet-google-places-autocomplete@0.0.9", "", {}, "sha512-NHefPZn53GQIjuAZmwEN/KTy8TobEu8kRU/WlYR58j5WrQU3vZ4w2OKVUCFzKU5jlWxeZP/SQTFhmXf2vkHIeQ=="],
 
     "leaflet-toolbar": ["leaflet-toolbar@0.4.0-alpha.2", "", { "peerDependencies": { "leaflet": "*" } }, "sha512-g1KeU3DYGUOwXTS0vKIgJ8KgY0h/2B0qENNQUSYMFtSY2yzwaHWMbDyhDbk+aO8LgJ1iOX4fUt2bh1sYZbpmmQ=="],
@@ -1226,6 +1221,8 @@
     "proto-list": ["proto-list@1.2.4", "", {}, "sha512-vtK/94akxsTMhe0/cbfpR+syPuszcuwhqVjJq26CuNDgFGj682oRBXOP5MJpv2r7JtE8MsiepGIqvvOTBwn2vA=="],
 
     "punycode": ["punycode@2.3.1", "", {}, "sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg=="],
+
+    "qrcode-terminal": ["qrcode-terminal@0.12.0", "", { "bin": { "qrcode-terminal": "./bin/qrcode-terminal.js" } }, "sha512-EXtzRZmC+YGmGlDFbXKxQiMZNwCLEO6BANKXG4iCtSIM0yqc/pappSx3RIKr4r0uh5JsBckOXeKrB3Iz7mdQpQ=="],
 
     "quansync": ["quansync@0.2.11", "", {}, "sha512-AifT7QEbW9Nri4tAwR5M/uzpBuqfZf+zwaEM/QkzEjj7NBuFD2rBuy0K3dE+8wltbezDV7JMA0WfnCPYRSYbXA=="],
 
@@ -1410,6 +1407,8 @@
     "vite-plugin-inspect": ["vite-plugin-inspect@11.3.3", "", { "dependencies": { "ansis": "^4.1.0", "debug": "^4.4.1", "error-stack-parser-es": "^1.0.5", "ohash": "^2.0.11", "open": "^10.2.0", "perfect-debounce": "^2.0.0", "sirv": "^3.0.1", "unplugin-utils": "^0.3.0", "vite-dev-rpc": "^1.1.0" }, "peerDependencies": { "vite": "^6.0.0 || ^7.0.0-0" } }, "sha512-u2eV5La99oHoYPHE6UvbwgEqKKOQGz86wMg40CCosP6q8BkB6e5xPneZfYagK4ojPJSj5anHCrnvC20DpwVdRA=="],
 
     "vite-plugin-istanbul": ["vite-plugin-istanbul@7.2.0", "", { "dependencies": { "@babel/generator": "^7.28.0", "@istanbuljs/load-nyc-config": "^1.1.0", "espree": "^10.3.0", "istanbul-lib-instrument": "^6.0.3", "picocolors": "^1.1.1", "source-map": "^0.7.4", "test-exclude": "^7.0.1" }, "peerDependencies": { "vite": ">=4 <=7" } }, "sha512-bZGwPaFBRMSUAhBMlkezr+XRzPidqMhuL28svdVUzy6ltI8aQbkZfGKwHk7sJgVrQ1QCFdg6lFwFApK1SN1xUw=="],
+
+    "vite-plugin-qrcode": ["vite-plugin-qrcode@0.3.0", "", { "dependencies": { "qrcode-terminal": "^0.12.0" }, "peerDependencies": { "vite": "^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0" } }, "sha512-tCsN3ckHmFs9vRyFwdNdmlMzzt8iX7hZQrMMOhIIpu8SchfHgA78TIGBfeRnXARBo71qBPC7+O2rgMqPsOdCzg=="],
 
     "vite-plugin-vue-devtools": ["vite-plugin-vue-devtools@8.0.3", "", { "dependencies": { "@vue/devtools-core": "^8.0.3", "@vue/devtools-kit": "^8.0.3", "@vue/devtools-shared": "^8.0.3", "sirv": "^3.0.2", "vite-plugin-inspect": "^11.3.3", "vite-plugin-vue-inspector": "^5.3.2" }, "peerDependencies": { "vite": "^6.0.0 || ^7.0.0-0" } }, "sha512-yIi3u31xUi28HcLlTpV0BvSLQHgZ2dA8Zqa59kWfIeMdHqbsunt6TCjq4wCNfOcGSju+E7qyHyI09EjRRFMbuQ=="],
 
