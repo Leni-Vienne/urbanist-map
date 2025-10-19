@@ -37,7 +37,7 @@
             <Card
               class="project-details-card"
               :class="{ 'marker-project-card': project.isDevelopment }"
-              @click="project.isDevelopment && !$slots['project-actions'] ? handleDevelopmentProjectClick(project) : null"
+              @click="handleCardClick(project)"
             >
               <template #content>
                 <div class="project-content-wrapper">
@@ -88,27 +88,25 @@
                     </div>
                   </div>
 
-                  <!-- AI : Project actions slot for moderation panel - match overlay layout -->
-                  <div
-                    v-if="$slots['project-actions']"
-                    class="flex flex-col gap-2"
-                  >
+                  <!-- AI : Actions column - either slot actions or zoom button -->
+                  <div class="project-actions-column">
+                    <!-- AI : Project actions slot for moderation panel -->
                     <slot
+                      v-if="$slots['project-actions']"
                       name="project-actions"
                       :project="project"
                     ></slot>
-                  </div>
 
-                  <!-- AI : Zoom icon for development projects -->
-                  <Button
-                    v-if="project.isDevelopment && !$slots['project-actions']"
-                    icon="pi pi-search"
-                    :aria-label="$t('overlay.zoomTo') + ' ' + project.name"
-                    @click="handleDevelopmentProjectClick(project)"
-                    text
-                    rounded
-                    size="small"
-                  />
+                    <!-- AI : Zoom button for development projects (always shown for dev projects) -->
+                    <button
+                      v-if="project.isDevelopment"
+                      class="action-btn"
+                      @click.stop="handleDevelopmentProjectClick(project)"
+                      v-tooltip.top="$t('overlay.zoomTo') + ' ' + project.name"
+                    >
+                      <i class="pi pi-search"></i>
+                    </button>
+                  </div>
                 </div>
 
                 <!-- AI : Project change requests -->
@@ -130,7 +128,7 @@
                                 icon="pi pi-map-marker"
                                 :label="$t('overlay.viewCurrentPosition')"
                                 @click.stop="previewGeometry(change.oldValue, 'old', change.id)"
-                                severity="danger"
+                                severity="success"
                                 :outlined="!(activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'old')"
                                 size="small"
                               />
@@ -138,7 +136,7 @@
                                 icon="pi pi-map-marker"
                                 :label="$t('overlay.viewSuggestedPosition')"
                                 @click.stop="previewGeometry(change.newValue, 'new', change.id)"
-                                severity="success"
+                                severity="warn"
                                 :outlined="!(activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'new')"
                                 size="small"
                               />
@@ -272,7 +270,7 @@
                                 icon="pi pi-map-marker"
                                 :label="$t('overlay.viewCurrentPosition')"
                                 @click.stop="previewGeometry(change.oldValue, 'old', change.id)"
-                                severity="danger"
+                                severity="success"
                                 :outlined="!(activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'old')"
                                 size="small"
                               />
@@ -280,7 +278,7 @@
                                 icon="pi pi-map-marker"
                                 :label="$t('overlay.viewSuggestedPosition')"
                                 @click.stop="previewGeometry(change.newValue, 'new', change.id)"
-                                severity="success"
+                                severity="warn"
                                 :outlined="!(activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'new')"
                                 size="small"
                               />
@@ -346,9 +344,9 @@ import { navigateToDevelopmentProject } from '@composables/navigation/useOverlay
 import { useOverlayClickHandler } from '@composables/overlay/useOverlayClickHandler'
 import { useChangeRequestDisplay } from '@composables/changes/useChangeRequestDisplay'
 import { useToast } from '@composables/ui/useToast'
+import { useOverlayStore } from '@stores/pinia/overlayStore'
 import type { ProjectForModeration, OverlayForModeration } from '@types'
 import type { PendingChangeRequest } from '../../types/api'
-import Button from 'primevue/button'
 
 // AI : Props interface
 interface Props {
@@ -428,7 +426,7 @@ function getStatusSeverity(status: string): string {
     case 'rejected':
       return 'danger'
     case 'pending':
-      return 'warning'
+      return 'warn'
     default:
       return 'info'
   }
@@ -532,7 +530,16 @@ function shouldShowOverlays(project: ProjectForModeration): boolean {
   return expandedPanels.value.has(project.id)
 }
 
-// AI : Handle development project click - zoom to marker location
+// AI : Handle card click - navigate for development projects
+function handleCardClick(project: ProjectForModeration) {
+  // AI : For development projects, clicking the card also navigates (in addition to the button)
+  // AI : This provides a larger click area for better UX
+  if (project.isDevelopment) {
+    handleDevelopmentProjectClick(project)
+  }
+}
+
+// AI : Handle development project click - zoom to marker location and open popup
 async function handleDevelopmentProjectClick(project: ProjectForModeration) {
   try {
     if (!project.lat || !project.lng) {
@@ -555,12 +562,19 @@ async function handleDevelopmentProjectClick(project: ProjectForModeration) {
       return
     }
 
+    // AI : Ensure edit mode is enabled before navigating (required to see markers)
+    const overlayStore = useOverlayStore()
+    if (!overlayStore.isEditMode) {
+      overlayStore.setEditMode(true)
+    }
+
     await navigateToDevelopmentProject(
       project.lat,
       project.lng,
       project.cityId,
       project.cityName,
-      project.countryCode ?? undefined
+      project.countryCode ?? undefined,
+      project.id
     )
   } catch (error) {
     console.error('Failed to navigate to development project:', error)
@@ -632,11 +646,48 @@ async function handleDevelopmentProjectClick(project: ProjectForModeration) {
   gap: 0.75rem;
 }
 
-/* AI : Project content wrapper flex layout like overlay cards */
+/* AI : Project content wrapper with vertical button stack on the right */
 .project-content-wrapper {
   display: flex;
+  flex-direction: row;
   align-items: flex-start;
   gap: 0.75rem;
+}
+
+/* AI : Actions column - vertical stack of buttons on the right */
+.project-actions-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+/* AI : Override any flex row styles from child components */
+.project-actions-column > * {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* AI : Action button styling - matches moderation panel buttons */
+.action-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 0.875rem;
+}
+
+.action-btn:hover {
+  border-color: #d1d5db;
+  background-color: #f9fafb;
 }
 
 /* AI : Development project card styling - similar to overlay cards */
@@ -842,8 +893,8 @@ async function handleDevelopmentProjectClick(project: ProjectForModeration) {
 }
 
 .old-value {
-  color: #dc2626;
-  background: #fef2f2;
+  color: #059669;
+  background: #ecfdf5;
   padding: 0.125rem 0.25rem;
   border-radius: 3px;
   word-break: break-word;
@@ -851,8 +902,8 @@ async function handleDevelopmentProjectClick(project: ProjectForModeration) {
 }
 
 .new-value {
-  color: #059669;
-  background: #ecfdf5;
+  color: var(--p-tag-warn-color);
+  background: var(--p-tag-warn-background);
   padding: 0.125rem 0.25rem;
   border-radius: 3px;
   word-break: break-word;

@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import type { Project, OverlayObject } from "@types";
+import { updateDevelopmentMarkerOpacities } from "@composables/map/useCityMarkers";
 
 export interface ProjectDialogState {
   visible: boolean;
@@ -147,8 +148,8 @@ export const useUiStore = defineStore("ui", () => {
       project: null,
     };
 
-    // AI : Don't clean up teleport target immediately - let it stay for next click
-    // The cleanup will happen when switching markers or cities
+    // AI : Reset development marker opacities when closing popup
+    updateDevelopmentMarkerOpacities(null);
   }
 
   // AI : Close all UI elements (used for cleanup)

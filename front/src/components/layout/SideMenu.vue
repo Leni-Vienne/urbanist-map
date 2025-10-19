@@ -108,9 +108,9 @@ watch(() => authStore.isModerator, (isModerator) => {
   }
 })
 
-// AI : Watch for tab changes and enable edit mode when switching to "my contributions"
+// AI : Watch for tab changes and enable edit mode when switching to "my contributions" or "moderation"
 watch(activeTab, (newTab) => {
-  if (newTab === 'uploads') {
+  if (newTab === 'uploads' || newTab === 'moderation') {
     overlayStore.setEditMode(true)
   }
 })

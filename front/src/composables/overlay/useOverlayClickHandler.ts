@@ -19,7 +19,7 @@ export function useOverlayClickHandler() {
 
   /**
    * AI : Navigate to an overlay, handling all necessary state changes
-   * AI : - Switches to edit mode for pending overlays
+   * AI : - Switches to edit mode if not already enabled (required to see overlays)
    * AI : - Clears city cache to force reload
    * AI : - Uses city-aware navigation when possible for better UX
    */
@@ -28,18 +28,21 @@ export function useOverlayClickHandler() {
       const overlayStore = useOverlayStore()
       const mapStore = useMapStore()
 
-      // AI : If overlay is pending, switch to edit mode first so it becomes visible
-      if (overlay.status === 'pending' && !overlayStore.isEditMode) {
+      // AI : Ensure edit mode is enabled before navigating
+      if (!overlayStore.isEditMode) {
         await toggleEditMode()
 
-        toast.add({
-          severity: 'info',
-          summary: 'Switched to Edit Mode',
-          detail: 'Pending overlays are only visible in edit mode',
-          life: 3000
-        })
+        // AI : Only show toast for pending overlays (for approved ones it's less critical)
+        if (overlay.status === 'pending') {
+          toast.add({
+            severity: 'info',
+            summary: 'Switched to Edit Mode',
+            detail: 'Pending overlays are only visible in edit mode',
+            life: 3000
+          })
+        }
 
-        // AI : Clear city cache to force reload with pending overlays visible
+        // AI : Clear city cache to force reload with edit mode enabled
         if (overlay.cityId) {
           mapStore.clearCityProjectsCache(overlay.cityId)
           mapStore.clearCityDevelopmentProjectsCache(overlay.cityId)

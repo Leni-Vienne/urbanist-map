@@ -56,6 +56,23 @@ export function resetLayerMarkersOpacity(layerGroup: L.LayerGroup | null, defaul
   });
 }
 
+// AI : Update development marker opacities based on selected marker
+export function updateDevelopmentMarkerOpacities(selectedMarker: L.Marker | null) {
+  if (!developmentProjectsLayer) return;
+
+  selectedDevelopmentMarker = selectedMarker;
+
+  developmentProjectsLayer.eachLayer((layer) => {
+    if (layer instanceof L.Marker) {
+      if (selectedMarker && layer === selectedMarker) {
+        layer.setOpacity(1); // AI : Fully opaque for selected marker
+      } else {
+        layer.setOpacity(BUILDING_MARKER_OPACITY); // AI : Default opacity for others
+      }
+    }
+  });
+}
+
 // AI : Type aliases using RouterOutput from tRPC
 export type CityWithProjects = RouterOutput['cities']['getCitiesWithProjects'][number];
 
@@ -70,6 +87,9 @@ let developmentProjectsLayer: L.LayerGroup | null = null;
 
 // AI : Track the currently selected (clicked) city marker
 let selectedCityMarker: L.Marker | null = null;
+
+// AI : Track the currently selected development marker (for opacity control)
+let selectedDevelopmentMarker: L.Marker | null = null;
 
 // AI : Store the current marker for position tracking
 let currentMarkerForPopup: L.Marker | L.CircleMarker | null = null;
@@ -168,6 +188,9 @@ export function cleanupProjectInfoTeleportTarget() {
 
   // AI : Clear marker reference
   currentMarkerForPopup = null;
+
+  // AI : Reset development marker opacities when popup closes
+  updateDevelopmentMarkerOpacities(null);
 }
 
 /**
@@ -251,9 +274,14 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
           marker.setOpacity(MARKER_HOVER_OPACITY);
         });
 
-        // AI : Add mouseout event to reset marker opacity
+        // AI : Add mouseout event to reset marker opacity (unless it's the selected marker)
         marker.on('mouseout', () => {
-          marker.setOpacity(BUILDING_MARKER_OPACITY);
+          // AI : If this is the selected marker, keep it fully opaque
+          if (selectedDevelopmentMarker === marker) {
+            marker.setOpacity(1);
+          } else {
+            marker.setOpacity(BUILDING_MARKER_OPACITY);
+          }
         });
 
         // AI : Add click handler for development project - show info popup first
@@ -267,11 +295,16 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
           if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
             // AI : Close the popup if it's already open for this project
             uiStore.closeProjectInfoPopup();
+            // AI : Reset all marker opacities
+            updateDevelopmentMarkerOpacities(null);
             return;
           }
 
           // AI : Create teleport target at marker position
           createProjectInfoTeleportTarget(marker);
+
+          // AI : Update marker opacities (make this one fully opaque)
+          updateDevelopmentMarkerOpacities(marker);
 
           // AI : Use uiStore to show project info popup, convert backend projects to local format
           const projectData = 'overlayIds' in project ? project : createProject({
