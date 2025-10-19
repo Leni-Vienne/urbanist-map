@@ -28,7 +28,7 @@ export function mobileAwareFlyTo(
   if (!map.value) return
 
   const latLng = L.latLng(latlng)
-  
+
   if (!shouldApplyMobileOffset()) {
     // AI : Desktop or drawer closed - center normally
     map.value.flyTo([latLng.lat, latLng.lng], zoom, options)
@@ -42,7 +42,7 @@ export function mobileAwareFlyTo(
     [latLng.lat - offset, latLng.lng - offset],
     [latLng.lat + offset, latLng.lng + offset]
   )
-  
+
   // AI : Use flyToBounds with mobile-aware padding and target zoom
   const fitOptions: FitBoundsOptions = {
     ...options,
@@ -50,7 +50,7 @@ export function mobileAwareFlyTo(
     paddingTopLeft: [50, 50] as [number, number],
     paddingBottomRight: [50, window.innerHeight * 0.45] as [number, number]
   }
-  
+
   map.value.flyToBounds(bounds, fitOptions)
 }
 

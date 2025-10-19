@@ -33,3 +33,23 @@
 .leaflet-interactive{
   z-index: 200 !important;
 }
+
+:root {
+  /* Tag */
+  --p-tag-warn-background: #fef9c3!important;
+  --p-tag-warn-color: #ca8a04!important;
+
+  --p-message-warn-background: #fef9c3;
+  --p-message-warn-color: #ca8a04;
+
+  /* Toast */
+  --p-toast-warn-background: #fef9c3;
+  --p-toast-warn-color: #ca8a04;
+
+  /* Button / Badge / others — common tokens */
+  --p-button-warn-background: #fef9c3;
+  --p-button-warn-color: #ca8a04;
+
+  --p-badge-warn-background: #fef9c3;
+  --p-badge-warn-color: #ca8a04;
+}

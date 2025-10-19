@@ -12,7 +12,7 @@ import { useProjectStore } from '@stores/pinia/projectStore';
 
 /**
  * AI : Shared logic for navigating to a location by simulating country → city marker clicks
- * AI : This loads the country cities, adds city markers, and loads city projects
+ * AI : This loads the country cities, adds city markers, and load city projects
  */
 async function prepareNavigationToCity(
   cityId: string,
@@ -170,17 +170,22 @@ export async function navigateToOverlayWithCity(
  * @param cityId - The city ID where the marker project is located
  * @param cityName - The name of the city
  * @param countryCode - The country code for proper tile layer switching
+ * @param projectId - Optional project ID to open the info popup after navigation
  */
 export async function navigateToDevelopmentProject(
   lat: number,
   lng: number,
   cityId: string,
   cityName: string,
-  countryCode?: string
+  countryCode?: string,
+  projectId?: string
 ): Promise<void> {
   try {
     // AI : Prepare navigation (load country cities and city projects)
     await prepareNavigationToCity(cityId, cityName, countryCode);
+
+    // AI : Wait a bit for markers to be added to the map
+    await new Promise(resolve => setTimeout(resolve, 200));
 
     // AI : Fly to marker project coordinates
     if (!map.value) {
@@ -191,6 +196,33 @@ export async function navigateToDevelopmentProject(
       duration: 1.5,
       easeLinearity: 0.25
     });
+
+    // AI : If projectId provided, open the project info popup after flyTo completes
+    if (projectId) {
+      // AI : Wait for the flyTo animation to complete
+      map.value.once('moveend', () => {
+        if (!map.value) return;
+
+        // AI : Find the marker on the map and trigger click to open popup
+        const developmentLayer = (map.value as any)._layers;
+        let foundMarker: L.Marker | null = null;
+
+        Object.values(developmentLayer).forEach((layer: any) => {
+          if (layer instanceof L.Marker) {
+            const markerLatLng = layer.getLatLng();
+            // AI : Check if this marker is at the same position as our target
+            if (Math.abs(markerLatLng.lat - lat) < 0.0001 && Math.abs(markerLatLng.lng - lng) < 0.0001) {
+              foundMarker = layer;
+            }
+          }
+        });
+
+        // AI : Click the marker to open the popup (which will also update opacity)
+        if (foundMarker) {
+          (foundMarker as any).fire('click');
+        }
+      });
+    }
   } catch (error) {
     console.error('Failed to navigate to marker project:', error);
     throw error;

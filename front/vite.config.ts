@@ -80,7 +80,13 @@ export default defineConfig({
       'primevue/tooltip',
       'primevue/toastservice',
       'primevue/usetoast',
-      'primevue/drawer'
+      'primevue/drawer',
+      'primevue/accordion', 
+      'primevue/accordioncontent', 
+      'primevue/accordionheader', 
+      'primevue/accordionpanel', 
+      'primevue/card', 
+      'primevue/tag'
     ]
   },
   // AI : External leaflet to prevent bundling 
