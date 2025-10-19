@@ -95,6 +95,16 @@ let selectedDevelopmentMarker: L.Marker | null = null;
 let currentMarkerForPopup: L.Marker | L.CircleMarker | null = null;
 let mapClickHandler: (() => void) | null = null;
 
+// AI : Map to store project ID to marker references for easy lookup
+const developmentMarkerMap = new Map<string, L.Marker>();
+
+/**
+ * AI : Get development marker by project ID
+ */
+export function getDevelopmentMarkerByProjectId(projectId: string): L.Marker | undefined {
+  return developmentMarkerMap.get(projectId);
+}
+
 /**
  * AI : Update teleport target position based on current marker
  */
@@ -116,7 +126,7 @@ function updateTeleportTargetPosition() {
 /**
  * AI : Create teleport target for project info popup at marker position
  */
-function createProjectInfoTeleportTarget(marker: L.Marker | L.CircleMarker) {
+export function createProjectInfoTeleportTarget(marker: L.Marker | L.CircleMarker) {
   if (!map.value) return;
 
   // AI : Remove any existing teleport target and event listeners
@@ -241,6 +251,9 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
     }
     developmentProjectsLayer = L.layerGroup();
 
+    // AI : Clear the marker map
+    developmentMarkerMap.clear();
+
     allDevelopmentProjects.forEach(project => {
       if (project.lat && project.lng) {
         // AI : Get marker color based on edit mode and status
@@ -316,6 +329,9 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
           uiStore.openProjectInfoPopup(project.id, projectData);
         });
 
+        // AI : Store marker in map for easy lookup
+        developmentMarkerMap.set(project.id, marker);
+
         marker.addTo(developmentProjectsLayer!);
       }
     });
@@ -337,14 +353,21 @@ export async function loadCityProjects(cityId: string | null, cityName: string, 
       const mapStore = useMapStore();
       const uiStore = useUiStore();
 
+      // AI : Check if we're switching to a different city
+      const previousCityId = mapStore.selectedCity?.id;
+      const isSwitchingCity = previousCityId !== cityId;
+
       mapStore.setSelectedCity({ id: cityId, name: cityName, countryCode: cityCountryCode });
 
-      // AI : Clear selected project when switching cities
-      const { selectedProjectId } = useSelectedProject();
-      selectedProjectId.value = null;
+      // AI : Only clear state when actually switching cities, not when refreshing
+      if (isSwitchingCity) {
+        // AI : Clear selected project when switching cities
+        const { selectedProjectId } = useSelectedProject();
+        selectedProjectId.value = null;
 
-      // AI : Close project info popup when switching cities
-      uiStore.closeProjectInfoPopup();
+        // AI : Close project info popup when switching cities
+        uiStore.closeProjectInfoPopup();
+      }
 
       // AI : Load both overlay projects and development projects
       await Promise.all([

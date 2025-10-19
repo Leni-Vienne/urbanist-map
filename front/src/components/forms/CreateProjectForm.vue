@@ -168,7 +168,7 @@
                         optionLabel="displayName"
                         optionValue="id"
                         class="w-full"
-                        :showClear="true"
+                        :showClear="false"
                         :loading="citiesLoading"
                         :disabled="false"
                         required
@@ -455,7 +455,19 @@ function handleSubmit() {
         return;
     }
 
-    if (!localProject.value.cityId) {
+    // AI : Validate that location is selected AND cities were loaded/validated
+    if (!localProject.value.cityId || !citiesLoaded.value) {
+        toast.add({
+            severity: 'error',
+            summary: t('project.validationError'),
+            detail: t('project.locationRequired'),
+            life: 3000
+        });
+        return;
+    }
+
+    // AI : Validate that the selected cityId exists in the loaded cities list
+    if (cities.value.length > 0 && !cities.value.find(c => c.id === localProject.value.cityId)) {
         toast.add({
             severity: 'error',
             summary: t('project.validationError'),

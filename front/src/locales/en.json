@@ -47,6 +47,8 @@
     "noLocation": "No Location",
     "missingCityInfo": "Missing City Info",
     "cannotNavigateWithoutCity": "Cannot navigate without city information",
+    "noCitySelected": "No City Selected",
+    "selectCityBeforePlacingMarker": "Please select a city on the map before placing a development marker",
     "navigated": "Navigated",
     "viewing": "Viewing {name}",
     "projectStatus": "Project Status",
