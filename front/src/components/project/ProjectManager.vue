@@ -68,12 +68,14 @@
     @file-selected="onImageUploadFromDialog"
     @marker-coordinates="onMarkerCoordinatesSelected"
     @marker-mode-enabled="onMarkerModeEnabled"
+    @update:visible="onDialogVisibilityChange"
   />
 </template>
 
 <script setup lang="ts">
 import { ref, defineAsyncComponent } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useI18n } from 'vue-i18n'
 import L from 'leaflet'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useProjectStore } from '@stores/pinia/projectStore'
@@ -81,7 +83,7 @@ import { useMapStore } from '@stores/pinia/mapStore'
 import { useUiStore } from '@stores/uiStore'
 import { useToast } from '@composables/ui/useToast'
 import { map } from '@composables/core/useMap'
-import { loadCityProjects } from '@composables/map/useCityMarkers'
+import { loadCityProjects, getDevelopmentMarkerByProjectId, createProjectInfoTeleportTarget } from '@composables/map/useCityMarkers'
 import { addOverlay } from '@composables/overlay/useOverlay'
 import { setLastCreatedProject } from '@composables/ui/useProjectState'
 import { createProject } from '@composables/project/useProjects'
@@ -95,6 +97,7 @@ const ProjectDialog = defineAsyncComponent(() => import('@components/project/Pro
 const EditProjectForm = defineAsyncComponent(() => import('@components/forms/EditProjectForm.vue'))
 const EditOverlayForm = defineAsyncComponent(() => import('@components/forms/EditOverlayForm.vue'))
 
+const { t } = useI18n()
 const overlayStore = useOverlayStore()
 const projectStore = useProjectStore()
 const mapStore = useMapStore()
@@ -194,6 +197,23 @@ async function onImageUploadFromDialog(file: File) {
 // AI : Handle marker coordinates selection from dialog
 async function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: number }) {
   try {
+    // AI : If no city is selected, we cannot create a development project
+    if (!mapStore.selectedCity?.id) {
+      toast.add({
+        severity: 'warn',
+        summary: t('project.noCitySelected'),
+        detail: t('project.selectCityBeforePlacingMarker'),
+        life: 5000
+      });
+
+      // AI : Clean up temporary marker
+      if (tempMarker.value && map.value) {
+        map.value.removeLayer(tempMarker.value as unknown as L.Layer);
+        tempMarker.value = null;
+      }
+      return;
+    }
+
     // AI : Create development project locally (user can edit details before publishing)
     const projectData = {
       name: 'Development Marker', // AI : Default name, user can edit later
@@ -201,42 +221,54 @@ async function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: numb
       isDevelopment: true,
       lat: coordinates.lat,
       lng: coordinates.lng,
-      cityId: mapStore.selectedCity?.id, // AI : Use currently selected city if available
+      cityId: mapStore.selectedCity.id, // AI : Use currently selected city (validated above)
     };
-    
-    
+
+
     const projectId = createProject(projectData);
-    
+
     // AI : Clean up temporary marker
     if (tempMarker.value && map.value) {
       map.value.removeLayer(tempMarker.value as unknown as L.Layer);
       tempMarker.value = null;
     }
-    
-    toast.add({ 
-      severity: 'success', 
-      summary: 'Success', 
+
+    toast.add({
+      severity: 'success',
+      summary: 'Success',
       detail: 'Development project created successfully',
       life: 3000
     });
     setLastCreatedProject(projectId);
-    
+
     // AI : Small delay to ensure project is stored
     await new Promise(resolve => setTimeout(resolve, 10));
-    
-    // AI : Always try to refresh city projects first
-    if (mapStore.selectedCity) {
-      await loadCityProjects(mapStore.selectedCity.id, mapStore.selectedCity.name, true, mapStore.selectedCity.countryCode);
-    } else {
-      // AI : If no city is selected, force load for null cityId to include local projects
-      await loadCityProjects(null, '', true);
+
+    // AI : Refresh city projects to show the new marker
+    await loadCityProjects(mapStore.selectedCity.id, mapStore.selectedCity.name, true, mapStore.selectedCity.countryCode);
+
+    // AI : Wait a bit for markers to be fully created and added to DOM
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    // AI : Get the actual marker that was created and open the popup
+    const createdProject = projectStore.projects[projectId];
+    if (createdProject) {
+      // AI : Get the actual marker from the marker map
+      const actualMarker = getDevelopmentMarkerByProjectId(projectId);
+      if (actualMarker) {
+        // AI : Create teleport target with the actual marker
+        createProjectInfoTeleportTarget(actualMarker);
+
+        // AI : Open the popup
+        uiStore.openProjectInfoPopup(projectId, createdProject);
+      }
     }
   } catch (error) {
     console.error('Error creating development project:', error);
-    toast.add({ 
-      severity: 'error', 
-      summary: 'Error', 
-      detail: 'Failed to create development project' ,
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to create development project',
       life: 3000
     });
   }
@@ -246,16 +278,16 @@ async function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: numb
 // AI : Handle marker mode enabled - setup map click listener
 function onMarkerModeEnabled() {
   if (!map.value) return;
-  
+
   // AI : Add temporary click listener for marker placement
   const handleMapClick = (e: L.LeafletMouseEvent) => {
     const coordinates = { lat: e.latlng.lat, lng: e.latlng.lng };
-    
+
     // AI : Remove previous temp marker if exists
     if (tempMarker.value && map.value) {
       map.value.removeLayer(tempMarker.value as unknown as L.Layer);
     }
-    
+
     // AI : Create temporary marker for visual feedback
     tempMarker.value = L.marker([coordinates.lat, coordinates.lng], {
       icon: L.divIcon({
@@ -264,17 +296,25 @@ function onMarkerModeEnabled() {
         className: 'temp-marker-icon'
       })
     }).addTo(map.value!);
-    
+
     // AI : Pass coordinates back to dialog
     if (imageUploadDialog.value) {
       imageUploadDialog.value.setMarkerCoordinates(coordinates);
     }
-    
+
     // AI : Remove listener after first click
     map.value?.off('click', handleMapClick);
   };
-  
+
   map.value.on('click', handleMapClick);
+}
+
+// AI : Handle dialog visibility changes to clean up temporary marker on close
+function onDialogVisibilityChange(visible: boolean) {
+  if (!visible && tempMarker.value && map.value) {
+    map.value.removeLayer(tempMarker.value as unknown as L.Layer);
+    tempMarker.value = null;
+  }
 }
 
 // AI : Handle project creation/update from dialog
