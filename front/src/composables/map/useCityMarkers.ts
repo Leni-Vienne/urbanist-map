@@ -248,6 +248,7 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
     // AI : Remove existing development projects layer
     if (developmentProjectsLayer) {
       map.value.removeLayer(developmentProjectsLayer);
+      developmentProjectsLayer = null;
     }
     developmentProjectsLayer = L.layerGroup();
 
@@ -392,11 +393,12 @@ export function removeCityMarkers(): void {
     cityMarkersLayer = null;
   }
 
-  // AI : Also remove development projects layer
   if (developmentProjectsLayer && map.value?.hasLayer(developmentProjectsLayer)) {
     map.value.removeLayer(developmentProjectsLayer);
     developmentProjectsLayer = null;
   }
+
+  developmentMarkerMap.clear();
 }
 
 /**

@@ -196,41 +196,39 @@ async function onImageUploadFromDialog(file: File) {
 
 // AI : Handle marker coordinates selection from dialog
 async function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: number }) {
+  if (tempMarker.value) {
+    tempMarker.value.remove();
+    tempMarker.value = null;
+  }
+
+  if (!mapStore.selectedCity?.id) {
+    toast.add({
+      severity: 'warn',
+      summary: t('project.noCitySelected'),
+      detail: t('project.selectCityBeforePlacingMarker'),
+      life: 5000
+    });
+    return;
+  }
+
   try {
-    // AI : If no city is selected, we cannot create a development project
-    if (!mapStore.selectedCity?.id) {
-      toast.add({
-        severity: 'warn',
-        summary: t('project.noCitySelected'),
-        detail: t('project.selectCityBeforePlacingMarker'),
-        life: 5000
-      });
-
-      // AI : Clean up temporary marker
-      if (tempMarker.value && map.value) {
-        map.value.removeLayer(tempMarker.value as unknown as L.Layer);
-        tempMarker.value = null;
-      }
-      return;
-    }
-
-    // AI : Create development project locally (user can edit details before publishing)
-    const projectData = {
-      name: 'Development Marker', // AI : Default name, user can edit later
+    const projectId = createProject({
+      name: 'Development Marker',
       description: '',
       isDevelopment: true,
       lat: coordinates.lat,
       lng: coordinates.lng,
-      cityId: mapStore.selectedCity.id, // AI : Use currently selected city (validated above)
-    };
+      cityId: mapStore.selectedCity.id,
+    });
 
+    setLastCreatedProject(projectId);
 
-    const projectId = createProject(projectData);
+    await loadCityProjects(mapStore.selectedCity.id, mapStore.selectedCity.name, true, mapStore.selectedCity.countryCode);
 
-    // AI : Clean up temporary marker
-    if (tempMarker.value && map.value) {
-      map.value.removeLayer(tempMarker.value as unknown as L.Layer);
-      tempMarker.value = null;
+    const actualMarker = getDevelopmentMarkerByProjectId(projectId);
+    if (actualMarker) {
+      createProjectInfoTeleportTarget(actualMarker);
+      uiStore.openProjectInfoPopup(projectId, projectStore.projects[projectId]);
     }
 
     toast.add({
@@ -239,30 +237,6 @@ async function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: numb
       detail: 'Development project created successfully',
       life: 3000
     });
-    setLastCreatedProject(projectId);
-
-    // AI : Small delay to ensure project is stored
-    await new Promise(resolve => setTimeout(resolve, 10));
-
-    // AI : Refresh city projects to show the new marker
-    await loadCityProjects(mapStore.selectedCity.id, mapStore.selectedCity.name, true, mapStore.selectedCity.countryCode);
-
-    // AI : Wait a bit for markers to be fully created and added to DOM
-    await new Promise(resolve => setTimeout(resolve, 150));
-
-    // AI : Get the actual marker that was created and open the popup
-    const createdProject = projectStore.projects[projectId];
-    if (createdProject) {
-      // AI : Get the actual marker from the marker map
-      const actualMarker = getDevelopmentMarkerByProjectId(projectId);
-      if (actualMarker) {
-        // AI : Create teleport target with the actual marker
-        createProjectInfoTeleportTarget(actualMarker);
-
-        // AI : Open the popup
-        uiStore.openProjectInfoPopup(projectId, createdProject);
-      }
-    }
   } catch (error) {
     console.error('Error creating development project:', error);
     toast.add({
@@ -284,8 +258,9 @@ function onMarkerModeEnabled() {
     const coordinates = { lat: e.latlng.lat, lng: e.latlng.lng };
 
     // AI : Remove previous temp marker if exists
-    if (tempMarker.value && map.value) {
-      map.value.removeLayer(tempMarker.value as unknown as L.Layer);
+    if (tempMarker.value) {
+      tempMarker.value.remove();
+      tempMarker.value = null;
     }
 
     // AI : Create temporary marker for visual feedback
@@ -311,8 +286,8 @@ function onMarkerModeEnabled() {
 
 // AI : Handle dialog visibility changes to clean up temporary marker on close
 function onDialogVisibilityChange(visible: boolean) {
-  if (!visible && tempMarker.value && map.value) {
-    map.value.removeLayer(tempMarker.value as unknown as L.Layer);
+  if (!visible && tempMarker.value) {
+    tempMarker.value.remove();
     tempMarker.value = null;
   }
 }
