@@ -1735,7 +1735,6 @@ function getEditToolsForOverlay(overlayObject: OverlayObject): typeof L.Toolbar2
     infoTool,
     undoTool,
     redoTool,
-    L.DragAction,
     L.ResizeRotateAction,
     L.DistortAction,
     resetRatioTool,

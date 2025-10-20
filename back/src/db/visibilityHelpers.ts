@@ -89,18 +89,20 @@ export function buildProjectStatusCondition(
 }
 
 // AI : Build condition to filter projects that have visible content (development projects OR projects with visible overlays)
-// AI : This ensures we don't show empty non-development projects
+// AI : This ensures we don't show empty non-development projects in view mode
+// AI : In edit mode, also show user's own projects even if they don't have overlays yet
 export function buildProjectHasVisibleContentCondition(
   user: UserContext,
   viewMode: boolean,
   overlayChangeRequestIds?: string[]
 ): SQL {
   if (user && !viewMode) {
-    // AI : Edit mode: show if development OR has approved overlays OR has user's own overlays OR has user's change requests
+    // AI : Edit mode: show if development OR has visible overlays OR is owned by user (even without overlays)
     if (overlayChangeRequestIds && overlayChangeRequestIds.length > 0) {
       const idsArray = `{${overlayChangeRequestIds.join(',')}}`;
       return sql`(
         ${projects.isDevelopment} = true
+        OR ${projects.ownerId} = ${user.id}
         OR EXISTS (
           SELECT 1 FROM ${overlays}
           WHERE ${overlays.projectId} = ${projects.id}
@@ -114,6 +116,7 @@ export function buildProjectHasVisibleContentCondition(
     } else {
       return sql`(
         ${projects.isDevelopment} = true
+        OR ${projects.ownerId} = ${user.id}
         OR EXISTS (
           SELECT 1 FROM ${overlays}
           WHERE ${overlays.projectId} = ${projects.id}

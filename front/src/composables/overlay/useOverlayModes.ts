@@ -169,7 +169,7 @@ export async function toggleEditMode(onModeExit?: () => void): Promise<void> {
 
   // AI : Toggle mode in store
   overlayStore.isEditMode = !overlayStore.isEditMode
-  
+
   // AI : Calculate new state
   const newState = getCurrentState()
   const selectedCity = getSelectedCity()
@@ -192,7 +192,7 @@ export async function toggleEditMode(onModeExit?: () => void): Promise<void> {
   transitionToState(newState, {
     beforeTransition: handleBeforeTransition,
     afterTransition: async () => {
-      await loadCountriesWithProjects(true)
+      await loadCountriesWithProjects()
       addCountryMarkersToMap()
 
       const countryCode = mapStore.selectedCountryCode
