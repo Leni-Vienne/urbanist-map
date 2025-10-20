@@ -1,4 +1,3 @@
-// AI : Composable for managing user contributions with caching
 import { computed } from 'vue'
 import { useProjectStore } from '@stores/pinia/projectStore'
 import { trpc } from '@client'
@@ -10,9 +9,7 @@ export function useUserContributions() {
   const isLoading = computed(() => projectStore.userContributionsLoading)
   const projects = computed(() => projectStore.userContributions)
 
-  // AI : Fetch user contributions - load once
   async function fetchUserContributions() {
-    // AI : Skip if already loaded
     if (projectStore.userContributionsLoaded) {
       return
     }
@@ -25,7 +22,7 @@ export function useUserContributions() {
       )
 
       if (result) {
-        projectStore.setUserContributions(result)
+        projectStore.setUserContributions(result.projects)
       }
     } finally {
       projectStore.setUserContributionsLoading(false)

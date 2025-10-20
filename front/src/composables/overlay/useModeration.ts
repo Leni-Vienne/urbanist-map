@@ -1,18 +1,7 @@
-import { ref, onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { trpc } from '@client'
-import type { PendingOverlay, PendingChangeRequest } from '../../types/api'
-import type { ProjectForModeration } from '@types'
 import { withErrorHandling } from '@composables/core/useErrorHandling'
-
-// AI : Interface for tracking recent actions for undo functionality
-interface RecentAction {
-  id: string
-  itemName: string
-  itemType: 'overlay' | 'project'
-  previousStatus: 'pending' | 'approved' | 'rejected'
-  newStatus: 'approved' | 'rejected'
-  timestamp: Date
-}
+import { useModerationStore } from '@stores/pinia/moderationStore'
 
 // AI : Result types for approval operations
 type ApprovalResult = {
@@ -23,35 +12,39 @@ type ApprovalResult = {
 }
 
 export function useModeration() {
-  const overlays = ref<PendingOverlay[]>([])
-  const projects = ref<ProjectForModeration[]>([])
-  const changeRequests = ref<PendingChangeRequest[]>([])
-  const recentActions = ref<RecentAction[]>([])
+  const moderationStore = useModerationStore()
 
-  // AI : Simple loaded flag for moderation data
-  const moderationLoaded = ref(false)
+  const overlays = computed(() => moderationStore.overlays)
+  const projects = computed(() => moderationStore.projects)
+  const changeRequests = computed(() => moderationStore.changeRequests)
+  const recentActions = computed(() => moderationStore.recentActions)
 
   async function fetchPendingSubmissions() {
-    // AI : Skip if already loaded
-    if (moderationLoaded.value) {
+    if (moderationStore.moderationLoaded) {
       return
     }
 
-    const response = await withErrorHandling(
-      async () => trpc.moderation.getPendingSubmissions.query(),
-      { errorMessage: 'Failed to load pending submissions. Please refresh the page.' }
-    )
+    moderationStore.setModerationLoading(true)
+    try {
+      const response = await withErrorHandling(
+        async () => trpc.moderation.getPendingSubmissions.query(),
+        { errorMessage: 'Failed to load pending submissions. Please refresh the page.' }
+      )
 
-    if (response) {
-      overlays.value = response.overlays
-      projects.value = response.projects
-      changeRequests.value = response.changeRequests ?? []
-      moderationLoaded.value = true
+      if (response) {
+        moderationStore.setModerationData({
+          overlays: response.overlays,
+          projects: response.projects,
+          changeRequests: response.changeRequests ?? []
+        })
+      }
+    } finally {
+      moderationStore.setModerationLoading(false)
     }
   }
 
   function resetModerationLoaded() {
-    moderationLoaded.value = false
+    moderationStore.resetModerationLoaded()
   }
 
   // AI : Generic approval handler for any moderation item type
@@ -107,19 +100,14 @@ export function useModeration() {
       }
     }
 
-    // AI : Track action for potential undo
-    const action: RecentAction = {
+    moderationStore.addRecentAction({
       id,
       itemName,
       itemType,
       previousStatus: 'pending',
       newStatus: status,
       timestamp: new Date()
-    }
-
-    // AI : Add to recent actions and limit to last 5 actions
-    recentActions.value.unshift(action)
-    recentActions.value = recentActions.value.slice(0, 5)
+    })
 
     resetModerationLoaded()
     await fetchPendingSubmissions()
@@ -153,14 +141,13 @@ export function useModeration() {
   }
 
   async function undoLastAction() {
-    if (recentActions.value.length === 0) {
+    if (moderationStore.recentActions.length === 0) {
       console.warn('No recent actions to undo')
       return false
     }
 
-    const lastAction = recentActions.value[0]
+    const lastAction = moderationStore.recentActions[0]
 
-    // AI : Restore to previous status (pending) based on item type
     const result = await withErrorHandling(
       async () => lastAction.itemType === 'overlay'
         ? trpc.moderation.undoOverlayApprovalStatus.mutate({
@@ -178,9 +165,7 @@ export function useModeration() {
       return false
     }
 
-    // AI : Remove the undone action from recent actions
-    recentActions.value = recentActions.value.slice(1)
-
+    moderationStore.removeLastAction()
     resetModerationLoaded()
     await fetchPendingSubmissions()
     return true

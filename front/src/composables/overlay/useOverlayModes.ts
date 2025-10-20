@@ -14,7 +14,7 @@ import { renderForStrategy, updateExistingOverlays, clearAllRenderedContent } fr
 import { cacheCurrentPosition } from './useOverlayPositionCache'
 import { loadCityOverlays, fetchCityProjectsData } from '@composables/map/useCityOverlays'
 import { loadCityDevelopmentProjects, removeCityMarkers, addCityMarkersForCountry } from '@composables/map/useCityMarkers'
-import { loadCitiesForCountry } from '@composables/map/useCountryMarkers'
+import { loadCitiesForCountry, loadCountriesWithProjects, addCountryMarkersToMap } from '@composables/map/useCountryMarkers'
 import { useProjectStore } from '@stores/pinia/projectStore'
 import { storeToRefs } from 'pinia'
 
@@ -192,13 +192,14 @@ export async function toggleEditMode(onModeExit?: () => void): Promise<void> {
   transitionToState(newState, {
     beforeTransition: handleBeforeTransition,
     afterTransition: async () => {
-      // AI : Reload city list for the country (to show cities with user's pending contributions)
+      await loadCountriesWithProjects(true)
+      addCountryMarkersToMap()
+
       const countryCode = mapStore.selectedCountryCode
       if (countryCode) {
         await reloadCitiesAndMarkers(countryCode)
       }
 
-      // AI : Execute custom exit logic if provided (used by useAddOverlay and MapControls)
       if (!overlayStore.isEditMode && onModeExit) {
         onModeExit()
       }

@@ -133,9 +133,8 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
       // AI : For pending entities, apply changes directly instead of creating change requests
       if (options.entityStatus === 'pending') {
         if (options.entityType === 'project') {
-          // AI : Fetch current project data to avoid losing fields not in the form
-          const currentProject = await trpc.project.getUsersContributions.query({ limit: 100 })
-          const project = currentProject.find(p => p.id === options.entityId)
+          const result = await trpc.project.getUsersContributions.query({ limit: 100 })
+          const project = result.projects.find(p => p.id === options.entityId)
           
           if (!project) {
             throw new Error('Project not found')
