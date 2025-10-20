@@ -14,7 +14,7 @@ import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjects } from '@composables/project/useProjects';
 import { createProject } from '../../utils/typeFactories';
 
-// AI : Get project marker color based on status and timeline
+// AI : Get project marker color based on status and timeline (for view mode)
 function getProjectMarkerColor(project: Project): MarkerColor {
   // AI : Pending projects always show as yellow (proposed/awaiting approval)
   if (project.status === 'pending') {
@@ -59,6 +59,11 @@ export function resetLayerMarkersOpacity(layerGroup: L.LayerGroup | null, defaul
 // AI : Update development marker opacities based on selected marker
 export function updateDevelopmentMarkerOpacities(selectedMarker: L.Marker | null) {
   if (!developmentProjectsLayer) return;
+
+  // AI : If there was a previously selected marker and we're changing selection, force reset its opacity
+  if (selectedDevelopmentMarker && selectedDevelopmentMarker !== selectedMarker) {
+    selectedDevelopmentMarker.setOpacity(BUILDING_MARKER_OPACITY);
+  }
 
   selectedDevelopmentMarker = selectedMarker;
 
@@ -168,6 +173,7 @@ export function createProjectInfoTeleportTarget(marker: L.Marker | L.CircleMarke
     const uiStore = useUiStore();
     if (uiStore.projectInfoPopup.visible) {
       uiStore.closeProjectInfoPopup();
+      cleanupProjectInfoTeleportTarget();
     }
   };
   map.value.on('click', mapClickHandler);

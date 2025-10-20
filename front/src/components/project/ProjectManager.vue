@@ -312,8 +312,7 @@ async function handleProjectSubmitted(project: Partial<Project>) {
           ...project,
           // AI : Ensure we preserve important fields that might not be in the edit form
           id: project.id,
-          overlayIds: projects.value[project.id].overlayIds || [],
-          color: projects.value[project.id].color || '#007bff'
+          overlayIds: projects.value[project.id].overlayIds || []
         };
 
         // AI : Just save locally for all projects (no auto-publishing)

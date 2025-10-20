@@ -59,7 +59,7 @@ import { useToast } from '@composables/ui/useToast';
 import { useOverlayPublisher } from '@composables/overlay/useOverlayPublisher';
 import { useProjectPublisher } from '@composables/project/useProjectPublisher';
 import { useApprovedOverlayChanges } from '@composables/overlay/useApprovedOverlayChanges';
-import { citiesWithProjects } from '@composables/map/useCityMarkers';
+import { citiesWithProjects, cleanupProjectInfoTeleportTarget } from '@composables/map/useCityMarkers';
 import { updateOverlayMarkersColors } from '@composables/map/useOverlayMarkerUpdates';
 import type { OverlayObject, Project } from '@types';
 
@@ -158,7 +158,6 @@ function convertAndCacheBackendProject(backendProject: any): Project {
     name: backendProject.name,
     city: backendProject.city,
     overlayIds: [],
-    color: '#007bff',
     savedRemotely: true
   };
 
@@ -303,6 +302,7 @@ function handleOverlayUpdate(overlayId: string, caption?: string) {
 // AI : Close project info popup (project mode only)
 function closeProjectInfoPopup() {
   uiStore.closeProjectInfoPopup();
+  cleanupProjectInfoTeleportTarget();
 }
 
 </script>

@@ -49,7 +49,6 @@ export function createProject(data: Partial<Project> = {}): Project {
     // AI : Computed fields
     city: data.city ?? { id: '', name: '', countryCode: '', coordinates: { x: 0, y: 0 }, createdAt: new Date(), updatedAt: new Date() },
     overlayIds: data.overlayIds ?? [],
-    color: data.color ?? '#007bff',
     savedRemotely: data.savedRemotely ?? false,
     // AI : Map coordinates (renamed to avoid DB conflict)
     mapCoordinates: data.mapCoordinates ?? null,
@@ -79,7 +78,6 @@ export function createProjectFromAPI(nearbyProject: NearbyProject): Project {
     status: 'approved', // AI : Projects from API are approved
     city: nearbyProject.city,
     overlayIds: [],
-    color: '#007bff',
     savedRemotely: true
   });
 }

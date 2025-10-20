@@ -1,7 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import type { Project, OverlayObject } from "@types";
-import { updateDevelopmentMarkerOpacities } from "@composables/map/useCityMarkers";
 
 export interface ProjectDialogState {
   visible: boolean;
@@ -147,9 +146,6 @@ export const useUiStore = defineStore("ui", () => {
       projectId: null,
       project: null,
     };
-
-    // AI : Reset development marker opacities when closing popup
-    updateDevelopmentMarkerOpacities(null);
   }
 
   // AI : Close all UI elements (used for cleanup)
