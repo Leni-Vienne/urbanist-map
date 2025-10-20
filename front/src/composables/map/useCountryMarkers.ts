@@ -40,8 +40,15 @@ export async function loadCountriesWithProjects(force: boolean = false): Promise
   const projectStore = useProjectStore();
   const viewMode = !overlayStore.isEditMode;
 
-  if (!force && projectStore.hasLoadedCountriesForViewMode(viewMode)) {
-    return;
+  // AI : Check if we have cached countries for this viewMode
+  if (!force && projectStore.hasCachedCountries(viewMode)) {
+    // AI : Use cached countries and update the active countries ref
+    const cachedCountries = projectStore.getCachedCountries(viewMode);
+    if (cachedCountries) {
+      const countries = getCountries();
+      countries.value = cachedCountries;
+      return;
+    }
   }
 
   isLoadingCountries.value = true;
@@ -52,8 +59,7 @@ export async function loadCountriesWithProjects(force: boolean = false): Promise
     );
 
     if (countriesData) {
-      const countries = getCountries();
-      countries.value = countriesData.map((country): Country => ({
+      const mappedCountries = countriesData.map((country): Country => ({
         ...country,
         lat: country.centerCoordinates.y,
         lng: country.centerCoordinates.x,
@@ -62,7 +68,11 @@ export async function loadCountriesWithProjects(force: boolean = false): Promise
         createdAt: new Date(),
         updatedAt: new Date(),
       }));
-      projectStore.setCountriesLoadedForViewMode(viewMode);
+
+      // AI : Update both the active countries ref and cache
+      const countries = getCountries();
+      countries.value = mappedCountries;
+      projectStore.setCachedCountries(viewMode, mappedCountries);
     }
   } finally {
     isLoadingCountries.value = false;
@@ -115,7 +125,6 @@ export function addCountryMarkersToMap() {
     });
     return;
   }
-  addCountryMarkersToMapInternal();
   addCountryMarkersToMapInternal();
 }
 

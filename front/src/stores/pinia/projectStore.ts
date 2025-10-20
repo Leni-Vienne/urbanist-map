@@ -15,8 +15,8 @@ export const useProjectStore = defineStore('project', () => {
   // AI : Cache for cities by country and view mode (key format: "countryCode:viewMode")
   const citiesCache = ref<Map<string, any[]>>(new Map());
 
-  // AI : Track whether countries have been loaded for each view mode
-  const countriesLoadedForViewMode = ref<Set<boolean>>(new Set());
+  // AI : Cache countries separately per viewMode (key: viewMode boolean -> true for view mode, false for edit mode)
+  const countriesCache = ref<Map<boolean, Country[]>>(new Map());
 
   // AI : Centralized nearby projects data management
   const nearbyProjects = ref<NearbyProject[]>([]);
@@ -143,16 +143,21 @@ export const useProjectStore = defineStore('project', () => {
     citiesCache.value.clear()
   }
 
-  function hasLoadedCountriesForViewMode(viewMode: boolean): boolean {
-    return countriesLoadedForViewMode.value.has(viewMode);
+  // AI : Countries cache management - store and retrieve countries per viewMode
+  function getCachedCountries(viewMode: boolean): Country[] | null {
+    return countriesCache.value.get(viewMode) ?? null;
   }
 
-  function setCountriesLoadedForViewMode(viewMode: boolean): void {
-    countriesLoadedForViewMode.value.add(viewMode);
+  function setCachedCountries(viewMode: boolean, countriesData: Country[]): void {
+    countriesCache.value.set(viewMode, countriesData);
   }
 
-  function clearCountriesLoadedCache(): void {
-    countriesLoadedForViewMode.value.clear();
+  function hasCachedCountries(viewMode: boolean): boolean {
+    return countriesCache.value.has(viewMode);
+  }
+
+  function clearCountriesCache(): void {
+    countriesCache.value.clear();
   }
 
   return {
@@ -192,8 +197,9 @@ export const useProjectStore = defineStore('project', () => {
     clearCitiesCache,
 
     // Countries cache actions
-    hasLoadedCountriesForViewMode,
-    setCountriesLoadedForViewMode,
-    clearCountriesLoadedCache
+    getCachedCountries,
+    setCachedCountries,
+    hasCachedCountries,
+    clearCountriesCache
   };
 })
