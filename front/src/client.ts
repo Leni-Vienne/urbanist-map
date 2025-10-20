@@ -1,6 +1,6 @@
 import { createTRPCClient, httpBatchLink } from '@trpc/client';
 import { inferRouterOutputs, inferRouterInputs } from '@trpc/server';
-import type { AppRouter } from '../../back/src/shared/routers';
+import type { AppRouter } from '../../back/src/routes';
 import superjson from 'superjson';
 
 export type RouterInput = inferRouterInputs<AppRouter>;

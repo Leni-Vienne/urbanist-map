@@ -1,7 +1,7 @@
 import { db } from '../database';
 import { overlays } from '../db/schema';
 import { eq } from 'drizzle-orm';
-import { R2StorageS3, getThumbnailFilename, streamToBuffer } from '../shared/storage';
+import { R2StorageS3, getThumbnailFilename, streamToBuffer } from '../lib/storage';
 import sharp from 'sharp';
 
 // AI : Generate and upload thumbnails for existing approved overlays in R2

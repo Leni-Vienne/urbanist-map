@@ -1,11 +1,11 @@
 import { router } from '../trpc';
-import { projectRouter } from '../routes/project';
-import { overlayRouter } from '../routes/overlay';
-import { citiesRouter } from '../routes/cities';
-import { countriesRouter } from '../routes/countries';
-import { moderationRouter } from '../routes/moderation';
-import { changesRouter } from '../routes/changes';
-import { authRouter } from '../routes/auth';
+import { projectRouter } from './project';
+import { overlayRouter } from './overlay';
+import { citiesRouter } from './cities';
+import { countriesRouter } from './countries';
+import { moderationRouter } from './moderation';
+import { changesRouter } from './changes';
+import { authRouter } from './auth';
 
 // AI : Main router that combines all sub-routers
 export const appRouter = router({
