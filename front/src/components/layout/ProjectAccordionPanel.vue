@@ -11,306 +11,406 @@
         </div>
       </div>
 
-      <Accordion
+      <div
         v-if="projects.length > 0"
-        :multiple="true"
-        v-model:value="activeAccordionPanels"
+        class="grouped-accordion-container"
       >
-        <AccordionPanel
-          v-for="project in projects"
-          :key="project.id"
-          :value="project.id"
+        <template
+          v-for="countryGroup in groupedByCountry"
+          :key="countryGroup.countryCode"
         >
-          <AccordionHeader>
-            <div class="accordion-header-content">
-              <span class="project-name">{{ project.name }}</span>
-              <Tag
-                :value="project.status"
-                :severity="getStatusSeverity(project.status)"
-                class="project-status-tag"
-                rounded
-              />
-
-            </div>
-          </AccordionHeader>
-          <AccordionContent>
-            <Card
-              class="project-details-card"
-              :class="{ 'marker-project-card': project.isDevelopment }"
-              @click="handleCardClick(project)"
-            >
-              <template #content>
-                <div class="project-content-wrapper">
-                  <div class="project-info-section">
-                    <div
-                      v-if="project.description"
-                      class="project-description"
-                    >
-                      <p>{{ project.description }}</p>
-                    </div>
-                    <div class="project-metadata">
-                      <div class="metadata-item">
-                        <i class="pi pi-clock"></i>
-                        <span>{{ $t('project.updatedAgo', { time: formatRelativeTime(project.updatedAt) }) }}</span>
-                      </div>
-                      <div
-                        class="metadata-item"
-                        v-if="getProjectLocation(project)"
-                      >
-                        <i class="pi pi-map-marker"></i>
-                        <span>{{ getProjectLocation(project) }}</span>
-                      </div>
-                      <div v-if="!project.isDevelopment" class="metadata-item">
-                        <i class="pi pi-images"></i>
-                        <span>{{ project.overlayCount || (project.overlays ? project.overlays.length : 0) }}
-                          {{ $t('overlay.overlayImages') }}</span>
-                      </div>
-                      <div
-                        class="metadata-item"
-                        v-if="project.startDate || project.endDate"
-                      >
-                        <i class="pi pi-calendar"></i>
-                        <span>{{ formatProjectDateRange(project.startDate, project.endDate) }}</span>
-                      </div>
-                      <div
-                        class="metadata-item"
-                        v-if="project.sourceUrl"
-                      >
-                        <i class="pi pi-link"></i>
-                        <a
-                          :href="project.sourceUrl"
-                          target="_blank"
-                          class="source-link"
-                        >
-                          {{ formatSourceUrl(project.sourceUrl) }}
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- AI : Actions column - either slot actions or zoom button -->
-                  <div class="project-actions-column">
-                    <!-- AI : Project actions slot for moderation panel -->
-                    <slot
-                      v-if="$slots['project-actions']"
-                      name="project-actions"
-                      :project="project"
-                    ></slot>
-
-                    <!-- AI : Zoom button for development projects (always shown for dev projects) -->
-                    <button
-                      v-if="project.isDevelopment"
-                      class="action-btn"
-                      @click.stop="handleDevelopmentProjectClick(project)"
-                      v-tooltip.top="$t('overlay.zoomTo') + ' ' + project.name"
-                    >
-                      <i class="pi pi-search"></i>
-                    </button>
-                  </div>
-                </div>
-
-                <!-- AI : Project change requests -->
-                <div v-if="getProjectChangeRequests(project.id).length > 0" class="project-change-requests">
-                  <h3 class="change-requests-title">{{ isMyContributionsPanel ? $t('moderation.yourPendingChanges') : $t('moderation.pendingChanges') }}</h3>
-                  <p v-if="isMyContributionsPanel" class="change-requests-subtitle">{{ $t('moderation.moderatorReviewRequired') }}</p>
-                  <div class="change-requests-list">
-                    <div 
-                      v-for="change in getProjectChangeRequests(project.id)" 
-                      :key="change.id"
-                      class="change-item"
-                    >
-                      <div class="change-content">
-                        <div class="change-field">
-                          <strong>{{ change.fieldName }}:</strong>
-                          <div v-if="isGeometryField(change.fieldName)" class="geometry-change-controls">
-                            <div class="geometry-buttons">
-                              <Button
-                                icon="pi pi-map-marker"
-                                :label="$t('overlay.viewCurrentPosition')"
-                                @click.stop="previewGeometry(change.oldValue, 'old', change.id)"
-                                severity="success"
-                                :outlined="!(activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'old')"
-                                size="small"
-                              />
-                              <Button
-                                icon="pi pi-map-marker"
-                                :label="$t('overlay.viewSuggestedPosition')"
-                                @click.stop="previewGeometry(change.newValue, 'new', change.id)"
-                                severity="warn"
-                                :outlined="!(activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'new')"
-                                size="small"
-                              />
-                            </div>
-                          </div>
-                          <div v-else class="change-values">
-                            <span class="old-value">{{ formatValue(change.oldValue, change.fieldName) }}</span>
-                            <i class="pi pi-arrow-right"></i>
-                            <span class="new-value">{{ formatValue(change.newValue, change.fieldName) }}</span>
-                          </div>
-                          <div v-if="change.changeReason" class="change-reason">
-                            <em>{{ $t('moderation.reason') }}: {{ change.changeReason }}</em>
-                          </div>
-                          <div class="change-date">
-                            <em>{{ $t('moderation.requested') }}: {{ new Date(change.createdAt).toLocaleString() }}</em>
-                          </div>
-                        </div>
-                        <div v-if="$slots['change-actions']" class="change-actions">
-                          <slot
-                            name="change-actions"
-                            :change="change"
-                          ></slot>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </template>
-            </Card>
-
-            <!-- AI : Project overlays with borderless design -->
+          <div class="country-group">
             <div
-              v-if="shouldShowOverlays(project) && project.overlays && project.overlays.length > 0"
-              class="flex flex-col mt-4"
+              class="country-group-header"
+              @click="toggleCountryExpanded(countryGroup.countryCode)"
             >
-              <div
-                v-for="overlay in project.overlays"
-                :key="overlay.id"
-                class="overlay-card-wrapper"
-                :class="{ 'has-changes': getOverlayChangeRequests(overlay.id).length > 0 }"
-              >
-                <div class="overlay-card" @click="handleOverlayClickNavigation(overlay)">
-                  <!-- AI : Overlay thumbnail -->
-                  <div
-                    class="w-15 h-15 rounded-md overflow-hidden bg-surface-100 flex items-center justify-center flex-shrink-0"
-                  >
-                    <img
-                      v-if="shouldShowOverlays(project) && !imageErrors[overlay.id]"
-                      :src="getOverlayImageUrl(overlay.filename, overlay.status)"
-                      :alt="overlay.name"
-                      class="w-full h-full object-cover"
-                      @error="(event) => handleImageError(event, overlay.id)"
-                      @load="(event) => handleImageLoad(event, overlay.id)"
-                    />
-                    <i
-                      v-if="imageErrors[overlay.id]"
-                      class="pi pi-image text-2xl text-surface-400"
-                    ></i>
-                  </div>
-
-                  <!-- AI : Overlay info -->
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2 mb-1">
-                      <p class="overlay-name">{{ overlay.name || $t('overlay.untitled') }}</p>
-                    </div>
-                    <div class="flex items-center gap-1.5 text-surface-600 text-xs mb-1">
-                      <i class="pi pi-map-marker text-surface-500"></i>
-                      <img
-                        v-if="overlay.countryCode"
-                        :src="getFlagUrl(overlay.countryCode)"
-                        :alt="overlay.countryCode"
-                        class="w-4 h-3 rounded-sm"
-                        @error="hideFlagOnError"
-                      />
-                      <span class="truncate">{{ getOverlayLocationDisplay(overlay) }}</span>
-                    </div>
-                    <div class="text-xs text-surface-500 mb-2">
-                      {{ formatRelativeTime(overlay.updatedAt) }}
-                    </div>
-                    <Tag
-                      :value="overlay.status"
-                      :severity="getStatusSeverity(overlay.status)"
-                      class="overlay-status-tag"
-                      rounded
-                    />
-                  </div>
-
-                  <!-- AI : Overlay action buttons slot or default zoom button -->
-                  <div
-                    v-if="$slots['overlay-actions']"
-                    class="flex flex-col gap-2"
-                  >
-                    <slot
-                      name="overlay-actions"
-                      :overlay="overlay"
-                      :project="project"
-                    ></slot>
-                  </div>
-                  <Button
-                    v-else
-                    icon="pi pi-search"
-                    :aria-label="$t('overlay.zoomTo') + ' ' + (overlay.name || $t('overlay.untitled'))"
-                    @click.stop="handleOverlayClickNavigation(overlay)"
-                    text
-                    rounded
-                    size="small"
-                  />
-                </div>
-
-                <!-- AI : Overlay change requests - visually connected to overlay -->
-                <div v-if="getOverlayChangeRequests(overlay.id).length > 0" class="overlay-change-requests">
-                  <div class="change-requests-header">
-                    <div class="change-indicator">
-                      <i class="pi pi-exclamation-triangle text-orange-500"></i>
-                      <span class="change-header-text">{{ isMyContributionsPanel ? $t('moderation.yourPendingChanges') : $t('moderation.pendingChangesFor', { name: overlay.name || $t('overlay.untitled') }) }}</span>
-                    </div>
-                    <p v-if="isMyContributionsPanel" class="change-requests-subtitle">{{ $t('moderation.moderatorReviewRequired') }}</p>
-                  </div>
-                  <div class="change-requests-list">
-                    <div 
-                      v-for="change in getOverlayChangeRequests(overlay.id)" 
-                      :key="change.id"
-                      class="change-item"
-                    >
-                      <div class="change-content">
-                        <div class="change-field">
-                          <strong>{{ change.fieldName }}:</strong>
-                          <div v-if="isGeometryField(change.fieldName)" class="geometry-change-controls">
-                            <div class="geometry-buttons">
-                              <Button
-                                icon="pi pi-map-marker"
-                                :label="$t('overlay.viewCurrentPosition')"
-                                @click.stop="previewGeometry(change.oldValue, 'old', change.id)"
-                                severity="success"
-                                :outlined="!(activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'old')"
-                                size="small"
-                              />
-                              <Button
-                                icon="pi pi-map-marker"
-                                :label="$t('overlay.viewSuggestedPosition')"
-                                @click.stop="previewGeometry(change.newValue, 'new', change.id)"
-                                severity="warn"
-                                :outlined="!(activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'new')"
-                                size="small"
-                              />
-                            </div>
-                          </div>
-                          <div v-else class="change-values">
-                            <span class="old-value">{{ formatValue(change.oldValue, change.fieldName) }}</span>
-                            <i class="pi pi-arrow-right"></i>
-                            <span class="new-value">{{ formatValue(change.newValue, change.fieldName) }}</span>
-                          </div>
-                          <div v-if="change.changeReason" class="change-reason">
-                            <em>{{ $t('moderation.reason') }}: {{ change.changeReason }}</em>
-                          </div>
-                          <div class="change-date">
-                            <em>{{ $t('moderation.requested') }}: {{ new Date(change.createdAt).toLocaleString() }}</em>
-                          </div>
-                        </div>
-                        <div v-if="$slots['change-actions']" class="change-actions">
-                          <slot
-                            name="change-actions"
-                            :change="change"
-                          ></slot>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              <div class="country-header-content">
+                <i
+                  :class="['pi', isCountryExpanded(countryGroup.countryCode) ? 'pi-chevron-down' : 'pi-chevron-right']"></i>
+                <h3 class="country-group-title">{{ countryGroup.countryName }}</h3>
+                <span class="country-group-count">{{ countryGroup.totalProjects }}</span>
               </div>
             </div>
-          </AccordionContent>
-        </AccordionPanel>
-      </Accordion>
+
+            <div
+              v-if="isCountryExpanded(countryGroup.countryCode)"
+              class="country-content"
+            >
+              <template
+                v-for="cityGroup in countryGroup.cities"
+                :key="cityGroup.key"
+              >
+                <div
+                  class="city-group-header"
+                  @click="toggleCityExpanded(cityGroup.key)"
+                >
+                  <div class="city-header-content">
+                    <i :class="['pi', isCityExpanded(cityGroup.key) ? 'pi-chevron-down' : 'pi-chevron-right']"></i>
+                    <h4 class="city-group-title">{{ cityGroup.cityName }}</h4>
+                  </div>
+                  <span class="city-group-count">{{ cityGroup.projects.length }}</span>
+                </div>
+
+                <Accordion
+                  v-if="isCityExpanded(cityGroup.key)"
+                  :multiple="true"
+                  v-model:value="activeAccordionPanels"
+                  class="city-accordion"
+                >
+                  <AccordionPanel
+                    v-for="project in cityGroup.projects"
+                    :key="project.id"
+                    :value="project.id"
+                  >
+                    <AccordionHeader>
+                      <div class="accordion-header-content">
+                        <span class="project-name">{{ project.name }}</span>
+                        <Tag
+                          :value="project.status"
+                          :severity="getStatusSeverity(project.status)"
+                          class="project-status-tag"
+                          rounded
+                        />
+
+                      </div>
+                    </AccordionHeader>
+                    <AccordionContent>
+                      <Card
+                        class="project-details-card"
+                        :class="{ 'marker-project-card': project.isDevelopment }"
+                        @click="handleCardClick(project)"
+                      >
+                        <template #content>
+                          <div class="project-content-wrapper">
+                            <div class="project-info-section">
+                              <div
+                                v-if="project.description"
+                                class="project-description"
+                              >
+                                <p>{{ project.description }}</p>
+                              </div>
+                              <div class="project-metadata">
+                                <div class="metadata-item">
+                                  <i class="pi pi-clock"></i>
+                                  <span>{{ $t('project.updatedAgo', { time: formatRelativeTime(project.updatedAt) })
+                                  }}</span>
+                                </div>
+                                <div
+                                  class="metadata-item"
+                                  v-if="getProjectLocation(project)"
+                                >
+                                  <i class="pi pi-map-marker"></i>
+                                  <span>{{ getProjectLocation(project) }}</span>
+                                </div>
+                                <div
+                                  v-if="!project.isDevelopment"
+                                  class="metadata-item"
+                                >
+                                  <i class="pi pi-images"></i>
+                                  <span>{{ project.overlayCount || (project.overlays ? project.overlays.length : 0) }}
+                                    {{ $t('overlay.overlayImages') }}</span>
+                                </div>
+                                <div
+                                  class="metadata-item"
+                                  v-if="project.startDate || project.endDate"
+                                >
+                                  <i class="pi pi-calendar"></i>
+                                  <span>{{ formatProjectDateRange(project.startDate, project.endDate) }}</span>
+                                </div>
+                                <div
+                                  class="metadata-item"
+                                  v-if="project.sourceUrl"
+                                >
+                                  <i class="pi pi-link"></i>
+                                  <a
+                                    :href="project.sourceUrl"
+                                    target="_blank"
+                                    class="source-link"
+                                  >
+                                    {{ formatSourceUrl(project.sourceUrl) }}
+                                  </a>
+                                </div>
+                              </div>
+                            </div>
+
+                            <!-- AI : Actions column - either slot actions or zoom button -->
+                            <div class="project-actions-column">
+                              <!-- AI : Project actions slot for moderation panel -->
+                              <slot
+                                v-if="$slots['project-actions']"
+                                name="project-actions"
+                                :project="project"
+                              ></slot>
+
+                              <!-- AI : Zoom button for development projects (always shown for dev projects) -->
+                              <button
+                                v-if="project.isDevelopment"
+                                class="action-btn"
+                                @click.stop="handleDevelopmentProjectClick(project)"
+                                v-tooltip.top="$t('overlay.zoomTo') + ' ' + project.name"
+                              >
+                                <i class="pi pi-search"></i>
+                              </button>
+                            </div>
+                          </div>
+
+                          <!-- AI : Project change requests -->
+                          <div
+                            v-if="getProjectChangeRequests(project.id).length > 0"
+                            class="project-change-requests"
+                          >
+                            <h3 class="change-requests-title">{{ isMyContributionsPanel ?
+                              $t('moderation.yourPendingChanges') : $t('moderation.pendingChanges') }}</h3>
+                            <p
+                              v-if="isMyContributionsPanel"
+                              class="change-requests-subtitle"
+                            >{{ $t('moderation.moderatorReviewRequired') }}</p>
+                            <div class="change-requests-list">
+                              <div
+                                v-for="change in getProjectChangeRequests(project.id)"
+                                :key="change.id"
+                                class="change-item"
+                              >
+                                <div class="change-content">
+                                  <div class="change-field">
+                                    <strong>{{ change.fieldName }}:</strong>
+                                    <div
+                                      v-if="isGeometryField(change.fieldName)"
+                                      class="geometry-change-controls"
+                                    >
+                                      <div class="geometry-buttons">
+                                        <Button
+                                          icon="pi pi-map-marker"
+                                          :label="$t('overlay.viewCurrentPosition')"
+                                          @click.stop="previewGeometry(change.oldValue, 'old', change.id)"
+                                          severity="success"
+                                          :outlined="!(activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'old')"
+                                          size="small"
+                                        />
+                                        <Button
+                                          icon="pi pi-map-marker"
+                                          :label="$t('overlay.viewSuggestedPosition')"
+                                          @click.stop="previewGeometry(change.newValue, 'new', change.id)"
+                                          severity="warn"
+                                          :outlined="!(activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'new')"
+                                          size="small"
+                                        />
+                                      </div>
+                                    </div>
+                                    <div
+                                      v-else
+                                      class="change-values"
+                                    >
+                                      <span class="old-value">{{ formatValue(change.oldValue, change.fieldName)
+                                      }}</span>
+                                      <i class="pi pi-arrow-right"></i>
+                                      <span class="new-value">{{ formatValue(change.newValue, change.fieldName)
+                                      }}</span>
+                                    </div>
+                                    <div
+                                      v-if="change.changeReason"
+                                      class="change-reason"
+                                    >
+                                      <em>{{ $t('moderation.reason') }}: {{ change.changeReason }}</em>
+                                    </div>
+                                    <div class="change-date">
+                                      <em>{{ $t('moderation.requested') }}: {{ new
+                                        Date(change.createdAt).toLocaleString() }}</em>
+                                    </div>
+                                  </div>
+                                  <div
+                                    v-if="$slots['change-actions']"
+                                    class="change-actions"
+                                  >
+                                    <slot
+                                      name="change-actions"
+                                      :change="change"
+                                    ></slot>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </template>
+                      </Card>
+
+                      <!-- AI : Project overlays with borderless design -->
+                      <div
+                        v-if="shouldShowOverlays(project) && project.overlays && project.overlays.length > 0"
+                        class="flex flex-col mt-4"
+                      >
+                        <div
+                          v-for="overlay in project.overlays"
+                          :key="overlay.id"
+                          class="overlay-card-wrapper"
+                          :class="{ 'has-changes': getOverlayChangeRequests(overlay.id).length > 0 }"
+                        >
+                          <div
+                            class="overlay-card"
+                            @click="handleOverlayClickNavigation(overlay)"
+                          >
+                            <!-- AI : Overlay thumbnail -->
+                            <div
+                              class="w-15 h-15 rounded-md overflow-hidden bg-surface-100 flex items-center justify-center flex-shrink-0"
+                            >
+                              <img
+                                v-if="shouldShowOverlays(project) && !imageErrors[overlay.id]"
+                                :src="getOverlayImageUrl(overlay.filename, overlay.status)"
+                                :alt="overlay.name"
+                                class="w-full h-full object-cover"
+                                @error="(event) => handleImageError(event, overlay.id)"
+                                @load="(event) => handleImageLoad(event, overlay.id)"
+                              />
+                              <i
+                                v-if="imageErrors[overlay.id]"
+                                class="pi pi-image text-2xl text-surface-400"
+                              ></i>
+                            </div>
+
+                            <!-- AI : Overlay info -->
+                            <div class="flex-1 min-w-0">
+                              <div class="flex items-center gap-2 mb-1">
+                                <p class="overlay-name">{{ overlay.name || $t('overlay.untitled') }}</p>
+                              </div>
+                              <div class="flex items-center gap-1.5 text-surface-600 text-xs mb-1">
+                                <i class="pi pi-map-marker text-surface-500"></i>
+                                <img
+                                  v-if="overlay.countryCode"
+                                  :src="getFlagUrl(overlay.countryCode)"
+                                  :alt="overlay.countryCode"
+                                  class="w-4 h-3 rounded-sm"
+                                  @error="hideFlagOnError"
+                                />
+                                <span class="truncate">{{ getOverlayLocationDisplay(overlay) }}</span>
+                              </div>
+                              <div class="text-xs text-surface-500 mb-2">
+                                {{ formatRelativeTime(overlay.updatedAt) }}
+                              </div>
+                              <Tag
+                                :value="overlay.status"
+                                :severity="getStatusSeverity(overlay.status)"
+                                class="overlay-status-tag"
+                                rounded
+                              />
+                            </div>
+
+                            <!-- AI : Overlay action buttons slot or default zoom button -->
+                            <div
+                              v-if="$slots['overlay-actions']"
+                              class="flex flex-col gap-2"
+                            >
+                              <slot
+                                name="overlay-actions"
+                                :overlay="overlay"
+                                :project="project"
+                              ></slot>
+                            </div>
+                            <Button
+                              v-else
+                              icon="pi pi-search"
+                              :aria-label="$t('overlay.zoomTo') + ' ' + (overlay.name || $t('overlay.untitled'))"
+                              @click.stop="handleOverlayClickNavigation(overlay)"
+                              text
+                              rounded
+                              size="small"
+                            />
+                          </div>
+
+                          <!-- AI : Overlay change requests - visually connected to overlay -->
+                          <div
+                            v-if="getOverlayChangeRequests(overlay.id).length > 0"
+                            class="overlay-change-requests"
+                          >
+                            <div class="change-requests-header">
+                              <div class="change-indicator">
+                                <i class="pi pi-exclamation-triangle text-orange-500"></i>
+                                <span class="change-header-text">{{ isMyContributionsPanel ?
+                                  $t('moderation.yourPendingChanges') :
+                                  $t('moderation.pendingChangesFor', { name: overlay.name || $t('overlay.untitled') })
+                                }}</span>
+                              </div>
+                              <p
+                                v-if="isMyContributionsPanel"
+                                class="change-requests-subtitle"
+                              >{{ $t('moderation.moderatorReviewRequired') }}
+                              </p>
+                            </div>
+                            <div class="change-requests-list">
+                              <div
+                                v-for="change in getOverlayChangeRequests(overlay.id)"
+                                :key="change.id"
+                                class="change-item"
+                              >
+                                <div class="change-content">
+                                  <div class="change-field">
+                                    <strong>{{ change.fieldName }}:</strong>
+                                    <div
+                                      v-if="isGeometryField(change.fieldName)"
+                                      class="geometry-change-controls"
+                                    >
+                                      <div class="geometry-buttons">
+                                        <Button
+                                          icon="pi pi-map-marker"
+                                          :label="$t('overlay.viewCurrentPosition')"
+                                          @click.stop="previewGeometry(change.oldValue, 'old', change.id)"
+                                          severity="success"
+                                          :outlined="!(activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'old')"
+                                          size="small"
+                                        />
+                                        <Button
+                                          icon="pi pi-map-marker"
+                                          :label="$t('overlay.viewSuggestedPosition')"
+                                          @click.stop="previewGeometry(change.newValue, 'new', change.id)"
+                                          severity="warn"
+                                          :outlined="!(activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'new')"
+                                          size="small"
+                                        />
+                                      </div>
+                                    </div>
+                                    <div
+                                      v-else
+                                      class="change-values"
+                                    >
+                                      <span class="old-value">{{ formatValue(change.oldValue, change.fieldName)
+                                      }}</span>
+                                      <i class="pi pi-arrow-right"></i>
+                                      <span class="new-value">{{ formatValue(change.newValue, change.fieldName)
+                                      }}</span>
+                                    </div>
+                                    <div
+                                      v-if="change.changeReason"
+                                      class="change-reason"
+                                    >
+                                      <em>{{ $t('moderation.reason') }}: {{ change.changeReason }}</em>
+                                    </div>
+                                    <div class="change-date">
+                                      <em>{{ $t('moderation.requested') }}: {{ new
+                                        Date(change.createdAt).toLocaleString() }}</em>
+                                    </div>
+                                  </div>
+                                  <div
+                                    v-if="$slots['change-actions']"
+                                    class="change-actions"
+                                  >
+                                    <slot
+                                      name="change-actions"
+                                      :change="change"
+                                    ></slot>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionPanel>
+                </Accordion>
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
 
       <!-- AI : Empty state -->
       <div
@@ -401,11 +501,100 @@ const {
   }
 )
 
-// AI : Computed expanded panels set for easier checking
 const expandedPanels = computed(() => new Set(activeAccordionPanels.value))
 
-// AI : Check if this is the My Contributions panel
 const isMyContributionsPanel = computed(() => props.panelClass === 'my-contributions-panel')
+
+interface CityGroup {
+  key: string;
+  cityName: string;
+  projects: ProjectForModeration[];
+}
+
+interface CountryGroup {
+  countryCode: string;
+  countryName: string;
+  totalProjects: number;
+  cities: CityGroup[];
+}
+
+const expandedCountries = ref<Set<string>>(new Set())
+const expandedCities = ref<Set<string>>(new Set())
+
+const groupedByCountry = computed(() => {
+  const countryMap = new Map<string, CountryGroup>();
+
+  for (const project of props.projects) {
+    const countryName = project.countryName ?? 'Unknown Country';
+    const cityName = project.cityName ?? 'Unknown City';
+    const countryCode = project.countryCode ?? 'unknown';
+
+    if (!countryMap.has(countryCode)) {
+      countryMap.set(countryCode, {
+        countryCode,
+        countryName,
+        totalProjects: 0,
+        cities: []
+      });
+    }
+
+    const country = countryMap.get(countryCode)!;
+    country.totalProjects++;
+
+    let cityGroup = country.cities.find(c => c.cityName === cityName);
+    if (!cityGroup) {
+      cityGroup = {
+        key: `${countryCode}-${cityName}`,
+        cityName,
+        projects: []
+      };
+      country.cities.push(cityGroup);
+    }
+
+    cityGroup.projects.push(project);
+  }
+
+  const sorted = Array.from(countryMap.values()).sort((a, b) =>
+    a.countryName.localeCompare(b.countryName)
+  );
+
+  sorted.forEach(country => {
+    country.cities.sort((a, b) => a.cityName.localeCompare(b.cityName));
+  });
+
+  return sorted;
+})
+
+function toggleCountryExpanded(countryCode: string) {
+  if (expandedCountries.value.has(countryCode)) {
+    expandedCountries.value.delete(countryCode);
+  } else {
+    expandedCountries.value.add(countryCode);
+
+    const country = groupedByCountry.value.find(c => c.countryCode === countryCode);
+    if (country) {
+      country.cities.forEach(city => {
+        expandedCities.value.add(city.key);
+      });
+    }
+  }
+}
+
+function isCountryExpanded(countryCode: string): boolean {
+  return expandedCountries.value.has(countryCode);
+}
+
+function toggleCityExpanded(cityKey: string) {
+  if (expandedCities.value.has(cityKey)) {
+    expandedCities.value.delete(cityKey);
+  } else {
+    expandedCities.value.add(cityKey);
+  }
+}
+
+function isCityExpanded(cityKey: string): boolean {
+  return expandedCities.value.has(cityKey);
+}
 
 // AI : Get flag URL for country
 function getFlagUrl(countryCode: string): string {
@@ -590,6 +779,121 @@ async function handleDevelopmentProjectClick(project: ProjectForModeration) {
 </script>
 
 <style scoped>
+/* AI : Grouped accordion container */
+.grouped-accordion-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.country-group {
+  background: var(--p-surface-0);
+  border: 1px solid var(--p-surface-200);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.country-group-header {
+  padding: 0.875rem 1rem;
+  background: var(--p-primary-50);
+  border-bottom: 2px solid var(--p-primary-200);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  user-select: none;
+}
+
+.country-group-header:hover {
+  background: var(--p-primary-100);
+}
+
+.country-header-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.country-header-content i {
+  color: var(--p-primary-600);
+  font-size: 0.75rem;
+  transition: transform 0.2s ease;
+}
+
+.country-group-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--p-surface-900);
+  flex: 1;
+}
+
+.country-group-count {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--p-primary-700);
+  background: var(--p-primary-200);
+  padding: 0.25rem 0.625rem;
+  border-radius: 12px;
+  min-width: 28px;
+  text-align: center;
+}
+
+.country-content {
+  padding: 0.5rem;
+}
+
+.city-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 0.875rem;
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
+  background: var(--p-surface-100);
+  border-left: 3px solid var(--p-surface-400);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  user-select: none;
+}
+
+.city-group-header:hover {
+  background: var(--p-surface-200);
+}
+
+.city-group-header:first-child {
+  margin-top: 0.25rem;
+}
+
+.city-header-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.city-header-content i {
+  color: var(--p-surface-500);
+  font-size: 0.625rem;
+  transition: transform 0.2s ease;
+}
+
+.city-group-title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--p-surface-700);
+}
+
+.city-group-count {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--p-surface-600);
+  background: var(--p-surface-200);
+  padding: 0.125rem 0.5rem;
+  border-radius: 12px;
+  min-width: 20px;
+  text-align: center;
+}
+
 /* AI : Style the accordion header content wrapper for proper alignment */
 .accordion-header-content {
   display: flex !important;
@@ -664,7 +968,7 @@ async function handleDevelopmentProjectClick(project: ProjectForModeration) {
 }
 
 /* AI : Override any flex row styles from child components */
-.project-actions-column > * {
+.project-actions-column>* {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;

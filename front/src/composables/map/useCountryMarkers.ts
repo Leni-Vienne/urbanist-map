@@ -35,11 +35,19 @@ let countryMarkersLayer: L.LayerGroup | null = null;
 // AI : Track the currently selected (clicked) country marker
 let selectedCountryMarker: L.Marker | null = null;
 
-export async function loadCountriesWithProjects(): Promise<void> {
+export async function loadCountriesWithProjects(force: boolean = false): Promise<void> {
+  const overlayStore = useOverlayStore();
+  const projectStore = useProjectStore();
+  const viewMode = !overlayStore.isEditMode;
+
+  if (!force && projectStore.hasLoadedCountriesForViewMode(viewMode)) {
+    return;
+  }
+
   isLoadingCountries.value = true;
   try {
     const countriesData = await withErrorHandling(
-      async () => trpc.country.getCountriesWithProjects.query(),
+      async () => trpc.country.getCountriesWithProjects.query({ viewMode }),
       { errorMessage: 'Failed to load countries. Please refresh the page.' }
     );
 
@@ -49,11 +57,12 @@ export async function loadCountriesWithProjects(): Promise<void> {
         ...country,
         lat: country.centerCoordinates.y,
         lng: country.centerCoordinates.x,
-        projectCount: 0, // AI : This will be updated later
-        cities: [], // AI : Empty array, cities will be loaded when user clicks on country
-        createdAt: new Date(), // AI : Add fallback
-        updatedAt: new Date(), // AI : Add fallback
+        projectCount: 0,
+        cities: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
       }));
+      projectStore.setCountriesLoadedForViewMode(viewMode);
     }
   } finally {
     isLoadingCountries.value = false;

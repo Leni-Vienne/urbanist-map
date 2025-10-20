@@ -266,15 +266,42 @@ export const projectRouter = router({
     // AI : Get user's contributions including owned projects, projects with user-authored overlays, and projects with user's change requests
     getUsersContributions: protectedProcedure
       .input(z.object({
-        limit: z.number().min(1).max(100).optional().default(50)
+        limit: z.number().min(1).max(100).optional().default(50),
+        cursor: z.string().uuid().optional(),
+        sortBy: z.enum(['createdAt', 'updatedAt']).optional().default('updatedAt'),
+        cityId: z.string().uuid().optional(),
+        countryCode: z.string().length(3).optional()
       }))
       .query(async ({ input, ctx }) => {
         try {
-          // AI : Get projects owned by user
+          const sortColumn = input.sortBy === 'createdAt' ? projects.createdAt : projects.updatedAt;
+
+          const whereConditions = [eq(projects.ownerId, ctx.user.id)];
+
+          if (input.cityId) {
+            whereConditions.push(eq(projects.cityId, input.cityId));
+          }
+
+          if (input.countryCode) {
+            whereConditions.push(eq(cities.countryCode, input.countryCode));
+          }
+
+          if (input.cursor) {
+            const cursorProject = await db
+              .select({ sortValue: sortColumn })
+              .from(projects)
+              .where(eq(projects.id, input.cursor))
+              .limit(1);
+
+            if (cursorProject.length > 0) {
+              whereConditions.push(sql`${sortColumn} < ${cursorProject[0].sortValue}`);
+            }
+          }
+
           const ownedProjects = await buildProjectWithLocationQuery(db)
-            .where(eq(projects.ownerId, ctx.user.id))
-            .orderBy(sql`${projects.updatedAt} DESC`)
-            .limit(input.limit);
+            .where(and(...whereConditions))
+            .orderBy(sql`${sortColumn} DESC`)
+            .limit(input.limit + 1);
 
           // AI : Get project IDs where user has authored overlays (but doesn't own the project)
           const contributedProjectIdsFromOverlays = await db
@@ -320,10 +347,11 @@ export const projectRouter = router({
                 .orderBy(sql`${projects.updatedAt} DESC`)
             : [];
 
-          // AI : Combine both sets of projects
-          const allProjects = [...ownedProjects, ...contributedProjects];
+          const hasMoreOwned = ownedProjects.length > input.limit;
+          const paginatedOwnedProjects = hasMoreOwned ? ownedProjects.slice(0, input.limit) : ownedProjects;
 
-          // AI : Get overlays for these projects
+          const allProjects = [...paginatedOwnedProjects, ...contributedProjects];
+
           const projectIds = allProjects.map(p => p.id);
           let projectOverlays: Awaited<ReturnType<typeof buildOverlayModerationQuery>> = [];
 
@@ -364,7 +392,6 @@ export const projectRouter = router({
             }
           }
 
-          // AI : Group overlays by project and add overlay count
           const projectsWithOverlays = allProjects.map(project => {
             const projectOverlaysList = projectOverlays.filter(overlay => overlay.projectId === project.id);
             return {
@@ -374,7 +401,15 @@ export const projectRouter = router({
             };
           });
 
-          return projectsWithOverlays;
+          const lastProject = paginatedOwnedProjects[paginatedOwnedProjects.length - 1];
+
+          return {
+            projects: projectsWithOverlays,
+            pagination: {
+              nextCursor: hasMoreOwned && lastProject ? lastProject.id : null,
+              hasMore: hasMoreOwned
+            }
+          };
         } catch (error) {
           console.error('Error fetching all projects:', error);
           throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch all projects' });
