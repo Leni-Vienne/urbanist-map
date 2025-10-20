@@ -7,7 +7,7 @@ import {
   sql, eq, isNotNull, and,
 } from 'drizzle-orm';
 import { db } from '../database';
-import type { OverlayData } from '../shared/types';
+import type { OverlayData } from '../lib/types';
 import {
   getUserOverlayChangeRequestIds,
   buildProjectVisibilityCondition,

@@ -1,11 +1,12 @@
 import { adminProcedure, router } from '../trpc';
 import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
-import { projects, overlays, approvalStatusEnum, changeRequests, cities } from '../db/schema';
-import { eq, inArray, or, and, sql } from 'drizzle-orm';
+import { projects, overlays, approvalStatusEnum, changeRequests } from '../db/schema';
+import { eq, inArray, or, and } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { db } from '../database';
 import { buildProjectModerationQuery, buildOverlayModerationQuery } from '../db/queryBuilders';
-import { LocalFileStorage, R2StorageS3, getThumbnailFilename, streamToBuffer } from '../shared/storage';
+import { LocalFileStorage, R2StorageS3, getThumbnailFilename, streamToBuffer } from '../lib/storage';
+import { buildPaginationConditions, buildPaginationResponse } from '../db/paginationHelpers';
 
 // AI : Helper function to migrate image and thumbnail from local storage to R2 on approval
 // Two-phase thumbnail strategy to prevent abuse:
@@ -88,7 +89,8 @@ export const moderationRouter = router({
         try {
           const sortColumn = input.sortBy === 'updatedAt' ? projects.updatedAt : projects.createdAt;
           const limit = input.limit ?? 50;
-          // First, find all projects that have at least one pending overlay
+
+          // AI : Find all projects that have at least one pending overlay
           const projectsWithPendingOverlays = await db
             .selectDistinct({ projectId: overlays.projectId })
             .from(overlays)
@@ -96,32 +98,19 @@ export const moderationRouter = router({
 
           const projectIdsWithPendingOverlays = projectsWithPendingOverlays.map(p => p.projectId).filter((id): id is string => id !== null);
 
+          // AI : Build pagination conditions using shared helper
+          const paginationConditions = await buildPaginationConditions(
+            { cityId: input.cityId, countryCode: input.countryCode, cursor: input.cursor },
+            sortColumn
+          );
+
           const whereConditions: any[] = [
             or(
               eq(projects.status, 'pending'),
               ...(projectIdsWithPendingOverlays.length > 0 ? [inArray(projects.id, projectIdsWithPendingOverlays)] : [])
-            )
+            ),
+            ...paginationConditions
           ];
-
-          if (input.cityId) {
-            whereConditions.push(eq(projects.cityId, input.cityId));
-          }
-
-          if (input.countryCode) {
-            whereConditions.push(eq(cities.countryCode, input.countryCode));
-          }
-
-          if (input.cursor) {
-            const cursorProject = await db
-              .select({ sortValue: sortColumn })
-              .from(projects)
-              .where(eq(projects.id, input.cursor))
-              .limit(1);
-
-            if (cursorProject.length > 0) {
-              whereConditions.push(sql`${sortColumn} < ${cursorProject[0].sortValue}`);
-            }
-          }
 
           const moderationProjects = buildProjectModerationQuery(db)
             .where(and(...whereConditions))
@@ -160,24 +149,19 @@ export const moderationRouter = router({
             pendingChangeRequests,
           ]);
 
-          const hasMore = projectsResult.length > limit;
-          const paginatedProjects = hasMore ? projectsResult.slice(0, limit) : projectsResult;
+          // AI : Build pagination response using shared helper
+          const paginationResponse = buildPaginationResponse(projectsResult, limit);
 
-          const projectsWithOverlays = paginatedProjects.map(project => ({
+          const projectsWithOverlays = paginationResponse.items.map(project => ({
             ...project,
             overlays: overlaysResult.filter(overlay => overlay.projectId === project.id),
           }));
-
-          const lastProject = paginatedProjects[paginatedProjects.length - 1];
 
           return {
             projects: projectsWithOverlays,
             overlays: overlaysResult.filter(overlay => overlay.status === 'pending'),
             changeRequests: changeRequestsResult,
-            pagination: {
-              nextCursor: hasMore && lastProject ? lastProject.id : null,
-              hasMore
-            }
+            pagination: paginationResponse.pagination
           };
         } catch (error) {
           console.error('Error fetching pending submissions:', error);

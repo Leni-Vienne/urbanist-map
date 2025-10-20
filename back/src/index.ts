@@ -4,13 +4,13 @@ import { cors } from 'hono/cors'
 import { trpcServer } from '@hono/trpc-server'
 import { sessionMiddleware, MemoryStore, Session } from 'hono-sessions'
 import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod'
-import { appRouter } from './shared/routers'
-import { LocalFileStorage, getThumbnailFilename } from './shared/storage'
-import type { FileUploadResult, FileUploadError } from './shared/types'
+import { appRouter } from './routes'
+import { LocalFileStorage, getThumbnailFilename } from './lib/storage'
+import type { FileUploadResult, FileUploadError } from './lib/types'
 import { config } from './config'
 import type { FetchCreateContextFnOptions } from '@trpc/server/adapters/fetch'
 import type { Context } from 'hono'
-import { generateMissingThumbnails } from './shared/startup'
+import { generateMissingThumbnails } from './lib/startup'
 
 // AI : Session data type
 type SessionData = {
@@ -451,7 +451,7 @@ generateMissingThumbnails().catch(error => {
     console.error('Failed to generate missing thumbnails:', error);
 });
 
-export type { AppRouter } from './shared/routers'
+export type { AppRouter } from './routes'
 
 export default {
     port: config.PORT,

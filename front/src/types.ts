@@ -128,8 +128,8 @@ export interface Project extends DBProject {
 }
 
 // AI : Import shared overlay data type from backend
-import type { OverlayData } from '../../back/src/shared/types';
-export type { OverlayData } from '../../back/src/shared/types';
+import type { OverlayData } from '../../back/src/lib/types';
+export type { OverlayData } from '../../back/src/lib/types';
 
 // AI : Frontend overlay type - extends backend OverlayData with UI state
 export interface OverlayObject extends OverlayData {

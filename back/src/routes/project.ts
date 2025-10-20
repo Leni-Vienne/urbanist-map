@@ -5,6 +5,7 @@ import { eq, sql, and, or, inArray } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { db } from '../database';
 import { buildProjectWithLocationQuery, buildOverlayModerationQuery } from '../db/queryBuilders';
+import { buildPaginationConditions, buildPaginationResponse } from '../db/paginationHelpers';
 
 // AI : Nearby search radius configuration
 const NEARBY_SEARCH_RADIUS_METERS = 10 * 1000; // 10km
@@ -276,27 +277,13 @@ export const projectRouter = router({
         try {
           const sortColumn = input.sortBy === 'createdAt' ? projects.createdAt : projects.updatedAt;
 
-          const whereConditions = [eq(projects.ownerId, ctx.user.id)];
+          // AI : Build pagination conditions using shared helper
+          const paginationConditions = await buildPaginationConditions(
+            { cityId: input.cityId, countryCode: input.countryCode, cursor: input.cursor },
+            sortColumn
+          );
 
-          if (input.cityId) {
-            whereConditions.push(eq(projects.cityId, input.cityId));
-          }
-
-          if (input.countryCode) {
-            whereConditions.push(eq(cities.countryCode, input.countryCode));
-          }
-
-          if (input.cursor) {
-            const cursorProject = await db
-              .select({ sortValue: sortColumn })
-              .from(projects)
-              .where(eq(projects.id, input.cursor))
-              .limit(1);
-
-            if (cursorProject.length > 0) {
-              whereConditions.push(sql`${sortColumn} < ${cursorProject[0].sortValue}`);
-            }
-          }
+          const whereConditions = [eq(projects.ownerId, ctx.user.id), ...paginationConditions];
 
           const ownedProjects = await buildProjectWithLocationQuery(db)
             .where(and(...whereConditions))
@@ -401,14 +388,12 @@ export const projectRouter = router({
             };
           });
 
-          const lastProject = paginatedOwnedProjects[paginatedOwnedProjects.length - 1];
+          // AI : Build pagination response using shared helper (only for owned projects, as contributed are not paginated)
+          const paginationResponse = buildPaginationResponse(ownedProjects, input.limit);
 
           return {
             projects: projectsWithOverlays,
-            pagination: {
-              nextCursor: hasMoreOwned && lastProject ? lastProject.id : null,
-              hasMore: hasMoreOwned
-            }
+            pagination: paginationResponse.pagination
           };
         } catch (error) {
           console.error('Error fetching all projects:', error);
