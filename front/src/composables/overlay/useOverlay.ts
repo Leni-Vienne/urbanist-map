@@ -25,7 +25,7 @@ import type { OverlayObject, OverlayData } from '@types';
 import { createOverlay as createOverlayInstance, createOverlayFromCDN, convertOverlayToData } from '../../utils/typeFactories';
 import { toRef } from 'vue';
 
-import { createColorIcon } from '@composables/ui/markerIcons';
+import { createColorIcon, OVERLAY_OUTLINE_COLOR } from '@composables/ui/markerIcons';
 import { useProjects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import { trpc } from '@client';
 import { getSelectedCity } from '@composables/map/useCityData';
@@ -575,12 +575,8 @@ export function selectOverlay(overlayId: string | null): void {
 
 function applySelectionOutline(overlayObject: OverlayObject): void {
   const overlayStore = useOverlayStore();
-  const projectStore = useProjectStore();
 
   if (!overlayObject.overlay || !overlayObject.projectId) return;
-
-  const project = projectStore.projects[overlayObject.projectId];
-  const color = project?.color ?? '#007bff';
 
   Object.values(overlayStore.overlays).forEach((obj: OverlayObject) => {
     if (obj.projectId === overlayObject.projectId && obj.overlay) {
@@ -590,7 +586,7 @@ function applySelectionOutline(overlayObject: OverlayObject): void {
         const outlineSize = calculateOutlineSize(element, 20);
 
         // AI : Use box-shadow instead of outline to avoid scaling issues
-        element.style.boxShadow = `0 0 0 ${outlineSize}px ${color}`;
+        element.style.boxShadow = `0 0 0 ${outlineSize}px ${OVERLAY_OUTLINE_COLOR}`;
         element.style.outline = 'none';
       }
     }
@@ -620,12 +616,8 @@ function removeSelectionOutline(overlayObject: OverlayObject): void {
  */
 function highlightProjectOverlaysOnHover(projectId: string): void {
   const overlayStore = useOverlayStore();
-  const projectStore = useProjectStore();
 
   if (!projectId) return;
-
-  const project = projectStore.projects[projectId];
-  const color = project?.color ?? '#007bff';
 
   Object.values(overlayStore.overlays).forEach((overlayObject: OverlayObject) => {
     if (overlayObject.projectId === projectId && overlayObject.overlay) {
@@ -635,7 +627,7 @@ function highlightProjectOverlaysOnHover(projectId: string): void {
         const outlineSize = calculateOutlineSize(element, 20);
 
         // AI : Use box-shadow instead of outline to avoid scaling issues
-        element.style.boxShadow = `0 0 0 ${outlineSize}px ${color}`;
+        element.style.boxShadow = `0 0 0 ${outlineSize}px ${OVERLAY_OUTLINE_COLOR}`;
         element.style.outline = 'none';
       }
     }
@@ -647,24 +639,18 @@ function highlightProjectOverlaysOnHover(projectId: string): void {
  */
 function removeProjectHighlightOnHover(projectId: string): void {
   const overlayStore = useOverlayStore();
-  const projectStore = useProjectStore();
 
   if (!projectId) return;
 
   const selectedOverlay = overlayStore.idSelectedOverlay ? overlayStore.overlays[overlayStore.idSelectedOverlay] : null;
   if (selectedOverlay?.projectId === projectId) return;
 
-  const project = projectStore.projects[projectId];
-
+  // AI : Remove all outlines when mouse leaves
   Object.values(overlayStore.overlays).forEach((overlayObject: OverlayObject) => {
     if (overlayObject.projectId === projectId && overlayObject.overlay) {
       const element = overlayObject.overlay.getElement();
       if (element) {
-        // AI : Calculate appropriate outline size for the default state
-        const outlineSize = calculateOutlineSize(element, 2);
-
-        // AI : Use box-shadow instead of outline for consistency
-        element.style.boxShadow = project ? `0 0 0 ${outlineSize}px ${project.color}` : '';
+        element.style.boxShadow = '';
         element.style.outline = 'none';
       }
     }

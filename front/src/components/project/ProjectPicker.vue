@@ -39,7 +39,7 @@
               >
                 <div
                   class="w-3 h-3 rounded-full flex-shrink-0"
-                  :style="{ backgroundColor: getProjectById(value)?.color ?? '#ccc' }"
+                  :style="{ backgroundColor: getStatusColor(getProjectById(value)) }"
                 ></div>
                 <span>{{ getProjectById(value)?.name }}</span>
               </div>
@@ -57,7 +57,7 @@
               <div class="flex items-center gap-2">
                 <div
                   class="w-3 h-3 rounded-full flex-shrink-0"
-                  :style="{ backgroundColor: option.color }"
+                  :style="{ backgroundColor: getStatusColor(option) }"
                 ></div>
                 <div>
                   <div class="flex items-center gap-2">
@@ -110,6 +110,7 @@ import { lastCreatedProjectId, setFileUploadFlow } from '@composables/ui/useProj
 import { useSelectedProject } from '@composables/project/useSelectedProject';
 import { useUiStore } from '@stores/uiStore';
 import type { Project } from '@types';
+import { markerColors } from '@composables/ui/markerIcons';
 
 const props = defineProps({
   modelValue: {
@@ -263,6 +264,31 @@ watch(selectedProjectId, (newValue, oldValue) => {
 
 function getProjectById(id: string): Project | undefined {
   return flatProjectList.value.find(project => project.id === id);
+}
+
+// AI : Get status-based color for project indicator dot (edit mode focused)
+function getStatusColor(project: Project | undefined): string {
+  if (!project) return markerColors.grey;
+
+  // AI : Check if project has been modified locally (not saved remotely yet)
+  if (!project.savedRemotely) {
+    return markerColors.orange; // Orange for modified/new projects
+  }
+
+  // AI : Check project status
+  if (project.status === 'pending') {
+    return markerColors.yellow; // Yellow for pending approval
+  }
+
+  if (project.status === 'approved') {
+    return markerColors.green; // Green for approved
+  }
+
+  if (project.status === 'rejected') {
+    return markerColors.red; // Red for rejected
+  }
+
+  return markerColors.grey; // Default grey
 }
 
 function confirmSelection() {

@@ -121,7 +121,6 @@ export interface Project extends DBProject {
   // AI : Computed fields for all contexts
   city: DBCity;
   overlayIds: string[];
-  color: string;
   name: string; // AI : Computed from project name field
   savedRemotely: boolean;
   // AI : Map coordinates for development projects (null for overlay projects) - renamed to avoid DB conflict

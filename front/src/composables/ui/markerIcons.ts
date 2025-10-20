@@ -5,8 +5,11 @@ import type { MarkerColor } from '@types';
 // AI : SVG marker configuration
 const markerSize = 25;
 
+// AI : Overlay outline color (blue) - used for all overlay outlines regardless of status
+export const OVERLAY_OUTLINE_COLOR = '#007bff';
+
 // AI : Single base color per marker - everything else is generated
-const markerColors: Record<MarkerColor, string> = {
+export const markerColors: Record<MarkerColor, string> = {
   blue: '#1E90FF',
   green: '#32CD32',
   orange: '#FF8C00',
