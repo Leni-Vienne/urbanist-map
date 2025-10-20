@@ -154,83 +154,22 @@
                             </div>
                           </div>
 
-                          <!-- AI : Project change requests -->
-                          <div
-                            v-if="getProjectChangeRequests(project.id).length > 0"
-                            class="project-change-requests"
+                          <ChangeRequestSection
+                            v-if="getProjectChangeRequestsForProject(project.id).length > 0"
+                            :changes="getProjectChangeRequestsForProject(project.id)"
+                            :all-change-requests="changeRequests"
+                            :projects="projects"
+                            :is-my-contributions="isMyContributionsPanel"
+                            :on-navigate-to-overlay="navigateToOverlayById"
+                            container-class="project-change-requests"
                           >
-                            <h3 class="change-requests-title">{{ isMyContributionsPanel ?
-                              $t('moderation.yourPendingChanges') : $t('moderation.pendingChanges') }}</h3>
-                            <p
-                              v-if="isMyContributionsPanel"
-                              class="change-requests-subtitle"
-                            >{{ $t('moderation.moderatorReviewRequired') }}</p>
-                            <div class="change-requests-list">
-                              <div
-                                v-for="change in getProjectChangeRequests(project.id)"
-                                :key="change.id"
-                                class="change-item"
-                              >
-                                <div class="change-content">
-                                  <div class="change-field">
-                                    <strong>{{ change.fieldName }}:</strong>
-                                    <div
-                                      v-if="isGeometryField(change.fieldName)"
-                                      class="geometry-change-controls"
-                                    >
-                                      <div class="geometry-buttons">
-                                        <Button
-                                          icon="pi pi-map-marker"
-                                          :label="$t('overlay.viewCurrentPosition')"
-                                          @click.stop="previewGeometry(change.oldValue, 'old', change.id)"
-                                          severity="success"
-                                          :outlined="!(activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'old')"
-                                          size="small"
-                                        />
-                                        <Button
-                                          icon="pi pi-map-marker"
-                                          :label="$t('overlay.viewSuggestedPosition')"
-                                          @click.stop="previewGeometry(change.newValue, 'new', change.id)"
-                                          severity="warn"
-                                          :outlined="!(activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'new')"
-                                          size="small"
-                                        />
-                                      </div>
-                                    </div>
-                                    <div
-                                      v-else
-                                      class="change-values"
-                                    >
-                                      <span class="old-value">{{ formatValue(change.oldValue, change.fieldName)
-                                      }}</span>
-                                      <i class="pi pi-arrow-right"></i>
-                                      <span class="new-value">{{ formatValue(change.newValue, change.fieldName)
-                                      }}</span>
-                                    </div>
-                                    <div
-                                      v-if="change.changeReason"
-                                      class="change-reason"
-                                    >
-                                      <em>{{ $t('moderation.reason') }}: {{ change.changeReason }}</em>
-                                    </div>
-                                    <div class="change-date">
-                                      <em>{{ $t('moderation.requested') }}: {{ new
-                                        Date(change.createdAt).toLocaleString() }}</em>
-                                    </div>
-                                  </div>
-                                  <div
-                                    v-if="$slots['change-actions']"
-                                    class="change-actions"
-                                  >
-                                    <slot
-                                      name="change-actions"
-                                      :change="change"
-                                    ></slot>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
+                            <template #change-actions="{ change }">
+                              <slot
+                                name="change-actions"
+                                :change="change"
+                              ></slot>
+                            </template>
+                          </ChangeRequestSection>
                         </template>
                       </Card>
 
@@ -243,7 +182,7 @@
                           v-for="overlay in project.overlays"
                           :key="overlay.id"
                           class="overlay-card-wrapper"
-                          :class="{ 'has-changes': getOverlayChangeRequests(overlay.id).length > 0 }"
+                          :class="{ 'has-changes': getOverlayChangeRequestsForOverlay(overlay.id).length > 0 }"
                         >
                           <div
                             class="overlay-card"
@@ -316,91 +255,24 @@
                             />
                           </div>
 
-                          <!-- AI : Overlay change requests - visually connected to overlay -->
-                          <div
-                            v-if="getOverlayChangeRequests(overlay.id).length > 0"
-                            class="overlay-change-requests"
+                          <ChangeRequestSection
+                            v-if="getOverlayChangeRequestsForOverlay(overlay.id).length > 0"
+                            :changes="getOverlayChangeRequestsForOverlay(overlay.id)"
+                            :all-change-requests="changeRequests"
+                            :projects="projects"
+                            :is-my-contributions="isMyContributionsPanel"
+                            :is-overlay-changes="true"
+                            :entity-name="overlay.name || $t('overlay.untitled')"
+                            :on-navigate-to-overlay="navigateToOverlayById"
+                            container-class="overlay-change-requests"
                           >
-                            <div class="change-requests-header">
-                              <div class="change-indicator">
-                                <i class="pi pi-exclamation-triangle text-orange-500"></i>
-                                <span class="change-header-text">{{ isMyContributionsPanel ?
-                                  $t('moderation.yourPendingChanges') :
-                                  $t('moderation.pendingChangesFor', { name: overlay.name || $t('overlay.untitled') })
-                                }}</span>
-                              </div>
-                              <p
-                                v-if="isMyContributionsPanel"
-                                class="change-requests-subtitle"
-                              >{{ $t('moderation.moderatorReviewRequired') }}
-                              </p>
-                            </div>
-                            <div class="change-requests-list">
-                              <div
-                                v-for="change in getOverlayChangeRequests(overlay.id)"
-                                :key="change.id"
-                                class="change-item"
-                              >
-                                <div class="change-content">
-                                  <div class="change-field">
-                                    <strong>{{ change.fieldName }}:</strong>
-                                    <div
-                                      v-if="isGeometryField(change.fieldName)"
-                                      class="geometry-change-controls"
-                                    >
-                                      <div class="geometry-buttons">
-                                        <Button
-                                          icon="pi pi-map-marker"
-                                          :label="$t('overlay.viewCurrentPosition')"
-                                          @click.stop="previewGeometry(change.oldValue, 'old', change.id)"
-                                          severity="success"
-                                          :outlined="!(activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'old')"
-                                          size="small"
-                                        />
-                                        <Button
-                                          icon="pi pi-map-marker"
-                                          :label="$t('overlay.viewSuggestedPosition')"
-                                          @click.stop="previewGeometry(change.newValue, 'new', change.id)"
-                                          severity="warn"
-                                          :outlined="!(activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'new')"
-                                          size="small"
-                                        />
-                                      </div>
-                                    </div>
-                                    <div
-                                      v-else
-                                      class="change-values"
-                                    >
-                                      <span class="old-value">{{ formatValue(change.oldValue, change.fieldName)
-                                      }}</span>
-                                      <i class="pi pi-arrow-right"></i>
-                                      <span class="new-value">{{ formatValue(change.newValue, change.fieldName)
-                                      }}</span>
-                                    </div>
-                                    <div
-                                      v-if="change.changeReason"
-                                      class="change-reason"
-                                    >
-                                      <em>{{ $t('moderation.reason') }}: {{ change.changeReason }}</em>
-                                    </div>
-                                    <div class="change-date">
-                                      <em>{{ $t('moderation.requested') }}: {{ new
-                                        Date(change.createdAt).toLocaleString() }}</em>
-                                    </div>
-                                  </div>
-                                  <div
-                                    v-if="$slots['change-actions']"
-                                    class="change-actions"
-                                  >
-                                    <slot
-                                      name="change-actions"
-                                      :change="change"
-                                    ></slot>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
+                            <template #change-actions="{ change }">
+                              <slot
+                                name="change-actions"
+                                :change="change"
+                              ></slot>
+                            </template>
+                          </ChangeRequestSection>
                         </div>
                       </div>
                     </AccordionContent>
@@ -442,11 +314,11 @@ import { useI18n } from 'vue-i18n'
 import { buildThumbnailUrl, formatRelativeTime } from '../../utils'
 import { navigateToDevelopmentProject } from '@composables/navigation/useOverlayNavigation'
 import { useOverlayClickHandler } from '@composables/overlay/useOverlayClickHandler'
-import { useChangeRequestDisplay } from '@composables/changes/useChangeRequestDisplay'
 import { useToast } from '@composables/ui/useToast'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import type { ProjectForModeration, OverlayForModeration } from '@types'
 import type { PendingChangeRequest } from '../../types/api'
+import ChangeRequestSection from './ChangeRequestSection.vue'
 
 // AI : Props interface
 interface Props {
@@ -476,30 +348,45 @@ const activeAccordionPanels = ref<string[]>([])
 // AI : Use overlay click handler composable for shared navigation logic
 const { handleOverlayClickNavigation } = useOverlayClickHandler()
 
-// AI : Use change request display composable for shared change request logic
-const {
-  activeGeometryPreview,
-  isGeometryField,
-  getProjectChangeRequests,
-  getOverlayChangeRequests,
-  previewGeometry,
-  formatValue
-} = useChangeRequestDisplay(
-  () => props.changeRequests,
-  () => props.projects,
-  async (overlayId: string) => {
-    // AI : Find the overlay and call handleOverlayClickNavigation
-    for (const project of props.projects) {
-      if (project.overlays) {
-        const overlay = project.overlays.find(o => o.id === overlayId)
-        if (overlay) {
-          await handleOverlayClickNavigation(overlay)
-          return
-        }
+// AI : Wrapper to navigate to overlay by ID
+async function navigateToOverlayById(overlayId: string) {
+  for (const project of props.projects) {
+    if (project.overlays) {
+      const overlay = project.overlays.find(o => o.id === overlayId)
+      if (overlay) {
+        await handleOverlayClickNavigation(overlay)
+        return
       }
     }
   }
-)
+}
+
+// AI : Helper functions to filter change requests
+function getProjectChangeRequestsForProject(projectId: string): PendingChangeRequest[] {
+  const project = props.projects.find(p => p.id === projectId)
+  if (!project || project.status === 'pending') {
+    return []
+  }
+  return props.changeRequests.filter(
+    request => request.entityType === 'project' && request.entityId === projectId
+  )
+}
+
+function getOverlayChangeRequestsForOverlay(overlayId: string): PendingChangeRequest[] {
+  let overlay: OverlayForModeration | null = null
+  for (const project of props.projects) {
+    if (project.overlays) {
+      overlay = project.overlays.find((o: OverlayForModeration) => o.id === overlayId) ?? null
+      if (overlay) break
+    }
+  }
+  if (!overlay || overlay.status === 'pending') {
+    return []
+  }
+  return props.changeRequests.filter(
+    request => request.entityType === 'overlay' && request.entityId === overlayId
+  )
+}
 
 const expandedPanels = computed(() => new Set(activeAccordionPanels.value))
 
@@ -1111,136 +998,4 @@ async function handleDevelopmentProjectClick(project: ProjectForModeration) {
   white-space: nowrap;
 }
 
-/* AI : Change requests styling */
-.project-change-requests {
-  margin-top: 1rem;
-  padding: 0.75rem;
-  background: var(--p-surface-50);
-  border: 1px solid var(--p-surface-200);
-  border-radius: 6px;
-}
-
-.overlay-change-requests {
-  padding: 0.75rem 1rem;
-  background: var(--p-orange-25);
-  border-top: 1px solid var(--p-orange-200);
-}
-
-.change-requests-title {
-  margin: 0 0 0.75rem 0;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--p-surface-700);
-}
-
-.change-requests-subtitle {
-  margin: 0.5rem 0 0 0;
-  font-size: 0.75rem;
-  color: var(--p-surface-500);
-  font-style: italic;
-}
-
-/* AI : Change requests header for overlays */
-.change-requests-header {
-  margin-bottom: 0.75rem;
-}
-
-.change-indicator {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.change-header-text {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--p-orange-700);
-}
-
-.change-requests-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.change-item {
-  background: white;
-  border: 1px solid var(--p-surface-200);
-  border-radius: 4px;
-  padding: 0.5rem;
-}
-
-.change-content {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.change-field {
-  flex: 1;
-  min-width: 0;
-}
-
-.change-field strong {
-  color: var(--p-surface-700);
-  font-size: 0.8125rem;
-}
-
-.change-values {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  margin: 0.25rem 0;
-  font-family: 'Courier New', monospace;
-  font-size: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.old-value {
-  color: #059669;
-  background: #ecfdf5;
-  padding: 0.125rem 0.25rem;
-  border-radius: 3px;
-  word-break: break-word;
-  max-width: 150px;
-}
-
-.new-value {
-  color: var(--p-tag-warn-color);
-  background: var(--p-tag-warn-background);
-  padding: 0.125rem 0.25rem;
-  border-radius: 3px;
-  word-break: break-word;
-  max-width: 150px;
-}
-
-.change-reason {
-  font-size: 0.75rem;
-  color: var(--p-surface-600);
-  margin-top: 0.25rem;
-}
-
-.change-date {
-  font-size: 0.75rem;
-  color: var(--p-surface-400);
-  margin-top: 0.25rem;
-}
-
-.change-actions {
-  display: flex;
-  gap: 0.25rem;
-  justify-content: flex-end;
-  flex-shrink: 0;
-}
-
-/* AI : Geometry change controls */
-.geometry-change-controls {
-  margin: 0.5rem 0;
-}
-
-.geometry-buttons {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
 </style>
