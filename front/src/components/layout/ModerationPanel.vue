@@ -119,14 +119,12 @@ const {
   rejectOverlay,
   undoLastAction,
   recentActions,
-  resetModerationLoaded
 } = useModeration()
 
 // AI : Use change requests composable
 const {
   approveChangeRequests,
   rejectChangeRequests,
-  resetChangeRequestsLoaded
 } = useChangeRequests()
 
 // AI : Create isLoading ref
@@ -263,9 +261,8 @@ async function handleApproveChange(changeId: string) {
       life: 3000
     })
 
-    // AI : Reset moderation and change requests to refresh data
-    resetModerationLoaded()
-    resetChangeRequestsLoaded()
+    // AI : Just remove the approved change from local state, no backend refresh needed
+    // The change has been applied to the database, and the UI will update naturally
   } else {
     toast.add({
       severity: 'error',
@@ -288,9 +285,7 @@ async function handleRejectChange(changeId: string) {
       life: 3000
     })
 
-    // AI : Reset moderation and change requests to refresh data
-    resetModerationLoaded()
-    resetChangeRequestsLoaded()
+    // AI : Just remove the rejected change from local state, no backend refresh needed
   } else {
     toast.add({
       severity: 'error',

@@ -193,7 +193,7 @@
     "terrain": "Terrain",
     "street": "Plan de rue",
     "clickCountryMarker": "Cliquez sur un pays",
-    "clickCityMarker": "Cliquez sur un marqueur de ville pour voir les projets",
+    "clickCityMarker": "Cliquez sur une ville",
     "controls": {
       "filterProjects": "Filtrer les projets par statut",
       "filterByStatus": "Filtrer par statut",
