@@ -193,7 +193,19 @@
     "terrain": "Terrain",
     "street": "Plan de rue",
     "clickCountryMarker": "Cliquez sur un pays",
-    "clickCityMarker": "Cliquez sur un marqueur de ville pour voir les projets"
+    "clickCityMarker": "Cliquez sur un marqueur de ville pour voir les projets",
+    "controls": {
+      "filterProjects": "Filtrer les projets par statut",
+      "filterByStatus": "Filtrer par statut",
+      "proposed": "Proposé",
+      "planned": "Planifié",
+      "inProgress": "En cours",
+      "completed": "Terminé",
+      "toggleProposed": "Afficher/masquer les projets proposés",
+      "togglePlanned": "Afficher/masquer les projets planifiés",
+      "toggleInProgress": "Afficher/masquer les projets en cours",
+      "toggleCompleted": "Afficher/masquer les projets terminés"
+    }
   },
   "auth": {
     "login": "Connexion",

@@ -10,7 +10,7 @@
           v-for="overlay in overlays"
           :key="overlay.id"
           class="overlay-card"
-          @click="handleOverlayClickNavigation(overlay)"
+          @click="handleOverlayClickNavigation(overlay, false)"
         >
           <!-- AI : Overlay thumbnail image -->
           <div class="overlay-thumbnail">
@@ -48,7 +48,7 @@
           <!-- AI : Zoom button like the prototype -->
           <button
             class="zoom-button"
-            @click.stop="handleOverlayClickNavigation(overlay)"
+            @click.stop="handleOverlayClickNavigation(overlay, false)"
             :title="t('overlay.zoomTo') + ' ' + (overlay.caption || t('overlay.untitled'))"
           >
             <i class="pi pi-search"></i>

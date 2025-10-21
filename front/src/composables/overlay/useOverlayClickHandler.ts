@@ -23,13 +23,13 @@ export function useOverlayClickHandler() {
    * AI : - Clears city cache to force reload
    * AI : - Uses city-aware navigation when possible for better UX
    */
-  async function handleOverlayClickNavigation(overlay: NavigableOverlay) {
+  async function handleOverlayClickNavigation(overlay: NavigableOverlay, shouldToggleEditMode = false): Promise<void> {
     try {
       const overlayStore = useOverlayStore()
       const mapStore = useMapStore()
 
       // AI : Ensure edit mode is enabled before navigating
-      if (!overlayStore.isEditMode) {
+      if (!overlayStore.isEditMode && shouldToggleEditMode) {
         await toggleEditMode()
 
         // AI : Only show toast for pending overlays (for approved ones it's less critical)

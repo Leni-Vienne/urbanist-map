@@ -69,7 +69,7 @@
       </button>
       <button
         class="action-btn"
-        @click.stop="handleOverlayClickNavigation(overlay)"
+        @click.stop="handleOverlayClickNavigation(overlay, true)"
         v-tooltip.top="'Zoom to Overlay'"
       >
         <i class="pi pi-search"></i>

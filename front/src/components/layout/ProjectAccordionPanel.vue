@@ -186,7 +186,7 @@
                         >
                           <div
                             class="overlay-card"
-                            @click="handleOverlayClickNavigation(overlay)"
+                            @click="handleOverlayClickNavigation(overlay, true)"
                           >
                             <!-- AI : Overlay thumbnail -->
                             <div
@@ -248,7 +248,7 @@
                               v-else
                               icon="pi pi-search"
                               :aria-label="$t('overlay.zoomTo') + ' ' + (overlay.name || $t('overlay.untitled'))"
-                              @click.stop="handleOverlayClickNavigation(overlay)"
+                              @click.stop="handleOverlayClickNavigation(overlay, true)"
                               text
                               rounded
                               size="small"
@@ -354,7 +354,7 @@ async function navigateToOverlayById(overlayId: string) {
     if (project.overlays) {
       const overlay = project.overlays.find(o => o.id === overlayId)
       if (overlay) {
-        await handleOverlayClickNavigation(overlay)
+        await handleOverlayClickNavigation(overlay, true)
         return
       }
     }

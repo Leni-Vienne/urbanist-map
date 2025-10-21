@@ -1,4 +1,4 @@
-import { generateThumbnail } from '../shared/storage';
+import { generateThumbnail } from './storage';
 import { readdir, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
