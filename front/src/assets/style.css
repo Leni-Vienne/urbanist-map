@@ -53,3 +53,7 @@
   --p-badge-warn-background: #fef9c3;
   --p-badge-warn-color: #ca8a04;
 }
+
+.p-popover {
+  z-index: 1200 !important; /* Ensure popovers appear above other elements like drawers */
+}
