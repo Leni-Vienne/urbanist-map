@@ -22,6 +22,7 @@ export const useProjectStore = defineStore('project', () => {
   const nearbyProjects = ref<NearbyProject[]>([]);
   const nearbyProjectsLoading = ref(false);
   const nearbyProjectsError = ref<string | null>(null);
+  const nearbyProjectsLastFetch = ref<{ lat: number; lng: number; timestamp: number } | null>(null);
 
   // AI : User contributions cache - simple loaded flag
   const userContributions = ref<any[]>([]);
@@ -58,12 +59,10 @@ export const useProjectStore = defineStore('project', () => {
     userContributionsLoading.value = loading;
   };
 
-  // AI : Nearby projects management actions
-  async function fetchNearbyProjects(): Promise<NearbyProject[]> {
+  // AI : Fetch nearby projects with smart caching to avoid redundant API calls
+  // AI : Cache is valid for 5 minutes and invalidated if map moves >11km from cached position
+  async function fetchNearbyProjects(force = false): Promise<NearbyProject[]> {
     try {
-      nearbyProjectsLoading.value = true;
-      nearbyProjectsError.value = null;
-
       if (!map.value) {
         console.warn('Map not available for fetching nearby projects');
         return [];
@@ -71,6 +70,30 @@ export const useProjectStore = defineStore('project', () => {
 
       // AI : Get current map center coordinates
       const center = map.value.getCenter();
+      const now = Date.now();
+      
+      // AI : Check if we have cached data and don't need to refetch
+      if (!force && nearbyProjectsLastFetch.value) {
+        const { lat: cachedLat, lng: cachedLng, timestamp } = nearbyProjectsLastFetch.value;
+        const CACHE_DURATION = 5 * 60 * 1000; // AI : 5 minutes cache
+        const LOCATION_THRESHOLD = 0.1; // AI : ~11km at equator
+        
+        // AI : Calculate distance from cached location
+        const latDiff = Math.abs(center.lat - cachedLat);
+        const lngDiff = Math.abs(center.lng - cachedLng);
+        
+        // AI : If location hasn't changed much and cache is fresh, return cached data
+        if (
+          latDiff < LOCATION_THRESHOLD &&
+          lngDiff < LOCATION_THRESHOLD &&
+          now - timestamp < CACHE_DURATION
+        ) {
+          return nearbyProjects.value;
+        }
+      }
+
+      nearbyProjectsLoading.value = true;
+      nearbyProjectsError.value = null;
 
       // AI : Call the TRPC endpoint to fetch nearby projects
       const response = await trpc.project.getProjectsNearLocation.query({
@@ -79,6 +102,12 @@ export const useProjectStore = defineStore('project', () => {
       });
 
       nearbyProjects.value = response.projects;
+      nearbyProjectsLastFetch.value = {
+        lat: center.lat,
+        lng: center.lng,
+        timestamp: now
+      };
+      
       return response.projects;
     } catch (err) {
       console.error('Error fetching nearby projects:', err);
@@ -97,6 +126,7 @@ export const useProjectStore = defineStore('project', () => {
   function clearNearbyProjects(): void {
     nearbyProjects.value = [];
     nearbyProjectsError.value = null;
+    nearbyProjectsLastFetch.value = null;
   }
 
   function setNearbyProjectsLoading(loading: boolean): void {
