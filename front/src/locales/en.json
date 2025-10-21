@@ -193,7 +193,7 @@
     "terrain": "Terrain",
     "street": "Street Map",
     "clickCountryMarker": "Click on a country marker to explore",
-    "clickCityMarker": "Click on a city marker to see projects",
+    "clickCityMarker": "Click on a city",
     "controls": {
       "filterProjects": "Filter projects by status",
       "filterByStatus": "Filter by Status",

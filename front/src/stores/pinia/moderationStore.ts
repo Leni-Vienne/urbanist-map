@@ -50,6 +50,13 @@ export const useModerationStore = defineStore('moderation', () => {
     recentActions.value = recentActions.value.slice(1);
   }
 
+  // AI : Remove change requests from local state after approval/rejection
+  function removeChangeRequests(changeRequestIds: string[]) {
+    changeRequests.value = changeRequests.value.filter(
+      cr => !changeRequestIds.includes(cr.id)
+    );
+  }
+
   return {
     overlays,
     projects,
@@ -62,5 +69,6 @@ export const useModerationStore = defineStore('moderation', () => {
     resetModerationLoaded,
     addRecentAction,
     removeLastAction,
+    removeChangeRequests,
   };
 });

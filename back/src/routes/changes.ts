@@ -1,7 +1,7 @@
 import { adminProcedure, protectedProcedure, router } from '../trpc';
 import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
 import { projects, overlays, changeRequests, changeHistory } from '../db/schema';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { db } from '../database';
 
@@ -27,6 +27,58 @@ const approveChangeRequestSchema = z.object({
 const rejectChangeRequestSchema = z.object({
   changeRequestIds: z.array(z.uuid()),
 });
+
+// AI : Helper function to convert corners JSON array to PostGIS polygon geometry
+function convertCornersToGeometry(cornersValue: unknown) {
+  const cornersArray = cornersValue as Array<{ lat: number; lng: number }>;
+  if (!Array.isArray(cornersArray) || cornersArray.length !== 4) {
+    throw new TRPCError({ 
+      code: 'BAD_REQUEST', 
+      message: 'Corners must be an array of 4 coordinate objects' 
+    });
+  }
+  
+  // AI : Build WKT polygon string (same format as overlay publish)
+  const [topLeft, topRight, bottomRight, bottomLeft] = cornersArray;
+  const polygonWKT = `POLYGON((${topLeft.lng} ${topLeft.lat}, ${topRight.lng} ${topRight.lat}, ${bottomRight.lng} ${bottomRight.lat}, ${bottomLeft.lng} ${bottomLeft.lat}, ${topLeft.lng} ${topLeft.lat}))`;
+  
+  return sql.raw(`ST_GeomFromText('${polygonWKT}', 4326)`);
+}
+
+// AI : Helper function to convert coordinate object to PostGIS point geometry
+function convertCoordinateToGeometry(coordValue: unknown) {
+  const coordObj = coordValue as { lat: number; lng: number };
+  if (!coordObj || typeof coordObj.lat !== 'number' || typeof coordObj.lng !== 'number') {
+    throw new TRPCError({ 
+      code: 'BAD_REQUEST', 
+      message: 'Coordinate must be an object with lat and lng properties' 
+    });
+  }
+  
+  return sql`ST_SetSRID(ST_MakePoint(${coordObj.lng}, ${coordObj.lat}), 4326)`;
+}
+
+// AI : Helper function to build update data with proper geometry handling
+function buildUpdateData(change: { entityType: string; fieldName: string; newValue: unknown }) {
+  const isOverlayCornersField = change.entityType === 'overlay' && change.fieldName === 'corners';
+  const isOverlayCentroidField = change.entityType === 'overlay' && change.fieldName === 'centroid';
+  const isProjectCoordinatesField = change.entityType === 'project' && change.fieldName === 'coordinates';
+  
+  if (isOverlayCornersField) {
+    return { corners: convertCornersToGeometry(change.newValue) };
+  }
+  
+  if (isOverlayCentroidField) {
+    return { centroid: convertCoordinateToGeometry(change.newValue) };
+  }
+  
+  if (isProjectCoordinatesField) {
+    return { coordinates: convertCoordinateToGeometry(change.newValue) };
+  }
+  
+  // AI : For non-geometry fields, use the value directly
+  return { [change.fieldName]: change.newValue };
+}
 
 export const changesRouter = router({
   submitChangeRequest: protectedProcedure
@@ -148,7 +200,8 @@ export const changesRouter = router({
 
         for (const change of pendingChanges) {
           await db.transaction(async (tx) => {
-            const updateData = { [change.fieldName]: change.newValue };
+            // AI : Build update data with proper handling for geometry fields
+            const updateData = buildUpdateData(change);
 
             if (change.entityType === 'project') {
               await tx

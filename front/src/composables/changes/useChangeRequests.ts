@@ -6,6 +6,7 @@ import type {
   ChangeHistoryEntry
 } from '../../types/api';
 import { useAuthStore } from '@stores/authStore';
+import { useModerationStore } from '@stores/pinia/moderationStore';
 import { withErrorHandling } from '@composables/core/useErrorHandling';
 
 const pendingChangeRequests = ref<ChangeRequest[]>([]);
@@ -75,7 +76,14 @@ export function useChangeRequests() {
       );
 
       if (result?.success) {
-        await refreshPendingChangeRequests();
+        // AI : Remove approved change requests from local state instead of refetching
+        pendingChangeRequests.value = pendingChangeRequests.value.filter(
+          cr => !changeRequestIds.includes(cr.id)
+        );
+        
+        // AI : Also remove from moderation store if available
+        const moderationStore = useModerationStore();
+        moderationStore.removeChangeRequests(changeRequestIds);
       }
 
       return result;
@@ -93,7 +101,14 @@ export function useChangeRequests() {
       );
 
       if (result?.success) {
-        await refreshPendingChangeRequests();
+        // AI : Remove rejected change requests from local state instead of refetching
+        pendingChangeRequests.value = pendingChangeRequests.value.filter(
+          cr => !changeRequestIds.includes(cr.id)
+        );
+        
+        // AI : Also remove from moderation store if available
+        const moderationStore = useModerationStore();
+        moderationStore.removeChangeRequests(changeRequestIds);
       }
 
       return result;
