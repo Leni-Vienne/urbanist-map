@@ -455,6 +455,6 @@ export type { AppRouter } from './routes'
 
 export default {
     port: config.PORT,
-    hostname: '0.0.0.0',
+    //hostname: '0.0.0.0', //useful for testing on another device in dev, but breaks healthcheck in prod
     fetch: app.fetch
 }
