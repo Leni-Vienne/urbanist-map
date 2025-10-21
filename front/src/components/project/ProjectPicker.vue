@@ -16,87 +16,76 @@
       v-else-if="!hideSelector && projectList.length > 0"
       class="mb-4"
     >
-      <div class="flex gap-2">
-        <FloatLabel class="w-full">
-          <Select
-            v-model="selectedProjectId"
-            :options="projectList"
-            optionLabel="name"
-            optionValue="id"
-            :placeholder="placeholder ?? $t('projectPicker.selectProject')"
-            class="w-full"
-            :filter="true"
-            :showClear="true"
-            :loading="isLoadingProjects"
-            :optionGroupLabel="useGroupedView ? 'label' : undefined"
-            :optionGroupChildren="useGroupedView ? 'items' : undefined"
-            @focus="onSelectFocus"
-          >
-            <template #value="{ value, placeholder }">
+      <FloatLabel class="w-full">
+        <Select
+          v-model="selectedProjectId"
+          :options="projectList"
+          optionLabel="name"
+          optionValue="id"
+          :placeholder="placeholder ?? $t('projectPicker.selectProject')"
+          class="w-full"
+          :filter="true"
+          :showClear="true"
+          :loading="isLoadingProjects"
+          :optionGroupLabel="useGroupedView ? 'label' : undefined"
+          :optionGroupChildren="useGroupedView ? 'items' : undefined"
+          @focus="onSelectFocus"
+        >
+          <template #value="{ value, placeholder }">
+            <div
+              v-if="value"
+              class="flex items-center gap-2"
+            >
               <div
-                v-if="value"
-                class="flex items-center gap-2"
-              >
-                <div
-                  class="w-3 h-3 rounded-full flex-shrink-0"
-                  :style="{ backgroundColor: getStatusColor(getProjectById(value)) }"
-                ></div>
-                <span>{{ getProjectById(value)?.name }}</span>
-              </div>
-              <span v-else>{{ placeholder }}</span>
-            </template>
+                class="w-3 h-3 rounded-full flex-shrink-0"
+                :style="{ backgroundColor: getStatusColor(getProjectById(value)) }"
+              ></div>
+              <span>{{ getProjectById(value)?.name }}</span>
+            </div>
+            <span v-else>{{ placeholder }}</span>
+          </template>
 
-            <template #optiongroup="{ option }" v-if="useGroupedView">
-              <div class="flex items-center gap-2 font-semibold text-sm opacity-75">
-                <i class="pi pi-map-marker"></i>
-                <span>{{ option.label }}</span>
-              </div>
-            </template>
+          <template #optiongroup="{ option }" v-if="useGroupedView">
+            <div class="flex items-center gap-2 font-semibold text-sm opacity-75">
+              <i class="pi pi-map-marker"></i>
+              <span>{{ option.label }}</span>
+            </div>
+          </template>
 
-            <template #option="{ option }">
-              <div class="flex items-center gap-2">
-                <div
-                  class="w-3 h-3 rounded-full flex-shrink-0"
-                  :style="{ backgroundColor: getStatusColor(option) }"
-                ></div>
-                <div>
-                  <div class="flex items-center gap-2">
-                    <span>{{ option.name }}</span>
-                    <span class="text-sm opacity-75">({{ $t('projectPicker.overlaysCount', { count: getOverlayCountForProject(option.id) }) }})</span>
-                  </div>
-                  <div v-if="option.city && !useGroupedView" class="text-xs opacity-60">
-                    {{ option.city.name }}, {{ option.city.countryCode }}
-                  </div>
+          <template #option="{ option }">
+            <div class="flex items-center gap-2">
+              <div
+                class="w-3 h-3 rounded-full flex-shrink-0"
+                :style="{ backgroundColor: getStatusColor(option) }"
+              ></div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span>{{ option.name }}</span>
+                  <span class="text-sm opacity-75">({{ $t('projectPicker.overlaysCount', { count: getOverlayCountForProject(option.id) }) }})</span>
+                </div>
+                <div v-if="option.city && !useGroupedView" class="text-xs opacity-60">
+                  {{ option.city.name }}, {{ option.city.countryCode }}
                 </div>
               </div>
-            </template>
+            </div>
+          </template>
 
-            <template
-              #footer
-              v-if="!hideCreate"
-            >
-              <div class="p-2 border-t">
-                <Button
-                  icon="pi pi-plus"
-                  :label="$t('project.create')"
-                  class="p-button-primary p-button-sm w-full"
-                  @click="openNewProjectDialog"
-                  v-tooltip.top="$t('projectPicker.createNewProject')"
-                />
-              </div>
-            </template>
-          </Select>
-        </FloatLabel>
-        <slot name="selector-actions">
-          <Button
-            icon="pi pi-check"
-            class="p-button-primary"
-            @click="confirmSelection"
-            :disabled="!selectedProjectId"
-            v-tooltip.top="$t('common.confirm')"
-          />
-        </slot>
-      </div>
+          <template
+            #footer
+            v-if="!hideCreate"
+          >
+            <div class="p-2 border-t">
+              <Button
+                icon="pi pi-plus"
+                :label="$t('project.create')"
+                class="p-button-primary p-button-sm w-full"
+                @click="openNewProjectDialog"
+                v-tooltip.top="$t('projectPicker.createNewProject')"
+              />
+            </div>
+          </template>
+        </Select>
+      </FloatLabel>
     </div>
   </div>
 </template>
@@ -289,12 +278,6 @@ function getStatusColor(project: Project | undefined): string {
   }
 
   return markerColors.grey; // Default grey
-}
-
-function confirmSelection() {
-  if (selectedProjectId.value) {
-    emit('project-selected', selectedProjectId.value);
-  }
 }
 
 function openNewProjectDialog() {

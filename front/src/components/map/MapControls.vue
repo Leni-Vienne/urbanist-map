@@ -109,7 +109,6 @@
       @click.stop
       @dblclick.stop
       appendTo="body"
-      :pt="{ root: { style: 'z-index: 5000 !important' } }"
     >
       <div class="filter-panel">
         <h3 class="filter-title">{{ $t('map.controls.filterByStatus') }}</h3>
