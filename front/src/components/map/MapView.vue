@@ -1,25 +1,58 @@
 <template>
-  <div
-    id="mapDiv"
-    class="map-container"
-  >
+  <div class="map-wrapper">
+    <!-- AI : Edit mode border overlay - separate from map container to avoid Leaflet rendering issues -->
     <div
-      v-if="isLoading"
-      class="loading-overlay"
+      v-if="overlayStore.isEditMode"
+      class="edit-mode-border"
+    ></div>
+
+    <div
+      id="mapDiv"
+      class="map-container"
     >
-      <div class="loading-content">
-        <i class="pi pi-spin pi-spinner text-4xl"></i>
-        <p class="mt-2">Loading map and data...</p>
+      <div
+        v-if="isLoading"
+        class="loading-overlay"
+      >
+        <div class="loading-content">
+          <i class="pi pi-spin pi-spinner text-4xl"></i>
+          <p class="mt-2">Loading map and data...</p>
+        </div>
+      </div>
+      <!-- AI : User Menu in top-right corner -->
+      <UserMenu />
+
+      <!-- AI : Map Controls Component -->
+      <MapControls @filter-overlays="filterOverlaysByCompletionStatus" />
+
+      <!-- AI : Help button to guide user to click markers -->
+      <MarkerHelpButton />
+
+      <!-- AI : Mode controls wrapper - desktop only (mobile version is in MobileDrawer) -->
+      <div
+        v-if="authStore.isAuthenticated"
+        class="mode-controls-wrapper mode-controls-desktop"
+      >
+        <div
+          class="mode-indicator"
+          :class="{ 'edit-mode': overlayStore.isEditMode }"
+          v-tooltip.top="overlayStore.isEditMode ? $t('map.editModeTooltip') : $t('map.viewModeTooltip')"
+        >
+          <i :class="['pi', overlayStore.isEditMode ? 'pi-pencil' : 'pi-eye']"></i>
+          <span>{{ overlayStore.isEditMode ? $t('map.editMode') : $t('map.viewMode') }}</span>
+        </div>
+        
+        <button
+          @click="handleModeSwitch"
+          class="mode-switch-button"
+          :aria-label="$t('map.switchMode')"
+          v-tooltip.top="$t('map.switchMode')"
+        >
+          <i class="pi pi-refresh"></i>
+          <span>{{ $t('map.switch') }}</span>
+        </button>
       </div>
     </div>
-    <!-- AI : User Menu in top-right corner -->
-    <UserMenu />
-
-    <!-- AI : Map Controls Component -->
-    <MapControls @filter-overlays="filterOverlaysByCompletionStatus" />
-
-    <!-- AI : Help button to guide user to click markers -->
-    <MarkerHelpButton />
   </div>
 </template>
 
@@ -35,7 +68,9 @@ import { updateOverlayMarkersForFilters } from '@composables/map/useCityOverlays
 import { initializeCountryMarkers } from '@composables/map/useCountryMarkers';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { useAuthStore } from '@stores/authStore';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
+import { toggleEditMode } from '@composables/overlay/useOverlayModes';
 import type { OverlayData } from '@types';
 
 const MapControls = defineAsyncComponent(() => import('@components/map/MapControls.vue'));
@@ -45,6 +80,7 @@ const MarkerHelpButton = defineAsyncComponent(() => import('@components/map/Mark
 // AI: Get stores
 const mapStore = useMapStore();
 const overlayStore = useOverlayStore();
+const authStore = useAuthStore();
 const toast = useToast();
 const isLoading = ref(true);
 
@@ -77,6 +113,31 @@ async function filterOverlaysByCompletionStatus() {
   if (overlaysToRender.length > 0) {
     renderViewModeOverlays(overlaysToRender, true, false);
     overlayStore.setViewModeOverlays(visibleOverlays);
+  }
+}
+
+// AI : Handle mode switch from indicator button
+async function handleModeSwitch() {
+  try {
+    await toggleEditMode();
+    
+    const modeText = overlayStore.isEditMode ? 'Edit Mode' : 'View Mode';
+    toast.add({
+      severity: 'info',
+      summary: `Switched to ${modeText}`,
+      detail: overlayStore.isEditMode
+        ? 'You can now add and edit overlays'
+        : 'Overlays are now in view-only mode',
+      life: 3000,
+    });
+  } catch (error) {
+    console.error('Error toggling edit mode:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Mode Switch Error',
+      detail: 'Failed to switch mode. Please try again.',
+      life: 3000
+    });
   }
 }
 
@@ -146,12 +207,134 @@ async function initializeMapAndOverlays() {
 </script>
 
 <style scoped>
+.map-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+}
+
 .map-container {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
+}
+
+/* AI : Edit mode border - positioned relative to map container */
+.edit-mode-border {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 4px solid #f59e0b;
+  pointer-events: none;
+  z-index: 10000;
+  animation: borderFadeIn 0.3s ease-in-out;
+}
+
+@keyframes borderFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* AI : Mode controls wrapper - 3 column grid, mode in center, button on right */
+.mode-controls-wrapper {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 10001;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  pointer-events: none;
+}
+
+/* AI : Desktop only - hide on mobile since it's in the drawer */
+.mode-controls-desktop {
+  bottom: 1rem;
+}
+
+@media (max-width: 768px) {
+  .mode-controls-desktop {
+    display: none;
+  }
+}
+
+/* AI : Mode indicator pill - in center column */
+.mode-indicator {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border-radius: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-color);
+  border: 2px solid var(--surface-border);
+  transition: all 0.3s ease-in-out;
+  pointer-events: auto;
+  justify-self: center;
+}
+
+.mode-indicator.edit-mode {
+  background: rgba(245, 158, 11, 0.95);
+  border-color: #d97706;
+  color: white;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
+.mode-indicator i {
+  font-size: 1rem;
+}
+
+/* AI : Discrete switch button - in right column at start */
+.mode-switch-button {
+  grid-column: 3;
+  justify-self: start;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: none;
+  border: none;
+  padding: 0.35rem 0.5rem;
+  margin-left: 0.5rem;
+  cursor: pointer;
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 500;
+  opacity: 0.7;
+  transition: opacity 0.2s ease, transform 0.15s ease;
+  pointer-events: auto;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.mode-switch-button:hover {
+  opacity: 1;
+}
+
+.mode-switch-button:active {
+  transform: scale(0.95);
+}
+
+.mode-switch-button i {
+  font-size: 0.9rem;
+}
+
+.mode-switch-button span {
+  text-transform: lowercase;
 }
 
 .loading-overlay {
@@ -172,6 +355,11 @@ async function initializeMapAndOverlays() {
 
 /* AI : Move Leaflet attribution above mobile drawer handle */
 @media (max-width: 768px) {
+  /* AI : Adjust mode indicator position on mobile to be above drawer */
+  .mode-indicator {
+    bottom: 5rem;
+  }
+
   :deep(.leaflet-control-attribution) {
     bottom: 4.5rem !important;
     right: 0.5rem !important;

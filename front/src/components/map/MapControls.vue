@@ -261,6 +261,13 @@ async function handleModeToggle() {
   try {
     await toggleEditMode();
 
+    // AI : Force map to recalculate size after mode toggle to prevent tile layer issues
+    if (map.value) {
+      setTimeout(() => {
+        map.value?.invalidateSize();
+      }, 50);
+    }
+
     // AI : Show toast notification for mode change
     const modeText = isEditMode?.value ? 'Edit Mode' : 'View Mode';
     toast.add({

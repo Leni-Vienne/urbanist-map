@@ -25,7 +25,7 @@ const tileLayerConfigs = {
       maxZoom: 22,
       maxNativeZoom: 19,
       tileSize: 256,
-      attribution: "Esri, Maxar, Earthstar Geographics, and the GIS User Community",
+      attribution: "Esri, Maxar, Earthstar Geographics, GIS User Community",
       noWrap: true,
       bounds: tileLayerBounds,
     },
@@ -53,7 +53,7 @@ const tileLayerConfigs = {
       maxZoom: 22,
       maxNativeZoom: 21,
       tileSize: 256,
-      attribution: "Esri, Maxar, Earthstar Geographics, and the GIS User Community",
+      attribution: "Esri, Maxar, Earthstar Geographics, GIS User Community",
       noWrap: true,
       bounds: tileLayerBounds
     }

@@ -16,6 +16,11 @@
           @touchend="handleTouchEnd"
           @mousedown="handleMouseDown"
         >
+          <!-- AI : Slot for content above drawer (e.g., mode controls) -->
+          <div class="drawer-above-content" :style="{ bottom: aboveContentBottom }">
+            <slot name="above"></slot>
+          </div>
+
           <!-- AI : Drag handle at the top -->
           <div class="drawer-handle" @click.stop>
             <div class="handle-bar"></div>
@@ -72,6 +77,20 @@ const viewportHeight = ref(0)
 // AI : Convert minimum height from pixels to viewport percentage
 const minHeightPercent = computed(() => {
   return (MIN_HEIGHT_PX / viewportHeight.value) * 100
+})
+
+// AI : Calculate safe bottom position for above-content (min 100px from viewport bottom)
+const aboveContentBottom = computed(() => {
+  const drawerHeightPx = (currentHeight.value / 100) * viewportHeight.value
+  const MIN_FROM_BOTTOM = 100 // AI : Minimum pixels from viewport bottom
+  
+  // AI : If drawer is below 100px, clamp above-content to stay at 100px from bottom
+  if (drawerHeightPx < MIN_FROM_BOTTOM) {
+    return `${MIN_FROM_BOTTOM}px`
+  }
+  
+  // AI : Otherwise, position normally above drawer
+  return '100%'
 })
 
 // AI : Calculate drawer style with smooth transitions
@@ -132,6 +151,10 @@ function handleTouchMove(e: TouchEvent) {
 
   const newHeight = Math.min(MAX_HEIGHT_PERCENT, startHeight.value + deltaPercent)
   currentHeight.value = newHeight
+  
+  // AI : Emit updates during drag for continuous reactivity
+  emit('update:heightPercent', newHeight)
+  emit('heightChanged', newHeight)
 }
 
 function handleTouchEnd() {
@@ -160,6 +183,10 @@ function handleMouseDown(e: MouseEvent) {
 
     const newHeight = Math.min(MAX_HEIGHT_PERCENT, startHeight.value + deltaPercent)
     currentHeight.value = newHeight
+    
+    // AI : Emit updates during drag for continuous reactivity
+    emit('update:heightPercent', newHeight)
+    emit('heightChanged', newHeight)
   }
 
   const handleMouseUp = () => {
@@ -224,10 +251,20 @@ onMounted(() => {
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   z-index: 1101;
   touch-action: none;
   pointer-events: auto;
+}
+
+/* AI : Content above drawer - positioned above the drawer, moves with it
+   Bottom position is controlled dynamically to ensure min 100px from viewport bottom */
+.drawer-above-content {
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin-bottom: 1rem;
+  pointer-events: none;
 }
 
 .drawer-handle {
