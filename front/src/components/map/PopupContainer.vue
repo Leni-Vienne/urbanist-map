@@ -183,6 +183,12 @@ const currentProject = computed((): Project | null => {
     return localProject;
   }
 
+  // AI : Try to get from allProjects (includes nearbyProjects)
+  const allProjectsData = projectStore.allProjects;
+  if (allProjectsData[overlay.projectId]) {
+    return allProjectsData[overlay.projectId];
+  }
+
   // AI : Try to find backend project data from overlay or city overlays
   const backendProject = overlay.project?.id === overlay.projectId
     ? overlay.project
@@ -200,10 +206,12 @@ async function handleProjectChange(projectId: string) {
   const overlay = overlayObject.value;
   if (!overlay) return;
 
-  // AI : Create a new overlay object with updated projectId to trigger reactivity
-  const updatedOverlay = {
+  // AI : Create a new overlay object with updated projectId
+  // AI : Clear the old project reference so currentProject computed can find the new one
+  const updatedOverlay: OverlayObject = {
     ...overlay,
     projectId: projectId,
+    project: undefined, // AI : Let currentProject computed find the new project
     isModified: true
   };
 
