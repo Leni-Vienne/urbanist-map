@@ -137,6 +137,7 @@ export const projectRouter = router({
             name: projects.name,
             version: projects.version,
             description: projects.description,
+            status: projects.status,
             ownerId: projects.ownerId,
             cityId: projects.cityId,
             proposalDate: projects.proposalDate,
@@ -163,6 +164,8 @@ export const projectRouter = router({
           .groupBy(
             projects.id,
             projects.name,
+            projects.version,
+            projects.status,
             projects.description,
             projects.ownerId,
             projects.cityId,

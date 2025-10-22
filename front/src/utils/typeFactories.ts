@@ -75,7 +75,7 @@ export function createProjectFromAPI(nearbyProject: NearbyProject): Project {
     updatedAt: nearbyProject.updatedAt,
     ownerId: nearbyProject.ownerId,
     cityId: nearbyProject.cityId,
-    status: 'approved', // AI : Projects from API are approved
+    status: nearbyProject.status ?? 'approved', // AI : Use actual status from API
     city: nearbyProject.city,
     overlayIds: [],
     savedRemotely: true
