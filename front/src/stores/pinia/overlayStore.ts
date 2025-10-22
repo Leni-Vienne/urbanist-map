@@ -97,6 +97,18 @@ export const useOverlayStore = defineStore('overlay', () => {
     editModeOverlayCache.value.clear()
   }
 
+  // AI : Update overlay in store with proper reactivity for shallowRef
+  function updateOverlay(overlayId: string, updates: Partial<OverlayObject>) {
+    const current = overlays.value[overlayId]
+    if (!current) return
+
+    // AI : Create new object with updates to trigger reactivity
+    overlays.value = {
+      ...overlays.value,
+      [overlayId]: { ...current, ...updates }
+    }
+  }
+
   const handleFileSelected = (file: File) => {
     pendingImageFile.value = file
   }
@@ -182,6 +194,7 @@ export const useOverlayStore = defineStore('overlay', () => {
     saveToEditModeCache,
     getFromEditModeCache,
     clearEditModeCache,
+    updateOverlay,
     handleFileSelected,
     clearPendingFile,
     requestOverlayReplacement,
