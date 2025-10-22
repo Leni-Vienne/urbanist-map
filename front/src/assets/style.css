@@ -2,6 +2,15 @@
 @import "tailwindcss-primeui";
 /* doesn't seem useful? */
 
+/* AI : Prevent scrollbars on map page */
+html, body {
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
 /* Override Tailwind's display: block for Leaflet toolbar icons */
 .leaflet-toolbar-icon svg {
   display: inline;

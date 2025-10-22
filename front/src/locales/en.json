@@ -194,6 +194,12 @@
     "street": "Street Map",
     "clickCountryMarker": "Click on a country marker to explore",
     "clickCityMarker": "Click on a city",
+    "viewMode": "View Mode",
+    "editMode": "Edit Mode",
+    "viewModeTooltip": "Browse and view projects on the map",
+    "editModeTooltip": "Add and edit overlay positions on the map",
+    "switch": "Switch",
+    "switchMode": "Switch mode",
     "controls": {
       "filterProjects": "Filter projects by status",
       "filterByStatus": "Filter by Status",
