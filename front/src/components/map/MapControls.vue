@@ -1,7 +1,5 @@
 <template>
-  <div
-    class="map-buttons"
-  >
+  <div class="map-buttons">
     <!-- AI : Zoom Controls -->
     <div class="buttons-stacked">
       <Button
@@ -34,6 +32,99 @@
     </div>
 
     <div class="buttons-stacked">
+
+      <LayerControl />
+
+
+      <!-- AI : Filter Button (View Mode Only) - Opens Popover -->
+      <Button
+        v-if="!isEditMode"
+        @click.stop="toggleFilterPanel"
+        @dblclick.stop
+        raised
+        icon="pi pi-filter"
+        aria-label="Toggle project filters"
+        v-tooltip.right="$t('map.controls.filterProjects')"
+        severity="secondary"
+        ref="filterButton"
+      />
+
+      <!-- AI : Filter Popover (View Mode Only) -->
+      <Popover
+        ref="filterPanelPopoverRef"
+        @click.stop
+        @dblclick.stop
+        appendTo="body"
+      >
+        <div class="filter-panel">
+          <h3 class="filter-title">{{ $t('map.controls.filterByStatus') }}</h3>
+          <div class="filter-buttons">
+            <button
+              @click.stop="toggleCompletionFilter('yellow')"
+              @dblclick.stop
+              :class="['filter-button', { 'active': visibleCompletionStates.yellow, 'inactive': !visibleCompletionStates.yellow }]"
+              :aria-label="$t('map.controls.toggleProposed')"
+              :aria-pressed="visibleCompletionStates.yellow"
+              type="button"
+            >
+              <div
+                class="marker-icon"
+                v-html="createButtonSVG('yellow')"
+              ></div>
+              <span class="filter-label">{{ $t('map.controls.proposed') }}</span>
+              <i :class="['check-icon', 'pi', visibleCompletionStates.yellow ? 'pi-check' : 'pi-times']"></i>
+            </button>
+
+            <button
+              @click.stop="toggleCompletionFilter('green')"
+              @dblclick.stop
+              :class="['filter-button', { 'active': visibleCompletionStates.green, 'inactive': !visibleCompletionStates.green }]"
+              :aria-label="$t('map.controls.togglePlanned')"
+              :aria-pressed="visibleCompletionStates.green"
+              type="button"
+            >
+              <div
+                class="marker-icon"
+                v-html="createButtonSVG('green')"
+              ></div>
+              <span class="filter-label">{{ $t('map.controls.planned') }}</span>
+              <i :class="['check-icon', 'pi', visibleCompletionStates.green ? 'pi-check' : 'pi-times']"></i>
+            </button>
+
+            <button
+              @click.stop="toggleCompletionFilter('orange')"
+              @dblclick.stop
+              :class="['filter-button', { 'active': visibleCompletionStates.orange, 'inactive': !visibleCompletionStates.orange }]"
+              :aria-label="$t('map.controls.toggleInProgress')"
+              :aria-pressed="visibleCompletionStates.orange"
+              type="button"
+            >
+              <div
+                class="marker-icon"
+                v-html="createButtonSVG('orange')"
+              ></div>
+              <span class="filter-label">{{ $t('map.controls.inProgress') }}</span>
+              <i :class="['check-icon', 'pi', visibleCompletionStates.orange ? 'pi-check' : 'pi-times']"></i>
+            </button>
+
+            <button
+              @click.stop="toggleCompletionFilter('grey')"
+              @dblclick.stop
+              :class="['filter-button', { 'active': visibleCompletionStates.grey, 'inactive': !visibleCompletionStates.grey }]"
+              :aria-label="$t('map.controls.toggleCompleted')"
+              :aria-pressed="visibleCompletionStates.grey"
+              type="button"
+            >
+              <div
+                class="marker-icon"
+                v-html="createButtonSVG('grey')"
+              ></div>
+              <span class="filter-label">{{ $t('map.controls.completed') }}</span>
+              <i :class="['check-icon', 'pi', visibleCompletionStates.grey ? 'pi-check' : 'pi-times']"></i>
+            </button>
+          </div>
+        </div>
+      </Popover>
 
       <Button
         v-if="authStore.isAuthenticated"
@@ -68,120 +159,22 @@
           </svg>
         </template>
       </Button>
-
-      <LayerControl />
-
-      <!-- AI : Edit Mode Toggle Button (inline) -->
-      <Button
-        v-if="authStore.isAuthenticated"
-        :icon="currentIcon"
-        raised
-        @click.stop="handleModeToggle"
-        @dblclick.stop
-        :severity="buttonSeverity"
-        v-tooltip.right="tooltipText"
-        aria-label="Toggle Edit Mode"
-        :active="isEditMode"
-      />
-
     </div>
-
-    <!-- AI : Filter Button (View Mode Only) - Opens Popover -->
-    <div
-      v-if="!isEditMode"
-      class="buttons-stacked"
-    >
-      <Button
-        @click.stop="toggleFilterPanel"
-        @dblclick.stop
-        raised
-        icon="pi pi-filter"
-        aria-label="Toggle project filters"
-        v-tooltip.right="$t('map.controls.filterProjects')"
-        severity="secondary"
-        ref="filterButton"
-      />
-    </div>
-
-    <!-- AI : Filter Popover (View Mode Only) -->
-    <Popover
-      ref="filterPanel"
-      @click.stop
-      @dblclick.stop
-      appendTo="body"
-    >
-      <div class="filter-panel">
-        <h3 class="filter-title">{{ $t('map.controls.filterByStatus') }}</h3>
-        <div class="filter-buttons">
-          <button
-            @click.stop="toggleCompletionFilter('yellow')"
-            @dblclick.stop
-            :class="['filter-button', { 'active': visibleCompletionStates.yellow, 'inactive': !visibleCompletionStates.yellow }]"
-            :aria-label="$t('map.controls.toggleProposed')"
-            :aria-pressed="visibleCompletionStates.yellow"
-            type="button"
-          >
-            <div class="marker-icon" v-html="createButtonSVG('yellow')"></div>
-            <span class="filter-label">{{ $t('map.controls.proposed') }}</span>
-            <i :class="['check-icon', 'pi', visibleCompletionStates.yellow ? 'pi-check' : 'pi-times']"></i>
-          </button>
-          
-          <button
-            @click.stop="toggleCompletionFilter('green')"
-            @dblclick.stop
-            :class="['filter-button', { 'active': visibleCompletionStates.green, 'inactive': !visibleCompletionStates.green }]"
-            :aria-label="$t('map.controls.togglePlanned')"
-            :aria-pressed="visibleCompletionStates.green"
-            type="button"
-          >
-            <div class="marker-icon" v-html="createButtonSVG('green')"></div>
-            <span class="filter-label">{{ $t('map.controls.planned') }}</span>
-            <i :class="['check-icon', 'pi', visibleCompletionStates.green ? 'pi-check' : 'pi-times']"></i>
-          </button>
-          
-          <button
-            @click.stop="toggleCompletionFilter('orange')"
-            @dblclick.stop
-            :class="['filter-button', { 'active': visibleCompletionStates.orange, 'inactive': !visibleCompletionStates.orange }]"
-            :aria-label="$t('map.controls.toggleInProgress')"
-            :aria-pressed="visibleCompletionStates.orange"
-            type="button"
-          >
-            <div class="marker-icon" v-html="createButtonSVG('orange')"></div>
-            <span class="filter-label">{{ $t('map.controls.inProgress') }}</span>
-            <i :class="['check-icon', 'pi', visibleCompletionStates.orange ? 'pi-check' : 'pi-times']"></i>
-          </button>
-          
-          <button
-            @click.stop="toggleCompletionFilter('grey')"
-            @dblclick.stop
-            :class="['filter-button', { 'active': visibleCompletionStates.grey, 'inactive': !visibleCompletionStates.grey }]"
-            :aria-label="$t('map.controls.toggleCompleted')"
-            :aria-pressed="visibleCompletionStates.grey"
-            type="button"
-          >
-            <div class="marker-icon" v-html="createButtonSVG('grey')"></div>
-            <span class="filter-label">{{ $t('map.controls.completed') }}</span>
-            <i :class="['check-icon', 'pi', visibleCompletionStates.grey ? 'pi-check' : 'pi-times']"></i>
-          </button>
-        </div>
-      </div>
-    </Popover>
-
-    <!-- AI : Help Modal -->
-    <MapHelpModal v-model="showHelp" />
   </div>
+
+
+  <!-- AI : Help Modal -->
+  <MapHelpModal v-model="showHelp" />
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed, defineAsyncComponent, ref } from 'vue';
+import { defineAsyncComponent, ref } from 'vue';
 import L from 'leaflet';
 import { useToast } from '@composables/ui/useToast';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useAuthStore } from '@stores/authStore';
 import { useUiStore } from '@stores/uiStore';
-import { toggleEditMode } from '@composables/overlay/useOverlayModes';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import { createButtonSVG } from '@composables/ui/markerIcons';
 import { map } from '@composables/core/useMap';
@@ -200,10 +193,10 @@ const { handleAddOverlayButtonClick } = useAddOverlay();
 const showHelp = ref(false);
 
 // AI : Filter panel ref and toggle
-const filterPanel = ref();
+const filterPanelPopoverRef = ref();
 
 function toggleFilterPanel(event: Event) {
-  filterPanel.value?.toggle(event);
+  filterPanelPopoverRef.value?.toggle(event);
 }
 
 const { isEditMode } = storeToRefs(overlayStore);
@@ -214,29 +207,9 @@ const emit = defineEmits<{
   'filter-overlays': [status: viewModeMarkerColor];
 }>();
 
-// AI : Edit mode toggle computed properties
-const currentIcon = computed(() => {
-  return isEditMode?.value ? 'pi pi-pencil' : 'pi pi-eye';
-});
-
-const buttonSeverity = computed(() => {
-  if (isEditMode?.value) {
-    return 'primary'; // Orange/yellow for edit mode
-  }
-  return 'secondary'; // Gray for view mode
-});
-
-const tooltipText = computed(() => {
-  const currentMode = isEditMode?.value ? 'Edit Mode' : 'View Mode';
-  const actionText = isEditMode?.value ? 'Switch to View Mode' : 'Switch to Edit Mode';
-
-  // Show current state and what clicking will do
-  return `Currently in ${currentMode} - Click to ${actionText.toLowerCase()}`;
-});
-
 async function handleAddOverlayClick() {
   const result = await handleAddOverlayButtonClick();
-  
+
   if (result.success) {
     if (result.action === 'edit_mode_enabled') {
       toast.add({
@@ -256,42 +229,6 @@ async function handleAddOverlayClick() {
   }
 }
 
-// AI : Handle edit mode toggle
-async function handleModeToggle() {
-  try {
-    await toggleEditMode();
-
-    // AI : Force map to recalculate size after mode toggle to prevent tile layer issues
-    if (map.value) {
-      setTimeout(() => {
-        map.value?.invalidateSize();
-      }, 50);
-    }
-
-    // AI : Show toast notification for mode change
-    const modeText = isEditMode?.value ? 'Edit Mode' : 'View Mode';
-    toast.add({
-      severity: 'info',
-      summary: `Switched to ${modeText}`,
-      detail: isEditMode?.value
-        ? 'You can now add and edit overlays'
-        : 'Overlays are now in view-only mode',
-      life: 3000,
-
-    });
-  } catch (error) {
-    console.error('Error toggling edit mode:', error);
-
-    toast.add({
-      severity: 'error',
-      summary: 'Mode Switch Error',
-      detail: 'Failed to switch mode. Please try again.',
-      life: 3000
-    });
-  }
-}
-
-
 // AI : Toggle completion status filter
 async function toggleCompletionFilter(color: viewModeMarkerColor) {
   toggleFilter(color);
@@ -301,11 +238,11 @@ async function toggleCompletionFilter(color: viewModeMarkerColor) {
 // AI : Helper to zoom with mobile offset - keeps focus on upper visible area
 function zoomWithMobileOffset(zoomDelta: number) {
   if (!map.value) return
-  
+
   const isMobile = window.innerWidth <= 768
   const uiStore = useUiStore()
   const shouldOffset = isMobile && uiStore.mobileDrawerVisible
-  
+
   if (!shouldOffset) {
     // AI : Desktop or drawer closed - use normal zoom with larger delta on mobile
     if (zoomDelta > 0) {
@@ -315,19 +252,19 @@ function zoomWithMobileOffset(zoomDelta: number) {
     }
     return
   }
-  
+
   // AI : Mobile with drawer open - zoom but shift center to keep visible area stable
   // AI : Strategy: Calculate where the "visual center" (accounting for drawer) currently is,
   // AI : then zoom to that point so it stays in the same visible position
-  
+
   // AI : The visual center is at 27.5% from top (middle of the 55% visible area)
   const visualCenterY = window.innerHeight * 0.275
   const screenCenterX = window.innerWidth / 2
-  
+
   // AI : Get the lat/lng at the visual center point
   const visualCenterPoint = L.point(screenCenterX, visualCenterY)
   const visualCenterLatLng = map.value.containerPointToLatLng(visualCenterPoint)
-  
+
   // AI : Now zoom to that lat/lng - when it centers on this point,
   // AI : that point will be at screen center, but since our "visual center" was already
   // AI : accounting for the drawer, the visible content stays stable
@@ -356,7 +293,8 @@ function showHelpModal() {
   position: absolute;
   top: 16px;
   left: 16px;
-  z-index: 1000; /* important on mobile */
+  z-index: 1000;
+  /* important on mobile */
   display: flex;
   flex-direction: column;
   gap: 12px;
