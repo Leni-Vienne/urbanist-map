@@ -191,7 +191,7 @@ async function initializeMapAndOverlays() {
   bottom: 0;
   border: 4px solid #f59e0b;
   pointer-events: none;
-  z-index: 10000;
+  z-index: 2000;
   animation: borderFadeIn 0.3s ease-in-out;
 }
 

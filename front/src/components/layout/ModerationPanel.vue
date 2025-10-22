@@ -63,7 +63,7 @@
         v-if="overlay.status === 'pending' && project.status !== 'approved'"
         class="action-btn disabled-btn"
         disabled
-        v-tooltip.top="'Approve project first to moderate overlays'"
+        v-tooltip.top="'Approve the project first to moderate its overlays'"
       >
         <i class="pi pi-lock"></i>
       </button>
