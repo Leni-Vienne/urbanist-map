@@ -428,6 +428,13 @@ export function saveToHistory(overlayObject: OverlayObject): void {
   // AI : Update city overlay markers if they are visible
   const overlayStore = useOverlayStore();
   updateOverlayMarkersColors(toRef(overlayStore, 'overlays'), toRef(overlayStore, 'isEditMode'));
+
+  // AI : Update store with proper reactivity - critical for info popup to see changes
+  overlayStore.updateOverlay(overlayObject.id, {
+    isModified: true,
+    history: overlayObject.history,
+    redoStack: overlayObject.redoStack
+  });
 }
 
 /**
