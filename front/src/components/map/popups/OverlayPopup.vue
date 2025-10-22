@@ -116,7 +116,7 @@
     </div>
 
     <!-- Publish Overlay Section -->
-    <!-- AI : Always show publish button in edit mode, but disable if overlay hasn't been modified -->
+    <!-- AI : Show publish button in edit mode when overlay or project has been modified -->
     <div
       v-if="!viewMode && project"
       class="publish-section"
@@ -125,7 +125,7 @@
         :label="overlayObject.status === 'approved' ? $t('overlay.submitChangeRequest') : $t('overlay.publishOverlay')"
         :icon="overlayObject.status === 'approved' ? 'pi pi-send' : 'pi pi-cloud-upload'"
         :severity="overlayObject.status === 'approved' ? 'info' : 'success'"
-        :disabled="!overlayObject.isModified"
+        :disabled="!hasChanges"
         size="small"
         class="w-full"
         :loading="publishLoading"
@@ -175,6 +175,13 @@ const showModerationDialog = ref(false);
 
 // AI : Determine if this is an edit suggestion (replacesOverlayId exists)
 const isEditSuggestion = computed(() => !!props.overlayObject.replacesOverlayId);
+
+// AI : Check if overlay or project has changes that need to be published
+const hasChanges = computed(() => {
+  const overlayModified = props.overlayObject.isModified || false;
+  const projectModified = props.project && !props.project.savedRemotely;
+  return overlayModified || projectModified;
+});
 
 // AI : Local ref for selected project ID (synced with overlay's projectId)
 const selectedProjectId = ref(props.overlayObject.projectId ?? '');

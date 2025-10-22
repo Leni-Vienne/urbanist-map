@@ -59,6 +59,26 @@ export const useProjectStore = defineStore('project', () => {
     userContributionsLoading.value = loading;
   };
 
+  // AI : Update project in store with proper reactivity
+  function updateProject(projectId: string, updates: Partial<Project>) {
+    let current = projects.value[projectId];
+    
+    // AI : If project doesn't exist in local store, check allProjects (includes nearby)
+    if (!current) {
+      const allProjectsData = allProjects.value;
+      current = allProjectsData[projectId];
+      
+      // AI : If still not found, can't update
+      if (!current) return;
+    }
+
+    // AI : Create new object with updates to trigger reactivity
+    projects.value = {
+      ...projects.value,
+      [projectId]: { ...current, ...updates }
+    };
+  }
+
   // AI : Fetch nearby projects with smart caching to avoid redundant API calls
   // AI : Cache is valid for 5 minutes and invalidated if map moves >11km from cached position
   async function fetchNearbyProjects(force = false): Promise<NearbyProject[]> {
@@ -208,6 +228,7 @@ export const useProjectStore = defineStore('project', () => {
     
     // Local project actions
     addOverlayToProjectWithId,
+    updateProject,
 
     // User contributions actions
     setUserContributions,

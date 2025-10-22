@@ -31,7 +31,9 @@
             v-if="
                 uiStore.projectDialog.visible ||
                 uiStore.imageUploadDialogVisible ||
-                uiStore.projectSelectorVisible
+                uiStore.projectSelectorVisible ||
+                uiStore.projectEditForm.visible ||
+                uiStore.overlayEditForm.visible
             "
         />
     </div>
