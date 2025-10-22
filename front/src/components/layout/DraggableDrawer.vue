@@ -79,12 +79,12 @@ const minHeightPercent = computed(() => {
   return (MIN_HEIGHT_PX / viewportHeight.value) * 100
 })
 
-// AI : Calculate safe bottom position for above-content (min 100px from viewport bottom)
+// AI : Calculate safe bottom position for above-content (min 110px from viewport bottom)
 const aboveContentBottom = computed(() => {
   const drawerHeightPx = (currentHeight.value / 100) * viewportHeight.value
-  const MIN_FROM_BOTTOM = 100 // AI : Minimum pixels from viewport bottom
+  const MIN_FROM_BOTTOM = 110 // AI : Minimum pixels from viewport bottom
   
-  // AI : If drawer is below 100px, clamp above-content to stay at 100px from bottom
+  // AI : If drawer is below 100px, clamp above-content to stay at 110px from bottom
   if (drawerHeightPx < MIN_FROM_BOTTOM) {
     return `${MIN_FROM_BOTTOM}px`
   }
@@ -258,12 +258,12 @@ onMounted(() => {
 }
 
 /* AI : Content above drawer - positioned above the drawer, moves with it
-   Bottom position is controlled dynamically to ensure min 100px from viewport bottom */
+   Bottom position is controlled dynamically to ensure min 110px from viewport bottom */
 .drawer-above-content {
   position: absolute;
   left: 0;
   right: 0;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
   pointer-events: none;
 }
 
