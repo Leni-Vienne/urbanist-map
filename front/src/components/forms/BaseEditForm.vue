@@ -68,6 +68,7 @@ interface Props {
   cancelLabel?: string
   showReset?: boolean
   showChangeReason?: boolean
+  localOnly?: boolean // AI : If true, only update local store, don't submit to backend
 }
 
 interface Emits {
@@ -92,6 +93,7 @@ const formOptions: EditableFormOptions<T> = {
   entityId: props.entityId,
   initialData: props.initialData,
   entityStatus: props.entityStatus,
+  localOnly: props.localOnly,
   onSubmitted: () => emit('submitted'),
   onClose: () => emit('close')
 }

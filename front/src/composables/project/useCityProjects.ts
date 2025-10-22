@@ -18,9 +18,14 @@ export function useCityProjects() {
   const projects = computed(() => {
     const projectMap = new Map<string, Project>();
 
-    // AI : 1. Extract projects from current city overlays (highest priority)
+    // AI : 1. Include local projects first (highest priority - may have unsaved changes)
+    Object.values(projectStore.projects).forEach(project => {
+      projectMap.set(project.id, project);
+    });
+
+    // AI : 2. Extract projects from current city overlays (only if not in local store)
     mapStore.currentCityOverlays.forEach(overlay => {
-      if (overlay.project?.id) {
+      if (overlay.project?.id && !projectMap.has(overlay.project.id)) {
         const frontendProject = createProject({
           ...overlay.project,
           description: overlay.project.description ?? null,
@@ -31,18 +36,11 @@ export function useCityProjects() {
       }
     });
 
-    // AI : 2. Include nearby projects from other cities
+    // AI : 3. Include nearby projects from other cities (only if not already added)
     projectStore.nearbyProjects.forEach(nearbyProject => {
       if (!projectMap.has(nearbyProject.id)) {
         const frontendProject = createProjectFromAPI(nearbyProject);
         projectMap.set(nearbyProject.id, frontendProject);
-      }
-    });
-
-    // AI : 3. Include local unsaved projects
-    Object.values(projectStore.projects).forEach(project => {
-      if (!projectMap.has(project.id)) {
-        projectMap.set(project.id, project);
       }
     });
 

@@ -59,6 +59,7 @@ import { useToast } from '@composables/ui/useToast';
 import { useOverlayPublisher } from '@composables/overlay/useOverlayPublisher';
 import { useProjectPublisher } from '@composables/project/useProjectPublisher';
 import { useApprovedOverlayChanges } from '@composables/overlay/useApprovedOverlayChanges';
+import { useFieldChanges } from '@composables/changes/useFieldChanges';
 import { citiesWithProjects, cleanupProjectInfoTeleportTarget } from '@composables/map/useCityMarkers';
 import { updateOverlayMarkersColors } from '@composables/map/useOverlayMarkerUpdates';
 import type { OverlayObject, Project } from '@types';
@@ -80,6 +81,7 @@ const { t } = useI18n();
 const { isPublishing: isPublishingOverlay, publishOverlay } = useOverlayPublisher();
 const { isPublishing: isPublishingProject, publishProject } = useProjectPublisher();
 const { submitApprovedOverlayChanges } = useApprovedOverlayChanges();
+const { submitMultipleFieldChanges } = useFieldChanges();
 
 // AI : Computed for available cities
 const availableCities = computed(() => {
@@ -237,28 +239,71 @@ async function handlePublishOverlay() {
   if (!overlay) return;
 
   const project = currentProject.value;
+  const overlayModified = overlay.isModified || false;
+  const projectModified = project && !project.savedRemotely;
 
   try {
-    // AI : Check if this is an approved overlay being modified - submit change request instead
-    if (overlay.status === 'approved' && overlay.isModified) {
-      await submitApprovedOverlayChanges(overlay);
-    } else {
-      await publishOverlay(overlay, project);
+    // AI : Handle overlay changes
+    if (overlayModified) {
+      // AI : Check if this is an approved overlay being modified - submit change request instead
+      if (overlay.status === 'approved') {
+        await submitApprovedOverlayChanges(overlay);
+      } else {
+        await publishOverlay(overlay, project);
+      }
     }
 
-    // AI : Show success message for both publish and change request
+    // AI : Handle project changes
+    if (projectModified && project) {
+      if (project.status === 'pending') {
+        // AI : For pending projects, publish directly
+        await publishProject(project);
+      } else if (project.status === 'approved' && project.originalData) {
+        // AI : For approved projects, submit change requests
+        const changes: Array<{ fieldName: string; oldValue: any; newValue: any }> = [];
+        
+        // AI : Compare current data with original data to find changes
+        const fieldsToCheck: Array<keyof typeof project.originalData> = [
+          'name', 'description', 'sourceUrl', 'proposalDate', 'startDate', 'endDate', 'latestUpdateOn'
+        ];
+        
+        fieldsToCheck.forEach(field => {
+          const oldValue = project.originalData?.[field];
+          const newValue = project[field];
+          if (oldValue !== newValue) {
+            changes.push({
+              fieldName: String(field),
+              oldValue,
+              newValue
+            });
+          }
+        });
+        
+        if (changes.length > 0) {
+          await submitMultipleFieldChanges('project', project.id, changes);
+        }
+      }
+    }
+
+    // AI : Show success message
+    const message = overlayModified && projectModified 
+      ? 'Changes submitted successfully'
+      : overlayModified 
+        ? t('overlay.publishSuccess')
+        : t('project.publishSuccess');
+    
     toast.add({
       severity: 'success',
-      summary: t('overlay.publishSuccess'),
-      detail: t('overlay.publishSuccessDetail'),
+      summary: 'Success',
+      detail: message,
       life: 3000
     });
   } catch (error: any) {
-    console.error('Error publishing overlay:', error);
+    console.error('Error publishing changes:', error);
     toast.add({
       severity: 'error',
-      summary: t('overlay.publishFailed'),
-      detail: t('overlay.publishFailedDetail'),
+      summary: 'Publish Failed',
+      detail: error.message || 'Failed to publish changes',
       life: 5000
     });
   }
@@ -290,7 +335,7 @@ async function handlePublishProject() {
 
 // AI : Handle project editing (both modes)
 function handleEditProject(project: Project) {
-  uiStore.openProjectDialog(project, 'edit');
+  uiStore.openProjectEditForm(project);
 }
 
 // AI : Handle overlay editing (overlay mode only)

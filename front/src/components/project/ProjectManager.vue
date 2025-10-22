@@ -27,7 +27,8 @@
 
   <!-- AI : Project Edit Form Dialog -->
   <Dialog
-    v-model:visible="uiStore.projectEditForm.visible"
+    v-if="projectEditForm.visible"
+    v-model:visible="projectEditForm.visible"
     :modal="true"
     :closable="true"
     :draggable="false"
@@ -36,8 +37,8 @@
     class="edit-form-dialog"
   >
     <EditProjectForm
-      v-if="uiStore.projectEditForm.data && uiStore.projectEditForm.visible"
-      :project="(uiStore.projectEditForm.data as Project)"
+      v-if="projectEditForm.data"
+      :project="(projectEditForm.data as Project)"
       @close="uiStore.closeProjectEditForm"
       @submitted="uiStore.closeProjectEditForm"
     />
@@ -109,6 +110,7 @@ const tempMarker = ref<L.Marker | null>(null)
 
 const { projects } = storeToRefs(projectStore)
 const { pendingImageFile, replacementOverlayId } = storeToRefs(overlayStore)
+const { projectEditForm } = storeToRefs(uiStore)
 
 // AI : Process image after project selection
 async function onProjectSelected(projectId: string) {

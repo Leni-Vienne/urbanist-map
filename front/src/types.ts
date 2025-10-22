@@ -125,6 +125,8 @@ export interface Project extends DBProject {
   savedRemotely: boolean;
   // AI : Map coordinates for development projects (null for overlay projects) - renamed to avoid DB conflict
   mapCoordinates?: { lat: number; lng: number } | null;
+  // AI : Store original data when project is modified locally to calculate changes later
+  originalData?: Partial<Project>;
 }
 
 // AI : Import shared overlay data type from backend

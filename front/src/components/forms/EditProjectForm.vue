@@ -4,8 +4,10 @@
     :entity-id="project.id"
     :initial-data="projectData"
     :entity-status="project.status"
+    :local-only="true"
     container-class="editable-project-form"
     form-class="project-form"
+    submit-label="Save Changes"
     @close="$emit('close')"
     @submitted="$emit('submitted')"
   >
