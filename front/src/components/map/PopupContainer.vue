@@ -8,7 +8,7 @@
       :overlayObject="overlayObject"
       :project="currentProject"
       :viewMode="!isEditMode"
-      :publishLoading="isPublishingOverlay"
+      :publishLoading="isSubmitting"
       :loading="false"
       :availableCities="availableCities"
       @project-change="handleProjectChange"
@@ -27,7 +27,7 @@
     <DevelopmentProjectPopup
       :project="selectedProject"
       :viewMode="!isEditMode"
-      :publishLoading="isPublishingProject"
+      :publishLoading="isSubmitting"
       :loading="false"
       :availableCities="availableCities"
       @publish-project="handlePublishProject"
@@ -42,6 +42,15 @@
     ref="overlayEditorRef"
     :overlayObject="overlayObject"
     @update="handleOverlayUpdate"
+  />
+
+  <!-- Submission Confirmation Dialog -->
+  <SubmissionConfirmationDialog
+    v-model:visible="showSubmissionDialog"
+    :summary="submissionSummary"
+    :is-submitting="isSubmitting"
+    @confirm="confirmSubmission"
+    @cancel="cancelSubmission"
   />
 </template>
 
@@ -58,8 +67,8 @@ import { updateMarkerTooltip } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
 import { useOverlayPublisher } from '@composables/overlay/useOverlayPublisher';
 import { useProjectPublisher } from '@composables/project/useProjectPublisher';
-import { useApprovedOverlayChanges } from '@composables/overlay/useApprovedOverlayChanges';
-import { useFieldChanges } from '@composables/changes/useFieldChanges';
+import { useSubmissionService } from '@composables/submission/useSubmissionService';
+import type { SubmissionContext, SubmissionSummary } from '@composables/submission/useSubmissionService';
 import { citiesWithProjects, cleanupProjectInfoTeleportTarget } from '@composables/map/useCityMarkers';
 import { updateOverlayMarkersColors } from '@composables/map/useOverlayMarkerUpdates';
 import type { OverlayObject, Project } from '@types';
@@ -67,6 +76,7 @@ import type { OverlayObject, Project } from '@types';
 const OverlayPopup = defineAsyncComponent(() => import('./popups/OverlayPopup.vue'));
 const DevelopmentProjectPopup = defineAsyncComponent(() => import('./popups/DevelopmentProjectPopup.vue'));
 const OverlayEditor = defineAsyncComponent(() => import('./OverlayEditor.vue'));
+const SubmissionConfirmationDialog = defineAsyncComponent(() => import('@components/submission/SubmissionConfirmationDialog.vue'));
 
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
@@ -78,10 +88,15 @@ const { currentCityOverlays } = storeToRefs(mapStore);
 const { projectInfoPopup } = storeToRefs(uiStore);
 const toast = useToast();
 const { t } = useI18n();
-const { isPublishing: isPublishingOverlay, publishOverlay } = useOverlayPublisher();
-const { isPublishing: isPublishingProject, publishProject } = useProjectPublisher();
-const { submitApprovedOverlayChanges } = useApprovedOverlayChanges();
-const { submitMultipleFieldChanges } = useFieldChanges();
+const { publishOverlay } = useOverlayPublisher();
+const { publishProject } = useProjectPublisher();
+const submissionService = useSubmissionService();
+
+// AI : Submission dialog state
+const showSubmissionDialog = ref(false);
+const submissionSummary = ref<SubmissionSummary | null>(null);
+const pendingSubmissionContext = ref<SubmissionContext | null>(null);
+const isSubmitting = ref(false);
 
 // AI : Computed for available cities
 const availableCities = computed(() => {
@@ -233,7 +248,86 @@ async function handleProjectChange(projectId: string) {
   );
 }
 
-// AI : Handle overlay publishing (overlay mode only)
+// AI : Prepare submission context and show confirmation dialog
+async function prepareAndShowSubmissionDialog(context: SubmissionContext) {
+  try {
+    // AI : Validate submission
+    const validation = submissionService.validate(context);
+    if (!validation.isValid) {
+      toast.add({
+        severity: 'error',
+        summary: 'Validation Error',
+        detail: validation.errors.join(', '),
+        life: 5000
+      });
+      return;
+    }
+
+    // AI : Build summary for confirmation dialog
+    submissionSummary.value = submissionService.buildSummary(context);
+    pendingSubmissionContext.value = context;
+    showSubmissionDialog.value = true;
+  } catch (error: any) {
+    console.error('Error preparing submission:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.message || 'Failed to prepare submission',
+      life: 5000
+    });
+  }
+}
+
+// AI : Confirm submission after user approves in dialog
+async function confirmSubmission() {
+  if (!pendingSubmissionContext.value) return;
+
+  try {
+    isSubmitting.value = true;
+
+    // @ts-expect-error - Complex Pinia store types cause deep instantiation errors
+    await submissionService.submit(pendingSubmissionContext.value);
+
+    // AI : Show success message
+    const context = pendingSubmissionContext.value;
+    const message = context.changeType === 'update_approved'
+      ? t('submission.changeRequestSubmitted')
+      : context.changeType === 'update_pending'
+        ? t('submission.changesSaved')
+        : t('submission.submissionSuccessful');
+
+    toast.add({
+      severity: 'success',
+      summary: 'Success',
+      detail: message,
+      life: 3000
+    });
+
+    // AI : Close dialog and reset state
+    showSubmissionDialog.value = false;
+    pendingSubmissionContext.value = null;
+    submissionSummary.value = null;
+  } catch (error: any) {
+    console.error('Error submitting:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Submission Failed',
+      detail: error.message || 'Failed to submit changes',
+      life: 5000
+    });
+  } finally {
+    isSubmitting.value = false;
+  }
+}
+
+// AI : Cancel submission dialog
+function cancelSubmission() {
+  showSubmissionDialog.value = false;
+  pendingSubmissionContext.value = null;
+  submissionSummary.value = null;
+}
+
+// AI : Handle overlay publishing (overlay mode only) - NEW UNIFIED APPROACH
 async function handlePublishOverlay() {
   const overlay = overlayObject.value;
   if (!overlay) return;
@@ -242,94 +336,100 @@ async function handlePublishOverlay() {
   const overlayModified = overlay.isModified || false;
   const projectModified = project && !project.savedRemotely;
 
-  try {
-    // AI : Handle overlay changes
-    if (overlayModified) {
-      // AI : Check if this is an approved overlay being modified - submit change request instead
-      if (overlay.status === 'approved') {
-        await submitApprovedOverlayChanges(overlay);
-      } else {
-        await publishOverlay(overlay, project);
-      }
+  // AI : Handle overlay changes using new overlay publisher for new overlays
+  if (overlayModified && overlay.status !== 'approved') {
+    try {
+      await publishOverlay(overlay, project);
+      toast.add({
+        severity: 'success',
+        summary: t('overlay.publishSuccess'),
+        detail: t('overlay.publishSuccessDetail'),
+        life: 3000
+      });
+    } catch (error: any) {
+      console.error('Error publishing overlay:', error);
+      toast.add({
+        severity: 'error',
+        summary: t('overlay.publishFailed'),
+        detail: error.message || t('overlay.publishFailedDetail'),
+        life: 5000
+      });
+      return;
     }
+  }
 
-    // AI : Handle project changes
-    if (projectModified && project) {
-      if (project.status === 'pending') {
-        // AI : For pending projects, publish directly
-        await publishProject(project);
-      } else if (project.status === 'approved' && project.originalData) {
-        // AI : For approved projects, submit change requests
-        const changes: Array<{ fieldName: string; oldValue: any; newValue: any }> = [];
-        
-        // AI : Compare current data with original data to find changes
-        const fieldsToCheck: Array<keyof typeof project.originalData> = [
-          'name', 'description', 'sourceUrl', 'proposalDate', 'startDate', 'endDate', 'latestUpdateOn'
-        ];
-        
-        fieldsToCheck.forEach(field => {
-          const oldValue = project.originalData?.[field];
-          const newValue = project[field];
-          if (oldValue !== newValue) {
-            changes.push({
-              fieldName: String(field),
-              oldValue,
-              newValue
-            });
-          }
-        });
-        
-        if (changes.length > 0) {
-          await submitMultipleFieldChanges('project', project.id, changes);
-        }
-      }
-    }
+  // AI : Handle overlay changes for approved overlays using unified submission service
+  if (overlayModified && overlay.status === 'approved') {
+    const context: SubmissionContext = {
+      entityType: 'overlay',
+      entityId: overlay.id,
+      entity: overlay,
+      changeType: submissionService.getChangeType(overlay)
+    };
 
-    // AI : Show success message
-    const message = overlayModified && projectModified 
-      ? 'Changes submitted successfully'
-      : overlayModified 
-        ? t('overlay.publishSuccess')
-        : t('project.publishSuccess');
-    
-    toast.add({
-      severity: 'success',
-      summary: 'Success',
-      detail: message,
-      life: 3000
-    });
-  } catch (error: any) {
-    console.error('Error publishing changes:', error);
-    toast.add({
-      severity: 'error',
-      summary: 'Publish Failed',
-      detail: error.message || 'Failed to publish changes',
-      life: 5000
-    });
+    await prepareAndShowSubmissionDialog(context);
+    return; // Dialog will handle the actual submission
+  }
+
+  // AI : Handle project changes using unified submission service
+  if (projectModified && project) {
+    const context: SubmissionContext = {
+      entityType: 'project',
+      entityId: project.id,
+      entity: project,
+      changeType: submissionService.getChangeType(project)
+    };
+
+    await prepareAndShowSubmissionDialog(context);
+    return; // Dialog will handle the actual submission
   }
 }
 
-// AI : Handle project publishing (project mode only)
+// AI : Handle project publishing (project mode only) - NEW UNIFIED APPROACH
 async function handlePublishProject() {
   const project = selectedProject.value;
   if (!project) return;
 
-  try {
-    await publishProject(project);
-    toast.add({
-      severity: 'success',
-      summary: t('project.publishSuccess'),
-      detail: t('project.publishSuccessDetail'),
-      life: 3000
-    });
-  } catch (error) {
-    console.error('Error publishing project:', error);
-    toast.add({
-      severity: 'error',
-      summary: t('project.publishFailed'),
-      detail: t('project.publishFailedDetail'),
-      life: 5000
-    });
+  // AI : For pending/new projects, check if we need unified service or direct publish
+  if (project.status === 'pending' || !project.status) {
+    // AI : Use unified service for consistent validation and summary
+    const context: SubmissionContext = {
+      entityType: 'project',
+      entityId: project.id,
+      entity: project,
+      changeType: submissionService.getChangeType(project)
+    };
+
+    await prepareAndShowSubmissionDialog(context);
+  } else if (project.status === 'approved' && project.originalData) {
+    // AI : For approved projects with changes, use unified service
+    const context: SubmissionContext = {
+      entityType: 'project',
+      entityId: project.id,
+      entity: project,
+      changeType: 'update_approved'
+    };
+
+    await prepareAndShowSubmissionDialog(context);
+  } else {
+    // AI : Fallback to direct publish for other cases
+    try {
+      await publishProject(project);
+      toast.add({
+        severity: 'success',
+        summary: t('project.publishSuccess'),
+        detail: t('project.publishSuccessDetail'),
+        life: 3000
+      });
+    } catch (error) {
+      console.error('Error publishing project:', error);
+      toast.add({
+        severity: 'error',
+        summary: t('project.publishFailed'),
+        detail: t('project.publishFailedDetail'),
+        life: 5000
+      });
+    }
   }
 }
 

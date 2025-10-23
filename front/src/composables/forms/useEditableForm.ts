@@ -137,14 +137,14 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
       if (options.localOnly) {
         if (options.entityType === 'project') {
           // AI : Get the current project to store as original data if not already stored
-          const currentProject = projectStore.projects[options.entityId] || projectStore.allProjects[options.entityId];
+          const currentProject = projectStore.projects[options.entityId] ?? projectStore.allProjects[options.entityId];
           
           // AI : Update project in local store only
           projectStore.updateProject(options.entityId, {
             ...formData as any,
             savedRemotely: false,
             // AI : Store original data for change calculation later (only if not already stored)
-            originalData: currentProject?.originalData || {
+            originalData: currentProject?.originalData ?? {
               name: originalData.name,
               description: originalData.description,
               sourceUrl: originalData.sourceUrl,

@@ -15,7 +15,9 @@
     "reset": "Réinitialiser",
     "status": "Statut",
     "reasonForChanges": "Raison des modifications",
-    "explainChanges": "Expliquez brièvement pourquoi vous apportez ces modifications"
+    "explainChanges": "Expliquez brièvement pourquoi vous apportez ces modifications",
+    "before": "Avant",
+    "after": "Après"
   },
   "navigation": {
     "home": "Accueil",
@@ -302,5 +304,18 @@
   "footer": {
     "legalMentions": "Mentions légales",
     "contact": "Contact"
+  },
+  "submission": {
+    "confirmTitle": "Confirmer la soumission",
+    "requiresModeration": "Requiert modération",
+    "immediateUpdate": "Mise à jour immédiate",
+    "moderationNotice": "Votre soumission sera examinée par un modérateur avant d'apparaître publiquement.",
+    "changesToSubmit": "Modifications à soumettre",
+    "confirmSubmit": "Confirmer et soumettre",
+    "moderationFooter": "Un modérateur examinera votre soumission et l'approuvera ou la rejettera.",
+    "immediateFooter": "Vos modifications seront appliquées immédiatement à votre soumission en attente.",
+    "changeRequestSubmitted": "Demande de modification soumise avec succès",
+    "changesSaved": "Modifications enregistrées avec succès",
+    "submissionSuccessful": "Soumission réussie"
   }
 }
