@@ -788,9 +788,9 @@ export function updateMarkerTooltip(overlayObject: OverlayObject): void {
     return;
   }
   // AI : Generate tooltip text based on overlay state
-  const isRemoteOverlay = overlayObject?.savedRemotely;
   const hasBeenModified = overlayObject.isModified;
   const isReplacement = overlayObject.replacesOverlayId !== null;
+  const isApproved = overlayObject.status === 'approved';
   const isPending = overlayObject.status === 'pending';
 
   let tooltipText = '';
@@ -800,11 +800,11 @@ export function updateMarkerTooltip(overlayObject: OverlayObject): void {
     tooltipText = 'Pending approval';
   } else if (isPending && hasBeenModified) {
     tooltipText = 'Pending approval (modified)';
-  } else if (isRemoteOverlay && !hasBeenModified) {
-    tooltipText = 'Saved remotely';
-  } else if (isRemoteOverlay && hasBeenModified) {
-    tooltipText = 'Remote overlay (modified)';
-  } else if (!isRemoteOverlay && hasBeenModified) {
+  } else if (isApproved && !hasBeenModified) {
+    tooltipText = 'Approved';
+  } else if (isApproved && hasBeenModified) {
+    tooltipText = 'Approved (modified)';
+  } else if (hasBeenModified) {
     tooltipText = 'Local overlay';
   } else {
     tooltipText = 'New overlay';
@@ -997,8 +997,7 @@ function createNewOverlayObject(id: string, imageUrl: string, projectId: string)
     projectId,
     authorId: null,
     imageUrl,
-    isModified: true, // AI : New overlays need to be uploaded
-    savedRemotely: false
+    isModified: true // AI : New overlays need to be uploaded
   });
 }
 
@@ -1180,8 +1179,8 @@ function applyHistoryAction(action: 'undo' | 'redo') {
       const previousState = history[history.length - 1];
       overlay.setCorners(previousState);
 
-      // AI : If we're back to the initial state (history.length === 1), mark as unmodified
-      if (history.length === 1 && overlayObject.savedRemotely) {
+      // AI : If we're back to the initial state (history.length === 1) and overlay is approved, mark as unmodified
+      if (history.length === 1 && overlayObject.status === 'approved') {
         overlayObject.isModified = false;
       }
     } else {
@@ -1719,8 +1718,8 @@ export const resetRatioTool = L.Toolbar2.Action.extend({
  * 2. Overlay has pending changes (user's modification)
  */
 function canDeleteOverlay(overlayObject: OverlayObject): boolean {
-  // AI : Allow deletion of new local overlays (not saved to backend yet)
-  if (!overlayObject.savedRemotely) {
+  // AI : Allow deletion of pending overlays (not yet approved)
+  if (overlayObject.status === 'pending' || overlayObject.status === 'rejected') {
     return true;
   }
 

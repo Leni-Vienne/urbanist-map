@@ -83,7 +83,7 @@ const emit = defineEmits<{
 }>()
 
 const isPublishedToBackend = computed(() => {
-  return props.project?.savedRemotely ?? false
+  return props.project?.status === 'approved' || props.project?.status === 'pending'
 })
 </script>
 

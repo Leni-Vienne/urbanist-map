@@ -122,11 +122,8 @@ export interface Project extends DBProject {
   city: DBCity;
   overlayIds: string[];
   name: string; // AI : Computed from project name field
-  savedRemotely: boolean;
   // AI : Map coordinates for development projects (null for overlay projects) - renamed to avoid DB conflict
   mapCoordinates?: { lat: number; lng: number } | null;
-  // AI : Store original data when project is modified locally to calculate changes later
-  originalData?: Partial<Project>;
 }
 
 // AI : Import shared overlay data type from backend
@@ -137,7 +134,6 @@ export type { OverlayData } from '../../back/src/lib/types';
 export interface OverlayObject extends OverlayData {
   // AI : Computed fields
   imageUrl: string;
-  savedRemotely: boolean;
 
   // AI : Map interaction fields
   overlay: L.DistortableImageOverlay | null;

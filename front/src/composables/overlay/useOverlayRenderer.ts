@@ -71,13 +71,44 @@ export function renderForStrategy(
       // AI : Overlays exist - update them with fresh data
       const newDataMap = new Map(visibleOverlays.map(o => [o.id, o]))
 
+      // AI : Remove overlays that are no longer visible (e.g., switched from edit to view mode)
+      const overlaysToRemove: string[] = []
+      existingIds.forEach(id => {
+        if (!newDataMap.has(id)) {
+          overlaysToRemove.push(id)
+        }
+      })
+
+      overlaysToRemove.forEach(id => {
+        const overlayToRemove = overlayStore.overlays[id]
+        if (overlayToRemove) {
+          // AI : Remove from map and destroy Leaflet objects
+          if (overlayToRemove.overlay) {
+            if (map.value?.hasLayer(overlayToRemove.overlay)) {
+              map.value.removeLayer(overlayToRemove.overlay)
+            }
+            // AI : Force remove by calling remove() on the Leaflet object itself
+            overlayToRemove.overlay.remove()
+          }
+          if (overlayToRemove.marker) {
+            if (map.value?.hasLayer(overlayToRemove.marker)) {
+              map.value.removeLayer(overlayToRemove.marker)
+            }
+            // AI : Force remove marker
+            overlayToRemove.marker.remove()
+          }
+          // AI : Remove from store
+          delete overlayStore.overlays[id]
+          delete overlayStore.allMarkers[id]
+        }
+      })
+
       // AI : Update existing overlay objects with fresh backend data
       existingIds.forEach(id => {
         const existingOverlay = overlayStore.overlays[id]
         const newData = newDataMap.get(id)
 
-        if (!newData) {
-          // AI : Overlay removed from backend - will be cleaned up later
+        if (!newData || !existingOverlay) {
           return
         }
 

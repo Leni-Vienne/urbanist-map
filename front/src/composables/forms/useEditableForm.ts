@@ -136,25 +136,11 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
       // AI : If localOnly mode, just update local store without backend submission
       if (options.localOnly) {
         if (options.entityType === 'project') {
-          // AI : Get the current project to store as original data if not already stored
-          const currentProject = projectStore.projects[options.entityId] ?? projectStore.allProjects[options.entityId];
-          
           // AI : Update project in local store only
           projectStore.updateProject(options.entityId, {
-            ...formData as any,
-            savedRemotely: false,
-            // AI : Store original data for change calculation later (only if not already stored)
-            originalData: currentProject?.originalData ?? {
-              name: originalData.name,
-              description: originalData.description,
-              sourceUrl: originalData.sourceUrl,
-              proposalDate: originalData.proposalDate,
-              startDate: originalData.startDate,
-              endDate: originalData.endDate,
-              latestUpdateOn: originalData.latestUpdateOn,
-            }
+            ...formData as any
           })
-          
+
           toast.add({
             severity: 'success',
             summary: 'Changes Saved',
@@ -162,7 +148,7 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
             life: 4000
           })
         }
-        
+
         options.onSubmitted?.()
         options.onClose?.()
         return
@@ -196,13 +182,7 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
 
           // AI : Use shared helper to build consistent payload
           await trpc.project.publishProject.mutate(buildProjectPayload(projectData))
-          
-          // AI : Update project in store to mark as modified
-          projectStore.updateProject(options.entityId, {
-            ...formData as any,
-            savedRemotely: false
-          })
-          
+
           toast.add({
             severity: 'success',
             summary: 'Project Updated',
@@ -230,13 +210,6 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
       } else {
         // AI : For approved entities, submit change requests for moderation
         await submitMultipleFieldChanges(options.entityType, options.entityId, changes)
-
-        // AI : Update project in store to show it has unsaved changes
-        if (options.entityType === 'project') {
-          projectStore.updateProject(options.entityId, {
-            savedRemotely: false
-          })
-        }
 
         toast.add({
           severity: 'success',

@@ -165,8 +165,6 @@ export function useOverlayPublisher() {
         // AI : Update overlay ID and reset modified flag since it's now saved
         overlay.id = newId;
         overlay.isModified = false;
-        // AI : Mark overlay as saved to backend (this affects marker color)
-        overlay.savedRemotely = true;
 
         // AI : If ID changed, update the overlays store with new key
         if (oldId !== newId) {

@@ -147,11 +147,9 @@ const emit = defineEmits<{
 const authStore = useAuthStore();
 const { user } = storeToRefs(authStore);
 
-// AI : Check if overlay or project has changes that need to be published
+// AI : Check if overlay has changes that need to be published
 const hasChanges = computed(() => {
-  const overlayModified = props.overlayObject.isModified || false;
-  const projectModified = props.project && !props.project.savedRemotely;
-  return overlayModified || projectModified;
+  return props.overlayObject.isModified || false;
 });
 
 // AI : Local ref for selected project ID (synced with overlay's projectId)

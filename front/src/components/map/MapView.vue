@@ -105,8 +105,14 @@ watch(() => overlayStore.isEditMode, (editMode) => {
     // AI : Stop view mode tracking when entering edit mode
     overlayStore.clearViewModeOverlays();
   } else {
-    // AI : Apply filters when entering view mode
-    setTimeout(async () => await filterOverlaysByCompletionStatus(), 100);
+    // AI : Apply filters when entering view mode - but only if there are overlays to filter
+    // AI : The mode switch already handles rendering, this is just for completion status filtering
+    setTimeout(async () => {
+      // AI : Only filter if there are actually overlays loaded
+      if (Object.keys(overlayStore.overlays).length > 0) {
+        await filterOverlaysByCompletionStatus()
+      }
+    }, 100);
   }
 });
 

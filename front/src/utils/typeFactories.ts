@@ -49,7 +49,6 @@ export function createProject(data: Partial<Project> = {}): Project {
     // AI : Computed fields
     city: data.city ?? { id: '', name: '', countryCode: '', coordinates: { x: 0, y: 0 }, createdAt: new Date(), updatedAt: new Date() },
     overlayIds: data.overlayIds ?? [],
-    savedRemotely: data.savedRemotely ?? false,
     // AI : Map coordinates (renamed to avoid DB conflict)
     mapCoordinates: data.mapCoordinates ?? null,
     ...data
@@ -77,8 +76,7 @@ export function createProjectFromAPI(nearbyProject: NearbyProject): Project {
     cityId: nearbyProject.cityId,
     status: nearbyProject.status ?? 'approved', // AI : Use actual status from API
     city: nearbyProject.city,
-    overlayIds: [],
-    savedRemotely: true
+    overlayIds: []
   });
 }
 
@@ -103,7 +101,6 @@ export function createOverlay(data: Partial<OverlayObject> = {}): OverlayObject 
     corners: data.corners ?? [],
     imageUrl: data.imageUrl ?? buildImageUrl(data.filename ?? ''),
     isModified: data.isModified ?? false,
-    savedRemotely: data.savedRemotely ?? false,
     overlay: data.overlay ?? null,
     marker: data.marker ?? null,
     history: data.history ?? [],
@@ -123,7 +120,6 @@ export function createOverlayFromCDN(overlayData: OverlayData): OverlayObject {
   return createOverlay({
     ...overlayData,
     imageUrl,
-    savedRemotely: !isDataUrl,
     createdAt: new Date(overlayData.createdAt),
     updatedAt: new Date(overlayData.updatedAt ?? overlayData.createdAt),
   });

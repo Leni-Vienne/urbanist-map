@@ -174,8 +174,7 @@ function convertAndCacheBackendProject(backendProject: any): Project {
     ...backendProject,
     name: backendProject.name,
     city: backendProject.city,
-    overlayIds: [],
-    savedRemotely: true
+    overlayIds: []
   };
 
   // AI : Add to store for future use
@@ -334,7 +333,6 @@ async function handlePublishOverlay() {
 
   const project = currentProject.value;
   const overlayModified = overlay.isModified || false;
-  const projectModified = project && !project.savedRemotely;
 
   // AI : Handle overlay changes using new overlay publisher for new overlays
   if (overlayModified && overlay.status !== 'approved') {
@@ -370,19 +368,6 @@ async function handlePublishOverlay() {
     await prepareAndShowSubmissionDialog(context);
     return; // Dialog will handle the actual submission
   }
-
-  // AI : Handle project changes using unified submission service
-  if (projectModified && project) {
-    const context: SubmissionContext = {
-      entityType: 'project',
-      entityId: project.id,
-      entity: project,
-      changeType: submissionService.getChangeType(project)
-    };
-
-    await prepareAndShowSubmissionDialog(context);
-    return; // Dialog will handle the actual submission
-  }
 }
 
 // AI : Handle project publishing (project mode only) - NEW UNIFIED APPROACH
@@ -401,7 +386,7 @@ async function handlePublishProject() {
     };
 
     await prepareAndShowSubmissionDialog(context);
-  } else if (project.status === 'approved' && project.originalData) {
+  } else if (project.status === 'approved') {
     // AI : For approved projects with changes, use unified service
     const context: SubmissionContext = {
       entityType: 'project',

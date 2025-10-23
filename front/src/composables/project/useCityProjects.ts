@@ -29,8 +29,7 @@ export function useCityProjects() {
         const frontendProject = createProject({
           ...overlay.project,
           description: overlay.project.description ?? null,
-          overlayIds: [],
-          savedRemotely: true
+          overlayIds: []
         });
         projectMap.set(overlay.project.id, frontendProject);
       }
