@@ -259,11 +259,6 @@ function getProjectById(id: string): Project | undefined {
 function getStatusColor(project: Project | undefined): string {
   if (!project) return markerColors.grey;
 
-  // AI : Check if project has been modified locally (not saved remotely yet)
-  if (!project.savedRemotely) {
-    return markerColors.orange; // Orange for modified/new projects
-  }
-
   // AI : Check project status
   if (project.status === 'pending') {
     return markerColors.yellow; // Yellow for pending approval

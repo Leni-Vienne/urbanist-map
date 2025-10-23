@@ -272,7 +272,6 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
             createdAt: new Date(),
             updatedAt: new Date()
           },
-          savedRemotely: true,
           status: ('status' in project ? project.status : 'approved') as 'pending' | 'approved' | 'rejected'
         });
         const markerColor = getProjectMarkerColor(projectData);
@@ -330,7 +329,6 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
           const projectData = 'overlayIds' in project ? project : createProject({
             ...project,
             city: project.city,
-            savedRemotely: true,
             status: 'approved'
           });
           uiStore.openProjectInfoPopup(project.id, projectData);

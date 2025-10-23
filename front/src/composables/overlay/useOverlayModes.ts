@@ -16,7 +16,9 @@ import { loadCityOverlays, fetchCityProjectsData } from '@composables/map/useCit
 import { loadCityDevelopmentProjects, removeCityMarkers, addCityMarkersForCountry } from '@composables/map/useCityMarkers'
 import { loadCitiesForCountry, loadCountriesWithProjects, addCountryMarkersToMap } from '@composables/map/useCountryMarkers'
 import { useProjectStore } from '@stores/pinia/projectStore'
+import { updateOverlayMarkersColors } from '@composables/map/useOverlayMarkerUpdates'
 import { storeToRefs } from 'pinia'
+import { toRef } from 'vue'
 
 // AI : Transition effects - callbacks executed during state transitions
 interface TransitionEffects {
@@ -192,6 +194,9 @@ export async function toggleEditMode(onModeExit?: () => void): Promise<void> {
   transitionToState(newState, {
     beforeTransition: handleBeforeTransition,
     afterTransition: async () => {
+      // AI : Update overlay marker colors immediately after mode switch
+      updateOverlayMarkersColors(toRef(overlayStore, 'overlays'), toRef(overlayStore, 'isEditMode'))
+
       await loadCountriesWithProjects()
       addCountryMarkersToMap()
 

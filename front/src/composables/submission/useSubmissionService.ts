@@ -76,17 +76,20 @@ export function useSubmissionService() {
     return 'create'
   }
 
-  // AI : Detect all changes for a project entity
+  // AI : Detect all changes for a project entity by fetching original from backend cache
   function detectProjectChanges(project: Project): FieldChange[] {
     const changes: FieldChange[] = []
 
-    // AI : Get original data for comparison (stored when user edited in edit mode)
-    const originalData = project.originalData
-    if (!originalData) {
+    // AI : Try to find original project from the projects store (assumes backend copy exists)
+    // For approved projects being modified, the original approved version should be in allProjects
+    const originalProject = Object.values(projectStore.allProjects).find(p => p.id === project.id && p.status === 'approved')
+
+    if (!originalProject) {
+      // AI : No approved version found, this might be a pending project - no change detection needed
       return changes
     }
 
-    const fieldsToCheck: Array<keyof typeof originalData> = [
+    const fieldsToCheck: Array<keyof Project> = [
       'name',
       'description',
       'sourceUrl',
@@ -97,7 +100,7 @@ export function useSubmissionService() {
     ]
 
     fieldsToCheck.forEach(field => {
-      const oldValue = originalData[field]
+      const oldValue = originalProject[field]
       const newValue = project[field]
 
       // AI : Handle Date comparison (convert to ISO string for JSON compatibility)
@@ -310,11 +313,6 @@ export function useSubmissionService() {
         entityId: project.id,
         changes
       })
-
-      // AI : Mark project as having unsaved changes pending moderation
-      projectStore.updateProject(project.id, {
-        savedRemotely: false
-      })
     } else {
       // AI : Direct update for pending/new projects
       const publishResult = await trpc.project.publishProject.mutate(
@@ -322,11 +320,6 @@ export function useSubmissionService() {
       )
 
       if (publishResult.success) {
-        // AI : Mark project as saved remotely
-        projectStore.updateProject(project.id, {
-          savedRemotely: true
-        })
-
         // AI : Refresh city projects to show updated marker
         if (mapStore.selectedCity) {
           await loadCityProjects(

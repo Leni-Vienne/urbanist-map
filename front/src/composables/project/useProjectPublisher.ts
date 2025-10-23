@@ -29,14 +29,6 @@ export function useProjectPublisher() {
       );
 
       if (publishResult.success) {
-        // AI : Mark project as saved remotely
-        if (projects.value[project.id]) {
-          projects.value[project.id] = {
-            ...projects.value[project.id],
-            savedRemotely: true
-          };
-        }
-
         // AI : Refresh city projects to show updated marker
         if (mapStore.selectedCity) {
           await loadCityProjects(

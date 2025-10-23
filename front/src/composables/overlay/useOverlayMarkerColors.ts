@@ -9,22 +9,26 @@ export function getOverlayMarkerColor(
   mode: 'edit' | 'view'
 ): MarkerColor {
   if (mode === 'edit') {
+    // AI : Edit mode color logic based on overlay modification state and status
     if (overlayData.replacesOverlayId) return 'purple'; // Overlay is a replacement for another overlay
 
-    // AI : OverlayData objects are always remote overlays (they come from the backend)
-    const isRemoteOverlay = 'savedRemotely' in overlayData ? overlayData.savedRemotely : true;
     const hasBeenModified = 'isModified' in overlayData ? overlayData.isModified : false;
-    const isPending = overlayData.status === 'pending';
-    const hasPendingChanges = 'hasPendingChanges' in overlayData ? overlayData.hasPendingChanges : false;
+    const status = overlayData.status;
 
-    if (!isRemoteOverlay) {
-      return 'red'; // Local overlay not saved remotely, meaning brand new
-    }
+    // AI : Priority 1: Local modifications (highest priority - shows user they have unsaved work)
+    if (hasBeenModified) return 'orange';
 
-    if (hasBeenModified) return 'orange'; // Remote overlay with unsaved changes
-    if (hasPendingChanges) return 'yellow'; // Approved overlay with pending change requests
-    if (isPending) return 'yellow'; // Remote overlay awaiting moderation approval
-    return 'green'; // Approved overlay, saved and unmodified
+    // AI : Priority 2: Pending approval (awaiting moderation)
+    if (status === 'pending') return 'yellow';
+
+    // AI : Priority 3: Rejected overlays
+    if (status === 'rejected') return 'red';
+
+    // AI : Priority 4: Approved and unmodified
+    if (status === 'approved') return 'green';
+
+    // AI : Default: New overlay not yet submitted
+    return 'red';
   }
 
   const project = overlayData.project;
