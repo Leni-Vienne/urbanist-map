@@ -15,7 +15,9 @@
     "reset": "Reset",
     "status": "Status",
     "reasonForChanges": "Reason for Changes",
-    "explainChanges": "Briefly explain why you're making these changes"
+    "explainChanges": "Briefly explain why you're making these changes",
+    "before": "Before",
+    "after": "After"
   },
   "navigation": {
     "home": "Home",
@@ -302,5 +304,18 @@
   "footer": {
     "legalMentions": "Legal Mentions",
     "contact": "Contact"
+  },
+  "submission": {
+    "confirmTitle": "Confirm Submission",
+    "requiresModeration": "Requires Moderation",
+    "immediateUpdate": "Immediate Update",
+    "moderationNotice": "Your submission will be reviewed by a moderator before appearing publicly.",
+    "changesToSubmit": "Changes to be submitted",
+    "confirmSubmit": "Confirm & Submit",
+    "moderationFooter": "A moderator will review your submission and approve or reject it.",
+    "immediateFooter": "Your changes will be applied immediately to your pending submission.",
+    "changeRequestSubmitted": "Change request submitted successfully",
+    "changesSaved": "Changes saved successfully",
+    "submissionSuccessful": "Submission successful"
   }
 }

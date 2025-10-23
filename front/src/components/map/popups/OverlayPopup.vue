@@ -1,28 +1,5 @@
 <template>
   <div class="info-popup">
-    <Dialog
-      v-model:visible="showModerationDialog"
-      modal
-      :header="$t('overlay.moderationNotice')"
-      :style="{ width: '450px' }"
-    >
-      <div class="moderation-content">
-        <p>{{ isEditSuggestion ? $t('overlay.moderationEditSuggestion') : $t('overlay.moderationNewContent') }}</p>
-      </div>
-      <template #footer>
-        <Button
-          :label="$t('common.cancel')"
-          severity="secondary"
-          @click="showModerationDialog = false"
-        />
-        <Button
-          :label="$t('overlay.proceedWithPublish')"
-          severity="success"
-          @click="confirmPublish"
-        />
-      </template>
-    </Dialog>
-
     <div
       v-if="loading"
       class="loading-spinner"
@@ -170,12 +147,6 @@ const emit = defineEmits<{
 const authStore = useAuthStore();
 const { user } = storeToRefs(authStore);
 
-// AI : Moderation dialog state
-const showModerationDialog = ref(false);
-
-// AI : Determine if this is an edit suggestion (replacesOverlayId exists)
-const isEditSuggestion = computed(() => !!props.overlayObject.replacesOverlayId);
-
 // AI : Check if overlay or project has changes that need to be published
 const hasChanges = computed(() => {
   const overlayModified = props.overlayObject.isModified || false;
@@ -202,14 +173,8 @@ function handleOverlayUpdate(overlayId: string, caption?: string) {
   emit('overlay-update', overlayId, caption);
 }
 
-// AI : Handle publish button click - show moderation dialog first
+// AI : Handle publish button click - directly emit to parent (parent shows confirmation dialog)
 function handlePublishClick() {
-  showModerationDialog.value = true;
-}
-
-// AI : Confirm publish after user acknowledges moderation notice
-function confirmPublish() {
-  showModerationDialog.value = false;
   emit('publish-overlay');
 }
 </script>
