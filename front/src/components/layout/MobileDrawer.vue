@@ -98,6 +98,8 @@ import LatestOverlaysPanel from "./LatestOverlaysPanel.vue"; // AI : static impo
 import ModeControls from "@components/shared/ModeControls.vue";
 import { useAuthStore } from "@stores/authStore";
 import { useUiStore } from "@stores/uiStore";
+import { useOverlayStore } from "@stores/pinia/overlayStore";
+import type { MapMode } from "@types";
 
 // AI : Lazy load panels to reduce initial bundle size
 const ModerationPanel = defineAsyncComponent(
@@ -109,6 +111,7 @@ const MyContributionsPanel = defineAsyncComponent(
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();
+const overlayStore = useOverlayStore();
 
 const isVisible = defineModel<boolean>("visible", { default: false });
 
@@ -126,6 +129,55 @@ function handleHeightChanged(height: number) {
 const activeTab = computed({
     get: () => uiStore.mobileDrawerActiveTab,
     set: (value) => uiStore.setMobileDrawerActiveTab(value),
+});
+
+// AI : Flag to prevent infinite loops when syncing tab and mode
+let isSyncing = false;
+
+// AI : Map tab to mode
+function tabToMode(tab: typeof activeTab.value): MapMode {
+    switch (tab) {
+        case "latest": return "view";
+        case "uploads": return "edit";
+        case "moderation": return "moderation";
+        default: return "view";
+    }
+}
+
+// AI : Map mode to tab
+function modeToTab(mode: MapMode): typeof activeTab.value {
+    switch (mode) {
+        case "view": return "latest";
+        case "edit": return "uploads";
+        case "moderation": return "moderation";
+        default: return "latest";
+    }
+}
+
+// AI : Watch activeTab and sync mode
+watch(activeTab, (newTab) => {
+    if (isSyncing) return;
+    isSyncing = true;
+
+    const newMode = tabToMode(newTab);
+    if (overlayStore.mode !== newMode) {
+        overlayStore.setMode(newMode);
+    }
+
+    isSyncing = false;
+});
+
+// AI : Watch mode and sync activeTab
+watch(() => overlayStore.mode, (newMode) => {
+    if (isSyncing) return;
+    isSyncing = true;
+
+    const newTab = modeToTab(newMode);
+    if (activeTab.value !== newTab) {
+        activeTab.value = newTab;
+    }
+
+    isSyncing = false;
 });
 
 // AI : Watch for authentication changes and reset tab if user signs out or loses moderation rights

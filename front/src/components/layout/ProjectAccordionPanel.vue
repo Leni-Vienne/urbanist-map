@@ -641,7 +641,7 @@ async function handleDevelopmentProjectClick(project: ProjectForModeration) {
     // AI : Ensure edit mode is enabled before navigating (required to see markers)
     const overlayStore = useOverlayStore()
     if (!overlayStore.isEditMode) {
-      overlayStore.setEditMode(true)
+      overlayStore.setMode('edit')
     }
 
     await navigateToDevelopmentProject(

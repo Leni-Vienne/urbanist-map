@@ -13,14 +13,14 @@ import {
 export const countriesRouter = router({
   getCountriesWithProjects: publicProcedure
     .input(z.object({
-      viewMode: z.boolean().optional().default(true),
+      mode: z.enum(['view', 'edit', 'moderation']).optional().default('view'),
       includeStatus: z.array(z.enum(['pending', 'approved', 'rejected'])).optional(),
     }).optional())
     .query(async ({ input, ctx }) => {
       try {
-        const viewMode = input?.viewMode ?? true;
+        const mode = input?.mode ?? 'view';
 
-        const overlayChangeRequestIds = ctx.user && !viewMode
+        const overlayChangeRequestIds = ctx.user && mode === 'edit'
           ? await getUserOverlayChangeRequestIds(db, ctx.user.id)
           : undefined;
 
@@ -28,10 +28,10 @@ export const countriesRouter = router({
         if (input?.includeStatus && ctx.user?.role === 'admin' && input.includeStatus.length > 0) {
           projectCondition = inArray(projects.status, input.includeStatus as ApprovalStatus[]);
         } else {
-          projectCondition = buildProjectVisibilityCondition(ctx.user, viewMode);
+          projectCondition = buildProjectVisibilityCondition(ctx.user, mode);
         }
 
-        const contentCondition = buildProjectHasVisibleContentCondition(ctx.user, viewMode, overlayChangeRequestIds);
+        const contentCondition = buildProjectHasVisibleContentCondition(ctx.user, mode, overlayChangeRequestIds);
 
         return await db
           .selectDistinctOn([countries.code], {

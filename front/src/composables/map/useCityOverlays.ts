@@ -39,9 +39,9 @@ export async function fetchCityProjectsData(cityId: string): Promise<OverlayData
   }
 
   // AI : Backend now returns data in OverlayData format directly
-  // AI : viewMode is opposite of isEditMode - in edit mode (false), we want to see user's own pending content
+  // AI : Pass current mode to backend to determine visibility
   const overlaysData = await withErrorToast(
-    () => trpc.cities.getCityOverlaysAndProjects.query({ cityId, viewMode: !overlayStore.isEditMode }),
+    () => trpc.cities.getCityOverlaysAndProjects.query({ cityId, mode: overlayStore.mode }),
     'Error fetching city projects data'
   );
 
@@ -302,8 +302,8 @@ function flyToOverlayMarker(overlayData: OverlayData): void {
   // AI : Check if overlay has corners data to create bounds
   const corners = overlayData.corners;
   if (corners && corners.length === 4) {
-    // AI : Check for edit mode cached positions
-    const cachedPosition = overlayStore.isEditMode ? getFromEditModeOverlayCache(overlayData.id) : null;
+    // AI : Check for edit mode cached positions (only in edit mode, not moderation)
+    const cachedPosition = overlayStore.mode === 'edit' ? getFromEditModeOverlayCache(overlayData.id) : null;
     const cornersToUse = cachedPosition?.corners ?? corners;
 
     // AI : Create bounds from corners
@@ -329,7 +329,9 @@ function getOverlayMarkerInfo(overlayData: OverlayData): { color: MarkerColor, p
   // AI : Check if we're in edit mode and if the overlay exists in the overlays store
   const overlayStore = useOverlayStore();
 
-  if (overlayStore.isEditMode) {
+  const mode = overlayStore.mode;
+
+  if (mode === 'edit') {
     const overlayObject = overlayStore.overlays[overlayData.id];
 
     if (overlayObject) {
@@ -340,7 +342,7 @@ function getOverlayMarkerInfo(overlayData: OverlayData): { color: MarkerColor, p
       }
 
       // AI : Use centralized color logic
-      const color = getOverlayMarkerColor(overlayObject, 'edit');
+      const color = getOverlayMarkerColor(overlayObject, mode);
       return { color, position };
     } else {
       // AI : No overlay object loaded, check edit cache for modifications
@@ -355,18 +357,18 @@ function getOverlayMarkerInfo(overlayData: OverlayData): { color: MarkerColor, p
 
         // AI : Use centralized color logic with cached modification flag
         const overlayWithCacheInfo = { ...overlayData, isModified: cachedPosition.isModified };
-        const color = getOverlayMarkerColor(overlayWithCacheInfo, 'edit');
+        const color = getOverlayMarkerColor(overlayWithCacheInfo, mode);
         return { color, position };
       }
 
       // AI : No cache, use original data with edit mode coloring
-      const color = getOverlayMarkerColor(overlayData, 'edit');
+      const color = getOverlayMarkerColor(overlayData, mode);
       return { color, position };
     }
   }
 
-  // AI : View mode - always use original cached data (no edit modifications)
-  const color = getOverlayMarkerColor(overlayData, 'view');
+  // AI : View mode or moderation mode - always use original cached data (no edit modifications)
+  const color = getOverlayMarkerColor(overlayData, mode);
   return { color, position };
 }
 

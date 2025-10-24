@@ -227,8 +227,8 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
         backendDevelopmentProjects = cachedData;
       } else {
         // AI : Get development projects for this city from backend
-        // AI : viewMode is opposite of isEditMode - in edit mode (false), we want to see user's own pending content
-        backendDevelopmentProjects = await trpc.project.getCityProjects.query({ cityId, viewMode: !overlayStore.isEditMode });
+        // AI : Pass current mode to backend to determine visibility
+        backendDevelopmentProjects = await trpc.project.getCityProjects.query({ cityId, mode: overlayStore.mode });
         // AI : Cache the result
         mapStore.setCityDevelopmentProjectsCache(cityId, backendDevelopmentProjects);
       }

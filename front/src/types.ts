@@ -10,6 +10,9 @@ import type {
 export type MarkerColor = 'blue' | 'green' | 'orange' | 'red' | 'gold' | 'yellow' | 'purple' | 'grey' | 'black';
 export type viewModeMarkerColor = 'yellow' | 'orange' | 'grey' | 'green'
 
+// AI : Type for map viewing modes
+export type MapMode = 'view' | 'edit' | 'moderation';
+
 // AI : Type for project manager modes
 export type ProjectManagerMode = 'list' | 'edit' | 'view' | 'create';
 

@@ -9,6 +9,9 @@ export type UserContext = {
   role?: string | null;
 } | undefined | null;
 
+// AI : Type for map viewing modes
+export type MapMode = 'view' | 'edit' | 'moderation';
+
 // AI : Type for approval status
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
@@ -32,25 +35,35 @@ export async function getUserOverlayChangeRequestIds(
     .filter((id): id is string => id !== null);
 }
 
-// AI : Build WHERE condition for project visibility based on user context and view mode
+// AI : Build WHERE condition for project visibility based on user context and map mode
 export function buildProjectVisibilityCondition(
   user: UserContext,
-  viewMode: boolean
+  mode: MapMode
 ): SQL {
-  if (user && !viewMode) {
-    // AI : Edit mode: show approved projects OR user's own projects (any status)
-    return sql`(${projects.status} = 'approved' OR ${projects.ownerId} = ${user.id})`;
-  } else {
-    // AI : View mode or anonymous: only show approved projects
+  if (mode === 'view') {
+    // AI : View mode: only show approved projects
     return eq(projects.status, 'approved');
   }
+
+  if (mode === 'edit' && user) {
+    // AI : Edit mode: show approved projects OR user's own projects (any status)
+    return sql`(${projects.status} = 'approved' OR ${projects.ownerId} = ${user.id})`;
+  }
+
+  if (mode === 'moderation' && user) {
+    // AI : Moderation mode: show approved projects OR projects with pending overlays
+    return sql`(${projects.status} = 'approved' OR ${projects.status} = 'pending')`;
+  }
+
+  // AI : Default (anonymous or unrecognized mode): only show approved projects
+  return eq(projects.status, 'approved');
 }
 
-// AI : Build WHERE condition for overlay visibility based on user context and view mode
-// AI : Can also handle admin includeStatus filter (takes precedence over viewMode logic)
+// AI : Build WHERE condition for overlay visibility based on user context and map mode
+// AI : Can also handle admin includeStatus filter (takes precedence over mode logic)
 export function buildOverlayVisibilityCondition(
   user: UserContext,
-  viewMode: boolean,
+  mode: MapMode,
   overlayChangeRequestIds?: string[],
   adminIncludeStatus?: ApprovalStatus[]
 ): SQL {
@@ -59,7 +72,12 @@ export function buildOverlayVisibilityCondition(
     return inArray(overlays.status, adminIncludeStatus);
   }
 
-  if (user && !viewMode) {
+  if (mode === 'view') {
+    // AI : View mode: only show approved overlays
+    return eq(overlays.status, 'approved');
+  }
+
+  if (mode === 'edit' && user) {
     // AI : Edit mode: show approved overlays OR user's own overlays OR overlays with user's change requests
     if (overlayChangeRequestIds && overlayChangeRequestIds.length > 0) {
       const idsArray = `{${overlayChangeRequestIds.join(',')}}`;
@@ -71,10 +89,15 @@ export function buildOverlayVisibilityCondition(
     } else {
       return sql`(${overlays.status} = 'approved' OR ${overlays.authorId} = ${user.id})`;
     }
-  } else {
-    // AI : View mode or anonymous: only show approved overlays
-    return eq(overlays.status, 'approved');
   }
+
+  if (mode === 'moderation' && user) {
+    // AI : Moderation mode: show ALL overlays (approved + pending) for review
+    return sql`(${overlays.status} = 'approved' OR ${overlays.status} = 'pending')`;
+  }
+
+  // AI : Default (anonymous or unrecognized mode): only show approved overlays
+  return eq(overlays.status, 'approved');
 }
 
 // AI : Build WHERE condition for project status (handles admin includeStatus filter)
@@ -93,10 +116,22 @@ export function buildProjectStatusCondition(
 // AI : In edit mode, also show user's own projects even if they don't have overlays yet
 export function buildProjectHasVisibleContentCondition(
   user: UserContext,
-  viewMode: boolean,
+  mode: MapMode,
   overlayChangeRequestIds?: string[]
 ): SQL {
-  if (user && !viewMode) {
+  if (mode === 'view') {
+    // AI : View mode: show if development OR has approved overlays
+    return sql`(
+      ${projects.isDevelopment} = true
+      OR EXISTS (
+        SELECT 1 FROM ${overlays}
+        WHERE ${overlays.projectId} = ${projects.id}
+        AND ${overlays.status} = 'approved'
+      )
+    )`;
+  }
+
+  if (mode === 'edit' && user) {
     // AI : Edit mode: show if development OR has visible overlays OR is owned by user (even without overlays)
     if (overlayChangeRequestIds && overlayChangeRequestIds.length > 0) {
       const idsArray = `{${overlayChangeRequestIds.join(',')}}`;
@@ -124,15 +159,27 @@ export function buildProjectHasVisibleContentCondition(
         )
       )`;
     }
-  } else {
-    // AI : View mode: show if development OR has approved overlays
+  }
+
+  if (mode === 'moderation' && user) {
+    // AI : Moderation mode: show if development OR has any overlays (approved or pending)
     return sql`(
       ${projects.isDevelopment} = true
       OR EXISTS (
         SELECT 1 FROM ${overlays}
         WHERE ${overlays.projectId} = ${projects.id}
-        AND ${overlays.status} = 'approved'
+        AND (${overlays.status} = 'approved' OR ${overlays.status} = 'pending')
       )
     )`;
   }
+
+  // AI : Default: same as view mode
+  return sql`(
+    ${projects.isDevelopment} = true
+    OR EXISTS (
+      SELECT 1 FROM ${overlays}
+      WHERE ${overlays.projectId} = ${projects.id}
+      AND ${overlays.status} = 'approved'
+    )
+  )`;
 }

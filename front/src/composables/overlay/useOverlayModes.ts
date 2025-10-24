@@ -52,8 +52,11 @@ function getCurrentState(): OverlayModeState {
   const selectedCity = getSelectedCity()
   const zoom = map.value?.getZoom() ?? 0
 
+  // AI : Map MapMode to OverlayModeState mode (for now, treat moderation as view for rendering purposes)
+  const stateMode: 'view' | 'edit' = overlayStore.mode === 'edit' ? 'edit' : 'view';
+
   return {
-    mode: overlayStore.isEditMode ? 'edit' : 'view',
+    mode: stateMode,
     zoomLevel: getZoomLevel(zoom),
     hasLoadedOverlays: Object.keys(overlayStore.overlays).length > 0,
     selectedCityId: selectedCity?.id ?? null,
@@ -169,8 +172,9 @@ export async function toggleEditMode(onModeExit?: () => void): Promise<void> {
   const overlayStore = useOverlayStore()
   const mapStore = useMapStore()
 
-  // AI : Toggle mode in store
-  overlayStore.isEditMode = !overlayStore.isEditMode
+  // AI : Toggle between view and edit modes (skip moderation mode in toggle)
+  const newMode = overlayStore.mode === 'edit' ? 'view' : 'edit';
+  overlayStore.setMode(newMode);
 
   // AI : Calculate new state
   const newState = getCurrentState()
@@ -195,7 +199,7 @@ export async function toggleEditMode(onModeExit?: () => void): Promise<void> {
     beforeTransition: handleBeforeTransition,
     afterTransition: async () => {
       // AI : Update overlay marker colors immediately after mode switch
-      updateOverlayMarkersColors(toRef(overlayStore, 'overlays'), toRef(overlayStore, 'isEditMode'))
+      updateOverlayMarkersColors(toRef(overlayStore, 'overlays'))
 
       await loadCountriesWithProjects()
       addCountryMarkersToMap()
@@ -205,7 +209,7 @@ export async function toggleEditMode(onModeExit?: () => void): Promise<void> {
         await reloadCitiesAndMarkers(countryCode)
       }
 
-      if (!overlayStore.isEditMode && onModeExit) {
+      if (overlayStore.mode !== 'edit' && onModeExit) {
         onModeExit()
       }
     }

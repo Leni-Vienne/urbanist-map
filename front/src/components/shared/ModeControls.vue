@@ -3,14 +3,17 @@
   <div :class="isMobile ? 'mode-controls-wrapper-mobile' : 'mode-controls-wrapper'" @dblclick.stop>
     <div
       class="mode-indicator"
-      :class="{ 'edit-mode': overlayStore.isEditMode }"
-      v-tooltip.top="isMobile ? undefined : (overlayStore.isEditMode ? $t('map.editModeTooltip') : $t('map.viewModeTooltip'))"
-      :title="isMobile ? (overlayStore.isEditMode ? $t('map.editModeTooltip') : $t('map.viewModeTooltip')) : undefined"
+      :class="{
+        'edit-mode': overlayStore.mode === 'edit',
+        'moderation-mode': overlayStore.mode === 'moderation'
+      }"
+      v-tooltip.top="isMobile ? undefined : getModeTooltip()"
+      :title="isMobile ? getModeTooltip() : undefined"
     >
-      <i :class="['pi', overlayStore.isEditMode ? 'pi-pencil' : 'pi-eye']"></i>
-      <span>{{ overlayStore.isEditMode ? $t('map.editMode') : $t('map.viewMode') }}</span>
+      <i :class="['pi', getModeIcon()]"></i>
+      <span>{{ getModeLabel() }}</span>
     </div>
-    
+
     <button
       @click="handleModeSwitch"
       class="mode-switch-button"
@@ -26,49 +29,152 @@
 
 <script setup lang="ts">
 import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { useAuthStore } from '@stores/authStore';
 import { useToast } from '@composables/ui/useToast';
 import { toggleEditMode } from '@composables/overlay/useOverlayModes';
+import { useI18n } from 'vue-i18n';
+import type { MapMode } from '@types';
+import { loadCountriesWithProjects, addCountryMarkersToMap } from '@composables/map/useCountryMarkers';
+import { getSelectedCity } from '@composables/map/useCityData';
+import { loadCityOverlays, renderOverlayMarkersFromCache } from '@composables/map/useCityOverlays';
+import { useMapStore } from '@stores/pinia/mapStore';
 
 defineProps<{
   isMobile?: boolean
 }>();
 
 const overlayStore = useOverlayStore();
+const authStore = useAuthStore();
+const mapStore = useMapStore();
 const toast = useToast();
+const { t } = useI18n();
 
 // AI : Track last toast time to prevent spam
 let lastToastTime = 0;
 const TOAST_THROTTLE_MS = 1000;
 
-// AI : Handle mode switch
+// AI : Flag to prevent recursive mode switching
+let isSwitchingMode = false;
+
+// AI : Get mode display info
+function getModeIcon(): string {
+  switch (overlayStore.mode) {
+    case 'view': return 'pi-eye';
+    case 'edit': return 'pi-pencil';
+    case 'moderation': return 'pi-shield';
+    default: return 'pi-eye';
+  }
+}
+
+function getModeLabel(): string {
+  switch (overlayStore.mode) {
+    case 'view': return t('map.viewMode');
+    case 'edit': return t('map.editMode');
+    case 'moderation': return 'Moderation'; // AI : Add to i18n later
+    default: return t('map.viewMode');
+  }
+}
+
+function getModeTooltip(): string {
+  switch (overlayStore.mode) {
+    case 'view': return t('map.viewModeTooltip');
+    case 'edit': return t('map.editModeTooltip');
+    case 'moderation': return 'Review pending submissions'; // AI : Add to i18n later
+    default: return t('map.viewModeTooltip');
+  }
+}
+
+// AI : Cycle through modes (view -> edit -> moderation -> view) for moderators
+// AI : For regular users, just toggle between view and edit
 async function handleModeSwitch() {
+  // AI : Prevent recursive calls
+  if (isSwitchingMode) {
+    return;
+  }
+
   try {
-    await toggleEditMode();
-    
-    // AI : Only show toast if enough time has passed since last one
-    const now = Date.now();
-    if (now - lastToastTime < TOAST_THROTTLE_MS) {
+    isSwitchingMode = true;
+    const currentMode = overlayStore.mode;
+
+    let newMode: MapMode;
+
+    if (authStore.isModerator) {
+      // AI : Moderators cycle through all 3 modes
+      switch (currentMode) {
+        case 'view':
+          newMode = 'edit';
+          break;
+        case 'edit':
+          newMode = 'moderation';
+          break;
+        case 'moderation':
+          newMode = 'view';
+          break;
+        default:
+          newMode = 'view';
+      }
+    } else {
+      // AI : Regular users toggle between view and edit only
+      newMode = currentMode === 'edit' ? 'view' : 'edit';
+    }
+
+    // AI : Don't do anything if mode hasn't changed
+    if (currentMode === newMode) {
+      isSwitchingMode = false;
       return;
     }
-    lastToastTime = now;
-    
-    const modeText = overlayStore.isEditMode ? 'Edit Mode' : 'View Mode';
-    toast.add({
-      severity: 'info',
-      summary: `Switched to ${modeText}`,
-      detail: overlayStore.isEditMode
-        ? 'You can now add and edit overlays'
-        : 'Overlays are now in view-only mode',
-      life: 3000,
-    });
+
+    // AI : For view<->edit, use existing toggleEditMode with full state machine
+    if ((currentMode === 'view' && newMode === 'edit') ||
+        (currentMode === 'edit' && newMode === 'view')) {
+      await toggleEditMode();
+    } else {
+      // AI : For transitions involving moderation mode, do direct mode change and reload
+      const selectedCity = getSelectedCity();
+
+      // AI : Invalidate cache for selected city when switching modes
+      if (selectedCity) {
+        mapStore.clearCityProjectsCache(selectedCity.id);
+        mapStore.clearCityDevelopmentProjectsCache(selectedCity.id);
+      }
+
+      // AI : Set new mode
+      overlayStore.setMode(newMode);
+
+      // AI : Reload data with new mode
+      await loadCountriesWithProjects(true);
+      addCountryMarkersToMap();
+
+      // AI : Reload city data if a city is selected
+      if (selectedCity) {
+        await loadCityOverlays(selectedCity.id, true);
+        renderOverlayMarkersFromCache(selectedCity.id);
+      }
+    }
+
+    // AI : Only show toast if enough time has passed since last one
+    const now = Date.now();
+    if (now - lastToastTime >= TOAST_THROTTLE_MS) {
+      lastToastTime = now;
+
+      const modeText = getModeLabel();
+      toast.add({
+        severity: 'info',
+        summary: `Switched to ${modeText}`,
+        detail: getModeTooltip(),
+        life: 3000,
+      });
+    }
   } catch (error) {
-    console.error('Error toggling edit mode:', error);
+    console.error('Error toggling mode:', error);
     toast.add({
       severity: 'error',
       summary: 'Mode Switch Error',
       detail: 'Failed to switch mode. Please try again.',
       life: 3000
     });
+  } finally {
+    isSwitchingMode = false;
   }
 }
 </script>
@@ -108,6 +214,13 @@ async function handleModeSwitch() {
   border-color: #d97706;
   color: white;
   box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
+.mode-indicator.moderation-mode {
+  background: rgba(59, 130, 246, 0.95);
+  border-color: #2563eb;
+  color: white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
 }
 
 .mode-indicator i {

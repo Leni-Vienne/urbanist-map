@@ -242,8 +242,7 @@ async function handleProjectChange(projectId: string) {
 
   // AI : Update all overlay marker colors if city markers are visible
   updateOverlayMarkersColors(
-    computed(() => overlays.value),
-    computed(() => isEditMode.value)
+    computed(() => overlays.value)
   );
 }
 

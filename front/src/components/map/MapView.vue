@@ -1,9 +1,12 @@
 <template>
   <div class="map-wrapper">
-    <!-- AI : Edit mode border overlay - separate from map container to avoid Leaflet rendering issues -->
+    <!-- AI : Mode border overlay - separate from map container to avoid Leaflet rendering issues -->
     <div
-      v-if="overlayStore.isEditMode"
-      class="edit-mode-border"
+      v-if="overlayStore.mode !== 'view'"
+      :class="[
+        'mode-border',
+        overlayStore.mode === 'edit' ? 'edit-mode-border' : 'moderation-mode-border'
+      ]"
     ></div>
 
     <div
@@ -99,12 +102,12 @@ async function filterOverlaysByCompletionStatus() {
   }
 }
 
-// AI : Watch for edit mode changes to start/stop camera tracking
-watch(() => overlayStore.isEditMode, (editMode) => {
-  if (editMode) {
-    // AI : Stop view mode tracking when entering edit mode
+// AI : Watch for mode changes to manage overlay state
+watch(() => overlayStore.mode, (newMode, oldMode) => {
+  if (newMode !== 'view' && oldMode === 'view') {
+    // AI : Entering edit or moderation mode from view mode - clear view mode tracking
     overlayStore.clearViewModeOverlays();
-  } else {
+  } else if (newMode === 'view') {
     // AI : Apply filters when entering view mode - but only if there are overlays to filter
     // AI : The mode switch already handles rendering, this is just for completion status filtering
     setTimeout(async () => {
@@ -116,9 +119,9 @@ watch(() => overlayStore.isEditMode, (editMode) => {
   }
 });
 
-// AI : Watch for overlays changes to apply filters
+// AI : Watch for overlays changes to apply filters (only in view mode)
 watch(() => overlayStore.overlays ? Object.keys(overlayStore.overlays).length : 0, () => {
-  if (!overlayStore.isEditMode) {
+  if (overlayStore.mode === 'view') {
     setTimeout(async () => await filterOverlaysByCompletionStatus(), 100);
   }
 });
@@ -188,17 +191,25 @@ async function initializeMapAndOverlays() {
   bottom: 0;
 }
 
-/* AI : Edit mode border - positioned relative to map container */
-.edit-mode-border {
+/* AI : Mode borders - positioned relative to map container */
+.mode-border {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  border: 4px solid #f59e0b;
+  border: 4px solid;
   pointer-events: none;
   z-index: 2000;
   animation: borderFadeIn 0.3s ease-in-out;
+}
+
+.edit-mode-border {
+  border-color: #f59e0b; /* Orange for edit mode */
+}
+
+.moderation-mode-border {
+  border-color: #3b82f6; /* Blue for moderation mode */
 }
 
 @keyframes borderFadeIn {
