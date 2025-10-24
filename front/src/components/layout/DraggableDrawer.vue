@@ -274,7 +274,6 @@ onMounted(() => {
   align-items: center;
   cursor: grab;
   flex-shrink: 0;
-  background: var(--p-surface-0);
 }
 
 .drawer-handle:active {
