@@ -172,6 +172,7 @@ export function createOverlay(imageUrl: string, overlayObject?: OverlayObject) {
       dragBehavior: 'auto',
       selectOnDrag: false,
       draggable: isEditMode,
+      //mode: 'resizeRotate' // doesn't work but should, it's an issue from the package
     });
 
     // AI : Check if we should add overlay to map based on current zoom level
