@@ -1050,7 +1050,7 @@
 
     "leaflet": ["leaflet@1.9.4", "", {}, "sha512-nxS1ynzJOmOlHp+iL3FyWqK89GtNL8U8rvlMOsQdTTssxZwCXh8N2NB3GDQOL+YR3XnWyZAxwQixURb+FA74PA=="],
 
-    "leaflet-distortableimage": ["leaflet-distortableimage@github:Leni-vienne/Leaflet.DistortableImage#7e385c5", { "dependencies": { "exif-js": "^2.3.0", "glfx": "0.0.4", "leaflet-google-places-autocomplete": "^0.0.9", "leaflet-toolbar": "0.4.0-alpha.2", "webgl-distort": "0.0.2" }, "peerDependencies": { "leaflet": "1.x" } }, "Leni-Vienne-Leaflet.DistortableImage-7e385c5"],
+    "leaflet-distortableimage": ["leaflet-distortableimage@github:Leni-vienne/Leaflet.DistortableImage#0f81d1f", { "dependencies": { "exif-js": "^2.3.0", "glfx": "0.0.4", "leaflet-google-places-autocomplete": "^0.0.9", "leaflet-toolbar": "0.4.0-alpha.2", "webgl-distort": "0.0.2" }, "peerDependencies": { "leaflet": "1.x" } }, "Leni-Vienne-Leaflet.DistortableImage-0f81d1f"],
 
     "leaflet-google-places-autocomplete": ["leaflet-google-places-autocomplete@0.0.9", "", {}, "sha512-NHefPZn53GQIjuAZmwEN/KTy8TobEu8kRU/WlYR58j5WrQU3vZ4w2OKVUCFzKU5jlWxeZP/SQTFhmXf2vkHIeQ=="],
 
