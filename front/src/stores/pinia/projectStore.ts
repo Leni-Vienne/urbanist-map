@@ -29,6 +29,22 @@ export const useProjectStore = defineStore('project', () => {
   const userContributionsLoading = ref(false);
   const userContributionsLoaded = ref(false);
 
+  // AI : Cache original backend projects for change detection
+  // AI : Stores snapshots of approved projects before local modifications
+  const originalBackendProjects = ref<Record<string, Project>>({});
+
+  // AI : Simple cache for city names (cityId -> city name)
+  // AI : Populated when cities are used in forms or loaded from backend
+  const cityNamesCache = ref<Record<string, string>>({});
+
+  // AI : Helper to cache a city name
+  function cacheCityName(cityId: string, cityName: string) {
+    cityNamesCache.value = {
+      ...cityNamesCache.value,
+      [cityId]: cityName
+    };
+  }
+
   // AI : Computed property for combined projects (local + nearby)
   const allProjects = computed(() => {
     const combined = { ...projects.value };
@@ -62,14 +78,22 @@ export const useProjectStore = defineStore('project', () => {
   // AI : Update project in store with proper reactivity
   function updateProject(projectId: string, updates: Partial<Project>) {
     let current = projects.value[projectId];
-    
+
     // AI : If project doesn't exist in local store, check allProjects (includes nearby)
     if (!current) {
       const allProjectsData = allProjects.value;
       current = allProjectsData[projectId];
-      
+
       // AI : If still not found, can't update
       if (!current) return;
+    }
+
+    // AI : Save original backend version before first modification (for change detection)
+    if (!originalBackendProjects.value[projectId] && current.status === 'approved' && !current.isModified) {
+      originalBackendProjects.value = {
+        ...originalBackendProjects.value,
+        [projectId]: { ...current }
+      };
     }
 
     // AI : Create new object with updates to trigger reactivity
@@ -221,14 +245,17 @@ export const useProjectStore = defineStore('project', () => {
     userContributions,
     userContributionsLoading,
     userContributionsLoaded,
+    originalBackendProjects,
+    cityNamesCache,
 
     // Computed properties
     allProjects,
     selectedProjectIdRef,
-    
+
     // Local project actions
     addOverlayToProjectWithId,
     updateProject,
+    cacheCityName,
 
     // User contributions actions
     setUserContributions,

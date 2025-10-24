@@ -38,15 +38,16 @@
       </ProjectMetadataCard>
     </div>
 
-    <!-- Publish Project Section - Only for development projects that haven't been published yet -->
+    <!-- Publish Project Section - Show when project has changes or hasn't been published yet -->
     <div
-      v-if="!viewMode && !isPublishedToBackend"
+      v-if="!viewMode && (hasChanges || !isPublishedToBackend)"
       class="publish-section"
     >
       <Button
-        :label="$t('project.publish')"
-        icon="pi pi-cloud-upload"
-        severity="success"
+        :label="isPublishedToBackend ? $t('project.submitChangeRequest') : $t('project.publish')"
+        :icon="isPublishedToBackend ? 'pi pi-send' : 'pi pi-cloud-upload'"
+        :severity="isPublishedToBackend ? 'info' : 'success'"
+        :disabled="!hasChanges && isPublishedToBackend"
         size="small"
         class="w-full"
         :loading="publishLoading"
@@ -84,6 +85,11 @@ const emit = defineEmits<{
 
 const isPublishedToBackend = computed(() => {
   return props.project?.status === 'approved' || props.project?.status === 'pending'
+})
+
+// AI : Check if project has changes that need to be published
+const hasChanges = computed(() => {
+  return props.project?.isModified || false
 })
 </script>
 

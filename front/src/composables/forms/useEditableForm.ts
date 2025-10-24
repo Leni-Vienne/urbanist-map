@@ -136,9 +136,10 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
       // AI : If localOnly mode, just update local store without backend submission
       if (options.localOnly) {
         if (options.entityType === 'project') {
-          // AI : Update project in local store only
+          // AI : Update project in local store only and mark as modified
           projectStore.updateProject(options.entityId, {
-            ...formData as any
+            ...formData as any,
+            isModified: true
           })
 
           toast.add({

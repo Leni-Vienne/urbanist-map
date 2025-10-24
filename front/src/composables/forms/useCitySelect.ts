@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { trpc, RouterOutput } from '@client'
 import { getCameraBounds } from '@composables/map/useCameraBounds'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
+import { useProjectStore } from '@stores/pinia/projectStore'
 import { storeToRefs } from 'pinia'
 import type { Project } from '@types'
 
@@ -60,12 +61,19 @@ function getOverlayCenter(): { lat: number; lng: number } | null {
 }
 
 export function useCitySelect(prefilledCity?: Project['city']) {
+  const projectStore = useProjectStore()
+
   // AI : Cities data and state - prefill with existing city if available
   const cities = ref<RouterOutput['cities']['getCitiesNearLocation']>(
     prefilledCity ? [convertDBCityToSelectFormat(prefilledCity)] : []
   )
   const citiesLoading = ref(false)
   const citiesLoaded = ref(!!prefilledCity)
+
+  // AI : Cache the prefilled city if available
+  if (prefilledCity) {
+    projectStore.cacheCityName(prefilledCity.id, prefilledCity.name)
+  }
 
   // AI : Computed property for cities with display names
   const filteredCities = computed(() => {
@@ -85,6 +93,11 @@ export function useCitySelect(prefilledCity?: Project['city']) {
         lat,
         lng,
         limit: 20
+      })
+
+      // AI : Cache all loaded cities
+      nearbyCities.forEach(city => {
+        projectStore.cacheCityName(city.id, city.name)
       })
 
       // AI : Merge with prefilled city if it exists and isn't already in the results

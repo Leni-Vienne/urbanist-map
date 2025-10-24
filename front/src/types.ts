@@ -127,6 +127,8 @@ export interface Project extends DBProject {
   name: string; // AI : Computed from project name field
   // AI : Map coordinates for development projects (null for overlay projects) - renamed to avoid DB conflict
   mapCoordinates?: { lat: number; lng: number } | null;
+  // AI : UI state for tracking local modifications
+  isModified?: boolean;
 }
 
 // AI : Import shared overlay data type from backend

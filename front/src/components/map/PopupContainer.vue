@@ -332,6 +332,20 @@ async function handlePublishOverlay() {
 
   const project = currentProject.value;
   const overlayModified = overlay.isModified || false;
+  const projectModified = project?.isModified || false;
+
+  // AI : Handle project-only changes
+  if (projectModified && !overlayModified && project) {
+    const context: SubmissionContext = {
+      entityType: 'project',
+      entityId: project.id,
+      entity: project,
+      changeType: submissionService.getChangeType(project)
+    };
+
+    await prepareAndShowSubmissionDialog(context);
+    return;
+  }
 
   // AI : Handle overlay changes using new overlay publisher for new overlays
   if (overlayModified && overlay.status !== 'approved') {
