@@ -2,6 +2,10 @@ import { computed, onMounted } from 'vue'
 import { trpc } from '@client'
 import { withErrorHandling } from '@composables/core/useErrorHandling'
 import { useModerationStore } from '@stores/pinia/moderationStore'
+import { useOverlayStore } from '@stores/pinia/overlayStore'
+import { updateMarkerTooltip } from '@composables/overlay/useOverlay'
+import { updateOverlayMarkersColors } from '@composables/map/useOverlayMarkerUpdates'
+import { toRef } from 'vue'
 
 // AI : Result types for approval operations
 type ApprovalResult = {
@@ -120,7 +124,7 @@ export function useModeration() {
 
   // AI : Helper function to set overlay approval status using the generic handler
   async function setOverlayStatus(id: string, status: 'approved' | 'rejected'): Promise<ApprovalResult> {
-    return setApprovalStatus(
+    const result = await setApprovalStatus(
       id,
       status,
       'overlay',
@@ -130,6 +134,25 @@ export function useModeration() {
       'This overlay was modified by another user. Please review the updated version before approving.',
       `Failed to ${status === 'approved' ? 'approve' : 'reject'} overlay`
     )
+
+    // AI : Update overlay status in overlay store if approval succeeded and overlay is currently rendered
+    if (result.success) {
+      const overlayStore = useOverlayStore()
+      const overlayObject = overlayStore.overlays[id]
+
+      if (overlayObject) {
+        // AI : Update the status in the overlay store
+        overlayStore.updateOverlay(id, { status })
+
+        // AI : Update marker tooltip to reflect new status
+        updateMarkerTooltip(overlayObject)
+
+        // AI : Update all marker colors to reflect status changes
+        updateOverlayMarkersColors(toRef(overlayStore, 'overlays'))
+      }
+    }
+
+    return result
   }
 
   async function approveOverlay(id: string): Promise<ApprovalResult> {

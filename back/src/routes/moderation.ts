@@ -310,8 +310,9 @@ export const moderationRouter = router({
             }
           }
 
-          // AI : If approval succeeded and we have a filename, migrate image to R2 in production
-          if (input.status === 'approved' && overlayFilename && process.env.R2_BUCKET_NAME) {
+          // AI : Migrate image to R2 only in production
+          // AI : In development, images stay in local storage permanently
+          if (input.status === 'approved' && overlayFilename && process.env.NODE_ENV === 'production') {
             try {
               await migrateImageToR2(overlayFilename);
               console.log(`Successfully migrated image ${overlayFilename} to R2`);

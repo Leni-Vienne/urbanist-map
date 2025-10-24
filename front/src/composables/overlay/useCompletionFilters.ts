@@ -4,11 +4,15 @@ import { useOverlayStore } from '@stores/pinia/overlayStore';
 import type { OverlayData, OverlayObject, viewModeMarkerColor } from '@types';
 
 // AI : Global completion status filter state
+// AI : Includes all colors that can be returned by getOverlayMarkerColor for any mode
 const visibleCompletionStates = ref({
-  yellow: true,  // Proposed
-  green: true,   // Planned
-  orange: true,  // In progress
-  grey: true     // Completed
+  yellow: true,  // Proposed (view mode) / Pending approval (edit mode) / Approved with changes (moderation mode)
+  green: true,   // Planned (view mode) / Approved (edit/moderation mode)
+  orange: true,  // In progress (view mode) / Modified (edit mode)
+  grey: true,    // Completed (view mode)
+  blue: true,    // Pending (moderation mode)
+  red: true,     // Rejected or new overlay (edit mode)
+  purple: true   // Replacement overlay (edit mode)
 });
 
 /**

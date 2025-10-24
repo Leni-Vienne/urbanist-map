@@ -14,7 +14,7 @@ export function getOverlayMarkerColor(
     const hasPendingChangeRequests = (overlayData.pendingChangeRequestsCount ?? 0) > 0;
 
     // AI : Pending brand new overlays
-    if (status === 'pending') return 'blue';
+    if (status === 'pending') return 'yellow';
 
     // AI : Approved overlays with pending change requests from users
     if (status === 'approved' && hasPendingChangeRequests) return 'yellow';
