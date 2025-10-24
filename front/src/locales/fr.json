@@ -53,7 +53,7 @@
     "selectCityBeforePlacingMarker": "Veuillez sélectionner une ville sur la carte avant de placer un marqueur de bâtiment",
     "navigated": "Navigation effectuée",
     "viewing": "Affichage de {name}",
-    "projectStatus": "Statut du projet",
+    "timelineStatus": "Statut chronologique",
     "proposed": "Proposé",
     "proposedDescription": "Projet non confirmé, dates non fixées",
     "plannedStatus": "Prévu",

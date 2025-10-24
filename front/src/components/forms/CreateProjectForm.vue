@@ -40,7 +40,7 @@
             </div>
 
             <div class="field">
-                <label class="text-gray-600 font-medium mb-2 block">{{ $t('project.projectStatus') }} *</label>
+                <label class="text-gray-600 font-medium mb-2 block">{{ $t('project.timelineStatus') }} *</label>
                 <div class="flex gap-4">
                     <div
                         class="flex items-center gap-2 flex-1 p-3 border rounded cursor-pointer hover:bg-gray-50"
@@ -49,7 +49,7 @@
                     >
                         <RadioButton
                             inputId="status-proposed"
-                            name="projectStatus"
+                            name="timelineStatus"
                             :value="true"
                             v-model="isProposed"
                         />
@@ -68,7 +68,7 @@
                     >
                         <RadioButton
                             inputId="status-planned"
-                            name="projectStatus"
+                            name="timelineStatus"
                             :value="false"
                             v-model="isProposed"
                         />
@@ -242,19 +242,13 @@
 import { ref, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useToast } from '@composables/ui/useToast'
-import { trpc, RouterOutput } from '@client';
-import { getCameraBounds } from '@composables/map/useCameraBounds';
-import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { storeToRefs } from 'pinia';
+import { useCitySelect } from '@composables/forms/useCitySelect'
+import { useProjectTimelineStatus } from '@composables/forms/useProjectTimelineStatus'
 import type { Project } from '@types';
 
 // AI : Get i18n and toast
 const { t } = useI18n();
 const toast = useToast();
-
-// AI : Get store refs
-const overlayStore = useOverlayStore();
-const { idSelectedOverlay, overlays } = storeToRefs(overlayStore);
 
 const props = defineProps<{
     project: Partial<Project>;
@@ -266,171 +260,29 @@ const emit = defineEmits<{
     submit: [project: Partial<Project>];
 }>();
 
-// AI : Determine initial status based on project data
-const initialIsProposed = computed(() => {
-    const proj = props.project;
-    // AI : Project is proposed if it has proposalDate but no startDate/endDate
-    return !!(proj.proposalDate && !proj.startDate && !proj.endDate);
-});
-
-// AI : Track if project is proposed or planned
-const isProposed = ref<boolean>(props.mode === 'create' ? true : initialIsProposed.value);
-
 // AI : Initialize project data - set default proposal date for new proposed projects
 const localProject = ref<Partial<Project>>({
     ...props.project,
     proposalDate: props.mode === 'create' ? new Date() : props.project.proposalDate
 });
 
-// AI : Update dates when switching between proposed/planned
-// AI : Use null instead of undefined for proper serialization
-watch(isProposed, (newValue) => {
-    if (newValue) {
-        // AI : Switching to proposed - clear planned dates and set proposal date
-        localProject.value.startDate = null as any;
-        localProject.value.endDate = null as any;
-        if (!localProject.value.proposalDate) {
-            localProject.value.proposalDate = new Date();
-        }
-    } else {
-        // AI : Switching to planned - clear proposal date and restore original planned dates if available
-        localProject.value.proposalDate = null as any;
-        if (props.project.startDate) {
-            localProject.value.startDate = props.project.startDate;
-        }
-        if (props.project.endDate) {
-            localProject.value.endDate = props.project.endDate;
-        }
-    }
-});
+// AI : Use timeline status composable with formData watcher for CreateProjectForm
+const { isProposed } = useProjectTimelineStatus(props.project, localProject.value)
 
-// AI : Helper function to convert DBCity to city select format
-function convertDBCityToSelectFormat(dbCity: typeof props.project.city): RouterOutput['cities']['getCitiesNearLocation'][number] {
-    if (!dbCity) throw new Error('City is required');
-    return {
-        id: dbCity.id,
-        name: dbCity.name,
-        countryCode: dbCity.countryCode,
-        lat: dbCity.coordinates.y,
-        lng: dbCity.coordinates.x,
-        distance: 0
-    };
+// AI : Override initial value for create mode
+if (props.mode === 'create') {
+    isProposed.value = true
 }
 
-// AI : Cities data and state - prefill with existing city if available
-const cities = ref<RouterOutput['cities']['getCitiesNearLocation']>(
-    props.project.city ? [convertDBCityToSelectFormat(props.project.city)] : []
-);
-const citiesLoading = ref(false);
-const citiesLoaded = ref(!!props.project.city); // AI : Mark as loaded if we have a prefilled city
+// AI : Use city select composable with prefilled city
+const { cities, citiesLoading, citiesLoaded, filteredCities, onSelectShow } = useCitySelect(props.project.city)
 
 // AI : Watch for external project changes
 watch(() => props.project, (newProject) => {
     localProject.value = { ...newProject };
 
-    // AI : Update cities list if project city changes
-    if (newProject.city && cities.value.length === 0) {
-        cities.value = [convertDBCityToSelectFormat(newProject.city)];
-        citiesLoaded.value = true;
-    }
+    // AI : Update cities list if project city changes - handled internally by composable now
 }, { deep: true, immediate: true });
-
-
-
-// AI : Computed property for cities with display names and distance
-const filteredCities = computed(() => {
-    return cities.value.map(city => ({
-        ...city,
-        displayName: `${city.name}, ${city.countryCode}`
-    }));
-});
-
-
-// AI : Get center coordinates of currently selected overlay or camera center as fallback
-function getOverlayCenter(): { lat: number; lng: number } | null {
-
-    // AI : First try to get overlay center if one is selected
-    if (idSelectedOverlay.value && overlays.value[idSelectedOverlay.value]) {
-        const overlayObject = overlays.value[idSelectedOverlay.value];
-
-        if (overlayObject.overlay) {
-            try {
-                const bounds = overlayObject.overlay.getBounds();
-                const center = bounds.getCenter();
-                return {
-                    lat: center.lat,
-                    lng: center.lng
-                };
-            } catch (error) {
-                console.error('Error getting overlay center:', error);
-            }
-        }
-    }
-    // AI : Fallback to camera center when no overlay is selected or overlay center fails
-    const cameraBounds = getCameraBounds();
-
-    if (cameraBounds.value &&
-        cameraBounds.value.north !== 0 &&
-        cameraBounds.value.south !== 0 &&
-        cameraBounds.value.east !== 0 &&
-        cameraBounds.value.west !== 0) {
-        const center = {
-            lat: (cameraBounds.value.north + cameraBounds.value.south) / 2,
-            lng: (cameraBounds.value.east + cameraBounds.value.west) / 2
-        };
-        return center;
-    }
-
-    return null;
-}
-
-// AI : Load cities when dropdown is about to show
-async function onSelectShow() {
-    // AI : Always load nearby cities when user opens dropdown, even if we have a prefilled city
-    if (!citiesLoading.value) {
-        const overlayCenter = getOverlayCenter();
-        if (overlayCenter) {
-            await loadCitiesNearLocation(overlayCenter.lat, overlayCenter.lng);
-        }
-    }
-}
-
-// AI : Load cities near a specific location
-async function loadCitiesNearLocation(lat: number, lng: number) {
-    try {
-        citiesLoading.value = true;
-        citiesLoaded.value = true;
-
-        const nearbyCities = await trpc.cities.getCitiesNearLocation.query({
-            lat,
-            lng,
-            limit: 20
-        });
-
-        // AI : Merge with prefilled city if it exists and isn't already in the results
-        if (props.project.city) {
-            const prefilledCityId = props.project.city.id;
-            const cityAlreadyInResults = nearbyCities.some(c => c.id === prefilledCityId);
-
-            if (!cityAlreadyInResults) {
-                // AI : Add prefilled city at the beginning using helper function
-                cities.value = [
-                    convertDBCityToSelectFormat(props.project.city),
-                    ...nearbyCities
-                ];
-            } else {
-                cities.value = nearbyCities;
-            }
-        } else {
-            cities.value = nearbyCities;
-        }
-    } catch (error) {
-        console.error('Error loading cities near location:', error);
-        cities.value = [];
-    } finally {
-        citiesLoading.value = false;
-    }
-}
 
 function handleSubmit() {
     // AI : Validate required fields based on project status

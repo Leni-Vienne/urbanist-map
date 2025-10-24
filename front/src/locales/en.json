@@ -53,7 +53,7 @@
     "selectCityBeforePlacingMarker": "Please select a city on the map before placing a development marker",
     "navigated": "Navigated",
     "viewing": "Viewing {name}",
-    "projectStatus": "Project Status",
+    "timelineStatus": "Timeline Status",
     "proposed": "Proposed",
     "proposedDescription": "Unconfirmed project, dates not yet set",
     "plannedStatus": "Planned",
