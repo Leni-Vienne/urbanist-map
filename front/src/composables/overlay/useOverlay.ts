@@ -56,13 +56,14 @@ export function updateOverlayEditingState(): void {
     if (!overlayObject.overlay) return;
 
     // AI : Update overlay options using the new setOptions method
+    const isEditMode = overlayStore.mode === 'edit';
     overlayObject.overlay.setOptions({
-      actions: [...(overlayStore.isEditMode ? getEditToolsForOverlay(overlayObject) : viewTools)],
-      draggable: overlayStore.isEditMode,
+      actions: [...(isEditMode ? getEditToolsForOverlay(overlayObject) : viewTools)],
+      draggable: isEditMode,
     });
 
     // AI : When entering edit mode, restore cached corner positions if they exist
-    if (overlayStore.isEditMode) {
+    if (isEditMode) {
       const cachedModifications = getFromEditModeOverlayCache(overlayObject.id);
       if (cachedModifications?.corners?.length === 4) {
         // AI : Restore cached corners to overlay
@@ -145,16 +146,17 @@ export function createOverlay(imageUrl: string, overlayObject?: OverlayObject) {
     const leafletCorners = corners && isValidCorners(corners)
       ? corners.map(corner => L.latLng(corner.lat, corner.lng))
       : undefined;
+    const isEditMode = overlayStore.mode === 'edit';
     const newOverlay = L.distortableImageOverlay(imageUrl, {
       editable: true,
       keyboard: false,
       actions: [
-        ...(overlayStore.isEditMode ? getEditToolsForOverlay(overlayObject) : viewTools)
+        ...(isEditMode ? getEditToolsForOverlay(overlayObject) : viewTools)
       ],
       corners: leafletCorners,
       dragBehavior: 'auto',
       selectOnDrag: false,
-      draggable: overlayStore.isEditMode,
+      draggable: isEditMode,
     });
 
     // AI : Check if we should add overlay to map based on current zoom level
@@ -334,7 +336,7 @@ function getCornersForOverlayWithCache(overlayObject: OverlayObject) {
 
   // AI : Check edit mode cache only if in edit mode
   // AI : This ensures view mode always uses backend positions, not stale cached positions
-  if (overlayStore.isEditMode) {
+  if (overlayStore.mode === 'edit') {
     const cachedModifications = getFromEditModeOverlayCache(overlayObject.id);
     if (cachedModifications?.corners?.length === 4) {
       // AI : Update object history with cached modifications
@@ -443,7 +445,7 @@ export function saveToHistory(overlayObject: OverlayObject): void {
 function saveOverlayModificationsToCache(overlayObject: OverlayObject): void {
   const overlayStore = useOverlayStore();
 
-  if (!overlayStore.isEditMode || !overlayObject.overlay) return;
+  if (overlayStore.mode !== 'edit' || !overlayObject.overlay) return;
   const corners = overlayObject.overlay.getCorners();
   if (!corners?.length) return;
 
@@ -784,7 +786,7 @@ export function updateMarkerTooltip(overlayObject: OverlayObject): void {
   const colorIcon = createColorIcon(markerColor);
   overlayObject.marker.setIcon(colorIcon);
 
-  if (!overlayStore.isEditMode) {
+  if (overlayStore.mode !== 'edit') {
     return;
   }
   // AI : Generate tooltip text based on overlay state
@@ -893,7 +895,7 @@ function getOverlayBounds(overlay: OverlayObject): L.LatLngBounds | null {
   const overlayStore = useOverlayStore();
 
   // AI : Priority 1: Check edit mode cache if in edit mode for the most current position
-  if (overlayStore.isEditMode) {
+  if (overlayStore.mode === 'edit') {
     const cachedModifications = getFromEditModeOverlayCache(overlay.id);
     if (cachedModifications?.corners?.length === 4) {
       const corners = cachedModifications.corners.map(corner => L.latLng(corner.lat, corner.lng));
@@ -1092,7 +1094,7 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
   const overlayStore = useOverlayStore();
 
   // AI : Only allow adding overlays in edit mode
-  if (!overlayStore.isEditMode) {
+  if (overlayStore.mode !== 'edit') {
     return;
   }
 

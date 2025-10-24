@@ -7,7 +7,7 @@
     <OverlayPopup
       :overlayObject="overlayObject"
       :project="currentProject"
-      :viewMode="!isEditMode"
+      :viewMode="mode !== 'edit'"
       :publishLoading="isSubmitting"
       :loading="false"
       :availableCities="availableCities"
@@ -26,7 +26,7 @@
   >
     <DevelopmentProjectPopup
       :project="selectedProject"
-      :viewMode="!isEditMode"
+      :viewMode="mode !== 'edit'"
       :publishLoading="isSubmitting"
       :loading="false"
       :availableCities="availableCities"
@@ -82,7 +82,7 @@ const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
 const mapStore = useMapStore();
 const uiStore = useUiStore();
-const { overlays, showInfoPopup, infoPopupOverlayId, isEditMode } = storeToRefs(overlayStore);
+const { overlays, showInfoPopup, infoPopupOverlayId, mode } = storeToRefs(overlayStore);
 const { projects } = storeToRefs(projectStore);
 const { currentCityOverlays } = storeToRefs(mapStore);
 const { projectInfoPopup } = storeToRefs(uiStore);

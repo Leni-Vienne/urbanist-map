@@ -38,7 +38,7 @@
 
       <!-- AI : Filter Button (View Mode Only) - Opens Popover -->
       <Button
-        v-if="!isEditMode"
+        v-if="mode !== 'edit'"
         @click.stop="toggleFilterPanel"
         @dblclick.stop
         raised
@@ -199,7 +199,7 @@ function toggleFilterPanel(event: Event) {
   filterPanelPopoverRef.value?.toggle(event);
 }
 
-const { isEditMode } = storeToRefs(overlayStore);
+const { mode } = storeToRefs(overlayStore);
 const { visibleCompletionStates, toggleFilter } = useCompletionFilters();
 
 // AI : Emit events to parent for complex operations that require access to map state

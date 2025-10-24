@@ -9,7 +9,7 @@ export function useAddOverlay() {
   const authStore = useAuthStore()
   const uiStore = useUiStore()
   const overlayStore = useOverlayStore()
-  const { isEditMode } = storeToRefs(overlayStore)
+  const { mode } = storeToRefs(overlayStore)
 
   async function handleAddOverlayButtonClick() {
     if (!authStore.isAuthenticated) {
@@ -17,7 +17,7 @@ export function useAddOverlay() {
       return { success: false, reason: 'not_authenticated' }
     }
 
-    if (!(isEditMode?.value ?? false)) {
+    if (mode.value !== 'edit') {
       try {
         await toggleEditMode()
         return { success: true, action: 'edit_mode_enabled' }
