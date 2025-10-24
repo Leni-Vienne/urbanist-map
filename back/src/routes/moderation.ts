@@ -1,7 +1,7 @@
 import { adminProcedure, router } from '../trpc';
 import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
-import { projects, overlays, approvalStatusEnum, changeRequests } from '../db/schema';
-import { eq, inArray, or, and } from 'drizzle-orm';
+import { projects, overlays, approvalStatusEnum, changeRequests, cities } from '../db/schema';
+import { eq, inArray, or, and, sql } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { db } from '../database';
 import { buildProjectModerationQuery, buildOverlayModerationQuery } from '../db/queryBuilders';
@@ -90,46 +90,66 @@ export const moderationRouter = router({
           const sortColumn = input.sortBy === 'updatedAt' ? projects.updatedAt : projects.createdAt;
           const limit = input.limit ?? 50;
 
-          // AI : Find all projects that have at least one pending overlay
-          const projectsWithPendingOverlays = await db
-            .selectDistinct({ projectId: overlays.projectId })
-            .from(overlays)
-            .where(eq(overlays.status, 'pending'));
+          // AI : Step 1: Find all project IDs that need moderation (pending projects, pending overlays, or pending changes)
+          const [projectsWithPendingOverlays, projectsWithPendingChanges] = await Promise.all([
+            // AI : Projects with pending overlay submissions
+            db.selectDistinct({ projectId: overlays.projectId })
+              .from(overlays)
+              .where(eq(overlays.status, 'pending')),
+            
+            // AI : Projects with pending change requests (on project or overlay)
+            db.selectDistinct({ 
+              projectId: sql<string>`CASE 
+                WHEN ${changeRequests.entityType} = 'project' THEN ${changeRequests.entityId}
+                WHEN ${changeRequests.entityType} = 'overlay' THEN ${overlays.projectId}
+              END`.as('projectId')
+            })
+            .from(changeRequests)
+            .leftJoin(overlays, eq(changeRequests.entityId, overlays.id))
+            .where(sql`CASE 
+              WHEN ${changeRequests.entityType} = 'project' THEN ${changeRequests.entityId} IS NOT NULL
+              WHEN ${changeRequests.entityType} = 'overlay' THEN ${overlays.projectId} IS NOT NULL
+            END`)
+          ]);
 
-          const projectIdsWithPendingOverlays = projectsWithPendingOverlays.map(p => p.projectId).filter((id): id is string => id !== null);
+          const projectIdsWithPendingOverlays = projectsWithPendingOverlays
+            .map(p => p.projectId)
+            .filter((id): id is string => id !== null);
+          
+          const projectIdsWithPendingChanges = projectsWithPendingChanges
+            .map(p => p.projectId)
+            .filter((id): id is string => id !== null);
 
-          // AI : Build pagination conditions using shared helper
+          // AI : Step 2: Build filters for projects, overlays, and change requests
           const paginationConditions = await buildPaginationConditions(
             { cityId: input.cityId, countryCode: input.countryCode, cursor: input.cursor },
             sortColumn
           );
 
-          const whereConditions: any[] = [
+          // AI : Projects needing moderation: pending status OR have pending overlays OR have pending changes
+          const projectModerationConditions = [
             or(
               eq(projects.status, 'pending'),
-              ...(projectIdsWithPendingOverlays.length > 0 ? [inArray(projects.id, projectIdsWithPendingOverlays)] : [])
+              ...(projectIdsWithPendingOverlays.length > 0 ? [inArray(projects.id, projectIdsWithPendingOverlays)] : []),
+              ...(projectIdsWithPendingChanges.length > 0 ? [inArray(projects.id, projectIdsWithPendingChanges)] : [])
             ),
             ...paginationConditions
           ];
 
-          const moderationProjects = buildProjectModerationQuery(db)
-            .where(and(...whereConditions))
-            .orderBy(sortColumn)
-            .limit(limit + 1);
-
-          // AI : Get all overlays for these moderation projects (to show what needs review)
-          const projectOverlays = buildOverlayModerationQuery(db)
-            .where(
-              or(
-                eq(projects.status, 'pending'),
-                // AI : Same empty array protection as above - only add inArray if we have IDs
-                ...(projectIdsWithPendingOverlays.length > 0 ? [inArray(projects.id, projectIdsWithPendingOverlays)] : [])
-              )
-            );
-
-          // AI : Get pending change requests
-          const pendingChangeRequests = db
-            .select({
+          // AI : Step 3: Fetch all moderation data in parallel
+          const [projectsResult, overlaysResult, overlayChanges, projectChanges] = await Promise.all([
+            // AI : Projects with pagination
+            buildProjectModerationQuery(db)
+              .where(and(...projectModerationConditions))
+              .orderBy(sortColumn)
+              .limit(limit + 1),
+            
+            // AI : All overlays from moderation projects (to show in project accordions)
+            buildOverlayModerationQuery(db)
+              .where(and(...projectModerationConditions)),
+            
+            // AI : Overlay change requests with city/country filters
+            db.select({
               id: changeRequests.id,
               entityType: changeRequests.entityType,
               entityId: changeRequests.entityId,
@@ -141,15 +161,39 @@ export const moderationRouter = router({
               createdAt: changeRequests.createdAt,
             })
             .from(changeRequests)
-            .orderBy(changeRequests.createdAt);
-
-          const [projectsResult, overlaysResult, changeRequestsResult] = await Promise.all([
-            moderationProjects,
-            projectOverlays,
-            pendingChangeRequests,
+            .leftJoin(overlays, eq(changeRequests.entityId, overlays.id))
+            .leftJoin(projects, eq(overlays.projectId, projects.id))
+            .leftJoin(cities, eq(projects.cityId, cities.id))
+            .where(and(
+              eq(changeRequests.entityType, 'overlay'),
+              ...paginationConditions
+            )),
+            
+            // AI : Project change requests with city/country filters
+            db.select({
+              id: changeRequests.id,
+              entityType: changeRequests.entityType,
+              entityId: changeRequests.entityId,
+              fieldName: changeRequests.fieldName,
+              oldValue: changeRequests.oldValue,
+              newValue: changeRequests.newValue,
+              changeReason: changeRequests.changeReason,
+              requestedBy: changeRequests.requestedBy,
+              createdAt: changeRequests.createdAt,
+            })
+            .from(changeRequests)
+            .leftJoin(projects, eq(changeRequests.entityId, projects.id))
+            .leftJoin(cities, eq(projects.cityId, cities.id))
+            .where(and(
+              eq(changeRequests.entityType, 'project'),
+              ...paginationConditions
+            ))
           ]);
 
-          // AI : Build pagination response using shared helper
+          // AI : Step 4: Combine and format results
+          const changeRequestsResult = [...overlayChanges, ...projectChanges]
+            .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
           const paginationResponse = buildPaginationResponse(projectsResult, limit);
 
           const projectsWithOverlays = paginationResponse.items.map(project => ({
