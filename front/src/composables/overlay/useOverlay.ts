@@ -42,9 +42,10 @@ import { withErrorHandling } from '@composables/core/useErrorHandling';
 export function updateOverlayEditingState(): void {
   const overlayStore = useOverlayStore();
 
-  // AI : Save popup state before toolbar rebuild destroys the teleport target
+  // AI : Save popup and selection state before toolbar rebuild
   const wasPopupOpen = overlayStore.showInfoPopup;
   const selectedOverlayId = overlayStore.idSelectedOverlay;
+  const wasSelected = !!selectedOverlayId;
 
   // AI : Close popup before toolbar rebuild to avoid orphaned teleport state
   if (wasPopupOpen) {
@@ -84,6 +85,21 @@ export function updateOverlayEditingState(): void {
     // AI : Update marker color and tooltip
     updateMarkerTooltip(overlayObject);
   });
+
+  // AI : Restore selection state after toolbar rebuild (setOptions can deselect)
+  if (wasSelected && selectedOverlayId) {
+    requestAnimationFrame(() => {
+      const overlay = overlayStore.overlays[selectedOverlayId];
+      if (overlay?.overlay) {
+        // AI : Programmatically reselect the overlay by clicking its element
+        // AI : This restores the selection state that may have been lost during setOptions
+        const element = overlay.overlay.getElement();
+        if (element) {
+          element.click();
+        }
+      }
+    });
+  }
 
   // AI : Reopen popup after toolbar is rebuilt with new actions
   if (wasPopupOpen && selectedOverlayId) {
