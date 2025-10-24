@@ -1,5 +1,5 @@
 // AI : Overlay mode management - orchestrates edit/view mode switching using state machine
-import { ref, watch } from 'vue'
+import { ref, watch, toRef } from 'vue'
 import { map, onMapInitialized, currentZoomLevel } from '@composables/core/useMap'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useMapStore } from '@stores/pinia/mapStore'
@@ -19,7 +19,6 @@ import { useProjectStore } from '@stores/pinia/projectStore'
 import { updateOverlayMarkersColors } from '@composables/map/useOverlayMarkerUpdates'
 import { updateOverlayEditingState } from '@composables/overlay/useOverlay'
 import { storeToRefs } from 'pinia'
-import { toRef } from 'vue'
 
 // AI : Transition effects - callbacks executed during state transitions
 interface TransitionEffects {

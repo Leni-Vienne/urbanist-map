@@ -3,7 +3,7 @@ import { ref, computed } from 'vue';
 import type { Project, Country, MapMode } from '@types';
 import type { NearbyProject } from '../../types/api';
 import { map } from '@composables/core/useMap';
-import { trpc } from '@client';
+import { trpc, RouterOutput } from '@client';
 import { createProjectFromAPI } from '../../utils/typeFactories';
 
 export const useProjectStore = defineStore('project', () => {
@@ -13,7 +13,7 @@ export const useProjectStore = defineStore('project', () => {
   const countries = ref<Country[]>([]);
 
   // AI : Cache for cities by country and mode (key format: "countryCode:mode")
-  const citiesCache = ref<Map<string, any[]>>(new Map());
+  const citiesCache = ref<Map<string, Array<RouterOutput['cities']['getCitiesWithProjects'][number] & { distance: number }>>>(new Map());
 
   // AI : Cache countries separately per mode
   const countriesCache = ref<Map<MapMode, Country[]>>(new Map());
@@ -177,11 +177,11 @@ export const useProjectStore = defineStore('project', () => {
     return `${countryCode}:${mode}`
   }
 
-  function getCachedCities(countryCode: string, mode: MapMode): any[] | null {
+  function getCachedCities(countryCode: string, mode: MapMode) {
     return citiesCache.value.get(getCitiesCacheKey(countryCode, mode)) ?? null
   }
 
-  function setCachedCities(countryCode: string, mode: MapMode, cities: any[]): void {
+  function setCachedCities(countryCode: string, mode: MapMode, cities: Array<RouterOutput['cities']['getCitiesWithProjects'][number] & { distance: number }>): void {
     citiesCache.value.set(getCitiesCacheKey(countryCode, mode), cities)
   }
 

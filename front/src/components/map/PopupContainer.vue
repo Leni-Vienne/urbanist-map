@@ -365,7 +365,6 @@ async function handlePublishOverlay() {
     };
 
     await prepareAndShowSubmissionDialog(context);
-    return; // Dialog will handle the actual submission
   }
 }
 

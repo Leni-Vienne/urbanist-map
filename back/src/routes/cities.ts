@@ -249,7 +249,7 @@ export const citiesRouter = router({
               .groupBy(changeRequests.entityId);
 
             countResults.forEach(row => {
-              allChangeRequestCounts.set(row.entityId!, row.count);
+              allChangeRequestCounts.set(row.entityId, row.count);
             });
           }
 
