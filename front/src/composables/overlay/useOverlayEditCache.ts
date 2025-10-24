@@ -12,7 +12,7 @@ import type { OverlayData } from '@types'
 export function getOverlayDataWithEditModifications(overlayData: OverlayData): OverlayData {
   const overlayStore = useOverlayStore()
 
-  if (!overlayStore.isEditMode) {
+  if (overlayStore.mode !== 'edit') {
     return overlayData
   }
 

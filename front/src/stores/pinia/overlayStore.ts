@@ -16,9 +16,6 @@ export const useOverlayStore = defineStore('overlay', () => {
   const mode = ref<MapMode>('view')
   const isTogglingMode = ref(false)
 
-  // AI : Computed helper for backward compatibility during refactor
-  const isEditMode = ref(false) // Will be removed after full refactor
-
   // AI : Edit mode overlay cache - stores overlay modifications for persistence across zoom changes
   type EditModeCache = { corners: { lat: number, lng: number }[], isModified: boolean }
   const editModeOverlayCache = ref<Map<string, EditModeCache>>(new Map())
@@ -85,8 +82,6 @@ export const useOverlayStore = defineStore('overlay', () => {
 
   const setMode = (newMode: MapMode) => {
     mode.value = newMode
-    // AI : Sync with legacy isEditMode for backward compatibility
-    isEditMode.value = newMode === 'edit'
   }
 
   // AI : Edit mode cache management
@@ -170,7 +165,6 @@ export const useOverlayStore = defineStore('overlay', () => {
     idSelectedOverlay,
     allMarkers,
     mode,
-    isEditMode,
     isTogglingMode,
     editModeOverlayCache,
     viewModeOverlays,

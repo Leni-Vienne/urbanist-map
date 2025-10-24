@@ -14,9 +14,10 @@ import { renderForStrategy, updateExistingOverlays, clearAllRenderedContent } fr
 import { cacheCurrentPosition } from './useOverlayPositionCache'
 import { loadCityOverlays, fetchCityProjectsData } from '@composables/map/useCityOverlays'
 import { loadCityDevelopmentProjects, removeCityMarkers, addCityMarkersForCountry } from '@composables/map/useCityMarkers'
-import { loadCitiesForCountry, loadCountriesWithProjects, addCountryMarkersToMap } from '@composables/map/useCountryMarkers'
+import { loadCountriesWithProjects, loadCitiesForCountry, addCountryMarkersToMap } from '@composables/map/useCountryMarkers'
 import { useProjectStore } from '@stores/pinia/projectStore'
 import { updateOverlayMarkersColors } from '@composables/map/useOverlayMarkerUpdates'
+import { updateOverlayEditingState } from '@composables/overlay/useOverlay'
 import { storeToRefs } from 'pinia'
 import { toRef } from 'vue'
 
@@ -198,6 +199,9 @@ export async function toggleEditMode(onModeExit?: () => void): Promise<void> {
   transitionToState(newState, {
     beforeTransition: handleBeforeTransition,
     afterTransition: async () => {
+      // AI : Update overlay editing state (toolbar actions, draggability) after mode switch
+      updateOverlayEditingState()
+      
       // AI : Update overlay marker colors immediately after mode switch
       updateOverlayMarkersColors(toRef(overlayStore, 'overlays'))
 
