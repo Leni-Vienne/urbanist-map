@@ -299,7 +299,15 @@
     "yourPendingChanges": "Vos modifications en attente",
     "moderatorReviewRequired": "Un modérateur doit examiner et approuver ces modifications",
     "reason": "Raison",
-    "requested": "Demandé"
+    "requested": "Demandé",
+    "overlayNotFound": "Overlay introuvable",
+    "projectNotFound": "Projet introuvable",
+    "overlayVersionConflict": "Cet overlay a été modifié par un autre utilisateur. Veuillez examiner la version mise à jour avant d'approuver.",
+    "projectVersionConflict": "Ce projet a été modifié par un autre utilisateur. Veuillez examiner la version mise à jour avant d'approuver.",
+    "overlayApprovalFailed": "Échec de l'approbation de l'overlay",
+    "overlayRejectionFailed": "Échec du rejet de l'overlay",
+    "projectApprovalFailed": "Échec de l'approbation du projet",
+    "projectRejectionFailed": "Échec du rejet du projet"
   },
   "footer": {
     "legalMentions": "Mentions légales",

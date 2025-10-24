@@ -51,8 +51,8 @@ export function updateTranslationSettings(currentLocale: Locale): void {
     document.documentElement.setAttribute('translate', 'no')
     // AI : Add or update the Google Chrome no-translate meta tag
     let metaTag = document.querySelector('meta[name="google"]')
-    if (!metaTag) {
-      metaTag = document.createElement('meta')
+    metaTag ??= document.createElement('meta')
+    if (!metaTag.hasAttribute('name')) {
       metaTag.setAttribute('name', 'google')
       document.head.appendChild(metaTag)
     }

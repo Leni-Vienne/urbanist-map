@@ -6,6 +6,7 @@ import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { updateMarkerTooltip } from '@composables/overlay/useOverlay'
 import { updateOverlayMarkersColors } from '@composables/map/useOverlayMarkerUpdates'
 import { toRef } from 'vue'
+import { useI18n } from '@composables/useI18n'
 
 // AI : Result types for approval operations
 type ApprovalResult = {
@@ -17,6 +18,7 @@ type ApprovalResult = {
 
 export function useModeration() {
   const moderationStore = useModerationStore()
+  const { t } = useI18n()
 
   const overlays = computed(() => moderationStore.overlays)
   const projects = computed(() => moderationStore.projects)
@@ -57,10 +59,7 @@ export function useModeration() {
     status: 'approved' | 'rejected',
     itemType: 'overlay' | 'project',
     items: T[],
-    apiCall: (params: { id: string; expectedVersion: number; status: 'approved' | 'rejected' }) => Promise<{ success: boolean }>,
-    notFoundMessage: string,
-    conflictMessage: string,
-    failureMessage: string
+    apiCall: (params: { id: string; expectedVersion: number; status: 'approved' | 'rejected' }) => Promise<{ success: boolean }>
   ): Promise<ApprovalResult> => {
     // AI : Find item by ID and validate existence
     const item = items.find(i => i.id === id)
@@ -68,11 +67,16 @@ export function useModeration() {
       return {
         success: false,
         error: 'not_found',
-        message: notFoundMessage
+        message: t(`moderation.${itemType}NotFound`)
       }
     }
 
     const itemName = item.name ?? (itemType === 'project' ? 'Unknown Project' : 'Unknown')
+
+    // AI : Derive error messages from itemType and status
+    const failureMessageKey = status === 'approved' 
+      ? `moderation.${itemType}ApprovalFailed` 
+      : `moderation.${itemType}RejectionFailed`
 
     // AI : Use version-aware approval endpoint with error handling
     const result = await withErrorHandling(
@@ -81,14 +85,14 @@ export function useModeration() {
         expectedVersion: item.version,
         status,
       }),
-      { errorMessage: `Failed to ${status === 'approved' ? 'approve' : 'reject'} ${itemType}. Please try again.` }
+      { errorMessage: `${t(failureMessageKey)}. Please try again.` }
     )
 
     if (!result) {
       return {
         success: false,
         error: 'unknown',
-        message: failureMessage
+        message: t(failureMessageKey)
       }
     }
 
@@ -99,7 +103,7 @@ export function useModeration() {
       return {
         success: false,
         error: 'version_conflict',
-        message: conflictMessage,
+        message: t(`moderation.${itemType}VersionConflict`),
         itemName
       }
     }
@@ -129,10 +133,7 @@ export function useModeration() {
       status,
       'overlay',
       overlays.value,
-      trpc.moderation.setOverlayApprovalStatusWithVersion.mutate,
-      'Overlay not found',
-      'This overlay was modified by another user. Please review the updated version before approving.',
-      `Failed to ${status === 'approved' ? 'approve' : 'reject'} overlay`
+      trpc.moderation.setOverlayApprovalStatusWithVersion.mutate
     )
 
     // AI : Update overlay status in overlay store if approval succeeded and overlay is currently rendered
@@ -203,10 +204,7 @@ export function useModeration() {
       status,
       'project',
       projects.value,
-      trpc.moderation.setProjectApprovalStatusWithVersion.mutate,
-      'Project not found',
-      'This project was modified by another user. Please review the updated version before approving.',
-      `Failed to ${status === 'approved' ? 'approve' : 'reject'} project`
+      trpc.moderation.setProjectApprovalStatusWithVersion.mutate
     )
   }
 

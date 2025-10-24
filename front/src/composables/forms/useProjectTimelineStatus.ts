@@ -22,9 +22,7 @@ export function useProjectTimelineStatus(project: Partial<Project>, formData?: a
       // AI : Switching to proposed - clear planned dates
       data.startDate = null
       data.endDate = null
-      if (!data.proposalDate) {
-        data.proposalDate = new Date().toISOString().split('T')[0]
-      }
+      data.proposalDate ??= new Date().toISOString().split('T')[0]
     } else {
       // AI : Switching to planned - clear proposal date
       data.proposalDate = null
@@ -45,9 +43,7 @@ export function useProjectTimelineStatus(project: Partial<Project>, formData?: a
         // AI : Switching to proposed - clear planned dates and set proposal date
         formData.startDate = null as any
         formData.endDate = null as any
-        if (!formData.proposalDate) {
-          formData.proposalDate = new Date()
-        }
+        formData.proposalDate ??= new Date()
       } else {
         // AI : Switching to planned - clear proposal date and restore original planned dates if available
         formData.proposalDate = null as any
