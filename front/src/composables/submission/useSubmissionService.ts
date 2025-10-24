@@ -7,6 +7,7 @@ import { updateMarkerTooltip } from '@composables/overlay/useOverlay'
 import type { Project, OverlayObject } from '@types'
 import type { FieldChange } from '../../../../back/src/routes/changes'
 import { storeToRefs } from 'pinia'
+import { computed } from 'vue'
 
 // AI : Unified submission types for consolidated workflow
 export type SubmissionChangeType = 'create' | 'update_pending' | 'update_approved'
@@ -51,13 +52,35 @@ const FIELD_DISPLAY_NAMES: Record<string, string> = {
   latestUpdateOn: 'Latest Update',
   caption: 'Overlay Caption',
   projectId: 'Parent Project',
-  corners: 'Position'
+  corners: 'Position',
+  cityId: 'City'
 }
 
 export function useSubmissionService() {
   const projectStore = useProjectStore()
   const mapStore = useMapStore()
   const { currentCityOverlays } = storeToRefs(mapStore)
+
+  // AI : Build a combined city name cache from store cache + projects we've seen
+  const cityNamesCache = computed(() => {
+    const cache: Record<string, string> = { ...projectStore.cityNamesCache }
+
+    // AI : Extract city names from original backend projects (if not already in cache)
+    Object.values(projectStore.originalBackendProjects).forEach(project => {
+      if (project.city && project.cityId && !cache[project.cityId]) {
+        cache[project.cityId] = project.city.name
+      }
+    })
+
+    // AI : Extract from all projects (in case we have more cities)
+    Object.values(projectStore.allProjects).forEach(project => {
+      if (project.city && project.cityId && project.city.id === project.cityId && !cache[project.cityId]) {
+        cache[project.cityId] = project.city.name
+      }
+    })
+
+    return cache
+  })
 
   // AI : Determine submission change type based on entity status
   function getChangeType(entity: Project | OverlayObject): SubmissionChangeType {
@@ -80,12 +103,12 @@ export function useSubmissionService() {
   function detectProjectChanges(project: Project): FieldChange[] {
     const changes: FieldChange[] = []
 
-    // AI : Try to find original project from the projects store (assumes backend copy exists)
-    // For approved projects being modified, the original approved version should be in allProjects
-    const originalProject = Object.values(projectStore.allProjects).find(p => p.id === project.id && p.status === 'approved')
+    // AI : Try to find original project from the originalBackendProjects cache
+    // This cache stores snapshots of approved projects before local modifications
+    const originalProject = projectStore.originalBackendProjects[project.id]
 
     if (!originalProject) {
-      // AI : No approved version found, this might be a pending project - no change detection needed
+      // AI : No original version found in cache - might be a new/pending project
       return changes
     }
 
@@ -96,34 +119,45 @@ export function useSubmissionService() {
       'proposalDate',
       'startDate',
       'endDate',
-      'latestUpdateOn'
+      'latestUpdateOn',
+      'cityId'
     ]
 
     fieldsToCheck.forEach(field => {
       const oldValue = originalProject[field]
       const newValue = project[field]
 
-      // AI : Handle Date comparison (convert to ISO string for JSON compatibility)
-      if (oldValue instanceof Date && newValue instanceof Date) {
-        if (oldValue.getTime() !== newValue.getTime()) {
+      // AI : Normalize dates for comparison (handle Date objects vs yyyy-MM-dd strings)
+      const normalizeDate = (val: any): string | null => {
+        if (!val) return null
+        if (val instanceof Date) return val.toISOString().split('T')[0] // AI : Get yyyy-MM-dd part
+        if (typeof val === 'string') return val.split('T')[0] // AI : Handle ISO strings or yyyy-MM-dd
+        return null
+      }
+
+      // AI : Special handling for date fields
+      const isDateField = ['proposalDate', 'startDate', 'endDate', 'latestUpdateOn'].includes(String(field))
+
+      if (isDateField) {
+        const normalizedOld = normalizeDate(oldValue)
+        const normalizedNew = normalizeDate(newValue)
+
+        if (normalizedOld !== normalizedNew) {
           changes.push({
             fieldName: String(field),
-            oldValue: oldValue.toISOString(),
-            newValue: newValue.toISOString(),
+            oldValue: normalizedOld,
+            newValue: normalizedNew,
             changeReason: `User modified ${field}`
           })
         }
       } else if (oldValue !== newValue) {
-        // AI : Convert dates to ISO strings if present
-        const convertedOldValue = oldValue instanceof Date ? oldValue.toISOString() : (oldValue ?? null)
-        const convertedNewValue = newValue instanceof Date ? newValue.toISOString() : (newValue ?? null)
-
+        // AI : For non-date fields, direct comparison
         changes.push({
           fieldName: String(field),
           // @ts-expect-error - Complex union types from Project fields don't match strict JSONType
-          oldValue: convertedOldValue,
+          oldValue: oldValue ?? null,
           // @ts-expect-error - Complex union types from Project fields don't match strict JSONType
-          newValue: convertedNewValue,
+          newValue: newValue ?? null,
           changeReason: `User modified ${field}`
         })
       }
@@ -197,10 +231,30 @@ export function useSubmissionService() {
   }
 
   // AI : Format value for human-readable display
-  function formatValueForDisplay(value: any): string {
+  function formatValueForDisplay(value: any, fieldName?: string): string {
     if (value === null || value === undefined || value === '') {
       return 'Not set'
     }
+
+    // AI : Special handling for cityId - show city name
+    if (fieldName === 'cityId' && typeof value === 'string') {
+      // AI : Check the cache (built from all projects and loaded cities)
+      const cachedName = cityNamesCache.value[value]
+      if (cachedName) {
+        return cachedName
+      }
+      return value // AI : Fallback to ID if city name not found
+    }
+
+    // AI : Special handling for projectId - show project name
+    if (fieldName === 'projectId' && typeof value === 'string') {
+      const project = projectStore.allProjects[value]
+      if (project?.name) {
+        return project.name
+      }
+      return value // AI : Fallback to ID if project not found
+    }
+
     if (value instanceof Date) {
       return value.toLocaleDateString()
     }
@@ -243,8 +297,8 @@ export function useSubmissionService() {
 
     const formattedChanges: SubmissionChange[] = changes.map(change => ({
       field: change.fieldName,
-      oldValue: formatValueForDisplay(change.oldValue),
-      newValue: formatValueForDisplay(change.newValue),
+      oldValue: formatValueForDisplay(change.oldValue, change.fieldName),
+      newValue: formatValueForDisplay(change.newValue, change.fieldName),
       displayLabel: FIELD_DISPLAY_NAMES[change.fieldName] ?? change.fieldName
     }))
 
@@ -313,6 +367,9 @@ export function useSubmissionService() {
         entityId: project.id,
         changes
       })
+
+      // AI : Reset modified flag after successfully submitting change request
+      projectStore.updateProject(project.id, { isModified: false })
     } else {
       // AI : Direct update for pending/new projects
       const publishResult = await trpc.project.publishProject.mutate(
@@ -320,6 +377,9 @@ export function useSubmissionService() {
       )
 
       if (publishResult.success) {
+        // AI : Reset modified flag after successful publish
+        projectStore.updateProject(project.id, { isModified: false })
+
         // AI : Refresh city projects to show updated marker
         if (mapStore.selectedCity) {
           await loadCityProjects(
