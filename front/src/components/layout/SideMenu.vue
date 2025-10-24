@@ -109,7 +109,8 @@ usePanelTabs(activeTab)
   color: var(--p-surface-500);
 }
 
-.sidecolumn__content {
+/* AI : Deep selector to apply overflow to content container passed to PanelContent */
+:deep(.sidecolumn__content) {
   flex: 1;
   overflow-y: auto;
   display: flex;
