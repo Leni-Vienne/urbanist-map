@@ -80,6 +80,16 @@ export function updateOverlayEditingState(): void {
         // AI : Update marker position to match restored corners
         updateMarkerPosition(overlayObject);
       }
+      
+      // AI : When leaving edit mode (entering view/moderation mode), reset to backend positions
+    } else if (overlayObject.corners && overlayObject.corners.length === 4) {
+
+      const leafletCorners = overlayObject.corners.map(corner => L.latLng(corner.lat, corner.lng));
+      overlayObject.overlay.setCorners(leafletCorners);
+      overlayObject.isModified = false;
+
+      // AI : Update marker position to match backend corners
+      updateMarkerPosition(overlayObject);
     }
 
     // AI : Update marker color and tooltip
