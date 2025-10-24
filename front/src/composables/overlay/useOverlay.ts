@@ -86,17 +86,16 @@ export function updateOverlayEditingState(): void {
     updateMarkerTooltip(overlayObject);
   });
 
-  // AI : Restore selection state after toolbar rebuild (setOptions can deselect)
+  // AI : Restore selection state after toolbar rebuild
+  // AI : With the fixed Leaflet Distortable library, setOptions() no longer causes errors
+  // AI : but it may still deselect the overlay, so we restore the visual selection
   if (wasSelected && selectedOverlayId) {
     requestAnimationFrame(() => {
       const overlay = overlayStore.overlays[selectedOverlayId];
       if (overlay?.overlay) {
-        // AI : Programmatically reselect the overlay by clicking its element
-        // AI : This restores the selection state that may have been lost during setOptions
-        const element = overlay.overlay.getElement();
-        if (element) {
-          element.click();
-        }
+        // AI : Restore visual selection outline (this doesn't trigger Leaflet events)
+        // AI : If setOptions() cleared the store selection, this also restores it
+        selectOverlay(selectedOverlayId);
       }
     });
   }
