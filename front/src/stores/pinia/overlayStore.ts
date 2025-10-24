@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, shallowRef } from 'vue'
 import type L from 'leaflet'
-import type { OverlayObject, OverlayData } from '@types'
+import type { OverlayObject, OverlayData, MapMode } from '@types'
 import type { BackendOverlay } from '../../types/api'
 
 export const useOverlayStore = defineStore('overlay', () => {
@@ -12,9 +12,12 @@ export const useOverlayStore = defineStore('overlay', () => {
   // AI : Tracking of all markers, even for images not currently loaded
   const allMarkers = shallowRef<Record<string, L.Marker>>({})
 
-  // AI : Edit mode state
-  const isEditMode = ref(false)
+  // AI : Map mode state (view, edit, or moderation)
+  const mode = ref<MapMode>('view')
   const isTogglingMode = ref(false)
+
+  // AI : Computed helper for backward compatibility during refactor
+  const isEditMode = ref(false) // Will be removed after full refactor
 
   // AI : Edit mode overlay cache - stores overlay modifications for persistence across zoom changes
   type EditModeCache = { corners: { lat: number, lng: number }[], isModified: boolean }
@@ -80,8 +83,10 @@ export const useOverlayStore = defineStore('overlay', () => {
     loadedEditOverlays.value.clear()
   }
 
-  const setEditMode = (editMode: boolean) => {
-    isEditMode.value = editMode
+  const setMode = (newMode: MapMode) => {
+    mode.value = newMode
+    // AI : Sync with legacy isEditMode for backward compatibility
+    isEditMode.value = newMode === 'edit'
   }
 
   // AI : Edit mode cache management
@@ -164,6 +169,7 @@ export const useOverlayStore = defineStore('overlay', () => {
     overlays,
     idSelectedOverlay,
     allMarkers,
+    mode,
     isEditMode,
     isTogglingMode,
     editModeOverlayCache,
@@ -190,7 +196,7 @@ export const useOverlayStore = defineStore('overlay', () => {
     addEditModeOverlay,
     removeEditModeOverlay,
     clearEditModeMarkersAndState,
-    setEditMode,
+    setMode,
     saveToEditModeCache,
     getFromEditModeCache,
     clearEditModeCache,

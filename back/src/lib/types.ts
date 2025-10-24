@@ -40,5 +40,6 @@ export interface OverlayData {
     distance?: number;
     isModified?: boolean;
     hasPendingChanges?: boolean;
+    pendingChangeRequestsCount?: number; // AI : Count of ALL pending change requests (moderation mode only)
 }
 

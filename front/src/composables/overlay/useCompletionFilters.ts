@@ -26,12 +26,12 @@ export function useCompletionFilters() {
       const overlayStore = useOverlayStore();
 
       return overlays.filter((overlay) => {
-        // AI : In view mode, hide pending overlays (they should only be visible in edit mode)
-        if (!overlayStore.isEditMode && overlay.status === 'pending') {
+        // AI : In view mode only, hide pending overlays (they are visible in edit and moderation modes)
+        if (overlayStore.mode === 'view' && overlay.status === 'pending') {
           return false;
         }
 
-        const completionColor = getOverlayMarkerColor(overlay, 'view');
+        const completionColor = getOverlayMarkerColor(overlay, overlayStore.mode);
         return visibleCompletionStates.value[completionColor as keyof typeof visibleCompletionStates.value];
       });
     },
@@ -45,17 +45,17 @@ export function useCompletionFilters() {
 
     /**
      * AI : Check if a specific overlay should be visible based on current filters
-     * AI : In view mode, also checks that overlay is not pending
+     * AI : In view mode only, also checks that overlay is not pending
      */
     shouldShowOverlay(overlay: OverlayObject | OverlayData) {
       const overlayStore = useOverlayStore();
 
-      // AI : In view mode, hide pending overlays (they should only be visible in edit mode)
-      if (!overlayStore.isEditMode && overlay.status === 'pending') {
+      // AI : In view mode only, hide pending overlays (they are visible in edit and moderation modes)
+      if (overlayStore.mode === 'view' && overlay.status === 'pending') {
         return false;
       }
 
-      const completionColor = getOverlayMarkerColor(overlay, 'view');
+      const completionColor = getOverlayMarkerColor(overlay, overlayStore.mode);
       return visibleCompletionStates.value[completionColor as keyof typeof visibleCompletionStates.value];
     }
   };

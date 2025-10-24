@@ -1,13 +1,31 @@
-import type { OverlayObject, OverlayData, MarkerColor } from '@types';
+import type { OverlayObject, OverlayData, MarkerColor, MapMode } from '@types';
 
 /**
- * AI : Centralized function to determine marker color based on overlay state
+ * AI : Centralized function to determine marker color based on overlay state and map mode
  * This replaces the duplicated logic in multiple files
  */
 export function getOverlayMarkerColor(
   overlayData: OverlayObject | OverlayData,
-  mode: 'edit' | 'view'
+  mode: MapMode
 ): MarkerColor {
+  if (mode === 'moderation') {
+    // AI : Moderation mode color logic - objective view for review
+    const status = overlayData.status;
+    const hasPendingChangeRequests = (overlayData.pendingChangeRequestsCount ?? 0) > 0;
+
+    // AI : Pending brand new overlays
+    if (status === 'pending') return 'blue';
+
+    // AI : Approved overlays with pending change requests from users
+    if (status === 'approved' && hasPendingChangeRequests) return 'yellow';
+
+    // AI : Approved overlays with no pending changes
+    if (status === 'approved') return 'green';
+
+    // AI : Rejected overlays (shouldn't appear in moderation but just in case)
+    return 'grey';
+  }
+
   if (mode === 'edit') {
     // AI : Edit mode color logic based on overlay modification state and status
     if (overlayData.replacesOverlayId) return 'purple'; // Overlay is a replacement for another overlay

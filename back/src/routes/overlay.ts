@@ -9,7 +9,8 @@ import { buildOverlayQuery } from '../db/queryBuilders';
 import {
   buildProjectStatusCondition,
   buildOverlayVisibilityCondition,
-  type ApprovalStatus
+  type ApprovalStatus,
+  type MapMode
 } from '../db/visibilityHelpers';
 
 const publishOverlaySchema = z.object({
@@ -77,7 +78,7 @@ export const overlayRouter = router({
       try {
         // AI : Build visibility conditions using helper functions
         const whereConditions = [
-          buildOverlayVisibilityCondition(ctx.user, true, undefined, input.includeStatus as ApprovalStatus[] | undefined),
+          buildOverlayVisibilityCondition(ctx.user, 'view', undefined, input.includeStatus as ApprovalStatus[] | undefined),
           buildProjectStatusCondition(ctx.user, input.includeStatus as ApprovalStatus[] | undefined)
         ];
 
@@ -102,11 +103,11 @@ export const overlayRouter = router({
     .input(getOverlaySchema)
     .query(async ({ input, ctx }) => {
       try {
-        // AI : Build visibility condition - if user is logged in but no admin filter, use edit mode (false) to allow own overlays
-        const viewMode = !ctx.user || !!(input.includeStatus && ctx.user?.role === 'admin');
+        // AI : Determine mode based on context - edit mode if logged in, view mode otherwise
+        const mode: MapMode = ctx.user ? 'edit' : 'view';
         const whereConditions = [
           eq(overlays.id, input.id),
-          buildOverlayVisibilityCondition(ctx.user, viewMode, undefined, input.includeStatus as ApprovalStatus[] | undefined)
+          buildOverlayVisibilityCondition(ctx.user, mode, undefined, input.includeStatus as ApprovalStatus[] | undefined)
         ];
 
         // AI : Fetch the requested overlay

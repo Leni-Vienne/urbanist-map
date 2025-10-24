@@ -190,18 +190,22 @@ export const projectRouter = router({
       .input(z.object({
         cityId: z.uuid(),
         limit: z.number().min(1).max(100).optional().default(20),
-        viewMode: z.boolean().optional().default(true) // AI : true for view mode (approved only), false for edit mode (include user's own)
+        mode: z.enum(['view', 'edit', 'moderation']).optional().default('view') // AI : Map viewing mode
       }))
       .query(async ({ input, ctx }) => {
         try {
-          // AI : Build where conditions based on user authentication and view mode
-          // AI : In edit mode (!viewMode) and logged in, show approved OR user's own contributions (any status)
-          // AI : In view mode (viewMode=true) or anonymous, only show approved
+          // AI : Build where conditions based on user authentication and mode
+          // AI : In edit mode, show approved OR user's own contributions (any status)
+          // AI : In moderation mode, show approved OR pending from all users
+          // AI : In view mode or anonymous, only show approved
           const whereConditions = [eq(projects.cityId, input.cityId)];
 
-          if (ctx.user && !input.viewMode) {
+          if (input.mode === 'edit' && ctx.user) {
             // AI : Edit mode + logged in: users can see approved projects OR their own contributions (any status)
             whereConditions.push(sql`(${projects.status} = 'approved' OR ${projects.ownerId} = ${ctx.user.id})`);
+          } else if (input.mode === 'moderation' && ctx.user) {
+            // AI : Moderation mode + logged in: see approved OR pending projects (for review)
+            whereConditions.push(sql`(${projects.status} = 'approved' OR ${projects.status} = 'pending')`);
           } else {
             // AI : View mode or anonymous: only see approved projects
             whereConditions.push(eq(projects.status, 'approved'));
@@ -226,7 +230,7 @@ export const projectRouter = router({
               createdAt: projects.createdAt,
               updatedAt: projects.updatedAt,
               // AI : Count approved overlays OR user's own overlays (only in edit mode)
-              overlayCount: (ctx.user && !input.viewMode)
+              overlayCount: (ctx.user && input.mode !== 'view')
                 ? sql<number>`COUNT(CASE WHEN ${overlays.status} = 'approved' OR ${overlays.authorId} = ${ctx.user.id} THEN 1 END)::int`
                 : sql<number>`COUNT(CASE WHEN ${overlays.status} = 'approved' THEN 1 END)::int`,
               city: cities

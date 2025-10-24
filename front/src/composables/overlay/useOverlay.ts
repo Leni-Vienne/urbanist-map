@@ -427,7 +427,7 @@ export function saveToHistory(overlayObject: OverlayObject): void {
 
   // AI : Update city overlay markers if they are visible
   const overlayStore = useOverlayStore();
-  updateOverlayMarkersColors(toRef(overlayStore, 'overlays'), toRef(overlayStore, 'isEditMode'));
+  updateOverlayMarkersColors(toRef(overlayStore, 'overlays'));
 
   // AI : Update store with proper reactivity - critical for info popup to see changes
   overlayStore.updateOverlay(overlayObject.id, {
@@ -780,7 +780,7 @@ export function updateMarkerTooltip(overlayObject: OverlayObject): void {
 
   overlayObject.marker.unbindTooltip();
 
-  const markerColor = getOverlayMarkerColor(overlayObject, overlayStore.isEditMode ? 'edit' : 'view');
+  const markerColor = getOverlayMarkerColor(overlayObject, overlayStore.mode);
   const colorIcon = createColorIcon(markerColor);
   overlayObject.marker.setIcon(colorIcon);
 
@@ -806,6 +806,8 @@ export function updateMarkerTooltip(overlayObject: OverlayObject): void {
     tooltipText = 'Approved (modified)';
   } else if (hasBeenModified) {
     tooltipText = 'Local overlay';
+  } else if (overlayObject.status === 'rejected') {
+    tooltipText = 'Rejected overlay';
   } else {
     tooltipText = 'New overlay';
   }
@@ -834,7 +836,7 @@ function createSingleMarker(savedOverlay: OverlayObject): void {
 
   const markerTitle = createMarkerTitle(savedOverlay, savedOverlay.projectId);
   const tempOverlayObject = createOverlayObject(savedOverlay);
-  const markerColor = getOverlayMarkerColor(tempOverlayObject, overlayStore.isEditMode ? 'edit' : 'view');
+  const markerColor = getOverlayMarkerColor(tempOverlayObject, overlayStore.mode);
   const colorIcon = createColorIcon(markerColor);
 
   const marker = L.marker(center, {
@@ -959,7 +961,7 @@ function setupOverlayMovementTracking(overlay: L.DistortableImageOverlay, overla
       updateMarkerPosition(overlayObject);
 
       // AI : Update city overlay markers if they are visible
-      updateOverlayMarkersColors(toRef(overlayStore, 'overlays'), toRef(overlayStore, 'isEditMode'));
+      updateOverlayMarkersColors(toRef(overlayStore, 'overlays'));
     };
 
     // AI : Track mouse and touch events for real-time updates
@@ -1199,7 +1201,7 @@ function applyHistoryAction(action: 'undo' | 'redo') {
 
     // AI : Update cache and city markers (undo/redo only available in edit mode)
     saveOverlayModificationsToCache(overlayObject);
-    updateOverlayMarkersColors(toRef(overlayStore, 'overlays'), toRef(overlayStore, 'isEditMode'));
+    updateOverlayMarkersColors(toRef(overlayStore, 'overlays'));
   } catch (error) {
     throw new Error(`Failed to ${action} overlay: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }

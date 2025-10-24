@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { Project, Country } from '@types';
+import type { Project, Country, MapMode } from '@types';
 import type { NearbyProject } from '../../types/api';
 import { map } from '@composables/core/useMap';
 import { trpc } from '@client';
@@ -12,11 +12,11 @@ export const useProjectStore = defineStore('project', () => {
   const selectedProjectId = ref<string | null>(null);
   const countries = ref<Country[]>([]);
 
-  // AI : Cache for cities by country and view mode (key format: "countryCode:viewMode")
+  // AI : Cache for cities by country and mode (key format: "countryCode:mode")
   const citiesCache = ref<Map<string, any[]>>(new Map());
 
-  // AI : Cache countries separately per viewMode (key: viewMode boolean -> true for view mode, false for edit mode)
-  const countriesCache = ref<Map<boolean, Country[]>>(new Map());
+  // AI : Cache countries separately per mode
+  const countriesCache = ref<Map<MapMode, Country[]>>(new Map());
 
   // AI : Centralized nearby projects data management
   const nearbyProjects = ref<NearbyProject[]>([]);
@@ -172,38 +172,38 @@ export const useProjectStore = defineStore('project', () => {
     }
   }
 
-  // AI : Cities cache management
-  function getCitiesCacheKey(countryCode: string, viewMode: boolean): string {
-    return `${countryCode}:${viewMode}`
+  // AI : Cities cache management (separate cache per mode)
+  function getCitiesCacheKey(countryCode: string, mode: MapMode): string {
+    return `${countryCode}:${mode}`
   }
 
-  function getCachedCities(countryCode: string, viewMode: boolean): any[] | null {
-    return citiesCache.value.get(getCitiesCacheKey(countryCode, viewMode)) ?? null
+  function getCachedCities(countryCode: string, mode: MapMode): any[] | null {
+    return citiesCache.value.get(getCitiesCacheKey(countryCode, mode)) ?? null
   }
 
-  function setCachedCities(countryCode: string, viewMode: boolean, cities: any[]): void {
-    citiesCache.value.set(getCitiesCacheKey(countryCode, viewMode), cities)
+  function setCachedCities(countryCode: string, mode: MapMode, cities: any[]): void {
+    citiesCache.value.set(getCitiesCacheKey(countryCode, mode), cities)
   }
 
-  function hasCachedCities(countryCode: string, viewMode: boolean): boolean {
-    return citiesCache.value.has(getCitiesCacheKey(countryCode, viewMode))
+  function hasCachedCities(countryCode: string, mode: MapMode): boolean {
+    return citiesCache.value.has(getCitiesCacheKey(countryCode, mode))
   }
 
   function clearCitiesCache(): void {
     citiesCache.value.clear()
   }
 
-  // AI : Countries cache management - store and retrieve countries per viewMode
-  function getCachedCountries(viewMode: boolean): Country[] | null {
-    return countriesCache.value.get(viewMode) ?? null;
+  // AI : Countries cache management - store and retrieve countries per mode
+  function getCachedCountries(mode: MapMode): Country[] | null {
+    return countriesCache.value.get(mode) ?? null;
   }
 
-  function setCachedCountries(viewMode: boolean, countriesData: Country[]): void {
-    countriesCache.value.set(viewMode, countriesData);
+  function setCachedCountries(mode: MapMode, countriesData: Country[]): void {
+    countriesCache.value.set(mode, countriesData);
   }
 
-  function hasCachedCountries(viewMode: boolean): boolean {
-    return countriesCache.value.has(viewMode);
+  function hasCachedCountries(mode: MapMode): boolean {
+    return countriesCache.value.has(mode);
   }
 
   function clearCountriesCache(): void {

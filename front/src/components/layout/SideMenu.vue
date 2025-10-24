@@ -74,6 +74,7 @@ import { ref, defineAsyncComponent, watch } from 'vue'
 import LatestOverlaysPanel from './LatestOverlaysPanel.vue' // static import since it's the default panel
 import { useAuthStore } from '@stores/authStore'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
+import type { MapMode } from '@types'
 
 // AI : Lazy load panels to reduce initial bundle size
 const ModerationPanel = defineAsyncComponent(() => import('./ModerationPanel.vue'))
@@ -94,6 +95,55 @@ defineEmits<{
 // AI : Tab state - default to "latest" like the prototype
 const activeTab = ref<'latest' | 'uploads' | 'moderation'>('latest')
 
+// AI : Flag to prevent infinite loops when syncing tab and mode
+let isSyncing = false;
+
+// AI : Map tab to mode
+function tabToMode(tab: typeof activeTab.value): MapMode {
+  switch (tab) {
+    case 'latest': return 'view';
+    case 'uploads': return 'edit';
+    case 'moderation': return 'moderation';
+    default: return 'view';
+  }
+}
+
+// AI : Map mode to tab
+function modeToTab(mode: MapMode): typeof activeTab.value {
+  switch (mode) {
+    case 'view': return 'latest';
+    case 'edit': return 'uploads';
+    case 'moderation': return 'moderation';
+    default: return 'latest';
+  }
+}
+
+// AI : Watch activeTab and sync mode
+watch(activeTab, (newTab) => {
+  if (isSyncing) return;
+  isSyncing = true;
+
+  const newMode = tabToMode(newTab);
+  if (overlayStore.mode !== newMode) {
+    overlayStore.setMode(newMode);
+  }
+
+  isSyncing = false;
+});
+
+// AI : Watch mode and sync activeTab
+watch(() => overlayStore.mode, (newMode) => {
+  if (isSyncing) return;
+  isSyncing = true;
+
+  const newTab = modeToTab(newMode);
+  if (activeTab.value !== newTab) {
+    activeTab.value = newTab;
+  }
+
+  isSyncing = false;
+});
+
 // AI : Watch for authentication changes and reset tab if user signs out or loses moderation rights
 watch(() => authStore.isAuthenticated, (isAuthenticated) => {
   if (!isAuthenticated && (activeTab.value === 'uploads' || activeTab.value === 'moderation')) {
@@ -108,12 +158,7 @@ watch(() => authStore.isModerator, (isModerator) => {
   }
 })
 
-// AI : Watch for tab changes and enable edit mode when switching to "my contributions" or "moderation"
-watch(activeTab, (newTab) => {
-  if (newTab === 'uploads' || newTab === 'moderation') {
-    overlayStore.setEditMode(true)
-  }
-})
+// AI : Legacy watch removed - mode syncing is now handled by the tab/mode watchers above
 
 </script>
 

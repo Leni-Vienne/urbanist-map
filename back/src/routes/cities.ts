@@ -30,7 +30,7 @@ const searchCitiesNearLocationSchema = z.object({
 
 const getCityOverlaysAndProjectsSchema = z.object({
   cityId: z.uuid(),
-  viewMode: z.boolean().optional().default(true) // AI : true for view mode (approved only), false for edit mode (include user's own)
+  mode: z.enum(['view', 'edit', 'moderation']).optional().default('view') // AI : Map viewing mode
 });
 
 export const citiesRouter = router({
@@ -110,20 +110,20 @@ export const citiesRouter = router({
     getCitiesWithProjects: publicProcedure
       .input(z.object({
         countryCode: z.string().optional(),
-        viewMode: z.boolean().optional().default(true) // AI : true for view mode (approved only), false for edit mode (include user's own)
+        mode: z.enum(['view', 'edit', 'moderation']).optional().default('view') // AI : Map viewing mode
       }))
       .query(async ({ input, ctx }) => {
         try {
           // AI : Fetch user's overlay change request IDs if in edit mode
-          const overlayChangeRequestIds = ctx.user && !input.viewMode
+          const overlayChangeRequestIds = ctx.user && input.mode === 'edit'
             ? await getUserOverlayChangeRequestIds(db, ctx.user.id)
             : undefined;
 
           // AI : Build visibility conditions using helper functions
           const conditions = [
             isNotNull(projects.cityId),
-            buildProjectVisibilityCondition(ctx.user, input.viewMode),
-            buildProjectHasVisibleContentCondition(ctx.user, input.viewMode, overlayChangeRequestIds)
+            buildProjectVisibilityCondition(ctx.user, input.mode),
+            buildProjectHasVisibleContentCondition(ctx.user, input.mode, overlayChangeRequestIds)
           ];
 
           if (input.countryCode) {
@@ -158,18 +158,18 @@ export const citiesRouter = router({
       .input(getCityOverlaysAndProjectsSchema)
       .query(async ({ input, ctx }) => {
         try {
-          const { cityId, viewMode } = input;
+          const { cityId, mode } = input;
 
           // AI : Fetch user's overlay change request IDs if in edit mode
-          const overlayChangeRequestIds = ctx.user && !viewMode
+          const overlayChangeRequestIds = ctx.user && mode === 'edit'
             ? await getUserOverlayChangeRequestIds(db, ctx.user.id)
             : undefined;
 
           // AI : Build visibility conditions using helper functions
           const whereConditions = [
             eq(projects.cityId, cityId),
-            buildProjectVisibilityCondition(ctx.user, viewMode),
-            buildOverlayVisibilityCondition(ctx.user, viewMode, overlayChangeRequestIds)
+            buildProjectVisibilityCondition(ctx.user, mode),
+            buildOverlayVisibilityCondition(ctx.user, mode, overlayChangeRequestIds)
           ];
 
           // AI : Single optimized query that extracts all data including corners as JSON
@@ -209,6 +209,7 @@ export const citiesRouter = router({
             .orderBy(overlays.createdAt);
 
           // AI : In edit mode, fetch user's pending change requests to merge with overlays
+          // AI : In moderation mode, do NOT apply user's own changes (show objective view)
           let userChangeRequests: Array<{
             id: string;
             entityType: string;
@@ -217,7 +218,7 @@ export const citiesRouter = router({
             newValue: unknown;
           }> = [];
 
-          if (ctx.user && !viewMode) {
+          if (ctx.user && mode === 'edit') {
             userChangeRequests = await db
               .select({
                 id: changeRequests.id,
@@ -233,6 +234,23 @@ export const citiesRouter = router({
                   eq(changeRequests.entityType, 'overlay')
                 )
               );
+          }
+
+          // AI : In moderation mode, fetch count of ALL pending change requests per overlay
+          let allChangeRequestCounts: Map<string, number> = new Map();
+          if (ctx.user && mode === 'moderation') {
+            const countResults = await db
+              .select({
+                entityId: changeRequests.entityId,
+                count: sql<number>`COUNT(*)::int`
+              })
+              .from(changeRequests)
+              .where(eq(changeRequests.entityType, 'overlay'))
+              .groupBy(changeRequests.entityId);
+
+            countResults.forEach(row => {
+              allChangeRequestCounts.set(row.entityId!, row.count);
+            });
           }
 
           const result: OverlayData[] = overlaysData.map((row) => {
@@ -271,6 +289,8 @@ export const citiesRouter = router({
               },
               // AI : Add flag to indicate if this overlay has pending change requests from the current user
               hasPendingChanges: overlayChangeRequests.length > 0,
+              // AI : In moderation mode, add count of ALL pending change requests for this overlay
+              pendingChangeRequestsCount: mode === 'moderation' ? (allChangeRequestCounts.get(row.overlayId) ?? 0) : undefined,
             };
           });
 

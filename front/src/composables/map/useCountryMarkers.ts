@@ -38,12 +38,11 @@ let selectedCountryMarker: L.Marker | null = null;
 export async function loadCountriesWithProjects(force: boolean = false): Promise<void> {
   const overlayStore = useOverlayStore();
   const projectStore = useProjectStore();
-  const viewMode = !overlayStore.isEditMode;
 
-  // AI : Check if we have cached countries for this viewMode
-  if (!force && projectStore.hasCachedCountries(viewMode)) {
+  // AI : Check if we have cached countries for this mode
+  if (!force && projectStore.hasCachedCountries(overlayStore.mode)) {
     // AI : Use cached countries and update the active countries ref
-    const cachedCountries = projectStore.getCachedCountries(viewMode);
+    const cachedCountries = projectStore.getCachedCountries(overlayStore.mode);
     if (cachedCountries) {
       const countries = getCountries();
       countries.value = cachedCountries;
@@ -54,7 +53,7 @@ export async function loadCountriesWithProjects(force: boolean = false): Promise
   isLoadingCountries.value = true;
   try {
     const countriesData = await withErrorHandling(
-      async () => trpc.country.getCountriesWithProjects.query({ viewMode }),
+      async () => trpc.country.getCountriesWithProjects.query({ mode: overlayStore.mode }),
       { errorMessage: 'Failed to load countries. Please refresh the page.' }
     );
 
@@ -72,7 +71,7 @@ export async function loadCountriesWithProjects(force: boolean = false): Promise
       // AI : Update both the active countries ref and cache
       const countries = getCountries();
       countries.value = mappedCountries;
-      projectStore.setCachedCountries(viewMode, mappedCountries);
+      projectStore.setCachedCountries(overlayStore.mode, mappedCountries);
     }
   } finally {
     isLoadingCountries.value = false;
@@ -87,11 +86,10 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
 
   const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
-  const viewMode = !overlayStore.isEditMode;
 
-  // AI : Check cache first for this country + viewMode combination
-  if (projectStore.hasCachedCities(countryCode, viewMode)) {
-    const cachedCities = projectStore.getCachedCities(countryCode, viewMode);
+  // AI : Check cache first for this country + mode combination
+  if (projectStore.hasCachedCities(countryCode, overlayStore.mode)) {
+    const cachedCities = projectStore.getCachedCities(countryCode, overlayStore.mode);
     if (cachedCities) {
       country.cities = cachedCities;
       return;
@@ -100,17 +98,17 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
 
   isLoadingCountryProjects.value = true;
   try {
-    // AI : Pass viewMode to show user's pending contributions in edit mode
+    // AI : Pass mode to show appropriate content based on viewing mode
     const citiesData = await withErrorHandling(
-      async () => trpc.cities.getCitiesWithProjects.query({ countryCode, viewMode }),
+      async () => trpc.cities.getCitiesWithProjects.query({ countryCode, mode: overlayStore.mode }),
       { errorMessage: 'Failed to load cities. Please try again.' }
     );
 
     if (citiesData) {
       const cities = citiesData.map((city) => ({ ...city, distance: 0 }));
       country.cities = cities;
-      // AI : Cache the cities for this country + viewMode
-      projectStore.setCachedCities(countryCode, viewMode, cities);
+      // AI : Cache the cities for this country + mode
+      projectStore.setCachedCities(countryCode, overlayStore.mode, cities);
     }
   } finally {
     isLoadingCountryProjects.value = false;
