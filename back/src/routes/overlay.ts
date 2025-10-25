@@ -12,6 +12,7 @@ import {
   type ApprovalStatus,
   type MapMode
 } from '../db/visibilityHelpers';
+import { validateOverlaySize } from '../utils/overlayValidation';
 
 const publishOverlaySchema = z.object({
   id: z.uuid(), // AI : UUID length limit
@@ -141,6 +142,15 @@ export const overlayRouter = router({
       .input(publishOverlaySchema)
       .mutation(async ({ input, ctx }) => {
         try {
+          // AI : Validate overlay size before processing
+          const sizeValidation = validateOverlaySize(input.corners);
+          if (!sizeValidation.isValid) {
+            throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: 'Overlay too large (max 1km × 1km)',
+            });
+          }
+
           // AI : Check if overlay already exists - approved overlays cannot be directly modified
           const existingOverlay = await db
             .select({ status: overlays.status })

@@ -31,18 +31,21 @@ export function getOverlayMarkerColor(
     if (overlayData.replacesOverlayId) return 'purple'; // Overlay is a replacement for another overlay
 
     const hasBeenModified = 'isModified' in overlayData ? overlayData.isModified : false;
+    const isTooBig = 'isTooBig' in overlayData ? overlayData.isTooBig : false;
     const status = overlayData.status;
+    // AI : Priority 1: Size validation error (critical issue that prevents submission)
+    if (isTooBig) return 'red';
 
-    // AI : Priority 1: Local modifications (highest priority - shows user they have unsaved work)
+    // AI : Priority 2: Local modifications (shows user they have unsaved work)
     if (hasBeenModified) return 'orange';
 
-    // AI : Priority 2: Pending approval (awaiting moderation)
+    // AI : Priority 3: Pending approval (awaiting moderation)
     if (status === 'pending') return 'yellow';
 
-    // AI : Priority 3: Rejected overlays
+    // AI : Priority 4: Rejected overlays
     if (status === 'rejected') return 'red';
 
-    // AI : Priority 4: Approved and unmodified
+    // AI : Priority 5: Approved and unmodified
     if (status === 'approved') return 'green';
 
     // AI : Default: New overlay not yet submitted

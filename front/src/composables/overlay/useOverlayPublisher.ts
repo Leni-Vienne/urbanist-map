@@ -7,6 +7,8 @@ import { trpc, getApiUrl } from '@client';
 import { storeToRefs } from 'pinia';
 import { buildProjectPayload } from '@composables/project/useProjectMutations';
 import type { OverlayObject, Project } from '@types';
+import { validateOverlaySize, leafletCornersToCorners } from '../../../../back/src/utils/overlayValidation';
+import { useI18n } from 'vue-i18n';
 
 export function useOverlayPublisher() {
   const isPublishing = ref(false);
@@ -14,6 +16,7 @@ export function useOverlayPublisher() {
   const overlayStore = useOverlayStore();
   const { projects } = storeToRefs(projectStore);
   const { overlays, idSelectedOverlay } = storeToRefs(overlayStore);
+  const { t } = useI18n();
 
   function getCornersFromOverlay(overlay: OverlayObject) {
     if (overlay.overlay) {
@@ -33,6 +36,16 @@ export function useOverlayPublisher() {
     if (!corners || corners.length !== 4 || corners.some(c => !c.lat || !c.lng)) {
       throw new Error('Cannot Publish: Overlay must have valid position (4 corners)');
     }
+
+    // AI : Validate overlay size constraints
+    const cornersArray = leafletCornersToCorners(corners);
+    const sizeValidation = validateOverlaySize(cornersArray);
+    
+    if (!sizeValidation.isValid) {
+      // AI : Simple i18n error message
+      throw new Error(t('overlay.overlayTooLarge'));
+    }
+
     return true;
   }
 

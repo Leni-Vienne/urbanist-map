@@ -178,6 +178,8 @@
     "viewCurrentPosition": "View Current Position",
     "viewSuggestedPosition": "View Suggested Position",
     "currentPosition": "Current Position",
+    "overlayTooLarge": "Overlay too large (max 1km × 1km)",
+    "overlayTooLargeTooltip": "This overlay exceeds the maximum size of 1km × 1km. Please reduce its size before publishing.",
     "suggestedPosition": "Suggested Position",
     "viewingCurrentCoordinates": "Viewing current coordinates",
     "viewingSuggestedCoordinates": "Viewing suggested coordinates",
