@@ -21,7 +21,7 @@ import { mobileAwareFlyTo, mobileAwareFlyToBounds } from '@composables/map/useMo
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
-import type { OverlayObject, OverlayData } from '@types';
+import type { OverlayObject, OverlayData, MarkerColor } from '@types';
 import { createOverlay as createOverlayInstance, createOverlayFromCDN, convertOverlayToData } from '../../utils/typeFactories';
 import { toRef } from 'vue';
 
@@ -506,9 +506,10 @@ export function saveToHistory(overlayObject: OverlayObject): void {
 
   updateMarkerTooltip(overlayObject);
 
-  // AI : Update city overlay markers if they are visible
+  // AI : Update only this overlay's marker color (already updated via updateMarkerTooltip, but kept for consistency)
+  // AI : Note: updateMarkerTooltip already updates the icon, so this is technically redundant but kept for clarity
   const overlayStore = useOverlayStore();
-  updateOverlayMarkersColors(toRef(overlayStore, 'overlays'));
+  // updateOverlayMarkersColors(toRef(overlayStore, 'overlays'), overlayObject.id); // AI : Commented out - redundant with updateMarkerTooltip
 
   // AI : Update store with proper reactivity - critical for info popup to see changes
   overlayStore.updateOverlay(overlayObject.id, {
@@ -818,10 +819,7 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
     setupProjectHoverEvents(overlayObjectWithMethods.overlay, overlayObjectWithMethods);
   }
 
-  // AI : Update marker tooltip with correct overlay object information
-  if (overlayObjectWithMethods.marker) {
-    updateMarkerTooltip(overlayObjectWithMethods);
-  }
+  // AI : Marker tooltip already updated in createSingleMarker - no need to duplicate
 }
 
 /**
@@ -853,15 +851,17 @@ export function removeOverlay(overlayId: string): void {
 
 /**
  * AI : Update marker tooltip based on overlay storage status
+ * @param overlayObject - The overlay object to update
+ * @param cachedMarkerColor - Optional pre-calculated marker color to avoid redundant computation
  */
-export function updateMarkerTooltip(overlayObject: OverlayObject): void {
+export function updateMarkerTooltip(overlayObject: OverlayObject, cachedMarkerColor?: MarkerColor): void {
   const overlayStore = useOverlayStore();
 
   if (!overlayObject.marker) return;
 
   overlayObject.marker.unbindTooltip();
 
-  const markerColor = getOverlayMarkerColor(overlayObject, overlayStore.mode);
+  const markerColor = cachedMarkerColor ?? getOverlayMarkerColor(overlayObject, overlayStore.mode);
   const colorIcon = createColorIcon(markerColor);
   overlayObject.marker.setIcon(colorIcon);
 
@@ -967,7 +967,8 @@ function createSingleMarker(savedOverlay: OverlayObject): void {
 
   overlayStore.allMarkers[savedOverlay.id] = marker;
   tempOverlayObject.marker = marker;
-  updateMarkerTooltip(tempOverlayObject);
+  // AI : Pass pre-calculated markerColor to avoid redundant getOverlayMarkerColor call
+  updateMarkerTooltip(tempOverlayObject, markerColor);
 }
 
 function getOverlayBounds(overlay: OverlayObject): L.LatLngBounds | null {
@@ -1012,15 +1013,18 @@ function setupOverlayMovementTracking(overlay: L.DistortableImageOverlay, overla
   if (element) {
     let isManipulating = false;
     let updateFrame: number | null = null;
+    let hasActuallyMoved = false; // AI : Track if overlay actually moved (not just clicked)
 
     const startTracking = () => {
       if (isManipulating) return;
       isManipulating = true;
+      hasActuallyMoved = false; // AI : Reset on each interaction
 
       // to make the marker follow the overlay being moved 
       const continuousUpdate = () => {
         if (isManipulating) {
           updateMarkerPosition(overlayObject);
+          hasActuallyMoved = true; // AI : Mark as moved during drag
           updateFrame = requestAnimationFrame(continuousUpdate);
         }
       };
@@ -1038,11 +1042,14 @@ function setupOverlayMovementTracking(overlay: L.DistortableImageOverlay, overla
         updateFrame = null;
       }
 
-      // AI : Final marker position update
-      updateMarkerPosition(overlayObject);
+      // AI : Only update if overlay actually moved (not just clicked)
+      if (hasActuallyMoved) {
+        // AI : Final marker position update
+        updateMarkerPosition(overlayObject);
 
-      // AI : Update city overlay markers if they are visible
-      updateOverlayMarkersColors(toRef(overlayStore, 'overlays'));
+        // AI : Update only this overlay's marker color (optimization: avoid recalculating all overlays)
+        updateOverlayMarkersColors(toRef(overlayStore, 'overlays'), overlayObject.id);
+      }
     };
 
     // AI : Track mouse and touch events for real-time updates
@@ -1280,9 +1287,9 @@ function applyHistoryAction(action: 'undo' | 'redo') {
     updateMarkerPosition(overlayObject);
     updateMarkerTooltip(overlayObject);
 
-    // AI : Update cache and city markers (undo/redo only available in edit mode)
+    // AI : Update cache (undo/redo only available in edit mode)
+    // AI : No need to call updateOverlayMarkersColors - updateMarkerTooltip already updates icon
     saveOverlayModificationsToCache(overlayObject);
-    updateOverlayMarkersColors(toRef(overlayStore, 'overlays'));
   } catch (error) {
     throw new Error(`Failed to ${action} overlay: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
