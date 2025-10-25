@@ -174,56 +174,78 @@ export const useAuthStore = defineStore('auth', () => {
           })
         }, 60000) // 60 second timeout
 
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          callback: async (response: { credential: string }) => {
-            clearTimeout(timeout)
+        try {
+          window.google.accounts.id.initialize({
+            client_id: clientId,
+            callback: async (response: { credential: string }) => {
+              clearTimeout(timeout)
 
-            try {
-              // AI : Send the Google token to our backend
-              const result = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/google-login`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ token: response.credential }),
-                credentials: 'include'
-              })
-
-              const data = await result.json() as { success: boolean; user?: User; error?: string }
-
-              if (result.ok && data.success) {
-                user.value = data.user ?? null
-                // AI : Store last login method for UX hint
-                if (data.user?.email) {
-                  localStorage.setItem(`lastLoginMethod:${data.user.email}`, 'google')
-                }
-                resolve({
-                  success: true,
-                  user: data.user ?? null,
-                  error: null
+              try {
+                // AI : Send the Google token to our backend
+                const result = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/google-login`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ token: response.credential }),
+                  credentials: 'include'
                 })
-              } else {
+
+                const data = await result.json() as { success: boolean; user?: User; error?: string }
+
+                if (result.ok && data.success) {
+                  user.value = data.user ?? null
+                  // AI : Store last login method for UX hint
+                  if (data.user?.email) {
+                    localStorage.setItem(`lastLoginMethod:${data.user.email}`, 'google')
+                  }
+                  resolve({
+                    success: true,
+                    user: data.user ?? null,
+                    error: null
+                  })
+                } else {
+                  resolve({
+                    success: false,
+                    user: null,
+                    error: data.error ?? 'Google authentication failed'
+                  })
+                }
+              } catch (error: unknown) {
+                console.error('Google OAuth error:', error)
                 resolve({
                   success: false,
                   user: null,
-                  error: data.error ?? 'Google authentication failed'
+                  error: error instanceof Error ? error.message : 'Google authentication failed'
                 })
               }
-            } catch (error: unknown) {
-              console.error('Google OAuth error:', error)
-              resolve({ 
-                success: false, 
+            },
+            auto_select: false,
+            cancel_on_tap_outside: true
+          })
+
+          // AI : Prompt may fail silently or be blocked, catch and handle gracefully
+          // @ts-ignore - Google Identity Services types may be incomplete
+          window.google.accounts.id.prompt((notification: any) => {
+            // AI : Handle prompt cancellation or dismissal
+            if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.()) {
+              clearTimeout(timeout)
+              resolve({
+                success: false,
                 user: null,
-                error: error instanceof Error ? error.message : 'Google authentication failed'
+                error: 'Google sign-in was cancelled or not displayed'
               })
             }
-          },
-          auto_select: false,
-          cancel_on_tap_outside: true
-        })
-
-        window.google.accounts.id.prompt()
+          })
+        } catch (error: unknown) {
+          clearTimeout(timeout)
+          console.error('Google OAuth prompt error:', error)
+          resolve({
+            success: false,
+            user: null,
+            error: error instanceof Error ? error.message : 'Failed to initialize Google sign-in'
+          })
+        }
       })
     } catch (error: unknown) {
       console.error('Google OAuth initialization error:', error)

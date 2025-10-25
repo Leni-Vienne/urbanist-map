@@ -251,6 +251,20 @@ watch(() => form.email, (email) => {
   }
 })
 
+// AI : Reset loading states and errors when modal opens/closes
+watch(() => props.visible, (isVisible) => {
+  if (isVisible) {
+    // AI : Reset all state when modal opens
+    oauthLoading.value = false
+    loading.value = false
+    error.value = ''
+  } else {
+    // AI : Clean up when modal closes
+    oauthLoading.value = false
+    loading.value = false
+  }
+})
+
 // AI : Helper to translate error messages (handles both i18n keys and plain text)
 function translateError(errorMessage: string | null | undefined): string {
   if (!errorMessage) return ''
@@ -344,8 +358,10 @@ async function handleOAuthSignIn(provider: 'google' | 'facebook') {
       error.value = translateError(result.error) || $t('auth.error.googleAuthFailed')
     }
   } catch (err: unknown) {
+    console.error('AI: OAuth sign in error:', err)
     error.value = translateError(err instanceof Error ? err.message : null) || $t('common.error')
   } finally {
+    // AI : Always reset loading state to prevent modal from being stuck in disabled state
     oauthLoading.value = false
   }
 }
