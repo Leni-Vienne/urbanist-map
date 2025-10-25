@@ -509,7 +509,6 @@ export function saveToHistory(overlayObject: OverlayObject): void {
   // AI : Update only this overlay's marker color (already updated via updateMarkerTooltip, but kept for consistency)
   // AI : Note: updateMarkerTooltip already updates the icon, so this is technically redundant but kept for clarity
   const overlayStore = useOverlayStore();
-  // updateOverlayMarkersColors(toRef(overlayStore, 'overlays'), overlayObject.id); // AI : Commented out - redundant with updateMarkerTooltip
 
   // AI : Update store with proper reactivity - critical for info popup to see changes
   overlayStore.updateOverlay(overlayObject.id, {
