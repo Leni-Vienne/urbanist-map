@@ -22,11 +22,21 @@
       <div
         v-for="change in changes"
         :key="change.id"
-        class="change-item"
+        :class="['change-item', { 'conflicted': change.status === 'conflicted' }]"
       >
+        <div v-if="change.status === 'conflicted'" class="conflict-banner">
+          <i class="pi pi-exclamation-triangle"></i>
+          <span>{{ $t('moderation.conflictDetected') }}</span>
+          <span class="conflict-help">{{ $t('moderation.approveOneToRejectOthers') }}</span>
+        </div>
         <div class="change-content">
           <div class="change-field">
-            <strong>{{ change.fieldName }}:</strong>
+            <div class="field-header">
+              <strong>{{ change.fieldName }}:</strong>
+              <span v-if="change.requestedBy" class="requested-by">
+                {{ $t('moderation.by') }} {{ getUserId(change.requestedBy) }}
+              </span>
+            </div>
             <div v-if="isGeometryField(change.fieldName)" class="geometry-change-controls">
               <div class="geometry-buttons">
                 <Button
@@ -104,6 +114,11 @@ const activeGeometryPreview = ref<{ changeId: string; type: 'old' | 'new' } | nu
 
 function isGeometryField(fieldName: string): boolean {
   return fieldName === 'corners' || fieldName === 'centroid';
+}
+
+function getUserId(userId: string | null): string {
+  if (!userId) return t('common.unknown');
+  return userId.slice(0, 8) + '...';
 }
 
 function formatValue(value: unknown, fieldName: string): string {
@@ -249,6 +264,50 @@ async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', chan
   border: 1px solid var(--p-surface-200);
   border-radius: 4px;
   padding: 0.5rem;
+}
+
+.change-item.conflicted {
+  border-color: var(--p-orange-400);
+  border-width: 2px;
+  background: var(--p-orange-25);
+}
+
+.conflict-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  margin: -0.5rem -0.5rem 0.5rem -0.5rem;
+  background: var(--p-orange-100);
+  border-bottom: 1px solid var(--p-orange-200);
+  border-radius: 4px 4px 0 0;
+  color: var(--p-orange-700);
+  font-weight: 600;
+  font-size: 0.8125rem;
+}
+
+.conflict-banner i {
+  color: var(--p-orange-600);
+}
+
+.conflict-help {
+  margin-left: auto;
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--p-orange-600);
+}
+
+.field-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.requested-by {
+  font-size: 0.75rem;
+  color: var(--p-surface-500);
+  font-weight: 400;
 }
 
 .change-content {

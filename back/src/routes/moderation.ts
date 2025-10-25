@@ -157,6 +157,7 @@ export const moderationRouter = router({
               oldValue: changeRequests.oldValue,
               newValue: changeRequests.newValue,
               changeReason: changeRequests.changeReason,
+              status: changeRequests.status,
               requestedBy: changeRequests.requestedBy,
               createdAt: changeRequests.createdAt,
             })
@@ -166,9 +167,10 @@ export const moderationRouter = router({
             .leftJoin(cities, eq(projects.cityId, cities.id))
             .where(and(
               eq(changeRequests.entityType, 'overlay'),
+              sql`${changeRequests.status} IN ('pending', 'conflicted')`,
               ...paginationConditions
             )),
-            
+
             // AI : Project change requests with city/country filters
             db.select({
               id: changeRequests.id,
@@ -178,6 +180,7 @@ export const moderationRouter = router({
               oldValue: changeRequests.oldValue,
               newValue: changeRequests.newValue,
               changeReason: changeRequests.changeReason,
+              status: changeRequests.status,
               requestedBy: changeRequests.requestedBy,
               createdAt: changeRequests.createdAt,
             })
@@ -186,6 +189,7 @@ export const moderationRouter = router({
             .leftJoin(cities, eq(projects.cityId, cities.id))
             .where(and(
               eq(changeRequests.entityType, 'project'),
+              sql`${changeRequests.status} IN ('pending', 'conflicted')`,
               ...paginationConditions
             ))
           ]);

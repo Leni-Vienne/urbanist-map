@@ -2,13 +2,15 @@ import { ref, computed } from 'vue';
 import { trpc } from '@client';
 import type {
   SubmitChangeRequestInput,
-  ChangeRequest,
-  ChangeHistoryEntry
+  ChangeHistoryEntry,
 } from '../../types/api';
+import type { RouterOutput } from '@client';
 import { useAuthStore } from '@stores/authStore';
 import { useModerationStore } from '@stores/pinia/moderationStore';
 import { withErrorHandling } from '@composables/core/useErrorHandling';
 
+// AI : Use the actual tRPC output type for change requests
+type ChangeRequest = RouterOutput['changes']['getPendingChangeRequests'][0];
 const pendingChangeRequests = ref<ChangeRequest[]>([]);
 const changeHistory = ref<ChangeHistoryEntry[]>([]);
 const isLoading = ref(false);
@@ -136,7 +138,7 @@ export function useChangeRequests() {
 
   function groupChangeRequestsByEntity() {
     const grouped = new Map<string, ChangeRequest[]>();
-    
+
     pendingChangeRequests.value.forEach(request => {
       const key = `${request.entityType}:${request.entityId}`;
       if (!grouped.has(key)) {
@@ -144,11 +146,31 @@ export function useChangeRequests() {
       }
       grouped.get(key)!.push(request);
     });
-    
+
     return grouped;
   }
 
+  function getConflictingChanges() {
+    const conflicts = new Map<string, ChangeRequest[]>();
+
+    pendingChangeRequests.value.forEach(request => {
+      if (request.status === 'conflicted') {
+        const key = `${request.entityType}:${request.entityId}:${request.fieldName}`;
+        if (!conflicts.has(key)) {
+          conflicts.set(key, []);
+        }
+        conflicts.get(key)!.push(request);
+      }
+    });
+
+    return conflicts;
+  }
+
   const groupedChangeRequests = computed(() => groupChangeRequestsByEntity());
+
+  const conflictingChanges = computed(() => getConflictingChanges());
+
+  const hasConflicts = computed(() => conflictingChanges.value.size > 0);
 
   const hasChangeRequests = computed(() => pendingChangeRequests.value.length > 0);
 
@@ -156,9 +178,11 @@ export function useChangeRequests() {
     pendingChangeRequests: computed(() => pendingChangeRequests.value),
     changeHistory: computed(() => changeHistory.value),
     groupedChangeRequests,
+    conflictingChanges,
     hasChangeRequests,
+    hasConflicts,
     isLoading: computed(() => isLoading.value),
-    
+
     submitChangeRequest,
     refreshPendingChangeRequests,
     approveChangeRequests,

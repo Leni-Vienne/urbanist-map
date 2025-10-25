@@ -6,6 +6,7 @@ import {
 } from 'drizzle-orm';
 
 export const approvalStatusEnum = pgEnum('approval_status', ['pending', 'approved', 'rejected']);
+export const changeRequestStatusEnum = pgEnum('change_request_status', ['pending', 'approved', 'rejected', 'conflicted']);
 
 // AI : Users table for custom authentication
 export const users = pgTable('users', {
@@ -147,11 +148,15 @@ export const changeRequests = pgTable('change_requests', {
   oldValue: jsonb('old_value'),
   newValue: jsonb('new_value').notNull(),
   changeReason: text('change_reason'),
+  status: changeRequestStatusEnum('status').default('pending').notNull(),
   requestedBy: uuid('requested_by').references(() => users.id, { onDelete: 'set null', onUpdate: 'cascade' }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  resolvedBy: uuid('resolved_by').references(() => users.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 }, (table) => [
   index('idx_change_requests_entity').on(table.entityType, table.entityId),
   index('idx_change_requests_requested_by').on(table.requestedBy),
+  index('idx_change_requests_status').on(table.status),
 ]);
 
 export const changeHistory = pgTable('change_history', {

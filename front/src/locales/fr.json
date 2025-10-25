@@ -17,7 +17,8 @@
     "reasonForChanges": "Raison des modifications",
     "explainChanges": "Expliquez brièvement pourquoi vous apportez ces modifications",
     "before": "Avant",
-    "after": "Après"
+    "after": "Après",
+    "unknown": "Inconnu"
   },
   "navigation": {
     "home": "Accueil",
@@ -177,6 +178,7 @@
     "pendingOverlaysEditModeOnly": "Les images en attente ne sont visibles qu'en mode édition",
     "viewCurrentPosition": "Voir la position actuelle",
     "viewSuggestedPosition": "Voir la position suggérée",
+    "viewOnMap": "Voir sur la carte",
     "currentPosition": "Position actuelle",
     "overlayTooLarge": "Image trop grande (max 1km × 1km)",
     "overlayTooLargeTooltip": "Cette image dépasse la taille maximale de 1km × 1km. Veuillez réduire sa taille avant publication.",
@@ -309,7 +311,24 @@
     "overlayApprovalFailed": "Échec de l'approbation de l'overlay",
     "overlayRejectionFailed": "Échec du rejet de l'overlay",
     "projectApprovalFailed": "Échec de l'approbation du projet",
-    "projectRejectionFailed": "Échec du rejet du projet"
+    "projectRejectionFailed": "Échec du rejet du projet",
+    "conflictDetected": "Conflit détecté",
+    "resolveConflict": "Résoudre le conflit",
+    "resolveConflictsTooltip": "Plusieurs utilisateurs ont suggéré des modifications pour les mêmes champs",
+    "multipleUsersChangedField": "Plusieurs utilisateurs ont suggéré des modifications pour {fieldName}",
+    "selectOneToApprove": "Sélectionnez une modification à approuver, ou conservez la valeur actuelle :",
+    "suggestedBy": "Suggéré par",
+    "keepCurrentValue": "Conserver la valeur actuelle",
+    "approveSelected": "Approuver la sélection",
+    "rejectAll": "Tout rejeter",
+    "conflictResolved": "Conflit résolu",
+    "conflictResolvedDetail": "La modification sélectionnée a été approuvée et les modifications conflictuelles ont été rejetées",
+    "conflictsRejected": "Tous les conflits rejetés",
+    "conflictsRejectedDetail": "Toutes les modifications conflictuelles ont été rejetées",
+    "currentValue": "Actuel",
+    "newValue": "Nouveau",
+    "by": "par",
+    "approveOneToRejectOthers": "Approuver l'une rejettera les autres"
   },
   "footer": {
     "legalMentions": "Mentions légales",

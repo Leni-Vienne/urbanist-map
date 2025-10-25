@@ -93,7 +93,21 @@ export const changesRouter = router({
         // AI : Process each change request - replace existing ones for the same field
         await db.transaction(async (tx) => {
           for (const change of input.changes) {
-            // AI : First, delete any existing pending change request for the same field from the same user
+            // AI : Check if there are other pending change requests for the same field from different users
+            const existingPendingChanges = await tx
+              .select()
+              .from(changeRequests)
+              .where(
+                and(
+                  eq(changeRequests.entityType, input.entityType),
+                  eq(changeRequests.entityId, input.entityId),
+                  eq(changeRequests.fieldName, change.fieldName),
+                  eq(changeRequests.status, 'pending'),
+                  sql`${changeRequests.requestedBy} != ${userId}`
+                )
+              );
+
+            // AI : Delete any existing pending change request for the same field from the same user
             await tx
               .delete(changeRequests)
               .where(
@@ -101,11 +115,30 @@ export const changesRouter = router({
                   eq(changeRequests.entityType, input.entityType),
                   eq(changeRequests.entityId, input.entityId),
                   eq(changeRequests.fieldName, change.fieldName),
-                  eq(changeRequests.requestedBy, userId)
+                  eq(changeRequests.requestedBy, userId),
+                  eq(changeRequests.status, 'pending')
                 )
               );
 
-            // AI : Then insert the new change request
+            // AI : Determine initial status based on conflicts
+            const initialStatus = existingPendingChanges.length > 0 ? 'conflicted' : 'pending';
+
+            // AI : If conflicts exist, mark existing ones as conflicted too
+            if (existingPendingChanges.length > 0) {
+              await tx
+                .update(changeRequests)
+                .set({ status: 'conflicted' })
+                .where(
+                  and(
+                    eq(changeRequests.entityType, input.entityType),
+                    eq(changeRequests.entityId, input.entityId),
+                    eq(changeRequests.fieldName, change.fieldName),
+                    eq(changeRequests.status, 'pending')
+                  )
+                );
+            }
+
+            // AI : Insert the new change request
             await tx.insert(changeRequests).values({
               entityType: input.entityType,
               entityId: input.entityId,
@@ -114,6 +147,7 @@ export const changesRouter = router({
               newValue: change.newValue,
               changeReason: change.changeReason,
               requestedBy: userId,
+              status: initialStatus,
             });
           }
         });
@@ -141,6 +175,7 @@ export const changesRouter = router({
             oldValue: changeRequests.oldValue,
             newValue: changeRequests.newValue,
             changeReason: changeRequests.changeReason,
+            status: changeRequests.status,
             requestedBy: changeRequests.requestedBy,
             createdAt: changeRequests.createdAt,
           })
@@ -167,10 +202,12 @@ export const changesRouter = router({
             oldValue: changeRequests.oldValue,
             newValue: changeRequests.newValue,
             changeReason: changeRequests.changeReason,
+            status: changeRequests.status,
             requestedBy: changeRequests.requestedBy,
             createdAt: changeRequests.createdAt,
           })
           .from(changeRequests)
+          .where(sql`${changeRequests.status} IN ('pending', 'conflicted')`)
           .orderBy(changeRequests.createdAt);
 
         return pendingChanges;
@@ -193,12 +230,12 @@ export const changesRouter = router({
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Admin access required' });
         }
 
-        const pendingChanges = await db
+        const changesToApprove = await db
           .select()
           .from(changeRequests)
           .where(inArray(changeRequests.id, input.changeRequestIds));
 
-        for (const change of pendingChanges) {
+        for (const change of changesToApprove) {
           await db.transaction(async (tx) => {
             // AI : Build update data with proper handling for geometry fields
             const updateData = buildUpdateData(change);
@@ -226,7 +263,33 @@ export const changesRouter = router({
               approvedBy: adminUserId,
             });
 
-            await tx.delete(changeRequests).where(eq(changeRequests.id, change.id));
+            // AI : Mark this change as approved instead of deleting
+            await tx
+              .update(changeRequests)
+              .set({
+                status: 'approved',
+                resolvedAt: new Date(),
+                resolvedBy: adminUserId,
+              })
+              .where(eq(changeRequests.id, change.id));
+
+            // AI : Reject all other conflicting changes for the same field
+            await tx
+              .update(changeRequests)
+              .set({
+                status: 'rejected',
+                resolvedAt: new Date(),
+                resolvedBy: adminUserId,
+              })
+              .where(
+                and(
+                  eq(changeRequests.entityType, change.entityType),
+                  eq(changeRequests.entityId, change.entityId),
+                  eq(changeRequests.fieldName, change.fieldName),
+                  sql`${changeRequests.id} != ${change.id}`,
+                  sql`${changeRequests.status} IN ('pending', 'conflicted')`
+                )
+              );
           });
         }
 
@@ -239,13 +302,54 @@ export const changesRouter = router({
 
   rejectChangeRequests: adminProcedure
     .input(rejectChangeRequestSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       try {
         if (input.changeRequestIds.length === 0) {
           return { success: true };
         }
 
-        await db.delete(changeRequests).where(inArray(changeRequests.id, input.changeRequestIds));
+        const adminUserId = ctx.user?.id;
+        if (!adminUserId) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Admin access required' });
+        }
+
+        // AI : Mark changes as rejected instead of deleting (for audit trail)
+        await db
+          .update(changeRequests)
+          .set({
+            status: 'rejected',
+            resolvedAt: new Date(),
+            resolvedBy: adminUserId,
+          })
+          .where(inArray(changeRequests.id, input.changeRequestIds));
+
+        // AI : Check if rejection resolves conflicts - if only one pending change remains, mark it as non-conflicted
+        const rejectedChanges = await db
+          .select()
+          .from(changeRequests)
+          .where(inArray(changeRequests.id, input.changeRequestIds));
+
+        for (const rejectedChange of rejectedChanges) {
+          const remainingConflicts = await db
+            .select()
+            .from(changeRequests)
+            .where(
+              and(
+                eq(changeRequests.entityType, rejectedChange.entityType),
+                eq(changeRequests.entityId, rejectedChange.entityId),
+                eq(changeRequests.fieldName, rejectedChange.fieldName),
+                sql`${changeRequests.status} IN ('pending', 'conflicted')`
+              )
+            );
+
+          // AI : If only one pending change remains, mark it as non-conflicted
+          if (remainingConflicts.length === 1) {
+            await db
+              .update(changeRequests)
+              .set({ status: 'pending' })
+              .where(eq(changeRequests.id, remainingConflicts[0].id));
+          }
+        }
 
         return { success: true };
       } catch (error) {

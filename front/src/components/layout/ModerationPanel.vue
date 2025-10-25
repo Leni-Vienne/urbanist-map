@@ -295,6 +295,7 @@ async function handleRejectChange(changeId: string) {
     })
   }
 }
+
 </script>
 
 <style scoped>
