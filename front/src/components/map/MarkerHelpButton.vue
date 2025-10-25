@@ -195,11 +195,22 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* to make the button subtly pulse to attract attention */
+@keyframes subtle-pulse {
+  0%, 100% {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.5);
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4), 0 0 0 4px rgba(59, 130, 246, 0.3);
+    transform: translateX(-50%) scale(1.05);
+  }
+}
+
 .help-button {
   position: absolute;
   top: 10px;
   left: 50%;
-  transform: translateX(-50%);
 
   display: flex;
   align-items: center;
@@ -215,20 +226,22 @@ onUnmounted(() => {
   font-weight: 600;
 
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.5);
-  transition: all 0.2s ease;
-  z-index: 1000; /* important */
+  z-index: 1000;
+
+  animation: subtle-pulse 2s ease-in-out infinite;
 }
 
 .help-button:hover {
   color: var(--p-surface-700);
   background: var(--p-surface-200);
   border-color: var(--p-surface-300);
-  transform: translateX(-50%);
+  transform: translateX(-50%) scale(1);
+  animation: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.5);
 }
 
 .help-button:active {
-  transform: translateX(-50%);
+  transform: translateX(-50%) scale(0.98);
 }
 
 .help-button i {
