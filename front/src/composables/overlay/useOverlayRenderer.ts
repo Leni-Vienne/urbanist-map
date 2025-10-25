@@ -60,13 +60,16 @@ export function renderForStrategy(
       // AI : No overlays exist yet - initial render (e.g., zooming in from low zoom with markers only)
       renderViewModeOverlays(visibleOverlays, strategy.shouldRenderMarkers, false)
 
-      // AI : Apply positions and update properties for newly rendered overlays
-      // AI : Wait for next tick to ensure overlays are on the map before updating positions
-      requestAnimationFrame(() => {
-        const overlayObjects = Object.values(overlayStore.overlays)
-        applyPositionsToOverlays(overlayObjects, strategy.shouldUseCachedPositions)
-        updateMarkersAndEditingState(overlayObjects)
-      })
+      // AI : If using cached positions, apply them after render (requires requestAnimationFrame to ensure overlays are on map)
+      if (strategy.shouldUseCachedPositions) {
+        requestAnimationFrame(() => {
+          const overlayObjects = Object.values(overlayStore.overlays)
+          applyPositionsToOverlays(overlayObjects, true)
+          // AI : Update editing state to reflect cached positions (e.g., isModified flag affects marker color)
+          updateOverlayEditingState()
+        })
+      }
+      // AI : For non-cached initial render, overlays already have correct backend positions and markers/tooltips from renderViewModeOverlays
     } else {
       // AI : Overlays exist - update them with fresh data
       const newDataMap = new Map(visibleOverlays.map(o => [o.id, o]))
