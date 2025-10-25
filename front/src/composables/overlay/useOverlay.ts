@@ -34,6 +34,8 @@ import {
   saveToEditModeOverlayCache,
 } from '@composables/overlay/useOverlayEditCache';
 import { withErrorHandling } from '@composables/core/useErrorHandling';
+import { validateOverlaySize, leafletCornersToCorners } from '../../../../back/src/utils/overlayValidation';
+import { useToast } from '@composables/ui/useToast';
 
 /**
  * AI : Update overlay editing state based on current mode
@@ -259,6 +261,11 @@ function onOverlayLoaded(overlayObject: OverlayObject): void {
 
   updateMarkerTooltip(overlayObject);
 
+  // AI : Check size validation for overlays in edit mode
+  if (overlayStore.mode === 'edit') {
+    checkOverlaySizeAndWarn(overlayObject.overlay, overlayObject);
+  }
+
   // AI : Ensure new overlays start with no outline unless they're selected
   if (overlayStore.idSelectedOverlay !== overlayObject.id) {
     const element = overlayObject.overlay.getElement();
@@ -318,11 +325,57 @@ function setupOverlayEventHandlers(overlay: L.DistortableImageOverlay, overlayOb
     // AI : Handle transition from backend to local copy when edited
     updateMarkerPosition(overlayObject);
 
+    // AI : Validate overlay size in real-time
+    checkOverlaySizeAndWarn(overlay, overlayObject);
+
     saveToHistory(overlayObject);
   });
 
   // AI : Set up comprehensive event handlers for overlay manipulation
   setupOverlayMovementTracking(overlay, overlayObject);
+}
+
+/**
+ * AI : Check overlay size in real-time and show visual warning if too large
+ */
+function checkOverlaySizeAndWarn(overlay: L.DistortableImageOverlay, overlayObject: OverlayObject): void {
+  const corners = overlay.getCorners();
+  const cornersArray = leafletCornersToCorners(corners);
+  const validation = validateOverlaySize(cornersArray);
+  
+  const element = overlay.getElement();
+  if (!element) return;
+
+  if (!validation.isValid) {
+    // AI : Add red border to indicate size problem
+    element.style.border = '4px solid #ef4444';
+    element.style.boxShadow = '0 0 0 2px rgba(239, 68, 68, 0.3)';
+    
+    // AI : Update marker color if not already marked
+    if (!overlayObject.isTooBig) {
+      overlayObject.isTooBig = true;
+      updateMarkerTooltip(overlayObject);
+    }
+    
+    // AI : Show toast message every time overlay is edited while too large
+    const toast = useToast();
+    toast.add({
+      severity: 'warn',
+      summary: 'Overlay too large',
+      detail: 'Maximum size is 1km × 1km',
+      life: 3000
+    });
+  } else {
+    // AI : Remove warning styling
+    element.style.border = '';
+    element.style.boxShadow = '';
+    
+    // AI : Clear size issue flag and update marker color
+    if (overlayObject.isTooBig) {
+      overlayObject.isTooBig = false;
+      updateMarkerTooltip(overlayObject);
+    }
+  }
 }
 
 

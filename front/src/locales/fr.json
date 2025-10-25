@@ -178,6 +178,8 @@
     "viewCurrentPosition": "Voir la position actuelle",
     "viewSuggestedPosition": "Voir la position suggérée",
     "currentPosition": "Position actuelle",
+    "overlayTooLarge": "Image trop grande (max 1km × 1km)",
+    "overlayTooLargeTooltip": "Cette image dépasse la taille maximale de 1km × 1km. Veuillez réduire sa taille avant publication.",
     "suggestedPosition": "Position suggérée",
     "viewingCurrentCoordinates": "Affichage des coordonnées actuelles",
     "viewingSuggestedCoordinates": "Affichage des coordonnées suggérées",

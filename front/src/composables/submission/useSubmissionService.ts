@@ -8,6 +8,8 @@ import type { Project, OverlayObject } from '@types'
 import type { FieldChange } from '../../../../back/src/routes/changes'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
+import { validateOverlaySize, leafletCornersToCorners } from '../../../../back/src/utils/overlayValidation'
+import { useI18n } from 'vue-i18n'
 
 // AI : Unified submission types for consolidated workflow
 export type SubmissionChangeType = 'create' | 'update_pending' | 'update_approved'
@@ -60,6 +62,7 @@ export function useSubmissionService() {
   const projectStore = useProjectStore()
   const mapStore = useMapStore()
   const { currentCityOverlays } = storeToRefs(mapStore)
+  const { t } = useI18n()
 
   // AI : Build a combined city name cache from store cache + projects we've seen
   const cityNamesCache = computed(() => {
@@ -339,6 +342,17 @@ export function useSubmissionService() {
       const corners = overlay.overlay?.getCorners() ?? overlay.corners
       if (!corners || corners.length !== 4 || corners.some(c => !c.lat || !c.lng)) {
         errors.push('Overlay must have valid position (4 corners)')
+      } else {
+        // AI : Validate overlay size constraints
+        const cornersArray = overlay.overlay 
+          ? leafletCornersToCorners(overlay.overlay.getCorners())
+          : overlay.corners.map(c => ({ lat: c.lat, lng: c.lng }))
+        
+        const sizeValidation = validateOverlaySize(cornersArray)
+        if (!sizeValidation.isValid) {
+          // AI : Simple i18n error message
+          errors.push(t('overlay.overlayTooLarge'))
+        }
       }
     }
 
