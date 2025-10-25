@@ -12,6 +12,9 @@
             "@cloudflare/workers-types" // for R2Bucket type
         ],
         "paths": {
+            "@api": [
+                "./front/src/types/api"
+            ],
             "@tables": [
                 "./back/src/db/schema"
             ],

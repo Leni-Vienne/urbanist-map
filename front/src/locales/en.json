@@ -17,7 +17,8 @@
     "reasonForChanges": "Reason for Changes",
     "explainChanges": "Briefly explain why you're making these changes",
     "before": "Before",
-    "after": "After"
+    "after": "After",
+    "unknown": "Unknown"
   },
   "navigation": {
     "home": "Home",
@@ -177,6 +178,7 @@
     "pendingOverlaysEditModeOnly": "Pending overlays are only visible in edit mode",
     "viewCurrentPosition": "View Current Position",
     "viewSuggestedPosition": "View Suggested Position",
+    "viewOnMap": "View on Map",
     "currentPosition": "Current Position",
     "overlayTooLarge": "Overlay too large (max 1km × 1km)",
     "overlayTooLargeTooltip": "This overlay exceeds the maximum size of 1km × 1km. Please reduce its size before publishing.",
@@ -309,7 +311,24 @@
     "overlayApprovalFailed": "Failed to approve overlay",
     "overlayRejectionFailed": "Failed to reject overlay",
     "projectApprovalFailed": "Failed to approve project",
-    "projectRejectionFailed": "Failed to reject project"
+    "projectRejectionFailed": "Failed to reject project",
+    "conflictDetected": "Conflict Detected",
+    "resolveConflict": "Resolve Conflict",
+    "resolveConflictsTooltip": "Multiple users have suggested changes to the same fields",
+    "multipleUsersChangedField": "Multiple users have suggested changes to {fieldName}",
+    "selectOneToApprove": "Select one change to approve, or keep the current value:",
+    "suggestedBy": "Suggested by",
+    "keepCurrentValue": "Keep Current Value",
+    "approveSelected": "Approve Selected",
+    "rejectAll": "Reject All",
+    "conflictResolved": "Conflict Resolved",
+    "conflictResolvedDetail": "The selected change has been approved and conflicting changes have been rejected",
+    "conflictsRejected": "All Conflicts Rejected",
+    "conflictsRejectedDetail": "All conflicting changes have been rejected",
+    "currentValue": "Current",
+    "newValue": "New",
+    "by": "by",
+    "approveOneToRejectOthers": "Approving one will reject the others"
   },
   "footer": {
     "legalMentions": "Legal Mentions",
