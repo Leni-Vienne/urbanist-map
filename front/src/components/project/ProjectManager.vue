@@ -301,12 +301,15 @@ async function handleProjectSubmitted(project: Partial<Project>) {
   try {
     uiStore.closeProjectDialog()
 
+    let projectId: string;
+
     if (!project.id) {
       // AI : Create the project and get the generated ID
-      const projectId = createProject(project)
+      projectId = createProject(project)
       setLastCreatedProject(projectId)
     } else {
       // AI : Project already exists (edit mode), update the existing project data
+      projectId = project.id;
       if (projects.value[project.id]) {
         // AI : Update the existing project in the store with proper merge
         projects.value[project.id] = {
@@ -337,10 +340,10 @@ async function handleProjectSubmitted(project: Partial<Project>) {
       setLastCreatedProject(project.id);
     }
 
-    // AI : Re-open the project selector so the ProjectPicker can auto-select the new project
-    // AI : and continue with the file upload workflow
+    // AI : If there's a pending image file, skip the project selector and directly proceed to file upload
+    // AI : This provides a smoother UX when creating a project specifically for a new overlay
     if (pendingImageFile.value) {
-      uiStore.openProjectSelector();
+      await onProjectSelected(projectId);
     }
   } catch (error) {
     console.error('Error with project:', error);
