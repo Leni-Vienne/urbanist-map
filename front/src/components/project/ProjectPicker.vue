@@ -29,6 +29,7 @@
           :loading="isLoadingProjects"
           :optionGroupLabel="useGroupedView ? 'label' : undefined"
           :optionGroupChildren="useGroupedView ? 'items' : undefined"
+          appendTo="self"
           @focus="onSelectFocus"
         >
           <template #value="{ value, placeholder }">
