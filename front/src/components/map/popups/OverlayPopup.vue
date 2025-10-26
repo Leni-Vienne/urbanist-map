@@ -1,5 +1,5 @@
 <template>
-  <div class="info-popup">
+  <div class="info-popup" @click.stop>
     <div
       v-if="loading"
       class="loading-spinner"

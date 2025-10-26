@@ -69,6 +69,7 @@ interface Props {
   showReset?: boolean
   showChangeReason?: boolean
   localOnly?: boolean // AI : If true, only update local store, don't submit to backend
+  getAvailableCities?: () => Array<{ id: string; name: string; countryCode: string; lat: number; lng: number; distance?: number }> // AI : Function to get cities dynamically
 }
 
 interface Emits {
@@ -94,6 +95,7 @@ const formOptions: EditableFormOptions<T> = {
   initialData: props.initialData,
   entityStatus: props.entityStatus,
   localOnly: props.localOnly,
+  getAvailableCities: props.getAvailableCities,
   onSubmitted: () => emit('submitted'),
   onClose: () => emit('close')
 }

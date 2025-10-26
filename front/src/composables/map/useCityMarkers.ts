@@ -14,8 +14,30 @@ import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjects } from '@composables/project/useProjects';
 import { createProject } from '../../utils/typeFactories';
 
-// AI : Get project marker color based on status and timeline (for view mode)
-function getProjectMarkerColor(project: Project): MarkerColor {
+// AI : Get project marker color based on status, timeline, and mode
+function getProjectMarkerColor(project: Project, mode: 'view' | 'edit' | 'moderation'): MarkerColor {
+  if (mode === 'edit') {
+    // AI : Edit mode uses approval status colors like overlay markers
+    const hasBeenModified = project.isModified ?? false;
+    const status = project.status;
+
+    // AI : Priority 1: Local modifications (shows user they have unsaved work)
+    if (hasBeenModified) return 'orange';
+
+    // AI : Priority 2: Pending approval (awaiting moderation)
+    if (status === 'pending') return 'yellow';
+
+    // AI : Priority 3: Rejected projects
+    if (status === 'rejected') return 'red';
+
+    // AI : Priority 4: Approved and unmodified
+    if (status === 'approved') return 'green';
+
+    // AI : Default: New project not yet submitted (no status)
+    return 'red';
+  }
+
+  // AI : View mode uses timeline-based colors
   // AI : Pending projects always show as yellow (proposed/awaiting approval)
   if (project.status === 'pending') {
     return 'yellow'; // Pending approval
@@ -108,6 +130,38 @@ const developmentMarkerMap = new Map<string, L.Marker>();
  */
 export function getDevelopmentMarkerByProjectId(projectId: string): L.Marker | undefined {
   return developmentMarkerMap.get(projectId);
+}
+
+/**
+ * AI : Update development marker color for a specific project
+ * This is called when a project is modified or when mode changes
+ */
+export function updateDevelopmentMarkerColor(projectId: string, project: Project): void {
+  const marker = developmentMarkerMap.get(projectId);
+  if (!marker) return;
+
+  const overlayStore = useOverlayStore();
+  const markerColor = getProjectMarkerColor(project, overlayStore.mode);
+  const markerIcon = createDevelopmentIcon(markerColor);
+  marker.setIcon(markerIcon);
+}
+
+/**
+ * AI : Update all development marker colors based on current mode
+ * Called when switching between view/edit modes
+ */
+export function updateAllDevelopmentMarkerColors(): void {
+  const { projects } = useProjects();
+  const overlayStore = useOverlayStore();
+
+  developmentMarkerMap.forEach((marker, projectId) => {
+    const project = projects.value[projectId];
+    if (project) {
+      const markerColor = getProjectMarkerColor(project, overlayStore.mode);
+      const markerIcon = createDevelopmentIcon(markerColor);
+      marker.setIcon(markerIcon);
+    }
+  });
 }
 
 /**
@@ -274,7 +328,7 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
           },
           status: ('status' in project ? project.status : 'approved') as 'pending' | 'approved' | 'rejected'
         });
-        const markerColor = getProjectMarkerColor(projectData);
+        const markerColor = getProjectMarkerColor(projectData, overlayStore.mode);
         const markerIcon = createDevelopmentIcon(markerColor);
 
         // AI : Create marker with timeline-based color icon and default opacity
@@ -331,6 +385,16 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
             city: project.city,
             status: 'approved'
           });
+
+          // AI : CRITICAL: Add project to store so it can be edited
+          const { projects: localProjects } = useProjects();
+          if (!localProjects.value[project.id]) {
+            localProjects.value = {
+              ...localProjects.value,
+              [project.id]: projectData
+            };
+          }
+
           uiStore.openProjectInfoPopup(project.id, projectData);
         });
 

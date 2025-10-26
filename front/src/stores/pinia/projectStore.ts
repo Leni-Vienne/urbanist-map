@@ -83,9 +83,6 @@ export const useProjectStore = defineStore('project', () => {
     if (!current) {
       const allProjectsData = allProjects.value;
       current = allProjectsData[projectId];
-
-      // AI : If still not found, can't update
-      if (!current) return;
     }
 
     // AI : Save original backend version before first modification (for change detection)
@@ -115,17 +112,17 @@ export const useProjectStore = defineStore('project', () => {
       // AI : Get current map center coordinates
       const center = map.value.getCenter();
       const now = Date.now();
-      
+
       // AI : Check if we have cached data and don't need to refetch
       if (!force && nearbyProjectsLastFetch.value) {
         const { lat: cachedLat, lng: cachedLng, timestamp } = nearbyProjectsLastFetch.value;
         const CACHE_DURATION = 5 * 60 * 1000; // AI : 5 minutes cache
         const LOCATION_THRESHOLD = 0.1; // AI : ~11km at equator
-        
+
         // AI : Calculate distance from cached location
         const latDiff = Math.abs(center.lat - cachedLat);
         const lngDiff = Math.abs(center.lng - cachedLng);
-        
+
         // AI : If location hasn't changed much and cache is fresh, return cached data
         if (
           latDiff < LOCATION_THRESHOLD &&
@@ -151,7 +148,7 @@ export const useProjectStore = defineStore('project', () => {
         lng: center.lng,
         timestamp: now
       };
-      
+
       return response.projects;
     } catch (err) {
       console.error('Error fetching nearby projects:', err);
