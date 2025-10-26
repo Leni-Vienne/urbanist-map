@@ -811,6 +811,7 @@ async function handleDevelopmentProjectClick(project: ProjectForModeration) {
   overflow: visible;
 }
 
+/* Sticky header for panel title  */
 .panel-header {
   position: sticky;
   top: 0;
@@ -821,6 +822,7 @@ async function handleDevelopmentProjectClick(project: ProjectForModeration) {
   margin-bottom: 1.5rem;
   padding: 1rem 1rem 0.75rem 0;
   border-bottom: 2px solid var(--p-primary-100);
+  z-index: 10; /* z-index to prevent accordion headers from overlapping */
 }
 
 .panel-title {
