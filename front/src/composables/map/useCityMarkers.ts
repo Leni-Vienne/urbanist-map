@@ -1,7 +1,7 @@
 import L from "leaflet";
 import { createDevelopmentIcon, createColorIcon } from '@composables/ui/markerIcons';
 import type { MarkerColor, Project } from '@types';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
 import { mobileAwareFlyTo } from '@composables/map/useMobileAwareFly';
 import { loadCityOverlays } from '@composables/map/useCityOverlays';
@@ -11,11 +11,26 @@ import { RouterOutput, trpc } from '@client';
 import { useUiStore } from '@stores/uiStore';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { useProjectStore } from '@stores/pinia/projectStore';
 import { useProjects } from '@composables/project/useProjects';
 import { createProject } from '../../utils/typeFactories';
 
 // AI : Get project marker color based on status, timeline, and mode
 function getProjectMarkerColor(project: Project, mode: 'view' | 'edit' | 'moderation'): MarkerColor {
+  if (mode === 'moderation') {
+    // AI : Moderation mode color logic - objective view for review (same as overlays)
+    const status = project.status;
+
+    // AI : Pending brand new projects
+    if (status === 'pending') return 'yellow';
+
+    // AI : Approved projects
+    if (status === 'approved') return 'green';
+
+    // AI : Rejected projects (shouldn't appear in moderation but just in case)
+    return 'grey';
+  }
+  
   if (mode === 'edit') {
     // AI : Edit mode uses approval status colors like overlay markers
     const hasBeenModified = project.isModified ?? false;
@@ -125,6 +140,24 @@ let mapClickHandler: (() => void) | null = null;
 // AI : Map to store project ID to marker references for easy lookup
 const developmentMarkerMap = new Map<string, L.Marker>();
 
+// AI : Flag to ensure watcher is only set up once
+let modeWatcherInitialized = false;
+
+/**
+ * AI : Initialize mode change watcher (called lazily on first use)
+ * This handles both toggleEditMode() and direct setMode() calls (like from side menu)
+ */
+function initializeModeWatcher() {
+  if (modeWatcherInitialized) return;
+  
+  const overlayStore = useOverlayStore();
+  watch(() => overlayStore.mode, () => {
+    updateAllDevelopmentMarkerColors();
+  });
+  
+  modeWatcherInitialized = true;
+}
+
 /**
  * AI : Get development marker by project ID
  */
@@ -151,11 +184,12 @@ export function updateDevelopmentMarkerColor(projectId: string, project: Project
  * Called when switching between view/edit modes
  */
 export function updateAllDevelopmentMarkerColors(): void {
-  const { projects } = useProjects();
+  const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
 
   developmentMarkerMap.forEach((marker, projectId) => {
-    const project = projects.value[projectId];
+    // AI : Try local projects first, then allProjects (includes backend/nearby projects)
+    const project = projectStore.projects[projectId] ?? projectStore.allProjects[projectId];
     if (project) {
       const markerColor = getProjectMarkerColor(project, overlayStore.mode);
       const markerIcon = createDevelopmentIcon(markerColor);
@@ -268,6 +302,9 @@ export function cleanupProjectInfoTeleportTarget() {
  */
 export async function loadCityDevelopmentProjects(cityId: string | null): Promise<void> {
   if (!map.value) return;
+
+  // AI : Initialize mode watcher on first use (after Pinia is available)
+  initializeModeWatcher();
 
   try {
     const mapStore = useMapStore();
