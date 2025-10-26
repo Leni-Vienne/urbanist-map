@@ -5,6 +5,7 @@
     :initial-data="projectData"
     :entity-status="project.status"
     :local-only="true"
+    :get-available-cities="() => cities"
     container-class="editable-project-form"
     form-class="project-form"
     submit-label="Save Changes"
@@ -223,7 +224,7 @@ const props = defineProps<Props>()
 defineEmits<Emits>()
 
 // AI : Use city select composable with prefilled city
-const { filteredCities, citiesLoading, onSelectShow, getCityName } = useCitySelect(props.project.city)
+const { cities, filteredCities, citiesLoading, onSelectShow, getCityName } = useCitySelect(props.project.city)
 
 // AI : Use timeline status composable (without formData watcher since we handle status in toggleTimelineStatus)
 const { isProposed, toggleTimelineStatus } = useProjectTimelineStatus(props.project)

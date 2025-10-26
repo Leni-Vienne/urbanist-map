@@ -26,7 +26,7 @@
       </div>
       <div class="info-row">
         <span class="info-label">{{ $t('project.location') }}:</span>
-        <span class="info-value">{{ getProjectLocationDisplay(project) }}</span>
+        <span class="info-value">{{ projectLocationDisplay }}</span>
       </div>
       <div class="info-row">
         <span class="info-label">{{ $t('project.period') }}:</span>
@@ -64,6 +64,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { Project } from '@types'
 
 interface Props {
@@ -82,7 +83,12 @@ function formatDate(date: string | Date | null | undefined): string {
   return new Date(date).toLocaleDateString()
 }
 
-function getProjectLocationDisplay(project: Project): string {
+// AI : Convert to computed property for reactivity to project changes
+const projectLocationDisplay = computed(() => {
+  if (!props.project) return '—'
+
+  const project = props.project;
+
   if (project.city?.name) {
     return `${project.city.name}, ${project.city.countryCode}`
   }
@@ -96,7 +102,7 @@ function getProjectLocationDisplay(project: Project): string {
   }
 
   return '—'
-}
+})
 </script>
 
 <style scoped>

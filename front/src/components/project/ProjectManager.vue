@@ -84,7 +84,7 @@ import { useMapStore } from '@stores/pinia/mapStore'
 import { useUiStore } from '@stores/uiStore'
 import { useToast } from '@composables/ui/useToast'
 import { map } from '@composables/core/useMap'
-import { loadCityProjects, getDevelopmentMarkerByProjectId, createProjectInfoTeleportTarget } from '@composables/map/useCityMarkers'
+import { loadCityProjects, getDevelopmentMarkerByProjectId, createProjectInfoTeleportTarget, updateDevelopmentMarkerColor } from '@composables/map/useCityMarkers'
 import { addOverlay } from '@composables/overlay/useOverlay'
 import { setLastCreatedProject } from '@composables/ui/useProjectState'
 import { createProject } from '@composables/project/useProjects'
@@ -311,14 +311,18 @@ async function handleProjectSubmitted(project: Partial<Project>) {
       // AI : Project already exists (edit mode), update the existing project data
       projectId = project.id;
       if (projects.value[project.id]) {
-        // AI : Update the existing project in the store with proper merge
-        projects.value[project.id] = {
-          ...projects.value[project.id],
+        // AI : Use updateProject to properly set isModified flag
+        projectStore.updateProject(project.id, {
           ...project,
           // AI : Ensure we preserve important fields that might not be in the edit form
-          id: project.id,
-          overlayIds: projects.value[project.id].overlayIds || []
-        };
+          overlayIds: projects.value[project.id].overlayIds || [],
+          isModified: true
+        });
+
+        // AI : Update development marker color to reflect modification
+        if (project.isDevelopment) {
+          updateDevelopmentMarkerColor(project.id, projects.value[project.id]);
+        }
 
         // AI : Just save locally for all projects (no auto-publishing)
         toast.add({
@@ -327,14 +331,6 @@ async function handleProjectSubmitted(project: Partial<Project>) {
           detail: 'Project changes saved locally',
           life: 3000
         });
-
-        // AI : Refresh city projects to show updated marker on map
-        if (project.isDevelopment && mapStore.selectedCity) {
-          await loadCityProjects(mapStore.selectedCity.id, mapStore.selectedCity.name, true, mapStore.selectedCity.countryCode);
-        } else if (project.isDevelopment) {
-          // AI : Refresh for local projects if no city is selected
-          await loadCityProjects(null, '', true);
-        }
       }
 
       setLastCreatedProject(project.id);

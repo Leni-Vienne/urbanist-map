@@ -13,7 +13,7 @@ import {
 import { renderForStrategy, updateExistingOverlays, clearAllRenderedContent } from './useOverlayRenderer'
 import { cacheCurrentPosition } from './useOverlayPositionCache'
 import { loadCityOverlays, fetchCityProjectsData } from '@composables/map/useCityOverlays'
-import { loadCityDevelopmentProjects, removeCityMarkers, addCityMarkersForCountry } from '@composables/map/useCityMarkers'
+import { loadCityDevelopmentProjects, removeCityMarkers, addCityMarkersForCountry, updateAllDevelopmentMarkerColors } from '@composables/map/useCityMarkers'
 import { loadCountriesWithProjects, loadCitiesForCountry, addCountryMarkersToMap } from '@composables/map/useCountryMarkers'
 import { useProjectStore } from '@stores/pinia/projectStore'
 import { updateOverlayMarkersColors } from '@composables/map/useOverlayMarkerUpdates'
@@ -200,9 +200,12 @@ export async function toggleEditMode(onModeExit?: () => void): Promise<void> {
     afterTransition: async () => {
       // AI : Update overlay editing state (toolbar actions, draggability) after mode switch
       updateOverlayEditingState()
-      
+
       // AI : Update overlay marker colors immediately after mode switch
       updateOverlayMarkersColors(toRef(overlayStore, 'overlays'))
+
+      // AI : Update development marker colors immediately after mode switch
+      updateAllDevelopmentMarkerColors()
 
       await loadCountriesWithProjects()
       addCountryMarkersToMap()

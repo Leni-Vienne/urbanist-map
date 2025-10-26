@@ -3,6 +3,7 @@ import { useFieldChanges } from '@composables/changes/useFieldChanges'
 import { useToast } from '@composables/ui/useToast'
 import { buildProjectPayload } from '@composables/project/useProjectMutations'
 import { useProjectStore } from '@stores/pinia/projectStore'
+import { updateDevelopmentMarkerColor } from '@composables/map/useCityMarkers'
 import { trpc } from '@client'
 
 // AI : Type for overlay update payload based on updateOverlaySchema
@@ -24,6 +25,7 @@ export interface EditableFormOptions<T> {
   initialData: T
   entityStatus?: 'pending' | 'approved' | 'rejected'
   localOnly?: boolean // AI : If true, only update local store, don't submit to backend
+  getAvailableCities?: () => Array<{ id: string; name: string; countryCode: string; lat: number; lng: number; distance?: number }> // AI : Function to get current cities dynamically
   onSubmitted?: () => void
   onClose?: () => void
 }
@@ -136,11 +138,50 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
       // AI : If localOnly mode, just update local store without backend submission
       if (options.localOnly) {
         if (options.entityType === 'project') {
+          // AI : Get current project - try local store first, then allProjects (includes nearby/backend)
+          let currentProject = projectStore.projects[options.entityId]
+          if (!currentProject) {
+            currentProject = projectStore.allProjects[options.entityId]
+          }
+
+          if (!currentProject) {
+            console.error('[useEditableForm] PROJECT NOT FOUND AT ALL!')
+          }
+
+          // AI : Update city object if cityId changed and we have available cities data
+          let cityObject = currentProject.city
+          if (formData.cityId && formData.cityId !== currentProject.cityId && options.getAvailableCities) {
+            // AI : Get current cities dynamically at save time
+            const citiesArray = options.getAvailableCities()
+            const newCity = citiesArray.find(c => c.id === formData.cityId)
+            if (newCity) {
+              cityObject = {
+                id: newCity.id,
+                name: newCity.name,
+                countryCode: newCity.countryCode,
+                coordinates: { x: newCity.lng, y: newCity.lat },
+                createdAt: new Date(),
+                updatedAt: new Date()
+              }
+            }
+          }
+
           // AI : Update project in local store only and mark as modified
-          projectStore.updateProject(options.entityId, {
-            ...formData as any,
+          // AI : Merge form data with current project to preserve all fields (city, isDevelopment, etc.)
+          const updatedData = {
+            ...currentProject, // Preserve all existing fields
+            ...formData as any, // Apply form changes (includes cityId if changed)
+            city: cityObject, // Update city object if cityId changed
             isModified: true
-          })
+          }
+          projectStore.updateProject(options.entityId, updatedData)
+
+
+          // AI : Get updated project from store and update marker color if it's a development project
+          const updatedProject = projectStore.projects[options.entityId]
+          if (updatedProject?.isDevelopment) {
+            updateDevelopmentMarkerColor(options.entityId, updatedProject)
+          }
 
           toast.add({
             severity: 'success',

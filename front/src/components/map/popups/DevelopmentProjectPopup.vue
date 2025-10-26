@@ -1,6 +1,6 @@
 <template>
   <!-- This is for development projects (single marker projects without overlay)-->
-  <div class="project-info-popup">
+  <div class="project-info-popup" @click.stop>
     <div
       v-if="loading"
       class="loading-spinner"
