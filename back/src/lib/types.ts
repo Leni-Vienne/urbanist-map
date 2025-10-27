@@ -35,11 +35,11 @@ export interface OverlayData {
         lat: number;
         lng: number;
     };
-    corners: { lat: number; lng: number }[];
+    corners: { lat: number; lng: number }[]; // AI : Always approved/database corners, never modified by change requests
     project?: (DBProject & { city: DBCity; }) | null;
     distance?: number;
     isModified?: boolean;
-    hasPendingChanges?: boolean;
+    hasPendingChanges?: boolean; // AI : True if user has pending change requests for this overlay
     pendingChangeRequestsCount?: number; // AI : Count of ALL pending change requests (moderation mode only)
 }
 

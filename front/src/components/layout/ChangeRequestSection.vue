@@ -82,9 +82,11 @@
 import L from 'leaflet';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { updateMarkerPosition } from '@composables/overlay/useOverlay';
+import { updateMarkerPosition, updateMarkerTooltip } from '@composables/overlay/useOverlay';
+import { map } from '@composables/core/useMap';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useToast } from '@composables/ui/useToast';
+import { loadCityProjects } from '@composables/map/useCityMarkers';
 import type { PendingChangeRequest } from '../../types/api';
 import type { ProjectForModeration, OverlayForModeration } from '@types';
 
@@ -142,6 +144,7 @@ function formatValue(value: unknown, fieldName: string): string {
 }
 
 async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', changeId: string) {
+
   try {
     let corners: { lat: number; lng: number }[] = [];
 
@@ -154,6 +157,7 @@ async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', chan
         corners = geo;
       }
     }
+
 
     if (corners.length === 0) {
       toast.add({
@@ -178,17 +182,101 @@ async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', chan
         }
       }
 
+      // AI : First, check if overlay is already loaded
       const overlayStore = useOverlayStore();
-      if (overlayStore.overlays[change.entityId]) {
-        const overlayObject = overlayStore.overlays[change.entityId];
-        if (overlayObject.overlay && corners.length === 4) {
-          overlayObject.overlay.setCorners(latLngs);
-          updateMarkerPosition(overlayObject);
+      let overlayObject = overlayStore.overlays[change.entityId];
+
+      // AI : If overlay not loaded, load the city automatically (like clicking city marker)
+      // AI : This loads: city markers, tile layers, all overlays - everything
+      if (!overlayObject && overlayForModeration) {
+        const project = props.projects.find(p =>
+          p.overlays?.some(o => o.id === change.entityId)
+        );
+
+        if (project?.cityId && overlayForModeration.cityId && map.value) {
+
+          // AI : First, zoom to the overlay bounds so overlays will be rendered
+          const bounds = L.latLngBounds(latLngs);
+          map.value.setView(bounds.getCenter(), 18);
+
+          // AI : Wait for zoom
+          await new Promise(resolve => setTimeout(resolve, 300));
+
+          // AI : Load city exactly like clicking city marker does
+          await loadCityProjects(
+            overlayForModeration.cityId,
+            overlayForModeration.cityName ?? 'City',
+            false,
+            overlayForModeration.countryCode ?? undefined
+          );
+
+          // AI : Wait a bit for overlays to render
+          await new Promise(resolve => setTimeout(resolve, 500));
+
+          overlayObject = overlayStore.overlays[change.entityId];
         }
       }
 
-      if (overlayForModeration && props.onNavigateToOverlay) {
-        await props.onNavigateToOverlay(change.entityId);
+      // AI : If still not loaded, something went wrong
+      if (!overlayObject) {
+        toast.add({
+          severity: 'error',
+          summary: 'Could not load overlay',
+          detail: 'Failed to load the overlay. Please try again.',
+          life: 3000
+        });
+        return;
+      }
+
+      // AI : If overlay still not loaded, show error
+      if (!overlayObject?.overlay) {
+        toast.add({
+          severity: 'error',
+          summary: 'Could not load overlay',
+          detail: 'The overlay could not be loaded. Please try again.',
+          life: 5000
+        });
+        return;
+      }
+
+      // AI : For suggested (new) position: set to suggested corners
+      // AI : For current (old) position: restore from approvedCorners (backend/approved position)
+      if (overlayObject?.overlay && corners.length === 4) {
+
+        if (type === 'new') {
+          // AI : Show suggested position - temporarily set corners and restore hasPendingChanges
+          overlayObject.overlay.setCorners(latLngs);
+          overlayObject.hasPendingChanges = true; // AI : Ensure marker shows pending state
+          updateMarkerPosition(overlayObject);
+          updateMarkerTooltip(overlayObject);
+        } else if (type === 'old') {
+          // AI : Show current/approved position - use corners from overlayObject (always approved from backend)
+          if (overlayObject.corners && overlayObject.corners.length === 4) {
+            const approvedCorners = overlayObject.corners.map(c => L.latLng(c.lat, c.lng));
+            overlayObject.overlay.setCorners(approvedCorners);
+            // AI : Temporarily remove hasPendingChanges flag so marker shows as approved
+            overlayObject.hasPendingChanges = false;
+            updateMarkerPosition(overlayObject);
+            updateMarkerTooltip(overlayObject);
+            // AI : Restore hasPendingChanges flag after marker update
+            overlayObject.hasPendingChanges = true;
+          } else {
+            // AI : Fallback to oldValue from change request
+            overlayObject.overlay.setCorners(latLngs);
+            updateMarkerPosition(overlayObject);
+            updateMarkerTooltip(overlayObject);
+          }
+        }
+
+        // AI : After setting corners, fly camera to the new position
+        if (overlayObject.overlay && map.value) {
+          const bounds = L.latLngBounds(overlayObject.overlay.getCorners());
+          map.value.flyToBounds(bounds, {
+            padding: [50, 50] as [number, number],
+            duration: 1.5,
+            easeLinearity: 0.25
+          });
+        }
       }
     }
 

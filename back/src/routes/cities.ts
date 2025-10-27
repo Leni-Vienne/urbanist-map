@@ -254,20 +254,13 @@ export const citiesRouter = router({
           }
 
           const result: OverlayData[] = overlaysData.map((row) => {
-            let corners = row.corners ?? [];
-            let centroid = { lat: row.centroidLat, lng: row.centroidLng };
+            // AI : ALWAYS use approved corners from database in 'corners' field
+            // AI : Frontend will decide when to show suggested changes
+            const corners = row.corners ?? [];
+            const centroid = { lat: row.centroidLat, lng: row.centroidLng };
 
-            // AI : Apply user's pending change requests to this overlay
+            // AI : Check if user has pending change requests for this overlay
             const overlayChangeRequests = userChangeRequests.filter(cr => cr.entityId === row.overlayId);
-
-            for (const changeRequest of overlayChangeRequests) {
-              if (changeRequest.fieldName === 'corners' && Array.isArray(changeRequest.newValue)) {
-                corners = changeRequest.newValue as Array<{ lat: number; lng: number }>;
-              } else if (changeRequest.fieldName === 'centroid' && typeof changeRequest.newValue === 'object' && changeRequest.newValue !== null) {
-                const newCentroid = changeRequest.newValue as { lat: number; lng: number };
-                centroid = { lat: newCentroid.lat, lng: newCentroid.lng };
-              }
-            }
 
             return {
               id: row.overlayId,
@@ -281,7 +274,7 @@ export const citiesRouter = router({
               createdAt: row.overlayCreatedAt,
               updatedAt: row.overlayUpdatedAt,
               centroid,
-              corners,
+              corners, // AI : Always approved corners from database
               distance: 0,
               project: {
                 ...row.project,
