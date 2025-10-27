@@ -311,7 +311,7 @@ export const projectRouter = router({
             .limit(input.limit);
 
           // AI : Get project IDs where user has submitted change requests for overlays (but doesn't own the project)
-          const contributedProjectIdsFromChangeRequests = await db
+          const contributedProjectIdsFromOverlayChangeRequests = await db
             .selectDistinct({
               projectId: sql<string>`${overlays.projectId}`.as('projectId')
             })
@@ -327,10 +327,27 @@ export const projectRouter = router({
             )
             .limit(input.limit);
 
-          // AI : Combine and deduplicate project IDs from both sources
+          // AI : Get project IDs where user has submitted change requests directly to projects (but doesn't own the project)
+          const contributedProjectIdsFromProjectChangeRequests = await db
+            .selectDistinct({
+              projectId: changeRequests.entityId
+            })
+            .from(changeRequests)
+            .innerJoin(projects, eq(changeRequests.entityId, projects.id))
+            .where(
+              and(
+                eq(changeRequests.requestedBy, ctx.user.id),
+                eq(changeRequests.entityType, 'project'),
+                sql`${projects.ownerId} != ${ctx.user.id}` // AI : Exclude projects already owned by user
+              )
+            )
+            .limit(input.limit);
+
+          // AI : Combine and deduplicate project IDs from all sources
           const allContributedProjectIds = [
             ...contributedProjectIdsFromOverlays.map(p => p.projectId),
-            ...contributedProjectIdsFromChangeRequests.map(p => p.projectId)
+            ...contributedProjectIdsFromOverlayChangeRequests.map(p => p.projectId),
+            ...contributedProjectIdsFromProjectChangeRequests.map(p => p.projectId)
           ];
           const contributedProjectIds = [...new Set(allContributedProjectIds)]
             .filter((id): id is string => id !== null); // AI : Filter out nulls and assert non-null type
@@ -350,8 +367,26 @@ export const projectRouter = router({
           let projectOverlays: Awaited<ReturnType<typeof buildOverlayModerationQuery>> = [];
 
           if (projectIds.length > 0) {
-            // AI : For projects owned by user, get all overlays; for contributed projects, only get user's overlays
+            // AI : For projects owned by user, get all overlays
+            // AI : For contributed projects, get user's overlays OR overlays with user's change requests
             const ownedProjectIds = ownedProjects.map(p => p.id);
+
+            // AI : Get overlay IDs where user has submitted change requests
+            const overlayIdsWithChangeRequests = contributedProjectIds.length > 0
+              ? await db
+                  .selectDistinct({ overlayId: changeRequests.entityId })
+                  .from(changeRequests)
+                  .where(
+                    and(
+                      eq(changeRequests.requestedBy, ctx.user.id),
+                      eq(changeRequests.entityType, 'overlay')
+                    )
+                  )
+              : [];
+
+            const overlayIdsWithChanges = overlayIdsWithChangeRequests
+              .map(r => r.overlayId)
+              .filter((id): id is string => id !== null);
 
             if (ownedProjectIds.length > 0 && contributedProjectIds.length > 0) {
               // AI : Both owned and contributed projects exist
@@ -360,10 +395,15 @@ export const projectRouter = router({
                   or(
                     // AI : All overlays for user's own projects
                     inArray(overlays.projectId, ownedProjectIds),
-                    // AI : Only user's overlays for projects they contributed to
+                    // AI : For contributed projects: user's overlays OR overlays with user's change requests
                     and(
                       inArray(overlays.projectId, contributedProjectIds),
-                      eq(overlays.authorId, ctx.user.id)
+                      or(
+                        eq(overlays.authorId, ctx.user.id),
+                        overlayIdsWithChanges.length > 0
+                          ? inArray(overlays.id, overlayIdsWithChanges)
+                          : sql`false`
+                      )
                     )
                   )
                 )
@@ -379,7 +419,12 @@ export const projectRouter = router({
                 .where(
                   and(
                     inArray(overlays.projectId, contributedProjectIds),
-                    eq(overlays.authorId, ctx.user.id)
+                    or(
+                      eq(overlays.authorId, ctx.user.id),
+                      overlayIdsWithChanges.length > 0
+                        ? inArray(overlays.id, overlayIdsWithChanges)
+                        : sql`false`
+                    )
                   )
                 )
                 .orderBy(overlays.updatedAt);
