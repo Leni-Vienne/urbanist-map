@@ -144,7 +144,6 @@ function formatValue(value: unknown, fieldName: string): string {
 }
 
 async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', changeId: string) {
-
   try {
     let corners: { lat: number; lng: number }[] = [];
 
@@ -158,7 +157,6 @@ async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', chan
       }
     }
 
-
     if (corners.length === 0) {
       toast.add({
         severity: 'warn',
@@ -170,7 +168,6 @@ async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', chan
     }
 
     const latLngs = corners.map(c => L.latLng(c.lat, c.lng));
-
     const change = props.allChangeRequests.find(c => c.id === changeId);
 
     if (change && change.entityType === 'overlay') {
@@ -182,96 +179,175 @@ async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', chan
         }
       }
 
-      // AI : First, check if overlay is already loaded
-      const overlayStore = useOverlayStore();
-      let overlayObject = overlayStore.overlays[change.entityId];
-
-      // AI : If overlay not loaded, load the city automatically (like clicking city marker)
-      // AI : This loads: city markers, tile layers, all overlays - everything
-      if (!overlayObject && overlayForModeration) {
-        const project = props.projects.find(p =>
-          p.overlays?.some(o => o.id === change.entityId)
-        );
-
-        if (project?.cityId && overlayForModeration.cityId && map.value) {
-
-          // AI : First, zoom to the overlay bounds so overlays will be rendered
-          const bounds = L.latLngBounds(latLngs);
-          map.value.setView(bounds.getCenter(), 18);
-
-          // AI : Wait for zoom
-          await new Promise(resolve => setTimeout(resolve, 300));
-
-          // AI : Load city exactly like clicking city marker does
-          await loadCityProjects(
-            overlayForModeration.cityId,
-            overlayForModeration.cityName ?? 'City',
-            false,
-            overlayForModeration.countryCode ?? undefined
-          );
-
-          // AI : Wait a bit for overlays to render
-          await new Promise(resolve => setTimeout(resolve, 500));
-
-          overlayObject = overlayStore.overlays[change.entityId];
-        }
-      }
-
-      // AI : If still not loaded, something went wrong
-      if (!overlayObject) {
+      if (!overlayForModeration) {
         toast.add({
           severity: 'error',
-          summary: 'Could not load overlay',
-          detail: 'Failed to load the overlay. Please try again.',
+          summary: 'Could not find overlay',
+          detail: 'Failed to find the overlay data. Please try again.',
           life: 3000
         });
         return;
       }
 
-      // AI : If overlay still not loaded, show error
+      const overlayStore = useOverlayStore();
+      const { mobileAwareFlyToBounds } = await import('@composables/map/useMobileAwareFly');
+      let overlayObject = overlayStore.overlays[change.entityId];
+      let wasAlreadyLoaded = !!overlayObject;
+
+      // AI : Check if we need to switch to edit mode to see pending overlays
+      const needsEditMode = overlayStore.mode === 'view' && overlayForModeration.status === 'pending';
+      if (needsEditMode) {
+        const { toggleEditMode } = await import('@composables/overlay/useOverlayModes');
+        await toggleEditMode();
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      // AI : If overlay not loaded, load the complete city context (EXACTLY like clicking overlay card)
+      // AI : This replicates navigateToOverlayWithCity() but without camera navigation
+      if (!overlayObject) {
+        if (!overlayForModeration.cityId || !overlayForModeration.countryCode || !map.value) {
+          toast.add({
+            severity: 'error',
+            summary: 'Missing data',
+            detail: 'Overlay is missing city or country information.',
+            life: 3000
+          });
+          return;
+        }
+
+        // AI : Step 1: Load country context (replicate prepareNavigationToCity from useOverlayNavigation.ts)
+        const { switchTileLayer, isTileLayerType } = await import('@composables/map/useTileLayers');
+        const { loadCitiesForCountry } = await import('@composables/map/useCountryMarkers');
+        const { removeCityMarkers, addCityMarkersForCountry } = await import('@composables/map/useCityMarkers');
+        const { removeOverlayMarkers } = await import('@composables/map/useCityOverlays');
+        const { clearAllOverlays } = await import('@composables/overlay/useOverlay');
+        const { useMapStore } = await import('@stores/pinia/mapStore');
+        const { useProjectStore } = await import('@stores/pinia/projectStore');
+        const mapStore = useMapStore();
+        const projectStore = useProjectStore();
+
+        // AI : Switch to appropriate tile layer
+        switchTileLayer(isTileLayerType(overlayForModeration.countryCode) ? overlayForModeration.countryCode : 'esri');
+
+        // AI : Clear previous state (exactly as country marker click does)
+        removeCityMarkers();
+        removeOverlayMarkers();
+        clearAllOverlays();
+        mapStore.currentCityOverlays = [];
+        mapStore.clearSelectedCity();
+
+        // AI : Set selected country code so edit mode can reload cities properly
+        mapStore.selectedCountryCode = overlayForModeration.countryCode;
+
+        // AI : Load cities for the country (this loads all city data)
+        await loadCitiesForCountry(overlayForModeration.countryCode);
+
+        // AI : Add city markers to map (the circular markers users click)
+        const country = projectStore.countries.find((c: any) => c.code === overlayForModeration.countryCode);
+        if (country) {
+          addCityMarkersForCountry(country.cities.map((city: any) => ({ ...city, projectCount: 0 })));
+        }
+
+        // AI : Calculate target bounds for smooth navigation (using the requested type's corners)
+        const targetBounds = L.latLngBounds(latLngs);
+
+        // AI : Start flying to the overlay position (this ensures zoom >= 12 for overlay loading)
+        mobileAwareFlyToBounds(targetBounds, {
+          padding: [50, 50] as [number, number],
+          duration: 1.5,
+          easeLinearity: 0.25
+        });
+
+        // AI : Wait for fly animation to complete using moveend event
+        await new Promise<void>(resolve => {
+          if (map.value) {
+            map.value.once('moveend', () => {
+              // AI : Add small buffer after moveend for zoom to fully settle
+              setTimeout(resolve, 100);
+            });
+          } else {
+            resolve();
+          }
+        });
+
+        // AI : Step 2: Load city projects (this loads all overlays and development projects)
+        // AI : Use forceFullLoad=true to ensure overlays are loaded regardless of zoom
+        await loadCityProjects(
+          overlayForModeration.cityId,
+          overlayForModeration.cityName ?? 'City',
+          true, // AI : Force full load to ensure overlays render
+          overlayForModeration.countryCode
+        );
+
+        // AI : Wait for overlays to render
+        await new Promise(resolve => setTimeout(resolve, 400));
+
+        overlayObject = overlayStore.overlays[change.entityId];
+
+        // AI : Debug: Check if overlay was loaded
+        if (!overlayObject) {
+          console.error('[ChangeRequestSection] Overlay not found in store after loading. Available overlays:', Object.keys(overlayStore.overlays));
+          console.error('[ChangeRequestSection] Looking for overlay ID:', change.entityId);
+          console.error('[ChangeRequestSection] City overlays in mapStore:', mapStore.currentCityOverlays.map(o => ({ id: o.id, status: o.status })));
+          console.error('[ChangeRequestSection] Current mode:', overlayStore.mode);
+          console.error('[ChangeRequestSection] Overlay status:', overlayForModeration.status);
+
+          // AI : Check if overlay is in mapStore but not yet rendered
+          const overlayInMapStore = mapStore.currentCityOverlays.find(o => o.id === change.entityId);
+          if (overlayInMapStore) {
+            console.warn('[ChangeRequestSection] Overlay found in mapStore but not in overlayStore. Waiting longer...');
+            await new Promise(resolve => setTimeout(resolve, 500));
+            overlayObject = overlayStore.overlays[change.entityId];
+          }
+        }
+      }
+
+      // AI : Verify overlay loaded successfully
       if (!overlayObject?.overlay) {
+        console.error('[ChangeRequestSection] Overlay object or overlay.overlay is null', {
+          hasOverlayObject: !!overlayObject,
+          hasOverlay: !!overlayObject?.overlay,
+          overlayId: change.entityId
+        });
+
         toast.add({
           severity: 'error',
           summary: 'Could not load overlay',
           detail: 'The overlay could not be loaded. Please try again.',
-          life: 5000
+          life: 3000
         });
         return;
       }
 
-      // AI : For suggested (new) position: set to suggested corners
-      // AI : For current (old) position: restore from approvedCorners (backend/approved position)
-      if (overlayObject?.overlay && corners.length === 4) {
-
+      // AI : Manipulate corners based on type
+      if (corners.length === 4) {
         if (type === 'new') {
-          // AI : Show suggested position - temporarily set corners and restore hasPendingChanges
+          // AI : Show suggested position
           overlayObject.overlay.setCorners(latLngs);
-          overlayObject.hasPendingChanges = true; // AI : Ensure marker shows pending state
+          overlayObject.hasPendingChanges = true;
           updateMarkerPosition(overlayObject);
           updateMarkerTooltip(overlayObject);
         } else if (type === 'old') {
-          // AI : Show current/approved position - use corners from overlayObject (always approved from backend)
+          // AI : Show current/approved position
           if (overlayObject.corners && overlayObject.corners.length === 4) {
             const approvedCorners = overlayObject.corners.map(c => L.latLng(c.lat, c.lng));
             overlayObject.overlay.setCorners(approvedCorners);
-            // AI : Temporarily remove hasPendingChanges flag so marker shows as approved
             overlayObject.hasPendingChanges = false;
             updateMarkerPosition(overlayObject);
             updateMarkerTooltip(overlayObject);
             // AI : Restore hasPendingChanges flag after marker update
             overlayObject.hasPendingChanges = true;
           } else {
-            // AI : Fallback to oldValue from change request
             overlayObject.overlay.setCorners(latLngs);
             updateMarkerPosition(overlayObject);
             updateMarkerTooltip(overlayObject);
           }
         }
 
-        // AI : After setting corners, fly camera to the new position
-        if (overlayObject.overlay && map.value) {
+        // AI : If overlay was already loaded (toggling between positions), fly to the new position
+        if (wasAlreadyLoaded && map.value) {
           const bounds = L.latLngBounds(overlayObject.overlay.getCorners());
-          map.value.flyToBounds(bounds, {
+          mobileAwareFlyToBounds(bounds, {
             padding: [50, 50] as [number, number],
             duration: 1.5,
             easeLinearity: 0.25
