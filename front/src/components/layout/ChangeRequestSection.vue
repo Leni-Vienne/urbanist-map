@@ -44,7 +44,7 @@
                   :label="$t('overlay.viewCurrentPosition')"
                   @click.stop="previewGeometry(change.oldValue, 'old', change.id)"
                   severity="success"
-                  :outlined="!(activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'old')"
+                  :outlined="!isPreviewActive(change.id, 'old')"
                   size="small"
                 />
                 <Button
@@ -52,7 +52,7 @@
                   :label="$t('overlay.viewSuggestedPosition')"
                   @click.stop="previewGeometry(change.newValue, 'new', change.id)"
                   severity="warn"
-                  :outlined="!(activeGeometryPreview?.changeId === change.id && activeGeometryPreview?.type === 'new')"
+                  :outlined="!isPreviewActive(change.id, 'new')"
                   size="small"
                 />
               </div>
@@ -80,13 +80,10 @@
 
 <script setup lang="ts">
 import L from 'leaflet';
-import { ref } from 'vue';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { updateMarkerPosition, updateMarkerTooltip } from '@composables/overlay/useOverlay';
-import { map } from '@composables/core/useMap';
-import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useToast } from '@composables/ui/useToast';
-import { loadCityProjects } from '@composables/map/useCityMarkers';
+import { useChangeRequestPreview } from '@composables/overlay/useChangeRequestPreview';
 import type { PendingChangeRequest } from '../../types/api';
 import type { ProjectForModeration, OverlayForModeration } from '@types';
 
@@ -112,7 +109,20 @@ const props = withDefaults(defineProps<Props>(), {
 
 const { t } = useI18n();
 const toast = useToast();
-const activeGeometryPreview = ref<{ changeId: string; type: 'old' | 'new' } | null>(null);
+const {
+  isPreviewingChange,
+  getPreviewType,
+  previewGeometry: previewGeometryComposable
+} = useChangeRequestPreview();
+
+// AI : Computed property to check if a specific preview is active
+const isPreviewActive = computed(() => {
+  return (changeId: string, type: 'old' | 'new') => {
+    if (!isPreviewingChange(changeId)) return false;
+    const previewType = getPreviewType(changeId);
+    return (type === 'old' && previewType === 'current') || (type === 'new' && previewType === 'suggested');
+  };
+});
 
 function isGeometryField(fieldName: string): boolean {
   return fieldName === 'corners' || fieldName === 'centroid';
@@ -143,229 +153,51 @@ function formatValue(value: unknown, fieldName: string): string {
   return String(value);
 }
 
+// AI : Wrapper function to handle preview with proper error handling
 async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', changeId: string) {
-  try {
-    let corners: { lat: number; lng: number }[] = [];
-
-    if (geometryValue && typeof geometryValue === 'object') {
-      const geo = geometryValue as any;
-
-      if ('lat' in geo && 'lng' in geo) {
-        corners = [{ lat: geo.lat, lng: geo.lng }];
-      } else if (Array.isArray(geo) && geo.length > 0 && 'lat' in geo[0] && 'lng' in geo[0]) {
-        corners = geo;
-      }
-    }
-
-    if (corners.length === 0) {
-      toast.add({
-        severity: 'warn',
-        summary: t('overlay.invalidCoordinates'),
-        detail: t('overlay.couldNotParseCoordinates'),
-        life: 3000
-      });
-      return;
-    }
-
-    const latLngs = corners.map(c => L.latLng(c.lat, c.lng));
-    const change = props.allChangeRequests.find(c => c.id === changeId);
-
-    if (change && change.entityType === 'overlay') {
-      let overlayForModeration: OverlayForModeration | null = null;
-      for (const project of props.projects) {
-        if (project.overlays) {
-          overlayForModeration = project.overlays.find((o: OverlayForModeration) => o.id === change.entityId) ?? null;
-          if (overlayForModeration) break;
-        }
-      }
-
-      if (!overlayForModeration) {
-        toast.add({
-          severity: 'error',
-          summary: 'Could not find overlay',
-          detail: 'Failed to find the overlay data. Please try again.',
-          life: 3000
-        });
-        return;
-      }
-
-      const overlayStore = useOverlayStore();
-      const { mobileAwareFlyToBounds } = await import('@composables/map/useMobileAwareFly');
-      let overlayObject = overlayStore.overlays[change.entityId];
-      let wasAlreadyLoaded = !!overlayObject;
-
-      // AI : Check if we need to switch to edit mode to see pending overlays
-      const needsEditMode = overlayStore.mode === 'view' && overlayForModeration.status === 'pending';
-      if (needsEditMode) {
-        const { toggleEditMode } = await import('@composables/overlay/useOverlayModes');
-        await toggleEditMode();
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-
-      // AI : If overlay not loaded, load the complete city context (EXACTLY like clicking overlay card)
-      // AI : This replicates navigateToOverlayWithCity() but without camera navigation
-      if (!overlayObject) {
-        if (!overlayForModeration.cityId || !overlayForModeration.countryCode || !map.value) {
-          toast.add({
-            severity: 'error',
-            summary: 'Missing data',
-            detail: 'Overlay is missing city or country information.',
-            life: 3000
-          });
-          return;
-        }
-
-        // AI : Step 1: Load country context (replicate prepareNavigationToCity from useOverlayNavigation.ts)
-        const { switchTileLayer, isTileLayerType } = await import('@composables/map/useTileLayers');
-        const { loadCitiesForCountry } = await import('@composables/map/useCountryMarkers');
-        const { removeCityMarkers, addCityMarkersForCountry } = await import('@composables/map/useCityMarkers');
-        const { removeOverlayMarkers } = await import('@composables/map/useCityOverlays');
-        const { clearAllOverlays } = await import('@composables/overlay/useOverlay');
-        const { useMapStore } = await import('@stores/pinia/mapStore');
-        const { useProjectStore } = await import('@stores/pinia/projectStore');
-        const mapStore = useMapStore();
-        const projectStore = useProjectStore();
-
-        // AI : Switch to appropriate tile layer
-        switchTileLayer(isTileLayerType(overlayForModeration.countryCode) ? overlayForModeration.countryCode : 'esri');
-
-        // AI : Clear previous state (exactly as country marker click does)
-        removeCityMarkers();
-        removeOverlayMarkers();
-        clearAllOverlays();
-        mapStore.currentCityOverlays = [];
-        mapStore.clearSelectedCity();
-
-        // AI : Set selected country code so edit mode can reload cities properly
-        mapStore.selectedCountryCode = overlayForModeration.countryCode;
-
-        // AI : Load cities for the country (this loads all city data)
-        await loadCitiesForCountry(overlayForModeration.countryCode);
-
-        // AI : Add city markers to map (the circular markers users click)
-        const country = projectStore.countries.find((c: any) => c.code === overlayForModeration.countryCode);
-        if (country) {
-          addCityMarkersForCountry(country.cities.map((city: any) => ({ ...city, projectCount: 0 })));
-        }
-
-        // AI : Calculate target bounds for smooth navigation (using the requested type's corners)
-        const targetBounds = L.latLngBounds(latLngs);
-
-        // AI : Start flying to the overlay position (this ensures zoom >= 12 for overlay loading)
-        mobileAwareFlyToBounds(targetBounds, {
-          padding: [50, 50] as [number, number],
-          duration: 1.5,
-          easeLinearity: 0.25
-        });
-
-        // AI : Wait for fly animation to complete using moveend event
-        await new Promise<void>(resolve => {
-          if (map.value) {
-            map.value.once('moveend', () => {
-              // AI : Add small buffer after moveend for zoom to fully settle
-              setTimeout(resolve, 100);
-            });
-          } else {
-            resolve();
-          }
-        });
-
-        // AI : Step 2: Load city projects (this loads all overlays and development projects)
-        // AI : Use forceFullLoad=true to ensure overlays are loaded regardless of zoom
-        await loadCityProjects(
-          overlayForModeration.cityId,
-          overlayForModeration.cityName ?? 'City',
-          true, // AI : Force full load to ensure overlays render
-          overlayForModeration.countryCode
-        );
-
-        // AI : Wait for overlays to render
-        await new Promise(resolve => setTimeout(resolve, 400));
-
-        overlayObject = overlayStore.overlays[change.entityId];
-
-        // AI : Debug: Check if overlay was loaded
-        if (!overlayObject) {
-          console.error('[ChangeRequestSection] Overlay not found in store after loading. Available overlays:', Object.keys(overlayStore.overlays));
-          console.error('[ChangeRequestSection] Looking for overlay ID:', change.entityId);
-          console.error('[ChangeRequestSection] City overlays in mapStore:', mapStore.currentCityOverlays.map(o => ({ id: o.id, status: o.status })));
-          console.error('[ChangeRequestSection] Current mode:', overlayStore.mode);
-          console.error('[ChangeRequestSection] Overlay status:', overlayForModeration.status);
-
-          // AI : Check if overlay is in mapStore but not yet rendered
-          const overlayInMapStore = mapStore.currentCityOverlays.find(o => o.id === change.entityId);
-          if (overlayInMapStore) {
-            console.warn('[ChangeRequestSection] Overlay found in mapStore but not in overlayStore. Waiting longer...');
-            await new Promise(resolve => setTimeout(resolve, 500));
-            overlayObject = overlayStore.overlays[change.entityId];
-          }
-        }
-      }
-
-      // AI : Verify overlay loaded successfully
-      if (!overlayObject?.overlay) {
-        console.error('[ChangeRequestSection] Overlay object or overlay.overlay is null', {
-          hasOverlayObject: !!overlayObject,
-          hasOverlay: !!overlayObject?.overlay,
-          overlayId: change.entityId
-        });
-
-        toast.add({
-          severity: 'error',
-          summary: 'Could not load overlay',
-          detail: 'The overlay could not be loaded. Please try again.',
-          life: 3000
-        });
-        return;
-      }
-
-      // AI : Manipulate corners based on type
-      if (corners.length === 4) {
-        if (type === 'new') {
-          // AI : Show suggested position
-          overlayObject.overlay.setCorners(latLngs);
-          overlayObject.hasPendingChanges = true;
-          updateMarkerPosition(overlayObject);
-          updateMarkerTooltip(overlayObject);
-        } else if (type === 'old') {
-          // AI : Show current/approved position
-          if (overlayObject.corners && overlayObject.corners.length === 4) {
-            const approvedCorners = overlayObject.corners.map(c => L.latLng(c.lat, c.lng));
-            overlayObject.overlay.setCorners(approvedCorners);
-            overlayObject.hasPendingChanges = false;
-            updateMarkerPosition(overlayObject);
-            updateMarkerTooltip(overlayObject);
-            // AI : Restore hasPendingChanges flag after marker update
-            overlayObject.hasPendingChanges = true;
-          } else {
-            overlayObject.overlay.setCorners(latLngs);
-            updateMarkerPosition(overlayObject);
-            updateMarkerTooltip(overlayObject);
-          }
-        }
-
-        // AI : If overlay was already loaded (toggling between positions), fly to the new position
-        if (wasAlreadyLoaded && map.value) {
-          const bounds = L.latLngBounds(overlayObject.overlay.getCorners());
-          mobileAwareFlyToBounds(bounds, {
-            padding: [50, 50] as [number, number],
-            duration: 1.5,
-            easeLinearity: 0.25
-          });
-        }
-      }
-    }
-
-    activeGeometryPreview.value = { changeId, type };
-  } catch (error) {
-    console.error('Failed to preview geometry:', error);
+  // AI : Find the change request
+  const change = props.allChangeRequests.find(c => c.id === changeId);
+  if (!change) {
     toast.add({
       severity: 'error',
-      summary: t('overlay.previewFailed'),
-      detail: t('overlay.couldNotPreviewCoordinates'),
+      summary: t('overlay.changeNotFound'),
+      detail: t('overlay.couldNotFindChange'),
       life: 3000
     });
+    return;
   }
+
+  // AI : Only handle overlay changes
+  if (change.entityType !== 'overlay') {
+    return;
+  }
+
+  // AI : Find the overlay data
+  let overlayForModeration: OverlayForModeration | null = null;
+  for (const project of props.projects) {
+    if (project.overlays) {
+      overlayForModeration = project.overlays.find((o: OverlayForModeration) => o.id === change.entityId) ?? null;
+      if (overlayForModeration) break;
+    }
+  }
+
+  if (!overlayForModeration) {
+    toast.add({
+      severity: 'error',
+      summary: t('overlay.overlayNotFound'),
+      detail: t('overlay.couldNotFindOverlay'),
+      life: 3000
+    });
+    return;
+  }
+
+  // AI : Delegate to composable
+  await previewGeometryComposable({
+    change,
+    overlayForModeration,
+    geometryValue,
+    type
+  });
 }
 </script>
 

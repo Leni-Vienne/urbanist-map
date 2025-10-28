@@ -1,5 +1,7 @@
-// AI : Manages caching of overlay positions for edit mode
+// AI : Manages caching and application of overlay positions for edit mode
 // AI : Separates cache logic from rendering and mode switching
+// AI : NOTE: Position *resolution* logic is in useOverlayPosition.ts
+// AI : This file only handles *applying* positions to Leaflet overlay objects
 
 import type { OverlayObject } from '@types'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
