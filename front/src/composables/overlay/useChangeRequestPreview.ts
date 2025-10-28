@@ -112,8 +112,8 @@ export function useChangeRequestPreview() {
 
     // AI : Step 2: Prepare map context (tile layer, clear old state)
     switchTileLayer(
-      isTileLayerType(overlayForModeration.countryCode) 
-        ? overlayForModeration.countryCode 
+      isTileLayerType(overlayForModeration.countryCode)
+        ? overlayForModeration.countryCode
         : 'esri'
     );
 
@@ -214,21 +214,20 @@ export function useChangeRequestPreview() {
       overlayObject.hasPendingChanges = true;
       updateMarkerPosition(overlayObject);
       updateMarkerTooltip(overlayObject);
-    } else {
+
       // AI : Show current/approved position
-      if (overlayObject.corners && overlayObject.corners.length === 4) {
-        const approvedCorners = overlayObject.corners.map(c => L.latLng(c.lat, c.lng));
-        overlayObject.overlay.setCorners(approvedCorners);
-        overlayObject.hasPendingChanges = false;
-        updateMarkerPosition(overlayObject);
-        updateMarkerTooltip(overlayObject);
-        // AI : Restore hasPendingChanges flag after marker update
-        overlayObject.hasPendingChanges = true;
-      } else {
-        overlayObject.overlay.setCorners(corners);
-        updateMarkerPosition(overlayObject);
-        updateMarkerTooltip(overlayObject);
-      }
+    } else if (overlayObject.corners && overlayObject.corners.length === 4) {
+      const approvedCorners = overlayObject.corners.map(c => L.latLng(c.lat, c.lng));
+      overlayObject.overlay.setCorners(approvedCorners);
+      overlayObject.hasPendingChanges = false;
+      updateMarkerPosition(overlayObject);
+      updateMarkerTooltip(overlayObject);
+      // AI : Restore hasPendingChanges flag after marker update
+      overlayObject.hasPendingChanges = true;
+    } else {
+      overlayObject.overlay.setCorners(corners);
+      updateMarkerPosition(overlayObject);
+      updateMarkerTooltip(overlayObject);
     }
 
     // AI : If overlay was already visible, fly to the new position

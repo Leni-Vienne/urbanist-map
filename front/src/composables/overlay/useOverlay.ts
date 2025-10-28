@@ -11,12 +11,11 @@
 // AI : - Selection and highlighting
 // AI : ============================================================================
 
-import { getOverlayMarkerColor } from '@composables/map/useMarkers';
-import { updateOverlayMarkersColors } from '@composables/map/useMarkers';
 import L from "leaflet";
 import 'leaflet-toolbar';
 import 'leaflet-distortableimage';
 import { map } from '@composables/core/useMap';
+import { getOverlayMarkerColor, updateOverlayMarkersColors, createColorIcon, OVERLAY_OUTLINE_COLOR } from '@composables/map/useMarkers';
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from '@composables/map/useMapNavigation';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
@@ -25,7 +24,6 @@ import type { OverlayObject, OverlayData, MarkerColor } from '@types';
 import { createOverlay as createOverlayInstance, createOverlayFromCDN, convertOverlayToData } from '../../utils/typeFactories';
 import { toRef } from 'vue';
 
-import { createColorIcon, OVERLAY_OUTLINE_COLOR } from '@composables/map/useMarkers';
 import { useProjects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import { trpc } from '@client';
 import { getSelectedCity } from '@composables/map/useCityData';

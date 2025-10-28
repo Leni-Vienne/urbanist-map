@@ -1,11 +1,10 @@
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, toRef } from 'vue'
 import { trpc } from '@client'
 import { withErrorHandling } from '@composables/core/useErrorHandling'
 import { useModerationStore } from '@stores/pinia/moderationStore'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { updateMarkerTooltip } from '@composables/overlay/useOverlay'
 import { updateOverlayMarkersColors } from '@composables/map/useMarkers'
-import { toRef } from 'vue'
 import { useI18n } from '@composables/useI18n'
 
 // AI : Result types for approval operations

@@ -6,9 +6,8 @@ import { renderViewModeOverlays, clearAllOverlays } from '@composables/overlay/u
 import { hasCachedCityProjectsData, getSelectedCity } from '@composables/map/useCityData';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import { trpc } from '@client';
-import { getOverlayMarkerColor } from '@composables/map/useMarkers';
+import { getOverlayMarkerColor, createColorIcon } from '@composables/map/useMarkers';
 import { resolveOverlayPosition } from '@composables/overlay/useOverlayPositionManagement';
-import { createColorIcon } from '@composables/map/useMarkers';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { withErrorHandling, withErrorToast } from '@composables/core/useErrorHandling';

@@ -93,7 +93,7 @@ export function resolveOverlayPosition(
   const overlayObject = overlayStore.overlays[overlayId];
 
   // AI : Priority 1: Currently loaded overlay (user might be actively editing)
-  if (overlayObject && overlayObject.corners && overlayObject.corners.length === 4) {
+  if (overlayObject?.corners?.length === 4) {
     const calculatedPosition = calculateCenterFromCorners(overlayObject.corners);
     if (calculatedPosition) {
       return {
@@ -118,7 +118,7 @@ export function resolveOverlayPosition(
   }
 
   // AI : Priority 3: Backend corners (calculate from database data)
-  if (overlayData.corners && overlayData.corners.length === 4) {
+  if (overlayData?.corners?.length === 4) {
     const calculatedPosition = calculateCenterFromCorners(overlayData.corners);
     if (calculatedPosition) {
       return {
