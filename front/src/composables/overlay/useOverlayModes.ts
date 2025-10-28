@@ -52,11 +52,8 @@ function getCurrentState(): OverlayModeState {
   const selectedCity = getSelectedCity()
   const zoom = map.value?.getZoom() ?? 0
 
-  // AI : Map MapMode to OverlayModeState mode (for now, treat moderation as view for rendering purposes)
-  const stateMode: 'view' | 'edit' = overlayStore.mode === 'edit' ? 'edit' : 'view';
-
   return {
-    mode: stateMode,
+    mode: overlayStore.mode,
     zoomLevel: getZoomLevel(zoom),
     hasLoadedOverlays: Object.keys(overlayStore.overlays).length > 0,
     selectedCityId: selectedCity?.id ?? null,
