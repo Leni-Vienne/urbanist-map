@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import { trpc, RouterOutput } from '@client'
-import { getCameraBounds } from '@composables/map/useCameraBounds'
+import { getCameraBounds } from '@composables/map/useMapNavigation'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useProjectStore } from '@stores/pinia/projectStore'
 import { storeToRefs } from 'pinia'

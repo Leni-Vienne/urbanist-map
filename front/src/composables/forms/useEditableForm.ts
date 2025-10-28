@@ -1,5 +1,5 @@
 import { ref, computed, reactive } from 'vue'
-import { useFieldChanges } from '@composables/changes/useFieldChanges'
+import { useChangeRequests } from '@composables/changes/useChanges'
 import { useToast } from '@composables/ui/useToast'
 import { buildProjectPayload } from '@composables/project/useProjectMutations'
 import { useProjectStore } from '@stores/pinia/projectStore'
@@ -31,7 +31,7 @@ export interface EditableFormOptions<T> {
 }
 
 export function useEditableForm<T extends Record<string, any>>(options: EditableFormOptions<T>) {
-  const { submitMultipleFieldChanges } = useFieldChanges()
+  const { submitMultipleFieldChanges } = useChangeRequests()
   const toast = useToast()
   const projectStore = useProjectStore()
 

@@ -70,7 +70,7 @@ import { useProjectPublisher } from '@composables/project/useProjectPublisher';
 import { useSubmissionService } from '@composables/submission/useSubmissionService';
 import type { SubmissionContext, SubmissionSummary } from '@composables/submission/useSubmissionService';
 import { citiesWithProjects, cleanupProjectInfoTeleportTarget } from '@composables/map/useCityMarkers';
-import { updateOverlayMarkersColors } from '@composables/map/useOverlayMarkerUpdates';
+import { updateOverlayMarkersColors } from '@composables/map/useMarkers';
 import type { OverlayObject, Project } from '@types';
 
 const OverlayPopup = defineAsyncComponent(() => import('./popups/OverlayPopup.vue'));

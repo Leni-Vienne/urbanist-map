@@ -47,7 +47,7 @@ import { ref, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue';
 
 import { initializeMap, disableLeafletKeyboardEvents, map } from '@composables/core/useMap';
 import { addTileLayer } from '@composables/map/useTileLayers';
-import { initializeCameraBounds } from '@composables/map/useCameraBounds';
+import { initializeCameraBounds } from '@composables/map/useMapNavigation';
 import { renderViewModeOverlays, removeOverlay, undo, redo } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
 import { updateOverlayMarkersForFilters } from '@composables/map/useCityOverlays';

@@ -64,7 +64,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useAddOverlay } from '@composables/overlay/useAddOverlay'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import { useToast } from '@composables/ui/useToast'
-import { useChangeRequests } from '@composables/changes/useChangeRequests'
+import { useChangeRequests } from '@composables/changes/useChanges'
 import { useUserContributions } from '@composables/project/useUserContributions'
 
 // AI : Use cached composable for user contributions

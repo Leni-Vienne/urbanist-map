@@ -147,7 +147,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import { useAuthStore } from '@stores/authStore';
-import { createButtonSVG } from '@composables/ui/markerIcons';
+import { createButtonSVG } from '@composables/map/useMarkers';
 
 interface Props {
   modelValue: boolean;

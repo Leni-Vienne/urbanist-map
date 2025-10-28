@@ -1,3 +1,9 @@
+// AI : ============================================================================
+// AI : CHANGE REQUEST MANAGEMENT - Unified change requests and field changes
+// AI : ============================================================================
+// AI : Combines change request handling and field-specific change utilities
+// AI : ============================================================================
+
 import { ref, computed } from 'vue';
 import { trpc } from '@client';
 import type {
@@ -5,9 +11,14 @@ import type {
   ChangeHistoryEntry,
 } from '../../types/api';
 import type { RouterOutput } from '@client';
+import type { FieldChange } from '../../../../back/src/routes/changes';
 import { useAuthStore } from '@stores/authStore';
 import { useModerationStore } from '@stores/pinia/moderationStore';
-import { withErrorHandling } from '@composables/core/useErrorHandling';
+import { withErrorHandling, withErrorToast } from '@composables/core/useErrorHandling';
+
+// AI : ============================================================================
+// AI : CHANGE REQUESTS
+// AI : ============================================================================
 
 // AI : Use the actual tRPC output type for change requests
 type ChangeRequest = RouterOutput['changes']['getPendingChangeRequests'][0];
@@ -174,7 +185,127 @@ export function useChangeRequests() {
 
   const hasChangeRequests = computed(() => pendingChangeRequests.value.length > 0);
 
+  // AI : ============================================================================
+  // AI : FIELD CHANGES
+  // AI : ============================================================================
+
+  async function submitProjectFieldChange(
+    projectId: string,
+    fieldName: string,
+    oldValue: any,
+    newValue: any,
+    changeReason?: string
+  ) {
+    return withErrorToast(
+      () => submitChangeRequest({
+        entityType: 'project',
+        entityId: projectId,
+        changes: [{
+          fieldName,
+          oldValue,
+          newValue,
+          changeReason,
+        }]
+      }),
+      'Failed to submit project field change'
+    );
+  }
+
+  async function submitOverlayFieldChange(
+    overlayId: string,
+    fieldName: string,
+    oldValue: any,
+    newValue: any,
+    changeReason?: string
+  ) {
+    return withErrorToast(
+      async () => submitChangeRequest({
+        entityType: 'overlay',
+        entityId: overlayId,
+        changes: [{
+          fieldName,
+          oldValue,
+          newValue,
+          changeReason,
+        }]
+      }),
+      'Failed to submit overlay field change'
+    );
+  }
+
+  async function submitMultipleFieldChanges(
+    entityType: 'project' | 'overlay',
+    entityId: string,
+    fieldChanges: FieldChange[]
+  ) {
+    return withErrorToast(
+      async () => submitChangeRequest({
+        entityType,
+        entityId,
+        changes: fieldChanges
+      }),
+      'Failed to submit multiple field changes'
+    );
+  }
+
+  function createFieldChangeHelper(entityType: 'project' | 'overlay', entityId: string) {
+    const pendingChanges: FieldChange[] = [];
+
+    function addFieldChange(fieldName: string, oldValue: FieldChange['oldValue'], newValue: FieldChange['newValue'], changeReason?: string) {
+      const existingIndex = pendingChanges.findIndex(change => change.fieldName === fieldName);
+      
+      if (existingIndex >= 0) {
+        pendingChanges[existingIndex] = { fieldName, oldValue, newValue, changeReason };
+      } else {
+        pendingChanges.push({ fieldName, oldValue, newValue, changeReason });
+      }
+    }
+
+    function removeFieldChange(fieldName: string) {
+      const index = pendingChanges.findIndex(change => change.fieldName === fieldName);
+      if (index >= 0) {
+        pendingChanges.splice(index, 1);
+      }
+    }
+
+    async function submitAllChanges() {
+      if (pendingChanges.length === 0) {
+        throw new Error('No changes to submit');
+      }
+
+      const result = await submitMultipleFieldChanges(entityType, entityId, [...pendingChanges]);
+
+      if (result?.success) {
+        pendingChanges.length = 0;
+      }
+
+      return result;
+    }
+
+    function clearChanges() {
+      pendingChanges.length = 0;
+    }
+
+    function getChanges() {
+      return [...pendingChanges];
+    }
+
+    function hasChanges() {
+      return pendingChanges.length > 0;
+    }
+
+    return {
+      addFieldChange,
+      removeFieldChange,
+      submitAllChanges,
+      clearChanges,
+      getChanges,
+      hasChanges,
+    };
+  }
+
   return {
+    // AI : Change requests
     pendingChangeRequests: computed(() => pendingChangeRequests.value),
     changeHistory: computed(() => changeHistory.value),
     groupedChangeRequests,
@@ -189,5 +320,11 @@ export function useChangeRequests() {
     rejectChangeRequests,
     getChangeHistory,
     resetChangeRequestsLoaded,
+
+    // AI : Field changes
+    submitProjectFieldChange,
+    submitOverlayFieldChange,
+    submitMultipleFieldChanges,
+    createFieldChangeHelper,
   };
 }

@@ -5,13 +5,13 @@ import { sql, eq, and } from 'drizzle-orm';
 import { db } from '../database';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../db/schema';
-import { buildOverlayQuery } from '../db/queryBuilders';
 import {
+  buildOverlayQuery,
   buildProjectStatusCondition,
   buildOverlayVisibilityCondition,
   type ApprovalStatus,
   type MapMode
-} from '../db/visibilityHelpers';
+} from '../db/helpers';
 import { validateOverlaySize } from '../utils/overlayValidation';
 
 const publishOverlaySchema = z.object({

@@ -11,12 +11,12 @@ import {
   shouldCachePositions
 } from './useOverlayModeStateMachine'
 import { renderForStrategy, updateExistingOverlays, clearAllRenderedContent } from './useOverlayRenderer'
-import { cacheCurrentPosition } from './useOverlayPositionCache'
+import { cacheCurrentPosition } from './useOverlayPositionManagement'
 import { loadCityOverlays, fetchCityProjectsData } from '@composables/map/useCityOverlays'
 import { loadCityDevelopmentProjects, removeCityMarkers, addCityMarkersForCountry, updateAllDevelopmentMarkerColors } from '@composables/map/useCityMarkers'
 import { loadCountriesWithProjects, loadCitiesForCountry, addCountryMarkersToMap } from '@composables/map/useCountryMarkers'
 import { useProjectStore } from '@stores/pinia/projectStore'
-import { updateOverlayMarkersColors } from '@composables/map/useOverlayMarkerUpdates'
+import { updateOverlayMarkersColors } from '@composables/map/useMarkers'
 import { updateOverlayEditingState } from '@composables/overlay/useOverlay'
 import { storeToRefs } from 'pinia'
 

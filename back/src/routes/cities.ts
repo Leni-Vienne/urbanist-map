@@ -13,7 +13,7 @@ import {
   buildProjectVisibilityCondition,
   buildOverlayVisibilityCondition,
   buildProjectHasVisibleContentCondition
-} from '../db/visibilityHelpers';
+} from '../db/helpers';
 
 const getCitiesNearLocationSchema = z.object({
   lat: z.number().min(-90).max(90), // AI : Valid latitude range

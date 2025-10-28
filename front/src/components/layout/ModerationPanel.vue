@@ -101,7 +101,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useModeration } from '@composables/overlay/useModeration'
-import { useChangeRequests } from '@composables/changes/useChangeRequests'
+import { useChangeRequests } from '@composables/changes/useChanges'
 import { useOverlayClickHandler } from '@composables/overlay/useOverlayClickHandler'
 import { useToast } from '@composables/ui/useToast'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
