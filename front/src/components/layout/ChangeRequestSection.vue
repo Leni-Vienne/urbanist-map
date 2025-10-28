@@ -25,9 +25,9 @@
         :class="['change-item', { 'conflicted': change.status === 'conflicted' }]"
       >
         <div v-if="change.status === 'conflicted'" class="conflict-banner">
-          <i class="pi pi-exclamation-triangle"></i>
+          <i class="pi pi-info-circle"></i>
           <span>{{ $t('moderation.conflictDetected') }}</span>
-          <span class="conflict-help">{{ $t('moderation.approveOneToRejectOthers') }}</span>
+          <span class="conflict-help">{{ $t('moderation.resolveConflictsTooltip') }}</span>
         </div>
         <div class="change-content">
           <div class="change-field">
@@ -263,9 +263,10 @@ async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', chan
 }
 
 .change-item.conflicted {
-  border-color: var(--p-orange-400);
+  border-color: var(--p-blue-300);
   border-width: 2px;
-  background: var(--p-orange-25);
+  background: var(--p-blue-25);
+  opacity: 0.7;
 }
 
 .conflict-banner {
@@ -274,16 +275,16 @@ async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', chan
   gap: 0.5rem;
   padding: 0.5rem;
   margin: -0.5rem -0.5rem 0.5rem -0.5rem;
-  background: var(--p-orange-100);
-  border-bottom: 1px solid var(--p-orange-200);
+  background: var(--p-blue-100);
+  border-bottom: 1px solid var(--p-blue-200);
   border-radius: 4px 4px 0 0;
-  color: var(--p-orange-700);
+  color: var(--p-blue-700);
   font-weight: 600;
   font-size: 0.8125rem;
 }
 
 .conflict-banner i {
-  color: var(--p-orange-600);
+  color: var(--p-blue-600);
 }
 
 .conflict-help {

@@ -171,7 +171,7 @@ export const moderationRouter = router({
             .leftJoin(cities, eq(projects.cityId, cities.id))
             .where(and(
               eq(changeRequests.entityType, 'overlay'),
-              sql`${changeRequests.status} IN ('pending', 'conflicted')`,
+              eq(changeRequests.status, 'pending'),
               ...paginationConditions
             )),
 
@@ -193,7 +193,7 @@ export const moderationRouter = router({
             .leftJoin(cities, eq(projects.cityId, cities.id))
             .where(and(
               eq(changeRequests.entityType, 'project'),
-              sql`${changeRequests.status} IN ('pending', 'conflicted')`,
+              eq(changeRequests.status, 'pending'),
               ...paginationConditions
             ))
           ]);
