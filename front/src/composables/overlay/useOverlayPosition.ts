@@ -1,4 +1,7 @@
-// AI : Unified overlay position resolver - single source of truth for all position calculations
+// AI : Unified overlay position resolver - single source of truth for position RESOLUTION
+// AI : NOTE: This determines WHERE a position should come from (cache vs backend)
+// AI : For APPLYING positions to Leaflet overlays, see useOverlayPositionCache.ts
+
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { getFromEditModeOverlayCache } from './useOverlayEditCache';
 import { calculateCenterFromCorners } from '../../utils/typeFactories';
