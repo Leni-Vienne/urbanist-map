@@ -3,18 +3,17 @@ import { ref } from 'vue';
 import L from 'leaflet';
 import { map } from '@composables/core/useMap';
 import { renderViewModeOverlays, clearAllOverlays } from '@composables/overlay/useOverlay';
-import { getFromEditModeOverlayCache } from '@composables/overlay/useOverlayEditCache';
 import { hasCachedCityProjectsData, getSelectedCity } from '@composables/map/useCityData';
-import { calculateCenterFromCorners } from '../../utils/typeFactories';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import { trpc } from '@client';
 import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
+import { resolveOverlayPosition } from '@composables/overlay/useOverlayPosition';
 import { createColorIcon } from '@composables/ui/markerIcons';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { withErrorHandling, withErrorToast } from '@composables/core/useErrorHandling';
 import { mobileAwareFlyToBounds } from '@composables/map/useMobileAwareFly';
-import type { OverlayData, MarkerColor } from '@types';
+import type { OverlayData } from '@types';
 
 // AI : Minimum zoom level required to load city projects and overlays
 const MIN_ZOOM_FOR_OVERLAYS = 12;
@@ -144,10 +143,12 @@ function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void {
 
   // AI : Add simple markers for each visible overlay location
   visibleOverlays.forEach(overlay => {
-    // AI : Use getOverlayMarkerInfo which considers edit mode, current overlay state, and position
-    const { color: markerColor, position } = getOverlayMarkerInfo(overlay);
+    // AI : Use unified position resolver
+    const overlayStore = useOverlayStore();
+    const resolved = resolveOverlayPosition(overlay.id, overlay, overlayStore.mode);
+    const markerColor = getOverlayMarkerColor(overlay, overlayStore.mode);
     const markerIcon = createColorIcon(markerColor);
-    const marker = L.marker([position.lat, position.lng], { icon: markerIcon });
+    const marker = L.marker([resolved.position.lat, resolved.position.lng], { icon: markerIcon });
 
     // AI : Add click handler to fly to overlay position
     marker.on('click', () => {
@@ -294,20 +295,17 @@ export function checkZoomAndHideOverlays(): void {
 /**
  * AI : Fly to overlay marker position with appropriate zoom level
  */
-function flyToOverlayMarker(overlayData: OverlayData): void {
+async function flyToOverlayMarker(overlayData: OverlayData): Promise<void> {
   if (!map.value) return;
-
+  
   const overlayStore = useOverlayStore();
 
-  // AI : Check if overlay has corners data to create bounds
-  const corners = overlayData.corners;
-  if (corners && corners.length === 4) {
-    // AI : Check for edit mode cached positions (only in edit mode, not moderation)
-    const cachedPosition = overlayStore.mode === 'edit' ? getFromEditModeOverlayCache(overlayData.id) : null;
-    const cornersToUse = cachedPosition?.corners ?? corners;
-
-    // AI : Create bounds from corners
-    const leafletCorners = cornersToUse.map(corner => L.latLng(corner.lat, corner.lng));
+  // AI : Use unified position resolver to get corners
+  const resolved = resolveOverlayPosition(overlayData.id, overlayData, overlayStore.mode);
+  
+  if (resolved.corners && resolved.corners.length === 4) {
+    // AI : Create bounds from resolved corners
+    const leafletCorners = resolved.corners.map(corner => L.latLng(corner.lat, corner.lng));
     const bounds = L.latLngBounds(leafletCorners);
 
     // AI : Fly to bounds with padding
@@ -319,58 +317,7 @@ function flyToOverlayMarker(overlayData: OverlayData): void {
   }
 }
 
-/**
- * AI : Get marker color and position based on overlay state, considering edit mode and current overlay status
- * @param overlayData - The CDN overlay data
- * @returns Object with marker color and position
- */
-function getOverlayMarkerInfo(overlayData: OverlayData): { color: MarkerColor, position: { lat: number, lng: number } } {
-  let position = { lat: overlayData.centroid.lat, lng: overlayData.centroid.lng };
-  // AI : Check if we're in edit mode and if the overlay exists in the overlays store
-  const overlayStore = useOverlayStore();
-
-  const mode = overlayStore.mode;
-
-  if (mode === 'edit') {
-    const overlayObject = overlayStore.overlays[overlayData.id];
-
-    if (overlayObject) {
-      // AI : Use current overlay position if it has been moved
-      const calculatedCenter = calculateCenterFromCorners(overlayObject.corners);
-      if (calculatedCenter) {
-        position = calculatedCenter;
-      }
-
-      // AI : Use centralized color logic
-      const color = getOverlayMarkerColor(overlayObject, mode);
-      return { color, position };
-    } else {
-      // AI : No overlay object loaded, check edit cache for modifications
-      const cachedPosition = getFromEditModeOverlayCache(overlayData.id);
-
-      if (cachedPosition?.corners) {
-        // AI : Use cached position if available
-        const calculatedCenter = calculateCenterFromCorners(cachedPosition.corners);
-        if (calculatedCenter) {
-          position = calculatedCenter;
-        }
-
-        // AI : Use centralized color logic with cached modification flag
-        const overlayWithCacheInfo = { ...overlayData, isModified: cachedPosition.isModified };
-        const color = getOverlayMarkerColor(overlayWithCacheInfo, mode);
-        return { color, position };
-      }
-
-      // AI : No cache, use original data with edit mode coloring
-      const color = getOverlayMarkerColor(overlayData, mode);
-      return { color, position };
-    }
-  }
-
-  // AI : View mode or moderation mode - always use original cached data (no edit modifications)
-  const color = getOverlayMarkerColor(overlayData, mode);
-  return { color, position };
-}
+// AI : Old getOverlayMarkerInfo function removed - now using unified resolveOverlayPosition from useOverlayPosition
 
 /**
  * AI : Update overlay markers when completion filters change
