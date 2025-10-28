@@ -79,7 +79,6 @@
 </template>
 
 <script setup lang="ts">
-import L from 'leaflet';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useToast } from '@composables/ui/useToast';

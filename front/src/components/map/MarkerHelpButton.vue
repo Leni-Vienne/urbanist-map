@@ -18,10 +18,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { map } from '@composables/core/useMap'
-import { mobileAwareFlyTo } from '@composables/map/useMapNavigation'
+import { mobileAwareFlyTo, flyToCountry } from '@composables/map/useMapNavigation'
 import { useMapStore } from '@stores/pinia/mapStore'
 import { useI18n } from 'vue-i18n'
-import { flyToCountry } from '@composables/map/useMapNavigation'
 
 const { t } = useI18n()
 const visible = ref(false)

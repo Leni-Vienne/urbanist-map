@@ -95,9 +95,8 @@
 import { ref, computed, watch, onUnmounted } from 'vue';
 
 import { useProjects } from '@composables/project/useProjects';
-import { useCityProjects } from '@composables/project/useProjectSelection';
+import { useCityProjects, useSelectedProject } from '@composables/project/useProjectSelection';
 import { lastCreatedProjectId, setFileUploadFlow } from '@composables/ui/useProjectState';
-import { useSelectedProject } from '@composables/project/useProjectSelection';
 import { useUiStore } from '@stores/uiStore';
 import type { Project } from '@types';
 import { markerColors } from '@composables/map/useMarkers';
