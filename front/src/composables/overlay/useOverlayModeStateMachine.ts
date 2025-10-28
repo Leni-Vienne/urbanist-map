@@ -1,7 +1,7 @@
 // AI : State machine for overlay mode management
-// AI : Defines all possible states and transitions for edit/view modes with zoom levels
+// AI : Defines all possible states and transitions for edit/view/moderation modes with zoom levels
 
-export type OverlayMode = 'view' | 'edit'
+import { MapMode } from '@types'
 export type ZoomLevel = 'high' | 'low'
 
 // AI : Explicit transition types for clarity and type safety
@@ -15,7 +15,7 @@ export type TransitionType =
 
 // AI : Represents the complete state of the overlay system
 export interface OverlayModeState {
-  mode: OverlayMode
+  mode: MapMode
   zoomLevel: ZoomLevel
   hasLoadedOverlays: boolean
   selectedCityId: string | null
@@ -46,8 +46,7 @@ export function getRenderStrategy(state: OverlayModeState): RenderStrategy {
         shouldShowTooltips: false,
         shouldUseCachedPositions: false, // Use backend positions
       }
-    } else {
-      // Edit mode
+    } else if (mode === 'edit') {
       return {
         shouldRenderFullOverlays: true,
         shouldRenderMarkers: true,
@@ -55,6 +54,16 @@ export function getRenderStrategy(state: OverlayModeState): RenderStrategy {
         shouldUseEditColors: true,
         shouldShowTooltips: true,
         shouldUseCachedPositions: true, // Use cached/modified positions
+      }
+    } else {
+      // AI : Moderation mode - similar to view but uses objective colors for review
+      return {
+        shouldRenderFullOverlays: true,
+        shouldRenderMarkers: true,
+        shouldShowEditControls: false,
+        shouldUseEditColors: false, // Use objective timeline colors
+        shouldShowTooltips: false,
+        shouldUseCachedPositions: false, // Use backend positions
       }
     }
   }
@@ -70,8 +79,7 @@ export function getRenderStrategy(state: OverlayModeState): RenderStrategy {
         shouldShowTooltips: false,
         shouldUseCachedPositions: false,
       }
-    } else {
-      // Edit mode
+    } else if (mode === 'edit') {
       return {
         shouldRenderFullOverlays: false,
         shouldRenderMarkers: true,
@@ -79,6 +87,16 @@ export function getRenderStrategy(state: OverlayModeState): RenderStrategy {
         shouldUseEditColors: true,
         shouldShowTooltips: true,
         shouldUseCachedPositions: true,
+      }
+    } else {
+      // AI : Moderation mode at low zoom - markers with objective colors
+      return {
+        shouldRenderFullOverlays: false,
+        shouldRenderMarkers: true,
+        shouldShowEditControls: false,
+        shouldUseEditColors: false, // Use objective timeline colors
+        shouldShowTooltips: true,
+        shouldUseCachedPositions: false,
       }
     }
   }
@@ -164,18 +182,18 @@ export function shouldFullRerender(transition: StateTransition): boolean {
 
 /**
  * AI : Check if we should cache overlay positions
- * AI : This happens when leaving edit mode (transitioning to view mode)
+ * AI : This happens when leaving edit mode (transitioning to view or moderation mode)
  */
 export function shouldCachePositions(from: OverlayModeState, to: OverlayModeState): boolean {
-  return from.mode === 'edit' && to.mode === 'view'
+  return from.mode === 'edit' && (to.mode === 'view' || to.mode === 'moderation')
 }
 
 /**
  * AI : Check if we should apply cached overlay positions
- * AI : This happens when entering edit mode from view mode
+ * AI : This happens when entering edit mode from view or moderation mode
  */
 export function shouldApplyCachedPositions(from: OverlayModeState, to: OverlayModeState): boolean {
-  return from.mode === 'view' && to.mode === 'edit' && from.hasLoadedOverlays
+  return (from.mode === 'view' || from.mode === 'moderation') && to.mode === 'edit' && from.hasLoadedOverlays
 }
 
 /**
@@ -203,12 +221,19 @@ export function isCityChanging(from: OverlayModeState, to: OverlayModeState): bo
  * AI : Check if switching to edit mode (from any state)
  */
 export function isSwitchingToEditMode(from: OverlayModeState, to: OverlayModeState): boolean {
-  return from.mode === 'view' && to.mode === 'edit'
+  return (from.mode === 'view' || from.mode === 'moderation') && to.mode === 'edit'
 }
 
 /**
  * AI : Check if switching to view mode (from any state)
  */
 export function isSwitchingToViewMode(from: OverlayModeState, to: OverlayModeState): boolean {
-  return from.mode === 'edit' && to.mode === 'view'
+  return (from.mode === 'edit' || from.mode === 'moderation') && to.mode === 'view'
+}
+
+/**
+ * AI : Check if switching to moderation mode (from any state)
+ */
+export function isSwitchingToModerationMode(from: OverlayModeState, to: OverlayModeState): boolean {
+  return (from.mode === 'edit' || from.mode === 'view') && to.mode === 'moderation'
 }
