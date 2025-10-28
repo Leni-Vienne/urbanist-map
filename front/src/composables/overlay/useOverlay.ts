@@ -11,13 +11,13 @@
 // AI : - Selection and highlighting
 // AI : ============================================================================
 
-import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
-import { updateOverlayMarkersColors } from '@composables/map/useOverlayMarkerUpdates';
+import { getOverlayMarkerColor } from '@composables/map/useMarkers';
+import { updateOverlayMarkersColors } from '@composables/map/useMarkers';
 import L from "leaflet";
 import 'leaflet-toolbar';
 import 'leaflet-distortableimage';
 import { map } from '@composables/core/useMap';
-import { mobileAwareFlyTo, mobileAwareFlyToBounds } from '@composables/map/useMobileAwareFly';
+import { mobileAwareFlyTo, mobileAwareFlyToBounds } from '@composables/map/useMapNavigation';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
@@ -25,14 +25,14 @@ import type { OverlayObject, OverlayData, MarkerColor } from '@types';
 import { createOverlay as createOverlayInstance, createOverlayFromCDN, convertOverlayToData } from '../../utils/typeFactories';
 import { toRef } from 'vue';
 
-import { createColorIcon, OVERLAY_OUTLINE_COLOR } from '@composables/ui/markerIcons';
+import { createColorIcon, OVERLAY_OUTLINE_COLOR } from '@composables/map/useMarkers';
 import { useProjects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import { trpc } from '@client';
 import { getSelectedCity } from '@composables/map/useCityData';
 import {
   getFromEditModeOverlayCache,
   saveToEditModeOverlayCache,
-} from '@composables/overlay/useOverlayEditCache';
+} from '@composables/overlay/useOverlayPositionManagement';
 import { withErrorHandling } from '@composables/core/useErrorHandling';
 import { validateOverlaySize, leafletCornersToCorners } from '../../../../back/src/utils/overlayValidation';
 import { useToast } from '@composables/ui/useToast';

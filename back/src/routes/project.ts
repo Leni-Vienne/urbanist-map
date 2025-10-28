@@ -4,8 +4,12 @@ import { projects, cities, overlays, changeRequests } from '../db/schema';
 import { eq, sql, and, or, inArray } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { db } from '../database';
-import { buildProjectWithLocationQuery, buildOverlayModerationQuery } from '../db/queryBuilders';
-import { buildPaginationConditions, buildPaginationResponse } from '../db/paginationHelpers';
+import {
+  buildProjectWithLocationQuery,
+  buildOverlayModerationQuery,
+  buildPaginationConditions,
+  buildPaginationResponse
+} from '../db/helpers';
 
 // AI : Nearby search radius configuration
 const NEARBY_SEARCH_RADIUS_METERS = 10 * 1000; // 10km

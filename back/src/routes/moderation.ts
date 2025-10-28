@@ -4,9 +4,13 @@ import { projects, overlays, approvalStatusEnum, changeRequests, cities } from '
 import { eq, inArray, or, and, sql } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { db } from '../database';
-import { buildProjectModerationQuery, buildOverlayModerationQuery } from '../db/queryBuilders';
+import {
+  buildProjectModerationQuery,
+  buildOverlayModerationQuery,
+  buildPaginationConditions,
+  buildPaginationResponse
+} from '../db/helpers';
 import { LocalFileStorage, R2StorageS3, getThumbnailFilename, streamToBuffer } from '../lib/storage';
-import { buildPaginationConditions, buildPaginationResponse } from '../db/paginationHelpers';
 
 // AI : Helper function to migrate image and thumbnail from local storage to R2 on approval
 // Two-phase thumbnail strategy to prevent abuse:

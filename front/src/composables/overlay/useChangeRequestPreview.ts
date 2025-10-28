@@ -13,7 +13,7 @@ import { removeOverlayMarkers } from '@composables/map/useCityOverlays';
 import { loadCitiesForCountry } from '@composables/map/useCountryMarkers';
 import { switchTileLayer, isTileLayerType } from '@composables/map/useTileLayers';
 import { toggleEditMode } from '@composables/overlay/useOverlayModes';
-import { mobileAwareFlyToBounds } from '@composables/map/useMobileAwareFly';
+import { mobileAwareFlyToBounds } from '@composables/map/useMapNavigation';
 import type { PendingChangeRequest } from '../../types/api';
 import type { OverlayForModeration } from '@types';
 

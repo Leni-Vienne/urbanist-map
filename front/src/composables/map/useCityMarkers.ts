@@ -1,11 +1,11 @@
 import L from "leaflet";
-import { createDevelopmentIcon, createColorIcon } from '@composables/ui/markerIcons';
+import { createDevelopmentIcon, createColorIcon } from '@composables/map/useMarkers';
 import type { MarkerColor, Project } from '@types';
 import { ref, watch } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
-import { mobileAwareFlyTo } from '@composables/map/useMobileAwareFly';
+import { mobileAwareFlyTo } from '@composables/map/useMapNavigation';
 import { loadCityOverlays } from '@composables/map/useCityOverlays';
-import { useSelectedProject } from '@composables/project/useSelectedProject';
+import { useSelectedProject } from '@composables/project/useProjectSelection';
 import { RouterOutput, trpc } from '@client';
 
 import { useUiStore } from '@stores/uiStore';

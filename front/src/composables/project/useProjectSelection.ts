@@ -1,8 +1,18 @@
+// AI : ============================================================================
+// AI : PROJECT SELECTION - Unified project list and selection management
+// AI : ============================================================================
+// AI : Combines city projects retrieval and selected project state management
+// AI : ============================================================================
+
 import { computed } from 'vue';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import type { Project } from '@types';
 import { createProject, createProjectFromAPI } from '../../utils/typeFactories';
+
+// AI : ============================================================================
+// AI : CITY PROJECTS
+// AI : ============================================================================
 
 /**
  * AI : Composable to get all accessible projects including:
@@ -10,7 +20,6 @@ import { createProject, createProjectFromAPI } from '../../utils/typeFactories';
  * - Nearby projects from other cities (lazy loaded)
  * - Local unsaved projects
  */
-
 export function useCityProjects() {
   const mapStore = useMapStore();
   const projectStore = useProjectStore();
@@ -101,5 +110,29 @@ export function useCityProjects() {
     projectsByCity,
     getOverlayCountForProject,
     loadNearbyProjects
+  };
+}
+
+// AI : ============================================================================
+// AI : SELECTED PROJECT
+// AI : ============================================================================
+
+/**
+ * AI : Composable for managing the globally selected project ID
+ * This provides a centralized way to access and modify the selected project
+ * across all components, preventing state inconsistencies.
+ */
+export function useSelectedProject() {
+  const projectStore = useProjectStore();
+
+  const selectedProjectId = computed({
+    get: () => projectStore.selectedProjectId,
+    set: (value: string | null) => {
+      projectStore.selectedProjectId = value;
+    }
+  });
+
+  return {
+    selectedProjectId,
   };
 }

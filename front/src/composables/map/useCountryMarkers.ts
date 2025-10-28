@@ -5,13 +5,13 @@ import { addCityMarkersForCountry, removeCityMarkers, resetLayerMarkersOpacity }
 import { removeOverlayMarkers } from '@composables/map/useCityOverlays';
 import { clearAllOverlays } from '@composables/overlay/useOverlay';
 import { switchTileLayer, isTileLayerType } from '@composables/map/useTileLayers';
-import { flyToCountry } from '@composables/map/useFlyToCountry';
+import { flyToCountry } from '@composables/map/useMapNavigation';
 import { trpc } from '@client';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { storeToRefs } from 'pinia';
-import { createColorIcon } from '@composables/ui/markerIcons';
+import { createColorIcon } from '@composables/map/useMarkers';
 import { withErrorHandling } from '@composables/core/useErrorHandling';
 import type { Country } from '@types';
 

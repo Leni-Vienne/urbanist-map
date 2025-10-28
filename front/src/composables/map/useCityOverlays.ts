@@ -6,13 +6,13 @@ import { renderViewModeOverlays, clearAllOverlays } from '@composables/overlay/u
 import { hasCachedCityProjectsData, getSelectedCity } from '@composables/map/useCityData';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import { trpc } from '@client';
-import { getOverlayMarkerColor } from '@composables/overlay/useOverlayMarkerColors';
-import { resolveOverlayPosition } from '@composables/overlay/useOverlayPosition';
-import { createColorIcon } from '@composables/ui/markerIcons';
+import { getOverlayMarkerColor } from '@composables/map/useMarkers';
+import { resolveOverlayPosition } from '@composables/overlay/useOverlayPositionManagement';
+import { createColorIcon } from '@composables/map/useMarkers';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { withErrorHandling, withErrorToast } from '@composables/core/useErrorHandling';
-import { mobileAwareFlyToBounds } from '@composables/map/useMobileAwareFly';
+import { mobileAwareFlyToBounds } from '@composables/map/useMapNavigation';
 import type { OverlayData } from '@types';
 
 // AI : Minimum zoom level required to load city projects and overlays

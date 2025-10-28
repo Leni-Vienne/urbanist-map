@@ -5,7 +5,7 @@ import { removeOverlayMarkers } from '@composables/map/useCityOverlays';
 import { clearAllOverlays, navigateToOverlay } from '@composables/overlay/useOverlay';
 import { switchTileLayer, isTileLayerType } from '@composables/map/useTileLayers';
 import { map } from '@composables/core/useMap';
-import { mobileAwareFlyTo, mobileAwareFlyToBounds } from '@composables/map/useMobileAwareFly';
+import { mobileAwareFlyTo, mobileAwareFlyToBounds } from '@composables/map/useMapNavigation';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';

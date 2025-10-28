@@ -176,7 +176,7 @@ import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useAuthStore } from '@stores/authStore';
 import { useUiStore } from '@stores/uiStore';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
-import { createButtonSVG } from '@composables/ui/markerIcons';
+import { createButtonSVG } from '@composables/map/useMarkers';
 import { map } from '@composables/core/useMap';
 import { useAddOverlay } from '@composables/overlay/useAddOverlay';
 import type { viewModeMarkerColor } from '@types';
