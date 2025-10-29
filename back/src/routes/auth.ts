@@ -7,11 +7,11 @@ import { db } from '../database';
 import { users } from '../db/schema';
 import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 
-// AI : Validation schemas
+// AI : Validation schemas with custom error messages
 const registerSchema = z.object({
-  email: z.email(),
-  password: z.string().min(8),
-  username: z.string().min(7).max(50),
+  email: z.string().email({ message: 'auth.error.invalidEmail' }),
+  password: z.string().min(8, { message: 'auth.error.passwordTooShort' }),
+  username: z.string().min(3, { message: 'auth.error.usernameTooShort' }).max(50, { message: 'auth.error.usernameTooLong' }),
 });
 
 
@@ -296,6 +296,12 @@ export const authRouter = router({
           },
         };
       } catch (error) {
+        // AI : If the code threw a TRPCError (intentional client/server error), rethrow it
+        // so that the specific message (i18n key) is preserved and can be translated on the client.
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+
         console.error('Registration error:', error);
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',

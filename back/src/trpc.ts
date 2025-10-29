@@ -15,7 +15,21 @@ export type Context = {
  * Should be done only once per backend!
  */
 const t = initTRPC.context<Context>().create({
-    transformer: superjson,  // to send Date datatype
+    transformer: superjson,  // AI : to send Date datatype
+    errorFormatter({ shape, error }) {
+        // AI : Handle Zod validation errors with custom messages
+        if (error.code === 'BAD_REQUEST' && error.cause?.name === 'ZodError') {
+            const zodError = error.cause as any;
+            const firstError = zodError.issues?.[0];
+            if (firstError?.message) {
+                return {
+                    ...shape,
+                    message: firstError.message,
+                };
+            }
+        }
+        return shape;
+    },
 });
 
 /**
