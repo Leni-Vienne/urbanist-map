@@ -66,7 +66,7 @@
                       <div class="accordion-header-content">
                         <span class="project-name">{{ project.name }}</span>
                         <Tag
-                          :value="project.status"
+                          :value="$t(`status.${project.status}`)"
                           :severity="getStatusSeverity(project.status)"
                           class="project-status-tag"
                           rounded
@@ -226,7 +226,7 @@
                                 {{ formatRelativeTime(overlay.updatedAt) }}
                               </div>
                               <Tag
-                                :value="overlay.status"
+                                :value="$t(`status.${overlay.status}`)"
                                 :severity="getStatusSeverity(overlay.status)"
                                 class="overlay-status-tag"
                                 rounded
