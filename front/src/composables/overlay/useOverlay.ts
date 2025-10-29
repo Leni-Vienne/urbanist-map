@@ -867,6 +867,7 @@ export function updateMarkerTooltip(overlayObject: OverlayObject, cachedMarkerCo
   }
   // AI : Generate tooltip text based on overlay state
   const hasBeenModified = overlayObject.isModified;
+  const hasPendingChanges = overlayObject.hasPendingChanges ?? false;
   const isReplacement = overlayObject.replacesOverlayId !== null;
   const isApproved = overlayObject.status === 'approved';
   const isPending = overlayObject.status === 'pending';
@@ -878,10 +879,12 @@ export function updateMarkerTooltip(overlayObject: OverlayObject, cachedMarkerCo
     tooltipText = 'Pending approval';
   } else if (isPending && hasBeenModified) {
     tooltipText = 'Pending approval (modified)';
-  } else if (isApproved && !hasBeenModified) {
-    tooltipText = 'Approved';
+  } else if (isApproved && hasPendingChanges) {
+    tooltipText = 'Pending changes';
   } else if (isApproved && hasBeenModified) {
     tooltipText = 'Approved (modified)';
+  } else if (isApproved && !hasBeenModified) {
+    tooltipText = 'Approved';
   } else if (hasBeenModified) {
     tooltipText = 'Local overlay';
   } else if (overlayObject.status === 'rejected') {

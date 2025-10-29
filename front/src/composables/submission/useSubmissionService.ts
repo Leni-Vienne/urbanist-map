@@ -427,8 +427,9 @@ export function useSubmissionService() {
         changes
       })
 
-      // AI : Reset modified flag after successfully submitting change request
+      // AI : Reset modified flag and set pending changes flag after successfully submitting change request
       overlay.isModified = false
+      overlay.hasPendingChanges = true
       updateMarkerTooltip(overlay)
     } else if (context.changeType === 'update_pending') {
       // AI : Direct update for pending overlays
