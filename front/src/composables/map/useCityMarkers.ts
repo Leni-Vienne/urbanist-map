@@ -1,5 +1,5 @@
 import L from "leaflet";
-import { createDevelopmentIcon, createColorIcon } from '@composables/map/useMarkers';
+import { createDevelopmentIcon } from '@composables/map/useMarkers';
 import type { MarkerColor, Project } from '@types';
 import { ref, watch } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
@@ -14,6 +14,8 @@ import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useProjects } from '@composables/project/useProjects';
 import { createProject } from '../../utils/typeFactories';
+import { MARKER_OPACITY } from '@constants/markerConstants';
+import { createMarkerLayer, type MarkerLayerConfig } from '@composables/map/useMarkerLayer';
 
 // AI : Get project marker color based on status, timeline, and mode
 function getProjectMarkerColor(project: Project, mode: 'view' | 'edit' | 'moderation'): MarkerColor {
@@ -77,21 +79,7 @@ function getProjectMarkerColor(project: Project, mode: 'view' | 'edit' | 'modera
 }
 
 
-// AI : Opacity constants for city markers
-const MARKER_OPACITY = 0.6; // AI : Default opacity for city markers
-const BUILDING_MARKER_OPACITY = 0.8; // AI : Default opacity for development markers
-const MARKER_HOVER_OPACITY = 1; // AI : Opacity for city markers on hover
-
-// AI : Utility function to reset all markers in a layer group to default opacity
-export function resetLayerMarkersOpacity(layerGroup: L.LayerGroup | null, defaultOpacity: number) {
-  if (!layerGroup) return;
-
-  layerGroup.eachLayer((layer) => {
-    if (layer instanceof L.Marker) {
-      layer.setOpacity(defaultOpacity);
-    }
-  });
-}
+// AI : Opacity constants are now imported from markerConstants
 
 // AI : Update development marker opacities based on selected marker
 export function updateDevelopmentMarkerOpacities(selectedMarker: L.Marker | null) {
@@ -99,7 +87,7 @@ export function updateDevelopmentMarkerOpacities(selectedMarker: L.Marker | null
 
   // AI : If there was a previously selected marker and we're changing selection, force reset its opacity
   if (selectedDevelopmentMarker && selectedDevelopmentMarker !== selectedMarker) {
-    selectedDevelopmentMarker.setOpacity(BUILDING_MARKER_OPACITY);
+    selectedDevelopmentMarker.setOpacity(MARKER_OPACITY.development.default);
   }
 
   selectedDevelopmentMarker = selectedMarker;
@@ -107,9 +95,9 @@ export function updateDevelopmentMarkerOpacities(selectedMarker: L.Marker | null
   developmentProjectsLayer.eachLayer((layer) => {
     if (layer instanceof L.Marker) {
       if (selectedMarker && layer === selectedMarker) {
-        layer.setOpacity(1); // AI : Fully opaque for selected marker
+        layer.setOpacity(MARKER_OPACITY.development.hover); // AI : Fully opaque for selected marker
       } else {
-        layer.setOpacity(BUILDING_MARKER_OPACITY); // AI : Default opacity for others
+        layer.setOpacity(MARKER_OPACITY.development.default); // AI : Default opacity for others
       }
     }
   });
@@ -126,9 +114,6 @@ let cityMarkersLayer: L.LayerGroup | null = null;
 
 // AI : Layer group for development projects (development markers)
 let developmentProjectsLayer: L.LayerGroup | null = null;
-
-// AI : Track the currently selected (clicked) city marker
-let selectedCityMarker: L.Marker | null = null;
 
 // AI : Track the currently selected development marker (for opacity control)
 let selectedDevelopmentMarker: L.Marker | null = null;
@@ -371,7 +356,7 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
         // AI : Create marker with timeline-based color icon and default opacity
         const marker = L.marker([project.lat, project.lng], {
           icon: markerIcon,
-          opacity: BUILDING_MARKER_OPACITY // AI : Lower default opacity to suggest interactivity
+          opacity: MARKER_OPACITY.development.default // AI : Lower default opacity to suggest interactivity
         });
 
         // AI : Prevent double-click zoom on markers
@@ -381,16 +366,16 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
 
         // AI : Add mouseover event to increase marker opacity
         marker.on('mouseover', () => {
-          marker.setOpacity(MARKER_HOVER_OPACITY);
+          marker.setOpacity(MARKER_OPACITY.development.hover);
         });
 
         // AI : Add mouseout event to reset marker opacity (unless it's the selected marker)
         marker.on('mouseout', () => {
           // AI : If this is the selected marker, keep it fully opaque
           if (selectedDevelopmentMarker === marker) {
-            marker.setOpacity(1);
+            marker.setOpacity(MARKER_OPACITY.development.hover);
           } else {
-            marker.setOpacity(BUILDING_MARKER_OPACITY);
+            marker.setOpacity(MARKER_OPACITY.development.default);
           }
         });
 
@@ -531,74 +516,37 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
   if (cityMarkersLayer) {
     map.value.removeLayer(cityMarkersLayer);
   }
-  cityMarkersLayer = L.layerGroup();
 
-  cities.forEach(city => {
-    // AI : Create SVG marker for cities (using blue color)
-    const markerIcon = createColorIcon('blue');
-    const marker = L.marker([city.lat, city.lng], {
-      icon: markerIcon,
-      opacity: MARKER_OPACITY // AI : Lower default opacity to suggest interactivity
-    });
-
-    // AI : Add data-testid to the marker element after it's added to the DOM
-    marker.on('add', () => {
-      const markerElement = marker.getElement();
-      if (markerElement) {
-        markerElement.setAttribute('data-testid', `city-marker-${city.id}`);
-        markerElement.setAttribute('data-city-id', city.id);
-        markerElement.setAttribute('data-city-name', city.name);
-        markerElement.setAttribute('data-country-code', city.countryCode);
-        markerElement.setAttribute('data-lat', city.lat.toString());
-        markerElement.setAttribute('data-lng', city.lng.toString());
-      }
-    });
-
-    // AI : Add tooltip with city name, only on hover
-    marker.bindTooltip(city.name, {
-      permanent: false, // AI : Tooltip appears only on hover
-    });
-
-    // AI : Add click event to load city projects directly and set marker as selected
-    marker.on('click', async () => {
-      resetLayerMarkersOpacity(cityMarkersLayer, MARKER_OPACITY);
-      marker.setOpacity(MARKER_HOVER_OPACITY);
-      selectedCityMarker = marker;
-      
+  // AI : Configure city marker behavior
+  const config: MarkerLayerConfig<CityWithProjects> = {
+    getOpacity: (hover) => hover ? MARKER_OPACITY.city.hover : MARKER_OPACITY.city.default,
+    getColor: () => 'blue',
+    getLatLng: (city) => ({ lat: city.lat, lng: city.lng }),
+    getTooltip: (city) => city.name,
+    getTestId: (city) => `city-marker-${city.id}`,
+    getDataAttributes: (city) => ({
+      'data-city-id': city.id,
+      'data-city-name': city.name,
+      'data-country-code': city.countryCode,
+      'data-lat': city.lat.toString(),
+      'data-lng': city.lng.toString(),
+    }),
+    onMarkerClick: async (_marker, city) => {
       // AI : Zoom to the city marker position (same zoom level as MarkerHelpButton)
       if (map.value && map.value.getZoom() <= 9) {
         mobileAwareFlyTo([city.lat, city.lng], 12, {
           duration: 1.5
         });
       }
-      
+
       await loadCityProjects(city.id, city.name, false, city.countryCode);
-    });
+    }
+  };
 
-    // AI : Add mouseover event to show guidance tooltip and increase marker opacity
-    marker.on('mouseover', () => {
-      // AI : Only increase opacity if not selected
-      if (selectedCityMarker !== marker) {
-        marker.setOpacity(MARKER_HOVER_OPACITY);
-      }
-    });
+  // AI : Create marker layer using abstraction
+  const result = createMarkerLayer(cities, config);
+  cityMarkersLayer = result.layer;
 
-    // AI : Add mouseout event to hide guidance tooltip and reset marker opacity if not selected
-    marker.on('mouseout', () => {
-      // AI : Only reset opacity if not selected
-      if (selectedCityMarker !== marker) {
-        marker.setOpacity(MARKER_OPACITY);
-      }
-    });
-
-    cityMarkersLayer!.addLayer(marker);
-  });
-
-  // AI : Add the layer group to the map if it exists
-  if (cityMarkersLayer) {
-    cityMarkersLayer.addTo(map.value);
-  }
-
-  // AI : Reset selected marker when new markers are added
-  selectedCityMarker = null;
+  // AI : Add the layer group to the map
+  cityMarkersLayer.addTo(map.value);
 }

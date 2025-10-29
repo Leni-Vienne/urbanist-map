@@ -13,9 +13,10 @@ import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { withErrorHandling, withErrorToast } from '@composables/core/useErrorHandling';
 import { mobileAwareFlyToBounds } from '@composables/map/useMapNavigation';
 import type { OverlayData } from '@types';
+import { MAP_CONFIG } from '@constants/mapConstants';
 
 // AI : Minimum zoom level required to load city projects and overlays
-const MIN_ZOOM_FOR_OVERLAYS = 12;
+const MIN_ZOOM_FOR_OVERLAYS = MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
 
 // AI : Layer group for overlay markers (markers without images)
 let overlayMarkersLayer: L.LayerGroup | null = null;

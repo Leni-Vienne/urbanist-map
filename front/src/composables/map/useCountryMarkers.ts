@@ -1,7 +1,7 @@
 import L from "leaflet";
 import { ref } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
-import { addCityMarkersForCountry, removeCityMarkers, resetLayerMarkersOpacity } from '@composables/map/useCityMarkers';
+import { addCityMarkersForCountry, removeCityMarkers } from '@composables/map/useCityMarkers';
 import { removeOverlayMarkers } from '@composables/map/useCityOverlays';
 import { clearAllOverlays } from '@composables/overlay/useOverlay';
 import { switchTileLayer, isTileLayerType } from '@composables/map/useTileLayers';
@@ -11,9 +11,10 @@ import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { storeToRefs } from 'pinia';
-import { createColorIcon } from '@composables/map/useMarkers';
 import { withErrorHandling } from '@composables/core/useErrorHandling';
 import type { Country } from '@types';
+import { MARKER_OPACITY } from '@constants/markerConstants';
+import { createMarkerLayer, type MarkerLayerConfig } from '@composables/map/useMarkerLayer';
 
 // AI : Function to get countries when needed
 function getCountries() {
@@ -23,17 +24,12 @@ function getCountries() {
 }
 
 
-// AI : Opacity constants for country markers
-const COUNTRY_MARKER_OPACITY = 0.6; // AI : Default opacity for country markers
-const COUNTRY_MARKER_HOVER_OPACITY = 1; // AI : Opacity for country markers on hover
+// AI : Opacity constants are now imported from markerConstants
 
 const isLoadingCountries = ref(false);
 const isLoadingCountryProjects = ref(false);
 
 let countryMarkersLayer: L.LayerGroup | null = null;
-
-// AI : Track the currently selected (clicked) country marker
-let selectedCountryMarker: L.Marker | null = null;
 
 export async function loadCountriesWithProjects(force: boolean = false): Promise<void> {
   const overlayStore = useOverlayStore();
@@ -135,39 +131,22 @@ function addCountryMarkersToMapInternal() {
     map.value.removeLayer(countryMarkersLayer);
   }
 
-  countryMarkersLayer = L.layerGroup();
   const countries = getCountries();
-  countries.value.forEach((country) => {
-    // AI : Create SVG marker for countries (using blue color)
-    const markerIcon = createColorIcon('blue');
-    const marker = L.marker([country.lat, country.lng], {
-      icon: markerIcon,
-      opacity: COUNTRY_MARKER_OPACITY, // AI : Lower default opacity to suggest interactivity
-    });
 
-    // AI : Add data-testid to the marker element after it's added to the DOM
-    marker.on('add', () => {
-      const markerElement = marker.getElement();
-      if (markerElement) {
-        markerElement.setAttribute('data-testid', `country-marker-${country.code}`);
-        markerElement.setAttribute('data-country-code', country.code);
-        markerElement.setAttribute('data-country-name', country.name);
-        markerElement.setAttribute('data-lat', country.lat.toString());
-        markerElement.setAttribute('data-lng', country.lng.toString());
-      }
-    });
-
-    // AI : Add tooltip with country name, only on hover
-    marker.bindTooltip(country.name, {
-      permanent: false, // AI : Tooltip appears only on hover
-    });
-
-    // AI : Add click event to load cities and set marker as selected
-    marker.on('click', async () => {
-      resetLayerMarkersOpacity(countryMarkersLayer, COUNTRY_MARKER_OPACITY);
-      marker.setOpacity(COUNTRY_MARKER_HOVER_OPACITY);
-      selectedCountryMarker = marker;
-
+  // AI : Configure country marker behavior
+  const config: MarkerLayerConfig<Country> = {
+    getOpacity: (hover) => hover ? MARKER_OPACITY.country.hover : MARKER_OPACITY.country.default,
+    getColor: () => 'blue',
+    getLatLng: (country) => ({ lat: country.lat, lng: country.lng }),
+    getTooltip: (country) => country.name,
+    getTestId: (country) => `country-marker-${country.code}`,
+    getDataAttributes: (country) => ({
+      'data-country-code': country.code,
+      'data-country-name': country.name,
+      'data-lat': country.lat.toString(),
+      'data-lng': country.lng.toString(),
+    }),
+    onMarkerClick: async (_marker, country) => {
       // AI : Fly to the country using bounding box
       flyToCountry(country.code, country.lat, country.lng);
 
@@ -181,7 +160,7 @@ function addCountryMarkersToMapInternal() {
       const mapStore = useMapStore();
       mapStore.currentCityOverlays = [];
       mapStore.clearSelectedCity();
-      
+
       // AI : Set the selected country code
       mapStore.selectedCountryCode = country.code;
 
@@ -192,31 +171,15 @@ function addCountryMarkersToMapInternal() {
       if (updatedCountry) {
         addCityMarkersForCountry(updatedCountry.cities.map((c) => ({ ...c, projectCount: 0 })));
       }
-    });
+    }
+  };
 
-    // AI : Add mouseover event to show guidance tooltip and increase marker opacity
-    marker.on('mouseover', () => {
-      // AI : Only increase opacity if not selected
-      if (selectedCountryMarker !== marker) {
-        marker.setOpacity(COUNTRY_MARKER_HOVER_OPACITY);
-      }
-    });
+  // AI : Create marker layer using abstraction
+  const result = createMarkerLayer(countries.value, config);
+  countryMarkersLayer = result.layer;
 
-    // AI : Add mouseout event to hide guidance tooltip and reset marker opacity if not selected
-    marker.on('mouseout', () => {
-      // AI : Only reset opacity if not selected
-      if (selectedCountryMarker !== marker) {
-        marker.setOpacity(COUNTRY_MARKER_OPACITY);
-      }
-    });
-
-    countryMarkersLayer!.addLayer(marker);
-  });
-
+  // AI : Add the layer group to the map
   countryMarkersLayer.addTo(map.value);
-
-  // AI : Reset selected marker when new markers are added
-  selectedCountryMarker = null;
 }
 
 export async function initializeCountryMarkers(): Promise<void> {

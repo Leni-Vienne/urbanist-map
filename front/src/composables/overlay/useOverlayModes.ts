@@ -19,6 +19,7 @@ import { useProjectStore } from '@stores/pinia/projectStore'
 import { updateOverlayMarkersColors } from '@composables/map/useMarkers'
 import { updateOverlayEditingState } from '@composables/overlay/useOverlay'
 import { storeToRefs } from 'pinia'
+import { MAP_CONFIG } from '@constants/mapConstants'
 
 // AI : Transition effects - callbacks executed during state transitions
 interface TransitionEffects {
@@ -27,7 +28,7 @@ interface TransitionEffects {
 }
 
 // AI : Constants
-const MIN_ZOOM_FOR_OVERLAYS = 12
+const MIN_ZOOM_FOR_OVERLAYS = MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS
 
 // AI : Current state of the overlay system
 const currentState = ref<OverlayModeState>({
