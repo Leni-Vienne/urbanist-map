@@ -3,7 +3,7 @@
     v-model:visible="visible"
     modal
     :header="isForgotPasswordMode ? $t('auth.forgotPasswordTitle') : (isLoginMode ? $t('auth.signIn') : $t('auth.signUp'))"
-    :style="{width: '450px'}"
+    :style="{ width: '450px' }"
     class="p-fluid auth-modal-overflow"
     data-testid="auth-modal"
   >
@@ -11,9 +11,16 @@
     <div v-if="isForgotPasswordMode">
       <p class="text-muted-color mb-4">{{ $t('auth.forgotPasswordMessage') }}</p>
 
-      <form @submit.prevent="handleForgotPassword" class="flex flex-col gap-4" autocomplete="on">
+      <form
+        @submit.prevent="handleForgotPassword"
+        class="flex flex-col gap-4"
+        autocomplete="on"
+      >
         <div class="field">
-          <label for="forgot-email" class="block text-sm font-medium mb-2">{{ $t('auth.emailAddress') }}</label>
+          <label
+            for="forgot-email"
+            class="block text-sm font-medium mb-2"
+          >{{ $t('auth.emailAddress') }}</label>
           <InputText
             id="forgot-email"
             v-model="forgotPasswordEmail"
@@ -26,12 +33,18 @@
           />
         </div>
 
-        <div v-if="error" class="p-error flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded">
+        <div
+          v-if="error"
+          class="p-error flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded"
+        >
           <i class="pi pi-exclamation-triangle"></i>
           {{ error }}
         </div>
 
-        <div v-if="resetLinkSent" class="p-info flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded">
+        <div
+          v-if="resetLinkSent"
+          class="p-info flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded"
+        >
           <i class="pi pi-info-circle"></i>
           {{ $t('auth.resetLinkSent') }}
         </div>
@@ -60,7 +73,10 @@
     </div>
 
     <!-- AI : Normal Auth Mode (Sign In / Sign Up) -->
-    <div v-else :class="{ 'pt-3': lastLoginMethod === 'google' && isLoginMode }">
+    <div
+      v-else
+      :class="{ 'pt-3': lastLoginMethod === 'google' && isLoginMode }"
+    >
       <!-- AI : Social Login Section -->
       <div class="mb-6 overflow-visible">
         <div class="flex flex-col gap-3 mb-4 overflow-visible">
@@ -94,106 +110,132 @@
         </div>
       </div>
 
-      <form @submit.prevent="handleSubmit" class="flex flex-col gap-4" autocomplete="on">
-      <div class="field relative">
-        <label for="auth-email" class="block text-sm font-medium mb-2">{{ $t('auth.emailAddress') }}</label>
-        <InputText
-          id="auth-email"
-          v-model="form.email"
-          type="email"
-          required
-          :invalid="!!emailError"
-          :placeholder="$t('auth.enterEmailAddress')"
-          autocomplete="email"
-          class="w-full"
-          :class="{ 'last-used-input': lastLoginMethod === 'email' && isLoginMode }"
-          data-testid="auth-email-input"
-        />
-        <!-- AI : Last used badge for email method -->
-        <span
-          v-if="lastLoginMethod === 'email' && isLoginMode && form.email"
-          class="absolute top-[1.875rem] -right-1 translate-y-[-33%] text-xs px-3 py-1.5 rounded-full font-semibold z-50"
-          style="background-color: var(--p-primary-color); color: var(--p-primary-contrast-color); box-shadow: var(--p-button-shadow);"
-          :title="$t('auth.lastUsedEmail')"
-        >
-          {{ $t('auth.lastUsed') }}
-        </span>
-        <small v-if="emailError" class="p-error">{{ emailError }}</small>
-      </div>
-
-      <div class="field">
-        <div class="flex justify-between items-center mb-2">
-          <label for="auth-password" class="block text-sm font-medium">{{ $t('auth.password') }}</label>
-          <Button
-            v-if="isLoginMode"
-            type="button"
-            :label="$t('auth.forgotPassword')"
-            link
-            @click="showForgotPassword"
-            :disabled="loading || oauthLoading"
-            class="p-0 text-xs"
-            data-testid="forgot-password-link"
+      <form
+        @submit.prevent="handleSubmit"
+        class="flex flex-col gap-4"
+        autocomplete="on"
+      >
+        <div class="field relative">
+          <label
+            for="auth-email"
+            class="block text-sm font-medium mb-2"
+          >{{ $t('auth.emailAddress') }}</label>
+          <InputText
+            id="auth-email"
+            v-model="form.email"
+            type="email"
+            required
+            :invalid="!!emailError"
+            :placeholder="$t('auth.enterEmailAddress')"
+            autocomplete="email"
+            class="w-full"
+            :class="{ 'last-used-input': lastLoginMethod === 'email' && isLoginMode }"
+            data-testid="auth-email-input"
           />
-        </div>
-        <Password
-          id="auth-password"
-          v-model="form.password"
-          :feedback="!isLoginMode"
-          toggleMask
-          required
-          :invalid="!!passwordError"
-          :placeholder="isLoginMode ? $t('auth.enterPassword') : $t('auth.chooseStrongPassword')"
-          :inputProps="{ autocomplete: isLoginMode ? 'current-password' : 'new-password' }"
-          data-testid="auth-password-input"
-        />
-        <small v-if="passwordError" class="p-error">{{ passwordError }}</small>
-      </div>
-
-      <div v-if="!isLoginMode" class="field">
-        <label for="auth-username" class="block text-sm font-medium mb-2">
-          {{ $t('auth.username') }} <span class="text-muted-color text-xs">({{ $t('auth.optional') }})</span>
-        </label>
-        <InputText 
-          id="auth-username"
-          v-model="form.username"
-          :placeholder="$t('auth.chooseUsername')"
-          autocomplete="nickname"
-          class="w-full"
-          data-testid="auth-username-input"
-        />
-        <small class="text-muted-color text-xs">{{ $t('auth.displayName') }}</small>
-      </div>
-
-      <div v-if="error" class="p-error flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded">
-        <i class="pi pi-exclamation-triangle"></i>
-        {{ error }}
-      </div>
-
-      <div class="flex flex-col gap-3 mt-2">
-        <Button 
-          type="submit" 
-          :label="isLoginMode ? $t('auth.signIn') : $t('auth.createAccount')"
-          :loading="loading"
-          :disabled="loading || oauthLoading"
-          class="w-full"
-          data-testid="auth-submit-button"
-        />
-        
-        <div class="text-center pt-3 border-t border-surface-300">
-          <span class="text-sm text-muted-color">
-            {{ isLoginMode ? $t('auth.dontHaveAccount') : $t('auth.alreadyHaveAccount') }}
+          <!-- AI : Last used badge for email method -->
+          <span
+            v-if="lastLoginMethod === 'email' && isLoginMode && form.email"
+            class="absolute top-[1.875rem] -right-1 translate-y-[-33%] text-xs px-3 py-1.5 rounded-full font-semibold z-50"
+            style="background-color: var(--p-primary-color); color: var(--p-primary-contrast-color); box-shadow: var(--p-button-shadow);"
+            :title="$t('auth.lastUsedEmail')"
+          >
+            {{ $t('auth.lastUsed') }}
           </span>
-          <Button 
-            type="button"
-            :label="isLoginMode ? $t('auth.signUp') : $t('auth.signIn')"
-            link
-            @click="toggleMode"
-            :disabled="loading || oauthLoading"
-            class="ml-1 p-0"
-            data-testid="auth-mode-toggle"
-          />
+          <small
+            v-if="emailError"
+            class="p-error"
+          >{{ emailError }}</small>
         </div>
-      </div>
+
+        <div class="field">
+          <div class="flex justify-between items-center mb-2">
+            <label
+              for="auth-password"
+              class="block text-sm font-medium"
+            >{{ $t('auth.password') }}</label>
+            <Button
+              v-if="isLoginMode"
+              type="button"
+              :label="$t('auth.forgotPassword')"
+              link
+              @click="showForgotPassword"
+              :disabled="loading || oauthLoading"
+              class="p-0 text-xs"
+              data-testid="forgot-password-link"
+            />
+          </div>
+          <Password
+            id="auth-password"
+            v-model="form.password"
+            :feedback="!isLoginMode"
+            toggleMask
+            required
+            :invalid="!!passwordError"
+            :placeholder="isLoginMode ? $t('auth.enterPassword') : $t('auth.chooseStrongPassword')"
+            :inputProps="{ autocomplete: isLoginMode ? 'current-password' : 'new-password' }"
+            data-testid="auth-password-input"
+          />
+          <small
+            v-if="passwordError"
+            class="p-error"
+          >{{ passwordError }}</small>
+        </div>
+
+        <div
+          v-if="!isLoginMode"
+          class="field"
+        >
+          <label
+            for="auth-username"
+            class="block text-sm font-medium mb-2"
+          >
+            {{ $t('auth.username') }}
+          </label>
+          <InputText
+            id="auth-username"
+            v-model="form.username"
+            :placeholder="$t('auth.chooseUsername')"
+            autocomplete="nickname"
+            class="w-full"
+            required
+            data-testid="auth-username-input"
+          />
+          <small class="text-muted-color text-xs">{{ $t('auth.displayName') }}</small>
+        </div>
+
+        <div
+          v-if="error"
+          class="p-error flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded"
+        >
+          <i class="pi pi-exclamation-triangle"></i>
+          {{ error }}
+        </div>
+
+        <div class="flex flex-col gap-3 mt-2">
+          <Button
+            type="submit"
+            :label="isLoginMode ? $t('auth.signIn') : $t('auth.createAccount')"
+            :loading="loading"
+            :disabled="loading || oauthLoading"
+            class="w-full"
+            data-testid="auth-submit-button"
+          />
+
+          <div class="text-center pt-3 border-t border-surface-300">
+            <span class="text-sm text-muted-color">
+              {{ isLoginMode ? $t('auth.dontHaveAccount') : $t('auth.alreadyHaveAccount') }}
+            </span>
+            <Button
+              type="button"
+              :label="isLoginMode ? $t('auth.signUp') : $t('auth.signIn')"
+              link
+              @click="toggleMode"
+              :disabled="loading || oauthLoading"
+              class="ml-1 p-0"
+              data-testid="auth-mode-toggle"
+            />
+          </div>
+        </div>
       </form>
     </div>
   </Dialog>
