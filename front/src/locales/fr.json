@@ -122,6 +122,7 @@
     "pending": "En attente",
     "approved": "Approuvé",
     "rejected": "Rejeté",
+    "conflicted": "En conflit",
     "planned": "Prévu",
     "inConstruction": "En construction",
     "completed": "Terminé"
@@ -147,8 +148,15 @@
       "proposed": "Afficher/masquer les projets proposés",
       "planned": "Afficher/masquer les projets prévus",
       "inProgress": "Afficher/masquer les projets en cours",
-      "completed": "Afficher/masquer les projets terminés"
+      "completed": "Afficher/masquer les projets terminés",
+      "onlyShowPending": "Afficher uniquement en attente"
     }
+  },
+  "contributions": {
+    "noProjectsMatchFilter": "Aucun projet ne correspond au filtre actuel.",
+    "tryChangingFilters": "Essayez de modifier vos paramètres de filtre.",
+    "noProjectsFound": "Aucun projet trouvé.",
+    "createFirstProject": "Créez votre premier projet de construction !"
   },
   "overlay": {
     "title": "Images",

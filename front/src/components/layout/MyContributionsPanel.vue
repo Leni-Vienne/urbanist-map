@@ -5,14 +5,14 @@
     :change-requests="pendingChangeRequests"
     :title="$t('navigation.myContributions')"
     panel-class="my-contributions-panel"
-    :empty-message="projects.length > 0 && filteredProjects.length === 0 ? 'No projects match the current filter.' : 'No projects found.'"
-    :empty-sub-message="projects.length > 0 && filteredProjects.length === 0 ? 'Try changing your filter settings.' : 'Create your first construction project!'"
+    :empty-message="projects.length > 0 && filteredProjects.length === 0 ? $t('contributions.noProjectsMatchFilter') : $t('contributions.noProjectsFound')"
+    :empty-sub-message="projects.length > 0 && filteredProjects.length === 0 ? $t('contributions.tryChangingFilters') : $t('contributions.createFirstProject')"
   >
     <template #header-actions>
       <div class="filter-controls">
         <div class="field-checkbox">
           <Checkbox v-model="onlyShowPending" inputId="onlyShowPending" binary />
-          <label for="onlyShowPending">Only show pending</label>
+          <label for="onlyShowPending">{{ $t('project.filters.onlyShowPending') }}</label>
         </div>
       </div>
     </template>
