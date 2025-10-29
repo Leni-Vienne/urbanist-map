@@ -100,7 +100,7 @@ export const useOverlayStore = defineStore('overlay', () => {
   // AI : Update overlay in store with proper reactivity for shallowRef
   function updateOverlay(overlayId: string, updates: Partial<OverlayObject>) {
     const current = overlays.value[overlayId]
-    if (!current) return
+    if (current == null) return
 
     // AI : Create new object with updates to trigger reactivity
     overlays.value = {
@@ -140,7 +140,7 @@ export const useOverlayStore = defineStore('overlay', () => {
   const toggleInfoPopup = () => {
     if (showInfoPopup.value) {
       hideInfoPopup()
-    } else if (idSelectedOverlay.value) {
+    } else if (idSelectedOverlay.value != null) {
       showInfoPopupForOverlay(idSelectedOverlay.value)
     }
   }

@@ -33,12 +33,12 @@ export function createProject(projectData: Partial<Omit<Project, 'id' | 'overlay
 export function addOverlayToProjectWithId(projectId: string, overlayId: string) {
   const { projects, overlays } = useProjects();
   
-  if (!projects.value[projectId]) {
+  if (projects.value[projectId] == null) {
     console.error('Project not found in memory store:', projectId);
     throw new Error('Project not found');
   }
 
-  if (!overlays.value[overlayId]) {
+  if (overlays.value[overlayId]  == null) {
     console.error('Overlay not found in memory store:', overlayId);
     throw new Error('Overlay not found');
   }

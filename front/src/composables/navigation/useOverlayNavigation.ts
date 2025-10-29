@@ -72,7 +72,7 @@ function zoomToOverlayAndSelect(overlayId: string, corners: { lat: number; lng: 
 
     const trySelectOverlay = () => {
       const overlayObject = overlayStore.overlays[overlayId];
-      if (overlayObject?.overlay) {
+      if (overlayObject?.overlay != null) {
         const element = overlayObject.overlay.getElement();
         if (element) {
           element.click();
@@ -123,7 +123,7 @@ export async function navigateToOverlayWithCity(
     // AI : Optimization 1: Check if clicking the same overlay again
     if (overlayStore.idSelectedOverlay === overlayId) {
       const overlayObject = overlayStore.overlays[overlayId];
-      if (overlayObject?.corners) {
+      if (overlayObject?.corners != null) {
         zoomToOverlayAndSelect(overlayId, overlayObject.corners);
       }
       return true;
@@ -135,7 +135,7 @@ export async function navigateToOverlayWithCity(
 
     if (isSameCity) {
       const overlayData = mapStore.currentCityOverlays.find(o => o.id === overlayId);
-      if (overlayData?.corners) {
+      if (overlayData?.corners != null) {
         return zoomToOverlayAndSelect(overlayId, overlayData.corners);
       }
     }
@@ -150,7 +150,7 @@ export async function navigateToOverlayWithCity(
     // AI : Get the overlay data from mapStore (already loaded by getCityOverlaysAndProjects)
     const overlayData = mapStore.currentCityOverlays.find(o => o.id === overlayId);
 
-    if (overlayData?.corners) {
+    if (overlayData?.corners != null) {
       return zoomToOverlayAndSelect(overlayId, overlayData.corners);
     }
 

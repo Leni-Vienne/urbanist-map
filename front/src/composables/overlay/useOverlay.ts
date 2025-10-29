@@ -199,7 +199,7 @@ export function createOverlay(imageUrl: string, overlayObject?: OverlayObject) {
     };
 
     // Check if map is currently zooming, _animatingZoom isn't documented for some reason
-    if (map.value?._animatingZoom) {
+    if (map.value != null && map.value?._animatingZoom) {
       // AI : Wait for zoom animation to complete
       map.value.once('zoomend', addOverlayWhenReady);
     } else {
@@ -1300,7 +1300,7 @@ function resetImageRatio() {
   }
 
   const overlayObject = overlayStore.overlays[overlayStore.idSelectedOverlay];
-  if (!overlayObject?.overlay) return;
+  if (overlayObject?.overlay == null) return;
 
   const element = overlayObject.overlay.getElement();
   if (!(element instanceof HTMLImageElement)) return;

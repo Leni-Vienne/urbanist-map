@@ -170,7 +170,7 @@ function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void {
   });
 
   // AI : Add overlay markers to map
-  if (map.value) {
+  if (map.value != null) {
     overlayMarkersLayer.addTo(map.value);
   }
 }
@@ -327,7 +327,7 @@ export function updateOverlayMarkersForFilters(): void {
   const selectedCity = getSelectedCity();
 
   // AI : Only update if we have overlay markers visible
-  if (!overlayMarkersLayer || !map.value?.hasLayer(overlayMarkersLayer)) {
+  if (!overlayMarkersLayer || map.value != null && !map.value.hasLayer(overlayMarkersLayer)) {
     return;
   }
 
