@@ -47,6 +47,7 @@ export default defineConfig({
       '@assets': path.resolve(__dirname, './src/assets'),
       '@composables': path.resolve(__dirname, './src/composables'),
       '@components': path.resolve(__dirname, './src/components'),
+      '@constants': path.resolve(__dirname, './src/constants'),
       '@stores': path.resolve(__dirname, './src/stores'),
       '@types': path.resolve(__dirname, './src/types'),
       '@api': path.resolve(__dirname, './src/types/api'),

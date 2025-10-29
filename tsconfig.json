@@ -27,6 +27,9 @@
             "@components/*": [
                 "./front/src/components/*"
             ],
+            "@constants/*": [
+                "./front/src/constants/*"
+            ],
             "@stores/*": [
                 "./front/src/stores/*"
             ],
