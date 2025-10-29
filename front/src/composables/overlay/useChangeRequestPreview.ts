@@ -88,7 +88,7 @@ export function useChangeRequestPreview() {
     let overlayObject = overlayStore.overlays[overlayForModeration.id];
 
     // AI : Already loaded, nothing to do
-    if (overlayObject?.overlay) {
+    if (overlayObject?.overlay != null) {
       return true;
     }
 
@@ -142,7 +142,7 @@ export function useChangeRequestPreview() {
 
     // AI : Wait for navigation to complete
     await new Promise<void>(resolve => {
-      if (map.value) {
+      if (map.value != null) {
         map.value.once('moveend', () => {
           setTimeout(resolve, 100);
         });
@@ -183,7 +183,7 @@ export function useChangeRequestPreview() {
       }
     }
 
-    if (!overlayObject?.overlay) {
+    if (overlayObject?.overlay == null) {
       toast.add({
         severity: 'error',
         summary: t('overlay.loadFailed'),

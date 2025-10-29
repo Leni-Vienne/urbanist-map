@@ -39,7 +39,7 @@ export function useChangeRequests() {
         { errorMessage: 'Failed to submit change request' }
       );
 
-      if (result?.success) {
+      if (result?.success != undefined) {
         await refreshPendingChangeRequests();
       }
 
@@ -88,7 +88,7 @@ export function useChangeRequests() {
         { errorMessage: 'Failed to approve change requests' }
       );
 
-      if (result?.success) {
+      if (result?.success != undefined) {
         // AI : Remove approved change requests from local state instead of refetching
         pendingChangeRequests.value = pendingChangeRequests.value.filter(
           cr => !changeRequestIds.includes(cr.id)
@@ -113,7 +113,7 @@ export function useChangeRequests() {
         { errorMessage: 'Failed to reject change requests' }
       );
 
-      if (result?.success) {
+      if (result?.success != undefined) {
         // AI : Remove rejected change requests from local state instead of refetching
         pendingChangeRequests.value = pendingChangeRequests.value.filter(
           cr => !changeRequestIds.includes(cr.id)
@@ -275,7 +275,7 @@ export function useChangeRequests() {
 
       const result = await submitMultipleFieldChanges(entityType, entityId, [...pendingChanges]);
 
-      if (result?.success) {
+      if (result?.success != undefined) {
         pendingChanges.length = 0;
       }
 

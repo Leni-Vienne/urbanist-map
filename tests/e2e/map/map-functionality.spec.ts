@@ -41,7 +41,7 @@ test.describe('Core Map Functionality', () => {
     const zoomedInLevel = await mapHelpers.getCurrentZoom();
 
     // AI : Verify zoom increased
-    if (initialZoom && zoomedInLevel) {
+    if (initialZoom != null && zoomedInLevel != null) {
       expect(zoomedInLevel).toBeGreaterThan(initialZoom);
     }
 

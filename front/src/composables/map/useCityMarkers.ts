@@ -257,7 +257,7 @@ export function createProjectInfoTeleportTarget(marker: L.Marker | L.CircleMarke
  */
 export function cleanupProjectInfoTeleportTarget() {
   // AI : Remove event listeners if map exists
-  if (map.value) {
+  if (map.value != null) {
     map.value.off('move', updateTeleportTargetPosition);
     map.value.off('zoom', updateTeleportTargetPosition);
     map.value.off('resize', updateTeleportTargetPosition);
@@ -478,7 +478,7 @@ export async function loadCityProjects(cityId: string | null, cityName: string, 
  * AI : Remove city markers from the map
  */
 export function removeCityMarkers(): void {
-  if (cityMarkersLayer && map.value?.hasLayer(cityMarkersLayer)) {
+  if (cityMarkersLayer && map.value != null && map.value.hasLayer(cityMarkersLayer)) {
     map.value.removeLayer(cityMarkersLayer);
     cityMarkersLayer = null;
   }

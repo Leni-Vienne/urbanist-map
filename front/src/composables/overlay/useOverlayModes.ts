@@ -64,7 +64,7 @@ function getCurrentState(): OverlayModeState {
 /**
  * AI : Execute a state transition with optional side effects
  */
-function transitionToState(newState: OverlayModeState, effects?: TransitionEffects): void {
+async function transitionToState(newState: OverlayModeState, effects?: TransitionEffects) {
   const transition = calculateTransition(currentState.value, newState)
 
   // AI : Execute before-transition effects
@@ -81,7 +81,7 @@ function transitionToState(newState: OverlayModeState, effects?: TransitionEffec
   currentState.value = newState
 
   // AI : Execute after-transition effects (fire-and-forget for async effects)
-  effects?.afterTransition?.(newState)
+  await effects?.afterTransition?.(newState)
 }
 
 /**
@@ -193,7 +193,7 @@ export async function toggleEditMode(onModeExit?: () => void): Promise<void> {
   }
 
   // AI : Execute state transition with side effects
-  transitionToState(newState, {
+  await transitionToState(newState, {
     beforeTransition: handleBeforeTransition,
     afterTransition: async () => {
       // AI : Update overlay editing state (toolbar actions, draggability) after mode switch
@@ -223,14 +223,14 @@ export async function toggleEditMode(onModeExit?: () => void): Promise<void> {
 /**
  * AI : Watch for zoom level changes and update state
  */
-function watchZoomLevel(): void {
-  watch(currentZoomLevel, (newZoom) => {
+async function watchZoomLevel() {
+  watch(currentZoomLevel, async (newZoom) => {
     const newState = getCurrentState()
     newState.zoomLevel = getZoomLevel(newZoom)
 
     // AI : Only transition if zoom level actually changed categories
     if (newState.zoomLevel !== currentState.value.zoomLevel) {
-      transitionToState(newState)
+      await transitionToState(newState)
     }
   })
 }

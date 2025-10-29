@@ -7,9 +7,9 @@ import { onMounted, onUnmounted } from 'vue';
 export function useBeforeUnload() {
   function checkForModifiedOverlays(): boolean {
     const overlayStore = useOverlayStore();
-    if (!overlayStore?.overlays) return false;
+    if (overlayStore?.overlays == null) return false;
 
-    return Object.values(overlayStore.overlays).some(overlay => overlay.isModified);
+    return Object.values(overlayStore.overlays).some(overlay => overlay.isModified === true);
   }
 
   function handleBeforeUnload(event: BeforeUnloadEvent) {

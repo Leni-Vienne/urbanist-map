@@ -32,7 +32,7 @@
         <div class="change-content">
           <div class="change-field">
             <div class="field-header">
-              <strong>{{ change.fieldName }}:</strong>
+              <strong>{{ formatFieldName(change.fieldName) }}:</strong>
               <span v-if="change.requestedBy" class="requested-by">
                 {{ $t('moderation.by') }} {{ getUserId(change.requestedBy) }}
               </span>
@@ -132,6 +132,14 @@ function getUserId(userId: string | null): string {
   return userId.slice(0, 8) + '...';
 }
 
+// AI : Format field names for display using i18n
+function formatFieldName(fieldName: string): string {
+  const translationKey = `fields.${fieldName}`;
+  const translated = t(translationKey);
+  // AI : If translation exists, use it; otherwise fall back to field name
+  return translated !== translationKey ? translated : fieldName;
+}
+
 function formatValue(value: unknown, fieldName: string): string {
   if (value === null || value === undefined || value === '') {
     return t('overlay.notSet');
@@ -140,6 +148,33 @@ function formatValue(value: unknown, fieldName: string): string {
   if (fieldName === 'projectId' && typeof value === 'string') {
     const project = props.projects.find(p => p.id === value);
     return project?.name ?? `Unknown Project (${value.slice(0, 8)}...)`;
+  }
+
+  // AI : Handle cityId field by looking up city name from all loaded projects and overlays
+  if (fieldName === 'cityId' && typeof value === 'string') {
+    // AI : Build a map of all cityId -> cityName pairs from projects and overlays
+    const cityMap = new Map<string, string>();
+
+    for (const project of props.projects) {
+      if (project.cityId && project.cityName) {
+        cityMap.set(project.cityId, project.cityName);
+      }
+      if (project.overlays) {
+        for (const overlay of project.overlays) {
+          if (overlay.cityId && overlay.cityName) {
+            cityMap.set(overlay.cityId, overlay.cityName);
+          }
+        }
+      }
+    }
+
+    const cityName = cityMap.get(value);
+    if (cityName) {
+      return cityName;
+    }
+
+    // AI : City not found in loaded data - show truncated ID
+    return `City (${value.slice(0, 8)}...)`;
   }
 
   if (fieldName === 'corners' || fieldName === 'centroid') {

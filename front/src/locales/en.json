@@ -20,6 +20,20 @@
     "after": "After",
     "unknown": "Unknown"
   },
+  "fields": {
+    "name": "Name",
+    "description": "Description",
+    "cityId": "City",
+    "projectId": "Project",
+    "corners": "Corner Positions",
+    "centroid": "Center Position",
+    "coordinates": "Coordinates",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "sourceUrl": "Source URL",
+    "lat": "Latitude",
+    "lng": "Longitude"
+  },
   "navigation": {
     "home": "Home",
     "projects": "Projects",

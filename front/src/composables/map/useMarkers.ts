@@ -399,14 +399,14 @@ export function updateOverlayMarkersColors(
   overlays: ShallowRef<Record<string, OverlayObject>>,
   specificOverlayId?: string
 ): void {
-  if (!overlays?.value) return;
+  if (overlays?.value == null) return;
 
   const overlayStore = useOverlayStore();
 
   // AI : If specific overlay ID provided, only update that one
   if (specificOverlayId) {
     const overlayObject = overlays.value[specificOverlayId];
-    if (overlayObject?.marker) {
+    if (overlayObject?.marker != null) {
       const markerColor = getOverlayMarkerColor(overlayObject, overlayStore.mode);
       const colorIcon = createColorIcon(markerColor);
       overlayObject.marker.setIcon(colorIcon);
@@ -416,7 +416,7 @@ export function updateOverlayMarkersColors(
 
   // AI : Otherwise, iterate through all overlay objects that have markers
   Object.values(overlays.value).forEach((overlayObject: OverlayObject) => {
-    if (overlayObject?.marker) {
+    if (overlayObject?.marker != null) {
       // AI : Update marker color based on current mode and overlay state
       const markerColor = getOverlayMarkerColor(overlayObject, overlayStore.mode);
       const colorIcon = createColorIcon(markerColor);

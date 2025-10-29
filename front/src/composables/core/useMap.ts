@@ -97,7 +97,7 @@ export function initializeMap() {
 
   // AI : Listen for zoom changes to update reactive zoom level
   map.value.on('zoomend', () => {
-    if (map.value) {
+    if (map.value != null) {
       currentZoomLevel.value = map.value.getZoom();
     }
   });
@@ -110,7 +110,7 @@ export function initializeMap() {
 
   L.control.scale().addTo(map.value);
   // AI : Ensure the map initialization is complete
-  if (map.value) {
+  if (map.value != null) {
     map.value.invalidateSize();
     debouncedUpdateMapSize();
   }
