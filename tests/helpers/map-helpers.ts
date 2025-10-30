@@ -32,13 +32,13 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Switch between view and edit modes
+   * AI : Switch between view and edit modes (now uses ModeControls.vue switch button)
    */
   async toggleEditMode() {
-    const editModeButton = this.page.getByRole('button', { name: 'Toggle Edit Mode' });
-    await editModeButton.click();
+    const modeSwitchButton = this.page.getByRole('button', { name: /switch/i });
+    await modeSwitchButton.click();
     await this.page.waitForTimeout(300);
-    return editModeButton;
+    return modeSwitchButton;
   }
 
   /**
@@ -66,13 +66,11 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Zoom to a specific level using scroll wheel at current cursor position
+   * AI : Zoom to a specific level using zoom controls (not scroll wheel)
    */
   async zoomToLevel(targetZoom: number) {
-    const maxAttempts = 15;
+    const maxAttempts = 20;
     let attempts = 0;
-    let lastZoom = null;
-    let stableCount = 0;
 
     while (attempts < maxAttempts) {
       const currentZoom = await this.getCurrentZoom();
@@ -85,56 +83,20 @@ export class MapTestHelpers {
         break;
       }
 
-      // AI : Detect if zoom is stable (not changing) to avoid infinite loops
-      if (lastZoom !== null && Math.abs(currentZoom - lastZoom) < 0.1) {
-        stableCount++;
-        if (stableCount >= 3) {
-          break;
-        }
-      } else {
-        stableCount = 0;
-      }
-      lastZoom = currentZoom;
-
       const zoomDiff = targetZoom - currentZoom;
 
-      // AI : Use smaller steps to avoid overshooting
-      const steps = Math.min(Math.abs(zoomDiff), 2); // Max 2 levels per step
-      const deltaY = zoomDiff > 0 ? -100 * steps : 100 * steps; // Negative for zoom in
+      // AI : Click zoom in or zoom out button
+      if (zoomDiff > 0) {
+        await this.page.getByRole('button', { name: 'Zoom In' }).click();
+      } else {
+        await this.page.getByRole('button', { name: 'Zoom Out' }).click();
+      }
 
-      // AI : Get current mouse position or use map center
-      const mousePos = await this.page.evaluate(() => {
-        const mapContainer = document.querySelector('.leaflet-container');
-        if (mapContainer) {
-          const rect = mapContainer.getBoundingClientRect();
-          return {
-            x: rect.left + rect.width / 2,
-            y: rect.top + rect.height / 2
-          };
-        }
-        return { x: 500, y: 400 };
-      });
-
-      // AI : Dispatch scroll wheel event at cursor position
-      await this.page.evaluate(({ x, y, delta }) => {
-        const wheelEvent = new WheelEvent('wheel', {
-          clientX: x,
-          clientY: y,
-          deltaY: delta,
-          bubbles: true,
-          cancelable: true
-        });
-        const mapContainer = document.querySelector('.leaflet-container');
-        if (mapContainer) {
-          mapContainer.dispatchEvent(wheelEvent);
-        }
-      }, { x: mousePos.x, y: mousePos.y, delta: deltaY });
-
-      await this.page.waitForTimeout(400); // AI : Longer wait for zoom to settle
+      await this.page.waitForTimeout(300);
       attempts++;
     }
 
-    // AI : Final verification
+    // AI : Final stabilization
     await this.page.waitForTimeout(500);
   }
 
@@ -169,13 +131,37 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Toggle project status filter
+   * AI : Toggle project status filter (now inside filter popover)
    */
-  async toggleProjectFilter(status: 'not started' | 'in progress' | 'completed') {
-    const button = this.page.getByRole('button', { name: `Toggle ${status} projects` });
-    await button.click();
+  async toggleProjectFilter(status: 'proposed' | 'planned' | 'in progress' | 'completed') {
+    // AI : First, open the filter popover if it's not already open
+    const filterButton = this.page.getByRole('button', { name: 'Toggle project filters' });
+    await filterButton.click();
+    await this.page.waitForTimeout(500);
+
+    // AI : Map status to actual translated aria-label text
+    const ariaLabelMap = {
+      'proposed': 'Toggle proposed projects',
+      'planned': 'Toggle planned projects',
+      'in progress': 'Toggle in progress projects',
+      'completed': 'Toggle completed projects'
+    };
+
+    // AI : Find the filter button inside the popover
+    const filterToggleButton = this.page.getByRole('button', { name: ariaLabelMap[status] });
+
+    // AI : Wait for button to be visible
+    await filterToggleButton.waitFor({ state: 'visible', timeout: 3000 });
+
+    console.log(`Clicking filter button for: ${status}`);
+    await filterToggleButton.click();
+    await this.page.waitForTimeout(500);
+
+    // AI : Close the popover by clicking the filter button again
+    await filterButton.click();
     await this.page.waitForTimeout(300);
-    return button;
+
+    return filterToggleButton;
   }
 
   /**
@@ -234,7 +220,7 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Click on overlay marker on map by index
+   * AI : Click on overlay marker on map by index (triggers flyTo animation)
    */
   async clickOverlayMarker(index: number = 0) {
     try {
@@ -258,12 +244,14 @@ export class MapTestHelpers {
       const centerX = markerBox.x + markerBox.width / 2;
       const centerY = markerBox.y + markerBox.height / 2;
 
-      // AI : Move cursor to marker and click
-      await this.page.mouse.move(centerX, centerY);
-      await this.page.waitForTimeout(200);
+      // AI : Click overlay marker
+      console.log(`Clicking overlay marker ${index}...`);
       await this.page.mouse.click(centerX, centerY);
-      await this.page.waitForTimeout(200);
 
+      // AI : Wait for flyTo animation to complete (1.5 seconds)
+      await this.page.waitForTimeout(1500);
+
+      console.log('Overlay marker click completed');
       return true;
     } catch (error) {
       console.error('Error clicking overlay marker:', error);
@@ -272,7 +260,7 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Click on a country marker to load cities
+   * AI : Click on a country marker to zoom to country and load cities
    */
   async clickCountryMarker(index: number = 0) {
     try {
@@ -316,49 +304,22 @@ export class MapTestHelpers {
       const countryName = await marker.getAttribute('data-country-name');
       console.log(`Clicking country marker: ${testId} (${countryName}, ${countryCode})`);
 
-      // AI : Get initial marker position for zooming reference
-      const initialMarkerBox = await marker.boundingBox();
-      if (!initialMarkerBox) {
+      // AI : Get marker position
+      const markerBox = await marker.boundingBox();
+      if (!markerBox) {
         console.log('Could not get country marker bounding box');
         return false;
       }
 
-      const initialCenterX = initialMarkerBox.x + initialMarkerBox.width / 2;
-      const initialCenterY = initialMarkerBox.y + initialMarkerBox.height / 2;
+      const centerX = markerBox.x + markerBox.width / 2;
+      const centerY = markerBox.y + markerBox.height / 2;
 
-      // AI : Zoom in at marker position (2 steps for country focus)
-      console.log('Zooming to country marker...');
-      for (let i = 0; i < 2; i++) {
-        await this.page.evaluate(({ x, y }) => {
-          const wheelEvent = new WheelEvent('wheel', {
-            clientX: x,
-            clientY: y,
-            deltaY: -100,
-            bubbles: true,
-            cancelable: true
-          });
-          document.elementFromPoint(x, y)?.dispatchEvent(wheelEvent);
-        }, { x: initialCenterX, y: initialCenterY });
+      // AI : Click the marker (clicking a country marker zooms to country center and shows cities/projects)
+      console.log('Clicking country marker...');
+      await this.page.mouse.click(centerX, centerY);
 
-        await this.page.waitForTimeout(200);
-      }
-
-      // AI : Get NEW marker position AFTER zooming
-      const newMarkerBox = await marker.boundingBox();
-      if (!newMarkerBox) {
-        console.log('Could not get marker bounding box after zoom');
-        return false;
-      }
-
-      const newCenterX = newMarkerBox.x + newMarkerBox.width / 2;
-      const newCenterY = newMarkerBox.y + newMarkerBox.height / 2;
-
-      console.log(`Marker position after zoom: ${newCenterX}, ${newCenterY}`);
-
-      // AI : Click the marker at its NEW position after zooming
-      console.log('Clicking country marker at new position...');
-      await this.page.mouse.click(newCenterX, newCenterY);
-      await this.page.waitForTimeout(200);
+      // AI : Wait for flyTo animation to complete (1.5 seconds)
+      await this.page.waitForTimeout(1500);
 
       console.log('Country marker click completed');
       return true;
@@ -369,7 +330,7 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Click on a city marker to load overlays
+   * AI : Click on a city marker to reveal overlay markers
    */
   async clickCityMarker(index: number = 0) {
     try {
@@ -399,85 +360,24 @@ export class MapTestHelpers {
       const countryCode = await marker.getAttribute('data-country-code');
       console.log(`Clicking city marker: ${testId} (${cityName}, ${countryCode})`);
 
-      // AI : Get initial marker position and click first
-      const initialMarkerBox = await marker.boundingBox();
-      if (!initialMarkerBox) {
+      // AI : Get marker position
+      const markerBox = await marker.boundingBox();
+      if (!markerBox) {
         console.log('Could not get city marker bounding box');
         return false;
       }
 
-      const initialCenterX = initialMarkerBox.x + initialMarkerBox.width / 2;
-      const initialCenterY = initialMarkerBox.y + initialMarkerBox.height / 2;
+      const centerX = markerBox.x + markerBox.width / 2;
+      const centerY = markerBox.y + markerBox.height / 2;
 
-      // AI : Click the city marker first
+      // AI : Click the city marker (clicking a city marker reveals overlay markers within that city)
       console.log('Clicking city marker...');
-      await this.page.mouse.click(initialCenterX, initialCenterY);
-      await this.page.waitForTimeout(200);
+      await this.page.mouse.click(centerX, centerY);
 
-      // AI : Get current zoom before zooming
-      const currentZoom = await this.getCurrentZoom();
-      console.log(`Current zoom level before city zoom: ${currentZoom}`);
+      // AI : Wait for flyTo animation to complete (1.5 seconds) plus overlay loading
+      await this.page.waitForTimeout(1500);
 
-      // AI : Zoom to level 13 AT THE CITY MARKER POSITION (updating position after each zoom)
-      console.log('Zooming to level 13 at city marker position...');
-      const targetZoom = 14;
-      const maxAttempts = 25;
-      let attempts = 0;
-
-      while (attempts < maxAttempts) {
-        const currentLevel = await this.getCurrentZoom();
-        if (!currentLevel) {
-          console.log('Could not determine current zoom level');
-          break;
-        }
-
-        if (Math.abs(currentLevel - targetZoom) <= 0.5) {
-          console.log(`Reached target zoom level ${currentLevel}`);
-          break; // AI : Close enough
-        }
-
-        // AI : Get CURRENT marker position before each zoom step
-        const currentMarkerBox = await marker.boundingBox();
-        if (!currentMarkerBox) {
-          console.log('Could not get marker bounding box for zoom step');
-          break;
-        }
-
-        const currentCenterX = currentMarkerBox.x + currentMarkerBox.width / 2;
-        const currentCenterY = currentMarkerBox.y + currentMarkerBox.height / 2;
-
-        const zoomDiff = targetZoom - currentLevel;
-        const deltaY = zoomDiff > 0 ? -200 : 200; // AI : Negative for zoom in, positive for zoom out
-
-        console.log(`Zoom step ${attempts + 1}: current=${currentLevel}, target=${targetZoom}, pos=${currentCenterX},${currentCenterY}`);
-
-        // AI : Dispatch scroll wheel event AT CURRENT MARKER POSITION
-        await this.page.evaluate(({ x, y, delta }) => {
-          const wheelEvent = new WheelEvent('wheel', {
-            clientX: x,
-            clientY: y,
-            deltaY: delta,
-            bubbles: true,
-            cancelable: true
-          });
-          document.elementFromPoint(x, y)?.dispatchEvent(wheelEvent);
-        }, { x: currentCenterX, y: currentCenterY, delta: deltaY });
-
-        await this.page.waitForTimeout(300);
-        attempts++;
-      }
-
-      // AI : Verify final zoom level
-      const finalZoom = await this.getCurrentZoom();
-      console.log(`Final zoom level after city zoom: ${finalZoom}`);
-
-      if (finalZoom && finalZoom < 13) {
-        console.warn(`Warning: Final zoom ${finalZoom} may not be sufficient for overlays (need 13+)`);
-      }
-
-      await this.page.waitForTimeout(1000); // AI : Wait for overlays to load
-
-      console.log('City marker click and zoom completed');
+      console.log('City marker click completed');
       return true;
     } catch (error) {
       console.error('Error clicking city marker:', error);
@@ -546,7 +446,7 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Check if edit mode is currently active
+   * AI : Check if edit mode is currently active (checks mode indicator class)
    */
   async isEditModeActive(): Promise<boolean> {
     try {
@@ -560,11 +460,11 @@ export class MapTestHelpers {
         return false;
       }
 
-      const editButton = this.page.getByRole('button', { name: 'Toggle Edit Mode' });
-      await editButton.waitFor({ timeout: 5000 });
-      // AI : Check the active attribute value - 'true' means active, 'false' or null means inactive
-      const activeValue = await editButton.getAttribute('active');
-      return activeValue === 'true';
+      // AI : Check if mode indicator has edit-mode class
+      const modeIndicator = this.page.locator('.mode-indicator');
+      await modeIndicator.waitFor({ timeout: 5000 });
+      const hasEditClass = await modeIndicator.evaluate(el => el.classList.contains('edit-mode'));
+      return hasEditClass;
     } catch (error) {
       console.error('Error checking edit mode:', error);
       return false;

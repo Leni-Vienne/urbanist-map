@@ -12,24 +12,25 @@ test.describe('Construction Map E2E Tests', () => {
   test('should load map and basic controls', async ({ page }) => {
     // AI : Verify Leaflet map is initialized
     await expect(page.locator('.leaflet-container')).toBeVisible();
-    
+
     // AI : Verify map controls are present
     await expect(page.getByRole('button', { name: 'Zoom In' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Zoom Out' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Toggle Edit Mode' })).toBeVisible();
+
+    // AI : Verify mode controls are present (mode indicator and switch button)
+    await expect(page.locator('.mode-indicator')).toBeVisible();
+    await expect(page.getByRole('button', { name: /switch/i })).toBeVisible();
   });
 
   test('should switch between view and edit modes', async ({ page }) => {
-    const editModeButton = page.getByRole('button', { name: 'Toggle Edit Mode' });
-    
     // AI : Switch to edit mode
-    await editModeButton.click();
+    await mapHelpers.toggleEditMode();
     await page.waitForTimeout(500);
-    
+
     // AI : Switch back to view mode
-    await editModeButton.click();
+    await mapHelpers.toggleEditMode();
     await page.waitForTimeout(500);
-    
+
     console.log('Mode switching works');
   });
 

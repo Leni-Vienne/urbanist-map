@@ -17,35 +17,34 @@ test.describe('Overlay Loading & Zoom-based Display', () => {
   });
 
   test('should load overlays only when zooming in beyond threshold', async ({ page }) => {
-    // AI : Navigate to overlays using proper hierarchy: country → city → overlays
+    // AI : Navigate to overlays using proper hierarchy: country → city
     const navigationSuccess = await mapHelpers.navigateToOverlays();
     if (!navigationSuccess) {
       console.log('No country/city markers available for testing');
       return;
     }
 
-    // AI : Start at a low zoom level
-    await mapHelpers.zoomToLevel(5);
+    // AI : Now zoom out to low level where overlay images shouldn't load (only markers)
+    await mapHelpers.zoomToLevel(10);
     await page.waitForTimeout(500);
-    
-    // AI : At low zoom, overlay images should not be loaded (only markers)
+
     const overlayImages = page.locator('.leaflet-image-layer');
     const lowZoomImageCount = await overlayImages.count();
-    
-    // AI : Now zoom in to trigger overlay loading
-    await mapHelpers.zoomToLevel(13);
+
+    // AI : Zoom back in to high level to trigger overlay image loading
+    await mapHelpers.zoomToLevel(15);
     await page.waitForTimeout(2000);
-    
-    // AI : At high zoom, overlays should be loaded
+
+    // AI : At high zoom, overlay images should be loaded
     const highZoomImageCount = await overlayImages.count();
-    
+
     // AI : Verify zoom-based loading works
     console.log(`Images at low zoom: ${lowZoomImageCount}, at high zoom: ${highZoomImageCount}`);
     expect(highZoomImageCount).toBeGreaterThanOrEqual(lowZoomImageCount);
   });
 
   test('should unload overlay images when zooming out', async ({ page }) => {
-    // AI : Navigate to overlays and ensure high zoom
+    // AI : Navigate to overlays using proper hierarchy: country → city
     const navigationSuccess = await mapHelpers.navigateToOverlays();
     if (!navigationSuccess) {
       console.log('No country/city markers available for testing');
@@ -53,21 +52,21 @@ test.describe('Overlay Loading & Zoom-based Display', () => {
     }
 
     // AI : Zoom in to ensure overlays are loaded
-    await mapHelpers.zoomToLevel(13);
+    await mapHelpers.zoomToLevel(15);
     await page.waitForTimeout(1000);
-    
+
     // AI : Check for loaded overlay images at high zoom
     const overlayImages = page.locator('.leaflet-image-layer');
     const highZoomImageCount = await overlayImages.count();
-    
+
     // AI : Zoom out to trigger unloading
-    await mapHelpers.zoomToLevel(5);
+    await mapHelpers.zoomToLevel(10);
     await page.waitForTimeout(1000);
-    
+
     // AI : Verify overlay images are unloaded
     const lowZoomImageCount = await overlayImages.count();
-    
-    // AI : At very low zoom, images should be unloaded
+
+    // AI : At low zoom, images should be unloaded
     console.log(`Images at high zoom: ${highZoomImageCount}, at low zoom: ${lowZoomImageCount}`);
     expect(lowZoomImageCount).toBeLessThanOrEqual(highZoomImageCount);
   });
