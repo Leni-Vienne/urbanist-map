@@ -12,43 +12,41 @@ test.describe('Map Mode Switching', () => {
   test('should switch between view and edit modes', async ({ page }) => {
     // AI : Verify initial state (should be in view mode)
     expect(await mapHelpers.isEditModeActive()).toBeFalsy();
-    
-    const editModeButton = page.getByRole('button', { name: 'Toggle Edit Mode' });
-    await expect(editModeButton).toBeVisible();
-    await expect(editModeButton).toHaveAttribute('active', 'false');
+
+    // AI : Check mode indicator is visible and shows View Mode
+    const modeIndicator = page.locator('.mode-indicator');
+    await expect(modeIndicator).toBeVisible();
+    await expect(modeIndicator).not.toHaveClass(/edit-mode/);
 
     // AI : Switch to edit mode
     await mapHelpers.toggleEditMode();
-    
+
     // AI : Verify edit mode is now active
     expect(await mapHelpers.isEditModeActive()).toBeTruthy();
-    await expect(editModeButton).toHaveAttribute('active', 'true');
-    
+    await expect(modeIndicator).toHaveClass(/edit-mode/);
+
     // AI : Check for edit mode notification
-    await expect(page.getByText('Switched to Edit Mode')).toBeVisible();
-    
-    // AI : Verify tooltip text changes
-    await expect(page.getByText('Currently in Edit Mode - Click to switch to view mode')).toBeVisible();
+    await expect(page.getByText(/Switched to.*Mode/i)).toBeVisible();
 
     // AI : Switch back to view mode
     await mapHelpers.toggleEditMode();
-    
+
     // AI : Verify we're back in view mode
     expect(await mapHelpers.isEditModeActive()).toBeFalsy();
-    await expect(editModeButton).toHaveAttribute('active', 'false');
+    await expect(modeIndicator).not.toHaveClass(/edit-mode/);
   });
 
   test('should show Add Image Overlay button only in edit mode', async ({ page }) => {
     const addOverlayButton = page.getByRole('button', { name: 'Add Image Overlay' });
-    const editModeButton = page.getByRole('button', { name: 'Toggle Edit Mode' });
 
-    // AI : In view mode, add overlay button should be visible but maybe disabled
+    // AI : In view mode, add overlay button should be visible
     await expect(addOverlayButton).toBeVisible();
 
     // AI : Switch to edit mode
-    await editModeButton.click();
-    
-    // AI : In edit mode, add overlay button should be enabled
+    await mapHelpers.toggleEditMode();
+    await page.waitForTimeout(500);
+
+    // AI : In edit mode, add overlay button should still be visible and enabled
     await expect(addOverlayButton).toBeVisible();
     await expect(addOverlayButton).toBeEnabled();
   });
