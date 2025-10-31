@@ -212,6 +212,7 @@ export function useChangeRequestPreview() {
       // AI : Show suggested position
       overlayObject.overlay.setCorners(corners);
       overlayObject.hasPendingChanges = true;
+      overlayObject.isViewingApprovedPosition = false; // AI : User is viewing suggested/pending position
       updateMarkerPosition(overlayObject);
       updateMarkerTooltip(overlayObject);
 
@@ -226,11 +227,9 @@ export function useChangeRequestPreview() {
       if (cornersToUse && cornersToUse.length === 4) {
         const approvedLatLngs = cornersToUse.map(c => L.latLng(c.lat, c.lng));
         overlayObject.overlay.setCorners(approvedLatLngs);
-        overlayObject.hasPendingChanges = false;
+        overlayObject.isViewingApprovedPosition = true; // AI : User is viewing approved position
         updateMarkerPosition(overlayObject);
         updateMarkerTooltip(overlayObject);
-        // AI : Restore hasPendingChanges flag after marker update
-        overlayObject.hasPendingChanges = true;
       } else {
         overlayObject.overlay.setCorners(corners);
         updateMarkerPosition(overlayObject);

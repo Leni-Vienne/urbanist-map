@@ -212,11 +212,16 @@ export function getOverlayMarkerColor(
     // AI : Moderation mode color logic - objective view for review
     const status = overlayData.status;
     const hasPendingChangeRequests = (overlayData.pendingChangeRequestsCount ?? 0) > 0;
+    const isViewingApprovedPosition = 'isViewingApprovedPosition' in overlayData ? overlayData.isViewingApprovedPosition : undefined;
 
     // AI : Pending brand new overlays
     if (status === 'pending') return 'yellow';
 
-    // AI : Approved overlays with pending change requests from users
+    // AI : User is viewing suggested position of overlay with pending changes
+    // AI : Show yellow marker to indicate this is a proposed change under review
+    if (status === 'approved' && isViewingApprovedPosition === false) return 'yellow';
+
+    // AI : Approved overlays with pending change requests from users (viewing approved position or no position preview)
     if (status === 'approved' && hasPendingChangeRequests) return 'yellow';
 
     // AI : Approved overlays with no pending changes
@@ -233,23 +238,29 @@ export function getOverlayMarkerColor(
     const hasBeenModified = 'isModified' in overlayData ? overlayData.isModified : false;
     const isTooBig = 'isTooBig' in overlayData ? overlayData.isTooBig : false;
     const hasPendingChanges = 'hasPendingChanges' in overlayData ? overlayData.hasPendingChanges : false;
+    const isViewingApprovedPosition = 'isViewingApprovedPosition' in overlayData ? overlayData.isViewingApprovedPosition : false;
     const status = overlayData.status;
+
     // AI : Priority 1: Size validation error (critical issue that prevents submission)
     if (isTooBig) return 'red';
 
     // AI : Priority 2: Local modifications (shows user they have unsaved work)
     if (hasBeenModified) return 'orange';
 
-    // AI : Priority 3: Pending change requests (awaiting moderation approval)
+    // AI : Priority 3: User is viewing approved position of overlay with pending changes
+    // AI : Show green marker even though hasPendingChanges is true
+    if (hasPendingChanges && isViewingApprovedPosition && status === 'approved') return 'green';
+
+    // AI : Priority 4: Pending change requests (awaiting moderation approval)
     if (hasPendingChanges && status === 'approved') return 'yellow';
 
-    // AI : Priority 4: Pending approval (awaiting moderation)
+    // AI : Priority 5: Pending approval (awaiting moderation)
     if (status === 'pending') return 'yellow';
 
-    // AI : Priority 5: Rejected overlays
+    // AI : Priority 6: Rejected overlays
     if (status === 'rejected') return 'red';
 
-    // AI : Priority 6: Approved and unmodified
+    // AI : Priority 7: Approved and unmodified
     if (status === 'approved') return 'green';
 
     // AI : Default: New overlay not yet submitted
