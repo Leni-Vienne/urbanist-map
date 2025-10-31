@@ -148,6 +148,7 @@ export interface OverlayObject extends OverlayData {
   history: { lat: number, lng: number }[][];
   redoStack: { lat: number, lng: number }[][];
   isTooBig?: boolean; // AI : Flag for real-time size validation warning
+  isViewingApprovedPosition?: boolean; // AI : True when user is viewing approved position of overlay with pending changes
 }
 
 // AI : Utility types for specific use cases
