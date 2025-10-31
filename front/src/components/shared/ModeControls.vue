@@ -31,13 +31,9 @@
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useAuthStore } from '@stores/authStore';
 import { useToast } from '@composables/ui/useToast';
-import { toggleEditMode } from '@composables/overlay/useOverlayModes';
+import { switchMode } from '@composables/overlay/useOverlayModes';
 import { useI18n } from 'vue-i18n';
 import type { MapMode } from '@types';
-import { loadCountriesWithProjects, addCountryMarkersToMap } from '@composables/map/useCountryMarkers';
-import { getSelectedCity } from '@composables/map/useCityData';
-import { loadCityOverlays, renderOverlayMarkersFromCache } from '@composables/map/useCityOverlays';
-import { useMapStore } from '@stores/pinia/mapStore';
 
 defineProps<{
   isMobile?: boolean
@@ -45,7 +41,6 @@ defineProps<{
 
 const overlayStore = useOverlayStore();
 const authStore = useAuthStore();
-const mapStore = useMapStore();
 const toast = useToast();
 const { t } = useI18n();
 
@@ -124,33 +119,9 @@ async function handleModeSwitch() {
       return;
     }
 
-    // AI : For view<->edit, use existing toggleEditMode with full state machine
-    if ((currentMode === 'view' && newMode === 'edit') ||
-        (currentMode === 'edit' && newMode === 'view')) {
-      await toggleEditMode();
-    } else {
-      // AI : For transitions involving moderation mode, do direct mode change and reload
-      const selectedCity = getSelectedCity();
-
-      // AI : Invalidate cache for selected city when switching modes
-      if (selectedCity) {
-        mapStore.clearCityProjectsCache(selectedCity.id);
-        mapStore.clearCityDevelopmentProjectsCache(selectedCity.id);
-      }
-
-      // AI : Set new mode
-      overlayStore.setMode(newMode);
-
-      // AI : Reload data with new mode
-      await loadCountriesWithProjects(true);
-      addCountryMarkersToMap();
-
-      // AI : Reload city data if a city is selected
-      if (selectedCity) {
-        await loadCityOverlays(selectedCity.id, true);
-        renderOverlayMarkersFromCache(selectedCity.id);
-      }
-    }
+    // AI : Use unified switchMode for all mode transitions (view/edit/moderation)
+    // AI : This ensures consistent behavior and proper data reloading
+    await switchMode(newMode);
 
     // AI : Only show toast if enough time has passed since last one
     const now = Date.now();

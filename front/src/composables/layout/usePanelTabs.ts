@@ -1,7 +1,7 @@
 import { watch, type Ref } from 'vue'
 import { useAuthStore } from '@stores/authStore'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
-import { updateOverlayEditingState } from '@composables/overlay/useOverlay'
+import { switchMode } from '@composables/overlay/useOverlayModes'
 import type { MapMode } from '@types'
 
 // AI : Type for available tabs in side menu and mobile drawer
@@ -43,7 +43,8 @@ export function usePanelTabs(initialTab: Ref<PanelTab>) {
   }
 
   /**
-   * AI : Watch activeTab and sync mode - lightweight update without full state machine
+   * AI : Watch activeTab and switch mode with full state machine transition
+   * AI : Now uses switchMode() for consistent data reloading across all UI elements
    */
   watch(initialTab, async (newTab) => {
     if (isSyncing) return
@@ -52,12 +53,9 @@ export function usePanelTabs(initialTab: Ref<PanelTab>) {
     const newMode = tabToMode(newTab)
 
     if (overlayStore.mode !== newMode) {
-      // AI : Set the mode first
-      overlayStore.setMode(newMode)
-      
-      // AI : Update overlay toolbar to reflect new mode (draggable, actions)
-      // AI : This preserves selection because updateOverlayEditingState() has selection restoration logic
-      updateOverlayEditingState()
+      // AI : Use unified switchMode function for proper data reload and cache invalidation
+      // AI : This ensures each mode displays the correct data (approved, user's own, or pending)
+      await switchMode(newMode)
     }
 
     isSyncing = false

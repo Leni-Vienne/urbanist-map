@@ -164,15 +164,20 @@ function handleBeforeTransition(from: OverlayModeState, to: OverlayModeState): v
 }
 
 /**
- * AI : Toggle between edit and view modes
+ * AI : Switch to a specific map mode (view/edit/moderation)
+ * AI : Handles full state machine transition with data reloading and cache invalidation
  */
-export async function toggleEditMode(onModeExit?: () => void): Promise<void> {
+export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onModeExit?: () => void): Promise<void> {
   const overlayStore = useOverlayStore()
   const mapStore = useMapStore()
 
-  // AI : Toggle between view and edit modes (skip moderation mode in toggle)
-  const newMode = overlayStore.mode === 'edit' ? 'view' : 'edit';
-  overlayStore.setMode(newMode);
+  // AI : Don't do anything if we're already in the target mode
+  if (overlayStore.mode === targetMode) {
+    return
+  }
+
+  // AI : Set new mode
+  overlayStore.setMode(targetMode);
 
   // AI : Calculate new state
   const newState = getCurrentState()
@@ -213,11 +218,22 @@ export async function toggleEditMode(onModeExit?: () => void): Promise<void> {
         await reloadCitiesAndMarkers(countryCode)
       }
 
-      if (overlayStore.mode !== 'edit' && onModeExit) {
+      // AI : Call onModeExit when leaving edit mode
+      if (targetMode !== 'edit' && onModeExit) {
         onModeExit()
       }
     }
   })
+}
+
+/**
+ * AI : Toggle between edit and view modes (backward compatibility wrapper)
+ * @deprecated Use switchMode() instead for more explicit mode transitions
+ */
+export async function toggleEditMode(onModeExit?: () => void): Promise<void> {
+  const overlayStore = useOverlayStore()
+  const targetMode = overlayStore.mode === 'edit' ? 'view' : 'edit'
+  await switchMode(targetMode, onModeExit)
 }
 
 /**
