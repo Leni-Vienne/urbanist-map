@@ -95,9 +95,9 @@ function performFullRender(newState: OverlayModeState, transition: StateTransiti
     return
   }
 
-  // AI : Get overlays data for the city
-  if (hasCachedCityProjectsData(newState.selectedCityId)) {
-    const overlaysData = getCachedCityProjectsData(newState.selectedCityId)!
+  // AI : Get overlays data for the city from mode-aware cache
+  if (hasCachedCityProjectsData(newState.selectedCityId, newState.mode)) {
+    const overlaysData = getCachedCityProjectsData(newState.selectedCityId, newState.mode)!
 
     renderForStrategy(
       transition.renderStrategy,
@@ -115,15 +115,6 @@ function performPartialUpdate(transition: StateTransition): void {
   // AI : Simply update properties of existing overlays (positions, editing state, visibility)
   // AI : This preserves Leaflet instances and their internal state (selection, etc.)
   updateExistingOverlays(transition.renderStrategy)
-}
-
-/**
- * AI : Shared logic for invalidating cache when switching modes
- */
-function invalidateCityCaches(cityId: string): void {
-  const mapStore = useMapStore()
-  mapStore.clearCityProjectsCache(cityId)
-  mapStore.clearCityDevelopmentProjectsCache(cityId)
 }
 
 /**
@@ -165,7 +156,8 @@ function handleBeforeTransition(from: OverlayModeState, to: OverlayModeState): v
 
 /**
  * AI : Switch to a specific map mode (view/edit/moderation)
- * AI : Handles full state machine transition with data reloading and cache invalidation
+ * AI : Handles full state machine transition with smart mode-aware caching
+ * AI : Uses cached data if available for target mode, otherwise fetches from backend
  */
 export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onModeExit?: () => void): Promise<void> {
   const overlayStore = useOverlayStore()
@@ -183,13 +175,12 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
   const newState = getCurrentState()
   const selectedCity = getSelectedCity()
 
-  // AI : Invalidate cache for selected city when switching modes
-  // AI : This forces a fresh fetch with the correct viewMode parameter
-  if (selectedCity) {
-    invalidateCityCaches(selectedCity.id)
-  }
+  // AI : NO cache invalidation! Smart caching handles mode-specific data automatically
+  // AI : fetchCityProjectsData and loadCityDevelopmentProjects check mode-aware cache first
+  // AI : If cached data exists for target mode, uses it instantly (no backend call)
+  // AI : If not cached, fetches from backend and caches for future use
 
-  // AI : Fetch new data BEFORE transitioning so it's available for rendering
+  // AI : Fetch data for new mode BEFORE transitioning (uses smart cache)
   if (selectedCity && newState.selectedCityId && newState.hasLoadedOverlays && newState.zoomLevel === 'high') {
     await fetchCityProjectsData(newState.selectedCityId)
     await loadCityDevelopmentProjects(newState.selectedCityId)

@@ -144,10 +144,12 @@ export function convertOverlayToData(overlayObject: OverlayObject): OverlayData 
     project: null,
     centroid,
     corners: overlayObject.corners ?? [],
+    approvedCorners: overlayObject.approvedCorners, // AI : Preserve approved corners for view approved position feature
     distance: 0,
     createdAt: overlayObject.createdAt,
     updatedAt: overlayObject.updatedAt,
-    isModified: overlayObject.isModified
+    isModified: overlayObject.isModified,
+    hasPendingChanges: overlayObject.hasPendingChanges
   };
 }
 

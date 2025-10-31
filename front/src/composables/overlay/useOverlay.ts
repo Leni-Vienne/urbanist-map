@@ -538,12 +538,13 @@ function saveOverlayModificationsToCache(overlayObject: OverlayObject): void {
  */
 export function addNewOverlayToCityCache(overlayObject: OverlayObject, cityId: string): void {
   const mapStore = useMapStore();
+  const overlayStore = useOverlayStore();
 
   // AI : Convert overlay to data format for caching
   const overlayData = convertOverlayToData(overlayObject);
 
-  // AI : Get current city cache or create empty array
-  const currentCache = mapStore.getCityOverlaysAndProjectsCache(cityId) ?? [];
+  // AI : Get current city cache for current mode or create empty array
+  const currentCache = mapStore.getCityOverlaysAndProjectsCache(cityId, overlayStore.mode) ?? [];
 
   // AI : Add new overlay to cache (avoid duplicates)
   const existingIndex = currentCache.findIndex((item) => item.id === overlayObject.id);
@@ -555,7 +556,7 @@ export function addNewOverlayToCityCache(overlayObject: OverlayObject, cityId: s
     currentCache.push(overlayData);
   }
 
-  mapStore.setCityProjectsCache(cityId, currentCache);
+  mapStore.setCityProjectsCache(cityId, overlayStore.mode, currentCache);
 }
 
 /**

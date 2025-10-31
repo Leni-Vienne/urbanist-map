@@ -295,18 +295,18 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
     const mapStore = useMapStore();
     const overlayStore = useOverlayStore();
     
-    // AI : Check cache first for non-null cityId
+    // AI : Check mode-aware cache first for non-null cityId
     let backendDevelopmentProjects: RouterOutput['project']['getCityProjects'] = [];
     if (cityId) {
-      const cachedData = mapStore.getCityDevelopmentProjectsCache(cityId);
+      const cachedData = mapStore.getCityDevelopmentProjectsCache(cityId, overlayStore.mode);
       if (cachedData) {
         backendDevelopmentProjects = cachedData;
       } else {
         // AI : Get development projects for this city from backend
         // AI : Pass current mode to backend to determine visibility
         backendDevelopmentProjects = await trpc.project.getCityProjects.query({ cityId, mode: overlayStore.mode });
-        // AI : Cache the result
-        mapStore.setCityDevelopmentProjectsCache(cityId, backendDevelopmentProjects);
+        // AI : Cache the result in mode-specific cache
+        mapStore.setCityDevelopmentProjectsCache(cityId, overlayStore.mode, backendDevelopmentProjects);
       }
     }
     
