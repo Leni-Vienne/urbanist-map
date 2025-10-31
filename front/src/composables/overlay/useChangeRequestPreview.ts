@@ -216,18 +216,26 @@ export function useChangeRequestPreview() {
       updateMarkerTooltip(overlayObject);
 
       // AI : Show current/approved position
-    } else if (overlayObject.corners && overlayObject.corners.length === 4) {
-      const approvedCorners = overlayObject.corners.map(c => L.latLng(c.lat, c.lng));
-      overlayObject.overlay.setCorners(approvedCorners);
-      overlayObject.hasPendingChanges = false;
-      updateMarkerPosition(overlayObject);
-      updateMarkerTooltip(overlayObject);
-      // AI : Restore hasPendingChanges flag after marker update
-      overlayObject.hasPendingChanges = true;
     } else {
-      overlayObject.overlay.setCorners(corners);
-      updateMarkerPosition(overlayObject);
-      updateMarkerTooltip(overlayObject);
+      // AI : Use approvedCorners if available (for overlays with pending changes)
+      // AI : Otherwise fall back to corners (for overlays without pending changes)
+      const cornersToUse = (overlayObject.approvedCorners && overlayObject.approvedCorners.length === 4)
+        ? overlayObject.approvedCorners
+        : overlayObject.corners;
+
+      if (cornersToUse && cornersToUse.length === 4) {
+        const approvedLatLngs = cornersToUse.map(c => L.latLng(c.lat, c.lng));
+        overlayObject.overlay.setCorners(approvedLatLngs);
+        overlayObject.hasPendingChanges = false;
+        updateMarkerPosition(overlayObject);
+        updateMarkerTooltip(overlayObject);
+        // AI : Restore hasPendingChanges flag after marker update
+        overlayObject.hasPendingChanges = true;
+      } else {
+        overlayObject.overlay.setCorners(corners);
+        updateMarkerPosition(overlayObject);
+        updateMarkerTooltip(overlayObject);
+      }
     }
 
     // AI : If overlay was already visible, fly to the new position

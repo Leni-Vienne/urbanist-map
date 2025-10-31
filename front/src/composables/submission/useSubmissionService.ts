@@ -384,6 +384,12 @@ export function useSubmissionService() {
 
       // AI : Reset modified flag after successfully submitting change request
       projectStore.updateProject(project.id, { isModified: false })
+
+      // AI : Invalidate all mode caches for this city (change affects all modes)
+      if (project.cityId) {
+        mapStore.clearCityProjectsCache(project.cityId)
+        mapStore.clearCityDevelopmentProjectsCache(project.cityId)
+      }
     } else {
       // AI : Direct update for pending/new projects
       const publishResult = await trpc.project.publishProject.mutate(
@@ -393,6 +399,12 @@ export function useSubmissionService() {
       if (publishResult.success) {
         // AI : Reset modified flag after successful publish
         projectStore.updateProject(project.id, { isModified: false })
+
+        // AI : Invalidate all mode caches for this city before refreshing
+        if (project.cityId) {
+          mapStore.clearCityProjectsCache(project.cityId)
+          mapStore.clearCityDevelopmentProjectsCache(project.cityId)
+        }
 
         // AI : Refresh city projects to show updated marker
         if (mapStore.selectedCity) {
@@ -431,6 +443,13 @@ export function useSubmissionService() {
       overlay.isModified = false
       overlay.hasPendingChanges = true
       updateMarkerTooltip(overlay)
+
+      // AI : Invalidate all mode caches for this city (change affects all modes)
+      const cityId = overlay.project?.cityId
+      if (cityId) {
+        mapStore.clearCityProjectsCache(cityId)
+        mapStore.clearCityDevelopmentProjectsCache(cityId)
+      }
     } else if (context.changeType === 'update_pending') {
       // AI : Direct update for pending overlays
       const overlayData: { id: string; caption?: string } = { id: overlay.id }
@@ -442,6 +461,13 @@ export function useSubmissionService() {
       })
 
       await trpc.overlay.updateOverlay.mutate(overlayData)
+
+      // AI : Invalidate all mode caches for this city (update affects all modes)
+      const cityId = overlay.project?.cityId
+      if (cityId) {
+        mapStore.clearCityProjectsCache(cityId)
+        mapStore.clearCityDevelopmentProjectsCache(cityId)
+      }
     } else {
       // AI : Create new overlay - this is handled by useOverlayPublisher
       throw new Error('New overlay creation should use useOverlayPublisher directly')

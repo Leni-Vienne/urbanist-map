@@ -120,6 +120,7 @@ export function renderForStrategy(
         existingOverlay.status = newData.status
         existingOverlay.corners = newData.corners
         existingOverlay.centroid = newData.centroid
+        existingOverlay.approvedCorners = newData.approvedCorners // AI : Preserve approved corners for view approved position
       })
 
       // AI : Find new overlays that need to be created
@@ -167,8 +168,8 @@ export function renderForStrategy(
     updateOverlayMarkersForFilters()
   }
 
-  // AI : Update cache with final state (one-way flow: store → cache)
-  mapStore.setCityProjectsCache(cityId, visibleOverlays)
+  // AI : Update cache with final state for current mode (one-way flow: store → cache)
+  mapStore.setCityProjectsCache(cityId, overlayStore.mode, visibleOverlays)
 }
 
 /**

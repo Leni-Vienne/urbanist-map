@@ -25,27 +25,95 @@ let overlayMarkersLayer: L.LayerGroup | null = null;
 const isLoadingCityProjects = ref(false);
 
 /**
- * AI : Fetch city projects data with caching to avoid repeated API calls
+ * AI : Apply pending change requests to overlays in edit mode
+ * AI : This ensures overlays with pending changes show the suggested position, not approved position
+ */
+async function applyPendingChangeRequests(overlaysData: OverlayData[]): Promise<OverlayData[]> {
+  const overlayStore = useOverlayStore();
+
+  // AI : Only apply in edit mode for overlays with pending changes
+  if (overlayStore.mode !== 'edit') {
+    return overlaysData;
+  }
+
+  // AI : Find overlays that have pending changes
+  const overlaysWithPendingChanges = overlaysData.filter(o => o.hasPendingChanges);
+  if (overlaysWithPendingChanges.length === 0) {
+    return overlaysData;
+  }
+
+  try {
+    // AI : Fetch all user's change requests
+    const myChangeRequests = await trpc.changes.getMyChangeRequests.query();
+
+    // AI : Filter to pending overlay change requests
+    const pendingOverlayChanges = myChangeRequests.filter(
+      cr => cr.status === 'pending' && cr.entityType === 'overlay'
+    );
+
+    // AI : Build a map of entityId -> change requests
+    const changeRequestsByOverlayId = new Map<string, typeof pendingOverlayChanges>();
+    pendingOverlayChanges.forEach(cr => {
+      if (!changeRequestsByOverlayId.has(cr.entityId)) {
+        changeRequestsByOverlayId.set(cr.entityId, []);
+      }
+      changeRequestsByOverlayId.get(cr.entityId)!.push(cr);
+    });
+
+    // AI : Apply pending corners to overlays
+    return overlaysData.map(overlay => {
+      const changes = changeRequestsByOverlayId.get(overlay.id);
+      if (!changes || changes.length === 0) {
+        return overlay;
+      }
+
+      // AI : Find corners change request
+      const cornersChange = changes.find(cr => cr.fieldName === 'corners');
+      if (cornersChange && cornersChange.newValue) {
+        // AI : Store both approved and pending corners
+        // AI : This allows "view approved position" feature to work correctly
+        return {
+          ...overlay,
+          approvedCorners: overlay.corners, // Store original approved corners
+          corners: cornersChange.newValue as Array<{ lat: number; lng: number }>, // Show pending corners
+        };
+      }
+
+      return overlay;
+    });
+  } catch (error) {
+    console.error('Failed to apply pending change requests:', error);
+    // AI : Return original data if fetching change requests fails
+    return overlaysData;
+  }
+}
+
+/**
+ * AI : Fetch city projects data with mode-aware caching to avoid repeated API calls
+ * AI : Smart caching: Returns cached data if available for current mode, otherwise fetches from backend
  */
 export async function fetchCityProjectsData(cityId: string): Promise<OverlayData[]> {
   const mapStore = useMapStore();
   const overlayStore = useOverlayStore();
 
-  // AI : Check if we already have cached data for this city
-  const cachedData = mapStore.getCityOverlaysAndProjectsCache(cityId);
+  // AI : Check if we already have cached data for this city AND current mode
+  const cachedData = mapStore.getCityOverlaysAndProjectsCache(cityId, overlayStore.mode);
   if (cachedData) {
     return cachedData;
   }
 
   // AI : Backend now returns data in OverlayData format directly
   // AI : Pass current mode to backend to determine visibility
-  const overlaysData = await withErrorToast(
+  let overlaysData = await withErrorToast(
     () => trpc.cities.getCityOverlaysAndProjects.query({ cityId, mode: overlayStore.mode }),
     'Error fetching city projects data'
   );
 
-  // AI : Cache the data for future use in store
-  mapStore.setCityProjectsCache(cityId, overlaysData);
+  // AI : In edit mode, apply pending change requests to show suggested positions
+  overlaysData = await applyPendingChangeRequests(overlaysData);
+
+  // AI : Cache the data for future use - mode-specific cache
+  mapStore.setCityProjectsCache(cityId, overlayStore.mode, overlaysData);
 
   return overlaysData;
 }
@@ -65,8 +133,9 @@ export async function loadCityOverlays(cityId: string, forceFullLoad = false): P
 
       const currentZoom = map.value.getZoom();
 
-      // AI : Check if we have cached data and decide what to show
-      const hasCachedData = hasCachedCityProjectsData(cityId);
+      // AI : Check if we have cached data for current mode and decide what to show
+      const overlayStore = useOverlayStore();
+      const hasCachedData = hasCachedCityProjectsData(cityId, overlayStore.mode);
       const shouldShowFullOverlays = currentZoom >= MIN_ZOOM_FOR_OVERLAYS || forceFullLoad;
 
       if (hasCachedData && shouldShowFullOverlays) {
@@ -94,7 +163,6 @@ export async function loadCityOverlays(cityId: string, forceFullLoad = false): P
       removeOverlayMarkers();
 
       // AI : Clear view mode overlays state using store
-      const overlayStore = useOverlayStore();
       overlayStore.clearViewModeOverlays();
 
       // AI : Get overlays data (cached or fresh)
@@ -217,11 +285,12 @@ export function removeOverlayMarkers(): void {
 // AI : getOverlayDataWithEditModifications is now imported from useOverlayEditCache
 
 /**
- * AI : Render full overlays from cached data
+ * AI : Render full overlays from cached data for current mode
  */
 function renderFullOverlaysFromCache(cityId: string) {
   const mapStore = useMapStore();
-  const overlaysData = mapStore.getCityOverlaysAndProjectsCache(cityId);
+  const overlayStore = useOverlayStore();
+  const overlaysData = mapStore.getCityOverlaysAndProjectsCache(cityId, overlayStore.mode);
   if (!overlaysData) {
     return;
   }
@@ -253,11 +322,12 @@ function renderFullOverlaysFromCache(cityId: string) {
 }
 
 /**
- * AI : Render overlay markers from cached data
+ * AI : Render overlay markers from cached data for current mode
  */
 export function renderOverlayMarkersFromCache(cityId: string): void {
   const mapStore = useMapStore();
-  const overlaysData = mapStore.getCityOverlaysAndProjectsCache(cityId);
+  const overlayStore = useOverlayStore();
+  const overlaysData = mapStore.getCityOverlaysAndProjectsCache(cityId, overlayStore.mode);
   if (!overlaysData) {
     return;
   }
@@ -325,14 +395,15 @@ async function flyToOverlayMarker(overlayData: OverlayData): Promise<void> {
  */
 export function updateOverlayMarkersForFilters(): void {
   const selectedCity = getSelectedCity();
+  const overlayStore = useOverlayStore();
 
   // AI : Only update if we have overlay markers visible
   if (!overlayMarkersLayer || map.value != null && !map.value.hasLayer(overlayMarkersLayer)) {
     return;
   }
 
-  // AI : Get the current city data from cache
-  if (!selectedCity || !hasCachedCityProjectsData(selectedCity.id)) {
+  // AI : Get the current city data from cache for current mode
+  if (!selectedCity || !hasCachedCityProjectsData(selectedCity.id, overlayStore.mode)) {
     return;
   }
 

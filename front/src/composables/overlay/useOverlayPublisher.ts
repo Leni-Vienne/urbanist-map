@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { useMapStore } from '@stores/pinia/mapStore';
 import { updateMarkerTooltip } from '@composables/overlay/useOverlay';
 import { map } from '@composables/core/useMap';
 import { trpc, getApiUrl } from '@client';
@@ -14,6 +15,7 @@ export function useOverlayPublisher() {
   const isPublishing = ref(false);
   const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
   const { projects } = storeToRefs(projectStore);
   const { overlays, idSelectedOverlay } = storeToRefs(overlayStore);
   const { t } = useI18n();
@@ -223,6 +225,14 @@ export function useOverlayPublisher() {
         if (overlay.overlay && map.value && !map.value.hasLayer(overlay.overlay)) {
           console.log(`AI: Re-adding overlay ${newId} to map after publishing`);
           overlay.overlay.addTo(map.value);
+        }
+
+        // AI : Invalidate all mode caches for this city after successful publish
+        // AI : This ensures fresh data on next mode switch without overwriting current local state
+        const cityId = overlay.project?.cityId
+        if (cityId) {
+          mapStore.clearCityProjectsCache(cityId);
+          mapStore.clearCityDevelopmentProjectsCache(cityId);
         }
       }
 

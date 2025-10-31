@@ -35,7 +35,8 @@ export interface OverlayData {
         lat: number;
         lng: number;
     };
-    corners: { lat: number; lng: number }[]; // AI : Always approved/database corners, never modified by change requests
+    corners: { lat: number; lng: number }[]; // AI : Current corners (pending if hasPendingChanges, otherwise approved)
+    approvedCorners?: { lat: number; lng: number }[]; // AI : Original approved corners (only present when pending changes applied)
     project?: (DBProject & { city: DBCity; }) | null;
     distance?: number;
     isModified?: boolean;
