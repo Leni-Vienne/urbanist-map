@@ -207,13 +207,15 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
       // AI : Update development marker colors immediately after mode switch
       updateAllDevelopmentMarkerColors()
 
-      await loadCountriesWithProjects()
-      addCountryMarkersToMap()
-
+      // AI : Run independent backend requests in parallel
       const countryCode = mapStore.selectedCountryCode
-      if (countryCode) {
-        await reloadCitiesAndMarkers(countryCode)
-      }
+      await Promise.all([
+        loadCountriesWithProjects(),
+        countryCode ? reloadCitiesAndMarkers(countryCode) : Promise.resolve()
+      ])
+
+      // AI : Add country markers after both requests complete
+      addCountryMarkersToMap()
 
       // AI : Auto-navigate to selected overlay after mode change
       if (selectedOverlayId) {
@@ -231,15 +233,13 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
 /**
  * AI : Auto-navigate to the selected overlay after mode change
  * AI : Uses the overlay's current position from overlayStore (which includes edit mode cache positions)
+ * AI : Waits for overlay to be fully rendered before navigating
  */
 async function autoNavigateToSelectedOverlay(overlayId: string): Promise<void> {
   const overlayStore = useOverlayStore()
 
-  // AI : Wait a bit for the overlay to be rendered with the new mode's position
-  await new Promise(resolve => setTimeout(resolve, 150))
-
-  // AI : Get overlay from overlayStore which has the correct position (including edit mode cache)
-  const overlayObject = overlayStore.overlays[overlayId]
+  // AI : Wait for overlay to be rendered (poll with requestAnimationFrame)
+  const overlayObject = await waitForOverlayRendered(overlayId, overlayStore)
 
   if (overlayObject?.corners && overlayObject.corners.length === 4) {
     // AI : Navigate to the overlay bounds using the correct position
@@ -252,6 +252,30 @@ async function autoNavigateToSelectedOverlay(overlayId: string): Promise<void> {
       easeLinearity: 0.25
     })
   }
+}
+
+/**
+ * AI : Wait for overlay to be rendered in the store with correct position
+ * AI : Uses requestAnimationFrame to sync with browser rendering cycles
+ */
+async function waitForOverlayRendered(
+  overlayId: string,
+  overlayStore: ReturnType<typeof useOverlayStore>,
+  maxAttempts: number = 10
+): Promise<ReturnType<typeof useOverlayStore>['overlays'][string] | null> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const overlayObject = overlayStore.overlays[overlayId]
+
+    // AI : Check if overlay has valid corner data
+    if (overlayObject?.corners && overlayObject.corners.length === 4) {
+      return overlayObject
+    }
+
+    // AI : Wait for next frame before checking again
+    await new Promise(resolve => requestAnimationFrame(resolve))
+  }
+
+  return null
 }
 
 /**

@@ -310,7 +310,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { buildThumbnailUrl, formatRelativeTime } from '../../utils'
 import { navigateToDevelopmentProject } from '@composables/navigation/useOverlayNavigation'
@@ -472,43 +472,65 @@ function handleToggleCountryExpanded(countryCode: string) {
 // AI : Watch for overlay selection and mode changes to auto-expand accordions
 watch(
   () => [overlayStore.idSelectedOverlay, overlayStore.mode, props.projects] as const,
-  ([selectedOverlayId, mode, projects]) => {
+  async ([selectedOverlayId, _mode, projects]) => {
     if (selectedOverlayId && projects.length > 0) {
-      // AI : Auto-expand the accordion hierarchy to show the selected overlay
-      // AI : Longer delay when mode changes to ensure projects data is reloaded
-      const delay = mode === 'edit' ? 400 : 100
+      // AI : Wait for Vue to finish rendering the updated projects
+      await nextTick()
 
-      setTimeout(() => {
-        const expanded = expandAccordionForOverlay(selectedOverlayId, projects)
+      // AI : Try to expand the accordion hierarchy
+      const expanded = expandAccordionForOverlay(selectedOverlayId, projects)
 
-        // AI : If accordion was expanded, scroll to the overlay element
-        if (expanded) {
-          // AI : Wait for accordion animation to complete before scrolling
-          setTimeout(() => {
-            scrollToOverlay(selectedOverlayId)
-          }, 350)
-        }
-      }, delay)
+      if (expanded) {
+        // AI : Wait for DOM to update with expanded accordion
+        await nextTick()
+
+        // AI : Wait for accordion animation to complete, then scroll
+        await waitForAccordionAnimation(selectedOverlayId)
+      }
     }
   },
   { deep: true }
 )
 
 /**
- * AI : Scroll the side panel to show the selected overlay
+ * AI : Wait for accordion expansion animation to complete
+ * AI : Uses requestAnimationFrame for smooth coordination with browser rendering
  */
-function scrollToOverlay(overlayId: string) {
-  // AI : Find the overlay card element by data attribute or class
+async function waitForAccordionAnimation(overlayId: string): Promise<void> {
+  // AI : Find the overlay element to check if it exists and is visible
   const overlayElement = document.querySelector(`[data-overlay-id="${overlayId}"]`)
 
-  if (overlayElement) {
-    // AI : Scroll with smooth behavior and center the element
-    overlayElement.scrollIntoView({
-      behavior: 'smooth',
-      block: 'center',
-      inline: 'nearest'
-    })
+  if (!overlayElement) {
+    // AI : Element not found, wait a frame and try again (max 3 attempts)
+    for (let i = 0; i < 3; i++) {
+      await new Promise(resolve => requestAnimationFrame(resolve))
+      const element = document.querySelector(`[data-overlay-id="${overlayId}"]`)
+      if (element) {
+        await scrollToOverlayWhenReady(element)
+        return
+      }
+    }
+    return
   }
+
+  await scrollToOverlayWhenReady(overlayElement)
+}
+
+/**
+ * AI : Scroll to overlay element once it's fully rendered and positioned
+ */
+async function scrollToOverlayWhenReady(element: Element): Promise<void> {
+  // AI : Wait for the element to be fully rendered and positioned
+  // AI : Use requestAnimationFrame to sync with browser paint cycle
+  await new Promise(resolve => requestAnimationFrame(resolve))
+  await new Promise(resolve => requestAnimationFrame(resolve))
+
+  // AI : Scroll with smooth behavior
+  element.scrollIntoView({
+    behavior: 'smooth',
+    block: 'center',
+    inline: 'nearest'
+  })
 }
 
 // AI : Get flag URL for country
