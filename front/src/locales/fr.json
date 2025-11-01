@@ -225,8 +225,8 @@
     "clickCityMarker": "Cliquez sur une ville",
     "viewMode": "Mode Consultation",
     "editMode": "Mode Édition",
-    "viewModeTooltip": "Parcourir et consulter les projets sur la carte",
-    "editModeTooltip": "Ajouter et modifier la position des overlays sur la carte",
+    "viewModeTooltip": "Consulter les contributions sur la carte",
+    "editModeTooltip": "Vous pouvez ajouter et modifier des contributions sur la carte",
     "switch": "Changer",
     "switchMode": "Changer de mode",
     "controls": {

@@ -181,6 +181,7 @@
                         <div
                           v-for="overlay in project.overlays"
                           :key="overlay.id"
+                          :data-overlay-id="overlay.id"
                           class="overlay-card-wrapper"
                           :class="{ 'has-changes': getOverlayChangeRequestsForOverlay(overlay.id).length > 0 }"
                         >
@@ -470,17 +471,45 @@ function handleToggleCountryExpanded(countryCode: string) {
 
 // AI : Watch for overlay selection and mode changes to auto-expand accordions
 watch(
-  () => [overlayStore.idSelectedOverlay, overlayStore.mode, props.projects.length] as const,
-  ([selectedOverlayId, mode, projectsLength]) => {
-    if (selectedOverlayId && projectsLength > 0) {
+  () => [overlayStore.idSelectedOverlay, overlayStore.mode, props.projects] as const,
+  ([selectedOverlayId, mode, projects]) => {
+    if (selectedOverlayId && projects.length > 0) {
       // AI : Auto-expand the accordion hierarchy to show the selected overlay
-      // AI : Use setTimeout to ensure projects data is fully loaded after mode switch
+      // AI : Longer delay when mode changes to ensure projects data is reloaded
+      const delay = mode === 'edit' ? 400 : 100
+
       setTimeout(() => {
-        expandAccordionForOverlay(selectedOverlayId, props.projects)
-      }, 100)
+        const expanded = expandAccordionForOverlay(selectedOverlayId, projects)
+
+        // AI : If accordion was expanded, scroll to the overlay element
+        if (expanded) {
+          // AI : Wait for accordion animation to complete before scrolling
+          setTimeout(() => {
+            scrollToOverlay(selectedOverlayId)
+          }, 350)
+        }
+      }, delay)
     }
-  }
+  },
+  { deep: true }
 )
+
+/**
+ * AI : Scroll the side panel to show the selected overlay
+ */
+function scrollToOverlay(overlayId: string) {
+  // AI : Find the overlay card element by data attribute or class
+  const overlayElement = document.querySelector(`[data-overlay-id="${overlayId}"]`)
+
+  if (overlayElement) {
+    // AI : Scroll with smooth behavior and center the element
+    overlayElement.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+      inline: 'nearest'
+    })
+  }
+}
 
 // AI : Get flag URL for country
 function getFlagUrl(countryCode: string): string {
