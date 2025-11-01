@@ -20,6 +20,8 @@ import { updateOverlayMarkersColors } from '@composables/map/useMarkers'
 import { updateOverlayEditingState } from '@composables/overlay/useOverlay'
 import { storeToRefs } from 'pinia'
 import { MAP_CONFIG } from '@constants/mapConstants'
+import { mobileAwareFlyToBounds } from '@composables/map/useMapNavigation'
+import L from 'leaflet'
 
 // AI : Transition effects - callbacks executed during state transitions
 interface TransitionEffects {
@@ -158,6 +160,7 @@ function handleBeforeTransition(from: OverlayModeState, to: OverlayModeState): v
  * AI : Switch to a specific map mode (view/edit/moderation)
  * AI : Handles full state machine transition with smart mode-aware caching
  * AI : Uses cached data if available for target mode, otherwise fetches from backend
+ * AI : Auto-navigates to selected overlay position after mode change
  */
 export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onModeExit?: () => void): Promise<void> {
   const overlayStore = useOverlayStore()
@@ -167,6 +170,9 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
   if (overlayStore.mode === targetMode) {
     return
   }
+
+  // AI : Store selected overlay ID before mode switch for auto-navigation
+  const selectedOverlayId = overlayStore.idSelectedOverlay
 
   // AI : Set new mode
   overlayStore.setMode(targetMode);
@@ -209,12 +215,43 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
         await reloadCitiesAndMarkers(countryCode)
       }
 
+      // AI : Auto-navigate to selected overlay after mode change
+      if (selectedOverlayId) {
+        await autoNavigateToSelectedOverlay(selectedOverlayId)
+      }
+
       // AI : Call onModeExit when leaving edit mode
       if (targetMode !== 'edit' && onModeExit) {
         onModeExit()
       }
     }
   })
+}
+
+/**
+ * AI : Auto-navigate to the selected overlay after mode change
+ * AI : Uses the overlay's current position from overlayStore (which includes edit mode cache positions)
+ */
+async function autoNavigateToSelectedOverlay(overlayId: string): Promise<void> {
+  const overlayStore = useOverlayStore()
+
+  // AI : Wait a bit for the overlay to be rendered with the new mode's position
+  await new Promise(resolve => setTimeout(resolve, 150))
+
+  // AI : Get overlay from overlayStore which has the correct position (including edit mode cache)
+  const overlayObject = overlayStore.overlays[overlayId]
+
+  if (overlayObject?.corners && overlayObject.corners.length === 4) {
+    // AI : Navigate to the overlay bounds using the correct position
+    if (!map.value) return
+
+    const bounds = L.latLngBounds(overlayObject.corners.map(c => L.latLng(c.lat, c.lng)))
+    mobileAwareFlyToBounds(bounds, {
+      padding: [50, 50] as [number, number],
+      duration: 0.8,
+      easeLinearity: 0.25
+    })
+  }
 }
 
 /**

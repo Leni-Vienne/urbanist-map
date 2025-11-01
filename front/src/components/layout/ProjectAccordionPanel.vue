@@ -22,7 +22,7 @@
           <div class="country-group">
             <div
               class="country-group-header"
-              @click="toggleCountryExpanded(countryGroup.countryCode)"
+              @click="handleToggleCountryExpanded(countryGroup.countryCode)"
             >
               <div class="country-header-content">
                 <i
@@ -309,13 +309,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { buildThumbnailUrl, formatRelativeTime } from '../../utils'
 import { navigateToDevelopmentProject } from '@composables/navigation/useOverlayNavigation'
 import { useOverlayClickHandler } from '@composables/overlay/useOverlayClickHandler'
 import { useToast } from '@composables/ui/useToast'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
+import { useAccordionState } from '@composables/layout/useAccordionState'
 import type { ProjectForModeration, OverlayForModeration } from '@types'
 import type { PendingChangeRequest } from '../../types/api'
 import ChangeRequestSection from './ChangeRequestSection.vue'
@@ -340,10 +341,22 @@ const props = withDefaults(defineProps<Props>(), {
 // AI : Use i18n for translations
 const { t } = useI18n()
 const toast = useToast()
+const overlayStore = useOverlayStore()
 
-// AI : Reactive state for image errors and expanded panels
+// AI : Use shared accordion state (persists across My Contributions and Moderation panels)
+const {
+  activeAccordionPanels,
+  expandedCountries,
+  expandedCities,
+  toggleCountryExpanded,
+  isCountryExpanded,
+  toggleCityExpanded,
+  isCityExpanded,
+  expandAccordionForOverlay
+} = useAccordionState()
+
+// AI : Reactive state for image errors
 const imageErrors = ref<Record<string, boolean>>({})
-const activeAccordionPanels = ref<string[]>([])
 
 // AI : Use overlay click handler composable for shared navigation logic
 const { handleOverlayClickNavigation } = useOverlayClickHandler()
@@ -405,9 +418,6 @@ interface CountryGroup {
   cities: CityGroup[];
 }
 
-const expandedCountries = ref<Set<string>>(new Set())
-const expandedCities = ref<Set<string>>(new Set())
-
 const groupedByCountry = computed(() => {
   const countryMap = new Map<string, CountryGroup>();
 
@@ -452,36 +462,25 @@ const groupedByCountry = computed(() => {
   return sorted;
 })
 
-function toggleCountryExpanded(countryCode: string) {
-  if (expandedCountries.value.has(countryCode)) {
-    expandedCountries.value.delete(countryCode);
-  } else {
-    expandedCountries.value.add(countryCode);
+// AI : Wrapper to pass country group data to the shared state function
+function handleToggleCountryExpanded(countryCode: string) {
+  const country = groupedByCountry.value.find(c => c.countryCode === countryCode)
+  toggleCountryExpanded(countryCode, country)
+}
 
-    const country = groupedByCountry.value.find(c => c.countryCode === countryCode);
-    if (country) {
-      country.cities.forEach(city => {
-        expandedCities.value.add(city.key);
-      });
+// AI : Watch for overlay selection and mode changes to auto-expand accordions
+watch(
+  () => [overlayStore.idSelectedOverlay, overlayStore.mode, props.projects.length] as const,
+  ([selectedOverlayId, mode, projectsLength]) => {
+    if (selectedOverlayId && projectsLength > 0) {
+      // AI : Auto-expand the accordion hierarchy to show the selected overlay
+      // AI : Use setTimeout to ensure projects data is fully loaded after mode switch
+      setTimeout(() => {
+        expandAccordionForOverlay(selectedOverlayId, props.projects)
+      }, 100)
     }
   }
-}
-
-function isCountryExpanded(countryCode: string): boolean {
-  return expandedCountries.value.has(countryCode);
-}
-
-function toggleCityExpanded(cityKey: string) {
-  if (expandedCities.value.has(cityKey)) {
-    expandedCities.value.delete(cityKey);
-  } else {
-    expandedCities.value.add(cityKey);
-  }
-}
-
-function isCityExpanded(cityKey: string): boolean {
-  return expandedCities.value.has(cityKey);
-}
+)
 
 // AI : Get flag URL for country
 function getFlagUrl(countryCode: string): string {
