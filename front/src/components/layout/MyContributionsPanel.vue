@@ -12,7 +12,7 @@
       <div class="filter-controls">
         <div class="field-checkbox">
           <Checkbox v-model="onlyShowPending" inputId="onlyShowPending" binary />
-          <label for="onlyShowPending">{{ $t('project.filters.onlyShowPending') }}</label>
+          <label for="onlyShowPending">{{ $t('help.filters.onlyShowPending') }}</label>
         </div>
       </div>
     </template>
