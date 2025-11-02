@@ -168,7 +168,7 @@ export type OverlayForList = Pick<OverlayObject, 'id' | 'caption' | 'filename'> 
   distance?: number;
 };
 
-export type OverlayForModeration = Pick<OverlayObject, 'id' | 'filename' | 'status' | 'version' | 'projectId' | 'updatedAt'> & {
+export type OverlayForModeration = Pick<OverlayObject, 'id' | 'filename' | 'status' | 'version' | 'projectId' | 'updatedAt' | 'replacesOverlayId'> & {
   name: string; // AI : Display name
   cityId: string | null;
   cityName: string | null;
