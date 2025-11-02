@@ -112,6 +112,9 @@ export const citiesWithProjects = ref<CityWithProjects[]>([]);
 // AI : Layer group for city markers
 let cityMarkersLayer: L.LayerGroup | null = null;
 
+// AI : Map to store city ID to marker references for easy lookup
+const cityMarkerMap = new Map<string, L.Marker>();
+
 // AI : Layer group for development projects (development markers)
 let developmentProjectsLayer: L.LayerGroup | null = null;
 
@@ -134,13 +137,51 @@ let modeWatcherInitialized = false;
  */
 function initializeModeWatcher() {
   if (modeWatcherInitialized) return;
-  
+
   const overlayStore = useOverlayStore();
   watch(() => overlayStore.mode, () => {
     updateAllDevelopmentMarkerColors();
   });
-  
+
   modeWatcherInitialized = true;
+}
+
+// AI : Flag to ensure city marker watcher is only set up once
+let cityMarkerWatcherInitialized = false;
+
+/**
+ * AI : Initialize selectedCity watcher to update city marker opacity
+ * This makes the selected city marker opaque when navigating from panels
+ */
+function initializeCityMarkerWatcher() {
+  if (cityMarkerWatcherInitialized) return;
+
+  const mapStore = useMapStore();
+  watch(() => mapStore.selectedCity, (selectedCity) => {
+    updateCityMarkerOpacities(selectedCity?.id ?? null);
+  });
+
+  cityMarkerWatcherInitialized = true;
+}
+
+/**
+ * AI : Update city marker opacities based on selected city
+ */
+export function updateCityMarkerOpacities(selectedCityId: string | null): void {
+  if (!cityMarkersLayer) return;
+
+  cityMarkersLayer.eachLayer((layer) => {
+    if (layer instanceof L.Marker) {
+      const markerElement = layer.getElement();
+      const cityId = markerElement?.getAttribute('data-city-id');
+
+      if (selectedCityId && cityId === selectedCityId) {
+        layer.setOpacity(MARKER_OPACITY.city.hover);
+      } else {
+        layer.setOpacity(MARKER_OPACITY.city.default);
+      }
+    }
+  });
 }
 
 /**
@@ -488,6 +529,7 @@ export function removeCityMarkers(): void {
     developmentProjectsLayer = null;
   }
 
+  cityMarkerMap.clear();
   developmentMarkerMap.clear();
 }
 
@@ -531,6 +573,23 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
       'data-lat': city.lat.toString(),
       'data-lng': city.lng.toString(),
     }),
+    onMarkerHover: (marker, city, isHovering) => {
+      // AI : Custom hover handler that respects selected city state
+      const mapStore = useMapStore();
+      const isSelectedCity = mapStore.selectedCity?.id === city.id;
+
+      if (isHovering) {
+        // AI : Always increase opacity on hover
+        marker.setOpacity(MARKER_OPACITY.city.hover);
+      } else {
+        // AI : On mouse out, keep opacity high if this is the selected city
+        if (isSelectedCity) {
+          marker.setOpacity(MARKER_OPACITY.city.hover);
+        } else {
+          marker.setOpacity(MARKER_OPACITY.city.default);
+        }
+      }
+    },
     onMarkerClick: async (_marker, city) => {
       // AI : Zoom to the city marker position (same zoom level as MarkerHelpButton)
       if (map.value && map.value.getZoom() <= 9) {
@@ -547,6 +606,21 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
   const result = createMarkerLayer(cities, config);
   cityMarkersLayer = result.layer;
 
+  // AI : Store markers in map for easy lookup
+  cityMarkerMap.clear();
+  result.markers.forEach((marker, cityId) => {
+    cityMarkerMap.set(cityId, marker);
+  });
+
+  // AI : Initialize city marker watcher on first use
+  initializeCityMarkerWatcher();
+
   // AI : Add the layer group to the map
   cityMarkersLayer.addTo(map.value);
+
+  // AI : Update opacities based on currently selected city
+  const mapStore = useMapStore();
+  if (mapStore.selectedCity) {
+    updateCityMarkerOpacities(mapStore.selectedCity.id);
+  }
 }

@@ -207,12 +207,14 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
       // AI : Update development marker colors immediately after mode switch
       updateAllDevelopmentMarkerColors()
 
-      // AI : Run independent backend requests in parallel
+      // AI : Load countries first (required for reloadCitiesAndMarkers)
+      await loadCountriesWithProjects()
+
+      // AI : Then reload city markers if a country is selected
       const countryCode = mapStore.selectedCountryCode
-      await Promise.all([
-        loadCountriesWithProjects(),
-        countryCode ? reloadCitiesAndMarkers(countryCode) : Promise.resolve()
-      ])
+      if (countryCode) {
+        await reloadCitiesAndMarkers(countryCode)
+      }
 
       // AI : Add country markers after both requests complete
       addCountryMarkersToMap()

@@ -120,23 +120,27 @@ export function createMarkerLayer<T extends { id?: string }>(
 
     // AI : Hover event - increase opacity
     marker.on('mouseover', () => {
-      // AI : Call custom hover handler if provided
-      config.onMarkerHover?.(marker, item, true);
-
-      // AI : Only increase opacity if not selected
-      if (selectedMarker !== marker) {
-        marker.setOpacity(hoverOpacity);
+      // AI : If custom hover handler provided, let it handle opacity
+      if (config.onMarkerHover) {
+        config.onMarkerHover(marker, item, true);
+      } else {
+        // AI : Default behavior: only increase opacity if not selected
+        if (selectedMarker !== marker) {
+          marker.setOpacity(hoverOpacity);
+        }
       }
     });
 
     // AI : Mouse out event - reset opacity (unless selected)
     marker.on('mouseout', () => {
-      // AI : Call custom hover handler if provided
-      config.onMarkerHover?.(marker, item, false);
-
-      // AI : Only reset opacity if not selected
-      if (selectedMarker !== marker) {
-        marker.setOpacity(defaultOpacity);
+      // AI : If custom hover handler provided, let it handle opacity
+      if (config.onMarkerHover) {
+        config.onMarkerHover(marker, item, false);
+      } else {
+        // AI : Default behavior: only reset opacity if not selected
+        if (selectedMarker !== marker) {
+          marker.setOpacity(defaultOpacity);
+        }
       }
     });
 
