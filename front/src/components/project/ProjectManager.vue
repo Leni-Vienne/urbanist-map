@@ -10,6 +10,7 @@
       @project-selected="onProjectSelected"
       @create-project="uiStore.openProjectDialog()"
       :useCityProjects="true"
+      appendTo="body"
       ref="projectPickerRef"
     />
   </Dialog>
@@ -88,7 +89,8 @@ import { loadCityProjects, getDevelopmentMarkerByProjectId, createProjectInfoTel
 import { addOverlay } from '@composables/overlay/useOverlay'
 import { setLastCreatedProject } from '@composables/ui/useProjectState'
 import { createProject } from '@composables/project/useProjects'
-import { createProjectFromAPI } from '../../utils/typeFactories'
+import { createProjectFromAPI, createProject as createProjectInstance } from '../../utils/typeFactories'
+import { useCityProjects } from '@composables/project/useProjectSelection'
 import type { Project, OverlayObject } from '@types'
 import type { NearbyProject } from '../../types/api'
 
@@ -114,24 +116,53 @@ const { projectEditForm } = storeToRefs(uiStore)
 
 // AI : Process image after project selection
 async function onProjectSelected(projectId: string) {
-  // AI : Check if project exists in local store, if not, try to get it from nearby projects
+  // AI : Check if project exists in local store, if not, try to get it from available sources
   if (!projects.value[projectId]) {
     try {
-      // AI : Fetch nearby projects to get the selected project data
-      const nearbyProjects = await projectStore.fetchNearbyProjects()
-      const nearbyProject = nearbyProjects.find((p: NearbyProject) => p.id === projectId)
+      let projectToAdd: Project | null = null;
 
-      if (nearbyProject) {
-        // AI : Convert nearby project to local project format using factory function
-        const localProject = createProjectFromAPI(nearbyProject)
+      // AI : For replacement overlays, try to get the project from the original overlay first
+      if (replacementOverlayId.value) {
+        const originalOverlay = overlayStore.overlays[replacementOverlayId.value];
+        if (originalOverlay?.project?.id === projectId) {
+          projectToAdd = createProjectInstance({
+            ...originalOverlay.project,
+            description: originalOverlay.project.description ?? null,
+            overlayIds: []
+          });
+        }
+      }
 
-        // AI : Add project to local store
-        projects.value[projectId] = localProject
+      // AI : If not found in original overlay, get from city projects (includes city overlays + nearby projects)
+      if (!projectToAdd) {
+        const { projects: cityProjectsList } = useCityProjects();
+        const cityProject = cityProjectsList.value.find((p: Project) => p.id === projectId);
+        if (cityProject) {
+          projectToAdd = cityProject;
+        }
+      }
+
+      // AI : If still not found, try fetching fresh nearby projects as last resort
+      if (!projectToAdd) {
+        console.log('Fetching nearby projects to find project ID:', projectId);
+        const nearbyProjects = await projectStore.fetchNearbyProjects();
+        const nearbyProject = nearbyProjects.find((p: NearbyProject) => p.id === projectId);
+        if (nearbyProject) {
+          projectToAdd = createProjectFromAPI(nearbyProject);
+        }
+      }
+
+      // AI : Add the project to local store if found
+      if (projectToAdd) {
+        // AI : Create new object reference to trigger shallowRef reactivity
+        const updatedProjects = { ...projects.value };
+        updatedProjects[projectId] = projectToAdd;
+        projects.value = updatedProjects;
       } else {
-        console.warn('Project not found in nearby projects, overlay creation may not work properly')
+        console.warn('Project not found in any source, overlay creation may not work properly');
       }
     } catch (error) {
-      console.error('Error fetching nearby projects for project selection:', error)
+      console.error('Error getting project for overlay:', error);
     }
   }
 

@@ -29,7 +29,7 @@
           :loading="isLoadingProjects"
           :optionGroupLabel="useGroupedView ? 'label' : undefined"
           :optionGroupChildren="useGroupedView ? 'items' : undefined"
-          appendTo="self"
+          :appendTo="appendTo"
           @focus="onSelectFocus"
         >
           <template #value="{ value, placeholder }">
@@ -125,6 +125,10 @@ const props = defineProps({
   useCityProjects: {
     type: Boolean,
     default: false
+  },
+  appendTo: {
+    type: String,
+    default: 'self'
   }
 });
 

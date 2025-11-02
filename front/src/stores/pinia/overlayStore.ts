@@ -33,7 +33,6 @@ export const useOverlayStore = defineStore('overlay', () => {
 
   // AI : UI state
   const replacementOverlayId = ref<string | null>(null)
-  const showImageUploadDialog = ref(false)
   const pendingImageFile = ref<File | null>(null)
   const showInfoPopup = ref(false)
   const infoPopupOverlayId = ref<string | null>(null)
@@ -119,7 +118,6 @@ export const useOverlayStore = defineStore('overlay', () => {
 
   const requestOverlayReplacement = (overlayId: string) => {
     replacementOverlayId.value = overlayId
-    showImageUploadDialog.value = true
   }
 
   const resetReplacement = () => {
@@ -175,7 +173,6 @@ export const useOverlayStore = defineStore('overlay', () => {
     latestOverlaysLoading,
     latestOverlaysLoaded,
     replacementOverlayId,
-    showImageUploadDialog,
     pendingImageFile,
     showInfoPopup,
     infoPopupOverlayId,
