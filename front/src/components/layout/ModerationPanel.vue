@@ -46,16 +46,20 @@
       <button
         v-if="overlay.status === 'pending' && project.status === 'approved'"
         class="action-btn approve-btn"
+        :class="{ 'disabled-btn': !!overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id) }"
+        :disabled="!!overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id)"
         @click.stop="handleApproveOverlay(overlay.id)"
-        v-tooltip.top="'Approve Overlay'"
+        v-tooltip.top="overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id) ? 'View suggested position first' : 'Approve Overlay'"
       >
         <i class="pi pi-check"></i>
       </button>
       <button
         v-if="overlay.status === 'pending' && project.status === 'approved'"
         class="action-btn reject-btn"
+        :class="{ 'disabled-btn': !!overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id) }"
+        :disabled="!!overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id)"
         @click.stop="handleRejectOverlay(overlay.id)"
-        v-tooltip.top="'Reject Overlay'"
+        v-tooltip.top="overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id) ? 'View suggested position first' : 'Reject Overlay'"
       >
         <i class="pi pi-times"></i>
       </button>
@@ -69,8 +73,8 @@
       </button>
       <button
         class="action-btn"
-        @click.stop="handleOverlayClickNavigation(overlay, true)"
-        v-tooltip.top="'Zoom to Overlay'"
+        @click.stop="handleViewOverlayPosition(overlay, true)"
+        v-tooltip.top="'View Suggested Position'"
       >
         <i class="pi pi-search"></i>
       </button>
@@ -79,15 +83,19 @@
     <template #change-actions="{ change }">
       <button
         class="action-btn approve-btn"
+        :class="{ 'disabled-btn': isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) }"
+        :disabled="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id)"
         @click.stop="handleApproveChange(change.id)"
-        v-tooltip.top="'Approve Change'"
+        v-tooltip.top="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) ? 'View suggested position first' : 'Approve Change'"
       >
         <i class="pi pi-check"></i>
       </button>
       <button
         class="action-btn reject-btn"
+        :class="{ 'disabled-btn': isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) }"
+        :disabled="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id)"
         @click.stop="handleRejectChange(change.id)"
-        v-tooltip.top="'Reject Change'"
+        v-tooltip.top="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) ? 'View suggested position first' : 'Reject Change'"
       >
         <i class="pi pi-times"></i>
       </button>
@@ -98,11 +106,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useModeration } from '@composables/overlay/useModeration'
 import { useChangeRequests } from '@composables/changes/useChanges'
 import { useOverlayClickHandler } from '@composables/overlay/useOverlayClickHandler'
+import { useChangeRequestPreview } from '@composables/overlay/useChangeRequestPreview'
 import { useToast } from '@composables/ui/useToast'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 
@@ -133,6 +142,44 @@ const toast = useToast()
 
 // AI : Use overlay click handler composable for shared navigation logic
 const { handleOverlayClickNavigation } = useOverlayClickHandler()
+
+// AI : Use change request preview composable to track when suggested positions are viewed
+const { previewState } = useChangeRequestPreview()
+
+// AI : Track which overlay positions have been viewed by the moderator (using array for better reactivity)
+const viewedOverlayIds = ref<string[]>([])
+
+// AI : Track which change request suggested positions have been viewed
+const viewedChangeRequestIds = ref<string[]>([])
+
+// AI : Check if a change request is for a geometry field (corners or centroid)
+function isGeometryChange(change: any): boolean {
+  return change.fieldName === 'corners' || change.fieldName === 'centroid'
+}
+
+// AI : Check if a geometry change request's suggested position has been viewed
+function hasViewedSuggestedPosition(changeId: string): boolean {
+  return viewedChangeRequestIds.value.includes(changeId)
+}
+
+// AI : Watch preview state and mark change as viewed when suggested position is shown
+watch(
+  previewState,
+  (state) => {
+    if (state.type === 'suggested' && !viewedChangeRequestIds.value.includes(state.changeId)) {
+      viewedChangeRequestIds.value.push(state.changeId)
+    }
+  },
+  { deep: true }
+)
+
+// AI : Handle overlay zoom and mark as viewed
+async function handleViewOverlayPosition(overlay: any, shouldFitBounds: boolean) {
+  if (!viewedOverlayIds.value.includes(overlay.id)) {
+    viewedOverlayIds.value.push(overlay.id)
+  }
+  await handleOverlayClickNavigation(overlay, shouldFitBounds)
+}
 
 // AI : Computed properties for undo functionality
 const canUndo = computed(() => recentActions.value.length > 0)
