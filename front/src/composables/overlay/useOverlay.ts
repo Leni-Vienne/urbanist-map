@@ -20,6 +20,7 @@ import { mobileAwareFlyTo, mobileAwareFlyToBounds } from '@composables/map/useMa
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
+import { useUiStore } from '@stores/uiStore';
 import type { OverlayObject, OverlayData, MarkerColor } from '@types';
 import { createOverlay as createOverlayInstance, createOverlayFromCDN, convertOverlayToData } from '../../utils/typeFactories';
 import { toRef } from 'vue';
@@ -1884,8 +1885,12 @@ export const replaceOverlayTool = L.Toolbar2.Action.extend({
       return;
     }
 
-    // AI : Request overlay replacement using the store
+    // AI : Set replacement overlay ID in overlayStore
     overlayStore.requestOverlayReplacement(overlayStore.idSelectedOverlay);
+
+    // AI : Open the image upload dialog via uiStore
+    const uiStore = useUiStore();
+    uiStore.openImageUploadDialog();
   },
 });
 
