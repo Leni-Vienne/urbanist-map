@@ -17,11 +17,11 @@ import { loadCityDevelopmentProjects, removeCityMarkers, addCityMarkersForCountr
 import { loadCountriesWithProjects, loadCitiesForCountry, addCountryMarkersToMap } from '@composables/map/useCountryMarkers'
 import { useProjectStore } from '@stores/pinia/projectStore'
 import { updateOverlayMarkersColors } from '@composables/map/useMarkers'
-import { updateOverlayEditingState } from '@composables/overlay/useOverlay'
+import { updateOverlayEditingState, getOverlayBounds } from '@composables/overlay/useOverlay'
 import { storeToRefs } from 'pinia'
 import { MAP_CONFIG } from '@constants/mapConstants'
 import { mobileAwareFlyToBounds } from '@composables/map/useMapNavigation'
-import L from 'leaflet'
+import { clearChangeRequestPreview } from '@composables/overlay/changeRequestPreviewState'
 
 // AI : Transition effects - callbacks executed during state transitions
 interface TransitionEffects {
@@ -180,6 +180,10 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
     overlay.isViewingApprovedPosition = undefined
   })
 
+  // AI : Clear change request preview state when switching modes
+  // AI : This ensures buttons don't show "pressed" state after mode switch
+  clearChangeRequestPreview()
+
   // AI : Set new mode
   overlayStore.setMode(targetMode);
 
@@ -253,8 +257,7 @@ async function autoNavigateToSelectedOverlay(overlayId: string): Promise<void> {
     // AI : Navigate to the overlay bounds using getOverlayBounds for accurate position
     if (!map.value) return
 
-    // AI : Import getOverlayBounds to get actual overlay position
-    const { getOverlayBounds } = await import('./useOverlay')
+    // AI : Get actual overlay position using getOverlayBounds
     const bounds = getOverlayBounds(overlayObject)
 
     if (bounds) {
