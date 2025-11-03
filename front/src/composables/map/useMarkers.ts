@@ -221,10 +221,8 @@ export function getOverlayMarkerColor(
     // AI : Show yellow marker to indicate this is a proposed change under review
     if (status === 'approved' && isViewingApprovedPosition === false) return 'yellow';
 
-    // AI : Approved overlays with pending change requests from users (viewing approved position or no position preview)
-    if (status === 'approved' && hasPendingChangeRequests) return 'yellow';
-
-    // AI : Approved overlays with no pending changes
+    // AI : Approved overlays (with or without pending changes) - show green when viewing approved position
+    // AI : The yellow marker only appears when toggling to view the suggested position
     if (status === 'approved') return 'green';
 
     // AI : Rejected overlays (shouldn't appear in moderation but just in case)

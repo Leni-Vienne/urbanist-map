@@ -118,9 +118,10 @@ export function renderForStrategy(
         // AI : Update metadata properties from backend
         existingOverlay.hasPendingChanges = newData.hasPendingChanges
         existingOverlay.status = newData.status
-        existingOverlay.corners = newData.corners
+        existingOverlay.corners = newData.corners // AI : Always approved position
+        existingOverlay.suggestedCorners = newData.suggestedCorners // AI : Suggested position if pending changes exist
         existingOverlay.centroid = newData.centroid
-        existingOverlay.approvedCorners = newData.approvedCorners // AI : Preserve approved corners for view approved position
+        existingOverlay.isViewingApprovedPosition = undefined // AI : Reset toggle state when receiving fresh data from mode switch
       })
 
       // AI : Find new overlays that need to be created

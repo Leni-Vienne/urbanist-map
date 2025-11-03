@@ -208,59 +208,94 @@ export const citiesRouter = router({
             .where(and(...whereConditions))
             .orderBy(overlays.createdAt);
 
-          // AI : In edit mode, fetch user's pending change requests to merge with overlays
-          // AI : In moderation mode, do NOT apply user's own changes (show objective view)
-          let userChangeRequests: Array<{
+          // AI : Fetch change requests based on mode
+          let changeRequestsData: Array<{
             id: string;
             entityType: string;
             entityId: string;
             fieldName: string;
             newValue: unknown;
+            requestedBy: string | null;
           }> = [];
 
-          if (ctx.user && mode === 'edit') {
-            userChangeRequests = await db
-              .select({
-                id: changeRequests.id,
-                entityType: changeRequests.entityType,
-                entityId: changeRequests.entityId,
-                fieldName: changeRequests.fieldName,
-                newValue: changeRequests.newValue,
-              })
-              .from(changeRequests)
-              .where(
-                and(
-                  eq(changeRequests.requestedBy, ctx.user.id),
-                  eq(changeRequests.entityType, 'overlay')
-                )
-              );
+          if (ctx.user) {
+            if (mode === 'edit') {
+              // AI : In edit mode, fetch only user's own pending change requests
+              changeRequestsData = await db
+                .select({
+                  id: changeRequests.id,
+                  entityType: changeRequests.entityType,
+                  entityId: changeRequests.entityId,
+                  fieldName: changeRequests.fieldName,
+                  newValue: changeRequests.newValue,
+                  requestedBy: changeRequests.requestedBy,
+                })
+                .from(changeRequests)
+                .where(
+                  and(
+                    eq(changeRequests.requestedBy, ctx.user.id),
+                    eq(changeRequests.entityType, 'overlay'),
+                    eq(changeRequests.status, 'pending')
+                  )
+                );
+            } else if (mode === 'moderation') {
+              // AI : In moderation mode, fetch ALL pending change requests to show suggested positions
+              changeRequestsData = await db
+                .select({
+                  id: changeRequests.id,
+                  entityType: changeRequests.entityType,
+                  entityId: changeRequests.entityId,
+                  fieldName: changeRequests.fieldName,
+                  newValue: changeRequests.newValue,
+                  requestedBy: changeRequests.requestedBy,
+                })
+                .from(changeRequests)
+                .where(
+                  and(
+                    eq(changeRequests.entityType, 'overlay'),
+                    eq(changeRequests.status, 'pending')
+                  )
+                );
+            }
           }
 
-          // AI : In moderation mode, fetch count of ALL pending change requests per overlay
-          let allChangeRequestCounts: Map<string, number> = new Map();
-          if (ctx.user && mode === 'moderation') {
-            const countResults = await db
-              .select({
-                entityId: changeRequests.entityId,
-                count: sql<number>`COUNT(*)::int`
-              })
-              .from(changeRequests)
-              .where(eq(changeRequests.entityType, 'overlay'))
-              .groupBy(changeRequests.entityId);
+          // AI : Group change requests by overlay ID for easy lookup
+          const changeRequestsByOverlay = new Map<string, typeof changeRequestsData>();
+          changeRequestsData.forEach(cr => {
+            const existing = changeRequestsByOverlay.get(cr.entityId) ?? [];
+            existing.push(cr);
+            changeRequestsByOverlay.set(cr.entityId, existing);
+          });
 
-            countResults.forEach(row => {
-              allChangeRequestCounts.set(row.entityId, row.count);
+          // AI : In moderation mode, count change requests per overlay
+          let allChangeRequestCounts: Map<string, number> = new Map();
+          if (mode === 'moderation') {
+            changeRequestsByOverlay.forEach((requests, overlayId) => {
+              allChangeRequestCounts.set(overlayId, requests.length);
             });
           }
 
           const result: OverlayData[] = overlaysData.map((row) => {
-            // AI : ALWAYS use approved corners from database in 'corners' field
-            // AI : Frontend will decide when to show suggested changes
-            const corners = row.corners ?? [];
+            const approvedCorners = row.corners ?? [];
             const centroid = { lat: row.centroidLat, lng: row.centroidLng };
 
-            // AI : Check if user has pending change requests for this overlay
-            const overlayChangeRequests = userChangeRequests.filter(cr => cr.entityId === row.overlayId);
+            // AI : Get change requests for this overlay
+            const overlayChangeRequests = changeRequestsByOverlay.get(row.overlayId) ?? [];
+
+            // AI : Check for pending corners change request
+            const cornersChangeRequest = overlayChangeRequests.find(cr => cr.fieldName === 'corners');
+            const hasPendingCorners = !!cornersChangeRequest;
+            const suggestedCorners = hasPendingCorners && cornersChangeRequest?.newValue
+              ? (cornersChangeRequest.newValue as { lat: number; lng: number }[])
+              : null;
+
+            // AI : ALWAYS use consistent field names - no more flipping!
+            // - corners = ALWAYS approved position (database value)
+            // - suggestedCorners = pending changes if they exist
+            // Frontend decides what to display based on mode + user state
+
+            // AI : Determine if user has their own pending changes
+            const userHasPendingChanges = mode === 'edit' && overlayChangeRequests.some(cr => cr.requestedBy === ctx.user?.id);
 
             return {
               id: row.overlayId,
@@ -274,14 +309,15 @@ export const citiesRouter = router({
               createdAt: row.overlayCreatedAt,
               updatedAt: row.overlayUpdatedAt,
               centroid,
-              corners, // AI : Always approved corners from database
+              corners: approvedCorners, // AI : ALWAYS approved position from database
+              suggestedCorners: suggestedCorners ?? undefined, // AI : Suggested position if pending changes exist
               distance: 0,
               project: {
                 ...row.project,
                 city: row.city
               },
-              // AI : Add flag to indicate if this overlay has pending change requests from the current user
-              hasPendingChanges: overlayChangeRequests.length > 0,
+              // AI : Flag for user's own pending changes (edit mode) or any pending changes (moderation mode)
+              hasPendingChanges: mode === 'moderation' ? hasPendingCorners : userHasPendingChanges,
               // AI : In moderation mode, add count of ALL pending change requests for this overlay
               pendingChangeRequestsCount: mode === 'moderation' ? (allChangeRequestCounts.get(row.overlayId) ?? 0) : undefined,
             };
