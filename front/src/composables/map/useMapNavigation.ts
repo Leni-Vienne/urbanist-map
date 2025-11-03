@@ -104,7 +104,7 @@ export function onCameraStop(callback: (bounds: CameraBounds) => void) {
 // AI : ============================================================================
 
 // AI : Minimum distance to prevent odd looking flyTo animations if user is already at target
-const distanceThreshold = 0.00001;
+const distanceThreshold = 0.003;
 
 /**
  * AI : Check if mobile drawer is covering the map

@@ -1,6 +1,6 @@
 import L from 'leaflet';
 import type { LatLng } from 'leaflet';
-import { ref, computed } from 'vue';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useToast } from '@composables/ui/useToast';
 import { map } from '@composables/core/useMap';
@@ -16,17 +16,10 @@ import { toggleEditMode } from '@composables/overlay/useOverlayModes';
 import { mobileAwareFlyToBounds } from '@composables/map/useMapNavigation';
 import type { PendingChangeRequest } from '../../types/api';
 import type { OverlayForModeration } from '@types';
+import { previewState, clearChangeRequestPreview, type PreviewState } from './changeRequestPreviewState';
 
 // AI : Composable to handle change request position preview
 // AI : Combines state management + navigation logic for previewing change request positions
-
-// AI : State machine for position preview
-export type PreviewState =
-  | { type: 'none' }
-  | { type: 'current'; changeId: string; overlayId: string }
-  | { type: 'suggested'; changeId: string; overlayId: string; corners: { lat: number; lng: number }[] };
-
-const previewState = ref<PreviewState>({ type: 'none' });
 
 interface PreviewGeometryOptions {
   change: PendingChangeRequest;
@@ -34,6 +27,9 @@ interface PreviewGeometryOptions {
   geometryValue: unknown;
   type: 'old' | 'new';
 }
+
+// AI : Re-export for backward compatibility
+export type { PreviewState } from './changeRequestPreviewState';
 
 export function useChangeRequestPreview() {
   const { t } = useI18n();
@@ -58,7 +54,7 @@ export function useChangeRequestPreview() {
   }
 
   function clearPreview(): void {
-    previewState.value = { type: 'none' };
+    clearChangeRequestPreview();
   }
 
   // AI : Parse geometry value into corner coordinates
@@ -224,13 +220,18 @@ export function useChangeRequestPreview() {
       updateMarkerPosition(overlayObject);
       updateMarkerTooltip(overlayObject);
 
-      // AI : Fly to suggested position
+      // AI : Fly to suggested position and select overlay
       if (wasAlreadyLoaded && map.value) {
         const bounds = L.latLngBounds(suggestedLatLngs);
         mobileAwareFlyToBounds(bounds, {
           padding: [50, 50] as [number, number],
           duration: 1.5,
           easeLinearity: 0.25
+        });
+
+        // AI : Select overlay after flyTo completes
+        map.value.once('moveend', () => {
+          selectOverlayAfterNavigation(overlayId);
         });
       }
 
@@ -242,7 +243,7 @@ export function useChangeRequestPreview() {
       updateMarkerPosition(overlayObject);
       updateMarkerTooltip(overlayObject);
 
-      // AI : Fly to approved position
+      // AI : Fly to approved position and select overlay
       if (wasAlreadyLoaded && map.value) {
         const bounds = L.latLngBounds(approvedLatLngs);
         mobileAwareFlyToBounds(bounds, {
@@ -250,6 +251,25 @@ export function useChangeRequestPreview() {
           duration: 1.5,
           easeLinearity: 0.25
         });
+
+        // AI : Select overlay after flyTo completes
+        map.value.once('moveend', () => {
+          selectOverlayAfterNavigation(overlayId);
+        });
+      }
+    }
+  }
+
+  // AI : Select overlay after navigation (shared helper)
+  function selectOverlayAfterNavigation(overlayId: string): void {
+    // AI : Only select if not already selected (click toggles, so avoid deselecting)
+    if (overlayStore.idSelectedOverlay !== overlayId) {
+      const overlayObject = overlayStore.overlays[overlayId];
+      if (overlayObject?.overlay) {
+        const element = overlayObject.overlay.getElement();
+        if (element) {
+          element.click();
+        }
       }
     }
   }
