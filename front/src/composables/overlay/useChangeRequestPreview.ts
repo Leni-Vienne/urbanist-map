@@ -208,43 +208,49 @@ export function useChangeRequestPreview() {
       return;
     }
 
+    // AI : Consistent naming: corners = ALWAYS approved, suggestedCorners = pending changes
+
     if (type === 'new') {
       // AI : Show suggested position
-      overlayObject.overlay.setCorners(corners);
+      if (!overlayObject.suggestedCorners || overlayObject.suggestedCorners.length !== 4) {
+        console.warn('No suggested corners available for overlay', overlayId);
+        return;
+      }
+
+      const suggestedLatLngs = overlayObject.suggestedCorners.map(c => L.latLng(c.lat, c.lng));
+      overlayObject.overlay.setCorners(suggestedLatLngs);
       overlayObject.hasPendingChanges = true;
-      overlayObject.isViewingApprovedPosition = false; // AI : User is viewing suggested/pending position
+      overlayObject.isViewingApprovedPosition = false;
       updateMarkerPosition(overlayObject);
       updateMarkerTooltip(overlayObject);
 
-      // AI : Show current/approved position
-    } else {
-      // AI : Use approvedCorners if available (for overlays with pending changes)
-      // AI : Otherwise fall back to corners (for overlays without pending changes)
-      const cornersToUse = (overlayObject.approvedCorners && overlayObject.approvedCorners.length === 4)
-        ? overlayObject.approvedCorners
-        : overlayObject.corners;
-
-      if (cornersToUse && cornersToUse.length === 4) {
-        const approvedLatLngs = cornersToUse.map(c => L.latLng(c.lat, c.lng));
-        overlayObject.overlay.setCorners(approvedLatLngs);
-        overlayObject.isViewingApprovedPosition = true; // AI : User is viewing approved position
-        updateMarkerPosition(overlayObject);
-        updateMarkerTooltip(overlayObject);
-      } else {
-        overlayObject.overlay.setCorners(corners);
-        updateMarkerPosition(overlayObject);
-        updateMarkerTooltip(overlayObject);
+      // AI : Fly to suggested position
+      if (wasAlreadyLoaded && map.value) {
+        const bounds = L.latLngBounds(suggestedLatLngs);
+        mobileAwareFlyToBounds(bounds, {
+          padding: [50, 50] as [number, number],
+          duration: 1.5,
+          easeLinearity: 0.25
+        });
       }
-    }
 
-    // AI : If overlay was already visible, fly to the new position
-    if (wasAlreadyLoaded && map.value) {
-      const bounds = L.latLngBounds(overlayObject.overlay.getCorners());
-      mobileAwareFlyToBounds(bounds, {
-        padding: [50, 50] as [number, number],
-        duration: 1.5,
-        easeLinearity: 0.25
-      });
+    } else {
+      // AI : Show approved position (always in corners field)
+      const approvedLatLngs = overlayObject.corners.map(c => L.latLng(c.lat, c.lng));
+      overlayObject.overlay.setCorners(approvedLatLngs);
+      overlayObject.isViewingApprovedPosition = true;
+      updateMarkerPosition(overlayObject);
+      updateMarkerTooltip(overlayObject);
+
+      // AI : Fly to approved position
+      if (wasAlreadyLoaded && map.value) {
+        const bounds = L.latLngBounds(approvedLatLngs);
+        mobileAwareFlyToBounds(bounds, {
+          padding: [50, 50] as [number, number],
+          duration: 1.5,
+          easeLinearity: 0.25
+        });
+      }
     }
   }
 

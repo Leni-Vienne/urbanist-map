@@ -25,70 +25,6 @@ let overlayMarkersLayer: L.LayerGroup | null = null;
 const isLoadingCityProjects = ref(false);
 
 /**
- * AI : Apply pending change requests to overlays in edit mode
- * AI : This ensures overlays with pending changes show the suggested position, not approved position
- */
-async function applyPendingChangeRequests(overlaysData: OverlayData[]): Promise<OverlayData[]> {
-  const overlayStore = useOverlayStore();
-
-  // AI : Only apply in edit mode for overlays with pending changes
-  if (overlayStore.mode !== 'edit') {
-    return overlaysData;
-  }
-
-  // AI : Find overlays that have pending changes
-  const overlaysWithPendingChanges = overlaysData.filter(o => o.hasPendingChanges);
-  if (overlaysWithPendingChanges.length === 0) {
-    return overlaysData;
-  }
-
-  try {
-    // AI : Fetch all user's change requests
-    const myChangeRequests = await trpc.changes.getMyChangeRequests.query();
-
-    // AI : Filter to pending overlay change requests
-    const pendingOverlayChanges = myChangeRequests.filter(
-      cr => cr.status === 'pending' && cr.entityType === 'overlay'
-    );
-
-    // AI : Build a map of entityId -> change requests
-    const changeRequestsByOverlayId = new Map<string, typeof pendingOverlayChanges>();
-    pendingOverlayChanges.forEach(cr => {
-      if (!changeRequestsByOverlayId.has(cr.entityId)) {
-        changeRequestsByOverlayId.set(cr.entityId, []);
-      }
-      changeRequestsByOverlayId.get(cr.entityId)!.push(cr);
-    });
-
-    // AI : Apply pending corners to overlays
-    return overlaysData.map(overlay => {
-      const changes = changeRequestsByOverlayId.get(overlay.id);
-      if (!changes || changes.length === 0) {
-        return overlay;
-      }
-
-      // AI : Find corners change request
-      const cornersChange = changes.find(cr => cr.fieldName === 'corners');
-      if (cornersChange && cornersChange.newValue) {
-        // AI : Store both approved and pending corners
-        // AI : This allows "view approved position" feature to work correctly
-        return {
-          ...overlay,
-          approvedCorners: overlay.corners, // Store original approved corners
-          corners: cornersChange.newValue as Array<{ lat: number; lng: number }>, // Show pending corners
-        };
-      }
-
-      return overlay;
-    });
-  } catch (error) {
-    console.error('Failed to apply pending change requests:', error);
-    // AI : Return original data if fetching change requests fails
-    return overlaysData;
-  }
-}
-
-/**
  * AI : Fetch city projects data with mode-aware caching to avoid repeated API calls
  * AI : Smart caching: Returns cached data if available for current mode, otherwise fetches from backend
  */
@@ -102,15 +38,13 @@ export async function fetchCityProjectsData(cityId: string): Promise<OverlayData
     return cachedData;
   }
 
-  // AI : Backend now returns data in OverlayData format directly
-  // AI : Pass current mode to backend to determine visibility
-  let overlaysData = await withErrorToast(
+  // AI : Backend now returns data in OverlayData format with consistent fields:
+  // AI : - corners = ALWAYS approved position
+  // AI : - suggestedCorners = pending changes if they exist
+  const overlaysData = await withErrorToast(
     () => trpc.cities.getCityOverlaysAndProjects.query({ cityId, mode: overlayStore.mode }),
     'Error fetching city projects data'
   );
-
-  // AI : In edit mode, apply pending change requests to show suggested positions
-  overlaysData = await applyPendingChangeRequests(overlaysData);
 
   // AI : Cache the data for future use - mode-specific cache
   mapStore.setCityProjectsCache(cityId, overlayStore.mode, overlaysData);

@@ -174,6 +174,12 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
   // AI : Store selected overlay ID before mode switch for auto-navigation
   const selectedOverlayId = overlayStore.idSelectedOverlay
 
+  // AI : Reset all toggle states when switching modes for consistent UX
+  // AI : Each mode has its default view, toggling is temporary within that mode
+  Object.values(overlayStore.overlays).forEach(overlay => {
+    overlay.isViewingApprovedPosition = undefined
+  })
+
   // AI : Set new mode
   overlayStore.setMode(targetMode);
 
@@ -234,7 +240,7 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
 
 /**
  * AI : Auto-navigate to the selected overlay after mode change
- * AI : Uses the overlay's current position from overlayStore (which includes edit mode cache positions)
+ * AI : Uses the overlay's actual rendered position for accurate navigation
  * AI : Waits for overlay to be fully rendered before navigating
  */
 async function autoNavigateToSelectedOverlay(overlayId: string): Promise<void> {
@@ -243,16 +249,21 @@ async function autoNavigateToSelectedOverlay(overlayId: string): Promise<void> {
   // AI : Wait for overlay to be rendered (poll with requestAnimationFrame)
   const overlayObject = await waitForOverlayRendered(overlayId, overlayStore)
 
-  if (overlayObject?.corners && overlayObject.corners.length === 4) {
-    // AI : Navigate to the overlay bounds using the correct position
+  if (overlayObject) {
+    // AI : Navigate to the overlay bounds using getOverlayBounds for accurate position
     if (!map.value) return
 
-    const bounds = L.latLngBounds(overlayObject.corners.map(c => L.latLng(c.lat, c.lng)))
-    mobileAwareFlyToBounds(bounds, {
-      padding: [50, 50] as [number, number],
-      duration: 0.8,
-      easeLinearity: 0.25
-    })
+    // AI : Import getOverlayBounds to get actual overlay position
+    const { getOverlayBounds } = await import('./useOverlay')
+    const bounds = getOverlayBounds(overlayObject)
+
+    if (bounds) {
+      mobileAwareFlyToBounds(bounds, {
+        padding: [50, 50] as [number, number],
+        duration: 0.8,
+        easeLinearity: 0.25
+      })
+    }
   }
 }
 

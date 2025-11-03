@@ -973,8 +973,16 @@ function createSingleMarker(savedOverlay: OverlayObject): void {
   updateMarkerTooltip(tempOverlayObject, markerColor);
 }
 
-function getOverlayBounds(overlay: OverlayObject): L.LatLngBounds | null {
+export function getOverlayBounds(overlay: OverlayObject): L.LatLngBounds | null {
   const overlayStore = useOverlayStore();
+
+  // AI : Priority 0: If overlay is rendered, use actual Leaflet overlay position (most accurate)
+  if (overlay.overlay) {
+    const actualCorners = overlay.overlay.getCorners();
+    if (actualCorners?.length === 4) {
+      return L.latLngBounds(actualCorners);
+    }
+  }
 
   // AI : Priority 1: Check edit mode cache if in edit mode for the most current position
   if (overlayStore.mode === 'edit') {
@@ -985,7 +993,7 @@ function getOverlayBounds(overlay: OverlayObject): L.LatLngBounds | null {
     }
   }
 
-  // AI : Priority 2: Use overlay corners from history if available
+  // AI : Priority 2: Use overlay corners from overlayObject (pending position if hasPendingChanges, approved otherwise)
   if (overlay.corners?.length === 4) {
     const corners = overlay.corners.map(corner => L.latLng(corner.lat, corner.lng));
     return L.latLngBounds(corners);
