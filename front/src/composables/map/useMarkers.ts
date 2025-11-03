@@ -211,7 +211,6 @@ export function getOverlayMarkerColor(
   if (mode === 'moderation') {
     // AI : Moderation mode color logic - objective view for review
     const status = overlayData.status;
-    const hasPendingChangeRequests = (overlayData.pendingChangeRequestsCount ?? 0) > 0;
     const isViewingApprovedPosition = 'isViewingApprovedPosition' in overlayData ? overlayData.isViewingApprovedPosition : undefined;
 
     // AI : Pending brand new overlays
@@ -236,7 +235,8 @@ export function getOverlayMarkerColor(
     const hasBeenModified = 'isModified' in overlayData ? overlayData.isModified : false;
     const isTooBig = 'isTooBig' in overlayData ? overlayData.isTooBig : false;
     const hasPendingChanges = 'hasPendingChanges' in overlayData ? overlayData.hasPendingChanges : false;
-    const isViewingApprovedPosition = 'isViewingApprovedPosition' in overlayData ? overlayData.isViewingApprovedPosition : false;
+    // AI : Treat undefined as "viewing approved" (default state before any toggle)
+    const isViewingApprovedPosition = 'isViewingApprovedPosition' in overlayData ? overlayData.isViewingApprovedPosition : undefined;
     const status = overlayData.status;
 
     // AI : Priority 1: Size validation error (critical issue that prevents submission)
@@ -247,10 +247,12 @@ export function getOverlayMarkerColor(
 
     // AI : Priority 3: User is viewing approved position of overlay with pending changes
     // AI : Show green marker even though hasPendingChanges is true
-    if (hasPendingChanges && isViewingApprovedPosition && status === 'approved') return 'green';
+    // AI : isViewingApprovedPosition !== false means: explicitly true OR undefined (default/approved)
+    if (hasPendingChanges && isViewingApprovedPosition !== false && status === 'approved') return 'green';
 
-    // AI : Priority 4: Pending change requests (awaiting moderation approval)
-    if (hasPendingChanges && status === 'approved') return 'yellow';
+    // AI : Priority 4: Pending change requests - viewing suggested position (explicitly set to false)
+    // AI : Only show yellow when user explicitly toggled to view suggested position
+    if (hasPendingChanges && isViewingApprovedPosition === false && status === 'approved') return 'yellow';
 
     // AI : Priority 5: Pending approval (awaiting moderation)
     if (status === 'pending') return 'yellow';

@@ -295,16 +295,6 @@ async function waitForOverlayRendered(
 }
 
 /**
- * AI : Toggle between edit and view modes (backward compatibility wrapper)
- * @deprecated Use switchMode() instead for more explicit mode transitions
- */
-export async function toggleEditMode(onModeExit?: () => void): Promise<void> {
-  const overlayStore = useOverlayStore()
-  const targetMode = overlayStore.mode === 'edit' ? 'view' : 'edit'
-  await switchMode(targetMode, onModeExit)
-}
-
-/**
  * AI : Watch for zoom level changes and update state
  */
 async function watchZoomLevel() {

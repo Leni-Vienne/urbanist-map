@@ -873,6 +873,8 @@ export function updateMarkerTooltip(overlayObject: OverlayObject, cachedMarkerCo
   const isReplacement = overlayObject.replacesOverlayId !== null;
   const isApproved = overlayObject.status === 'approved';
   const isPending = overlayObject.status === 'pending';
+  // AI : Treat undefined as "viewing approved" (default state)
+  const isViewingApprovedPosition = overlayObject.isViewingApprovedPosition;
 
   let tooltipText = '';
   if (isReplacement) {
@@ -881,8 +883,12 @@ export function updateMarkerTooltip(overlayObject: OverlayObject, cachedMarkerCo
     tooltipText = 'Pending approval';
   } else if (isPending && hasBeenModified) {
     tooltipText = 'Pending approval (modified)';
-  } else if (isApproved && hasPendingChanges) {
-    tooltipText = 'Pending changes';
+  } else if (isApproved && hasPendingChanges && isViewingApprovedPosition === false) {
+    // AI : Only show "Pending changes" when explicitly viewing suggested position
+    tooltipText = 'Pending changes (viewing suggested)';
+  } else if (isApproved && hasPendingChanges && isViewingApprovedPosition !== false) {
+    // AI : When viewing approved position (undefined or true), show that there are pending changes
+    tooltipText = 'Approved (has pending changes)';
   } else if (isApproved && hasBeenModified) {
     tooltipText = 'Approved (modified)';
   } else if (isApproved && !hasBeenModified) {

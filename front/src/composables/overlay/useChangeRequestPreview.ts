@@ -12,7 +12,7 @@ import { loadCityProjects, removeCityMarkers, addCityMarkersForCountry } from '@
 import { removeOverlayMarkers } from '@composables/map/useCityOverlays';
 import { loadCitiesForCountry } from '@composables/map/useCountryMarkers';
 import { switchTileLayer, isTileLayerType } from '@composables/map/useTileLayers';
-import { toggleEditMode } from '@composables/overlay/useOverlayModes';
+import { switchMode } from '@composables/overlay/useOverlayModes';
 import { mobileAwareFlyToBounds } from '@composables/map/useMapNavigation';
 import type { PendingChangeRequest } from '../../types/api';
 import type { OverlayForModeration } from '@types';
@@ -102,7 +102,7 @@ export function useChangeRequestPreview() {
     // AI : Step 1: Switch to edit mode if needed (pending overlays only visible in edit mode)
     const needsEditMode = overlayStore.mode === 'view' && overlayForModeration.status === 'pending';
     if (needsEditMode) {
-      await toggleEditMode();
+      await switchMode('edit');
       await new Promise(resolve => setTimeout(resolve, 100));
     }
 
