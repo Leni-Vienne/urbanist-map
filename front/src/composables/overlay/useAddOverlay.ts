@@ -1,7 +1,7 @@
 import { useAuthStore } from '@stores/authStore'
 import { useUiStore } from '@stores/uiStore'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
-import { toggleEditMode } from '@composables/overlay/useOverlayModes'
+import { switchMode } from '@composables/overlay/useOverlayModes'
 import { storeToRefs } from 'pinia'
 
 // AI : Composable for handling add overlay button click logic
@@ -19,10 +19,10 @@ export function useAddOverlay() {
 
     if (mode.value !== 'edit') {
       try {
-        await toggleEditMode()
+        await switchMode('edit')
         return { success: true, action: 'edit_mode_enabled' }
       } catch (error) {
-        console.error('Error toggling edit mode:', error)
+        console.error('Error switching to edit mode:', error)
         return { success: false, reason: 'edit_mode_error', error }
       }
     } else {

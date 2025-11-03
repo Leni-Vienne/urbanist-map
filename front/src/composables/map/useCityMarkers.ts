@@ -133,7 +133,7 @@ let modeWatcherInitialized = false;
 
 /**
  * AI : Initialize mode change watcher (called lazily on first use)
- * This handles both toggleEditMode() and direct setMode() calls (like from side menu)
+ * This handles both switchMode() and direct setMode() calls (like from side menu)
  */
 function initializeModeWatcher() {
   if (modeWatcherInitialized) return;

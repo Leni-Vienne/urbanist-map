@@ -1,6 +1,6 @@
 import { navigateToOverlayWithCity } from '@composables/navigation/useOverlayNavigation'
 import { navigateToOverlay } from '@composables/overlay/useOverlay'
-import { toggleEditMode } from '@composables/overlay/useOverlayModes'
+import { switchMode } from '@composables/overlay/useOverlayModes'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useMapStore } from '@stores/pinia/mapStore'
 import { useToast } from '@composables/ui/useToast'
@@ -39,7 +39,7 @@ export function useOverlayClickHandler() {
       // AI : Only switch to edit mode if currently in view mode
       // AI : In moderation mode, pending overlays are already visible, so don't switch
       if (overlayStore.mode === 'view' && shouldToggleEditMode) {
-        await toggleEditMode()
+        await switchMode('edit')
 
         // AI : Only show toast for pending overlays (for approved ones it's less critical)
         if (overlay.status === 'pending') {
