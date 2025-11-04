@@ -212,7 +212,12 @@
     "couldNotParseCoordinates": "Impossible d'analyser les coordonnées géométriques",
     "previewFailed": "Échec de l'aperçu",
     "couldNotPreviewCoordinates": "Impossible d'afficher un aperçu des coordonnées sur la carte",
-    "coordinatesViewOnMap": "Coordonnées (voir sur la carte)"
+    "coordinatesViewOnMap": "Coordonnées (voir sur la carte)",
+    "replacementOverlay": "Image de remplacement",
+    "replaces": "Remplace",
+    "viewOriginalOverlay": "Voir l'image d'origine",
+    "viewPositionRequired": "Voir la position d'abord (requis pour les images de remplacement)",
+    "viewPosition": "Voir la position"
   },
   "map": {
     "zoom": "Zoom",

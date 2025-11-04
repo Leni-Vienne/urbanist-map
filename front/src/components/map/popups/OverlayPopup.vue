@@ -83,10 +83,15 @@
           </div>
           <div
             v-if="overlayObject.replacesOverlayId"
-            class="info-row"
+            class="info-row replacement-info"
           >
-            <span class="info-label">Type:</span>
-            <span class="info-value replacement-type">Replacement Overlay</span>
+            <button
+              class="replacement-link-button"
+              @click.stop="handleViewOriginalOverlay"
+            >
+              <i class="pi pi-arrow-left"></i>
+              {{ $t('overlay.viewOriginalOverlay') }}
+            </button>
           </div>
         </div>
       </div>
@@ -141,6 +146,7 @@ const emit = defineEmits<{
   'edit-project': [project: Project];
   'edit-overlay': [overlay: OverlayObject];
   'overlay-update': [overlayId: string, caption?: string];
+  'view-original-overlay': [overlayId: string];
 }>();
 
 // AI : Use auth store only for user data
@@ -176,6 +182,13 @@ function handleOverlayUpdate(overlayId: string, caption?: string) {
 // AI : Handle publish button click - directly emit to parent (parent shows confirmation dialog)
 function handlePublishClick() {
   emit('publish-overlay');
+}
+
+// AI : Handle view original overlay click - navigate to the original overlay being replaced
+function handleViewOriginalOverlay() {
+  if (props.overlayObject.replacesOverlayId) {
+    emit('view-original-overlay', props.overlayObject.replacesOverlayId);
+  }
 }
 </script>
 
@@ -222,9 +235,37 @@ function handlePublishClick() {
   gap: 0.25rem;
 }
 
-.replacement-type {
-  font-weight: 600;
-  color: var(--p-purple-500);
+.replacement-info {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--p-surface-200);
+}
+
+.replacement-link-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--p-purple-600);
+  background-color: var(--p-purple-50);
+  border: 1px solid var(--p-purple-200);
+  border-radius: 0.375rem;
+  cursor: pointer;
+  padding: 0.375rem 0.75rem;
+  transition: all 0.2s;
+  width: 100%;
+  justify-content: center;
+}
+
+.replacement-link-button:hover {
+  background-color: var(--p-purple-100);
+  border-color: var(--p-purple-300);
+  color: var(--p-purple-700);
+}
+
+.replacement-link-button i {
+  font-size: 0.875rem;
 }
 
 .publish-section {

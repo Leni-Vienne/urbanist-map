@@ -213,6 +213,9 @@ export function getOverlayMarkerColor(
     const status = overlayData.status;
     const isViewingApprovedPosition = 'isViewingApprovedPosition' in overlayData ? overlayData.isViewingApprovedPosition : undefined;
 
+    // AI : Pending replacement overlays - show purple
+    if (status === 'pending' && overlayData.replacesOverlayId) return 'purple';
+
     // AI : Pending brand new overlays
     if (status === 'pending') return 'yellow';
 
@@ -312,18 +315,21 @@ export function explainOverlayColor(
     const status = overlayData.status;
     const hasPendingChangeRequests = (overlayData.pendingChangeRequestsCount ?? 0) > 0;
 
-    if (status === 'pending') {
-      reason = 'New submission awaiting moderator review';
+    if (status === 'pending' && overlayData.replacesOverlayId) {
+      reason = 'Pending replacement overlay awaiting moderator review';
       priority = '#1';
+    } else if (status === 'pending') {
+      reason = 'New submission awaiting moderator review';
+      priority = '#2';
     } else if (status === 'approved' && hasPendingChangeRequests) {
       reason = `Approved overlay with ${overlayData.pendingChangeRequestsCount} pending change request(s) from users`;
-      priority = '#2';
+      priority = '#3';
     } else if (status === 'approved') {
       reason = 'Approved and clean (no pending work)';
-      priority = '#3';
+      priority = '#4';
     } else {
       reason = 'Rejected or unknown status';
-      priority = '#4';
+      priority = '#5';
     }
   } else if (mode === 'edit') {
     if (overlayData.replacesOverlayId) {

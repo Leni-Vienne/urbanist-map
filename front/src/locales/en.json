@@ -212,7 +212,12 @@
     "couldNotParseCoordinates": "Could not parse geometry coordinates",
     "previewFailed": "Preview Failed",
     "couldNotPreviewCoordinates": "Could not preview coordinates on map",
-    "coordinatesViewOnMap": "Coordinates (view on map)"
+    "coordinatesViewOnMap": "Coordinates (view on map)",
+    "replacementOverlay": "Replacement Overlay",
+    "replaces": "Replaces",
+    "viewOriginalOverlay": "View Original Overlay",
+    "viewPositionRequired": "View position first (required for replacement overlays)",
+    "viewPosition": "View Position"
   },
   "map": {
     "zoom": "Zoom",

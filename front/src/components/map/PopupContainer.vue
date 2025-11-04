@@ -16,6 +16,7 @@
       @edit-project="handleEditProject"
       @edit-overlay="handleEditOverlay"
       @overlay-update="handleOverlayUpdate"
+      @view-original-overlay="handleViewOriginalOverlay"
     />
   </Teleport>
 
@@ -63,7 +64,7 @@ import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useUiStore } from '@stores/uiStore';
 
-import { updateMarkerTooltip } from '@composables/overlay/useOverlay';
+import { updateMarkerTooltip, navigateToOverlay } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
 import { useOverlayPublisher } from '@composables/overlay/useOverlayPublisher';
 import { useProjectPublisher } from '@composables/project/useProjectPublisher';
@@ -453,6 +454,32 @@ function handleOverlayUpdate(overlayId: string, caption?: string) {
 function closeProjectInfoPopup() {
   uiStore.closeProjectInfoPopup();
   cleanupProjectInfoTeleportTarget();
+}
+
+// AI : Handle view original overlay - navigate to the original overlay being replaced
+async function handleViewOriginalOverlay(originalOverlayId: string) {
+  try {
+    // AI : Navigate to the original overlay using the overlay ID
+    // AI : The navigateToOverlay function will fetch and render the overlay if needed
+    const success = await navigateToOverlay(originalOverlayId, true, true);
+
+    if (!success) {
+      toast.add({
+        severity: 'error',
+        summary: t('overlay.navigationFailed'),
+        detail: t('overlay.failedToNavigate'),
+        life: 3000
+      });
+    }
+  } catch (error) {
+    console.error('Failed to navigate to original overlay:', error);
+    toast.add({
+      severity: 'error',
+      summary: t('overlay.navigationFailed'),
+      detail: error instanceof Error ? error.message : t('overlay.failedToNavigate'),
+      life: 3000
+    });
+  }
 }
 
 </script>

@@ -187,7 +187,7 @@
                         >
                           <div
                             class="overlay-card"
-                            @click="handleOverlayClickNavigation(overlay, true)"
+                            @click="handleOverlayCardClick(overlay, true)"
                           >
                             <!-- AI : Overlay thumbnail -->
                             <div
@@ -226,18 +226,30 @@
                               <div class="text-xs text-surface-500 mb-2">
                                 {{ formatRelativeTime(overlay.updatedAt) }}
                               </div>
-                              <Tag
-                                :value="$t(`status.${overlay.status}`)"
-                                :severity="getStatusSeverity(overlay.status)"
-                                class="overlay-status-tag"
-                                rounded
-                              />
+                              <div class="flex items-center gap-2 flex-wrap">
+                                <Tag
+                                  :value="$t(`status.${overlay.status}`)"
+                                  :severity="getStatusSeverity(overlay.status)"
+                                  class="overlay-status-tag"
+                                  rounded
+                                />
+                                <button
+                                  v-if="overlay.replacesOverlayId"
+                                  class="replacement-badge"
+                                  @click.stop="navigateToOverlayById(overlay.replacesOverlayId)"
+                                  v-tooltip.top="$t('overlay.viewOriginalOverlay')"
+                                >
+                                  <i class="pi pi-arrow-up-left"></i>
+                                  {{ $t('overlay.replaces') }}
+                                </button>
+                              </div>
                             </div>
 
-                            <!-- AI : Overlay action buttons slot or default zoom button -->
+                            <!-- AI : Overlay action buttons slot -->
                             <div
                               v-if="$slots['overlay-actions']"
                               class="flex flex-col gap-2"
+                              @click.stop
                             >
                               <slot
                                 name="overlay-actions"
@@ -245,15 +257,6 @@
                                 :project="project"
                               ></slot>
                             </div>
-                            <Button
-                              v-else
-                              icon="pi pi-search"
-                              :aria-label="$t('overlay.zoomTo') + ' ' + (overlay.name || $t('overlay.untitled'))"
-                              @click.stop="handleOverlayClickNavigation(overlay, true)"
-                              text
-                              rounded
-                              size="small"
-                            />
                           </div>
 
                           <ChangeRequestSection
@@ -331,6 +334,7 @@ interface Props {
   emptyMessage?: string
   emptySubMessage?: string
   changeRequests?: PendingChangeRequest[]
+  onOverlayClick?: (overlay: OverlayForModeration, shouldFitBounds: boolean) => Promise<void>
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -713,6 +717,17 @@ async function handleDevelopmentProjectClick(project: ProjectForModeration) {
   }
 }
 
+// AI : Handle overlay card click - use custom handler if provided (for moderation), otherwise use default
+async function handleOverlayCardClick(overlay: OverlayForModeration, shouldFitBounds: boolean) {
+  if (props.onOverlayClick) {
+    // AI : Use custom handler (for moderation panel to mark as viewed)
+    await props.onOverlayClick(overlay, shouldFitBounds)
+  } else {
+    // AI : Use default handler
+    await handleOverlayClickNavigation(overlay, shouldFitBounds)
+  }
+}
+
 </script>
 
 <style scoped>
@@ -1048,6 +1063,33 @@ async function handleDevelopmentProjectClick(project: ProjectForModeration) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* AI : Replacement badge styling */
+.replacement-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--p-purple-700);
+  background-color: var(--p-purple-50);
+  border: 1px solid var(--p-purple-200);
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.replacement-badge:hover {
+  background-color: var(--p-purple-100);
+  border-color: var(--p-purple-300);
+  color: var(--p-purple-800);
+}
+
+.replacement-badge i {
+  font-size: 0.625rem;
 }
 
 </style>

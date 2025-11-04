@@ -9,6 +9,7 @@
       panel-class="moderation-panel"
       empty-message="All projects reviewed!"
       empty-sub-message="No pending projects to moderate."
+      :on-overlay-click="handleViewOverlayPosition"
     >
     <template #header-actions>
       <Button
@@ -49,7 +50,7 @@
         :class="{ 'disabled-btn': !!overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id) }"
         :disabled="!!overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id)"
         @click.stop="handleApproveOverlay(overlay.id)"
-        v-tooltip.top="overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id) ? 'View suggested position first' : 'Approve Overlay'"
+        v-tooltip.top="overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id) ? $t('overlay.viewPositionRequired') : $t('moderation.approveChange')"
       >
         <i class="pi pi-check"></i>
       </button>
@@ -59,7 +60,7 @@
         :class="{ 'disabled-btn': !!overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id) }"
         :disabled="!!overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id)"
         @click.stop="handleRejectOverlay(overlay.id)"
-        v-tooltip.top="overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id) ? 'View suggested position first' : 'Reject Overlay'"
+        v-tooltip.top="overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id) ? $t('overlay.viewPositionRequired') : $t('moderation.rejectChange')"
       >
         <i class="pi pi-times"></i>
       </button>
@@ -74,7 +75,7 @@
       <button
         class="action-btn"
         @click.stop="handleViewOverlayPosition(overlay, true)"
-        v-tooltip.top="'View Suggested Position'"
+        v-tooltip.top="overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id) ? $t('overlay.viewPositionRequired') : $t('overlay.viewPosition')"
       >
         <i class="pi pi-search"></i>
       </button>
