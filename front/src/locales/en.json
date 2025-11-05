@@ -122,6 +122,7 @@
     "pending": "Pending",
     "approved": "Approved",
     "rejected": "Rejected",
+    "replaced": "Replaced",
     "conflicted": "Conflicted",
     "planned": "Planned",
     "inConstruction": "In Construction",
@@ -359,7 +360,27 @@
     "currentValue": "Current",
     "newValue": "New",
     "by": "by",
-    "approveOneToRejectOthers": "Approving one will reject the others"
+    "approveOneToRejectOthers": "Approving one will reject the others",
+    "replacementConflicts": {
+      "title": "Replacement Conflicts Detected",
+      "approvingWillReplace": "Approving this replacement will replace the approved overlay \"{original}\".",
+      "pendingChanges": "{count} Pending Change Request(s)",
+      "competingReplacements": "{count} Competing Replacement(s)",
+      "changesWillBeConflicted": "These pending change requests will be marked as conflicted since the original overlay is being replaced.",
+      "competingWillBeRejected": "These competing replacement submissions will be automatically rejected.",
+      "approveAndResolve": "Approve & Resolve Conflicts"
+    },
+    "deleteOverlay": {
+      "title": "Delete Overlay?",
+      "message": "Are you sure you want to delete \"{caption}\"? This action cannot be undone.",
+      "messageUnnamed": "Are you sure you want to delete this overlay? This action cannot be undone.",
+      "deleteButton": "Delete Overlay",
+      "deleteSuccess": "Overlay Deleted",
+      "deleteSuccessDetail": "The overlay has been deleted successfully",
+      "deleteFailed": "Delete Failed",
+      "deleteFailedDetail": "Failed to delete the overlay",
+      "cannotDeleteApproved": "Cannot delete approved overlays"
+    }
   },
   "footer": {
     "legalMentions": "Legal Mentions",

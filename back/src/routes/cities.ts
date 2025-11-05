@@ -185,6 +185,7 @@ export const citiesRouter = router({
               overlayProjectId: overlays.projectId,
               overlayAuthorId: overlays.authorId,
               overlayReplacesOverlayId: overlays.replacesOverlayId,
+              overlayReplacedByOverlayId: overlays.replacedByOverlayId,
               overlayCreatedAt: overlays.createdAt,
               overlayUpdatedAt: overlays.updatedAt,
               // AI : Extract centroid and corners directly in the query
@@ -306,6 +307,7 @@ export const citiesRouter = router({
               projectId: row.overlayProjectId,
               authorId: row.overlayAuthorId,
               replacesOverlayId: row.overlayReplacesOverlayId,
+              replacedByOverlayId: row.overlayReplacedByOverlayId ?? null,
               createdAt: row.overlayCreatedAt,
               updatedAt: row.overlayUpdatedAt,
               centroid,

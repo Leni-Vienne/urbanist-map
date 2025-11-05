@@ -107,6 +107,7 @@ export const overlaySelectFields = {
   projectId: overlays.projectId,
   authorId: overlays.authorId,
   replacesOverlayId: overlays.replacesOverlayId,
+  replacedByOverlayId: overlays.replacedByOverlayId,
   // AI : Extract corners from polygon geometry as array of {lat, lng}
   corners: sql<{lat: number, lng: number}[]>`
     (SELECT json_agg(json_build_object('lat', ST_Y(geom), 'lng', ST_X(geom)) ORDER BY path[2])
@@ -187,6 +188,7 @@ export function buildOverlayModerationQuery(db: PostgresJsDatabase<typeof schema
       version: overlays.version,
       projectId: overlays.projectId,
       replacesOverlayId: overlays.replacesOverlayId,
+      replacedByOverlayId: overlays.replacedByOverlayId,
       updatedAt: overlays.updatedAt,
       cityId: cities.id,
       cityName: cities.name,
