@@ -169,6 +169,13 @@
       "when": 1761400636389,
       "tag": "0023_panoramic_vertigo",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1762364015163,
+      "tag": "0024_nappy_champions",
+      "breakpoints": true
     }
   ]
 }

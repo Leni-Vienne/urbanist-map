@@ -5,7 +5,7 @@ import {
   sql, InferSelectModel, relations,
 } from 'drizzle-orm';
 
-export const approvalStatusEnum = pgEnum('approval_status', ['pending', 'approved', 'rejected']);
+export const approvalStatusEnum = pgEnum('approval_status', ['pending', 'approved', 'rejected', 'replaced']);
 export const changeRequestStatusEnum = pgEnum('change_request_status', ['pending', 'approved', 'rejected', 'conflicted']);
 
 // AI : Users table for custom authentication
@@ -81,7 +81,8 @@ export const overlays = pgTable('overlays', {
   status: approvalStatusEnum('status').default('pending').notNull(),
   projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
   authorId: uuid('author_id').references(() => users.id, { onDelete: 'set null', onUpdate: 'cascade' }),
-  replacesOverlayId: uuid('replaces_overlay_id'), // AI : Reference to the overlay this replaces (self-reference added via relations)
+  replacesOverlayId: uuid('replaces_overlay_id'), // AI : Reference to the overlay this replaces (set by user during upload)
+  replacedByOverlayId: uuid('replaced_by_overlay_id'), // AI : Reference to the overlay that replaced this one (set by moderator during approval)
 
   corners: geometry('corners', { type: 'polygon', mode: 'xy', srid: 4326 }).notNull(),
   centroid: geometry('centroid', { type: 'point', mode: 'xy', srid: 4326 }).notNull(),
@@ -91,6 +92,7 @@ export const overlays = pgTable('overlays', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
 }, (overlays) => [
   index('idx_overlays_project').on(overlays.projectId),
+  index('idx_overlays_replaces').on(overlays.replacesOverlayId),
   sql.raw('CREATE INDEX IF NOT EXISTS idx_overlays_corners ON overlays USING GIST (corners)'),
   sql.raw('CREATE INDEX IF NOT EXISTS idx_overlays_centroid ON overlays USING GIST (centroid)'),
 ]);
@@ -199,6 +201,26 @@ export const changeHistoryRelations = relations(changeHistory, ({ one }) => ({
   }),
 }));
 
+// AI : Scheduled deletions table for managing timed cleanup of replaced/rejected overlay images
+export const scheduledDeletions = pgTable('scheduled_deletions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  overlayId: uuid('overlay_id').references(() => overlays.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+  filename: text('filename').notNull(),
+  deletionDate: timestamp('deletion_date', { withTimezone: true }).notNull(),
+  deletionType: text('deletion_type').notNull(), // AI : 'full', 'thumbnail', or 'both'
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_scheduled_deletions_date').on(table.deletionDate),
+  index('idx_scheduled_deletions_overlay').on(table.overlayId),
+]);
+
+export const scheduledDeletionsRelations = relations(scheduledDeletions, ({ one }) => ({
+  overlay: one(overlays, {
+    fields: [scheduledDeletions.overlayId],
+    references: [overlays.id],
+  }),
+}));
+
 // AI : Export Drizzle-inferred types for frontend consumption
 export type DBCity = InferSelectModel<typeof cities>;
 export type DBProject = InferSelectModel<typeof projects>;
@@ -207,3 +229,4 @@ export type DBUser = InferSelectModel<typeof users>;
 export type DBCountry = InferSelectModel<typeof countries>;
 export type DBChangeRequest = InferSelectModel<typeof changeRequests>;
 export type DBChangeHistory = InferSelectModel<typeof changeHistory>;
+export type DBScheduledDeletion = InferSelectModel<typeof scheduledDeletions>;

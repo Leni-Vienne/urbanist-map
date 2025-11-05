@@ -122,6 +122,7 @@
     "pending": "En attente",
     "approved": "Approuvé",
     "rejected": "Rejeté",
+    "replaced": "Remplacé",
     "conflicted": "En conflit",
     "planned": "Prévu",
     "inConstruction": "En construction",
@@ -359,7 +360,27 @@
     "currentValue": "Actuel",
     "newValue": "Nouveau",
     "by": "par",
-    "approveOneToRejectOthers": "Approuver l'une rejettera les autres"
+    "approveOneToRejectOthers": "Approuver l'une rejettera les autres",
+    "replacementConflicts": {
+      "title": "Conflits de remplacement détectés",
+      "approvingWillReplace": "L'approbation de ce remplacement remplacera la superposition approuvée \"{original}\".",
+      "pendingChanges": "{count} demande(s) de modification en attente",
+      "competingReplacements": "{count} remplacement(s) concurrent(s)",
+      "changesWillBeConflicted": "Ces demandes de modification en attente seront marquées comme en conflit car la superposition d'origine est remplacée.",
+      "competingWillBeRejected": "Ces soumissions de remplacement concurrentes seront automatiquement rejetées.",
+      "approveAndResolve": "Approuver et résoudre les conflits"
+    },
+    "deleteOverlay": {
+      "title": "Supprimer la superposition ?",
+      "message": "Êtes-vous sûr de vouloir supprimer \"{caption}\" ? Cette action ne peut pas être annulée.",
+      "messageUnnamed": "Êtes-vous sûr de vouloir supprimer cette superposition ? Cette action ne peut pas être annulée.",
+      "deleteButton": "Supprimer la superposition",
+      "deleteSuccess": "Superposition supprimée",
+      "deleteSuccessDetail": "La superposition a été supprimée avec succès",
+      "deleteFailed": "Échec de la suppression",
+      "deleteFailedDetail": "Échec de la suppression de la superposition",
+      "cannotDeleteApproved": "Impossible de supprimer les superpositions approuvées"
+    }
   },
   "footer": {
     "legalMentions": "Mentions légales",

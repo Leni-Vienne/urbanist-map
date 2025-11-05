@@ -58,7 +58,8 @@ export function useModeration() {
     status: 'approved' | 'rejected',
     itemType: 'overlay' | 'project',
     items: T[],
-    apiCall: (params: { id: string; expectedVersion: number; status: 'approved' | 'rejected' }) => Promise<{ success: boolean }>
+    apiCall: (params: { id: string; expectedVersion: number; status: 'approved' | 'rejected'; handleReplacementConflicts?: boolean }) => Promise<{ success: boolean }>,
+    handleReplacementConflicts?: boolean
   ): Promise<ApprovalResult> => {
     // AI : Find item by ID and validate existence
     const item = items.find(i => i.id === id)
@@ -83,6 +84,7 @@ export function useModeration() {
         id,
         expectedVersion: item.version,
         status,
+        handleReplacementConflicts,
       }),
       { errorMessage: `${t(failureMessageKey)}. Please try again.` }
     )
@@ -126,13 +128,14 @@ export function useModeration() {
   }
 
   // AI : Helper function to set overlay approval status using the generic handler
-  async function setOverlayStatus(id: string, status: 'approved' | 'rejected'): Promise<ApprovalResult> {
+  async function setOverlayStatus(id: string, status: 'approved' | 'rejected', handleReplacementConflicts?: boolean): Promise<ApprovalResult> {
     const result = await setApprovalStatus(
       id,
       status,
       'overlay',
       overlays.value,
-      trpc.moderation.setOverlayApprovalStatusWithVersion.mutate
+      trpc.moderation.setOverlayApprovalStatusWithVersion.mutate,
+      handleReplacementConflicts
     )
 
     // AI : Update overlay status in overlay store if approval succeeded and overlay is currently rendered
@@ -155,8 +158,8 @@ export function useModeration() {
     return result
   }
 
-  async function approveOverlay(id: string): Promise<ApprovalResult> {
-    return setOverlayStatus(id, 'approved')
+  async function approveOverlay(id: string, handleReplacementConflicts?: boolean): Promise<ApprovalResult> {
+    return setOverlayStatus(id, 'approved', handleReplacementConflicts)
   }
 
   async function rejectOverlay(id: string): Promise<ApprovalResult> {

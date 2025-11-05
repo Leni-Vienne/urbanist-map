@@ -1,7 +1,7 @@
 import { adminProcedure, router } from '../trpc';
 import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
 import { projects, overlays, approvalStatusEnum, changeRequests, cities } from '../db/schema';
-import { eq, inArray, or, and, sql } from 'drizzle-orm';
+import { eq, inArray, or, and, sql, ne } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { db } from '../database';
 import {
@@ -11,6 +11,7 @@ import {
   buildPaginationResponse
 } from '../db/helpers';
 import { LocalFileStorage, R2StorageS3, getThumbnailFilename, streamToBuffer } from '../lib/storage';
+import { scheduleImageCleanup, deleteLocalImages, daysFromNow } from '../lib/imageCleanup';
 
 // AI : Helper function to migrate image and thumbnail from local storage to R2 on approval
 // Two-phase thumbnail strategy to prevent abuse:
@@ -81,6 +82,104 @@ const setApprovalStatusWithVersionSchema = z.object({
 });
 
 export const moderationRouter = router({
+    // AI : Check for conflicts when approving a replacement overlay
+    checkReplacementConflicts: adminProcedure
+      .input(z.object({ overlayId: z.string().uuid() }))
+      .query(async ({ input }) => {
+        try {
+          // AI : Get the overlay being approved
+          const overlay = await db
+            .select({
+              id: overlays.id,
+              replacesOverlayId: overlays.replacesOverlayId,
+              filename: overlays.filename,
+              caption: overlays.caption
+            })
+            .from(overlays)
+            .where(eq(overlays.id, input.overlayId))
+            .limit(1);
+
+          if (overlay.length === 0) {
+            throw new TRPCError({ code: 'NOT_FOUND', message: 'Overlay not found' });
+          }
+
+          const replacesOverlayId = overlay[0].replacesOverlayId;
+
+          // AI : If not a replacement, no conflicts to check
+          if (!replacesOverlayId) {
+            return {
+              isReplacement: false,
+              pendingChangeRequests: [],
+              competingReplacements: []
+            };
+          }
+
+          // AI : Get the original overlay being replaced
+          const originalOverlay = await db
+            .select({
+              id: overlays.id,
+              status: overlays.status,
+              caption: overlays.caption
+            })
+            .from(overlays)
+            .where(eq(overlays.id, replacesOverlayId))
+            .limit(1);
+
+          if (originalOverlay.length === 0 || originalOverlay[0].status !== 'approved') {
+            throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: 'Cannot replace overlay that is not approved'
+            });
+          }
+
+          // AI : Find pending change requests on the original overlay
+          const pendingChanges = await db
+            .select({
+              id: changeRequests.id,
+              fieldName: changeRequests.fieldName,
+              oldValue: changeRequests.oldValue,
+              newValue: changeRequests.newValue,
+              changeReason: changeRequests.changeReason,
+              requestedBy: changeRequests.requestedBy,
+              createdAt: changeRequests.createdAt
+            })
+            .from(changeRequests)
+            .where(and(
+              eq(changeRequests.entityType, 'overlay'),
+              eq(changeRequests.entityId, replacesOverlayId),
+              eq(changeRequests.status, 'pending')
+            ));
+
+          // AI : Find competing replacement overlays (other pending overlays trying to replace the same original)
+          const competingReplacements = await db
+            .select({
+              id: overlays.id,
+              filename: overlays.filename,
+              caption: overlays.caption,
+              authorId: overlays.authorId,
+              createdAt: overlays.createdAt
+            })
+            .from(overlays)
+            .where(and(
+              eq(overlays.replacesOverlayId, replacesOverlayId),
+              eq(overlays.status, 'pending'),
+              ne(overlays.id, input.overlayId)
+            ));
+
+          return {
+            isReplacement: true,
+            originalOverlayCaption: originalOverlay[0].caption,
+            pendingChangeRequests: pendingChanges,
+            competingReplacements: competingReplacements,
+            hasConflicts: pendingChanges.length > 0 || competingReplacements.length > 0
+          };
+        } catch (error) {
+          console.error('Error checking replacement conflicts:', error);
+          if (error instanceof TRPCError) throw error;
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to check replacement conflicts' });
+        }
+      }),
+
     getPendingSubmissions: adminProcedure
       .input(z.object({
         limit: z.number().min(1).max(100).optional().default(50),
@@ -308,62 +407,205 @@ export const moderationRouter = router({
     // AI : Version-aware overlay approval to prevent race conditions
     // Frontend always sends single item wrapped in array: items: [{ id, expectedVersion }]
     setOverlayApprovalStatusWithVersion: adminProcedure
-      .input(setApprovalStatusWithVersionSchema)
-      .mutation(async ({ input }) => {
+      .input(setApprovalStatusWithVersionSchema.extend({
+        handleReplacementConflicts: z.boolean().optional().default(false), // AI : Whether to auto-handle replacement conflicts
+      }))
+      .mutation(async ({ input, ctx }) => {
         try {
-          // AI : If approving, first get the overlay filename for R2 migration
-          let overlayFilename: string | null = null;
-          if (input.status === 'approved') {
-            const overlayData = await db
-              .select({ filename: overlays.filename })
-              .from(overlays)
-              .where(eq(overlays.id, input.id))
-              .limit(1);
-            
-            if (overlayData.length > 0) {
-              overlayFilename = overlayData[0].filename;
-            }
+          // AI : Get overlay data for processing
+          const overlayData = await db
+            .select({
+              id: overlays.id,
+              filename: overlays.filename,
+              replacesOverlayId: overlays.replacesOverlayId,
+              status: overlays.status,
+              version: overlays.version
+            })
+            .from(overlays)
+            .where(eq(overlays.id, input.id))
+            .limit(1);
+
+          if (overlayData.length === 0) {
+            return { success: false, error: 'Overlay not found' };
           }
 
-          // AI : Atomic update with version check and pending status check in WHERE clause
-          const result = await db
-            .update(overlays)
-            .set({ status: input.status })
-            .where(and(
-              eq(overlays.id, input.id),
-              eq(overlays.version, input.expectedVersion),
-              eq(overlays.status, 'pending') // AI : Only update pending overlays
-            ))
-            .returning({ id: overlays.id, version: overlays.version });
+          const overlay = overlayData[0];
+          const overlayFilename = overlay.filename;
+          const replacesOverlayId = overlay.replacesOverlayId;
 
-          if (result.length === 0) {
-            // AI : Either overlay doesn't exist, version mismatch, or already processed
-            const currentOverlay = await db
-              .select({ version: overlays.version, status: overlays.status })
+          // AI : Handle rejection first (simpler case)
+          if (input.status === 'rejected') {
+            // AI : Atomic update with version check
+            const result = await db
+              .update(overlays)
+              .set({ status: input.status, version: sql`${overlays.version} + 1` })
+              .where(and(
+                eq(overlays.id, input.id),
+                eq(overlays.version, input.expectedVersion),
+                eq(overlays.status, 'pending')
+              ))
+              .returning({ id: overlays.id, version: overlays.version });
+
+            if (result.length === 0) {
+              return { success: false, error: 'Version mismatch or already processed' };
+            }
+
+            // AI : Delete local images based on whether it's a replacement or not
+            try {
+              if (replacesOverlayId) {
+                // AI : Replacement overlay rejected: delete full immediately, schedule thumbnail for 15 days
+                await deleteLocalImages(overlayFilename, 'full');
+                await scheduleImageCleanup(input.id, overlayFilename, daysFromNow(15), 'thumbnail');
+              } else {
+                // AI : Regular overlay rejected: delete both immediately
+                await deleteLocalImages(overlayFilename, 'both');
+              }
+            } catch (cleanupError) {
+              console.error('Failed to cleanup rejected overlay images:', cleanupError);
+              // AI : Don't fail the rejection if cleanup fails
+            }
+
+            return { success: true };
+          }
+
+          // AI : Handle approval (more complex, especially for replacements)
+          return await db.transaction(async (tx) => {
+            // AI : Lock and verify the overlay hasn't changed
+            const currentOverlay = await tx
+              .select({
+                id: overlays.id,
+                status: overlays.status,
+                version: overlays.version,
+                replacesOverlayId: overlays.replacesOverlayId
+              })
               .from(overlays)
               .where(eq(overlays.id, input.id))
               .limit(1);
 
             if (currentOverlay.length === 0) {
               return { success: false, error: 'Overlay not found' };
-            } else if (currentOverlay[0].status !== 'pending') {
-              return { 
-                success: false, 
-                error: 'Overlay already processed', 
-                currentStatus: currentOverlay[0].status 
-              };
-            } else {
-              return { 
-                success: false, 
-                error: 'Version mismatch', 
+            }
+
+            // AI : Version and status checks
+            if (currentOverlay[0].version !== input.expectedVersion) {
+              return {
+                success: false,
+                error: 'Version mismatch',
                 expectedVersion: input.expectedVersion,
-                currentVersion: currentOverlay[0].version 
+                currentVersion: currentOverlay[0].version
               };
             }
-          }
 
-          // AI : Migrate image to R2 only in production
-          // AI : In development, images stay in local storage permanently
+            if (currentOverlay[0].status !== 'pending') {
+              return {
+                success: false,
+                error: 'Overlay already processed',
+                currentStatus: currentOverlay[0].status
+              };
+            }
+
+            // AI : If this is a replacement overlay, handle the replacement workflow
+            if (replacesOverlayId && input.handleReplacementConflicts) {
+              // AI : Lock the original overlay
+              const originalOverlay = await tx
+                .select({
+                  id: overlays.id,
+                  status: overlays.status,
+                  version: overlays.version,
+                  filename: overlays.filename
+                })
+                .from(overlays)
+                .where(eq(overlays.id, replacesOverlayId))
+                .limit(1);
+
+              if (originalOverlay.length === 0 || originalOverlay[0].status !== 'approved') {
+                return {
+                  success: false,
+                  error: 'Original overlay not found or not approved'
+                };
+              }
+
+              // AI : Mark original as 'replaced'
+              await tx
+                .update(overlays)
+                .set({
+                  status: 'replaced' as any, // AI : Cast needed due to enum type
+                  replacedByOverlayId: input.id,
+                  version: sql`${overlays.version} + 1`
+                })
+                .where(eq(overlays.id, replacesOverlayId));
+
+              // AI : Mark all pending change requests as 'conflicted'
+              await tx
+                .update(changeRequests)
+                .set({
+                  status: 'conflicted',
+                  resolvedAt: new Date(),
+                  resolvedBy: ctx.user.id
+                })
+                .where(and(
+                  eq(changeRequests.entityType, 'overlay'),
+                  eq(changeRequests.entityId, replacesOverlayId),
+                  eq(changeRequests.status, 'pending')
+                ));
+
+              // AI : Find and reject competing replacement overlays
+              const competingReplacements = await tx
+                .select({ id: overlays.id, filename: overlays.filename })
+                .from(overlays)
+                .where(and(
+                  eq(overlays.replacesOverlayId, replacesOverlayId),
+                  eq(overlays.status, 'pending'),
+                  ne(overlays.id, input.id)
+                ));
+
+              if (competingReplacements.length > 0) {
+                const competingIds = competingReplacements.map(o => o.id);
+                await tx
+                  .update(overlays)
+                  .set({
+                    status: 'rejected',
+                    version: sql`${overlays.version} + 1`
+                  })
+                  .where(inArray(overlays.id, competingIds));
+
+                // AI : Schedule cleanup for competing replacements (outside transaction)
+                for (const competing of competingReplacements) {
+                  try {
+                    await deleteLocalImages(competing.filename, 'full');
+                    await scheduleImageCleanup(competing.id, competing.filename, daysFromNow(15), 'thumbnail');
+                  } catch (error) {
+                    console.error(`Failed to cleanup competing replacement ${competing.id}:`, error);
+                  }
+                }
+              }
+
+              // AI : Schedule cleanup for the replaced overlay's R2 images (15 days)
+              try {
+                await scheduleImageCleanup(replacesOverlayId, originalOverlay[0].filename, daysFromNow(15), 'both');
+              } catch (error) {
+                console.error('Failed to schedule cleanup for replaced overlay:', error);
+              }
+            }
+
+            // AI : Approve the overlay
+            const result = await tx
+              .update(overlays)
+              .set({
+                status: 'approved',
+                version: sql`${overlays.version} + 1`
+              })
+              .where(eq(overlays.id, input.id))
+              .returning({ id: overlays.id });
+
+            if (result.length === 0) {
+              return { success: false, error: 'Failed to approve overlay' };
+            }
+
+            return { success: true };
+          });
+
+          // AI : After transaction, migrate image to R2 (outside transaction for safety)
           if (input.status === 'approved' && overlayFilename && process.env.NODE_ENV === 'production') {
             try {
               await migrateImageToR2(overlayFilename);
@@ -373,8 +615,6 @@ export const moderationRouter = router({
               // AI : Don't fail the approval if R2 migration fails - image is still accessible in local storage
             }
           }
-
-          return { success: true };
         } catch (error) {
           console.error('Error updating overlay status with version:', error);
           throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update overlay status' });

@@ -1,5 +1,14 @@
 <template>
   <div class="moderation-container">
+    <!-- AI : Replacement Conflicts Dialog -->
+    <ReplacementConflictsDialog
+      v-model:visible="showConflictsDialog"
+      :conflicts="pendingConflicts"
+      :is-loading="isProcessingConflicts"
+      @confirm="handleConfirmReplacement"
+      @cancel="handleCancelReplacement"
+    />
+
     <!-- AI : Projects Section - pure approve/reject workflow for pending items -->
     <ProjectAccordionPanel
       :projects="projects"
@@ -114,7 +123,10 @@ import { useChangeRequests } from '@composables/changes/useChanges'
 import { useOverlayClickHandler } from '@composables/overlay/useOverlayClickHandler'
 import { useChangeRequestPreview } from '@composables/overlay/useChangeRequestPreview'
 import { useToast } from '@composables/ui/useToast'
+import { trpc } from '@client'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
+import ReplacementConflictsDialog from '@components/moderation/ReplacementConflictsDialog.vue'
+import type { ReplacementConflicts } from '@components/moderation/ReplacementConflictsDialog.vue'
 
 // AI : Use i18n for translations
 const { t } = useI18n()
@@ -152,6 +164,12 @@ const viewedOverlayIds = ref<string[]>([])
 
 // AI : Track which change request suggested positions have been viewed
 const viewedChangeRequestIds = ref<string[]>([])
+
+// AI : Replacement conflicts dialog state
+const showConflictsDialog = ref(false)
+const pendingConflicts = ref<ReplacementConflicts | null>(null)
+const pendingOverlayId = ref<string | null>(null)
+const isProcessingConflicts = ref(false)
 
 // AI : Check if a change request is for a geometry field (corners or centroid)
 function isGeometryChange(change: any): boolean {
@@ -249,10 +267,44 @@ async function handleRejectProject(id: string) {
   }
 }
 
-// AI : Handle overlay approval with toast notifications
+// AI : Handle overlay approval with replacement conflict checking
 async function handleApproveOverlay(id: string) {
-  const result = await approveOverlay(id)
-  
+  try {
+    // AI : First check if this overlay is a replacement and if it has conflicts
+    const overlay = projects.value
+      .flatMap(p => p.overlays)
+      .find(o => o.id === id)
+
+    if (overlay?.replacesOverlayId) {
+      // AI : Check for conflicts before approving
+      const conflicts = await trpc.moderation.checkReplacementConflicts.query({ overlayId: id })
+
+      if (conflicts.hasConflicts) {
+        // AI : Show confirmation dialog
+        pendingConflicts.value = conflicts
+        pendingOverlayId.value = id
+        showConflictsDialog.value = true
+        return // Wait for user confirmation
+      }
+    }
+
+    // AI : No conflicts or not a replacement - proceed with normal approval
+    await proceedWithApproval(id)
+  } catch (error) {
+    console.error('Error checking replacement conflicts:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to check for conflicts',
+      life: 3000
+    })
+  }
+}
+
+// AI : Proceed with overlay approval (called after confirmation or directly if no conflicts)
+async function proceedWithApproval(id: string, handleConflicts = false) {
+  const result = await approveOverlay(id, handleConflicts)
+
   if (result.success) {
     toast.add({
       severity: 'success',
@@ -263,7 +315,7 @@ async function handleApproveOverlay(id: string) {
   } else {
     const severity = result.error === 'version_conflict' ? 'warn' : 'error'
     const summary = result.error === 'version_conflict' ? 'Overlay Updated' : 'Approval Failed'
-    
+
     toast.add({
       severity,
       summary,
@@ -271,6 +323,28 @@ async function handleApproveOverlay(id: string) {
       life: result.error === 'version_conflict' ? 5000 : 3000
     })
   }
+}
+
+// AI : Handle confirmation from replacement conflicts dialog
+async function handleConfirmReplacement() {
+  if (!pendingOverlayId.value) return
+
+  isProcessingConflicts.value = true
+  try {
+    await proceedWithApproval(pendingOverlayId.value, true) // Pass true to handle conflicts
+  } finally {
+    isProcessingConflicts.value = false
+    showConflictsDialog.value = false
+    pendingOverlayId.value = null
+    pendingConflicts.value = null
+  }
+}
+
+// AI : Handle cancellation from replacement conflicts dialog
+function handleCancelReplacement() {
+  showConflictsDialog.value = false
+  pendingOverlayId.value = null
+  pendingConflicts.value = null
 }
 
 // AI : Handle overlay rejection with toast notifications

@@ -18,7 +18,7 @@ export interface FileUploadError {
 // AI : Shared type for overlay data sent to the frontend
 import type { DBProject, DBCity } from '../db/schema';
 
-export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'replaced';
 
 export interface OverlayData {
     id: string;
@@ -29,6 +29,7 @@ export interface OverlayData {
     projectId: string | null;
     authorId: string | null;
     replacesOverlayId: string | null;
+    replacedByOverlayId: string | null; // AI : Reference to the overlay that replaced this one
     createdAt: Date;
     updatedAt: Date;
     centroid: {

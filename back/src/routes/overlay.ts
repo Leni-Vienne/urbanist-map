@@ -13,6 +13,7 @@ import {
   type MapMode
 } from '../db/helpers';
 import { validateOverlaySize } from '../utils/overlayValidation';
+import { deleteLocalImages } from '../lib/imageCleanup';
 
 const publishOverlaySchema = z.object({
   id: z.uuid(), // AI : UUID length limit
@@ -262,6 +263,66 @@ export const overlayRouter = router({
       } catch (error) {
         console.error('Error updating overlay:', error);
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update overlay' });
+      }
+    }),
+
+  // AI : Delete overlay (only pending overlays can be deleted by their owner)
+  deleteOverlay: protectedProcedure
+    .input(z.object({ id: z.uuid() }))
+    .mutation(async ({ input, ctx }) => {
+      try {
+        const userId = ctx.user?.id;
+        if (!userId) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Must be logged in to delete overlay' });
+        }
+
+        // AI : Get overlay to check permissions and status
+        const overlay = await db
+          .select({
+            id: overlays.id,
+            authorId: overlays.authorId,
+            status: overlays.status,
+            filename: overlays.filename
+          })
+          .from(overlays)
+          .where(eq(overlays.id, input.id))
+          .limit(1);
+
+        if (overlay.length === 0) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Overlay not found' });
+        }
+
+        // AI : Only owner can delete their own overlay
+        if (overlay[0].authorId !== userId) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Not authorized to delete this overlay' });
+        }
+
+        // AI : Only pending overlays can be deleted
+        if (overlay[0].status !== 'pending') {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Can only delete pending overlays'
+          });
+        }
+
+        // AI : Delete images first (safer - if DB delete fails, we just have orphaned files)
+        try {
+          await deleteLocalImages(overlay[0].filename, 'both');
+          console.log(`Deleted local images for overlay ${input.id}`);
+        } catch (imageError) {
+          console.error(`Failed to delete images for overlay ${input.id}:`, imageError);
+          // AI : Log to orphaned files but don't fail the deletion
+          // The deleteLocalImages function handles logging internally
+        }
+
+        // AI : Delete from database
+        await db.delete(overlays).where(eq(overlays.id, input.id));
+
+        return { success: true };
+      } catch (error) {
+        console.error('Error deleting overlay:', error);
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to delete overlay' });
       }
     }),
 });
