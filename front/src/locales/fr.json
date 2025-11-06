@@ -220,7 +220,12 @@
     "replaces": "Remplace",
     "viewOriginalOverlay": "Voir l'image d'origine",
     "viewPositionRequired": "Voir la position d'abord (requis pour les images de remplacement)",
-    "viewPosition": "Voir la position"
+    "viewPosition": "Voir la position",
+    "unavailable": {
+      "title": "Image indisponible",
+      "rejected": "Cette image a été rejetée et n'est plus disponible",
+      "replaced": "Cette image a été remplacée par une version plus récente et n'est plus disponible"
+    }
   },
   "map": {
     "zoom": "Zoom",
