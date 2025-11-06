@@ -10,11 +10,32 @@
       v-if="conflicts"
       class="conflicts-container"
     >
-      <!-- Summary -->
-      <div class="conflict-summary">
-        <p class="summary-text">
-          {{ $t('moderation.replacementConflicts.approvingWillReplace', { original: conflicts.originalOverlayCaption || 'Unnamed' }) }}
-        </p>
+      <!-- Image Comparison -->
+      <div
+        v-if="conflicts.originalOverlayFilename && conflicts.newOverlayFilename"
+        class="image-comparison"
+      >
+        <div class="comparison-item">
+          <div class="comparison-label">{{ $t('common.current') }}</div>
+          <img
+            :src="buildImageUrl(conflicts.originalOverlayFilename)"
+            :alt="conflicts.originalOverlayCaption || 'Original overlay'"
+            class="comparison-thumbnail"
+          />
+          <div class="comparison-caption">{{ conflicts.originalOverlayCaption || $t('overlay.untitled') }}</div>
+        </div>
+        <div class="comparison-arrow">
+          <i class="pi pi-arrow-right"></i>
+        </div>
+        <div class="comparison-item">
+          <div class="comparison-label">{{ $t('common.new') }}</div>
+          <img
+            :src="buildImageUrl(conflicts.newOverlayFilename)"
+            :alt="conflicts.newOverlayCaption || 'New overlay'"
+            class="comparison-thumbnail"
+          />
+          <div class="comparison-caption">{{ conflicts.newOverlayCaption || $t('overlay.untitled') }}</div>
+        </div>
       </div>
 
       <!-- Pending Change Requests -->
@@ -73,11 +94,19 @@
             :key="competing.id"
             class="conflict-item competing-item"
           >
-            <div class="item-header">
-              <strong>{{ competing.caption || $t('overlay.untitled') }}</strong>
-              <span class="item-date">{{ formatDate(competing.createdAt) }}</span>
+            <div class="competing-content">
+              <img
+                :src="buildThumbnailUrl(competing.filename)"
+                :alt="competing.caption || 'Competing overlay'"
+                class="competing-thumbnail"
+              />
+              <div class="competing-details">
+                <div class="item-header">
+                  <strong>{{ competing.caption || $t('overlay.untitled') }}</strong>
+                  <span class="item-date">{{ formatDate(competing.createdAt) }}</span>
+                </div>
+              </div>
             </div>
-            <div class="item-filename">{{ competing.filename }}</div>
           </div>
         </div>
         <p class="warning-text">
@@ -108,6 +137,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import { buildImageUrl, buildThumbnailUrl } from '../../utils'
 import { useI18n } from 'vue-i18n';
 
 const { t: $t } = useI18n();
@@ -116,6 +146,9 @@ const { t: $t } = useI18n();
 export interface ReplacementConflicts {
   isReplacement: boolean;
   originalOverlayCaption: string | null;
+  originalOverlayFilename: string;
+  newOverlayFilename: string;
+  newOverlayCaption: string | null;
   pendingChangeRequests: Array<{
     id: string;
     fieldName: string;
@@ -192,6 +225,7 @@ function formatValue(value: any): string {
 function formatDate(date: Date): string {
   return new Date(date).toLocaleDateString();
 }
+
 </script>
 
 <style scoped>
@@ -201,17 +235,55 @@ function formatDate(date: Date): string {
   gap: 1.5rem;
 }
 
-.conflict-summary {
-  padding: 1rem;
-  background-color: var(--p-amber-50);
-  border-left: 4px solid var(--p-amber-500);
+.image-comparison {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  padding: 1.5rem;
+  background-color: var(--p-surface-50);
   border-radius: 0.5rem;
+  border: 1px solid var(--p-surface-200);
 }
 
-.summary-text {
-  margin: 0;
-  color: var(--p-amber-900);
+.comparison-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  max-width: 250px;
+}
+
+.comparison-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--p-surface-700);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.comparison-thumbnail {
+  width: 100%;
+  height: auto;
+  max-height: 200px;
+  object-fit: contain;
+  border-radius: 0.5rem;
+  border: 2px solid var(--p-surface-300);
+  background-color: var(--p-surface-0);
+}
+
+.comparison-caption {
+  font-size: 0.875rem;
+  color: var(--p-surface-600);
+  text-align: center;
   font-weight: 500;
+}
+
+.comparison-arrow {
+  font-size: 2rem;
+  color: var(--p-primary-500);
+  flex-shrink: 0;
 }
 
 .section {
@@ -261,10 +333,24 @@ function formatDate(date: Date): string {
   color: var(--p-surface-600);
 }
 
-.item-filename {
-  font-size: 0.875rem;
-  color: var(--p-surface-600);
-  font-family: monospace;
+.competing-content {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.competing-thumbnail {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 0.375rem;
+  border: 2px solid var(--p-surface-300);
+  flex-shrink: 0;
+}
+
+.competing-details {
+  flex: 1;
+  min-width: 0;
 }
 
 .change-diff {

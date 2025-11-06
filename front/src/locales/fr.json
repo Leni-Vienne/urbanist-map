@@ -18,6 +18,8 @@
     "explainChanges": "Expliquez brièvement pourquoi vous apportez ces modifications",
     "before": "Avant",
     "after": "Après",
+    "current": "Actuel",
+    "new": "Nouveau",
     "unknown": "Inconnu"
   },
   "fields": {

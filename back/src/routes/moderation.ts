@@ -119,7 +119,8 @@ export const moderationRouter = router({
             .select({
               id: overlays.id,
               status: overlays.status,
-              caption: overlays.caption
+              caption: overlays.caption,
+              filename: overlays.filename
             })
             .from(overlays)
             .where(eq(overlays.id, replacesOverlayId))
@@ -169,6 +170,9 @@ export const moderationRouter = router({
           return {
             isReplacement: true,
             originalOverlayCaption: originalOverlay[0].caption,
+            originalOverlayFilename: originalOverlay[0].filename,
+            newOverlayFilename: overlay[0].filename,
+            newOverlayCaption: overlay[0].caption,
             pendingChangeRequests: pendingChanges,
             competingReplacements: competingReplacements,
             hasConflicts: pendingChanges.length > 0 || competingReplacements.length > 0
