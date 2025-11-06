@@ -36,6 +36,12 @@
                 uiStore.overlayEditForm.visible
             "
         />
+
+        <!-- AI : Moderated Contributions Dialog -->
+        <ModeratedContributionsDialog
+            v-model:visible="showModeratedContributionsDialog"
+            @close="showModeratedContributionsDialog = false"
+        />
     </div>
 </template>
 
@@ -55,10 +61,13 @@ import { useToast } from "@composables/ui/useToast";
 import { useBeforeUnload } from "@composables/core/useBeforeUnload";
 import { storeToRefs } from "pinia";
 import { useRoute } from "vue-router";
+import { useModeratedContributions } from "@composables/overlay/useModeratedContributions";
+
 
 import MapView from "@components/map/MapView.vue";
 import SideMenu from "@components/layout/SideMenu.vue";
 import MobileDrawer from "@components/layout/MobileDrawer.vue";
+import ModeratedContributionsDialog from "@components/moderation/ModeratedContributionsDialog.vue";
 
 // AI : Split PopupContainer into separate chunk - loads when first popup is shown
 const PopupContainer = defineAsyncComponent(
@@ -71,11 +80,13 @@ const ProjectManager = defineAsyncComponent(
 // AI : Create refs to track app state
 const isModerator = ref(false);
 const desktopSideMenuOpen = ref(true); // AI : Open by default on desktop
+const showModeratedContributionsDialog = ref(false);
 const overlayStore = useOverlayStore();
 const authStore = useAuthStore();
 const uiStore = useUiStore();
 const toast = useToast();
 const route = useRoute();
+const { fetchModeratedContributions, hasUnacknowledgedItems } = useModeratedContributions();
 
 // AI : Use mobile drawer state from UI store
 const mobileSideMenuOpen = computed({
@@ -158,6 +169,16 @@ onMounted(async () => {
             authStore.user?.role === "admin"
         ) {
             isModerator.value = true;
+        }
+
+        // AI : Check for moderated contributions if user is logged in
+        if (authStore.isAuthenticated) {
+            await fetchModeratedContributions();
+
+            // AI : Show dialog if there are unacknowledged items
+            if (hasUnacknowledgedItems.value) {
+                showModeratedContributionsDialog.value = true;
+            }
         }
 
         // AI : Handle auth query parameters from URL

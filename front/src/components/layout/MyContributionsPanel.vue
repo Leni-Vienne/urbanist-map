@@ -9,10 +9,27 @@
     :empty-sub-message="projects.length > 0 && filteredProjects.length === 0 ? $t('contributions.tryChangingFilters') : $t('contributions.createFirstProject')"
   >
     <template #header-actions>
-      <div class="filter-controls">
-        <div class="field-checkbox">
-          <Checkbox v-model="onlyShowPending" inputId="onlyShowPending" binary />
-          <label for="onlyShowPending">{{ $t('help.filters.onlyShowPending') }}</label>
+      <div class="header-actions-container">
+        <!-- AI : Moderation results button -->
+        <Button
+          v-if="hasUnacknowledgedItems"
+          @click="showModeratedContributionsDialog = true"
+          :label="$t('moderation.moderatedContributions.viewResults')"
+          severity="secondary"
+          size="small"
+          outlined
+        >
+          <template #icon>
+            <Badge :value="moderatedContributionsCount" severity="danger" class="mr-2" />
+            <i class="pi pi-bell"></i>
+          </template>
+        </Button>
+
+        <div class="filter-controls">
+          <div class="field-checkbox">
+            <Checkbox v-model="onlyShowPending" inputId="onlyShowPending" binary />
+            <label for="onlyShowPending">{{ $t('help.filters.onlyShowPending') }}</label>
+          </div>
         </div>
       </div>
     </template>
@@ -57,6 +74,12 @@
       </Button>
     </template>
   </ProjectAccordionPanel>
+
+  <!-- AI : Moderated Contributions Dialog -->
+  <ModeratedContributionsDialog
+    v-model:visible="showModeratedContributionsDialog"
+    @close="showModeratedContributionsDialog = false"
+  />
 </template>
 
 <script setup lang="ts">
@@ -66,9 +89,16 @@ import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import { useToast } from '@composables/ui/useToast'
 import { useChangeRequests } from '@composables/changes/useChanges'
 import { useUserContributions } from '@composables/project/useUserContributions'
+import { useModeratedContributions } from '@composables/overlay/useModeratedContributions'
+import ModeratedContributionsDialog from '@components/moderation/ModeratedContributionsDialog.vue'
 
 // AI : Use cached composable for user contributions
 const { projects, isLoading, fetchUserContributions } = useUserContributions()
+
+// AI : Moderated contributions state
+const { moderatedContributions, hasUnacknowledgedItems } = useModeratedContributions()
+const showModeratedContributionsDialog = ref(false)
+const moderatedContributionsCount = computed(() => moderatedContributions.value.length)
 
 const onlyShowPending = ref(true)
 
@@ -144,6 +174,13 @@ onMounted(() => {
 
 <style scoped>
 /* AI : Component-specific styles - most moved to shared component */
+.header-actions-container {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .filter-controls {
   display: flex;
   align-items: center;

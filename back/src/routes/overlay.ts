@@ -325,4 +325,96 @@ export const overlayRouter = router({
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to delete overlay' });
       }
     }),
+
+  // AI : Get moderated contributions (rejected/replaced overlays) for the current user
+  getModeratedContributions: protectedProcedure
+    .query(async ({ ctx }) => {
+      try {
+        const userId = ctx.user?.id;
+        if (!userId) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Must be logged in' });
+        }
+
+        // AI : Get rejected and replaced overlays for this user with project/city info
+        const moderatedOverlays = await db
+          .select({
+            id: overlays.id,
+            caption: overlays.caption,
+            filename: overlays.filename,
+            status: overlays.status,
+            updatedAt: overlays.updatedAt,
+            projectId: overlays.projectId,
+            replacedByOverlayId: overlays.replacedByOverlayId,
+            projectName: projects.name,
+          })
+          .from(overlays)
+          .leftJoin(projects, eq(overlays.projectId, projects.id))
+          .where(and(
+            eq(overlays.authorId, userId),
+            sql`${overlays.status} IN ('rejected', 'replaced')`
+          ))
+          .orderBy(sql`${overlays.updatedAt} DESC`);
+
+        return moderatedOverlays;
+      } catch (error) {
+        console.error('Error fetching moderated contributions:', error);
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch moderated contributions' });
+      }
+    }),
+
+  // AI : Acknowledge/clear moderated contributions (immediate cleanup)
+  acknowledgeModeratedContributions: protectedProcedure
+    .input(z.object({
+      overlayIds: z.array(z.uuid()).min(1).max(50) // AI : Limit to 50 items at once
+    }))
+    .mutation(async ({ input, ctx }) => {
+      try {
+        const userId = ctx.user?.id;
+        if (!userId) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Must be logged in' });
+        }
+
+        // AI : Verify all overlays belong to user and are rejected/replaced
+        const overlaysToDelete = await db
+          .select({
+            id: overlays.id,
+            filename: overlays.filename,
+            status: overlays.status,
+            authorId: overlays.authorId
+          })
+          .from(overlays)
+          .where(sql`${overlays.id} IN (${sql.join(input.overlayIds.map(id => sql`${id}`), sql`, `)})`);
+
+        // AI : Validate ownership and status
+        for (const overlay of overlaysToDelete) {
+          if (overlay.authorId !== userId) {
+            throw new TRPCError({ code: 'FORBIDDEN', message: 'Not authorized to delete these overlays' });
+          }
+          if (overlay.status !== 'rejected' && overlay.status !== 'replaced') {
+            throw new TRPCError({ code: 'BAD_REQUEST', message: 'Can only acknowledge rejected/replaced overlays' });
+          }
+        }
+
+        // AI : Delete images immediately (thumbnails only, fullsize already deleted)
+        for (const overlay of overlaysToDelete) {
+          try {
+            await deleteLocalImages(overlay.filename, 'thumbnail');
+          } catch (imageError) {
+            console.error(`Failed to delete thumbnail for overlay ${overlay.id}:`, imageError);
+            // AI : Continue with DB deletion even if image deletion fails
+          }
+        }
+
+        // AI : Delete from database
+        await db.delete(overlays).where(
+          sql`${overlays.id} IN (${sql.join(input.overlayIds.map(id => sql`${id}`), sql`, `)})`
+        );
+
+        return { success: true, deletedCount: overlaysToDelete.length };
+      } catch (error) {
+        console.error('Error acknowledging moderated contributions:', error);
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to acknowledge moderated contributions' });
+      }
+    }),
 });
