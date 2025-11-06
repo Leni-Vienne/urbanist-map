@@ -473,7 +473,10 @@ export const moderationRouter = router({
           }
 
           // AI : Handle approval (more complex, especially for replacements)
-          return await db.transaction(async (tx) => {
+          const transactionResult = await db.transaction(async (tx) => {
+            // AI : Track competing replacements for post-transaction cleanup
+            let competingReplacements: Array<{ id: string; filename: string }> = [];
+
             // AI : Lock and verify the overlay hasn't changed
             const currentOverlay = await tx
               .select({
@@ -508,8 +511,11 @@ export const moderationRouter = router({
               };
             }
 
+            console.log(`[Replacement] Overlay ${input.id}: replacesOverlayId=${replacesOverlayId}, handleConflicts=${input.handleReplacementConflicts}`);
+
             // AI : If this is a replacement overlay, handle the replacement workflow
             if (replacesOverlayId && input.handleReplacementConflicts) {
+              console.log(`[Replacement] Processing replacement workflow for overlay ${input.id} replacing ${replacesOverlayId}`);
               // AI : Lock the original overlay
               const originalOverlay = await tx
                 .select({
@@ -530,17 +536,21 @@ export const moderationRouter = router({
               }
 
               // AI : Mark original as 'replaced'
-              await tx
+              console.log(`[Replacement] Marking original overlay ${replacesOverlayId} as 'replaced'`);
+              const replacedResult = await tx
                 .update(overlays)
                 .set({
                   status: 'replaced' as any, // AI : Cast needed due to enum type
                   replacedByOverlayId: input.id,
                   version: sql`${overlays.version} + 1`
                 })
-                .where(eq(overlays.id, replacesOverlayId));
+                .where(eq(overlays.id, replacesOverlayId))
+                .returning({ id: overlays.id });
+
+              console.log(`[Replacement] Updated ${replacedResult.length} overlay(s) to 'replaced' status`);
 
               // AI : Mark all pending change requests as 'conflicted'
-              await tx
+              const conflictedResult = await tx
                 .update(changeRequests)
                 .set({
                   status: 'conflicted',
@@ -551,10 +561,13 @@ export const moderationRouter = router({
                   eq(changeRequests.entityType, 'overlay'),
                   eq(changeRequests.entityId, replacesOverlayId),
                   eq(changeRequests.status, 'pending')
-                ));
+                ))
+                .returning({ id: changeRequests.id });
+
+              console.log(`[Replacement] Marked ${conflictedResult.length} change request(s) as conflicted`);
 
               // AI : Find and reject competing replacement overlays
-              const competingReplacements = await tx
+              competingReplacements = await tx
                 .select({ id: overlays.id, filename: overlays.filename })
                 .from(overlays)
                 .where(and(
@@ -563,8 +576,12 @@ export const moderationRouter = router({
                   ne(overlays.id, input.id)
                 ));
 
+              console.log(`[Replacement] Found ${competingReplacements.length} competing replacements`);
+
               if (competingReplacements.length > 0) {
                 const competingIds = competingReplacements.map(o => o.id);
+                console.log(`[Replacement] Rejecting competing overlays: ${competingIds.join(', ')}`);
+
                 await tx
                   .update(overlays)
                   .set({
@@ -572,23 +589,6 @@ export const moderationRouter = router({
                     version: sql`${overlays.version} + 1`
                   })
                   .where(inArray(overlays.id, competingIds));
-
-                // AI : Schedule cleanup for competing replacements (outside transaction)
-                for (const competing of competingReplacements) {
-                  try {
-                    await deleteLocalImages(competing.filename, 'full');
-                    await scheduleImageCleanup(competing.id, competing.filename, daysFromNow(15), 'thumbnail');
-                  } catch (error) {
-                    console.error(`Failed to cleanup competing replacement ${competing.id}:`, error);
-                  }
-                }
-              }
-
-              // AI : Schedule cleanup for the replaced overlay's R2 images (15 days)
-              try {
-                await scheduleImageCleanup(replacesOverlayId, originalOverlay[0].filename, daysFromNow(15), 'both');
-              } catch (error) {
-                console.error('Failed to schedule cleanup for replaced overlay:', error);
               }
             }
 
@@ -606,8 +606,53 @@ export const moderationRouter = router({
               return { success: false, error: 'Failed to approve overlay' };
             }
 
-            return { success: true };
+            return { success: true, competingReplacements: replacesOverlayId ? competingReplacements : [] };
           });
+
+          // AI : Return early if transaction failed
+          if (!transactionResult.success) {
+            return transactionResult;
+          }
+
+          // AI : AFTER successful transaction, handle image cleanup for replacement workflow
+          if (replacesOverlayId && input.handleReplacementConflicts && transactionResult.competingReplacements) {
+            console.log(`[Replacement] Post-transaction cleanup starting...`);
+
+            // AI : Delete images for competing replacements
+            for (const competing of transactionResult.competingReplacements) {
+              try {
+                console.log(`[Replacement] Deleting images for rejected competing overlay ${competing.id}`);
+                await deleteLocalImages(competing.filename, 'full');
+                await scheduleImageCleanup(competing.id, competing.filename, daysFromNow(15), 'thumbnail');
+              } catch (error) {
+                console.error(`Failed to cleanup competing replacement ${competing.id}:`, error);
+              }
+            }
+
+            // AI : Handle cleanup for replaced overlay images based on environment
+            try {
+              const originalOverlayData = await db
+                .select({ filename: overlays.filename })
+                .from(overlays)
+                .where(eq(overlays.id, replacesOverlayId))
+                .limit(1);
+
+              if (originalOverlayData.length > 0) {
+                if (process.env.NODE_ENV === 'production') {
+                  // AI : Production: Images are on R2, schedule deletion in 15 days
+                  console.log(`[Replacement] Scheduling R2 cleanup for replaced overlay ${replacesOverlayId}`);
+                  await scheduleImageCleanup(replacesOverlayId, originalOverlayData[0].filename, daysFromNow(15), 'both');
+                } else {
+                  // AI : Development: Images are local, delete full immediately and schedule thumbnail for 15 days
+                  console.log(`[Replacement] Development mode: deleting local images for replaced overlay ${replacesOverlayId}`);
+                  await deleteLocalImages(originalOverlayData[0].filename, 'full');
+                  await scheduleImageCleanup(replacesOverlayId, originalOverlayData[0].filename, daysFromNow(15), 'thumbnail');
+                }
+              }
+            } catch (error) {
+              console.error('Failed to cleanup replaced overlay images:', error);
+            }
+          }
 
           // AI : After transaction, migrate image to R2 (outside transaction for safety)
           if (input.status === 'approved' && overlayFilename && process.env.NODE_ENV === 'production') {
@@ -619,6 +664,9 @@ export const moderationRouter = router({
               // AI : Don't fail the approval if R2 migration fails - image is still accessible in local storage
             }
           }
+
+          // AI : Return the transaction result
+          return transactionResult;
         } catch (error) {
           console.error('Error updating overlay status with version:', error);
           throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update overlay status' });

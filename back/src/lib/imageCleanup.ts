@@ -93,6 +93,7 @@ export async function deleteLocalImages(
   filename: string,
   deleteType: 'full' | 'thumbnail' | 'both'
 ): Promise<void> {
+  console.log(`[ImageCleanup] deleteLocalImages called: filename=${filename}, deleteType=${deleteType}`);
   const localStorage = new LocalFileStorage();
   const thumbnailFilename = getThumbnailFilename(filename);
   const failedFiles: string[] = [];
@@ -101,10 +102,11 @@ export async function deleteLocalImages(
     // AI : Delete full image if requested
     if (deleteType === 'full' || deleteType === 'both') {
       try {
+        console.log(`[ImageCleanup] Attempting to delete full image: ${filename}`);
         await localStorage.delete(filename);
-        console.log(`Deleted local full image: ${filename}`);
+        console.log(`[ImageCleanup] Successfully deleted local full image: ${filename}`);
       } catch (error) {
-        console.error(`Failed to delete local full image ${filename}:`, error);
+        console.error(`[ImageCleanup] Failed to delete local full image ${filename}:`, error);
         failedFiles.push(filename);
       }
     }
@@ -112,10 +114,11 @@ export async function deleteLocalImages(
     // AI : Delete thumbnail if requested
     if (deleteType === 'thumbnail' || deleteType === 'both') {
       try {
+        console.log(`[ImageCleanup] Attempting to delete thumbnail: ${thumbnailFilename}`);
         await localStorage.delete(thumbnailFilename);
-        console.log(`Deleted local thumbnail: ${thumbnailFilename}`);
+        console.log(`[ImageCleanup] Successfully deleted local thumbnail: ${thumbnailFilename}`);
       } catch (error) {
-        console.error(`Failed to delete local thumbnail ${thumbnailFilename}:`, error);
+        console.error(`[ImageCleanup] Failed to delete local thumbnail ${thumbnailFilename}:`, error);
         failedFiles.push(thumbnailFilename);
       }
     }
