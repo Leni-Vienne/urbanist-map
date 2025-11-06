@@ -36,7 +36,7 @@ vi.mock('@client', () => ({
   }
 }))
 
-import { useModeration } from '../overlay/useModeration'
+import { useModeration } from '../moderation/useModeration'
 import { trpc, type RouterOutput } from '@client'
 
 // AI : Type-safe mock - cast to MockedFunction type
