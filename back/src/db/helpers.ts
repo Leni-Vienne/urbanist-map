@@ -309,16 +309,17 @@ export function buildOverlayVisibilityCondition(
   }
 
   if (mode === 'edit' && user) {
-    // AI : Edit mode: show approved overlays OR user's own overlays OR overlays with user's change requests
+    // AI : Edit mode: show approved overlays OR user's own PENDING overlays OR overlays with user's change requests
+    // AI : Rejected and replaced overlays are NOT shown even if user owns them
     if (overlayChangeRequestIds && overlayChangeRequestIds.length > 0) {
       const idsArray = `{${overlayChangeRequestIds.join(',')}}`;
       return sql`(
         ${overlays.status} = 'approved'
-        OR ${overlays.authorId} = ${user.id}
+        OR (${overlays.authorId} = ${user.id} AND ${overlays.status} = 'pending')
         OR ${overlays.id} = ANY(${idsArray}::uuid[])
       )`;
     } else {
-      return sql`(${overlays.status} = 'approved' OR ${overlays.authorId} = ${user.id})`;
+      return sql`(${overlays.status} = 'approved' OR (${overlays.authorId} = ${user.id} AND ${overlays.status} = 'pending'))`;
     }
   }
 
