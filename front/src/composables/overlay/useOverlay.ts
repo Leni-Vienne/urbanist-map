@@ -1144,8 +1144,9 @@ function createMarker(overlayObject: OverlayObject, projectId: string, markerTyp
   const center = map.value.getCenter();
   const markerTitle = createMarkerTitle(overlayObject, projectId, markerType);
 
-  // AI : Determine marker color based on type and overlay state
-  const markerColor = markerType === 'replacement' ? 'purple' : getOverlayMarkerColor(overlayObject, 'edit');
+  // AI : Determine marker color based on overlay state
+  // AI : Let getOverlayMarkerColor handle all color logic including replacements after submission
+  const markerColor = getOverlayMarkerColor(overlayObject, 'edit');
   const colorIcon = createColorIcon(markerColor);
 
   const marker = L.marker(center, {
