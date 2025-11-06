@@ -233,14 +233,15 @@ export function getOverlayMarkerColor(
 
   if (mode === 'edit') {
     // AI : Edit mode color logic based on overlay modification state and status
-    if (overlayData.replacesOverlayId) return 'purple'; // Overlay is a replacement for another overlay
-
     const hasBeenModified = 'isModified' in overlayData ? overlayData.isModified : false;
     const isTooBig = 'isTooBig' in overlayData ? overlayData.isTooBig : false;
     const hasPendingChanges = 'hasPendingChanges' in overlayData ? overlayData.hasPendingChanges : false;
     // AI : Treat undefined as "viewing approved" (default state before any toggle)
     const isViewingApprovedPosition = 'isViewingApprovedPosition' in overlayData ? overlayData.isViewingApprovedPosition : undefined;
     const status = overlayData.status;
+
+    // AI : Pending replacement overlays - show purple (only when pending)
+    if (status === 'pending' && overlayData.replacesOverlayId) return 'purple';
 
     // AI : Priority 1: Size validation error (critical issue that prevents submission)
     if (isTooBig) return 'red';
