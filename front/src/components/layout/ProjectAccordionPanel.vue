@@ -557,6 +557,8 @@ function getStatusSeverity(status: string): string {
       return 'danger'
     case 'pending':
       return 'warn'
+    case 'replaced':
+      return 'secondary'
     default:
       return 'info'
   }

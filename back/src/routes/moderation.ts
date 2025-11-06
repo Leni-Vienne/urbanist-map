@@ -31,34 +31,30 @@ async function migrateImageToR2(filename: string): Promise<void> {
   if (!localFile) {
     throw new Error(`Local file not found: ${filename}`);
   }
-  
+
   const buffer = await streamToBuffer(localFile.body);
   await r2Storage.put(filename, buffer.buffer as ArrayBuffer);
-  console.log(`Migrated image ${filename} from local storage to R2`);
-  
+
   // AI : Upload thumbnail to R2 (for public display after approval)
   // Thumbnails are stored in ./uploads/thumbnails/ locally
   const thumbnailFilename = getThumbnailFilename(filename);
   const thumbnailFile = await localStorage.get(thumbnailFilename);
-  
+
   if (thumbnailFile) {
     const thumbnailBuffer = await streamToBuffer(thumbnailFile.body);
     // AI : On R2, store thumbnails in thumbnails/ prefix for organization
     // skipThumbnail prevents recursive thumbnail generation
     await r2Storage.put(thumbnailFilename, thumbnailBuffer.buffer as ArrayBuffer, { skipThumbnail: true });
-    console.log(`Migrated thumbnail ${thumbnailFilename} to R2`);
   } else {
     console.warn(`Thumbnail not found for ${filename}, skipping thumbnail upload`);
   }
-  
+
   // AI : Delete local files after successful migration to R2 to save disk space
   try {
     await localStorage.delete(filename);
-    console.log(`Deleted local image ${filename}`);
-    
+
     if (thumbnailFile) {
       await localStorage.delete(thumbnailFilename);
-      console.log(`Deleted local thumbnail ${thumbnailFilename}`);
     }
   } catch (error) {
     console.error(`Failed to delete local files for ${filename}:`, error);
@@ -511,11 +507,8 @@ export const moderationRouter = router({
               };
             }
 
-            console.log(`[Replacement] Overlay ${input.id}: replacesOverlayId=${replacesOverlayId}, handleConflicts=${input.handleReplacementConflicts}`);
-
             // AI : If this is a replacement overlay, handle the replacement workflow
             if (replacesOverlayId && input.handleReplacementConflicts) {
-              console.log(`[Replacement] Processing replacement workflow for overlay ${input.id} replacing ${replacesOverlayId}`);
               // AI : Lock the original overlay
               const originalOverlay = await tx
                 .select({
@@ -536,21 +529,17 @@ export const moderationRouter = router({
               }
 
               // AI : Mark original as 'replaced'
-              console.log(`[Replacement] Marking original overlay ${replacesOverlayId} as 'replaced'`);
-              const replacedResult = await tx
+              await tx
                 .update(overlays)
                 .set({
                   status: 'replaced' as any, // AI : Cast needed due to enum type
                   replacedByOverlayId: input.id,
                   version: sql`${overlays.version} + 1`
                 })
-                .where(eq(overlays.id, replacesOverlayId))
-                .returning({ id: overlays.id });
-
-              console.log(`[Replacement] Updated ${replacedResult.length} overlay(s) to 'replaced' status`);
+                .where(eq(overlays.id, replacesOverlayId));
 
               // AI : Mark all pending change requests as 'conflicted'
-              const conflictedResult = await tx
+              await tx
                 .update(changeRequests)
                 .set({
                   status: 'conflicted',
@@ -561,10 +550,7 @@ export const moderationRouter = router({
                   eq(changeRequests.entityType, 'overlay'),
                   eq(changeRequests.entityId, replacesOverlayId),
                   eq(changeRequests.status, 'pending')
-                ))
-                .returning({ id: changeRequests.id });
-
-              console.log(`[Replacement] Marked ${conflictedResult.length} change request(s) as conflicted`);
+                ));
 
               // AI : Find and reject competing replacement overlays
               competingReplacements = await tx
@@ -576,19 +562,14 @@ export const moderationRouter = router({
                   ne(overlays.id, input.id)
                 ));
 
-              console.log(`[Replacement] Found ${competingReplacements.length} competing replacements`);
-
               if (competingReplacements.length > 0) {
-                const competingIds = competingReplacements.map(o => o.id);
-                console.log(`[Replacement] Rejecting competing overlays: ${competingIds.join(', ')}`);
-
                 await tx
                   .update(overlays)
                   .set({
                     status: 'rejected',
                     version: sql`${overlays.version} + 1`
                   })
-                  .where(inArray(overlays.id, competingIds));
+                  .where(inArray(overlays.id, competingReplacements.map(o => o.id)));
               }
             }
 
@@ -616,12 +597,9 @@ export const moderationRouter = router({
 
           // AI : AFTER successful transaction, handle image cleanup for replacement workflow
           if (replacesOverlayId && input.handleReplacementConflicts && transactionResult.competingReplacements) {
-            console.log(`[Replacement] Post-transaction cleanup starting...`);
-
             // AI : Delete images for competing replacements
             for (const competing of transactionResult.competingReplacements) {
               try {
-                console.log(`[Replacement] Deleting images for rejected competing overlay ${competing.id}`);
                 await deleteLocalImages(competing.filename, 'full');
                 await scheduleImageCleanup(competing.id, competing.filename, daysFromNow(15), 'thumbnail');
               } catch (error) {
@@ -638,19 +616,19 @@ export const moderationRouter = router({
                 .limit(1);
 
               if (originalOverlayData.length > 0) {
-                if (process.env.NODE_ENV === 'production') {
+                const isProduction = process.env.NODE_ENV === 'production';
+
+                if (isProduction) {
                   // AI : Production: Images are on R2, schedule deletion in 15 days
-                  console.log(`[Replacement] Scheduling R2 cleanup for replaced overlay ${replacesOverlayId}`);
                   await scheduleImageCleanup(replacesOverlayId, originalOverlayData[0].filename, daysFromNow(15), 'both');
                 } else {
                   // AI : Development: Images are local, delete full immediately and schedule thumbnail for 15 days
-                  console.log(`[Replacement] Development mode: deleting local images for replaced overlay ${replacesOverlayId}`);
                   await deleteLocalImages(originalOverlayData[0].filename, 'full');
                   await scheduleImageCleanup(replacesOverlayId, originalOverlayData[0].filename, daysFromNow(15), 'thumbnail');
                 }
               }
             } catch (error) {
-              console.error('Failed to cleanup replaced overlay images:', error);
+              console.error(`Failed to cleanup replaced overlay images:`, error);
             }
           }
 
@@ -658,7 +636,6 @@ export const moderationRouter = router({
           if (input.status === 'approved' && overlayFilename && process.env.NODE_ENV === 'production') {
             try {
               await migrateImageToR2(overlayFilename);
-              console.log(`Successfully migrated image ${overlayFilename} to R2`);
             } catch (migrationError) {
               console.error('Failed to migrate image to R2:', migrationError);
               // AI : Don't fail the approval if R2 migration fails - image is still accessible in local storage

@@ -286,10 +286,14 @@ async function handleApproveOverlay(id: string) {
         showConflictsDialog.value = true
         return // Wait for user confirmation
       }
+
+      // AI : No conflicts but it IS a replacement - handle replacement workflow
+      await proceedWithApproval(id, true)
+      return
     }
 
-    // AI : No conflicts or not a replacement - proceed with normal approval
-    await proceedWithApproval(id)
+    // AI : Not a replacement - proceed with normal approval
+    await proceedWithApproval(id, false)
   } catch (error) {
     console.error('Error checking replacement conflicts:', error)
     toast.add({
