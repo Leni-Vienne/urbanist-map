@@ -61,7 +61,7 @@ interface Props {
   entityType: 'project' | 'overlay'
   entityId: string
   initialData: T
-  entityStatus?: 'pending' | 'approved' | 'rejected'
+  entityStatus?: 'pending' | 'approved' | 'rejected' | 'replaced'
   containerClass?: string
   formClass?: string
   submitLabel?: string
