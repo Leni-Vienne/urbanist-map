@@ -387,6 +387,16 @@
       "deleteFailed": "Échec de la suppression",
       "deleteFailedDetail": "Échec de la suppression de la superposition",
       "cannotDeleteApproved": "Impossible de supprimer les superpositions approuvées"
+    },
+    "moderatedContributions": {
+      "title": "Résultats de modération",
+      "description": "Voici ce qui est arrivé à vos soumissions lors de la modération :",
+      "noItems": "Toutes vos soumissions sont à jour !",
+      "acknowledgeAll": "Tout effacer",
+      "acknowledgeSuccess": "Acquitté",
+      "acknowledgeSuccessDetail": "Les résultats de modération ont été effacés",
+      "replacedInfo": "Ceci a été remplacé par une version plus récente",
+      "viewResults": "Voir les résultats"
     }
   },
   "footer": {

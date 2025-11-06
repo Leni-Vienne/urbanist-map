@@ -387,6 +387,16 @@
       "deleteFailed": "Delete Failed",
       "deleteFailedDetail": "Failed to delete the overlay",
       "cannotDeleteApproved": "Cannot delete approved overlays"
+    },
+    "moderatedContributions": {
+      "title": "Moderation Results",
+      "description": "Here's what happened to your submissions during moderation:",
+      "noItems": "All your submissions are up to date!",
+      "acknowledgeAll": "Clear All",
+      "acknowledgeSuccess": "Acknowledged",
+      "acknowledgeSuccessDetail": "Moderation results have been cleared",
+      "replacedInfo": "This was replaced by a newer version",
+      "viewResults": "View Results"
     }
   },
   "footer": {
