@@ -303,14 +303,19 @@ export const moderationRouter = router({
 
           const paginationResponse = buildPaginationResponse(projectsResult, limit);
 
+          // AI : Filter out rejected and replaced overlays from moderation panel
+          const visibleOverlays = overlaysResult.filter(
+            overlay => overlay.status !== 'rejected' && overlay.status !== 'replaced'
+          );
+
           const projectsWithOverlays = paginationResponse.items.map(project => ({
             ...project,
-            overlays: overlaysResult.filter(overlay => overlay.projectId === project.id),
+            overlays: visibleOverlays.filter(overlay => overlay.projectId === project.id),
           }));
 
           return {
             projects: projectsWithOverlays,
-            overlays: overlaysResult.filter(overlay => overlay.status === 'pending'),
+            overlays: visibleOverlays.filter(overlay => overlay.status === 'pending'),
             changeRequests: changeRequestsResult,
             pagination: paginationResponse.pagination
           };

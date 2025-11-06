@@ -234,7 +234,7 @@
                                   rounded
                                 />
                                 <button
-                                  v-if="overlay.replacesOverlayId"
+                                  v-if="overlay.replacesOverlayId && overlay.status === 'pending'"
                                   class="replacement-badge"
                                   @click.stop="navigateToOverlayById(overlay.replacesOverlayId)"
                                   v-tooltip.top="$t('overlay.viewOriginalOverlay')"
