@@ -89,7 +89,7 @@ import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import { useToast } from '@composables/ui/useToast'
 import { useChangeRequests } from '@composables/changes/useChanges'
 import { useUserContributions } from '@composables/project/useUserContributions'
-import { useModeratedContributions } from '@composables/overlay/useModeratedContributions'
+import { useModeratedContributions } from '@composables/moderation/useModeratedContributions'
 import ModeratedContributionsDialog from '@components/moderation/ModeratedContributionsDialog.vue'
 
 // AI : Use cached composable for user contributions

@@ -61,7 +61,7 @@ import { useToast } from "@composables/ui/useToast";
 import { useBeforeUnload } from "@composables/core/useBeforeUnload";
 import { storeToRefs } from "pinia";
 import { useRoute } from "vue-router";
-import { useModeratedContributions } from "@composables/overlay/useModeratedContributions";
+import { useModeratedContributions } from "@composables/moderation/useModeratedContributions";
 
 
 import MapView from "@components/map/MapView.vue";
