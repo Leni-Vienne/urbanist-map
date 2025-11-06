@@ -212,9 +212,13 @@ export function getOverlayMarkerColor(
     // AI : Moderation mode color logic - objective view for review
     const status = overlayData.status;
     const isViewingApprovedPosition = 'isViewingApprovedPosition' in overlayData ? overlayData.isViewingApprovedPosition : undefined;
+    const isLocalUnsubmitted = 'isModified' in overlayData && overlayData.isModified;
 
-    // AI : Pending replacement overlays - show purple
-    if (status === 'pending' && overlayData.replacesOverlayId) return 'purple';
+    // AI : Local replacement overlays (shouldn't appear in moderation, but for consistency) - show purple
+    if (overlayData.replacesOverlayId && isLocalUnsubmitted) return 'purple';
+
+    // AI : Submitted pending replacement overlays - show yellow for better user feedback
+    if (status === 'pending' && overlayData.replacesOverlayId && !isLocalUnsubmitted) return 'yellow';
 
     // AI : Pending brand new overlays
     if (status === 'pending') return 'yellow';
@@ -240,31 +244,34 @@ export function getOverlayMarkerColor(
     const isViewingApprovedPosition = 'isViewingApprovedPosition' in overlayData ? overlayData.isViewingApprovedPosition : undefined;
     const status = overlayData.status;
 
-    // AI : Pending replacement overlays - show purple (only when pending)
-    if (status === 'pending' && overlayData.replacesOverlayId) return 'purple';
-
     // AI : Priority 1: Size validation error (critical issue that prevents submission)
     if (isTooBig) return 'red';
 
-    // AI : Priority 2: Local modifications (shows user they have unsaved work)
+    // AI : Priority 2: Local replacement overlay (before submission) - show purple
+    if (overlayData.replacesOverlayId && hasBeenModified) return 'purple';
+
+    // AI : Priority 3: Submitted replacement overlay (pending) - show yellow
+    if (status === 'pending' && overlayData.replacesOverlayId && !hasBeenModified) return 'yellow';
+
+    // AI : Priority 4: Other local modifications (shows user they have unsaved work)
     if (hasBeenModified) return 'orange';
 
-    // AI : Priority 3: User is viewing approved position of overlay with pending changes
+    // AI : Priority 5: User is viewing approved position of overlay with pending changes
     // AI : Show green marker even though hasPendingChanges is true
     // AI : isViewingApprovedPosition !== false means: explicitly true OR undefined (default/approved)
     if (hasPendingChanges && isViewingApprovedPosition !== false && status === 'approved') return 'green';
 
-    // AI : Priority 4: Pending change requests - viewing suggested position (explicitly set to false)
+    // AI : Priority 6: Pending change requests - viewing suggested position (explicitly set to false)
     // AI : Only show yellow when user explicitly toggled to view suggested position
     if (hasPendingChanges && isViewingApprovedPosition === false && status === 'approved') return 'yellow';
 
-    // AI : Priority 5: Pending approval (awaiting moderation)
+    // AI : Priority 7: Pending approval (awaiting moderation)
     if (status === 'pending') return 'yellow';
 
-    // AI : Priority 6: Rejected overlays
+    // AI : Priority 8: Rejected overlays
     if (status === 'rejected') return 'red';
 
-    // AI : Priority 7: Approved and unmodified
+    // AI : Priority 9: Approved and unmodified
     if (status === 'approved') return 'green';
 
     // AI : Default: New overlay not yet submitted
@@ -315,10 +322,14 @@ export function explainOverlayColor(
   if (mode === 'moderation') {
     const status = overlayData.status;
     const hasPendingChangeRequests = (overlayData.pendingChangeRequestsCount ?? 0) > 0;
+    const isLocalUnsubmitted = 'isModified' in overlayData && overlayData.isModified;
 
-    if (status === 'pending' && overlayData.replacesOverlayId) {
-      reason = 'Pending replacement overlay awaiting moderator review';
+    if (overlayData.replacesOverlayId && isLocalUnsubmitted) {
+      reason = 'Local replacement overlay (not yet submitted) - shown as purple';
       priority = '#1';
+    } else if (status === 'pending' && overlayData.replacesOverlayId) {
+      reason = 'Submitted replacement overlay awaiting moderator review - shown as yellow';
+      priority = '#2';
     } else if (status === 'pending') {
       reason = 'New submission awaiting moderator review';
       priority = '#2';
@@ -333,30 +344,35 @@ export function explainOverlayColor(
       priority = '#5';
     }
   } else if (mode === 'edit') {
-    if (overlayData.replacesOverlayId) {
-      reason = 'This is a replacement overlay';
-      priority = '#1';
-    } else if ('isTooBig' in overlayData && overlayData.isTooBig) {
+    const hasBeenModified = 'isModified' in overlayData && overlayData.isModified;
+
+    if ('isTooBig' in overlayData && overlayData.isTooBig) {
       reason = 'Size validation error: overlay exceeds 1km × 1km maximum';
+      priority = '#1';
+    } else if (overlayData.replacesOverlayId && hasBeenModified) {
+      reason = 'Local replacement overlay (not yet submitted) - shown as purple';
       priority = '#2';
-    } else if ('isModified' in overlayData && overlayData.isModified) {
-      reason = 'Overlay has unsaved local changes (isModified = true)';
+    } else if (overlayData.replacesOverlayId && !hasBeenModified && overlayData.status === 'pending') {
+      reason = 'Submitted replacement overlay (awaiting approval) - shown as yellow';
       priority = '#3';
+    } else if (hasBeenModified) {
+      reason = 'Overlay has unsaved local changes (isModified = true)';
+      priority = '#4';
     } else if ('hasPendingChanges' in overlayData && overlayData.hasPendingChanges && overlayData.status === 'approved') {
       reason = 'Approved overlay with pending change requests';
-      priority = '#4';
+      priority = '#5';
     } else if (overlayData.status === 'pending') {
       reason = 'Awaiting moderator approval';
-      priority = '#5';
+      priority = '#6';
     } else if (overlayData.status === 'rejected') {
       reason = 'Rejected by moderator';
-      priority = '#6';
+      priority = '#7';
     } else if (overlayData.status === 'approved') {
       reason = 'Approved and unmodified';
-      priority = '#7';
+      priority = '#8';
     } else {
       reason = 'New overlay (not yet submitted)';
-      priority = '#8';
+      priority = '#9';
     }
   } else {
     // View mode - timeline based

@@ -30,11 +30,12 @@ test.describe('Overlay Interactions', () => {
       // AI : Check for edit mode marker color states
       // AI : Green = remote overlay not modified
       // AI : Orange = remote overlay modified locally
-      // AI : Red = local overlay with changes  
+      // AI : Red = local overlay with changes
       // AI : Blue = new overlay no changes
-      // AI : Purple = replacement overlay
-      
-      const validEditColors = ['green', 'orange', 'red', 'blue', 'purple'];
+      // AI : Purple = local replacement overlay (before submission)
+      // AI : Yellow = submitted replacement overlay or pending approval
+
+      const validEditColors = ['green', 'orange', 'red', 'blue', 'purple', 'yellow'];
       const foundEditColors = editModeColors.filter(color => validEditColors.includes(color));
       
       console.log(`Found overlay marker colors in edit mode: ${foundEditColors.join(', ')}`);
