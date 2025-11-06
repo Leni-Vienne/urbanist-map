@@ -4,6 +4,7 @@ import { switchMode } from '@composables/overlay/useOverlayModes'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useMapStore } from '@stores/pinia/mapStore'
 import { useToast } from '@composables/ui/useToast'
+import { useI18n } from 'vue-i18n'
 import type { OverlayForModeration } from '@types'
 import type { LatestOverlay } from '../../types/api'
 
@@ -16,6 +17,7 @@ type NavigableOverlay = OverlayForModeration | LatestOverlay
  */
 export function useOverlayClickHandler() {
   const toast = useToast()
+  const { t } = useI18n()
 
   /**
    * AI : Navigate to an overlay, handling all necessary state changes
@@ -26,6 +28,18 @@ export function useOverlayClickHandler() {
    */
   async function handleOverlayClickNavigation(overlay: NavigableOverlay, shouldToggleEditMode = false): Promise<void> {
     try {
+      // AI : Check if overlay is rejected or replaced and show appropriate message
+      if (overlay.status === 'rejected' || overlay.status === 'replaced') {
+        const messageKey = overlay.status === 'rejected' ? 'rejected' : 'replaced'
+        toast.add({
+          severity: 'info',
+          summary: t('overlay.unavailable.title'),
+          detail: t(`overlay.unavailable.${messageKey}`),
+          life: 4000
+        })
+        return
+      }
+
       const overlayStore = useOverlayStore()
       const mapStore = useMapStore()
 

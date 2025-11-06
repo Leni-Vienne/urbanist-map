@@ -220,7 +220,12 @@
     "replaces": "Replaces",
     "viewOriginalOverlay": "View Original Overlay",
     "viewPositionRequired": "View position first (required for replacement overlays)",
-    "viewPosition": "View Position"
+    "viewPosition": "View Position",
+    "unavailable": {
+      "title": "Overlay Unavailable",
+      "rejected": "This overlay has been rejected and its images are no longer available",
+      "replaced": "This overlay has been replaced by a newer version and its images are no longer available"
+    }
   },
   "map": {
     "zoom": "Zoom",
