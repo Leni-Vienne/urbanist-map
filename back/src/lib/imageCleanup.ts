@@ -1,5 +1,5 @@
 import { db } from '../database';
-import { scheduledDeletions, overlays } from '../db/schema';
+import { scheduledDeletions } from '../db/schema';
 import { lte, eq } from 'drizzle-orm';
 import { LocalFileStorage, R2StorageS3, getThumbnailFilename } from './storage';
 
@@ -128,6 +128,57 @@ export async function deleteLocalImages(
     }
   } catch (error) {
     console.error('Error deleting local images:', error);
+    throw error;
+  }
+}
+
+// AI : Delete images immediately (handles both production/R2 and development/local)
+export async function deleteImages(
+  filename: string,
+  deleteType: 'full' | 'thumbnail' | 'both'
+): Promise<void> {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const storage = isProduction ? new R2StorageS3({
+    endpoint: process.env.R2_ENDPOINT!,
+    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+    bucketName: process.env.R2_BUCKET_NAME!
+  }) : new LocalFileStorage();
+
+  const thumbnailFilename = getThumbnailFilename(filename);
+  const failedFiles: string[] = [];
+
+  try {
+    // AI : Delete full image if requested
+    if (deleteType === 'full' || deleteType === 'both') {
+      try {
+        await storage.delete(filename);
+      } catch (error) {
+        console.error(`Failed to delete full image ${filename}:`, error);
+        failedFiles.push(filename);
+      }
+    }
+
+    // AI : Delete thumbnail if requested
+    if (deleteType === 'thumbnail' || deleteType === 'both') {
+      try {
+        await storage.delete(thumbnailFilename);
+      } catch (error) {
+        console.error(`Failed to delete thumbnail ${thumbnailFilename}:`, error);
+        failedFiles.push(thumbnailFilename);
+      }
+    }
+
+    // AI : Log failed deletions for manual cleanup
+    if (failedFiles.length > 0 && !isProduction) {
+      const fs = await import('fs/promises');
+      const logEntry = `${new Date().toISOString()} - Failed to delete: ${failedFiles.join(', ')}\n`;
+      await fs.appendFile('./orphaned_files.txt', logEntry).catch(err => {
+        console.error('Failed to write to orphaned files log:', err);
+      });
+    }
+  } catch (error) {
+    console.error('Error deleting images:', error);
     throw error;
   }
 }
