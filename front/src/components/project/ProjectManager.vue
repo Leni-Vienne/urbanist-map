@@ -7,12 +7,27 @@
     :style="{ width: '450px' }"
   >
     <ProjectPicker
-      @project-selected="onProjectSelected"
+      v-model="selectedProjectForUpload"
       @create-project="uiStore.openProjectDialog()"
       :useCityProjects="true"
       appendTo="body"
       ref="projectPickerRef"
     />
+
+    <template #footer>
+      <div class="flex gap-2 justify-end">
+        <Button
+          label="Cancel"
+          severity="secondary"
+          @click="uiStore.closeProjectSelector()"
+        />
+        <Button
+          label="Confirm"
+          :disabled="!selectedProjectForUpload"
+          @click="onProjectConfirmed"
+        />
+      </div>
+    </template>
   </Dialog>
 
   <!-- AI : Project Dialog for create/edit -->
@@ -75,7 +90,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, defineAsyncComponent } from 'vue'
+import { ref, defineAsyncComponent, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import L from 'leaflet'
@@ -114,17 +129,51 @@ const { projects } = storeToRefs(projectStore)
 const { pendingImageFile, replacementOverlayId } = storeToRefs(overlayStore)
 const { projectEditForm } = storeToRefs(uiStore)
 
+// AI : Track selected project for upload (preselects original project for replacements)
+const selectedProjectForUpload = ref<string>('')
+
+// AI : Get the original overlay's project ID for replacements
+function getOriginalOverlayProjectId(): string | null {
+  if (!replacementOverlayId.value) return null;
+  const originalOverlay = overlayStore.overlays[replacementOverlayId.value];
+  return originalOverlay?.projectId ?? null;
+}
+
+// AI : Initialize selectedProjectForUpload when opening dialog for replacements
+watch(() => uiStore.projectSelectorVisible, (visible: boolean) => {
+  if (visible) {
+    selectedProjectForUpload.value = getOriginalOverlayProjectId() ?? '';
+  }
+})
+
+// AI : Handle project confirmation button click
+function onProjectConfirmed() {
+  if (selectedProjectForUpload.value) {
+    onProjectSelected(selectedProjectForUpload.value);
+  }
+}
+
 // AI : Process image after project selection
 async function onProjectSelected(projectId: string) {
+  // AI : For replacement overlays, use the original overlay's project if no specific project selected
+  const effectiveProjectId = (replacementOverlayId.value && !projectId)
+    ? getOriginalOverlayProjectId()
+    : projectId;
+
+  if (!effectiveProjectId) {
+    console.warn('No project ID available for overlay');
+    return;
+  }
+
   // AI : Check if project exists in local store, if not, try to get it from available sources
-  if (!projects.value[projectId]) {
+  if (!projects.value[effectiveProjectId]) {
     try {
       let projectToAdd: Project | null = null;
 
       // AI : For replacement overlays, try to get the project from the original overlay first
       if (replacementOverlayId.value) {
         const originalOverlay = overlayStore.overlays[replacementOverlayId.value];
-        if (originalOverlay?.project?.id === projectId) {
+        if (originalOverlay?.project?.id === effectiveProjectId) {
           projectToAdd = createProjectInstance({
             ...originalOverlay.project,
             description: originalOverlay.project.description ?? null,
