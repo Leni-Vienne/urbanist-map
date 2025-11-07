@@ -244,8 +244,8 @@ export function getOverlayMarkerColor(
     const isViewingApprovedPosition = 'isViewingApprovedPosition' in overlayData ? overlayData.isViewingApprovedPosition : undefined;
     const status = overlayData.status;
 
-    // AI : Priority 1: Size validation error (critical issue that prevents submission)
-    if (isTooBig) return 'red';
+    // AI : Priority 1: Size validation error (only for local overlays - submitted ones passed backend validation)
+    if (isTooBig && hasBeenModified) return 'red';
 
     // AI : Priority 2: Local replacement overlay (before submission) - show purple
     if (overlayData.replacesOverlayId && hasBeenModified) return 'purple';
@@ -346,8 +346,8 @@ export function explainOverlayColor(
   } else if (mode === 'edit') {
     const hasBeenModified = 'isModified' in overlayData && overlayData.isModified;
 
-    if ('isTooBig' in overlayData && overlayData.isTooBig) {
-      reason = 'Size validation error: overlay exceeds 1km × 1km maximum';
+    if ('isTooBig' in overlayData && overlayData.isTooBig && hasBeenModified) {
+      reason = 'Size validation error: overlay exceeds 1km × 1km maximum (only checked for local overlays)';
       priority = '#1';
     } else if (overlayData.replacesOverlayId && hasBeenModified) {
       reason = 'Local replacement overlay (not yet submitted) - shown as purple';
