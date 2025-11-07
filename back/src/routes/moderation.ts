@@ -11,7 +11,7 @@ import {
   buildPaginationResponse
 } from '../db/helpers';
 import { LocalFileStorage, R2StorageS3, getThumbnailFilename, streamToBuffer } from '../lib/storage';
-import { scheduleImageCleanup, deleteLocalImages, daysFromNow } from '../lib/imageCleanup';
+import { scheduleImageCleanup, deleteImages, daysFromNow } from '../lib/imageCleanup';
 
 // AI : Helper function to migrate image and thumbnail from local storage to R2 on approval
 // Two-phase thumbnail strategy to prevent abuse:
@@ -455,16 +455,13 @@ export const moderationRouter = router({
               return { success: false, error: 'Version mismatch or already processed' };
             }
 
-            // AI : Delete local images based on whether it's a replacement or not
+            // AI : Delete images for rejected overlays
             try {
-              if (replacesOverlayId) {
-                // AI : Replacement overlay rejected: delete full immediately, schedule thumbnail for 15 days
-                await deleteLocalImages(overlayFilename, 'full');
-                await scheduleImageCleanup(input.id, overlayFilename, daysFromNow(15), 'thumbnail');
-              } else {
-                // AI : Regular overlay rejected: delete both immediately
-                await deleteLocalImages(overlayFilename, 'both');
-              }
+              // AI : For both regular and replacement overlays: delete full immediately, keep thumbnail for 15 days
+              // AI : Thumbnails allow users to see what was rejected in ModeratedContributionsDialog
+              // AI : Uses deleteImages helper to handle both production/R2 and development/local
+              await deleteImages(overlayFilename, 'full');
+              await scheduleImageCleanup(input.id, overlayFilename, daysFromNow(15), 'thumbnail');
             } catch (cleanupError) {
               console.error('Failed to cleanup rejected overlay images:', cleanupError);
               // AI : Don't fail the rejection if cleanup fails
@@ -605,7 +602,8 @@ export const moderationRouter = router({
             // AI : Delete images for competing replacements
             for (const competing of transactionResult.competingReplacements) {
               try {
-                await deleteLocalImages(competing.filename, 'full');
+                // AI : Uses deleteImages helper to handle both production/R2 and development/local
+                await deleteImages(competing.filename, 'full');
                 await scheduleImageCleanup(competing.id, competing.filename, daysFromNow(15), 'thumbnail');
               } catch (error) {
                 console.error(`Failed to cleanup competing replacement ${competing.id}:`, error);
@@ -621,16 +619,11 @@ export const moderationRouter = router({
                 .limit(1);
 
               if (originalOverlayData.length > 0) {
-                const isProduction = process.env.NODE_ENV === 'production';
-
-                if (isProduction) {
-                  // AI : Production: Images are on R2, schedule deletion in 15 days
-                  await scheduleImageCleanup(replacesOverlayId, originalOverlayData[0].filename, daysFromNow(15), 'both');
-                } else {
-                  // AI : Development: Images are local, delete full immediately and schedule thumbnail for 15 days
-                  await deleteLocalImages(originalOverlayData[0].filename, 'full');
-                  await scheduleImageCleanup(replacesOverlayId, originalOverlayData[0].filename, daysFromNow(15), 'thumbnail');
-                }
+                // AI : Replaced overlays: delete full immediately, keep thumbnail for 15 days
+                // AI : Same behavior as rejected overlays - consistent across prod and dev
+                // AI : Uses deleteImages helper to handle both production/R2 and development/local
+                await deleteImages(originalOverlayData[0].filename, 'full');
+                await scheduleImageCleanup(replacesOverlayId, originalOverlayData[0].filename, daysFromNow(15), 'thumbnail');
               }
             } catch (error) {
               console.error(`Failed to cleanup replaced overlay images:`, error);
