@@ -123,11 +123,9 @@ export function createMarkerLayer<T extends { id?: string }>(
       // AI : If custom hover handler provided, let it handle opacity
       if (config.onMarkerHover) {
         config.onMarkerHover(marker, item, true);
-      } else {
+      } else if (selectedMarker !== marker) {
         // AI : Default behavior: only increase opacity if not selected
-        if (selectedMarker !== marker) {
-          marker.setOpacity(hoverOpacity);
-        }
+        marker.setOpacity(hoverOpacity);
       }
     });
 
@@ -136,11 +134,9 @@ export function createMarkerLayer<T extends { id?: string }>(
       // AI : If custom hover handler provided, let it handle opacity
       if (config.onMarkerHover) {
         config.onMarkerHover(marker, item, false);
-      } else {
+      } else if (selectedMarker !== marker) {
         // AI : Default behavior: only reset opacity if not selected
-        if (selectedMarker !== marker) {
-          marker.setOpacity(defaultOpacity);
-        }
+        marker.setOpacity(defaultOpacity);
       }
     });
 

@@ -1574,11 +1574,11 @@ export async function loadOverlay(overlayId: string, includeIntersecting: boolea
 /**
  * AI : Navigates to a specific overlay by ID (loads + selects + centers)
  * @param overlayId - The ID of the overlay to navigate to
- * @param centerMap - Whether to center the map on the overlay (defaults to true)
- * @param includeIntersecting - Whether to fetch intersecting overlays if overlay needs to be loaded (defaults to true)
+ * @param centerMap - Whether to center the map on the overlay
+ * @param includeIntersecting - Whether to fetch intersecting overlays if overlay needs to be loaded
  * @returns boolean indicating whether navigation was successful
  */
-export async function navigateToOverlay(overlayId: string, centerMap: boolean = true, includeIntersecting: boolean = true): Promise<boolean> {
+export async function navigateToOverlay(overlayId: string, centerMap: boolean, includeIntersecting: boolean): Promise<boolean> {
   // AI : Load the overlay first (fetches from backend if needed)
   await loadOverlay(overlayId, includeIntersecting);
 

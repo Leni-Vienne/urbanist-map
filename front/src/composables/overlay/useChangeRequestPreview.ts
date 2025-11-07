@@ -16,7 +16,7 @@ import { switchMode } from '@composables/overlay/useOverlayModes';
 import { mobileAwareFlyToBounds } from '@composables/map/useMapNavigation';
 import type { PendingChangeRequest } from '../../types/api';
 import type { OverlayForModeration } from '@types';
-import { previewState, clearChangeRequestPreview, type PreviewState } from './changeRequestPreviewState';
+import { previewState, clearChangeRequestPreview } from './changeRequestPreviewState';
 
 // AI : Composable to handle change request position preview
 // AI : Combines state management + navigation logic for previewing change request positions
@@ -27,9 +27,6 @@ interface PreviewGeometryOptions {
   geometryValue: unknown;
   type: 'old' | 'new';
 }
-
-// AI : Re-export for backward compatibility
-export type { PreviewState } from './changeRequestPreviewState';
 
 export function useChangeRequestPreview() {
   const { t } = useI18n();

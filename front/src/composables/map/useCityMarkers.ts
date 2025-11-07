@@ -32,7 +32,7 @@ function getProjectMarkerColor(project: Project, mode: 'view' | 'edit' | 'modera
     // AI : Rejected projects (shouldn't appear in moderation but just in case)
     return 'grey';
   }
-  
+
   if (mode === 'edit') {
     // AI : Edit mode uses approval status colors like overlay markers
     const hasBeenModified = project.isModified ?? false;
@@ -335,7 +335,7 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
   try {
     const mapStore = useMapStore();
     const overlayStore = useOverlayStore();
-    
+
     // AI : Check mode-aware cache first for non-null cityId
     let backendDevelopmentProjects: RouterOutput['project']['getCityProjects'] = [];
     if (cityId) {
@@ -350,7 +350,7 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
         mapStore.setCityDevelopmentProjectsCache(cityId, overlayStore.mode, backendDevelopmentProjects);
       }
     }
-    
+
     const backendDevelopmentProjectsOnly = backendDevelopmentProjects.filter(project => project.isDevelopment);
 
     // AI : Get local development projects for this city (handle null cityId case)
@@ -581,13 +581,11 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
       if (isHovering) {
         // AI : Always increase opacity on hover
         marker.setOpacity(MARKER_OPACITY.city.hover);
-      } else {
+      } else if (isSelectedCity) {
         // AI : On mouse out, keep opacity high if this is the selected city
-        if (isSelectedCity) {
-          marker.setOpacity(MARKER_OPACITY.city.hover);
-        } else {
-          marker.setOpacity(MARKER_OPACITY.city.default);
-        }
+        marker.setOpacity(MARKER_OPACITY.city.hover);
+      } else {
+        marker.setOpacity(MARKER_OPACITY.city.default);
       }
     },
     onMarkerClick: async (_marker, city) => {
