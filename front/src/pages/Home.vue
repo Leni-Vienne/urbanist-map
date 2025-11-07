@@ -52,6 +52,7 @@ import {
     onUnmounted,
     computed,
     defineAsyncComponent,
+    watch,
 } from "vue";
 
 import { useOverlayStore } from "@stores/pinia/overlayStore";
@@ -86,7 +87,7 @@ const authStore = useAuthStore();
 const uiStore = useUiStore();
 const toast = useToast();
 const route = useRoute();
-const { fetchModeratedContributions, hasUnacknowledgedItems } = useModeratedContributions();
+const { fetchModeratedContributions, hasUnacknowledgedItems, reset: resetModeratedContributions } = useModeratedContributions();
 
 // AI : Use mobile drawer state from UI store
 const mobileSideMenuOpen = computed({
@@ -200,6 +201,28 @@ onMounted(async () => {
         }
     } catch (error) {
         console.error("Error during application initialization:", error);
+    }
+});
+
+// AI : Watch for authentication changes to fetch moderated contributions when user logs in
+watch(() => authStore.isAuthenticated, async (isAuthenticated, wasAuthenticated) => {
+    if (isAuthenticated && !wasAuthenticated) {
+        // AI : User just logged in - update moderator status and fetch contributions
+        if (authStore.user?.role === 'moderation' || authStore.user?.role === 'admin') {
+            isModerator.value = true;
+        }
+
+        // AI : Fetch moderated contributions
+        await fetchModeratedContributions();
+
+        // AI : Show dialog if there are unacknowledged items
+        if (hasUnacknowledgedItems.value) {
+            showModeratedContributionsDialog.value = true;
+        }
+    } else if (!isAuthenticated && wasAuthenticated) {
+        // AI : User just logged out - reset moderator status and clear cached contributions
+        isModerator.value = false;
+        resetModeratedContributions();
     }
 });
 
