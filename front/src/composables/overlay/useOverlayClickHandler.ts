@@ -74,7 +74,7 @@ export function useOverlayClickHandler() {
         await navigateToOverlayWithCity(overlay.id, overlay.cityId, overlay.cityName, overlay.countryCode ?? undefined)
       } else {
         // AI : Fallback to direct navigation if no city info
-        await navigateToOverlay(overlay.id)
+        await navigateToOverlay(overlay.id, true, true)
       }
     } catch (error) {
       console.error('Failed to navigate to overlay:', error)
