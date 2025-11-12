@@ -14,6 +14,7 @@ import {
 } from '../db/helpers';
 import { validateOverlaySize } from '../utils/overlayValidation';
 import { deleteLocalImages } from '../lib/imageCleanup';
+import { checkPendingLimitForNewContribution } from '../db/contributionHelpers';
 
 const publishOverlaySchema = z.object({
   id: z.uuid(), // AI : UUID length limit
@@ -152,6 +153,9 @@ export const overlayRouter = router({
             });
           }
 
+          // AI : Check pending contribution limit for new overlays
+          await checkPendingLimitForNewContribution(ctx.user.id, input.id);
+
           // AI : Check if overlay already exists - approved overlays cannot be directly modified
           const existingOverlay = await db
             .select({ status: overlays.status })
@@ -220,8 +224,17 @@ export const overlayRouter = router({
             exists: result[0].createdAt !== result[0].updatedAt // AI : Determine if it was update or insert
           };
         } catch (error) {
+          // AI : Re-throw TRPCErrors as-is to preserve error codes and messages
+          if (error instanceof TRPCError) {
+            throw error;
+          }
+          // AI : Log and wrap unexpected errors
           console.error('Error publishing overlay:', error);
-          throw new Error('Failed to publish overlay');
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Failed to publish overlay',
+            cause: error,
+          });
         }
       }),  // AI : Update overlay fields directly (for pending overlays)
   updateOverlay: protectedProcedure
