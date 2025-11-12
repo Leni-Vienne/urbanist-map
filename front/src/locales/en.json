@@ -416,6 +416,8 @@
     "immediateFooter": "Your changes will be applied immediately to your pending submission.",
     "changeRequestSubmitted": "Change request submitted successfully",
     "changesSaved": "Changes saved successfully",
-    "submissionSuccessful": "Submission successful"
+    "submissionSuccessful": "Submission successful",
+    "pendingLimitReached": "Pending Contribution Limit Reached",
+    "pendingLimitMessage": "You have reached the maximum number of pending contributions. Please wait for your existing contributions to be reviewed before submitting more."
   }
 }

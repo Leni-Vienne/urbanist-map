@@ -416,6 +416,8 @@
     "immediateFooter": "Vos modifications seront appliquées immédiatement à votre soumission en attente.",
     "changeRequestSubmitted": "Demande de modification soumise avec succès",
     "changesSaved": "Modifications enregistrées avec succès",
-    "submissionSuccessful": "Soumission réussie"
+    "submissionSuccessful": "Soumission réussie",
+    "pendingLimitReached": "Limite de contributions en attente atteinte",
+    "pendingLimitMessage": "Vous avez atteint le nombre maximum de contributions en attente. Veuillez attendre que vos contributions existantes soient examinées avant d'en soumettre d'autres."
   }
 }

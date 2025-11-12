@@ -10,6 +10,7 @@ import {
   buildPaginationConditions,
   buildPaginationResponse
 } from '../db/helpers';
+import { checkPendingLimitForNewContribution } from '../db/contributionHelpers';
 
 // AI : Nearby search radius configuration
 const NEARBY_SEARCH_RADIUS_METERS = 10 * 1000; // 10km
@@ -63,6 +64,9 @@ export const projectRouter = router({
             throw new TRPCError({ code: 'BAD_REQUEST', message: 'City not found' });
           }
         }
+
+        // AI : Check pending contribution limit for new projects
+        await checkPendingLimitForNewContribution(ctx.user.id, input.id);
 
         // AI : Build data object with proper null handling for dates
         const data = {
@@ -119,8 +123,13 @@ export const projectRouter = router({
           return { success: true, id: result[0].id, exists: false };
         }
       } catch (error) {
+        // AI : Re-throw TRPCErrors as-is to preserve error codes and messages
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        // AI : Log and wrap unexpected errors
         console.error('Error publishing project:', error);
-        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to publish project' });
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to publish project', cause: error });
       }
     }),
   // AI : Get projects with overlays within 100km of camera center

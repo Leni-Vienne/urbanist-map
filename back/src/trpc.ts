@@ -28,7 +28,16 @@ const t = initTRPC.context<Context>().create({
                 };
             }
         }
-        return shape;
+
+        // AI : Strip stack traces and internal paths from client-facing errors
+        // AI : Only show clean error messages to users
+        return {
+            ...shape,
+            data: {
+                ...shape.data,
+                stack: undefined, // AI : Never expose stack traces to clients
+            },
+        };
     },
 });
 
