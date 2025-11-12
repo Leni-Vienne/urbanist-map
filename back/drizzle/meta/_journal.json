@@ -176,6 +176,13 @@
       "when": 1762364015163,
       "tag": "0024_nappy_champions",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1762957550020,
+      "tag": "0025_wealthy_magma",
+      "breakpoints": true
     }
   ]
 }

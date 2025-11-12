@@ -36,6 +36,17 @@ export const usersRelations = relations(users, ({ many }) => ({
   overlays: many(overlays),
 }));
 
+// AI : Sessions table for database-backed session storage
+export const sessions = pgTable('sessions', {
+  id: text('id').primaryKey(), // AI : Session ID from hono-sessions
+  data: jsonb('data').notNull(), // AI : Session data (user info, expiresAt, etc)
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
+}, (sessions) => [
+  index('idx_sessions_expires_at').on(sessions.expiresAt), // AI : Index for cleanup queries
+]);
+
 export const projects = pgTable('projects', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull(),

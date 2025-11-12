@@ -299,6 +299,8 @@
     "lastUsedEmail": "La dernière fois, vous vous êtes connecté avec email & mot de passe",
     "lastUsedGoogle": "La dernière fois, vous vous êtes connecté avec Google",
     "lastUsed": "Dernier utilisé",
+    "rememberMe": "Se souvenir de moi",
+    "rememberMeHint": "Rester connecté pendant 30 jours",
     "error": {
       "emailUsesGoogleSignIn": "Cet email est enregistré avec Google Sign-In. Veuillez vous connecter avec Google.",
       "emailAlreadyExists": "Un compte avec cet email existe déjà.",
