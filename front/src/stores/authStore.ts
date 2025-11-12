@@ -89,14 +89,14 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // AI : Sign in with email and password
-  async function signIn(email: string, password: string) {
+  async function signIn(email: string, password: string, rememberMe: boolean = false) {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, rememberMe }),
         credentials: 'include'
       })
 
@@ -131,22 +131,22 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // AI : Google OAuth authentication using simple One Tap
-  async function signInWithOAuth(provider: 'google' | 'facebook'): Promise<{ success: boolean; user: User | null; error: string | null }> {
+  async function signInWithOAuth(provider: 'google' | 'facebook', rememberMe: boolean = false): Promise<{ success: boolean; user: User | null; error: string | null }> {
     try {
       if (provider !== 'google') {
-        return { 
-          success: false, 
+        return {
+          success: false,
           user: null,
-          error: 'Only Google OAuth is currently supported' 
+          error: 'Only Google OAuth is currently supported'
         }
       }
 
       const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
       if (!clientId) {
-        return { 
-          success: false, 
+        return {
+          success: false,
           user: null,
-          error: 'Google Client ID not configured' 
+          error: 'Google Client ID not configured'
         }
       }
 
@@ -154,7 +154,7 @@ export const useAuthStore = defineStore('auth', () => {
       if (!window.google) {
         await loadGoogleIdentityScript()
       }
-      
+
       return await new Promise((resolve) => {
         if (!window.google) {
           resolve({
@@ -187,7 +187,7 @@ export const useAuthStore = defineStore('auth', () => {
                   headers: {
                     'Content-Type': 'application/json',
                   },
-                  body: JSON.stringify({ token: response.credential }),
+                  body: JSON.stringify({ token: response.credential, rememberMe }),
                   credentials: 'include'
                 })
 

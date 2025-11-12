@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { serveStatic } from 'hono/bun'
 import { cors } from 'hono/cors'
 import { trpcServer } from '@hono/trpc-server'
-import { sessionMiddleware, MemoryStore, Session } from 'hono-sessions'
+import { sessionMiddleware, Session } from 'hono-sessions'
 import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod'
 import { appRouter } from './routes'
 import { LocalFileStorage, getThumbnailFilename } from './lib/storage'
@@ -11,6 +11,7 @@ import { config } from './config'
 import type { FetchCreateContextFnOptions } from '@trpc/server/adapters/fetch'
 import type { Context } from 'hono'
 import { generateMissingThumbnails } from './lib/startup'
+import { DrizzleSessionStore } from './lib/drizzleSessionStore'
 
 // AI : Session data type
 type SessionData = {
@@ -21,6 +22,7 @@ type SessionData = {
         role: string | null;
         emailVerified: boolean;
     };
+    expiresAt?: string;
 }
 
 // AI : Main application setup
@@ -57,13 +59,18 @@ app.use('*', cors({
     credentials: true
 }))
 
-// AI : Session middleware with memory store
-const store = new MemoryStore()
+// AI : Database-backed session store using Drizzle ORM for persistence across server restarts
+const store = new DrizzleSessionStore()
+
+// AI : Session duration constants
+const SESSION_DURATION_SHORT = 7 * 24 * 60 * 60 // AI : 7 days for regular login
+const SESSION_DURATION_LONG = 30 * 24 * 60 * 60 // AI : 30 days for "Remember Me"
+
 app.use('*', sessionMiddleware({
     store,
     sessionCookieName: 'session',
     encryptionKey: process.env.JWT_SECRET ?? 'fallback-secret-key-for-dev-at-least-32-chars',
-    expireAfterSeconds: 60 * 60, // AI : 1 hour
+    expireAfterSeconds: SESSION_DURATION_LONG, // AI : Max duration, actual duration set per login
     cookieOptions: {
         httpOnly: true,
         // AI : secure must be true when sameSite is 'None' for cross-site cookies
@@ -100,7 +107,7 @@ app.post('/api/login', async (c) => {
             return c.json({ error: errorMessage }, 400);
         }
 
-        const { email, password } = validationResult.data;
+        const { email, password, rememberMe } = validationResult.data;
 
         // AI : Find user (same logic as tRPC route)
         const { db } = await import('./database');
@@ -130,6 +137,11 @@ app.post('/api/login', async (c) => {
 
         // AI : Set session with full user data
         const session = c.get('session');
+
+        // AI : Calculate session expiry based on Remember Me preference
+        const sessionDuration = rememberMe ? SESSION_DURATION_LONG : SESSION_DURATION_SHORT;
+        const expiresAt = new Date(Date.now() + sessionDuration * 1000);
+
         session.set('user', {
             id: user.id,
             email: user.email,
@@ -137,6 +149,9 @@ app.post('/api/login', async (c) => {
             role: user.role,
             emailVerified: user.emailVerified,
         });
+
+        // AI : Set custom session expiry
+        session.set('expiresAt', expiresAt.toISOString());
 
         return c.json({
             success: true,
@@ -163,6 +178,7 @@ app.post('/api/google-login', async (c) => {
         // AI : Validate request body with Zod
         const googleLoginSchema = z.object({
             token: z.string().min(1, 'Google token is required'),
+            rememberMe: z.boolean().optional().default(false)
         });
 
         const validationResult = googleLoginSchema.safeParse(body);
@@ -171,7 +187,7 @@ app.post('/api/google-login', async (c) => {
             return c.json({ error: errorMessage }, 400);
         }
 
-        const { token } = validationResult.data;
+        const { token, rememberMe } = validationResult.data;
 
         // AI : Import Google auth utility
         const { verifyGoogleToken } = await import('./utils/googleAuth');
@@ -257,6 +273,11 @@ app.post('/api/google-login', async (c) => {
 
         // AI : Set session with full user data
         const session = c.get('session');
+
+        // AI : Calculate session expiry based on Remember Me preference
+        const sessionDuration = rememberMe ? SESSION_DURATION_LONG : SESSION_DURATION_SHORT;
+        const expiresAt = new Date(Date.now() + sessionDuration * 1000);
+
         session.set('user', {
             id: existingUser.id,
             email: existingUser.email,
@@ -264,6 +285,9 @@ app.post('/api/google-login', async (c) => {
             role: existingUser.role,
             emailVerified: existingUser.emailVerified,
         });
+
+        // AI : Set custom session expiry
+        session.set('expiresAt', expiresAt.toISOString());
 
         return c.json({
             success: true,
@@ -430,7 +454,8 @@ if (process.env.NODE_ENV === "development") {
 // AI : Zod validation schemas
 const loginSchema = z.object({
     email: z.email(),
-    password: z.string().min(1, 'Password is required')
+    password: z.string().min(1, 'Password is required'),
+    rememberMe: z.boolean().optional().default(false)
 })
 
 const filenameParamSchema = z.object({

@@ -299,6 +299,8 @@
     "lastUsedEmail": "Last time you signed in with email & password",
     "lastUsedGoogle": "Last time you signed in with Google",
     "lastUsed": "Last used",
+    "rememberMe": "Remember me",
+    "rememberMeHint": "Stay signed in for 30 days",
     "error": {
       "emailUsesGoogleSignIn": "This email is registered with Google Sign-In. Please sign in with Google.",
       "emailAlreadyExists": "An account with this email already exists.",

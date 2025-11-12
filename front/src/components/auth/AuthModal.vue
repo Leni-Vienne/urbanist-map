@@ -203,6 +203,26 @@
           <small class="text-muted-color text-xs">{{ $t('auth.displayName') }}</small>
         </div>
 
+        <!-- AI : Remember Me Checkbox (only in login mode) -->
+        <div
+          v-if="isLoginMode"
+          class="field-checkbox flex items-center gap-2"
+        >
+          <Checkbox
+            id="auth-remember-me"
+            v-model="form.rememberMe"
+            :binary="true"
+            data-testid="auth-remember-me"
+          />
+          <label
+            for="auth-remember-me"
+            class="text-sm cursor-pointer select-none"
+          >
+            {{ $t('auth.rememberMe') }}
+            <span class="text-muted-color text-xs ml-1">({{ $t('auth.rememberMeHint') }})</span>
+          </label>
+        </div>
+
         <div
           v-if="error"
           class="p-error flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded"
@@ -281,7 +301,8 @@ const visible = computed({
 const form = reactive({
   email: '',
   password: '',
-  username: ''
+  username: '',
+  rememberMe: false
 })
 
 // AI : Watch email field to show last login hint
@@ -326,6 +347,7 @@ function resetForm() {
   form.email = ''
   form.password = ''
   form.username = ''
+  form.rememberMe = false
   error.value = ''
   emailError.value = ''
   passwordError.value = ''
@@ -355,7 +377,7 @@ async function handleSubmit() {
 
   try {
     if (isLoginMode.value) {
-      const result = await authStore.signIn(form.email, form.password)
+      const result = await authStore.signIn(form.email, form.password, form.rememberMe)
       if (result.success) {
         toast.add({ severity: 'success', summary: $t('common.success'), detail: $t('auth.success.loggedIn'), life: 3000 })
         visible.value = false
@@ -386,7 +408,7 @@ async function handleOAuthSignIn(provider: 'google' | 'facebook') {
   error.value = ''
 
   try {
-    const result = await authStore.signInWithOAuth(provider)
+    const result = await authStore.signInWithOAuth(provider, form.rememberMe)
     if (result.success) {
       toast.add({
         severity: 'success',
