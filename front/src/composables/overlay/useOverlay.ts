@@ -265,6 +265,9 @@ function onOverlayLoaded(overlayObject: OverlayObject): void {
     checkOverlaySizeAndWarn(overlayObject.overlay, overlayObject);
   }
 
+  // AI : Setup hover events for project highlighting after element is available
+  setupProjectHoverEvents(overlayObject.overlay, overlayObject);
+
   // AI : Ensure new overlays start with no outline unless they're selected
   if (overlayStore.idSelectedOverlay !== overlayObject.id) {
     const element = overlayObject.overlay.getElement();
@@ -586,6 +589,21 @@ export function clearAllOverlays(): void {
 }
 
 /**
+ * AI : Setup map click handler to deselect overlays when clicking the map background
+ */
+export function setupMapClickToDeselect(): void {
+  if (!map.value) return;
+
+  map.value.on('click', () => {
+    const overlayStore = useOverlayStore();
+    // AI : Deselect if currently selected - overlay click handlers will re-select if clicked
+    if (overlayStore.idSelectedOverlay) {
+      selectOverlay(null);
+    }
+  });
+}
+
+/**
  * AI : Calculate appropriate outline size based on overlay dimensions and aspect ratio
  * This ensures consistent visual outline regardless of overlay shape & resolution
  */
@@ -631,13 +649,20 @@ function calculateOutlineSize(overlayElement: HTMLElement, baseSize: number): nu
 export function selectOverlay(overlayId: string | null): void {
   const overlayStore = useOverlayStore();
 
-  // AI : Clean up previous selection if different from new selection
-  if (overlayStore.idSelectedOverlay && overlayStore.idSelectedOverlay !== overlayId) {
-    removeSelectionOutline(overlayStore.overlays[overlayStore.idSelectedOverlay]);
-  }
+  // AI : Store previous selection info before updating
+  const previouslySelectedId = overlayStore.idSelectedOverlay;
+  const previouslySelected = previouslySelectedId ? overlayStore.overlays[previouslySelectedId] : null;
 
   // AI : Update selected overlay ID
   overlayStore.idSelectedOverlay = overlayId;
+
+  // AI : Clean up previous selection if different from new selection
+  if (previouslySelected && previouslySelectedId !== overlayId && previouslySelected.projectId) {
+    // AI : Force remove outlines when deselecting to clear any hover highlights
+    const forceRemove = overlayId === null;
+    removeProjectOutlines(previouslySelected.projectId, forceRemove);
+  }
+
   if (!overlayId) return;
 
   // AI : Apply selection outline to new selection
@@ -682,15 +707,25 @@ function applySelectionOutline(overlayObject: OverlayObject): void {
 }
 
 /**
- * AI : Remove selection outline from overlay when deselected
+ * AI : Remove outlines from all overlays in a project
+ * @param projectId - The project whose overlays should have outlines removed
+ * @param force - If true, removes outlines even if an overlay in the project is selected
  */
-function removeSelectionOutline(overlayObject: OverlayObject): void {
+function removeProjectOutlines(projectId: string, force = false): void {
   const overlayStore = useOverlayStore();
 
-  if (!overlayObject.overlay || !overlayObject.projectId) return;
-  Object.values(overlayStore.overlays).forEach((obj: OverlayObject) => {
-    if (obj.projectId === overlayObject.projectId && obj.overlay) {
-      const element = obj.overlay.getElement();
+  if (!projectId) return;
+
+  // AI : Don't remove outlines if an overlay in this project is selected (unless forced)
+  if (!force) {
+    const selectedOverlay = overlayStore.idSelectedOverlay ? overlayStore.overlays[overlayStore.idSelectedOverlay] : null;
+    if (selectedOverlay?.projectId === projectId) return;
+  }
+
+  // AI : Remove all outlines from overlays in this project
+  Object.values(overlayStore.overlays).forEach((overlayObject: OverlayObject) => {
+    if (overlayObject.projectId === projectId && overlayObject.overlay) {
+      const element = overlayObject.overlay.getElement();
       if (element) {
         element.style.boxShadow = '';
         element.style.outline = 'none';
@@ -700,7 +735,7 @@ function removeSelectionOutline(overlayObject: OverlayObject): void {
 }
 
 /**
- * AI : Highlight all overlays from the same project on hover in view mode
+ * AI : Highlight all overlays from the same project on hover
  */
 function highlightProjectOverlaysOnHover(projectId: string): void {
   const overlayStore = useOverlayStore();
@@ -716,29 +751,6 @@ function highlightProjectOverlaysOnHover(projectId: string): void {
 
         // AI : Use box-shadow instead of outline to avoid scaling issues
         element.style.boxShadow = `0 0 0 ${outlineSize}px ${OVERLAY_OUTLINE_COLOR}`;
-        element.style.outline = 'none';
-      }
-    }
-  });
-}
-
-/**
- * AI : Remove project highlight on mouse leave in view mode
- */
-function removeProjectHighlightOnHover(projectId: string): void {
-  const overlayStore = useOverlayStore();
-
-  if (!projectId) return;
-
-  const selectedOverlay = overlayStore.idSelectedOverlay ? overlayStore.overlays[overlayStore.idSelectedOverlay] : null;
-  if (selectedOverlay?.projectId === projectId) return;
-
-  // AI : Remove all outlines when mouse leaves
-  Object.values(overlayStore.overlays).forEach((overlayObject: OverlayObject) => {
-    if (overlayObject.projectId === projectId && overlayObject.overlay) {
-      const element = overlayObject.overlay.getElement();
-      if (element) {
-        element.style.boxShadow = '';
         element.style.outline = 'none';
       }
     }
@@ -762,7 +774,7 @@ function setupProjectHoverEvents(overlay: L.DistortableImageOverlay, overlayObje
 
   element.addEventListener('mouseleave', () => {
     if (overlayObject.projectId) {
-      removeProjectHighlightOnHover(overlayObject.projectId);
+      removeProjectOutlines(overlayObject.projectId);
     }
   });
 }
@@ -814,9 +826,7 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   overlayObjectWithMethods.marker = overlayStore.allMarkers[cdnOverlay.id];
   overlayStore.overlays[cdnOverlay.id] = overlayObjectWithMethods;
 
-  if (overlayObjectWithMethods.overlay) {
-    setupProjectHoverEvents(overlayObjectWithMethods.overlay, overlayObjectWithMethods);
-  }
+  // AI : Hover events are now set up in onOverlayLoaded() after element is guaranteed to exist
 
   // AI : Marker tooltip already updated in createSingleMarker - no need to duplicate
 }
@@ -969,7 +979,7 @@ function createSingleMarker(savedOverlay: OverlayObject): void {
     });
 
     marker.on('mouseout', () => {
-      removeProjectHighlightOnHover(savedOverlay.projectId!);
+      removeProjectOutlines(savedOverlay.projectId!);
     });
   }
 

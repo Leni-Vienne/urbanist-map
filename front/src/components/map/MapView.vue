@@ -48,7 +48,7 @@ import { ref, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue';
 import { initializeMap, disableLeafletKeyboardEvents, map } from '@composables/core/useMap';
 import { addTileLayer } from '@composables/map/useTileLayers';
 import { initializeCameraBounds } from '@composables/map/useMapNavigation';
-import { renderViewModeOverlays, removeOverlay, undo, redo } from '@composables/overlay/useOverlay';
+import { renderViewModeOverlays, removeOverlay, undo, redo, setupMapClickToDeselect } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
 import { updateOverlayMarkersForFilters } from '@composables/map/useCityOverlays';
 import { initializeCountryMarkers } from '@composables/map/useCountryMarkers';
@@ -157,6 +157,7 @@ async function initializeMapAndOverlays() {
     addTileLayer(); // AI : Initialize tile layers after map is created
     initializeCameraBounds(); // AI : Initialize camera bounds tracking
     await initializeCountryMarkers(); // AI : Initialize country markers by default
+    setupMapClickToDeselect(); // AI : Setup click handler to deselect overlays when clicking map background
     window.addEventListener('keydown', handleKeyDown, true);
     disableLeafletKeyboardEvents();
 
