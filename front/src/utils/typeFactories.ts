@@ -64,17 +64,16 @@ export function createProjectFromAPI(nearbyProject: NearbyProject): Project {
     version: nearbyProject.version ?? 1,
     name: nearbyProject.name,
     description: nearbyProject.description,
-    // AI : NearbyProject doesn't have these fields, use defaults
-    sourceUrl: null,
-    proposalDate: nearbyProject.proposalDate,
-    startDate: null,
-    endDate: null,
-    latestUpdateOn: null,
+    sourceUrl: nearbyProject.sourceUrl ?? null,
+    proposalDate: nearbyProject.proposalDate ?? null,
+    startDate: nearbyProject.startDate ?? null,
+    endDate: nearbyProject.endDate ?? null,
+    latestUpdateOn: nearbyProject.latestUpdateOn ?? null,
     createdAt: nearbyProject.createdAt,
     updatedAt: nearbyProject.updatedAt,
     ownerId: nearbyProject.ownerId,
     cityId: nearbyProject.cityId,
-    status: nearbyProject.status ?? 'approved', // AI : Use actual status from API
+    status: nearbyProject.status ?? 'approved',
     city: nearbyProject.city,
     overlayIds: []
   });
