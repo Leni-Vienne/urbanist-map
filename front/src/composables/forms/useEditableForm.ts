@@ -1,6 +1,7 @@
 import { ref, computed, reactive } from 'vue'
 import { useChangeRequests } from '@composables/changes/useChanges'
 import { useToast } from '@composables/ui/useToast'
+import { useI18n } from '@composables/useI18n'
 import { buildProjectPayload } from '@composables/project/useProjectMutations'
 import { useProjectStore } from '@stores/pinia/projectStore'
 import { updateDevelopmentMarkerColor } from '@composables/map/useCityMarkers'
@@ -33,6 +34,7 @@ export interface EditableFormOptions<T> {
 export function useEditableForm<T extends Record<string, any>>(options: EditableFormOptions<T>) {
   const { submitMultipleFieldChanges } = useChangeRequests()
   const toast = useToast()
+  const { t } = useI18n()
   const projectStore = useProjectStore()
 
   const isSubmitting = ref(false)
@@ -125,8 +127,8 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
         if (trimmedName.length < 8) {
           toast.add({
             severity: 'error',
-            summary: 'Validation Error',
-            detail: 'Project name must be at least 8 characters long',
+            summary: t('toast.validationError'),
+            detail: t('project.nameTooShort'),
             life: 3000
           })
           return
@@ -185,8 +187,8 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
 
           toast.add({
             severity: 'success',
-            summary: 'Changes Saved',
-            detail: 'Project changes saved locally. Click "Submit Changes" in the info popup to publish.',
+            summary: t('submission.changesSaved'),
+            detail: t('actions.saveChangesLocally'),
             life: 4000
           })
         }
@@ -203,7 +205,7 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
           const project = result.projects.find(p => p.id === options.entityId)
           
           if (!project) {
-            throw new Error('Project not found')
+            throw new Error(t('errors.projectNotFound'))
           }
           
           // AI : Merge form data with current project data, preserving all fields
@@ -227,8 +229,8 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
 
           toast.add({
             severity: 'success',
-            summary: 'Project Updated',
-            detail: `Project changes saved successfully`,
+            summary: t('moderation.projectUpdated'),
+            detail: t('submission.changesSaved'),
             life: 3000
           })
         } else if (options.entityType === 'overlay') {
@@ -244,8 +246,8 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
           
           toast.add({
             severity: 'success',
-            summary: 'Overlay Updated',
-            detail: `Overlay changes saved successfully`,
+            summary: t('moderation.projectUpdated'),
+            detail: t('submission.changesSaved'),
             life: 3000
           })
         }
@@ -255,8 +257,8 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
 
         toast.add({
           severity: 'success',
-          summary: 'Changes Submitted',
-          detail: `${changes.length} change(s) submitted for moderation review`,
+          summary: t('submission.changeRequestSubmitted'),
+          detail: t('submission.changeRequestSubmitted'),
           life: 3000
         })
       }
@@ -267,8 +269,8 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
       console.error('Failed to submit changes:', error)
       toast.add({
         severity: 'error',
-        summary: 'Submission Failed',
-        detail: 'Failed to submit changes. Please try again.',
+        summary: t('toast.submissionFailed'),
+        detail: t('moderation.rejectionFailedDetail'),
         life: 3000
       })
     } finally {

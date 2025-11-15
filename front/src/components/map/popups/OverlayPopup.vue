@@ -39,7 +39,7 @@
             icon="pi pi-pencil"
             class="p-button-sm p-button-text p-button-info"
             @click="emit('edit-project', project)"
-            v-tooltip.top="'Edit Project'"
+            v-tooltip.top="$t('tooltips.editProject')"
           />
           <!-- AI : Suggest changes button (for non-owned projects) -->
           <Button
@@ -47,7 +47,7 @@
             icon="pi pi-file-edit"
             class="p-button-sm p-button-text p-button-secondary"
             @click="emit('edit-project', project)"
-            v-tooltip.top="'Suggest Changes'"
+            v-tooltip.top="$t('tooltips.suggestChanges')"
           />
         </template>
       </ProjectMetadataCard>
@@ -63,7 +63,7 @@
               icon="pi pi-pencil"
               class="p-button-sm p-button-text p-button-info"
               @click="emit('edit-overlay', overlayObject)"
-              v-tooltip.top="'Edit Overlay'"
+              v-tooltip.top="$t('tooltips.editOverlay')"
             />
             <!-- AI : Suggest changes button (for non-owned overlays) -->
             <Button
@@ -71,7 +71,7 @@
               icon="pi pi-file-edit"
               class="p-button-sm p-button-text p-button-secondary"
               @click="emit('edit-overlay', overlayObject)"
-              v-tooltip.top="'Suggest Changes'"
+              v-tooltip.top="$t('tooltips.suggestChanges')"
             />
           </div>
         </div>

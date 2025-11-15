@@ -1,9 +1,9 @@
 <template>
   <div>
     <!-- Edit Overlay Dialog -->
-    <Dialog 
-      v-model:visible="showDialog" 
-      header="Edit Overlay Information" 
+    <Dialog
+      v-model:visible="showDialog"
+      :header="$t('overlay.overlayInformation')"
       :modal="true"
       :closable="true"
       :closeOnEscape="true"
@@ -21,26 +21,26 @@
             class="w-full"
             variant="in"
           >
-            <InputText 
+            <InputText
               id="overlay-name-input"
-              v-model="editingInfo.caption" 
+              v-model="editingInfo.caption"
               class="w-full p-3"
             />
-            <label for="overlay-name-input" class="text-gray-600">Overlay Name</label>
+            <label for="overlay-name-input" class="text-gray-600">{{ $t('common.name') }}</label>
           </FloatLabel>
         </div>
       </div>
       <template #footer>
-        <Button 
-          label="Cancel" 
-          icon="pi pi-times" 
-          @click="showDialog = false" 
+        <Button
+          :label="$t('common.cancel')"
+          icon="pi pi-times"
+          @click="showDialog = false"
           class="p-button-text"
         />
-        <Button 
-          label="Save Changes" 
-          icon="pi pi-check" 
-          @click="saveChanges" 
+        <Button
+          :label="$t('forms.saveChanges')"
+          icon="pi pi-check"
+          @click="saveChanges"
           class="p-button-primary"
         />
       </template>
@@ -51,6 +51,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useToast } from '@composables/ui/useToast';
+import { useI18n } from '@composables/useI18n';
 import { updateTooltipText, updateOverlayInfo } from '@composables/overlay/useOverlay';
 import type { OverlayObject } from '@types';
 
@@ -66,6 +67,7 @@ const props = defineProps<{
 const emit = defineEmits<(e: 'update', overlayId: string, caption?: string) => void>();
 
 const toast = useToast();
+const { t } = useI18n();
 const showDialog = ref(false);
 
 // AI : Local state for editing overlay information
@@ -99,19 +101,19 @@ function saveChanges() {
     // AI : Show success message
     toast.add({
       severity: 'success',
-      summary: 'Overlay Updated',
-      detail: 'Overlay information has been updated successfully',
+      summary: t('common.success'),
+      detail: t('overlay.publishSuccessDetail'),
       life: 3000
     });
-    
+
     // AI : Close dialog
     showDialog.value = false;
   } catch (error) {
     console.error('Error updating overlay:', error);
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to update overlay information',
+      summary: t('common.error'),
+      detail: t('overlay.publishFailedDetail'),
       life: 3000
     });
   }

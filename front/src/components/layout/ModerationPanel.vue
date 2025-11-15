@@ -26,10 +26,10 @@
         @click="handleUndo"
         :disabled="!canUndo"
         size="small"
-        label="Undo"
+        :label="$t('actions.undo')"
         severity="secondary"
         v-tooltip.top="undoTooltip"
-        aria-label="Undo last action"
+        :aria-label="$t('tooltips.undo')"
       />
     </template>
 
@@ -38,14 +38,14 @@
         <button
           class="action-btn approve-btn"
           @click="handleApproveProject(project.id)"
-          v-tooltip.top="'Approve Project'"
+          v-tooltip.top="$t('moderation.approveChange')"
         >
           <i class="pi pi-check"></i>
         </button>
         <button
           class="action-btn reject-btn"
           @click="handleRejectProject(project.id)"
-          v-tooltip.top="'Reject Project'"
+          v-tooltip.top="$t('moderation.rejectChange')"
         >
           <i class="pi pi-times"></i>
         </button>
@@ -77,7 +77,7 @@
         v-if="overlay.status === 'pending' && project.status !== 'approved'"
         class="action-btn disabled-btn"
         disabled
-        v-tooltip.top="'Approve the project first to moderate its overlays'"
+        v-tooltip.top="$t('tooltips.approveProjectFirst')"
       >
         <i class="pi pi-lock"></i>
       </button>
@@ -96,7 +96,7 @@
         :class="{ 'disabled-btn': isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) }"
         :disabled="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id)"
         @click.stop="handleApproveChange(change.id)"
-        v-tooltip.top="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) ? 'View suggested position first' : 'Approve Change'"
+        v-tooltip.top="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) ? $t('overlay.viewSuggestedPosition') : $t('moderation.approveChange')"
       >
         <i class="pi pi-check"></i>
       </button>
@@ -105,7 +105,7 @@
         :class="{ 'disabled-btn': isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) }"
         :disabled="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id)"
         @click.stop="handleRejectChange(change.id)"
-        v-tooltip.top="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) ? 'View suggested position first' : 'Reject Change'"
+        v-tooltip.top="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) ? $t('overlay.viewSuggestedPosition') : $t('moderation.rejectChange')"
       >
         <i class="pi pi-times"></i>
       </button>
@@ -206,12 +206,12 @@ const lastAction = computed(() => recentActions.value[0] || null)
 
 // AI : Computed tooltip for undo button
 const undoTooltip = computed(() => {
-  if (!canUndo.value || !lastAction.value) return 'No actions to undo'
-  
+  if (!canUndo.value || !lastAction.value) return t('actions.noActionsToUndo')
+
   const action = lastAction.value
   const actionText = action.newStatus === 'approved' ? 'approved' : 'rejected'
   const entityText = action.itemType === 'project' ? 'project' : 'overlay'
-  return `Undo ${actionText} ${entityText}: ${action.itemName}`
+  return t('moderation.undoAction', { action: actionText, entity: entityText, name: action.itemName })
 })
 
 // AI : Handle undo action
@@ -226,14 +226,14 @@ async function handleApproveProject(id: string) {
   if (result.success) {
     toast.add({
       severity: 'success',
-      summary: 'Project Approved',
-      detail: `"${result.itemName}" has been approved`,
+      summary: t('moderation.projectApproved'),
+      detail: t('moderation.projectApprovedDetail'),
       life: 3000
     })
   } else {
     const severity = result.error === 'version_conflict' ? 'warn' : 'error'
-    const summary = result.error === 'version_conflict' ? 'Project Updated' : 'Approval Failed'
-    
+    const summary = result.error === 'version_conflict' ? t('moderation.projectUpdated') : t('moderation.approvalFailed')
+
     toast.add({
       severity,
       summary,
@@ -250,14 +250,14 @@ async function handleRejectProject(id: string) {
   if (result.success) {
     toast.add({
       severity: 'info',
-      summary: 'Project Rejected',
-      detail: `"${result.itemName}" has been rejected`,
+      summary: t('moderation.projectRejected'),
+      detail: t('moderation.projectRejectedDetail'),
       life: 3000
     })
   } else {
     const severity = result.error === 'version_conflict' ? 'warn' : 'error'
-    const summary = result.error === 'version_conflict' ? 'Project Updated' : 'Rejection Failed'
-    
+    const summary = result.error === 'version_conflict' ? t('moderation.projectUpdated') : t('moderation.rejectionFailed')
+
     toast.add({
       severity,
       summary,
@@ -298,8 +298,8 @@ async function handleApproveOverlay(id: string) {
     console.error('Error checking replacement conflicts:', error)
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to check for conflicts',
+      summary: t('common.error'),
+      detail: t('errors.checkConflictsFailed'),
       life: 3000
     })
   }
@@ -312,13 +312,13 @@ async function proceedWithApproval(id: string, handleConflicts = false) {
   if (result.success) {
     toast.add({
       severity: 'success',
-      summary: 'Overlay Approved',
-      detail: `"${result.itemName}" has been approved`,
+      summary: t('moderation.overlayApproved'),
+      detail: t('moderation.overlayApprovedDetail'),
       life: 3000
     })
   } else {
     const severity = result.error === 'version_conflict' ? 'warn' : 'error'
-    const summary = result.error === 'version_conflict' ? 'Overlay Updated' : 'Approval Failed'
+    const summary = result.error === 'version_conflict' ? t('moderation.projectUpdated') : t('moderation.approvalFailed')
 
     toast.add({
       severity,
@@ -358,14 +358,14 @@ async function handleRejectOverlay(id: string) {
   if (result.success) {
     toast.add({
       severity: 'info',
-      summary: 'Overlay Rejected', 
-      detail: `"${result.itemName}" has been rejected`,
+      summary: t('moderation.overlayRejected'),
+      detail: t('moderation.overlayRejectedDetail'),
       life: 3000
     })
   } else {
     const severity = result.error === 'version_conflict' ? 'warn' : 'error'
-    const summary = result.error === 'version_conflict' ? 'Overlay Updated' : 'Rejection Failed'
-    
+    const summary = result.error === 'version_conflict' ? t('moderation.projectUpdated') : t('moderation.rejectionFailed')
+
     toast.add({
       severity,
       summary,

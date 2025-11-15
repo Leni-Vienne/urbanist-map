@@ -6,6 +6,10 @@ export interface ErrorHandlingOptions {
   errorMessage?: string
   /** Toast message to show on success */
   successMessage?: string
+  /** Toast summary for error (default: 'Error') */
+  errorSummary?: string
+  /** Toast summary for success (default: 'Success') */
+  successSummary?: string
   /** Whether to log error to console (default: true) */
   logError?: boolean
   /** Whether to rethrow error after handling (default: false) */
@@ -32,6 +36,8 @@ export async function withErrorHandling<T>(
   const {
     errorMessage,
     successMessage,
+    errorSummary = 'Error',
+    successSummary = 'Success',
     logError = true,
     rethrow = false,
     onError,
@@ -47,7 +53,7 @@ export async function withErrorHandling<T>(
     if (successMessage) {
       toast.add({
         severity: 'success',
-        summary: 'Success',
+        summary: successSummary,
         detail: successMessage,
         life: 3000,
       })
@@ -69,7 +75,7 @@ export async function withErrorHandling<T>(
     if (errorMessage) {
       toast.add({
         severity: 'error',
-        summary: 'Error',
+        summary: errorSummary,
         detail: errorMessage,
         life: 5000,
       })

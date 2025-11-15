@@ -39,6 +39,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { useI18n } from '@composables/useI18n';
 import CreateProjectForm from '@components/forms/CreateProjectForm.vue';
 import type { Project } from '@types';
 
@@ -56,11 +57,12 @@ const emit = defineEmits<{
 }>();
 
 const projectFormRef = ref<InstanceType<typeof CreateProjectForm> | null>(null);
+const { t } = useI18n();
 
 // AI : Computed dialog title with fallback
 const dialogTitle = computed(() => {
   if (props.title) return props.title;
-  return props.mode === 'create' ? 'Create New Project' : 'Edit Project';
+  return props.mode === 'create' ? t('dialog.createNewProject') : t('dialog.editProject');
 });
 
 // AI : Handle dialog visibility changes

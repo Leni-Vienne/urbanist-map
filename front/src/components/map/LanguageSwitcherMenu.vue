@@ -6,7 +6,7 @@
       @click="toggleMenu"
       ref="languageMenuRef"
       role="button"
-      aria-label="Language Selector"
+      :aria-label="$t('controls.language')"
       tabindex="0"
       @dblclick.stop
       @keydown.enter="toggleMenu"

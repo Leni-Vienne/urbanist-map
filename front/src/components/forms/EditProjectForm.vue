@@ -8,7 +8,7 @@
     :get-available-cities="() => cities"
     container-class="editable-project-form"
     form-class="project-form"
-    submit-label="Save Changes"
+    :submit-label="$t('forms.saveChanges')"
     @close="$emit('close')"
     @submitted="$emit('submitted')"
   >
