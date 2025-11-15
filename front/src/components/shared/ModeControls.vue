@@ -65,7 +65,7 @@ function getModeLabel(): string {
   switch (overlayStore.mode) {
     case 'view': return t('map.viewMode');
     case 'edit': return t('map.editMode');
-    case 'moderation': return 'Moderation'; // AI : Add to i18n later
+    case 'moderation': return t('moderation.title');
     default: return t('map.viewMode');
   }
 }
@@ -74,7 +74,7 @@ function getModeTooltip(): string {
   switch (overlayStore.mode) {
     case 'view': return t('map.viewModeTooltip');
     case 'edit': return t('map.editModeTooltip');
-    case 'moderation': return 'Review pending submissions'; // AI : Add to i18n later
+    case 'moderation': return t('moderation.description');
     default: return t('map.viewModeTooltip');
   }
 }
@@ -128,10 +128,9 @@ async function handleModeSwitch() {
     if (now - lastToastTime >= TOAST_THROTTLE_MS) {
       lastToastTime = now;
 
-      const modeText = getModeLabel();
       toast.add({
         severity: 'info',
-        summary: `Switched to ${modeText}`,
+        summary: t('moderation.switchedToEditMode'),
         detail: getModeTooltip(),
         life: 3000,
       });
@@ -140,8 +139,8 @@ async function handleModeSwitch() {
     console.error('Error toggling mode:', error);
     toast.add({
       severity: 'error',
-      summary: 'Mode Switch Error',
-      detail: 'Failed to switch mode. Please try again.',
+      summary: t('moderation.modeSwitchError'),
+      detail: t('moderation.modeSwitchErrorDetail'),
       life: 3000
     });
   } finally {

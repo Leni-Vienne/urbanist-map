@@ -328,7 +328,140 @@
     "title": "ConstructionMap.org",
     "closePanel": "Fermer le panneau"
   },
+  "footer": {
+    "legalMentions": "Mentions légales",
+    "contact": "Contact"
+  },
+  "submission": {
+    "confirmTitle": "Confirmer la soumission",
+    "requiresModeration": "Requiert modération",
+    "immediateUpdate": "Mise à jour immédiate",
+    "moderationNotice": "Votre soumission sera examinée par un modérateur avant d'apparaître publiquement.",
+    "changesToSubmit": "Modifications à soumettre",
+    "confirmSubmit": "Confirmer et soumettre",
+    "moderationFooter": "Un modérateur examinera votre soumission et l'approuvera ou la rejettera.",
+    "immediateFooter": "Vos modifications seront appliquées immédiatement à votre soumission en attente.",
+    "changeRequestSubmitted": "Demande de modification soumise avec succès",
+    "changesSaved": "Modifications enregistrées avec succès",
+    "submissionSuccessful": "Soumission réussie",
+    "pendingLimitReached": "Limite de contributions en attente atteinte",
+    "pendingLimitMessage": "Vous avez atteint le nombre maximum de contributions en attente. Veuillez attendre que vos contributions existantes soient examinées avant d'en soumettre d'autres."
+  },
+  "pages": {
+    "home": {
+      "signInSuccess": "Connexion réussie !",
+      "authenticationError": "Erreur d'authentification",
+      "loadingMapAndData": "Chargement de la carte et des données...",
+      "errors": {
+        "authenticationFailed": "L'authentification a échoué. Veuillez réessayer.",
+        "signInCancelled": "La connexion a été annulée ou a échoué.",
+        "unexpectedError": "Une erreur inattendue s'est produite lors de la connexion.",
+        "authenticationError": "Une erreur d'authentification s'est produite.",
+        "initializationError": "Échec de l'initialisation de la carte et des images"
+      }
+    },
+    "emailVerification": {
+      "verifying": "Vérification de votre email...",
+      "verified": "Email vérifié !",
+      "verifiedMessage": "Votre email a été vérifié avec succès. Vous pouvez maintenant utiliser toutes les fonctionnalités de Construction Map.",
+      "continueToApp": "Continuer vers l'application",
+      "verificationFailed": "Échec de la vérification",
+      "backToApp": "Retour à l'application",
+      "successDetail": "Email vérifié avec succès !",
+      "errors": {
+        "noToken": "Aucun jeton de vérification fourni",
+        "verificationFailed": "La vérification a échoué. Le jeton peut être invalide ou expiré."
+      }
+    }
+  },
+  "controls": {
+    "zoom": {
+      "in": "Zoomer",
+      "out": "Dézoomer"
+    },
+    "help": "Aide",
+    "filters": "Basculer les filtres de projets",
+    "layers": "Couches de carte",
+    "language": "Sélecteur de langue"
+  },
+  "tooltips": {
+    "editProject": "Modifier le projet",
+    "suggestChanges": "Suggérer des modifications",
+    "editOverlay": "Modifier l'image",
+    "approveProjectFirst": "Approuvez d'abord le projet pour modérer ses images",
+    "undo": "Annuler la dernière action"
+  },
+  "forms": {
+    "saveChanges": "Enregistrer les modifications",
+    "submitLabel": {
+      "saveChanges": "Enregistrer les modifications"
+    }
+  },
+  "dialog": {
+    "createNewProject": "Créer un nouveau projet",
+    "editProject": "Modifier le projet"
+  },
+  "upload": {
+    "noFileSelected": "Aucun fichier sélectionné",
+    "selectImageFile": "Veuillez sélectionner un fichier image à télécharger",
+    "pdfConversion": "Si vous souhaitez télécharger une image provenant d'un PDF, veuillez utiliser des programmes comme TokenTool pour la meilleure qualité possible."
+  },
+  "metadata": {
+    "notSpecified": "Non spécifié",
+    "notAvailable": "—"
+  },
+  "toast": {
+    "validationError": "Erreur de validation",
+    "error": "Erreur",
+    "success": "Succès",
+    "submissionFailed": "Échec de la soumission"
+  },
+  "actions": {
+    "undo": "Annuler",
+    "saveChangesLocally": "Modifications du projet enregistrées localement. Cliquez sur \"Soumettre les modifications\" dans la popup d'info pour publier.",
+    "noActionsToUndo": "Aucune action à annuler"
+  },
+  "errors": {
+    "projectNotFound": "Projet introuvable",
+    "overlayNotFound": "Image introuvable",
+    "cityRequired": "La ville est requise",
+    "mapNotInitialized": "La carte n'est pas initialisée",
+    "mapElementNotFound": "Aucun élément de carte trouvé",
+    "mapContainerNotFound": "Conteneur de carte introuvable !",
+    "projectRequired": "Projet requis : un projet doit être sélectionné pour ajouter une image",
+    "overlayElementNotFound": "Élément d'image introuvable",
+    "noImageSelected": "Aucune image sélectionnée : veuillez d'abord sélectionner une image",
+    "mapNotAvailable": "Carte non disponible : impossible de naviguer entre les images",
+    "noProjects": "Aucun projet : veuillez d'abord créer un projet",
+    "failedToLoadOverlay": "Échec du chargement de l'image après récupération",
+    "cannotPublishNoProject": "Impossible de publier : l'image doit être assignée à un projet",
+    "cannotPublishNoPosition": "Impossible de publier : l'image doit avoir une position valide (4 coins)",
+    "failedToPublishProject": "Échec de la publication du projet sur le serveur",
+    "failedToUploadImage": "Échec du téléchargement de l'image sur le serveur",
+    "publishFailed": "Échec de la publication : échec de l'enregistrement sur le serveur. Veuillez réessayer.",
+    "backendPublishFailed": "Échec de la publication backend",
+    "noChangesDetected": "Aucune modification détectée pour l'image approuvée",
+    "newOverlayUsePublisher": "La création de nouvelle image doit utiliser useOverlayPublisher directement",
+    "noChangesToSubmit": "Aucune modification à soumettre",
+    "checkConflictsFailed": "Échec de la vérification des conflits"
+  },
   "moderation": {
+    "title": "Modération",
+    "description": "Examiner les soumissions en attente",
+    "projectApproved": "Projet approuvé",
+    "projectApprovedDetail": "Le projet a été approuvé avec succès",
+    "projectUpdated": "Projet mis à jour",
+    "projectRejected": "Projet rejeté",
+    "projectRejectedDetail": "Le projet a été rejeté",
+    "overlayApproved": "Image approuvée",
+    "overlayApprovedDetail": "L'image a été approuvée avec succès",
+    "overlayRejected": "Image rejetée",
+    "overlayRejectedDetail": "L'image a été rejetée",
+    "switchedToEditMode": "Mode édition activé",
+    "clickAgainToAdd": "Cliquez à nouveau sur le bouton pour ajouter une image",
+    "modeSwitchError": "Erreur de changement de mode",
+    "modeSwitchErrorDetail": "Échec du changement de mode. Veuillez réessayer.",
+    "undoAction": "Annuler {action} {entity} : {name}",
     "changeApproved": "Modification approuvée",
     "changeApprovedDetail": "La modification a été appliquée avec succès",
     "changeRejected": "Modification rejetée",
@@ -401,23 +534,19 @@
       "viewResults": "Voir les résultats"
     }
   },
-  "footer": {
-    "legalMentions": "Mentions légales",
-    "contact": "Contact"
+  "location": {
+    "unknownLocation": "Lieu inconnu"
   },
-  "submission": {
-    "confirmTitle": "Confirmer la soumission",
-    "requiresModeration": "Requiert modération",
-    "immediateUpdate": "Mise à jour immédiate",
-    "moderationNotice": "Votre soumission sera examinée par un modérateur avant d'apparaître publiquement.",
-    "changesToSubmit": "Modifications à soumettre",
-    "confirmSubmit": "Confirmer et soumettre",
-    "moderationFooter": "Un modérateur examinera votre soumission et l'approuvera ou la rejettera.",
-    "immediateFooter": "Vos modifications seront appliquées immédiatement à votre soumission en attente.",
-    "changeRequestSubmitted": "Demande de modification soumise avec succès",
-    "changesSaved": "Modifications enregistrées avec succès",
-    "submissionSuccessful": "Soumission réussie",
-    "pendingLimitReached": "Limite de contributions en attente atteinte",
-    "pendingLimitMessage": "Vous avez atteint le nombre maximum de contributions en attente. Veuillez attendre que vos contributions existantes soient examinées avant d'en soumettre d'autres."
+  "replacementOverlay": {
+    "created": "Image de remplacement créée",
+    "createdDetail": "Votre image de remplacement a été créée et est prête à être modifiée",
+    "uploadFailed": "Échec du téléchargement",
+    "uploadFailedDetail": "Échec du traitement de l'image"
+  },
+  "developmentProject": {
+    "createSuccess": "Projet de bâtiment créé avec succès",
+    "createFailed": "Échec de la création du projet de bâtiment",
+    "projectUpdated": "Projet mis à jour",
+    "projectUpdatedDetail": "Modifications du projet enregistrées localement"
   }
 }

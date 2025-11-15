@@ -7,8 +7,8 @@
         @dblclick.stop
         raised
         icon="pi pi-plus"
-        aria-label="Zoom In"
-        v-tooltip.right="'Zoom In'"
+        :aria-label="$t('controls.zoom.in')"
+        v-tooltip.right="$t('controls.zoom.in')"
         severity="secondary"
       />
       <Button
@@ -16,8 +16,8 @@
         @dblclick.stop
         raised
         icon="pi pi-minus"
-        aria-label="Zoom Out"
-        v-tooltip.right="'Zoom Out'"
+        :aria-label="$t('controls.zoom.out')"
+        v-tooltip.right="$t('controls.zoom.out')"
         severity="secondary"
       />
       <Button
@@ -25,8 +25,8 @@
         @dblclick.stop
         raised
         icon="pi pi-question-circle"
-        aria-label="Help"
-        v-tooltip.right="'Help'"
+        :aria-label="$t('controls.help')"
+        v-tooltip.right="$t('controls.help')"
         severity="help"
       />
     </div>
@@ -43,7 +43,7 @@
         @dblclick.stop
         raised
         icon="pi pi-filter"
-        aria-label="Toggle project filters"
+        :aria-label="$t('controls.filters')"
         v-tooltip.right="$t('map.controls.filterProjects')"
         severity="secondary"
         ref="filterButton"
@@ -131,8 +131,8 @@
         @click.stop="handleAddOverlayClick"
         @dblclick.stop
         raised
-        aria-label="Add Image Overlay"
-        v-tooltip.right="'Add Image Overlay'"
+        :aria-label="$t('overlay.addImageOverlay')"
+        v-tooltip.right="$t('overlay.addImageOverlay')"
         severity="secondary"
       >
         <template #icon>
@@ -172,6 +172,7 @@ import { storeToRefs } from 'pinia';
 import { defineAsyncComponent, ref } from 'vue';
 import L from 'leaflet';
 import { useToast } from '@composables/ui/useToast';
+import { useI18n } from '@composables/useI18n';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useAuthStore } from '@stores/authStore';
 import { useUiStore } from '@stores/uiStore';
@@ -187,6 +188,7 @@ const MapHelpModal = defineAsyncComponent(() => import('@components/map/MapHelpM
 const authStore = useAuthStore();
 const overlayStore = useOverlayStore();
 const toast = useToast();
+const { t } = useI18n();
 const { handleAddOverlayButtonClick } = useAddOverlay();
 
 // AI : Help modal state
@@ -214,16 +216,16 @@ async function handleAddOverlayClick() {
     if (result.action === 'edit_mode_enabled') {
       toast.add({
         severity: 'info',
-        summary: 'Switched to Edit Mode',
-        detail: 'Click the button again to add an overlay',
+        summary: t('moderation.switchedToEditMode'),
+        detail: t('moderation.clickAgainToAdd'),
         life: 4000,
       });
     }
   } else if (result.reason === 'edit_mode_error') {
     toast.add({
       severity: 'error',
-      summary: 'Mode Switch Error',
-      detail: 'Failed to switch mode. Please try again.',
+      summary: t('moderation.modeSwitchError'),
+      detail: t('moderation.modeSwitchErrorDetail'),
       life: 3000
     });
   }
