@@ -328,7 +328,140 @@
     "title": "ConstructionMap.org",
     "closePanel": "Close panel"
   },
+  "footer": {
+    "legalMentions": "Legal Mentions",
+    "contact": "Contact"
+  },
+  "submission": {
+    "confirmTitle": "Confirm Submission",
+    "requiresModeration": "Requires Moderation",
+    "immediateUpdate": "Immediate Update",
+    "moderationNotice": "Your submission will be reviewed by a moderator before appearing publicly.",
+    "changesToSubmit": "Changes to be submitted",
+    "confirmSubmit": "Confirm & Submit",
+    "moderationFooter": "A moderator will review your submission and approve or reject it.",
+    "immediateFooter": "Your changes will be applied immediately to your pending submission.",
+    "changeRequestSubmitted": "Change request submitted successfully",
+    "changesSaved": "Changes saved successfully",
+    "submissionSuccessful": "Submission successful",
+    "pendingLimitReached": "Pending Contribution Limit Reached",
+    "pendingLimitMessage": "You have reached the maximum number of pending contributions. Please wait for your existing contributions to be reviewed before submitting more."
+  },
+  "pages": {
+    "home": {
+      "signInSuccess": "Successfully signed in!",
+      "authenticationError": "Authentication Error",
+      "loadingMapAndData": "Loading map and data...",
+      "errors": {
+        "authenticationFailed": "Authentication failed. Please try again.",
+        "signInCancelled": "Sign in was cancelled or failed.",
+        "unexpectedError": "An unexpected error occurred during sign in.",
+        "authenticationError": "Authentication error occurred.",
+        "initializationError": "Failed to initialize map and overlays"
+      }
+    },
+    "emailVerification": {
+      "verifying": "Verifying your email...",
+      "verified": "Email Verified!",
+      "verifiedMessage": "Your email has been successfully verified. You can now use all features of Construction Map.",
+      "continueToApp": "Continue to App",
+      "verificationFailed": "Verification Failed",
+      "backToApp": "Back to App",
+      "successDetail": "Email verified successfully!",
+      "errors": {
+        "noToken": "No verification token provided",
+        "verificationFailed": "Verification failed. The token may be invalid or expired."
+      }
+    }
+  },
+  "controls": {
+    "zoom": {
+      "in": "Zoom In",
+      "out": "Zoom Out"
+    },
+    "help": "Help",
+    "filters": "Toggle project filters",
+    "layers": "Map Layers",
+    "language": "Language Selector"
+  },
+  "tooltips": {
+    "editProject": "Edit Project",
+    "suggestChanges": "Suggest Changes",
+    "editOverlay": "Edit Overlay",
+    "approveProjectFirst": "Approve the project first to moderate its overlays",
+    "undo": "Undo last action"
+  },
+  "forms": {
+    "saveChanges": "Save Changes",
+    "submitLabel": {
+      "saveChanges": "Save Changes"
+    }
+  },
+  "dialog": {
+    "createNewProject": "Create New Project",
+    "editProject": "Edit Project"
+  },
+  "upload": {
+    "noFileSelected": "No file selected",
+    "selectImageFile": "Please select an image file to upload",
+    "pdfConversion": "If you want to upload an image that comes from a PDF, please use programs like TokenTool for the best possible quality."
+  },
+  "metadata": {
+    "notSpecified": "Not specified",
+    "notAvailable": "—"
+  },
+  "toast": {
+    "validationError": "Validation Error",
+    "error": "Error",
+    "success": "Success",
+    "submissionFailed": "Submission Failed"
+  },
+  "actions": {
+    "undo": "Undo",
+    "saveChangesLocally": "Project changes saved locally. Click \"Submit Changes\" in the info popup to publish.",
+    "noActionsToUndo": "No actions to undo"
+  },
+  "errors": {
+    "projectNotFound": "Project not found",
+    "overlayNotFound": "Overlay not found",
+    "cityRequired": "City is required",
+    "mapNotInitialized": "Map is not initialized",
+    "mapElementNotFound": "No map element found",
+    "mapContainerNotFound": "Map container not found!",
+    "projectRequired": "Project Required: A project must be selected to add an overlay",
+    "overlayElementNotFound": "Overlay element not found",
+    "noImageSelected": "No image selected: Please select an image first",
+    "mapNotAvailable": "Map not available: Cannot navigate between overlays",
+    "noProjects": "No projects: Please create a project first",
+    "failedToLoadOverlay": "Failed to load overlay after fetching",
+    "cannotPublishNoProject": "Cannot Publish: Overlay must be assigned to a project",
+    "cannotPublishNoPosition": "Cannot Publish: Overlay must have valid position (4 corners)",
+    "failedToPublishProject": "Failed to publish project to server",
+    "failedToUploadImage": "Failed to upload image to server",
+    "publishFailed": "Publish Failed: Failed to save to server. Please try again.",
+    "backendPublishFailed": "Backend publish failed",
+    "noChangesDetected": "No changes detected for approved overlay",
+    "newOverlayUsePublisher": "New overlay creation should use useOverlayPublisher directly",
+    "noChangesToSubmit": "No changes to submit",
+    "checkConflictsFailed": "Failed to check for conflicts"
+  },
   "moderation": {
+    "title": "Moderation",
+    "description": "Review pending submissions",
+    "projectApproved": "Project Approved",
+    "projectApprovedDetail": "The project has been approved successfully",
+    "projectUpdated": "Project Updated",
+    "projectRejected": "Project Rejected",
+    "projectRejectedDetail": "The project has been rejected",
+    "overlayApproved": "Overlay Approved",
+    "overlayApprovedDetail": "The overlay has been approved successfully",
+    "overlayRejected": "Overlay Rejected",
+    "overlayRejectedDetail": "The overlay has been rejected",
+    "switchedToEditMode": "Switched to Edit Mode",
+    "clickAgainToAdd": "Click the button again to add an overlay",
+    "modeSwitchError": "Mode Switch Error",
+    "modeSwitchErrorDetail": "Failed to switch mode. Please try again.",
+    "undoAction": "Undo {action} {entity}: {name}",
     "changeApproved": "Change Approved",
     "changeApprovedDetail": "The change has been applied successfully",
     "changeRejected": "Change Rejected",
@@ -401,23 +534,19 @@
       "viewResults": "View Results"
     }
   },
-  "footer": {
-    "legalMentions": "Legal Mentions",
-    "contact": "Contact"
+  "location": {
+    "unknownLocation": "Unknown Location"
   },
-  "submission": {
-    "confirmTitle": "Confirm Submission",
-    "requiresModeration": "Requires Moderation",
-    "immediateUpdate": "Immediate Update",
-    "moderationNotice": "Your submission will be reviewed by a moderator before appearing publicly.",
-    "changesToSubmit": "Changes to be submitted",
-    "confirmSubmit": "Confirm & Submit",
-    "moderationFooter": "A moderator will review your submission and approve or reject it.",
-    "immediateFooter": "Your changes will be applied immediately to your pending submission.",
-    "changeRequestSubmitted": "Change request submitted successfully",
-    "changesSaved": "Changes saved successfully",
-    "submissionSuccessful": "Submission successful",
-    "pendingLimitReached": "Pending Contribution Limit Reached",
-    "pendingLimitMessage": "You have reached the maximum number of pending contributions. Please wait for your existing contributions to be reviewed before submitting more."
+  "replacementOverlay": {
+    "created": "Replacement Overlay Created",
+    "createdDetail": "Your replacement overlay has been created and is ready for editing",
+    "uploadFailed": "Upload Failed",
+    "uploadFailedDetail": "Failed to process the image overlay"
+  },
+  "developmentProject": {
+    "createSuccess": "Development project created successfully",
+    "createFailed": "Failed to create development project",
+    "projectUpdated": "Project Updated",
+    "projectUpdatedDetail": "Project changes saved locally"
   }
 }

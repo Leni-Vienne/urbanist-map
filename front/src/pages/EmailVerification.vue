@@ -3,21 +3,21 @@
     <div class="verification-card">
       <div v-if="loading" class="loading-state">
         <i class="pi pi-spin pi-spinner" style="font-size: 2rem; color: var(--p-primary-color);"></i>
-        <p>AI : Verifying your email...</p>
+        <p>{{ t('pages.emailVerification.verifying') }}</p>
       </div>
-      
+
       <div v-else-if="success" class="success-state">
         <i class="pi pi-check-circle" style="font-size: 3rem; color: var(--p-green-500);"></i>
-        <h2>Email Verified!</h2>
-        <p>AI : Your email has been successfully verified. You can now use all features of Construction Map.</p>
-        <Button @click="goToApp" label="Continue to App" />
+        <h2>{{ t('pages.emailVerification.verified') }}</h2>
+        <p>{{ t('pages.emailVerification.verifiedMessage') }}</p>
+        <Button @click="goToApp" :label="t('pages.emailVerification.continueToApp')" />
       </div>
-      
+
       <div v-else class="error-state">
         <i class="pi pi-times-circle" style="font-size: 3rem; color: var(--p-red-500);"></i>
-        <h2>Verification Failed</h2>
+        <h2>{{ t('pages.emailVerification.verificationFailed') }}</h2>
         <p>{{ errorMessage }}</p>
-        <Button @click="goToApp" label="Back to App" severity="secondary" />
+        <Button @click="goToApp" :label="t('pages.emailVerification.backToApp')" severity="secondary" />
       </div>
     </div>
   </div>
@@ -28,11 +28,13 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@stores/authStore'
 import { useToast } from '@composables/ui/useToast'
+import { useI18n } from '@composables/useI18n'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const toast = useToast()
+const { t } = useI18n()
 
 const loading = ref(true)
 const success = ref(false)
@@ -41,23 +43,23 @@ const errorMessage = ref('')
 async function verifyEmail() {
   try {
     const token = route.query.token as string
-    
+
     if (!token) {
-      throw new Error('No verification token provided')
+      throw new Error(t('pages.emailVerification.errors.noToken'))
     }
 
     await authStore.verifyEmail(token)
     success.value = true
-    
+
     toast.add({
       severity: 'success',
-      summary: 'Success',
-      detail: 'Email verified successfully!',
+      summary: t('common.success'),
+      detail: t('pages.emailVerification.successDetail'),
       life: 3000
     })
   } catch (error) {
     console.error('Email verification failed:', error)
-    errorMessage.value = error instanceof Error ? error.message : 'Verification failed. The token may be invalid or expired.'
+    errorMessage.value = error instanceof Error ? error.message : t('pages.emailVerification.errors.verificationFailed')
   } finally {
     loading.value = false
   }

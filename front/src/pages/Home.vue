@@ -63,6 +63,7 @@ import { useBeforeUnload } from "@composables/core/useBeforeUnload";
 import { storeToRefs } from "pinia";
 import { useRoute } from "vue-router";
 import { useModeratedContributions } from "@composables/moderation/useModeratedContributions";
+import { useI18n } from "@composables/useI18n";
 
 
 import MapView from "@components/map/MapView.vue";
@@ -88,6 +89,7 @@ const uiStore = useUiStore();
 const toast = useToast();
 const route = useRoute();
 const { fetchModeratedContributions, hasUnacknowledgedItems, reset: resetModeratedContributions } = useModeratedContributions();
+const { t } = useI18n();
 
 // AI : Use mobile drawer state from UI store
 const mobileSideMenuOpen = computed({
@@ -186,15 +188,15 @@ onMounted(async () => {
         if (route.query.auth === "success") {
             toast.add({
                 severity: "success",
-                summary: "Success",
-                detail: "Successfully signed in!",
+                summary: t('common.success'),
+                detail: t('pages.home.signInSuccess'),
                 life: 3000,
             });
         } else if (route.query.error) {
             const errorMessage = getErrorMessage(route.query.error as string);
             toast.add({
                 severity: "error",
-                summary: "Authentication Error",
+                summary: t('pages.home.authenticationError'),
                 detail: errorMessage,
                 life: 5000,
             });
@@ -230,13 +232,13 @@ watch(() => authStore.isAuthenticated, async (isAuthenticated, wasAuthenticated)
 function getErrorMessage(error: string): string {
     switch (error) {
         case "auth_failed":
-            return "Authentication failed. Please try again.";
+            return t('pages.home.errors.authenticationFailed');
         case "no_session":
-            return "Sign in was cancelled or failed.";
+            return t('pages.home.errors.signInCancelled');
         case "unexpected":
-            return "An unexpected error occurred during sign in.";
+            return t('pages.home.errors.unexpectedError');
         default:
-            return "Authentication error occurred.";
+            return t('pages.home.errors.authenticationError');
     }
 }
 

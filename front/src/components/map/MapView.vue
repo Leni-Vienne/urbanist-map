@@ -19,7 +19,7 @@
       >
         <div class="loading-content">
           <i class="pi pi-spin pi-spinner text-4xl"></i>
-          <p class="mt-2">Loading map and data...</p>
+          <p class="mt-2">{{ t('pages.home.loadingMapAndData') }}</p>
         </div>
       </div>
       <!-- AI : User Menu in top-right corner -->
@@ -50,6 +50,7 @@ import { addTileLayer } from '@composables/map/useTileLayers';
 import { initializeCameraBounds } from '@composables/map/useMapNavigation';
 import { renderViewModeOverlays, removeOverlay, undo, redo, setupMapClickToDeselect } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
+import { useI18n } from '@composables/useI18n';
 import { updateOverlayMarkersForFilters } from '@composables/map/useCityOverlays';
 import { initializeCountryMarkers } from '@composables/map/useCountryMarkers';
 import { useMapStore } from '@stores/pinia/mapStore';
@@ -68,6 +69,7 @@ const mapStore = useMapStore();
 const overlayStore = useOverlayStore();
 const authStore = useAuthStore();
 const toast = useToast();
+const { t } = useI18n();
 const isLoading = ref(true);
 
 // AI : Filter overlays based on completion status
@@ -165,8 +167,8 @@ async function initializeMapAndOverlays() {
     console.error('Error initializing map and overlays:', error);
     toast.add({
       severity: 'error',
-      summary: 'Initialization Error',
-      detail: 'Failed to initialize map and overlays',
+      summary: t('common.error'),
+      detail: t('pages.home.errors.initializationError'),
       life: 5000
     });
   }
