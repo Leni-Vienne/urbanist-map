@@ -81,8 +81,9 @@
             <span class="info-label">{{$t("common.name")}}:</span>
             <span class="info-value">{{ overlayObject.caption ?? '—' }}</span>
           </div>
+          <!-- AI : Only show view original button when replacement is pending (approved replacements have deleted originals) -->
           <div
-            v-if="overlayObject.replacesOverlayId"
+            v-if="overlayObject.replacesOverlayId && overlayObject.status === 'pending'"
             class="info-row replacement-info"
           >
             <button
