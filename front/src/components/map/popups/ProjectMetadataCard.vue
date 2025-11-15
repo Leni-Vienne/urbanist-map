@@ -35,9 +35,9 @@
             {{ formatDate(project.startDate) }} - {{ formatDate(project.endDate) }}
           </span>
           <span v-else-if="project.proposalDate">
-            Proposed on {{ formatDate(project.proposalDate) }}</span>
+            {{ $t('project.proposed') }} {{ formatDate(project.proposalDate) }}</span>
           <span v-else>
-            Not specified
+            {{ $t('metadata.notSpecified') }}
           </span>
         </span>
       </div>
@@ -79,7 +79,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 function formatDate(date: string | Date | null | undefined): string {
-  if (!date) return 'Not specified'
+  if (!date) return '—'
   return new Date(date).toLocaleDateString()
 }
 
