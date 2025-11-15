@@ -3,7 +3,7 @@ import { trpc } from '@client'
 import { withErrorHandling } from '@composables/core/useErrorHandling'
 import { useModerationStore } from '@stores/pinia/moderationStore'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
-import { updateMarkerTooltip } from '@composables/overlay/useOverlay'
+import { updateMarkerTooltip, removeOverlay } from '@composables/overlay/useOverlay'
 import { updateOverlayMarkersColors } from '@composables/map/useMarkers'
 import { useI18n } from '@composables/useI18n'
 
@@ -129,6 +129,12 @@ export function useModeration() {
 
   // AI : Helper function to set overlay approval status using the generic handler
   async function setOverlayStatus(id: string, status: 'approved' | 'rejected', handleReplacementConflicts?: boolean): Promise<ApprovalResult> {
+    const overlayStore = useOverlayStore()
+
+    // AI : Get the overlay's replacesOverlayId before approval (for cleanup after)
+    const overlay = overlays.value.find(o => o.id === id)
+    const replacesOverlayId = overlay?.replacesOverlayId
+
     const result = await setApprovalStatus(
       id,
       status,
@@ -140,7 +146,6 @@ export function useModeration() {
 
     // AI : Update overlay status in overlay store if approval succeeded and overlay is currently rendered
     if (result.success) {
-      const overlayStore = useOverlayStore()
       const overlayObject = overlayStore.overlays[id]
 
       if (overlayObject) {
@@ -152,6 +157,22 @@ export function useModeration() {
 
         // AI : Update all marker colors to reflect status changes
         updateOverlayMarkersColors(toRef(overlayStore, 'overlays'))
+      }
+
+      // AI : If this was a replacement overlay approval with conflict handling, remove the original and competing overlays from map
+      if (status === 'approved' && handleReplacementConflicts && replacesOverlayId) {
+        // AI : Remove the original overlay that was replaced
+        removeOverlay(replacesOverlayId)
+
+        // AI : Remove competing replacement overlays from the map
+        // AI : Find all overlays that tried to replace the same original overlay
+        const competingReplacements = Object.values(overlayStore.overlays).filter(
+          o => o.replacesOverlayId === replacesOverlayId && o.id !== id
+        )
+
+        for (const competing of competingReplacements) {
+          removeOverlay(competing.id)
+        }
       }
     }
 
