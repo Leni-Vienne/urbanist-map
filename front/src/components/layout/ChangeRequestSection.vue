@@ -19,61 +19,116 @@
     </div>
 
     <div class="change-requests-list">
-      <div
-        v-for="change in changes"
-        :key="change.id"
-        :class="['change-item', { 'conflicted': change.status === 'conflicted' }]"
-      >
-        <div v-if="change.status === 'conflicted'" class="conflict-banner">
-          <i class="pi pi-info-circle"></i>
-          <span>{{ $t('moderation.conflictDetected') }}</span>
-          <span class="conflict-help">{{ $t('moderation.resolveConflictsTooltip') }}</span>
-        </div>
-        <div class="change-content">
-          <div class="change-field">
-            <div class="field-header">
-              <strong>{{ formatFieldName(change.fieldName) }}:</strong>
-              <span v-if="change.requestedBy" class="requested-by">
-                {{ $t('moderation.by') }} {{ getUserId(change.requestedBy) }}
-              </span>
-            </div>
-            <div v-if="isGeometryField(change.fieldName)" class="geometry-change-controls">
-              <div class="geometry-buttons">
-                <Button
-                  icon="pi pi-map-marker"
-                  :label="$t('overlay.viewCurrentPosition')"
-                  @click.stop="previewGeometry(change.oldValue, 'old', change.id)"
-                  severity="success"
-                  :outlined="!isPreviewActive(change.id, 'old')"
-                  size="small"
-                />
-                <Button
-                  icon="pi pi-map-marker"
-                  :label="$t('overlay.viewSuggestedPosition')"
-                  @click.stop="previewGeometry(change.newValue, 'new', change.id)"
-                  severity="warn"
-                  :outlined="!isPreviewActive(change.id, 'new')"
-                  size="small"
-                />
+      <!-- AI : Iterate over grouped changes -->
+      <template v-for="group in groupedChanges" :key="group.type === 'single' ? group.change.id : `conflict-${group.entityId}-${group.fieldName}`">
+
+        <!-- AI : Single non-conflicting change -->
+        <div v-if="group.type === 'single'" class="change-item">
+          <div class="change-content">
+            <div class="change-field">
+              <div class="field-header">
+                <strong>{{ formatFieldName(group.change.fieldName) }}:</strong>
+                <span v-if="group.change.requestedBy" class="requested-by">
+                  {{ $t('moderation.by') }} {{ getUserId(group.change.requestedBy) }}
+                </span>
+              </div>
+              <div v-if="isGeometryField(group.change.fieldName)" class="geometry-change-controls">
+                <div class="geometry-buttons">
+                  <Button
+                    icon="pi pi-map-marker"
+                    :label="$t('overlay.viewCurrentPosition')"
+                    @click.stop="previewGeometry(group.change.oldValue, 'old', group.change.id)"
+                    severity="success"
+                    :outlined="!isPreviewActive(group.change.id, 'old')"
+                    size="small"
+                  />
+                  <Button
+                    icon="pi pi-map-marker"
+                    :label="$t('overlay.viewSuggestedPosition')"
+                    @click.stop="previewGeometry(group.change.newValue, 'new', group.change.id)"
+                    severity="warn"
+                    :outlined="!isPreviewActive(group.change.id, 'new')"
+                    size="small"
+                  />
+                </div>
+              </div>
+              <div v-else class="change-values">
+                <span class="old-value">{{ formatValue(group.change.oldValue, group.change.fieldName) }}</span>
+                <i class="pi pi-arrow-right"></i>
+                <span class="new-value">{{ formatValue(group.change.newValue, group.change.fieldName) }}</span>
+              </div>
+              <div v-if="group.change.changeReason" class="change-reason">
+                <em>{{ $t('moderation.reason') }}: {{ group.change.changeReason }}</em>
+              </div>
+              <div class="change-date">
+                <em>{{ $t('moderation.requested') }}: {{ new Date(group.change.createdAt).toLocaleString() }}</em>
               </div>
             </div>
-            <div v-else class="change-values">
-              <span class="old-value">{{ formatValue(change.oldValue, change.fieldName) }}</span>
-              <i class="pi pi-arrow-right"></i>
-              <span class="new-value">{{ formatValue(change.newValue, change.fieldName) }}</span>
+            <div v-if="$slots['change-actions']" class="change-actions">
+              <slot name="change-actions" :change="group.change"></slot>
             </div>
-            <div v-if="change.changeReason" class="change-reason">
-              <em>{{ $t('moderation.reason') }}: {{ change.changeReason }}</em>
-            </div>
-            <div class="change-date">
-              <em>{{ $t('moderation.requested') }}: {{ new Date(change.createdAt).toLocaleString() }}</em>
-            </div>
-          </div>
-          <div v-if="$slots['change-actions']" class="change-actions">
-            <slot name="change-actions" :change="change"></slot>
           </div>
         </div>
-      </div>
+
+        <!-- AI : Grouped conflicting changes -->
+        <div v-else class="change-item conflicted">
+          <div class="conflict-banner">
+            <i
+              class="pi pi-info-circle conflict-info-icon"
+              v-tooltip.top="$t('moderation.resolveConflictsTooltip')"
+            ></i>
+            <span>{{ $t('moderation.conflictDetected') }}</span>
+          </div>
+
+          <!-- AI : List all competing changes -->
+          <div v-for="change in group.changes" :key="change.id" class="conflict-option">
+            <div class="change-content">
+              <div class="change-field">
+                <div class="field-header">
+                  <span v-if="change.requestedBy" class="requested-by">
+                    {{ $t('moderation.suggestedBy') }} {{ getUserId(change.requestedBy) }}
+                  </span>
+                </div>
+                <div v-if="isGeometryField(change.fieldName)" class="geometry-change-controls">
+                  <div class="geometry-buttons">
+                    <Button
+                      icon="pi pi-map-marker"
+                      :label="$t('overlay.viewCurrentPosition')"
+                      @click.stop="previewGeometry(change.oldValue, 'old', change.id)"
+                      severity="success"
+                      :outlined="!isPreviewActive(change.id, 'old')"
+                      size="small"
+                    />
+                    <Button
+                      icon="pi pi-map-marker"
+                      :label="$t('overlay.viewSuggestedPosition')"
+                      @click.stop="previewGeometry(change.newValue, 'new', change.id)"
+                      severity="warn"
+                      :outlined="!isPreviewActive(change.id, 'new')"
+                      size="small"
+                    />
+                  </div>
+                </div>
+                <div v-else class="change-values">
+                  <span class="old-value">{{ formatValue(change.oldValue, change.fieldName) }}</span>
+                  <i class="pi pi-arrow-right"></i>
+                  <span class="new-value">{{ formatValue(change.newValue, change.fieldName) }}</span>
+                </div>
+                <div v-if="change.changeReason" class="change-reason">
+                  <em>{{ $t('moderation.reason') }}: {{ change.changeReason }}</em>
+                </div>
+                <div class="change-date">
+                  <em>{{ $t('moderation.requested') }}: {{ new Date(change.createdAt).toLocaleString() }}</em>
+                </div>
+              </div>
+              <div v-if="$slots['change-actions']" class="change-actions">
+                <slot name="change-actions" :change="change"></slot>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </template>
     </div>
   </div>
 </template>
@@ -121,6 +176,57 @@ const isPreviewActive = computed(() => {
     const previewType = getPreviewType(changeId);
     return (type === 'old' && previewType === 'current') || (type === 'new' && previewType === 'suggested');
   };
+});
+
+// AI : Group changes - separate conflicting changes from non-conflicting ones
+type ChangeGroup = {
+  type: 'single';
+  change: PendingChangeRequest;
+} | {
+  type: 'conflict';
+  fieldName: string;
+  entityType: string;
+  entityId: string;
+  changes: PendingChangeRequest[];
+};
+
+const groupedChanges = computed<ChangeGroup[]>(() => {
+  const groups: ChangeGroup[] = [];
+  const processedIds = new Set<string>();
+
+  for (const change of props.changes) {
+    if (processedIds.has(change.id)) continue;
+
+    if (change.hasConflict) {
+      // AI : Find all conflicting changes for the same field
+      const conflictingChanges = props.changes.filter(c =>
+        c.entityType === change.entityType &&
+        c.entityId === change.entityId &&
+        c.fieldName === change.fieldName
+      );
+
+      // AI : Mark all as processed
+      conflictingChanges.forEach(c => processedIds.add(c.id));
+
+      // AI : Add as conflict group
+      groups.push({
+        type: 'conflict',
+        fieldName: change.fieldName,
+        entityType: change.entityType,
+        entityId: change.entityId,
+        changes: conflictingChanges
+      });
+    } else {
+      // AI : Single non-conflicting change
+      processedIds.add(change.id);
+      groups.push({
+        type: 'single',
+        change
+      });
+    }
+  }
+
+  return groups;
 });
 
 function isGeometryField(fieldName: string): boolean {
@@ -300,7 +406,7 @@ async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', chan
   border-color: var(--p-blue-300);
   border-width: 2px;
   background: var(--p-blue-25);
-  opacity: 0.7;
+  padding: 0;
 }
 
 .conflict-banner {
@@ -321,11 +427,9 @@ async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', chan
   color: var(--p-blue-600);
 }
 
-.conflict-help {
-  margin-left: auto;
-  font-weight: 400;
-  font-size: 0.75rem;
-  color: var(--p-orange-600);
+.conflict-info-icon {
+  cursor: help;
+  font-size: 1rem;
 }
 
 .field-header {
@@ -412,5 +516,33 @@ async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', chan
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+/* AI : Styling for grouped conflict options */
+.conflict-option {
+  background: white;
+  border-radius: 4px;
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  border: 1px solid var(--p-blue-200);
+}
+
+.conflict-option:first-of-type {
+  margin-top: 0.75rem;
+}
+
+.conflict-option:last-of-type {
+  margin-bottom: 0;
+}
+
+.conflict-option:hover {
+  background: var(--p-blue-25);
+  border-color: var(--p-blue-300);
+}
+
+/* AI : Adjust conflict banner for grouped display */
+.change-item.conflicted > .conflict-banner {
+  margin: 0;
+  border-radius: 4px 4px 0 0;
 }
 </style>

@@ -154,7 +154,14 @@ export const changesRouter = router({
           .where(eq(changeRequests.requestedBy, userId))
           .orderBy(changeRequests.createdAt);
 
-        return myChanges;
+        // AI : Add hasConflict field to maintain type consistency with getPendingChangeRequests
+        // AI : For user's own changes, we show conflicts when status is 'conflicted' (another change was chosen)
+        const changesWithConflictInfo = myChanges.map(change => ({
+          ...change,
+          hasConflict: change.status === 'conflicted'
+        }));
+
+        return changesWithConflictInfo;
       } catch (error) {
         console.error('Error fetching my change requests:', error);
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch my change requests' });
@@ -183,7 +190,24 @@ export const changesRouter = router({
           .where(eq(changeRequests.status, 'pending'))
           .orderBy(changeRequests.createdAt);
 
-        return pendingChanges;
+        // AI : Detect conflicts - multiple pending requests for the same field
+        const conflictMap = new Map<string, number>();
+        for (const change of pendingChanges) {
+          const key = `${change.entityType}:${change.entityId}:${change.fieldName}`;
+          conflictMap.set(key, (conflictMap.get(key) || 0) + 1);
+        }
+
+        // AI : Add hasConflict flag to changes that have competing requests
+        const changesWithConflictInfo = pendingChanges.map(change => {
+          const key = `${change.entityType}:${change.entityId}:${change.fieldName}`;
+          const hasConflict = (conflictMap.get(key) || 0) > 1;
+          return {
+            ...change,
+            hasConflict
+          };
+        });
+
+        return changesWithConflictInfo;
       } catch (error) {
         console.error('Error fetching pending change requests:', error);
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch pending change requests' });
