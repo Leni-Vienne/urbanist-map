@@ -167,7 +167,8 @@ const filteredProjects = computed(() => {
 // AI : Load initial data
 onMounted(() => {
   fetchUserContributions()
-  refreshPendingChangeRequests()
+  // AI : Force user-only mode to show only this user's change requests, even for moderators
+  refreshPendingChangeRequests(true)
 })
 
 </script>
