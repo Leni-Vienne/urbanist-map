@@ -49,7 +49,7 @@ export function useChangeRequests() {
     }
   }
 
-  async function refreshPendingChangeRequests() {
+  async function refreshPendingChangeRequests(forceUserOnly = false) {
     // AI : Skip if already loaded
     if (changeRequestsLoaded.value) {
       return;
@@ -59,9 +59,10 @@ export function useChangeRequests() {
     try {
       const { isModerator } = useAuthStore();
 
-      // AI : Use moderation route for moderations, user route for regular users
+      // AI : Use moderation route for moderation panel, user route for My Contributions
+      // AI : forceUserOnly ensures My Contributions always shows only user's own changes
       const result = await withErrorHandling(
-        async () => isModerator
+        async () => (isModerator && !forceUserOnly)
           ? trpc.changes.getPendingChangeRequests.query()
           : trpc.changes.getMyChangeRequests.query(),
         { errorMessage: 'Failed to fetch pending change requests' }
