@@ -6,6 +6,7 @@ import { buildProjectPayload } from '@composables/project/useProjectMutations'
 import { useProjectStore } from '@stores/pinia/projectStore'
 import { updateDevelopmentMarkerColor } from '@composables/map/useCityMarkers'
 import { trpc } from '@client'
+import { formatDate } from '@utils/dateFormat'
 
 // AI : Type for overlay update payload based on updateOverlaySchema
 interface OverlayUpdateData {
@@ -46,14 +47,19 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
 
   // AI : Check if a specific field has changed
   function hasChanged(fieldName: keyof T): boolean {
-    const original = (originalData as T)[fieldName]
-    const current = (formData as T)[fieldName]
-    
-    // AI : Handle Date objects comparison
-    if (original && typeof original === 'object' && 'getTime' in original && current && typeof current === 'object' && 'getTime' in current) {
-      return (original as Date).getTime() !== (current as Date).getTime()
+    const original = (originalData as T)[fieldName] as any
+    const current = (formData as T)[fieldName] as any
+
+    // AI : Handle Date objects by comparing their time values
+    if (original instanceof Date && current instanceof Date) {
+      return original.getTime() !== current.getTime()
     }
-    
+
+    // AI : Handle cases where one is Date and other is null/undefined
+    if ((original instanceof Date && !current) || (!original && current instanceof Date)) {
+      return true
+    }
+
     return original !== current
   }
 
@@ -93,18 +99,12 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
       return 'Not set'
     }
     if (value instanceof Date) {
-      return value.toLocaleDateString()
+      return formatDate(value)
     }
     if (typeof value === 'number') {
       return value.toFixed(6)
     }
     return String(value)
-  }
-
-  // AI : Format date specifically for display
-  function formatDate(date: Date | null | undefined): string {
-    if (!date) return ''
-    return date.toLocaleDateString()
   }
 
   // AI : Get CSS classes for a field based on change status
@@ -293,7 +293,6 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
     resetChanges,
     getChangesToSubmit,
     formatValue,
-    formatDate,
     getFieldClasses,
     submitChanges
   }

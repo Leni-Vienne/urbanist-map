@@ -216,6 +216,7 @@ export function buildProjectModerationQuery(db: PostgresJsDatabase<typeof schema
       updatedAt: projects.updatedAt,
       startDate: projects.startDate,
       endDate: projects.endDate,
+      proposalDate: projects.proposalDate,
       sourceUrl: projects.sourceUrl,
       isDevelopment: projects.isDevelopment,
       lat: projects.lat,

@@ -112,10 +112,10 @@
                                 </div>
                                 <div
                                   class="metadata-item"
-                                  v-if="project.startDate || project.endDate"
+                                  v-if="project.startDate || project.endDate || project.proposalDate"
                                 >
                                   <i class="pi pi-calendar"></i>
-                                  <span>{{ formatProjectDateRange(project.startDate, project.endDate) }}</span>
+                                  <span>{{ formatProjectDateRange(project.startDate, project.endDate, project.proposalDate) }}</span>
                                 </div>
                                 <div
                                   class="metadata-item"
@@ -324,6 +324,7 @@ import { useAccordionState } from '@composables/layout/useAccordionState'
 import type { ProjectForModeration, OverlayForModeration } from '@types'
 import type { PendingChangeRequest } from '../../types/api'
 import ChangeRequestSection from './ChangeRequestSection.vue'
+import { formatDate } from '@utils/dateFormat'
 
 // AI : Props interface
 interface Props {
@@ -620,27 +621,28 @@ function getOverlayLocationDisplay(overlay: OverlayForModeration): string {
   return 'Unknown Location'
 }
 
-// AI : Format project dates nicely
+// AI : Format project dates as dd/mm/yyyy
 function formatProjectDate(date: Date | null): string {
   if (!date) return ''
-  return new Date(date).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
+  return formatDate(date)
 }
 
-// AI : Format project date range on single line with dash
-function formatProjectDateRange(startDate: Date | null, endDate: Date | null): string {
+// AI : Format project date range including proposal date support with i18n
+function formatProjectDateRange(startDate: Date | null, endDate: Date | null, proposalDate?: Date | null): string {
+  // AI : If it's a proposed project, show "Proposed on {date}"
+  if (proposalDate) {
+    return `${t('project.proposed')} ${formatProjectDate(proposalDate)}`
+  }
+
   const start = startDate ? formatProjectDate(startDate) : null
   const end = endDate ? formatProjectDate(endDate) : null
 
   if (start && end) {
     return `${start} - ${end}`
   } else if (start) {
-    return `Starts ${start}`
+    return `${t('project.starts')} ${start}`
   } else if (end) {
-    return `Ends ${end}`
+    return `${t('project.ends')} ${end}`
   }
   return ''
 }

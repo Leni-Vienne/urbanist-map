@@ -11,6 +11,7 @@ import { computed } from 'vue'
 import { validateOverlaySize, leafletCornersToCorners } from '../../../../back/src/utils/overlayValidation'
 import { useI18n } from 'vue-i18n'
 import { useChangeRequests } from '@composables/changes/useChanges'
+import { formatDate } from '@utils/dateFormat'
 
 // AI : Unified submission types for consolidated workflow
 export type SubmissionChangeType = 'create' | 'update_pending' | 'update_approved'
@@ -261,7 +262,7 @@ export function useSubmissionService() {
     }
 
     if (value instanceof Date) {
-      return value.toLocaleDateString()
+      return formatDate(value)
     }
     if (typeof value === 'number') {
       return value.toFixed(6)
