@@ -1,6 +1,6 @@
 import L from "leaflet";
 import { ref, shallowRef } from 'vue';
-import { debounce } from '../../utils';
+import { debounce } from '@utils/debounce';
 
 // shallowRef is used to avoid reactivity issues with Leaflet, see https://stackoverflow.com/a/73588115/12498040
 export const map = shallowRef<L.Map | null>(null);

@@ -83,7 +83,8 @@ import { useI18n } from 'vue-i18n'
 import { useToast } from '@composables/ui/useToast'
 import { useLatestOverlays } from '@composables/overlay/useLatestOverlays'
 import { useOverlayClickHandler } from '@composables/overlay/useOverlayClickHandler'
-import { buildThumbnailUrl, formatRelativeTime } from '../../utils'
+import { buildThumbnailUrl } from '@utils/imageUrl'
+import { formatRelativeTime } from '@utils/dateFormat'
 import type { LatestOverlay } from '../../types/api'
 
 const { t } = useI18n()

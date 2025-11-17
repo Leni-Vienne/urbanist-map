@@ -58,7 +58,7 @@ import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useAuthStore } from '@stores/authStore';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import type { OverlayData } from '@types';
-import ModeControls from '@components/shared/ModeControls.vue';
+import ModeControls from '@components/map/ModeControls.vue';
 
 const MapControls = defineAsyncComponent(() => import('@components/map/MapControls.vue'));
 const UserMenu = defineAsyncComponent(() => import('@components/auth/UserMenu.vue'));

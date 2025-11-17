@@ -137,7 +137,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { buildImageUrl, buildThumbnailUrl } from '../../utils'
+import { buildImageUrl, buildThumbnailUrl } from '@utils/imageUrl'
 import { useI18n } from 'vue-i18n'
 import { formatDate } from '@utils/dateFormat'
 
