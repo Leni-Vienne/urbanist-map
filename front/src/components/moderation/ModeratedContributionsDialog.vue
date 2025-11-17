@@ -88,7 +88,8 @@ import { ref, watch } from 'vue'
 import ProgressSpinner from 'primevue/progressspinner'
 import { useModeratedContributions } from '@composables/moderation/useModeratedContributions'
 import { useToast } from '@composables/ui/useToast'
-import { buildThumbnailUrl, formatRelativeTime } from '../../utils'
+import { buildThumbnailUrl } from '@utils/imageUrl'
+import { formatRelativeTime } from '@utils/dateFormat'
 import { useI18n } from 'vue-i18n'
 
 interface Props {

@@ -315,7 +315,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { buildThumbnailUrl, formatRelativeTime } from '../../utils'
+import { buildThumbnailUrl } from '@utils/imageUrl'
+import { formatRelativeTime, formatDate } from '@utils/dateFormat'
 import { navigateToDevelopmentProject } from '@composables/navigation/useOverlayNavigation'
 import { useOverlayClickHandler } from '@composables/overlay/useOverlayClickHandler'
 import { useToast } from '@composables/ui/useToast'
@@ -324,7 +325,6 @@ import { useAccordionState } from '@composables/layout/useAccordionState'
 import type { ProjectForModeration, OverlayForModeration } from '@types'
 import type { PendingChangeRequest } from '../../types/api'
 import ChangeRequestSection from './ChangeRequestSection.vue'
-import { formatDate } from '@utils/dateFormat'
 
 // AI : Props interface
 interface Props {

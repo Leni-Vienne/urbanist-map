@@ -2,7 +2,7 @@
 import type { Project, OverlayObject, OverlayData } from '@types';
 import type { NearbyProject } from '../types/api';
 import { v4 as uuidv4 } from 'uuid';
-import { buildImageUrl } from '../utils';
+import { buildImageUrl } from '@utils/imageUrl';
 
 /**
  * AI : Calculate center position from 4 corner coordinates

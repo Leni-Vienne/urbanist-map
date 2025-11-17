@@ -32,7 +32,7 @@
 import { computed } from "vue";
 import DraggableDrawer from "./DraggableDrawer.vue";
 import PanelContent from "./PanelContent.vue";
-import ModeControls from "@components/shared/ModeControls.vue";
+import ModeControls from "@components/map/ModeControls.vue";
 import { useUiStore } from "@stores/uiStore";
 import { usePanelTabs } from "@composables/layout/usePanelTabs";
 
