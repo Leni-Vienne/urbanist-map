@@ -234,6 +234,12 @@ export function useOverlayPublisher() {
           mapStore.clearCityProjectsCache(cityId);
           mapStore.clearCityDevelopmentProjectsCache(cityId);
         }
+
+        // AI : Optimistically add overlay to user contributions (no backend fetch needed)
+        // AI : Latest overlays won't show pending submissions, so don't refresh that panel
+        if (project) {
+          projectStore.addOverlayToUserContributions(overlay, project);
+        }
       }
 
       // AI : Don't refresh city overlays immediately after publishing to avoid overwriting

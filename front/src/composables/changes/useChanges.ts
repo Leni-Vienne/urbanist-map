@@ -40,6 +40,8 @@ export function useChangeRequests() {
       );
 
       if (result?.success != undefined) {
+        // AI : Reset loaded flag to allow refresh, then fetch updated pending changes
+        resetChangeRequestsLoaded();
         await refreshPendingChangeRequests();
       }
 

@@ -10,6 +10,7 @@ import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { validateOverlaySize, leafletCornersToCorners } from '../../../../back/src/utils/overlayValidation'
 import { useI18n } from 'vue-i18n'
+import { useChangeRequests } from '@composables/changes/useChanges'
 
 // AI : Unified submission types for consolidated workflow
 export type SubmissionChangeType = 'create' | 'update_pending' | 'update_approved'
@@ -63,6 +64,7 @@ export function useSubmissionService() {
   const mapStore = useMapStore()
   const { currentCityOverlays } = storeToRefs(mapStore)
   const { t } = useI18n()
+  const { resetChangeRequestsLoaded, refreshPendingChangeRequests } = useChangeRequests()
 
   // AI : Build a combined city name cache from store cache + projects we've seen
   const cityNamesCache = computed(() => {
@@ -390,6 +392,10 @@ export function useSubmissionService() {
         mapStore.clearCityProjectsCache(project.cityId)
         mapStore.clearCityDevelopmentProjectsCache(project.cityId)
       }
+
+      // AI : Refresh pending change requests to show in side menu (user's own only)
+      resetChangeRequestsLoaded()
+      await refreshPendingChangeRequests(true) // forceUserOnly = true for My Contributions
     } else {
       // AI : Direct update for pending/new projects
       const publishResult = await trpc.project.publishProject.mutate(
@@ -416,6 +422,20 @@ export function useSubmissionService() {
           )
         } else {
           await loadCityProjects(null, '', true)
+        }
+
+        // AI : Optimistically update user contributions based on change type
+        if (context.changeType === 'create') {
+          // AI : New project - add to contributions
+          projectStore.addProjectToUserContributions(project)
+        } else if (context.changeType === 'update_pending') {
+          // AI : Updating pending project - update in contributions
+          projectStore.updateProjectInUserContributions(project.id, {
+            name: project.name,
+            description: project.description,
+            sourceUrl: project.sourceUrl,
+            updatedAt: new Date(),
+          })
         }
       } else {
         throw new Error('Backend publish failed')
@@ -450,6 +470,10 @@ export function useSubmissionService() {
         mapStore.clearCityProjectsCache(cityId)
         mapStore.clearCityDevelopmentProjectsCache(cityId)
       }
+
+      // AI : Refresh pending change requests to show in side menu (user's own only)
+      resetChangeRequestsLoaded()
+      await refreshPendingChangeRequests(true) // forceUserOnly = true for My Contributions
     } else if (context.changeType === 'update_pending') {
       // AI : Direct update for pending overlays
       const overlayData: { id: string; caption?: string } = { id: overlay.id }
@@ -467,6 +491,13 @@ export function useSubmissionService() {
       if (cityId) {
         mapStore.clearCityProjectsCache(cityId)
         mapStore.clearCityDevelopmentProjectsCache(cityId)
+      }
+
+      // AI : Optimistically update pending overlay in user contributions
+      if (overlayData.caption !== undefined) {
+        projectStore.updateOverlayInUserContributions(overlay.id, {
+          name: overlayData.caption || 'Unnamed'
+        })
       }
     } else {
       // AI : Create new overlay - this is handled by useOverlayPublisher
