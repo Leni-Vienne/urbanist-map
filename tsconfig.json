@@ -42,6 +42,9 @@
             "@pages/*": [
                 "./front/src/pages/*"
             ],
+            "@utils/*": [
+                "./front/src/utils/*"
+            ],
             "leaflet": [
                 "./node_modules/@types/leaflet"
             ]

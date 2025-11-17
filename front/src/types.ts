@@ -176,7 +176,7 @@ export type OverlayForModeration = Pick<OverlayObject, 'id' | 'filename' | 'stat
   countryName: string | null;
 };
 
-export type ProjectForModeration = Pick<Project, 'id' | 'name' | 'description' | 'status' | 'version' | 'createdAt' | 'updatedAt' | 'startDate' | 'endDate' | 'sourceUrl' | 'isDevelopment' | 'lat' | 'lng' | 'cityId'> & {
+export type ProjectForModeration = Pick<Project, 'id' | 'name' | 'description' | 'status' | 'version' | 'createdAt' | 'updatedAt' | 'startDate' | 'endDate' | 'proposalDate' | 'sourceUrl' | 'isDevelopment' | 'lat' | 'lng' | 'cityId'> & {
   cityName: string | null;
   countryCode: string | null;
   countryName: string | null;

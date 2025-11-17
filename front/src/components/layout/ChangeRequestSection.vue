@@ -61,7 +61,7 @@
                 <em>{{ $t('moderation.reason') }}: {{ group.change.changeReason }}</em>
               </div>
               <div class="change-date">
-                <em>{{ $t('moderation.requested') }}: {{ new Date(group.change.createdAt).toLocaleString() }}</em>
+                <em>{{ $t('moderation.requested') }}: {{ formatDateTime(group.change.createdAt) }}</em>
               </div>
             </div>
             <div v-if="$slots['change-actions']" class="change-actions">
@@ -118,7 +118,7 @@
                   <em>{{ $t('moderation.reason') }}: {{ change.changeReason }}</em>
                 </div>
                 <div class="change-date">
-                  <em>{{ $t('moderation.requested') }}: {{ new Date(change.createdAt).toLocaleString() }}</em>
+                  <em>{{ $t('moderation.requested') }}: {{ formatDateTime(change.createdAt) }}</em>
                 </div>
               </div>
               <div v-if="$slots['change-actions']" class="change-actions">
@@ -140,6 +140,7 @@ import { useToast } from '@composables/ui/useToast';
 import { useChangeRequestPreview } from '@composables/overlay/useChangeRequestPreview';
 import type { PendingChangeRequest } from '../../types/api';
 import type { ProjectForModeration, OverlayForModeration } from '@types';
+import { formatDateTime } from '@utils/dateFormat';
 
 interface Props {
   changes: PendingChangeRequest[];

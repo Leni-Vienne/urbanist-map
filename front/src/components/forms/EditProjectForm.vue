@@ -91,17 +91,17 @@
         <label for="proposalDate">{{ $t('project.proposalDate') }} *</label>
         <DatePicker
           id="proposalDate"
-          v-model="(formData.proposalDate as any)"
+          v-model="formData.proposalDate"
           :class="getFieldClasses('proposalDate')"
-          dateFormat="yy-mm-dd"
+          dateFormat="dd/mm/yy"
           :placeholder="$t('project.proposalDate')"
-          updateModelType="yyyy-MM-dd"
+          updateModelType="date"
           showIcon
           required
         />
         <small class="text-gray-500">{{ $t('project.proposalDateHelp') }}</small>
         <small v-if="hasChanged('proposalDate')" class="change-indicator">
-          {{ $t('overlay.changedFrom') }}: "{{ originalData.proposalDate || $t('overlay.notSet') }}"
+          {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData.proposalDate) || $t('overlay.notSet') }}"
         </small>
       </div>
 
@@ -110,17 +110,17 @@
           <label for="startDate">{{ $t('project.startDate') }} *</label>
           <DatePicker
             id="startDate"
-            v-model="(formData.startDate as any)"
+            v-model="formData.startDate"
             :class="getFieldClasses('startDate')"
-            dateFormat="yy-mm-dd"
+            dateFormat="dd/mm/yy"
             :placeholder="$t('project.startDate')"
-            updateModelType="yyyy-MM-dd"
+            updateModelType="date"
             showIcon
             required
           />
           <small class="text-gray-500">{{ $t('project.startDateHelp') }}</small>
           <small v-if="hasChanged('startDate')" class="change-indicator">
-            {{ $t('overlay.changedFrom') }}: "{{ originalData.startDate || $t('overlay.notSet') }}"
+            {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData.startDate) || $t('overlay.notSet') }}"
           </small>
         </div>
 
@@ -128,17 +128,17 @@
           <label for="endDate">{{ $t('project.endDate') }} *</label>
           <DatePicker
             id="endDate"
-            v-model="(formData.endDate as any)"
+            v-model="formData.endDate"
             :class="getFieldClasses('endDate')"
-            dateFormat="yy-mm-dd"
+            dateFormat="dd/mm/yy"
             :placeholder="$t('project.endDate')"
-            updateModelType="yyyy-MM-dd"
+            updateModelType="date"
             showIcon
             required
           />
           <small class="text-gray-500">{{ $t('project.endDateHelp') }}</small>
           <small v-if="hasChanged('endDate')" class="change-indicator">
-            {{ $t('overlay.changedFrom') }}: "{{ originalData.endDate || $t('overlay.notSet') }}"
+            {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData.endDate) || $t('overlay.notSet') }}"
           </small>
         </div>
       </div>
@@ -175,16 +175,16 @@
         <label for="latestUpdateOn">{{ $t('project.latestUpdateOn') }} ({{ $t('project.optionalField') }})</label>
         <DatePicker
           id="latestUpdateOn"
-          v-model="(formData.latestUpdateOn as any)"
+          v-model="formData.latestUpdateOn"
           :class="getFieldClasses('latestUpdateOn')"
-          dateFormat="yy-mm-dd"
+          dateFormat="dd/mm/yy"
           :placeholder="$t('project.latestUpdateOn')"
-          updateModelType="yyyy-MM-dd"
+          updateModelType="date"
           showIcon
         />
         <small class="text-gray-500">{{ $t('project.latestUpdateOnHelp') }}</small>
         <small v-if="hasChanged('latestUpdateOn')" class="change-indicator">
-          {{ $t('overlay.changedFrom') }}: "{{ originalData.latestUpdateOn || $t('overlay.notSet') }}"
+          {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData.latestUpdateOn) || $t('overlay.notSet') }}"
         </small>
       </div>
 
@@ -210,6 +210,7 @@ import BaseEditForm from './BaseEditForm.vue'
 import type { Project } from '@types'
 import { useCitySelect } from '@composables/forms/useCitySelect'
 import { useProjectTimelineStatus } from '@composables/forms/useProjectTimelineStatus'
+import { formatDate } from '@utils/dateFormat'
 
 interface Props {
   project: Project
@@ -229,24 +230,23 @@ const { cities, filteredCities, citiesLoading, onSelectShow, getCityName } = use
 // AI : Use timeline status composable (without formData watcher since we handle status in toggleTimelineStatus)
 const { isProposed, toggleTimelineStatus } = useProjectTimelineStatus(props.project)
 
-// AI : Helper to convert Date to yyyy-MM-dd string format for DatePicker compatibility
-function formatDateForPicker(date: Date | string | null | undefined): string | null {
-  if (!date) return null
-  const d = typeof date === 'string' ? new Date(date) : date
-  if (isNaN(d.getTime())) return null
-  return d.toISOString().split('T')[0] // AI : Returns yyyy-MM-dd format
+// AI : Helper to ensure dates are Date objects (handles both Date and string from backend)
+function toDateObject(value: Date | string | null | undefined): Date | null {
+  if (!value) return null
+  if (value instanceof Date) return value
+  const date = new Date(value)
+  return isNaN(date.getTime()) ? null : date
 }
 
-// AI : Transform project data for the form (include cityId to preserve it)
-// AI : Normalize dates to yyyy-MM-dd strings to match DatePicker's updateModelType
+// AI : Transform project data for the form - ensure all dates are Date objects for DatePicker
 const projectData = computed(() => ({
   name: props.project.name,
   description: props.project.description || '',
   sourceUrl: props.project.sourceUrl || '',
-  proposalDate: formatDateForPicker(props.project.proposalDate),
-  startDate: formatDateForPicker(props.project.startDate),
-  endDate: formatDateForPicker(props.project.endDate),
-  latestUpdateOn: formatDateForPicker(props.project.latestUpdateOn),
+  proposalDate: toDateObject(props.project.proposalDate),
+  startDate: toDateObject(props.project.startDate),
+  endDate: toDateObject(props.project.endDate),
+  latestUpdateOn: toDateObject(props.project.latestUpdateOn),
   cityId: props.project.cityId,
 }))
 </script>

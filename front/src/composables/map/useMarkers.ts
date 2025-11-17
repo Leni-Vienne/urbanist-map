@@ -8,6 +8,7 @@ import L from 'leaflet';
 import type { MarkerColor, OverlayObject, OverlayData, MapMode } from '@types';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import type { ShallowRef } from 'vue';
+import { formatDate } from '@utils/dateFormat';
 
 // AI : ============================================================================
 // AI : ICON CREATION
@@ -396,9 +397,9 @@ export function explainOverlayColor(
       const end = endDate ? new Date(endDate) : null;
 
       if (start > now) {
-        reason = `Upcoming (starts ${start.toLocaleDateString()})`;
+        reason = `Upcoming (starts ${formatDate(start)})`;
       } else if (end && end <= now) {
-        reason = `Completed (ended ${end.toLocaleDateString()})`;
+        reason = `Completed (ended ${formatDate(end)})`;
       } else {
         reason = 'Ongoing construction';
       }

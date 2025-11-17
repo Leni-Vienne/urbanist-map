@@ -52,6 +52,7 @@ export default defineConfig({
       '@types': path.resolve(__dirname, './src/types'),
       '@api': path.resolve(__dirname, './src/types/api'),
       '@client': path.resolve(__dirname, './src/client'),
+      '@utils': path.resolve(__dirname, './src/utils'),
     }
   },
   // to prevent annoying automatic reloads in devmode 

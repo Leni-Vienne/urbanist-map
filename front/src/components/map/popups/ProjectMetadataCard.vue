@@ -32,10 +32,10 @@
         <span class="info-label">{{ $t('project.period') }}:</span>
         <span class="info-value info-small">
           <span v-if="project.startDate && project.endDate">
-            {{ formatDate(project.startDate) }} - {{ formatDate(project.endDate) }}
+            {{ formatDate(project.startDate) || '—' }} - {{ formatDate(project.endDate) || '—' }}
           </span>
           <span v-else-if="project.proposalDate">
-            {{ $t('project.proposed') }} {{ formatDate(project.proposalDate) }}</span>
+            {{ $t('project.proposed') }} {{ formatDate(project.proposalDate) || '—' }}</span>
           <span v-else>
             {{ $t('metadata.notSpecified') }}
           </span>
@@ -57,7 +57,7 @@
         class="info-row"
       >
         <span class="info-label">{{ $t('project.latestUpdate') }}:</span>
-        <span class="info-value info-small">{{ formatDate(project.latestUpdateOn) }}</span>
+        <span class="info-value info-small">{{ formatDate(project.latestUpdateOn) || '—' }}</span>
       </div>
     </div>
   </div>
@@ -66,6 +66,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Project } from '@types'
+import { formatDate } from '@utils/dateFormat'
 
 interface Props {
   project: Project | null
@@ -77,11 +78,6 @@ const props = withDefaults(defineProps<Props>(), {
   showDescription: false,
   availableCities: () => []
 })
-
-function formatDate(date: string | Date | null | undefined): string {
-  if (!date) return '—'
-  return new Date(date).toLocaleDateString()
-}
 
 // AI : Convert to computed property for reactivity to project changes
 const projectLocationDisplay = computed(() => {

@@ -103,7 +103,7 @@
               <div class="competing-details">
                 <div class="item-header">
                   <strong>{{ competing.caption || $t('overlay.untitled') }}</strong>
-                  <span class="item-date">{{ formatDate(competing.createdAt) }}</span>
+                  <span class="item-date">{{ formatDate(competing.createdAt) || '—' }}</span>
                 </div>
               </div>
             </div>
@@ -138,7 +138,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { buildImageUrl, buildThumbnailUrl } from '../../utils'
-import { useI18n } from 'vue-i18n';
+import { useI18n } from 'vue-i18n'
+import { formatDate } from '@utils/dateFormat'
 
 const { t: $t } = useI18n();
 
@@ -219,11 +220,6 @@ function formatValue(value: any): string {
     return JSON.stringify(value);
   }
   return String(value);
-}
-
-// AI : Format date for display
-function formatDate(date: Date): string {
-  return new Date(date).toLocaleDateString();
 }
 
 </script>
