@@ -64,7 +64,7 @@ export function addOverlayToProjectWithId(projectId: string, overlayId: string) 
 export function removeOverlayFromProjectWithId(projectId: string, overlayId: string) {
   const { projects, overlays } = useProjects();
   
-  if (!projects.value[projectId]) {
+  if (projects.value[projectId] != null) {
     console.error('Project not found:', projectId);
     throw new Error('Project not found');
   }

@@ -66,6 +66,11 @@ export const useOverlayStore = defineStore('overlay', () => {
     latestOverlaysLoading.value = loading
   }
 
+  // AI : Reset latest overlays cache to force refresh on next load
+  const resetLatestOverlays = () => {
+    latestOverlaysLoaded.value = false
+  }
+
   const addEditModeOverlay = (overlayId: string) => {
     loadedEditOverlays.value.add(overlayId)
   }
@@ -184,6 +189,7 @@ export const useOverlayStore = defineStore('overlay', () => {
     setOverlaysError,
     setLatestOverlays,
     setLatestOverlaysLoading,
+    resetLatestOverlays,
     addEditModeOverlay,
     removeEditModeOverlay,
     clearEditModeMarkersAndState,

@@ -50,7 +50,7 @@ export async function withErrorHandling<T>(
     const result = await fn()
 
     // AI : Show success toast if provided
-    if (successMessage) {
+    if (successMessage != undefined) {
       toast.add({
         severity: 'success',
         summary: successSummary,

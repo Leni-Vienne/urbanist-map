@@ -1,10 +1,13 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { Project, Country, MapMode } from '@types';
+import type { Project, Country, MapMode, OverlayObject } from '@types';
 import type { NearbyProject } from '../../types/api';
 import { map } from '@composables/core/useMap';
 import { trpc, RouterOutput } from '@client';
 import { createProjectFromAPI } from '../../utils/typeFactories';
+
+// AI : Type for user contributions from backend
+type UserContribution = RouterOutput['project']['getUsersContributions']['projects'][number];
 
 export const useProjectStore = defineStore('project', () => {
   // AI : Central store for project data to avoid circular dependencies
@@ -25,7 +28,7 @@ export const useProjectStore = defineStore('project', () => {
   const nearbyProjectsLastFetch = ref<{ lat: number; lng: number; timestamp: number } | null>(null);
 
   // AI : User contributions cache - simple loaded flag
-  const userContributions = ref<any[]>([]);
+  const userContributions = ref<UserContribution[]>([]);
   const userContributionsLoading = ref(false);
   const userContributionsLoaded = ref(false);
 
@@ -66,13 +69,165 @@ export const useProjectStore = defineStore('project', () => {
   });
 
   // AI : User contributions actions
-  const setUserContributions = (contributions: any[]) => {
+  const setUserContributions = (contributions: UserContribution[]) => {
     userContributions.value = contributions;
     userContributionsLoaded.value = true;
   };
 
   const setUserContributionsLoading = (loading: boolean) => {
     userContributionsLoading.value = loading;
+  };
+
+  // AI : Reset user contributions cache to force refresh on next load
+  const resetUserContributions = () => {
+    userContributionsLoaded.value = false;
+  };
+
+  // AI : Optimistically add new overlay to user contributions without backend fetch
+  const addOverlayToUserContributions = (overlay: OverlayObject, project: Project) => {
+    if (!userContributionsLoaded.value) {
+      // AI : If contributions not loaded yet, skip optimistic update
+      return;
+    }
+
+    // AI : Find existing project in contributions
+    const existingProjectIndex = userContributions.value.findIndex(p => p.id === project.id);
+
+    if (existingProjectIndex >= 0) {
+      // AI : Project exists, add overlay to its overlays array
+      const existingProject = userContributions.value[existingProjectIndex];
+      const updatedProject = {
+        ...existingProject,
+        overlays: [
+          ...existingProject.overlays,
+          {
+            id: overlay.id,
+            name: overlay.caption ?? 'Unnamed',
+            filename: overlay.imageUrl.split('/').pop() ?? '',
+            status: 'pending' as const,
+            version: 1,
+            projectId: project.id,
+            replacesOverlayId: overlay.replacesOverlayId ?? null,
+            replacedByOverlayId: null,
+            updatedAt: new Date(),
+            cityId: project.cityId,
+            cityName: project.city?.name ?? null,
+            countryCode: project.city?.countryCode ?? null,
+            countryName: null,
+          }
+        ],
+        overlayCount: existingProject.overlayCount + 1,
+      };
+
+      userContributions.value = [
+        ...userContributions.value.slice(0, existingProjectIndex),
+        updatedProject,
+        ...userContributions.value.slice(existingProjectIndex + 1),
+      ];
+    } else {
+      // AI : Project doesn't exist in contributions, add both project and overlay
+      userContributions.value = [
+        {
+          ...project,
+          cityName: project.city?.name ?? null,
+          countryCode: project.city?.countryCode ?? null,
+          countryName: null,
+          overlays: [{
+            id: overlay.id,
+            name: overlay.caption ?? 'Unnamed',
+            filename: overlay.imageUrl.split('/').pop() ?? '',
+            status: 'pending' as const,
+            version: 1,
+            projectId: project.id,
+            replacesOverlayId: overlay.replacesOverlayId ?? null,
+            replacedByOverlayId: null,
+            updatedAt: new Date(),
+            cityId: project.cityId,
+            cityName: project.city?.name ?? null,
+            countryCode: project.city?.countryCode ?? null,
+            countryName: null,
+          }],
+          overlayCount: 1,
+        },
+        ...userContributions.value,
+      ];
+    }
+  };
+
+  // AI : Optimistically add new project to user contributions without backend fetch
+  const addProjectToUserContributions = (project: Project) => {
+    if (!userContributionsLoaded.value) {
+      // AI : If contributions not loaded yet, skip optimistic update
+      return;
+    }
+
+    // AI : Check if project already exists
+    const existingIndex = userContributions.value.findIndex(p => p.id === project.id);
+    if (existingIndex >= 0) {
+      // AI : Project already exists, don't add duplicate
+      return;
+    }
+
+    // AI : Add new project to the beginning of the array
+    userContributions.value = [
+      {
+        ...project,
+        cityName: project.city?.name ?? null,
+        countryCode: project.city?.countryCode ?? null,
+        countryName: null,
+        overlays: [],
+        overlayCount: 0,
+      },
+      ...userContributions.value,
+    ];
+  };
+
+  // AI : Update pending overlay in user contributions (for caption/field updates)
+  const updateOverlayInUserContributions = (overlayId: string, updates: Partial<UserContribution['overlays'][number]>) => {
+    if (!userContributionsLoaded.value) {
+      return;
+    }
+
+    // AI : Find project containing this overlay
+    const projectIndex = userContributions.value.findIndex(p =>
+      p.overlays.some((o: any) => o.id === overlayId)
+    );
+
+    if (projectIndex >= 0) {
+      const project = userContributions.value[projectIndex];
+      const overlayIndex = project.overlays.findIndex((o: any) => o.id === overlayId);
+
+      if (overlayIndex >= 0) {
+        const updatedOverlays = [...project.overlays];
+        updatedOverlays[overlayIndex] = { ...updatedOverlays[overlayIndex], ...updates };
+
+        const updatedProject = { ...project, overlays: updatedOverlays };
+
+        userContributions.value = [
+          ...userContributions.value.slice(0, projectIndex),
+          updatedProject,
+          ...userContributions.value.slice(projectIndex + 1),
+        ];
+      }
+    }
+  };
+
+  // AI : Update pending project in user contributions (for field updates)
+  const updateProjectInUserContributions = (projectId: string, updates: Partial<UserContribution>) => {
+    if (!userContributionsLoaded.value) {
+      return;
+    }
+
+    const projectIndex = userContributions.value.findIndex(p => p.id === projectId);
+    if (projectIndex >= 0) {
+      const updatedProject = { ...userContributions.value[projectIndex], ...updates };
+
+      userContributions.value = [
+        ...userContributions.value.slice(0, projectIndex),
+        updatedProject,
+        ...userContributions.value.slice(projectIndex + 1),
+      ];
+    }
   };
 
   // AI : Update project in store with proper reactivity
@@ -257,6 +412,11 @@ export const useProjectStore = defineStore('project', () => {
     // User contributions actions
     setUserContributions,
     setUserContributionsLoading,
+    resetUserContributions,
+    addOverlayToUserContributions,
+    addProjectToUserContributions,
+    updateOverlayInUserContributions,
+    updateProjectInUserContributions,
 
     // Nearby projects actions
     fetchNearbyProjects,
