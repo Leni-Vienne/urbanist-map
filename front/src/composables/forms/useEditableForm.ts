@@ -186,7 +186,7 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
           }
 
           toast.add({
-            severity: 'success',
+            severity: 'info',
             summary: t('submission.changesSaved'),
             detail: t('actions.saveChangesLocally'),
             life: 4000
@@ -228,7 +228,7 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
           await trpc.project.publishProject.mutate(buildProjectPayload(projectData))
 
           toast.add({
-            severity: 'success',
+            severity: 'info',
             summary: t('moderation.projectUpdated'),
             detail: t('submission.changesSaved'),
             life: 3000
@@ -245,7 +245,7 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
           await trpc.overlay.updateOverlay.mutate(overlayData)
           
           toast.add({
-            severity: 'success',
+            severity: 'info',
             summary: t('moderation.projectUpdated'),
             detail: t('submission.changesSaved'),
             life: 3000
