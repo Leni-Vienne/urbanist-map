@@ -590,8 +590,8 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
     },
     onMarkerClick: async (_marker, city) => {
       // AI : Zoom to the city marker position (same zoom level as MarkerHelpButton)
-      if (map.value && map.value.getZoom() <= 9) {
-        mobileAwareFlyTo([city.lat, city.lng], 12, {
+      if (map.value && map.value.getZoom() < 14) {
+        mobileAwareFlyTo([city.lat, city.lng], 14, {
           duration: 1.5
         });
       }

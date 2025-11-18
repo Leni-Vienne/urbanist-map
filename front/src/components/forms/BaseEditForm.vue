@@ -2,14 +2,13 @@
   <div :class="containerClass">
     <form @submit.prevent="form.submitChanges" :class="formClass">
       <!-- AI : Fields slot where specific form fields are rendered -->
-      <slot 
-        name="fields" 
+      <slot
+        name="fields"
         :formData="form.formData"
         :originalData="form.originalData"
         :hasChanged="form.hasChanged"
         :getFieldClasses="form.getFieldClasses"
         :formatValue="form.formatValue"
-        :formatDate="form.formatDate"
       />
       
       <!-- AI : Change reason field (shown conditionally) -->

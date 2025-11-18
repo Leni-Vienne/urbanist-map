@@ -150,8 +150,7 @@ function handleClick() {
         flyToCountry(countryCode, lat, lng)
       }
     } else {
-      // AI : For city markers, use flyTo with zoom level 12
-      mobileAwareFlyTo([lat, lng], 12, {
+      mobileAwareFlyTo([lat, lng], 14, {
         duration: 1.5
       })
     }
