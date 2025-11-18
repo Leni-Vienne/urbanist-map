@@ -46,12 +46,12 @@ export async function generateThumbnail(buffer: ArrayBuffer): Promise<ArrayBuffe
 export class LocalFileStorage implements StorageInterface {
     async put(filename: string, buffer: ArrayBuffer, options?: { skipThumbnail?: boolean }): Promise<void> {
         await Bun.write(`./uploads/${filename}`, buffer);
-        
+
         // AI : Skip thumbnail generation if explicitly requested (when uploading thumbnails themselves)
         if (options?.skipThumbnail) {
             return;
         }
-        
+
         // AI : Generate thumbnail for image files
         // AI : Thumbnails stored in ./uploads/thumbnails/ for better organization
         // AI : Not stored in DB, derived from filename
@@ -59,12 +59,23 @@ export class LocalFileStorage implements StorageInterface {
         try {
             // AI : Ensure thumbnails directory exists
             await mkdir('./uploads/thumbnails', { recursive: true });
-            
+
             const thumbnailBuffer = await generateThumbnail(buffer);
-            await Bun.write(`./uploads/thumbnails/${filename}`, thumbnailBuffer);
+            const thumbnailPath = `./uploads/thumbnails/${filename}`;
+            await Bun.write(thumbnailPath, thumbnailBuffer);
+
+            // AI : Verify thumbnail file exists and is readable before returning
+            // AI : Prevents race condition where frontend tries to load thumbnail before it's fully available
+            const thumbnailFile = Bun.file(thumbnailPath);
+            const exists = await thumbnailFile.exists();
+            if (!exists) {
+                throw new Error(`Thumbnail file was written but is not accessible: ${thumbnailPath}`);
+            }
         } catch (error) {
-            // AI : Log thumbnail generation errors but don't fail the main upload
-            console.warn(`Failed to generate thumbnail for ${filename}:`, error);
+            // AI : Re-throw thumbnail errors to prevent returning success when thumbnail creation fails
+            // AI : This ensures frontend won't try to display a non-existent thumbnail
+            console.error(`Failed to generate thumbnail for ${filename}:`, error);
+            throw error;
         }
     }
 
@@ -132,30 +143,36 @@ export class R2StorageS3 implements StorageInterface {
     async put(filename: string, buffer: ArrayBuffer, options?: { skipThumbnail?: boolean }): Promise<void> {
         // AI : Get lazy reference to S3 file
         const s3file = this.client.file(filename);
-        
+
         // AI : Upload to R2 using write method
         await s3file.write(buffer, {
             type: 'image/webp',
         });
-        
+
         // AI : Skip thumbnail generation if explicitly requested (when uploading thumbnails themselves)
         if (options?.skipThumbnail) {
             return;
         }
-        
+
         // AI : Generate and upload thumbnail for image files (same strategy as LocalFileStorage for consistency)
         try {
             const thumbnailBuffer = await generateThumbnail(buffer);
-            
+
             // AI : Upload thumbnail with thumbnails/ prefix
             const thumbnailFilename = getThumbnailFilename(filename);
             const thumbnailS3file = this.client.file(thumbnailFilename);
             await thumbnailS3file.write(thumbnailBuffer, {
                 type: 'image/webp',
             });
+
+            // AI : Verify thumbnail was uploaded successfully by checking its size
+            // AI : Prevents race condition where frontend tries to load thumbnail before it's fully available
+            await thumbnailS3file.size;
         } catch (error) {
-            // AI : Log thumbnail generation errors but don't fail the main upload
-            console.warn(`Failed to generate thumbnail for ${filename}:`, error);
+            // AI : Re-throw thumbnail errors to prevent returning success when thumbnail creation fails
+            // AI : This ensures frontend won't try to display a non-existent thumbnail
+            console.error(`Failed to generate thumbnail for ${filename}:`, error);
+            throw error;
         }
     }
 

@@ -84,7 +84,7 @@ export const useProjectStore = defineStore('project', () => {
   };
 
   // AI : Optimistically add new overlay to user contributions without backend fetch
-  const addOverlayToUserContributions = (overlay: OverlayObject, project: Project) => {
+  const addOverlayToUserContributions = (overlay: OverlayObject, project: Project, filename: string) => {
     if (!userContributionsLoaded.value) {
       // AI : If contributions not loaded yet, skip optimistic update
       return;
@@ -103,7 +103,7 @@ export const useProjectStore = defineStore('project', () => {
           {
             id: overlay.id,
             name: overlay.caption ?? 'Unnamed',
-            filename: overlay.imageUrl.split('/').pop() ?? '',
+            filename: filename,
             status: 'pending' as const,
             version: 1,
             projectId: project.id,
@@ -135,7 +135,7 @@ export const useProjectStore = defineStore('project', () => {
           overlays: [{
             id: overlay.id,
             name: overlay.caption ?? 'Unnamed',
-            filename: overlay.imageUrl.split('/').pop() ?? '',
+            filename: filename,
             status: 'pending' as const,
             version: 1,
             projectId: project.id,
