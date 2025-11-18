@@ -132,27 +132,21 @@
   },
   "help": {
     "title": "Controls Guide",
-    "intro": "Here's a guide to the different buttons available on the map to help you navigate and interact with the application.",
     "gotIt": "Got it!",
     "dontShowAgain": "Don't show this help again",
-    "zoom": {
-      "title": "Zoom Controls",
-      "in": "Zoom in (enlarge the view)",
-      "out": "Zoom out (reduce the view)"
+    "buttons": {
+      "title": "Map Controls",
+      "zoomIn": "Zoom in (enlarge the view)",
+      "zoomOut": "Zoom out (reduce the view)",
+      "help": "Show this help guide",
+      "layers": "Switch between map tile layers (street view, satellite, etc.)",
+      "filters": "Open project status filters (proposed, planned, in progress, completed)",
+      "addOverlay": "Add a new image overlay or development project (logged in only)"
     },
-    "edit": {
-      "title": "Editing Tools",
-      "addOverlay": "Add a new project image",
-      "viewMode": "View mode - Projects are read-only",
-      "editMode": "Edit mode - You can modify and move projects"
-    },
-    "filters": {
-      "title": "Project Filters",
-      "proposed": "Show/hide proposed projects",
-      "planned": "Show/hide planned projects",
-      "inProgress": "Show/hide in progress projects",
-      "completed": "Show/hide completed projects",
-      "onlyShowPending": "Only show pending"
+    "modes": {
+      "title": "When Connected",
+      "modeIndicator": "Edit Mode",
+      "description": "Button to toggle between View Mode (approved projects only) and Edit Mode (modify your own projects)"
     }
   },
   "contributions": {

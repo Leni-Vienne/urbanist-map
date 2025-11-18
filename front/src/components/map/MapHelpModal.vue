@@ -9,12 +9,10 @@
     data-testid="map-help-modal"
   >
     <div class="help-content">
-      <p class="help-intro">{{ $t('help.intro') }}</p>
-      
       <div class="help-sections">
-        <!-- AI : Zoom Controls -->
+        <!-- AI : Map Controls Buttons -->
         <div class="help-section">
-          <h4 class="help-section-title">{{ $t('help.zoom.title') }}</h4>
+          <h4 class="help-section-title">{{ $t('help.buttons.title') }}</h4>
           <div class="help-item">
             <div class="help-icon">
               <Button
@@ -24,7 +22,7 @@
                 disabled
               />
             </div>
-            <div class="help-text">{{ $t('help.zoom.in') }}</div>
+            <div class="help-text">{{ $t('help.buttons.zoomIn') }}</div>
           </div>
           <div class="help-item">
             <div class="help-icon">
@@ -35,87 +33,87 @@
                 disabled
               />
             </div>
-            <div class="help-text">{{ $t('help.zoom.out') }}</div>
-          </div>
-        </div>
-
-        <!-- AI : Edit Controls (only if authenticated) -->
-        <div v-if="authStore.isAuthenticated" class="help-section">
-          <h4 class="help-section-title">{{ $t('help.edit.title') }}</h4>
-          <div class="help-item">
-            <div class="help-icon">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="1.2em"
-                height="1.2em"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                class="help-svg-icon"
-              >
-                <path d="M16 5h6" />
-                <path d="M19 2v6" />
-                <path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5" />
-                <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-                <circle cx="9" cy="9" r="2" />
-              </svg>
-            </div>
-            <div class="help-text">{{ $t('help.edit.addOverlay') }}</div>
+            <div class="help-text">{{ $t('help.buttons.zoomOut') }}</div>
           </div>
           <div class="help-item">
             <div class="help-icon">
               <Button
-                icon="pi pi-eye"
+                icon="pi pi-question-circle"
+                size="small"
+                severity="help"
+                disabled
+              />
+            </div>
+            <div class="help-text">{{ $t('help.buttons.help') }}</div>
+          </div>
+          <div class="help-item">
+            <div class="help-icon">
+              <Button
+                icon="pi pi-map"
                 size="small"
                 severity="secondary"
                 disabled
               />
             </div>
-            <div class="help-text">{{ $t('help.edit.viewMode') }}</div>
+            <div class="help-text">{{ $t('help.buttons.layers') }}</div>
           </div>
           <div class="help-item">
             <div class="help-icon">
               <Button
-                icon="pi pi-pencil"
+                icon="pi pi-filter"
                 size="small"
-                severity="primary"
+                severity="secondary"
                 disabled
               />
             </div>
-            <div class="help-text">{{ $t('help.edit.editMode') }}</div>
+            <div class="help-text">{{ $t('help.buttons.filters') }}</div>
           </div>
         </div>
 
-        <!-- AI : Project Filters -->
-        <div class="help-section">
-          <h4 class="help-section-title">{{ $t('help.filters.title') }}</h4>
+        <!-- AI : When Connected controls (only if authenticated) -->
+        <div v-if="authStore.isAuthenticated" class="help-section">
+          <h4 class="help-section-title">{{ $t('help.modes.title') }}</h4>
           <div class="help-item">
             <div class="help-icon">
-              <div v-html="createButtonSVG('yellow')"></div>
+              <Button
+                severity="secondary"
+                size="small"
+                disabled
+              >
+                <template #icon>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="1.2em"
+                    height="1.2em"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M16 5h6" />
+                    <path d="M19 2v6" />
+                    <path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5" />
+                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                    <circle cx="9" cy="9" r="2" />
+                  </svg>
+                </template>
+              </Button>
             </div>
-            <div class="help-text">{{ $t('help.filters.proposed') }}</div>
+            <div class="help-text">{{ $t('help.buttons.addOverlay') }}</div>
           </div>
-          <div class="help-item">
-            <div class="help-icon">
-              <div v-html="createButtonSVG('green')"></div>
+          <div class="mode-controls-demo">
+            <div class="mode-indicator-demo">
+              <i class="pi pi-pencil"></i>
+              <span>{{ $t('help.modes.modeIndicator') }}</span>
             </div>
-            <div class="help-text">{{ $t('help.filters.planned') }}</div>
+            <button class="mode-switch-demo">
+              <i class="pi pi-refresh"></i>
+              <span>{{ $t('map.switch') }}</span>
+            </button>
           </div>
-          <div class="help-item">
-            <div class="help-icon">
-              <div v-html="createButtonSVG('orange')"></div>
-            </div>
-            <div class="help-text">{{ $t('help.filters.inProgress') }}</div>
-          </div>
-          <div class="help-item">
-            <div class="help-icon">
-              <div v-html="createButtonSVG('grey')"></div>
-            </div>
-            <div class="help-text">{{ $t('help.filters.completed') }}</div>
-          </div>
+          <div class="help-text centered-help-text">{{ $t('help.modes.description') }}</div>
         </div>
       </div>
 
@@ -147,7 +145,6 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import { useAuthStore } from '@stores/authStore';
-import { createButtonSVG } from '@composables/map/useMarkers';
 
 interface Props {
   modelValue: boolean;
@@ -300,6 +297,69 @@ defineExpose({
 
 .help-close-button {
   min-width: 120px;
+}
+
+/* AI : Mode controls demo styling - mimics actual mode controls */
+.help-section-note {
+  font-size: 0.85rem;
+  color: var(--text-color-secondary);
+  margin: -0.5rem 0 1rem 0;
+  font-style: italic;
+}
+
+.mode-controls-demo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  margin: 0.5rem 0;
+}
+
+.mode-indicator-demo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(245, 158, 11, 0.95);
+  border: 2px solid #d97706;
+  color: white;
+  border-radius: 1.5rem;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.mode-indicator-demo i {
+  font-size: 1rem;
+}
+
+.mode-switch-demo {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: none;
+  border: none;
+  padding: 0.35rem 0.5rem;
+  cursor: default;
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.mode-switch-demo i {
+  font-size: 0.9rem;
+}
+
+.mode-switch-demo span {
+  text-transform: lowercase;
+}
+
+.centered-help-text {
+  text-align: center;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
 }
 
 /* AI : Mobile optimizations */

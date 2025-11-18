@@ -132,27 +132,21 @@
   },
   "help": {
     "title": "Guide des contrôles",
-    "intro": "Voici un guide des différents boutons disponibles sur la carte pour vous aider à naviguer et interagir avec l'application.",
     "gotIt": "J'ai compris !",
     "dontShowAgain": "Ne plus afficher cette aide",
-    "zoom": {
-      "title": "Contrôles de zoom",
-      "in": "Zoomer (agrandir la vue)",
-      "out": "Dézoomer (réduire la vue)"
+    "buttons": {
+      "title": "Contrôles de la carte",
+      "zoomIn": "Zoomer (agrandir la vue)",
+      "zoomOut": "Dézoomer (réduire la vue)",
+      "help": "Afficher ce guide d'aide",
+      "layers": "Changer de couche de carte (vue rue, satellite, etc.)",
+      "filters": "Ouvrir les filtres de statut de projet (proposé, prévu, en cours, terminé)",
+      "addOverlay": "Ajouter une nouvelle image superposée ou un projet de bâtiment (connecté uniquement)"
     },
-    "edit": {
-      "title": "Outils d'édition",
-      "addOverlay": "Ajouter une nouvelle image de projet",
-      "viewMode": "Mode visualisation - Les projets sont en lecture seule",
-      "editMode": "Mode édition - Vous pouvez modifier et déplacer les projets"
-    },
-    "filters": {
-      "title": "Filtres de projets",
-      "proposed": "Afficher/masquer les projets proposés",
-      "planned": "Afficher/masquer les projets prévus",
-      "inProgress": "Afficher/masquer les projets en cours",
-      "completed": "Afficher/masquer les projets terminés",
-      "onlyShowPending": "Afficher uniquement en attente"
+    "modes": {
+      "title": "Lorsque connecté",
+      "modeIndicator": "Mode Édition",
+      "description": "Bouton pour basculer entre le Mode Visualisation (projets approuvés uniquement) et le Mode Édition (modifier vos propres projets)"
     }
   },
   "contributions": {
