@@ -98,9 +98,9 @@ function saveChanges() {
     // AI : Emit update event
     emit('update', props.overlayObject.id, editingInfo.value.caption);
     
-    // AI : Show success message
+    // AI : Show info message
     toast.add({
-      severity: 'success',
+      severity: 'info',
       summary: t('common.success'),
       detail: t('overlay.publishSuccessDetail'),
       life: 3000
