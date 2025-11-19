@@ -345,7 +345,11 @@ async function handleProjectSubmitted(project: Partial<Project>) {
 
     if (!project.id) {
       // AI : Create the project and get the generated ID
-      projectId = createProject(project)
+      projectId = createProject({
+        ...project,
+        isModified: true,  // AI : New projects need to be submitted
+        status: undefined  // AI : No status until submitted (prevents being treated as update)
+      })
       setLastCreatedProject(projectId)
 
       // AI : For development projects, load on map and show marker
