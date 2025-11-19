@@ -180,6 +180,8 @@ onMounted(() => {
   gap: 1rem;
   align-items: center;
   flex-wrap: wrap;
+  justify-content: flex-end;
+  width: 100%;
 }
 
 .filter-controls {
@@ -198,6 +200,7 @@ onMounted(() => {
   font-size: 0.875rem;
   color: var(--p-surface-600);
   cursor: pointer;
+  white-space: nowrap;
 }
 
 /* AI : Add overlay button styling */
