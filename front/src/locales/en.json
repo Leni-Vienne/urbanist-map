@@ -147,6 +147,9 @@
       "title": "When Connected",
       "modeIndicator": "Edit Mode",
       "description": "Button to toggle between View Mode (approved projects only) and Edit Mode (modify your own projects)"
+    },
+    "filters": {
+      "onlyShowPending": "Only show pending"
     }
   },
   "contributions": {

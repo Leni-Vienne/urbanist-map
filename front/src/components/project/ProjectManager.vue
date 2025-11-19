@@ -92,7 +92,6 @@
 <script setup lang="ts">
 import { ref, defineAsyncComponent, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useI18n } from 'vue-i18n'
 import L from 'leaflet'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useProjectStore } from '@stores/pinia/projectStore'
@@ -100,7 +99,8 @@ import { useMapStore } from '@stores/pinia/mapStore'
 import { useUiStore } from '@stores/uiStore'
 import { useToast } from '@composables/ui/useToast'
 import { map } from '@composables/core/useMap'
-import { loadCityProjects, getDevelopmentMarkerByProjectId, createProjectInfoTeleportTarget, updateDevelopmentMarkerColor } from '@composables/map/useCityMarkers'
+import { loadCityProjects, getDevelopmentMarkerByProjectId, createProjectInfoTeleportTarget, updateDevelopmentMarkerColor, addSingleCityMarker, addCityMarkersForCountry } from '@composables/map/useCityMarkers'
+import { loadCitiesForCountry } from '@composables/map/useCountryMarkers'
 import { addOverlay } from '@composables/overlay/useOverlay'
 import { setLastCreatedProject } from '@composables/ui/useProjectState'
 import { createProject } from '@composables/project/useProjects'
@@ -115,7 +115,6 @@ const ProjectDialog = defineAsyncComponent(() => import('@components/project/Pro
 const EditProjectForm = defineAsyncComponent(() => import('@components/forms/EditProjectForm.vue'))
 const EditOverlayForm = defineAsyncComponent(() => import('@components/forms/EditOverlayForm.vue'))
 
-const { t } = useI18n()
 const overlayStore = useOverlayStore()
 const projectStore = useProjectStore()
 const mapStore = useMapStore()
@@ -277,57 +276,18 @@ async function onImageUploadFromDialog(file: File) {
 }
 
 // AI : Handle marker coordinates selection from dialog
-async function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: number }) {
+function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: number }) {
   if (tempMarker.value) {
     tempMarker.value.remove();
     tempMarker.value = null;
   }
 
-  if (!mapStore.selectedCity?.id) {
-    toast.add({
-      severity: 'warn',
-      summary: t('project.noCitySelected'),
-      detail: t('project.selectCityBeforePlacingMarker'),
-      life: 5000
-    });
-    return;
-  }
-
-  try {
-    const projectId = createProject({
-      name: 'Development Marker',
-      description: '',
-      isDevelopment: true,
-      lat: coordinates.lat,
-      lng: coordinates.lng,
-      cityId: mapStore.selectedCity.id,
-    });
-
-    setLastCreatedProject(projectId);
-
-    await loadCityProjects(mapStore.selectedCity.id, mapStore.selectedCity.name, true, mapStore.selectedCity.countryCode);
-
-    const actualMarker = getDevelopmentMarkerByProjectId(projectId);
-    if (actualMarker) {
-      createProjectInfoTeleportTarget(actualMarker);
-      uiStore.openProjectInfoPopup(projectId, projectStore.projects[projectId]);
-    }
-
-    toast.add({
-      severity: 'success',
-      summary: 'Success',
-      detail: 'Development project created successfully',
-      life: 3000
-    });
-  } catch (error) {
-    console.error('Error creating development project:', error);
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to create development project',
-      life: 3000
-    });
-  }
+  // AI : Open project dialog with coordinates - user must fill form before marker is created
+  uiStore.openProjectDialog({
+    isDevelopment: true,
+    lat: coordinates.lat,
+    lng: coordinates.lng
+  }, 'create');
 }
 
 
@@ -387,6 +347,66 @@ async function handleProjectSubmitted(project: Partial<Project>) {
       // AI : Create the project and get the generated ID
       projectId = createProject(project)
       setLastCreatedProject(projectId)
+
+      // AI : For development projects, load on map and show marker
+      if (project.isDevelopment && project.city) {
+        const countryCode = project.city.countryCode;
+
+        // AI : Set selected city for proper map context
+        mapStore.setSelectedCity({
+          id: project.city.id,
+          name: project.city.name,
+          countryCode: countryCode
+        });
+
+        if (countryCode) {
+          mapStore.selectedCountryCode = countryCode;
+
+          // AI : Load city markers for the country (same pattern as overlays)
+          addSingleCityMarker({
+            id: project.city.id,
+            name: project.city.name,
+            lat: project.city.coordinates.y,
+            lng: project.city.coordinates.x,
+            countryCode: countryCode
+          });
+
+          await loadCitiesForCountry(countryCode);
+          const country = projectStore.countries.find((c) => c.code === countryCode);
+          if (country?.cities) {
+            addCityMarkersForCountry(country.cities.map((c) => ({ ...c, projectCount: 0 })));
+
+            // AI : Re-add single marker if city not in backend response
+            const cityExistsInBackend = country.cities.some((c) => c.id === project.city!.id);
+            if (!cityExistsInBackend) {
+              addSingleCityMarker({
+                id: project.city.id,
+                name: project.city.name,
+                lat: project.city.coordinates.y,
+                lng: project.city.coordinates.x,
+                countryCode: countryCode
+              });
+            }
+          }
+        }
+
+        // AI : Load city projects to display the development marker
+        await loadCityProjects(project.city.id, project.city.name, true, project.city.countryCode);
+
+        // AI : Get the marker and open its popup
+        const actualMarker = getDevelopmentMarkerByProjectId(projectId);
+        if (actualMarker) {
+          createProjectInfoTeleportTarget(actualMarker);
+          uiStore.openProjectInfoPopup(projectId, projectStore.projects[projectId]);
+        }
+
+        toast.add({
+          severity: 'success',
+          summary: 'Success',
+          detail: 'Development project created successfully',
+          life: 3000
+        });
+      }
     } else {
       // AI : Project already exists (edit mode), update the existing project data
       projectId = project.id;
