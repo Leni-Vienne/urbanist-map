@@ -7,23 +7,18 @@
         'edit-mode': overlayStore.mode === 'edit',
         'moderation-mode': overlayStore.mode === 'moderation'
       }"
+      @click="handleModeSwitch"
       v-tooltip.top="isMobile ? undefined : getModeTooltip()"
-      :title="isMobile ? getModeTooltip() : undefined"
+      :aria-label="$t('map.switchMode')"
+      role="button"
+      tabindex="0"
+      @keydown.enter="handleModeSwitch"
+      @keydown.space.prevent="handleModeSwitch"
     >
       <i :class="['pi', getModeIcon()]"></i>
       <span>{{ getModeLabel() }}</span>
+      <i class="pi pi-refresh switch-icon"></i>
     </div>
-
-    <button
-      @click="handleModeSwitch"
-      class="mode-switch-button"
-      :aria-label="$t('map.switchMode')"
-      v-tooltip.top="isMobile ? undefined : $t('map.switchMode')"
-      :title="isMobile ? $t('map.switchMode') : undefined"
-    >
-      <i class="pi pi-refresh"></i>
-      <span>{{ $t('map.switch') }}</span>
-    </button>
   </div>
 </template>
 
@@ -150,18 +145,17 @@ async function handleModeSwitch() {
 </script>
 
 <style scoped>
-/* AI : Mode controls wrapper - 3 column grid, mode in center, button on right */
+/* AI : Mode controls wrapper - centers the clickable mode pill */
 .mode-controls-wrapper,
 .mode-controls-wrapper-mobile {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
+  justify-content: center;
   align-items: center;
   pointer-events: none;
 }
 
-/* AI : Mode indicator pill - in center column */
+/* AI : Clickable mode indicator pill with integrated switch icon */
 .mode-indicator {
-  grid-column: 2;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -174,9 +168,19 @@ async function handleModeSwitch() {
   font-size: 0.9rem;
   color: var(--text-color);
   border: 2px solid var(--surface-border);
-  transition: all 0.3s ease-in-out;
+  transition: all 0.2s ease-in-out;
   pointer-events: auto;
-  justify-self: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.mode-indicator:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.mode-indicator:active {
+  transform: scale(0.98);
 }
 
 .mode-indicator.edit-mode {
@@ -186,6 +190,10 @@ async function handleModeSwitch() {
   box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
 }
 
+.mode-indicator.edit-mode:hover {
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.5);
+}
+
 .mode-indicator.moderation-mode {
   background: rgba(59, 130, 246, 0.95);
   border-color: #2563eb;
@@ -193,43 +201,24 @@ async function handleModeSwitch() {
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
 }
 
+.mode-indicator.moderation-mode:hover {
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.5);
+}
+
 .mode-indicator i {
   font-size: 1rem;
 }
 
-/* AI : Discrete switch button - in right column at start */
-.mode-switch-button {
-  grid-column: 3;
-  justify-self: start;
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  background: none;
-  border: none;
-  padding: 0.35rem 0.5rem;
-  margin-left: 0.5rem;
-  cursor: pointer;
-  color: white;
+/* AI : Refresh icon on the right side of the pill */
+.switch-icon {
+  margin-left: 0.25rem;
+  opacity: 0.7;
   font-size: 0.85rem;
-  font-weight: 500;
-  transition: transform 0.15s ease;
-  pointer-events: auto;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  transition: transform 0.3s ease;
 }
 
-.mode-switch-button:hover {
-  transform: scale(1.05);
-}
-
-.mode-switch-button:active {
-  transform: scale(0.95);
-}
-
-.mode-switch-button i {
-  font-size: 0.9rem;
-}
-
-.mode-switch-button span {
-  text-transform: lowercase;
+.mode-indicator:hover .switch-icon {
+  opacity: 1;
+  transform: rotate(180deg);
 }
 </style>
