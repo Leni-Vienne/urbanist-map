@@ -17,6 +17,8 @@ import 'leaflet-distortableimage';
 import { map } from '@composables/core/useMap';
 import { getOverlayMarkerColor, updateOverlayMarkersColors, createColorIcon, OVERLAY_OUTLINE_COLOR } from '@composables/map/useMarkers';
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from '@composables/map/useMapNavigation';
+import { loadCitiesForCountry } from '@composables/map/useCountryMarkers';
+import { addSingleCityMarker, addCityMarkersForCountry } from '@composables/map/useCityMarkers';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
@@ -1235,7 +1237,7 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
     throw new Error('Overlay element not found');
   }
 
-  L.DomEvent.on(element, 'load', () => {
+  L.DomEvent.on(element, 'load', async () => {
     if (element.complete && element.naturalWidth > 0) {
       overlayObject.overlay = newOverlay;
       overlayObject.corners = newOverlay.getCorners() ?? [];
@@ -1259,13 +1261,48 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
       const project = projectStore.projects[projectId];
 
       if (project?.city) {
+        const countryCode = project.city.countryCode;
+
         // AI : Set selectedCity if not already set to prevent overlay disappearance on zoom
         if (!mapStore.selectedCity) {
           mapStore.setSelectedCity({
             id: project.city.id,
             name: project.city.name,
-            countryCode: project.city.countryCode
+            countryCode: countryCode
           });
+
+          // AI : Set selectedCountryCode and load all city markers for better UX
+          if (countryCode) {
+            mapStore.selectedCountryCode = countryCode;
+
+            // AI : First add single marker immediately (fast feedback)
+            addSingleCityMarker({
+              id: project.city.id,
+              name: project.city.name,
+              lat: project.city.coordinates.y,
+              lng: project.city.coordinates.x,
+              countryCode: countryCode
+            });
+
+            // AI : Then load all cities for the country (includes warning protection via shared config)
+            await loadCitiesForCountry(countryCode);
+            const country = projectStore.countries.find((c) => c.code === countryCode);
+            if (country?.cities) {
+              addCityMarkersForCountry(country.cities.map((c) => ({ ...c, projectCount: 0 })));
+
+              // AI : Re-add single marker if city not in backend response (new city without approved projects)
+              const cityExistsInBackend = country.cities.some((c) => c.id === project.city.id);
+              if (!cityExistsInBackend) {
+                addSingleCityMarker({
+                  id: project.city.id,
+                  name: project.city.name,
+                  lat: project.city.coordinates.y,
+                  lng: project.city.coordinates.x,
+                  countryCode: countryCode
+                });
+              }
+            }
+          }
         }
 
         // AI : Add new overlay to city cache so it persists across zoom changes
