@@ -27,7 +27,6 @@ import { toRef } from 'vue';
 
 import { useProjects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import { trpc } from '@client';
-import { getSelectedCity } from '@composables/map/useCityData';
 import {
   getFromEditModeOverlayCache,
   saveToEditModeOverlayCache,
@@ -1254,10 +1253,23 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
       // AI : Add to project AFTER storing in overlays to avoid "not found" error
       addOverlayToProjectWithId(projectId, id);
 
-      // AI : Add new overlay to city cache so it persists across zoom changes
-      const selectedCity = getSelectedCity();
-      if (selectedCity) {
-        addNewOverlayToCityCache(overlayObject, selectedCity.id);
+      // AI : Ensure selectedCity is set for overlay visibility system
+      const mapStore = useMapStore();
+      const projectStore = useProjectStore();
+      const project = projectStore.projects[projectId];
+
+      if (project?.city) {
+        // AI : Set selectedCity if not already set to prevent overlay disappearance on zoom
+        if (!mapStore.selectedCity) {
+          mapStore.setSelectedCity({
+            id: project.city.id,
+            name: project.city.name,
+            countryCode: project.city.countryCode
+          });
+        }
+
+        // AI : Add new overlay to city cache so it persists across zoom changes
+        addNewOverlayToCityCache(overlayObject, project.city.id);
       }
     }
   })
