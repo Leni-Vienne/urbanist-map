@@ -317,6 +317,7 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { buildThumbnailUrl } from '@utils/imageUrl'
 import { formatRelativeTime, formatDate } from '@utils/dateFormat'
+import { formatSourceUrl } from '@utils/urlFormat'
 import { navigateToDevelopmentProject } from '@composables/navigation/useOverlayNavigation'
 import { useOverlayClickHandler } from '@composables/overlay/useOverlayClickHandler'
 import { useToast } from '@composables/ui/useToast'
@@ -646,18 +647,6 @@ function formatProjectDateRange(startDate: Date | null, endDate: Date | null, pr
   }
   return ''
 }
-
-// AI : Format source URL for display
-function formatSourceUrl(url: string): string {
-  if (!url) return ''
-  try {
-    const urlObj = new URL(url)
-    return urlObj.hostname
-  } catch {
-    return url.length > 30 ? url.substring(0, 30) + '...' : url
-  }
-}
-
 
 // AI : Check if overlays should be shown (only for expanded panels)
 function shouldShowOverlays(project: ProjectForModeration): boolean {

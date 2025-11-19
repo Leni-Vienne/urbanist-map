@@ -50,7 +50,7 @@
           :href="project.sourceUrl"
           target="_blank"
           class="info-link"
-        >{{ project.sourceUrl }}</a>
+        >{{ formatSourceUrl(project.sourceUrl) }}</a>
       </div>
       <div
         v-if="project.latestUpdateOn"
@@ -67,6 +67,7 @@
 import { computed } from 'vue'
 import type { Project } from '@types'
 import { formatDate } from '@utils/dateFormat'
+import { formatSourceUrl } from '@utils/urlFormat'
 
 interface Props {
   project: Project | null
