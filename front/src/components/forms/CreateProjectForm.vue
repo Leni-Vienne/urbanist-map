@@ -244,6 +244,7 @@ import { useI18n } from 'vue-i18n';
 import { useToast } from '@composables/ui/useToast'
 import { useCitySelect } from '@composables/forms/useCitySelect'
 import { useProjectTimelineStatus } from '@composables/forms/useProjectTimelineStatus'
+import { switchTileLayer, type TileLayerType, isTileLayerType } from '@composables/map/useTileLayers'
 import type { Project } from '@types';
 
 // AI : Get i18n and toast
@@ -276,6 +277,22 @@ if (props.mode === 'create') {
 
 // AI : Use city select composable with prefilled city
 const { cities, citiesLoading, citiesLoaded, filteredCities, onSelectShow } = useCitySelect(props.project.city)
+
+// AI : Map country code to tile layer type - returns appropriate layer or default
+function getLayerTypeForCountry(countryCode: string): TileLayerType {
+    return isTileLayerType(countryCode) ? countryCode : 'esri';
+}
+
+// AI : Watch for city selection changes to automatically switch tile layer to match country
+watch(() => localProject.value.cityId, (newCityId) => {
+    if (!newCityId || cities.value.length === 0) return;
+
+    const selectedCity = cities.value.find(c => c.id === newCityId);
+    if (selectedCity) {
+        const layerType = getLayerTypeForCountry(selectedCity.countryCode);
+        switchTileLayer(layerType);
+    }
+});
 
 // AI : Watch for external project changes
 watch(() => props.project, (newProject) => {
