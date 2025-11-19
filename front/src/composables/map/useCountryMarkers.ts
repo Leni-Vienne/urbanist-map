@@ -147,6 +147,21 @@ function addCountryMarkersToMapInternal() {
       'data-lng': country.lng.toString(),
     }),
     onMarkerClick: async (_marker, country) => {
+      // AI : Warn if there are unsaved overlays before switching countries
+      const overlayStore = useOverlayStore();
+      const hasUnsavedOverlays = Object.values(overlayStore.overlays).some(
+        overlay => overlay.isModified === true
+      );
+
+      if (hasUnsavedOverlays) {
+        const confirmed = confirm(
+          'You have unsaved overlays. Switching to another country will discard them. Continue?'
+        );
+        if (!confirmed) {
+          return; // AI : User cancelled, don't switch countries
+        }
+      }
+
       // AI : Fly to the country using bounding box
       flyToCountry(country.code, country.lat, country.lng);
 

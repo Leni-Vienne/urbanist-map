@@ -534,33 +534,10 @@ export function removeCityMarkers(): void {
 }
 
 /**
- * AI : Add city markers for a specific country
+ * AI : Shared city marker configuration to avoid code duplication
  */
-export function addCityMarkersForCountry(cities: CityWithProjects[]): void {
-  if (!map.value) {
-    onMapInitialized(() => {
-      addCityMarkersToMapInternal(cities);
-    });
-    return;
-  }
-  addCityMarkersToMapInternal(cities);
-}
-
-/**
- * AI : Internal function to add city markers to map
- */
-function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
-  if (!map.value) {
-    return;
-  }
-
-  // AI : Always remove and re-initialize cityMarkersLayer to prevent stacking
-  if (cityMarkersLayer) {
-    map.value.removeLayer(cityMarkersLayer);
-  }
-
-  // AI : Configure city marker behavior
-  const config: MarkerLayerConfig<CityWithProjects> = {
+function getCityMarkerConfig(): MarkerLayerConfig<CityWithProjects> {
+  return {
     getOpacity: (hover) => hover ? MARKER_OPACITY.city.hover : MARKER_OPACITY.city.default,
     getColor: () => 'blue',
     getLatLng: (city) => ({ lat: city.lat, lng: city.lng }),
@@ -589,6 +566,26 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
       }
     },
     onMarkerClick: async (_marker, city) => {
+      const mapStore = useMapStore();
+      const overlayStore = useOverlayStore();
+
+      // AI : Check for unsaved overlays before loading city (same city or different)
+      const hasUnsavedOverlays = Object.values(overlayStore.overlays).some(
+        overlay => overlay.isModified === true
+      );
+
+      if (hasUnsavedOverlays) {
+        const isSwitchingCity = mapStore.selectedCity?.id !== city.id;
+        const message = isSwitchingCity
+          ? 'You have unsaved overlays. Switching to another city will discard them. Continue?'
+          : 'You have unsaved overlays. Reloading this city will discard them. Continue?';
+
+        const confirmed = confirm(message);
+        if (!confirmed) {
+          return; // AI : User cancelled
+        }
+      }
+
       // AI : Zoom to the city marker position (same zoom level as MarkerHelpButton)
       if (map.value && map.value.getZoom() < 14) {
         mobileAwareFlyTo([city.lat, city.lng], 14, {
@@ -599,24 +596,76 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
       await loadCityProjects(city.id, city.name, false, city.countryCode);
     }
   };
+}
 
-  // AI : Create marker layer using abstraction
+/**
+ * AI : Add a single city marker without replacing existing ones
+ */
+export function addSingleCityMarker(city: { id: string; name: string; lat: number; lng: number; countryCode: string }): void {
+  if (!map.value) {
+    onMapInitialized(() => addSingleCityMarker(city));
+    return;
+  }
+
+  // AI : Don't add if marker already exists
+  if (cityMarkerMap.has(city.id)) return;
+
+  // AI : Initialize layer if needed
+  if (!cityMarkersLayer) {
+    cityMarkersLayer = L.layerGroup().addTo(map.value);
+    initializeCityMarkerWatcher();
+  }
+
+  // AI : Use shared config to create marker
+  const config = getCityMarkerConfig();
+  const cityData: CityWithProjects = { ...city, projectCount: 0 };
+  const result = createMarkerLayer([cityData], config);
+
+  // AI : Add marker to existing layer
+  result.markers.forEach((marker, cityId) => {
+    marker.addTo(cityMarkersLayer!);
+    cityMarkerMap.set(cityId, marker);
+  });
+}
+
+/**
+ * AI : Add city markers for a specific country
+ */
+export function addCityMarkersForCountry(cities: CityWithProjects[]): void {
+  if (!map.value) {
+    onMapInitialized(() => addCityMarkersToMapInternal(cities));
+    return;
+  }
+  addCityMarkersToMapInternal(cities);
+}
+
+/**
+ * AI : Internal function to add city markers to map
+ */
+function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
+  if (!map.value) return;
+
+  // AI : Remove existing layer to prevent stacking
+  if (cityMarkersLayer) {
+    map.value.removeLayer(cityMarkersLayer);
+  }
+
+  // AI : Use shared config to create markers
+  const config = getCityMarkerConfig();
   const result = createMarkerLayer(cities, config);
   cityMarkersLayer = result.layer;
 
-  // AI : Store markers in map for easy lookup
+  // AI : Store markers for lookup
   cityMarkerMap.clear();
   result.markers.forEach((marker, cityId) => {
     cityMarkerMap.set(cityId, marker);
   });
 
-  // AI : Initialize city marker watcher on first use
+  // AI : Initialize watcher and add to map
   initializeCityMarkerWatcher();
-
-  // AI : Add the layer group to the map
   cityMarkersLayer.addTo(map.value);
 
-  // AI : Update opacities based on currently selected city
+  // AI : Update opacities for selected city
   const mapStore = useMapStore();
   if (mapStore.selectedCity) {
     updateCityMarkerOpacities(mapStore.selectedCity.id);
