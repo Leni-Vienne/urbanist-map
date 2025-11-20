@@ -38,6 +38,15 @@ const publishProjectSchema = z.object({
     });
   }
 
+  // AI : Validate proposal date is not in the future
+  if (data.proposalDate && data.proposalDate > new Date()) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Proposal date cannot be in the future',
+      path: ['proposalDate']
+    });
+  }
+
   // AI : Validate project has either proposalDate OR both startDate and endDate
   const hasProposalDate = data.proposalDate !== null && data.proposalDate !== undefined;
   const hasPlannedDates = (data.startDate !== null && data.startDate !== undefined) &&
