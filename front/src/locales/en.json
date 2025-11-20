@@ -156,7 +156,19 @@
     "noProjectsMatchFilter": "No projects match the current filter.",
     "tryChangingFilters": "Try changing your filter settings.",
     "noProjectsFound": "No projects found.",
-    "createFirstProject": "Create your first construction project!"
+    "createFirstProject": "Create your first construction project!",
+    "deleteOverlay": "Delete overlay",
+    "deleteProject": "Delete project",
+    "deleteChangeRequest": "Delete change request",
+    "confirmDeleteOverlay": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
+    "confirmDeleteProject": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
+    "confirmDeleteProjectWithOverlays": "Are you sure you want to delete \"{name}\" and its {count} overlay(s)? This action cannot be undone.",
+    "confirmDeleteChangeRequest": "Are you sure you want to delete your suggestion for \"{field}\"? This action cannot be undone.",
+    "overlayDeleted": "Overlay deleted successfully",
+    "projectDeleted": "Project deleted successfully",
+    "changeRequestDeleted": "Change request deleted successfully",
+    "deleteOverlayError": "Failed to delete overlay. Please try again.",
+    "deleteProjectError": "Failed to delete project. Please try again."
   },
   "overlay": {
     "title": "Images",

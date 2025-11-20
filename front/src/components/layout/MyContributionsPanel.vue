@@ -8,6 +8,39 @@
     :empty-message="projects.length > 0 && filteredProjects.length === 0 ? $t('contributions.noProjectsMatchFilter') : $t('contributions.noProjectsFound')"
     :empty-sub-message="projects.length > 0 && filteredProjects.length === 0 ? $t('contributions.tryChangingFilters') : $t('contributions.createFirstProject')"
   >
+    <template #project-actions="{ project }">
+      <button
+        v-if="project.status === 'pending'"
+        class="action-btn delete-btn"
+        @click.stop="handleDeleteProjectClick(project)"
+        v-tooltip.top="$t('contributions.deleteProject')"
+      >
+        <i class="pi pi-trash"></i>
+      </button>
+    </template>
+
+    <template #overlay-actions="{ overlay }">
+      <button
+        v-if="overlay.status === 'pending'"
+        class="action-btn delete-btn"
+        @click.stop="handleDeleteOverlayClick(overlay)"
+        v-tooltip.top="$t('contributions.deleteOverlay')"
+      >
+        <i class="pi pi-trash"></i>
+      </button>
+    </template>
+
+    <template #change-actions="{ change }">
+      <button
+        v-if="change.status === 'pending' || change.status === 'conflicted'"
+        class="action-btn delete-btn"
+        @click.stop="handleDeleteChangeRequestClick(change)"
+        v-tooltip.top="$t('contributions.deleteChangeRequest')"
+      >
+        <i class="pi pi-trash"></i>
+      </button>
+    </template>
+
     <template #header-actions>
       <div class="header-actions-container">
         <!-- AI : Moderation results button -->
@@ -84,6 +117,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAddOverlay } from '@composables/overlay/useAddOverlay'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import { useToast } from '@composables/ui/useToast'
@@ -92,8 +126,10 @@ import { useUserContributions } from '@composables/project/useUserContributions'
 import { useModeratedContributions } from '@composables/moderation/useModeratedContributions'
 import ModeratedContributionsDialog from '@components/moderation/ModeratedContributionsDialog.vue'
 
+const { t } = useI18n()
+
 // AI : Use cached composable for user contributions
-const { projects, isLoading, fetchUserContributions } = useUserContributions()
+const { projects, isLoading, fetchUserContributions, deleteOverlay, deleteProject } = useUserContributions()
 
 // AI : Moderated contributions state
 const { moderatedContributions, hasUnacknowledgedItems } = useModeratedContributions()
@@ -129,7 +165,7 @@ async function handleAddOverlayClick() {
 const toast = useToast()
 
 // AI : Change requests functionality
-const { pendingChangeRequests, refreshPendingChangeRequests } = useChangeRequests()
+const { pendingChangeRequests, refreshPendingChangeRequests, deleteChangeRequest } = useChangeRequests()
 
 // AI : Computed filtered projects
 const filteredProjects = computed(() => {
@@ -163,6 +199,41 @@ const filteredProjects = computed(() => {
   }
   return projects.value
 })
+
+// AI : Delete handlers with confirmation
+async function handleDeleteOverlayClick(overlay: any) {
+  const confirmed = confirm(t('contributions.confirmDeleteOverlay', { name: overlay.name || t('overlay.untitled') }))
+  if (!confirmed) return
+
+  await deleteOverlay(overlay.id)
+}
+
+async function handleDeleteProjectClick(project: any) {
+  const overlayCount = project.overlays?.length ?? 0
+  const confirmMessage = overlayCount > 0
+    ? t('contributions.confirmDeleteProjectWithOverlays', { name: project.name, count: overlayCount })
+    : t('contributions.confirmDeleteProject', { name: project.name })
+
+  const confirmed = confirm(confirmMessage)
+  if (!confirmed) return
+
+  await deleteProject(project.id)
+}
+
+async function handleDeleteChangeRequestClick(change: any) {
+  const fieldName = change.fieldName
+  const confirmed = confirm(t('contributions.confirmDeleteChangeRequest', { field: fieldName }))
+  if (!confirmed) return
+
+  const result = await deleteChangeRequest(change.id)
+  if (result?.success) {
+    toast.add({
+      severity: 'success',
+      summary: t('contributions.changeRequestDeleted'),
+      life: 3000
+    })
+  }
+}
 
 // AI : Load initial data
 onMounted(() => {
@@ -214,5 +285,16 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+}
+
+/* AI : Delete button styling */
+.delete-btn {
+  color: var(--p-red-600);
+  transition: all 0.2s ease;
+}
+
+.delete-btn:hover {
+  color: var(--p-red-700);
+  background-color: var(--p-red-50);
 }
 </style>

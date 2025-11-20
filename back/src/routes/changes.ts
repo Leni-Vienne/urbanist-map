@@ -129,6 +129,55 @@ export const changesRouter = router({
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to submit change request' });
       }
     }),
+
+  deleteChangeRequest: protectedProcedure
+    .input(z.object({ id: z.uuid() }))
+    .mutation(async ({ input, ctx }) => {
+      try {
+        const userId = ctx.user?.id;
+        if (!userId) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Must be logged in to delete change request' });
+        }
+
+        // AI : Get change request to check permissions and status
+        const changeRequest = await db
+          .select({
+            id: changeRequests.id,
+            requestedBy: changeRequests.requestedBy,
+            status: changeRequests.status,
+          })
+          .from(changeRequests)
+          .where(eq(changeRequests.id, input.id))
+          .limit(1);
+
+        if (changeRequest.length === 0) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Change request not found' });
+        }
+
+        // AI : Only the requester can delete their own change request
+        if (changeRequest[0].requestedBy !== userId) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Not authorized to delete this change request' });
+        }
+
+        // AI : Only pending and conflicted change requests can be deleted
+        if (changeRequest[0].status !== 'pending' && changeRequest[0].status !== 'conflicted') {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Can only delete pending or conflicted change requests'
+          });
+        }
+
+        // AI : Delete the change request
+        await db.delete(changeRequests).where(eq(changeRequests.id, input.id));
+
+        return { success: true };
+      } catch (error) {
+        console.error('Error deleting change request:', error);
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to delete change request' });
+      }
+    }),
+
   getMyChangeRequests: protectedProcedure
     .query(async ({ ctx }) => {
       try {

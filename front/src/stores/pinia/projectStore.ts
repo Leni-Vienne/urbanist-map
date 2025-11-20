@@ -230,6 +230,53 @@ export const useProjectStore = defineStore('project', () => {
     }
   };
 
+  // AI : Remove overlay from user contributions (for deletion)
+  const removeOverlayFromUserContributions = (overlayId: string) => {
+    if (!userContributionsLoaded.value) {
+      return;
+    }
+
+    // AI : Find project containing this overlay
+    const projectIndex = userContributions.value.findIndex(p =>
+      p.overlays.some((o: any) => o.id === overlayId)
+    );
+
+    if (projectIndex >= 0) {
+      const project = userContributions.value[projectIndex];
+      const updatedOverlays = project.overlays.filter((o: any) => o.id !== overlayId);
+
+      // AI : If no overlays left and user doesn't own project, remove entire project
+      if (updatedOverlays.length === 0 && project.ownerId !== project.ownerId) {
+        userContributions.value = [
+          ...userContributions.value.slice(0, projectIndex),
+          ...userContributions.value.slice(projectIndex + 1),
+        ];
+      } else {
+        // AI : Update project with remaining overlays
+        const updatedProject = {
+          ...project,
+          overlays: updatedOverlays,
+          overlayCount: updatedOverlays.length,
+        };
+
+        userContributions.value = [
+          ...userContributions.value.slice(0, projectIndex),
+          updatedProject,
+          ...userContributions.value.slice(projectIndex + 1),
+        ];
+      }
+    }
+  };
+
+  // AI : Remove project from user contributions (for deletion)
+  const removeProjectFromUserContributions = (projectId: string) => {
+    if (!userContributionsLoaded.value) {
+      return;
+    }
+
+    userContributions.value = userContributions.value.filter(p => p.id !== projectId);
+  };
+
   // AI : Update project in store with proper reactivity
   function updateProject(projectId: string, updates: Partial<Project>) {
     let current = projects.value[projectId];
@@ -417,6 +464,8 @@ export const useProjectStore = defineStore('project', () => {
     addProjectToUserContributions,
     updateOverlayInUserContributions,
     updateProjectInUserContributions,
+    removeOverlayFromUserContributions,
+    removeProjectFromUserContributions,
 
     // Nearby projects actions
     fetchNearbyProjects,

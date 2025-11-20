@@ -156,7 +156,19 @@
     "noProjectsMatchFilter": "Aucun projet ne correspond au filtre actuel.",
     "tryChangingFilters": "Essayez de modifier vos paramètres de filtre.",
     "noProjectsFound": "Aucun projet trouvé.",
-    "createFirstProject": "Créez votre premier projet de construction !"
+    "createFirstProject": "Créez votre premier projet de construction !",
+    "deleteOverlay": "Supprimer l'image",
+    "deleteProject": "Supprimer le projet",
+    "deleteChangeRequest": "Supprimer la suggestion",
+    "confirmDeleteOverlay": "Êtes-vous sûr de vouloir supprimer \"{name}\" ? Cette action est irréversible.",
+    "confirmDeleteProject": "Êtes-vous sûr de vouloir supprimer \"{name}\" ? Cette action est irréversible.",
+    "confirmDeleteProjectWithOverlays": "Êtes-vous sûr de vouloir supprimer \"{name}\" et ses {count} image(s) ? Cette action est irréversible.",
+    "confirmDeleteChangeRequest": "Êtes-vous sûr de vouloir supprimer votre suggestion pour \"{field}\" ? Cette action est irréversible.",
+    "overlayDeleted": "Image supprimée avec succès",
+    "projectDeleted": "Projet supprimé avec succès",
+    "changeRequestDeleted": "Suggestion supprimée avec succès",
+    "deleteOverlayError": "Échec de la suppression de l'image. Veuillez réessayer.",
+    "deleteProjectError": "Échec de la suppression du projet. Veuillez réessayer."
   },
   "overlay": {
     "title": "Images",
