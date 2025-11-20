@@ -202,10 +202,36 @@ const filteredProjects = computed(() => {
 
 // AI : Delete handlers with confirmation
 async function handleDeleteOverlayClick(overlay: any) {
-  const confirmed = confirm(t('contributions.confirmDeleteOverlay', { name: overlay.name || t('overlay.untitled') }))
+  // AI : Find the project that contains this overlay
+  const project = projects.value.find(p =>
+    p.overlays?.some((o: any) => o.id === overlay.id)
+  )
+
+  let confirmMessage = t('contributions.confirmDeleteOverlay', { name: overlay.name || t('overlay.untitled') })
+
+  // AI : Cascade delete warning - if this is the last overlay on a pending project, warn that the project will be deleted
+  if (project && project.status === 'pending' && project.overlays?.length === 1) {
+    confirmMessage = t('contributions.confirmDeleteLastOverlay', {
+      overlayName: overlay.name || t('overlay.untitled'),
+      projectName: project.name
+    })
+  }
+
+  const confirmed = confirm(confirmMessage)
   if (!confirmed) return
 
   await deleteOverlay(overlay.id)
+
+  // AI : If it was the last overlay on a pending project, cascade delete the project
+  if (project && project.status === 'pending' && project.overlays?.length === 1) {
+    await deleteProject(project.id)
+    toast.add({
+      severity: 'info',
+      summary: t('contributions.projectAlsoDeleted'),
+      detail: t('contributions.projectHadNoRemainingOverlays'),
+      life: 4000
+    })
+  }
 }
 
 async function handleDeleteProjectClick(project: any) {
