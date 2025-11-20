@@ -101,6 +101,7 @@ import { useToast } from '@composables/ui/useToast'
 import { map } from '@composables/core/useMap'
 import { loadCityProjects, getDevelopmentMarkerByProjectId, createProjectInfoTeleportTarget, updateDevelopmentMarkerColor, addSingleCityMarker, addCityMarkersForCountry } from '@composables/map/useCityMarkers'
 import { loadCitiesForCountry } from '@composables/map/useCountryMarkers'
+import { createDevelopmentIcon } from '@composables/map/useMarkers'
 import { addOverlay } from '@composables/overlay/useOverlay'
 import { setLastCreatedProject } from '@composables/ui/useProjectState'
 import { createProject } from '@composables/project/useProjects'
@@ -305,13 +306,11 @@ function onMarkerModeEnabled() {
       tempMarker.value = null;
     }
 
-    // AI : Create temporary marker for visual feedback
+    // AI : Create temporary marker using DevelopmentMarkerSVG in orange for visual feedback
+    const markerIcon = createDevelopmentIcon('orange');
     tempMarker.value = L.marker([coordinates.lat, coordinates.lng], {
-      icon: L.divIcon({
-        html: '<i class="pi pi-home" style="color: #3b82f6; font-size: 16px;"></i>',
-        iconSize: [20, 20],
-        className: 'temp-marker-icon'
-      })
+      icon: markerIcon,
+      draggable: false
     }).addTo(map.value!);
 
     // AI : Pass coordinates back to dialog
@@ -319,18 +318,29 @@ function onMarkerModeEnabled() {
       imageUploadDialog.value.setMarkerCoordinates(coordinates);
     }
 
-    // AI : Remove listener after first click
-    map.value?.off('click', handleMapClick);
+    // AI : Keep listener active to allow repositioning - will be removed when dialog closes
   };
 
   map.value.on('click', handleMapClick);
+
+  // AI : Store handler reference for cleanup
+  (map.value as any)._tempMarkerClickHandler = handleMapClick;
 }
 
-// AI : Handle dialog visibility changes to clean up temporary marker on close
+// AI : Handle dialog visibility changes to clean up temporary marker and listener on close
 function onDialogVisibilityChange(visible: boolean) {
-  if (!visible && tempMarker.value) {
-    tempMarker.value.remove();
-    tempMarker.value = null;
+  if (!visible) {
+    // AI : Remove temporary marker
+    if (tempMarker.value) {
+      tempMarker.value.remove();
+      tempMarker.value = null;
+    }
+
+    // AI : Remove click listener
+    if (map.value && (map.value as any)._tempMarkerClickHandler) {
+      map.value.off('click', (map.value as any)._tempMarkerClickHandler);
+      (map.value as any)._tempMarkerClickHandler = null;
+    }
   }
 }
 
@@ -345,6 +355,7 @@ async function handleProjectSubmitted(project: Partial<Project>) {
 
     if (!project.id) {
       // AI : Create the project and get the generated ID
+      // AI : isModified: true ensures new projects show as orange in edit mode
       projectId = createProject({
         ...project,
         isModified: true,  // AI : New projects need to be submitted
