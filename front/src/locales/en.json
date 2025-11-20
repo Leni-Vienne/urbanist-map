@@ -163,9 +163,12 @@
     "confirmDeleteOverlay": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
     "confirmDeleteProject": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
     "confirmDeleteProjectWithOverlays": "Are you sure you want to delete \"{name}\" and its {count} overlay(s)? This action cannot be undone.",
+    "confirmDeleteLastOverlay": "WARNING: \"{overlayName}\" is the only overlay in project \"{projectName}\". Deleting it will also delete the entire project. This action cannot be undone. Continue?",
     "confirmDeleteChangeRequest": "Are you sure you want to delete your suggestion for \"{field}\"? This action cannot be undone.",
     "overlayDeleted": "Overlay deleted successfully",
     "projectDeleted": "Project deleted successfully",
+    "projectAlsoDeleted": "Project also deleted",
+    "projectHadNoRemainingOverlays": "The project had no remaining overlays",
     "changeRequestDeleted": "Change request deleted successfully",
     "deleteOverlayError": "Failed to delete overlay. Please try again.",
     "deleteProjectError": "Failed to delete project. Please try again."

@@ -163,9 +163,12 @@
     "confirmDeleteOverlay": "Êtes-vous sûr de vouloir supprimer \"{name}\" ? Cette action est irréversible.",
     "confirmDeleteProject": "Êtes-vous sûr de vouloir supprimer \"{name}\" ? Cette action est irréversible.",
     "confirmDeleteProjectWithOverlays": "Êtes-vous sûr de vouloir supprimer \"{name}\" et ses {count} image(s) ? Cette action est irréversible.",
+    "confirmDeleteLastOverlay": "ATTENTION : \"{overlayName}\" est la seule image du projet \"{projectName}\". La supprimer supprimera également l'ensemble du projet. Cette action est irréversible. Continuer ?",
     "confirmDeleteChangeRequest": "Êtes-vous sûr de vouloir supprimer votre suggestion pour \"{field}\" ? Cette action est irréversible.",
     "overlayDeleted": "Image supprimée avec succès",
     "projectDeleted": "Projet supprimé avec succès",
+    "projectAlsoDeleted": "Projet également supprimé",
+    "projectHadNoRemainingOverlays": "Le projet n'avait plus d'images",
     "changeRequestDeleted": "Suggestion supprimée avec succès",
     "deleteOverlayError": "Échec de la suppression de l'image. Veuillez réessayer.",
     "deleteProjectError": "Échec de la suppression du projet. Veuillez réessayer."
