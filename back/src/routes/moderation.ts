@@ -12,6 +12,7 @@ import {
 } from '../db/helpers';
 import { LocalFileStorage, R2StorageS3, getThumbnailFilename, streamToBuffer } from '../lib/storage';
 import { scheduleImageCleanup, deleteImages, daysFromNow } from '../lib/imageCleanup';
+import { enrichChangeRequestsWithNames } from './changes';
 
 // AI : Helper function to migrate image and thumbnail from local storage to R2 on approval
 // Two-phase thumbnail strategy to prevent abuse:
@@ -330,10 +331,13 @@ export const moderationRouter = router({
             overlays: visibleOverlays.filter(overlay => overlay.projectId === project.id),
           }));
 
+          // AI : Enrich change requests with city and country names
+          const enrichedChangeRequests = await enrichChangeRequestsWithNames(changeRequestsWithConflictInfo);
+
           return {
             projects: projectsWithOverlays,
             overlays: visibleOverlays.filter(overlay => overlay.status === 'pending'),
-            changeRequests: changeRequestsWithConflictInfo,
+            changeRequests: enrichedChangeRequests,
             pagination: paginationResponse.pagination
           };
         } catch (error) {

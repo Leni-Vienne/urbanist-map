@@ -53,9 +53,9 @@
                 </div>
               </div>
               <div v-else class="change-values">
-                <span class="old-value">{{ formatValue(group.change.oldValue, group.change.fieldName) }}</span>
+                <span class="old-value">{{ formatValue(group.change.oldValue, group.change.fieldName, group.change) }}</span>
                 <i class="pi pi-arrow-right"></i>
-                <span class="new-value">{{ formatValue(group.change.newValue, group.change.fieldName) }}</span>
+                <span class="new-value">{{ formatValue(group.change.newValue, group.change.fieldName, group.change) }}</span>
               </div>
               <div v-if="group.change.changeReason" class="change-reason">
                 <em>{{ $t('moderation.reason') }}: {{ group.change.changeReason }}</em>
@@ -110,9 +110,9 @@
                   </div>
                 </div>
                 <div v-else class="change-values">
-                  <span class="old-value">{{ formatValue(change.oldValue, change.fieldName) }}</span>
+                  <span class="old-value">{{ formatValue(change.oldValue, change.fieldName, change) }}</span>
                   <i class="pi pi-arrow-right"></i>
-                  <span class="new-value">{{ formatValue(change.newValue, change.fieldName) }}</span>
+                  <span class="new-value">{{ formatValue(change.newValue, change.fieldName, change) }}</span>
                 </div>
                 <div v-if="change.changeReason" class="change-reason">
                   <em>{{ $t('moderation.reason') }}: {{ change.changeReason }}</em>
@@ -247,7 +247,7 @@ function formatFieldName(fieldName: string): string {
   return translated !== translationKey ? translated : fieldName;
 }
 
-function formatValue(value: unknown, fieldName: string): string {
+function formatValue(value: unknown, fieldName: string, change?: any): string {
   if (value === null || value === undefined || value === '') {
     return t('overlay.notSet');
   }
@@ -257,30 +257,19 @@ function formatValue(value: unknown, fieldName: string): string {
     return project?.name ?? `Unknown Project (${value.slice(0, 8)}...)`;
   }
 
-  // AI : Handle cityId field by looking up city name from all loaded projects and overlays
-  if (fieldName === 'cityId' && typeof value === 'string') {
-    // AI : Build a map of all cityId -> cityName pairs from projects and overlays
-    const cityMap = new Map<string, string>();
+  // AI : Handle cityId field using backend-enriched data
+  if (fieldName === 'cityId' && typeof value === 'string' && change) {
+    const isOldValue = change.oldValue === value;
+    const cityName = isOldValue ? change.oldCityName : change.newCityName;
+    const countryName = isOldValue ? change.oldCountryName : change.newCountryName;
 
-    for (const project of props.projects) {
-      if (project.cityId && project.cityName) {
-        cityMap.set(project.cityId, project.cityName);
-      }
-      if (project.overlays) {
-        for (const overlay of project.overlays) {
-          if (overlay.cityId && overlay.cityName) {
-            cityMap.set(overlay.cityId, overlay.cityName);
-          }
-        }
-      }
-    }
-
-    const cityName = cityMap.get(value);
-    if (cityName) {
+    if (cityName && countryName) {
+      return `${cityName}, ${countryName}`;
+    } else if (cityName) {
       return cityName;
     }
 
-    // AI : City not found in loaded data - show truncated ID
+    // AI : Fallback to truncated ID if backend didn't provide names
     return `City (${value.slice(0, 8)}...)`;
   }
 

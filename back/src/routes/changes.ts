@@ -1,6 +1,6 @@
 import { adminProcedure, protectedProcedure, router } from '../trpc';
 import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
-import { projects, overlays, changeRequests, changeHistory } from '../db/schema';
+import { projects, overlays, changeRequests, changeHistory, cities, countries } from '../db/schema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { db } from '../database';
@@ -63,21 +63,95 @@ function buildUpdateData(change: { entityType: string; fieldName: string; newVal
   const isOverlayCornersField = change.entityType === 'overlay' && change.fieldName === 'corners';
   const isOverlayCentroidField = change.entityType === 'overlay' && change.fieldName === 'centroid';
   const isProjectCoordinatesField = change.entityType === 'project' && change.fieldName === 'coordinates';
-  
+
   if (isOverlayCornersField) {
     return { corners: convertCornersToGeometry(change.newValue) };
   }
-  
+
   if (isOverlayCentroidField) {
     return { centroid: convertCoordinateToGeometry(change.newValue) };
   }
-  
+
   if (isProjectCoordinatesField) {
     return { coordinates: convertCoordinateToGeometry(change.newValue) };
   }
-  
+
   // AI : For non-geometry fields, use the value directly
   return { [change.fieldName]: change.newValue };
+}
+
+// AI : Helper function to enrich change requests with city and country names
+export async function enrichChangeRequestsWithNames(changes: any[]) {
+  // AI : Extract all unique cityIds from change requests where fieldName is 'cityId'
+  const cityIds = new Set<string>();
+
+  for (const change of changes) {
+    if (change.fieldName === 'cityId') {
+      // AI : Handle JSONB values - they might be strings or need to be extracted
+      const oldValue = typeof change.oldValue === 'string' ? change.oldValue : String(change.oldValue);
+      const newValue = typeof change.newValue === 'string' ? change.newValue : String(change.newValue);
+
+      if (change.oldValue && oldValue !== 'null' && oldValue !== 'undefined') {
+        cityIds.add(oldValue);
+      }
+      if (change.newValue && newValue !== 'null' && newValue !== 'undefined') {
+        cityIds.add(newValue);
+      }
+    }
+  }
+
+  // AI : If no city changes, return as is
+  if (cityIds.size === 0) {
+    return changes.map(change => ({
+      ...change,
+      oldCityName: null,
+      newCityName: null,
+      oldCountryName: null,
+      newCountryName: null,
+    }));
+  }
+
+  // AI : Fetch all cities with their country names in one query using a join
+  const cityData = await db
+    .select({
+      id: cities.id,
+      name: cities.name,
+      countryCode: cities.countryCode,
+      countryName: countries.name,
+    })
+    .from(cities)
+    .leftJoin(countries, eq(cities.countryCode, countries.code))
+    .where(inArray(cities.id, Array.from(cityIds)));
+
+  // AI : Create a map for quick lookup
+  const cityMap = new Map(cityData.map(c => [c.id, c]));
+
+  // AI : Enrich change requests with city and country names
+  return changes.map(change => {
+    if (change.fieldName === 'cityId') {
+      const oldValue = typeof change.oldValue === 'string' ? change.oldValue : String(change.oldValue);
+      const newValue = typeof change.newValue === 'string' ? change.newValue : String(change.newValue);
+
+      const oldCity = change.oldValue ? cityMap.get(oldValue) : null;
+      const newCity = change.newValue ? cityMap.get(newValue) : null;
+
+      return {
+        ...change,
+        oldCityName: oldCity?.name ?? null,
+        newCityName: newCity?.name ?? null,
+        oldCountryName: oldCity?.countryName ?? null,
+        newCountryName: newCity?.countryName ?? null,
+      };
+    }
+
+    return {
+      ...change,
+      oldCityName: null,
+      newCityName: null,
+      oldCountryName: null,
+      newCountryName: null,
+    };
+  });
 }
 
 export const changesRouter = router({
@@ -210,7 +284,10 @@ export const changesRouter = router({
           hasConflict: change.status === 'conflicted'
         }));
 
-        return changesWithConflictInfo;
+        // AI : Enrich with city and country names
+        const enrichedChanges = await enrichChangeRequestsWithNames(changesWithConflictInfo);
+
+        return enrichedChanges;
       } catch (error) {
         console.error('Error fetching my change requests:', error);
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch my change requests' });
@@ -256,7 +333,10 @@ export const changesRouter = router({
           };
         });
 
-        return changesWithConflictInfo;
+        // AI : Enrich with city and country names
+        const enrichedChanges = await enrichChangeRequestsWithNames(changesWithConflictInfo);
+
+        return enrichedChanges;
       } catch (error) {
         console.error('Error fetching pending change requests:', error);
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch pending change requests' });
