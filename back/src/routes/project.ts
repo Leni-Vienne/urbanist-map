@@ -11,6 +11,7 @@ import {
   buildPaginationResponse
 } from '../db/helpers';
 import { checkPendingLimitForNewContribution } from '../db/contributionHelpers';
+import { deleteLocalImages } from '../lib/imageCleanup';
 
 // AI : Nearby search radius configuration
 const NEARBY_SEARCH_RADIUS_METERS = 10 * 1000; // 10km
@@ -141,6 +142,80 @@ export const projectRouter = router({
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to publish project', cause: error });
       }
     }),
+
+  deleteProject: protectedProcedure
+    .input(z.object({ id: z.uuid() }))
+    .mutation(async ({ input, ctx }) => {
+      try {
+        const userId = ctx.user?.id;
+        if (!userId) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Must be logged in to delete project' });
+        }
+
+        // AI : Get project to check permissions and status
+        const project = await db
+          .select({
+            id: projects.id,
+            ownerId: projects.ownerId,
+            status: projects.status,
+            name: projects.name
+          })
+          .from(projects)
+          .where(eq(projects.id, input.id))
+          .limit(1);
+
+        if (project.length === 0) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Project not found' });
+        }
+
+        // AI : Only owner can delete their own project
+        if (project[0].ownerId !== userId) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Not authorized to delete this project' });
+        }
+
+        // AI : Only pending projects can be deleted
+        if (project[0].status !== 'pending') {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Can only delete pending projects'
+          });
+        }
+
+        // AI : Get all overlays for this project to delete their images
+        const projectOverlays = await db
+          .select({
+            id: overlays.id,
+            filename: overlays.filename
+          })
+          .from(overlays)
+          .where(eq(overlays.projectId, input.id));
+
+        // AI : Delete all overlay images first
+        for (const overlay of projectOverlays) {
+          try {
+            await deleteLocalImages(overlay.filename, 'both');
+            console.log(`Deleted local images for overlay ${overlay.id}`);
+          } catch (imageError) {
+            console.error(`Failed to delete images for overlay ${overlay.id}:`, imageError);
+          }
+        }
+
+        // AI : Delete all overlays from database
+        if (projectOverlays.length > 0) {
+          await db.delete(overlays).where(eq(overlays.projectId, input.id));
+        }
+
+        // AI : Delete project from database
+        await db.delete(projects).where(eq(projects.id, input.id));
+
+        return { success: true };
+      } catch (error) {
+        console.error('Error deleting project:', error);
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to delete project' });
+      }
+    }),
+
   // AI : Get projects with overlays within 100km of camera center
   getProjectsNearLocation: protectedProcedure
     .input(z.object({

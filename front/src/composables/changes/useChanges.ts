@@ -121,10 +121,31 @@ export function useChangeRequests() {
         pendingChangeRequests.value = pendingChangeRequests.value.filter(
           cr => !changeRequestIds.includes(cr.id)
         );
-        
+
         // AI : Also remove from moderation store if available
         const moderationStore = useModerationStore();
         moderationStore.removeChangeRequests(changeRequestIds);
+      }
+
+      return result;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  async function deleteChangeRequest(changeRequestId: string) {
+    isLoading.value = true;
+    try {
+      const result = await withErrorHandling(
+        async () => trpc.changes.deleteChangeRequest.mutate({ id: changeRequestId }),
+        { errorMessage: 'Failed to delete change request' }
+      );
+
+      if (result?.success != undefined) {
+        // AI : Remove deleted change request from local state
+        pendingChangeRequests.value = pendingChangeRequests.value.filter(
+          cr => cr.id !== changeRequestId
+        );
       }
 
       return result;
@@ -321,6 +342,7 @@ export function useChangeRequests() {
     refreshPendingChangeRequests,
     approveChangeRequests,
     rejectChangeRequests,
+    deleteChangeRequest,
     getChangeHistory,
     resetChangeRequestsLoaded,
 
