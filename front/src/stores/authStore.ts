@@ -35,6 +35,7 @@ function loadGoogleIdentityScript(): Promise<void> {
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const loading = ref(true)
+  const infoMessage = ref<string | null>(null)
 
   // AI : Computed properties
   const isAuthenticated = computed(() => !!user.value)
@@ -44,21 +45,24 @@ export const useAuthStore = defineStore('auth', () => {
   async function initialize() {
     try {
       loading.value = true
-      
+
       // AI : Try to get current user from server (will use session cookies)
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/check-session`, {
         credentials: 'include'
       })
-      
+
       if (response.ok) {
-        const result = await response.json() as { user: User }
+        const result = await response.json() as { user: User; infoMessage: string | null }
         user.value = result.user
+        infoMessage.value = result.infoMessage
       } else {
         user.value = null
+        infoMessage.value = null
       }
     } catch (error) {
       console.error('Error initializing auth:', error)
       user.value = null
+      infoMessage.value = null
     } finally {
       loading.value = false
     }
@@ -357,6 +361,7 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     user,
     loading,
+    infoMessage,
     isAuthenticated,
     isModerator,
     initialize,

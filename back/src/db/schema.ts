@@ -232,6 +232,13 @@ export const scheduledDeletionsRelations = relations(scheduledDeletions, ({ one 
   }),
 }));
 
+// AI : Config table for application-wide settings (single row with id=1)
+export const config = pgTable('config', {
+  id: integer('id').primaryKey().default(1),
+  infoMessage: text('info_message'), // AI : Optional info message to display at top of website
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
+});
+
 // AI : Export Drizzle-inferred types for frontend consumption
 export type DBCity = InferSelectModel<typeof cities>;
 export type DBProject = InferSelectModel<typeof projects>;
@@ -241,3 +248,4 @@ export type DBCountry = InferSelectModel<typeof countries>;
 export type DBChangeRequest = InferSelectModel<typeof changeRequests>;
 export type DBChangeHistory = InferSelectModel<typeof changeHistory>;
 export type DBScheduledDeletion = InferSelectModel<typeof scheduledDeletions>;
+export type DBConfig = InferSelectModel<typeof config>;
