@@ -163,6 +163,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
+import { useOverlayStore } from '@stores/pinia/overlayStore';
 
 // AI : Component props and emits
 interface Props {
@@ -290,6 +291,14 @@ function onHide() {
 watch(() => props.visible, (newVisible) => {
   if (newVisible) {
     resetState();
+  }
+});
+
+// AI : Close dialog when map mode changes (prevents mixed mode states)
+const overlayStore = useOverlayStore();
+watch(() => overlayStore.mode, () => {
+  if (markerPlacementMode.value) {
+    onCancel();
   }
 });
 
