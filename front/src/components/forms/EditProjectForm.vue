@@ -98,6 +98,7 @@
           updateModelType="date"
           showIcon
           required
+          :maxDate="new Date()"
         />
         <small class="text-gray-500">{{ $t('project.proposalDateHelp') }}</small>
         <small v-if="hasChanged('proposalDate')" class="change-indicator">

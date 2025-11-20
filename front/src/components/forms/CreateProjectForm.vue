@@ -99,6 +99,7 @@
                         required
                         showIcon
                         :updateModelType="'date'"
+                        :maxDate="new Date()"
                     />
                     <label
                         for="proposal-date-input"
