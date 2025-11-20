@@ -317,15 +317,36 @@ app.post('/api/logout', (c) => {
     }
 });
 
-app.get('/api/check-session', (c) => {
-    const session = c.get('session');
-    const sessionUser = session.get('user');
+app.get('/api/check-session', async (c) => {
+    try {
+        const session = c.get('session');
+        const sessionUser = session.get('user');
 
-    return c.json({
-        userId: sessionUser?.id,
-        isAuthenticated: !!sessionUser,
-        user: sessionUser ?? null
-    });
+        // AI : Fetch config for info message (if exists)
+        const { db } = await import('./database');
+        const { config } = await import('./db/schema');
+        const { eq } = await import('drizzle-orm');
+
+        const [appConfig] = await db.select().from(config).where(eq(config.id, 1)).limit(1);
+
+        return c.json({
+            userId: sessionUser?.id,
+            isAuthenticated: !!sessionUser,
+            user: sessionUser ?? null,
+            infoMessage: appConfig?.infoMessage ?? null
+        });
+    } catch (error) {
+        console.error('Error fetching session:', error);
+        // AI : Return session info even if config fetch fails
+        const session = c.get('session');
+        const sessionUser = session.get('user');
+        return c.json({
+            userId: sessionUser?.id,
+            isAuthenticated: !!sessionUser,
+            user: sessionUser ?? null,
+            infoMessage: null
+        });
+    }
 });
 
 // AI : File upload endpoint

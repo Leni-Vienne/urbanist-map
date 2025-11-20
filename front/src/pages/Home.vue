@@ -14,8 +14,22 @@
         <div class="main-content">
             <Toast />
 
-            <!-- AI : Map is always present in the background -->
-            <MapView />
+            <!-- AI : Info message banner (displayed at top when config.infoMessage is set) -->
+            <Message
+                v-if="authStore.infoMessage && !infoBannerDismissed"
+                severity="info"
+                :closable="true"
+                @close="infoBannerDismissed = true"
+                class="info-message-banner"
+                icon="pi pi-info-circle"
+            >
+                {{authStore.infoMessage }}
+            </Message>
+
+            <!-- AI : Map container that fills remaining space -->
+            <div class="map-container">
+                <MapView />
+            </div>
 
             <!-- AI : Popup container handles both overlay and project popups -->
             <PopupContainer
@@ -83,6 +97,7 @@ const ProjectManager = defineAsyncComponent(
 const isModerator = ref(false);
 const desktopSideMenuOpen = ref(true); // AI : Open by default on desktop
 const showModeratedContributionsDialog = ref(false);
+const infoBannerDismissed = ref(false);
 const overlayStore = useOverlayStore();
 const authStore = useAuthStore();
 const uiStore = useUiStore();
@@ -261,6 +276,20 @@ onUnmounted(() => {
 
 .main-content {
     flex-grow: 1;
+    display: flex;
+    flex-direction: column;
     position: relative;
+}
+
+.info-message-banner {
+    flex-shrink: 0;
+    margin: 0;
+    border-radius: 0;
+}
+
+.map-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
 }
 </style>
