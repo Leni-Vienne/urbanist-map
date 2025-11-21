@@ -8,7 +8,8 @@ import {
   buildProjectModerationQuery,
   buildOverlayModerationQuery,
   buildPaginationConditions,
-  buildPaginationResponse
+  buildPaginationResponse,
+  addConflictFlags
 } from '../db/helpers';
 import { LocalFileStorage, R2StorageS3, getThumbnailFilename, streamToBuffer } from '../lib/storage';
 import { scheduleImageCleanup, deleteImages, daysFromNow } from '../lib/imageCleanup';
@@ -329,22 +330,8 @@ export const moderationRouter = router({
           const changeRequestsResult = [...overlayChanges, ...projectChanges]
             .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
-          // AI : Detect conflicts - multiple pending requests for the same field
-          const conflictMap = new Map<string, number>();
-          for (const change of changeRequestsResult) {
-            const key = `${change.entityType}:${change.entityId}:${change.fieldName}`;
-            conflictMap.set(key, (conflictMap.get(key) || 0) + 1);
-          }
-
           // AI : Add hasConflict flag to changes that have competing requests
-          const changeRequestsWithConflictInfo = changeRequestsResult.map(change => {
-            const key = `${change.entityType}:${change.entityId}:${change.fieldName}`;
-            const hasConflict = (conflictMap.get(key) || 0) > 1;
-            return {
-              ...change,
-              hasConflict
-            };
-          });
+          const changeRequestsWithConflictInfo = addConflictFlags(changeRequestsResult);
 
           const paginationResponse = buildPaginationResponse(projectsResult, limit);
 

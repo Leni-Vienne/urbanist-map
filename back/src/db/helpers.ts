@@ -232,6 +232,42 @@ export function buildProjectModerationQuery(db: PostgresJsDatabase<typeof schema
 }
 
 // AI : ============================================================================
+// AI : CHANGE REQUEST HELPERS
+// AI : ============================================================================
+
+/**
+ * AI : Interface for objects that can have conflict detection applied
+ */
+interface ConflictableChange {
+  entityType: string;
+  entityId: string;
+  fieldName: string;
+}
+
+/**
+ * AI : Adds hasConflict flag to change requests that have multiple pending requests for the same field
+ * AI : A conflict occurs when 2+ pending changes target the same entity+field combination
+ *
+ * @param changes - Array of change requests with entityType, entityId, and fieldName
+ * @returns Same array with hasConflict boolean added to each item
+ */
+export function addConflictFlags<T extends ConflictableChange>(
+  changes: T[]
+): (T & { hasConflict: boolean })[] {
+  const conflictMap = new Map<string, number>();
+
+  for (const change of changes) {
+    const key = `${change.entityType}:${change.entityId}:${change.fieldName}`;
+    conflictMap.set(key, (conflictMap.get(key) ?? 0) + 1);
+  }
+
+  return changes.map(change => {
+    const key = `${change.entityType}:${change.entityId}:${change.fieldName}`;
+    return { ...change, hasConflict: (conflictMap.get(key) ?? 0) > 1 };
+  });
+}
+
+// AI : ============================================================================
 // AI : VISIBILITY HELPERS
 // AI : ============================================================================
 

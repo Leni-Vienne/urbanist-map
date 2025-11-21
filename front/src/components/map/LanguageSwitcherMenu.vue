@@ -1,37 +1,31 @@
 <template>
   <div class="language-menu-container">
     <!-- AI : Language Menu Toggle Button -->
-    <div
+    <button
+      type="button"
       class="language-menu-trigger"
       @click="toggleMenu"
       ref="languageMenuRef"
-      role="button"
       :aria-label="$t('controls.language')"
-      tabindex="0"
       @dblclick.stop
-      @keydown.enter="toggleMenu"
-      @keydown.space="toggleMenu"
     >
       <i class="pi pi-language"></i>
-    </div>
+    </button>
 
     <!-- AI : Language selection popover -->
     <Popover ref="languagePopover">
       <div class="flex flex-col w-40">
-        <div 
-          v-for="locale in availableLocales" 
+        <button
+          v-for="locale in availableLocales"
           :key="locale.code"
-          class="flex items-center gap-2 px-3 py-2 hover:bg-surface-100 cursor-pointer border-round"
+          type="button"
+          class="locale-btn flex items-center gap-2 px-3 py-2 hover:bg-surface-100 cursor-pointer border-round w-full"
           :class="{ 'bg-primary-50 text-primary-700': currentLocale === locale.code }"
           @click="changeLocale(locale.code)"
-          role="button"
-          tabindex="0"
-          @keydown.enter="changeLocale(locale.code)"
-          @keydown.space="changeLocale(locale.code)"
         >
           <span class="text-lg">{{ locale.flag }}</span>
           <span class="text-sm font-medium">{{ locale.name }}</span>
-        </div>
+        </button>
       </div>
     </Popover>
   </div>
@@ -69,6 +63,11 @@ function changeLocale(newLocale: Locale): void {
 
 <style scoped>
 .language-menu-trigger {
+  /* AI : Reset button defaults */
+  appearance: none;
+  font-family: inherit;
+  padding: 0;
+  /* AI : Layout and styling */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -80,6 +79,15 @@ function changeLocale(newLocale: Locale): void {
   cursor: pointer;
   transition: all 0.2s ease;
   color: var(--p-surface-600);
+}
+
+/* AI : Reset button defaults for locale buttons */
+.locale-btn {
+  appearance: none;
+  font-family: inherit;
+  background: transparent;
+  border: none;
+  text-align: left;
 }
 
 .language-menu-trigger:hover {

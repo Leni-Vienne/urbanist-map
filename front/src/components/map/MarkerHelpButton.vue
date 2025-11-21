@@ -1,17 +1,14 @@
 <template>
   <Transition name="help-fade">
-    <div
+    <button
       v-if="visible"
+      type="button"
       class="help-button"
       @click="handleClick"
-      role="button"
-      tabindex="0"
-      @keydown.enter="handleClick"
-      @keydown.space="handleClick"
     >
       <i class="pi pi-map-marker"></i>
       <span>{{ buttonText }}</span>
-    </div>
+    </button>
   </Transition>
 </template>
 
@@ -206,6 +203,10 @@ onUnmounted(() => {
 }
 
 .help-button {
+  /* AI : Reset button defaults */
+  appearance: none;
+  font-family: inherit;
+  /* AI : Layout and styling */
   position: absolute;
   top: 10px;
   left: 50%;

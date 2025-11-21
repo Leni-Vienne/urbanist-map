@@ -15,23 +15,24 @@
     />
 
     <!-- AI : User Menu for authenticated users -->
-    <div
+    <button
       v-else
+      type="button"
       class="user-menu"
       data-testid="user-menu"
       @click="toggleMenu"
       @dblclick.stop
       ref="userMenuRef"
     >
-      <div class="user-avatar">
+      <span class="user-avatar">
         <i class="pi pi-user"></i>
-      </div>
+      </span>
       <span class="username">{{ authStore.user?.username }}</span>
       <i
         class="pi pi-chevron-down"
         :class="{ 'rotated': isMenuOpen }"
       ></i>
-    </div>
+    </button>
 
     <!-- AI : User menu popover -->
     <Popover ref="userPopover">
@@ -40,18 +41,15 @@
           <div class="font-medium text-sm">{{ authStore.user?.email }}</div>
 
         </div>
-        <div
-          class="flex items-center gap-2 px-3 py-2 hover:bg-surface-100 cursor-pointer border-round"
+        <button
+          type="button"
+          class="sign-out-btn flex items-center gap-2 px-3 py-2 hover:bg-surface-100 cursor-pointer border-round w-full"
           data-testid="sign-out-button"
           @click="handleSignOut"
-          role="button"
-          tabindex="0"
-          @keydown.enter="handleSignOut"
-          @keydown.space="handleSignOut"
         >
           <i class="pi pi-sign-out"></i>
           <span>{{ $t('auth.logout') }}</span>
-        </div>
+        </button>
       </div>
     </Popover>
 
@@ -120,6 +118,10 @@ watch(() => userPopover.value?.visible, (visible) => {
 }
 
 .user-menu {
+  /* AI : Reset button defaults */
+  appearance: none;
+  font-family: inherit;
+  /* AI : Layout and styling */
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -131,6 +133,15 @@ watch(() => userPopover.value?.visible, (visible) => {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
   min-width: 120px;
+}
+
+/* AI : Reset button defaults for sign out button */
+.sign-out-btn {
+  appearance: none;
+  font-family: inherit;
+  background: transparent;
+  border: none;
+  text-align: left;
 }
 
 .user-menu:hover {
