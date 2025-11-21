@@ -53,8 +53,9 @@
 
         <!-- AI : Moderated Contributions Dialog -->
         <ModeratedContributionsDialog
-            v-model:visible="showModeratedContributionsDialog"
-            @close="showModeratedContributionsDialog = false"
+            v-if="uiStore.moderatedContributionsDialogVisible"
+            v-model:visible="uiStore.moderatedContributionsDialogVisible"
+            @close="uiStore.closeModeratedContributionsDialog"
         />
     </div>
 </template>
@@ -83,7 +84,6 @@ import { useI18n } from "@composables/useI18n";
 import MapView from "@components/map/MapView.vue";
 import SideMenu from "@components/layout/SideMenu.vue";
 import MobileDrawer from "@components/layout/MobileDrawer.vue";
-import ModeratedContributionsDialog from "@components/moderation/ModeratedContributionsDialog.vue";
 
 // AI : Split PopupContainer into separate chunk - loads when first popup is shown
 const PopupContainer = defineAsyncComponent(
@@ -92,10 +92,13 @@ const PopupContainer = defineAsyncComponent(
 const ProjectManager = defineAsyncComponent(
     () => import("@components/project/ProjectManager.vue"),
 );
+// AI : Async import for non-critical dialog - only loaded when needed
+const ModeratedContributionsDialog = defineAsyncComponent(
+    () => import("@components/moderation/ModeratedContributionsDialog.vue"),
+);
 
 // AI : Create refs to track app state
 const desktopSideMenuOpen = ref(true); // AI : Open by default on desktop
-const showModeratedContributionsDialog = ref(false);
 const infoBannerDismissed = ref(false);
 const overlayStore = useOverlayStore();
 const authStore = useAuthStore();
@@ -187,7 +190,7 @@ onMounted(async () => {
 
             // AI : Show dialog if there are unacknowledged items
             if (hasUnacknowledgedItems.value) {
-                showModeratedContributionsDialog.value = true;
+                uiStore.openModeratedContributionsDialog();
             }
         }
 
@@ -221,7 +224,7 @@ watch(() => authStore.isAuthenticated, async (isAuthenticated, wasAuthenticated)
 
         // AI : Show dialog if there are unacknowledged items
         if (hasUnacknowledgedItems.value) {
-            showModeratedContributionsDialog.value = true;
+            uiStore.openModeratedContributionsDialog();
         }
     } else if (!isAuthenticated && wasAuthenticated) {
         // AI : User just logged out - clear cached contributions

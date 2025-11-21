@@ -18,6 +18,7 @@ export const useUiStore = defineStore("ui", () => {
   const authModalVisible = ref(false);
   const imageUploadDialogVisible = ref(false);
   const projectSelectorVisible = ref(false);
+  const moderatedContributionsDialogVisible = ref(false);
 
   // AI : Project dialog state
   const projectDialog = ref<ProjectDialogState>({
@@ -148,6 +149,15 @@ export const useUiStore = defineStore("ui", () => {
     };
   }
 
+  // AI : Moderated contributions dialog actions
+  function openModeratedContributionsDialog() {
+    moderatedContributionsDialogVisible.value = true;
+  }
+
+  function closeModeratedContributionsDialog() {
+    moderatedContributionsDialogVisible.value = false;
+  }
+
   // AI : Close all UI elements (used for cleanup)
   function closeAllDialogs() {
     authModalVisible.value = false;
@@ -157,6 +167,7 @@ export const useUiStore = defineStore("ui", () => {
     projectEditForm.value.visible = false;
     overlayEditForm.value.visible = false;
     projectInfoPopup.value.visible = false;
+    moderatedContributionsDialogVisible.value = false;
   }
 
   return {
@@ -164,6 +175,7 @@ export const useUiStore = defineStore("ui", () => {
     authModalVisible,
     imageUploadDialogVisible,
     projectSelectorVisible,
+    moderatedContributionsDialogVisible,
     projectDialog,
     projectEditForm,
     overlayEditForm,
@@ -189,6 +201,8 @@ export const useUiStore = defineStore("ui", () => {
     setMobileDrawerHeight,
     openProjectInfoPopup,
     closeProjectInfoPopup,
+    openModeratedContributionsDialog,
+    closeModeratedContributionsDialog,
     closeAllDialogs,
   };
 });
