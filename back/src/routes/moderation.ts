@@ -1,4 +1,4 @@
-import { adminProcedure, router } from '../trpc';
+import { adminProcedure, moderatorProcedure, router } from '../trpc';
 import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
 import { projects, overlays, approvalStatusEnum, changeRequests, cities } from '../db/schema';
 import { eq, inArray, or, and, sql, ne } from 'drizzle-orm';
@@ -181,7 +181,7 @@ export const moderationRouter = router({
         }
       }),
 
-    getPendingSubmissions: adminProcedure
+    getPendingSubmissions: moderatorProcedure
       .input(z.object({
         limit: z.number().min(1).max(100).optional().default(50),
         cursor: z.string().uuid().optional(),
@@ -189,10 +189,37 @@ export const moderationRouter = router({
         cityId: z.string().uuid().optional(),
         countryCode: z.string().length(3).optional()
       }).optional())
-      .query(async ({ input = {} }) => {
+      .query(async ({ input = {}, ctx }) => {
         try {
           const sortColumn = input.sortBy === 'updatedAt' ? projects.updatedAt : projects.createdAt;
           const limit = input.limit ?? 50;
+
+          // AI : Country-scoped moderation - moderators can only see their assigned countries
+          // AI : Admins (role='admin' or moderatedCountries=null) can see all countries
+          const userModeratedCountries = ctx.user.moderatedCountries;
+          const isAdmin = ctx.user.role === 'admin' || userModeratedCountries === null;
+
+          let effectiveCountryCode = input.countryCode;
+
+          if (!isAdmin && userModeratedCountries && userModeratedCountries.length > 0) {
+            // AI : User is a moderator with assigned countries
+            if (!input.countryCode) {
+              throw new TRPCError({
+                code: 'BAD_REQUEST',
+                message: 'Moderators must select a country to moderate'
+              });
+            }
+
+            // AI : Verify moderator has permission for requested country
+            if (!userModeratedCountries.includes(input.countryCode)) {
+              throw new TRPCError({
+                code: 'FORBIDDEN',
+                message: 'You do not have permission to moderate this country'
+              });
+            }
+
+            effectiveCountryCode = input.countryCode;
+          }
 
           // AI : Step 1: Find all project IDs that need moderation (pending projects, pending overlays, or pending changes)
           const [projectsWithPendingOverlays, projectsWithPendingChanges] = await Promise.all([
@@ -226,7 +253,7 @@ export const moderationRouter = router({
 
           // AI : Step 2: Build filters for projects, overlays, and change requests
           const paginationConditions = await buildPaginationConditions(
-            { cityId: input.cityId, countryCode: input.countryCode, cursor: input.cursor },
+            { cityId: input.cityId, countryCode: effectiveCountryCode, cursor: input.cursor },
             sortColumn
           );
 

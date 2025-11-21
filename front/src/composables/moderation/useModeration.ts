@@ -3,6 +3,7 @@ import { trpc } from '@client'
 import { withErrorHandling } from '@composables/core/useErrorHandling'
 import { useModerationStore } from '@stores/pinia/moderationStore'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
+import { useAuthStore } from '@stores/authStore'
 import { updateMarkerTooltip, removeOverlay } from '@composables/overlay/useOverlay'
 import { updateOverlayMarkersColors } from '@composables/map/useMarkers'
 import { useI18n } from '@composables/useI18n'
@@ -31,8 +32,11 @@ export function useModeration() {
 
     moderationStore.setModerationLoading(true)
     try {
+      // AI : Pass selected country code for country-scoped moderation
       const response = await withErrorHandling(
-        async () => trpc.moderation.getPendingSubmissions.query(),
+        async () => trpc.moderation.getPendingSubmissions.query({
+          countryCode: moderationStore.selectedCountryCode ?? undefined
+        }),
         { errorMessage: 'Failed to load pending submissions. Please refresh the page.' }
       )
 
@@ -42,6 +46,13 @@ export function useModeration() {
           projects: response.projects,
           changeRequests: response.changeRequests ?? []
         })
+      }
+    } catch (error) {
+      // AI : If error is because no country is selected, don't show error toast (UI will prompt user to select)
+      if (error instanceof Error && error.message.includes('must select a country')) {
+        console.log('Waiting for country selection before loading moderation data')
+      } else {
+        throw error // Re-throw other errors to be handled by withErrorHandling
       }
     } finally {
       moderationStore.setModerationLoading(false)
@@ -218,7 +229,22 @@ export function useModeration() {
     return true
   }
 
-  onMounted(fetchPendingSubmissions)
+  // AI : Only fetch on mount if user is admin OR if country is already selected
+  // AI : For moderators with assigned countries, wait for country selection in ModerationPanel
+  onMounted(() => {
+    const authStore = useAuthStore()
+    const user = authStore.user
+
+    if (!user) return
+
+    const isAdmin = user.role === 'admin' || user.moderatedCountries === null
+    const hasSelectedCountry = moderationStore.selectedCountryCode !== null
+
+    // AI : Fetch if admin (no country needed) OR if country already selected
+    if (isAdmin || hasSelectedCountry) {
+      fetchPendingSubmissions()
+    }
+  })
 
   // AI : Helper function to set project approval status using the generic handler
   async function setProjectStatus(id: string, status: 'approved' | 'rejected'): Promise<ApprovalResult> {
@@ -250,5 +276,6 @@ export function useModeration() {
     rejectProject,
     undoLastAction,
     resetModerationLoaded,
+    fetchPendingSubmissions,
   }
 }

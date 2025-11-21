@@ -10,6 +10,7 @@ interface User {
   email: string
   username: string | null
   role: string | null
+  moderatedCountries: string[] | null // AI : Array of ISO 3-letter country codes (null = admin with all countries)
   emailVerified: boolean
 }
 
@@ -39,7 +40,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   // AI : Computed properties
   const isAuthenticated = computed(() => !!user.value)
-  const isModerator = computed(() => user.value?.role === 'moderation' || user.value?.role === 'admin')
+  // AI : User is a moderator if they're admin OR have moderatedCountries assigned
+  const isModerator = computed(() =>
+    user.value?.role === 'admin' ||
+    (user.value?.moderatedCountries !== null && user.value?.moderatedCountries !== undefined)
+  )
 
   // AI : Initialize auth state
   async function initialize() {

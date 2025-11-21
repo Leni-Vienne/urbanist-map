@@ -60,7 +60,7 @@ export const isAuthed = t.middleware(async ({ ctx, next }) => {
 });
 
 // AI : Middleware to check if user has admin role
-export const isModerator = t.middleware(async ({ ctx, next }) => {
+export const isAdmin = t.middleware(async ({ ctx, next }) => {
     if (!ctx.user) {
         throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Not authenticated' });
     }
@@ -74,5 +74,27 @@ export const isModerator = t.middleware(async ({ ctx, next }) => {
     });
 });
 
+// AI : Middleware to check if user is admin or moderator (has moderatedCountries)
+export const isModeratorOrAdmin = t.middleware(async ({ ctx, next }) => {
+    if (!ctx.user) {
+        throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Not authenticated' });
+    }
+
+    // AI : Allow access if user is admin OR has moderatedCountries (is a moderator)
+    const isAdmin = ctx.user.role === 'admin';
+    const isModerator = ctx.user.moderatedCountries !== null && ctx.user.moderatedCountries !== undefined;
+
+    if (!isAdmin && !isModerator) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Moderator or admin access required' });
+    }
+
+    return next({
+        ctx: {
+            user: ctx.user,
+        },
+    });
+});
+
 export const protectedProcedure = t.procedure.use(isAuthed);
-export const adminProcedure = t.procedure.use(isModerator);
+export const adminProcedure = t.procedure.use(isAdmin);
+export const moderatorProcedure = t.procedure.use(isModeratorOrAdmin);

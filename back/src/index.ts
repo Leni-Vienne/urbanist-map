@@ -20,6 +20,7 @@ type SessionData = {
         email: string;
         username: string | null;
         role: string | null;
+        moderatedCountries: string[] | null; // AI : Array of country codes for moderators
         emailVerified: boolean;
     };
     expiresAt?: string;
@@ -147,6 +148,7 @@ app.post('/api/login', async (c) => {
             email: user.email,
             username: user.username,
             role: user.role,
+            moderatedCountries: user.moderatedCountries,
             emailVerified: user.emailVerified,
         });
 
@@ -161,6 +163,7 @@ app.post('/api/login', async (c) => {
                 email: user.email,
                 username: user.username,
                 role: user.role,
+                moderatedCountries: user.moderatedCountries,
                 emailVerified: user.emailVerified,
             },
         });
@@ -283,6 +286,7 @@ app.post('/api/google-login', async (c) => {
             email: existingUser.email,
             username: existingUser.username,
             role: existingUser.role,
+            moderatedCountries: existingUser.moderatedCountries,
             emailVerified: existingUser.emailVerified,
         });
 
@@ -297,6 +301,7 @@ app.post('/api/google-login', async (c) => {
                 email: existingUser.email,
                 username: existingUser.username,
                 role: existingUser.role,
+                moderatedCountries: existingUser.moderatedCountries,
                 emailVerified: existingUser.emailVerified,
             },
         });
