@@ -310,8 +310,8 @@ async function watchZoomLevel() {
 }
 
 // AI : Initialize watch when map is ready
-onMapInitialized(() => {
-  watchZoomLevel()
+onMapInitialized(async () => {
+  await watchZoomLevel()
 
   // AI : Set initial state
   currentState.value = getCurrentState()

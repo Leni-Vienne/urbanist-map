@@ -270,7 +270,7 @@ export function getCachedPosition(overlayId: string): CachedPosition | null {
 /**
  * AI : Save overlay position to cache
  */
-export function saveCachedPosition(overlayId: string, corners: L.LatLng[], isModified: boolean): void {
+export function saveCachedPosition(overlayId: string, corners: { lat: number, lng: number }[], isModified: boolean): void {
   const overlayStore = useOverlayStore();
 
   const cacheData: CachedPosition = {
@@ -290,7 +290,7 @@ export function cacheCurrentPosition(overlayObject: OverlayObject): void {
   const corners = overlayObject.overlay.getCorners();
   saveCachedPosition(
     overlayObject.id,
-    corners as L.LatLng[],
+    corners,
     overlayObject.isModified ?? false
   );
 }
@@ -334,8 +334,7 @@ export function applyPositionToOverlay(overlayObject: OverlayObject, useCache: b
 
   // AI : Fall back to backend positions (or if useCache is false)
   if (overlayObject.corners && overlayObject.corners.length === 4) {
-    const corners: L.LatLng[] = overlayObject.corners.map(c => L.latLng(c.lat, c.lng));
-    overlayObject.overlay.setCorners(corners);
+    overlayObject.overlay.setCorners(overlayObject.corners);
     overlayObject.isModified = false;
   }
 }

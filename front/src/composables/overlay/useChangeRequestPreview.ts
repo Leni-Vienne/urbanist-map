@@ -16,7 +16,7 @@ import { switchTileLayer, isTileLayerType } from '@composables/map/useTileLayers
 import { switchMode } from '@composables/overlay/useOverlayModes';
 import { mobileAwareFlyToBounds } from '@composables/map/useMapNavigation';
 import type { PendingChangeRequest } from '../../types/api';
-import type { OverlayForModeration } from '@types';
+import type { OverlayForModeration, Country, City } from '@types';
 import { previewState, clearChangeRequestPreview } from './changeRequestPreviewState';
 
 // AI : Composable to handle change request position preview
@@ -121,9 +121,9 @@ export function useChangeRequestPreview() {
     // AI : Step 3: Load country/city data
     await loadCitiesForCountry(overlayForModeration.countryCode);
 
-    const country = projectStore.countries.find((c: any) => c.code === overlayForModeration.countryCode);
+    const country = projectStore.countries.find((c: Country) => c.code === overlayForModeration.countryCode);
     if (country) {
-      addCityMarkersForCountry(country.cities.map((city: any) => ({ ...city, projectCount: 0 })));
+      addCityMarkersForCountry(country.cities.map((city: City) => ({ ...city, projectCount: 0 })));
     }
 
     // AI : Step 4: Navigate to overlay position
