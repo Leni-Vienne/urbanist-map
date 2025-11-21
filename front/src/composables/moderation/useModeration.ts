@@ -231,7 +231,7 @@ export function useModeration() {
 
   // AI : Only fetch on mount if user is admin OR if country is already selected
   // AI : For moderators with assigned countries, wait for country selection in ModerationPanel
-  onMounted(() => {
+  onMounted(async () => {
     const authStore = useAuthStore()
     const user = authStore.user
 
@@ -242,7 +242,7 @@ export function useModeration() {
 
     // AI : Fetch if admin (no country needed) OR if country already selected
     if (isAdmin || hasSelectedCountry) {
-      fetchPendingSubmissions()
+      await fetchPendingSubmissions()
     }
   })
 

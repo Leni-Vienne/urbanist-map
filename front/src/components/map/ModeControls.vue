@@ -1,7 +1,8 @@
 <template>
   <!-- AI : Shared mode controls component - used in both desktop and mobile -->
   <div :class="isMobile ? 'mode-controls-wrapper-mobile' : 'mode-controls-wrapper'" @dblclick.stop>
-    <div
+    <button
+      type="button"
       class="mode-indicator"
       :class="{
         'edit-mode': overlayStore.mode === 'edit',
@@ -10,15 +11,11 @@
       @click="handleModeSwitch"
       v-tooltip.top="isMobile ? undefined : getModeTooltip()"
       :aria-label="$t('map.switchMode')"
-      role="button"
-      tabindex="0"
-      @keydown.enter="handleModeSwitch"
-      @keydown.space.prevent="handleModeSwitch"
     >
       <i :class="['pi', getModeIcon()]"></i>
       <span>{{ getModeLabel() }}</span>
       <i class="pi pi-refresh switch-icon"></i>
-    </div>
+    </button>
   </div>
 </template>
 
@@ -156,6 +153,10 @@ async function handleModeSwitch() {
 
 /* AI : Clickable mode indicator pill with integrated switch icon */
 .mode-indicator {
+  /* AI : Reset button defaults */
+  appearance: none;
+  font-family: inherit;
+  /* AI : Layout and styling */
   display: flex;
   align-items: center;
   gap: 0.5rem;

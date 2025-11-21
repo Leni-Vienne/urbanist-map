@@ -26,7 +26,6 @@ export function usePanelTabs(initialTab: Ref<PanelTab>) {
       case 'latest': return 'view'
       case 'uploads': return 'edit'
       case 'moderation': return 'moderation'
-      default: return 'view'
     }
   }
 
@@ -38,7 +37,6 @@ export function usePanelTabs(initialTab: Ref<PanelTab>) {
       case 'view': return 'latest'
       case 'edit': return 'uploads'
       case 'moderation': return 'moderation'
-      default: return 'latest'
     }
   }
 
