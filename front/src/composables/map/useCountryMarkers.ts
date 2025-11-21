@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { map, onMapInitialized } from '@composables/core/useMap';
 import { addCityMarkersForCountry, removeCityMarkers } from '@composables/map/useCityMarkers';
 import { removeOverlayMarkers } from '@composables/map/useCityOverlays';
-import { clearAllOverlays } from '@composables/overlay/useOverlay';
+import { clearAllOverlays } from '@composables/overlay/useOverlayLifecycle';
 import { switchTileLayer, isTileLayerType } from '@composables/map/useTileLayers';
 import { flyToCountry } from '@composables/map/useMapNavigation';
 import { trpc } from '@client';

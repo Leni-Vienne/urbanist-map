@@ -17,8 +17,6 @@ import 'leaflet-distortableimage';
 import { map } from '@composables/core/useMap';
 import { getOverlayMarkerColor, updateOverlayMarkersColors, createColorIcon, OVERLAY_OUTLINE_COLOR } from '@composables/map/useMarkers';
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from '@composables/map/useMapNavigation';
-import { loadCitiesForCountry } from '@composables/map/useCountryMarkers';
-import { addSingleCityMarker, addCityMarkersForCountry } from '@composables/map/useCityMarkers';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
@@ -562,31 +560,6 @@ export function addNewOverlayToCityCache(overlayObject: OverlayObject, cityId: s
   }
 
   mapStore.setCityProjectsCache(cityId, overlayStore.mode, currentCache);
-}
-
-/**
- * AI : Clear all overlays from the map and reset collections
- */
-export function clearAllOverlays(): void {
-  const overlayStore = useOverlayStore();
-
-  if (!map.value) return;
-
-  Object.values(overlayStore.overlays).forEach((overlayObject: OverlayObject) => {
-    if (overlayObject.overlay) {
-      map.value?.removeLayer(overlayObject.overlay);
-    }
-    if (overlayObject.marker) {
-      map.value?.removeLayer(overlayObject.marker);
-    }
-  });
-
-  overlayStore.overlays = {};
-  overlayStore.allMarkers = {};
-
-  if (overlayStore.idSelectedOverlay) {
-    overlayStore.idSelectedOverlay = null;
-  }
 }
 
 /**
@@ -1255,57 +1228,10 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
       // AI : Add to project AFTER storing in overlays to avoid "not found" error
       addOverlayToProjectWithId(projectId, id);
 
-      // AI : Ensure selectedCity is set for overlay visibility system
-      const mapStore = useMapStore();
+      // AI : Add new overlay to city cache so it persists across zoom changes
       const projectStore = useProjectStore();
       const project = projectStore.projects[projectId];
-
       if (project?.city) {
-        const countryCode = project.city.countryCode;
-
-        // AI : Set selectedCity if not already set to prevent overlay disappearance on zoom
-        if (!mapStore.selectedCity) {
-          mapStore.setSelectedCity({
-            id: project.city.id,
-            name: project.city.name,
-            countryCode: countryCode
-          });
-
-          // AI : Set selectedCountryCode and load all city markers for better UX
-          if (countryCode) {
-            mapStore.selectedCountryCode = countryCode;
-
-            // AI : First add single marker immediately (fast feedback)
-            addSingleCityMarker({
-              id: project.city.id,
-              name: project.city.name,
-              lat: project.city.coordinates.y,
-              lng: project.city.coordinates.x,
-              countryCode: countryCode
-            });
-
-            // AI : Then load all cities for the country (includes warning protection via shared config)
-            await loadCitiesForCountry(countryCode);
-            const country = projectStore.countries.find((c) => c.code === countryCode);
-            if (country?.cities) {
-              addCityMarkersForCountry(country.cities.map((c) => ({ ...c, projectCount: 0 })));
-
-              // AI : Re-add single marker if city not in backend response (new city without approved projects)
-              const cityExistsInBackend = country.cities.some((c) => c.id === project.city.id);
-              if (!cityExistsInBackend) {
-                addSingleCityMarker({
-                  id: project.city.id,
-                  name: project.city.name,
-                  lat: project.city.coordinates.y,
-                  lng: project.city.coordinates.x,
-                  countryCode: countryCode
-                });
-              }
-            }
-          }
-        }
-
-        // AI : Add new overlay to city cache so it persists across zoom changes
         addNewOverlayToCityCache(overlayObject, project.city.id);
       }
     }
