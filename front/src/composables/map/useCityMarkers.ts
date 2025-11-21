@@ -633,7 +633,9 @@ export function addSingleCityMarker(city: { id: string; name: string; lat: numbe
  */
 export function addCityMarkersForCountry(cities: CityWithProjects[]): void {
   if (!map.value) {
-    onMapInitialized(() => addCityMarkersToMapInternal(cities));
+    onMapInitialized(() => { 
+      addCityMarkersToMapInternal(cities) 
+    })
     return;
   }
   addCityMarkersToMapInternal(cities);

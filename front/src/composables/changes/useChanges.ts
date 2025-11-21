@@ -221,7 +221,7 @@ export function useChangeRequests() {
     changeReason?: string
   ) {
     return withErrorToast(
-      () => submitChangeRequest({
+      async () => submitChangeRequest({
         entityType: 'project',
         entityId: projectId,
         changes: [{

@@ -1353,7 +1353,7 @@ interface Dimensions {
   height: number;
 }
 
-function calculateRatioFixParameters(originalRatio: number, currentCorners: L.LatLng[]) {
+function calculateRatioFixParameters(originalRatio: number, currentCorners: { lat: number, lng: number }[]) {
   if (!map.value) return {
     originalRatio,
     newDimensions: { width: 0, height: 0 },

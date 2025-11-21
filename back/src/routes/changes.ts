@@ -81,8 +81,17 @@ function buildUpdateData(change: { entityType: string; fieldName: string; newVal
   return { [change.fieldName]: change.newValue };
 }
 
+// AI : Base interface for change requests that can be enriched with city names
+interface BaseChangeRequest {
+  fieldName: string;
+  oldValue: unknown;
+  newValue: unknown;
+}
+
 // AI : Helper function to enrich change requests with city and country names
-export async function enrichChangeRequestsWithNames(changes: any[]) {
+export async function enrichChangeRequestsWithNames<T extends BaseChangeRequest>(
+  changes: T[]
+){
   // AI : Extract all unique cityIds from change requests where fieldName is 'cityId'
   const cityIds = new Set<string>();
 
