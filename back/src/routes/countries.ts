@@ -11,6 +11,23 @@ import {
 } from '../db/helpers';
 
 export const countriesRouter = router({
+  getAllCountries: publicProcedure
+    .query(async () => {
+      try {
+        // AI : Return all countries for moderation dropdown and other uses
+        return await db
+          .select({
+            code: countries.code,
+            name: countries.name,
+          })
+          .from(countries)
+          .orderBy(countries.name);
+      } catch (error) {
+        console.error('Error fetching all countries:', error);
+        throw new Error('Failed to fetch countries');
+      }
+    }),
+
   getCountriesWithProjects: publicProcedure
     .input(z.object({
       mode: z.enum(['view', 'edit', 'moderation']).optional().default('view'),

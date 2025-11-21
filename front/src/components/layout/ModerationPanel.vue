@@ -9,8 +9,35 @@
       @cancel="handleCancelReplacement"
     />
 
+    <!-- AI : Country Selector for Moderation -->
+    <div v-if="showCountrySelector" class="country-selector-container">
+      <label for="country-select" class="country-selector-label">
+        <i class="pi pi-globe"></i>
+        {{ $t('moderation.selectCountry') }}:
+      </label>
+      <Select
+        id="country-select"
+        v-model="selectedCountryCode"
+        :options="availableCountries"
+        option-label="name"
+        option-value="code"
+        :placeholder="$t('moderation.chooseCountry')"
+        :filter="availableCountries.length > 10"
+        :loading="countriesLoading"
+        @change="handleCountryChange"
+        class="country-dropdown"
+      />
+    </div>
+
+    <!-- AI : Message when moderator needs to select a country -->
+    <div v-if="showCountrySelector && !selectedCountryCode" class="no-country-message">
+      <i class="pi pi-info-circle"></i>
+      <p>{{ $t('moderation.pleaseSelectCountry') }}</p>
+    </div>
+
     <!-- AI : Projects Section - pure approve/reject workflow for pending items -->
     <ProjectAccordionPanel
+      v-else
       :projects="projects"
       :change-requests="changeRequests"
       :is-loading="isLoading"
@@ -116,13 +143,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useModeration } from '@composables/moderation/useModeration'
 import { useChangeRequests } from '@composables/changes/useChanges'
 import { useOverlayClickHandler } from '@composables/overlay/useOverlayClickHandler'
 import { useChangeRequestPreview } from '@composables/overlay/useChangeRequestPreview'
 import { useToast } from '@composables/ui/useToast'
+import { useAuthStore } from '@stores/authStore'
+import { useModerationStore } from '@stores/pinia/moderationStore'
 import { trpc } from '@client'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import ReplacementConflictsDialog from '@components/moderation/ReplacementConflictsDialog.vue'
@@ -130,6 +159,81 @@ import type { ReplacementConflicts } from '@components/moderation/ReplacementCon
 
 // AI : Use i18n for translations
 const { t } = useI18n()
+
+// AI : Auth and moderation stores for country filtering
+const authStore = useAuthStore()
+const moderationStore = useModerationStore()
+
+// AI : Country selector state
+const allCountries = ref<Array<{ code: string; name: string }>>([])
+const countriesLoading = ref(false)
+const selectedCountryCode = ref<string | null>(moderationStore.selectedCountryCode)
+
+// AI : Computed: show country selector if user is not admin (checks both role and moderatedCountries)
+const showCountrySelector = computed(() => {
+  const user = authStore.user
+  if (!user) return false
+
+  // AI : Admin role or null moderatedCountries = no country selector needed
+  const isAdmin = user.role === 'admin' || user.moderatedCountries === null
+  return !isAdmin
+})
+
+// AI : Computed: filter countries by user's moderatedCountries
+const availableCountries = computed(() => {
+  const userCountries = authStore.user?.moderatedCountries
+
+  // AI : Admin (null or undefined) sees all countries
+  if (userCountries === null || userCountries === undefined) {
+    return allCountries.value
+  }
+
+  // AI : Handle edge case where moderatedCountries might not be an array at runtime
+  if (!Array.isArray(userCountries)) {
+    console.warn('moderatedCountries is not an array:', userCountries)
+    return allCountries.value
+  }
+
+  // AI : Filter to only moderator's assigned countries
+  return allCountries.value.filter(country =>
+    userCountries.includes(country.code)
+  )
+})
+
+// AI : Fetch all countries on mount and auto-select if only one available
+onMounted(async () => {
+  try {
+    countriesLoading.value = true
+    const countries = await trpc.country.getAllCountries.query()
+    allCountries.value = countries
+
+    // AI : Auto-select country if moderator has exactly one assigned country
+    if (showCountrySelector.value && availableCountries.value.length === 1) {
+      selectedCountryCode.value = availableCountries.value[0].code
+      moderationStore.setSelectedCountryCode(selectedCountryCode.value)
+      // AI : Manually fetch pending submissions after auto-selecting country
+      // AI : This is necessary because useModeration's onMounted skips fetch when no country is selected yet
+      await fetchPendingSubmissions()
+    }
+  } catch (error) {
+    console.error('Failed to load countries:', error)
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: t('moderation.failedToLoadCountries'),
+      life: 3000
+    })
+  } finally {
+    countriesLoading.value = false
+  }
+})
+
+// AI : Handle country selection change
+function handleCountryChange() {
+  moderationStore.setSelectedCountryCode(selectedCountryCode.value)
+  moderationStore.resetModerationLoaded()
+  fetchPendingSubmissions()
+}
 
 // AI : Use moderation composable
 const {
@@ -141,6 +245,7 @@ const {
   rejectOverlay,
   undoLastAction,
   recentActions,
+  fetchPendingSubmissions,
 } = useModeration()
 
 // AI : Use change requests composable
@@ -387,8 +492,8 @@ async function handleApproveChange(changeId: string) {
       life: 3000
     })
 
-    // AI : Just remove the approved change from local state, no backend refresh needed
-    // The change has been applied to the database, and the UI will update naturally
+    // AI : Refetch pending submissions to update UI (removes approved change and competing conflicted changes)
+    await fetchPendingSubmissions()
   } else {
     toast.add({
       severity: 'error',
@@ -411,7 +516,8 @@ async function handleRejectChange(changeId: string) {
       life: 3000
     })
 
-    // AI : Just remove the rejected change from local state, no backend refresh needed
+    // AI : Refetch pending submissions to update UI
+    await fetchPendingSubmissions()
   } else {
     toast.add({
       severity: 'error',
@@ -429,7 +535,61 @@ async function handleRejectChange(changeId: string) {
 .moderation-container {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+}
+
+/* AI : Country selector styling */
+.country-selector-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--p-surface-50);
+  border: 1px solid var(--p-surface-200);
+  border-radius: 6px;
+}
+
+.country-selector-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--p-surface-700);
+  font-size: 0.9375rem;
+  white-space: nowrap;
+}
+
+.country-selector-label i {
+  color: var(--p-primary-color);
+}
+
+.country-dropdown {
+  flex: 1;
+  min-width: 200px;
+  max-width: 300px;
+}
+
+
+/* AI : No country selected message */
+.no-country-message {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  background: var(--p-blue-50);
+  border: 1px solid var(--p-blue-200);
+  border-radius: 6px;
+  color: var(--p-blue-700);
+}
+
+.no-country-message i {
+  font-size: 1.5rem;
+  color: var(--p-blue-600);
+}
+
+.no-country-message p {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 500;
 }
 
 /* AI : Project action buttons container */
@@ -486,5 +646,13 @@ async function handleRejectChange(changeId: string) {
 .disabled-btn:hover {
   background-color: white;
   border-color: #e5e7eb;
+}
+</style>
+
+<!-- AI : Global styles for portal-based overlays that render outside component scope -->
+<style>
+/* AI : Ensure Select dropdown overlay appears above mode outline (z-index 1050) */
+.p-select-overlay {
+  z-index: 1100 !important;
 }
 </style>

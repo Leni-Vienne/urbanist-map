@@ -92,14 +92,14 @@ export function useChangeRequests() {
       );
 
       if (result?.success != undefined) {
-        // AI : Remove approved change requests from local state instead of refetching
-        pendingChangeRequests.value = pendingChangeRequests.value.filter(
-          cr => !changeRequestIds.includes(cr.id)
-        );
-        
-        // AI : Also remove from moderation store if available
+        // AI : Reset and refetch all moderation data (same pattern as overlay/project approval)
+        // AI : This ensures competing change requests marked as 'conflicted' by backend are removed from UI
+        // AI : Backend marks ALL competing changes for the same field as 'conflicted' when one is approved
         const moderationStore = useModerationStore();
-        moderationStore.removeChangeRequests(changeRequestIds);
+        moderationStore.resetModerationLoaded();
+
+        // AI : Reset local loaded flag as well for My Contributions panel
+        resetChangeRequestsLoaded();
       }
 
       return result;

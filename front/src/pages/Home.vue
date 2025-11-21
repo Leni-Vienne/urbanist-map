@@ -4,7 +4,7 @@
         <SideMenu
             v-if="!isMobile"
             :is-open="desktopSideMenuOpen"
-            :is-moderator="isModerator"
+            :is-moderator="authStore.isModerator"
             @close="() => (desktopSideMenuOpen = false)"
         />
 
@@ -94,7 +94,6 @@ const ProjectManager = defineAsyncComponent(
 );
 
 // AI : Create refs to track app state
-const isModerator = ref(false);
 const desktopSideMenuOpen = ref(true); // AI : Open by default on desktop
 const showModeratedContributionsDialog = ref(false);
 const infoBannerDismissed = ref(false);
@@ -182,13 +181,6 @@ onMounted(async () => {
     try {
         await authStore.initialize();
 
-        if (
-            authStore.user?.role === "moderation" ||
-            authStore.user?.role === "admin"
-        ) {
-            isModerator.value = true;
-        }
-
         // AI : Check for moderated contributions if user is logged in
         if (authStore.isAuthenticated) {
             await fetchModeratedContributions();
@@ -224,12 +216,7 @@ onMounted(async () => {
 // AI : Watch for authentication changes to fetch moderated contributions when user logs in
 watch(() => authStore.isAuthenticated, async (isAuthenticated, wasAuthenticated) => {
     if (isAuthenticated && !wasAuthenticated) {
-        // AI : User just logged in - update moderator status and fetch contributions
-        if (authStore.user?.role === 'moderation' || authStore.user?.role === 'admin') {
-            isModerator.value = true;
-        }
-
-        // AI : Fetch moderated contributions
+        // AI : User just logged in - fetch moderated contributions
         await fetchModeratedContributions();
 
         // AI : Show dialog if there are unacknowledged items
@@ -237,8 +224,7 @@ watch(() => authStore.isAuthenticated, async (isAuthenticated, wasAuthenticated)
             showModeratedContributionsDialog.value = true;
         }
     } else if (!isAuthenticated && wasAuthenticated) {
-        // AI : User just logged out - reset moderator status and clear cached contributions
-        isModerator.value = false;
+        // AI : User just logged out - clear cached contributions
         resetModeratedContributions();
     }
 });
