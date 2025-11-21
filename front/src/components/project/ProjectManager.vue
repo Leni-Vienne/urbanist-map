@@ -233,7 +233,7 @@ async function handleFileUpload(projectId: string, isReplacement: boolean = fals
   }
 
   const reader = new FileReader()
-  reader.onload = () => {
+  reader.onload = async () => {
     try {
       if (isReplacement && replacementOverlayId.value) {
         // AI : Create replacement overlay using the standard overlay creation process
@@ -251,6 +251,55 @@ async function handleFileUpload(projectId: string, isReplacement: boolean = fals
         // AI : Regular overlay addition
         addOverlay(reader.result as string, projectId)
         // AI : Don't show toast here - addOverlayToProjectWithId will show a more specific toast
+      }
+
+      // AI : Ensure city markers exist for this overlay's city
+      const project = projectStore.projects[projectId]
+      if (project?.city) {
+        const mapStore = useMapStore()
+        const countryCode = project.city.countryCode
+
+        // AI : Set selectedCity if not already set to prevent overlay disappearance on zoom
+        if (!mapStore.selectedCity) {
+          mapStore.setSelectedCity({
+            id: project.city.id,
+            name: project.city.name,
+            countryCode: countryCode
+          })
+
+          // AI : Set selectedCountryCode and load all city markers for better UX
+          if (countryCode) {
+            mapStore.selectedCountryCode = countryCode
+
+            // AI : First add single marker immediately (fast feedback)
+            addSingleCityMarker({
+              id: project.city.id,
+              name: project.city.name,
+              lat: project.city.coordinates.y,
+              lng: project.city.coordinates.x,
+              countryCode: countryCode
+            })
+
+            // AI : Then load all cities for the country
+            await loadCitiesForCountry(countryCode)
+            const country = projectStore.countries.find((c) => c.code === countryCode)
+            if (country?.cities) {
+              addCityMarkersForCountry(country.cities.map((c) => ({ ...c, projectCount: 0 })))
+
+              // AI : Re-add single marker if city not in backend response (new city without approved projects)
+              const cityExistsInBackend = country.cities.some((c) => c.id === project.city.id)
+              if (!cityExistsInBackend) {
+                addSingleCityMarker({
+                  id: project.city.id,
+                  name: project.city.name,
+                  lat: project.city.coordinates.y,
+                  lng: project.city.coordinates.x,
+                  countryCode: countryCode
+                })
+              }
+            }
+          }
+        }
       }
     } catch (error) {
       console.error('Error handling file upload:', error)
