@@ -19,7 +19,7 @@ export default defineConfig({
     visualizer({
       filename: 'stats.html',
       open: false,
-      template: 'list', // 'treemap', 'sunburst', 'network', 'list', 'flamegraph', 'raw-data'
+      template: 'treemap', // 'treemap', 'sunburst', 'network', 'list', 'flamegraph', 'raw-data'
     }),
     tailwindcss(),
     vueDevTools(),

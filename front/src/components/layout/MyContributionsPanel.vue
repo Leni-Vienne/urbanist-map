@@ -46,7 +46,7 @@
         <!-- AI : Moderation results button -->
         <Button
           v-if="hasUnacknowledgedItems"
-          @click="showModeratedContributionsDialog = true"
+          @click="uiStore.openModeratedContributionsDialog()"
           :label="$t('moderation.moderatedContributions.viewResults')"
           severity="secondary"
           size="small"
@@ -107,12 +107,6 @@
       </Button>
     </template>
   </ProjectAccordionPanel>
-
-  <!-- AI : Moderated Contributions Dialog -->
-  <ModeratedContributionsDialog
-    v-model:visible="showModeratedContributionsDialog"
-    @close="showModeratedContributionsDialog = false"
-  />
 </template>
 
 <script setup lang="ts">
@@ -124,7 +118,7 @@ import { useToast } from '@composables/ui/useToast'
 import { useChangeRequests } from '@composables/changes/useChanges'
 import { useUserContributions } from '@composables/project/useUserContributions'
 import { useModeratedContributions } from '@composables/moderation/useModeratedContributions'
-import ModeratedContributionsDialog from '@components/moderation/ModeratedContributionsDialog.vue'
+import { useUiStore } from '@stores/uiStore'
 
 const { t } = useI18n()
 
@@ -133,7 +127,7 @@ const { projects, isLoading, fetchUserContributions, deleteOverlay, deleteProjec
 
 // AI : Moderated contributions state
 const { moderatedContributions, hasUnacknowledgedItems } = useModeratedContributions()
-const showModeratedContributionsDialog = ref(false)
+const uiStore = useUiStore()
 const moderatedContributionsCount = computed(() => moderatedContributions.value.length)
 
 const onlyShowPending = ref(true)
