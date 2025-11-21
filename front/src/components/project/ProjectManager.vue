@@ -95,12 +95,12 @@ import { storeToRefs } from 'pinia'
 import L from 'leaflet'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useProjectStore } from '@stores/pinia/projectStore'
-import { useMapStore } from '@stores/pinia/mapStore'
 import { useUiStore } from '@stores/uiStore'
 import { useToast } from '@composables/ui/useToast'
 import { map } from '@composables/core/useMap'
 import { loadCityProjects, getDevelopmentMarkerByProjectId, createProjectInfoTeleportTarget, updateDevelopmentMarkerColor, addSingleCityMarker, addCityMarkersForCountry } from '@composables/map/useCityMarkers'
 import { loadCitiesForCountry } from '@composables/map/useCountryMarkers'
+import { useMapStore } from '@stores/pinia/mapStore'
 import { createDevelopmentIcon } from '@composables/map/useMarkers'
 import { addOverlay } from '@composables/overlay/useOverlay'
 import { setLastCreatedProject } from '@composables/ui/useProjectState'
@@ -131,6 +131,56 @@ const { projectEditForm } = storeToRefs(uiStore)
 
 // AI : Track selected project for upload (preselects original project for replacements)
 const selectedProjectForUpload = ref<string>('')
+
+// AI : Helper to ensure city markers are properly set up for a project's city
+async function ensureCityMarkersForProject(
+  city: { id: string; name: string; countryCode: string; coordinates: { x: number; y: number } },
+  forceSetSelectedCity = false
+): Promise<void> {
+  const countryCode = city.countryCode;
+
+  // AI : Set selectedCity if not already set (or if forced) to prevent overlay disappearance on zoom
+  if (forceSetSelectedCity || !mapStore.selectedCity) {
+    mapStore.setSelectedCity({
+      id: city.id,
+      name: city.name,
+      countryCode: countryCode
+    });
+  }
+
+  if (!countryCode) return;
+
+  mapStore.selectedCountryCode = countryCode;
+
+  // AI : First add single marker immediately (fast feedback)
+  addSingleCityMarker({
+    id: city.id,
+    name: city.name,
+    lat: city.coordinates.y,
+    lng: city.coordinates.x,
+    countryCode: countryCode
+  });
+
+  // AI : Then load all cities for the country
+  await loadCitiesForCountry(countryCode);
+  const country = projectStore.countries.find((c) => c.code === countryCode);
+
+  if (country?.cities) {
+    addCityMarkersForCountry(country.cities.map((c) => ({ ...c, projectCount: 0 })));
+
+    // AI : Re-add single marker if city not in backend response (new city without approved projects)
+    const cityExistsInBackend = country.cities.some((c) => c.id === city.id);
+    if (!cityExistsInBackend) {
+      addSingleCityMarker({
+        id: city.id,
+        name: city.name,
+        lat: city.coordinates.y,
+        lng: city.coordinates.x,
+        countryCode: countryCode
+      });
+    }
+  }
+}
 
 // AI : Get the original overlay's project ID for replacements
 function getOriginalOverlayProjectId(): string | null {
@@ -256,50 +306,7 @@ async function handleFileUpload(projectId: string, isReplacement: boolean = fals
       // AI : Ensure city markers exist for this overlay's city
       const project = projectStore.projects[projectId]
       if (project?.city) {
-        const mapStore = useMapStore()
-        const countryCode = project.city.countryCode
-
-        // AI : Set selectedCity if not already set to prevent overlay disappearance on zoom
-        if (!mapStore.selectedCity) {
-          mapStore.setSelectedCity({
-            id: project.city.id,
-            name: project.city.name,
-            countryCode: countryCode
-          })
-
-          // AI : Set selectedCountryCode and load all city markers for better UX
-          if (countryCode) {
-            mapStore.selectedCountryCode = countryCode
-
-            // AI : First add single marker immediately (fast feedback)
-            addSingleCityMarker({
-              id: project.city.id,
-              name: project.city.name,
-              lat: project.city.coordinates.y,
-              lng: project.city.coordinates.x,
-              countryCode: countryCode
-            })
-
-            // AI : Then load all cities for the country
-            await loadCitiesForCountry(countryCode)
-            const country = projectStore.countries.find((c) => c.code === countryCode)
-            if (country?.cities) {
-              addCityMarkersForCountry(country.cities.map((c) => ({ ...c, projectCount: 0 })))
-
-              // AI : Re-add single marker if city not in backend response (new city without approved projects)
-              const cityExistsInBackend = country.cities.some((c) => c.id === project.city.id)
-              if (!cityExistsInBackend) {
-                addSingleCityMarker({
-                  id: project.city.id,
-                  name: project.city.name,
-                  lat: project.city.coordinates.y,
-                  lng: project.city.coordinates.x,
-                  countryCode: countryCode
-                })
-              }
-            }
-          }
-        }
+        await ensureCityMarkersForProject(project.city)
       }
     } catch (error) {
       console.error('Error handling file upload:', error)
@@ -414,45 +421,8 @@ async function handleProjectSubmitted(project: Partial<Project>) {
 
       // AI : For development projects, load on map and show marker
       if (project.isDevelopment && project.city) {
-        const countryCode = project.city.countryCode;
-
-        // AI : Set selected city for proper map context
-        mapStore.setSelectedCity({
-          id: project.city.id,
-          name: project.city.name,
-          countryCode: countryCode
-        });
-
-        if (countryCode) {
-          mapStore.selectedCountryCode = countryCode;
-
-          // AI : Load city markers for the country (same pattern as overlays)
-          addSingleCityMarker({
-            id: project.city.id,
-            name: project.city.name,
-            lat: project.city.coordinates.y,
-            lng: project.city.coordinates.x,
-            countryCode: countryCode
-          });
-
-          await loadCitiesForCountry(countryCode);
-          const country = projectStore.countries.find((c) => c.code === countryCode);
-          if (country?.cities) {
-            addCityMarkersForCountry(country.cities.map((c) => ({ ...c, projectCount: 0 })));
-
-            // AI : Re-add single marker if city not in backend response
-            const cityExistsInBackend = country.cities.some((c) => c.id === project.city!.id);
-            if (!cityExistsInBackend) {
-              addSingleCityMarker({
-                id: project.city.id,
-                name: project.city.name,
-                lat: project.city.coordinates.y,
-                lng: project.city.coordinates.x,
-                countryCode: countryCode
-              });
-            }
-          }
-        }
+        // AI : Ensure city markers are set up (force set selectedCity for proper map context)
+        await ensureCityMarkersForProject(project.city, true);
 
         // AI : Load city projects to display the development marker
         await loadCityProjects(project.city.id, project.city.name, true, project.city.countryCode);
