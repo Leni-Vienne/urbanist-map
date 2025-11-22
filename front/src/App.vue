@@ -15,6 +15,7 @@ import 'primeicons/primeicons.css'
 <style>
 .app-container {
   height: 100vh;
+  overflow-y: auto;
 }
 
 /* AI : Transition effects for route changes */

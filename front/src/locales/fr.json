@@ -1,6 +1,7 @@
 {
   "common": {
     "name": "Nom",
+    "back": "Retour",
     "save": "Enregistrer",
     "cancel": "Annuler",
     "delete": "Supprimer",
@@ -384,6 +385,63 @@
         "noToken": "Aucun jeton de vérification fourni",
         "verificationFailed": "La vérification a échoué. Le jeton peut être invalide ou expiré."
       }
+    },
+    "legal": {
+      "title": "Mentions légales & Politique de confidentialité",
+      "lastUpdated": "Dernière mise à jour",
+      "publisher": {
+        "title": "Éditeur",
+        "content": "Ce site est édité par :",
+        "name": "Nom",
+        "email": "Email"
+      },
+      "dataCollection": {
+        "title": "Collecte de données",
+        "content": "Nous collectons un minimum d'informations pour fournir notre service :",
+        "username": "Nom d'utilisateur (nom public affiché)",
+        "email": "Adresse email (pour récupération du compte et notifications)",
+        "password": "Mot de passe (stocké chiffré)",
+        "legalBasis": "Base légale : exécution du contrat (fourniture du service auquel vous vous êtes inscrit)."
+      },
+      "rights": {
+        "title": "Vos droits (RGPD)",
+        "content": "En vertu du droit européen, vous disposez des droits suivants concernant vos données :",
+        "access": "Droit d'accès : demander une copie de vos données",
+        "rectification": "Droit de rectification : corriger des données inexactes",
+        "deletion": "Droit à l'effacement : supprimer votre compte et toutes les données associées",
+        "portability": "Droit à la portabilité : exporter vos données dans un format standard",
+        "howTo": "Pour exercer ces droits, contactez-nous à contact{'@'}constructionmap.org. Nous répondrons sous 30 jours."
+      },
+      "thirdParty": {
+        "title": "Services tiers",
+        "content": "Nous utilisons les services externes suivants :",
+        "google": "Méthode de connexion optionnelle. Partage votre email et nom avec nous.",
+        "googleLink": "Politique de confidentialité Google",
+        "cloudflare": "Hébergement et CDN. Peut traiter les adresses IP.",
+        "cloudflareLink": "Politique de confidentialité Cloudflare",
+        "aws": "Envoi d'emails. Traite les adresses email pour les emails de compte.",
+        "awsLink": "Politique de confidentialité AWS"
+      },
+      "retention": {
+        "title": "Conservation des données",
+        "content": "Vos données sont conservées tant que votre compte existe. Lorsque vous supprimez votre compte, toutes vos données personnelles sont définitivement supprimées sous 30 jours. Les données de contribution anonymisées (images, projets) peuvent être conservées."
+      },
+      "cookies": {
+        "title": "Cookies",
+        "content": "Nous utilisons uniquement un cookie de session pour maintenir votre connexion. Ce cookie est strictement nécessaire et ne requiert pas de consentement. Nous n'utilisons aucun cookie de suivi, d'analyse ou publicitaire."
+      },
+      "userContent": {
+        "title": "Contenu utilisateur & Conditions d'utilisation",
+        "content": "En téléchargeant du contenu sur ce site :",
+        "ownership": "Vous conservez la propriété de votre contenu",
+        "license": "Vous nous accordez une licence non exclusive pour afficher et distribuer votre contenu sur cette plateforme",
+        "moderation": "Nous pouvons supprimer le contenu qui enfreint nos règles sans préavis",
+        "forbidden": "Interdit : contenu illégal, spam, matériel protégé par le droit d'auteur sans autorisation, contenu offensant"
+      }
+    },
+    "contact": {
+      "title": "Contact",
+      "description": "Pour questions, suggestions, ou problèmes, contactez-nous par email :"
     }
   },
   "controls": {

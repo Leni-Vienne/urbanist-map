@@ -14,8 +14,18 @@ const routes = [
   },
   {
     path: '/reset-password',
-    name: 'PasswordReset', 
+    name: 'PasswordReset',
     component: async () => import('@pages/PasswordReset.vue') // Lazy load
+  },
+  {
+    path: '/legal',
+    name: 'Legal',
+    component: async () => import('@pages/Legal.vue') // Lazy load
+  },
+  {
+    path: '/contact',
+    name: 'Contact',
+    component: async () => import('@pages/Contact.vue') // Lazy load
   }
 ]
 
