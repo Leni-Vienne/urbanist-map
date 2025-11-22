@@ -52,13 +52,3 @@
   font-size: 0.8rem;
   color: var(--p-text-muted);
 }
-
-.info-link {
-  color: var(--p-primary-500);
-  text-decoration: none;
-  word-break: break-all;
-}
-
-.info-link:hover {
-  text-decoration: underline;
-}

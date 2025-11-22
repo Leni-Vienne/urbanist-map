@@ -49,7 +49,7 @@
         <a
           :href="project.sourceUrl"
           target="_blank"
-          class="info-link"
+          class="app-link"
         >{{ formatSourceUrl(project.sourceUrl) }}</a>
       </div>
       <div
