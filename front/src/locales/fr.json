@@ -551,7 +551,13 @@
     }
   },
   "location": {
-    "unknownLocation": "Lieu inconnu"
+    "unknownLocation": "Lieu inconnu",
+    "navigateToCity": "Aller à {city}",
+    "missingCityInfo": "Informations de ville manquantes",
+    "cannotNavigateToCity": "Impossible de naviguer vers cette ville",
+    "missingCountryInfo": "Informations de pays manquantes",
+    "navigationFailed": "Échec de la navigation",
+    "failedToNavigate": "Impossible de naviguer vers cet emplacement"
   },
   "replacementOverlay": {
     "created": "Image de remplacement créée",

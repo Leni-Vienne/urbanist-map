@@ -32,37 +32,12 @@
                   {{ $t('moderation.by') }} {{ getUserId(group.change.requestedBy) }}
                 </span>
               </div>
-              <div v-if="isGeometryField(group.change.fieldName)" class="geometry-change-controls">
-                <div class="geometry-buttons">
-                  <Button
-                    icon="pi pi-map-marker"
-                    :label="$t('overlay.viewCurrentPosition')"
-                    @click.stop="previewGeometry(group.change.oldValue, 'old', group.change.id)"
-                    severity="success"
-                    :outlined="!isPreviewActive(group.change.id, 'old')"
-                    size="small"
-                  />
-                  <Button
-                    icon="pi pi-map-marker"
-                    :label="$t('overlay.viewSuggestedPosition')"
-                    @click.stop="previewGeometry(group.change.newValue, 'new', group.change.id)"
-                    severity="warn"
-                    :outlined="!isPreviewActive(group.change.id, 'new')"
-                    size="small"
-                  />
-                </div>
-              </div>
-              <div v-else class="change-values">
-                <span class="old-value">{{ formatValue(group.change.oldValue, group.change.fieldName, group.change) }}</span>
-                <i class="pi pi-arrow-right"></i>
-                <span class="new-value">{{ formatValue(group.change.newValue, group.change.fieldName, group.change) }}</span>
-              </div>
-              <div v-if="group.change.changeReason" class="change-reason">
-                <em>{{ $t('moderation.reason') }}: {{ group.change.changeReason }}</em>
-              </div>
-              <div class="change-date">
-                <em>{{ $t('moderation.requested') }}: {{ formatDateTime(group.change.createdAt) }}</em>
-              </div>
+              <ChangeValueDisplay
+                :change="group.change"
+                :projects="projects"
+                :is-preview-active="isPreviewActive"
+                @preview-geometry="previewGeometry"
+              />
             </div>
             <div v-if="$slots['change-actions']" class="change-actions">
               <slot name="change-actions" :change="group.change"></slot>
@@ -89,37 +64,12 @@
                     {{ $t('moderation.suggestedBy') }} {{ getUserId(change.requestedBy) }}
                   </span>
                 </div>
-                <div v-if="isGeometryField(change.fieldName)" class="geometry-change-controls">
-                  <div class="geometry-buttons">
-                    <Button
-                      icon="pi pi-map-marker"
-                      :label="$t('overlay.viewCurrentPosition')"
-                      @click.stop="previewGeometry(change.oldValue, 'old', change.id)"
-                      severity="success"
-                      :outlined="!isPreviewActive(change.id, 'old')"
-                      size="small"
-                    />
-                    <Button
-                      icon="pi pi-map-marker"
-                      :label="$t('overlay.viewSuggestedPosition')"
-                      @click.stop="previewGeometry(change.newValue, 'new', change.id)"
-                      severity="warn"
-                      :outlined="!isPreviewActive(change.id, 'new')"
-                      size="small"
-                    />
-                  </div>
-                </div>
-                <div v-else class="change-values">
-                  <span class="old-value">{{ formatValue(change.oldValue, change.fieldName, change) }}</span>
-                  <i class="pi pi-arrow-right"></i>
-                  <span class="new-value">{{ formatValue(change.newValue, change.fieldName, change) }}</span>
-                </div>
-                <div v-if="change.changeReason" class="change-reason">
-                  <em>{{ $t('moderation.reason') }}: {{ change.changeReason }}</em>
-                </div>
-                <div class="change-date">
-                  <em>{{ $t('moderation.requested') }}: {{ formatDateTime(change.createdAt) }}</em>
-                </div>
+                <ChangeValueDisplay
+                  :change="change"
+                  :projects="projects"
+                  :is-preview-active="isPreviewActive"
+                  @preview-geometry="previewGeometry"
+                />
               </div>
               <div v-if="$slots['change-actions']" class="change-actions">
                 <slot name="change-actions" :change="change"></slot>
@@ -140,7 +90,7 @@ import { useToast } from '@composables/ui/useToast';
 import { useChangeRequestPreview } from '@composables/overlay/useChangeRequestPreview';
 import type { PendingChangeRequest } from '../../types/api';
 import type { ProjectForModeration, OverlayForModeration } from '@types';
-import { formatDateTime } from '@utils/dateFormat';
+import ChangeValueDisplay from './ChangeValueDisplay.vue';
 
 interface Props {
   changes: PendingChangeRequest[];
@@ -230,10 +180,6 @@ const groupedChanges = computed<ChangeGroup[]>(() => {
   return groups;
 });
 
-function isGeometryField(fieldName: string): boolean {
-  return fieldName === 'corners' || fieldName === 'centroid';
-}
-
 function getUserId(userId: string | null): string {
   if (!userId) return t('common.unknown');
   return userId.slice(0, 8) + '...';
@@ -245,42 +191,6 @@ function formatFieldName(fieldName: string): string {
   const translated = t(translationKey);
   // AI : If translation exists, use it; otherwise fall back to field name
   return translated !== translationKey ? translated : fieldName;
-}
-
-function formatValue(value: unknown, fieldName: string, change?: any): string {
-  if (value === null || value === undefined || value === '') {
-    return t('overlay.notSet');
-  }
-
-  if (fieldName === 'projectId' && typeof value === 'string') {
-    const project = props.projects.find(p => p.id === value);
-    return project?.name ?? `Unknown Project (${value.slice(0, 8)}...)`;
-  }
-
-  // AI : Handle cityId field using backend-enriched data
-  if (fieldName === 'cityId' && typeof value === 'string' && change) {
-    const isOldValue = change.oldValue === value;
-    const cityName = isOldValue ? change.oldCityName : change.newCityName;
-    const countryName = isOldValue ? change.oldCountryName : change.newCountryName;
-
-    if (cityName && countryName) {
-      return `${cityName}, ${countryName}`;
-    } else if (cityName) {
-      return cityName;
-    }
-
-    // AI : Fallback to truncated ID if backend didn't provide names
-    return `City (${value.slice(0, 8)}...)`;
-  }
-
-  if (fieldName === 'corners' || fieldName === 'centroid') {
-    return t('overlay.coordinatesViewOnMap');
-  }
-
-  if (typeof value === 'object') {
-    return JSON.stringify(value, null, 2);
-  }
-  return String(value);
 }
 
 // AI : Wrapper function to handle preview with proper error handling
@@ -451,61 +361,11 @@ async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', chan
   font-size: 0.8125rem;
 }
 
-.change-values {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  margin: 0.25rem 0;
-  font-family: 'Courier New', monospace;
-  font-size: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.old-value {
-  color: #059669;
-  background: #ecfdf5;
-  padding: 0.125rem 0.25rem;
-  border-radius: 3px;
-  word-break: break-word;
-  max-width: 150px;
-}
-
-.new-value {
-  color: var(--p-tag-warn-color);
-  background: var(--p-tag-warn-background);
-  padding: 0.125rem 0.25rem;
-  border-radius: 3px;
-  word-break: break-word;
-  max-width: 150px;
-}
-
-.change-reason {
-  font-size: 0.75rem;
-  color: var(--p-surface-600);
-  margin-top: 0.25rem;
-}
-
-.change-date {
-  font-size: 0.75rem;
-  color: var(--p-surface-400);
-  margin-top: 0.25rem;
-}
-
 .change-actions {
   display: flex;
   gap: 0.25rem;
   justify-content: flex-end;
   flex-shrink: 0;
-}
-
-.geometry-change-controls {
-  margin: 0.5rem 0;
-}
-
-.geometry-buttons {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
 }
 
 /* AI : Styling for grouped conflict options */
