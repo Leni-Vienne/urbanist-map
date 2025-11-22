@@ -895,13 +895,13 @@ async function handleOverlayCardClick(overlay: OverlayForModeration, shouldFitBo
   gap: 0.75rem;
 }
 
-/* AI : Actions column - vertical stack of buttons on the right */
+/* AI : Actions column - vertical stack of buttons on the right, centered vertically */
 .project-actions-column {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   flex-shrink: 0;
-  align-self: flex-start;
+  align-self: center;
 }
 
 /* AI : Override any flex row styles from child components */
