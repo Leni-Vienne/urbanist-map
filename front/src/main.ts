@@ -7,7 +7,7 @@ import ToastService from 'primevue/toastservice';
 import { createPinia } from 'pinia';
 import { router } from './router';
 import { createI18n } from 'vue-i18n';
-import { messages, getStoredLocale, updateTranslationSettings } from './locales';
+import { getStoredLocale, updateTranslationSettings, loadLocaleMessages, setI18nInstance } from './locales';
 
 
 // AI : Custom PrimeVue preset for Construction Map
@@ -45,15 +45,18 @@ const ConstructionMapPreset = definePreset(Aura, {
   }
 });
 
-// AI : Setup i18n with stored locale preference
+// AI : Setup i18n with empty messages - locales are loaded asynchronously
 const currentLocale = getStoredLocale()
 const i18n = createI18n({
   locale: currentLocale,
   fallbackLocale: 'en',
-  messages,
+  messages: {},
   legacy: false,
   globalInjection: true
 });
+
+// AI : Store i18n instance reference for async loading in other modules
+setI18nInstance(i18n)
 
 // AI : Set HTML lang attribute and translation settings based on language support
 updateTranslationSettings(currentLocale)
@@ -80,4 +83,8 @@ app.use(PrimeVue, {
 
 app.use(ToastService);
 
-app.mount('#app');
+// AI : Load initial locale messages before mounting the app
+loadLocaleMessages(currentLocale).then(messages => {
+  i18n.global.setLocaleMessage(currentLocale, messages)
+  app.mount('#app')
+})
