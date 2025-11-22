@@ -1,6 +1,7 @@
 {
   "common": {
     "name": "Name",
+    "back": "Back",
     "save": "Save",
     "cancel": "Cancel",
     "delete": "Delete",
@@ -384,6 +385,63 @@
         "noToken": "No verification token provided",
         "verificationFailed": "Verification failed. The token may be invalid or expired."
       }
+    },
+    "legal": {
+      "title": "Legal Notice & Privacy Policy",
+      "lastUpdated": "Last updated",
+      "publisher": {
+        "title": "Publisher",
+        "content": "This website is published by:",
+        "name": "Name",
+        "email": "Email"
+      },
+      "dataCollection": {
+        "title": "Data Collection",
+        "content": "We collect minimal information to provide our service:",
+        "username": "Username (public display name)",
+        "email": "Email address (for account recovery and notifications)",
+        "password": "Password (stored encrypted)",
+        "legalBasis": "Legal basis: contract performance (providing the service you signed up for)."
+      },
+      "rights": {
+        "title": "Your Rights (GDPR)",
+        "content": "Under EU law, you have the following rights regarding your data:",
+        "access": "Right to access: request a copy of your data",
+        "rectification": "Right to rectification: correct inaccurate data",
+        "deletion": "Right to erasure: delete your account and all associated data",
+        "portability": "Right to portability: export your data in a standard format",
+        "howTo": "To exercise these rights, contact us at contact{'@'}constructionmap.org. We will respond within 30 days."
+      },
+      "thirdParty": {
+        "title": "Third-Party Services",
+        "content": "We use the following external services:",
+        "google": "Optional sign-in method. Shares your email and name with us.",
+        "googleLink": "Google Privacy Policy",
+        "cloudflare": "Hosting and CDN. May process IP addresses.",
+        "cloudflareLink": "Cloudflare Privacy Policy",
+        "aws": "Email delivery. Processes email addresses for account emails.",
+        "awsLink": "AWS Privacy Policy"
+      },
+      "retention": {
+        "title": "Data Retention",
+        "content": "Your data is kept as long as your account exists. When you delete your account, all your personal data is permanently deleted within 30 days. Anonymized contribution data (overlays, projects) may be retained."
+      },
+      "cookies": {
+        "title": "Cookies",
+        "content": "We only use a session cookie to keep you logged in. This cookie is strictly necessary and does not require consent. We do not use any tracking, analytics, or advertising cookies."
+      },
+      "userContent": {
+        "title": "User Content & Terms of Use",
+        "content": "By uploading content to this website:",
+        "ownership": "You retain ownership of your content",
+        "license": "You grant us a non-exclusive license to display and distribute your content on this platform",
+        "moderation": "We may remove content that violates our guidelines without notice",
+        "forbidden": "Prohibited: illegal content, spam, copyrighted material without permission, offensive content"
+      }
+    },
+    "contact": {
+      "title": "Contact",
+      "description": "For questions, feedback, or issues, reach out via email:"
     }
   },
   "controls": {
