@@ -1,5 +1,5 @@
 <template>
-  <div class="info-popup" @click.stop>
+  <div ref="popupRef" class="info-popup" @click.stop>
     <div
       v-if="loading"
       class="loading-spinner"
@@ -19,6 +19,8 @@
         <ProjectPicker
           v-model="selectedProjectId"
           @project-selected="handleProjectSelected"
+          @dropdown-show="onSelectShow"
+          @dropdown-hide="onSelectHide"
           :hideSelector="false"
           :useCityProjects="true"
           :placeholder="project ? 'Change project' : 'Select a project'"
@@ -129,6 +131,23 @@ import { useI18n } from 'vue-i18n';
 
 const ProjectPicker = defineAsyncComponent(() => import('@components/project/ProjectPicker.vue'));
 const { t: $t } = useI18n();
+
+// AI : Template ref for the popup container
+const popupRef = ref<HTMLElement | null>(null);
+
+// AI : Wheel event handler to prevent map zoom when Select is open
+function stopWheelPropagation(e: WheelEvent) {
+  e.stopPropagation();
+}
+
+// AI : Dynamically prevent scroll propagation only when Select dropdown is open
+function onSelectShow() {
+  popupRef.value?.addEventListener('wheel', stopWheelPropagation);
+}
+
+function onSelectHide() {
+  popupRef.value?.removeEventListener('wheel', stopWheelPropagation);
+}
 
 // AI : Props - all data comes from parent
 const props = defineProps<{

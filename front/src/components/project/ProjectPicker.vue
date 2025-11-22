@@ -31,6 +31,8 @@
           :optionGroupChildren="useGroupedView ? 'items' : undefined"
           :appendTo="appendTo"
           @focus="onSelectFocus"
+          @show="emit('dropdown-show')"
+          @hide="emit('dropdown-hide')"
         >
           <template #value="{ value, placeholder }">
             <div
@@ -132,7 +134,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['update:modelValue', 'project-selected', 'project-created', 'create-project']);
+const emit = defineEmits(['update:modelValue', 'project-selected', 'project-created', 'create-project', 'dropdown-show', 'dropdown-hide']);
 
 // AI : Get store refs using the composable pattern
 const { projects } = useProjects();

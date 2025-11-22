@@ -347,8 +347,9 @@ async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', chan
 
 .change-content {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .change-field {
