@@ -66,3 +66,18 @@ html, body {
 .p-popover {
   z-index: 1200 !important; /* Ensure popovers appear above other elements like drawers */
 }
+
+/* AI : Shared link styling for consistent, accessible links across the app */
+.app-link {
+  color: var(--p-primary-600);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--p-primary-300);
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.app-link:hover {
+  color: var(--p-primary-700);
+  text-decoration-color: var(--p-primary-700);
+}

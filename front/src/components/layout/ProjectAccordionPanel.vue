@@ -130,7 +130,7 @@
                                   <a
                                     :href="project.sourceUrl"
                                     target="_blank"
-                                    class="source-link"
+                                    class="app-link"
                                   >
                                     {{ formatSourceUrl(project.sourceUrl) }}
                                   </a>
@@ -982,19 +982,6 @@ async function handleOverlayCardClick(overlay: OverlayForModeration, shouldFitBo
 .metadata-item span {
   line-height: 1.4;
 }
-
-.source-link {
-  color: var(--p-primary-600);
-  text-decoration: none;
-  font-size: 0.8125rem;
-  line-height: 1.4;
-}
-
-.source-link:hover {
-  color: var(--p-primary-700);
-  text-decoration: underline;
-}
-
 
 /* AI : Overlay card wrapper */
 .overlay-card-wrapper {

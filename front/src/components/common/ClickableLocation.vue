@@ -3,7 +3,7 @@
     <!-- AI : City link (if available) -->
     <span
       v-if="cityId && cityName"
-      class="location-link"
+      class="app-link"
       @click.stop="handleCityClick"
       :title="$t('location.navigateToCity', { city: cityName })"
     >{{ cityName }}, {{ countryName }}</span>
@@ -61,17 +61,5 @@ async function handleCityClick() {
 <style scoped>
 .clickable-location {
   display: inline;
-}
-
-.location-link {
-  color: var(--p-primary-600);
-  cursor: pointer;
-  transition: color 0.15s ease;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.location-link:hover {
-  color: var(--p-primary-700);
 }
 </style>

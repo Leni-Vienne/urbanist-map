@@ -23,6 +23,13 @@
       tab-button-class="tab-button"
       content-container-class="sidecolumn__content"
     />
+
+    <!-- AI : Footer with legal links -->
+    <div class="sidecolumn__footer">
+      <a href="/legal" class="footer-link">{{ $t("footer.legalMentions") }}</a>
+      <span class="footer-separator">•</span>
+      <a href="/contact" class="footer-link">{{ $t("footer.contact") }}</a>
+    </div>
   </div>
 </template>
 
@@ -157,5 +164,36 @@ usePanelTabs(activeTab)
     max-width: 380px;
     transform: translateX(-100%);
   }
+}
+
+/* AI : Footer with legal links */
+.sidecolumn__footer {
+  flex-shrink: 0;
+  padding: 0.5rem;
+  background: var(--p-surface-50);
+  border-top: 1px solid var(--p-surface-100);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.footer-link {
+  color: var(--p-surface-600);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--p-surface-400);
+  font-size: 0.75rem;
+  transition: all 0.15s ease;
+}
+
+.footer-link:hover {
+  color: var(--p-primary-600);
+  text-decoration-color: var(--p-primary-600);
+}
+
+.footer-separator {
+  color: var(--p-surface-400);
+  font-size: 0.75rem;
 }
 </style>

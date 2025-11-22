@@ -84,14 +84,16 @@ const { authStore } = usePanelTabs(activeTab);
 
 .footer-link {
     color: var(--p-surface-600);
-    text-decoration: none;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-color: var(--p-surface-400);
     font-size: 0.65rem;
-    transition: color 0.2s ease;
+    transition: all 0.15s ease;
 }
 
 .footer-link:hover {
     color: var(--p-primary-600);
-    text-decoration: underline;
+    text-decoration-color: var(--p-primary-600);
 }
 
 .footer-separator {
