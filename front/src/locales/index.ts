@@ -1,23 +1,57 @@
-import en from './en.json'
-import fr from './fr.json'
-
-export const messages = {
-  en,
-  fr
-}
+import type { I18n, I18nOptions } from 'vue-i18n'
 
 export const availableLocales = [
   { code: 'en', name: 'English', flag: '🇬🇧' },
   { code: 'fr', name: 'Français', flag: '🇫🇷' }
 ] as const
 
-export type Locale = keyof typeof messages
-export type AvailableLocale = typeof availableLocales[number]
+export type Locale = (typeof availableLocales)[number]['code']
+export type AvailableLocale = (typeof availableLocales)[number]
+
+// AI : I18n instance type matching createI18n with legacy: false
+type I18nInstance = I18n<NonNullable<I18nOptions['messages']>, NonNullable<I18nOptions['datetimeFormats']>, NonNullable<I18nOptions['numberFormats']>, string, false>
+
+// AI : Reference to the i18n instance, set during app initialization
+let i18nInstance: I18nInstance | null = null
+
+// AI : Set the i18n instance reference for use in async loading
+export function setI18nInstance(instance: I18nInstance): void {
+  i18nInstance = instance
+}
+
+// AI : Dynamically load locale messages - Vite will create separate chunks for each locale
+export async function loadLocaleMessages(locale: Locale): Promise<Record<string, unknown>> {
+  const messages = await import(`./messages/${locale}.json`)
+  return messages.default
+}
+
+// AI : Load and set locale messages, returns true if messages were loaded
+export async function loadAndSetLocale(locale: Locale): Promise<boolean> {
+  if (!i18nInstance) {
+    console.error('i18n instance not set')
+    return false
+  }
+
+  // AI : Check if locale is already loaded
+  if (i18nInstance.global.availableLocales.includes(locale)) {
+    return true
+  }
+
+  try {
+    const messages = await loadLocaleMessages(locale)
+    i18nInstance.global.setLocaleMessage(locale, messages)
+    return true
+  } catch (error) {
+    console.error(`Failed to load locale ${locale}:`, error)
+    return false
+  }
+}
 
 // AI : Get browser locale or fallback to English
 export function getBrowserLocale(): Locale {
-  const browserLocale = navigator.language.split('-')[0] as Locale
-  return messages[browserLocale] ? browserLocale : 'en'
+  const browserLocale = navigator.language.split('-')[0]
+  const isSupported = availableLocales.some(l => l.code === browserLocale)
+  return isSupported ? (browserLocale as Locale) : 'en'
 }
 
 // AI : Store locale in localStorage
@@ -27,24 +61,24 @@ export function saveLocale(locale: Locale): void {
 
 // AI : Get stored locale or browser locale
 export function getStoredLocale(): Locale {
-  const stored = localStorage.getItem('construction-map-locale') as Locale
-  return stored && messages[stored] ? stored : getBrowserLocale()
+  const stored = localStorage.getItem('construction-map-locale')
+  const isSupported = availableLocales.some(l => l.code === stored)
+  return isSupported ? (stored as Locale) : getBrowserLocale()
 }
 
 // AI : Check if browser's language is supported by our app
 export function isBrowserLanguageSupported(): boolean {
-  const browserLocale = navigator.language.split('-')[0] as Locale
-  return !!messages[browserLocale]
+  const browserLocale = navigator.language.split('-')[0]
+  return availableLocales.some(l => l.code === browserLocale)
 }
 
 // AI : Set HTML translation attributes based on language support
 export function updateTranslationSettings(currentLocale: Locale): void {
-  const browserLocale = navigator.language.split('-')[0] as Locale
-  const isSupported = !!messages[browserLocale]
-  
+  const isSupported = isBrowserLanguageSupported()
+
   // AI : Set the HTML lang attribute
   document.documentElement.lang = currentLocale
-  
+
   // AI : Only prevent translation if we support the user's browser language
   // If we don't support their language, allow browser translation
   if (isSupported) {

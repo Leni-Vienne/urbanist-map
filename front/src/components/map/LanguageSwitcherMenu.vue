@@ -21,10 +21,12 @@
           type="button"
           class="locale-btn flex items-center gap-2 px-3 py-2 hover:bg-surface-100 cursor-pointer border-round w-full"
           :class="{ 'bg-primary-50 text-primary-700': currentLocale === locale.code }"
+          :disabled="isLoading"
           @click="changeLocale(locale.code)"
         >
           <span class="text-lg">{{ locale.flag }}</span>
           <span class="text-sm font-medium">{{ locale.name }}</span>
+          <i v-if="isLoading && loadingLocale === locale.code" class="pi pi-spin pi-spinner ml-auto"></i>
         </button>
       </div>
     </Popover>
@@ -34,11 +36,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { availableLocales, saveLocale, updateTranslationSettings, type Locale } from '../../locales'
+import { availableLocales, saveLocale, updateTranslationSettings, loadAndSetLocale, type Locale } from '../../locales'
 
 const { locale } = useI18n()
 const currentLocale = ref<Locale>('en')
 const languagePopover = ref()
+const isLoading = ref(false)
+const loadingLocale = ref<Locale | null>(null)
 
 onMounted(() => {
   currentLocale.value = locale.value as Locale
@@ -49,15 +53,32 @@ function toggleMenu(event: Event) {
   languagePopover.value.toggle(event)
 }
 
-// AI : Change language and persist preference
-function changeLocale(newLocale: Locale): void {
-  locale.value = newLocale
-  currentLocale.value = newLocale
-  saveLocale(newLocale)
-  languagePopover.value.hide()
-  
-  // AI : Update HTML lang attribute and translation settings intelligently
-  updateTranslationSettings(newLocale)
+// AI : Change language with async loading and persist preference
+async function changeLocale(newLocale: Locale): Promise<void> {
+  if (isLoading.value || newLocale === currentLocale.value) return
+
+  isLoading.value = true
+  loadingLocale.value = newLocale
+
+  try {
+    // AI : Load locale messages if not already loaded
+    const loaded = await loadAndSetLocale(newLocale)
+    if (!loaded) {
+      console.error(`Failed to load locale: ${newLocale}`)
+      return
+    }
+
+    locale.value = newLocale
+    currentLocale.value = newLocale
+    saveLocale(newLocale)
+    languagePopover.value.hide()
+
+    // AI : Update HTML lang attribute and translation settings intelligently
+    updateTranslationSettings(newLocale)
+  } finally {
+    isLoading.value = false
+    loadingLocale.value = null
+  }
 }
 </script>
 
@@ -88,6 +109,11 @@ function changeLocale(newLocale: Locale): void {
   background: transparent;
   border: none;
   text-align: left;
+}
+
+.locale-btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
 }
 
 .language-menu-trigger:hover {
