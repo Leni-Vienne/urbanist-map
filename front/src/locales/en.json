@@ -551,7 +551,13 @@
     }
   },
   "location": {
-    "unknownLocation": "Unknown Location"
+    "unknownLocation": "Unknown Location",
+    "navigateToCity": "Navigate to {city}",
+    "missingCityInfo": "Missing City Info",
+    "cannotNavigateToCity": "Cannot navigate to this city",
+    "missingCountryInfo": "Missing Country Info",
+    "navigationFailed": "Navigation Failed",
+    "failedToNavigate": "Failed to navigate to location"
   },
   "replacementOverlay": {
     "created": "Replacement Overlay Created",

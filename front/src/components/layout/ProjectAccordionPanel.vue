@@ -97,10 +97,15 @@
                                 </div>
                                 <div
                                   class="metadata-item"
-                                  v-if="getProjectLocation(project)"
+                                  v-if="project.cityName || project.countryName"
                                 >
                                   <i class="pi pi-map-marker"></i>
-                                  <span>{{ getProjectLocation(project) }}</span>
+                                  <ClickableLocation
+                                    :city-id="project.cityId"
+                                    :city-name="project.cityName"
+                                    :country-code="project.countryCode"
+                                    :country-name="project.countryName"
+                                  />
                                 </div>
                                 <div
                                   v-if="!project.isDevelopment"
@@ -326,6 +331,7 @@ import { useAccordionState } from '@composables/layout/useAccordionState'
 import type { ProjectForModeration, OverlayForModeration } from '@types'
 import type { PendingChangeRequest } from '../../types/api'
 import ChangeRequestSection from './ChangeRequestSection.vue'
+import ClickableLocation from '@components/common/ClickableLocation.vue'
 
 // AI : Props interface
 interface Props {
@@ -566,21 +572,6 @@ function getStatusSeverity(status: string): string {
   }
 }
 
-// AI : Get project location display - always show country when available
-function getProjectLocation(project: ProjectForModeration): string {
-  const cityName = project.cityName
-  const countryName = project.countryName
-
-  if (cityName && countryName) {
-    return `${cityName}, ${countryName}`
-  } else if (cityName) {
-    return cityName
-  } else if (countryName) {
-    return countryName
-  }
-  return ''
-}
-
 // AI : Get overlay thumbnail URL using the utility function
 // Thumbnails are much smaller (~3KB vs full image) for efficient list display
 // For pending overlays, always use backend URL (not migrated to R2 yet)
@@ -604,7 +595,6 @@ function handleImageLoad(event: Event, overlayId: string) {
 
 // AI : Get overlay location display (city, country) - avoid duplication
 function getOverlayLocationDisplay(overlay: OverlayForModeration): string {
-  // AI : Try different property combinations to avoid duplication
   const cityName = overlay.cityName
   const countryName = overlay.countryName
 

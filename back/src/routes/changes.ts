@@ -116,6 +116,8 @@ export async function enrichChangeRequestsWithNames<T extends BaseChangeRequest>
       ...change,
       oldCityName: null,
       newCityName: null,
+      oldCountryCode: null,
+      newCountryCode: null,
       oldCountryName: null,
       newCountryName: null,
     }));
@@ -149,6 +151,8 @@ export async function enrichChangeRequestsWithNames<T extends BaseChangeRequest>
         ...change,
         oldCityName: oldCity?.name ?? null,
         newCityName: newCity?.name ?? null,
+        oldCountryCode: oldCity?.countryCode ?? null,
+        newCountryCode: newCity?.countryCode ?? null,
         oldCountryName: oldCity?.countryName ?? null,
         newCountryName: newCity?.countryName ?? null,
       };
@@ -158,6 +162,8 @@ export async function enrichChangeRequestsWithNames<T extends BaseChangeRequest>
       ...change,
       oldCityName: null,
       newCityName: null,
+      oldCountryCode: null,
+      newCountryCode: null,
       oldCountryName: null,
       newCountryName: null,
     };
