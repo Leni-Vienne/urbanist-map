@@ -18,6 +18,7 @@
     >
       <FloatLabel class="w-full">
         <Select
+          ref="selectRef"
           v-model="selectedProjectId"
           :options="projectList"
           optionLabel="name"
@@ -30,6 +31,7 @@
           :optionGroupLabel="useGroupedView ? 'label' : undefined"
           :optionGroupChildren="useGroupedView ? 'items' : undefined"
           :appendTo="appendTo"
+          panelClass="project-picker-panel"
           @focus="onSelectFocus"
           @show="emit('dropdown-show')"
           @hide="emit('dropdown-hide')"
@@ -135,6 +137,16 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['update:modelValue', 'project-selected', 'project-created', 'create-project', 'dropdown-show', 'dropdown-hide']);
+
+// AI : Ref to the Select component for programmatic control
+const selectRef = ref();
+
+// AI : Expose method to hide dropdown (used when map moves with appendTo="body")
+function hideDropdown() {
+  selectRef.value?.hide();
+}
+
+defineExpose({ hideDropdown });
 
 // AI : Get store refs using the composable pattern
 const { projects } = useProjects();
@@ -310,5 +322,13 @@ onUnmounted(() => {
 <style scoped>
 .project-picker {
   width: 100%;
+}
+</style>
+
+<style>
+/* AI : Ensure dropdown panel appears above dialogs when appendTo="body" */
+/* AI : PrimeVue dialogs can have z-index up to 2000+, so we go higher */
+.project-picker-panel {
+  z-index: 9999 !important;
 }
 </style>

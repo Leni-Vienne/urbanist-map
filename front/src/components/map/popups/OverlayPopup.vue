@@ -17,6 +17,7 @@
       >
         <div class="section-header">{{ $t('project.assignTo') }}</div>
         <ProjectPicker
+          ref="projectPickerRef"
           v-model="selectedProjectId"
           @project-selected="handleProjectSelected"
           @dropdown-show="onSelectShow"
@@ -24,6 +25,7 @@
           :hideSelector="false"
           :useCityProjects="true"
           :placeholder="project ? 'Change project' : 'Select a project'"
+          appendTo="body"
         />
       </div>
 
@@ -128,6 +130,7 @@ import { useAuthStore } from '@stores/authStore';
 import type { OverlayObject, Project } from '@types';
 import ProjectMetadataCard from './ProjectMetadataCard.vue';
 import { useI18n } from 'vue-i18n';
+import { map } from '@composables/core/useMap';
 
 const ProjectPicker = defineAsyncComponent(() => import('@components/project/ProjectPicker.vue'));
 const { t: $t } = useI18n();
@@ -135,18 +138,32 @@ const { t: $t } = useI18n();
 // AI : Template ref for the popup container
 const popupRef = ref<HTMLElement | null>(null);
 
+// AI : Ref to ProjectPicker for programmatic dropdown control
+const projectPickerRef = ref<InstanceType<typeof ProjectPicker> | null>(null);
+
 // AI : Wheel event handler to prevent map zoom when Select is open
 function stopWheelPropagation(e: WheelEvent) {
   e.stopPropagation();
 }
 
+// AI : Close dropdown when map moves (prevents detached dropdown with appendTo="body")
+function onMapMove() {
+  projectPickerRef.value?.hideDropdown();
+}
+
 // AI : Dynamically prevent scroll propagation only when Select dropdown is open
 function onSelectShow() {
   popupRef.value?.addEventListener('wheel', stopWheelPropagation);
+  // AI : Listen for map movement to close dropdown
+  map.value?.on('movestart', onMapMove);
+  map.value?.on('zoomstart', onMapMove);
 }
 
 function onSelectHide() {
   popupRef.value?.removeEventListener('wheel', stopWheelPropagation);
+  // AI : Remove map movement listeners
+  map.value?.off('movestart', onMapMove);
+  map.value?.off('zoomstart', onMapMove);
 }
 
 // AI : Props - all data comes from parent
