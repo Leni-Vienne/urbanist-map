@@ -16,6 +16,7 @@ import { formatDate } from '@utils/dateFormat';
 
 // AI : SVG marker configuration
 const markerSize = 25;
+const markerHeight = Math.round(markerSize * 1.6); // AI : Must match SVG height calculation
 
 // AI : Overlay outline color (blue) - used for all overlay outlines regardless of status
 export const OVERLAY_OUTLINE_COLOR = '#007bff';
@@ -153,9 +154,9 @@ export function createColorIcon(color: MarkerColor): L.DivIcon {
   return L.divIcon({
     html: svgString,
     className: 'custom-svg-marker',
-    iconSize: [markerSize, markerSize + 10],
-    iconAnchor: [markerSize / 2, markerSize + 5],
-    popupAnchor: [0, -(markerSize + 5)],
+    iconSize: [markerSize, markerHeight],
+    iconAnchor: [markerSize / 2, markerHeight], // AI : Anchor at bottom center (pin tip)
+    popupAnchor: [0, -markerHeight],
   });
 }
 
@@ -166,9 +167,9 @@ export function createDevelopmentIcon(color: MarkerColor): L.DivIcon {
   return L.divIcon({
     html: svgString,
     className: 'custom-svg-marker development-marker',
-    iconSize: [markerSize, markerSize + 10],
-    iconAnchor: [markerSize / 2, markerSize + 5],
-    popupAnchor: [0, -(markerSize + 5)],
+    iconSize: [markerSize, markerHeight],
+    iconAnchor: [markerSize / 2, markerHeight], // AI : Anchor at bottom center (pin tip)
+    popupAnchor: [0, -markerHeight],
   });
 }
 
