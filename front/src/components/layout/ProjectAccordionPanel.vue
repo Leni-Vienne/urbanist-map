@@ -193,6 +193,8 @@
                           <div
                             class="overlay-card"
                             @click="handleOverlayCardClick(overlay, true)"
+                            @mouseenter="highlightOverlayById(overlay.id)"
+                            @mouseleave="removeOverlayHighlight(overlay.id)"
                           >
                             <!-- AI : Overlay thumbnail -->
                             <div
@@ -325,6 +327,7 @@ import { formatRelativeTime, formatDate } from '@utils/dateFormat'
 import { formatSourceUrl } from '@utils/urlFormat'
 import { navigateToDevelopmentProject } from '@composables/navigation/useOverlayNavigation'
 import { useOverlayClickHandler } from '@composables/overlay/useOverlayClickHandler'
+import { highlightOverlayById, removeOverlayHighlight } from '@composables/overlay/useOverlay'
 import { useToast } from '@composables/ui/useToast'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useAccordionState } from '@composables/layout/useAccordionState'
