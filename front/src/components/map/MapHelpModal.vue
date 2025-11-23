@@ -106,12 +106,9 @@
           <div class="mode-controls-demo">
             <div class="mode-indicator-demo">
               <i class="pi pi-pencil"></i>
-              <span>{{ $t('help.modes.modeIndicator') }}</span>
+              <span>{{ $t('map.editMode') }}</span>
+              <i class="pi pi-refresh switch-icon-demo"></i>
             </div>
-            <button class="mode-switch-demo">
-              <i class="pi pi-refresh"></i>
-              <span>{{ $t('map.switch') }}</span>
-            </button>
           </div>
           <div class="help-text centered-help-text">{{ $t('help.modes.description') }}</div>
         </div>
@@ -334,26 +331,11 @@ defineExpose({
   font-size: 1rem;
 }
 
-.mode-switch-demo {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  background: none;
-  border: none;
-  padding: 0.35rem 0.5rem;
-  cursor: default;
-  color: white;
+/* AI : Integrated switch icon styling - matches actual ModeControls */
+.switch-icon-demo {
+  margin-left: 0.25rem;
+  opacity: 0.7;
   font-size: 0.85rem;
-  font-weight: 500;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-}
-
-.mode-switch-demo i {
-  font-size: 0.9rem;
-}
-
-.mode-switch-demo span {
-  text-transform: lowercase;
 }
 
 .centered-help-text {
