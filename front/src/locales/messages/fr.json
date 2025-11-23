@@ -631,5 +631,24 @@
     "createFailed": "Échec de la création du projet de bâtiment",
     "projectUpdated": "Projet mis à jour",
     "projectUpdatedDetail": "Modifications du projet enregistrées localement"
+  },
+  "projectSelector": {
+    "header": "Sélectionner un projet à proximité pour la nouvelle image",
+    "suggestProjectChanges": "Suggérer des modifications du projet",
+    "suggestOverlayChanges": "Suggérer des modifications de l'image"
+  },
+  "layerControl": {
+    "baseMaps": "Cartes de base"
+  },
+  "toasts": {
+    "replacementOverlayCreated": "Image de remplacement créée",
+    "replacementOverlayDetail": "Votre image de remplacement a été créée et est prête à être modifiée",
+    "developmentProjectSuccess": "Projet de bâtiment créé avec succès",
+    "projectUpdateSuccess": "Projet mis à jour",
+    "projectUpdateDetail": "Modifications du projet enregistrées localement",
+    "projectUpdateFailed": "Échec de la mise à jour",
+    "projectCreationFailed": "Échec de la création du projet",
+    "projectCreationFailedDetail": "Échec de la création du projet. Veuillez réessayer.",
+    "projectUpdateFailedDetail": "Échec de l'enregistrement des modifications du projet"
   }
 }

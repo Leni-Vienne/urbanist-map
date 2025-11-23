@@ -15,7 +15,7 @@
     <Popover ref="layerPanel">
         <!-- AI : Base layers section using PrimeVue Panel -->
         <Panel
-            header="Base Maps"
+            :header="$t('layerControl.baseMaps')"
             :toggleable="false"
         >
             <div class="flex flex-col gap-2">

@@ -70,10 +70,10 @@
     <template #empty-state>
       <i class="pi pi-folder text-5xl text-surface-400 mb-4"></i>
       <p class="text-base mb-2">
-        {{ projects.length > 0 && filteredProjects.length === 0 ? 'No projects match the current filter.' : 'No projects found.' }}
+        {{ projects.length > 0 && filteredProjects.length === 0 ? $t('contributions.noProjectsMatchFilter') : $t('contributions.noProjectsFound') }}
       </p>
       <p class="text-sm mb-6">
-        {{ projects.length > 0 && filteredProjects.length === 0 ? 'Try changing your filter settings.' : 'Create your first construction project!' }}
+        {{ projects.length > 0 && filteredProjects.length === 0 ? $t('contributions.tryChangingFilters') : $t('contributions.createFirstProject') }}
       </p>
       
       <!-- AI : Add overlay button when no projects exist -->
