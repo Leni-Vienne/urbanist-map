@@ -61,11 +61,14 @@
     </template>
 
     <template #project-actions="{ project }">
-      <div v-if="project.status === 'pending'" class="project-action-buttons">
+      <!-- AI : Show buttons for pending projects (both enabled) or orphan projects (approve disabled, reject enabled) -->
+      <div v-if="project.status === 'pending' || project.isOrphan" class="project-action-buttons">
         <button
           class="action-btn approve-btn"
+          :class="{ 'disabled-btn': project.isOrphan }"
+          :disabled="project.isOrphan"
           @click="handleApproveProject(project.id)"
-          v-tooltip.top="$t('moderation.approveChange')"
+          v-tooltip.top="project.isOrphan ? $t('moderation.alreadyApproved') : $t('moderation.approveChange')"
         >
           <i class="pi pi-check"></i>
         </button>

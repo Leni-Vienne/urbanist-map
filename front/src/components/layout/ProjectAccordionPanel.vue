@@ -65,13 +65,13 @@
                     <AccordionHeader>
                       <div class="accordion-header-content">
                         <span class="project-name">{{ project.name }}</span>
+                        <!-- AI : Show merged "Approved (empty)" tag for orphan projects, otherwise normal status tag -->
                         <Tag
-                          :value="$t(`status.${project.status}`)"
-                          :severity="getStatusSeverity(project.status)"
+                          :value="project.isOrphan ? $t('moderation.approvedButEmpty') : $t(`status.${project.status}`)"
+                          :severity="project.isOrphan ? 'danger' : getStatusSeverity(project.status)"
                           class="project-status-tag"
                           rounded
                         />
-
                       </div>
                     </AccordionHeader>
                     <AccordionContent>
