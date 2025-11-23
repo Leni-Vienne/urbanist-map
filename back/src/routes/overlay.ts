@@ -1,13 +1,12 @@
 import { publicProcedure, protectedProcedure, router, TRPCError } from '../trpc';
 import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
-import { overlays, projects } from '../db/schema';
+import { overlays, projects, cities, countries } from '../db/schema';
 import { sql, eq, and } from 'drizzle-orm';
 import { db } from '../database';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../db/schema';
 import {
   buildOverlayQuery,
-  buildProjectStatusCondition,
   buildOverlayVisibilityCondition,
   type ApprovalStatus,
   type MapMode
@@ -34,10 +33,9 @@ const getOverlaySchema = z.object({
   includeStatus: z.array(z.enum(['pending', 'approved', 'rejected'])).optional(), // AI : Optional status filter for admins
 });
 
-const getLatestOverlaysSchema = z.object({
+// AI : Schema for getting latest contributions (overlays + development projects)
+const getLatestContributionsSchema = z.object({
   limit: z.number().min(1).max(20).optional().default(20),
-  cityId: z.uuid().optional(), // AI : Filter by city if provided
-  includeStatus: z.array(z.enum(['pending', 'approved', 'rejected'])).optional(), // AI : Optional status filter for admins
 });
 
 // AI : Schema for updating overlay fields directly
@@ -75,30 +73,86 @@ async function findIntersectingOverlays(db: PostgresJsDatabase<typeof schema>, e
 }
 
 export const overlayRouter = router({
-  getLatestOverlays: publicProcedure
-    .input(getLatestOverlaysSchema)
-    .query(async ({ input, ctx }) => {
+  // AI : Get latest contributions (overlays + development projects combined)
+  getLatestContributions: publicProcedure
+    .input(getLatestContributionsSchema)
+    .query(async ({ input }) => {
       try {
-        // AI : Build visibility conditions using helper functions
-        const whereConditions = [
-          buildOverlayVisibilityCondition(ctx.user, 'view', undefined, input.includeStatus as ApprovalStatus[] | undefined),
-          buildProjectStatusCondition(ctx.user, input.includeStatus as ApprovalStatus[] | undefined)
-        ];
-
-        // AI : Add city filter if provided
-        if (input.cityId) {
-          whereConditions.push(eq(projects.cityId, input.cityId));
-        }
-
-        // AI : Apply all where conditions at once using AND logic
-        return await buildOverlayQuery(db)
-          .where(and(...whereConditions))
+        // AI : Fetch overlays with their project and location info
+        const latestOverlays = await buildOverlayQuery(db)
+          .where(and(
+            eq(overlays.status, 'approved'),
+            eq(projects.status, 'approved')
+          ))
           .orderBy(sql`${overlays.updatedAt} DESC`)
           .limit(input.limit);
 
+        // AI : Fetch development projects with location info
+        const latestDevelopments = await db
+          .select({
+            id: projects.id,
+            name: projects.name,
+            description: projects.description,
+            status: projects.status,
+            lat: projects.lat,
+            lng: projects.lng,
+            updatedAt: projects.updatedAt,
+            cityId: cities.id,
+            cityName: cities.name,
+            countryCode: countries.code,
+            countryName: countries.name,
+          })
+          .from(projects)
+          .innerJoin(cities, eq(projects.cityId, cities.id))
+          .leftJoin(countries, eq(cities.countryCode, countries.code))
+          .where(and(
+            eq(projects.isDevelopment, true),
+            eq(projects.status, 'approved')
+          ))
+          .orderBy(sql`${projects.updatedAt} DESC`)
+          .limit(input.limit);
+
+        // AI : Transform and combine results with discriminated union type
+        const overlayContributions = latestOverlays.map(o => ({
+          type: 'overlay' as const,
+          id: o.id,
+          name: o.caption ?? o.projectName ?? 'Untitled',
+          filename: o.filename,
+          updatedAt: o.updatedAt,
+          cityId: o.cityId,
+          cityName: o.cityName,
+          countryCode: o.countryCode,
+          countryName: o.countryName,
+          // AI : Include overlay-specific fields for navigation
+          centroid: o.centroid,
+          status: o.status,
+        }));
+
+        const developmentContributions = latestDevelopments.map(d => ({
+          type: 'development' as const,
+          id: d.id,
+          name: d.name,
+          filename: null as string | null,
+          updatedAt: d.updatedAt,
+          cityId: d.cityId,
+          cityName: d.cityName,
+          countryCode: d.countryCode,
+          countryName: d.countryName,
+          // AI : Include development-specific fields for navigation
+          lat: d.lat,
+          lng: d.lng,
+          status: d.status,
+        }));
+
+        // AI : Combine and sort by updatedAt descending
+        const combined = [...overlayContributions, ...developmentContributions]
+          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+          .slice(0, input.limit);
+
+        return combined;
       } catch (error) {
-        console.error('Error fetching latest overlays:', error);
-        throw new Error('Failed to fetch latest overlays');
+        console.error('Error fetching latest contributions:', error);
+        throw new Error('Failed to fetch latest contributions');
       }
     }),
 
