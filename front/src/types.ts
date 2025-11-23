@@ -182,6 +182,7 @@ export type ProjectForModeration = Pick<Project, 'id' | 'name' | 'description' |
   countryName: string | null;
   overlays: OverlayForModeration[];
   overlayCount?: number;
+  isOrphan?: boolean; // AI : True for approved projects with no approved overlays
 };
 
 // AI : Keep specific types that have unique structure

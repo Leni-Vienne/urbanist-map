@@ -31,7 +31,13 @@ export const useModerationStore = defineStore('moderation', () => {
     changeRequests: PendingChangeRequest[];
   }) {
     overlays.value = data.overlays;
-    projects.value = data.projects;
+    // AI : Compute isOrphan on frontend: approved non-development project with no approved overlays
+    projects.value = data.projects.map(project => ({
+      ...project,
+      isOrphan: project.status === 'approved'
+        && !project.isDevelopment
+        && project.overlays.filter(o => o.status === 'approved').length === 0
+    }));
     changeRequests.value = data.changeRequests;
     moderationLoaded.value = true;
   }

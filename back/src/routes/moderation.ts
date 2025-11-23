@@ -1,4 +1,4 @@
-import { adminProcedure, moderatorProcedure, router } from '../trpc';
+import { moderatorProcedure, router } from '../trpc';
 import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
 import { projects, overlays, approvalStatusEnum, changeRequests, cities } from '../db/schema';
 import { eq, inArray, or, and, sql, ne } from 'drizzle-orm';
@@ -71,6 +71,77 @@ const setApprovalStatusSchema = z.object({
   status: z.enum(approvalStatusEnum.enumValues),
 });
 
+// AI : Helper to check if moderator has permission for a project's country
+// Returns the country code if permitted, throws FORBIDDEN if not
+async function checkModeratorCountryPermission(
+  projectId: string,
+  user: { role: string | null; moderatedCountries: string[] | null }
+): Promise<string> {
+  // AI : Admins can moderate any country
+  if (user.role === 'admin' || user.moderatedCountries === null) {
+    return '*'; // AI : Wildcard indicating all countries allowed
+  }
+
+  // AI : Get the project's country code via city join
+  const projectCountry = await db
+    .select({ countryCode: cities.countryCode })
+    .from(projects)
+    .innerJoin(cities, eq(projects.cityId, cities.id))
+    .where(eq(projects.id, projectId))
+    .limit(1);
+
+  if (projectCountry.length === 0) {
+    throw new TRPCError({ code: 'NOT_FOUND', message: 'Project not found' });
+  }
+
+  const countryCode = projectCountry[0].countryCode;
+
+  // AI : Check if moderator has permission for this country
+  if (!user.moderatedCountries.includes(countryCode)) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'You do not have permission to moderate content in this country'
+    });
+  }
+
+  return countryCode;
+}
+
+// AI : Helper to check moderator permission for an overlay via its project
+async function checkModeratorOverlayPermission(
+  overlayId: string,
+  user: { role: string | null; moderatedCountries: string[] | null }
+): Promise<string> {
+  // AI : Admins can moderate any country
+  if (user.role === 'admin' || user.moderatedCountries === null) {
+    return '*';
+  }
+
+  // AI : Get the overlay's country code via project -> city join
+  const overlayCountry = await db
+    .select({ countryCode: cities.countryCode })
+    .from(overlays)
+    .innerJoin(projects, eq(overlays.projectId, projects.id))
+    .innerJoin(cities, eq(projects.cityId, cities.id))
+    .where(eq(overlays.id, overlayId))
+    .limit(1);
+
+  if (overlayCountry.length === 0) {
+    throw new TRPCError({ code: 'NOT_FOUND', message: 'Overlay not found' });
+  }
+
+  const countryCode = overlayCountry[0].countryCode;
+
+  if (!user.moderatedCountries.includes(countryCode)) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'You do not have permission to moderate content in this country'
+    });
+  }
+
+  return countryCode;
+}
+
 // AI : Schema for version-aware approval to prevent race conditions
 // Supports arrays but frontend only sends single items for individual approval/rejection
 const setApprovalStatusWithVersionSchema = z.object({
@@ -81,10 +152,12 @@ const setApprovalStatusWithVersionSchema = z.object({
 
 export const moderationRouter = router({
     // AI : Check for conflicts when approving a replacement overlay
-    checkReplacementConflicts: adminProcedure
+    checkReplacementConflicts: moderatorProcedure
       .input(z.object({ overlayId: z.string().uuid() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
         try {
+          // AI : Verify moderator has permission for this overlay's country
+          await checkModeratorOverlayPermission(input.overlayId, ctx.user);
           // AI : Get the overlay being approved
           const overlay = await db
             .select({
@@ -222,33 +295,52 @@ export const moderationRouter = router({
             effectiveCountryCode = input.countryCode;
           }
 
-          // AI : Step 1: Find all project IDs that need moderation (pending projects, pending overlays, or pending changes)
-          const [projectsWithPendingOverlays, projectsWithPendingChanges] = await Promise.all([
+          // AI : Step 1: Find all project IDs that need moderation (pending projects, pending overlays, pending changes, or orphan projects)
+          const [projectsWithPendingOverlays, projectsWithPendingChanges, orphanProjects] = await Promise.all([
             // AI : Projects with pending overlay submissions
             db.selectDistinct({ projectId: overlays.projectId })
               .from(overlays)
               .where(eq(overlays.status, 'pending')),
-            
+
             // AI : Projects with pending change requests (on project or overlay)
-            db.selectDistinct({ 
-              projectId: sql<string>`CASE 
+            db.selectDistinct({
+              projectId: sql<string>`CASE
                 WHEN ${changeRequests.entityType} = 'project' THEN ${changeRequests.entityId}
                 WHEN ${changeRequests.entityType} = 'overlay' THEN ${overlays.projectId}
               END`.as('projectId')
             })
             .from(changeRequests)
             .leftJoin(overlays, eq(changeRequests.entityId, overlays.id))
-            .where(sql`CASE 
+            .where(sql`CASE
               WHEN ${changeRequests.entityType} = 'project' THEN ${changeRequests.entityId} IS NOT NULL
               WHEN ${changeRequests.entityType} = 'overlay' THEN ${overlays.projectId} IS NOT NULL
-            END`)
+            END`),
+
+            // AI : Orphan projects: approved non-development projects with zero approved overlays
+            // AI : These need moderator attention to decide if they should be rejected
+            db.select({ projectId: projects.id })
+              .from(projects)
+              .leftJoin(overlays, and(
+                eq(overlays.projectId, projects.id),
+                eq(overlays.status, 'approved')
+              ))
+              .where(and(
+                eq(projects.status, 'approved'),
+                eq(projects.isDevelopment, false)
+              ))
+              .groupBy(projects.id)
+              .having(sql`COUNT(${overlays.id}) = 0`)
           ]);
 
           const projectIdsWithPendingOverlays = projectsWithPendingOverlays
             .map(p => p.projectId)
             .filter((id): id is string => id !== null);
-          
+
           const projectIdsWithPendingChanges = projectsWithPendingChanges
+            .map(p => p.projectId)
+            .filter((id): id is string => id !== null);
+
+          const orphanProjectIds = orphanProjects
             .map(p => p.projectId)
             .filter((id): id is string => id !== null);
 
@@ -258,12 +350,13 @@ export const moderationRouter = router({
             sortColumn
           );
 
-          // AI : Projects needing moderation: pending status OR have pending overlays OR have pending changes
+          // AI : Projects needing moderation: pending status OR have pending overlays OR have pending changes OR are orphans
           const projectModerationConditions = [
             or(
               eq(projects.status, 'pending'),
               ...(projectIdsWithPendingOverlays.length > 0 ? [inArray(projects.id, projectIdsWithPendingOverlays)] : []),
-              ...(projectIdsWithPendingChanges.length > 0 ? [inArray(projects.id, projectIdsWithPendingChanges)] : [])
+              ...(projectIdsWithPendingChanges.length > 0 ? [inArray(projects.id, projectIdsWithPendingChanges)] : []),
+              ...(orphanProjectIds.length > 0 ? [inArray(projects.id, orphanProjectIds)] : [])
             ),
             ...paginationConditions
           ];
@@ -362,10 +455,13 @@ export const moderationRouter = router({
 
     // AI : Undo project approval - restores project to previous status (typically pending)
     // Frontend always sends single ID wrapped in array: ids: [singleId]
-    undoProjectApprovalStatus: adminProcedure
+    undoProjectApprovalStatus: moderatorProcedure
       .input(setApprovalStatusSchema)
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         try {
+          // AI : Verify moderator has permission for this project's country
+          await checkModeratorCountryPermission(input.id, ctx.user);
+
           await db
             .update(projects)
             .set({ status: input.status })
@@ -379,10 +475,13 @@ export const moderationRouter = router({
 
     // AI : Undo overlay approval - restores overlay to previous status (typically pending)
     // Frontend always sends single ID wrapped in array: ids: [singleId]
-    undoOverlayApprovalStatus: adminProcedure
+    undoOverlayApprovalStatus: moderatorProcedure
       .input(setApprovalStatusSchema)
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         try {
+          // AI : Verify moderator has permission for this overlay's country
+          await checkModeratorOverlayPermission(input.id, ctx.user);
+
           await db
             .update(overlays)
             .set({ status: input.status })
@@ -396,23 +495,31 @@ export const moderationRouter = router({
 
     // AI : Version-aware project approval to prevent race conditions
     // Frontend always sends single item wrapped in array: items: [{ id, expectedVersion }]
-    setProjectApprovalStatusWithVersion: adminProcedure
+    setProjectApprovalStatusWithVersion: moderatorProcedure
       .input(setApprovalStatusWithVersionSchema)
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         try {
-          // AI : Atomic update with version check and pending status check in WHERE clause
+          // AI : Verify moderator has permission for this project's country
+          await checkModeratorCountryPermission(input.id, ctx.user);
+
+          // AI : Allow updating pending projects (any action) OR approved projects (rejection only, for orphan projects)
+          const statusCondition = input.status === 'rejected'
+            ? or(eq(projects.status, 'pending'), eq(projects.status, 'approved'))
+            : eq(projects.status, 'pending');
+
+          // AI : Atomic update with version check and status check in WHERE clause
           const result = await db
             .update(projects)
             .set({ status: input.status })
             .where(and(
               eq(projects.id, input.id),
               eq(projects.version, input.expectedVersion),
-              eq(projects.status, 'pending') // AI : Only update pending projects
+              statusCondition
             ))
             .returning({ id: projects.id, version: projects.version });
 
           if (result.length === 0) {
-            // AI : Either project doesn't exist, version mismatch, or already processed
+            // AI : Either project doesn't exist, version mismatch, or status not allowed
             const currentProject = await db
               .select({ version: projects.version, status: projects.status })
               .from(projects)
@@ -421,18 +528,18 @@ export const moderationRouter = router({
 
             if (currentProject.length === 0) {
               return { success: false, error: 'Project not found' };
-            } else if (currentProject[0].status !== 'pending') {
-              return { 
-                success: false, 
-                error: 'Project already processed', 
-                currentStatus: currentProject[0].status 
+            } else if (currentProject[0].status !== 'pending' && !(input.status === 'rejected' && currentProject[0].status === 'approved')) {
+              return {
+                success: false,
+                error: 'Project already processed',
+                currentStatus: currentProject[0].status
               };
             } else {
-              return { 
-                success: false, 
-                error: 'Version mismatch', 
+              return {
+                success: false,
+                error: 'Version mismatch',
                 expectedVersion: input.expectedVersion,
-                currentVersion: currentProject[0].version 
+                currentVersion: currentProject[0].version
               };
             }
           }
@@ -446,12 +553,15 @@ export const moderationRouter = router({
 
     // AI : Version-aware overlay approval to prevent race conditions
     // Frontend always sends single item wrapped in array: items: [{ id, expectedVersion }]
-    setOverlayApprovalStatusWithVersion: adminProcedure
+    setOverlayApprovalStatusWithVersion: moderatorProcedure
       .input(setApprovalStatusWithVersionSchema.extend({
         handleReplacementConflicts: z.boolean().optional().default(false), // AI : Whether to auto-handle replacement conflicts
       }))
       .mutation(async ({ input, ctx }) => {
         try {
+          // AI : Verify moderator has permission for this overlay's country
+          await checkModeratorOverlayPermission(input.id, ctx.user);
+
           // AI : Get overlay data for processing
           const overlayData = await db
             .select({
