@@ -631,5 +631,24 @@
     "createFailed": "Failed to create development project",
     "projectUpdated": "Project Updated",
     "projectUpdatedDetail": "Project changes saved locally"
+  },
+  "projectSelector": {
+    "header": "Select a nearby project for the new overlay",
+    "suggestProjectChanges": "Suggest Project Changes",
+    "suggestOverlayChanges": "Suggest Overlay Changes"
+  },
+  "layerControl": {
+    "baseMaps": "Base Maps"
+  },
+  "toasts": {
+    "replacementOverlayCreated": "Replacement Overlay Created",
+    "replacementOverlayDetail": "Your replacement overlay has been created and is ready for editing",
+    "developmentProjectSuccess": "Development project created successfully",
+    "projectUpdateSuccess": "Project Updated",
+    "projectUpdateDetail": "Project changes saved locally",
+    "projectUpdateFailed": "Update Failed",
+    "projectCreationFailed": "Project Creation Failed",
+    "projectCreationFailedDetail": "Failed to create the project. Please try again.",
+    "projectUpdateFailedDetail": "Failed to save project changes"
   }
 }

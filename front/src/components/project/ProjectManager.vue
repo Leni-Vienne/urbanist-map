@@ -2,7 +2,7 @@
   <!-- AI : Project Selector Dialog -->
   <Dialog
     v-model:visible="uiStore.projectSelectorVisible"
-    header="Select a nearby project for the new overlay"
+    :header="$t('projectSelector.header')"
     :modal="true"
     :style="{ width: '450px' }"
   >
@@ -17,12 +17,12 @@
     <template #footer>
       <div class="flex gap-2 justify-end">
         <Button
-          label="Cancel"
+          :label="$t('common.cancel')"
           severity="secondary"
           @click="uiStore.closeProjectSelector()"
         />
         <Button
-          label="Confirm"
+          :label="$t('common.confirm')"
           :disabled="!selectedProjectForUpload"
           @click="onProjectConfirmed"
         />
@@ -36,7 +36,7 @@
     v-model:visible="uiStore.projectDialog.visible"
     :project="uiStore.projectDialog.project ?? {}"
     :mode="uiStore.projectDialog.mode"
-    :title="uiStore.projectDialog.mode === 'create' ? 'Create New Project' : 'Edit Project'"
+    :title="uiStore.projectDialog.mode === 'create' ? $t('dialog.createNewProject') : $t('dialog.editProject')"
     @submit="handleProjectSubmitted"
     @cancel="uiStore.closeProjectDialog"
   />
@@ -48,7 +48,7 @@
     :modal="true"
     :closable="true"
     :draggable="false"
-    header="Suggest Project Changes"
+    :header="$t('projectSelector.suggestProjectChanges')"
     @update:visible="uiStore.closeProjectEditForm"
     class="edit-form-dialog"
   >
@@ -66,7 +66,7 @@
     :modal="true"
     :closable="true"
     :draggable="false"
-    header="Suggest Overlay Changes"
+    :header="$t('projectSelector.suggestOverlayChanges')"
     @update:visible="uiStore.closeOverlayEditForm"
     class="edit-form-dialog"
   >
@@ -92,6 +92,7 @@
 <script setup lang="ts">
 import { ref, defineAsyncComponent, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useI18n } from 'vue-i18n'
 import L from 'leaflet'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useProjectStore } from '@stores/pinia/projectStore'
@@ -121,6 +122,7 @@ const projectStore = useProjectStore()
 const mapStore = useMapStore()
 const uiStore = useUiStore()
 const toast = useToast()
+const { t: $t } = useI18n()
 const projectPickerRef = ref()
 const imageUploadDialog = ref()
 const tempMarker = ref<L.Marker | null>(null)
@@ -274,8 +276,8 @@ async function handleFileUpload(projectId: string, isReplacement: boolean = fals
     console.warn('No image file to upload')
     toast.add({
       severity: 'warn',
-      summary: 'No file selected',
-      detail: 'Please select an image file to upload',
+      summary: $t('upload.noFileSelected'),
+      detail: $t('upload.selectImageFile'),
       life: 3000
     })
     uiStore.closeProjectSelector()
@@ -292,8 +294,8 @@ async function handleFileUpload(projectId: string, isReplacement: boolean = fals
         if (overlayId) {
           toast.add({
             severity: 'success',
-            summary: 'Replacement Overlay Created',
-            detail: 'Your replacement overlay has been created and is ready for editing',
+            summary: $t('toasts.replacementOverlayCreated'),
+            detail: $t('toasts.replacementOverlayDetail'),
             life: 3000
           })
         }
@@ -312,8 +314,8 @@ async function handleFileUpload(projectId: string, isReplacement: boolean = fals
       console.error('Error handling file upload:', error)
       toast.add({
         severity: 'error',
-        summary: 'Upload Failed',
-        detail: 'Failed to process the image overlay',
+        summary: $t('replacementOverlay.uploadFailed'),
+        detail: $t('replacementOverlay.uploadFailedDetail'),
         life: 3000
       })
     } finally {
@@ -436,8 +438,8 @@ async function handleProjectSubmitted(project: Partial<Project>) {
 
         toast.add({
           severity: 'success',
-          summary: 'Success',
-          detail: 'Development project created successfully',
+          summary: $t('common.success'),
+          detail: $t('toasts.developmentProjectSuccess'),
           life: 3000
         });
       }
@@ -461,8 +463,8 @@ async function handleProjectSubmitted(project: Partial<Project>) {
         // AI : Just save locally for all projects (no auto-publishing)
         toast.add({
           severity: 'success',
-          summary: 'Project Updated',
-          detail: 'Project changes saved locally',
+          summary: $t('toasts.projectUpdateSuccess'),
+          detail: $t('toasts.projectUpdateDetail'),
           life: 3000
         });
       }
@@ -479,10 +481,10 @@ async function handleProjectSubmitted(project: Partial<Project>) {
     console.error('Error with project:', error);
     toast.add({
       severity: 'error',
-      summary: project.id ? 'Update Failed' : 'Project Creation Failed',
+      summary: project.id ? $t('toasts.projectUpdateFailed') : $t('toasts.projectCreationFailed'),
       detail: project.id
-        ? 'Failed to save project changes'
-        : 'Failed to create the project. Please try again.',
+        ? $t('toasts.projectUpdateFailedDetail')
+        : $t('toasts.projectCreationFailedDetail'),
       life: 3000
     });
   }
