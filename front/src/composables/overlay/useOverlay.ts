@@ -631,10 +631,8 @@ export function selectOverlay(overlayId: string | null): void {
   overlayStore.idSelectedOverlay = overlayId;
 
   // AI : Clean up previous selection if different from new selection
-  if (previouslySelected && previouslySelectedId !== overlayId && previouslySelected.projectId) {
-    // AI : Force remove outlines when deselecting to clear any hover highlights
-    const forceRemove = overlayId === null;
-    removeProjectOutlines(previouslySelected.projectId, forceRemove);
+  if (previouslySelected && previouslySelectedId !== overlayId) {
+    removeOverlayOutline(previouslySelected);
   }
 
   if (!overlayId) return;
@@ -661,23 +659,74 @@ export function selectOverlay(overlayId: string | null): void {
 }
 
 function applySelectionOutline(overlayObject: OverlayObject): void {
+  if (!overlayObject.overlay) return;
+
+  const element = overlayObject.overlay.getElement();
+  if (element) {
+    // AI : Calculate appropriate outline size based on overlay dimensions
+    const outlineSize = calculateOutlineSize(element, 20);
+
+    // AI : Use box-shadow instead of outline to avoid scaling issues
+    element.style.boxShadow = `0 0 0 ${outlineSize}px ${OVERLAY_OUTLINE_COLOR}`;
+    element.style.outline = 'none';
+  }
+}
+
+/**
+ * AI : Remove outline from a single overlay
+ */
+function removeOverlayOutline(overlayObject: OverlayObject): void {
+  if (!overlayObject.overlay) return;
+
+  const element = overlayObject.overlay.getElement();
+  if (element) {
+    element.style.boxShadow = '';
+    element.style.outline = 'none';
+  }
+}
+
+/**
+ * AI : Highlight a single overlay by ID - used for hover from side menu
+ * Scales up the marker if it exists (visible even when zoomed out)
+ */
+export function highlightOverlayById(overlayId: string): void {
   const overlayStore = useOverlayStore();
 
-  if (!overlayObject.overlay || !overlayObject.projectId) return;
-
-  Object.values(overlayStore.overlays).forEach((obj: OverlayObject) => {
-    if (obj.projectId === overlayObject.projectId && obj.overlay) {
-      const element = obj.overlay.getElement();
-      if (element) {
-        // AI : Calculate appropriate outline size based on overlay dimensions
-        const outlineSize = calculateOutlineSize(element, 20);
-
-        // AI : Use box-shadow instead of outline to avoid scaling issues
-        element.style.boxShadow = `0 0 0 ${outlineSize}px ${OVERLAY_OUTLINE_COLOR}`;
-        element.style.outline = 'none';
+  // AI : Scale up the marker for visibility at any zoom level
+  const marker = overlayStore.allMarkers[overlayId];
+  if (marker) {
+    const markerElement = marker.getElement();
+    if (markerElement) {
+      // AI : Scale the SVG inside the marker to avoid interfering with Leaflet's translate3d positioning
+      const svg = markerElement.querySelector('svg');
+      if (svg) {
+        svg.style.transformOrigin = 'center bottom';
+        svg.style.transition = 'transform 0.15s ease';
+        svg.style.transform = 'scale(1.5)';
       }
+      markerElement.style.zIndex = '1000';
     }
-  });
+  }
+}
+
+/**
+ * AI : Remove highlight from a single overlay by ID - used for hover leave from side menu
+ */
+export function removeOverlayHighlight(overlayId: string): void {
+  const overlayStore = useOverlayStore();
+
+  // AI : Reset marker scale
+  const marker = overlayStore.allMarkers[overlayId];
+  if (marker) {
+    const markerElement = marker.getElement();
+    if (markerElement) {
+      const svg = markerElement.querySelector('svg');
+      if (svg) {
+        svg.style.transform = '';
+      }
+      markerElement.style.zIndex = '';
+    }
+  }
 }
 
 /**

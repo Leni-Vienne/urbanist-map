@@ -11,6 +11,8 @@
           :key="contribution.id"
           class="contribution-card"
           @click="handleContributionClick(contribution)"
+          @mouseenter="handleContributionHover(contribution)"
+          @mouseleave="handleContributionLeave(contribution)"
         >
           <!-- AI : Contribution thumbnail image (overlay) or icon (development) -->
           <div class="contribution-thumbnail">
@@ -88,6 +90,7 @@ import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useLatestContributions } from '@composables/overlay/useLatestContributions'
 import { useOverlayClickHandler } from '@composables/overlay/useOverlayClickHandler'
+import { highlightOverlayById, removeOverlayHighlight } from '@composables/overlay/useOverlay'
 import { navigateToDevelopmentProject } from '@composables/navigation/useOverlayNavigation'
 import { buildThumbnailUrl } from '@utils/imageUrl'
 import { formatRelativeTime } from '@utils/dateFormat'
@@ -141,6 +144,20 @@ function getLocationDisplay(contribution: LatestContribution): string {
     return contribution.countryName
   }
   return t('overlay.unknownLocation')
+}
+
+// AI : Handle contribution hover - highlight overlay on map if loaded
+function handleContributionHover(contribution: LatestContribution) {
+  if (contribution.type === 'overlay') {
+    highlightOverlayById(contribution.id)
+  }
+}
+
+// AI : Handle contribution leave - remove overlay highlight
+function handleContributionLeave(contribution: LatestContribution) {
+  if (contribution.type === 'overlay') {
+    removeOverlayHighlight(contribution.id)
+  }
 }
 
 // AI : Handle contribution click - navigate to overlay or development project
