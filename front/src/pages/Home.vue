@@ -75,7 +75,6 @@ import { useAuthStore } from "@stores/authStore";
 import { useUiStore } from "@stores/uiStore";
 import { useToast } from "@composables/ui/useToast";
 import { useBeforeUnload } from "@composables/core/useBeforeUnload";
-import { storeToRefs } from "pinia";
 import { useRoute } from "vue-router";
 import { useModeratedContributions } from "@composables/moderation/useModeratedContributions";
 import { useI18n } from "@composables/useI18n";
@@ -139,31 +138,10 @@ function updateWindowWidth() {
     }
 }
 
-const { pendingImageFile } = storeToRefs(overlayStore);
-
 // AI : Initialize beforeunload handler for modified overlays
 useBeforeUnload();
 
-// AI : Handle window visibility change to close UI elements when user switches tabs/apps
-function handleVisibilityChange() {
-    // AI : Only close dialogs when the page becomes hidden (user switched tabs/minimized window)
-    // AI : This is more reliable than blur events and doesn't interfere with native dialogs
-    if (document.hidden) {
-        // AI : Don't close if we're in the middle of critical user flows
-        if (
-            !pendingImageFile.value &&
-            !uiStore.imageUploadDialogVisible &&
-            !uiStore.projectSelectorVisible
-        ) {
-            overlayStore.closeAllUIElements();
-        }
-    }
-}
-
 onMounted(async () => {
-    // AI : Add visibility change listener to close UI elements when user switches tabs/apps
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
     // AI : Add window resize listener for mobile detection
     window.addEventListener("resize", updateWindowWidth);
 
@@ -247,7 +225,6 @@ function getErrorMessage(error: string): string {
 }
 
 onUnmounted(() => {
-    document.removeEventListener("visibilitychange", handleVisibilityChange);
     window.removeEventListener("resize", updateWindowWidth);
 
     // AI : Restore normal overflow behavior when component unmounts
