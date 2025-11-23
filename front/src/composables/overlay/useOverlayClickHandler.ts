@@ -6,10 +6,10 @@ import { useMapStore } from '@stores/pinia/mapStore'
 import { useToast } from '@composables/ui/useToast'
 import { useI18n } from 'vue-i18n'
 import type { OverlayForModeration } from '@types'
-import type { LatestOverlay } from '../../types/api'
+import type { LatestContribution } from '../../types/api'
 
-// AI : Union type to accept overlays from both moderation panels and latest overlays panel
-type NavigableOverlay = OverlayForModeration | LatestOverlay
+// AI : Union type to accept overlays from moderation and contributions panels
+type NavigableOverlay = OverlayForModeration | LatestContribution
 
 /**
  * AI : Shared composable for handling overlay clicks from moderation/contribution panels

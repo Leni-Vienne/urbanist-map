@@ -1023,7 +1023,7 @@ async function handleOverlayCardClick(overlay: OverlayForModeration, shouldFitBo
   background-color: var(--p-orange-100);
 }
 
-/* AI : Overlay name styling to match LatestOverlaysPanel */
+/* AI : Overlay name styling to match LatestContributionsPanel */
 .overlay-card .overlay-name {
   font-size: 0.9375rem;
   font-weight: 700;

@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, shallowRef } from 'vue'
 import type L from 'leaflet'
 import type { OverlayObject, OverlayData, MapMode } from '@types'
-import type { BackendOverlay } from '../../types/api'
+import type { LatestContribution } from '../../types/api'
 
 export const useOverlayStore = defineStore('overlay', () => {
   // AI : Central store for overlay data
@@ -26,10 +26,10 @@ export const useOverlayStore = defineStore('overlay', () => {
   const overlaysLoading = ref(false)
   const overlaysError = ref<string | null>(null)
 
-  // AI : Latest overlays cache - simple loaded flag
-  const latestOverlays = ref<BackendOverlay[]>([])
-  const latestOverlaysLoading = ref(false)
-  const latestOverlaysLoaded = ref(false)
+  // AI : Latest contributions cache (overlays + development projects) - simple loaded flag
+  const latestContributions = ref<LatestContribution[]>([])
+  const latestContributionsLoading = ref(false)
+  const latestContributionsLoaded = ref(false)
 
   // AI : UI state
   const replacementOverlayId = ref<string | null>(null)
@@ -56,19 +56,19 @@ export const useOverlayStore = defineStore('overlay', () => {
     overlaysError.value = error
   }
 
-  // AI : Latest overlays actions
-  const setLatestOverlays = (overlays: BackendOverlay[]) => {
-    latestOverlays.value = overlays
-    latestOverlaysLoaded.value = true
+  // AI : Latest contributions actions
+  const setLatestContributions = (contributions: LatestContribution[]) => {
+    latestContributions.value = contributions
+    latestContributionsLoaded.value = true
   }
 
-  const setLatestOverlaysLoading = (loading: boolean) => {
-    latestOverlaysLoading.value = loading
+  const setLatestContributionsLoading = (loading: boolean) => {
+    latestContributionsLoading.value = loading
   }
 
-  // AI : Reset latest overlays cache to force refresh on next load
-  const resetLatestOverlays = () => {
-    latestOverlaysLoaded.value = false
+  // AI : Reset latest contributions cache to force refresh on next load
+  const resetLatestContributions = () => {
+    latestContributionsLoaded.value = false
   }
 
   const addEditModeOverlay = (overlayId: string) => {
@@ -174,9 +174,9 @@ export const useOverlayStore = defineStore('overlay', () => {
     loadedEditOverlays,
     overlaysLoading,
     overlaysError,
-    latestOverlays,
-    latestOverlaysLoading,
-    latestOverlaysLoaded,
+    latestContributions,
+    latestContributionsLoading,
+    latestContributionsLoaded,
     replacementOverlayId,
     pendingImageFile,
     showInfoPopup,
@@ -187,9 +187,9 @@ export const useOverlayStore = defineStore('overlay', () => {
     clearViewModeOverlays,
     setOverlaysLoading,
     setOverlaysError,
-    setLatestOverlays,
-    setLatestOverlaysLoading,
-    resetLatestOverlays,
+    setLatestContributions,
+    setLatestContributionsLoading,
+    resetLatestContributions,
     addEditModeOverlay,
     removeEditModeOverlay,
     clearEditModeMarkersAndState,

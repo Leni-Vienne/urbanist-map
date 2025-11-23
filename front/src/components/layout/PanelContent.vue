@@ -26,7 +26,7 @@
   <!-- AI : Panel content -->
   <div :class="contentContainerClass">
     <!-- AI : Show content based on active tab -->
-    <LatestOverlaysPanel v-if="activeTab === 'latest'" />
+    <LatestContributionsPanel v-if="activeTab === 'latest'" />
     <MyContributionsPanel v-else-if="activeTab === 'uploads' && authStore.isAuthenticated" />
     <ModerationPanel v-else-if="activeTab === 'moderation' && authStore.isModerator" />
 
@@ -54,7 +54,7 @@
 
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
-import LatestOverlaysPanel from './LatestOverlaysPanel.vue'
+import LatestContributionsPanel from './LatestContributionsPanel.vue'
 import type { PanelTab } from '@composables/layout/usePanelTabs'
 import { useAuthStore } from '@stores/authStore'
 
