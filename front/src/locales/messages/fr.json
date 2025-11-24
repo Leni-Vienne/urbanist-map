@@ -616,6 +616,28 @@
       "acknowledgeSuccessDetail": "Les résultats de modération ont été effacés",
       "replacedInfo": "Ceci a été remplacé par une version plus récente",
       "viewResults": "Voir les résultats"
+    },
+    "userStats": {
+      "approved": "{count} approuvé(s)",
+      "rejected": "{count} rejeté(s)",
+      "ratio": "{approved} approuvé(s) / {rejected} rejeté(s)",
+      "noStats": "Aucun historique de modération"
+    },
+    "reportUser": {
+      "report": "Signaler l'utilisateur",
+      "unreport": "Retirer le signalement",
+      "reportedByYou": "Signalé par vous",
+      "reportedByOthers": "{count} signalement(s) d'autres modérateurs",
+      "reportSuccess": "Utilisateur signalé",
+      "reportSuccessDetail": "L'utilisateur a été signalé. Ses soumissions seront masquées de votre file de modération.",
+      "unreportSuccess": "Signalement retiré",
+      "unreportSuccessDetail": "Le signalement a été retiré. Vous verrez à nouveau les soumissions de cet utilisateur.",
+      "reportFailed": "Échec du signalement",
+      "unreportFailed": "Échec du retrait du signalement",
+      "warningBadge": "Attention : Taux de rejet élevé ou utilisateur signalé",
+      "hiddenFromQueue": "Masqué de votre file",
+      "reason": "Raison (optionnel)",
+      "reasonPlaceholder": "Décrivez pourquoi vous signalez cet utilisateur..."
     }
   },
   "location": {

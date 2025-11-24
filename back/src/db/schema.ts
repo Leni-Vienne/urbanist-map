@@ -22,6 +22,9 @@ export const users = pgTable('users', {
   passwordResetExpiresAt: timestamp('password_reset_expires_at', { withTimezone: true }),
   // AI : OAuth provider IDs for secure authentication
   googleId: text('google_id').unique(), // AI : Google's unique user ID (sub field)
+  // AI : Moderation stats for spam prevention - tracks approval/rejection counts across all entity types
+  approvedCount: integer('approved_count').default(0).notNull(),
+  rejectedCount: integer('rejected_count').default(0).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
 }, (users) => [
@@ -240,6 +243,33 @@ export const config = pgTable('config', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
 });
 
+// AI : User reports table for spam prevention
+// AI : Tracks which moderators have reported which users
+// AI : Rules: 1 report = hide for that moderator, 2+ reports = warning for all, 3+ or admin = global hide
+export const userReports = pgTable('user_reports', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  reportedUserId: uuid('reported_user_id').references(() => users.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
+  reportedBy: uuid('reported_by').references(() => users.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
+  reason: text('reason'), // AI : Optional reason for the report
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_user_reports_reported_user').on(table.reportedUserId),
+  index('idx_user_reports_reported_by').on(table.reportedBy),
+]);
+
+export const userReportsRelations = relations(userReports, ({ one }) => ({
+  reportedUser: one(users, {
+    fields: [userReports.reportedUserId],
+    references: [users.id],
+    relationName: 'reports_received'
+  }),
+  reporter: one(users, {
+    fields: [userReports.reportedBy],
+    references: [users.id],
+    relationName: 'reports_made'
+  }),
+}));
+
 // AI : Export Drizzle-inferred types for frontend consumption
 export type DBCity = InferSelectModel<typeof cities>;
 export type DBProject = InferSelectModel<typeof projects>;
@@ -250,3 +280,4 @@ export type DBChangeRequest = InferSelectModel<typeof changeRequests>;
 export type DBChangeHistory = InferSelectModel<typeof changeHistory>;
 export type DBScheduledDeletion = InferSelectModel<typeof scheduledDeletions>;
 export type DBConfig = InferSelectModel<typeof config>;
+export type DBUserReport = InferSelectModel<typeof userReports>;

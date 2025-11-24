@@ -616,6 +616,29 @@
       "acknowledgeSuccessDetail": "Moderation results have been cleared",
       "replacedInfo": "This was replaced by a newer version",
       "viewResults": "View Results"
+    },
+    "userStats": {
+      "approved": "{count} approved",
+      "rejected": "{count} rejected",
+      "ratio": "{approved} approved / {rejected} rejected",
+      "noStats": "No moderation history"
+    },
+    "reportUser": {
+      "report": "Report User",
+      "unreport": "Remove Report",
+      "reportedByYou": "Reported by you",
+      "reportedByOthers": "{count} report(s) from other moderators",
+      "reportDescription": "Reporting this user will hide their submissions from your moderation queue.",
+      "reportSuccess": "User Reported",
+      "reportSuccessDetail": "User has been reported. Their submissions will be hidden from your moderation queue.",
+      "unreportSuccess": "Report Removed",
+      "unreportSuccessDetail": "Report has been removed. You will see this user's submissions again.",
+      "reportFailed": "Failed to report user",
+      "unreportFailed": "Failed to remove report",
+      "warningBadge": "Warning: High rejection rate or reported user",
+      "hiddenFromQueue": "Hidden from your queue",
+      "reason": "Reason (optional)",
+      "reasonPlaceholder": "Describe why you're reporting this user..."
     }
   },
   "location": {

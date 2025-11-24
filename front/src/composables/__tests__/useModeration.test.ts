@@ -76,11 +76,15 @@ const mockProject: ModerationProject = {
   updatedAt: new Date(),
   startDate: null,
   endDate: null,
+  proposalDate: null,
   sourceUrl: null,
   isDevelopment: false,
   lat: null,
   lng: null,
   cityId: 'test-city-1',
+  ownerId: 'test-user-1', // AI : For spam prevention
+  ownerApprovedCount: 5, // AI : User stats for spam detection
+  ownerRejectedCount: 1,
   cityName: 'Test City',
   countryCode: 'TST',
   countryName: 'Test Country',
@@ -94,6 +98,11 @@ const mockOverlay: ModerationOverlay = {
   status: 'pending' as const,
   version: 1,
   projectId: 'test-project-1',
+  authorId: 'test-user-1', // AI : For spam prevention
+  authorApprovedCount: 5, // AI : User stats for spam detection
+  authorRejectedCount: 1,
+  replacesOverlayId: null,
+  replacedByOverlayId: null,
   updatedAt: new Date(),
   cityId: 'test-city-1',
   cityName: 'Test City',
@@ -110,12 +119,14 @@ describe('useModeration Composable', () => {
       .mockResolvedValueOnce({
         projects: [mockProject],
         overlays: [mockOverlay],
-        changeRequests: []
+        changeRequests: [],
+        pagination: { hasMore: false, nextCursor: null }
       })
       .mockResolvedValue({
         projects: [mockProject],
         overlays: [mockOverlay], 
-        changeRequests: []
+        changeRequests: [],
+        pagination: { hasMore: false, nextCursor: null }
       })
     
     mockTrpc.moderation.setProjectApprovalStatusWithVersion.mutate
@@ -195,7 +206,8 @@ describe('useModeration Composable', () => {
       mockTrpc.moderation.getPendingSubmissions.query.mockResolvedValue({
         projects: [], // Empty - project not found
         overlays: [],
-        changeRequests: []
+        changeRequests: [],
+        pagination: { hasMore: false, nextCursor: null }
       })
       
       const result = await approveProject('non-existent-project')
@@ -381,7 +393,8 @@ describe('useModeration Composable', () => {
       mockTrpc.moderation.getPendingSubmissions.query.mockResolvedValue({
         projects: multipleProjects,
         overlays: [],
-        changeRequests: []
+        changeRequests: [],
+        pagination: { hasMore: false, nextCursor: null }
       })
       
       const { approveProject, recentActions, projects } = useModeration()
@@ -496,7 +509,8 @@ describe('useModeration Composable', () => {
       mockTrpc.moderation.getPendingSubmissions.query.mockResolvedValue({
         projects: [],
         overlays: [],
-        changeRequests: []
+        changeRequests: [],
+        pagination: { hasMore: false, nextCursor: null }
       })
       
       const result = await approveProject('non-existent')
@@ -516,7 +530,8 @@ describe('useModeration Composable', () => {
       mockTrpc.moderation.getPendingSubmissions.query.mockResolvedValue({
         projects: [projectWithoutName],
         overlays: [],
-        changeRequests: []
+        changeRequests: [],
+        pagination: { hasMore: false, nextCursor: null }
       })
       
       const { approveProject, projects } = useModeration()
@@ -543,7 +558,8 @@ describe('useModeration Composable', () => {
       mockTrpc.moderation.getPendingSubmissions.query.mockResolvedValue({
         projects: [{ ...mockProject, overlays: [overlayWithoutName] }],
         overlays: [overlayWithoutName],
-        changeRequests: []
+        changeRequests: [],
+        pagination: { hasMore: false, nextCursor: null }
       })
       
       const { approveOverlay, overlays } = useModeration()
