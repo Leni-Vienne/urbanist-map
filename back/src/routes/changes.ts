@@ -1,6 +1,6 @@
 import { adminProcedure, protectedProcedure, router } from '../trpc';
 import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
-import { projects, overlays, changeRequests, changeHistory, cities, countries } from '../db/schema';
+import { projects, overlays, changeRequests, changeHistory, cities, countries, users } from '../db/schema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { db } from '../database';
@@ -401,8 +401,17 @@ export const changesRouter = router({
               })
               .where(eq(changeRequests.id, change.id));
 
+            // AI : Increment the requester's approved count
+            if (change.requestedBy) {
+              await tx
+                .update(users)
+                .set({ approvedCount: sql`${users.approvedCount} + 1` })
+                .where(eq(users.id, change.requestedBy));
+            }
+
             // AI : Mark all other pending changes for the same field as 'conflicted' (soft rejection)
             // AI : This tells users their suggestion wasn't chosen, not that it was invalid
+            // AI : Note: 'conflicted' does NOT count as rejection (user's suggestion was valid, just not chosen)
             await tx
               .update(changeRequests)
               .set({
@@ -442,15 +451,34 @@ export const changesRouter = router({
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Admin access required' });
         }
 
-        // AI : Mark changes as rejected instead of deleting (for audit trail)
-        await db
-          .update(changeRequests)
-          .set({
-            status: 'rejected',
-            resolvedAt: new Date(),
-            resolvedBy: adminUserId,
-          })
+        // AI : Get the requestedBy for each change request to increment their rejection counts
+        const changesToReject = await db
+          .select({ id: changeRequests.id, requestedBy: changeRequests.requestedBy })
+          .from(changeRequests)
           .where(inArray(changeRequests.id, input.changeRequestIds));
+
+        // AI : Use transaction to atomically update status and increment rejection counts
+        await db.transaction(async (tx) => {
+          // AI : Mark changes as rejected instead of deleting (for audit trail)
+          await tx
+            .update(changeRequests)
+            .set({
+              status: 'rejected',
+              resolvedAt: new Date(),
+              resolvedBy: adminUserId,
+            })
+            .where(inArray(changeRequests.id, input.changeRequestIds));
+
+          // AI : Increment rejection count for each requester
+          for (const change of changesToReject) {
+            if (change.requestedBy) {
+              await tx
+                .update(users)
+                .set({ rejectedCount: sql`${users.rejectedCount} + 1` })
+                .where(eq(users.id, change.requestedBy));
+            }
+          }
+        });
 
         return { success: true };
       } catch (error) {

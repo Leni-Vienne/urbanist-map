@@ -3,7 +3,7 @@ import type { PgColumn } from 'drizzle-orm/pg-core';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from './schema';
 import { db } from '../database';
-import { projects, cities, overlays, countries, changeRequests } from './schema';
+import { projects, cities, overlays, countries, changeRequests, users } from './schema';
 
 // AI : ============================================================================
 // AI : DATABASE HELPERS - Unified utilities for pagination, queries, and visibility
@@ -187,6 +187,9 @@ export function buildOverlayModerationQuery(db: PostgresJsDatabase<typeof schema
       status: overlays.status,
       version: overlays.version,
       projectId: overlays.projectId,
+      authorId: overlays.authorId, // AI : For spam prevention filtering
+      authorApprovedCount: users.approvedCount, // AI : User stats for spam detection
+      authorRejectedCount: users.rejectedCount,
       replacesOverlayId: overlays.replacesOverlayId,
       replacedByOverlayId: overlays.replacedByOverlayId,
       updatedAt: overlays.updatedAt,
@@ -198,7 +201,8 @@ export function buildOverlayModerationQuery(db: PostgresJsDatabase<typeof schema
     .from(overlays)
     .leftJoin(projects, eq(overlays.projectId, projects.id))
     .innerJoin(cities, eq(projects.cityId, cities.id))
-    .leftJoin(countries, eq(cities.countryCode, countries.code));
+    .leftJoin(countries, eq(cities.countryCode, countries.code))
+    .leftJoin(users, eq(overlays.authorId, users.id));
 }
 
 /**
@@ -222,13 +226,17 @@ export function buildProjectModerationQuery(db: PostgresJsDatabase<typeof schema
       lat: projects.lat,
       lng: projects.lng,
       cityId: projects.cityId,
+      ownerId: projects.ownerId, // AI : For spam prevention filtering
+      ownerApprovedCount: users.approvedCount, // AI : User stats for spam detection
+      ownerRejectedCount: users.rejectedCount,
       cityName: cities.name,
       countryCode: countries.code,
       countryName: countries.name,
     })
     .from(projects)
     .innerJoin(cities, eq(projects.cityId, cities.id))
-    .leftJoin(countries, eq(cities.countryCode, countries.code));
+    .leftJoin(countries, eq(cities.countryCode, countries.code))
+    .leftJoin(users, eq(projects.ownerId, users.id));
 }
 
 // AI : ============================================================================

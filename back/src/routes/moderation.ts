@@ -1,6 +1,6 @@
 import { moderatorProcedure, router } from '../trpc';
 import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
-import { projects, overlays, approvalStatusEnum, changeRequests, cities } from '../db/schema';
+import { projects, overlays, approvalStatusEnum, changeRequests, cities, users, userReports } from '../db/schema';
 import { eq, inArray, or, and, sql, ne } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { db } from '../database';
@@ -14,6 +14,43 @@ import {
 import { LocalFileStorage, R2StorageS3, getThumbnailFilename, streamToBuffer } from '../lib/storage';
 import { scheduleImageCleanup, deleteImages, daysFromNow } from '../lib/imageCleanup';
 import { enrichChangeRequestsWithNames } from './changes';
+
+// AI : Helper functions to update user moderation stats
+// AI : These are called within transactions to ensure atomicity
+// AI : Using Pick to accept both db and transaction objects
+type DbOrTx = Pick<typeof db, 'update'>;
+
+async function incrementApprovedCount(tx: DbOrTx, userId: string | null): Promise<void> {
+  if (!userId) return;
+  await tx
+    .update(users)
+    .set({ approvedCount: sql`${users.approvedCount} + 1` })
+    .where(eq(users.id, userId));
+}
+
+async function incrementRejectedCount(tx: DbOrTx, userId: string | null): Promise<void> {
+  if (!userId) return;
+  await tx
+    .update(users)
+    .set({ rejectedCount: sql`${users.rejectedCount} + 1` })
+    .where(eq(users.id, userId));
+}
+
+async function decrementApprovedCount(tx: DbOrTx, userId: string | null): Promise<void> {
+  if (!userId) return;
+  await tx
+    .update(users)
+    .set({ approvedCount: sql`GREATEST(${users.approvedCount} - 1, 0)` })
+    .where(eq(users.id, userId));
+}
+
+async function decrementRejectedCount(tx: DbOrTx, userId: string | null): Promise<void> {
+  if (!userId) return;
+  await tx
+    .update(users)
+    .set({ rejectedCount: sql`GREATEST(${users.rejectedCount} - 1, 0)` })
+    .where(eq(users.id, userId));
+}
 
 // AI : Helper function to migrate image and thumbnail from local storage to R2 on approval
 // Two-phase thumbnail strategy to prevent abuse:
@@ -272,6 +309,37 @@ export const moderationRouter = router({
           // AI : Admins (role='admin' or moderatedCountries=null) can see all countries
           const userModeratedCountries = ctx.user.moderatedCountries;
           const isAdmin = ctx.user.role === 'admin' || userModeratedCountries === null;
+          const moderatorId = ctx.user.id;
+
+          // AI : Get users that should be hidden from this moderator
+          // AI : Rules: reported by me = hidden for me, 3+ reports = hidden for all
+          const allReports = await db
+            .select({
+              reportedUserId: userReports.reportedUserId,
+              reportedBy: userReports.reportedBy,
+            })
+            .from(userReports);
+
+          // AI : Build set of hidden user IDs based on report rules
+          const reportCountByUser = new Map<string, number>();
+          const myReportedUsers = new Set<string>();
+
+          for (const report of allReports) {
+            const count = reportCountByUser.get(report.reportedUserId) ?? 0;
+            reportCountByUser.set(report.reportedUserId, count + 1);
+
+            if (report.reportedBy === moderatorId) {
+              myReportedUsers.add(report.reportedUserId);
+            }
+          }
+
+          // AI : User is hidden if: reported by current moderator OR has 3+ reports total
+          const hiddenUserIds = new Set<string>();
+          for (const [userId, count] of reportCountByUser) {
+            if (myReportedUsers.has(userId) || count >= 3) {
+              hiddenUserIds.add(userId);
+            }
+          }
 
           let effectiveCountryCode = input.countryCode;
 
@@ -433,17 +501,30 @@ export const moderationRouter = router({
             overlay => overlay.status !== 'rejected' && overlay.status !== 'replaced'
           );
 
-          const projectsWithOverlays = paginationResponse.items.map(project => ({
+          // AI : Filter out content from hidden users (reported by moderator or 3+ reports)
+          const filteredProjects = paginationResponse.items.filter(
+            project => !project.ownerId || !hiddenUserIds.has(project.ownerId)
+          );
+
+          const filteredOverlays = visibleOverlays.filter(
+            overlay => !overlay.authorId || !hiddenUserIds.has(overlay.authorId)
+          );
+
+          const filteredChangeRequests = changeRequestsWithConflictInfo.filter(
+            change => !change.requestedBy || !hiddenUserIds.has(change.requestedBy)
+          );
+
+          const projectsWithOverlays = filteredProjects.map(project => ({
             ...project,
-            overlays: visibleOverlays.filter(overlay => overlay.projectId === project.id),
+            overlays: filteredOverlays.filter(overlay => overlay.projectId === project.id),
           }));
 
           // AI : Enrich change requests with city and country names
-          const enrichedChangeRequests = await enrichChangeRequestsWithNames(changeRequestsWithConflictInfo);
+          const enrichedChangeRequests = await enrichChangeRequestsWithNames(filteredChangeRequests);
 
           return {
             projects: projectsWithOverlays,
-            overlays: visibleOverlays.filter(overlay => overlay.status === 'pending'),
+            overlays: filteredOverlays.filter(overlay => overlay.status === 'pending'),
             changeRequests: enrichedChangeRequests,
             pagination: paginationResponse.pagination
           };
@@ -462,13 +543,40 @@ export const moderationRouter = router({
           // AI : Verify moderator has permission for this project's country
           await checkModeratorCountryPermission(input.id, ctx.user);
 
-          await db
-            .update(projects)
-            .set({ status: input.status })
-            .where(eq(projects.id, input.id));
+          // AI : Use transaction to atomically update project and decrement user stats
+          await db.transaction(async (tx) => {
+            // AI : Get current status and ownerId before updating
+            const currentProject = await tx
+              .select({ status: projects.status, ownerId: projects.ownerId })
+              .from(projects)
+              .where(eq(projects.id, input.id))
+              .limit(1);
+
+            if (currentProject.length === 0) {
+              throw new TRPCError({ code: 'NOT_FOUND', message: 'Project not found' });
+            }
+
+            const previousStatus = currentProject[0].status;
+            const ownerId = currentProject[0].ownerId;
+
+            // AI : Update project status
+            await tx
+              .update(projects)
+              .set({ status: input.status })
+              .where(eq(projects.id, input.id));
+
+            // AI : Decrement the appropriate counter based on previous status
+            if (previousStatus === 'approved') {
+              await decrementApprovedCount(tx, ownerId);
+            } else if (previousStatus === 'rejected') {
+              await decrementRejectedCount(tx, ownerId);
+            }
+          });
+
           return { success: true };
         } catch (error) {
           console.error('Error updating project status:', error);
+          if (error instanceof TRPCError) throw error;
           throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update project status' });
         }
       }),
@@ -482,13 +590,40 @@ export const moderationRouter = router({
           // AI : Verify moderator has permission for this overlay's country
           await checkModeratorOverlayPermission(input.id, ctx.user);
 
-          await db
-            .update(overlays)
-            .set({ status: input.status })
-            .where(eq(overlays.id, input.id));
+          // AI : Use transaction to atomically update overlay and decrement user stats
+          await db.transaction(async (tx) => {
+            // AI : Get current status and authorId before updating
+            const currentOverlay = await tx
+              .select({ status: overlays.status, authorId: overlays.authorId })
+              .from(overlays)
+              .where(eq(overlays.id, input.id))
+              .limit(1);
+
+            if (currentOverlay.length === 0) {
+              throw new TRPCError({ code: 'NOT_FOUND', message: 'Overlay not found' });
+            }
+
+            const previousStatus = currentOverlay[0].status;
+            const authorId = currentOverlay[0].authorId;
+
+            // AI : Update overlay status
+            await tx
+              .update(overlays)
+              .set({ status: input.status })
+              .where(eq(overlays.id, input.id));
+
+            // AI : Decrement the appropriate counter based on previous status
+            if (previousStatus === 'approved') {
+              await decrementApprovedCount(tx, authorId);
+            } else if (previousStatus === 'rejected') {
+              await decrementRejectedCount(tx, authorId);
+            }
+          });
+
           return { success: true };
         } catch (error) {
           console.error('Error updating overlay status:', error);
+          if (error instanceof TRPCError) throw error;
           throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update overlay status' });
         }
       }),
@@ -507,44 +642,57 @@ export const moderationRouter = router({
             ? or(eq(projects.status, 'pending'), eq(projects.status, 'approved'))
             : eq(projects.status, 'pending');
 
-          // AI : Atomic update with version check and status check in WHERE clause
-          const result = await db
-            .update(projects)
-            .set({ status: input.status })
-            .where(and(
-              eq(projects.id, input.id),
-              eq(projects.version, input.expectedVersion),
-              statusCondition
-            ))
-            .returning({ id: projects.id, version: projects.version });
+          // AI : Use transaction to atomically update project and user stats
+          const result = await db.transaction(async (tx) => {
+            // AI : Atomic update with version check and status check in WHERE clause
+            const updateResult = await tx
+              .update(projects)
+              .set({ status: input.status })
+              .where(and(
+                eq(projects.id, input.id),
+                eq(projects.version, input.expectedVersion),
+                statusCondition
+              ))
+              .returning({ id: projects.id, version: projects.version, ownerId: projects.ownerId });
 
-          if (result.length === 0) {
-            // AI : Either project doesn't exist, version mismatch, or status not allowed
-            const currentProject = await db
-              .select({ version: projects.version, status: projects.status })
-              .from(projects)
-              .where(eq(projects.id, input.id))
-              .limit(1);
+            if (updateResult.length === 0) {
+              // AI : Either project doesn't exist, version mismatch, or status not allowed
+              const currentProject = await tx
+                .select({ version: projects.version, status: projects.status })
+                .from(projects)
+                .where(eq(projects.id, input.id))
+                .limit(1);
 
-            if (currentProject.length === 0) {
-              return { success: false, error: 'Project not found' };
-            } else if (currentProject[0].status !== 'pending' && !(input.status === 'rejected' && currentProject[0].status === 'approved')) {
-              return {
-                success: false,
-                error: 'Project already processed',
-                currentStatus: currentProject[0].status
-              };
-            } else {
-              return {
-                success: false,
-                error: 'Version mismatch',
-                expectedVersion: input.expectedVersion,
-                currentVersion: currentProject[0].version
-              };
+              if (currentProject.length === 0) {
+                return { success: false as const, error: 'Project not found' };
+              } else if (currentProject[0].status !== 'pending' && !(input.status === 'rejected' && currentProject[0].status === 'approved')) {
+                return {
+                  success: false as const,
+                  error: 'Project already processed',
+                  currentStatus: currentProject[0].status
+                };
+              } else {
+                return {
+                  success: false as const,
+                  error: 'Version mismatch',
+                  expectedVersion: input.expectedVersion,
+                  currentVersion: currentProject[0].version
+                };
+              }
             }
-          }
 
-          return { success: true };
+            // AI : Increment user's approval/rejection count
+            const ownerId = updateResult[0].ownerId;
+            if (input.status === 'approved') {
+              await incrementApprovedCount(tx, ownerId);
+            } else if (input.status === 'rejected') {
+              await incrementRejectedCount(tx, ownerId);
+            }
+
+            return { success: true as const };
+          });
+
+          return result;
         } catch (error) {
           console.error('Error updating project status with version:', error);
           throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update project status' });
@@ -569,7 +717,8 @@ export const moderationRouter = router({
               filename: overlays.filename,
               replacesOverlayId: overlays.replacesOverlayId,
               status: overlays.status,
-              version: overlays.version
+              version: overlays.version,
+              authorId: overlays.authorId
             })
             .from(overlays)
             .where(eq(overlays.id, input.id))
@@ -582,25 +731,38 @@ export const moderationRouter = router({
           const overlay = overlayData[0];
           const overlayFilename = overlay.filename;
           const replacesOverlayId = overlay.replacesOverlayId;
+          const authorId = overlay.authorId;
 
           // AI : Handle rejection first (simpler case)
           if (input.status === 'rejected') {
-            // AI : Atomic update with version check
-            const result = await db
-              .update(overlays)
-              .set({ status: input.status, version: sql`${overlays.version} + 1` })
-              .where(and(
-                eq(overlays.id, input.id),
-                eq(overlays.version, input.expectedVersion),
-                eq(overlays.status, 'pending')
-              ))
-              .returning({ id: overlays.id, version: overlays.version });
+            // AI : Use transaction to atomically update overlay and user stats
+            const rejectionResult = await db.transaction(async (tx) => {
+              // AI : Atomic update with version check
+              const result = await tx
+                .update(overlays)
+                .set({ status: input.status, version: sql`${overlays.version} + 1` })
+                .where(and(
+                  eq(overlays.id, input.id),
+                  eq(overlays.version, input.expectedVersion),
+                  eq(overlays.status, 'pending')
+                ))
+                .returning({ id: overlays.id, version: overlays.version });
 
-            if (result.length === 0) {
-              return { success: false, error: 'Version mismatch or already processed' };
+              if (result.length === 0) {
+                return { success: false as const, error: 'Version mismatch or already processed' };
+              }
+
+              // AI : Increment author's rejection count
+              await incrementRejectedCount(tx, authorId);
+
+              return { success: true as const };
+            });
+
+            if (!rejectionResult.success) {
+              return rejectionResult;
             }
 
-            // AI : Delete images for rejected overlays
+            // AI : Delete images for rejected overlays (outside transaction)
             try {
               // AI : For both regular and replacement overlays: delete full immediately, keep thumbnail for 15 days
               // AI : Thumbnails allow users to see what was rejected in ModeratedContributionsDialog
@@ -618,7 +780,7 @@ export const moderationRouter = router({
           // AI : Handle approval (more complex, especially for replacements)
           const transactionResult = await db.transaction(async (tx) => {
             // AI : Track competing replacements for post-transaction cleanup
-            let competingReplacements: Array<{ id: string; filename: string }> = [];
+            let competingReplacements: Array<{ id: string; filename: string; authorId: string | null }> = [];
 
             // AI : Lock and verify the overlay hasn't changed
             const currentOverlay = await tx
@@ -701,7 +863,7 @@ export const moderationRouter = router({
 
               // AI : Find and reject competing replacement overlays
               competingReplacements = await tx
-                .select({ id: overlays.id, filename: overlays.filename })
+                .select({ id: overlays.id, filename: overlays.filename, authorId: overlays.authorId })
                 .from(overlays)
                 .where(and(
                   eq(overlays.replacesOverlayId, replacesOverlayId),
@@ -717,6 +879,11 @@ export const moderationRouter = router({
                     version: sql`${overlays.version} + 1`
                   })
                   .where(inArray(overlays.id, competingReplacements.map(o => o.id)));
+
+                // AI : Increment rejection count for each competing replacement author
+                for (const competing of competingReplacements) {
+                  await incrementRejectedCount(tx, competing.authorId);
+                }
               }
             }
 
@@ -733,6 +900,9 @@ export const moderationRouter = router({
             if (result.length === 0) {
               return { success: false, error: 'Failed to approve overlay' };
             }
+
+            // AI : Increment author's approval count
+            await incrementApprovedCount(tx, authorId);
 
             return { success: true, competingReplacements: replacesOverlayId ? competingReplacements : [] };
           });
@@ -790,6 +960,167 @@ export const moderationRouter = router({
         } catch (error) {
           console.error('Error updating overlay status with version:', error);
           throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update overlay status' });
+        }
+      }),
+
+    // AI : Report a user for spam/harmful content
+    // AI : Rules: 1 report = hide for that moderator, 2+ reports = warning for all, 3+ or admin = global hide
+    reportUser: moderatorProcedure
+      .input(z.object({
+        userId: z.string().uuid(),
+        reason: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        try {
+          const moderatorId = ctx.user.id;
+
+          // AI : Check if already reported by this moderator
+          const existingReport = await db
+            .select({ id: userReports.id })
+            .from(userReports)
+            .where(and(
+              eq(userReports.reportedUserId, input.userId),
+              eq(userReports.reportedBy, moderatorId)
+            ))
+            .limit(1);
+
+          if (existingReport.length > 0) {
+            return { success: true, alreadyReported: true };
+          }
+
+          // AI : Create the report
+          await db.insert(userReports).values({
+            reportedUserId: input.userId,
+            reportedBy: moderatorId,
+            reason: input.reason,
+          });
+
+          // AI : Get total report count for this user
+          const reportCount = await db
+            .select({ count: sql<number>`COUNT(*)` })
+            .from(userReports)
+            .where(eq(userReports.reportedUserId, input.userId));
+
+          return {
+            success: true,
+            alreadyReported: false,
+            totalReports: Number(reportCount[0]?.count ?? 1),
+          };
+        } catch (error) {
+          console.error('Error reporting user:', error);
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to report user' });
+        }
+      }),
+
+    // AI : Remove a report for a user (if moderator changes their mind)
+    unreportUser: moderatorProcedure
+      .input(z.object({
+        userId: z.string().uuid(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        try {
+          const moderatorId = ctx.user.id;
+
+          await db
+            .delete(userReports)
+            .where(and(
+              eq(userReports.reportedUserId, input.userId),
+              eq(userReports.reportedBy, moderatorId)
+            ));
+
+          return { success: true };
+        } catch (error) {
+          console.error('Error unreporting user:', error);
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to unreport user' });
+        }
+      }),
+
+    // AI : Get list of users reported by the current moderator
+    getMyReportedUsers: moderatorProcedure
+      .query(async ({ ctx }) => {
+        try {
+          const moderatorId = ctx.user.id;
+
+          const reports = await db
+            .select({
+              id: userReports.id,
+              reportedUserId: userReports.reportedUserId,
+              reason: userReports.reason,
+              createdAt: userReports.createdAt,
+            })
+            .from(userReports)
+            .where(eq(userReports.reportedBy, moderatorId));
+
+          return reports;
+        } catch (error) {
+          console.error('Error fetching reported users:', error);
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch reported users' });
+        }
+      }),
+
+    // AI : Get report counts for users (for displaying warning badges in moderation UI)
+    getUserReportCounts: moderatorProcedure
+      .input(z.object({
+        userIds: z.array(z.string().uuid()),
+      }))
+      .query(async ({ input, ctx }) => {
+        try {
+          if (input.userIds.length === 0) {
+            return {};
+          }
+
+          const moderatorId = ctx.user.id;
+          const isAdmin = ctx.user.role === 'admin' || ctx.user.moderatedCountries === null;
+
+          // AI : Get report counts for each user
+          const reportCounts = await db
+            .select({
+              reportedUserId: userReports.reportedUserId,
+              count: sql<number>`COUNT(*)`,
+            })
+            .from(userReports)
+            .where(inArray(userReports.reportedUserId, input.userIds))
+            .groupBy(userReports.reportedUserId);
+
+          // AI : Check which users are reported by the current moderator
+          const myReports = await db
+            .select({ reportedUserId: userReports.reportedUserId })
+            .from(userReports)
+            .where(and(
+              inArray(userReports.reportedUserId, input.userIds),
+              eq(userReports.reportedBy, moderatorId)
+            ));
+
+          const myReportedUserIds = new Set(myReports.map(r => r.reportedUserId));
+
+          // AI : Build result map with visibility rules
+          const result: Record<string, {
+            totalReports: number;
+            reportedByMe: boolean;
+            isHidden: boolean; // AI : Whether this user's content should be hidden for the current moderator
+          }> = {};
+
+          for (const userId of input.userIds) {
+            const count = reportCounts.find(r => r.reportedUserId === userId);
+            const totalReports = Number(count?.count ?? 0);
+            const reportedByMe = myReportedUserIds.has(userId);
+
+            // AI : Visibility rules:
+            // - 1 report by me = hidden for me
+            // - 3+ reports total OR admin report = hidden for all (handled in getPendingSubmissions)
+            const isHidden = reportedByMe || (isAdmin && totalReports >= 1) || totalReports >= 3;
+
+            result[userId] = {
+              totalReports,
+              reportedByMe,
+              isHidden,
+            };
+          }
+
+          return result;
+        } catch (error) {
+          console.error('Error fetching user report counts:', error);
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch user report counts' });
         }
       }),
 });

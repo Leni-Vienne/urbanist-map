@@ -107,6 +107,9 @@ export const useProjectStore = defineStore('project', () => {
             status: 'pending' as const,
             version: 1,
             projectId: project.id,
+            authorId: overlay.authorId ?? null, // AI : For spam prevention
+            authorApprovedCount: null, // AI : Stats not available for optimistic updates
+            authorRejectedCount: null,
             replacesOverlayId: overlay.replacesOverlayId ?? null,
             replacedByOverlayId: null,
             updatedAt: new Date(),
@@ -139,6 +142,9 @@ export const useProjectStore = defineStore('project', () => {
             status: 'pending' as const,
             version: 1,
             projectId: project.id,
+            authorId: overlay.authorId ?? null, // AI : For spam prevention
+            authorApprovedCount: null, // AI : Stats not available for optimistic updates
+            authorRejectedCount: null,
             replacesOverlayId: overlay.replacesOverlayId ?? null,
             replacedByOverlayId: null,
             updatedAt: new Date(),
