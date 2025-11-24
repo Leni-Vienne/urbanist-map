@@ -91,8 +91,12 @@
                               <div class="project-metadata">
                                 <div class="metadata-item">
                                   <i class="pi pi-clock"></i>
-                                  <span>{{ $t('project.updatedAgo', { time: formatRelativeTime(project.updatedAt) })
-                                  }}</span>
+                                  <span>
+                                    {{ $t('project.updatedAgo', { time: formatRelativeTime(project.updatedAt) }) }}<template v-if="showUserStatsLink && project.ownerId">,
+                                      <i v-if="project.ownerReportCount && project.ownerReportCount > 0" class="pi pi-exclamation-triangle user-warning-icon"></i>
+                                      <span class="user-more-link" @click.stop="handleShowProjectUserStats(project)">{{ $t('moderation.more') }}</span>
+                                    </template>
+                                  </span>
                                 </div>
                                 <div
                                   class="metadata-item"
@@ -161,6 +165,8 @@
                             :projects="projects"
                             :is-my-contributions="isMyContributionsPanel"
                             :on-navigate-to-overlay="navigateToOverlayById"
+                            :show-user-stats-link="showUserStatsLink"
+                            @show-user-stats="(data) => emit('show-user-stats', data)"
                             container-class="project-change-requests"
                           >
                             <template #change-actions="{ change }">
@@ -226,7 +232,10 @@
                                 <span class="truncate">{{ getOverlayLocationDisplay(overlay) }}</span>
                               </div>
                               <div class="text-xs text-surface-500 mb-2">
-                                {{ formatRelativeTime(overlay.updatedAt) }}
+                                {{ formatRelativeTime(overlay.updatedAt) }}<template v-if="showUserStatsLink && overlay.authorId">,
+                                  <i v-if="overlay.authorReportCount && overlay.authorReportCount > 0" class="pi pi-exclamation-triangle user-warning-icon"></i>
+                                  <span class="user-more-link" @click.stop="handleShowOverlayUserStats(overlay)">{{ $t('moderation.more') }}</span>
+                                </template>
                               </div>
                               <div class="flex items-center gap-2 flex-wrap">
                                 <Tag
@@ -276,6 +285,8 @@
                             :is-overlay-changes="true"
                             :entity-name="overlay.name || $t('overlay.untitled')"
                             :on-navigate-to-overlay="navigateToOverlayById"
+                            :show-user-stats-link="showUserStatsLink"
+                            @show-user-stats="(data) => emit('show-user-stats', data)"
                             container-class="overlay-change-requests"
                           >
                             <template #change-actions="{ change }">
@@ -347,13 +358,19 @@ interface Props {
   emptySubMessage?: string
   changeRequests?: PendingChangeRequest[]
   onOverlayClick?: (overlay: OverlayForModeration, shouldFitBounds: boolean) => Promise<void>
+  showUserStatsLink?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   emptyMessage: '',
   emptySubMessage: '',
-  changeRequests: () => []
+  changeRequests: () => [],
+  showUserStatsLink: false
 })
+
+const emit = defineEmits<{
+  'show-user-stats': [data: { userId: string; username?: string | null; approvedCount?: number | null; rejectedCount?: number | null; reportCount?: number }]
+}>()
 
 // AI : Use i18n for translations
 const { t } = useI18n()
@@ -715,6 +732,30 @@ async function handleOverlayCardClick(overlay: OverlayForModeration, shouldFitBo
   }
 }
 
+// AI : Show project user stats
+function handleShowProjectUserStats(project: ProjectForModeration) {
+  if (!project.ownerId) return
+  emit('show-user-stats', {
+    userId: project.ownerId,
+    username: project.ownerUsername,
+    approvedCount: project.ownerApprovedCount,
+    rejectedCount: project.ownerRejectedCount,
+    reportCount: project.ownerReportCount ?? 0
+  })
+}
+
+// AI : Show overlay user stats
+function handleShowOverlayUserStats(overlay: OverlayForModeration) {
+  if (!overlay.authorId) return
+  emit('show-user-stats', {
+    userId: overlay.authorId,
+    username: overlay.authorUsername,
+    approvedCount: overlay.authorApprovedCount,
+    rejectedCount: overlay.authorRejectedCount,
+    reportCount: overlay.authorReportCount ?? 0
+  })
+}
+
 </script>
 
 <style scoped>
@@ -991,6 +1032,40 @@ async function handleOverlayCardClick(overlay: OverlayForModeration, shouldFitBo
 
 .metadata-item span {
   line-height: 1.4;
+}
+
+/* AI : User stats "more" link styling */
+.user-more-link {
+  text-decoration: underline;
+  color: var(--p-primary-600);
+  cursor: pointer;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.user-more-link:hover {
+  color: var(--p-primary-700);
+  text-decoration-style: solid;
+}
+
+.user-warning-icon {
+  color: var(--p-orange-600);
+  background: var(--p-orange-100);
+  font-size: 0.75rem;
+  font-weight: 900;
+  margin-left: 0.25rem;
+  padding: 0.125rem;
+  border-radius: 3px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 /* AI : Overlay card wrapper */

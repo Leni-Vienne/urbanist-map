@@ -171,8 +171,10 @@ export type OverlayForList = Pick<OverlayObject, 'id' | 'caption' | 'filename'> 
 export type OverlayForModeration = Pick<OverlayObject, 'id' | 'filename' | 'status' | 'version' | 'projectId' | 'updatedAt' | 'replacesOverlayId'> & {
   name: string; // AI : Display name
   authorId: string | null; // AI : For spam prevention reporting
+  authorUsername?: string | null; // AI : Display friendly username in moderation UI
   authorApprovedCount?: number | null; // AI : User stats for spam detection (optional, only in moderation)
   authorRejectedCount?: number | null;
+  authorReportCount?: number; // AI : Number of reports for this user
   cityId: string | null;
   cityName: string | null;
   countryCode: string | null;
@@ -181,8 +183,10 @@ export type OverlayForModeration = Pick<OverlayObject, 'id' | 'filename' | 'stat
 
 export type ProjectForModeration = Pick<Project, 'id' | 'name' | 'description' | 'status' | 'version' | 'createdAt' | 'updatedAt' | 'startDate' | 'endDate' | 'proposalDate' | 'sourceUrl' | 'isDevelopment' | 'lat' | 'lng' | 'cityId'> & {
   ownerId?: string | null; // AI : For spam prevention reporting (optional, only in moderation)
+  ownerUsername?: string | null; // AI : Display friendly username in moderation UI
   ownerApprovedCount?: number | null; // AI : User stats for spam detection (optional, only in moderation)
   ownerRejectedCount?: number | null;
+  ownerReportCount?: number; // AI : Number of reports for this user
   cityName: string | null;
   countryCode: string | null;
   countryName: string | null;
