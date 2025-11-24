@@ -129,13 +129,6 @@
         <i class="pi pi-lock"></i>
       </button>
       <button
-        class="action-btn"
-        @click.stop="handleViewOverlayPosition(overlay, true)"
-        v-tooltip.top="overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id) ? $t('overlay.viewPositionRequired') : $t('overlay.viewPosition')"
-      >
-        <i class="pi pi-search"></i>
-      </button>
-      <button
         v-if="overlay.authorId && overlay.status === 'pending'"
         class="action-btn report-btn"
         :class="{ 'warning-stats': hasHighRejectionRate(overlay.authorApprovedCount, overlay.authorRejectedCount) }"
@@ -148,24 +141,26 @@
     </template>
 
     <template #change-actions="{ change }">
-      <button
-        class="action-btn approve-btn"
-        :class="{ 'disabled-btn': isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) }"
-        :disabled="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id)"
-        @click.stop="handleApproveChange(change.id)"
-        v-tooltip.top="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) ? $t('overlay.viewSuggestedPosition') : $t('moderation.approveChange')"
-      >
-        <i class="pi pi-check"></i>
-      </button>
-      <button
-        class="action-btn reject-btn"
-        :class="{ 'disabled-btn': isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) }"
-        :disabled="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id)"
-        @click.stop="handleRejectChange(change.id)"
-        v-tooltip.top="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) ? $t('overlay.viewSuggestedPosition') : $t('moderation.rejectChange')"
-      >
-        <i class="pi pi-times"></i>
-      </button>
+      <div class="change-action-buttons">
+        <button
+          class="action-btn approve-btn"
+          :class="{ 'disabled-btn': isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) }"
+          :disabled="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id)"
+          @click.stop="handleApproveChange(change.id)"
+          v-tooltip.top="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) ? $t('overlay.viewSuggestedPosition') : $t('moderation.approveChange')"
+        >
+          <i class="pi pi-check"></i>
+        </button>
+        <button
+          class="action-btn reject-btn"
+          :class="{ 'disabled-btn': isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) }"
+          :disabled="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id)"
+          @click.stop="handleRejectChange(change.id)"
+          v-tooltip.top="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) ? $t('overlay.viewSuggestedPosition') : $t('moderation.rejectChange')"
+        >
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
     </template>
 
     </ProjectAccordionPanel>
@@ -662,6 +657,14 @@ async function handleRejectChange(changeId: string) {
 /* AI : Project action buttons container */
 .project-action-buttons {
   display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* AI : Change request action buttons - stacked vertically */
+.change-action-buttons {
+  display: flex;
+  flex-direction: column;
   gap: 0.5rem;
   flex-shrink: 0;
 }

@@ -53,15 +53,8 @@
             </div>
           </div>
 
-          <!-- AI : Zoom button -->
-          <button
-            class="zoom-button"
-            @click.stop="handleContributionClick(contribution)"
-            :title="t('overlay.zoomTo') + ' ' + contribution.name"
-          >
-            <i class="pi pi-search"></i>
-            <span class="sr-only">{{ t('overlay.zoomTo') }} {{ contribution.name }}</span>
-          </button>
+          <!-- AI : Chevron indicator for clickability -->
+          <i class="pi pi-chevron-right tap-indicator"></i>
         </div>
       </div>
 
@@ -272,43 +265,22 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-/* AI : Zoom button styling */
-.zoom-button {
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--p-surface-200);
-  background-color: var(--p-surface-50);
-  border-radius: 0.375rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--p-surface-500);
-  cursor: pointer;
-  transition: all 0.2s ease;
+/* AI : Chevron tap indicator - subtle hint that card is clickable */
+.tap-indicator {
+  color: var(--p-surface-400);
+  font-size: 0.875rem;
   flex-shrink: 0;
+  transition: color 0.15s ease;
 }
 
-.zoom-button:hover {
-  background-color: var(--p-surface-100);
+.contribution-card:hover .tap-indicator {
   color: var(--p-surface-600);
-  border-color: var(--p-surface-300);
 }
 
-.zoom-button i {
-  font-size: 0.75rem;
-}
-
-/* AI : Screen reader only text */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+/* AI : Mobile active state for touch feedback */
+.contribution-card:active {
+  background-color: var(--p-surface-100);
+  transform: scale(0.98);
 }
 
 
