@@ -76,7 +76,6 @@
                     </AccordionHeader>
                     <AccordionContent>
                       <Card
-                        class="project-details-card"
                         :class="{ 'marker-project-card': project.isDevelopment }"
                         @click="handleCardClick(project)"
                       >
@@ -138,7 +137,7 @@
                               </div>
                             </div>
 
-                            <!-- AI : Actions column - either slot actions or zoom button -->
+                            <!-- AI : Actions column - either slot actions or chevron indicator -->
                             <div class="project-actions-column">
                               <!-- AI : Project actions slot for moderation panel -->
                               <slot
@@ -147,15 +146,11 @@
                                 :project="project"
                               ></slot>
 
-                              <!-- AI : Zoom button for development projects (always shown for dev projects) -->
-                              <button
-                                v-if="project.isDevelopment"
-                                class="action-btn"
-                                @click.stop="handleDevelopmentProjectClick(project)"
-                                v-tooltip.top="$t('overlay.zoomTo') + ' ' + project.name"
-                              >
-                                <i class="pi pi-search"></i>
-                              </button>
+                              <!-- AI : Chevron indicator for development projects when no action buttons -->
+                              <i
+                                v-else-if="project.isDevelopment"
+                                class="pi pi-chevron-right tap-indicator"
+                              ></i>
                             </div>
                           </div>
 
@@ -264,6 +259,12 @@
                                 :project="project"
                               ></slot>
                             </div>
+
+                            <!-- AI : Chevron indicator when no action buttons -->
+                            <i
+                              v-if="!$slots['overlay-actions']"
+                              class="pi pi-chevron-right tap-indicator"
+                            ></i>
                           </div>
 
                           <ChangeRequestSection
@@ -944,6 +945,12 @@ async function handleOverlayCardClick(overlay: OverlayForModeration, shouldFitBo
   background-color: var(--p-surface-50) !important;
 }
 
+/* AI : Mobile active state for touch feedback */
+.marker-project-card:active {
+  background-color: var(--p-surface-100) !important;
+  transform: scale(0.98);
+}
+
 /* AI : Improved project information styling */
 .project-info-section {
   flex: 1;
@@ -1006,15 +1013,39 @@ async function handleOverlayCardClick(overlay: OverlayForModeration, shouldFitBo
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 1rem;
+  padding: 0.5rem 0.5rem 0.5rem 1rem;
   background: transparent;
   cursor: pointer;
   transition: all 0.15s ease;
   border-radius: 0;
 }
 
+/* reduces the width of primevue accordion padding */
+:deep(.p-accordioncontent-content) {
+  padding: 0 0.5rem 0.5rem 0.5rem!important
+}
+
 .overlay-card:hover {
   background-color: var(--p-surface-50);
+}
+
+/* AI : Mobile active state for touch feedback */
+.overlay-card:active {
+  background-color: var(--p-surface-100);
+  transform: scale(0.98);
+}
+
+/* AI : Chevron tap indicator - subtle hint that card is clickable */
+.tap-indicator {
+  color: var(--p-surface-400);
+  font-size: 0.875rem;
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+}
+
+.overlay-card:hover .tap-indicator,
+.marker-project-card:hover .tap-indicator {
+  color: var(--p-surface-600);
 }
 
 /* AI : Overlay card in wrapper with changes */
