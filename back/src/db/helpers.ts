@@ -188,6 +188,7 @@ export function buildOverlayModerationQuery(db: PostgresJsDatabase<typeof schema
       version: overlays.version,
       projectId: overlays.projectId,
       authorId: overlays.authorId, // AI : For spam prevention filtering
+      authorUsername: users.username, // AI : Display friendly username in moderation UI
       authorApprovedCount: users.approvedCount, // AI : User stats for spam detection
       authorRejectedCount: users.rejectedCount,
       replacesOverlayId: overlays.replacesOverlayId,
@@ -227,6 +228,7 @@ export function buildProjectModerationQuery(db: PostgresJsDatabase<typeof schema
       lng: projects.lng,
       cityId: projects.cityId,
       ownerId: projects.ownerId, // AI : For spam prevention filtering
+      ownerUsername: users.username, // AI : Display friendly username in moderation UI
       ownerApprovedCount: users.approvedCount, // AI : User stats for spam detection
       ownerRejectedCount: users.rejectedCount,
       cityName: cities.name,

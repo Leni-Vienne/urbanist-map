@@ -525,6 +525,8 @@
   "moderation": {
     "title": "Modération",
     "description": "Examiner les soumissions en attente",
+    "unknownUser": "Utilisateur inconnu",
+    "more": "plus",
     "projectApproved": "Projet approuvé",
     "projectApprovedDetail": "Le projet a été approuvé avec succès",
     "projectUpdated": "Projet mis à jour",
@@ -618,10 +620,17 @@
       "viewResults": "Voir les résultats"
     },
     "userStats": {
-      "approved": "{count} approuvé(s)",
-      "rejected": "{count} rejeté(s)",
-      "ratio": "{approved} approuvé(s) / {rejected} rejeté(s)",
-      "noStats": "Aucun historique de modération"
+      "title": "Statistiques de l'utilisateur",
+      "submitterStats": "Statistiques du contributeur",
+      "submittedBy": "Contributeur",
+      "username": "Nom d'utilisateur",
+      "approved": "{count} approuvés",
+      "rejected": "{count} rejetés",
+      "reports": "Signalements",
+      "ratio": "{approved} approuvés / {rejected} rejetés",
+      "noStats": "Aucun historique de modération",
+      "reportCount": "{count} signalement(s)",
+      "highRejectionRate": "Attention : Taux de rejet élevé"
     },
     "reportUser": {
       "report": "Signaler l'utilisateur",

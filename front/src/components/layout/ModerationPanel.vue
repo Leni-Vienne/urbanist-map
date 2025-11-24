@@ -16,6 +16,17 @@
       @reported="handleUserReported"
     />
 
+    <!-- AI : User Stats Dialog -->
+    <UserStatsDialog
+      v-model:visible="showUserStatsDialog"
+      :user-id="userStatsDialogData.userId"
+      :username="userStatsDialogData.username"
+      :approved-count="userStatsDialogData.approvedCount"
+      :rejected-count="userStatsDialogData.rejectedCount"
+      :report-count="userStatsDialogData.reportCount"
+      @report="openReportDialog"
+    />
+
     <!-- AI : Country Selector for Moderation -->
     <div v-if="showCountrySelector" class="country-selector-container">
       <label for="country-select" class="country-selector-label">
@@ -52,6 +63,8 @@
       panel-class="moderation-panel"
       empty-message="All projects reviewed!"
       empty-sub-message="No pending projects to moderate."
+      :show-user-stats-link="true"
+      @show-user-stats="handleShowUserStats"
       :on-overlay-click="handleViewOverlayPosition"
     >
     <template #header-actions>
@@ -91,7 +104,7 @@
           class="action-btn report-btn"
           :class="{ 'warning-stats': hasHighRejectionRate(project.ownerApprovedCount, project.ownerRejectedCount) }"
           @click="openReportDialog(project.ownerId)"
-          v-tooltip.top="getUserStatsTooltip(project.ownerApprovedCount, project.ownerRejectedCount)"
+          v-tooltip.top="$t('moderation.reportUser.report')"
         >
           <i class="pi pi-flag"></i>
           <span v-if="hasHighRejectionRate(project.ownerApprovedCount, project.ownerRejectedCount)" class="warning-dot"></span>
@@ -133,7 +146,7 @@
         class="action-btn report-btn"
         :class="{ 'warning-stats': hasHighRejectionRate(overlay.authorApprovedCount, overlay.authorRejectedCount) }"
         @click.stop="openReportDialog(overlay.authorId)"
-        v-tooltip.top="getUserStatsTooltip(overlay.authorApprovedCount, overlay.authorRejectedCount)"
+        v-tooltip.top="$t('moderation.reportUser.report')"
       >
         <i class="pi pi-flag"></i>
         <span v-if="hasHighRejectionRate(overlay.authorApprovedCount, overlay.authorRejectedCount)" class="warning-dot"></span>
@@ -181,6 +194,7 @@ import { trpc } from '@client'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import ReplacementConflictsDialog from '@components/moderation/ReplacementConflictsDialog.vue'
 import ReportUserDialog from '@components/moderation/ReportUserDialog.vue'
+import UserStatsDialog from '@components/moderation/UserStatsDialog.vue'
 import type { ReplacementConflicts } from '@components/moderation/ReplacementConflictsDialog.vue'
 
 // AI : Use i18n for translations
@@ -306,6 +320,16 @@ const isProcessingConflicts = ref(false)
 const showReportDialog = ref(false)
 const userToReport = ref<string | null>(null)
 
+// AI : Dialog state for user stats
+const showUserStatsDialog = ref(false)
+const userStatsDialogData = ref({
+  userId: null as string | null,
+  username: null as string | null,
+  approvedCount: 0,
+  rejectedCount: 0,
+  reportCount: 0
+})
+
 // AI : Check if a change request is for a geometry field (corners or centroid)
 function isGeometryChange(change: any): boolean {
   return change.fieldName === 'corners' || change.fieldName === 'centroid'
@@ -321,13 +345,23 @@ function hasHighRejectionRate(approved: number | null | undefined, rejected: num
 }
 
 // AI : Get tooltip text showing user's moderation stats
-function getUserStatsTooltip(approved: number | null | undefined, rejected: number | null | undefined): string {
+function getUserStatsTooltip(approved: number | null | undefined, rejected: number | null | undefined, reportCount?: number): string {
   const approvedCount = approved ?? 0
   const rejectedCount = rejected ?? 0
+  const reports = reportCount ?? 0
+
+  let statsText = ''
   if (approvedCount === 0 && rejectedCount === 0) {
-    return `${t('moderation.reportUser.report')} - ${t('moderation.userStats.noStats')}`
+    statsText = t('moderation.userStats.noStats')
+  } else {
+    statsText = t('moderation.userStats.ratio', { approved: approvedCount, rejected: rejectedCount })
   }
-  return `${t('moderation.reportUser.report')} (${t('moderation.userStats.ratio', { approved: approvedCount, rejected: rejectedCount })})`
+
+  if (reports > 0) {
+    return `${statsText} - ${t('moderation.userStats.reportCount', { count: reports })}`
+  }
+
+  return statsText
 }
 
 // AI : Check if a geometry change request's suggested position has been viewed
@@ -512,6 +546,18 @@ function openReportDialog(userId: string | null) {
   showReportDialog.value = true
 }
 
+// AI : Open user stats dialog
+function handleShowUserStats(data: { userId: string; username?: string | null; approvedCount?: number | null; rejectedCount?: number | null; reportCount?: number }) {
+  userStatsDialogData.value = {
+    userId: data.userId,
+    username: data.username ?? null,
+    approvedCount: data.approvedCount ?? 0,
+    rejectedCount: data.rejectedCount ?? 0,
+    reportCount: data.reportCount ?? 0
+  }
+  showUserStatsDialog.value = true
+}
+
 // AI : Handle when a user is reported - reset loaded flag and refresh pending submissions
 async function handleUserReported() {
   moderationStore.resetModerationLoaded()
@@ -654,11 +700,21 @@ async function handleRejectChange(changeId: string) {
   font-weight: 500;
 }
 
-/* AI : Project action buttons container */
+/* AI : Project action buttons container with inline user badge */
 .project-action-buttons {
   display: flex;
   gap: 0.5rem;
   flex-shrink: 0;
+  align-items: center;
+}
+
+/* AI : Overlay action buttons container with inline user badge */
+.overlay-action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  align-items: flex-end;
 }
 
 /* AI : Change request action buttons - stacked vertically */

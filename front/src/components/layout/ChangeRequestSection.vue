@@ -28,7 +28,12 @@
             <div class="change-field">
               <div class="field-header">
                 <strong>{{ formatFieldName(group.change.fieldName) }}:</strong>
-                <span v-if="group.change.requestedBy" class="requested-by">
+                <span v-if="group.change.requestedBy && showUserStatsLink" class="requested-by">
+                  {{ $t('moderation.by') }}
+                  <i v-if="getReportCount(group.change) > 0" class="pi pi-exclamation-triangle user-warning-icon"></i>
+                  <span class="user-more-link" @click.stop="handleShowUserStats(group.change)">{{ $t('moderation.more') }}</span>
+                </span>
+                <span v-else-if="group.change.requestedBy" class="requested-by">
                   {{ $t('moderation.by') }} {{ getUserId(group.change.requestedBy) }}
                 </span>
               </div>
@@ -60,7 +65,12 @@
             <div class="change-content">
               <div class="change-field">
                 <div class="field-header">
-                  <span v-if="change.requestedBy" class="requested-by">
+                  <span v-if="change.requestedBy && showUserStatsLink" class="requested-by">
+                    {{ $t('moderation.suggestedBy') }}
+                    <i v-if="getReportCount(change) > 0" class="pi pi-exclamation-triangle user-warning-icon"></i>
+                    <span class="user-more-link" @click.stop="handleShowUserStats(change)">{{ $t('moderation.more') }}</span>
+                  </span>
+                  <span v-else-if="change.requestedBy" class="requested-by">
                     {{ $t('moderation.suggestedBy') }} {{ getUserId(change.requestedBy) }}
                   </span>
                 </div>
@@ -102,6 +112,7 @@ interface Props {
   showHeader?: boolean;
   containerClass?: string;
   onNavigateToOverlay?: (overlayId: string) => Promise<void>;
+  showUserStatsLink?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -109,8 +120,13 @@ const props = withDefaults(defineProps<Props>(), {
   isOverlayChanges: false,
   entityName: '',
   showHeader: true,
-  containerClass: ''
+  containerClass: '',
+  showUserStatsLink: false
 });
+
+const emit = defineEmits<{
+  'show-user-stats': [data: { userId: string; username?: string | null; approvedCount?: number | null; rejectedCount?: number | null; reportCount?: number }]
+}>();
 
 const { t } = useI18n();
 const toast = useToast();
@@ -183,6 +199,23 @@ const groupedChanges = computed<ChangeGroup[]>(() => {
 function getUserId(userId: string | null): string {
   if (!userId) return t('common.unknown');
   return userId.slice(0, 8) + '...';
+}
+
+// AI : Get report count from change request
+function getReportCount(change: PendingChangeRequest): number {
+  return (change as any).requestedByReportCount ?? 0;
+}
+
+// AI : Show user stats dialog
+function handleShowUserStats(change: PendingChangeRequest) {
+  if (!change.requestedBy) return;
+  emit('show-user-stats', {
+    userId: change.requestedBy,
+    username: (change as any).requestedByUsername,
+    approvedCount: 0, // Not available in change requests
+    rejectedCount: 0, // Not available in change requests
+    reportCount: getReportCount(change)
+  });
 }
 
 // AI : Format field names for display using i18n
@@ -343,6 +376,40 @@ async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', chan
   font-size: 0.75rem;
   color: var(--p-surface-500);
   font-weight: 400;
+}
+
+/* AI : User stats "more" link styling */
+.user-more-link {
+  text-decoration: underline;
+  color: var(--p-primary-600);
+  cursor: pointer;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.user-more-link:hover {
+  color: var(--p-primary-700);
+  text-decoration-style: solid;
+}
+
+.user-warning-icon {
+  color: var(--p-orange-600);
+  background: var(--p-orange-100);
+  font-size: 0.75rem;
+  font-weight: 900;
+  margin-left: 0.25rem;
+  padding: 0.125rem;
+  border-radius: 3px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 .change-content {

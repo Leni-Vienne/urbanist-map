@@ -452,12 +452,14 @@ export const moderationRouter = router({
               changeReason: changeRequests.changeReason,
               status: changeRequests.status,
               requestedBy: changeRequests.requestedBy,
+              requestedByUsername: users.username, // AI : Display friendly username in moderation UI
               createdAt: changeRequests.createdAt,
             })
             .from(changeRequests)
             .leftJoin(overlays, eq(changeRequests.entityId, overlays.id))
             .leftJoin(projects, eq(overlays.projectId, projects.id))
             .leftJoin(cities, eq(projects.cityId, cities.id))
+            .leftJoin(users, eq(changeRequests.requestedBy, users.id))
             .where(and(
               eq(changeRequests.entityType, 'overlay'),
               eq(changeRequests.status, 'pending'),
@@ -475,11 +477,13 @@ export const moderationRouter = router({
               changeReason: changeRequests.changeReason,
               status: changeRequests.status,
               requestedBy: changeRequests.requestedBy,
+              requestedByUsername: users.username, // AI : Display friendly username in moderation UI
               createdAt: changeRequests.createdAt,
             })
             .from(changeRequests)
             .leftJoin(projects, eq(changeRequests.entityId, projects.id))
             .leftJoin(cities, eq(projects.cityId, cities.id))
+            .leftJoin(users, eq(changeRequests.requestedBy, users.id))
             .where(and(
               eq(changeRequests.entityType, 'project'),
               eq(changeRequests.status, 'pending'),
@@ -514,18 +518,60 @@ export const moderationRouter = router({
             change => !change.requestedBy || !hiddenUserIds.has(change.requestedBy)
           );
 
+          // AI : Collect all user IDs to fetch report counts
+          const userIds = new Set<string>();
+          for (const project of filteredProjects) {
+            if (project.ownerId) userIds.add(project.ownerId);
+          }
+          for (const overlay of filteredOverlays) {
+            if (overlay.authorId) userIds.add(overlay.authorId);
+          }
+          for (const change of filteredChangeRequests) {
+            if (change.requestedBy) userIds.add(change.requestedBy);
+          }
+
+          // AI : Fetch report counts for all users
+          const reportCounts = await db
+            .select({
+              reportedUserId: userReports.reportedUserId,
+              count: sql<number>`COUNT(*)`,
+            })
+            .from(userReports)
+            .where(inArray(userReports.reportedUserId, Array.from(userIds)))
+            .groupBy(userReports.reportedUserId);
+
+          // AI : Build map of user ID to report count
+          const reportCountMap = new Map<string, number>();
+          for (const row of reportCounts) {
+            reportCountMap.set(row.reportedUserId, Number(row.count));
+          }
+
           const projectsWithOverlays = filteredProjects.map(project => ({
             ...project,
+            ownerReportCount: project.ownerId ? (reportCountMap.get(project.ownerId) ?? 0) : 0,
             overlays: filteredOverlays.filter(overlay => overlay.projectId === project.id),
           }));
+
+          const overlaysWithReports = filteredOverlays
+            .filter(overlay => overlay.status === 'pending')
+            .map(overlay => ({
+              ...overlay,
+              authorReportCount: overlay.authorId ? (reportCountMap.get(overlay.authorId) ?? 0) : 0,
+            }));
 
           // AI : Enrich change requests with city and country names
           const enrichedChangeRequests = await enrichChangeRequestsWithNames(filteredChangeRequests);
 
+          // AI : Add report counts to change requests
+          const changeRequestsWithReports = enrichedChangeRequests.map(change => ({
+            ...change,
+            requestedByReportCount: change.requestedBy ? (reportCountMap.get(change.requestedBy) ?? 0) : 0,
+          }));
+
           return {
             projects: projectsWithOverlays,
-            overlays: filteredOverlays.filter(overlay => overlay.status === 'pending'),
-            changeRequests: enrichedChangeRequests,
+            overlays: overlaysWithReports,
+            changeRequests: changeRequestsWithReports,
             pagination: paginationResponse.pagination
           };
         } catch (error) {
