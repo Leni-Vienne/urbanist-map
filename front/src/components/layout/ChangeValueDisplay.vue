@@ -58,9 +58,18 @@
     <em>{{ $t('moderation.reason') }}: {{ change.changeReason }}</em>
   </div>
 
-  <!-- AI : Change date -->
+  <!-- AI : Change date and contributor -->
   <div class="change-date">
-    <em>{{ $t('moderation.requested') }}: {{ formatDateTime(change.createdAt) }}</em>
+    <em>
+      <ContributorInfo
+        :date="change.createdAt"
+        :contributor-id="change.requestedBy"
+        :contributor-username="(change as any).requestedByUsername"
+        :report-count="(change as any).requestedByReportCount ?? 0"
+        :clickable="showUserStatsLink"
+        @click-contributor="handleClickContributor"
+      />
+    </em>
   </div>
 </template>
 
@@ -68,20 +77,28 @@
 import { useI18n } from 'vue-i18n';
 import type { PendingChangeRequest } from '../../types/api';
 import type { ProjectForModeration } from '@types';
-import { formatDateTime } from '@utils/dateFormat';
 import ClickableLocation from '@components/common/ClickableLocation.vue';
+import ContributorInfo from '@components/common/ContributorInfo.vue';
 
 interface Props {
   change: PendingChangeRequest;
   projects: ProjectForModeration[];
   isPreviewActive: (changeId: string, type: 'old' | 'new') => boolean;
+  showUserStatsLink?: boolean;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  showUserStatsLink: false
+});
 
-defineEmits<{
+const emit = defineEmits<{
   'preview-geometry': [geometryValue: unknown, type: 'old' | 'new', changeId: string];
+  'click-contributor': [data: { userId: string; username: string | null; reportCount: number }];
 }>();
+
+function handleClickContributor(data: { userId: string; username: string | null; reportCount: number }) {
+  emit('click-contributor', data);
+}
 
 const { t } = useI18n();
 

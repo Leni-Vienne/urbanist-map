@@ -2,7 +2,7 @@
   <Dialog
     v-model:visible="isVisible"
     modal
-    :header="$t('moderation.userStats.submitterStats')"
+    :header="$t('moderation.userStats.contributorStats')"
     :style="{ width: '450px' }"
     @update:visible="handleClose"
   >

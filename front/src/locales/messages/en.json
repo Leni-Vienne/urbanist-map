@@ -23,6 +23,21 @@
     "new": "New",
     "unknown": "Unknown"
   },
+  "relativeTime": {
+    "justNow": "just now",
+    "minuteAgo": "{count} minute ago",
+    "minutesAgo": "{count} minutes ago",
+    "hourAgo": "{count} hour ago",
+    "hoursAgo": "{count} hours ago",
+    "dayAgo": "{count} day ago",
+    "daysAgo": "{count} days ago",
+    "weekAgo": "{count} week ago",
+    "weeksAgo": "{count} weeks ago",
+    "monthAgo": "{count} month ago",
+    "monthsAgo": "{count} months ago",
+    "yearAgo": "{count} year ago",
+    "yearsAgo": "{count} years ago"
+  },
   "fields": {
     "name": "Name",
     "description": "Description",
@@ -61,7 +76,7 @@
     "location": "Location",
     "created": "Created",
     "updated": "Updated",
-    "updatedAgo": "Updated {time}",
+    "updatedAgo": "{time}",
     "noProjects": "No projects found",
     "createFirstProject": "Create your first construction project!",
     "noLocation": "No Location",
@@ -525,6 +540,7 @@
   "moderation": {
     "title": "Moderation",
     "description": "Review pending submissions",
+    "by": "by",
     "projectApproved": "Project Approved",
     "projectApprovedDetail": "The project has been approved successfully",
     "projectUpdated": "Project Updated",
@@ -618,10 +634,17 @@
       "viewResults": "View Results"
     },
     "userStats": {
+      "title": "User Statistics",
+      "contributorStats": "Contributor Statistics",
+      "submittedBy": "Contributor",
+      "username": "Username",
       "approved": "{count} approved",
       "rejected": "{count} rejected",
+      "reports": "Reports",
       "ratio": "{approved} approved / {rejected} rejected",
-      "noStats": "No moderation history"
+      "noStats": "No moderation history",
+      "reportCount": "{count} report(s)",
+      "highRejectionRate": "Warning: High rejection rate"
     },
     "reportUser": {
       "report": "Report User",
