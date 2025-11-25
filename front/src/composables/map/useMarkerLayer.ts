@@ -3,7 +3,7 @@
 
 import L from 'leaflet';
 import type { MarkerColor } from '@types';
-import { createColorIcon, createDevelopmentIcon } from '@composables/map/useMarkers';
+import { createColorIcon, createBasicProjectIcon } from '@composables/map/useMarkers';
 
 // AI : Configuration for a marker layer
 export interface MarkerLayerConfig<T> {
@@ -78,7 +78,7 @@ export function createMarkerLayer<T extends { id?: string }>(
     // AI : Get marker color and create appropriate icon
     const markerColor = config.getColor(item);
     const markerIcon = iconType === 'development'
-      ? createDevelopmentIcon(markerColor)
+      ? createBasicProjectIcon(markerColor)
       : createColorIcon(markerColor);
 
     // AI : Create marker with default opacity

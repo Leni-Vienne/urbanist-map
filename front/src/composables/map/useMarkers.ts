@@ -94,7 +94,7 @@ function createMarkerSVG(color: MarkerColor): string {
   `;
 }
 
-// AI : Create development marker SVG with development icon instead of circle
+// AI : Create development marker SVG with basic project icon instead of circle
 function createDevelopmentMarkerSVG(color: MarkerColor): string {
   const baseColor = markerColors[color];
   const lightColor = lightenColor(baseColor, 40);
@@ -160,8 +160,8 @@ export function createColorIcon(color: MarkerColor): L.DivIcon {
   });
 }
 
-// AI : Create development/project marker icon with development icon instead of circle
-export function createDevelopmentIcon(color: MarkerColor): L.DivIcon {
+// AI : Create development/project marker icon with basic project icon instead of circle
+export function createBasicProjectIcon(color: MarkerColor): L.DivIcon {
   const svgString = createDevelopmentMarkerSVG(color);
 
   return L.divIcon({

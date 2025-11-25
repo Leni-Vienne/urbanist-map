@@ -26,6 +26,7 @@ import { createOverlay as createOverlayInstance, createOverlayFromCDN, convertOv
 import { toRef } from 'vue';
 import { useProjects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import { trpc } from '@client';
+import { addDevelopmentMarkerForProject } from '@composables/map/useCityMarkers';
 import {
   getFromEditModeOverlayCache,
   saveToEditModeOverlayCache,
@@ -1679,9 +1680,18 @@ export function deleteOverlayButtonPressed(id: string) {
   if (overlayObject.projectId) {
     if (projects.value[overlayObject.projectId]) {
       const project = projects.value[overlayObject.projectId];
+
+      // AI : Check if this is the last overlay for the project (before removing it)
+      const isLastOverlay = project.overlayIds.length === 1 && project.overlayIds[0] === id;
+
       // Update local reference only - no backend calls during editing
       project.overlayIds = project.overlayIds.filter(overlayId => overlayId !== id);
       project.updatedAt = new Date();
+
+      // AI : Restore development marker when last overlay is deleted
+      if (isLastOverlay) {
+        addDevelopmentMarkerForProject(project);
+      }
     }
   }
   removeOverlay(id);
@@ -1936,9 +1946,9 @@ export const replaceOverlayTool = L.Toolbar2.Action.extend({
     // AI : Set replacement overlay ID in overlayStore
     overlayStore.requestOverlayReplacement(overlayStore.idSelectedOverlay);
 
-    // AI : Open the image upload dialog via uiStore
+    // AI : Open the marker placement bar via uiStore
     const uiStore = useUiStore();
-    uiStore.openImageUploadDialog();
+    uiStore.openMarkerPlacementBar();
   },
 });
 

@@ -4,7 +4,7 @@ import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { switchMode } from '@composables/overlay/useOverlayModes'
 import { storeToRefs } from 'pinia'
 
-// AI : Composable for handling add button click logic (opens ImageUploadDialog with marker placement mode)
+// AI : Composable for handling add button click logic (opens marker placement bar)
 export function useAddOverlay() {
   const authStore = useAuthStore()
   const uiStore = useUiStore()
@@ -26,8 +26,8 @@ export function useAddOverlay() {
         return { success: false, reason: 'edit_mode_error', error }
       }
     } else {
-      // AI : Open marker placement dialog directly (no image upload option)
-      uiStore.openImageUploadDialog()
+      // AI : Open marker placement bar
+      uiStore.openMarkerPlacementBar()
       return { success: true, action: 'marker_placement_opened' }
     }
   }

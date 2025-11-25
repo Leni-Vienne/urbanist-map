@@ -44,7 +44,7 @@
         <ProjectManager
             v-if="
                 uiStore.projectDialog.visible ||
-                uiStore.imageUploadDialogVisible ||
+                uiStore.markerPlacementBarVisible ||
                 uiStore.projectSelectorVisible ||
                 uiStore.projectEditForm.visible ||
                 uiStore.overlayEditForm.visible
