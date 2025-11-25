@@ -81,11 +81,9 @@
     </template>
 
     <template #project-actions="{ project }">
-      <!-- AI : Show moderation buttons for pending projects or orphan projects -->
+      <!-- AI : Show moderation buttons for pending projects -->
       <ModerationActionButtons
-        v-if="project.status === 'pending' || project.isOrphan"
-        :approve-disabled="project.isOrphan"
-        :disabled-tooltip="project.isOrphan ? $t('moderation.alreadyApproved') : ''"
+        v-if="project.status === 'pending'"
         :user-id="project.ownerId ?? null"
         @approve="handleApproveProject(project.id)"
         @reject="handleRejectProject(project.id)"

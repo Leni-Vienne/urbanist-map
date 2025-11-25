@@ -221,6 +221,7 @@ async function handleAddOverlayClick() {
         life: 4000,
       });
     }
+    // AI : 'dialog_opened' action doesn't need a toast - dialog is self-explanatory
   } else if (result.reason === 'edit_mode_error') {
     toast.add({
       severity: 'error',

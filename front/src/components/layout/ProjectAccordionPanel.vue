@@ -65,10 +65,10 @@
                     <AccordionHeader>
                       <div class="accordion-header-content">
                         <span class="project-name">{{ project.name }}</span>
-                        <!-- AI : Show merged "Approved (empty)" tag for orphan projects, otherwise normal status tag -->
+                        <!-- AI : Show normal status tag -->
                         <Tag
-                          :value="project.isOrphan ? $t('moderation.approvedButEmpty') : $t(`status.${project.status}`)"
-                          :severity="project.isOrphan ? 'danger' : getStatusSeverity(project.status)"
+                          :value="$t(`status.${project.status}`)"
+                          :severity="getStatusSeverity(project.status)"
                           class="project-status-tag"
                           rounded
                         />
@@ -76,7 +76,7 @@
                     </AccordionHeader>
                     <AccordionContent>
                       <Card
-                        :class="{ 'marker-project-card': project.isDevelopment }"
+                        :class="{ 'marker-project-card': (project.overlayCount === 0 || (project.overlays && project.overlays.length === 0)) }"
                         @click="handleCardClick(project)"
                       >
                         <template #content>
@@ -112,10 +112,7 @@
                                     :country-name="project.countryName"
                                   />
                                 </div>
-                                <div
-                                  v-if="!project.isDevelopment"
-                                  class="metadata-item"
-                                >
+                                <div class="metadata-item">
                                   <i class="pi pi-images"></i>
                                   <span>{{ project.overlayCount || (project.overlays ? project.overlays.length : 0) }}
                                     {{ $t('overlay.overlayImages') }}</span>
@@ -152,9 +149,9 @@
                                 :project="project"
                               ></slot>
 
-                              <!-- AI : Chevron indicator for development projects when no action buttons -->
+                              <!-- AI : Chevron indicator for projects with no overlays (development-style) when no action buttons -->
                               <i
-                                v-else-if="project.isDevelopment"
+                                v-else-if="(project.overlayCount === 0 || (project.overlays && project.overlays.length === 0))"
                                 class="pi pi-chevron-right tap-indicator"
                               ></i>
                             </div>
@@ -669,16 +666,17 @@ function shouldShowOverlays(project: ProjectForModeration): boolean {
   return expandedPanels.value.has(project.id)
 }
 
-// AI : Handle card click - navigate for development projects
+// AI : Handle card click - navigate for projects with no overlays (development-style)
 function handleCardClick(project: ProjectForModeration) {
-  // AI : For development projects, clicking the card also navigates (in addition to the button)
+  // AI : For projects with no overlays, clicking the card also navigates (in addition to the button)
   // AI : This provides a larger click area for better UX
-  if (project.isDevelopment) {
+  const hasNoOverlays = project.overlayCount === 0 || (project.overlays && project.overlays.length === 0)
+  if (hasNoOverlays) {
     handleDevelopmentProjectClick(project)
   }
 }
 
-// AI : Handle development project click - zoom to marker location and open popup
+// AI : Handle project click for projects without overlays - zoom to marker location and open popup
 async function handleDevelopmentProjectClick(project: ProjectForModeration) {
   try {
     if (!project.lat || !project.lng) {
@@ -716,7 +714,7 @@ async function handleDevelopmentProjectClick(project: ProjectForModeration) {
       project.id
     )
   } catch (error) {
-    console.error('Failed to navigate to development project:', error)
+    console.error('Failed to navigate to project:', error)
     toast.add({
       severity: 'error',
       summary: t('overlay.navigationFailed'),

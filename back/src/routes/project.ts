@@ -21,24 +21,14 @@ const publishProjectSchema = z.object({
   name: z.string().min(8).max(200),
   description: z.string().max(2000).optional(),
   cityId: z.uuid(),
-  isDevelopment: z.boolean().optional().default(false), // AI : true for development projects, false for overlay projects
-  lat: z.number().optional(), // AI : latitude for development projects
-  lng: z.number().optional(), // AI : longitude for development projects
+  lat: z.number(), // AI : latitude for project center coordinate (required for all projects)
+  lng: z.number(), // AI : longitude for project center coordinate (required for all projects)
   proposalDate: z.date().nullable().optional(),
   startDate: z.date().nullable().optional(),
   endDate: z.date().nullable().optional(),
   sourceUrl: z.url().optional(),
   latestUpdateOn: z.date().nullable().optional()
 }).superRefine((data, ctx) => {
-  // AI : Validate development projects have coordinates
-  if (data.isDevelopment && (!data.lat || !data.lng)) {
-    ctx.addIssue({
-      code: 'custom',
-      message: 'Development projects require lat and lng coordinates',
-      path: ['lat', 'lng']
-    });
-  }
-
   // AI : Validate proposal date is not in the future
   if (data.proposalDate && data.proposalDate > new Date()) {
     ctx.addIssue({
@@ -88,10 +78,8 @@ export const projectRouter = router({
           endDate: input.endDate ?? null,
           sourceUrl: input.sourceUrl,
           latestUpdateOn: input.latestUpdateOn ? new Date(input.latestUpdateOn) : null,
-          // AI : Set coordinates for development projects using PostGIS
-          coordinates: input.isDevelopment && input.lat && input.lng
-            ? sql`ST_SetSRID(ST_MakePoint(${input.lng}, ${input.lat}), 4326)`
-            : null,
+          // AI : Set center coordinate for all projects using PostGIS
+          centerCoordinate: sql`ST_SetSRID(ST_MakePoint(${input.lng}, ${input.lat}), 4326)`,
         };
 
         if (input.id) {
@@ -105,10 +93,9 @@ export const projectRouter = router({
                 name: data.name,
                 description: data.description,
                 cityId: data.cityId,
-                isDevelopment: data.isDevelopment,
                 lat: data.lat,
                 lng: data.lng,
-                coordinates: data.coordinates,
+                centerCoordinate: data.centerCoordinate,
                 proposalDate: data.proposalDate,
                 startDate: data.startDate,
                 endDate: data.endDate,
@@ -324,7 +311,6 @@ export const projectRouter = router({
               status: projects.status, // AI : Include status to distinguish pending/approved/rejected
               ownerId: projects.ownerId,
               cityId: projects.cityId,
-              isDevelopment: projects.isDevelopment,
               lat: projects.lat,
               lng: projects.lng,
               proposalDate: projects.proposalDate,
@@ -351,7 +337,6 @@ export const projectRouter = router({
               projects.status, // AI : Include status in groupBy
               projects.ownerId,
               projects.cityId,
-              projects.isDevelopment,
               projects.lat,
               projects.lng,
               projects.proposalDate,

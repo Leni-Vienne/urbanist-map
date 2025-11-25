@@ -54,6 +54,21 @@
         @click="emit('publish-project')"
       />
     </div>
+
+    <!-- Add Images Section - Show in edit mode for published projects -->
+    <div
+      v-if="!viewMode && isPublishedToBackend"
+      class="add-images-section"
+    >
+      <Button
+        :label="$t('project.addImages')"
+        icon="pi pi-images"
+        severity="secondary"
+        size="small"
+        class="w-full"
+        @click="emit('add-images')"
+      />
+    </div>
   </div>
 </template>
 
@@ -81,6 +96,7 @@ const emit = defineEmits<{
   'edit-project': [project: Project]
   'publish-project': []
   'close-popup': []
+  'add-images': []
 }>()
 
 const isPublishedToBackend = computed(() => {
@@ -137,5 +153,9 @@ const hasChanges = computed(() => {
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid var(--p-surface-200);
+}
+
+.add-images-section {
+  margin-top: 0.5rem;
 }
 </style>

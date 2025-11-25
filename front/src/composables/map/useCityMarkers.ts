@@ -324,7 +324,7 @@ export function cleanupProjectInfoTeleportTarget() {
 }
 
 /**
- * AI : Load development projects for a specific city and display them on map
+ * AI : Load projects without overlays (development-style markers) for a specific city and display them on map
  */
 export async function loadCityDevelopmentProjects(cityId: string | null): Promise<void> {
   if (!map.value) return;
@@ -337,34 +337,42 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
     const overlayStore = useOverlayStore();
 
     // AI : Check mode-aware cache first for non-null cityId
-    let backendDevelopmentProjects: RouterOutput['project']['getCityProjects'] = [];
+    let backendProjects: RouterOutput['project']['getCityProjects'] = [];
     if (cityId) {
       const cachedData = mapStore.getCityDevelopmentProjectsCache(cityId, overlayStore.mode);
       if (cachedData) {
-        backendDevelopmentProjects = cachedData;
+        backendProjects = cachedData;
       } else {
-        // AI : Get development projects for this city from backend
+        // AI : Get projects for this city from backend
         // AI : Pass current mode to backend to determine visibility
-        backendDevelopmentProjects = await trpc.project.getCityProjects.query({ cityId, mode: overlayStore.mode });
+        backendProjects = await trpc.project.getCityProjects.query({ cityId, mode: overlayStore.mode });
         // AI : Cache the result in mode-specific cache
-        mapStore.setCityDevelopmentProjectsCache(cityId, overlayStore.mode, backendDevelopmentProjects);
+        mapStore.setCityDevelopmentProjectsCache(cityId, overlayStore.mode, backendProjects);
       }
     }
 
-    const backendDevelopmentProjectsOnly = backendDevelopmentProjects.filter(project => project.isDevelopment);
+    // AI : Filter to only projects with no overlays (development-style markers)
+    const backendProjectsWithNoOverlays = backendProjects.filter(project => {
+      const overlayCount = project.overlayCount ?? 0
+      return overlayCount === 0
+    });
 
-    // AI : Get local development projects for this city (handle null cityId case)
+    // AI : Get local projects with no overlays for this city (handle null cityId case)
     const { projects: localProjects } = useProjects();
     const allLocalProjects = Object.values(localProjects.value);
 
-    const localDevelopmentProjects = allLocalProjects
-      .filter(project => project.isDevelopment && (project.cityId === cityId || (cityId === null && (project.cityId === null || project.cityId === undefined))));
+    const localProjectsWithNoOverlays = allLocalProjects
+      .filter(project => {
+        const overlayCount = project.overlayIds?.length ?? 0
+        const matchesCity = project.cityId === cityId || (cityId === null && (project.cityId === null || project.cityId === undefined))
+        return overlayCount === 0 && matchesCity
+      });
 
     // AI : Combine backend and local projects, avoiding duplicates
-    const allDevelopmentProjects = [
-      ...backendDevelopmentProjectsOnly,
-      ...localDevelopmentProjects.filter(local =>
-        !backendDevelopmentProjectsOnly.some(backend => backend.id === local.id)
+    const allProjectsWithNoOverlays = [
+      ...backendProjectsWithNoOverlays,
+      ...localProjectsWithNoOverlays.filter(local =>
+        !backendProjectsWithNoOverlays.some(backend => backend.id === local.id)
       )
     ];
 
@@ -378,7 +386,7 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
     // AI : Clear the marker map
     developmentMarkerMap.clear();
 
-    allDevelopmentProjects.forEach(project => {
+    allProjectsWithNoOverlays.forEach(project => {
       if (project.lat && project.lng) {
         // AI : Get marker color based on edit mode and status
         const projectData = 'overlayIds' in project ? project : createProject({
@@ -420,7 +428,7 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
           }
         });
 
-        // AI : Add click handler for development project - show info popup first
+        // AI : Add click handler for projects without overlays - show info popup first
         marker.on('click', (e) => {
           // AI : Stop all event propagation using Leaflet's method
           L.DomEvent.stopPropagation(e);

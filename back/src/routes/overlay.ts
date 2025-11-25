@@ -87,7 +87,7 @@ export const overlayRouter = router({
           .orderBy(sql`${overlays.updatedAt} DESC`)
           .limit(input.limit);
 
-        // AI : Fetch development projects with location info
+        // AI : Fetch projects without overlays (development projects) with location info
         const latestDevelopments = await db
           .select({
             id: projects.id,
@@ -105,10 +105,25 @@ export const overlayRouter = router({
           .from(projects)
           .innerJoin(cities, eq(projects.cityId, cities.id))
           .leftJoin(countries, eq(cities.countryCode, countries.code))
-          .where(and(
-            eq(projects.isDevelopment, true),
-            eq(projects.status, 'approved')
+          .leftJoin(overlays, and(
+            eq(overlays.projectId, projects.id),
+            eq(overlays.status, 'approved')
           ))
+          .where(eq(projects.status, 'approved'))
+          .groupBy(
+            projects.id,
+            projects.name,
+            projects.description,
+            projects.status,
+            projects.lat,
+            projects.lng,
+            projects.updatedAt,
+            cities.id,
+            cities.name,
+            countries.code,
+            countries.name
+          )
+          .having(sql`COUNT(${overlays.id}) = 0`)
           .orderBy(sql`${projects.updatedAt} DESC`)
           .limit(input.limit);
 

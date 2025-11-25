@@ -188,21 +188,35 @@ function getOverlayCountForProject(projectId: string): number {
   return 0;
 }
 
-// AI : Compute the project list based on the mode, excluding development projects
+// AI : Compute the project list based on the mode
+// AI : Projects with overlays are shown; projects without overlays (development-style) are excluded
 const projectList = computed(() => {
   if (props.useCityProjects) {
     // AI : Return grouped or flat list depending on view mode
     if (useGroupedView.value) {
       return cityProjectsByCity.value.map(group => ({
         ...group,
-        items: group.items.filter(project => !project.isDevelopment)
+        items: group.items.filter(project => {
+          // AI : Include projects that have overlays
+          // AI : Check overlayIds from Project type
+          const overlayCount = project.overlayIds?.length ?? 0
+          return overlayCount > 0
+        })
       })).filter(group => group.items.length > 0);
     } else {
-      return cityProjectsData.value.filter(project => !project.isDevelopment);
+      return cityProjectsData.value.filter(project => {
+        // AI : Include projects that have overlays
+        // AI : cityProjectsData has overlayCount added by useCityProjects composable
+        const overlayCount = project.overlayCount ?? 0
+        return overlayCount > 0
+      });
     }
   } else {
-    // AI : Use local projects from store, exclude development projects
-    return Object.values(projects.value).filter(project => !project.isDevelopment);
+    // AI : Use local projects from store, exclude projects with no overlays
+    return Object.values(projects.value).filter(project => {
+      const overlayCount = project.overlayIds?.length ?? 0
+      return overlayCount > 0
+    });
   }
 });
 

@@ -134,7 +134,10 @@
     "publishSuccess": "Projet publié",
     "publishSuccessDetail": "Le projet de bâtiment a été enregistré avec succès",
     "publishFailed": "Échec de la publication",
-    "publishFailedDetail": "Échec de l'enregistrement du projet de bâtiment"
+    "publishFailedDetail": "Échec de l'enregistrement du projet de bâtiment",
+    "addImages": "Ajouter des images",
+    "placementMode": "Mode de placement de marqueur",
+    "clickMapToPlace": "Cliquez sur la carte pour placer votre marqueur de projet"
   },
   "status": {
     "pending": "En attente",

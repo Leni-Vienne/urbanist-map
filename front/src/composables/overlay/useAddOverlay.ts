@@ -4,7 +4,7 @@ import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { switchMode } from '@composables/overlay/useOverlayModes'
 import { storeToRefs } from 'pinia'
 
-// AI : Composable for handling add overlay button click logic
+// AI : Composable for handling add button click logic (opens ImageUploadDialog with marker placement mode)
 export function useAddOverlay() {
   const authStore = useAuthStore()
   const uiStore = useUiStore()
@@ -26,6 +26,7 @@ export function useAddOverlay() {
         return { success: false, reason: 'edit_mode_error', error }
       }
     } else {
+      // AI : Open image upload dialog which will show project type selection
       uiStore.openImageUploadDialog()
       return { success: true, action: 'dialog_opened' }
     }
