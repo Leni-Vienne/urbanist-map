@@ -489,6 +489,13 @@ function handleAddImages() {
           // AI : Create overlay directly for this project
           addOverlay(reader.result as string, projectId);
 
+          // AI : Close the popup after adding overlay
+          if (showOverlayPopup.value) {
+            overlayStore.hideInfoPopup();
+          } else if (showProjectPopup.value) {
+            closeProjectInfoPopup();
+          }
+
           toast.add({
             severity: 'success',
             summary: t('overlay.overlayCreated'),

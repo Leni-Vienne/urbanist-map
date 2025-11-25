@@ -19,14 +19,14 @@ const NEARBY_SEARCH_RADIUS_METERS = 10 * 1000; // 10km
 const publishProjectSchema = z.object({
   id: z.uuid().optional(),
   name: z.string().min(8).max(200),
-  description: z.string().max(2000).optional(),
+  description: z.string().max(2000).or(z.literal('')).transform(val => val === '' ? undefined : val).optional(),
   cityId: z.uuid(),
   lat: z.number(), // AI : latitude for project center coordinate (required for all projects)
   lng: z.number(), // AI : longitude for project center coordinate (required for all projects)
   proposalDate: z.date().nullable().optional(),
   startDate: z.date().nullable().optional(),
   endDate: z.date().nullable().optional(),
-  sourceUrl: z.url().optional(),
+  sourceUrl: z.url().or(z.literal('')).transform(val => val === '' ? undefined : val).optional(),
   latestUpdateOn: z.date().nullable().optional()
 }).superRefine((data, ctx) => {
   // AI : Validate proposal date is not in the future

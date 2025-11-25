@@ -13,7 +13,7 @@ const submitChangeRequestSchema = z.object({
     fieldName: z.string(),
     oldValue: z.json().optional(),
     newValue: z.json(),
-    changeReason: z.string().optional(),
+    changeReason: z.string().or(z.literal('')).transform(val => val === '' ? undefined : val).optional(),
   })),
 });
 

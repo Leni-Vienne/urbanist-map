@@ -615,7 +615,6 @@
     "conflictsRejectedDetail": "All suggested changes have been rejected",
     "currentValue": "Current",
     "newValue": "New",
-    "by": "by",
     "approveOneToRejectOthers": "Approving one will reject the others",
     "replacementConflicts": {
       "title": "Replacement Conflicts Detected",
