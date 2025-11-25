@@ -81,58 +81,30 @@
     </template>
 
     <template #project-actions="{ project }">
-      <!-- AI : Show buttons for pending projects (both enabled) or orphan projects (approve disabled, reject enabled) -->
-      <div v-if="project.status === 'pending' || project.isOrphan" class="project-action-buttons">
-        <button
-          class="action-btn approve-btn"
-          :class="{ 'disabled-btn': project.isOrphan }"
-          :disabled="project.isOrphan"
-          @click="handleApproveProject(project.id)"
-          v-tooltip.top="project.isOrphan ? $t('moderation.alreadyApproved') : $t('moderation.approveChange')"
-        >
-          <i class="pi pi-check"></i>
-        </button>
-        <button
-          class="action-btn reject-btn"
-          @click="handleRejectProject(project.id)"
-          v-tooltip.top="$t('moderation.rejectChange')"
-        >
-          <i class="pi pi-times"></i>
-        </button>
-        <button
-          v-if="project.ownerId"
-          class="action-btn report-btn"
-          :class="{ 'warning-stats': hasHighRejectionRate(project.ownerApprovedCount, project.ownerRejectedCount) }"
-          @click="openReportDialog(project.ownerId)"
-          v-tooltip.top="$t('moderation.reportUser.report')"
-        >
-          <i class="pi pi-flag"></i>
-          <span v-if="hasHighRejectionRate(project.ownerApprovedCount, project.ownerRejectedCount)" class="warning-dot"></span>
-        </button>
-      </div>
+      <!-- AI : Show moderation buttons for pending projects or orphan projects -->
+      <ModerationActionButtons
+        v-if="project.status === 'pending' || project.isOrphan"
+        :approve-disabled="project.isOrphan"
+        :disabled-tooltip="project.isOrphan ? $t('moderation.alreadyApproved') : ''"
+        :user-id="project.ownerId ?? null"
+        @approve="handleApproveProject(project.id)"
+        @reject="handleRejectProject(project.id)"
+        @reject-and-report="handleRejectAndReportProject(project.id, project.ownerId ?? null)"
+      />
     </template>
 
     <template #overlay-actions="{ overlay, project }">
-      <button
+      <!-- AI : Show moderation buttons for pending overlays if project is approved -->
+      <ModerationActionButtons
         v-if="overlay.status === 'pending' && project.status === 'approved'"
-        class="action-btn approve-btn"
-        :class="{ 'disabled-btn': !!overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id) }"
         :disabled="!!overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id)"
-        @click.stop="handleApproveOverlay(overlay.id)"
-        v-tooltip.top="overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id) ? $t('overlay.viewPositionRequired') : $t('moderation.approveChange')"
-      >
-        <i class="pi pi-check"></i>
-      </button>
-      <button
-        v-if="overlay.status === 'pending' && project.status === 'approved'"
-        class="action-btn reject-btn"
-        :class="{ 'disabled-btn': !!overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id) }"
-        :disabled="!!overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id)"
-        @click.stop="handleRejectOverlay(overlay.id)"
-        v-tooltip.top="overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id) ? $t('overlay.viewPositionRequired') : $t('moderation.rejectChange')"
-      >
-        <i class="pi pi-times"></i>
-      </button>
+        :disabled-tooltip="overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id) ? $t('overlay.viewPositionRequired') : ''"
+        :user-id="overlay.authorId"
+        @approve="handleApproveOverlay(overlay.id)"
+        @reject="handleRejectOverlay(overlay.id)"
+        @reject-and-report="handleRejectAndReportOverlay(overlay.id, overlay.authorId)"
+      />
+      <!-- AI : Show locked button if project not approved yet -->
       <button
         v-if="overlay.status === 'pending' && project.status !== 'approved'"
         class="action-btn disabled-btn"
@@ -141,39 +113,18 @@
       >
         <i class="pi pi-lock"></i>
       </button>
-      <button
-        v-if="overlay.authorId && overlay.status === 'pending'"
-        class="action-btn report-btn"
-        :class="{ 'warning-stats': hasHighRejectionRate(overlay.authorApprovedCount, overlay.authorRejectedCount) }"
-        @click.stop="openReportDialog(overlay.authorId)"
-        v-tooltip.top="$t('moderation.reportUser.report')"
-      >
-        <i class="pi pi-flag"></i>
-        <span v-if="hasHighRejectionRate(overlay.authorApprovedCount, overlay.authorRejectedCount)" class="warning-dot"></span>
-      </button>
     </template>
 
     <template #change-actions="{ change }">
-      <div class="change-action-buttons">
-        <button
-          class="action-btn approve-btn"
-          :class="{ 'disabled-btn': isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) }"
-          :disabled="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id)"
-          @click.stop="handleApproveChange(change.id)"
-          v-tooltip.top="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) ? $t('overlay.viewSuggestedPosition') : $t('moderation.approveChange')"
-        >
-          <i class="pi pi-check"></i>
-        </button>
-        <button
-          class="action-btn reject-btn"
-          :class="{ 'disabled-btn': isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) }"
-          :disabled="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id)"
-          @click.stop="handleRejectChange(change.id)"
-          v-tooltip.top="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) ? $t('overlay.viewSuggestedPosition') : $t('moderation.rejectChange')"
-        >
-          <i class="pi pi-times"></i>
-        </button>
-      </div>
+      <!-- AI : Show moderation buttons for change requests -->
+      <ModerationActionButtons
+        :disabled="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id)"
+        :disabled-tooltip="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) ? $t('overlay.viewSuggestedPosition') : ''"
+        :user-id="change.requestedBy"
+        @approve="handleApproveChange(change.id)"
+        @reject="handleRejectChange(change.id)"
+        @reject-and-report="handleRejectAndReportChange(change.id, change.requestedBy)"
+      />
     </template>
 
     </ProjectAccordionPanel>
@@ -195,6 +146,7 @@ import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import ReplacementConflictsDialog from '@components/moderation/ReplacementConflictsDialog.vue'
 import ReportUserDialog from '@components/moderation/ReportUserDialog.vue'
 import UserStatsDialog from '@components/moderation/UserStatsDialog.vue'
+import ModerationActionButtons from '@components/moderation/ModerationActionButtons.vue'
 import type { ReplacementConflicts } from '@components/moderation/ReplacementConflictsDialog.vue'
 
 // AI : Use i18n for translations
@@ -320,6 +272,12 @@ const isProcessingConflicts = ref(false)
 const showReportDialog = ref(false)
 const userToReport = ref<string | null>(null)
 
+// AI : Pending rejection state (for reject+report flow)
+const pendingRejection = ref<{
+  type: 'project' | 'overlay' | 'change'
+  id: string
+} | null>(null)
+
 // AI : Dialog state for user stats
 const showUserStatsDialog = ref(false)
 const userStatsDialogData = ref({
@@ -333,35 +291,6 @@ const userStatsDialogData = ref({
 // AI : Check if a change request is for a geometry field (corners or centroid)
 function isGeometryChange(change: any): boolean {
   return change.fieldName === 'corners' || change.fieldName === 'centroid'
-}
-
-// AI : Check if user has high rejection rate (3+ rejections with <30% approval rate)
-function hasHighRejectionRate(approved: number | null | undefined, rejected: number | null | undefined): boolean {
-  const approvedCount = approved ?? 0
-  const rejectedCount = rejected ?? 0
-  const total = approvedCount + rejectedCount
-  if (total < 3) return false // AI : Not enough data
-  return rejectedCount >= 3 && (approvedCount / total) < 0.3
-}
-
-// AI : Get tooltip text showing user's moderation stats
-function getUserStatsTooltip(approved: number | null | undefined, rejected: number | null | undefined, reportCount?: number): string {
-  const approvedCount = approved ?? 0
-  const rejectedCount = rejected ?? 0
-  const reports = reportCount ?? 0
-
-  let statsText = ''
-  if (approvedCount === 0 && rejectedCount === 0) {
-    statsText = t('moderation.userStats.noStats')
-  } else {
-    statsText = t('moderation.userStats.ratio', { approved: approvedCount, rejected: rejectedCount })
-  }
-
-  if (reports > 0) {
-    return `${statsText} - ${t('moderation.userStats.reportCount', { count: reports })}`
-  }
-
-  return statsText
 }
 
 // AI : Check if a geometry change request's suggested position has been viewed
@@ -379,6 +308,13 @@ watch(
   },
   { deep: true }
 )
+
+// AI : Clear pending rejection if report dialog is closed without reporting
+watch(showReportDialog, (isOpen) => {
+  if (!isOpen && pendingRejection.value) {
+    pendingRejection.value = null
+  }
+})
 
 // AI : Handle overlay zoom and mark as viewed
 async function handleViewOverlayPosition(overlay: any, shouldFitBounds: boolean) {
@@ -431,10 +367,10 @@ async function handleApproveProject(id: string) {
   }
 }
 
-// AI : Handle project rejection with toast notifications  
+// AI : Handle project rejection with toast notifications
 async function handleRejectProject(id: string) {
   const result = await rejectProject(id)
-  
+
   if (result.success) {
     toast.add({
       severity: 'info',
@@ -453,6 +389,14 @@ async function handleRejectProject(id: string) {
       life: result.error === 'version_conflict' ? 5000 : 3000
     })
   }
+}
+
+// AI : Handle project rejection and report user (reject only after report confirmation)
+async function handleRejectAndReportProject(projectId: string, userId: string | null) {
+  if (!userId) return
+
+  pendingRejection.value = { type: 'project', id: projectId }
+  openReportDialog(userId)
 }
 
 // AI : Handle overlay approval with replacement conflict checking
@@ -558,8 +502,23 @@ function handleShowUserStats(data: { userId: string; username?: string | null; a
   showUserStatsDialog.value = true
 }
 
-// AI : Handle when a user is reported - reset loaded flag and refresh pending submissions
+// AI : Handle when a user is reported - execute pending rejection if exists, then refresh
 async function handleUserReported() {
+  // AI : Execute pending rejection if user confirmed the report
+  if (pendingRejection.value) {
+    const { type, id } = pendingRejection.value
+
+    if (type === 'project') {
+      await handleRejectProject(id)
+    } else if (type === 'overlay') {
+      await handleRejectOverlay(id)
+    } else if (type === 'change') {
+      await handleRejectChange(id)
+    }
+
+    pendingRejection.value = null
+  }
+
   moderationStore.resetModerationLoaded()
   await fetchPendingSubmissions()
 }
@@ -567,7 +526,7 @@ async function handleUserReported() {
 // AI : Handle overlay rejection with toast notifications
 async function handleRejectOverlay(id: string) {
   const result = await rejectOverlay(id)
-  
+
   if (result.success) {
     toast.add({
       severity: 'info',
@@ -586,6 +545,14 @@ async function handleRejectOverlay(id: string) {
       life: result.error === 'version_conflict' ? 5000 : 3000
     })
   }
+}
+
+// AI : Handle overlay rejection and report user (reject only after report confirmation)
+async function handleRejectAndReportOverlay(overlayId: string, userId: string | null) {
+  if (!userId) return
+
+  pendingRejection.value = { type: 'overlay', id: overlayId }
+  openReportDialog(userId)
 }
 
 // AI : Handle change request approval with toast notifications
@@ -634,6 +601,14 @@ async function handleRejectChange(changeId: string) {
       life: 3000
     })
   }
+}
+
+// AI : Handle change request rejection and report user (reject only after report confirmation)
+async function handleRejectAndReportChange(changeId: string, userId: string | null) {
+  if (!userId) return
+
+  pendingRejection.value = { type: 'change', id: changeId }
+  openReportDialog(userId)
 }
 
 </script>
@@ -700,32 +675,7 @@ async function handleRejectChange(changeId: string) {
   font-weight: 500;
 }
 
-/* AI : Project action buttons container with inline user badge */
-.project-action-buttons {
-  display: flex;
-  gap: 0.5rem;
-  flex-shrink: 0;
-  align-items: center;
-}
-
-/* AI : Overlay action buttons container with inline user badge */
-.overlay-action-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  flex-shrink: 0;
-  align-items: flex-end;
-}
-
-/* AI : Change request action buttons - stacked vertically */
-.change-action-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  flex-shrink: 0;
-}
-
-/* AI : Component-specific action button styles */
+/* AI : Locked button style for overlays when project not approved */
 .action-btn {
   width: 32px;
   height: 32px;
@@ -743,52 +693,6 @@ async function handleRejectChange(changeId: string) {
 .action-btn:hover {
   border-color: #d1d5db;
   background-color: #f9fafb;
-}
-
-.approve-btn {
-  color: #059669;
-}
-
-.approve-btn:hover {
-  background-color: #ecfdf5;
-  border-color: #a7f3d0;
-}
-
-.reject-btn {
-  color: #dc2626;
-}
-
-.reject-btn:hover {
-  background-color: #fef2f2;
-  border-color: #fecaca;
-}
-
-.report-btn {
-  color: #d97706;
-  position: relative;
-}
-
-.report-btn:hover {
-  background-color: #fffbeb;
-  border-color: #fcd34d;
-}
-
-/* AI : Warning indicator for users with high rejection rate */
-.report-btn.warning-stats {
-  color: #dc2626;
-  border-color: #fca5a5;
-  background-color: #fef2f2;
-}
-
-.warning-dot {
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  width: 8px;
-  height: 8px;
-  background-color: #dc2626;
-  border-radius: 50%;
-  border: 1px solid white;
 }
 
 .disabled-btn {

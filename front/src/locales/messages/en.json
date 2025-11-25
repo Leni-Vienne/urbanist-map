@@ -565,6 +565,8 @@
     "rejectionFailedDetail": "Failed to reject the change request",
     "approveChange": "Approve Change",
     "rejectChange": "Reject Change",
+    "rejectOnly": "Reject Only",
+    "rejectAndReport": "Reject & Report User",
     "alreadyApproved": "Already approved (orphan project with no overlays)",
     "orphanProject": "Empty",
     "approvedButEmpty": "Approved (empty)",
