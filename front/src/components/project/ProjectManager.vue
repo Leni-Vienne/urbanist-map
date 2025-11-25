@@ -78,11 +78,10 @@
     />
   </Dialog>
 
-  <!-- AI : Image Upload Dialog -->
+  <!-- AI : Marker Placement Dialog -->
   <ImageUploadDialog
     ref="imageUploadDialog"
     v-model:visible="uiStore.imageUploadDialogVisible"
-    @file-selected="onImageUploadFromDialog"
     @marker-coordinates="onMarkerCoordinatesSelected"
     @marker-mode-enabled="onMarkerModeEnabled"
     @update:visible="onDialogVisibilityChange"
@@ -325,13 +324,6 @@ async function handleFileUpload(projectId: string, isReplacement: boolean = fals
     }
   }
   reader.readAsDataURL(pendingImageFile.value)
-}
-
-// AI : Handle file selection from dialog
-async function onImageUploadFromDialog(file: File) {
-  overlayStore.handleFileSelected(file)
-  // AI : Show project selector for overlay workflow
-  uiStore.openProjectSelector()
 }
 
 // AI : Handle marker coordinates selection from dialog

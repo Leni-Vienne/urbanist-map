@@ -1,31 +1,31 @@
 <template>
-  <!-- Overlay Popup -->
+  <!-- Unified Project Popup - for overlays -->
   <Teleport
     to="#info-popup-teleport-target"
-    v-if="showOverlayPopup && overlayObject && teleportTargetExists"
+    v-if="showOverlayPopup && overlayObject && currentProject && teleportTargetExists"
   >
-    <OverlayPopup
-      :overlayObject="overlayObject"
+    <UnifiedProjectPopup
       :project="currentProject"
+      :overlay="overlayObject"
       :viewMode="mode !== 'edit'"
       :publishLoading="isSubmitting"
       :loading="false"
       :availableCities="availableCities"
-      @project-change="handleProjectChange"
       @publish-overlay="handlePublishOverlay"
+      @publish-project="handlePublishProject"
       @edit-project="handleEditProject"
       @edit-overlay="handleEditOverlay"
-      @overlay-update="handleOverlayUpdate"
+      @add-images="handleAddImages"
       @view-original-overlay="handleViewOriginalOverlay"
     />
   </Teleport>
 
-  <!-- Development Project Popup -->
+  <!-- Unified Project Popup - for projects without overlay -->
   <Teleport
     to="#project-info-popup-teleport-target"
     v-if="showProjectPopup && selectedProject"
   >
-    <DevelopmentProjectPopup
+    <UnifiedProjectPopup
       :project="selectedProject"
       :viewMode="mode !== 'edit'"
       :publishLoading="isSubmitting"
@@ -65,18 +65,16 @@ import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useUiStore } from '@stores/uiStore';
 
-import { updateMarkerTooltip, navigateToOverlay } from '@composables/overlay/useOverlay';
+import { updateMarkerTooltip, navigateToOverlay, addOverlay } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
 import { useOverlayPublisher } from '@composables/overlay/useOverlayPublisher';
 import { useProjectPublisher } from '@composables/project/useProjectPublisher';
 import { useSubmissionService } from '@composables/submission/useSubmissionService';
 import type { SubmissionContext, SubmissionSummary } from '@composables/submission/useSubmissionService';
 import { citiesWithProjects, cleanupProjectInfoTeleportTarget } from '@composables/map/useCityMarkers';
-import { updateOverlayMarkersColors } from '@composables/map/useMarkers';
 import type { OverlayObject, Project } from '@types';
 
-const OverlayPopup = defineAsyncComponent(() => import('./popups/OverlayPopup.vue'));
-const DevelopmentProjectPopup = defineAsyncComponent(() => import('./popups/DevelopmentProjectPopup.vue'));
+const UnifiedProjectPopup = defineAsyncComponent(() => import('./popups/UnifiedProjectPopup.vue'));
 const OverlayEditor = defineAsyncComponent(() => import('./OverlayEditor.vue'));
 const SubmissionConfirmationDialog = defineAsyncComponent(() => import('@components/submission/SubmissionConfirmationDialog.vue'));
 
@@ -218,35 +216,6 @@ const currentProject = computed((): Project | null => {
 
   return null;
 });
-
-// AI : Handle project change (overlay mode only)
-async function handleProjectChange(projectId: string) {
-  const overlay = overlayObject.value;
-  if (!overlay) return;
-
-  // AI : Create a new overlay object with updated projectId
-  // AI : Clear the old project reference so currentProject computed can find the new one
-  const updatedOverlay: OverlayObject = {
-    ...overlay,
-    projectId: projectId,
-    project: undefined, // AI : Let currentProject computed find the new project
-    isModified: true
-  };
-
-  // AI : Update the overlays store with the new overlay object
-  overlays.value = {
-    ...overlays.value,
-    [overlay.id]: updatedOverlay
-  };
-
-  // AI : Update marker color and tooltip to reflect modification
-  updateMarkerTooltip(updatedOverlay);
-
-  // AI : Update all overlay marker colors if city markers are visible
-  updateOverlayMarkersColors(
-    computed(() => overlays.value)
-  );
-}
 
 // AI : Prepare submission context and show confirmation dialog
 async function prepareAndShowSubmissionDialog(context: SubmissionContext) {
@@ -496,9 +465,64 @@ async function handleViewOriginalOverlay(originalOverlayId: string) {
   }
 }
 
-// AI : Handle add images button - opens image upload dialog
+// AI : Handle add images button - directly open file picker for overlay upload
 function handleAddImages() {
-  uiStore.openImageUploadDialog();
+  if (!selectedProject.value) return;
+
+  // AI : Create hidden file input to trigger file picker
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/png, image/jpeg, image/jpg, image/webp';
+  fileInput.style.display = 'none';
+
+  fileInput.onchange = async (e: Event) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+
+    try {
+      // AI : Read file as data URL for overlay creation
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const projectId = selectedProject.value!.id;
+
+          // AI : Create overlay directly for this project
+          addOverlay(reader.result as string, projectId);
+
+          toast.add({
+            severity: 'success',
+            summary: t('overlay.overlayCreated'),
+            detail: t('overlay.positionOverlayOnMap'),
+            life: 3000
+          });
+        } catch (error) {
+          console.error('Error creating overlay:', error);
+          toast.add({
+            severity: 'error',
+            summary: t('overlay.uploadFailed'),
+            detail: t('overlay.uploadFailedDetail'),
+            life: 3000
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Error handling file upload:', error);
+      toast.add({
+        severity: 'error',
+        summary: t('overlay.uploadFailed'),
+        detail: t('overlay.uploadFailedDetail'),
+        life: 3000
+      });
+    } finally {
+      // AI : Cleanup file input
+      document.body.removeChild(fileInput);
+    }
+  };
+
+  // AI : Trigger file picker
+  document.body.appendChild(fileInput);
+  fileInput.click();
 }
 
 </script>
