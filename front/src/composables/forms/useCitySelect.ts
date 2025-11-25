@@ -19,12 +19,12 @@ function convertDBCityToSelectFormat(dbCity: Project['city']): RouterOutput['cit
   }
 }
 
-// AI : Get center coordinates of currently selected overlay or camera center as fallback
-function getOverlayCenter(): { lat: number; lng: number } | null {
+// AI : Get reference location for city search - prioritizes overlay > camera
+function getReferenceLocation(): { lat: number; lng: number } | null {
   const overlayStore = useOverlayStore()
   const { idSelectedOverlay, overlays } = storeToRefs(overlayStore)
 
-  // AI : First try to get overlay center if one is selected
+  // AI : First priority: overlay center if one is selected (for overlay projects)
   if (idSelectedOverlay.value && overlays.value[idSelectedOverlay.value]) {
     const overlayObject = overlays.value[idSelectedOverlay.value]
 
@@ -41,8 +41,8 @@ function getOverlayCenter(): { lat: number; lng: number } | null {
       }
     }
   }
-  
-  // AI : Fallback to camera center when no overlay is selected or overlay center fails
+
+  // AI : Second priority: camera center as fallback
   const cameraBounds = getCameraBounds()
 
   if (cameraBounds.value &&
@@ -60,7 +60,7 @@ function getOverlayCenter(): { lat: number; lng: number } | null {
   return null
 }
 
-export function useCitySelect(prefilledCity?: Project['city']) {
+export function useCitySelect(prefilledCity?: Project['city'], markerCoordinates?: { lat: number; lng: number } | null) {
   const projectStore = useProjectStore()
 
   // AI : Cities data and state - prefill with existing city if available
@@ -127,9 +127,10 @@ export function useCitySelect(prefilledCity?: Project['city']) {
   // AI : Load cities when dropdown is about to show
   async function onSelectShow() {
     if (!citiesLoading.value) {
-      const overlayCenter = getOverlayCenter()
-      if (overlayCenter) {
-        await loadCitiesNearLocation(overlayCenter.lat, overlayCenter.lng)
+      // AI : Use marker coordinates if available (development projects), otherwise get reference location
+      const referenceLocation = markerCoordinates ?? getReferenceLocation()
+      if (referenceLocation) {
+        await loadCitiesNearLocation(referenceLocation.lat, referenceLocation.lng)
       }
     }
   }
