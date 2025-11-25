@@ -308,7 +308,7 @@ export const moderationRouter = router({
           // AI : Country-scoped moderation - moderators can only see their assigned countries
           // AI : Admins (role='admin' or moderatedCountries=null) can see all countries
           const userModeratedCountries = ctx.user.moderatedCountries;
-          const isAdmin = ctx.user.role === 'admin' || userModeratedCountries === null;
+          const isAdmin = ctx.user.role === 'admin';
           const moderatorId = ctx.user.id;
 
           // AI : Get users that should be hidden from this moderator
@@ -1116,7 +1116,7 @@ export const moderationRouter = router({
           }
 
           const moderatorId = ctx.user.id;
-          const isAdmin = ctx.user.role === 'admin' || ctx.user.moderatedCountries === null;
+          const isAdmin = ctx.user.role === 'admin';
 
           // AI : Get report counts for each user
           const reportCounts = await db

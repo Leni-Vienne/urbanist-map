@@ -132,7 +132,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted } from 'vue'
+import { computed, ref, watch, onMounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useModeration } from '@composables/moderation/useModeration'
 import { useChangeRequests } from '@composables/changes/useChanges'
@@ -141,6 +141,7 @@ import { useChangeRequestPreview } from '@composables/overlay/useChangeRequestPr
 import { useToast } from '@composables/ui/useToast'
 import { useAuthStore } from '@stores/authStore'
 import { useModerationStore } from '@stores/pinia/moderationStore'
+import { useAccordionState } from '@composables/layout/useAccordionState'
 import { trpc } from '@client'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import ReplacementConflictsDialog from '@components/moderation/ReplacementConflictsDialog.vue'
@@ -156,19 +157,25 @@ const { t } = useI18n()
 const authStore = useAuthStore()
 const moderationStore = useModerationStore()
 
+// AI : Accordion state for auto-expanding countries
+const { expandedCountries } = useAccordionState()
+
 // AI : Country selector state
 const allCountries = ref<Array<{ code: string; name: string }>>([])
 const countriesLoading = ref(false)
 const selectedCountryCode = ref<string | null>(moderationStore.selectedCountryCode)
 
-// AI : Computed: show country selector if user is not admin (checks both role and moderatedCountries)
+// AI : Computed: show country selector if user is not admin and has access to multiple countries
 const showCountrySelector = computed(() => {
   const user = authStore.user
   if (!user) return false
 
   // AI : Admin role or null moderatedCountries = no country selector needed
-  const isAdmin = user.role === 'admin' || user.moderatedCountries === null
-  return !isAdmin
+  const isAdmin = user.role === 'admin'
+  if (isAdmin) return true
+
+  // AI : Hide selector if moderator only has access to one country
+  return availableCountries.value.length > 1
 })
 
 // AI : Computed: filter countries by user's moderatedCountries
@@ -199,9 +206,12 @@ onMounted(async () => {
     const countries = await trpc.country.getAllCountries.query()
     allCountries.value = countries
 
-    // AI : Auto-select country if moderator has exactly one assigned country
-    if (showCountrySelector.value && availableCountries.value.length === 1) {
-      selectedCountryCode.value = availableCountries.value[0].code
+    // AI : Auto-select country if non-admin moderator has exactly one assigned country
+    const user = authStore.user
+    const isAdmin = user?.role === 'admin'
+    if (!isAdmin && availableCountries.value.length === 1) {
+      const singleCountryCode = availableCountries.value[0].code
+      selectedCountryCode.value = singleCountryCode
       moderationStore.setSelectedCountryCode(selectedCountryCode.value)
       // AI : Manually fetch pending submissions after auto-selecting country
       // AI : This is necessary because useModeration's onMounted skips fetch when no country is selected yet
