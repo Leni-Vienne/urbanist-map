@@ -108,6 +108,7 @@ export const useProjectStore = defineStore('project', () => {
             version: 1,
             projectId: project.id,
             authorId: overlay.authorId ?? null, // AI : For spam prevention
+            authorUsername: null, // AI : Username not available for optimistic updates
             authorApprovedCount: null, // AI : Stats not available for optimistic updates
             authorRejectedCount: null,
             replacesOverlayId: overlay.replacesOverlayId ?? null,
@@ -143,6 +144,7 @@ export const useProjectStore = defineStore('project', () => {
             version: 1,
             projectId: project.id,
             authorId: overlay.authorId ?? null, // AI : For spam prevention
+            authorUsername: null, // AI : Username not available for optimistic updates
             authorApprovedCount: null, // AI : Stats not available for optimistic updates
             authorRejectedCount: null,
             replacesOverlayId: overlay.replacesOverlayId ?? null,

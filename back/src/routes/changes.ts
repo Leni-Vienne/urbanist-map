@@ -287,9 +287,12 @@ export const changesRouter = router({
             changeReason: changeRequests.changeReason,
             status: changeRequests.status,
             requestedBy: changeRequests.requestedBy,
+            requestedByUsername: users.username,
+            requestedByReportCount: sql<number>`0`.as('requestedByReportCount'), // AI : Not available in this endpoint
             createdAt: changeRequests.createdAt,
           })
           .from(changeRequests)
+          .leftJoin(users, eq(changeRequests.requestedBy, users.id))
           .where(eq(changeRequests.requestedBy, userId))
           .orderBy(changeRequests.createdAt);
 
