@@ -18,7 +18,7 @@ import { checkPendingLimitForNewContribution } from '../db/contributionHelpers';
 const publishOverlaySchema = z.object({
   id: z.uuid(), // AI : UUID length limit
   filename: z.string().min(1).max(255), // AI : Standard filename length limit
-  caption: z.string().max(500).optional(), // AI : Limit caption to 500 characters
+  caption: z.string().max(500).or(z.literal('')).transform(val => val === '' ? undefined : val).optional(), // AI : Limit caption to 500 characters
   projectId: z.uuid(), // AI : UUID length limit for project reference
   replacesOverlayId: z.uuid().optional(), // AI : UUID for overlay replacement
   corners: z.array(z.object({
@@ -41,7 +41,7 @@ const getLatestContributionsSchema = z.object({
 // AI : Schema for updating overlay fields directly
 const updateOverlaySchema = z.object({
   id: z.uuid(),
-  caption: z.string().max(500).optional(), // AI : Allow updating caption
+  caption: z.string().max(500).or(z.literal('')).transform(val => val === '' ? undefined : val).optional(), // AI : Allow updating caption
 });
 
 // AI : Shared select fields and query builder moved to back/src/db/queryBuilders.ts to eliminate duplication

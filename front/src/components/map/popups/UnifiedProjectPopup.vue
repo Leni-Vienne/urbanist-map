@@ -1,9 +1,18 @@
 <template>
-  <div class="unified-popup" @click.stop>
-    <div v-if="loading" class="loading-spinner">
+  <div
+    class="unified-popup"
+    @click.stop
+  >
+    <div
+      v-if="loading"
+      class="loading-spinner"
+    >
       <i class="pi pi-spin pi-spinner"></i>
     </div>
-    <div v-else class="project-details">
+    <div
+      v-else
+      class="project-details"
+    >
       <!-- Project Information Section -->
       <ProjectMetadataCard
         :project="project"
@@ -40,7 +49,10 @@
       </ProjectMetadataCard>
 
       <!-- Overlay Information Section (only if viewing an overlay) -->
-      <div v-if="overlay" class="overlay-section">
+      <div
+        v-if="overlay"
+        class="overlay-section"
+      >
         <div class="section-header-row">
           <div class="section-header">{{ $t("overlay.overlayInformation") }}</div>
           <div class="overlay-actions">
@@ -65,7 +77,7 @@
 
         <div class="info-card">
           <div class="info-row">
-            <span class="info-label">{{$t("common.name")}}:</span>
+            <span class="info-label">{{ $t("common.name") }}:</span>
             <span class="info-value">{{ overlay.caption ?? '—' }}</span>
           </div>
           <!-- AI : Show view original button for pending replacements -->
@@ -85,29 +97,51 @@
       </div>
     </div>
 
-    <!-- Publish Section - Show when changes exist -->
-    <div v-if="!viewMode && hasChanges" class="publish-section">
+    <!-- Actions Section - Edit mode buttons -->
+    <div
+      v-if="!viewMode"
+      class="actions-section"
+    >
       <Button
+        v-if="hasChanges"
         :label="isPublishedToBackend ? $t('project.submitChangeRequest') : (overlay ? $t('overlay.publishOverlay') : $t('project.publish'))"
         :icon="isPublishedToBackend ? 'pi pi-send' : 'pi pi-cloud-upload'"
         :severity="isPublishedToBackend ? 'info' : 'success'"
-        size="small"
-        class="w-full"
+        :class="{ 'flex-1': hasChanges }"
         :loading="publishLoading"
         @click="handlePublishClick"
       />
-    </div>
-
-    <!-- Add Images Section - Always show in edit mode -->
-    <div v-if="!viewMode" class="add-images-section">
       <Button
         :label="$t('project.addImages')"
-        icon="pi pi-images"
         severity="secondary"
-        size="small"
-        class="w-full"
+        outlined
+        :class="{ 'flex-1': hasChanges, 'w-full': !hasChanges }"
         @click="emit('add-images')"
-      />
+      >
+        <template #icon>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="1em"
+            height="1em"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M16 5h6" />
+            <path d="M19 2v6" />
+            <path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5" />
+            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+            <circle
+              cx="9"
+              cy="9"
+              r="2"
+            />
+          </svg>
+        </template>
+      </Button>
     </div>
   </div>
 </template>
@@ -212,8 +246,6 @@ function handlePublishClick() {
 
 .overlay-section {
   margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--p-surface-200);
 }
 
 .overlay-actions {
@@ -254,13 +286,14 @@ function handlePublishClick() {
   font-size: 0.875rem;
 }
 
-.publish-section {
+.actions-section {
   margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--p-surface-200);
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
 }
 
-.add-images-section {
-  margin-top: 0.5rem;
+.actions-section .flex-1 {
+  flex: 1;
 }
 </style>
