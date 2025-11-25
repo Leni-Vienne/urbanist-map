@@ -616,6 +616,8 @@ export async function loadCityProjects(cityId: string | null, cityName: string, 
 
 /**
  * AI : Remove city markers from the map
+ * AI : NOTE: This does NOT remove development markers - they are managed separately
+ * AI : Development markers persist across city marker reloads and are only cleared when changing cities
  */
 export function removeCityMarkers(): void {
   if (cityMarkersLayer && map.value != null && map.value.hasLayer(cityMarkersLayer)) {
@@ -623,13 +625,7 @@ export function removeCityMarkers(): void {
     cityMarkersLayer = null;
   }
 
-  if (developmentProjectsLayer && map.value?.hasLayer(developmentProjectsLayer)) {
-    map.value.removeLayer(developmentProjectsLayer);
-    developmentProjectsLayer = null;
-  }
-
   cityMarkerMap.clear();
-  developmentMarkerMap.clear();
 }
 
 /**
