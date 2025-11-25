@@ -39,49 +39,10 @@
                 </FloatLabel>
             </div>
 
-            <div class="field">
-                <label class="text-gray-600 font-medium mb-2 block">{{ $t('project.timelineStatus') }} *</label>
-                <div class="flex gap-4">
-                    <div
-                        class="flex items-center gap-2 flex-1 p-3 border rounded cursor-pointer hover:bg-gray-50"
-                        :class="{ 'bg-blue-50 border-blue-500': isProposed, 'border-gray-300': !isProposed }"
-                        @click="isProposed = true"
-                    >
-                        <RadioButton
-                            inputId="status-proposed"
-                            name="timelineStatus"
-                            :value="true"
-                            v-model="isProposed"
-                        />
-                        <div class="flex-1">
-                            <label
-                                for="status-proposed"
-                                class="font-medium cursor-pointer"
-                            >{{ $t('project.proposed') }}</label>
-                            <div class="text-xs text-gray-500">{{ $t('project.proposedDescription') }}</div>
-                        </div>
-                    </div>
-                    <div
-                        class="flex items-center gap-2 flex-1 p-3 border rounded cursor-pointer hover:bg-gray-50"
-                        :class="{ 'bg-blue-50 border-blue-500': !isProposed, 'border-gray-300': isProposed }"
-                        @click="isProposed = false"
-                    >
-                        <RadioButton
-                            inputId="status-planned"
-                            name="timelineStatus"
-                            :value="false"
-                            v-model="isProposed"
-                        />
-                        <div class="flex-1">
-                            <label
-                                for="status-planned"
-                                class="font-medium cursor-pointer"
-                            >{{ $t('project.plannedStatus') }}</label>
-                            <div class="text-xs text-gray-500">{{ $t('project.plannedDescription') }}</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <TimelineStatusSelector
+                v-model="isProposed"
+                id-prefix="create"
+            />
 
             <div
                 class="field"
@@ -246,6 +207,7 @@ import { useToast } from '@composables/ui/useToast'
 import { useCitySelect } from '@composables/forms/useCitySelect'
 import { useProjectTimelineStatus } from '@composables/forms/useProjectTimelineStatus'
 import { switchTileLayer, type TileLayerType, isTileLayerType } from '@composables/map/useTileLayers'
+import TimelineStatusSelector from './TimelineStatusSelector.vue'
 import type { Project } from '@types';
 
 // AI : Get i18n and toast

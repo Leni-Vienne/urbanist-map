@@ -22,7 +22,8 @@ export function useProjectTimelineStatus(project: Partial<Project>, formData?: a
       // AI : Switching to proposed - clear planned dates
       data.startDate = null
       data.endDate = null
-      data.proposalDate ??= new Date().toISOString().split('T')[0]
+      // AI : Set proposal date to today if not already set (use Date object for DatePicker)
+      data.proposalDate ??= new Date()
     } else {
       // AI : Switching to planned - clear proposal date
       data.proposalDate = null

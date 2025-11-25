@@ -62,3 +62,18 @@ export function validateOverlaySize(corners: Corner[]): OverlaySizeValidationRes
 export function leafletCornersToCorners(leafletCorners: Array<{ lat: number; lng: number }>): Corner[] {
   return leafletCorners.map(c => ({ lat: c.lat, lng: c.lng }));
 }
+
+/**
+ * AI : Calculate centroid from 4 corner coordinates using average of all corners
+ * AI : Used for consistent centroid calculation across frontend and backend
+ */
+export function calculateCentroidFromCorners(corners: Corner[]): Corner | null {
+  if (!corners || corners.length !== 4) {
+    return null;
+  }
+
+  return {
+    lat: (corners[0].lat + corners[1].lat + corners[2].lat + corners[3].lat) / 4,
+    lng: (corners[0].lng + corners[1].lng + corners[2].lng + corners[3].lng) / 4
+  };
+}

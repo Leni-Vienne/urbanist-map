@@ -7,7 +7,7 @@
 
 import L from 'leaflet';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { calculateCenterFromCorners } from '../../utils/typeFactories';
+import { calculateCentroidFromCorners } from '../../../../back/src/utils/overlayValidation';
 import type { OverlayData, OverlayObject, MapMode } from '@types';
 
 // AI : ============================================================================
@@ -58,7 +58,7 @@ export function resolveOverlayPosition(
   // AI : Override for change request preview (highest priority)
   if (preview) {
     return {
-      position: calculateCenterFromCorners(preview.corners) ?? { 
+      position: calculateCentroidFromCorners(preview.corners) ?? { 
         lat: overlayData.centroid.lat, 
         lng: overlayData.centroid.lng 
       },
@@ -71,7 +71,7 @@ export function resolveOverlayPosition(
   if (mode === 'view' || mode === 'moderation') {
     // AI : Try to calculate from corners first for accuracy
     if (overlayData.corners && overlayData.corners.length === 4) {
-      const calculatedPosition = calculateCenterFromCorners(overlayData.corners);
+      const calculatedPosition = calculateCentroidFromCorners(overlayData.corners);
       if (calculatedPosition) {
         return {
           position: calculatedPosition,
@@ -94,7 +94,7 @@ export function resolveOverlayPosition(
 
   // AI : Priority 1: Currently loaded overlay (user might be actively editing)
   if (overlayObject?.corners?.length === 4) {
-    const calculatedPosition = calculateCenterFromCorners(overlayObject.corners);
+    const calculatedPosition = calculateCentroidFromCorners(overlayObject.corners);
     if (calculatedPosition) {
       return {
         position: calculatedPosition,
@@ -107,7 +107,7 @@ export function resolveOverlayPosition(
   // AI : Priority 2: Edit mode cache (persisted modifications from previous session)
   const cachedModifications = getFromEditModeOverlayCache(overlayId);
   if (cachedModifications?.corners && cachedModifications.corners.length === 4) {
-    const calculatedPosition = calculateCenterFromCorners(cachedModifications.corners);
+    const calculatedPosition = calculateCentroidFromCorners(cachedModifications.corners);
     if (calculatedPosition) {
       return {
         position: calculatedPosition,
@@ -119,7 +119,7 @@ export function resolveOverlayPosition(
 
   // AI : Priority 3: Backend corners (calculate from database data)
   if (overlayData?.corners?.length === 4) {
-    const calculatedPosition = calculateCenterFromCorners(overlayData.corners);
+    const calculatedPosition = calculateCentroidFromCorners(overlayData.corners);
     if (calculatedPosition) {
       return {
         position: calculatedPosition,
