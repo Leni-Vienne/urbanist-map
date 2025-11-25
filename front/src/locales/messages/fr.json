@@ -23,6 +23,21 @@
     "new": "Nouveau",
     "unknown": "Inconnu"
   },
+  "relativeTime": {
+    "justNow": "à l'instant",
+    "minuteAgo": "il y a {count} minute",
+    "minutesAgo": "il y a {count} minutes",
+    "hourAgo": "il y a {count} heure",
+    "hoursAgo": "il y a {count} heures",
+    "dayAgo": "il y a {count} jour",
+    "daysAgo": "il y a {count} jours",
+    "weekAgo": "il y a {count} semaine",
+    "weeksAgo": "il y a {count} semaines",
+    "monthAgo": "il y a {count} mois",
+    "monthsAgo": "il y a {count} mois",
+    "yearAgo": "il y a {count} an",
+    "yearsAgo": "il y a {count} ans"
+  },
   "fields": {
     "name": "Nom",
     "description": "Description",
@@ -61,7 +76,7 @@
     "location": "Localisation",
     "created": "Créé",
     "updated": "Mis à jour",
-    "updatedAgo": "Mis à jour {time}",
+    "updatedAgo": "{time}",
     "noProjects": "Aucun projet trouvé",
     "createFirstProject": "Créez votre premier projet de construction !",
     "noLocation": "Aucun emplacement",
@@ -525,6 +540,7 @@
   "moderation": {
     "title": "Modération",
     "description": "Examiner les soumissions en attente",
+    "by": "par",
     "unknownUser": "Utilisateur inconnu",
     "more": "plus",
     "projectApproved": "Projet approuvé",
@@ -621,7 +637,7 @@
     },
     "userStats": {
       "title": "Statistiques de l'utilisateur",
-      "submitterStats": "Statistiques du contributeur",
+      "contributorStats": "Statistiques du contributeur",
       "submittedBy": "Contributeur",
       "username": "Nom d'utilisateur",
       "approved": "{count} approuvés",

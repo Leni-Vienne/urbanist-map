@@ -42,20 +42,24 @@ export function formatDateTime(date: Date | string | null | undefined): string {
 }
 
 /**
- * AI : Format a date as relative time (e.g., "5 minutes ago", "2 hours ago")
+ * AI : Format a date as relative time using i18n translations
  * @param date - The date to format (Date object or ISO string)
+ * @param t - The vue-i18n translation function
  * @returns A human-readable relative time string
  */
-export function formatRelativeTime(date: Date | string | null | undefined): string {
+export function formatRelativeTime(
+  date: Date | string | null | undefined,
+  t: (key: string, args?: Record<string, unknown>) => string
+): string {
   if (!date) {
-    return 'Unknown'
+    return t('common.unknown')
   }
 
   const now = new Date()
   const targetDate = typeof date === 'string' ? new Date(date) : date
 
   if (isNaN(targetDate.getTime())) {
-    return 'Unknown'
+    return t('common.unknown')
   }
 
   const diffMs = now.getTime() - targetDate.getTime()
@@ -68,18 +72,30 @@ export function formatRelativeTime(date: Date | string | null | undefined): stri
   const diffYears = Math.floor(diffDays / 365)
 
   if (diffSeconds < 60) {
-    return 'just now'
+    return t('relativeTime.justNow')
   } else if (diffMinutes < 60) {
-    return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`
+    return diffMinutes === 1
+      ? t('relativeTime.minuteAgo', { count: diffMinutes })
+      : t('relativeTime.minutesAgo', { count: diffMinutes })
   } else if (diffHours < 24) {
-    return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`
+    return diffHours === 1
+      ? t('relativeTime.hourAgo', { count: diffHours })
+      : t('relativeTime.hoursAgo', { count: diffHours })
   } else if (diffDays < 7) {
-    return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
+    return diffDays === 1
+      ? t('relativeTime.dayAgo', { count: diffDays })
+      : t('relativeTime.daysAgo', { count: diffDays })
   } else if (diffWeeks < 4) {
-    return `${diffWeeks} week${diffWeeks === 1 ? '' : 's'} ago`
+    return diffWeeks === 1
+      ? t('relativeTime.weekAgo', { count: diffWeeks })
+      : t('relativeTime.weeksAgo', { count: diffWeeks })
   } else if (diffMonths < 12) {
-    return `${diffMonths} month${diffMonths === 1 ? '' : 's'} ago`
+    return diffMonths === 1
+      ? t('relativeTime.monthAgo', { count: diffMonths })
+      : t('relativeTime.monthsAgo', { count: diffMonths })
   } else {
-    return `${diffYears} year${diffYears === 1 ? '' : 's'} ago`
+    return diffYears === 1
+      ? t('relativeTime.yearAgo', { count: diffYears })
+      : t('relativeTime.yearsAgo', { count: diffYears })
   }
 }

@@ -91,12 +91,14 @@
                               <div class="project-metadata">
                                 <div class="metadata-item">
                                   <i class="pi pi-clock"></i>
-                                  <span>
-                                    {{ $t('project.updatedAgo', { time: formatRelativeTime(project.updatedAt) }) }}<template v-if="showUserStatsLink && project.ownerId">,
-                                      <i v-if="project.ownerReportCount && project.ownerReportCount > 0" class="pi pi-exclamation-triangle user-warning-icon"></i>
-                                      <span class="user-more-link" @click.stop="handleShowProjectUserStats(project)">{{ $t('moderation.more') }}</span>
-                                    </template>
-                                  </span>
+                                  <ContributorInfo
+                                    :date="project.updatedAt"
+                                    :contributor-id="project.ownerId"
+                                    :contributor-username="project.ownerUsername"
+                                    :report-count="project.ownerReportCount ?? 0"
+                                    :clickable="showUserStatsLink && !!project.ownerId"
+                                    @click-contributor="handleProjectContributorClick(project, $event)"
+                                  />
                                 </div>
                                 <div
                                   class="metadata-item"
@@ -232,10 +234,14 @@
                                 <span class="truncate">{{ getOverlayLocationDisplay(overlay) }}</span>
                               </div>
                               <div class="text-xs text-surface-500 mb-2">
-                                {{ formatRelativeTime(overlay.updatedAt) }}<template v-if="showUserStatsLink && overlay.authorId">,
-                                  <i v-if="overlay.authorReportCount && overlay.authorReportCount > 0" class="pi pi-exclamation-triangle user-warning-icon"></i>
-                                  <span class="user-more-link" @click.stop="handleShowOverlayUserStats(overlay)">{{ $t('moderation.more') }}</span>
-                                </template>
+                                <ContributorInfo
+                                  :date="overlay.updatedAt"
+                                  :contributor-id="overlay.authorId"
+                                  :contributor-username="overlay.authorUsername"
+                                  :report-count="overlay.authorReportCount ?? 0"
+                                  :clickable="showUserStatsLink && !!overlay.authorId"
+                                  @click-contributor="handleOverlayContributorClick(overlay, $event)"
+                                />
                               </div>
                               <div class="flex items-center gap-2 flex-wrap">
                                 <Tag
@@ -347,6 +353,7 @@ import type { ProjectForModeration, OverlayForModeration } from '@types'
 import type { PendingChangeRequest } from '../../types/api'
 import ChangeRequestSection from './ChangeRequestSection.vue'
 import ClickableLocation from '@components/common/ClickableLocation.vue'
+import ContributorInfo from '@components/common/ContributorInfo.vue'
 
 // AI : Props interface
 interface Props {
@@ -733,26 +740,31 @@ async function handleOverlayCardClick(overlay: OverlayForModeration, shouldFitBo
 }
 
 // AI : Show project user stats
-function handleShowProjectUserStats(project: ProjectForModeration) {
-  if (!project.ownerId) return
+// AI : Handle project contributor click from ContributorInfo component
+function handleProjectContributorClick(
+  project: ProjectForModeration,
+  data: { userId: string; username: string | null; reportCount: number }
+) {
   emit('show-user-stats', {
-    userId: project.ownerId,
-    username: project.ownerUsername,
+    userId: data.userId,
+    username: data.username,
     approvedCount: project.ownerApprovedCount,
     rejectedCount: project.ownerRejectedCount,
-    reportCount: project.ownerReportCount ?? 0
+    reportCount: data.reportCount
   })
 }
 
-// AI : Show overlay user stats
-function handleShowOverlayUserStats(overlay: OverlayForModeration) {
-  if (!overlay.authorId) return
+// AI : Handle overlay contributor click from ContributorInfo component
+function handleOverlayContributorClick(
+  overlay: OverlayForModeration,
+  data: { userId: string; username: string | null; reportCount: number }
+) {
   emit('show-user-stats', {
-    userId: overlay.authorId,
-    username: overlay.authorUsername,
+    userId: data.userId,
+    username: data.username,
     approvedCount: overlay.authorApprovedCount,
     rejectedCount: overlay.authorRejectedCount,
-    reportCount: overlay.authorReportCount ?? 0
+    reportCount: data.reportCount
   })
 }
 
@@ -1032,31 +1044,6 @@ function handleShowOverlayUserStats(overlay: OverlayForModeration) {
 
 .metadata-item span {
   line-height: 1.4;
-}
-
-/* AI : User stats "more" link styling */
-.user-more-link {
-  text-decoration: underline;
-  color: var(--p-primary-600);
-  cursor: pointer;
-  font-weight: 500;
-  transition: color 0.15s ease;
-}
-
-.user-more-link:hover {
-  color: var(--p-primary-700);
-  text-decoration-style: solid;
-}
-
-.user-warning-icon {
-  color: var(--p-orange-600);
-  background: var(--p-orange-100);
-  font-size: 0.75rem;
-  font-weight: 900;
-  margin-left: 0.25rem;
-  padding: 0.125rem;
-  border-radius: 3px;
-  animation: pulse 2s infinite;
 }
 
 @keyframes pulse {

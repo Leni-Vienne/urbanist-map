@@ -39,7 +39,7 @@
           <!-- AI : Contribution info -->
           <div class="contribution-info">
             <h2 class="contribution-name">{{ contribution.name }}</h2>
-            <div class="contribution-time">{{ formatRelativeTime(contribution.updatedAt) }}</div>
+            <div class="contribution-time">{{ formatRelativeTime(contribution.updatedAt, t) }}</div>
             <div class="contribution-location">
               <i class="pi pi-map-marker"></i>
               <img

@@ -58,7 +58,7 @@
           </p>
 
           <p class="item-date">
-            {{ formatRelativeTime(item.updatedAt) }}
+            {{ formatRelativeTime(item.updatedAt, t) }}
           </p>
         </div>
       </div>
