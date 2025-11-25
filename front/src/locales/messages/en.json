@@ -134,7 +134,10 @@
     "publishSuccess": "Project Published",
     "publishSuccessDetail": "Development project has been saved successfully",
     "publishFailed": "Publish Failed",
-    "publishFailedDetail": "Failed to save development project to the backend"
+    "publishFailedDetail": "Failed to save development project to the backend",
+    "addImages": "Add Images",
+    "placementMode": "Marker Placement Mode",
+    "clickMapToPlace": "Click on the map to place your project marker"
   },
   "status": {
     "pending": "Pending",

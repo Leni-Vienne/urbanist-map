@@ -169,7 +169,7 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
           }
 
           // AI : Update project in local store only and mark as modified
-          // AI : Merge form data with current project to preserve all fields (city, isDevelopment, etc.)
+          // AI : Merge form data with current project to preserve all fields (city, overlayIds, coordinates, etc.)
           const updatedData = {
             ...currentProject, // Preserve all existing fields
             ...formData as any, // Apply form changes (includes cityId if changed)
@@ -179,9 +179,10 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
           projectStore.updateProject(options.entityId, updatedData)
 
 
-          // AI : Get updated project from store and update marker color if it's a development project
+          // AI : Get updated project from store and update marker color if it has no overlays
           const updatedProject = projectStore.projects[options.entityId]
-          if (updatedProject?.isDevelopment) {
+          const hasNoOverlays = !updatedProject?.overlayIds || updatedProject.overlayIds.length === 0
+          if (updatedProject && hasNoOverlays) {
             updateDevelopmentMarkerColor(options.entityId, updatedProject)
           }
 
@@ -214,8 +215,7 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
             name: formData.name,
             description: formData.description,
             cityId: project.cityId, // AI : Preserve existing cityId
-            isDevelopment: project.isDevelopment,
-            lat: project.lat,
+            lat: project.lat, // AI : All projects now have center coordinates
             lng: project.lng,
             proposalDate: formData.proposalDate,
             startDate: formData.startDate,

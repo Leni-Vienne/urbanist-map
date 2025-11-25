@@ -63,7 +63,7 @@ function convertCoordinateToGeometry(coordValue: unknown) {
 function buildUpdateData(change: { entityType: string; fieldName: string; newValue: unknown }) {
   const isOverlayCornersField = change.entityType === 'overlay' && change.fieldName === 'corners';
   const isOverlayCentroidField = change.entityType === 'overlay' && change.fieldName === 'centroid';
-  const isProjectCoordinatesField = change.entityType === 'project' && change.fieldName === 'coordinates';
+  const isProjectCenterCoordinateField = change.entityType === 'project' && change.fieldName === 'centerCoordinate';
 
   if (isOverlayCornersField) {
     return { corners: convertCornersToGeometry(change.newValue) };
@@ -73,8 +73,8 @@ function buildUpdateData(change: { entityType: string; fieldName: string; newVal
     return { centroid: convertCoordinateToGeometry(change.newValue) };
   }
 
-  if (isProjectCoordinatesField) {
-    return { coordinates: convertCoordinateToGeometry(change.newValue) };
+  if (isProjectCenterCoordinateField) {
+    return { centerCoordinate: convertCoordinateToGeometry(change.newValue) };
   }
 
   // AI : For non-geometry fields, use the value directly

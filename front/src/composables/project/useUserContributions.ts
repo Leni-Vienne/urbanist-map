@@ -96,14 +96,15 @@ export function useUserContributions() {
       )
 
       if (result?.success) {
-        // AI : Get project to check if it's a development project and has overlays
+        // AI : Get project to check if it has overlays
         const project = projectStore.allProjects[projectId]
 
         // AI : Remove from user contributions
         projectStore.removeProjectFromUserContributions(projectId)
 
-        // AI : If it's a development project, remove its marker from the map
-        if (project?.isDevelopment) {
+        // AI : If project has no overlays, remove its marker from the map
+        const hasNoOverlays = !project?.overlayIds || project.overlayIds.length === 0
+        if (hasNoOverlays) {
           const marker = getDevelopmentMarkerByProjectId(projectId)
           if (marker && map.value) {
             map.value.removeLayer(marker)

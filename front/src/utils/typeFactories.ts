@@ -26,15 +26,14 @@ export function createProject(data: Partial<Project> = {}): Project {
     ownerId: data.ownerId ?? '',
     cityId: data.cityId ?? '',
     status: data.status ?? 'pending',
-    // AI : DB geometry and coordinate fields
-    isDevelopment: data.isDevelopment ?? false,
-    coordinates: data.coordinates ?? null,
+    // AI : Center coordinate fields - all projects now have center coordinates
     lat: data.lat ?? null,
     lng: data.lng ?? null,
+    centerCoordinate: data.centerCoordinate ?? null,
     // AI : Computed fields
     city: data.city ?? { id: '', name: '', countryCode: '', coordinates: { x: 0, y: 0 }, createdAt: new Date(), updatedAt: new Date() },
     overlayIds: data.overlayIds ?? [],
-    // AI : Map coordinates (renamed to avoid DB conflict)
+    // AI : Map coordinates for display (computed from lat/lng)
     mapCoordinates: data.mapCoordinates ?? null,
     ...data
   };

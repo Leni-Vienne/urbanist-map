@@ -342,8 +342,8 @@ function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: number }) 
   }
 
   // AI : Open project dialog with coordinates - user must fill form before marker is created
+  // AI : All projects now have center coordinates (no isDevelopment field)
   uiStore.openProjectDialog({
-    isDevelopment: true,
     lat: coordinates.lat,
     lng: coordinates.lng
   }, 'create');
@@ -421,12 +421,13 @@ async function handleProjectSubmitted(project: Partial<Project>) {
       })
       setLastCreatedProject(projectId)
 
-      // AI : For development projects, load on map and show marker
-      if (project.isDevelopment && project.city) {
+      // AI : For projects with center coordinates (no overlays), load on map and show marker
+      const hasNoOverlays = !project.overlayIds || project.overlayIds.length === 0
+      if (hasNoOverlays && project.lat && project.lng && project.city) {
         // AI : Ensure city markers are set up (force set selectedCity for proper map context)
         await ensureCityMarkersForProject(project.city, true);
 
-        // AI : Load city projects to display the development marker
+        // AI : Load city projects to display the marker
         await loadCityProjects(project.city.id, project.city.name, true, project.city.countryCode);
 
         // AI : Get the marker and open its popup
@@ -455,8 +456,9 @@ async function handleProjectSubmitted(project: Partial<Project>) {
           isModified: true
         });
 
-        // AI : Update development marker color to reflect modification
-        if (project.isDevelopment) {
+        // AI : Update marker color to reflect modification if project has no overlays
+        const hasNoOverlays = !projects.value[project.id].overlayIds || projects.value[project.id].overlayIds.length === 0
+        if (hasNoOverlays) {
           updateDevelopmentMarkerColor(project.id, projects.value[project.id]);
         }
 

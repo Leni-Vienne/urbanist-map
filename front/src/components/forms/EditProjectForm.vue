@@ -191,8 +191,9 @@ interface Emits {
 const props = defineProps<Props>()
 defineEmits<Emits>()
 
-// AI : Use city select composable with prefilled city and marker coordinates for development projects
-const markerCoordinates = props.project.isDevelopment && props.project.lat && props.project.lng
+// AI : Use city select composable with prefilled city and marker coordinates
+// AI : All projects now have center coordinates (lat/lng)
+const markerCoordinates = props.project.lat && props.project.lng
   ? { lat: props.project.lat, lng: props.project.lng }
   : null
 const { cities, filteredCities, citiesLoading, onSelectShow, getCityName } = useCitySelect(props.project.city, markerCoordinates)

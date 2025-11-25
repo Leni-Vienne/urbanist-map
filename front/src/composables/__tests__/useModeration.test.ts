@@ -78,13 +78,14 @@ const mockProject: ModerationProject = {
   endDate: null,
   proposalDate: null,
   sourceUrl: null,
-  isDevelopment: false,
-  lat: null,
+  lat: null, // AI : All projects now have center coordinates
   lng: null,
   cityId: 'test-city-1',
   ownerId: 'test-user-1', // AI : For spam prevention
+  ownerUsername: 'testuser',
   ownerApprovedCount: 5, // AI : User stats for spam detection
   ownerRejectedCount: 1,
+  ownerReportCount: 0,
   cityName: 'Test City',
   countryCode: 'TST',
   countryName: 'Test Country',
@@ -99,8 +100,10 @@ const mockOverlay: ModerationOverlay = {
   version: 1,
   projectId: 'test-project-1',
   authorId: 'test-user-1', // AI : For spam prevention
+  authorUsername: 'testuser',
   authorApprovedCount: 5, // AI : User stats for spam detection
   authorRejectedCount: 1,
+  authorReportCount: 0,
   replacesOverlayId: null,
   replacedByOverlayId: null,
   updatedAt: new Date(),

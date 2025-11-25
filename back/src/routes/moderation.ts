@@ -363,8 +363,8 @@ export const moderationRouter = router({
             effectiveCountryCode = input.countryCode;
           }
 
-          // AI : Step 1: Find all project IDs that need moderation (pending projects, pending overlays, pending changes, or orphan projects)
-          const [projectsWithPendingOverlays, projectsWithPendingChanges, orphanProjects] = await Promise.all([
+          // AI : Step 1: Find all project IDs that need moderation (pending projects, pending overlays, pending changes)
+          const [projectsWithPendingOverlays, projectsWithPendingChanges] = await Promise.all([
             // AI : Projects with pending overlay submissions
             db.selectDistinct({ projectId: overlays.projectId })
               .from(overlays)
@@ -382,22 +382,7 @@ export const moderationRouter = router({
             .where(sql`CASE
               WHEN ${changeRequests.entityType} = 'project' THEN ${changeRequests.entityId} IS NOT NULL
               WHEN ${changeRequests.entityType} = 'overlay' THEN ${overlays.projectId} IS NOT NULL
-            END`),
-
-            // AI : Orphan projects: approved non-development projects with zero approved overlays
-            // AI : These need moderator attention to decide if they should be rejected
-            db.select({ projectId: projects.id })
-              .from(projects)
-              .leftJoin(overlays, and(
-                eq(overlays.projectId, projects.id),
-                eq(overlays.status, 'approved')
-              ))
-              .where(and(
-                eq(projects.status, 'approved'),
-                eq(projects.isDevelopment, false)
-              ))
-              .groupBy(projects.id)
-              .having(sql`COUNT(${overlays.id}) = 0`)
+            END`)
           ]);
 
           const projectIdsWithPendingOverlays = projectsWithPendingOverlays
@@ -408,23 +393,18 @@ export const moderationRouter = router({
             .map(p => p.projectId)
             .filter((id): id is string => id !== null);
 
-          const orphanProjectIds = orphanProjects
-            .map(p => p.projectId)
-            .filter((id): id is string => id !== null);
-
           // AI : Step 2: Build filters for projects, overlays, and change requests
           const paginationConditions = await buildPaginationConditions(
             { cityId: input.cityId, countryCode: effectiveCountryCode, cursor: input.cursor },
             sortColumn
           );
 
-          // AI : Projects needing moderation: pending status OR have pending overlays OR have pending changes OR are orphans
+          // AI : Projects needing moderation: pending status OR have pending overlays OR have pending changes
           const projectModerationConditions = [
             or(
               eq(projects.status, 'pending'),
               ...(projectIdsWithPendingOverlays.length > 0 ? [inArray(projects.id, projectIdsWithPendingOverlays)] : []),
-              ...(projectIdsWithPendingChanges.length > 0 ? [inArray(projects.id, projectIdsWithPendingChanges)] : []),
-              ...(orphanProjectIds.length > 0 ? [inArray(projects.id, orphanProjectIds)] : [])
+              ...(projectIdsWithPendingChanges.length > 0 ? [inArray(projects.id, projectIdsWithPendingChanges)] : [])
             ),
             ...paginationConditions
           ];

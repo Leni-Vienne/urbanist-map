@@ -34,6 +34,7 @@
       @publish-project="handlePublishProject"
       @edit-project="handleEditProject"
       @close-popup="closeProjectInfoPopup"
+      @add-images="handleAddImages"
     />
   </Teleport>
 
@@ -493,6 +494,11 @@ async function handleViewOriginalOverlay(originalOverlayId: string) {
       life: 3000
     });
   }
+}
+
+// AI : Handle add images button - opens image upload dialog
+function handleAddImages() {
+  uiStore.openImageUploadDialog();
 }
 
 </script>

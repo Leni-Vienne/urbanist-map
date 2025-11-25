@@ -55,7 +55,6 @@ export const projects = pgTable('projects', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull(),
   description: text('description'),
-  isDevelopment: boolean('is_development').default(false).notNull(), // AI : true for simple development markers, false for overlay projects
   status: approvalStatusEnum('status').default('pending').notNull(),
   ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'set null', onUpdate: 'cascade' }),
   cityId: uuid('city_id').references(() => cities.id, { onDelete: 'set null', onUpdate: 'cascade' }).notNull(), // AI : Reference to the city where the project is located
@@ -64,15 +63,15 @@ export const projects = pgTable('projects', {
   startDate: timestamp('start_date', { withTimezone: true }),
   endDate: timestamp('end_date', { withTimezone: true }),
   latestUpdateOn: timestamp('latest_update_on', { withTimezone: true }),
-  // AI : Coordinates for development projects (null for overlay projects)
+  // AI : Center coordinate for all projects - used as marker position when no images exist
   lat: doublePrecision('lat'),
   lng: doublePrecision('lng'),
-  coordinates: geometry('coordinates', { type: 'point', mode: 'xy', srid: 4326 }), // AI : PostGIS point for spatial queries (computed from lat/lng)
+  centerCoordinate: geometry('center_coordinate', { type: 'point', mode: 'xy', srid: 4326 }), // AI : PostGIS point for spatial queries (computed from lat/lng)
   version: integer('version').default(1).notNull(), // AI : Version for optimistic locking during moderation
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
 }, (_projects) => [
-  sql.raw('CREATE INDEX idx_projects_coordinates ON projects USING GIST (coordinates)'), // AI : Spatial index for development projects
+  sql.raw('CREATE INDEX idx_projects_center_coordinate ON projects USING GIST (center_coordinate)'), // AI : Spatial index for project center coordinates
 ]);
 
 export const projectsRelations = relations(projects, ({

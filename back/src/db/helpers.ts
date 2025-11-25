@@ -154,7 +154,6 @@ export function buildProjectWithLocationQuery(db: PostgresJsDatabase<typeof sche
       version: projects.version,
       ownerId: projects.ownerId,
       cityId: projects.cityId,
-      isDevelopment: projects.isDevelopment,
       lat: projects.lat,
       lng: projects.lng,
       proposalDate: projects.proposalDate,
@@ -223,7 +222,6 @@ export function buildProjectModerationQuery(db: PostgresJsDatabase<typeof schema
       endDate: projects.endDate,
       proposalDate: projects.proposalDate,
       sourceUrl: projects.sourceUrl,
-      isDevelopment: projects.isDevelopment,
       lat: projects.lat,
       lng: projects.lng,
       cityId: projects.cityId,
@@ -390,8 +388,8 @@ export function buildProjectStatusCondition(
   return eq(projects.status, 'approved');
 }
 
-// AI : Build condition to filter projects that have visible content (development projects OR projects with visible overlays)
-// AI : This ensures we don't show empty non-development projects in view mode
+// AI : Build condition to filter projects that have visible content (projects without images OR projects with visible overlays)
+// AI : This ensures all projects are shown whether they have images or not
 // AI : In edit mode, also show user's own projects even if they don't have overlays yet
 export function buildProjectHasVisibleContentCondition(
   user: UserContext,
@@ -399,9 +397,12 @@ export function buildProjectHasVisibleContentCondition(
   overlayChangeRequestIds?: string[]
 ): SQL {
   if (mode === 'view') {
-    // AI : View mode: show if development OR has approved overlays
+    // AI : View mode: show if no overlays OR has approved overlays (all projects visible)
     return sql`(
-      ${projects.isDevelopment} = true
+      NOT EXISTS (
+        SELECT 1 FROM ${overlays}
+        WHERE ${overlays.projectId} = ${projects.id}
+      )
       OR EXISTS (
         SELECT 1 FROM ${overlays}
         WHERE ${overlays.projectId} = ${projects.id}
@@ -411,11 +412,14 @@ export function buildProjectHasVisibleContentCondition(
   }
 
   if (mode === 'edit' && user) {
-    // AI : Edit mode: show if development OR has visible overlays OR is owned by user (even without overlays)
+    // AI : Edit mode: show if no overlays OR has visible overlays OR is owned by user (even without overlays)
     if (overlayChangeRequestIds && overlayChangeRequestIds.length > 0) {
       const idsArray = `{${overlayChangeRequestIds.join(',')}}`;
       return sql`(
-        ${projects.isDevelopment} = true
+        NOT EXISTS (
+          SELECT 1 FROM ${overlays}
+          WHERE ${overlays.projectId} = ${projects.id}
+        )
         OR ${projects.ownerId} = ${user.id}
         OR EXISTS (
           SELECT 1 FROM ${overlays}
@@ -429,7 +433,10 @@ export function buildProjectHasVisibleContentCondition(
       )`;
     } else {
       return sql`(
-        ${projects.isDevelopment} = true
+        NOT EXISTS (
+          SELECT 1 FROM ${overlays}
+          WHERE ${overlays.projectId} = ${projects.id}
+        )
         OR ${projects.ownerId} = ${user.id}
         OR EXISTS (
           SELECT 1 FROM ${overlays}
@@ -441,9 +448,12 @@ export function buildProjectHasVisibleContentCondition(
   }
 
   if (mode === 'moderation' && user) {
-    // AI : Moderation mode: show if development OR has any overlays (approved or pending)
+    // AI : Moderation mode: show if no overlays OR has any overlays (approved or pending)
     return sql`(
-      ${projects.isDevelopment} = true
+      NOT EXISTS (
+        SELECT 1 FROM ${overlays}
+        WHERE ${overlays.projectId} = ${projects.id}
+      )
       OR EXISTS (
         SELECT 1 FROM ${overlays}
         WHERE ${overlays.projectId} = ${projects.id}
@@ -454,7 +464,10 @@ export function buildProjectHasVisibleContentCondition(
 
   // AI : Default: same as view mode
   return sql`(
-    ${projects.isDevelopment} = true
+    NOT EXISTS (
+      SELECT 1 FROM ${overlays}
+      WHERE ${overlays.projectId} = ${projects.id}
+    )
     OR EXISTS (
       SELECT 1 FROM ${overlays}
       WHERE ${overlays.projectId} = ${projects.id}

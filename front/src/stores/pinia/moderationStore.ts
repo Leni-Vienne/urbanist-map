@@ -31,11 +31,11 @@ export const useModerationStore = defineStore('moderation', () => {
     changeRequests: PendingChangeRequest[];
   }) {
     overlays.value = data.overlays;
-    // AI : Compute isOrphan on frontend: approved non-development project with no approved overlays
+    // AI : Compute isOrphan on frontend: approved project with no approved overlays
+    // AI : A project is orphan if it was approved but has no overlays (similar to old "development" concept)
     projects.value = data.projects.map(project => ({
       ...project,
       isOrphan: project.status === 'approved'
-        && !project.isDevelopment
         && project.overlays.filter(o => o.status === 'approved').length === 0
     }));
     changeRequests.value = data.changeRequests;

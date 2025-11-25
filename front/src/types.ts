@@ -125,7 +125,7 @@ export interface Project extends DBProject {
   city: DBCity;
   overlayIds: string[];
   name: string; // AI : Computed from project name field
-  // AI : Map coordinates for development projects (null for overlay projects) - renamed to avoid DB conflict
+  // AI : Center coordinates for all projects (used as marker when no overlays exist)
   mapCoordinates?: { lat: number; lng: number } | null;
   // AI : UI state for tracking local modifications
   isModified?: boolean;
@@ -181,7 +181,7 @@ export type OverlayForModeration = Pick<OverlayObject, 'id' | 'filename' | 'stat
   countryName: string | null;
 };
 
-export type ProjectForModeration = Pick<Project, 'id' | 'name' | 'description' | 'status' | 'version' | 'createdAt' | 'updatedAt' | 'startDate' | 'endDate' | 'proposalDate' | 'sourceUrl' | 'isDevelopment' | 'lat' | 'lng' | 'cityId'> & {
+export type ProjectForModeration = Pick<Project, 'id' | 'name' | 'description' | 'status' | 'version' | 'createdAt' | 'updatedAt' | 'startDate' | 'endDate' | 'proposalDate' | 'sourceUrl' | 'lat' | 'lng' | 'cityId'> & {
   ownerId?: string | null; // AI : For spam prevention reporting (optional, only in moderation)
   ownerUsername?: string | null; // AI : Display friendly username in moderation UI
   ownerApprovedCount?: number | null; // AI : User stats for spam detection (optional, only in moderation)
@@ -192,7 +192,6 @@ export type ProjectForModeration = Pick<Project, 'id' | 'name' | 'description' |
   countryName: string | null;
   overlays: OverlayForModeration[];
   overlayCount?: number;
-  isOrphan?: boolean; // AI : True for approved projects with no approved overlays
 };
 
 // AI : Keep specific types that have unique structure
