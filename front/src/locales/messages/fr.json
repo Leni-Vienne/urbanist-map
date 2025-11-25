@@ -137,7 +137,11 @@
     "publishFailedDetail": "Échec de l'enregistrement du projet de bâtiment",
     "addImages": "Ajouter des images",
     "placementMode": "Mode de placement de marqueur",
-    "clickMapToPlace": "Cliquez sur la carte pour placer votre marqueur de projet"
+    "clickMapToPlace": "Cliquez sur la carte pour placer votre marqueur de projet",
+    "addContribution": "Ajouter une contribution",
+    "whatWouldYouLikeToAdd": "Que souhaitez-vous ajouter ?",
+    "createProjectMarker": "Créer un marqueur de projet",
+    "createProjectMarkerDescription": "Placer un marqueur pour un nouveau projet de construction"
   },
   "status": {
     "pending": "En attente",
@@ -263,7 +267,13 @@
       "title": "Image indisponible",
       "rejected": "Cette image a été rejetée et n'est plus disponible",
       "replaced": "Cette image a été remplacée par une version plus récente et n'est plus disponible"
-    }
+    },
+    "uploadOverlayImage": "Télécharger une image",
+    "uploadOverlayDescription": "Ajouter une nouvelle image à un projet existant",
+    "overlayCreated": "Image créée",
+    "positionOverlayOnMap": "Positionnez maintenant l'image sur la carte",
+    "uploadFailed": "Échec du téléchargement",
+    "uploadFailedDetail": "Échec du téléchargement du fichier image"
   },
   "map": {
     "zoom": "Zoom",

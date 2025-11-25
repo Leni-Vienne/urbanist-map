@@ -26,9 +26,9 @@ export function useAddOverlay() {
         return { success: false, reason: 'edit_mode_error', error }
       }
     } else {
-      // AI : Open image upload dialog which will show project type selection
+      // AI : Open marker placement dialog directly (no image upload option)
       uiStore.openImageUploadDialog()
-      return { success: true, action: 'dialog_opened' }
+      return { success: true, action: 'marker_placement_opened' }
     }
   }
 

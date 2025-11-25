@@ -120,7 +120,7 @@
     "clickOnMapToPlace": "Click anywhere on the map to place your development marker",
     "markerPlacedAt": "Marker placed at",
     "startPlacement": "Start Placement",
-    "clickMapToPlace": "Click on the map to place marker",
+    "clickMapToPlace": "Click on the map to place place your project",
     "waitingForClick": "Waiting for map click...",
     "information": "Project Information",
     "edit": "Edit Project",
@@ -137,7 +137,10 @@
     "publishFailedDetail": "Failed to save development project to the backend",
     "addImages": "Add Images",
     "placementMode": "Marker Placement Mode",
-    "clickMapToPlace": "Click on the map to place your project marker"
+    "addContribution": "Add Contribution",
+    "whatWouldYouLikeToAdd": "What would you like to add?",
+    "createProjectMarker": "Create Project Marker",
+    "createProjectMarkerDescription": "Place a marker for a new construction project"
   },
   "status": {
     "pending": "Pending",
@@ -263,7 +266,13 @@
       "title": "Overlay Unavailable",
       "rejected": "This overlay has been rejected and its images are no longer available",
       "replaced": "This overlay has been replaced by a newer version and its images are no longer available"
-    }
+    },
+    "uploadOverlayImage": "Upload Overlay Image",
+    "uploadOverlayDescription": "Add a new image overlay to an existing project",
+    "overlayCreated": "Overlay Created",
+    "positionOverlayOnMap": "Now position the overlay on the map",
+    "uploadFailed": "Upload Failed",
+    "uploadFailedDetail": "Failed to upload the image file"
   },
   "map": {
     "zoom": "Zoom",
