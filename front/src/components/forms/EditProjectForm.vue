@@ -43,49 +43,11 @@
         </small>
       </div>
 
-      <div class="form-group">
-        <label class="text-gray-600 font-medium mb-2 block">{{ $t('project.timelineStatus') }} *</label>
-        <div class="flex gap-4">
-          <div
-            class="flex items-center gap-2 flex-1 p-3 border rounded cursor-pointer hover:bg-gray-50"
-            :class="{ 'bg-blue-50 border-blue-500': isProposed, 'border-gray-300': !isProposed }"
-            @click="toggleTimelineStatus(true, formData)"
-          >
-            <RadioButton
-              inputId="status-proposed"
-              name="timelineStatus"
-              :value="true"
-              v-model="isProposed"
-            />
-            <div class="flex-1">
-              <label
-                for="status-proposed"
-                class="font-medium cursor-pointer"
-              >{{ $t('project.proposed') }}</label>
-              <div class="text-xs text-gray-500">{{ $t('project.proposedDescription') }}</div>
-            </div>
-          </div>
-          <div
-            class="flex items-center gap-2 flex-1 p-3 border rounded cursor-pointer hover:bg-gray-50"
-            :class="{ 'bg-blue-50 border-blue-500': !isProposed, 'border-gray-300': isProposed }"
-            @click="toggleTimelineStatus(false, formData)"
-          >
-            <RadioButton
-              inputId="status-planned"
-              name="timelineStatus"
-              :value="false"
-              v-model="isProposed"
-            />
-            <div class="flex-1">
-              <label
-                for="status-planned"
-                class="font-medium cursor-pointer"
-              >{{ $t('project.plannedStatus') }}</label>
-              <div class="text-xs text-gray-500">{{ $t('project.plannedDescription') }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <TimelineStatusSelector
+        v-model="isProposed"
+        id-prefix="edit"
+        @change="(value) => toggleTimelineStatus(value, formData)"
+      />
 
       <div class="form-group" v-if="isProposed">
         <label for="proposalDate">{{ $t('project.proposalDate') }} *</label>
@@ -101,7 +63,8 @@
           :maxDate="new Date()"
         />
         <small class="text-gray-500">{{ $t('project.proposalDateHelp') }}</small>
-        <small v-if="hasChanged('proposalDate')" class="change-indicator">
+        <!-- AI : Only show change indicator if project was originally proposed (had a proposalDate) -->
+        <small v-if="hasChanged('proposalDate') && wasOriginallyProposed" class="change-indicator">
           {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData.proposalDate) || $t('overlay.notSet') }}"
         </small>
       </div>
@@ -120,7 +83,8 @@
             required
           />
           <small class="text-gray-500">{{ $t('project.startDateHelp') }}</small>
-          <small v-if="hasChanged('startDate')" class="change-indicator">
+          <!-- AI : Only show change indicator if project was originally planned (had startDate) -->
+          <small v-if="hasChanged('startDate') && !wasOriginallyProposed" class="change-indicator">
             {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData.startDate) || $t('overlay.notSet') }}"
           </small>
         </div>
@@ -138,7 +102,8 @@
             required
           />
           <small class="text-gray-500">{{ $t('project.endDateHelp') }}</small>
-          <small v-if="hasChanged('endDate')" class="change-indicator">
+          <!-- AI : Only show change indicator if project was originally planned (had endDate) -->
+          <small v-if="hasChanged('endDate') && !wasOriginallyProposed" class="change-indicator">
             {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData.endDate) || $t('overlay.notSet') }}"
           </small>
         </div>
@@ -208,6 +173,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import BaseEditForm from './BaseEditForm.vue'
+import TimelineStatusSelector from './TimelineStatusSelector.vue'
 import type { Project } from '@types'
 import { useCitySelect } from '@composables/forms/useCitySelect'
 import { useProjectTimelineStatus } from '@composables/forms/useProjectTimelineStatus'
@@ -233,6 +199,11 @@ const { cities, filteredCities, citiesLoading, onSelectShow, getCityName } = use
 
 // AI : Use timeline status composable (without formData watcher since we handle status in toggleTimelineStatus)
 const { isProposed, toggleTimelineStatus } = useProjectTimelineStatus(props.project)
+
+// AI : Track if project was originally proposed (for change indicator logic)
+const wasOriginallyProposed = computed(() => {
+  return !!(props.project.proposalDate && !props.project.startDate && !props.project.endDate)
+})
 
 // AI : Helper to ensure dates are Date objects (handles both Date and string from backend)
 function toDateObject(value: Date | string | null | undefined): Date | null {

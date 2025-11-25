@@ -11,7 +11,7 @@ import {
   type ApprovalStatus,
   type MapMode
 } from '../db/helpers';
-import { validateOverlaySize } from '../utils/overlayValidation';
+import { validateOverlaySize, calculateCentroidFromCorners } from '../utils/overlayValidation';
 import { deleteLocalImages } from '../lib/imageCleanup';
 import { checkPendingLimitForNewContribution } from '../db/contributionHelpers';
 
@@ -229,9 +229,14 @@ export const overlayRouter = router({
           // AI : Extract corner coordinates
           const [topLeft, topRight, bottomRight, bottomLeft] = input.corners;
 
-          // AI : Calculate centroid (center point) using all 4 corners for distorted overlays
-          const centroidLat = (topLeft.lat + topRight.lat + bottomRight.lat + bottomLeft.lat) / 4;
-          const centroidLng = (topLeft.lng + topRight.lng + bottomRight.lng + bottomLeft.lng) / 4;
+          // AI : Calculate centroid using shared utility for consistency with frontend
+          const centroid = calculateCentroidFromCorners(input.corners);
+          if (!centroid) {
+            throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: 'Invalid corner coordinates',
+            });
+          }
 
           // AI : Build WKT string with corner coordinates concatenated as a string literal
           const polygonWKT = `POLYGON((${topLeft.lng} ${topLeft.lat}, ${topRight.lng} ${topRight.lat}, ${bottomRight.lng} ${bottomRight.lat}, ${bottomLeft.lng} ${bottomLeft.lat}, ${topLeft.lng} ${topLeft.lat}))`;
@@ -245,7 +250,7 @@ export const overlayRouter = router({
             authorId: ctx.user.id,
             replacesOverlayId: input.replacesOverlayId ?? null,
             corners: sql.raw(`ST_GeomFromText('${polygonWKT}', 4326)`),
-            centroid: sql`ST_SetSRID(ST_MakePoint(${centroidLng}, ${centroidLat}), 4326)`
+            centroid: sql`ST_SetSRID(ST_MakePoint(${centroid.lng}, ${centroid.lat}), 4326)`
           };
 
           // AI : Use upsert operation to avoid race conditions - atomic insert or update

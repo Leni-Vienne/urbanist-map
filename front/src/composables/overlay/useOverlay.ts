@@ -22,9 +22,8 @@ import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useUiStore } from '@stores/uiStore';
 import type { OverlayObject, OverlayData, MarkerColor } from '@types';
-import { createOverlay as createOverlayInstance, createOverlayFromCDN, convertOverlayToData } from '../../utils/typeFactories';
+import { createOverlay as createOverlayInstance, createOverlayFromCDN, convertOverlayToData } from '@utils/typeFactories';
 import { toRef } from 'vue';
-
 import { useProjects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import { trpc } from '@client';
 import {
@@ -32,7 +31,7 @@ import {
   saveToEditModeOverlayCache,
 } from '@composables/overlay/useOverlayPositionManagement';
 import { withErrorHandling } from '@composables/core/useErrorHandling';
-import { validateOverlaySize, leafletCornersToCorners } from '../../../../back/src/utils/overlayValidation';
+import { validateOverlaySize, leafletCornersToCorners, calculateCentroidFromCorners } from '../../../../back/src/utils/overlayValidation';
 import { useToast } from '@composables/ui/useToast';
 
 /**
@@ -949,12 +948,12 @@ function createSingleMarker(savedOverlay: OverlayObject): void {
 
   if (!map.value || overlayStore.allMarkers[savedOverlay.id]) return;
 
-  // AI : Calculate centroid from corners (average of all 4 corners) to match backend calculation
+  // AI : Calculate centroid from corners using shared utility to match backend calculation
   if (!savedOverlay.corners || savedOverlay.corners.length !== 4) return;
 
-  const centroidLat = (savedOverlay.corners[0].lat + savedOverlay.corners[1].lat + savedOverlay.corners[2].lat + savedOverlay.corners[3].lat) / 4;
-  const centroidLng = (savedOverlay.corners[0].lng + savedOverlay.corners[1].lng + savedOverlay.corners[2].lng + savedOverlay.corners[3].lng) / 4;
-  const center = L.latLng(centroidLat, centroidLng);
+  const centroid = calculateCentroidFromCorners(savedOverlay.corners);
+  if (!centroid) return;
+  const center = L.latLng(centroid.lat, centroid.lng);
 
   const markerTitle = createMarkerTitle(savedOverlay, savedOverlay.projectId);
   const tempOverlayObject = createOverlayObject(savedOverlay);
