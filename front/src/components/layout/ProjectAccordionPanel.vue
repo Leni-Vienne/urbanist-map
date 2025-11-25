@@ -341,7 +341,7 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { buildThumbnailUrl } from '@utils/imageUrl'
-import { formatRelativeTime, formatDate } from '@utils/dateFormat'
+import { formatDate } from '@utils/dateFormat'
 import { formatSourceUrl } from '@utils/urlFormat'
 import { navigateToDevelopmentProject } from '@composables/navigation/useOverlayNavigation'
 import { useOverlayClickHandler } from '@composables/overlay/useOverlayClickHandler'
@@ -387,8 +387,6 @@ const overlayStore = useOverlayStore()
 // AI : Use shared accordion state (persists across My Contributions and Moderation panels)
 const {
   activeAccordionPanels,
-  expandedCountries,
-  expandedCities,
   toggleCountryExpanded,
   isCountryExpanded,
   toggleCityExpanded,
