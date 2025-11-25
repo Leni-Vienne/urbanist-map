@@ -25,9 +25,7 @@ interface Props {
   clickable?: boolean;
 }
 
-interface Emits {
-  (e: 'click-contributor', data: { userId: string; username: string | null; reportCount: number }): void;
-}
+type Emits = (e: 'click-contributor', data: { userId: string; username: string | null; reportCount: number }) => void;
 
 const props = withDefaults(defineProps<Props>(), {
   reportCount: 0,

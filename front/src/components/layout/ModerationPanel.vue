@@ -132,7 +132,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted, nextTick } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useModeration } from '@composables/moderation/useModeration'
 import { useChangeRequests } from '@composables/changes/useChanges'
@@ -141,7 +141,6 @@ import { useChangeRequestPreview } from '@composables/overlay/useChangeRequestPr
 import { useToast } from '@composables/ui/useToast'
 import { useAuthStore } from '@stores/authStore'
 import { useModerationStore } from '@stores/pinia/moderationStore'
-import { useAccordionState } from '@composables/layout/useAccordionState'
 import { trpc } from '@client'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import ReplacementConflictsDialog from '@components/moderation/ReplacementConflictsDialog.vue'
@@ -156,9 +155,6 @@ const { t } = useI18n()
 // AI : Auth and moderation stores for country filtering
 const authStore = useAuthStore()
 const moderationStore = useModerationStore()
-
-// AI : Accordion state for auto-expanding countries
-const { expandedCountries } = useAccordionState()
 
 // AI : Country selector state
 const allCountries = ref<Array<{ code: string; name: string }>>([])
