@@ -276,8 +276,11 @@ if (props.mode === 'create') {
     isProposed.value = true
 }
 
-// AI : Use city select composable with prefilled city
-const { cities, citiesLoading, citiesLoaded, filteredCities, onSelectShow } = useCitySelect(props.project.city)
+// AI : Use city select composable with prefilled city and marker coordinates for development projects
+const markerCoordinates = props.project.isDevelopment && props.project.lat && props.project.lng
+  ? { lat: props.project.lat, lng: props.project.lng }
+  : null
+const { cities, citiesLoading, citiesLoaded, filteredCities, onSelectShow } = useCitySelect(props.project.city, markerCoordinates)
 
 // AI : Map country code to tile layer type - returns appropriate layer or default
 function getLayerTypeForCountry(countryCode: string): TileLayerType {

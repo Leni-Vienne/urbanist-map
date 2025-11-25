@@ -225,8 +225,11 @@ interface Emits {
 const props = defineProps<Props>()
 defineEmits<Emits>()
 
-// AI : Use city select composable with prefilled city
-const { cities, filteredCities, citiesLoading, onSelectShow, getCityName } = useCitySelect(props.project.city)
+// AI : Use city select composable with prefilled city and marker coordinates for development projects
+const markerCoordinates = props.project.isDevelopment && props.project.lat && props.project.lng
+  ? { lat: props.project.lat, lng: props.project.lng }
+  : null
+const { cities, filteredCities, citiesLoading, onSelectShow, getCityName } = useCitySelect(props.project.city, markerCoordinates)
 
 // AI : Use timeline status composable (without formData watcher since we handle status in toggleTimelineStatus)
 const { isProposed, toggleTimelineStatus } = useProjectTimelineStatus(props.project)
