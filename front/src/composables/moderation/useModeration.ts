@@ -237,7 +237,7 @@ export function useModeration() {
 
     if (!user) return
 
-    const isAdmin = user.role === 'admin' || user.moderatedCountries === null
+    const isAdmin = user.role === 'admin'
     const hasSelectedCountry = moderationStore.selectedCountryCode !== null
 
     // AI : Fetch if admin (no country needed) OR if country already selected
