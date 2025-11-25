@@ -3,6 +3,7 @@ import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { createProject as createProjectInstance } from '../../utils/typeFactories';
 import { storeToRefs } from 'pinia';
+import { removeDevelopmentMarkerForProject } from '@composables/map/useCityMarkers';
 
 // AI : Export composable function that gets store refs when called (not at module level)
 export function useProjects() {
@@ -32,7 +33,7 @@ export function createProject(projectData: Partial<Omit<Project, 'id' | 'overlay
 
 export function addOverlayToProjectWithId(projectId: string, overlayId: string) {
   const { projects, overlays } = useProjects();
-  
+
   if (projects.value[projectId] == null) {
     console.error('Project not found in memory store:', projectId);
     throw new Error('Project not found');
@@ -47,6 +48,9 @@ export function addOverlayToProjectWithId(projectId: string, overlayId: string) 
   const updatedProjects = { ...projects.value };
   const project = { ...updatedProjects[projectId] };
 
+  // AI : Check if this is the first overlay being added to this project
+  const isFirstOverlay = project.overlayIds.length === 0;
+
   // Update project with new overlay ID
   if (!project.overlayIds.includes(overlayId)) {
     project.overlayIds = [...project.overlayIds, overlayId];
@@ -59,6 +63,11 @@ export function addOverlayToProjectWithId(projectId: string, overlayId: string) 
   // Update overlay with project reference
   const overlayObject = overlays.value[overlayId];
   overlayObject.projectId = projectId;
+
+  // AI : Remove development marker when first overlay is added to project
+  if (isFirstOverlay) {
+    removeDevelopmentMarkerForProject(projectId);
+  }
 }
 
 export function removeOverlayFromProjectWithId(projectId: string, overlayId: string) {

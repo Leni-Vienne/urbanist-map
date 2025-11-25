@@ -16,7 +16,7 @@ export interface EditFormState {
 export const useUiStore = defineStore("ui", () => {
   // AI : Dialog visibility states
   const authModalVisible = ref(false);
-  const imageUploadDialogVisible = ref(false);
+  const markerPlacementBarVisible = ref(false);
   const projectSelectorVisible = ref(false);
   const moderatedContributionsDialogVisible = ref(false);
 
@@ -58,13 +58,13 @@ export const useUiStore = defineStore("ui", () => {
     authModalVisible.value = false;
   }
 
-  // AI : Image upload dialog actions
-  function openImageUploadDialog() {
-    imageUploadDialogVisible.value = true;
+  // AI : Marker placement bar actions
+  function openMarkerPlacementBar() {
+    markerPlacementBarVisible.value = true;
   }
 
-  function closeImageUploadDialog() {
-    imageUploadDialogVisible.value = false;
+  function closeMarkerPlacementBar() {
+    markerPlacementBarVisible.value = false;
   }
 
   // AI : Project selector actions
@@ -161,7 +161,7 @@ export const useUiStore = defineStore("ui", () => {
   // AI : Close all UI elements (used for cleanup)
   function closeAllDialogs() {
     authModalVisible.value = false;
-    imageUploadDialogVisible.value = false;
+    markerPlacementBarVisible.value = false;
     projectSelectorVisible.value = false;
     projectDialog.value.visible = false;
     projectEditForm.value.visible = false;
@@ -173,7 +173,7 @@ export const useUiStore = defineStore("ui", () => {
   return {
     // AI : State
     authModalVisible,
-    imageUploadDialogVisible,
+    markerPlacementBarVisible,
     projectSelectorVisible,
     moderatedContributionsDialogVisible,
     projectDialog,
@@ -187,8 +187,8 @@ export const useUiStore = defineStore("ui", () => {
     // AI : Actions
     openAuthModal,
     closeAuthModal,
-    openImageUploadDialog,
-    closeImageUploadDialog,
+    openMarkerPlacementBar,
+    closeMarkerPlacementBar,
     openProjectSelector,
     closeProjectSelector,
     openProjectDialog,

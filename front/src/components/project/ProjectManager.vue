@@ -79,9 +79,9 @@
   </Dialog>
 
   <!-- AI : Marker Placement Dialog -->
-  <ImageUploadDialog
-    ref="imageUploadDialog"
-    v-model:visible="uiStore.imageUploadDialogVisible"
+  <MarkerPlacementBar
+    ref="markerPlacementBar"
+    v-model:visible="uiStore.markerPlacementBarVisible"
     @marker-coordinates="onMarkerCoordinatesSelected"
     @marker-mode-enabled="onMarkerModeEnabled"
     @update:visible="onDialogVisibilityChange"
@@ -101,7 +101,7 @@ import { map } from '@composables/core/useMap'
 import { loadCityProjects, getDevelopmentMarkerByProjectId, createProjectInfoTeleportTarget, updateDevelopmentMarkerColor, addSingleCityMarker, addCityMarkersForCountry } from '@composables/map/useCityMarkers'
 import { loadCitiesForCountry } from '@composables/map/useCountryMarkers'
 import { useMapStore } from '@stores/pinia/mapStore'
-import { createDevelopmentIcon } from '@composables/map/useMarkers'
+import { createBasicProjectIcon } from '@composables/map/useMarkers'
 import { addOverlay } from '@composables/overlay/useOverlay'
 import { setLastCreatedProject } from '@composables/ui/useProjectState'
 import { createProject } from '@composables/project/useProjects'
@@ -110,7 +110,7 @@ import { useCityProjects } from '@composables/project/useProjectSelection'
 import type { Project, OverlayObject } from '@types'
 import type { NearbyProject } from '../../types/api'
 
-import ImageUploadDialog from '@components/map/ImageUploadDialog.vue'
+import MarkerPlacementBar from '@components/map/MarkerPlacementBar.vue'
 import ProjectPicker from '@components/project/ProjectPicker.vue'
 const ProjectDialog = defineAsyncComponent(() => import('@components/project/ProjectDialog.vue'))
 const EditProjectForm = defineAsyncComponent(() => import('@components/forms/EditProjectForm.vue'))
@@ -123,7 +123,7 @@ const uiStore = useUiStore()
 const toast = useToast()
 const { t: $t } = useI18n()
 const projectPickerRef = ref()
-const imageUploadDialog = ref()
+const markerPlacementBar = ref()
 const tempMarker = ref<L.Marker | null>(null)
 
 const { projects } = storeToRefs(projectStore)
@@ -357,15 +357,15 @@ function onMarkerModeEnabled() {
     }
 
     // AI : Create temporary marker using DevelopmentMarkerSVG in orange for visual feedback
-    const markerIcon = createDevelopmentIcon('orange');
+    const markerIcon = createBasicProjectIcon('orange');
     tempMarker.value = L.marker([coordinates.lat, coordinates.lng], {
       icon: markerIcon,
       draggable: false
     }).addTo(map.value!);
 
-    // AI : Pass coordinates back to dialog
-    if (imageUploadDialog.value) {
-      imageUploadDialog.value.setMarkerCoordinates(coordinates);
+    // AI : Pass coordinates back to marker placement bar
+    if (markerPlacementBar.value) {
+      markerPlacementBar.value.setMarkerCoordinates(coordinates);
     }
 
     // AI : Keep listener active to allow repositioning - will be removed when dialog closes
