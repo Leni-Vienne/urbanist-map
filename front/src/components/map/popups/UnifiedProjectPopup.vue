@@ -21,21 +21,13 @@
         :available-cities="availableCities"
       >
         <template #actions="{ project }">
-          <!-- AI : Direct edit button (for owned projects) -->
+          <!-- AI : Edit button (owned = direct edit, non-owned = suggest changes) -->
           <Button
-            v-if="!viewMode && project && user && project.ownerId === user.id"
+            v-if="!viewMode && project && user"
             icon="pi pi-pencil"
-            class="p-button-sm p-button-text p-button-info"
+            :class="['p-button-sm', 'p-button-text']"
             @click="emit('edit-project', project)"
-            v-tooltip.top="$t('project.edit')"
-          />
-          <!-- AI : Suggest changes button (for non-owned projects) -->
-          <Button
-            v-else-if="!viewMode && project && user && project.ownerId !== user.id"
-            icon="pi pi-file-edit"
-            class="p-button-sm p-button-text p-button-secondary"
-            @click="emit('edit-project', project)"
-            v-tooltip.top="$t('tooltips.suggestChanges')"
+            v-tooltip.top="project.ownerId === user.id ? $t('project.edit') : $t('tooltips.suggestChanges')"
           />
           <!-- AI : Close button (only for project-only view) -->
           <Button
@@ -56,21 +48,13 @@
         <div class="section-header-row">
           <div class="section-header">{{ $t("overlay.overlayInformation") }}</div>
           <div class="overlay-actions">
-            <!-- AI : Direct edit button (for owned overlays) -->
+            <!-- AI : Edit button (owned = direct edit, non-owned = suggest changes) -->
             <Button
-              v-if="!viewMode && user && overlay.authorId === user.id"
+              v-if="!viewMode && user"
               icon="pi pi-pencil"
-              class="p-button-sm p-button-text p-button-info"
+              :class="['p-button-sm', 'p-button-text']"
               @click="emit('edit-overlay', overlay)"
-              v-tooltip.top="$t('tooltips.editOverlay')"
-            />
-            <!-- AI : Suggest changes button (for non-owned overlays) -->
-            <Button
-              v-else-if="!viewMode && user && overlay.authorId !== user.id"
-              icon="pi pi-file-edit"
-              class="p-button-sm p-button-text p-button-secondary"
-              @click="emit('edit-overlay', overlay)"
-              v-tooltip.top="$t('tooltips.suggestChanges')"
+              v-tooltip.top="overlay.authorId === user.id ? $t('tooltips.editOverlay') : $t('tooltips.suggestChanges')"
             />
           </div>
         </div>
@@ -228,7 +212,7 @@ function handlePublishClick() {
   pointer-events: auto;
   position: relative;
   /* AI : Position above the marker (for project markers) */
-  transform: translateY(calc(20px)) translateX(-50%);
+  transform: translateY(calc(20px));
   z-index: 1000;
 }
 
