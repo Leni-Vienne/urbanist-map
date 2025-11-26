@@ -38,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
+import { ref, watch, computed, onUnmounted } from 'vue';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { map } from '@composables/core/useMap';
 import { getMarkerSvg } from '@composables/map/useMarkers';

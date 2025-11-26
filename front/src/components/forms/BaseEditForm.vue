@@ -10,17 +10,6 @@
         :getFieldClasses="form.getFieldClasses"
         :formatValue="form.formatValue"
       />
-      
-      <!-- AI : Change reason field (shown conditionally) -->
-      <div v-if="showChangeReason" class="form-group">
-        <label for="changeReason">{{ $t('common.reasonForChanges') }}</label>
-        <Textarea
-          id="changeReason"
-          v-model="form.changeReason.value"
-          rows="2"
-          :placeholder="$t('common.explainChanges')"
-        />
-      </div>
 
       <!-- AI : Form actions with configurable buttons -->
       <div class="form-actions">
@@ -66,7 +55,6 @@ interface Props {
   submitLabel?: string
   cancelLabel?: string
   showReset?: boolean
-  showChangeReason?: boolean
   localOnly?: boolean // AI : If true, only update local store, don't submit to backend
   getAvailableCities?: () => Array<{ id: string; name: string; countryCode: string; lat: number; lng: number; distance?: number }> // AI : Function to get cities dynamically
 }
@@ -81,8 +69,7 @@ const props = withDefaults(defineProps<Props>(), {
   formClass: 'editable-form',
   submitLabel: '',
   cancelLabel: 'Cancel',
-  showReset: true,
-  showChangeReason: true
+  showReset: true
 })
 
 const emit = defineEmits<Emits>()

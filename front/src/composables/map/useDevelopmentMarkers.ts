@@ -40,7 +40,7 @@ export function removeDevelopmentMarkerForProject(projectId: string): void {
   }
 
   // AI : Remove marker from map
-  if (developmentProjectsLayer && developmentProjectsLayer.hasLayer(marker)) {
+  if (developmentProjectsLayer?.hasLayer(marker)) {
     developmentProjectsLayer.removeLayer(marker);
   }
 

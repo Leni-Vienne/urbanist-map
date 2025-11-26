@@ -239,14 +239,14 @@ async function prepareAndShowSubmissionDialog(context: SubmissionContext) {
 }
 
 // AI : Confirm submission after user approves in dialog
-async function confirmSubmission() {
+async function confirmSubmission(reason: string) {
   if (!pendingSubmissionContext.value) return;
 
   try {
     isSubmitting.value = true;
 
     // @ts-expect-error - Complex Pinia store types cause deep instantiation errors
-    await submissionService.submit(pendingSubmissionContext.value);
+    await submissionService.submit(pendingSubmissionContext.value, reason);
 
     // AI : Show success message
     const context = pendingSubmissionContext.value;

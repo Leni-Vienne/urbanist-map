@@ -106,7 +106,7 @@ export function useSubmissionService() {
   }
 
   // AI : Detect all changes for a project entity by fetching original from backend cache
-  function detectProjectChanges(project: Project): FieldChange[] {
+  function detectProjectChanges(project: Project, customReason?: string): FieldChange[] {
     const changes: FieldChange[] = []
 
     // AI : Try to find original project from the originalBackendProjects cache
@@ -153,7 +153,7 @@ export function useSubmissionService() {
             fieldName: String(field),
             oldValue: normalizedOld,
             newValue: normalizedNew,
-            changeReason: `User modified ${field}`
+            changeReason: customReason ?? undefined
           })
         }
       } else if (oldValue !== newValue) {
@@ -164,7 +164,7 @@ export function useSubmissionService() {
           oldValue: oldValue ?? null,
           // @ts-expect-error - Complex union types from Project fields don't match strict JSONType
           newValue: newValue ?? null,
-          changeReason: `User modified ${field}`
+          changeReason: customReason ?? undefined
         })
       }
     })
@@ -173,7 +173,7 @@ export function useSubmissionService() {
   }
 
   // AI : Detect all changes for an overlay entity
-  function detectOverlayChanges(overlay: OverlayObject): FieldChange[] {
+  function detectOverlayChanges(overlay: OverlayObject, customReason?: string): FieldChange[] {
     const changes: FieldChange[] = []
 
     // AI : Find original overlay data from backend (approved version)
@@ -189,7 +189,7 @@ export function useSubmissionService() {
         fieldName: 'projectId',
         oldValue: originalOverlay.projectId,
         newValue: overlay.projectId,
-        changeReason: 'User changed the parent project'
+        changeReason: customReason ?? undefined
       })
     }
 
@@ -199,7 +199,7 @@ export function useSubmissionService() {
         fieldName: 'caption',
         oldValue: originalOverlay.caption ?? null,
         newValue: overlay.caption,
-        changeReason: 'User modified the overlay caption'
+        changeReason: customReason ?? undefined
       })
     }
 
@@ -216,7 +216,7 @@ export function useSubmissionService() {
         fieldName: 'corners',
         oldValue: normalizedOriginalCorners,
         newValue: normalizedCurrentCorners,
-        changeReason: 'User moved, rotated, or scaled the overlay'
+        changeReason: customReason ?? undefined
       })
     }
 
@@ -224,15 +224,15 @@ export function useSubmissionService() {
   }
 
   // AI : Unified change detection for any entity
-  function detectChanges(context: SubmissionContext): FieldChange[] {
+  function detectChanges(context: SubmissionContext, customReason?: string): FieldChange[] {
     if (context.changedFields) {
       return context.changedFields
     }
 
     if (context.entityType === 'project') {
-      return detectProjectChanges(context.entity as Project)
+      return detectProjectChanges(context.entity as Project, customReason)
     } else {
-      return detectOverlayChanges(context.entity as OverlayObject)
+      return detectOverlayChanges(context.entity as OverlayObject, customReason)
     }
   }
 
@@ -507,15 +507,15 @@ export function useSubmissionService() {
   }
 
   // AI : Unified submission handler - routes to correct backend API
-  async function submit(context: SubmissionContext): Promise<void> {
+  async function submit(context: SubmissionContext, customReason?: string): Promise<void> {
     // AI : Validate first
     const validation: ValidationResult = validate(context)
     if (!validation.isValid) {
       throw new Error(validation.errors.join(', '))
     }
 
-    // AI : Detect changes with explicit type
-    const changes: FieldChange[] = detectChanges(context)
+    // AI : Detect changes with explicit type, passing custom reason if provided
+    const changes: FieldChange[] = detectChanges(context, customReason || undefined)
 
     // AI : Route to appropriate submission handler
     if (context.entityType === 'project') {
