@@ -68,7 +68,6 @@ import { useUiStore } from '@stores/uiStore';
 import { updateMarkerTooltip, navigateToOverlay, addOverlay } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
 import { useOverlayPublisher } from '@composables/overlay/useOverlayPublisher';
-import { useProjectPublisher } from '@composables/project/useProjectPublisher';
 import { useSubmissionService } from '@composables/submission/useSubmissionService';
 import type { SubmissionContext, SubmissionSummary } from '@composables/submission/useSubmissionService';
 import { citiesWithProjects, cleanupProjectInfoTeleportTarget } from '@composables/map/useCityMarkers';
@@ -89,7 +88,6 @@ const { projectInfoPopup } = storeToRefs(uiStore);
 const toast = useToast();
 const { t } = useI18n();
 const { publishOverlay } = useOverlayPublisher();
-const { publishProject } = useProjectPublisher();
 const submissionService = useSubmissionService();
 
 // AI : Submission dialog state
@@ -97,6 +95,13 @@ const showSubmissionDialog = ref(false);
 const submissionSummary = ref<SubmissionSummary | null>(null);
 const pendingSubmissionContext = ref<SubmissionContext | null>(null);
 const isSubmitting = ref(false);
+
+// AI : Track teleport target existence
+let targetObserver: MutationObserver | null = null;
+const teleportTargetExists = ref(false);
+
+// AI : Ref for overlay editor component
+const overlayEditorRef = ref<InstanceType<typeof OverlayEditor> | null>(null);
 
 // AI : Computed for available cities
 const availableCities = computed(() => {
@@ -114,13 +119,6 @@ const showOverlayPopup = computed(() => showInfoPopup.value);
 const showProjectPopup = computed(() => {
   return projectInfoPopup.value.visible && activeProject.value && teleportTargetExists.value;
 });
-
-// AI : Track teleport target existence
-let targetObserver: MutationObserver | null = null;
-const teleportTargetExists = ref(false);
-
-// AI : Ref for overlay editor component
-const overlayEditorRef = ref<InstanceType<typeof OverlayEditor> | null>(null);
 
 // AI : Check if teleport targets exist (we need both for overlay and project popups)
 const checkTeleportTarget = () => {
@@ -321,6 +319,17 @@ async function handlePublishOverlay() {
         detail: t('overlay.publishSuccessDetail'),
         life: 3000
       });
+
+      // AI : If project was also modified and approved, submit change request for project
+      if (projectModified && project?.status === 'approved') {
+        const projectContext: SubmissionContext = {
+          entityType: 'project',
+          entityId: project.id,
+          entity: project,
+          changeType: 'update_approved'
+        };
+        await prepareAndShowSubmissionDialog(projectContext);
+      }
     } catch (error: any) {
       console.error('Error publishing overlay:', error);
       toast.add({
@@ -351,47 +360,15 @@ async function handlePublishProject() {
   const project = activeProject.value;
   if (!project) return;
 
-  // AI : For pending/new projects, check if we need unified service or direct publish
-  if (project.status === 'pending' || !project.status) {
-    // AI : Use unified service for consistent validation and summary
-    const context: SubmissionContext = {
-      entityType: 'project',
-      entityId: project.id,
-      entity: project,
-      changeType: submissionService.getChangeType(project)
-    };
+  // AI : Always use unified submission service - it determines the correct flow based on status
+  const context: SubmissionContext = {
+    entityType: 'project',
+    entityId: project.id,
+    entity: project,
+    changeType: submissionService.getChangeType(project)
+  };
 
-    await prepareAndShowSubmissionDialog(context);
-  } else if (project.status === 'approved') {
-    // AI : For approved projects with changes, use unified service
-    const context: SubmissionContext = {
-      entityType: 'project',
-      entityId: project.id,
-      entity: project,
-      changeType: 'update_approved'
-    };
-
-    await prepareAndShowSubmissionDialog(context);
-  } else {
-    // AI : Fallback to direct publish for other cases
-    try {
-      await publishProject(project);
-      toast.add({
-        severity: 'success',
-        summary: t('project.publishSuccess'),
-        detail: t('project.publishSuccessDetail'),
-        life: 3000
-      });
-    } catch (error) {
-      console.error('Error publishing project:', error);
-      toast.add({
-        severity: 'error',
-        summary: t('project.publishFailed'),
-        detail: t('project.publishFailedDetail'),
-        life: 5000
-      });
-    }
-  }
+  await prepareAndShowSubmissionDialog(context);
 }
 
 // AI : Handle project editing (both modes)

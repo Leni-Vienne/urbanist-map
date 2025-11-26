@@ -54,6 +54,12 @@ export function useOverlayPublisher() {
   // AI : Ensure project exists on server and handle project publishing
   async function ensureProjectOnServer(project: Project): Promise<boolean> {
     try {
+      // AI : For approved projects, skip publishing - they already exist on server
+      // AI : Project modifications will be handled separately via change request flow
+      if (project.status === 'approved') {
+        return false; // AI : Project ID won't change for existing approved projects
+      }
+
       // AI : Use shared helper to build consistent payload
       const projectResult = await trpc.project.publishProject.mutate(
         buildProjectPayload(project)

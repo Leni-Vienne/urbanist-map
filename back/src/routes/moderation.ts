@@ -663,7 +663,7 @@ export const moderationRouter = router({
           // AI : Verify moderator has permission for this project's country
           await checkModeratorCountryPermission(input.id, ctx.user);
 
-          // AI : Allow updating pending projects (any action) OR approved projects (rejection only, for orphan projects)
+          // AI : Allow updating pending projects (any action) OR approved projects
           const statusCondition = input.status === 'rejected'
             ? or(eq(projects.status, 'pending'), eq(projects.status, 'approved'))
             : eq(projects.status, 'pending');
