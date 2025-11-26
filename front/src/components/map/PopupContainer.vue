@@ -2,10 +2,10 @@
   <!-- Unified Project Popup - for overlays -->
   <Teleport
     to="#info-popup-teleport-target"
-    v-if="showOverlayPopup && overlayObject && currentProject && teleportTargetExists"
+    v-if="showOverlayPopup && overlayObject && activeProject && teleportTargetExists"
   >
     <UnifiedProjectPopup
-      :project="currentProject"
+      :project="activeProject"
       :overlay="overlayObject"
       :viewMode="mode !== 'edit'"
       :publishLoading="isSubmitting"
@@ -23,10 +23,10 @@
   <!-- Unified Project Popup - for projects without overlay -->
   <Teleport
     to="#project-info-popup-teleport-target"
-    v-if="showProjectPopup && selectedProject"
+    v-if="showProjectPopup && activeProject"
   >
     <UnifiedProjectPopup
-      :project="selectedProject"
+      :project="activeProject"
       :viewMode="mode !== 'edit'"
       :publishLoading="isSubmitting"
       :loading="false"
@@ -112,19 +112,7 @@ const showOverlayPopup = computed(() => showInfoPopup.value);
 
 // AI : Computed for project popup visibility  
 const showProjectPopup = computed(() => {
-  return projectInfoPopup.value.visible && selectedProject.value && teleportTargetExists.value;
-});
-
-// AI : Get selected project for project popup
-const selectedProject = computed(() => {
-  if (!projectInfoPopup.value.projectId) return null;
-
-  // AI : First try to get from local projects store
-  const localProject = projects.value[projectInfoPopup.value.projectId];
-  if (localProject) return localProject;
-
-  // AI : If not found locally, try to get from projectInfoPopup (for backend projects)
-  return projectInfoPopup.value.project || null;
+  return projectInfoPopup.value.visible && activeProject.value && teleportTargetExists.value;
 });
 
 // AI : Track teleport target existence
@@ -188,30 +176,35 @@ function convertAndCacheBackendProject(backendProject: any): Project {
   return convertedProject;
 }
 
-// AI : Get project for overlay - computed to ensure reactivity when projectId changes
-const currentProject = computed((): Project | null => {
+// AI : Unified computed property for currently active project (from either overlay or project popup)
+const activeProject = computed((): Project | null => {
+  // AI : Priority 1: Check if viewing an overlay popup - get project from overlay
   const overlay = overlayObject.value;
-  if (!overlay?.projectId) return null;
+  if (overlay?.projectId) {
+    // AI : Try local projects store first
+    const localProject = projects.value[overlay.projectId];
+    if (localProject) return localProject;
 
-  // AI : First try to get from local projects store
-  const localProject = projects.value[overlay.projectId];
-  if (localProject) {
-    return localProject;
+    // AI : Try allProjects (includes nearbyProjects)
+    const allProjectsData = projectStore.allProjects;
+    if (allProjectsData[overlay.projectId]) return allProjectsData[overlay.projectId];
+
+    // AI : Try to find backend project data from overlay or city overlays
+    const backendProject = overlay.project?.id === overlay.projectId
+      ? overlay.project
+      : currentCityOverlays.value.find(cityOverlay => cityOverlay.project?.id === overlay.projectId)?.project;
+
+    if (backendProject) return convertAndCacheBackendProject(backendProject);
   }
 
-  // AI : Try to get from allProjects (includes nearbyProjects)
-  const allProjectsData = projectStore.allProjects;
-  if (allProjectsData[overlay.projectId]) {
-    return allProjectsData[overlay.projectId];
-  }
+  // AI : Priority 2: Check if viewing a project popup - get project from project popup state
+  if (projectInfoPopup.value.projectId) {
+    // AI : Try local projects store first
+    const localProject = projects.value[projectInfoPopup.value.projectId];
+    if (localProject) return localProject;
 
-  // AI : Try to find backend project data from overlay or city overlays
-  const backendProject = overlay.project?.id === overlay.projectId
-    ? overlay.project
-    : currentCityOverlays.value.find(cityOverlay => cityOverlay.project?.id === overlay.projectId)?.project;
-
-  if (backendProject) {
-    return convertAndCacheBackendProject(backendProject);
+    // AI : Try project from popup state (for backend projects)
+    if (projectInfoPopup.value.project) return projectInfoPopup.value.project;
   }
 
   return null;
@@ -301,7 +294,7 @@ async function handlePublishOverlay() {
   const overlay = overlayObject.value;
   if (!overlay) return;
 
-  const project = currentProject.value;
+  const project = activeProject.value;
   const overlayModified = overlay.isModified || false;
   const projectModified = project?.isModified || false;
 
@@ -355,7 +348,7 @@ async function handlePublishOverlay() {
 
 // AI : Handle project publishing (project mode only) - NEW UNIFIED APPROACH
 async function handlePublishProject() {
-  const project = selectedProject.value;
+  const project = activeProject.value;
   if (!project) return;
 
   // AI : For pending/new projects, check if we need unified service or direct publish
@@ -467,7 +460,9 @@ async function handleViewOriginalOverlay(originalOverlayId: string) {
 
 // AI : Handle add images button - directly open file picker for overlay upload
 function handleAddImages() {
-  if (!selectedProject.value) return;
+  // AI : Get currently active project (works for both overlay and project popups)
+  const project = activeProject.value;
+  if (!project) return;
 
   // AI : Create hidden file input to trigger file picker
   const fileInput = document.createElement('input');
@@ -484,7 +479,7 @@ function handleAddImages() {
       const reader = new FileReader();
       reader.onload = () => {
         try {
-          const projectId = selectedProject.value!.id;
+          const projectId = project.id;
 
           // AI : Create overlay directly for this project
           addOverlay(reader.result as string, projectId);
