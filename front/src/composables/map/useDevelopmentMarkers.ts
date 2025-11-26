@@ -7,6 +7,7 @@ import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useUiStore } from '@stores/uiStore';
 import { MARKER_OPACITY } from '@constants/markerConstants';
 import { createProjectInfoTeleportTarget } from '@composables/map/useProjectPopupTeleport';
+import { getProjectMarkerColor } from '../../utils/markerColors';
 
 // AI : Layer group for development projects (development markers)
 let developmentProjectsLayer: L.LayerGroup | null = null;
@@ -48,50 +49,9 @@ export function removeDevelopmentMarkerForProject(projectId: string): void {
 }
 
 /**
- * AI : Get project marker color based on status, timeline, and mode
- */
-function getProjectMarkerColor(project: Project, mode: 'view' | 'edit' | 'moderation'): 'yellow' | 'green' | 'grey' | 'orange' | 'red' {
-  if (mode === 'moderation') {
-    const status = project.status;
-    if (status === 'pending') return 'yellow';
-    if (status === 'approved') return 'green';
-    return 'grey';
-  }
-
-  if (mode === 'edit') {
-    const hasBeenModified = project.isModified ?? false;
-    const status = project.status;
-
-    if (hasBeenModified) return 'orange';
-    if (status === 'pending') return 'yellow';
-    if (status === 'rejected') return 'red';
-    if (status === 'approved') return 'green';
-    return 'red';
-  }
-
-  // AI : View mode uses timeline-based colors
-  if (project.status === 'pending') {
-    return 'yellow';
-  }
-
-  const { proposalDate, startDate, endDate } = project;
-
-  if (proposalDate && !startDate) return 'yellow';
-  if (!startDate) return 'yellow';
-
-  const now = new Date();
-  const start = new Date(startDate);
-  const end = endDate ? new Date(endDate) : null;
-
-  if (start > now) return 'green';
-  if (end && end <= now) return 'grey';
-  return 'orange';
-}
-
-/**
  * AI : Update development marker opacities based on selected marker
  */
-function updateDevelopmentMarkerOpacities(selectedMarker: L.Marker | null) {
+export function updateDevelopmentMarkerOpacities(selectedMarker: L.Marker | null) {
   if (!developmentProjectsLayer) return;
 
   selectedDevelopmentMarker = selectedMarker;
