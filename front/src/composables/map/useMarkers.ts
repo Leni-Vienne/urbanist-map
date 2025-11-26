@@ -173,6 +173,12 @@ export function createBasicProjectIcon(color: MarkerColor): L.DivIcon {
   });
 }
 
+
+// AI : Get raw marker SVG string for cursor display
+export function getMarkerSvg(color: MarkerColor): string {
+  return createDevelopmentMarkerSVG(color);
+}
+
 // AI : Create button-sized marker SVG using base color
 export function createButtonSVG(color: MarkerColor): string {
   const baseColor = markerColors[color];

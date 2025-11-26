@@ -1,7 +1,7 @@
 <template>
   <Transition name="help-fade">
     <button
-      v-if="visible"
+      v-if="actuallyVisible"
       type="button"
       class="help-button"
       @click="handleClick"
@@ -17,17 +17,24 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { map } from '@composables/core/useMap'
 import { mobileAwareFlyTo, flyToCountry } from '@composables/map/useMapNavigation'
 import { useMapStore } from '@stores/pinia/mapStore'
+import { useUiStore } from '@stores/uiStore'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 const visible = ref(false)
 const mapStore = useMapStore()
+const uiStore = useUiStore()
 let timeoutId: number | null = null
 let observer: MutationObserver | null = null
 let checkMarkersDebounceId: number | null = null
 
 // AI : Determine which type of button to show: 'country' or 'city'
 const buttonType = ref<'country' | 'city' | null>(null)
+
+// AI : Computed visibility - hide when marker placement bar is visible
+const actuallyVisible = computed(() => {
+  return visible.value && !uiStore.markerPlacementBarVisible
+})
 
 const buttonText = computed(() => {
   return buttonType.value === 'country'

@@ -1,36 +1,47 @@
 <template>
-  <!-- AI : Floating bar for marker placement -->
-  <div 
-    v-if="markerPlacementMode && visible" 
-    class="marker-placement-bar"
-  >
-    <div class="placement-content">
-      <i class="pi pi-map-marker placement-icon"></i>
-      <div class="placement-text">
-        <span v-if="!markerCoordinates" class="instruction">{{ $t('project.clickMapToPlace') }}</span>
-        <span v-else class="coordinates-text">{{ markerCoordinates.lat.toFixed(5) }}, {{ markerCoordinates.lng.toFixed(5) }}</span>
+  <!-- AI : Floating bar for marker placement, positioned inside map container -->
+  <Teleport to="#mapDiv">
+    <div 
+      v-if="markerPlacementMode && visible" 
+      class="marker-placement-bar"
+    >
+      <div class="placement-content">
+        <i class="pi pi-map-marker placement-icon"></i>
+        <div class="placement-text">
+          <span v-if="!markerCoordinates" class="instruction">{{ $t('project.clickMapToPlace') }}</span>
+          <span v-else class="coordinates-text">{{ markerCoordinates.lat.toFixed(5) }}, {{ markerCoordinates.lng.toFixed(5) }}</span>
+        </div>
+      </div>
+      <div class="placement-actions">
+        <Button 
+          v-if="markerCoordinates"
+          :label="$t('common.continue')"
+          size="small"
+          @click="onContinue"
+        />
+        <Button 
+          :label="$t('common.cancel')"
+          severity="secondary"
+          size="small"
+          @click="onCancel"
+        />
       </div>
     </div>
-    <div class="placement-actions">
-      <Button 
-        v-if="markerCoordinates"
-        :label="$t('common.continue')"
-        size="small"
-        @click="onContinue"
-      />
-      <Button 
-        :label="$t('common.cancel')"
-        severity="secondary"
-        size="small"
-        @click="onCancel"
-      />
-    </div>
-  </div>
+    <!-- AI : Cursor-following marker icon until first click -->
+    <div 
+      v-if="markerPlacementMode && visible && !markerCoordinates"
+      class="cursor-marker"
+      :style="{ left: cursorPosition.x + 'px', top: cursorPosition.y + 'px' }"
+      v-html="cursorMarkerSvg"
+    ></div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { map } from '@composables/core/useMap';
+import { getMarkerSvg } from '@composables/map/useMarkers';
 
 // AI : Component props and emits
 interface Props {
@@ -49,6 +60,32 @@ const emit = defineEmits<Emits>();
 // AI : Component state
 const markerCoordinates = ref<{ lat: number; lng: number } | null>(null);
 const markerPlacementMode = ref(false);
+const cursorPosition = ref({ x: 0, y: 0 });
+const cursorMarkerSvg = getMarkerSvg('orange');
+
+// AI : Track mouse position over map for cursor-following marker
+function onMouseMove(e: MouseEvent) {
+  if (!map.value || markerCoordinates.value) return;
+  const mapContainer = map.value.getContainer();
+  const rect = mapContainer.getBoundingClientRect();
+  cursorPosition.value = {
+    x: e.clientX - rect.left,
+    y: e.clientY - rect.top
+  };
+}
+
+// AI : Setup/cleanup mouse move listener
+watch(() => props.visible, (newVisible) => {
+  if (newVisible) {
+    document.addEventListener('mousemove', onMouseMove);
+  } else {
+    document.removeEventListener('mousemove', onMouseMove);
+  }
+}, { immediate: true });
+
+onUnmounted(() => {
+  document.removeEventListener('mousemove', onMouseMove);
+});
 
 // AI : Handle visibility changes
 const visible = computed({
@@ -106,9 +143,9 @@ defineExpose({
 </script>
 
 <style scoped>
-/* AI : Floating marker placement bar */
+/* AI : Floating marker placement bar - positioned relative to map container */
 .marker-placement-bar {
-  position: fixed;
+  position: absolute;
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
@@ -123,6 +160,14 @@ defineExpose({
   max-width: calc(100vw - 40px);
   min-width: 280px;
   z-index: 2000;
+}
+
+/* AI : Cursor-following marker icon */
+.cursor-marker {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1999;
+  transform: translate(-50%, -100%);
 }
 
 .placement-content {
@@ -175,6 +220,11 @@ defineExpose({
   
   .placement-actions {
     gap: 6px;
+  }
+
+  /* AI : Hide cursor marker on mobile (touch devices don't have cursor) */
+  .cursor-marker {
+    display: none;
   }
 }
 </style>
