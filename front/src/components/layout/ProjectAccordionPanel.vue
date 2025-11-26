@@ -61,6 +61,7 @@
                     v-for="project in cityGroup.projects"
                     :key="project.id"
                     :value="project.id"
+                    :data-project-id="project.id"
                   >
                     <AccordionHeader>
                       <div class="accordion-header-content">
@@ -345,6 +346,7 @@ import { useOverlayClickHandler } from '@composables/overlay/useOverlayClickHand
 import { highlightOverlayById, removeOverlayHighlight } from '@composables/overlay/useOverlay'
 import { useToast } from '@composables/ui/useToast'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
+import { useUiStore } from '@stores/uiStore'
 import { useAccordionState } from '@composables/layout/useAccordionState'
 import type { ProjectForModeration, OverlayForModeration } from '@types'
 import type { PendingChangeRequest } from '../../types/api'
@@ -380,6 +382,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const toast = useToast()
 const overlayStore = useOverlayStore()
+const uiStore = useUiStore()
 
 // AI : Use shared accordion state (persists across My Contributions and Moderation panels)
 const {
@@ -388,7 +391,8 @@ const {
   isCountryExpanded,
   toggleCityExpanded,
   isCityExpanded,
-  expandAccordionForOverlay
+  expandAccordionForOverlay,
+  expandAccordionForProject
 } = useAccordionState()
 
 // AI : Reactive state for image errors
@@ -527,6 +531,29 @@ watch(
   { deep: true }
 )
 
+// AI : Watch for project info popup (standalone/development projects) to auto-expand and scroll
+watch(
+  () => [uiStore.projectInfoPopup.visible, uiStore.projectInfoPopup.projectId, props.projects] as const,
+  async ([visible, projectId, projects]) => {
+    if (visible && projectId && projects.length > 0) {
+      // AI : Wait for Vue to finish rendering the updated projects
+      await nextTick()
+
+      // AI : Try to expand the accordion hierarchy for the project
+      const expanded = expandAccordionForProject(projectId, projects)
+
+      if (expanded) {
+        // AI : Wait for DOM to update with expanded accordion
+        await nextTick()
+
+        // AI : Wait for accordion animation to complete, then scroll
+        await waitForProjectAccordionAnimation(projectId)
+      }
+    }
+  },
+  { deep: true }
+)
+
 /**
  * AI : Wait for accordion expansion animation to complete
  * AI : Uses requestAnimationFrame for smooth coordination with browser rendering
@@ -566,6 +593,30 @@ async function scrollToOverlayWhenReady(element: Element): Promise<void> {
     block: 'center',
     inline: 'nearest'
   })
+}
+
+/**
+ * AI : Wait for accordion expansion animation to complete for a project
+ * AI : Uses requestAnimationFrame for smooth coordination with browser rendering
+ */
+async function waitForProjectAccordionAnimation(projectId: string): Promise<void> {
+  // AI : Find the project element to check if it exists and is visible
+  const projectElement = document.querySelector(`[data-project-id="${projectId}"]`)
+
+  if (!projectElement) {
+    // AI : Element not found, wait a frame and try again (max 3 attempts)
+    for (let i = 0; i < 3; i++) {
+      await new Promise(resolve => requestAnimationFrame(resolve))
+      const element = document.querySelector(`[data-project-id="${projectId}"]`)
+      if (element) {
+        await scrollToOverlayWhenReady(element)
+        return
+      }
+    }
+    return
+  }
+
+  await scrollToOverlayWhenReady(projectElement)
 }
 
 // AI : Get flag URL for country
