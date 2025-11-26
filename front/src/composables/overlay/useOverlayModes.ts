@@ -16,6 +16,7 @@ import { loadCityOverlays, fetchCityProjectsData } from '@composables/map/useCit
 import { loadCityDevelopmentProjects, removeCityMarkers, addCityMarkersForCountry, updateAllDevelopmentMarkerColors } from '@composables/map/useCityMarkers'
 import { loadCountriesWithProjects, loadCitiesForCountry, addCountryMarkersToMap } from '@composables/map/useCountryMarkers'
 import { useProjectStore } from '@stores/pinia/projectStore'
+import { useUiStore } from '@stores/uiStore'
 import { updateOverlayMarkersColors } from '@composables/map/useMarkers'
 import { updateOverlayEditingState, getOverlayBounds } from '@composables/overlay/useOverlay'
 import { storeToRefs } from 'pinia'
@@ -165,6 +166,7 @@ function handleBeforeTransition(from: OverlayModeState, to: OverlayModeState): v
 export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onModeExit?: () => void): Promise<void> {
   const overlayStore = useOverlayStore()
   const mapStore = useMapStore()
+  const uiStore = useUiStore()
 
   // AI : Don't do anything if we're already in the target mode
   if (overlayStore.mode === targetMode) {
@@ -173,6 +175,11 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
 
   // AI : Store selected overlay ID before mode switch for auto-navigation
   const selectedOverlayId = overlayStore.idSelectedOverlay
+
+  // AI : Capture project popup state before mode switch
+  // AI : If switching to edit/moderation mode with a project popup open, we'll auto-select an overlay from that project
+  const projectPopupProjectId = (targetMode === 'edit' || targetMode === 'moderation') && 
+    uiStore.projectInfoPopup.visible ? uiStore.projectInfoPopup.projectId : null
 
   // AI : Reset all toggle states when switching modes for consistent UX
   // AI : Each mode has its default view, toggling is temporary within that mode
@@ -229,8 +236,16 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
       // AI : Add country markers after both requests complete
       addCountryMarkersToMap()
 
-      // AI : Auto-navigate to selected overlay after mode change
-      if (selectedOverlayId) {
+      // AI : If project popup was open for a standalone project, auto-select first overlay from that project
+      // AI : This provides continuity when switching from view mode (with project marker popup) to edit/moderation mode
+      // AI : Do this INSTEAD of auto-navigate since we want to show toolbar, not fly to overlay
+      if (projectPopupProjectId) {
+        await autoSelectOverlayForProject(projectPopupProjectId)
+        // AI : Clear selected overlay after auto-select to prevent flying on next mode switch
+        // AI : The toolbar is shown, but we don't want this to persist as "user selected"
+        overlayStore.idSelectedOverlay = null
+      } else if (selectedOverlayId) {
+        // AI : Auto-navigate to selected overlay after mode change (only if not from project popup)
         await autoNavigateToSelectedOverlay(selectedOverlayId)
       }
 
@@ -266,6 +281,30 @@ async function autoNavigateToSelectedOverlay(overlayId: string): Promise<void> {
         duration: 0.8,
         easeLinearity: 0.25
       })
+    }
+  }
+}
+
+/**
+ * AI : Auto-select the first overlay for a project after mode switch
+ * AI : Used when switching from view mode (with project popup) to edit/moderation mode
+ */
+async function autoSelectOverlayForProject(projectId: string): Promise<void> {
+  const overlayStore = useOverlayStore()
+
+  // AI : Wait for overlays to be rendered
+  await new Promise(resolve => setTimeout(resolve, 200))
+
+  // AI : Find an overlay belonging to this project
+  const projectOverlay = Object.values(overlayStore.overlays).find(
+    overlay => overlay.projectId === projectId
+  )
+
+  if (projectOverlay?.overlay) {
+    // AI : Click the overlay element to trigger Leaflet Distortable selection (shows toolbar)
+    const element = projectOverlay.overlay.getElement()
+    if (element) {
+      element.click()
     }
   }
 }

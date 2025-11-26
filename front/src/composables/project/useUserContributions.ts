@@ -7,7 +7,7 @@ import { withErrorHandling } from '@composables/core/useErrorHandling'
 import { useToast } from '@composables/ui/useToast'
 import { useI18n } from 'vue-i18n'
 import { removeOverlay } from '@composables/overlay/useOverlay'
-import { getDevelopmentMarkerByProjectId } from '@composables/map/useCityMarkers'
+import { getDevelopmentMarkerByProjectId } from '@composables/map/useDevelopmentMarkers'
 import { map } from '@composables/core/useMap'
 
 export function useUserContributions() {

@@ -11,6 +11,8 @@ import { applyPositionsToOverlays } from './useOverlayPositionManagement'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useMapStore } from '@stores/pinia/mapStore'
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters'
+import { addDevelopmentMarkerForProject } from '@composables/map/useDevelopmentMarkers'
+import { useProjectStore } from '@stores/pinia/projectStore'
 
 /**
  * AI : Update markers and editing state for all overlays
@@ -83,9 +85,17 @@ export function renderForStrategy(
         }
       })
 
+      // AI : Track project IDs that had overlays removed to check if they need development markers
+      const projectsWithRemovedOverlays = new Set<string>()
+
       overlaysToRemove.forEach(id => {
         const overlayToRemove = overlayStore.overlays[id]
         if (overlayToRemove) {
+          // AI : Track the project ID before removing the overlay
+          if (overlayToRemove.projectId) {
+            projectsWithRemovedOverlays.add(overlayToRemove.projectId)
+          }
+
           // AI : Remove from map and destroy Leaflet objects
           if (overlayToRemove.overlay) {
             if (map.value != null && map.value.hasLayer(overlayToRemove.overlay)) {
@@ -106,6 +116,27 @@ export function renderForStrategy(
           delete overlayStore.allMarkers[id]
         }
       })
+
+      // AI : Check if any projects now have no visible overlays and need development markers
+      // AI : This handles the case where pending overlays are removed when switching to view mode
+      if (projectsWithRemovedOverlays.size > 0) {
+        const projectStore = useProjectStore()
+        const remainingOverlayProjectIds = new Set(
+          Object.values(overlayStore.overlays)
+            .map(o => o.projectId)
+            .filter((id): id is string => id !== null && id !== undefined)
+        )
+
+        projectsWithRemovedOverlays.forEach(projectId => {
+          // AI : If project has no remaining overlays, add development marker
+          if (!remainingOverlayProjectIds.has(projectId)) {
+            const project = projectStore.projects[projectId] ?? projectStore.allProjects[projectId]
+            if (project && project.lat && project.lng) {
+              addDevelopmentMarkerForProject(project)
+            }
+          }
+        })
+      }
 
       // AI : Update existing overlay objects with fresh backend data
       existingIds.forEach(id => {
