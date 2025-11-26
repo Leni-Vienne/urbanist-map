@@ -3,7 +3,6 @@ import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { createProject as createProjectInstance } from '../../utils/typeFactories';
 import { storeToRefs } from 'pinia';
-import { removeDevelopmentMarkerForProject } from '@composables/map/useCityMarkers';
 
 // AI : Export composable function that gets store refs when called (not at module level)
 export function useProjects() {
@@ -31,7 +30,7 @@ export function createProject(projectData: Partial<Omit<Project, 'id' | 'overlay
   return project.id;
 }
 
-export function addOverlayToProjectWithId(projectId: string, overlayId: string) {
+export function addOverlayToProjectWithId(projectId: string, overlayId: string): boolean {
   const { projects, overlays } = useProjects();
 
   if (projects.value[projectId] == null) {
@@ -64,10 +63,8 @@ export function addOverlayToProjectWithId(projectId: string, overlayId: string) 
   const overlayObject = overlays.value[overlayId];
   overlayObject.projectId = projectId;
 
-  // AI : Remove development marker when first overlay is added to project
-  if (isFirstOverlay) {
-    removeDevelopmentMarkerForProject(projectId);
-  }
+  // AI : Return whether this was the first overlay (caller can handle marker removal)
+  return isFirstOverlay;
 }
 
 export function removeOverlayFromProjectWithId(projectId: string, overlayId: string) {
