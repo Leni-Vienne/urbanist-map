@@ -96,6 +96,11 @@ export function renderForStrategy(
             projectsWithRemovedOverlays.add(overlayToRemove.projectId)
           }
 
+          // AI : Clear selection if this overlay was selected
+          if (overlayStore.idSelectedOverlay === id) {
+            overlayStore.idSelectedOverlay = null
+          }
+
           // AI : Remove from map and destroy Leaflet objects
           if (overlayToRemove.overlay) {
             if (map.value != null && map.value.hasLayer(overlayToRemove.overlay)) {

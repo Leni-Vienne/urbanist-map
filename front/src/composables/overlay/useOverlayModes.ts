@@ -241,9 +241,6 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
       // AI : Do this INSTEAD of auto-navigate since we want to show toolbar, not fly to overlay
       if (projectPopupProjectId) {
         await autoSelectOverlayForProject(projectPopupProjectId)
-        // AI : Clear selected overlay after auto-select to prevent flying on next mode switch
-        // AI : The toolbar is shown, but we don't want this to persist as "user selected"
-        overlayStore.idSelectedOverlay = null
       } else if (selectedOverlayId) {
         // AI : Auto-navigate to selected overlay after mode change (only if not from project popup)
         await autoNavigateToSelectedOverlay(selectedOverlayId)
