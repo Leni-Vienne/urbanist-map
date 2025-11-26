@@ -88,6 +88,16 @@ interface BaseChangeRequest {
   newValue: unknown;
 }
 
+// AI : Default empty enrichment object for non-cityId fields
+const EMPTY_CITY_ENRICHMENT = {
+  oldCityName: null,
+  newCityName: null,
+  oldCountryCode: null,
+  newCountryCode: null,
+  oldCountryName: null,
+  newCountryName: null,
+} as const;
+
 // AI : Helper function to enrich change requests with city and country names
 export async function enrichChangeRequestsWithNames<T extends BaseChangeRequest>(
   changes: T[]
@@ -110,16 +120,11 @@ export async function enrichChangeRequestsWithNames<T extends BaseChangeRequest>
     }
   }
 
-  // AI : If no city changes, return as is
+  // AI : If no city changes, return with empty enrichment
   if (cityIds.size === 0) {
     return changes.map(change => ({
       ...change,
-      oldCityName: null,
-      newCityName: null,
-      oldCountryCode: null,
-      newCountryCode: null,
-      oldCountryName: null,
-      newCountryName: null,
+      ...EMPTY_CITY_ENRICHMENT,
     }));
   }
 
@@ -160,12 +165,7 @@ export async function enrichChangeRequestsWithNames<T extends BaseChangeRequest>
 
     return {
       ...change,
-      oldCityName: null,
-      newCityName: null,
-      oldCountryCode: null,
-      newCountryCode: null,
-      oldCountryName: null,
-      newCountryName: null,
+      ...EMPTY_CITY_ENRICHMENT,
     };
   });
 }

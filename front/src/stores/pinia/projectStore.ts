@@ -9,6 +9,16 @@ import { createProjectFromAPI } from '../../utils/typeFactories';
 // AI : Type for user contributions from backend
 type UserContribution = RouterOutput['project']['getUsersContributions']['projects'][number];
 
+// AI : Helper function to replace an item in an array immutably at a given index
+function replaceAtIndex<T>(arr: T[], index: number, newItem: T): T[] {
+  return [...arr.slice(0, index), newItem, ...arr.slice(index + 1)];
+}
+
+// AI : Helper function to remove an item from an array immutably at a given index
+function removeAtIndex<T>(arr: T[], index: number): T[] {
+  return [...arr.slice(0, index), ...arr.slice(index + 1)];
+}
+
 export const useProjectStore = defineStore('project', () => {
   // AI : Central store for project data to avoid circular dependencies
   const projects = ref<Record<string, Project>>({});
@@ -123,11 +133,7 @@ export const useProjectStore = defineStore('project', () => {
         overlayCount: existingProject.overlayCount + 1,
       };
 
-      userContributions.value = [
-        ...userContributions.value.slice(0, existingProjectIndex),
-        updatedProject,
-        ...userContributions.value.slice(existingProjectIndex + 1),
-      ];
+      userContributions.value = replaceAtIndex(userContributions.value, existingProjectIndex, updatedProject);
     } else {
       // AI : Project doesn't exist in contributions, add both project and overlay
       userContributions.value = [
@@ -206,16 +212,9 @@ export const useProjectStore = defineStore('project', () => {
       const overlayIndex = project.overlays.findIndex((o: any) => o.id === overlayId);
 
       if (overlayIndex >= 0) {
-        const updatedOverlays = [...project.overlays];
-        updatedOverlays[overlayIndex] = { ...updatedOverlays[overlayIndex], ...updates };
-
+        const updatedOverlays = replaceAtIndex(project.overlays, overlayIndex, { ...project.overlays[overlayIndex], ...updates });
         const updatedProject = { ...project, overlays: updatedOverlays };
-
-        userContributions.value = [
-          ...userContributions.value.slice(0, projectIndex),
-          updatedProject,
-          ...userContributions.value.slice(projectIndex + 1),
-        ];
+        userContributions.value = replaceAtIndex(userContributions.value, projectIndex, updatedProject);
       }
     }
   };
@@ -229,12 +228,7 @@ export const useProjectStore = defineStore('project', () => {
     const projectIndex = userContributions.value.findIndex(p => p.id === projectId);
     if (projectIndex >= 0) {
       const updatedProject = { ...userContributions.value[projectIndex], ...updates };
-
-      userContributions.value = [
-        ...userContributions.value.slice(0, projectIndex),
-        updatedProject,
-        ...userContributions.value.slice(projectIndex + 1),
-      ];
+      userContributions.value = replaceAtIndex(userContributions.value, projectIndex, updatedProject);
     }
   };
 
@@ -255,10 +249,7 @@ export const useProjectStore = defineStore('project', () => {
 
       // AI : If no overlays left and user doesn't own project, remove entire project
       if (updatedOverlays.length === 0 && project.ownerId !== project.ownerId) {
-        userContributions.value = [
-          ...userContributions.value.slice(0, projectIndex),
-          ...userContributions.value.slice(projectIndex + 1),
-        ];
+        userContributions.value = removeAtIndex(userContributions.value, projectIndex);
       } else {
         // AI : Update project with remaining overlays
         const updatedProject = {
@@ -266,12 +257,7 @@ export const useProjectStore = defineStore('project', () => {
           overlays: updatedOverlays,
           overlayCount: updatedOverlays.length,
         };
-
-        userContributions.value = [
-          ...userContributions.value.slice(0, projectIndex),
-          updatedProject,
-          ...userContributions.value.slice(projectIndex + 1),
-        ];
+        userContributions.value = replaceAtIndex(userContributions.value, projectIndex, updatedProject);
       }
     }
   };
