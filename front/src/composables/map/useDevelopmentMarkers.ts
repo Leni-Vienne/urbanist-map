@@ -32,6 +32,12 @@ export function removeDevelopmentMarkerForProject(projectId: string): void {
   const marker = developmentMarkerMap.get(projectId);
   if (!marker) return;
 
+  // AI : Close project info popup if it's showing info for this project
+  const uiStore = useUiStore();
+  if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === projectId) {
+    uiStore.closeProjectInfoPopup();
+  }
+
   // AI : Remove marker from map
   if (developmentProjectsLayer && developmentProjectsLayer.hasLayer(marker)) {
     developmentProjectsLayer.removeLayer(marker);

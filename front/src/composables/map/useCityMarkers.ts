@@ -18,7 +18,6 @@ import { MARKER_OPACITY } from '@constants/markerConstants';
 import { createMarkerLayer, type MarkerLayerConfig } from '@composables/map/useMarkerLayer';
 import {
   addDevelopmentMarkerForProject,
-  removeDevelopmentMarkerForProject,
   getDevelopmentMarkerByProjectId,
   getDevelopmentProjectsLayer,
   getDevelopmentMarkerMap
@@ -174,9 +173,6 @@ export function updateCityMarkerOpacities(selectedCityId: string | null): void {
   });
 }
 
-// AI : Re-export for convenience - these now live in useDevelopmentMarkers to avoid circular deps
-export { addDevelopmentMarkerForProject, removeDevelopmentMarkerForProject, getDevelopmentMarkerByProjectId };
-
 /**
  * AI : Update development marker color for a specific project
  */
@@ -260,7 +256,21 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
       )
     ];
 
+    // AI : Get set of project IDs that have overlays already rendered in the store
+    // AI : This prevents showing development markers for projects that have visible overlays
+    // AI : (e.g., pending overlays visible in edit mode, or overlays from a different mode's cache)
+    const projectIdsWithRenderedOverlays = new Set(
+      Object.values(overlayStore.overlays)
+        .map(overlay => overlay.projectId)
+        .filter((id): id is string => id !== null && id !== undefined)
+    );
+
     allProjectsWithNoOverlays.forEach(project => {
+      // AI : Skip if project already has overlays rendered on the map
+      if (projectIdsWithRenderedOverlays.has(project.id)) {
+        return;
+      }
+
       if (project.lat && project.lng) {
         const projectData = 'overlayIds' in project ? project : createProject({
           ...project,

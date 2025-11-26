@@ -849,6 +849,13 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   overlayObjectWithMethods.marker = overlayStore.allMarkers[cdnOverlay.id];
   overlayStore.overlays[cdnOverlay.id] = overlayObjectWithMethods;
 
+  // AI : Remove development marker for this project since we now have an overlay visible
+  // AI : This handles the case where a project had only pending overlays (shown as basic marker in view mode)
+  // AI : and the user switched to edit mode (pending overlays now visible, so basic marker should be removed)
+  if (cdnOverlay.projectId) {
+    removeDevelopmentMarkerForProject(cdnOverlay.projectId);
+  }
+
   // AI : Hover events are now set up in onOverlayLoaded() after element is guaranteed to exist
 
   // AI : Marker tooltip already updated in createSingleMarker - no need to duplicate
