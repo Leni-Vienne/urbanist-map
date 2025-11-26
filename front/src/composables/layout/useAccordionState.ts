@@ -89,6 +89,32 @@ export function useAccordionState() {
     return false
   }
 
+  /**
+   * AI : Auto-expand accordion hierarchy for a specific project (standalone/development project)
+   * AI : Expands country -> city -> project
+   */
+  function expandAccordionForProject(
+    projectId: string,
+    projects: ProjectForModeration[]
+  ): boolean {
+    const project = projects.find(p => p.id === projectId)
+    if (!project) return false
+
+    // AI : Expand country
+    if (project.countryCode) {
+      expandedCountries.value.add(project.countryCode)
+    }
+
+    // AI : Expand city
+    const cityKey = `${project.countryCode}-${project.cityName}`
+    expandedCities.value.add(cityKey)
+
+    // AI : Expand project
+    expandProjectAccordion(project.id)
+
+    return true
+  }
+
   return {
     // State
     activeAccordionPanels,
@@ -109,6 +135,7 @@ export function useAccordionState() {
     toggleProjectAccordion,
 
     // Auto-expand
-    expandAccordionForOverlay
+    expandAccordionForOverlay,
+    expandAccordionForProject
   }
 }
