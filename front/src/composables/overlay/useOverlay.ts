@@ -26,7 +26,7 @@ import { createOverlay as createOverlayInstance, createOverlayFromCDN, convertOv
 import { toRef } from 'vue';
 import { useProjects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import { trpc } from '@client';
-import { addDevelopmentMarkerForProject } from '@composables/map/useCityMarkers';
+import { removeDevelopmentMarkerForProject, addDevelopmentMarkerForProject } from '@composables/map/useDevelopmentMarkers';
 import {
   getFromEditModeOverlayCache,
   saveToEditModeOverlayCache,
@@ -1275,7 +1275,12 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
       }
 
       // AI : Add to project AFTER storing in overlays to avoid "not found" error
-      addOverlayToProjectWithId(projectId, id);
+      const isFirstOverlay = addOverlayToProjectWithId(projectId, id);
+
+      // AI : Remove development marker when first overlay is added to project
+      if (isFirstOverlay) {
+        removeDevelopmentMarkerForProject(projectId);
+      }
 
       // AI : Add new overlay to city cache so it persists across zoom changes
       const projectStore = useProjectStore();

@@ -16,6 +16,14 @@ import { useProjects } from '@composables/project/useProjects';
 import { createProject } from '../../utils/typeFactories';
 import { MARKER_OPACITY } from '@constants/markerConstants';
 import { createMarkerLayer, type MarkerLayerConfig } from '@composables/map/useMarkerLayer';
+import {
+  addDevelopmentMarkerForProject,
+  removeDevelopmentMarkerForProject,
+  getDevelopmentMarkerByProjectId,
+  getDevelopmentProjectsLayer,
+  getDevelopmentMarkerMap
+} from '@composables/map/useDevelopmentMarkers';
+import { createProjectInfoTeleportTarget, cleanupProjectInfoTeleportTarget as cleanupTeleport } from '@composables/map/useProjectPopupTeleport';
 
 // AI : Get project marker color based on status, timeline, and mode
 function getProjectMarkerColor(project: Project, mode: 'view' | 'edit' | 'moderation'): MarkerColor {
@@ -83,21 +91,15 @@ function getProjectMarkerColor(project: Project, mode: 'view' | 'edit' | 'modera
 
 // AI : Update development marker opacities based on selected marker
 export function updateDevelopmentMarkerOpacities(selectedMarker: L.Marker | null) {
-  if (!developmentProjectsLayer) return;
+  const layer = getDevelopmentProjectsLayer();
+  if (!layer) return;
 
-  // AI : If there was a previously selected marker and we're changing selection, force reset its opacity
-  if (selectedDevelopmentMarker && selectedDevelopmentMarker !== selectedMarker) {
-    selectedDevelopmentMarker.setOpacity(MARKER_OPACITY.development.default);
-  }
-
-  selectedDevelopmentMarker = selectedMarker;
-
-  developmentProjectsLayer.eachLayer((layer) => {
-    if (layer instanceof L.Marker) {
-      if (selectedMarker && layer === selectedMarker) {
-        layer.setOpacity(MARKER_OPACITY.development.hover); // AI : Fully opaque for selected marker
+  layer.eachLayer((marker) => {
+    if (marker instanceof L.Marker) {
+      if (selectedMarker && marker === selectedMarker) {
+        marker.setOpacity(MARKER_OPACITY.development.hover);
       } else {
-        layer.setOpacity(MARKER_OPACITY.development.default); // AI : Default opacity for others
+        marker.setOpacity(MARKER_OPACITY.development.default);
       }
     }
   });
@@ -115,18 +117,6 @@ let cityMarkersLayer: L.LayerGroup | null = null;
 // AI : Map to store city ID to marker references for easy lookup
 const cityMarkerMap = new Map<string, L.Marker>();
 
-// AI : Layer group for development projects (development markers)
-let developmentProjectsLayer: L.LayerGroup | null = null;
-
-// AI : Track the currently selected development marker (for opacity control)
-let selectedDevelopmentMarker: L.Marker | null = null;
-
-// AI : Store the current marker for position tracking
-let currentMarkerForPopup: L.Marker | L.CircleMarker | null = null;
-let mapClickHandler: (() => void) | null = null;
-
-// AI : Map to store project ID to marker references for easy lookup
-const developmentMarkerMap = new Map<string, L.Marker>();
 
 // AI : Flag to ensure watcher is only set up once
 let modeWatcherInitialized = false;
@@ -184,114 +174,14 @@ export function updateCityMarkerOpacities(selectedCityId: string | null): void {
   });
 }
 
-/**
- * AI : Get development marker by project ID
- */
-export function getDevelopmentMarkerByProjectId(projectId: string): L.Marker | undefined {
-  return developmentMarkerMap.get(projectId);
-}
-
-/**
- * AI : Add development marker for a specific project
- * This is called when the last overlay is deleted from a project
- */
-export function addDevelopmentMarkerForProject(project: Project): void {
-  if (!map.value || !project.lat || !project.lng) return;
-
-  // AI : Don't add if marker already exists
-  if (developmentMarkerMap.has(project.id)) return;
-
-  // AI : Ensure development layer exists
-  if (!developmentProjectsLayer) {
-    developmentProjectsLayer = L.layerGroup();
-    developmentProjectsLayer.addTo(map.value);
-  }
-
-  const overlayStore = useOverlayStore();
-  const markerColor = getProjectMarkerColor(project, overlayStore.mode);
-  const markerIcon = createBasicProjectIcon(markerColor);
-
-  // AI : Create marker with default opacity
-  const marker = L.marker([project.lat, project.lng], {
-    icon: markerIcon,
-    opacity: MARKER_OPACITY.development.default
-  });
-
-  // AI : Prevent double-click zoom on markers
-  marker.on('dblclick', (e) => {
-    L.DomEvent.stopPropagation(e);
-  });
-
-  // AI : Add mouseover event to increase marker opacity
-  marker.on('mouseover', () => {
-    marker.setOpacity(MARKER_OPACITY.development.hover);
-  });
-
-  // AI : Add mouseout event to reset marker opacity (unless it's the selected marker)
-  marker.on('mouseout', () => {
-    if (selectedDevelopmentMarker === marker) {
-      marker.setOpacity(MARKER_OPACITY.development.hover);
-    } else {
-      marker.setOpacity(MARKER_OPACITY.development.default);
-    }
-  });
-
-  // AI : Add click handler for projects without overlays - show info popup
-  marker.on('click', (e) => {
-    L.DomEvent.stopPropagation(e);
-    const uiStore = useUiStore();
-
-    // AI : Check if popup is already open for this project - toggle behavior
-    if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
-      uiStore.closeProjectInfoPopup();
-      updateDevelopmentMarkerOpacities(null);
-      return;
-    }
-
-    // AI : Create teleport target at marker position
-    createProjectInfoTeleportTarget(marker);
-
-    // AI : Update marker opacities (make this one fully opaque)
-    updateDevelopmentMarkerOpacities(marker);
-
-    // AI : Use uiStore to show project info popup
-    // AI : Close overlay popup if it's open (only one popup at a time)
-    if (overlayStore.showInfoPopup) {
-      overlayStore.hideInfoPopup();
-    }
-    uiStore.openProjectInfoPopup(project.id, project);
-  });
-
-  // AI : Store marker in map for easy lookup
-  developmentMarkerMap.set(project.id, marker);
-
-  // AI : Add marker to layer
-  marker.addTo(developmentProjectsLayer);
-}
-
-/**
- * AI : Remove development marker for a specific project
- * This is called when the first overlay is added to a development project
- */
-export function removeDevelopmentMarkerForProject(projectId: string): void {
-  const marker = developmentMarkerMap.get(projectId);
-  if (!marker) return;
-
-  // AI : Remove marker from map
-  if (developmentProjectsLayer && developmentProjectsLayer.hasLayer(marker)) {
-    developmentProjectsLayer.removeLayer(marker);
-  }
-
-  // AI : Remove marker from map
-  developmentMarkerMap.delete(projectId);
-}
+// AI : Re-export for convenience - these now live in useDevelopmentMarkers to avoid circular deps
+export { addDevelopmentMarkerForProject, removeDevelopmentMarkerForProject, getDevelopmentMarkerByProjectId };
 
 /**
  * AI : Update development marker color for a specific project
- * This is called when a project is modified or when mode changes
  */
 export function updateDevelopmentMarkerColor(projectId: string, project: Project): void {
-  const marker = developmentMarkerMap.get(projectId);
+  const marker = getDevelopmentMarkerByProjectId(projectId);
   if (!marker) return;
 
   const overlayStore = useOverlayStore();
@@ -302,14 +192,13 @@ export function updateDevelopmentMarkerColor(projectId: string, project: Project
 
 /**
  * AI : Update all development marker colors based on current mode
- * Called when switching between view/edit modes
  */
 export function updateAllDevelopmentMarkerColors(): void {
   const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
+  const markerMap = getDevelopmentMarkerMap();
 
-  developmentMarkerMap.forEach((marker, projectId) => {
-    // AI : Try local projects first, then allProjects (includes backend/nearby projects)
+  markerMap.forEach((marker, projectId) => {
     const project = projectStore.projects[projectId] ?? projectStore.allProjects[projectId];
     if (project) {
       const markerColor = getProjectMarkerColor(project, overlayStore.mode);
@@ -319,103 +208,11 @@ export function updateAllDevelopmentMarkerColors(): void {
   });
 }
 
-/**
- * AI : Update teleport target position based on current marker
- */
-function updateTeleportTargetPosition() {
-  if (!currentMarkerForPopup || !map.value) return;
-
-  const teleportTarget = document.querySelector('#project-info-popup-teleport-target') as HTMLElement;
-  if (!teleportTarget) return;
-
-  // AI : Get updated marker position in screen coordinates
-  const markerLatLng = currentMarkerForPopup.getLatLng();
-  const markerPoint = map.value.latLngToContainerPoint(markerLatLng);
-
-  // AI : Update position
-  teleportTarget.style.left = `${markerPoint.x}px`;
-  teleportTarget.style.top = `${markerPoint.y}px`;
-}
-
-/**
- * AI : Create teleport target for project info popup at marker position
- */
-export function createProjectInfoTeleportTarget(marker: L.Marker | L.CircleMarker) {
-  if (!map.value) return;
-
-  // AI : Remove any existing teleport target and event listeners
-  cleanupProjectInfoTeleportTarget();
-
-  // AI : Store marker reference for position tracking
-  currentMarkerForPopup = marker;
-
-  // AI : Get marker position in screen coordinates
-  const markerLatLng = marker.getLatLng();
-  const markerPoint = map.value.latLngToContainerPoint(markerLatLng);
-
-  // AI : Create teleport target div
-  const teleportTarget = document.createElement('div');
-  teleportTarget.id = 'project-info-popup-teleport-target';
-
-  // AI : Position it at the marker location
-  teleportTarget.style.cssText = `
-    pointer-events: none; 
-    position: absolute; 
-    left: ${markerPoint.x}px; 
-    top: ${markerPoint.y}px; 
-    width: 0; 
-    height: 0; 
-    overflow: visible;
-  `;
-
-  // AI : Add to map container
-  const mapContainer = map.value.getContainer();
-  mapContainer.appendChild(teleportTarget);
-
-  // AI : Set up event listeners to update position when map moves
-  map.value.on('move', updateTeleportTargetPosition);
-  map.value.on('zoom', updateTeleportTargetPosition);
-  map.value.on('resize', updateTeleportTargetPosition);
-
-  // AI : Add map click handler to close project popup
-  mapClickHandler = () => {
-    const uiStore = useUiStore();
-    if (uiStore.projectInfoPopup.visible) {
-      uiStore.closeProjectInfoPopup();
-      cleanupProjectInfoTeleportTarget();
-    }
-  };
-  map.value.on('click', mapClickHandler);
-}
-
-/**
- * AI : Clean up teleport target and event listeners
- */
+// AI : Teleport functions now in shared utility - re-export for backward compatibility
+export { createProjectInfoTeleportTarget };
 export function cleanupProjectInfoTeleportTarget() {
-  // AI : Remove event listeners if map exists
-  if (map.value != null) {
-    map.value.off('move', updateTeleportTargetPosition);
-    map.value.off('zoom', updateTeleportTargetPosition);
-    map.value.off('resize', updateTeleportTargetPosition);
-
-    // AI : Remove map click handler
-    if (mapClickHandler) {
-      map.value.off('click', mapClickHandler);
-      mapClickHandler = null;
-    }
-  }
-
-  // AI : Remove teleport target
-  const existingTarget = document.querySelector('#project-info-popup-teleport-target');
-  if (existingTarget) {
-    existingTarget.remove();
-  }
-
-  // AI : Clear marker reference
-  currentMarkerForPopup = null;
-
-  // AI : Reset development marker opacities when popup closes
-  updateDevelopmentMarkerOpacities(null);
+  cleanupTeleport();
+  updateDevelopmentMarkerOpacities(null); // AI : Reset marker opacities when popup closes
 }
 
 /**
@@ -424,35 +221,28 @@ export function cleanupProjectInfoTeleportTarget() {
 export async function loadCityDevelopmentProjects(cityId: string | null): Promise<void> {
   if (!map.value) return;
 
-  // AI : Initialize mode watcher on first use (after Pinia is available)
   initializeModeWatcher();
 
   try {
     const mapStore = useMapStore();
     const overlayStore = useOverlayStore();
 
-    // AI : Check mode-aware cache first for non-null cityId
     let backendProjects: RouterOutput['project']['getCityProjects'] = [];
     if (cityId) {
       const cachedData = mapStore.getCityDevelopmentProjectsCache(cityId, overlayStore.mode);
       if (cachedData) {
         backendProjects = cachedData;
       } else {
-        // AI : Get projects for this city from backend
-        // AI : Pass current mode to backend to determine visibility
         backendProjects = await trpc.project.getCityProjects.query({ cityId, mode: overlayStore.mode });
-        // AI : Cache the result in mode-specific cache
         mapStore.setCityDevelopmentProjectsCache(cityId, overlayStore.mode, backendProjects);
       }
     }
 
-    // AI : Filter to only projects with no overlays (development-style markers)
     const backendProjectsWithNoOverlays = backendProjects.filter(project => {
       const overlayCount = project.overlayCount ?? 0
       return overlayCount === 0
     });
 
-    // AI : Get local projects with no overlays for this city (handle null cityId case)
     const { projects: localProjects } = useProjects();
     const allLocalProjects = Object.values(localProjects.value);
 
@@ -463,7 +253,6 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
         return overlayCount === 0 && matchesCity
       });
 
-    // AI : Combine backend and local projects, avoiding duplicates
     const allProjectsWithNoOverlays = [
       ...backendProjectsWithNoOverlays,
       ...localProjectsWithNoOverlays.filter(local =>
@@ -471,117 +260,26 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
       )
     ];
 
-    // AI : Remove existing development projects layer
-    if (developmentProjectsLayer) {
-      map.value.removeLayer(developmentProjectsLayer);
-      developmentProjectsLayer = null;
-    }
-    developmentProjectsLayer = L.layerGroup();
-
-    // AI : Clear the marker map
-    developmentMarkerMap.clear();
-
     allProjectsWithNoOverlays.forEach(project => {
       if (project.lat && project.lng) {
-        // AI : Skip if marker already exists (safety check to prevent duplicates)
-        if (developmentMarkerMap.has(project.id)) {
-          return;
-        }
-
-        // AI : Get marker color based on edit mode and status
         const projectData = 'overlayIds' in project ? project : createProject({
           ...project,
-          city: {
-            ...project.city,
-            coordinates: { x: project.city.coordinates.x, y: project.city.coordinates.y },
-            createdAt: new Date(),
-            updatedAt: new Date()
-          },
+          city: project.city,
           status: ('status' in project ? project.status : 'approved') as 'pending' | 'approved' | 'rejected'
         });
-        const markerColor = getProjectMarkerColor(projectData, overlayStore.mode);
-        const markerIcon = createBasicProjectIcon(markerColor);
 
-        // AI : Create marker with timeline-based color icon and default opacity
-        const marker = L.marker([project.lat, project.lng], {
-          icon: markerIcon,
-          opacity: MARKER_OPACITY.development.default // AI : Lower default opacity to suggest interactivity
-        });
+        // AI : Add project to store so it can be edited
+        const { projects: localProjects } = useProjects();
+        if (!localProjects.value[project.id]) {
+          localProjects.value = {
+            ...localProjects.value,
+            [project.id]: projectData
+          };
+        }
 
-        // AI : Prevent double-click zoom on markers
-        marker.on('dblclick', (e) => {
-          L.DomEvent.stopPropagation(e);
-        });
-
-        // AI : Add mouseover event to increase marker opacity
-        marker.on('mouseover', () => {
-          marker.setOpacity(MARKER_OPACITY.development.hover);
-        });
-
-        // AI : Add mouseout event to reset marker opacity (unless it's the selected marker)
-        marker.on('mouseout', () => {
-          // AI : If this is the selected marker, keep it fully opaque
-          if (selectedDevelopmentMarker === marker) {
-            marker.setOpacity(MARKER_OPACITY.development.hover);
-          } else {
-            marker.setOpacity(MARKER_OPACITY.development.default);
-          }
-        });
-
-        // AI : Add click handler for projects without overlays - show info popup first
-        marker.on('click', (e) => {
-          // AI : Stop all event propagation using Leaflet's method
-          L.DomEvent.stopPropagation(e);
-
-          const uiStore = useUiStore();
-
-          // AI : Check if popup is already open for this project - toggle behavior
-          if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
-            // AI : Close the popup if it's already open for this project
-            uiStore.closeProjectInfoPopup();
-            // AI : Reset all marker opacities
-            updateDevelopmentMarkerOpacities(null);
-            return;
-          }
-
-          // AI : Create teleport target at marker position
-          createProjectInfoTeleportTarget(marker);
-
-          // AI : Update marker opacities (make this one fully opaque)
-          updateDevelopmentMarkerOpacities(marker);
-
-          // AI : Use uiStore to show project info popup, convert backend projects to local format
-          const projectData = 'overlayIds' in project ? project : createProject({
-            ...project,
-            city: project.city,
-            status: ('status' in project ? project.status : 'approved') as 'pending' | 'approved' | 'rejected'
-          });
-
-          // AI : CRITICAL: Add project to store so it can be edited
-          const { projects: localProjects } = useProjects();
-          if (!localProjects.value[project.id]) {
-            localProjects.value = {
-              ...localProjects.value,
-              [project.id]: projectData
-            };
-          }
-
-          // AI : Close overlay popup if it's open (only one popup at a time)
-          if (overlayStore.showInfoPopup) {
-            overlayStore.hideInfoPopup();
-          }
-          uiStore.openProjectInfoPopup(project.id, projectData);
-        });
-
-        // AI : Store marker in map for easy lookup
-        developmentMarkerMap.set(project.id, marker);
-
-        marker.addTo(developmentProjectsLayer!);
+        addDevelopmentMarkerForProject(projectData);
       }
     });
-
-    // AI : Add layer to map
-    developmentProjectsLayer.addTo(map.value);
   } catch (error) {
     console.error('Error loading development projects:', error);
   }
