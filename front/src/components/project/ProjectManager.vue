@@ -426,6 +426,10 @@ async function handleProjectSubmitted(project: Partial<Project>) {
         const actualMarker = getDevelopmentMarkerByProjectId(projectId);
         if (actualMarker) {
           createProjectInfoTeleportTarget(actualMarker);
+          // AI : Close overlay popup if it's open (only one popup at a time)
+          if (overlayStore.showInfoPopup) {
+            overlayStore.hideInfoPopup();
+          }
           uiStore.openProjectInfoPopup(projectId, projectStore.projects[projectId]);
         }
 

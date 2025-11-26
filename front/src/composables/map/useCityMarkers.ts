@@ -255,6 +255,10 @@ export function addDevelopmentMarkerForProject(project: Project): void {
     updateDevelopmentMarkerOpacities(marker);
 
     // AI : Use uiStore to show project info popup
+    // AI : Close overlay popup if it's open (only one popup at a time)
+    if (overlayStore.showInfoPopup) {
+      overlayStore.hideInfoPopup();
+    }
     uiStore.openProjectInfoPopup(project.id, project);
   });
 
@@ -562,6 +566,10 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
             };
           }
 
+          // AI : Close overlay popup if it's open (only one popup at a time)
+          if (overlayStore.showInfoPopup) {
+            overlayStore.hideInfoPopup();
+          }
           uiStore.openProjectInfoPopup(project.id, projectData);
         });
 
