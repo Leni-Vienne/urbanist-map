@@ -5,7 +5,7 @@
     :initial-data="projectData"
     :entity-status="project.status"
     :local-only="true"
-    :get-available-cities="() => cities"
+    :get-available-cities="() => citySelectRef?.cities ?? []"
     container-class="editable-project-form"
     form-class="project-form"
     :submit-label="$t('forms.saveChanges')"
@@ -111,29 +111,16 @@
 
       <div class="form-group">
         <label for="location-select">{{ $t('project.location') }} *</label>
-        <Select
-          id="location-select"
+        <CitySelect
+          ref="citySelectRef"
           v-model="formData.cityId"
-          :options="filteredCities"
-          optionLabel="displayName"
-          optionValue="id"
           :class="getFieldClasses('cityId')"
-          :showClear="false"
-          :loading="citiesLoading"
+          :prefilled-city="project.city"
+          :marker-coordinates="markerCoordinates"
           required
-          @show="onSelectShow"
-        >
-          <template #option="{ option }">
-            <div class="flex items-center justify-between w-full">
-              <span>{{ option.name }}</span>
-              <span class="text-xs text-gray-500">{{ option.countryCode }}
-                <span v-if="option.distance > 0"> ({{ Math.round(option.distance) / 1000 }} km)</span>
-              </span>
-            </div>
-          </template>
-        </Select>
+        />
         <small v-if="hasChanged('cityId')" class="change-indicator">
-          {{ $t('overlay.changedFrom') }}: {{ getCityName(originalData.cityId) }}
+          {{ $t('overlay.changedFrom') }}: {{ citySelectRef?.getCityName(originalData.cityId) }}
         </small>
       </div>
 
@@ -171,11 +158,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import BaseEditForm from './BaseEditForm.vue'
 import TimelineStatusSelector from './TimelineStatusSelector.vue'
+import CitySelect from './CitySelect.vue'
 import type { Project } from '@types'
-import { useCitySelect } from '@composables/forms/useCitySelect'
 import { useProjectTimelineStatus } from '@composables/forms/useProjectTimelineStatus'
 import { formatDate } from '@utils/dateFormat'
 
@@ -191,12 +178,13 @@ interface Emits {
 const props = defineProps<Props>()
 defineEmits<Emits>()
 
-// AI : Use city select composable with prefilled city and marker coordinates
-// AI : All projects now have center coordinates (lat/lng)
+// AI : Reference to CitySelect component
+const citySelectRef = ref<InstanceType<typeof CitySelect> | null>(null)
+
+// AI : Marker coordinates for city select
 const markerCoordinates = props.project.lat && props.project.lng
   ? { lat: props.project.lat, lng: props.project.lng }
   : null
-const { cities, filteredCities, citiesLoading, onSelectShow, getCityName } = useCitySelect(props.project.city, markerCoordinates)
 
 // AI : Use timeline status composable (without formData watcher since we handle status in toggleTimelineStatus)
 const { isProposed, toggleTimelineStatus } = useProjectTimelineStatus(props.project)
