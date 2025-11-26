@@ -1735,6 +1735,7 @@ export const infoTool = L.Toolbar2.Action.extend({
   addHooks() {
     const link = this._link;
     const overlayStore = useOverlayStore();
+    const uiStore = useUiStore();
 
     if (!overlayStore.idSelectedOverlay) {
       return;
@@ -1791,6 +1792,10 @@ export const infoTool = L.Toolbar2.Action.extend({
 
         // AI : Show the info popup for the selected overlay
         if (overlayStore.idSelectedOverlay) {
+          // AI : Close project popup if it's open (only one popup at a time)
+          if (uiStore.projectInfoPopup.visible) {
+            uiStore.closeProjectInfoPopup();
+          }
           overlayStore.showInfoPopupForOverlay(overlayStore.idSelectedOverlay);
         }
       }

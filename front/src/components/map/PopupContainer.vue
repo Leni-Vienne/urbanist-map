@@ -263,6 +263,13 @@ async function confirmSubmission() {
       life: 3000
     });
 
+    // AI : Close the appropriate popup after successful submission
+    if (context.entityType === 'overlay' && showOverlayPopup.value) {
+      overlayStore.hideInfoPopup();
+    } else if (context.entityType === 'project' && showProjectPopup.value) {
+      closeProjectInfoPopup();
+    }
+
     // AI : Close dialog and reset state
     showSubmissionDialog.value = false;
     pendingSubmissionContext.value = null;
@@ -329,6 +336,9 @@ async function handlePublishOverlay() {
           changeType: 'update_approved'
         };
         await prepareAndShowSubmissionDialog(projectContext);
+      } else {
+        // AI : Close popup after successful publish (if no project changes to submit)
+        overlayStore.hideInfoPopup();
       }
     } catch (error: any) {
       console.error('Error publishing overlay:', error);
