@@ -123,28 +123,13 @@
                     class="w-full"
                     variant="in"
                 >
-                    <Select
-                        id="location-select"
+                    <CitySelect
+                        ref="citySelectRef"
                         v-model="localProject.cityId"
-                        :options="filteredCities"
-                        optionLabel="displayName"
-                        optionValue="id"
-                        class="w-full"
-                        :showClear="false"
-                        :loading="citiesLoading"
-                        :disabled="false"
+                        :prefilled-city="props.project.city"
+                        :marker-coordinates="markerCoordinates"
                         required
-                        @show="onSelectShow"
-                    ><template #option="{ option }">
-                            <div class="flex items-center justify-between w-full">
-                                <span>{{ option.name }}</span>
-                                <span class="text-xs text-gray-500">{{ option.countryCode }}
-                                    <span v-if="option.distance > 0"> ({{ Math.round(option.distance) / 1000 }}
-                                        km)</span>
-                                </span>
-                            </div>
-                        </template>
-                    </Select>
+                    />
                     <label
                         for="location-select"
                         class="text-gray-600"
@@ -201,13 +186,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useToast } from '@composables/ui/useToast'
-import { useCitySelect } from '@composables/forms/useCitySelect'
 import { useProjectTimelineStatus } from '@composables/forms/useProjectTimelineStatus'
 import { switchTileLayer, type TileLayerType, isTileLayerType } from '@composables/map/useTileLayers'
 import TimelineStatusSelector from './TimelineStatusSelector.vue'
+import CitySelect from './CitySelect.vue'
 import type { Project } from '@types';
 
 // AI : Get i18n and toast
@@ -238,12 +223,17 @@ if (props.mode === 'create') {
     isProposed.value = true
 }
 
-// AI : Use city select composable with prefilled city and marker coordinates
-// AI : All projects now have center coordinates (lat/lng)
+// AI : Marker coordinates for city select
 const markerCoordinates = props.project.lat && props.project.lng
   ? { lat: props.project.lat, lng: props.project.lng }
   : null
-const { cities, citiesLoading, citiesLoaded, filteredCities, onSelectShow } = useCitySelect(props.project.city, markerCoordinates)
+
+// AI : Reference to CitySelect component
+const citySelectRef = ref<InstanceType<typeof CitySelect> | null>(null)
+
+// AI : Computed accessors for cities data
+const cities = computed(() => citySelectRef.value?.cities ?? [])
+const citiesLoaded = computed(() => citySelectRef.value?.citiesLoaded ?? false)
 
 // AI : Map country code to tile layer type - returns appropriate layer or default
 function getLayerTypeForCountry(countryCode: string): TileLayerType {
