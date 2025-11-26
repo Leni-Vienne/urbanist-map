@@ -39,6 +39,17 @@
           </div>
         </div>
       </div>
+
+      <!-- AI : Reason for changes input (optional) -->
+      <div v-if="summary?.requiresModeration" class="reason-section">
+        <label for="changeReason">{{ $t('common.reasonForChanges') }} <span class="optional-label">({{ $t('project.optionalField') }})</span></label>
+        <Textarea
+          id="changeReason"
+          v-model="changeReason"
+          rows="2"
+          :placeholder="$t('common.explainChanges')"
+        />
+      </div>
     </div>
 
     <template #footer>
@@ -66,6 +77,9 @@ import type { SubmissionSummary } from '@composables/submission/useSubmissionSer
 
 const { t: $t } = useI18n();
 
+// AI : Change reason input
+const changeReason = ref('');
+
 // AI : Props
 interface Props {
   visible: boolean;
@@ -80,7 +94,7 @@ const props = withDefaults(defineProps<Props>(), {
 // AI : Emits
 const emit = defineEmits<{
   'update:visible': [value: boolean];
-  'confirm': [];
+  'confirm': [reason: string];
   'cancel': [];
 }>();
 
@@ -99,13 +113,15 @@ function handleVisibilityChange(value: boolean) {
 
 // AI : Handle cancel button
 function handleCancel() {
+  changeReason.value = '';
   emit('cancel');
   emit('update:visible', false);
 }
 
 // AI : Handle confirm button
 function handleConfirm() {
-  emit('confirm');
+  emit('confirm', changeReason.value);
+  changeReason.value = '';
 }
 </script>
 
@@ -184,6 +200,23 @@ function handleConfirm() {
   color: var(--p-surface-400);
   font-size: 0.875rem;
   flex-shrink: 0;
+}
+
+.reason-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.reason-section label {
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--p-text-color-secondary);
+}
+
+.optional-label {
+  font-weight: 400;
+  font-style: italic;
 }
 
 .dialog-footer {

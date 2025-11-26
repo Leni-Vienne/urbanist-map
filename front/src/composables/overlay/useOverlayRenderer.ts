@@ -192,7 +192,7 @@ export function renderForStrategy(
       }
 
       // AI : Remove individual overlay marker to avoid duplicates with city-wide markers
-      if (overlayObject.marker && map.value != null && map.value.hasLayer(overlayObject.marker)) {
+      if (overlayObject.marker && map.value?.hasLayer(overlayObject.marker)) {
         map.value.removeLayer(overlayObject.marker)
       }
     })
