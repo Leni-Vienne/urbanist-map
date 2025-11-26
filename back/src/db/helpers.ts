@@ -397,11 +397,12 @@ export function buildProjectHasVisibleContentCondition(
   overlayChangeRequestIds?: string[]
 ): SQL {
   if (mode === 'view') {
-    // AI : View mode: show if no overlays OR has approved overlays (all projects visible)
+    // AI : View mode: show if no approved overlays OR has approved overlays (all approved projects visible as either basic markers or with overlays)
     return sql`(
       NOT EXISTS (
         SELECT 1 FROM ${overlays}
         WHERE ${overlays.projectId} = ${projects.id}
+        AND ${overlays.status} = 'approved'
       )
       OR EXISTS (
         SELECT 1 FROM ${overlays}
