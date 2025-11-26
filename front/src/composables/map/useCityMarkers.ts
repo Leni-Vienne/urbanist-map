@@ -479,6 +479,11 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
 
     allProjectsWithNoOverlays.forEach(project => {
       if (project.lat && project.lng) {
+        // AI : Skip if marker already exists (safety check to prevent duplicates)
+        if (developmentMarkerMap.has(project.id)) {
+          return;
+        }
+
         // AI : Get marker color based on edit mode and status
         const projectData = 'overlayIds' in project ? project : createProject({
           ...project,
@@ -545,7 +550,7 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
           const projectData = 'overlayIds' in project ? project : createProject({
             ...project,
             city: project.city,
-            status: 'approved'
+            status: ('status' in project ? project.status : 'approved') as 'pending' | 'approved' | 'rejected'
           });
 
           // AI : CRITICAL: Add project to store so it can be edited

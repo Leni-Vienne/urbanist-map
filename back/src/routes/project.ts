@@ -83,13 +83,32 @@ export const projectRouter = router({
         };
 
         if (input.id) {
-          // AI : Use upsert operation for existing project ID to avoid race conditions
-          const result = await db
-            .insert(projects)
-            .values({ ...data, id: input.id })
-            .onConflictDoUpdate({
-              target: projects.id,
-              set: {
+          // AI : Check if project exists and validate permissions
+          const existingProject = await db.select().from(projects).where(eq(projects.id, input.id)).limit(1);
+
+          if (existingProject.length > 0) {
+            const project = existingProject[0];
+
+            // AI : Security check - only owner can modify their project
+            if (project.ownerId !== ctx.user.id) {
+              throw new TRPCError({
+                code: 'FORBIDDEN',
+                message: 'You can only modify your own projects'
+              });
+            }
+
+            // AI : Workflow check - approved projects must use change request system
+            if (project.status === 'approved') {
+              throw new TRPCError({
+                code: 'BAD_REQUEST',
+                message: 'Cannot directly modify approved projects. Please use the change request system to suggest modifications.'
+              });
+            }
+
+            // AI : Allow updates only for pending/rejected projects owned by user
+            const result = await db
+              .update(projects)
+              .set({
                 name: data.name,
                 description: data.description,
                 cityId: data.cityId,
@@ -101,16 +120,29 @@ export const projectRouter = router({
                 endDate: data.endDate,
                 sourceUrl: data.sourceUrl,
                 latestUpdateOn: data.latestUpdateOn,
-                version: sql`${projects.version} + 1`, // AI : Increment version on update for optimistic locking
+                version: sql`${projects.version} + 1`,
                 updatedAt: new Date()
-              }
-            })
+              })
+              .where(eq(projects.id, input.id))
+              .returning();
+
+            return {
+              success: true,
+              id: result[0].id,
+              exists: true
+            };
+          }
+
+          // AI : Project doesn't exist, create new one with provided ID
+          const result = await db
+            .insert(projects)
+            .values({ ...data, id: input.id })
             .returning();
-          
-          return { 
-            success: true, 
-            id: result[0].id, 
-            exists: result[0].createdAt !== result[0].updatedAt // AI : Determine if it was update or insert
+
+          return {
+            success: true,
+            id: result[0].id,
+            exists: false
           };
         } else {
           // AI : Insert new project without ID (will get auto-generated UUID)
