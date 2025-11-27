@@ -125,40 +125,6 @@
           </div>
         </div>
       </Popover>
-
-      <Button
-        v-if="authStore.isAuthenticated"
-        @click.stop="handleAddOverlayClick"
-        @dblclick.stop
-        raised
-        :aria-label="$t('overlay.addImageOverlay')"
-        v-tooltip.right="$t('overlay.addImageOverlay')"
-        severity="secondary"
-      >
-        <template #icon>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="1em"
-            height="1em"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M16 5h6" />
-            <path d="M19 2v6" />
-            <path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5" />
-            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-            <circle
-              cx="9"
-              cy="9"
-              r="2"
-            />
-          </svg>
-        </template>
-      </Button>
     </div>
   </div>
 
@@ -171,25 +137,17 @@
 import { storeToRefs } from 'pinia';
 import { defineAsyncComponent, ref } from 'vue';
 import L from 'leaflet';
-import { useToast } from '@composables/ui/useToast';
-import { useI18n } from '@composables/useI18n';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { useAuthStore } from '@stores/authStore';
 import { useUiStore } from '@stores/uiStore';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import { createButtonSVG } from '@composables/map/useMarkers';
 import { map } from '@composables/core/useMap';
-import { useAddOverlay } from '@composables/overlay/useAddOverlay';
 import type { viewModeMarkerColor } from '@types';
 
 const LayerControl = defineAsyncComponent(() => import('@components/map/LayerControl.vue'));
 const MapHelpModal = defineAsyncComponent(() => import('@components/map/MapHelpModal.vue'));
 
-const authStore = useAuthStore();
 const overlayStore = useOverlayStore();
-const toast = useToast();
-const { t } = useI18n();
-const { handleAddOverlayButtonClick } = useAddOverlay();
 
 // AI : Help modal state
 const showHelp = ref(false);
@@ -208,29 +166,6 @@ const { visibleCompletionStates, toggleFilter } = useCompletionFilters();
 const emit = defineEmits<{
   'filter-overlays': [status: viewModeMarkerColor];
 }>();
-
-async function handleAddOverlayClick() {
-  const result = await handleAddOverlayButtonClick();
-
-  if (result.success) {
-    if (result.action === 'edit_mode_enabled') {
-      toast.add({
-        severity: 'info',
-        summary: t('moderation.switchedToEditMode'),
-        detail: t('moderation.clickAgainToAdd'),
-        life: 4000,
-      });
-    }
-    // AI : 'dialog_opened' action doesn't need a toast - dialog is self-explanatory
-  } else if (result.reason === 'edit_mode_error') {
-    toast.add({
-      severity: 'error',
-      summary: t('moderation.modeSwitchError'),
-      detail: t('moderation.modeSwitchErrorDetail'),
-      life: 3000
-    });
-  }
-}
 
 // AI : Toggle completion status filter
 async function toggleCompletionFilter(color: viewModeMarkerColor) {
