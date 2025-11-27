@@ -103,7 +103,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useAddOverlay } from '@composables/overlay/useAddOverlay'
+import { useNewProject } from '@composables/overlay/useNewProject'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import { useToast } from '@composables/ui/useToast'
 import { useChangeRequests } from '@composables/changes/useChanges'
@@ -123,11 +123,11 @@ const moderatedContributionsCount = computed(() => moderatedContributions.value.
 
 const onlyShowPending = ref(true)
 
-// AI : Stores
-const { handleAddOverlayButtonClick } = useAddOverlay()
+// AI : New project composable
+const { handleNewProjectClick } = useNewProject()
 
 async function handleAddOverlayClick() {
-  const result = await handleAddOverlayButtonClick()
+  const result = await handleNewProjectClick()
 
   if (!result.success && result.reason === 'edit_mode_error') {
     toast.add({

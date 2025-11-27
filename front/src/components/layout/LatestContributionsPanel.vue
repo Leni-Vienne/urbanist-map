@@ -96,7 +96,7 @@ import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useLatestContributions } from '@composables/overlay/useLatestContributions'
 import { useOverlayClickHandler } from '@composables/overlay/useOverlayClickHandler'
-import { useAddOverlay } from '@composables/overlay/useAddOverlay'
+import { useNewProject } from '@composables/overlay/useNewProject'
 import { useToast } from '@composables/ui/useToast'
 import { highlightOverlayById, removeOverlayHighlight } from '@composables/overlay/useOverlay'
 import { navigateToDevelopmentProject } from '@composables/navigation/useOverlayNavigation'
@@ -113,14 +113,14 @@ const { contributions, isLoading, fetchLatestContributions } = useLatestContribu
 // AI : Use shared overlay click handler for overlay navigation
 const { handleOverlayClickNavigation } = useOverlayClickHandler()
 
-// AI : Add overlay composable
-const { handleAddOverlayButtonClick } = useAddOverlay()
+// AI : New project composable
+const { handleNewProjectClick } = useNewProject()
 
 const imageErrors = ref<Record<string, boolean>>({})
 
-// AI : Handle add overlay button click
+// AI : Handle add new project button click
 async function handleAddOverlayClick() {
-  const result = await handleAddOverlayButtonClick()
+  const result = await handleNewProjectClick()
 
   if (!result.success && result.reason === 'edit_mode_error') {
     toast.add({
@@ -130,7 +130,7 @@ async function handleAddOverlayClick() {
       life: 3000
     })
   }
-  // AI : Auth modal is already opened by useAddOverlay for not_authenticated
+  // AI : Auth modal is already opened by useNewProject for not_authenticated
   // AI : No toast for success - dialog opening is self-explanatory
 }
 
@@ -343,9 +343,6 @@ onMounted(() => {
 
 /* AI : Mobile responsive adjustments */
 @media (max-width: 768px) {
-  .panel-content {
-    padding: 0.75rem;
-  }
 
   .contribution-card {
     padding: 0.625rem;
