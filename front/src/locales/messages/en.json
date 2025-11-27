@@ -121,6 +121,7 @@
     "markerPlacedAt": "Marker placed at",
     "startPlacement": "Start Placement",
     "clickMapToPlace": "Click on the map to place place your project",
+    "markerPlacementInstruction": "Click anywhere on the map to place your project marker",
     "waitingForClick": "Waiting for map click...",
     "information": "Project Information",
     "edit": "Edit Project",
