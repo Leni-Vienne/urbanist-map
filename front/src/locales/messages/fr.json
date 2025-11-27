@@ -121,6 +121,7 @@
     "markerPlacedAt": "Marqueur placé à",
     "startPlacement": "Commencer le placement",
     "clickMapToPlace": "Cliquez sur la carte pour placer le projet",
+    "markerPlacementInstruction": "Cliquez n'importe où sur la carte pour placer le marqueur de votre projet",
     "waitingForClick": "En attente du clic sur la carte...",
     "information": "Informations du projet",
     "edit": "Modifier le projet",

@@ -1,7 +1,6 @@
 import { useAuthStore } from '@stores/authStore'
 import { useUiStore } from '@stores/uiStore'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
-import { useProjectStore } from '@stores/pinia/projectStore'
 import { switchMode } from '@composables/overlay/useOverlayModes'
 import { storeToRefs } from 'pinia'
 
@@ -10,7 +9,6 @@ export function useAddOverlay() {
   const authStore = useAuthStore()
   const uiStore = useUiStore()
   const overlayStore = useOverlayStore()
-  const projectStore = useProjectStore()
   const { mode } = storeToRefs(overlayStore)
 
   async function handleAddOverlayButtonClick() {
@@ -19,20 +17,8 @@ export function useAddOverlay() {
       return { success: false, reason: 'not_authenticated' }
     }
 
-    // AI : Smart behavior: check if user has any contributions
-    const userProjects = Object.values(projectStore.projects).filter(
-      p => p.ownerId === authStore.user?.id
-    )
-    const hasContributions = userProjects.length > 0
-
+    // AI : Always switch to edit mode when contributing
     if (mode.value !== 'edit') {
-      // AI : If user has no contributions, skip edit mode and open dialog directly
-      if (!hasContributions) {
-        uiStore.openMarkerPlacementBar()
-        return { success: true, action: 'dialog_opened' }
-      }
-
-      // AI : If user has contributions, switch to edit mode AND open dialog in one click
       try {
         await switchMode('edit')
         uiStore.openMarkerPlacementBar()

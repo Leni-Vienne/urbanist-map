@@ -1,8 +1,14 @@
 <template>
   <!-- AI : Floating bar for marker placement, positioned inside map container -->
   <Teleport to="#mapDiv">
-    <div 
-      v-if="markerPlacementMode && visible" 
+    <!-- AI : Semi-transparent backdrop to focus attention on map -->
+    <div
+      v-if="markerPlacementMode && visible"
+      class="marker-placement-backdrop"
+    ></div>
+
+    <div
+      v-if="markerPlacementMode && visible"
       class="marker-placement-bar"
     >
       <div class="placement-content">
@@ -13,13 +19,13 @@
         </div>
       </div>
       <div class="placement-actions">
-        <Button 
+        <Button
           v-if="markerCoordinates"
           :label="$t('common.continue')"
           size="small"
           @click="onContinue"
         />
-        <Button 
+        <Button
           :label="$t('common.cancel')"
           severity="secondary"
           size="small"
@@ -28,7 +34,7 @@
       </div>
     </div>
     <!-- AI : Cursor-following marker icon until first click -->
-    <div 
+    <div
       v-if="markerPlacementMode && visible && !markerCoordinates"
       class="cursor-marker"
       :style="{ left: cursorPosition.x + 'px', top: cursorPosition.y + 'px' }"
@@ -143,6 +149,18 @@ defineExpose({
 </script>
 
 <style scoped>
+/* AI : Semi-transparent backdrop to dim everything except the map area */
+.marker-placement-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 1998;
+  pointer-events: none;
+}
+
 /* AI : Floating marker placement bar - positioned relative to map container */
 .marker-placement-bar {
   position: absolute;
@@ -150,15 +168,15 @@ defineExpose({
   left: 50%;
   transform: translateX(-50%);
   background: white;
-  border: 1px solid var(--p-surface-300);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 2px solid var(--p-primary-500);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 16px;
+  padding: 16px 24px;
   max-width: calc(100vw - 40px);
-  min-width: 280px;
+  min-width: 320px;
   z-index: 2000;
 }
 
@@ -179,7 +197,7 @@ defineExpose({
 
 .placement-icon {
   color: var(--p-primary-600);
-  font-size: 16px;
+  font-size: 20px;
 }
 
 .placement-text {
@@ -187,15 +205,16 @@ defineExpose({
 }
 
 .instruction {
-  color: var(--p-surface-600);
-  font-size: 14px;
+  color: var(--p-surface-700);
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .coordinates-text {
   font-family: monospace;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--p-primary-700);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .placement-actions {
@@ -212,12 +231,25 @@ defineExpose({
     transform: none;
     max-width: none;
     min-width: auto;
+    padding: 14px 18px;
   }
-  
+
   .placement-content {
-    gap: 6px;
+    gap: 8px;
   }
-  
+
+  .placement-icon {
+    font-size: 18px;
+  }
+
+  .instruction {
+    font-size: 14px;
+  }
+
+  .coordinates-text {
+    font-size: 13px;
+  }
+
   .placement-actions {
     gap: 6px;
   }

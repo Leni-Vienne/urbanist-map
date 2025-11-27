@@ -361,7 +361,7 @@ function onMarkerModeEnabled() {
     const markerIcon = createBasicProjectIcon('orange');
     tempMarker.value = L.marker([coordinates.lat, coordinates.lng], {
       icon: markerIcon,
-      draggable: false
+      draggable: false,
     }).addTo(map.value!);
 
     // AI : Pass coordinates back to marker placement bar
