@@ -11,7 +11,7 @@
       raised
       data-testid="sign-in-button"
       @dblclick.stop
-      @click="showAuthModal = true"
+      @click="uiStore.openAuthModal()"
     />
 
     <!-- AI : User Menu for authenticated users -->
@@ -54,24 +54,37 @@
     </Popover>
 
     <!-- AI : Auth Modal -->
-    <AuthModal v-model:visible="showAuthModal" />
+    <AuthModal v-model:visible="authModalVisible" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import AuthModal from './AuthModal.vue'
 import LanguageSwitcherMenu from '../map/LanguageSwitcherMenu.vue'
 import { useAuthStore } from '@stores/authStore'
+import { useUiStore } from '@stores/uiStore'
 import { useToast } from '@composables/ui/useToast'
 import { useI18n } from 'vue-i18n'
 
 const authStore = useAuthStore()
+const uiStore = useUiStore()
 const toast = useToast()
 const { t } = useI18n()
-const showAuthModal = ref(false)
 const isMenuOpen = ref(false)
 const userPopover = ref()
+
+// AI : Use store state directly for auth modal
+const authModalVisible = computed({
+  get: () => uiStore.authModalVisible,
+  set: (value) => {
+    if (value) {
+      uiStore.openAuthModal()
+    } else {
+      uiStore.closeAuthModal()
+    }
+  }
+})
 
 // AI : Toggle menu visibility using Popover
 function toggleMenu(event: Event) {

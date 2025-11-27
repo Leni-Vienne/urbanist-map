@@ -1,8 +1,21 @@
 <template>
   <div class="latest-contributions-panel">
     <div class="panel-content">
+      <!-- AI : Panel header with New Project button -->
+      <div class="panel-header">
+        <Button
+          @click="handleAddOverlayClick"
+          severity="primary"
+          size="small"
+          icon="pi pi-plus"
+          :label="$t('common.add')"
+          class="add-project-button"
+          v-tooltip.bottom="$t('dialog.createNewProject')"
+        />
+      </div>
+
       <div
-        class="flex flex-col"
+        class="contributions-list"
         v-if="contributions.length > 0"
       >
         <!-- AI : Clean borderless cards for both overlays and development projects -->
@@ -83,6 +96,8 @@ import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useLatestContributions } from '@composables/overlay/useLatestContributions'
 import { useOverlayClickHandler } from '@composables/overlay/useOverlayClickHandler'
+import { useAddOverlay } from '@composables/overlay/useAddOverlay'
+import { useToast } from '@composables/ui/useToast'
 import { highlightOverlayById, removeOverlayHighlight } from '@composables/overlay/useOverlay'
 import { navigateToDevelopmentProject } from '@composables/navigation/useOverlayNavigation'
 import { buildThumbnailUrl } from '@utils/imageUrl'
@@ -90,6 +105,7 @@ import { formatRelativeTime } from '@utils/dateFormat'
 import type { LatestContribution } from '../../types/api'
 
 const { t } = useI18n()
+const toast = useToast()
 
 // AI : Use cached composable for latest contributions
 const { contributions, isLoading, fetchLatestContributions } = useLatestContributions()
@@ -97,7 +113,26 @@ const { contributions, isLoading, fetchLatestContributions } = useLatestContribu
 // AI : Use shared overlay click handler for overlay navigation
 const { handleOverlayClickNavigation } = useOverlayClickHandler()
 
+// AI : Add overlay composable
+const { handleAddOverlayButtonClick } = useAddOverlay()
+
 const imageErrors = ref<Record<string, boolean>>({})
+
+// AI : Handle add overlay button click
+async function handleAddOverlayClick() {
+  const result = await handleAddOverlayButtonClick()
+
+  if (!result.success && result.reason === 'edit_mode_error') {
+    toast.add({
+      severity: 'error',
+      summary: t('moderation.modeSwitchError'),
+      detail: t('moderation.modeSwitchErrorDetail'),
+      life: 3000
+    })
+  }
+  // AI : Auth modal is already opened by useAddOverlay for not_authenticated
+  // AI : No toast for success - dialog opening is self-explanatory
+}
 
 // AI : Get contribution thumbnail URL using the utility function
 function getContributionImageUrl(filename: string): string {
@@ -189,10 +224,32 @@ onMounted(() => {
 
 .panel-content {
   flex: 1;
-  padding: 1rem 0 1rem 1rem;
+  padding: 0;
   overflow: visible;
+  display: flex;
+  flex-direction: column;
 }
 
+/* AI : Panel header with Add Overlay button */
+.panel-header {
+  padding: 1rem 1rem 0rem 1rem;
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.add-project-button {
+  font-weight: 600;
+}
+
+/* AI : Contributions list container */
+.contributions-list {
+  flex: 1;
+  padding: 1rem 0 1rem 1rem;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+}
 
 /* AI : Clean borderless contribution cards */
 .contribution-card {

@@ -3,7 +3,7 @@
     :projects="filteredProjects"
     :is-loading="isLoading"
     :change-requests="pendingChangeRequests"
-    :title="$t('navigation.myContributions')"
+    title=""
     panel-class="my-contributions-panel"
     :empty-message="projects.length > 0 && filteredProjects.length === 0 ? $t('contributions.noProjectsMatchFilter') : $t('contributions.noProjectsFound')"
     :empty-sub-message="projects.length > 0 && filteredProjects.length === 0 ? $t('contributions.tryChangingFilters') : $t('contributions.createFirstProject')"
@@ -53,14 +53,33 @@
           outlined
         >
           <template #icon>
-            <Badge :value="moderatedContributionsCount" severity="danger" class="mr-2" />
+            <Badge
+              :value="moderatedContributionsCount"
+              severity="danger"
+              class="mr-2"
+            />
             <i class="pi pi-bell"></i>
           </template>
         </Button>
 
+        <!-- AI : New Project button - primary action with icon only on small screens -->
+        <Button
+          @click="handleAddOverlayClick"
+          severity="primary"
+          size="small"
+          icon="pi pi-plus"
+          :label="$t('common.add')"
+          class="add-project-button"
+          v-tooltip.bottom="$t('dialog.createNewProject')"
+        />
+
         <div class="filter-controls">
           <div class="field-checkbox">
-            <Checkbox v-model="onlyShowPending" inputId="onlyShowPending" binary />
+            <Checkbox
+              v-model="onlyShowPending"
+              inputId="onlyShowPending"
+              binary
+            />
             <label for="onlyShowPending">{{ $t('help.filters.onlyShowPending') }}</label>
           </div>
         </div>
@@ -70,41 +89,13 @@
     <template #empty-state>
       <i class="pi pi-folder text-5xl text-surface-400 mb-4"></i>
       <p class="text-base mb-2">
-        {{ projects.length > 0 && filteredProjects.length === 0 ? $t('contributions.noProjectsMatchFilter') : $t('contributions.noProjectsFound') }}
+        {{ projects.length > 0 && filteredProjects.length === 0 ? $t('contributions.noProjectsMatchFilter') :
+          $t('contributions.noProjectsFound') }}
       </p>
-      <p class="text-sm mb-6">
-        {{ projects.length > 0 && filteredProjects.length === 0 ? $t('contributions.tryChangingFilters') : $t('contributions.createFirstProject') }}
+      <p class="text-sm">
+        {{ projects.length > 0 && filteredProjects.length === 0 ? $t('contributions.tryChangingFilters') :
+          $t('contributions.createFirstProject') }}
       </p>
-      
-      <!-- AI : Add overlay button when no projects exist -->
-      <Button
-        v-if="projects.length === 0"
-        @click="handleAddOverlayClick"
-        aria-label="Add Image Overlay"
-        severity="secondary"
-        class="add-overlay-button"
-        size="large"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          style="margin-right: 0.5rem;"
-        >
-          <path d="M16 5h6" />
-          <path d="M19 2v6" />
-          <path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5" />
-          <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-          <circle cx="9" cy="9" r="2" />
-        </svg>
-        Add Image Overlay
-      </Button>
     </template>
   </ProjectAccordionPanel>
 </template>
@@ -137,24 +128,16 @@ const { handleAddOverlayButtonClick } = useAddOverlay()
 
 async function handleAddOverlayClick() {
   const result = await handleAddOverlayButtonClick()
-  
-  if (result.success) {
-    if (result.action === 'edit_mode_enabled') {
-      toast.add({
-        severity: 'info',
-        summary: 'Switched to Edit Mode',
-        detail: 'Click the button again to add an overlay',
-        life: 4000,
-      })
-    }
-  } else if (result.reason === 'edit_mode_error') {
+
+  if (!result.success && result.reason === 'edit_mode_error') {
     toast.add({
       severity: 'error',
-      summary: 'Mode Switch Error',
-      detail: 'Failed to switch mode. Please try again.',
+      summary: t('moderation.modeSwitchError'),
+      detail: t('moderation.modeSwitchErrorDetail'),
       life: 3000
     })
   }
+  // AI : No toast for success - dialog opening is self-explanatory
 }
 const toast = useToast()
 

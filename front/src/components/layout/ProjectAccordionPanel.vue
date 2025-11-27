@@ -822,7 +822,7 @@ function handleOverlayContributorClick(
 .grouped-accordion-container {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 .country-group {
@@ -971,7 +971,7 @@ function handleOverlayContributorClick(
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.5rem;
   padding: 1rem 1rem 0.75rem 0;
   border-bottom: 2px solid var(--p-primary-100);
   z-index: 10; /* z-index to prevent accordion headers from overlapping */
