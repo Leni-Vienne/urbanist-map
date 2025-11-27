@@ -76,11 +76,33 @@ jobs:
       run: |
         if [ "${{ env.WRANGLER_ENV }}" = "" ]; then
           FRONTEND_URL="https://construction-map.pages.dev"
+          echo "PROJECT_NAME=construction-map" >> $GITHUB_ENV
         else
           FRONTEND_URL="https://preview.construction-map-preview.pages.dev"
+          echo "PROJECT_NAME=construction-map-preview" >> $GITHUB_ENV
         fi
         echo "FRONTEND_URL=$FRONTEND_URL" >> $GITHUB_ENV
         echo "Frontend deployed to: $FRONTEND_URL"
+
+    - name: Cleanup old Cloudflare Pages deployments
+      run: |
+        # AI : Keep only the 5 most recent deployments, delete the rest
+        DEPLOYMENTS=$(curl -s -X GET \
+          "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ACCOUNT_ID }}/pages/projects/${{ env.PROJECT_NAME }}/deployments" \
+          -H "Authorization: Bearer ${{ secrets.CF_API_TOKEN }}" \
+          -H "Content-Type: application/json")
+        
+        # AI : Extract deployment IDs, skip the first 5 (most recent), delete the rest
+        echo "$DEPLOYMENTS" | jq -r '.result[5:] | .[].id' | while read -r DEPLOYMENT_ID; do
+          if [ -n "$DEPLOYMENT_ID" ]; then
+            echo "Deleting old deployment: $DEPLOYMENT_ID"
+            curl -s -X DELETE \
+              "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ACCOUNT_ID }}/pages/projects/${{ env.PROJECT_NAME }}/deployments/$DEPLOYMENT_ID?force=true" \
+              -H "Authorization: Bearer ${{ secrets.CF_API_TOKEN }}" \
+              -H "Content-Type: application/json"
+          fi
+        done
+        echo "Old deployments cleanup complete"
 
     - name: Deploy backend with docker compose to remote server
       env:
