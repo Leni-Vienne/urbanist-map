@@ -4,18 +4,22 @@ import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { switchMode } from '@composables/overlay/useOverlayModes'
 import { storeToRefs } from 'pinia'
 
-// AI : Composable for handling add button click logic (opens marker placement bar)
-export function useAddOverlay() {
+// AI : Composable for handling new project button click logic (opens marker placement bar)
+export function useNewProject() {
   const authStore = useAuthStore()
   const uiStore = useUiStore()
   const overlayStore = useOverlayStore()
   const { mode } = storeToRefs(overlayStore)
 
-  async function handleAddOverlayButtonClick() {
+  async function handleNewProjectClick() {
     if (!authStore.isAuthenticated) {
       uiStore.openAuthModal()
       return { success: false, reason: 'not_authenticated' }
     }
+
+    // AI : Close any open popups and clear selections for clean slate
+    overlayStore.hideInfoPopup()
+    uiStore.closeProjectInfoPopup()
 
     // AI : Always switch to edit mode when contributing
     if (mode.value !== 'edit') {
@@ -35,6 +39,6 @@ export function useAddOverlay() {
   }
 
   return {
-    handleAddOverlayButtonClick
+    handleNewProjectClick
   }
 }

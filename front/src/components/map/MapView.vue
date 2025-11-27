@@ -194,7 +194,7 @@ async function initializeMapAndOverlays() {
   bottom: 0;
 }
 
-/* AI : Mode borders - positioned relative to map container below dialogs (dialogs are z-index 1100+) */
+/* AI : Mode borders - positioned relative to map container below tooltips and dialogs */
 .mode-border {
   position: absolute;
   top: 0;
@@ -203,7 +203,7 @@ async function initializeMapAndOverlays() {
   bottom: 0;
   border: 4px solid;
   pointer-events: none;
-  z-index: 1050;
+  z-index: 900;
   animation: borderFadeIn 0.3s ease-in-out;
 }
 
@@ -224,13 +224,13 @@ async function initializeMapAndOverlays() {
   }
 }
 
-/* AI : Desktop mode controls - positioned absolutely within map container below dialogs (dialogs are z-index 1100+) */
+/* AI : Desktop mode controls - positioned absolutely within map container below tooltips and dialogs */
 .mode-controls-desktop {
   position: absolute;
   bottom: 1.25rem;
   left: 0;
   right: 0;
-  z-index: 1050;
+  z-index: 900;
   pointer-events: none;
 }
 
