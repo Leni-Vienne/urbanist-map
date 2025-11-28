@@ -16,28 +16,6 @@
           <div class="help-item">
             <div class="help-icon">
               <Button
-                icon="pi pi-plus"
-                size="small"
-                severity="secondary"
-                disabled
-              />
-            </div>
-            <div class="help-text">{{ $t('help.buttons.zoomIn') }}</div>
-          </div>
-          <div class="help-item">
-            <div class="help-icon">
-              <Button
-                icon="pi pi-minus"
-                size="small"
-                severity="secondary"
-                disabled
-              />
-            </div>
-            <div class="help-text">{{ $t('help.buttons.zoomOut') }}</div>
-          </div>
-          <div class="help-item">
-            <div class="help-icon">
-              <Button
                 icon="pi pi-question-circle"
                 size="small"
                 severity="help"
@@ -68,51 +46,20 @@
             </div>
             <div class="help-text">{{ $t('help.buttons.filters') }}</div>
           </div>
-        </div>
 
-        <!-- AI : When Connected controls (only if authenticated) -->
-        <div v-if="authStore.isAuthenticated" class="help-section">
-          <h4 class="help-section-title">{{ $t('help.modes.title') }}</h4>
-          <div class="help-item">
-            <div class="help-icon">
-              <Button
-                severity="secondary"
-                size="small"
-                disabled
-              >
-                <template #icon>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="1.2em"
-                    height="1.2em"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d="M16 5h6" />
-                    <path d="M19 2v6" />
-                    <path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5" />
-                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-                    <circle cx="9" cy="9" r="2" />
-                  </svg>
-                </template>
-              </Button>
+          <template v-if="authStore.isAuthenticated">
+            <div class="mode-controls-demo">
+              <div class="mode-indicator-demo">
+                <i class="pi pi-pencil"></i>
+                <span>{{ $t('map.editMode') }}</span>
+                <i class="pi pi-refresh switch-icon-demo"></i>
+              </div>
             </div>
-            <div class="help-text">{{ $t('help.buttons.addOverlay') }}</div>
-          </div>
-          <div class="mode-controls-demo">
-            <div class="mode-indicator-demo">
-              <i class="pi pi-pencil"></i>
-              <span>{{ $t('map.editMode') }}</span>
-              <i class="pi pi-refresh switch-icon-demo"></i>
-            </div>
-          </div>
-          <div class="help-text centered-help-text">{{ $t('help.modes.description') }}</div>
+            <div class="help-text centered-help-text">{{ $t('help.modes.description') }}</div>
+          </template>
         </div>
       </div>
+
 
       <div class="help-footer">
         <Checkbox
@@ -120,7 +67,10 @@
           inputId="dontShowAgain"
           :binary="true"
         />
-        <label for="dontShowAgain" class="help-checkbox-label">
+        <label
+          for="dontShowAgain"
+          class="help-checkbox-label"
+        >
           {{ $t('help.dontShowAgain') }}
         </label>
       </div>
@@ -189,7 +139,7 @@ function showModal() {
 // AI : Auto-show on first visit
 onMounted(() => {
   if (shouldShowOnFirstVisit()) {
-      visible.value = true;
+    visible.value = true;
   }
 });
 
@@ -294,21 +244,12 @@ defineExpose({
   min-width: 120px;
 }
 
-/* AI : Mode controls demo styling - mimics actual mode controls */
-.help-section-note {
-  font-size: 0.85rem;
-  color: var(--text-color-secondary);
-  margin: -0.5rem 0 1rem 0;
-  font-style: italic;
-}
-
 .mode-controls-demo {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   padding: 1rem;
-  margin: 0.5rem 0;
 }
 
 .mode-indicator-demo {
@@ -347,20 +288,20 @@ defineExpose({
   .help-content {
     font-size: 0.9rem;
   }
-  
+
   .help-item {
     gap: 0.75rem;
   }
-  
+
   .help-icon {
     width: 2rem;
     height: 2rem;
   }
-  
+
   .help-text {
     font-size: 0.85rem;
   }
-  
+
   .help-section {
     padding: 0.75rem;
   }

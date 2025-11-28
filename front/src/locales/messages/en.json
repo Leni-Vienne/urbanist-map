@@ -159,15 +159,11 @@
     "dontShowAgain": "Don't show this help again",
     "buttons": {
       "title": "Map Controls",
-      "zoomIn": "Zoom in (enlarge the view)",
-      "zoomOut": "Zoom out (reduce the view)",
       "help": "Show this help guide",
       "layers": "Switch between map tile layers (street view, satellite, etc.)",
-      "filters": "Open project status filters (proposed, planned, in progress, completed)",
-      "addOverlay": "Add a new image overlay or development project (logged in only)"
+      "filters": "Open project status filters (proposed, planned, in progress, completed)"
     },
     "modes": {
-      "title": "When Connected",
       "modeIndicator": "Edit Mode",
       "description": "Button to toggle between View Mode (approved projects only) and Edit Mode (modify your own projects)"
     },
