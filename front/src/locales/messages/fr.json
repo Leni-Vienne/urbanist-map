@@ -159,15 +159,11 @@
     "dontShowAgain": "Ne plus afficher cette aide",
     "buttons": {
       "title": "Contrôles de la carte",
-      "zoomIn": "Zoomer (agrandir la vue)",
-      "zoomOut": "Dézoomer (réduire la vue)",
       "help": "Afficher ce guide d'aide",
-      "layers": "Changer de couche de carte (vue rue, satellite, etc.)",
-      "filters": "Ouvrir les filtres de statut de projet (proposé, prévu, en cours, terminé)",
-      "addOverlay": "Ajouter une nouvelle image superposée ou un projet de bâtiment (connecté uniquement)"
+      "layers": "Changer de carte (plan, satellite, etc.)",
+      "filters": "Filtres de statut de projet (proposé, prévu, en cours, terminé)"
     },
     "modes": {
-      "title": "Lorsque connecté",
       "modeIndicator": "Mode Édition",
       "description": "Bouton pour basculer entre le Mode Visualisation (projets approuvés uniquement) et le Mode Édition (modifier vos propres projets)"
     },
