@@ -1,6 +1,6 @@
 <template>
   <div
-    class="unified-popup"
+    :class="['unified-popup', `popup-source-${props.source}`]"
     @click.stop
   >
     <div
@@ -163,6 +163,8 @@ interface Props {
   publishLoading?: boolean
   loading?: boolean
   availableCities?: Array<{ id: string; name: string; countryCode: string; }>
+  // AI : Source determines popup positioning - overlay toolbar vs project marker
+  source?: 'overlay' | 'marker'
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -170,7 +172,8 @@ const props = withDefaults(defineProps<Props>(), {
   viewMode: false,
   publishLoading: false,
   loading: false,
-  availableCities: () => []
+  availableCities: () => [],
+  source: 'overlay'
 })
 
 const emit = defineEmits<{
@@ -229,9 +232,17 @@ function handlePublishClick() {
   border: 1px solid var(--p-surface-border);
   pointer-events: auto;
   position: relative;
-  /* AI : Position above the marker (for project markers) */
-  transform: translateY(calc(20px));
   z-index: 1000;
+}
+
+/* AI : Positioning for overlay toolbar source - appears to the right of toolbar */
+.popup-source-overlay {
+  transform: translateY(20px);
+}
+
+/* AI : Positioning for project marker source - centered below marker */
+.popup-source-marker {
+  transform: translateX(-50%) translateY(20px);
 }
 
 .loading-spinner {
