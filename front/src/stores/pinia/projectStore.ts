@@ -20,6 +20,36 @@ function removeAtIndex<T>(arr: T[], index: number): T[] {
   return [...arr.slice(0, index), ...arr.slice(index + 1)];
 }
 
+// AI : Helper function to extract city metadata from project for user contributions
+function extractCityMetadata(project: Project) {
+  return {
+    cityName: project.city?.name ?? null,
+    countryCode: project.city?.countryCode ?? null,
+    countryName: null,
+  };
+}
+
+// AI : Helper function to create overlay metadata for user contributions
+function createOverlayMetadata(overlay: OverlayObject, project: Project, filename: string) {
+  return {
+    id: overlay.id,
+    name: overlay.caption ?? 'Unnamed',
+    filename: filename,
+    status: 'pending' as const,
+    version: 1,
+    projectId: project.id,
+    authorId: overlay.authorId ?? null,
+    authorUsername: null,
+    authorApprovedCount: null,
+    authorRejectedCount: null,
+    replacesOverlayId: overlay.replacesOverlayId ?? null,
+    replacedByOverlayId: null,
+    updatedAt: new Date(),
+    cityId: project.cityId,
+    ...extractCityMetadata(project),
+  };
+}
+
 export const useProjectStore = defineStore('project', () => {
   // AI : Central store for project data to avoid circular dependencies
   const projects = ref<Record<string, Project>>({});
@@ -111,25 +141,7 @@ export const useProjectStore = defineStore('project', () => {
         ...existingProject,
         overlays: [
           ...existingProject.overlays,
-          {
-            id: overlay.id,
-            name: overlay.caption ?? 'Unnamed',
-            filename: filename,
-            status: 'pending' as const,
-            version: 1,
-            projectId: project.id,
-            authorId: overlay.authorId ?? null, // AI : For spam prevention
-            authorUsername: null, // AI : Username not available for optimistic updates
-            authorApprovedCount: null, // AI : Stats not available for optimistic updates
-            authorRejectedCount: null,
-            replacesOverlayId: overlay.replacesOverlayId ?? null,
-            replacedByOverlayId: null,
-            updatedAt: new Date(),
-            cityId: project.cityId,
-            cityName: project.city?.name ?? null,
-            countryCode: project.city?.countryCode ?? null,
-            countryName: null,
-          }
+          createOverlayMetadata(overlay, project, filename)
         ],
         overlayCount: existingProject.overlayCount + 1,
       };
@@ -140,28 +152,8 @@ export const useProjectStore = defineStore('project', () => {
       userContributions.value = [
         {
           ...project,
-          cityName: project.city?.name ?? null,
-          countryCode: project.city?.countryCode ?? null,
-          countryName: null,
-          overlays: [{
-            id: overlay.id,
-            name: overlay.caption ?? 'Unnamed',
-            filename: filename,
-            status: 'pending' as const,
-            version: 1,
-            projectId: project.id,
-            authorId: overlay.authorId ?? null, // AI : For spam prevention
-            authorUsername: null, // AI : Username not available for optimistic updates
-            authorApprovedCount: null, // AI : Stats not available for optimistic updates
-            authorRejectedCount: null,
-            replacesOverlayId: overlay.replacesOverlayId ?? null,
-            replacedByOverlayId: null,
-            updatedAt: new Date(),
-            cityId: project.cityId,
-            cityName: project.city?.name ?? null,
-            countryCode: project.city?.countryCode ?? null,
-            countryName: null,
-          }],
+          ...extractCityMetadata(project),
+          overlays: [createOverlayMetadata(overlay, project, filename)],
           overlayCount: 1,
         },
         ...userContributions.value,
@@ -187,9 +179,7 @@ export const useProjectStore = defineStore('project', () => {
     userContributions.value = [
       {
         ...project,
-        cityName: project.city?.name ?? null,
-        countryCode: project.city?.countryCode ?? null,
-        countryName: null,
+        ...extractCityMetadata(project),
         overlays: [],
         overlayCount: 0,
       },
