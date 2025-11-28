@@ -21,7 +21,8 @@ import {
   addDevelopmentMarkerForProject,
   getDevelopmentMarkerByProjectId,
   getDevelopmentMarkerMap,
-  updateDevelopmentMarkerOpacities
+  updateDevelopmentMarkerOpacities,
+  clearAllDevelopmentMarkers
 } from '@composables/map/useDevelopmentMarkers';
 import { createProjectInfoTeleportTarget, cleanupProjectInfoTeleportTarget as cleanupTeleport } from '@composables/map/useProjectPopupTeleport';
 
@@ -140,6 +141,9 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
   if (!map.value) return;
 
   initializeModeWatcher();
+
+  // AI : Clear all existing development markers to prevent accumulation across cities
+  clearAllDevelopmentMarkers();
 
   try {
     const mapStore = useMapStore();
