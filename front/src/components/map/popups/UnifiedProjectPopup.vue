@@ -29,6 +29,14 @@
             @click="emit('edit-project', project)"
             v-tooltip.top="project.ownerId === user.id ? $t('project.edit') : $t('tooltips.suggestChanges')"
           />
+          <!-- AI : Delete button (only for pending projects owned by user) -->
+          <Button
+            v-if="!viewMode && project && user && project.status === 'pending' && project.ownerId === user.id"
+            icon="pi pi-trash"
+            :class="['p-button-sm', 'p-button-text', 'p-button-danger']"
+            @click="emit('delete-project', project)"
+            v-tooltip.top="$t('contributions.deleteProject')"
+          />
           <!-- AI : Close button (only for project-only view) -->
           <Button
             v-if="!overlay"
@@ -55,6 +63,14 @@
               :class="['p-button-sm', 'p-button-text']"
               @click="emit('edit-overlay', overlay)"
               v-tooltip.top="overlay.authorId === user.id ? $t('tooltips.editOverlay') : $t('tooltips.suggestChanges')"
+            />
+            <!-- AI : Delete button (only for pending overlays owned by user) -->
+            <Button
+              v-if="!viewMode && user && overlay.status === 'pending' && overlay.authorId === user.id"
+              icon="pi pi-trash"
+              :class="['p-button-sm', 'p-button-text', 'p-button-danger']"
+              @click="emit('delete-overlay', overlay)"
+              v-tooltip.top="$t('contributions.deleteOverlay')"
             />
           </div>
         </div>
@@ -165,6 +181,8 @@ const emit = defineEmits<{
   'close-popup': []
   'add-images': []
   'view-original-overlay': [overlayId: string]
+  'delete-project': [project: Project]
+  'delete-overlay': [overlay: OverlayObject]
 }>()
 
 const authStore = useAuthStore()

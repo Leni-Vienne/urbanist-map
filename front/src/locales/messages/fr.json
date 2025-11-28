@@ -269,7 +269,9 @@
     "overlayCreated": "Image créée",
     "positionOverlayOnMap": "Positionnez maintenant l'image sur la carte",
     "uploadFailed": "Échec du téléchargement",
-    "uploadFailedDetail": "Échec du téléchargement du fichier image"
+    "uploadFailedDetail": "Échec du téléchargement du fichier image",
+    "lastOverlayDeleted": "Dernière image supprimée",
+    "projectNowShowsAsMarker": "Le projet apparaît maintenant comme un marqueur sur la carte"
   },
   "map": {
     "zoom": "Zoom",
