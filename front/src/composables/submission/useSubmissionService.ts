@@ -2,7 +2,7 @@ import { useProjectStore } from '@stores/pinia/projectStore'
 import { useMapStore } from '@stores/pinia/mapStore'
 import { trpc } from '@client'
 import { buildProjectPayload } from '@composables/project/useProjectMutations'
-import { loadCityProjects } from '@composables/map/useCityMarkers'
+import { loadCityProjects, updateDevelopmentMarkerColor } from '@composables/map/useCityMarkers'
 import { updateMarkerTooltip } from '@composables/overlay/useOverlay'
 import type { Project, OverlayObject } from '@types'
 import type { FieldChange } from '../../../../back/src/routes/changes'
@@ -404,8 +404,14 @@ export function useSubmissionService() {
       )
 
       if (publishResult.success) {
-        // AI : Reset modified flag after successful publish
-        projectStore.updateProject(project.id, { isModified: false })
+        // AI : Reset modified flag and set status to pending after successful publish
+        projectStore.updateProject(project.id, { isModified: false, status: 'pending' })
+
+        // AI : Update development marker color to reflect pending status (yellow)
+        const updatedProject = projectStore.projects[project.id]
+        if (updatedProject) {
+          updateDevelopmentMarkerColor(project.id, updatedProject)
+        }
 
         // AI : Invalidate all mode caches for this city before refreshing
         if (project.cityId) {
