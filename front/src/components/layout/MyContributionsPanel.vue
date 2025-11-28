@@ -111,6 +111,13 @@ import { useUserContributions } from '@composables/project/useUserContributions'
 import { useModeratedContributions } from '@composables/moderation/useModeratedContributions'
 import { useUiStore } from '@stores/uiStore'
 import { useProjectDeletion } from '@composables/project/useProjectDeletion'
+import { RouterOutput } from '@client'
+import type { ProjectForModeration, OverlayForModeration } from '@types'
+
+// AI : Type definitions from tRPC backend responses
+type UserContribution = RouterOutput['project']['getUsersContributions']['projects'][number]
+type UserContributionOverlay = UserContribution['overlays'][number]
+type ChangeRequest = RouterOutput['changes']['getPendingChangeRequests'][0]
 
 const { t } = useI18n()
 
@@ -159,7 +166,7 @@ const filteredProjects = computed(() => {
       }
 
       // AI : If project has pending overlays (user's suggestions on approved projects), include it
-      const hasPendingOverlays = project.overlays?.some((overlay: any) => overlay.status === 'pending') ?? false
+      const hasPendingOverlays = project.overlays?.some((overlay: UserContributionOverlay) => overlay.status === 'pending') ?? false
       if (hasPendingOverlays) {
         return true
       }
@@ -170,7 +177,7 @@ const filteredProjects = computed(() => {
           return true
         }
         // AI : Check if any overlay in this project has pending changes
-        return project.overlays?.some((overlay: any) =>
+        return project.overlays?.some((overlay: UserContributionOverlay) =>
           change.entityType === 'overlay' && change.entityId === overlay.id
         ) ?? false
       })
@@ -182,21 +189,21 @@ const filteredProjects = computed(() => {
 })
 
 // AI : Delete handlers with confirmation
-async function handleDeleteOverlayClick(overlay: any) {
+async function handleDeleteOverlayClick(overlay: OverlayForModeration) {
   // AI : Find the project that contains this overlay
   const project = projects.value.find(p =>
-    p.overlays?.some((o: any) => o.id === overlay.id)
+    p.overlays?.some((o: UserContributionOverlay) => o.id === overlay.id)
   )
 
   const overlayCount = project?.overlays?.length ?? 0
   await deleteOverlayWithMarker(overlay.id, project, overlayCount, overlay.name)
 }
 
-async function handleDeleteProjectClick(project: any) {
+async function handleDeleteProjectClick(project: ProjectForModeration) {
   await deleteProjectWithConfirm(project.id, project.name, project.overlays?.length ?? 0)
 }
 
-async function handleDeleteChangeRequestClick(change: any) {
+async function handleDeleteChangeRequestClick(change: ChangeRequest) {
   const fieldName = change.fieldName
   const confirmed = confirm(t('contributions.confirmDeleteChangeRequest', { field: fieldName }))
   if (!confirmed) return
