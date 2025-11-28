@@ -110,12 +110,15 @@ import { useChangeRequests } from '@composables/changes/useChanges'
 import { useUserContributions } from '@composables/project/useUserContributions'
 import { useModeratedContributions } from '@composables/moderation/useModeratedContributions'
 import { useUiStore } from '@stores/uiStore'
-import { addDevelopmentMarkerForProject } from '@composables/map/useDevelopmentMarkers'
+import { useProjectDeletion } from '@composables/project/useProjectDeletion'
 
 const { t } = useI18n()
 
 // AI : Use cached composable for user contributions
-const { projects, isLoading, fetchUserContributions, deleteOverlay, deleteProject } = useUserContributions()
+const { projects, isLoading, fetchUserContributions } = useUserContributions()
+
+// AI : Use deletion composable for delete operations
+const { handleDeleteOverlay: deleteOverlayWithMarker, handleDeleteProject: deleteProjectWithConfirm } = useProjectDeletion()
 
 // AI : Moderated contributions state
 const { moderatedContributions, hasUnacknowledgedItems } = useModeratedContributions()
@@ -185,50 +188,12 @@ async function handleDeleteOverlayClick(overlay: any) {
     p.overlays?.some((o: any) => o.id === overlay.id)
   )
 
-  const confirmMessage = t('contributions.confirmDeleteOverlay', { name: overlay.name || t('overlay.untitled') })
-
-  const confirmed = confirm(confirmMessage)
-  if (!confirmed) return
-
-  // AI : Check if this is the last overlay before deleting
-  const isLastOverlay = project && project.overlays?.length === 1
-  const projectId = project?.id
-
-  await deleteOverlay(overlay.id)
-
-  // AI : If it was the last overlay, add a development marker to show the project
-  if (isLastOverlay && project && projectId && project.lat && project.lng) {
-    // AI : Convert user contributions project format to Project type format
-    const projectForMarker = {
-      ...project,
-      overlayIds: [] as string[], // AI : Empty since we just deleted the last overlay
-      centerCoordinate: project.lat && project.lng ? `${project.lat},${project.lng}` : null
-    }
-
-    // AI : Add development marker with a small delay to ensure cleanup is complete
-    await new Promise(resolve => setTimeout(resolve, 150))
-
-    addDevelopmentMarkerForProject(projectForMarker as any)
-
-    toast.add({
-      severity: 'info',
-      summary: t('overlay.lastOverlayDeleted'),
-      detail: t('overlay.projectNowShowsAsMarker'),
-      life: 4000
-    })
-  }
+  const overlayCount = project?.overlays?.length ?? 0
+  await deleteOverlayWithMarker(overlay.id, project, overlayCount, overlay.name)
 }
 
 async function handleDeleteProjectClick(project: any) {
-  const overlayCount = project.overlays?.length ?? 0
-  const confirmMessage = overlayCount > 0
-    ? t('contributions.confirmDeleteProjectWithOverlays', { name: project.name, count: overlayCount })
-    : t('contributions.confirmDeleteProject', { name: project.name })
-
-  const confirmed = confirm(confirmMessage)
-  if (!confirmed) return
-
-  await deleteProject(project.id)
+  await deleteProjectWithConfirm(project.id, project.name, project.overlays?.length ?? 0)
 }
 
 async function handleDeleteChangeRequestClick(change: any) {
