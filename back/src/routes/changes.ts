@@ -98,6 +98,22 @@ const EMPTY_CITY_ENRICHMENT = {
   newCountryName: null,
 } as const;
 
+// AI : Common select fields for change requests with user info
+const changeRequestSelectFields = {
+  id: changeRequests.id,
+  entityType: changeRequests.entityType,
+  entityId: changeRequests.entityId,
+  fieldName: changeRequests.fieldName,
+  oldValue: changeRequests.oldValue,
+  newValue: changeRequests.newValue,
+  changeReason: changeRequests.changeReason,
+  status: changeRequests.status,
+  requestedBy: changeRequests.requestedBy,
+  requestedByUsername: users.username,
+  requestedByReportCount: sql<number>`0`.as('requestedByReportCount'),
+  createdAt: changeRequests.createdAt,
+} as const;
+
 // AI : Helper function to enrich change requests with city and country names
 export async function enrichChangeRequestsWithNames<T extends BaseChangeRequest>(
   changes: T[]
@@ -277,20 +293,7 @@ export const changesRouter = router({
         }
 
         const myChanges = await db
-          .select({
-            id: changeRequests.id,
-            entityType: changeRequests.entityType,
-            entityId: changeRequests.entityId,
-            fieldName: changeRequests.fieldName,
-            oldValue: changeRequests.oldValue,
-            newValue: changeRequests.newValue,
-            changeReason: changeRequests.changeReason,
-            status: changeRequests.status,
-            requestedBy: changeRequests.requestedBy,
-            requestedByUsername: users.username,
-            requestedByReportCount: sql<number>`0`.as('requestedByReportCount'), // AI : Not available in this endpoint
-            createdAt: changeRequests.createdAt,
-          })
+          .select(changeRequestSelectFields)
           .from(changeRequests)
           .leftJoin(users, eq(changeRequests.requestedBy, users.id))
           .where(eq(changeRequests.requestedBy, userId))
@@ -319,20 +322,7 @@ export const changesRouter = router({
         // AI : Only show 'pending' changes to moderators
         // AI : 'conflicted' status means "another change was chosen" (soft rejection by moderator)
         const pendingChanges = await db
-          .select({
-            id: changeRequests.id,
-            entityType: changeRequests.entityType,
-            entityId: changeRequests.entityId,
-            fieldName: changeRequests.fieldName,
-            oldValue: changeRequests.oldValue,
-            newValue: changeRequests.newValue,
-            changeReason: changeRequests.changeReason,
-            status: changeRequests.status,
-            requestedBy: changeRequests.requestedBy,
-            requestedByUsername: users.username, // AI : Include username for contributor display
-            requestedByReportCount: sql<number>`0`.as('requestedByReportCount'), // AI : Not available in this endpoint
-            createdAt: changeRequests.createdAt,
-          })
+          .select(changeRequestSelectFields)
           .from(changeRequests)
           .leftJoin(users, eq(changeRequests.requestedBy, users.id))
           .where(eq(changeRequests.status, 'pending'))
