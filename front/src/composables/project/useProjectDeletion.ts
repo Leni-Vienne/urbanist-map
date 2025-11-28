@@ -12,8 +12,15 @@ export function useProjectDeletion() {
 
   /**
    * AI : Delete an overlay with confirmation and auto-add development marker if it's the last one
+   * AI : Project parameter accepts any object with id, lat, lng for development marker
    */
-  async function handleDeleteOverlay(overlayId: string, project: any, projectOverlayCount: number, overlayName: string | null, onSuccess?: () => void): Promise<boolean> {
+  async function handleDeleteOverlay(
+    overlayId: string,
+    project: { id: string; lat: number | null; lng: number | null } | null | undefined,
+    projectOverlayCount: number,
+    overlayName: string | null,
+    onSuccess?: () => void
+  ): Promise<boolean> {
     const confirmMessage = t('contributions.confirmDeleteOverlay', { name: overlayName || t('overlay.untitled') })
     if (!confirm(confirmMessage)) return false
 

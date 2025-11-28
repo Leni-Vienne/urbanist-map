@@ -8,6 +8,7 @@ import { createProjectFromAPI } from '../../utils/typeFactories';
 
 // AI : Type for user contributions from backend
 type UserContribution = RouterOutput['project']['getUsersContributions']['projects'][number];
+type UserContributionOverlay = UserContribution['overlays'][number];
 
 // AI : Helper function to replace an item in an array immutably at a given index
 function replaceAtIndex<T>(arr: T[], index: number, newItem: T): T[] {
@@ -197,19 +198,19 @@ export const useProjectStore = defineStore('project', () => {
   };
 
   // AI : Update pending overlay in user contributions (for caption/field updates)
-  const updateOverlayInUserContributions = (overlayId: string, updates: Partial<UserContribution['overlays'][number]>) => {
+  const updateOverlayInUserContributions = (overlayId: string, updates: Partial<UserContributionOverlay>) => {
     if (!userContributionsLoaded.value) {
       return;
     }
 
     // AI : Find project containing this overlay
     const projectIndex = userContributions.value.findIndex(p =>
-      p.overlays.some((o: any) => o.id === overlayId)
+      p.overlays.some((o: UserContributionOverlay) => o.id === overlayId)
     );
 
     if (projectIndex >= 0) {
       const project = userContributions.value[projectIndex];
-      const overlayIndex = project.overlays.findIndex((o: any) => o.id === overlayId);
+      const overlayIndex = project.overlays.findIndex((o: UserContributionOverlay) => o.id === overlayId);
 
       if (overlayIndex >= 0) {
         const updatedOverlays = replaceAtIndex(project.overlays, overlayIndex, { ...project.overlays[overlayIndex], ...updates });
@@ -240,12 +241,12 @@ export const useProjectStore = defineStore('project', () => {
 
     // AI : Find project containing this overlay
     const projectIndex = userContributions.value.findIndex(p =>
-      p.overlays.some((o: any) => o.id === overlayId)
+      p.overlays.some((o: UserContributionOverlay) => o.id === overlayId)
     );
 
     if (projectIndex >= 0) {
       const project = userContributions.value[projectIndex];
-      const updatedOverlays = project.overlays.filter((o: any) => o.id !== overlayId);
+      const updatedOverlays = project.overlays.filter((o: UserContributionOverlay) => o.id !== overlayId);
 
       // AI : If no overlays left and user doesn't own project, remove entire project
       if (updatedOverlays.length === 0 && project.ownerId !== project.ownerId) {
