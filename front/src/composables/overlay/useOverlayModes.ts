@@ -137,16 +137,6 @@ async function reloadCitiesAndMarkers(countryCode: string): Promise<void> {
 }
 
 /**
- * AI : Shared logic for reloading city data (overlays + development projects)
- */
-async function reloadCityData(cityId: string): Promise<void> {
-  await Promise.all([
-    loadCityOverlays(cityId, false),
-    loadCityDevelopmentProjects(cityId)
-  ])
-}
-
-/**
  * AI : Shared before-transition logic for caching overlay positions
  */
 function handleBeforeTransition(from: OverlayModeState, to: OverlayModeState): void {
@@ -206,15 +196,19 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
   // AI : Fetch data for new mode BEFORE transitioning (uses smart cache)
   if (selectedCity && newState.selectedCityId && newState.hasLoadedOverlays && newState.zoomLevel === 'high') {
     await fetchCityProjectsData(newState.selectedCityId)
-    await loadCityDevelopmentProjects(newState.selectedCityId)
   } else if (selectedCity && newState.selectedCityId) {
-    await reloadCityData(newState.selectedCityId)
+    await loadCityOverlays(newState.selectedCityId, false)
   }
 
   // AI : Execute state transition with side effects
   await transitionToState(newState, {
     beforeTransition: handleBeforeTransition,
     afterTransition: async () => {
+      // AI : Load development projects AFTER overlays are rendered to correctly detect which projects need markers
+      if (selectedCity && newState.selectedCityId) {
+        await loadCityDevelopmentProjects(newState.selectedCityId)
+      }
+
       // AI : Update overlay editing state (toolbar actions, draggability) after mode switch
       updateOverlayEditingState()
 

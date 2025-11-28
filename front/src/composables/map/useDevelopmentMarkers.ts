@@ -49,6 +49,19 @@ export function removeDevelopmentMarkerForProject(projectId: string): void {
 }
 
 /**
+ * AI : Clear all development markers from the map
+ * This is called when switching cities to prevent marker accumulation
+ */
+export function clearAllDevelopmentMarkers(): void {
+  if (developmentProjectsLayer && map.value) {
+    map.value.removeLayer(developmentProjectsLayer);
+    developmentProjectsLayer = null;
+  }
+  developmentMarkerMap.clear();
+  selectedDevelopmentMarker = null;
+}
+
+/**
  * AI : Update development marker opacities based on selected marker
  */
 export function updateDevelopmentMarkerOpacities(selectedMarker: L.Marker | null) {
