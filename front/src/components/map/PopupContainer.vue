@@ -75,8 +75,7 @@ import { useSubmissionService } from '@composables/submission/useSubmissionServi
 import type { SubmissionContext, SubmissionSummary } from '@composables/submission/useSubmissionService';
 import { citiesWithProjects, cleanupProjectInfoTeleportTarget } from '@composables/map/useCityMarkers';
 import type { OverlayObject, Project } from '@types';
-import { useUserContributions } from '@composables/project/useUserContributions';
-import { addDevelopmentMarkerForProject } from '@composables/map/useDevelopmentMarkers';
+import { useProjectDeletion } from '@composables/project/useProjectDeletion';
 
 const UnifiedProjectPopup = defineAsyncComponent(() => import('./popups/UnifiedProjectPopup.vue'));
 const OverlayEditor = defineAsyncComponent(() => import('./OverlayEditor.vue'));
@@ -94,7 +93,7 @@ const toast = useToast();
 const { t } = useI18n();
 const { publishOverlay } = useOverlayPublisher();
 const submissionService = useSubmissionService();
-const { deleteOverlay, deleteProject } = useUserContributions();
+const { handleDeleteOverlay: deleteOverlayWithMarker, handleDeleteProject: deleteProjectWithConfirm } = useProjectDeletion();
 
 // AI : Submission dialog state
 const showSubmissionDialog = ref(false);
@@ -523,64 +522,28 @@ function handleAddImages() {
 // AI : Handle overlay deletion and show development marker if last overlay
 async function handleDeleteOverlay(overlay: OverlayObject) {
   const project = activeProject.value;
-
-  const confirmMessage = t('contributions.confirmDeleteOverlay', { name: overlay.caption || t('overlay.untitled') });
-
-  const confirmed = confirm(confirmMessage);
-  if (!confirmed) return;
-
-  // AI : Check if this is the last overlay before deleting
-  // AI : Count overlays in the overlayStore that belong to this project
   const projectId = project?.id;
+
+  // AI : Count overlays in the overlayStore that belong to this project
   const overlaysForProject = projectId
     ? Object.values(overlays.value).filter(o => o.projectId === projectId)
     : [];
-  const isLastOverlay = overlaysForProject.length === 1;
+  const overlayCount = overlaysForProject.length;
 
-  await deleteOverlay(overlay.id);
-
-  // AI : If it was the last overlay, add a development marker to show the project
-  if (isLastOverlay && projectId) {
-    // AI : Get the updated project from the store (with overlayIds already updated by deleteOverlay)
-    const updatedProject = projectStore.projects[projectId] || projectStore.allProjects[projectId];
-
-    if (updatedProject && updatedProject.lat && updatedProject.lng) {
-      // AI : Add development marker with a small delay to ensure cleanup is complete
-      await new Promise(resolve => setTimeout(resolve, 150));
-
-      addDevelopmentMarkerForProject(updatedProject);
-
-      toast.add({
-        severity: 'info',
-        summary: t('overlay.lastOverlayDeleted'),
-        detail: t('overlay.projectNowShowsAsMarker'),
-        life: 4000
-      });
-    }
-  }
-
-  // AI : Close the popup after deletion
-  overlayStore.hideInfoPopup();
+  await deleteOverlayWithMarker(overlay.id, project, overlayCount, overlay.caption, () => {
+    overlayStore.hideInfoPopup();
+  });
 }
 
 // AI : Handle project deletion
 async function handleDeleteProject(project: Project) {
-  const overlayCount = project.overlayIds?.length ?? 0;
-  const confirmMessage = overlayCount > 0
-    ? t('contributions.confirmDeleteProjectWithOverlays', { name: project.name, count: overlayCount })
-    : t('contributions.confirmDeleteProject', { name: project.name });
-
-  const confirmed = confirm(confirmMessage);
-  if (!confirmed) return;
-
-  await deleteProject(project.id);
-
-  // AI : Close the appropriate popup after deletion
-  if (showOverlayPopup.value) {
-    overlayStore.hideInfoPopup();
-  } else if (showProjectPopup.value) {
-    closeProjectInfoPopup();
-  }
+  await deleteProjectWithConfirm(project.id, project.name, project.overlayIds?.length ?? 0, () => {
+    if (showOverlayPopup.value) {
+      overlayStore.hideInfoPopup();
+    } else if (showProjectPopup.value) {
+      closeProjectInfoPopup();
+    }
+  });
 }
 
 </script>
