@@ -269,7 +269,9 @@
     "overlayCreated": "Overlay Created",
     "positionOverlayOnMap": "Now position the overlay on the map",
     "uploadFailed": "Upload Failed",
-    "uploadFailedDetail": "Failed to upload the image file"
+    "uploadFailedDetail": "Failed to upload the image file",
+    "lastOverlayDeleted": "Last Overlay Deleted",
+    "projectNowShowsAsMarker": "The project now appears as a marker on the map"
   },
   "map": {
     "zoom": "Zoom",

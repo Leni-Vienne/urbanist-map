@@ -110,6 +110,7 @@ import { useChangeRequests } from '@composables/changes/useChanges'
 import { useUserContributions } from '@composables/project/useUserContributions'
 import { useModeratedContributions } from '@composables/moderation/useModeratedContributions'
 import { useUiStore } from '@stores/uiStore'
+import { addDevelopmentMarkerForProject } from '@composables/map/useDevelopmentMarkers'
 
 const { t } = useI18n()
 
@@ -184,28 +185,35 @@ async function handleDeleteOverlayClick(overlay: any) {
     p.overlays?.some((o: any) => o.id === overlay.id)
   )
 
-  let confirmMessage = t('contributions.confirmDeleteOverlay', { name: overlay.name || t('overlay.untitled') })
-
-  // AI : Cascade delete warning - if this is the last overlay on a pending project, warn that the project will be deleted
-  if (project && project.status === 'pending' && project.overlays?.length === 1) {
-    confirmMessage = t('contributions.confirmDeleteLastOverlay', {
-      overlayName: overlay.name || t('overlay.untitled'),
-      projectName: project.name
-    })
-  }
+  const confirmMessage = t('contributions.confirmDeleteOverlay', { name: overlay.name || t('overlay.untitled') })
 
   const confirmed = confirm(confirmMessage)
   if (!confirmed) return
 
+  // AI : Check if this is the last overlay before deleting
+  const isLastOverlay = project && project.overlays?.length === 1
+  const projectId = project?.id
+
   await deleteOverlay(overlay.id)
 
-  // AI : If it was the last overlay on a pending project, cascade delete the project
-  if (project && project.status === 'pending' && project.overlays?.length === 1) {
-    await deleteProject(project.id)
+  // AI : If it was the last overlay, add a development marker to show the project
+  if (isLastOverlay && project && projectId && project.lat && project.lng) {
+    // AI : Convert user contributions project format to Project type format
+    const projectForMarker = {
+      ...project,
+      overlayIds: [] as string[], // AI : Empty since we just deleted the last overlay
+      centerCoordinate: project.lat && project.lng ? `${project.lat},${project.lng}` : null
+    }
+
+    // AI : Add development marker with a small delay to ensure cleanup is complete
+    await new Promise(resolve => setTimeout(resolve, 150))
+
+    addDevelopmentMarkerForProject(projectForMarker as any)
+
     toast.add({
       severity: 'info',
-      summary: t('contributions.projectAlsoDeleted'),
-      detail: t('contributions.projectHadNoRemainingOverlays'),
+      summary: t('overlay.lastOverlayDeleted'),
+      detail: t('overlay.projectNowShowsAsMarker'),
       life: 4000
     })
   }
