@@ -154,8 +154,7 @@ const { t } = useI18n()
 const authStore = useAuthStore()
 const moderationStore = useModerationStore()
 
-// AI : Country selector state
-const allCountries = ref<Array<{ code: string; name: string }>>([])
+// AI : Country selector state - use store's cached countries
 const countriesLoading = ref(false)
 const selectedCountryCode = ref<string | null>(moderationStore.selectedCountryCode)
 
@@ -178,27 +177,30 @@ const availableCountries = computed(() => {
 
   // AI : Admin (null or undefined) sees all countries
   if (userCountries === null || userCountries === undefined) {
-    return allCountries.value
+    return moderationStore.allCountries
   }
 
   // AI : Handle edge case where moderatedCountries might not be an array at runtime
   if (!Array.isArray(userCountries)) {
     console.warn('moderatedCountries is not an array:', userCountries)
-    return allCountries.value
+    return moderationStore.allCountries
   }
 
   // AI : Filter to only moderator's assigned countries
-  return allCountries.value.filter(country =>
+  return moderationStore.allCountries.filter(country =>
     userCountries.includes(country.code)
   )
 })
 
-// AI : Fetch all countries on mount and auto-select if only one available
+// AI : Fetch all countries on mount only if not already cached, and auto-select if only one available
 onMounted(async () => {
   try {
-    countriesLoading.value = true
-    const countries = await trpc.country.getAllCountries.query()
-    allCountries.value = countries
+    // AI : Only fetch if not already loaded in store
+    if (!moderationStore.countriesLoaded) {
+      countriesLoading.value = true
+      const countries = await trpc.country.getAllCountries.query()
+      moderationStore.setAllCountries(countries)
+    }
 
     // AI : Auto-select country if non-admin moderator has exactly one assigned country
     const user = authStore.user

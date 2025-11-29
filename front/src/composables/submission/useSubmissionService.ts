@@ -521,7 +521,7 @@ export function useSubmissionService() {
     }
 
     // AI : Detect changes with explicit type, passing custom reason if provided
-    const changes: FieldChange[] = detectChanges(context, customReason || undefined)
+    const changes: FieldChange[] = detectChanges(context, customReason ?? undefined)
 
     // AI : Route to appropriate submission handler
     if (context.entityType === 'project') {
