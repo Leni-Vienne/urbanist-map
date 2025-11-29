@@ -13,8 +13,8 @@ export interface MarkerLayerConfig<T> {
   // AI : Get marker color for an item
   getColor: (item: T) => MarkerColor;
 
-  // AI : Get marker icon type ('standard' | 'development')
-  getIconType?: () => 'standard' | 'development';
+  // AI : Get marker icon type ('standard' | 'standalone')
+  getIconType?: () => 'standard' | 'standalone';
 
   // AI : Optional click handler
   onMarkerClick?: (marker: L.Marker, item: T) => void | Promise<void>;
@@ -77,7 +77,7 @@ export function createMarkerLayer<T extends { id?: string }>(
 
     // AI : Get marker color and create appropriate icon
     const markerColor = config.getColor(item);
-    const markerIcon = iconType === 'development'
+    const markerIcon = iconType === 'standalone'
       ? createBasicProjectIcon(markerColor)
       : createColorIcon(markerColor);
 

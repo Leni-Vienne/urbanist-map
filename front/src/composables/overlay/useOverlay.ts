@@ -26,7 +26,7 @@ import { createOverlay as createOverlayInstance, createOverlayFromCDN, convertOv
 import { toRef } from 'vue';
 import { useProjects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import { trpc } from '@client';
-import { removeDevelopmentMarkerForProject, addDevelopmentMarkerForProject } from '@composables/map/useDevelopmentMarkers';
+import { removeStandaloneProjectMarkerForProject, addStandaloneProjectMarkerForProject } from '@composables/map/useStandaloneProjectMarkers';
 import {
   getFromEditModeOverlayCache,
   saveToEditModeOverlayCache,
@@ -849,11 +849,11 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   overlayObjectWithMethods.marker = overlayStore.allMarkers[cdnOverlay.id];
   overlayStore.overlays[cdnOverlay.id] = overlayObjectWithMethods;
 
-  // AI : Remove development marker for this project since we now have an overlay visible
+  // AI : Remove standalone project marker for this project since we now have an overlay visible
   // AI : This handles the case where a project had only pending overlays (shown as basic marker in view mode)
   // AI : and the user switched to edit mode (pending overlays now visible, so basic marker should be removed)
   if (cdnOverlay.projectId) {
-    removeDevelopmentMarkerForProject(cdnOverlay.projectId);
+    removeStandaloneProjectMarkerForProject(cdnOverlay.projectId);
   }
 
   // AI : Hover events are now set up in onOverlayLoaded() after element is guaranteed to exist
@@ -1284,9 +1284,9 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
       // AI : Add to project AFTER storing in overlays to avoid "not found" error
       const isFirstOverlay = addOverlayToProjectWithId(projectId, id);
 
-      // AI : Remove development marker when first overlay is added to project
+      // AI : Remove standalone project marker when first overlay is added to project
       if (isFirstOverlay) {
-        removeDevelopmentMarkerForProject(projectId);
+        removeStandaloneProjectMarkerForProject(projectId);
       }
 
       // AI : Add new overlay to city cache so it persists across zoom changes
@@ -1700,9 +1700,9 @@ export function deleteOverlayButtonPressed(id: string) {
       project.overlayIds = project.overlayIds.filter(overlayId => overlayId !== id);
       project.updatedAt = new Date();
 
-      // AI : Restore development marker when last overlay is deleted
+      // AI : Restore standalone project marker when last overlay is deleted
       if (isLastOverlay) {
-        addDevelopmentMarkerForProject(project);
+        addStandaloneProjectMarkerForProject(project);
       }
     }
   }

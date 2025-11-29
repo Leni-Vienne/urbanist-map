@@ -238,7 +238,7 @@ export function useOverlayPublisher() {
         const cityId = overlay.project?.cityId
         if (cityId) {
           mapStore.clearCityProjectsCache(cityId);
-          mapStore.clearCityDevelopmentProjectsCache(cityId);
+          mapStore.clearCityStandaloneProjectsCache(cityId);
         }
 
         // AI : Optimistically add overlay to user contributions (no backend fetch needed)

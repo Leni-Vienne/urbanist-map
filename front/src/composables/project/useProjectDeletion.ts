@@ -1,7 +1,7 @@
 import { useI18n } from 'vue-i18n'
 import { useToast } from '@composables/ui/useToast'
 import { useUserContributions } from '@composables/project/useUserContributions'
-import { addDevelopmentMarkerForProject } from '@composables/map/useDevelopmentMarkers'
+import { addStandaloneProjectMarkerForProject } from '@composables/map/useStandaloneProjectMarkers'
 import { useProjectStore } from '@stores/pinia/projectStore'
 
 export function useProjectDeletion() {
@@ -11,8 +11,8 @@ export function useProjectDeletion() {
   const projectStore = useProjectStore()
 
   /**
-   * AI : Delete an overlay with confirmation and auto-add development marker if it's the last one
-   * AI : Project parameter accepts any object with id, lat, lng for development marker
+   * AI : Delete an overlay with confirmation and auto-add standalone project marker if it's the last one
+   * AI : Project parameter accepts any object with id, lat, lng for standalone project marker
    */
   async function handleDeleteOverlay(
     overlayId: string,
@@ -29,13 +29,13 @@ export function useProjectDeletion() {
     const success = await deleteOverlay(overlayId)
     if (!success) return false
 
-    // AI : If it was the last overlay, add a development marker to show the project
+    // AI : If it was the last overlay, add a standalone project marker to show the project
     if (isLastOverlay && project?.id && project?.lat && project?.lng) {
       // AI : Get updated project from store, or use the passed project
       const updatedProject = projectStore.projects[project.id] ?? projectStore.allProjects[project.id] ?? project
 
       await new Promise(resolve => setTimeout(resolve, 150))
-      addDevelopmentMarkerForProject(updatedProject)
+      addStandaloneProjectMarkerForProject(updatedProject)
       toast.add({
         severity: 'info',
         summary: t('overlay.lastOverlayDeleted'),

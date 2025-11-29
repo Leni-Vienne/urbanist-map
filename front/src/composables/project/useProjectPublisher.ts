@@ -9,7 +9,7 @@ export function useProjectPublisher() {
   const isPublishing = ref(false);
   const mapStore = useMapStore();
 
-  // AI : Publish project to backend (both overlay and development projects)
+  // AI : Publish project to backend (both overlay and standalone projects)
   async function publishProject(project: Project): Promise<boolean> {
     if (!project) {
       console.warn('AI: Project is required for publishing');

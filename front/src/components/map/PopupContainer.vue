@@ -522,7 +522,7 @@ function handleAddImages() {
   fileInput.click();
 }
 
-// AI : Handle overlay deletion and show development marker if last overlay
+// AI : Handle overlay deletion and show standalone project marker if last overlay
 async function handleDeleteOverlay(overlay: OverlayObject) {
   const project = activeProject.value;
   const projectId = project?.id;

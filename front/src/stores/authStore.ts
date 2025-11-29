@@ -276,11 +276,11 @@ export const useAuthStore = defineStore('auth', () => {
 
       user.value = null
       
-      // AI : Clear all caches on logout (cities, projects, development projects)
+      // AI : Clear all caches on logout (cities, projects, standalone projects)
       const mapStore = useMapStore()
       const projectStore = useProjectStore()
       mapStore.clearCityProjectsCache()
-      mapStore.clearCityDevelopmentProjectsCache()
+      mapStore.clearCityStandaloneProjectsCache()
       projectStore.clearCitiesCache()
 
       if (response.ok) {

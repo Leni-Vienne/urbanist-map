@@ -53,7 +53,7 @@ import { useToast } from '@composables/ui/useToast';
 import { useI18n } from '@composables/useI18n';
 import { updateOverlayMarkersForFilters } from '@composables/map/useCityOverlays';
 import { initializeCountryMarkers } from '@composables/map/useCountryMarkers';
-import { loadCityDevelopmentProjects } from '@composables/map/useCityMarkers';
+import { loadCityStandaloneProjects } from '@composables/map/useCityMarkers';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useAuthStore } from '@stores/authStore';
@@ -97,10 +97,10 @@ async function filterOverlaysByCompletionStatus() {
   // AI : Use cached data only if it has items, otherwise fall back to currentCityOverlays
   const cityOverlays = (cachedData?.length) ? cachedData : (mapStore.currentCityOverlays ?? []);
 
-  // AI : Always reload development projects first (even if no overlays for this city)
-  await loadCityDevelopmentProjects(selectedCityId);
+  // AI : Always reload standalone projects first (even if no overlays for this city)
+  await loadCityStandaloneProjects(selectedCityId);
 
-  // AI : If no overlays, we're done (but development projects were reloaded above)
+  // AI : If no overlays, we're done (but standalone projects were reloaded above)
   if (!cityOverlays.length) return;
 
   // AI : Use the shared filtering utility

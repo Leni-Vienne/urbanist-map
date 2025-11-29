@@ -1,4 +1,4 @@
-// AI : Composable for managing latest contributions (overlays + development projects) with caching
+// AI : Composable for managing latest contributions (overlays + standalone projects) with caching
 import { computed } from 'vue'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { trpc } from '@client'

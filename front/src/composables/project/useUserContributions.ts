@@ -7,7 +7,7 @@ import { withErrorHandling } from '@composables/core/useErrorHandling'
 import { useToast } from '@composables/ui/useToast'
 import { useI18n } from 'vue-i18n'
 import { removeOverlay } from '@composables/overlay/useOverlay'
-import { getDevelopmentMarkerByProjectId } from '@composables/map/useDevelopmentMarkers'
+import { getStandaloneProjectMarkerByProjectId } from '@composables/map/useStandaloneProjectMarkers'
 import { map } from '@composables/core/useMap'
 
 export function useUserContributions() {
@@ -72,7 +72,7 @@ export function useUserContributions() {
 
         // AI : Clear city cache to force reload when zooming (prevents ghost markers)
         mapStore.clearCityProjectsCache()
-        mapStore.clearCityDevelopmentProjectsCache()
+        mapStore.clearCityStandaloneProjectsCache()
 
         toast.add({
           severity: 'success',
@@ -105,7 +105,7 @@ export function useUserContributions() {
         // AI : If project has no overlays, remove its marker from the map
         const hasNoOverlays = !project?.overlayIds || project.overlayIds.length === 0
         if (hasNoOverlays) {
-          const marker = getDevelopmentMarkerByProjectId(projectId)
+          const marker = getStandaloneProjectMarkerByProjectId(projectId)
           if (marker && map.value) {
             map.value.removeLayer(marker)
           }
@@ -128,7 +128,7 @@ export function useUserContributions() {
 
         // AI : Clear city caches to force reload when zooming (prevents ghost markers)
         mapStore.clearCityProjectsCache()
-        mapStore.clearCityDevelopmentProjectsCache()
+        mapStore.clearCityStandaloneProjectsCache()
 
         toast.add({
           severity: 'success',

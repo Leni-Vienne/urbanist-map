@@ -90,7 +90,7 @@ export function useAccordionState() {
   }
 
   /**
-   * AI : Auto-expand accordion hierarchy for a specific project (standalone/development project)
+   * AI : Auto-expand accordion hierarchy for a specific project (standalone project)
    * AI : Expands country -> city -> project
    */
   function expandAccordionForProject(

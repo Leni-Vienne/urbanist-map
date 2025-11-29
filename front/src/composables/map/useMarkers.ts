@@ -94,8 +94,8 @@ function createMarkerSVG(color: MarkerColor): string {
   `;
 }
 
-// AI : Create development marker SVG with basic project icon instead of circle
-function createDevelopmentMarkerSVG(color: MarkerColor): string {
+// AI : Create standalone project marker SVG with basic project icon instead of circle
+function createStandaloneProjectMarkerSVG(color: MarkerColor): string {
   const baseColor = markerColors[color];
   const lightColor = lightenColor(baseColor, 40);
   const darkColor = darkenColor(baseColor, 40);
@@ -106,14 +106,14 @@ function createDevelopmentMarkerSVG(color: MarkerColor): string {
      <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 52 82" role="img" aria-label="Project marker">
       <defs>
         <!-- Simple gradient for marker body -->
-        <linearGradient id="g-${color}-development" x1="0" x2="0" y1="0" y2="1">
+        <linearGradient id="g-${color}-standalone" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stop-color="${lightColor}"/>
           <stop offset="55%" stop-color="${baseColor}"/>
           <stop offset="100%" stop-color="${darkColor}"/>
         </linearGradient>
         
         <!-- Shadow gradient -->
-        <linearGradient id="shadow-grad-${color}-development" x1="0" y1="0" x2="1" y2="0">
+        <linearGradient id="shadow-grad-${color}-standalone" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0%" stop-color="black" stop-opacity="0.35"/>
           <stop offset="100%" stop-color="black" stop-opacity="0"/>
         </linearGradient>
@@ -121,7 +121,7 @@ function createDevelopmentMarkerSVG(color: MarkerColor): string {
 
       <!-- Cast shadow (skewed ellipse to the right) -->
       <ellipse cx="38" cy="80" rx="18" ry="6"
-               fill="url(#shadow-grad-${color}-development)" transform="rotate(-8 38 80)"/>
+               fill="url(#shadow-grad-${color}-standalone)" transform="rotate(-8 38 80)"/>
 
       <!-- Pin body with darker contrasting edge -->
       <path d="M25 1
@@ -129,7 +129,7 @@ function createDevelopmentMarkerSVG(color: MarkerColor): string {
                C50 45 25 81 25 81
                S0 45 0 26
                C0 12.193 11.193 1 25 1Z"
-            fill="url(#g-${color}-development)" stroke="rgba(0,0,0,0.3)" stroke-width="1.5" />
+            fill="url(#g-${color}-standalone)" stroke="rgba(0,0,0,0.3)" stroke-width="1.5" />
 
       <!-- Inner white circle background -->
       <circle cx="25" cy="25" r="9.5" fill="#ffffff" stroke="#e6f2ff" stroke-width="1"/>
@@ -160,13 +160,13 @@ export function createColorIcon(color: MarkerColor): L.DivIcon {
   });
 }
 
-// AI : Create development/project marker icon with basic project icon instead of circle
+// AI : Create standalone/project marker icon with basic project icon instead of circle
 export function createBasicProjectIcon(color: MarkerColor): L.DivIcon {
-  const svgString = createDevelopmentMarkerSVG(color);
+  const svgString = createStandaloneProjectMarkerSVG(color);
 
   return L.divIcon({
     html: svgString,
-    className: 'custom-svg-marker development-marker',
+    className: 'custom-svg-marker standalone-marker',
     iconSize: [markerSize, markerHeight],
     iconAnchor: [markerSize / 2, markerHeight], // AI : Anchor at bottom center (pin tip)
     popupAnchor: [0, -markerHeight],
@@ -176,7 +176,7 @@ export function createBasicProjectIcon(color: MarkerColor): L.DivIcon {
 
 // AI : Get raw marker SVG string for cursor display
 export function getMarkerSvg(color: MarkerColor): string {
-  return createDevelopmentMarkerSVG(color);
+  return createStandaloneProjectMarkerSVG(color);
 }
 
 // AI : Create button-sized marker SVG using base color

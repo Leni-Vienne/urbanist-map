@@ -26,7 +26,7 @@ export const useOverlayStore = defineStore('overlay', () => {
   const overlaysLoading = ref(false)
   const overlaysError = ref<string | null>(null)
 
-  // AI : Latest contributions cache (overlays + development projects) - simple loaded flag
+  // AI : Latest contributions cache (overlays + standalone projects) - simple loaded flag
   const latestContributions = ref<LatestContribution[]>([])
   const latestContributionsLoading = ref(false)
   const latestContributionsLoaded = ref(false)

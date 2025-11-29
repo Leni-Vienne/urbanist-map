@@ -8,8 +8,8 @@ export const MARKER_OPACITY = {
     hover: 1,
   },
 
-  // AI : Development/building project marker opacity values
-  development: {
+  // AI : Standalone project marker opacity values
+  standalone: {
     default: 0.8,
     hover: 1,
   },

@@ -150,7 +150,7 @@
                                 :project="project"
                               ></slot>
 
-                              <!-- AI : Chevron indicator for projects with no overlays (development-style) when no action buttons -->
+                              <!-- AI : Chevron indicator for projects with no overlays (standalone project) when no action buttons -->
                               <i
                                 v-else-if="(project.overlayCount === 0 || (project.overlays && project.overlays.length === 0))"
                                 class="pi pi-chevron-right tap-indicator"
@@ -341,7 +341,7 @@ import { useI18n } from 'vue-i18n'
 import { buildThumbnailUrl } from '@utils/imageUrl'
 import { formatDate } from '@utils/dateFormat'
 import { formatSourceUrl } from '@utils/urlFormat'
-import { navigateToDevelopmentProject } from '@composables/navigation/useOverlayNavigation'
+import { navigateToStandaloneProject } from '@composables/navigation/useOverlayNavigation'
 import { useOverlayClickHandler } from '@composables/overlay/useOverlayClickHandler'
 import { highlightOverlayById, removeOverlayHighlight } from '@composables/overlay/useOverlay'
 import { useToast } from '@composables/ui/useToast'
@@ -531,7 +531,7 @@ watch(
   { deep: true }
 )
 
-// AI : Watch for project info popup (standalone/development projects) to auto-expand and scroll
+// AI : Watch for project info popup (standalone/standalone projects) to auto-expand and scroll
 watch(
   () => [uiStore.projectInfoPopup.visible, uiStore.projectInfoPopup.projectId, props.projects] as const,
   async ([visible, projectId, projects]) => {
@@ -717,18 +717,18 @@ function shouldShowOverlays(project: ProjectForModeration): boolean {
   return expandedPanels.value.has(project.id)
 }
 
-// AI : Handle card click - navigate for projects with no overlays (development-style)
+// AI : Handle card click - navigate for projects with no overlays (standalone project)
 function handleCardClick(project: ProjectForModeration) {
   // AI : For projects with no overlays, clicking the card also navigates (in addition to the button)
   // AI : This provides a larger click area for better UX
   const hasNoOverlays = project.overlayCount === 0 || (project.overlays && project.overlays.length === 0)
   if (hasNoOverlays) {
-    handleDevelopmentProjectClick(project)
+    handleStandaloneProjectClick(project)
   }
 }
 
 // AI : Handle project click for projects without overlays - zoom to marker location and open popup
-async function handleDevelopmentProjectClick(project: ProjectForModeration) {
+async function handleStandaloneProjectClick(project: ProjectForModeration) {
   try {
     if (!project.lat || !project.lng) {
       toast.add({
@@ -756,7 +756,7 @@ async function handleDevelopmentProjectClick(project: ProjectForModeration) {
       overlayStore.setMode('edit')
     }
 
-    await navigateToDevelopmentProject(
+    await navigateToStandaloneProject(
       project.lat,
       project.lng,
       project.cityId,
@@ -1035,7 +1035,7 @@ function handleOverlayContributorClick(
   background-color: #f9fafb;
 }
 
-/* AI : Development project card styling - similar to overlay cards */
+/* AI : Standalone project card styling - similar to overlay cards */
 .marker-project-card {
   cursor: pointer;
   transition: all 0.15s ease;

@@ -20,12 +20,12 @@ import { getProjectMarkerColor } from '../../utils/markerColors';
 import { MARKER_OPACITY } from '@constants/markerConstants';
 import { createMarkerLayer, type MarkerLayerConfig } from '@composables/map/useMarkerLayer';
 import {
-  addDevelopmentMarkerForProject,
-  getDevelopmentMarkerByProjectId,
-  getDevelopmentMarkerMap,
-  updateDevelopmentMarkerOpacities,
-  clearAllDevelopmentMarkers
-} from '@composables/map/useDevelopmentMarkers';
+  addStandaloneProjectMarkerForProject,
+  getStandaloneProjectMarkerByProjectId,
+  getStandaloneProjectMarkerMap,
+  updateStandaloneProjectMarkerOpacities,
+  clearAllStandaloneProjectMarkers
+} from '@composables/map/useStandaloneProjectMarkers';
 import { createProjectInfoTeleportTarget, cleanupProjectInfoTeleportTarget as cleanupTeleport } from '@composables/map/useProjectPopupTeleport';
 
 
@@ -54,7 +54,7 @@ function initializeModeWatcher() {
 
   const overlayStore = useOverlayStore();
   watch(() => overlayStore.mode, () => {
-    updateAllDevelopmentMarkerColors();
+    updateAllStandaloneProjectMarkerColors();
   });
 
   modeWatcherInitialized = true;
@@ -99,10 +99,10 @@ export function updateCityMarkerOpacities(selectedCityId: string | null): void {
 }
 
 /**
- * AI : Update development marker color for a specific project
+ * AI : Update standalone project marker color for a specific project
  */
-export function updateDevelopmentMarkerColor(projectId: string, project: Project): void {
-  const marker = getDevelopmentMarkerByProjectId(projectId);
+export function updateStandaloneProjectMarkerColor(projectId: string, project: Project): void {
+  const marker = getStandaloneProjectMarkerByProjectId(projectId);
   if (!marker) return;
 
   const overlayStore = useOverlayStore();
@@ -112,12 +112,12 @@ export function updateDevelopmentMarkerColor(projectId: string, project: Project
 }
 
 /**
- * AI : Update all development marker colors based on current mode
+ * AI : Update all standalone project marker colors based on current mode
  */
-export function updateAllDevelopmentMarkerColors(): void {
+export function updateAllStandaloneProjectMarkerColors(): void {
   const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
-  const markerMap = getDevelopmentMarkerMap();
+  const markerMap = getStandaloneProjectMarkerMap();
 
   markerMap.forEach((marker, projectId) => {
     const project = projectStore.projects[projectId] ?? projectStore.allProjects[projectId];
@@ -133,19 +133,19 @@ export function updateAllDevelopmentMarkerColors(): void {
 export { createProjectInfoTeleportTarget };
 export function cleanupProjectInfoTeleportTarget() {
   cleanupTeleport();
-  updateDevelopmentMarkerOpacities(null); // AI : Reset marker opacities when popup closes
+  updateStandaloneProjectMarkerOpacities(null); // AI : Reset marker opacities when popup closes
 }
 
 /**
- * AI : Load projects without overlays (development-style markers) for a specific city and display them on map
+ * AI : Load projects without overlays (standalone project markers) for a specific city and display them on map
  */
-export async function loadCityDevelopmentProjects(cityId: string | null): Promise<void> {
+export async function loadCityStandaloneProjects(cityId: string | null): Promise<void> {
   if (!map.value) return;
 
   initializeModeWatcher();
 
-  // AI : Clear all existing development markers to prevent accumulation across cities
-  clearAllDevelopmentMarkers();
+  // AI : Clear all existing standalone project markers to prevent accumulation across cities
+  clearAllStandaloneProjectMarkers();
 
   try {
     const mapStore = useMapStore();
@@ -153,12 +153,12 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
 
     let backendProjects: RouterOutput['project']['getCityProjects'] = [];
     if (cityId) {
-      const cachedData = mapStore.getCityDevelopmentProjectsCache(cityId, overlayStore.mode);
+      const cachedData = mapStore.getCityStandaloneProjectsCache(cityId, overlayStore.mode);
       if (cachedData) {
         backendProjects = cachedData;
       } else {
         backendProjects = await trpc.project.getCityProjects.query({ cityId, mode: overlayStore.mode });
-        mapStore.setCityDevelopmentProjectsCache(cityId, overlayStore.mode, backendProjects);
+        mapStore.setCityStandaloneProjectsCache(cityId, overlayStore.mode, backendProjects);
       }
     }
 
@@ -203,7 +203,7 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
     ];
 
     // AI : Get set of project IDs that have overlays already rendered in the store
-    // AI : This prevents showing development markers for projects that have visible overlays
+    // AI : This prevents showing standalone project markers for projects that have visible overlays
     // AI : (e.g., pending overlays visible in edit mode, or overlays from a different mode's cache)
     const projectIdsWithRenderedOverlays = new Set(
       Object.values(overlayStore.overlays)
@@ -250,11 +250,11 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
           }
         }
 
-        addDevelopmentMarkerForProject(projectData);
+        addStandaloneProjectMarkerForProject(projectData);
       }
     });
   } catch (error) {
-    console.error('Error loading development projects:', error);
+    console.error('Error loading standalone projects:', error);
   }
 }
 
@@ -284,14 +284,14 @@ export async function loadCityProjects(cityId: string | null, cityName: string, 
         uiStore.closeProjectInfoPopup();
       }
 
-      // AI : Load both overlay projects and development projects
+      // AI : Load both overlay projects and standalone projects
       await Promise.all([
         loadCityOverlays(cityId, forceFullLoad),
-        loadCityDevelopmentProjects(cityId)
+        loadCityStandaloneProjects(cityId)
       ]);
     } else {
-      // AI : Just load local development projects when no city is selected
-      await loadCityDevelopmentProjects(null);
+      // AI : Just load local standalone projects when no city is selected
+      await loadCityStandaloneProjects(null);
     }
   } catch (error) {
     console.error('Error loading city projects:', error);
@@ -300,8 +300,8 @@ export async function loadCityProjects(cityId: string | null, cityName: string, 
 
 /**
  * AI : Remove city markers from the map
- * AI : NOTE: This does NOT remove development markers - they are managed separately
- * AI : Development markers persist across city marker reloads and are only cleared when changing cities
+ * AI : NOTE: This does NOT remove standalone project markers - they are managed separately
+ * AI : Standalone project markers persist across city marker reloads and are only cleared when changing cities
  */
 export function removeCityMarkers(): void {
   if (cityMarkersLayer && map.value != null && map.value.hasLayer(cityMarkersLayer)) {
