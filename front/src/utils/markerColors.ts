@@ -1,11 +1,11 @@
 // AI : Shared marker color logic for projects
-// AI : Used by both useCityMarkers and useDevelopmentMarkers
+// AI : Used by both useCityMarkers and useStandaloneProjectMarkers
 
 import type { MarkerColor, Project } from '@types';
 
 /**
  * AI : Get project marker color based on status, timeline, and mode
- * Centralized logic to avoid duplication between city and development markers
+ * Centralized logic to avoid duplication between city and standalone project markers
  */
 export function getProjectMarkerColor(project: Project, mode: 'view' | 'edit' | 'moderation'): MarkerColor {
   if (mode === 'moderation') {

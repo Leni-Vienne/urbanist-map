@@ -83,7 +83,7 @@
     "missingCityInfo": "Missing City Info",
     "cannotNavigateWithoutCity": "Cannot navigate without city information",
     "noCitySelected": "No City Selected",
-    "selectCityBeforePlacingMarker": "Please select a city on the map before placing a development marker",
+    "selectCityBeforePlacingMarker": "Please select a city on the map before placing a standalone project marker",
     "navigated": "Navigated",
     "viewing": "Viewing {name}",
     "timelineStatus": "Timeline Status",
@@ -113,11 +113,10 @@
     "chooseProjectTypeDescription": "Select the type of project that best matches what you want to document.",
     "overlayProject": "Street Layout Project",
     "overlayProjectDescription": "Upload an image overlay to show street layouts, construction plans, or aerial views",
-    "developmentProject": "Development Marker",
-    "developmentProjectDescription": "Place a simple marker for a specific development or location",
-    "addDevelopmentProject": "Add Development Marker",
+    "standaloneProject": "Standalone Project Marker",
+    "addStandaloneProject": "Add Standalone Project Marker",
     "placeMarkerOnMap": "Place marker on map",
-    "clickOnMapToPlace": "Click anywhere on the map to place your development marker",
+    "clickOnMapToPlace": "Click anywhere on the map to place your standalone project marker",
     "markerPlacedAt": "Marker placed at",
     "startPlacement": "Start Placement",
     "clickMapToPlace": "Click on the map to place place your project",
@@ -133,9 +132,9 @@
     "assignTo": "Assign To",
     "latestUpdate": "Latest Update",
     "publishSuccess": "Project Published",
-    "publishSuccessDetail": "Development project has been saved successfully",
+    "publishSuccessDetail": "Standalone project has been saved successfully",
     "publishFailed": "Publish Failed",
-    "publishFailedDetail": "Failed to save development project to the backend",
+    "publishFailedDetail": "Failed to save standalone project to the backend",
     "addImages": "Add Images",
     "placementMode": "Marker Placement Mode",
     "addContribution": "Add Contribution",
@@ -193,10 +192,8 @@
     "deleteProjectError": "Failed to delete project. Please try again."
   },
   "contribution": {
-    "overlay": "Overlay",
-    "development": "Development",
     "noContributionsFound": "No contributions found.",
-    "beFirstToAdd": "Be the first to add a construction overlay or development project",
+    "beFirstToAdd": "Be the first to add a construction overlay or standalone project",
     "loadingContributions": "Loading contributions..."
   },
   "overlay": {
@@ -690,9 +687,9 @@
     "uploadFailed": "Upload Failed",
     "uploadFailedDetail": "Failed to process the image overlay"
   },
-  "developmentProject": {
-    "createSuccess": "Development project created successfully",
-    "createFailed": "Failed to create development project",
+  "standaloneProject": {
+    "createSuccess": "Standalone project created successfully",
+    "createFailed": "Failed to create standalone project",
     "projectUpdated": "Project Updated",
     "projectUpdatedDetail": "Project changes saved locally"
   },
@@ -707,7 +704,7 @@
   "toasts": {
     "replacementOverlayCreated": "Replacement Overlay Created",
     "replacementOverlayDetail": "Your replacement overlay has been created and is ready for editing",
-    "developmentProjectSuccess": "Development project created successfully",
+    "standaloneProjectSuccess": "Standalone project created successfully",
     "projectUpdateSuccess": "Project Updated",
     "projectUpdateDetail": "Project changes saved locally",
     "projectUpdateFailed": "Update Failed",

@@ -2,7 +2,7 @@ import { useProjectStore } from '@stores/pinia/projectStore'
 import { useMapStore } from '@stores/pinia/mapStore'
 import { trpc } from '@client'
 import { buildProjectPayload } from '@composables/project/useProjectMutations'
-import { loadCityProjects, updateDevelopmentMarkerColor } from '@composables/map/useCityMarkers'
+import { loadCityProjects, updateStandaloneProjectMarkerColor } from '@composables/map/useCityMarkers'
 import { updateMarkerTooltip } from '@composables/overlay/useOverlay'
 import type { Project, OverlayObject } from '@types'
 import type { FieldChange } from '../../../../back/src/routes/changes'
@@ -391,7 +391,7 @@ export function useSubmissionService() {
       // AI : Invalidate all mode caches for this city (change affects all modes)
       if (project.cityId) {
         mapStore.clearCityProjectsCache(project.cityId)
-        mapStore.clearCityDevelopmentProjectsCache(project.cityId)
+        mapStore.clearCityStandaloneProjectsCache(project.cityId)
       }
 
       // AI : Refresh pending change requests to show in side menu (user's own only)
@@ -407,16 +407,16 @@ export function useSubmissionService() {
         // AI : Reset modified flag and set status to pending after successful publish
         projectStore.updateProject(project.id, { isModified: false, status: 'pending' })
 
-        // AI : Update development marker color to reflect pending status (yellow)
+        // AI : Update standalone project marker color to reflect pending status (yellow)
         const updatedProject = projectStore.projects[project.id]
         if (updatedProject) {
-          updateDevelopmentMarkerColor(project.id, updatedProject)
+          updateStandaloneProjectMarkerColor(project.id, updatedProject)
         }
 
         // AI : Invalidate all mode caches for this city before refreshing
         if (project.cityId) {
           mapStore.clearCityProjectsCache(project.cityId)
-          mapStore.clearCityDevelopmentProjectsCache(project.cityId)
+          mapStore.clearCityStandaloneProjectsCache(project.cityId)
         }
 
         // AI : Refresh city projects to show updated marker
@@ -475,7 +475,7 @@ export function useSubmissionService() {
       const cityId = overlay.project?.cityId
       if (cityId) {
         mapStore.clearCityProjectsCache(cityId)
-        mapStore.clearCityDevelopmentProjectsCache(cityId)
+        mapStore.clearCityStandaloneProjectsCache(cityId)
       }
 
       // AI : Refresh pending change requests to show in side menu (user's own only)
@@ -497,7 +497,7 @@ export function useSubmissionService() {
       const cityId = overlay.project?.cityId
       if (cityId) {
         mapStore.clearCityProjectsCache(cityId)
-        mapStore.clearCityDevelopmentProjectsCache(cityId)
+        mapStore.clearCityStandaloneProjectsCache(cityId)
       }
 
       // AI : Optimistically update pending overlay in user contributions

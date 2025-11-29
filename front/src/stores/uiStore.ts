@@ -42,7 +42,7 @@ export const useUiStore = defineStore("ui", () => {
   const mobileDrawerVisible = ref(true); // AI : Open by default on mobile
   const mobileDrawerHeightPercent = ref(40); // AI : Drawer height as percentage of viewport (10-90%)
 
-  // AI : Project info popup state (for development projects)
+  // AI : Project info popup state (for standalone projects)
   const projectInfoPopup = ref({
     visible: false,
     projectId: null as string | null,

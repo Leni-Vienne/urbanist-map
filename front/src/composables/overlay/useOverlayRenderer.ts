@@ -11,7 +11,7 @@ import { applyPositionsToOverlays } from './useOverlayPositionManagement'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useMapStore } from '@stores/pinia/mapStore'
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters'
-import { addDevelopmentMarkerForProject } from '@composables/map/useDevelopmentMarkers'
+import { addStandaloneProjectMarkerForProject } from '@composables/map/useStandaloneProjectMarkers'
 import { useProjectStore } from '@stores/pinia/projectStore'
 import { useAuthStore } from '@stores/authStore'
 
@@ -86,7 +86,7 @@ export function renderForStrategy(
         }
       })
 
-      // AI : Track project IDs that had overlays removed to check if they need development markers
+      // AI : Track project IDs that had overlays removed to check if they need standalone project markers
       const projectsWithRemovedOverlays = new Set<string>()
 
       overlaysToRemove.forEach(id => {
@@ -123,7 +123,7 @@ export function renderForStrategy(
         }
       })
 
-      // AI : Check if any projects now have no visible overlays and need development markers
+      // AI : Check if any projects now have no visible overlays and need standalone project markers
       // AI : This handles the case where pending overlays are removed when switching to view mode
       if (projectsWithRemovedOverlays.size > 0) {
         const projectStore = useProjectStore()
@@ -134,7 +134,7 @@ export function renderForStrategy(
         )
 
         projectsWithRemovedOverlays.forEach(projectId => {
-          // AI : If project has no remaining overlays, add development marker
+          // AI : If project has no remaining overlays, add standalone project marker
           if (!remainingOverlayProjectIds.has(projectId)) {
             const project = projectStore.projects[projectId] ?? projectStore.allProjects[projectId]
             if (project && project.lat && project.lng) {
@@ -157,7 +157,7 @@ export function renderForStrategy(
               }
 
               if (shouldShowProject) {
-                addDevelopmentMarkerForProject(project)
+                addStandaloneProjectMarkerForProject(project)
               }
             }
           }

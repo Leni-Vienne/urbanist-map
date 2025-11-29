@@ -24,8 +24,8 @@ export const useMapStore = defineStore('map', () => {
   // AI : This allows fast mode switching without backend calls while maintaining data correctness
   const cityProjectsCache = ref<Map<string, Map<MapMode, OverlayData[]>>>(new Map())
 
-  // AI : City development projects cache - mode-aware (cityId → mode → data)
-  const cityDevelopmentProjectsCache = ref<Map<string, Map<MapMode, RouterOutput['project']['getCityProjects']>>>(new Map())
+  // AI : City standalone projects cache - mode-aware (cityId → mode → data)
+  const cityStandaloneProjectsCache = ref<Map<string, Map<MapMode, RouterOutput['project']['getCityProjects']>>>(new Map())
 
   // AI : Set the currently selected city
   function setSelectedCity(city: SelectedCity | null) {
@@ -79,40 +79,40 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
-  // AI : Development projects cache management - mode-aware
-  function getCityDevelopmentProjectsCache(cityId: string, mode: MapMode): RouterOutput['project']['getCityProjects'] | null {
-    const cityCache = cityDevelopmentProjectsCache.value.get(cityId)
+  // AI : Standalone projects cache management - mode-aware
+  function getCityStandaloneProjectsCache(cityId: string, mode: MapMode): RouterOutput['project']['getCityProjects'] | null {
+    const cityCache = cityStandaloneProjectsCache.value.get(cityId)
     if (!cityCache) return null
     return cityCache.get(mode) ?? null
   }
 
-  function hasCityDevelopmentProjectsCache(cityId: string, mode: MapMode): boolean {
-    const cityCache = cityDevelopmentProjectsCache.value.get(cityId)
+  function hasCityStandaloneProjectsCache(cityId: string, mode: MapMode): boolean {
+    const cityCache = cityStandaloneProjectsCache.value.get(cityId)
     return cityCache?.has(mode) ?? false
   }
 
-  function setCityDevelopmentProjectsCache(cityId: string, mode: MapMode, data: RouterOutput['project']['getCityProjects']) {
-    let cityCache = cityDevelopmentProjectsCache.value.get(cityId)
+  function setCityStandaloneProjectsCache(cityId: string, mode: MapMode, data: RouterOutput['project']['getCityProjects']) {
+    let cityCache = cityStandaloneProjectsCache.value.get(cityId)
     if (!cityCache) {
       cityCache = new Map()
-      cityDevelopmentProjectsCache.value.set(cityId, cityCache)
+      cityStandaloneProjectsCache.value.set(cityId, cityCache)
     }
     cityCache.set(mode, data)
   }
 
-  function clearCityDevelopmentProjectsCache(cityId?: string, mode?: MapMode) {
+  function clearCityStandaloneProjectsCache(cityId?: string, mode?: MapMode) {
     if (cityId && mode) {
       // AI : Clear specific mode cache for a city
-      const cityCache = cityDevelopmentProjectsCache.value.get(cityId)
+      const cityCache = cityStandaloneProjectsCache.value.get(cityId)
       if (cityCache) {
         cityCache.delete(mode)
       }
     } else if (cityId) {
       // AI : Clear all mode caches for a city
-      cityDevelopmentProjectsCache.value.delete(cityId)
+      cityStandaloneProjectsCache.value.delete(cityId)
     } else {
       // AI : Clear entire cache
-      cityDevelopmentProjectsCache.value.clear()
+      cityStandaloneProjectsCache.value.clear()
     }
   }
 
@@ -122,7 +122,7 @@ export const useMapStore = defineStore('map', () => {
     selectedCountryCode,
     currentCityOverlays,
     cityProjectsCache,
-    cityDevelopmentProjectsCache,
+    cityStandaloneProjectsCache,
 
     // Actions
     setSelectedCity,
@@ -132,9 +132,9 @@ export const useMapStore = defineStore('map', () => {
     hasCityProjectsCache,
     setCityProjectsCache,
     clearCityProjectsCache,
-    getCityDevelopmentProjectsCache,
-    hasCityDevelopmentProjectsCache,
-    setCityDevelopmentProjectsCache,
-    clearCityDevelopmentProjectsCache
+    getCityStandaloneProjectsCache,
+    hasCityStandaloneProjectsCache,
+    setCityStandaloneProjectsCache,
+    clearCityStandaloneProjectsCache
   }
 })

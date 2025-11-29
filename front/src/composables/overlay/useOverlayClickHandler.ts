@@ -47,7 +47,7 @@ export function useOverlayClickHandler() {
       // AI : This ensures we reload with the correct mode to see pending items
       if (shouldToggleEditMode && overlay.cityId) {
         mapStore.clearCityProjectsCache(overlay.cityId)
-        mapStore.clearCityDevelopmentProjectsCache(overlay.cityId)
+        mapStore.clearCityStandaloneProjectsCache(overlay.cityId)
       }
 
       // AI : Only switch to edit mode if currently in view mode

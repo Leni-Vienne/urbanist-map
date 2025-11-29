@@ -98,8 +98,8 @@ import { useProjectStore } from '@stores/pinia/projectStore'
 import { useUiStore } from '@stores/uiStore'
 import { useToast } from '@composables/ui/useToast'
 import { map } from '@composables/core/useMap'
-import { loadCityProjects, createProjectInfoTeleportTarget, updateDevelopmentMarkerColor, addSingleCityMarker, addCityMarkersForCountry } from '@composables/map/useCityMarkers'
-import { getDevelopmentMarkerByProjectId } from '@composables/map/useDevelopmentMarkers'
+import { loadCityProjects, createProjectInfoTeleportTarget, updateStandaloneProjectMarkerColor, addSingleCityMarker, addCityMarkersForCountry } from '@composables/map/useCityMarkers'
+import { getStandaloneProjectMarkerByProjectId } from '@composables/map/useStandaloneProjectMarkers'
 import { loadCitiesForCountry } from '@composables/map/useCountryMarkers'
 import { useMapStore } from '@stores/pinia/mapStore'
 import { createBasicProjectIcon } from '@composables/map/useMarkers'
@@ -335,7 +335,7 @@ function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: number }) 
   }
 
   // AI : Open project dialog with coordinates - user must fill form before marker is created
-  // AI : All projects now have center coordinates (no isDevelopment field)
+  // AI : All projects now have center coordinates (no isStandalone field)
   uiStore.openProjectDialog({
     lat: coordinates.lat,
     lng: coordinates.lng
@@ -357,7 +357,7 @@ function onMarkerModeEnabled() {
       tempMarker.value = null;
     }
 
-    // AI : Create temporary marker using DevelopmentMarkerSVG in orange for visual feedback
+    // AI : Create temporary marker using StandaloneProjectMarkerSVG in orange for visual feedback
     const markerIcon = createBasicProjectIcon('orange');
     tempMarker.value = L.marker([coordinates.lat, coordinates.lng], {
       icon: markerIcon,
@@ -424,7 +424,7 @@ async function handleProjectSubmitted(project: Partial<Project>) {
         await loadCityProjects(project.city.id, project.city.name, true, project.city.countryCode);
 
         // AI : Get the marker and open its popup
-        const actualMarker = getDevelopmentMarkerByProjectId(projectId);
+        const actualMarker = getStandaloneProjectMarkerByProjectId(projectId);
         if (actualMarker) {
           createProjectInfoTeleportTarget(actualMarker);
           // AI : Close overlay popup if it's open (only one popup at a time)
@@ -437,7 +437,7 @@ async function handleProjectSubmitted(project: Partial<Project>) {
         toast.add({
           severity: 'success',
           summary: $t('common.success'),
-          detail: $t('toasts.developmentProjectSuccess'),
+          detail: $t('toasts.standaloneProjectSuccess'),
           life: 3000
         });
       }
@@ -456,7 +456,7 @@ async function handleProjectSubmitted(project: Partial<Project>) {
         // AI : Update marker color to reflect modification if project has no overlays
         const hasNoOverlays = !projects.value[project.id].overlayIds || projects.value[project.id].overlayIds.length === 0
         if (hasNoOverlays) {
-          updateDevelopmentMarkerColor(project.id, projects.value[project.id]);
+          updateStandaloneProjectMarkerColor(project.id, projects.value[project.id]);
         }
 
         // AI : Just save locally for all projects (no auto-publishing)
@@ -510,7 +510,7 @@ async function handleProjectSubmitted(project: Partial<Project>) {
   justify-content: center !important;
 }
 
-/* AI : Development project styles */
+/* AI : Standalone project styles */
 :global(.marker-project-icon) {
   background: transparent !important;
   border: none !important;

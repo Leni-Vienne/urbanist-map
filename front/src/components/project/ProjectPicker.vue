@@ -189,7 +189,7 @@ function getOverlayCountForProject(projectId: string): number {
 }
 
 // AI : Compute the project list based on the mode
-// AI : Projects with overlays are shown; projects without overlays (development-style) are excluded
+// AI : Projects with overlays are shown; standalone projects are excluded
 const projectList = computed(() => {
   if (props.useCityProjects) {
     // AI : Return grouped or flat list depending on view mode

@@ -217,7 +217,7 @@ export async function navigateToOverlayWithCity(
  * @param countryCode - The country code for proper tile layer switching
  * @param projectId - Optional project ID to open the info popup after navigation
  */
-export async function navigateToDevelopmentProject(
+export async function navigateToStandaloneProject(
   lat: number,
   lng: number,
   cityId: string,
@@ -249,10 +249,10 @@ export async function navigateToDevelopmentProject(
         if (!map.value) return;
 
         // AI : Find the marker on the map and trigger click to open popup
-        const developmentLayer = (map.value as any)._layers;
+        const standaloneProjectLayer = (map.value as any)._layers;
         let foundMarker: L.Marker | null = null;
 
-        Object.values(developmentLayer).forEach((layer: any) => {
+        Object.values(standaloneProjectLayer).forEach((layer: any) => {
           if (layer instanceof L.Marker) {
             const markerLatLng = layer.getLatLng();
             // AI : Check if this marker is at the same position as our target

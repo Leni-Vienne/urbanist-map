@@ -33,7 +33,7 @@ const getOverlaySchema = z.object({
   includeStatus: z.array(z.enum(['pending', 'approved', 'rejected'])).optional(), // AI : Optional status filter for admins
 });
 
-// AI : Schema for getting latest contributions (overlays + development projects)
+// AI : Schema for getting latest contributions (overlays + standalone projects)
 const getLatestContributionsSchema = z.object({
   limit: z.number().min(1).max(20).optional().default(20),
 });
@@ -73,7 +73,7 @@ async function findIntersectingOverlays(db: PostgresJsDatabase<typeof schema>, e
 }
 
 export const overlayRouter = router({
-  // AI : Get latest contributions (overlays + development projects combined)
+  // AI : Get latest contributions (overlays + standalone projects combined)
   getLatestContributions: publicProcedure
     .input(getLatestContributionsSchema)
     .query(async ({ input }) => {
@@ -87,8 +87,8 @@ export const overlayRouter = router({
           .orderBy(sql`${overlays.updatedAt} DESC`)
           .limit(input.limit);
 
-        // AI : Fetch projects without overlays (development projects) with location info
-        const latestDevelopments = await db
+        // AI : Fetch projects without overlays (standalone projects) with location info
+        const latestStandaloneProjects = await db
           .select({
             id: projects.id,
             name: projects.name,
@@ -143,8 +143,8 @@ export const overlayRouter = router({
           status: o.status,
         }));
 
-        const developmentContributions = latestDevelopments.map(d => ({
-          type: 'development' as const,
+        const standaloneProjectContributions = latestStandaloneProjects.map(d => ({
+          type: 'standalone' as const,
           id: d.id,
           name: d.name,
           filename: null as string | null,
@@ -153,14 +153,14 @@ export const overlayRouter = router({
           cityName: d.cityName,
           countryCode: d.countryCode,
           countryName: d.countryName,
-          // AI : Include development-specific fields for navigation
+          // AI : Include standalone-project-specific fields for navigation
           lat: d.lat,
           lng: d.lng,
           status: d.status,
         }));
 
         // AI : Combine and sort by updatedAt descending
-        const combined = [...overlayContributions, ...developmentContributions]
+        const combined = [...overlayContributions, ...standaloneProjectContributions]
           .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
           .slice(0, input.limit);
 

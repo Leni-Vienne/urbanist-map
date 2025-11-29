@@ -17,7 +17,7 @@
         class="contributions-list"
         v-if="contributions.length > 0"
       >
-        <!-- AI : Clean borderless cards for both overlays and development projects -->
+        <!-- AI : Clean borderless cards for both overlays and standalone projects -->
         <div
           v-for="contribution in contributions"
           :key="contribution.id"
@@ -26,7 +26,7 @@
           @mouseenter="handleContributionHover(contribution)"
           @mouseleave="handleContributionLeave(contribution)"
         >
-          <!-- AI : Contribution thumbnail image (overlay) or icon (development) -->
+          <!-- AI : Contribution thumbnail image (overlay) or icon (st) -->
           <div class="contribution-thumbnail">
             <img
               v-if="contribution.type === 'overlay' && contribution.filename"
@@ -36,9 +36,9 @@
               @error="(event) => handleImageError(event, contribution.id)"
               @load="(event) => handleImageLoad(event, contribution.id)"
             />
-            <!-- AI : Development project icon -->
+            <!-- AI : Standalone project icon -->
             <i
-              v-else-if="contribution.type === 'development'"
+              v-else-if="contribution.type === 'standalone'"
               class="pi pi-building text-2xl text-primary-500"
             ></i>
             <!-- AI : Fallback icon if image fails -->
@@ -98,7 +98,7 @@ import { useOverlayClickHandler } from '@composables/overlay/useOverlayClickHand
 import { useNewProject } from '@composables/overlay/useNewProject'
 import { useToast } from '@composables/ui/useToast'
 import { highlightOverlayById, removeOverlayHighlight } from '@composables/overlay/useOverlay'
-import { navigateToDevelopmentProject } from '@composables/navigation/useOverlayNavigation'
+import { navigateToStandaloneProject } from '@composables/navigation/useOverlayNavigation'
 import { buildThumbnailUrl } from '@utils/imageUrl'
 import { formatRelativeTime } from '@utils/dateFormat'
 import type { LatestContribution } from '../../types/api'
@@ -187,15 +187,15 @@ function handleContributionLeave(contribution: LatestContribution) {
   }
 }
 
-// AI : Handle contribution click - navigate to overlay or development project
+// AI : Handle contribution click - navigate to overlay or standalone project
 async function handleContributionClick(contribution: LatestContribution) {
   if (contribution.type === 'overlay') {
     // AI : Use existing overlay navigation - pass contribution directly as it's part of NavigableOverlay union
     await handleOverlayClickNavigation(contribution, false)
-  } else if (contribution.type === 'development') {
-    // AI : Navigate to development project using full navigation flow (tile layer, city load, etc.)
+  } else if (contribution.type === 'standalone') {
+    // AI : Navigate to standalone project using full navigation flow (tile layer, city load, etc.)
     if (contribution.cityId && contribution.lat && contribution.lng) {
-      await navigateToDevelopmentProject(
+      await navigateToStandaloneProject(
         contribution.lat,
         contribution.lng,
         contribution.cityId,

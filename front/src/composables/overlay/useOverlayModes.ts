@@ -13,7 +13,7 @@ import {
 import { renderForStrategy, updateExistingOverlays, clearAllRenderedContent } from './useOverlayRenderer'
 import { cacheCurrentPosition } from './useOverlayPositionManagement'
 import { loadCityOverlays, fetchCityProjectsData } from '@composables/map/useCityOverlays'
-import { loadCityDevelopmentProjects, removeCityMarkers, addCityMarkersForCountry, updateAllDevelopmentMarkerColors } from '@composables/map/useCityMarkers'
+import { loadCityStandaloneProjects, removeCityMarkers, addCityMarkersForCountry, updateAllStandaloneProjectMarkerColors } from '@composables/map/useCityMarkers'
 import { loadCountriesWithProjects, loadCitiesForCountry, addCountryMarkersToMap } from '@composables/map/useCountryMarkers'
 import { useProjectStore } from '@stores/pinia/projectStore'
 import { useUiStore } from '@stores/uiStore'
@@ -189,7 +189,7 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
   const selectedCity = getSelectedCity()
 
   // AI : NO cache invalidation! Smart caching handles mode-specific data automatically
-  // AI : fetchCityProjectsData and loadCityDevelopmentProjects check mode-aware cache first
+  // AI : fetchCityProjectsData and loadCityStandaloneProjects check mode-aware cache first
   // AI : If cached data exists for target mode, uses it instantly (no backend call)
   // AI : If not cached, fetches from backend and caches for future use
 
@@ -204,9 +204,9 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
   await transitionToState(newState, {
     beforeTransition: handleBeforeTransition,
     afterTransition: async () => {
-      // AI : Load development projects AFTER overlays are rendered to correctly detect which projects need markers
+      // AI : Load standalone projects AFTER overlays are rendered to correctly detect which projects need markers
       if (selectedCity && newState.selectedCityId) {
-        await loadCityDevelopmentProjects(newState.selectedCityId)
+        await loadCityStandaloneProjects(newState.selectedCityId)
       }
 
       // AI : Update overlay editing state (toolbar actions, draggability) after mode switch
@@ -215,8 +215,8 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
       // AI : Update overlay marker colors immediately after mode switch
       updateOverlayMarkersColors(toRef(overlayStore, 'overlays'))
 
-      // AI : Update development marker colors immediately after mode switch
-      updateAllDevelopmentMarkerColors()
+      // AI : Update standalone project marker colors immediately after mode switch
+      updateAllStandaloneProjectMarkerColors()
 
       // AI : Load countries first (required for reloadCitiesAndMarkers)
       await loadCountriesWithProjects()

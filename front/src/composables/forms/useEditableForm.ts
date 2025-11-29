@@ -4,7 +4,7 @@ import { useToast } from '@composables/ui/useToast'
 import { useI18n } from '@composables/useI18n'
 import { buildProjectPayload } from '@composables/project/useProjectMutations'
 import { useProjectStore } from '@stores/pinia/projectStore'
-import { updateDevelopmentMarkerColor } from '@composables/map/useCityMarkers'
+import { updateStandaloneProjectMarkerColor } from '@composables/map/useCityMarkers'
 import { trpc } from '@client'
 import { formatDate } from '@utils/dateFormat'
 
@@ -183,7 +183,7 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
           const updatedProject = projectStore.projects[options.entityId]
           const hasNoOverlays = !updatedProject?.overlayIds || updatedProject.overlayIds.length === 0
           if (updatedProject && hasNoOverlays) {
-            updateDevelopmentMarkerColor(options.entityId, updatedProject)
+            updateStandaloneProjectMarkerColor(options.entityId, updatedProject)
           }
 
           toast.add({

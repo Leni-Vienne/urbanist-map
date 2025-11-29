@@ -113,9 +113,8 @@
     "chooseProjectTypeDescription": "Sélectionnez le type de projet qui correspond le mieux à ce que vous voulez documenter.",
     "overlayProject": "Projet de plan de rue",
     "overlayProjectDescription": "Importez une image montrant un plan de rue, plan de construction ou vues aériennes",
-    "developmentProject": "Marqueur de bâtiment",
-    "developmentProjectDescription": "Placez un marqueur simple pour un bâtiment ou un lieu spécifique",
-    "addDevelopmentProject": "Ajouter un marqueur de bâtiment",
+    "standaloneProject": "Marqueur de bâtiment",
+    "addStandaloneProject": "Ajouter un marqueur de bâtiment",
     "placeMarkerOnMap": "Placer le marqueur sur la carte",
     "clickOnMapToPlace": "Cliquez n'importe où sur la carte pour placer votre marqueur de bâtiment",
     "markerPlacedAt": "Marqueur placé à",
@@ -193,8 +192,6 @@
     "deleteProjectError": "Échec de la suppression du projet. Veuillez réessayer."
   },
   "contribution": {
-    "overlay": "Image",
-    "development": "Bâtiment",
     "noContributionsFound": "Aucune contribution trouvée.",
     "beFirstToAdd": "Soyez le premier à ajouter une image ou un projet de bâtiment",
     "loadingContributions": "Chargement des contributions..."
@@ -692,7 +689,7 @@
     "uploadFailed": "Échec du téléchargement",
     "uploadFailedDetail": "Échec du traitement de l'image"
   },
-  "developmentProject": {
+  "standaloneProject": {
     "createSuccess": "Projet de bâtiment créé avec succès",
     "createFailed": "Échec de la création du projet de bâtiment",
     "projectUpdated": "Projet mis à jour",
@@ -709,7 +706,7 @@
   "toasts": {
     "replacementOverlayCreated": "Image de remplacement créée",
     "replacementOverlayDetail": "Votre image de remplacement a été créée et est prête à être modifiée",
-    "developmentProjectSuccess": "Projet de bâtiment créé avec succès",
+    "standaloneProjectSuccess": "Projet de bâtiment créé avec succès",
     "projectUpdateSuccess": "Projet mis à jour",
     "projectUpdateDetail": "Modifications du projet enregistrées localement",
     "projectUpdateFailed": "Échec de la mise à jour",
