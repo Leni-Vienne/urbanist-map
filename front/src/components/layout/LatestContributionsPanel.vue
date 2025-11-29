@@ -10,7 +10,6 @@
           icon="pi pi-plus"
           :label="$t('common.add')"
           class="add-project-button"
-          v-tooltip.bottom="$t('dialog.createNewProject')"
         />
       </div>
 

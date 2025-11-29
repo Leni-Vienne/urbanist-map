@@ -8,10 +8,12 @@ import { loadCityOverlays } from '@composables/map/useCityOverlays';
 import { useSelectedProject } from '@composables/project/useProjectSelection';
 import { RouterOutput, trpc } from '@client';
 
+import { useAuthStore } from '@stores/authStore';
 import { useUiStore } from '@stores/uiStore';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
+import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import { useProjects } from '@composables/project/useProjects';
 import { createProject } from '../../utils/typeFactories';
 import { getProjectMarkerColor } from '../../utils/markerColors';
@@ -167,12 +169,30 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
 
     const { projects: localProjects } = useProjects();
     const allLocalProjects = Object.values(localProjects.value);
+    const authStore = useAuthStore();
 
     const localProjectsWithNoOverlays = allLocalProjects
       .filter(project => {
         const overlayCount = project.overlayIds?.length ?? 0
         const matchesCity = project.cityId === cityId || (cityId === null && (project.cityId === null || project.cityId === undefined))
-        return overlayCount === 0 && matchesCity
+
+        // AI : Filter by mode and status (same logic as backend)
+        let matchesVisibilityFilter = false;
+        if (overlayStore.mode === 'view') {
+          // AI : View mode: only show approved projects
+          matchesVisibilityFilter = project.status === 'approved';
+        } else if (overlayStore.mode === 'edit' && authStore.user) {
+          // AI : Edit mode: show approved projects OR user's own projects
+          matchesVisibilityFilter = project.status === 'approved' || project.ownerId === authStore.user.id;
+        } else if (overlayStore.mode === 'moderation') {
+          // AI : Moderation mode: show approved OR pending projects
+          matchesVisibilityFilter = project.status === 'approved' || project.status === 'pending';
+        } else {
+          // AI : Default: only show approved
+          matchesVisibilityFilter = project.status === 'approved';
+        }
+
+        return overlayCount === 0 && matchesCity && matchesVisibilityFilter;
       });
 
     const allProjectsWithNoOverlays = [
@@ -211,6 +231,23 @@ export async function loadCityDevelopmentProjects(cityId: string | null): Promis
             ...localProjects.value,
             [project.id]: projectData
           };
+        }
+
+        // AI : Apply completion filters (timeline filters in view mode)
+        // AI : In edit/moderation modes, timeline filters don't apply
+        if (overlayStore.mode === 'view') {
+          const completionFilters = useCompletionFilters();
+          const projectColor = getProjectMarkerColor(projectData, overlayStore.mode);
+
+          // AI : Check if this color is in the completion filters (some colors like 'gold', 'black' may not be)
+          const colorKey = projectColor as keyof typeof completionFilters.visibleCompletionStates.value;
+          const isVisibleByCompletionFilter = colorKey in completionFilters.visibleCompletionStates.value
+            ? completionFilters.visibleCompletionStates.value[colorKey]
+            : true; // AI : If color not in filters, show by default
+
+          if (!isVisibleByCompletionFilter) {
+            return;
+          }
         }
 
         addDevelopmentMarkerForProject(projectData);

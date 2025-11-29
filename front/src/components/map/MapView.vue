@@ -53,6 +53,7 @@ import { useToast } from '@composables/ui/useToast';
 import { useI18n } from '@composables/useI18n';
 import { updateOverlayMarkersForFilters } from '@composables/map/useCityOverlays';
 import { initializeCountryMarkers } from '@composables/map/useCountryMarkers';
+import { loadCityDevelopmentProjects } from '@composables/map/useCityMarkers';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useAuthStore } from '@stores/authStore';
@@ -74,21 +75,40 @@ const isLoading = ref(true);
 
 // AI : Filter overlays based on completion status
 async function filterOverlaysByCompletionStatus() {
+  const completionFilters = useCompletionFilters();
+
   if (!map.value) return;
 
   // AI : If we have overlay markers visible (when zoomed out), update them with filters
   updateOverlayMarkersForFilters();
 
-  // AI : Handle full overlays (when zoomed in)
-  if (!mapStore.currentCityOverlays?.length) return;
+  // AI : Get overlay data from cache instead of currentCityOverlays (which can be cleared)
+  const selectedCityId = mapStore.selectedCity?.id;
+  if (!selectedCityId) return;
+
+  // AI : Load from cache - this is more reliable than currentCityOverlays
+  const cachedData = mapStore.getCityOverlaysAndProjectsCache(selectedCityId, overlayStore.mode);
+
+  // AI : If cache is empty (null/undefined or empty array) but currentCityOverlays has data, use currentCityOverlays
+  if ((!cachedData || cachedData.length === 0) && mapStore.currentCityOverlays?.length) {
+    mapStore.setCityProjectsCache(selectedCityId, overlayStore.mode, mapStore.currentCityOverlays);
+  }
+
+  // AI : Use cached data only if it has items, otherwise fall back to currentCityOverlays
+  const cityOverlays = (cachedData?.length) ? cachedData : (mapStore.currentCityOverlays ?? []);
+
+  // AI : Always reload development projects first (even if no overlays for this city)
+  await loadCityDevelopmentProjects(selectedCityId);
+
+  // AI : If no overlays, we're done (but development projects were reloaded above)
+  if (!cityOverlays.length) return;
 
   // AI : Use the shared filtering utility
-  const completionFilters = useCompletionFilters();
-  const visibleOverlays = completionFilters.filterByCompletionStatus(mapStore.currentCityOverlays) as OverlayData[];
+  const visibleOverlays = completionFilters.filterByCompletionStatus(cityOverlays) as OverlayData[];
   const visibleOverlayIds = new Set(visibleOverlays.map(o => o.id));
 
   // AI : Remove overlays that should be hidden
-  const overlaysToHide = mapStore.currentCityOverlays.filter(overlay => !visibleOverlayIds.has(overlay.id));
+  const overlaysToHide = cityOverlays.filter(overlay => !visibleOverlayIds.has(overlay.id));
   overlaysToHide.forEach(overlay => removeOverlay(overlay.id));
 
   // AI : Find overlays that should be visible but aren't currently rendered
@@ -101,7 +121,13 @@ async function filterOverlaysByCompletionStatus() {
   if (overlaysToRender.length > 0) {
     renderViewModeOverlays(overlaysToRender, true, false);
     overlayStore.setViewModeOverlays(visibleOverlays);
+  } else {
+    overlayStore.setViewModeOverlays(visibleOverlays);
   }
+
+  // AI : Update currentCityOverlays AND cache to ensure they're preserved
+  mapStore.currentCityOverlays = cityOverlays;
+  mapStore.setCityProjectsCache(selectedCityId, overlayStore.mode, cityOverlays);
 }
 
 // AI : Watch for mode changes to manage overlay state
