@@ -413,13 +413,15 @@ export function buildProjectHasVisibleContentCondition(
   }
 
   if (mode === 'edit' && user) {
-    // AI : Edit mode: show if no overlays OR has visible overlays OR is owned by user (even without overlays)
+    // AI : Edit mode: show if no approved overlays OR has approved/user overlays OR is owned by user
+    // AI : Use same logic as view mode but also include user's pending overlays
     if (overlayChangeRequestIds && overlayChangeRequestIds.length > 0) {
       const idsArray = `{${overlayChangeRequestIds.join(',')}}`;
       return sql`(
         NOT EXISTS (
           SELECT 1 FROM ${overlays}
           WHERE ${overlays.projectId} = ${projects.id}
+          AND ${overlays.status} = 'approved'
         )
         OR ${projects.ownerId} = ${user.id}
         OR EXISTS (
@@ -437,6 +439,7 @@ export function buildProjectHasVisibleContentCondition(
         NOT EXISTS (
           SELECT 1 FROM ${overlays}
           WHERE ${overlays.projectId} = ${projects.id}
+          AND ${overlays.status} = 'approved'
         )
         OR ${projects.ownerId} = ${user.id}
         OR EXISTS (
@@ -463,11 +466,12 @@ export function buildProjectHasVisibleContentCondition(
     )`;
   }
 
-  // AI : Default: same as view mode
+  // AI : Default: same as view mode (check for approved overlays, not any overlays)
   return sql`(
     NOT EXISTS (
       SELECT 1 FROM ${overlays}
       WHERE ${overlays.projectId} = ${projects.id}
+      AND ${overlays.status} = 'approved'
     )
     OR EXISTS (
       SELECT 1 FROM ${overlays}
