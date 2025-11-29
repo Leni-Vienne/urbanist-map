@@ -14,6 +14,10 @@ export const useModerationStore = defineStore('moderation', () => {
   // AI : Country-scoped moderation - selected country code (null = not selected yet)
   const selectedCountryCode = ref<string | null>(null);
 
+  // AI : Cache all countries to avoid fetching on every panel mount
+  const allCountries = ref<Array<{ code: string; name: string }>>([]);
+  const countriesLoaded = ref(false);
+
   interface RecentAction {
     id: string;
     itemName: string;
@@ -65,6 +69,11 @@ export const useModerationStore = defineStore('moderation', () => {
     selectedCountryCode.value = countryCode;
   }
 
+  function setAllCountries(countries: Array<{ code: string; name: string }>) {
+    allCountries.value = countries;
+    countriesLoaded.value = true;
+  }
+
   return {
     overlays,
     projects,
@@ -73,6 +82,8 @@ export const useModerationStore = defineStore('moderation', () => {
     moderationLoading,
     recentActions,
     selectedCountryCode,
+    allCountries,
+    countriesLoaded,
     setModerationData,
     setModerationLoading,
     resetModerationLoaded,
@@ -80,5 +91,6 @@ export const useModerationStore = defineStore('moderation', () => {
     removeLastAction,
     removeChangeRequests,
     setSelectedCountryCode,
+    setAllCountries,
   };
 });

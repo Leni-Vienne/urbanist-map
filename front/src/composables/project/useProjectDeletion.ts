@@ -21,7 +21,7 @@ export function useProjectDeletion() {
     overlayName: string | null,
     onSuccess?: () => void
   ): Promise<boolean> {
-    const confirmMessage = t('contributions.confirmDeleteOverlay', { name: overlayName || t('overlay.untitled') })
+    const confirmMessage = t('contributions.confirmDeleteOverlay', { name: overlayName ?? t('overlay.untitled') })
     if (!confirm(confirmMessage)) return false
 
     const isLastOverlay = projectOverlayCount === 1
@@ -32,7 +32,7 @@ export function useProjectDeletion() {
     // AI : If it was the last overlay, add a development marker to show the project
     if (isLastOverlay && project?.id && project?.lat && project?.lng) {
       // AI : Get updated project from store, or use the passed project
-      const updatedProject = projectStore.projects[project.id] || projectStore.allProjects[project.id] || project
+      const updatedProject = projectStore.projects[project.id] ?? projectStore.allProjects[project.id] ?? project
 
       await new Promise(resolve => setTimeout(resolve, 150))
       addDevelopmentMarkerForProject(updatedProject)
