@@ -13,6 +13,7 @@ import { useMapStore } from '@stores/pinia/mapStore'
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters'
 import { addDevelopmentMarkerForProject } from '@composables/map/useDevelopmentMarkers'
 import { useProjectStore } from '@stores/pinia/projectStore'
+import { useAuthStore } from '@stores/authStore'
 
 /**
  * AI : Update markers and editing state for all overlays
@@ -137,7 +138,27 @@ export function renderForStrategy(
           if (!remainingOverlayProjectIds.has(projectId)) {
             const project = projectStore.projects[projectId] ?? projectStore.allProjects[projectId]
             if (project && project.lat && project.lng) {
-              addDevelopmentMarkerForProject(project)
+              // AI : Check if project should be visible in current mode before adding marker
+              const authStore = useAuthStore()
+              let shouldShowProject = false
+
+              if (overlayStore.mode === 'view') {
+                // AI : View mode: only show approved projects
+                shouldShowProject = project.status === 'approved'
+              } else if (overlayStore.mode === 'edit' && authStore.user) {
+                // AI : Edit mode: show approved projects OR user's own projects
+                shouldShowProject = project.status === 'approved' || project.ownerId === authStore.user.id
+              } else if (overlayStore.mode === 'moderation') {
+                // AI : Moderation mode: show approved OR pending projects
+                shouldShowProject = project.status === 'approved' || project.status === 'pending'
+              } else {
+                // AI : Default: only show approved
+                shouldShowProject = project.status === 'approved'
+              }
+
+              if (shouldShowProject) {
+                addDevelopmentMarkerForProject(project)
+              }
             }
           }
         })

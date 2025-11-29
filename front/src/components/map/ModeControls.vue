@@ -9,7 +9,6 @@
         'moderation-mode': overlayStore.mode === 'moderation'
       }"
       @click="handleModeSwitch"
-      v-tooltip.top="isMobile ? undefined : getModeTooltip()"
       :aria-label="$t('map.switchMode')"
     >
       <i :class="['pi', getModeIcon()]"></i>

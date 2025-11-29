@@ -30,11 +30,12 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useUiStore } from "@stores/uiStore";
+import { usePanelTabs } from "@composables/layout/usePanelTabs";
+
 import DraggableDrawer from "./DraggableDrawer.vue";
 import PanelContent from "./PanelContent.vue";
 import ModeControls from "@components/map/ModeControls.vue";
-import { useUiStore } from "@stores/uiStore";
-import { usePanelTabs } from "@composables/layout/usePanelTabs";
 
 const uiStore = useUiStore();
 
