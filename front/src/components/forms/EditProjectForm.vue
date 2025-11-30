@@ -5,7 +5,7 @@
     :initial-data="projectData"
     :entity-status="project.status"
     :local-only="true"
-    :get-available-cities="() => citySelectRef?.cities ?? []"
+    :get-available-cities="() => formFieldsRef?.cities ?? []"
     container-class="editable-project-form"
     form-class="project-form"
     :submit-label="$t('forms.saveChanges')"
@@ -13,146 +13,20 @@
     @submitted="$emit('submitted')"
   >
     <template #fields="{ formData, originalData, hasChanged, getFieldClasses }">
-      <div class="form-group">
-        <label for="name">{{ $t('project.name') }} *</label>
-        <InputText
-          id="name"
-          v-model="formData.name"
-          :class="getFieldClasses('name')"
-          :placeholder="$t('project.name')"
-          required
-          minlength="8"
-        />
-        <small class="text-gray-500">{{ $t('project.nameTooShort') }}</small>
-        <small v-if="hasChanged('name')" class="change-indicator">
-          {{ $t('overlay.changedFrom') }}: "{{ originalData.name || $t('overlay.notSet') }}"
-        </small>
-      </div>
-
-      <div class="form-group">
-        <label for="description">{{ $t('project.description') }} ({{ $t('project.optionalField') }})</label>
-        <Textarea
-          id="description"
-          v-model="formData.description"
-          :class="getFieldClasses('description')"
-          rows="3"
-          :placeholder="$t('project.description')"
-        />
-        <small v-if="hasChanged('description')" class="change-indicator">
-          {{ $t('overlay.changedFrom') }}: "{{ originalData.description || $t('overlay.notSet') }}"
-        </small>
-      </div>
-
-      <TimelineStatusSelector
-        v-model="isProposed"
+      <ProjectFormFields
+        ref="formFieldsRef"
+        :form-data="formData"
+        :original-data="originalData"
+        :show-change-indicators="true"
+        :show-latest-update-field="true"
+        :is-proposed="isProposed"
+        :prefilled-city="project.city"
+        :marker-coordinates="markerCoordinates"
+        :field-classes="(n: string) => getFieldClasses(n as any)"
+        :has-changed="(n: string) => hasChanged(n as any)"
         id-prefix="edit"
-        @change="(value) => toggleTimelineStatus(value, formData)"
+        @update:is-proposed="isProposed = $event"
       />
-
-      <div class="form-group" v-if="isProposed">
-        <label for="proposalDate">{{ $t('project.proposalDate') }} *</label>
-        <DatePicker
-          id="proposalDate"
-          v-model="formData.proposalDate"
-          :class="getFieldClasses('proposalDate')"
-          dateFormat="dd/mm/yy"
-          :placeholder="$t('project.proposalDate')"
-          updateModelType="date"
-          showIcon
-          required
-          :maxDate="new Date()"
-        />
-        <small class="text-gray-500">{{ $t('project.proposalDateHelp') }}</small>
-        <!-- AI : Only show change indicator if project was originally proposed (had a proposalDate) -->
-        <small v-if="hasChanged('proposalDate') && wasOriginallyProposed" class="change-indicator">
-          {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData.proposalDate) || $t('overlay.notSet') }}"
-        </small>
-      </div>
-
-      <div class="form-row" v-if="!isProposed">
-        <div class="form-group">
-          <label for="startDate">{{ $t('project.startDate') }} *</label>
-          <DatePicker
-            id="startDate"
-            v-model="formData.startDate"
-            :class="getFieldClasses('startDate')"
-            dateFormat="dd/mm/yy"
-            :placeholder="$t('project.startDate')"
-            updateModelType="date"
-            showIcon
-            required
-          />
-          <small class="text-gray-500">{{ $t('project.startDateHelp') }}</small>
-          <!-- AI : Only show change indicator if project was originally planned (had startDate) -->
-          <small v-if="hasChanged('startDate') && !wasOriginallyProposed" class="change-indicator">
-            {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData.startDate) || $t('overlay.notSet') }}"
-          </small>
-        </div>
-
-        <div class="form-group">
-          <label for="endDate">{{ $t('project.endDate') }} *</label>
-          <DatePicker
-            id="endDate"
-            v-model="formData.endDate"
-            :class="getFieldClasses('endDate')"
-            dateFormat="dd/mm/yy"
-            :placeholder="$t('project.endDate')"
-            updateModelType="date"
-            showIcon
-            required
-          />
-          <small class="text-gray-500">{{ $t('project.endDateHelp') }}</small>
-          <!-- AI : Only show change indicator if project was originally planned (had endDate) -->
-          <small v-if="hasChanged('endDate') && !wasOriginallyProposed" class="change-indicator">
-            {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData.endDate) || $t('overlay.notSet') }}"
-          </small>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label for="location-select">{{ $t('project.location') }} *</label>
-        <CitySelect
-          ref="citySelectRef"
-          v-model="formData.cityId"
-          :class="getFieldClasses('cityId')"
-          :prefilled-city="project.city"
-          :marker-coordinates="markerCoordinates"
-          required
-        />
-        <small v-if="hasChanged('cityId')" class="change-indicator">
-          {{ $t('overlay.changedFrom') }}: {{ citySelectRef?.getCityName(originalData.cityId) }}
-        </small>
-      </div>
-
-      <div class="form-group">
-        <label for="latestUpdateOn">{{ $t('project.latestUpdateOn') }} ({{ $t('project.optionalField') }})</label>
-        <DatePicker
-          id="latestUpdateOn"
-          v-model="formData.latestUpdateOn"
-          :class="getFieldClasses('latestUpdateOn')"
-          dateFormat="dd/mm/yy"
-          :placeholder="$t('project.latestUpdateOn')"
-          updateModelType="date"
-          showIcon
-        />
-        <small class="text-gray-500">{{ $t('project.latestUpdateOnHelp') }}</small>
-        <small v-if="hasChanged('latestUpdateOn')" class="change-indicator">
-          {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData.latestUpdateOn) || $t('overlay.notSet') }}"
-        </small>
-      </div>
-
-      <div class="form-group">
-        <label for="sourceUrl">{{ $t('project.sourceUrl') }} ({{ $t('project.optionalField') }})</label>
-        <InputText
-          id="sourceUrl"
-          v-model="formData.sourceUrl"
-          :class="getFieldClasses('sourceUrl')"
-          placeholder="https://example.com/project-info"
-        />
-        <small v-if="hasChanged('sourceUrl')" class="change-indicator">
-          {{ $t('overlay.changedFrom') }}: "{{ originalData.sourceUrl || $t('overlay.notSet') }}"
-        </small>
-      </div>
     </template>
   </BaseEditForm>
 </template>
@@ -160,41 +34,21 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import BaseEditForm from './BaseEditForm.vue'
-import TimelineStatusSelector from './TimelineStatusSelector.vue'
-import CitySelect from './CitySelect.vue'
+import ProjectFormFields from './ProjectFormFields.vue'
 import type { Project } from '@types'
-import { useProjectTimelineStatus } from '@composables/forms/useProjectTimelineStatus'
-import { formatDate } from '@utils/dateFormat'
 
-interface Props {
-  project: Project
-}
+const props = defineProps<{ project: Project }>()
+defineEmits<{ close: [], submitted: [] }>()
 
-interface Emits {
-  (e: 'close'): void
-  (e: 'submitted'): void
-}
+const formFieldsRef = ref<InstanceType<typeof ProjectFormFields> | null>(null)
 
-const props = defineProps<Props>()
-defineEmits<Emits>()
-
-// AI : Reference to CitySelect component
-const citySelectRef = ref<InstanceType<typeof CitySelect> | null>(null)
-
-// AI : Marker coordinates for city select
 const markerCoordinates = props.project.lat && props.project.lng
   ? { lat: props.project.lat, lng: props.project.lng }
   : null
 
-// AI : Use timeline status composable (without formData watcher since we handle status in toggleTimelineStatus)
-const { isProposed, toggleTimelineStatus } = useProjectTimelineStatus(props.project)
+const isProposed = ref(!!(props.project.proposalDate && !props.project.startDate && !props.project.endDate))
 
-// AI : Track if project was originally proposed (for change indicator logic)
-const wasOriginallyProposed = computed(() => {
-  return !!(props.project.proposalDate && !props.project.startDate && !props.project.endDate)
-})
-
-// AI : Helper to ensure dates are Date objects (handles both Date and string from backend)
+// AI : Helper to ensure dates are Date objects
 function toDateObject(value: Date | string | null | undefined): Date | null {
   if (!value) return null
   if (value instanceof Date) return value
@@ -202,7 +56,6 @@ function toDateObject(value: Date | string | null | undefined): Date | null {
   return isNaN(date.getTime()) ? null : date
 }
 
-// AI : Transform project data for the form - ensure all dates are Date objects for DatePicker
 const projectData = computed(() => ({
   name: props.project.name,
   description: props.project.description || '',
@@ -214,18 +67,3 @@ const projectData = computed(() => ({
   cityId: props.project.cityId,
 }))
 </script>
-
-<style scoped>
-/* AI : Project-specific form styling */
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-}
-
-@media (max-width: 640px) {
-  .form-row {
-    grid-template-columns: 1fr;
-  }
-}
-</style>
