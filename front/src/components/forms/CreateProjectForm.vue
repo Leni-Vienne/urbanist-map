@@ -1,364 +1,106 @@
 <template>
     <form @submit.prevent="handleSubmit">
-        <div class="flex flex-col gap-4">
-            <div class="field">
-                <FloatLabel
-                    class="w-full"
-                    variant="in"
-                >
-                    <InputText
-                        id="project-name-input"
-                        v-model="localProject.name"
-                        required
-                        minlength="8"
-                        class="w-full"
-                    />
-                    <label
-                        for="project-name-input"
-                        class="text-gray-600"
-                    >{{ $t('project.name') }} *</label>
-                </FloatLabel>
-                <small class="text-gray-500 mt-1">{{ $t('project.nameTooShort') }}</small>
-            </div>
-
-            <div class="field">
-                <FloatLabel
-                    class="w-full"
-                    variant="in"
-                >
-                    <Textarea
-                        id="project-description-input"
-                        v-model="localProject.description"
-                        rows="2"
-                        class="w-full"
-                    />
-                    <label
-                        for="project-description-input"
-                        class="text-gray-600"
-                    >{{ $t('project.description') }} ({{ $t('project.optionalField') }})</label>
-                </FloatLabel>
-            </div>
-
-            <TimelineStatusSelector
-                v-model="isProposed"
-                id-prefix="create"
-            />
-
-            <div
-                class="field"
-                v-if="isProposed"
-            >
-                <FloatLabel
-                    class="w-full"
-                    variant="in"
-                >
-                    <DatePicker
-                        id="proposal-date-input"
-                        dateFormat="dd/mm/yy"
-                        v-model="localProject.proposalDate"
-                        class="w-full"
-                        required
-                        showIcon
-                        :updateModelType="'date'"
-                        :maxDate="new Date()"
-                    />
-                    <label
-                        for="proposal-date-input"
-                        class="text-gray-600"
-                    >{{ $t('project.proposalDate') }} *</label>
-                </FloatLabel>
-                <small class="text-gray-500 block mt-1">{{ $t('project.proposalDateHelp') }}</small>
-            </div>
-
-            <div
-                class="flex gap-3"
-                v-if="!isProposed"
-            >
-                <div class="flex-1 field">
-                    <FloatLabel
-                        class="w-full"
-                        variant="in"
-                    >
-                        <DatePicker
-                            id="start-date-input"
-                            dateFormat="dd/mm/yy"
-                            v-model="localProject.startDate"
-                            class="w-full"
-                            required
-                            showIcon
-                            :updateModelType="'date'"
-                        />
-                        <label
-                            for="start-date-input"
-                            class="text-gray-600"
-                        >{{ $t('project.startDate') }} *</label>
-                    </FloatLabel>
-                    <small class="text-gray-500 block mt-1">{{ $t('project.startDateHelp') }}</small>
-                </div>
-                <div class="flex-1 field">
-                    <FloatLabel
-                        class="w-full"
-                        variant="in"
-                    >
-                        <DatePicker
-                            id="end-date-input"
-                            dateFormat="dd/mm/yy"
-                            v-model="localProject.endDate"
-                            class="w-full"
-                            required
-                            showIcon
-                            :updateModelType="'date'"
-                        />
-                        <label
-                            for="end-date-input"
-                            class="text-gray-600"
-                        >{{ $t('project.endDate') }} *</label>
-                    </FloatLabel>
-                    <small class="text-gray-500 block mt-1">{{ $t('project.endDateHelp') }}</small>
-                </div>
-            </div>
-
-            <div class="field">
-                <FloatLabel
-                    class="w-full"
-                    variant="in"
-                >
-                    <CitySelect
-                        ref="citySelectRef"
-                        v-model="localProject.cityId"
-                        :prefilled-city="props.project.city"
-                        :marker-coordinates="markerCoordinates"
-                        required
-                    />
-                    <label
-                        for="location-select"
-                        class="text-gray-600"
-                    >{{ $t('project.location') }} *</label>
-                </FloatLabel>
-            </div>
-
-            <div
-                class="field"
-                v-if="props.mode === 'edit'"
-            >
-                <FloatLabel
-                    class="w-full"
-                    variant="in"
-                >
-                    <DatePicker
-                        id="latest-update-input"
-                        dateFormat="dd/mm/yy"
-                        v-model="localProject.latestUpdateOn"
-                        class="w-full"
-                        showIcon
-                        :showClear="true"
-                        :updateModelType="'date'"
-                    />
-                    <label
-                        for="latest-update-input"
-                        class="text-gray-600"
-                    >{{ $t('project.latestUpdateOn') }} ({{
-                        $t('project.optionalField') }})</label>
-                </FloatLabel>
-                <small class="text-gray-500 block mt-1">{{ $t('project.latestUpdateOnHelp') }}</small>
-            </div>
-
-            <div class="field">
-                <FloatLabel
-                    class="w-full"
-                    variant="in"
-                >
-                    <InputText
-                        id="source-url-input"
-                        type="url"
-                        v-model="localProject.sourceUrl"
-                        class="w-full"
-                    />
-                    <label
-                        for="source-url-input"
-                        class="text-gray-600"
-                    >{{ $t('project.sourceUrl') }} ({{
-                        $t('project.optionalField') }})</label>
-                </FloatLabel>
-            </div>
-        </div>
+        <ProjectFormFields
+            ref="formFieldsRef"
+            :form-data="formData"
+            :show-latest-update-field="props.mode === 'edit'"
+            :is-proposed="isProposed"
+            :prefilled-city="props.project.city"
+            :marker-coordinates="markerCoordinates"
+            id-prefix="create"
+            @update:is-proposed="isProposed = $event"
+            @city-change="handleCityChange"
+        />
     </form>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useToast } from '@composables/ui/useToast'
-import { useProjectTimelineStatus } from '@composables/forms/useProjectTimelineStatus'
-import { switchTileLayer, type TileLayerType, isTileLayerType } from '@composables/map/useTileLayers'
-import TimelineStatusSelector from './TimelineStatusSelector.vue'
-import CitySelect from './CitySelect.vue'
-import type { Project } from '@types';
-
-// AI : Get i18n and toast
-const { t } = useI18n();
-const toast = useToast();
+import { ref, watch, reactive } from 'vue'
+import { switchTileLayer, isTileLayerType } from '@composables/map/useTileLayers'
+import { useProjectFormValidation } from '@composables/forms/useProjectFormValidation'
+import ProjectFormFields, { type ProjectFormData } from './ProjectFormFields.vue'
+import type { Project } from '@types'
 
 const props = defineProps<{
-    project: Partial<Project>;
-    mode: 'edit' | 'create';
-}>();
+    project: Partial<Project>
+    mode: 'edit' | 'create'
+}>()
 
-const emit = defineEmits<{
-    cancel: [];
-    submit: [project: Partial<Project>];
-}>();
+const emit = defineEmits<{ cancel: [], submit: [project: Partial<Project>] }>()
 
-// AI : Initialize project data - set default proposal date for new proposed projects
-const localProject = ref<Partial<Project>>({
-    ...props.project,
-    proposalDate: props.mode === 'create' ? new Date() : props.project.proposalDate
-});
+const { validateProjectForm } = useProjectFormValidation()
+const formFieldsRef = ref<InstanceType<typeof ProjectFormFields> | null>(null)
 
-// AI : Use timeline status composable with formData watcher for CreateProjectForm
-const { isProposed } = useProjectTimelineStatus(props.project, localProject.value)
+const formData = reactive<ProjectFormData>({
+    name: props.project.name ?? '',
+    description: props.project.description ?? null,
+    proposalDate: props.mode === 'create' ? new Date() : (props.project.proposalDate ?? null),
+    startDate: props.project.startDate ?? null,
+    endDate: props.project.endDate ?? null,
+    latestUpdateOn: props.project.latestUpdateOn ?? null,
+    cityId: props.project.cityId ?? null,
+    sourceUrl: props.project.sourceUrl ?? null,
+})
 
-// AI : Override initial value for create mode
-if (props.mode === 'create') {
-    isProposed.value = true
-}
+const isProposed = ref(props.mode === 'create' ? true : !!(props.project.proposalDate && !props.project.startDate))
 
-// AI : Marker coordinates for city select
 const markerCoordinates = props.project.lat && props.project.lng
   ? { lat: props.project.lat, lng: props.project.lng }
   : null
 
-// AI : Reference to CitySelect component
-const citySelectRef = ref<InstanceType<typeof CitySelect> | null>(null)
-
-// AI : Computed accessors for cities data
-const cities = computed(() => citySelectRef.value?.cities ?? [])
-const citiesLoaded = computed(() => citySelectRef.value?.citiesLoaded ?? false)
-
-// AI : Map country code to tile layer type - returns appropriate layer or default
-function getLayerTypeForCountry(countryCode: string): TileLayerType {
-    return isTileLayerType(countryCode) ? countryCode : 'esri';
+function handleCityChange(newCityId: string | null) {
+    if (!newCityId) return
+    const cities = formFieldsRef.value?.cities ?? []
+    const selectedCity = cities.find(c => c.id === newCityId)
+    if (selectedCity) {
+        switchTileLayer(isTileLayerType(selectedCity.countryCode) ? selectedCity.countryCode : 'esri')
+    }
 }
 
-// AI : Watch for city selection changes to automatically switch tile layer to match country
-watch(() => localProject.value.cityId, (newCityId) => {
-    if (!newCityId || cities.value.length === 0) return;
-
-    const selectedCity = cities.value.find(c => c.id === newCityId);
-    if (selectedCity) {
-        const layerType = getLayerTypeForCountry(selectedCity.countryCode);
-        switchTileLayer(layerType);
-    }
-});
-
-// AI : Watch for external project changes
-watch(() => props.project, (newProject) => {
-    localProject.value = { ...newProject };
-
-    // AI : Update cities list if project city changes - handled internally by composable now
-}, { deep: true, immediate: true });
+watch(() => props.project, (p) => {
+    formData.name = p.name ?? ''
+    formData.description = p.description ?? null
+    formData.proposalDate = p.proposalDate ?? null
+    formData.startDate = p.startDate ?? null
+    formData.endDate = p.endDate ?? null
+    formData.latestUpdateOn = p.latestUpdateOn ?? null
+    formData.cityId = p.cityId ?? null
+    formData.sourceUrl = p.sourceUrl ?? null
+}, { deep: true })
 
 function handleSubmit() {
-    // AI : Validate required fields based on project status
-    if (!localProject.value.name?.trim()) {
-        toast.add({
-            severity: 'error',
-            summary: t('project.validationError'),
-            detail: t('project.nameRequired'),
-            life: 3000
-        });
-        return;
+    const cities = formFieldsRef.value?.cities ?? []
+    const citiesLoaded = formFieldsRef.value?.citiesLoaded ?? false
+
+    if (!validateProjectForm(formData, isProposed.value, cities, citiesLoaded)) return
+
+    const result: Partial<Project> = {
+        ...props.project,
+        name: formData.name,
+        description: formData.description,
+        sourceUrl: formData.sourceUrl,
+        latestUpdateOn: formData.latestUpdateOn,
+        cityId: formData.cityId === null ? undefined : formData.cityId,
+        proposalDate: isProposed.value ? formData.proposalDate : null,
+        startDate: isProposed.value ? null : formData.startDate,
+        endDate: isProposed.value ? null : formData.endDate,
     }
 
-    // AI : Validate minimum name length
-    if (localProject.value.name.trim().length < 8) {
-        toast.add({
-            severity: 'error',
-            summary: t('project.validationError'),
-            detail: t('project.nameTooShort'),
-            life: 3000
-        });
-        return;
-    }
-
-    // AI : Validate that location is selected AND cities were loaded/validated
-    if (!localProject.value.cityId || !citiesLoaded.value) {
-        toast.add({
-            severity: 'error',
-            summary: t('project.validationError'),
-            detail: t('project.locationRequired'),
-            life: 3000
-        });
-        return;
-    }
-
-    // AI : Validate that the selected cityId exists in the loaded cities list
-    if (cities.value.length > 0 && !cities.value.find(c => c.id === localProject.value.cityId)) {
-        toast.add({
-            severity: 'error',
-            summary: t('project.validationError'),
-            detail: t('project.locationRequired'),
-            life: 3000
-        });
-        return;
-    }
-
-    // AI : For proposed projects, proposal date is required
-    if (isProposed.value) {
-        if (!localProject.value.proposalDate) {
-            toast.add({
-                severity: 'error',
-                summary: t('project.validationError'),
-                detail: t('project.proposalDateRequired'),
-                life: 3000
-            });
-            return;
-        }
-        // AI : For planned projects, start and end dates are required
-    } else if (!localProject.value.startDate || !localProject.value.endDate) {
-        toast.add({
-            severity: 'error',
-            summary: t('project.validationError'),
-            detail: t('project.datesRequired'),
-            life: 3000
-        });
-        return;
-    }
-
-    // AI : Create a clean project object without File objects to prevent serialization issues
-    const cleanProjectData = localProject.value;
-
-    // AI : Clear inappropriate dates based on project status
-    // AI : Use null instead of undefined to ensure database values are actually cleared
-    if (isProposed.value) {
-        // AI : Proposed projects should not have start/end dates
-        cleanProjectData.startDate = null as any;
-        cleanProjectData.endDate = null as any;
-    } else {
-        // AI : Planned projects should not have proposal date
-        cleanProjectData.proposalDate = null as any;
-    }
-
-    // AI : Include city object if cityId is set and city data is available
-    if (cleanProjectData.cityId && cities.value.length > 0) {
-        const selectedCity = cities.value.find(c => c.id === cleanProjectData.cityId);
-        if (selectedCity) {
-            cleanProjectData.city = {
-                id: selectedCity.id,
-                name: selectedCity.name,
-                countryCode: selectedCity.countryCode,
-                coordinates: { x: selectedCity.lng, y: selectedCity.lat },
-                createdAt: new Date(),
-                updatedAt: new Date()
-            };
+    // AI : Include city object if available
+    const selectedCity = cities.find(c => c.id === result.cityId)
+    if (selectedCity) {
+        result.city = {
+            id: selectedCity.id,
+            name: selectedCity.name,
+            countryCode: selectedCity.countryCode,
+            coordinates: { x: selectedCity.lng, y: selectedCity.lat },
+            createdAt: new Date(),
+            updatedAt: new Date()
         }
     }
 
-    emit('submit', cleanProjectData);
+    emit('submit', result)
 }
 
-// AI : Expose methods to parent component
-defineExpose({
-    handleSubmit
-});
+defineExpose({ handleSubmit })
 </script>
