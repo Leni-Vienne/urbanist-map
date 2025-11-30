@@ -1,8 +1,11 @@
 import type { Project, OverlayObject } from '@types';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
+import { useAuthStore } from '@stores/authStore';
+import { useMapStore } from '@stores/pinia/mapStore';
 import { createProject as createProjectInstance } from '../../utils/typeFactories';
 import { storeToRefs } from 'pinia';
+import { loadCityStandaloneProjects } from '@composables/map/useCityMarkers';
 
 // AI : Export composable function that gets store refs when called (not at module level)
 export function useProjects() {
@@ -15,10 +18,14 @@ export function useProjects() {
 
 
 export function createProject(projectData: Partial<Omit<Project, 'id' | 'overlayIds' | 'color'>>) {
+  const authStore = useAuthStore();
+  const mapStore = useMapStore();
+
   // AI : Use factory function for consistent object creation
   const project = createProjectInstance({
     ...projectData,
-    ownerId: projectData.ownerId ?? null
+    // AI : Set ownerId to current user if not provided
+    ownerId: projectData.ownerId ?? authStore.user?.id ?? null
   });
 
   // AI : Create a new object reference to ensure shallowRef reactivity triggers
@@ -26,6 +33,12 @@ export function createProject(projectData: Partial<Omit<Project, 'id' | 'overlay
   const updatedProjects = { ...projects.value };
   updatedProjects[project.id] = project;
   projects.value = updatedProjects;
+
+  // AI : Reload development markers to show the new standalone project
+  const cityId = mapStore.selectedCity?.id ?? null;
+  if (cityId) {
+    loadCityStandaloneProjects(cityId);
+  }
 
   return project.id;
 }
