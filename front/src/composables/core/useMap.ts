@@ -44,6 +44,8 @@ function calculateMinZoom(): number {
 export function initializeMap() {
 
   map.value = L.map("mapDiv", {
+    center: [22, 10], // initializing with center and zoom to avoid setView call
+    zoom: calculateMinZoom(),
     minZoom: calculateMinZoom(),
     maxZoom: 22,
     zoomControl: false, // because we have our own zoom control
@@ -51,21 +53,7 @@ export function initializeMap() {
     maxBoundsViscosity: 0.8, // gently bounce back
     touchZoom: true, // true otherwise the website is zoomed instead of the map on mobile,
     keyboard: false,
-    /*...(isMobile && {
-      zoomSnap: 0,
-      zoomDelta: 0.25,
-      // AI : Enable inertia for smooth momentum on all interactions
-      inertia: true,
-      inertiaDeceleration: 1500, // slightly slower deceleration for smoother feel
-      inertiaMaxSpeed: 1500, // reasonable max speed limit
-      // AI : Enable bouncing at zoom limits for better UX
-    }),
-    // attempted to use double-tap-drag to zoom on mobile, it's really bad (unwanted movement, especially when doing short repeated drags)
-    doubleTapDragZoom: true,
-    doubleTapDragZoomOptions: {
-      reverse: true,
-    },*/
-  }).setView([22, 10], calculateMinZoom());
+  })
   if (!map.value) throw new Error('No map element found');
 
   // AI : Initialize reactive zoom level with Leaflet's default
