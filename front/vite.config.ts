@@ -95,10 +95,24 @@ export default defineConfig({
   // AI : External leaflet to prevent bundling 
   build: {
     sourcemap: 'hidden', // AI : Hide sourcemaps to silence istanbul warning
+    cssCodeSplit: true, // AI : Extract CSS per chunk for parallel loading
     rollupOptions: {
       external: (id) => {
         // AI : Mark CDN URLs as external so they don't get bundled
         return id.includes('unpkg.com/leaflet')
+      },
+      output: {
+        manualChunks: (id) => {
+          // AI : Keep vendor libraries separate for better caching
+          if (id.includes('node_modules')) {
+            // AI : Order matters - check most specific paths first
+            if (id.includes('pinia') || id.includes('vue-router') || id.includes('pinia') || id.includes('vue-i18n') ) return '@vue';
+            if ( id.includes('@primevue') || id.includes('@primeuix') ) return 'primevue';
+          }
+
+          if(id.includes('locales')) return 'locales';
+
+        }
       }
     }
   },

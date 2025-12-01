@@ -1,5 +1,9 @@
 import type { I18n, I18nOptions } from 'vue-i18n'
 
+// AI : Statically import all locale messages to avoid dynamic import boundary
+import enMessages from './messages/en.json'
+import frMessages from './messages/fr.json'
+
 export const availableLocales = [
   { code: 'en', name: 'English', flag: '🇬🇧' },
   { code: 'fr', name: 'Français', flag: '🇫🇷' }
@@ -19,14 +23,18 @@ export function setI18nInstance(instance: I18nInstance): void {
   i18nInstance = instance
 }
 
-// AI : Dynamically load locale messages - Vite will create separate chunks for each locale
-export async function loadLocaleMessages(locale: Locale): Promise<Record<string, unknown>> {
-  const messages = await import(`./messages/${locale}.json`)
-  return messages.default
+const localeMessagesMap: Record<Locale, Record<string, unknown>> = {
+  en: enMessages,
+  fr: frMessages
+}
+
+// AI : Synchronously load locale messages - no dynamic imports needed
+export function loadLocaleMessages(locale: Locale): Record<string, unknown> {
+  return localeMessagesMap[locale] ?? localeMessagesMap.en
 }
 
 // AI : Load and set locale messages, returns true if messages were loaded
-export async function loadAndSetLocale(locale: Locale): Promise<boolean> {
+export function loadAndSetLocale(locale: Locale): boolean {
   if (!i18nInstance) {
     console.error('i18n instance not set')
     return false
@@ -38,7 +46,7 @@ export async function loadAndSetLocale(locale: Locale): Promise<boolean> {
   }
 
   try {
-    const messages = await loadLocaleMessages(locale)
+    const messages = loadLocaleMessages(locale)
     i18nInstance.global.setLocaleMessage(locale, messages)
     return true
   } catch (error) {
