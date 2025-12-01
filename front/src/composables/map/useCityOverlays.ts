@@ -306,49 +306,25 @@ async function flyToOverlayMarker(overlayData: OverlayData): Promise<void> {
   if (!map.value) return;
   
   const overlayStore = useOverlayStore();
+  const resolved = resolveOverlayPosition(overlayData.id, overlayData, overlayStore.mode);
+  
+  if (resolved.corners?.length !== 4) return;
 
-  // AI : Helper to select the overlay using the library's select() API
-  const trySelectOverlay = (): boolean => {
+  const bounds = L.latLngBounds(resolved.corners.map(c => L.latLng(c.lat, c.lng)));
+
+  mobileAwareFlyToBounds(bounds, {
+    padding: [50, 50] as [number, number],
+    duration: 1.5,
+    easeLinearity: 0.25
+  });
+
+  map.value.once('moveend', () => {
     const overlayObject = overlayStore.overlays[overlayData.id];
     if (overlayObject?.overlay) {
       overlayObject.overlay.select();
-      selectOverlay(overlayData.id);
-      return true;
     }
-    return false;
-  };
-
-  // AI : Select overlay with retry - overlay may not be rendered yet after flying from low zoom
-  const selectWithRetry = () => {
-    if (trySelectOverlay()) return;
-    // AI : Single retry after short delay - overlay should be rendered by zoomend handlers
-    setTimeout(() => {
-      if (!trySelectOverlay()) {
-        // AI : Fallback: at least select in store so UI shows selection
-        selectOverlay(overlayData.id);
-      }
-    }, 200);
-  };
-
-  const resolved = resolveOverlayPosition(overlayData.id, overlayData, overlayStore.mode);
-  
-  if (resolved.corners?.length === 4) {
-    const leafletCorners = resolved.corners.map(corner => L.latLng(corner.lat, corner.lng));
-    const bounds = L.latLngBounds(leafletCorners);
-    const needsToFly = !map.value.getBounds().contains(bounds);
-
-    mobileAwareFlyToBounds(bounds, {
-      padding: [50, 50] as [number, number],
-      duration: 1.5,
-      easeLinearity: 0.25
-    });
-
-    if (needsToFly) {
-      map.value.once('moveend', selectWithRetry);
-    } else {
-      selectWithRetry();
-    }
-  }
+    selectOverlay(overlayData.id);
+  });
 }
 
 // AI : Old getOverlayMarkerInfo function removed - now using unified resolveOverlayPosition from useOverlayPosition

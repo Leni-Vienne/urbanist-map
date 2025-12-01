@@ -85,9 +85,7 @@ async function prepareNavigationToCity(
  * AI : Zoom to overlay and select it once rendered
  */
 function zoomToOverlayAndSelect(overlayId: string, corners: { lat: number; lng: number }[]): boolean {
-  if (!map.value || corners.length !== 4) {
-    return false;
-  }
+  if (!map.value || corners.length !== 4) return false;
 
   const bounds = L.latLngBounds(corners.map(c => L.latLng(c.lat, c.lng)));
   mobileAwareFlyToBounds(bounds, {
@@ -96,23 +94,13 @@ function zoomToOverlayAndSelect(overlayId: string, corners: { lat: number; lng: 
     easeLinearity: 0.25
   });
 
-  // AI : Select the overlay once zoom completes
   map.value.once('moveend', () => {
     const overlayStore = useOverlayStore();
-
-    const trySelectOverlay = () => {
-      const overlayObject = overlayStore.overlays[overlayId];
-      if (overlayObject?.overlay) {
-        overlayObject.overlay.select();
-        overlayStore.idSelectedOverlay = overlayId;
-        return true;
-      }
-      return false;
-    };
-
-    // AI : Try immediately, then single retry - overlay should be rendered by zoomend handlers
-    if (trySelectOverlay()) return;
-    setTimeout(() => trySelectOverlay(), 200);
+    const overlayObject = overlayStore.overlays[overlayId];
+    if (overlayObject?.overlay) {
+      overlayObject.overlay.select();
+    }
+    overlayStore.idSelectedOverlay = overlayId;
   });
 
   return true;
