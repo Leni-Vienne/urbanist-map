@@ -2,7 +2,7 @@ import L from 'leaflet';
 import { loadCitiesForCountry } from '@composables/map/useCountryMarkers';
 import { removeCityMarkers, loadCityProjects, addCityMarkersForCountry } from '@composables/map/useCityMarkers';
 import { removeOverlayMarkers } from '@composables/map/useCityOverlays';
-import { navigateToOverlay } from '@composables/overlay/useOverlay';
+import { navigateToOverlay, selectOverlay } from '@composables/overlay/useOverlay';
 import { clearAllOverlays } from '@composables/overlay/useOverlayLifecycle';
 import { switchTileLayer, isTileLayerType } from '@composables/map/useTileLayers';
 import { map } from '@composables/core/useMap';
@@ -95,12 +95,8 @@ function zoomToOverlayAndSelect(overlayId: string, corners: { lat: number; lng: 
   });
 
   map.value.once('moveend', () => {
-    const overlayStore = useOverlayStore();
-    const overlayObject = overlayStore.overlays[overlayId];
-    if (overlayObject?.overlay) {
-      overlayObject.overlay.select();
-    }
-    overlayStore.idSelectedOverlay = overlayId;
+    // AI : selectOverlay handles overlay.select() internally
+    selectOverlay(overlayId);
   });
 
   return true;

@@ -7,7 +7,7 @@ import { map } from '@composables/core/useMap';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
-import { updateMarkerPosition, updateMarkerTooltip } from '@composables/overlay/useOverlay';
+import { updateMarkerPosition, updateMarkerTooltip, selectOverlay } from '@composables/overlay/useOverlay';
 import { clearAllOverlays } from '@composables/overlay/useOverlayLifecycle';
 import { loadCityProjects, removeCityMarkers, addCityMarkersForCountry } from '@composables/map/useCityMarkers';
 import { removeOverlayMarkers } from '@composables/map/useCityOverlays';
@@ -260,16 +260,8 @@ export function useChangeRequestPreview() {
 
   // AI : Select overlay after navigation (shared helper)
   function selectOverlayAfterNavigation(overlayId: string): void {
-    // AI : Only select if not already selected
-    if (overlayStore.idSelectedOverlay !== overlayId) {
-      const overlayObject = overlayStore.overlays[overlayId];
-      if (overlayObject?.overlay) {
-        // AI : Use the library's select() method directly for reliable toolbar opening
-        overlayObject.overlay.select();
-        // AI : Also update our store's selection state
-        overlayStore.idSelectedOverlay = overlayId;
-      }
-    }
+    // AI : selectOverlay handles overlay.select() internally and has early exit if already selected
+    selectOverlay(overlayId);
   }
 
   // AI : Main function to preview geometry change
