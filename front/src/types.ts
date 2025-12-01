@@ -93,6 +93,7 @@ declare module "leaflet" {
     setOptions: (options: Partial<DistortableImageOverlayOptions>) => void;
     bindTooltip: (content: string, options?: L.TooltipOptions) => this;
     openTooltip: () => this;
+    select: () => void;
   }
 
   interface DistortableImageOverlayOptions extends L.ImageOverlayOptions {

@@ -51,7 +51,7 @@ const tileLayerConfigs = {
     options: {
       minZoom: 0,
       maxZoom: 22,
-      maxNativeZoom: 21,
+      maxNativeZoom: 20,
       tileSize: 256,
       attribution: "Esri, Maxar, Earthstar Geographics, GIS User Community",
       noWrap: true,
@@ -62,7 +62,7 @@ const tileLayerConfigs = {
     label: 'Switzerland',
     flagUrl: 'https://flagcdn.com/16x12/ch.png',
     //url: 'https://wmts.geo.moderation.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg',
-    url: 'https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage-product/default/2025/2056/{z}/{x}/{y}.png',
+    url: 'https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage-product/default/2025/3857/{z}/{x}/{y}.png',
     options: {
       minZoom: 2,
       maxZoom: 22,

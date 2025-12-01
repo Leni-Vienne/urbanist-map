@@ -102,30 +102,17 @@ function zoomToOverlayAndSelect(overlayId: string, corners: { lat: number; lng: 
 
     const trySelectOverlay = () => {
       const overlayObject = overlayStore.overlays[overlayId];
-      if (overlayObject?.overlay != null) {
-        const element = overlayObject.overlay.getElement();
-        if (element) {
-          element.click();
-          return true;
-        }
+      if (overlayObject?.overlay) {
+        overlayObject.overlay.select();
+        overlayStore.idSelectedOverlay = overlayId;
+        return true;
       }
       return false;
     };
 
-    if (trySelectOverlay()) {
-      return;
-    }
-
-    // AI : Poll for overlay to be rendered
-    let attempts = 0;
-    const maxAttempts = 20;
-    const pollInterval = setInterval(() => {
-      attempts++;
-
-      if (trySelectOverlay() || attempts >= maxAttempts) {
-        clearInterval(pollInterval);
-      }
-    }, 100);
+    // AI : Try immediately, then single retry - overlay should be rendered by zoomend handlers
+    if (trySelectOverlay()) return;
+    setTimeout(() => trySelectOverlay(), 200);
   });
 
   return true;

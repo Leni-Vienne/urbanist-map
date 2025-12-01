@@ -292,11 +292,8 @@ async function autoSelectOverlayForProject(projectId: string): Promise<void> {
   )
 
   if (projectOverlay?.overlay) {
-    // AI : Click the overlay element to trigger Leaflet Distortable selection (shows toolbar)
-    const element = projectOverlay.overlay.getElement()
-    if (element) {
-      element.click()
-    }
+    // AI : Use the library's select() method directly for reliable toolbar opening
+    projectOverlay.overlay.select()
   }
 }
 

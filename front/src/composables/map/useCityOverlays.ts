@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import L from 'leaflet';
 import { map } from '@composables/core/useMap';
-import { renderViewModeOverlays } from '@composables/overlay/useOverlay';
+import { renderViewModeOverlays, selectOverlay } from '@composables/overlay/useOverlay';
 import { clearAllOverlays } from '@composables/overlay/useOverlayLifecycle';
 import { hasCachedCityProjectsData, getSelectedCity } from '@composables/map/useCityData';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
@@ -153,8 +153,10 @@ function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void {
     const markerIcon = createColorIcon(markerColor);
     const marker = L.marker([resolved.position.lat, resolved.position.lng], { icon: markerIcon });
 
-    // AI : Add click handler to fly to overlay position
-    marker.on('click', () => {
+    // AI : Add click handler to fly to overlay position and open toolbar
+    marker.on('click', (e) => {
+      // AI : Stop propagation to prevent map click handler from deselecting
+      L.DomEvent.stopPropagation(e);
       flyToOverlayMarker(overlay);
     });
 
@@ -298,27 +300,54 @@ export function checkZoomAndHideOverlays(): void {
 }
 
 /**
- * AI : Fly to overlay marker position with appropriate zoom level
+ * AI : Fly to overlay marker position and open toolbar
  */
 async function flyToOverlayMarker(overlayData: OverlayData): Promise<void> {
   if (!map.value) return;
   
   const overlayStore = useOverlayStore();
 
-  // AI : Use unified position resolver to get corners
+  // AI : Helper to select the overlay using the library's select() API
+  const trySelectOverlay = (): boolean => {
+    const overlayObject = overlayStore.overlays[overlayData.id];
+    if (overlayObject?.overlay) {
+      overlayObject.overlay.select();
+      selectOverlay(overlayData.id);
+      return true;
+    }
+    return false;
+  };
+
+  // AI : Select overlay with retry - overlay may not be rendered yet after flying from low zoom
+  const selectWithRetry = () => {
+    if (trySelectOverlay()) return;
+    // AI : Single retry after short delay - overlay should be rendered by zoomend handlers
+    setTimeout(() => {
+      if (!trySelectOverlay()) {
+        // AI : Fallback: at least select in store so UI shows selection
+        selectOverlay(overlayData.id);
+      }
+    }, 200);
+  };
+
   const resolved = resolveOverlayPosition(overlayData.id, overlayData, overlayStore.mode);
   
-  if (resolved.corners && resolved.corners.length === 4) {
-    // AI : Create bounds from resolved corners
+  if (resolved.corners?.length === 4) {
     const leafletCorners = resolved.corners.map(corner => L.latLng(corner.lat, corner.lng));
     const bounds = L.latLngBounds(leafletCorners);
+    const needsToFly = !map.value.getBounds().contains(bounds);
 
-    // AI : Fly to bounds with padding
     mobileAwareFlyToBounds(bounds, {
       padding: [50, 50] as [number, number],
       duration: 1.5,
       easeLinearity: 0.25
     });
+
+    if (needsToFly) {
+      map.value.once('moveend', selectWithRetry);
+    } else {
+      selectWithRetry();
+    }
   }
 }
 
