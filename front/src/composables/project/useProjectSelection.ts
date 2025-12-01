@@ -8,7 +8,7 @@ import { computed } from 'vue';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import type { Project } from '@types';
-import { createProject, createProjectFromAPI } from '../../utils/typeFactories';
+import { createProjectObject, createProjectObjectFromAPI } from '../../utils/typeFactories';
 
 // AI : ============================================================================
 // AI : CITY PROJECTS
@@ -35,7 +35,7 @@ export function useCityProjects() {
     // AI : 2. Extract projects from current city overlays (only if not in local store)
     mapStore.currentCityOverlays.forEach(overlay => {
       if (overlay.project?.id && !projectMap.has(overlay.project.id)) {
-        const frontendProject = createProject({
+        const frontendProject = createProjectObject({
           ...overlay.project,
           description: overlay.project.description ?? null,
           overlayIds: []
@@ -47,7 +47,7 @@ export function useCityProjects() {
     // AI : 3. Include nearby projects from other cities (only if not already added)
     projectStore.nearbyProjects.forEach(nearbyProject => {
       if (!projectMap.has(nearbyProject.id)) {
-        const frontendProject = createProjectFromAPI(nearbyProject);
+        const frontendProject = createProjectObjectFromAPI(nearbyProject);
         projectMap.set(nearbyProject.id, frontendProject);
       }
     });

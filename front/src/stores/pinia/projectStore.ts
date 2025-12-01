@@ -4,7 +4,7 @@ import type { Project, Country, MapMode, OverlayObject } from '@types';
 import type { NearbyProject } from '../../types/api';
 import { map } from '@composables/core/useMap';
 import { trpc, RouterOutput } from '@client';
-import { createProjectFromAPI } from '../../utils/typeFactories';
+import { createProjectObjectFromAPI } from '../../utils/typeFactories';
 
 // AI : Type for user contributions from backend
 type UserContribution = RouterOutput['project']['getUsersContributions']['projects'][number];
@@ -95,7 +95,7 @@ export const useProjectStore = defineStore('project', () => {
 
     // AI : Add nearby projects that aren't already in local projects
     nearbyProjects.value.forEach((nearbyProject: NearbyProject) => {
-      combined[nearbyProject.id] ??= createProjectFromAPI(nearbyProject);
+      combined[nearbyProject.id] ??= createProjectObjectFromAPI(nearbyProject);
     });
 
     return combined;
