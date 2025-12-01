@@ -106,7 +106,7 @@ import { createBasicProjectIcon } from '@composables/map/useMarkers'
 import { addOverlay } from '@composables/overlay/useOverlay'
 import { setLastCreatedProject } from '@composables/ui/useProjectState'
 import { createProject } from '@composables/project/useProjects'
-import { createProjectObjectFromAPI, createProjectObject as createProjectInstance } from '../../utils/typeFactories'
+import { createProjectObjectFromAPI, createProjectObject } from '../../utils/typeFactories'
 import { useCityProjects } from '@composables/project/useProjectSelection'
 import type { Project, OverlayObject } from '@types'
 import type { NearbyProject } from '../../types/api'
@@ -226,7 +226,7 @@ async function onProjectSelected(projectId: string) {
       if (replacementOverlayId.value) {
         const originalOverlay = overlayStore.overlays[replacementOverlayId.value];
         if (originalOverlay?.project?.id === effectiveProjectId) {
-          projectToAdd = createProjectInstance({
+          projectToAdd = createProjectObject({
             ...originalOverlay.project,
             description: originalOverlay.project.description ?? null,
             overlayIds: []

@@ -66,7 +66,7 @@ export function createProjectObjectFromAPI(nearbyProject: NearbyProject): Projec
 /**
  * AI : Create a new OverlayObject instance with defaults
  */
-export function createOverlay(data: Partial<OverlayObject> = {}): OverlayObject {
+export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayObject {
   const id = data.id ?? uuidv4();
 
   return {
@@ -101,7 +101,7 @@ export function createOverlayFromCDN(overlayData: OverlayData): OverlayObject {
   const isDataUrl = overlayData.filename.startsWith('data:');
   const imageUrl = isDataUrl ? overlayData.filename : buildImageUrl(overlayData.filename);
 
-  return createOverlay({
+  return createOverlayObject({
     ...overlayData,
     imageUrl,
     createdAt: new Date(overlayData.createdAt),

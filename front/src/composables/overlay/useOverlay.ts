@@ -22,7 +22,7 @@ import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useUiStore } from '@stores/uiStore';
 import type { OverlayObject, OverlayData, MarkerColor } from '@types';
-import { createOverlay as createOverlayInstance, createOverlayFromCDN, convertOverlayToData } from '@utils/typeFactories';
+import { createOverlayObject, createOverlayFromCDN, convertOverlayToData } from '@utils/typeFactories';
 import { toRef } from 'vue';
 import { useProjects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import { trpc } from '@client';
@@ -137,14 +137,14 @@ export function updateOverlayEditingState(): void {
 /**
  * AI : Create a new overlay object from saved data
  */
-export function createOverlayObject(savedOverlay: OverlayObject): OverlayObject {
+export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayObject {
   const projectStore = useProjectStore();
 
   // AI : Prefer the project data already on the overlay object, fallback to projects store
   const project = savedOverlay.project ?? (savedOverlay.projectId ? projectStore.projects[savedOverlay.projectId] : null);
 
   // AI : Use factory function but preserve existing data
-  return createOverlayInstance({
+  return createOverlayObject({
     ...savedOverlay,
     project: project ? { ...project, city: project.city ?? null } : null,
     overlay: null,
@@ -156,7 +156,7 @@ export function createOverlayObject(savedOverlay: OverlayObject): OverlayObject 
 /**
  * AI : Create a Leaflet overlay on the map
  */
-export function createOverlay(imageUrl: string, overlayObject?: OverlayObject) {
+export function createLeafletOverlay(imageUrl: string, overlayObject?: OverlayObject) {
   const overlayStore = useOverlayStore();
 
   if (!map.value || !overlayObject) return null;
@@ -875,8 +875,8 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
     createSingleMarker(overlayObject);
   }
 
-  const overlayObjectWithMethods = createOverlayObject(overlayObject);
-  const newOverlay = createOverlay(overlayObjectWithMethods.imageUrl, overlayObjectWithMethods);
+  const overlayObjectWithMethods = enrichOverlayWithProject(overlayObject);
+  const newOverlay = createLeafletOverlay(overlayObjectWithMethods.imageUrl, overlayObjectWithMethods);
   if (!newOverlay) return;
 
   overlayObjectWithMethods.overlay = newOverlay;
@@ -998,7 +998,7 @@ function createSingleMarker(savedOverlay: OverlayObject): void {
   const center = L.latLng(centroid.lat, centroid.lng);
 
   const markerTitle = createMarkerTitle(savedOverlay, savedOverlay.projectId);
-  const tempOverlayObject = createOverlayObject(savedOverlay);
+  const tempOverlayObject = enrichOverlayWithProject(savedOverlay);
   const markerColor = getOverlayMarkerColor(tempOverlayObject, overlayStore.mode);
   const colorIcon = createColorIcon(markerColor);
 
@@ -1165,7 +1165,7 @@ function createNewOverlayObject(id: string, imageUrl: string, projectId: string)
   const filename = imageUrl.split('/').pop() ?? '';
 
   // AI : Use factory function for consistent object creation
-  return createOverlayInstance({
+  return createOverlayObject({
     id,
     filename,
     projectId,
@@ -1279,7 +1279,7 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
   }
 
   // Create the overlay
-  const newOverlay = createOverlay(imageUrl, overlayObject);
+  const newOverlay = createLeafletOverlay(imageUrl, overlayObject);
   if (!newOverlay) return;
   const element = newOverlay.getElement();
   if (!element) {
