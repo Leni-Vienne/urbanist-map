@@ -1,5 +1,6 @@
 // AI : Overlay mode management - orchestrates edit/view mode switching using state machine
 import { ref, watch, toRef } from 'vue'
+import L from 'leaflet'
 import { map, onMapInitialized, currentZoomLevel } from '@composables/core/useMap'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useMapStore } from '@stores/pinia/mapStore'
@@ -151,7 +152,7 @@ function handleBeforeTransition(from: OverlayModeState, to: OverlayModeState): v
  * AI : Switch to a specific map mode (view/edit/moderation)
  * AI : Handles full state machine transition with smart mode-aware caching
  * AI : Uses cached data if available for target mode, otherwise fetches from backend
- * AI : Auto-navigates to selected overlay position after mode change
+ * AI : Auto-navigates to show both previous and new overlay positions after mode change
  */
 export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onModeExit?: () => void): Promise<void> {
   const overlayStore = useOverlayStore()
@@ -165,6 +166,16 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
 
   // AI : Store selected overlay ID before mode switch for auto-navigation
   const selectedOverlayId = overlayStore.idSelectedOverlay
+
+  // AI : Capture the current position of selected overlay BEFORE mode switch
+  // AI : This allows us to show both old and new positions after the switch
+  let previousBounds: L.LatLngBounds | null = null
+  if (selectedOverlayId) {
+    const currentOverlay = overlayStore.overlays[selectedOverlayId]
+    if (currentOverlay) {
+      previousBounds = getOverlayBounds(currentOverlay)
+    }
+  }
 
   // AI : Capture project popup state before mode switch
   // AI : If switching to edit/moderation mode with a project popup open, we'll auto-select an overlay from that project
@@ -237,7 +248,8 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
         await autoSelectOverlayForProject(projectPopupProjectId)
       } else if (selectedOverlayId) {
         // AI : Auto-navigate to selected overlay after mode change (only if not from project popup)
-        await autoNavigateToSelectedOverlay(selectedOverlayId)
+        // AI : Pass previousBounds so we can show both old and new positions
+        await autoNavigateToSelectedOverlay(selectedOverlayId, previousBounds)
       }
 
       // AI : Call onModeExit when leaving edit mode
@@ -250,10 +262,12 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
 
 /**
  * AI : Auto-navigate to the selected overlay after mode change
- * AI : Uses the overlay's actual rendered position for accurate navigation
- * AI : Waits for overlay to be fully rendered before navigating
+ * AI : Creates a combined view showing both the previous position and new position
+ * AI : This prevents jarring camera jumps by unzooming to show both positions
+ * @param overlayId - ID of the selected overlay
+ * @param previousBounds - Bounds of the overlay position before mode switch
  */
-async function autoNavigateToSelectedOverlay(overlayId: string): Promise<void> {
+async function autoNavigateToSelectedOverlay(overlayId: string, previousBounds: L.LatLngBounds | null): Promise<void> {
   const overlayStore = useOverlayStore()
 
   // AI : Wait for overlay to be rendered (poll with requestAnimationFrame)
@@ -264,10 +278,19 @@ async function autoNavigateToSelectedOverlay(overlayId: string): Promise<void> {
     if (!map.value) return
 
     // AI : Get actual overlay position using getOverlayBounds
-    const bounds = getOverlayBounds(overlayObject)
+    const newBounds = getOverlayBounds(overlayObject)
 
-    if (bounds) {
-      mobileAwareFlyToBounds(bounds, {
+    if (newBounds) {
+      // AI : If we have previous bounds, create combined bounds to show both positions
+      // AI : This creates a smooth unzoom effect instead of jarring camera jump
+      let targetBounds = newBounds
+
+      if (previousBounds) {
+        // AI : Extend bounds to include both old and new positions
+        targetBounds = newBounds.extend(previousBounds)
+      }
+
+      mobileAwareFlyToBounds(targetBounds, {
         padding: [50, 50] as [number, number],
         duration: 0.8,
         easeLinearity: 0.25
