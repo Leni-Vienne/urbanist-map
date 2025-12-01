@@ -133,7 +133,7 @@ export function useOverlayPublisher() {
   }
 
   // AI : Publish overlay metadata to server
-  async function publishOverlayToServer(overlay: OverlayObject, filename: string): Promise<{ success: boolean; exists: boolean; id?: string }> {
+  async function publishOverlayToServer(overlay: OverlayObject, filename: string): Promise<{ success: boolean; exists: boolean; id?: string; status?: string; authorId?: string | null }> {
     const corners = getCornersFromOverlay(overlay);
     const payload = {
       id: overlay.id,
@@ -147,7 +147,13 @@ export function useOverlayPublisher() {
     const overlayResult = await trpc.overlay.publishOverlay.mutate(payload);
 
     if (overlayResult.success) {
-      return { success: true, exists: overlayResult.exists, id: overlayResult.id };
+      return {
+        success: true,
+        exists: overlayResult.exists,
+        id: overlayResult.id,
+        status: overlayResult.status,
+        authorId: overlayResult.authorId
+      };
     }
 
     return { success: false, exists: false };
@@ -183,8 +189,10 @@ export function useOverlayPublisher() {
         const oldId = overlay.id;
         const newId = publishResult.id;
 
-        // AI : Update overlay ID and reset modified flag since it's now saved
+        // AI : Update overlay ID, status, authorId, and reset modified flag since it's now saved
         overlay.id = newId;
+        overlay.status = publishResult.status as 'pending' | 'approved' | 'rejected';
+        overlay.authorId = publishResult.authorId ?? null;
         overlay.isModified = false;
 
         // AI : If ID changed, update the overlays store with new key

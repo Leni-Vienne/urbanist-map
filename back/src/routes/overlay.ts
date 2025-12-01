@@ -288,6 +288,8 @@ export const overlayRouter = router({
             })
             .returning({
               id: overlays.id,
+              status: overlays.status,
+              authorId: overlays.authorId,
               createdAt: overlays.createdAt,
               updatedAt: overlays.updatedAt
             });
@@ -295,6 +297,8 @@ export const overlayRouter = router({
           return {
             success: true,
             id: result[0].id,
+            status: result[0].status,
+            authorId: result[0].authorId,
             exists: result[0].createdAt !== result[0].updatedAt // AI : Determine if it was update or insert
           };
         } catch (error) {
