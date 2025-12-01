@@ -18,7 +18,7 @@ import { loadCountriesWithProjects, loadCitiesForCountry, addCountryMarkersToMap
 import { useProjectStore } from '@stores/pinia/projectStore'
 import { useUiStore } from '@stores/uiStore'
 import { updateOverlayMarkersColors } from '@composables/map/useMarkers'
-import { updateOverlayEditingState, getOverlayBounds } from '@composables/overlay/useOverlay'
+import { updateOverlayEditingState, getOverlayBounds, selectOverlay } from '@composables/overlay/useOverlay'
 import { storeToRefs } from 'pinia'
 import { MAP_CONFIG } from '@constants/mapConstants'
 import { mobileAwareFlyToBounds } from '@composables/map/useMapNavigation'
@@ -291,9 +291,9 @@ async function autoSelectOverlayForProject(projectId: string): Promise<void> {
     overlay => overlay.projectId === projectId
   )
 
-  if (projectOverlay?.overlay) {
-    // AI : Use the library's select() method directly for reliable toolbar opening
-    projectOverlay.overlay.select()
+  if (projectOverlay) {
+    // AI : selectOverlay handles overlay.select() internally
+    selectOverlay(projectOverlay.id)
   }
 }
 

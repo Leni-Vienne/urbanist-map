@@ -319,10 +319,7 @@ async function flyToOverlayMarker(overlayData: OverlayData): Promise<void> {
   });
 
   map.value.once('moveend', () => {
-    const overlayObject = overlayStore.overlays[overlayData.id];
-    if (overlayObject?.overlay) {
-      overlayObject.overlay.select();
-    }
+    // AI : selectOverlay handles overlay.select() internally
     selectOverlay(overlayData.id);
   });
 }

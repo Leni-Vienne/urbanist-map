@@ -616,45 +616,79 @@ function calculateOutlineSize(overlayElement: HTMLElement, baseSize: number): nu
   }
 }
 
+// AI : Guard to prevent recursive selectOverlay calls when library fires select event
+let isSelectingOverlay = false;
+
 /**
  * AI : Select an overlay with proper cleanup of previous selection
  * This ensures consistent selection behavior regardless of how selection is triggered
  */
 export function selectOverlay(overlayId: string | null): void {
+  // AI : Prevent recursive calls (library's select event → selectOverlay → overlay.select → select event)
+  if (isSelectingOverlay) return;
+  
   const overlayStore = useOverlayStore();
 
-  // AI : Store previous selection info before updating
-  const previouslySelectedId = overlayStore.idSelectedOverlay;
-  const previouslySelected = previouslySelectedId ? overlayStore.overlays[previouslySelectedId] : null;
+  // AI : Early exit if already selected
+  if (overlayId === overlayStore.idSelectedOverlay) return;
 
-  // AI : Update selected overlay ID
-  overlayStore.idSelectedOverlay = overlayId;
+  isSelectingOverlay = true;
+  try {
+    // AI : Store previous selection info before updating
+    const previouslySelectedId = overlayStore.idSelectedOverlay;
+    const previouslySelected = previouslySelectedId ? overlayStore.overlays[previouslySelectedId] : null;
 
-  // AI : Clean up previous selection if different from new selection
-  if (previouslySelected && previouslySelectedId !== overlayId) {
-    removeOverlayOutline(previouslySelected);
-  }
+    // AI : Update selected overlay ID
+    overlayStore.idSelectedOverlay = overlayId;
 
-  if (!overlayId) return;
+    // AI : Clean up previous selection if different from new selection
+    if (previouslySelected && previouslySelectedId !== overlayId) {
+      removeOverlayOutline(previouslySelected);
+      
+      // AI : Remove project outlines (sister highlights) when deselecting
+      if (previouslySelected.projectId) {
+        removeProjectOutlines(previouslySelected.projectId, true);
+      }
+      
+      // AI : Call deselect on the Leaflet overlay to remove toolbar and handles
+      if (previouslySelected.overlay) {
+        previouslySelected.overlay.deselect();
+      }
+    }
 
-  // AI : Apply selection outline to new selection
-  const newlySelected = overlayStore.overlays[overlayId];
-  if (!newlySelected) return;
+    if (!overlayId) return;
 
-  // AI : Wait for image to load before applying outline to avoid massive border
-  const imgElement = newlySelected.overlay?.getElement();
-  if (!(imgElement instanceof HTMLImageElement)) {
-    // AI : Fallback for non-image elements
-    applySelectionOutline(newlySelected);
-    return;
-  }
+    // AI : Apply selection outline to new selection
+    const newlySelected = overlayStore.overlays[overlayId];
+    if (!newlySelected) return;
 
-  if (imgElement.complete && imgElement.naturalWidth > 0) {
-    // AI : Image is already loaded, apply outline immediately
-    applySelectionOutline(newlySelected);
-  } else {
-    // AI : Image not loaded yet, wait for load event
-    imgElement.addEventListener("load", () => applySelectionOutline(newlySelected), { once: true });
+    // AI : Call overlay.select() to show toolbar and handles (single source of truth)
+    if (newlySelected.overlay) {
+      newlySelected.overlay.select();
+    }
+
+    // AI : Apply project highlights (sister overlays) when selecting
+    if (newlySelected.projectId) {
+      highlightProjectOverlaysOnHover(newlySelected.projectId);
+    }
+
+    // AI : Wait for image to load before applying outline to avoid massive border
+    const imgElement = newlySelected.overlay?.getElement();
+    if (!(imgElement instanceof HTMLImageElement)) {
+      // AI : Fallback for non-image elements
+      applySelectionOutline(newlySelected);
+      return;
+    }
+
+    if (imgElement.complete && imgElement.naturalWidth > 0) {
+      // AI : Image is already loaded, apply outline immediately
+      applySelectionOutline(newlySelected);
+    } else {
+      // AI : Image not loaded yet, wait for load event
+      imgElement.addEventListener("load", () => applySelectionOutline(newlySelected), { once: true });
+    }
+  } finally {
+    isSelectingOverlay = false;
   }
 }
 
@@ -988,12 +1022,8 @@ function createSingleMarker(savedOverlay: OverlayObject): void {
       });
     }
 
-    if (overlayObject.overlay) {
-      // AI : Use the library's select() method directly for reliable toolbar opening
-      overlayObject.overlay.select();
-      selectOverlay(savedOverlay.id);
-    } else if (overlayStore.idSelectedOverlay === savedOverlay.id) {
-      // AI : If overlay not rendered yet, toggle selection directly
+    // AI : Toggle selection - selectOverlay handles overlay.select() internally
+    if (overlayStore.idSelectedOverlay === savedOverlay.id) {
       selectOverlay(null);
     } else {
       selectOverlay(savedOverlay.id);
@@ -1204,14 +1234,8 @@ function createMarker(overlayObject: OverlayObject, projectId: string, markerTyp
       });
     }
 
-    if (overlayObject.overlay) {
-      // AI : Use the library's select() method directly for reliable toolbar opening
-      (overlayObject.overlay as any).select();
-      selectOverlay(overlayObject.id);
-    } else {
-      // AI : If overlay doesn't exist yet, just select it
-      selectOverlay(overlayObject.id);
-    }
+    // AI : selectOverlay handles overlay.select() internally
+    selectOverlay(overlayObject.id);
   });
 
   // AI : Store marker reference
@@ -1637,12 +1661,7 @@ function selectAndCenterOverlay(overlayId: string, centerMap: boolean = true) {
     return false;
   }
 
-  if (overlay.overlay) {
-    // AI : Use the library's select() method directly for reliable toolbar opening
-    (overlay.overlay as any).select();
-  }
-  
-  // AI : Also update our store's selection state
+  // AI : selectOverlay handles overlay.select() internally
   selectOverlay(overlayId);
 
   // AI : Center map on overlay if requested
