@@ -49,6 +49,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { currentTileLayer, switchTileLayer, getTileLayerOptions, type TileLayerType } from '@composables/map/useTileLayers';
+import { flyToCountry, mobileAwareFlyTo } from '@composables/map/useMapNavigation';
 
 // AI : Panel visibility state
 const showLayerPanel = ref(false);
@@ -74,10 +75,21 @@ function toggleLayerPanel(event: Event) {
     showLayerPanel.value = !showLayerPanel.value;
 }
 
-// AI : Handle layer change from radio buttons
+// AI : Handle layer change from radio buttons - fly to country bounds when switching
 async function onLayerChange() {
     try {
+        // AI : Switch the tile layer first
         switchTileLayer(selectedLayer.value);
+
+        // AI : Fly to the country bounds based on the selected tile layer
+        if (selectedLayer.value === 'esri') {
+            // AI : World view - zoom out to show the whole world
+            mobileAwareFlyTo([20, 0], 2, { duration: 1.5 });
+        } else {
+            // AI : Country-specific tile layer (FRA, USA, CHE) - fly to country bounds
+            // AI : Note: flyToCountry expects the 3-letter country code
+            flyToCountry(selectedLayer.value, undefined, undefined, 6, 1.5);
+        }
     } catch (error) {
         console.error('Failed to switch layer:', error);
         // AI : Reset to previous value on error
