@@ -8,7 +8,7 @@ import { calculateCentroidFromCorners } from '../../../back/src/utils/overlayVal
 /**
  * AI : Create a new Project instance with defaults
  */
-export function createProject(data: Partial<Project> = {}): Project {
+export function createProjectObject(data: Partial<Project> = {}): Project {
   const id = data.id ?? uuidv4();
   
   return {
@@ -42,8 +42,8 @@ export function createProject(data: Partial<Project> = {}): Project {
 /**
  * AI : Convert NearbyProject API data to local Project format
  */
-export function createProjectFromAPI(nearbyProject: NearbyProject): Project {
-  return createProject({
+export function createProjectObjectFromAPI(nearbyProject: NearbyProject): Project {
+  return createProjectObject({
     id: nearbyProject.id,
     version: nearbyProject.version ?? 1,
     name: nearbyProject.name,

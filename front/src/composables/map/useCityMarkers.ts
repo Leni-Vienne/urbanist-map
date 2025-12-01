@@ -15,7 +15,7 @@ import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import { useProjects } from '@composables/project/useProjects';
-import { createProject } from '../../utils/typeFactories';
+import { createProjectObject } from '../../utils/typeFactories';
 import { getProjectMarkerColor } from '../../utils/markerColors';
 import { MARKER_OPACITY } from '@constants/markerConstants';
 import { createMarkerLayer, type MarkerLayerConfig } from '@composables/map/useMarkerLayer';
@@ -218,7 +218,7 @@ export async function loadCityStandaloneProjects(cityId: string | null): Promise
       }
 
       if (project.lat && project.lng) {
-        const projectData = 'overlayIds' in project ? project : createProject({
+        const projectData = 'overlayIds' in project ? project : createProjectObject({
           ...project,
           city: project.city,
           status: ('status' in project ? project.status : 'approved') as 'pending' | 'approved' | 'rejected'
