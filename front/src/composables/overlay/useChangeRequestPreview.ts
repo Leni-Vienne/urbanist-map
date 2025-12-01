@@ -260,14 +260,14 @@ export function useChangeRequestPreview() {
 
   // AI : Select overlay after navigation (shared helper)
   function selectOverlayAfterNavigation(overlayId: string): void {
-    // AI : Only select if not already selected (click toggles, so avoid deselecting)
+    // AI : Only select if not already selected
     if (overlayStore.idSelectedOverlay !== overlayId) {
       const overlayObject = overlayStore.overlays[overlayId];
       if (overlayObject?.overlay) {
-        const element = overlayObject.overlay.getElement();
-        if (element) {
-          element.click();
-        }
+        // AI : Use the library's select() method directly for reliable toolbar opening
+        overlayObject.overlay.select();
+        // AI : Also update our store's selection state
+        overlayStore.idSelectedOverlay = overlayId;
       }
     }
   }

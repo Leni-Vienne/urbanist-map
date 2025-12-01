@@ -989,13 +989,11 @@ function createSingleMarker(savedOverlay: OverlayObject): void {
     }
 
     if (overlayObject.overlay) {
-      // AI : If overlay exists, click it to select/deselect (mimics clicking on overlay)
-      const element = overlayObject.overlay.getElement();
-      if (element) {
-        element.click();
-      }
-      // AI : If overlay not rendered yet, toggle selection directly
+      // AI : Use the library's select() method directly for reliable toolbar opening
+      overlayObject.overlay.select();
+      selectOverlay(savedOverlay.id);
     } else if (overlayStore.idSelectedOverlay === savedOverlay.id) {
+      // AI : If overlay not rendered yet, toggle selection directly
       selectOverlay(null);
     } else {
       selectOverlay(savedOverlay.id);
@@ -1207,14 +1205,12 @@ function createMarker(overlayObject: OverlayObject, projectId: string, markerTyp
     }
 
     if (overlayObject.overlay) {
-      // AI : If overlay exists, click it to select
-      const element = overlayObject.overlay.getElement();
-      if (element) {
-        element.click();
-      }
+      // AI : Use the library's select() method directly for reliable toolbar opening
+      (overlayObject.overlay as any).select();
+      selectOverlay(overlayObject.id);
     } else {
       // AI : If overlay doesn't exist yet, just select it
-      overlayStore.idSelectedOverlay = overlayObject.id;
+      selectOverlay(overlayObject.id);
     }
   });
 
@@ -1641,16 +1637,13 @@ function selectAndCenterOverlay(overlayId: string, centerMap: boolean = true) {
     return false;
   }
 
-  // AI : Select the overlay with proper cleanup
-  selectOverlay(overlayId);
-
   if (overlay.overlay) {
-    // AI : Click on the overlay to properly select it and open the toolbar
-    const element = overlay.overlay.getElement();
-    if (element) {
-      element.click();
-    }
+    // AI : Use the library's select() method directly for reliable toolbar opening
+    (overlay.overlay as any).select();
   }
+  
+  // AI : Also update our store's selection state
+  selectOverlay(overlayId);
 
   // AI : Center map on overlay if requested
   if (centerMap) {
