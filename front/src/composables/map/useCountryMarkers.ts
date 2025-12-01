@@ -1,6 +1,6 @@
 import L from "leaflet";
 import { ref } from 'vue';
-import { map, onMapInitialized } from '@composables/core/useMap';
+import { map } from '@composables/core/useMap';
 import { addCityMarkersForCountry, removeCityMarkers } from '@composables/map/useCityMarkers';
 import { removeOverlayMarkers } from '@composables/map/useCityOverlays';
 import { clearAllOverlays } from '@composables/overlay/useOverlayLifecycle';
@@ -114,16 +114,7 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
 
 export function addCountryMarkersToMap() {
   if (!map.value) {
-    onMapInitialized(() => {
-      addCountryMarkersToMapInternal();
-    });
-    return;
-  }
-  addCountryMarkersToMapInternal();
-}
-
-function addCountryMarkersToMapInternal() {
-  if (!map.value) {
+    console.error('Map not initialized when trying to add country markers');
     return;
   }
 

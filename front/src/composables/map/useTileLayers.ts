@@ -1,6 +1,6 @@
 import L from "leaflet";
 import { ref } from 'vue';
-import { map, onMapInitialized } from '@composables/core/useMap';
+import { map } from '@composables/core/useMap';
 
 // AI : Available tile layer types
 export type TileLayerType = 'FRA' | 'esri' | 'CHE' | 'USA';
@@ -80,10 +80,7 @@ const tileLayerConfigs = {
  */
 export function addTileLayer(): void {
   if (!map.value) {
-    // AI : If map is not ready, wait for initialization
-    onMapInitialized(() => {
-      addTileLayersToMap();
-    });
+    console.error('Map not initialized when trying to add tile layers');
     return;
   }
 

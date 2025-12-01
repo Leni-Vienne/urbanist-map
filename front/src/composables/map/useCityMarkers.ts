@@ -2,7 +2,7 @@ import L from "leaflet";
 import { createBasicProjectIcon } from '@composables/map/useMarkers';
 import type { Project } from '@types';
 import { ref, watch } from 'vue';
-import { map, onMapInitialized } from '@composables/core/useMap';
+import { map } from '@composables/core/useMap';
 import { mobileAwareFlyTo } from '@composables/map/useMapNavigation';
 import { loadCityOverlays } from '@composables/map/useCityOverlays';
 import { useSelectedProject } from '@composables/project/useProjectSelection';
@@ -382,7 +382,7 @@ function getCityMarkerConfig(): MarkerLayerConfig<CityWithProjects> {
  */
 export function addSingleCityMarker(city: { id: string; name: string; lat: number; lng: number; countryCode: string }): void {
   if (!map.value) {
-    onMapInitialized(() => addSingleCityMarker(city));
+    console.error('Map not initialized when trying to add city marker');
     return;
   }
 
@@ -412,9 +412,7 @@ export function addSingleCityMarker(city: { id: string; name: string; lat: numbe
  */
 export function addCityMarkersForCountry(cities: CityWithProjects[]): void {
   if (!map.value) {
-    onMapInitialized(() => { 
-      addCityMarkersToMapInternal(cities) 
-    })
+    console.error('Map not initialized when trying to add city markers for country');
     return;
   }
   addCityMarkersToMapInternal(cities);

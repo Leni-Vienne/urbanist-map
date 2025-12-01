@@ -53,6 +53,7 @@ import { useToast } from '@composables/ui/useToast';
 import { useI18n } from '@composables/useI18n';
 import { updateOverlayMarkersForFilters } from '@composables/map/useCityOverlays';
 import { initializeCountryMarkers } from '@composables/map/useCountryMarkers';
+import { initializeOverlayModes } from '@composables/overlay/useOverlayModes';
 import { loadCityStandaloneProjects } from '@composables/map/useCityMarkers';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
@@ -185,6 +186,7 @@ async function initializeMapAndOverlays() {
     addTileLayer(); // AI : Initialize tile layers after map is created
     initializeCameraBounds(); // AI : Initialize camera bounds tracking
     await initializeCountryMarkers(); // AI : Initialize country markers by default
+    await initializeOverlayModes(); // AI : Initialize overlay mode system and zoom watcher
     setupMapClickToDeselect(); // AI : Setup click handler to deselect overlays when clicking map background
     window.addEventListener('keydown', handleKeyDown, true);
     disableLeafletKeyboardEvents();
