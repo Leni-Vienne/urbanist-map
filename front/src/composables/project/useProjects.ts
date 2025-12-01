@@ -2,7 +2,7 @@ import type { Project, OverlayObject } from '@types';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useAuthStore } from '@stores/authStore';
-import { createProjectObject as createProjectInstance } from '../../utils/typeFactories';
+import { createProjectObject } from '@utils/typeFactories';
 import { storeToRefs } from 'pinia';
 
 // AI : Export composable function that gets store refs when called (not at module level)
@@ -18,7 +18,7 @@ export function createProject(projectData: Partial<Omit<Project, 'id' | 'overlay
   const authStore = useAuthStore();
 
   // AI : Use factory function for consistent object creation
-  const project = createProjectInstance({
+  const project = createProjectObject({
     ...projectData,
     // AI : Set ownerId to current user if not provided
     ownerId: projectData.ownerId ?? authStore.user?.id ?? null
