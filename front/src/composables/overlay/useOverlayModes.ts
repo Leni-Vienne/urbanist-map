@@ -1,15 +1,15 @@
 // AI : Overlay mode management - orchestrates edit/view mode switching using state machine
 import { ref, watch, toRef } from 'vue'
 import L from 'leaflet'
-import { map, onMapInitialized, currentZoomLevel } from '@composables/core/useMap'
+import { map, currentZoomLevel } from '@composables/core/useMap'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useMapStore } from '@stores/pinia/mapStore'
 import { getSelectedCity, hasCachedCityProjectsData, getCachedCityProjectsData } from '@composables/map/useCityData'
-import type { OverlayModeState, ZoomLevel, StateTransition } from './useOverlayModeStateMachine'
 import {
   calculateTransition,
   shouldFullRerender,
-  shouldCachePositions
+  shouldCachePositions,
+  type OverlayModeState, type ZoomLevel, type StateTransition
 } from './useOverlayModeStateMachine'
 import { renderForStrategy, updateExistingOverlays, clearAllRenderedContent } from './useOverlayRenderer'
 import { cacheCurrentPosition } from './useOverlayPositionManagement'
@@ -359,10 +359,14 @@ async function watchZoomLevel() {
   })
 }
 
-// AI : Initialize watch when map is ready
-onMapInitialized(async () => {
-  await watchZoomLevel()
-
-  // AI : Set initial state
-  currentState.value = getCurrentState()
-})
+// AI : Initialize zoom watcher and set initial state
+// AI : This is called from MapView.vue after map initialization
+export async function initializeOverlayModes() {
+  if (!map.value) {
+    console.error('Map not initialized when trying to initialize overlay modes');
+    return;
+  }
+  
+  await watchZoomLevel();
+  currentState.value = getCurrentState();
+}

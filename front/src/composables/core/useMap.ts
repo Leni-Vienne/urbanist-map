@@ -5,24 +5,8 @@ import { debounce } from '@utils/debounce';
 // shallowRef is used to avoid reactivity issues with Leaflet, see https://stackoverflow.com/a/73588115/12498040
 export const map = shallowRef<L.Map | null>(null);
 const mapSize = ref({ width: 0, height: 0 });
-// AI : Flag to track if the map is fully initialized
-const mapInitialized = ref(false);
 // AI : Reactive zoom level tracking
 export const currentZoomLevel = ref<number>(13);
-
-// AI : Event system for map initialization
-type InitListener = () => void;
-const initListeners: InitListener[] = [];
-
-export function onMapInitialized(callback: InitListener) {
-  if (mapInitialized.value) {
-    // AI : If already initialized, execute callback immediately
-    callback();
-  } else {
-    // AI : Otherwise, add to listeners queue
-    initListeners.push(callback);
-  }
-}
 
 // AI : Create a debounced version of updateMapSize
 const debouncedUpdateMapSize = debounce(function () {
@@ -35,14 +19,6 @@ const debouncedUpdateMapSize = debounce(function () {
 
   // AI : Trigger a resize event on the map to ensure all components adjust
   map.value.invalidateSize();
-
-  // AI : Set initialized flag to true once we have valid dimensions
-  if (mapSize.value.width > 0 && mapSize.value.height > 0 && !mapInitialized.value) {
-    mapInitialized.value = true;
-
-    // AI : Notify all listeners
-    initListeners.forEach(callback => { callback(); });
-  }
 }, 250);
 
 // AI : Calculate minimum zoom based on viewport to avoid black borders

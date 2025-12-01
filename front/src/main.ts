@@ -84,6 +84,8 @@ app.use(PrimeVue, {
 app.use(ToastService);
 
 // AI : Load initial locale messages before mounting the app
+// This single await chunk splits the build like crazy, but why is it said to be beneficial?
+// with CPU and network trottling it's just plain worse
 loadLocaleMessages(currentLocale).then(messages => {
   i18n.global.setLocaleMessage(currentLocale, messages)
   app.mount('#app')

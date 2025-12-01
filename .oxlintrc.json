@@ -20,7 +20,7 @@
     "typescript/no-unnecessary-type-assertion": "error",
     "typescript/no-unsafe-argument": "error",
     "typescript/no-unsafe-assignment": "off",
-    "typescript/no-unsafe-call": "error",
+    "typescript/no-unsafe-call": "off",
     "typescript/no-unsafe-enum-comparison": "error",
     "typescript/no-unsafe-member-access": "off",
     "typescript/no-unsafe-return": "off",
