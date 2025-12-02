@@ -15,7 +15,7 @@ import L from "leaflet";
 import 'leaflet-toolbar';
 import 'leaflet-distortableimage';
 import { map } from '@composables/core/useMap';
-import { getOverlayMarkerColor, updateOverlayMarkersColors, createColorIcon, OVERLAY_OUTLINE_COLOR } from '@composables/map/useMarkers';
+import { getOverlayMarkerColor, updateOverlayMarkersColors, createOverlayIcon, OVERLAY_OUTLINE_COLOR } from '@composables/map/useMarkers';
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from '@composables/map/useMapNavigation';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
@@ -887,8 +887,8 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   overlayStore.overlays[cdnOverlay.id] = overlayObjectWithMethods;
 
   // AI : Remove standalone project marker for this project since we now have an overlay visible
-  // AI : This handles the case where a project had only pending overlays (shown as basic marker in view mode)
-  // AI : and the user switched to edit mode (pending overlays now visible, so basic marker should be removed)
+  // AI : This handles the case where a project had only pending overlays (shown as a standalone project marker in view mode)
+  // AI : and the user switched to edit mode (pending overlays now visible, so standalone project marker should be removed)
   if (cdnOverlay.projectId) {
     removeStandaloneProjectMarkerForProject(cdnOverlay.projectId);
   }
@@ -912,7 +912,7 @@ export function updateMarkerTooltip(overlayObject: OverlayObject, cachedMarkerCo
   overlayObject.marker.unbindTooltip();
 
   const markerColor = cachedMarkerColor ?? getOverlayMarkerColor(overlayObject, overlayStore.mode);
-  const colorIcon = createColorIcon(markerColor);
+  const colorIcon = createOverlayIcon(markerColor);
   overlayObject.marker.setIcon(colorIcon);
 
   if (overlayStore.mode !== 'edit') {
@@ -977,7 +977,7 @@ function createSingleMarker(savedOverlay: OverlayObject): void {
   const markerTitle = createMarkerTitle(savedOverlay, savedOverlay.projectId);
   const tempOverlayObject = enrichOverlayWithProject(savedOverlay);
   const markerColor = getOverlayMarkerColor(tempOverlayObject, overlayStore.mode);
-  const colorIcon = createColorIcon(markerColor);
+  const colorIcon = createOverlayIcon(markerColor);
 
   const marker = L.marker(center, {
     title: markerTitle,
@@ -1193,7 +1193,7 @@ function createMarker(overlayObject: OverlayObject, projectId: string, markerTyp
   // AI : Determine marker color based on overlay state
   // AI : Let getOverlayMarkerColor handle all color logic including replacements after submission
   const markerColor = getOverlayMarkerColor(overlayObject, 'edit');
-  const colorIcon = createColorIcon(markerColor);
+  const colorIcon = createOverlayIcon(markerColor);
 
   const marker = L.marker(center, {
     title: markerTitle,

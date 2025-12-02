@@ -1,5 +1,5 @@
 import L from "leaflet";
-import { createBasicProjectIcon } from '@composables/map/useMarkers';
+import { createStandaloneProjectIcon } from '@composables/map/useMarkers';
 import type { Project } from '@types';
 import { ref, watch } from 'vue';
 import { map } from '@composables/core/useMap';
@@ -107,7 +107,7 @@ export function updateStandaloneProjectMarkerColor(projectId: string, project: P
 
   const overlayStore = useOverlayStore();
   const markerColor = getProjectMarkerColor(project, overlayStore.mode);
-  const markerIcon = createBasicProjectIcon(markerColor);
+  const markerIcon = createStandaloneProjectIcon(markerColor);
   marker.setIcon(markerIcon);
 }
 
@@ -123,7 +123,7 @@ export function updateAllStandaloneProjectMarkerColors(): void {
     const project = projectStore.projects[projectId] ?? projectStore.allProjects[projectId];
     if (project) {
       const markerColor = getProjectMarkerColor(project, overlayStore.mode);
-      const markerIcon = createBasicProjectIcon(markerColor);
+      const markerIcon = createStandaloneProjectIcon(markerColor);
       marker.setIcon(markerIcon);
     }
   });
