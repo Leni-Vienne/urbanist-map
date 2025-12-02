@@ -407,6 +407,9 @@ export function useSubmissionService() {
         // AI : Reset modified flag and set status to pending after successful publish
         projectStore.updateProject(project.id, { isModified: false, status: 'pending' })
 
+        // AI : Cache backend state for future change detection (enables detecting changes on next edit)
+        projectStore.cacheProjectBackendState(project.id)
+
         // AI : Update standalone project marker color to reflect pending status (yellow)
         const updatedProject = projectStore.projects[project.id]
         if (updatedProject) {

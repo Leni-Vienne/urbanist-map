@@ -285,7 +285,10 @@ export const useProjectStore = defineStore('project', () => {
     }
 
     // AI : Save original backend version before first modification (for change detection)
-    if (!originalBackendProjects.value[projectId] && current.status === 'approved' && !current.isModified) {
+    // AI : This applies to both approved and pending projects
+    if (!originalBackendProjects.value[projectId] &&
+        (current.status === 'approved' || current.status === 'pending') &&
+        !current.isModified) {
       originalBackendProjects.value = {
         ...originalBackendProjects.value,
         [projectId]: { ...current }
@@ -297,6 +300,18 @@ export const useProjectStore = defineStore('project', () => {
       ...projects.value,
       [projectId]: { ...current, ...updates }
     };
+  }
+
+  // AI : Cache project backend state for change detection
+  // AI : Called after successful submission to store baseline for future modifications
+  function cacheProjectBackendState(projectId: string) {
+    const project = projects.value[projectId];
+    if (project) {
+      originalBackendProjects.value = {
+        ...originalBackendProjects.value,
+        [projectId]: { ...project }
+      };
+    }
   }
 
   // AI : Fetch nearby projects with smart caching to avoid redundant API calls
@@ -451,6 +466,7 @@ export const useProjectStore = defineStore('project', () => {
     // Local project actions
     addOverlayToProjectWithId,
     updateProject,
+    cacheProjectBackendState,
     cacheCityName,
 
     // User contributions actions
