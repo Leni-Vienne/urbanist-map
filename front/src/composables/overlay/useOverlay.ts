@@ -1895,17 +1895,25 @@ export const resetRatioTool = L.Toolbar2.Action.extend({
 /**
  * AI : Check if user can delete an overlay
  * AI : Only allow deletion if:
- * 1. Overlay is a new local overlay (not saved remotely)
- * 2. Overlay has pending changes (user's modification)
+ * 1. Overlay is pending or rejected (not yet approved)
+ * 2. Overlay is a brand new local overlay (no status, not saved remotely)
+ * AI : Never allow deletion of approved overlays, even with local modifications
  */
 function canDeleteOverlay(overlayObject: OverlayObject): boolean {
-  // AI : Allow deletion of pending overlays (not yet approved)
+  // AI : Never allow deletion of approved overlays, even with local modifications
+  // AI : Local modifications to approved overlays should be submitted as changes, not deleted
+  if (overlayObject.status === 'approved') {
+    return false;
+  }
+
+  // AI : Allow deletion of pending overlays (awaiting moderation)
   if (overlayObject.status === 'pending' || overlayObject.status === 'rejected') {
     return true;
   }
 
-  // AI : Allow deletion if overlay has pending changes (user's modification)
-  if (overlayObject.hasPendingChanges || overlayObject.isModified) {
+  // AI : Allow deletion of brand new local overlays (no status, isModified = true)
+  // AI : This covers overlays created locally that haven't been submitted yet
+  if (overlayObject.isModified) {
     return true;
   }
 
