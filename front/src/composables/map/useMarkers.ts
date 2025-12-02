@@ -256,7 +256,7 @@ export function getOverlayMarkerColor(
     if (isTooBig && hasBeenModified) return 'red';
 
     // AI : Priority 2: Local replacement overlay (before submission) - show purple
-    if (overlayData.replacesOverlayId && hasBeenModified) return 'purple';
+    if (overlayData.replacesOverlayId && hasBeenModified && status !== 'approved') return 'purple';
 
     // AI : Priority 3: Submitted replacement overlay (pending) - show yellow
     if (status === 'pending' && overlayData.replacesOverlayId && !hasBeenModified) return 'yellow';
@@ -357,7 +357,7 @@ export function explainOverlayColor(
     if ('isTooBig' in overlayData && overlayData.isTooBig && hasBeenModified) {
       reason = 'Size validation error: overlay exceeds 1km × 1km maximum (only checked for local overlays)';
       priority = '#1';
-    } else if (overlayData.replacesOverlayId && hasBeenModified) {
+    } else if (overlayData.replacesOverlayId && hasBeenModified && overlayData.status !== 'approved') {
       reason = 'Local replacement overlay (not yet submitted) - shown as purple';
       priority = '#2';
     } else if (overlayData.replacesOverlayId && !hasBeenModified && overlayData.status === 'pending') {
