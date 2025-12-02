@@ -7,7 +7,7 @@ import { clearAllOverlays } from '@composables/overlay/useOverlayLifecycle';
 import { hasCachedCityProjectsData, getSelectedCity } from '@composables/map/useCityData';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
 import { trpc } from '@client';
-import { getOverlayMarkerColor, createColorIcon } from '@composables/map/useMarkers';
+import { getOverlayMarkerColor, createOverlayIcon } from '@composables/map/useMarkers';
 import { resolveOverlayPosition } from '@composables/overlay/useOverlayPositionManagement';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
@@ -150,7 +150,7 @@ function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void {
     const overlayStore = useOverlayStore();
     const resolved = resolveOverlayPosition(overlay.id, overlay, overlayStore.mode);
     const markerColor = getOverlayMarkerColor(overlay, overlayStore.mode);
-    const markerIcon = createColorIcon(markerColor);
+    const markerIcon = createOverlayIcon(markerColor);
     const marker = L.marker([resolved.position.lat, resolved.position.lng], { icon: markerIcon });
 
     // AI : Add click handler to fly to overlay position and open toolbar

@@ -2,7 +2,7 @@
 import L from "leaflet";
 import type { Project } from '@types';
 import { map } from '@composables/core/useMap';
-import { createBasicProjectIcon } from '@composables/map/useMarkers';
+import { createStandaloneProjectIcon } from '@composables/map/useMarkers';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useUiStore } from '@stores/uiStore';
 import { MARKER_OPACITY } from '@constants/markerConstants';
@@ -98,7 +98,7 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
 
   const overlayStore = useOverlayStore();
   const markerColor = getProjectMarkerColor(project, overlayStore.mode);
-  const markerIcon = createBasicProjectIcon(markerColor);
+  const markerIcon = createStandaloneProjectIcon(markerColor);
 
   // AI : Create marker with default opacity
   const marker = L.marker([project.lat, project.lng], {

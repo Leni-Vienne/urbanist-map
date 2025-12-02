@@ -3,7 +3,7 @@
 
 import L from 'leaflet';
 import type { MarkerColor } from '@types';
-import { createColorIcon, createBasicProjectIcon } from '@composables/map/useMarkers';
+import { createColorIcon, createStandaloneProjectIcon, createOverlayIcon } from '@composables/map/useMarkers';
 
 // AI : Configuration for a marker layer
 export interface MarkerLayerConfig<T> {
@@ -13,8 +13,8 @@ export interface MarkerLayerConfig<T> {
   // AI : Get marker color for an item
   getColor: (item: T) => MarkerColor;
 
-  // AI : Get marker icon type ('standard' | 'standalone')
-  getIconType?: () => 'standard' | 'standalone';
+  // AI : Get marker icon type ('standard' | 'standalone' | 'overlay')
+  getIconType?: () => 'standard' | 'standalone' | 'overlay';
 
   // AI : Optional click handler
   onMarkerClick?: (marker: L.Marker, item: T) => void | Promise<void>;
@@ -78,7 +78,9 @@ export function createMarkerLayer<T extends { id?: string }>(
     // AI : Get marker color and create appropriate icon
     const markerColor = config.getColor(item);
     const markerIcon = iconType === 'standalone'
-      ? createBasicProjectIcon(markerColor)
+      ? createStandaloneProjectIcon(markerColor)
+      : iconType === 'overlay'
+      ? createOverlayIcon(markerColor)
       : createColorIcon(markerColor);
 
     // AI : Create marker with default opacity

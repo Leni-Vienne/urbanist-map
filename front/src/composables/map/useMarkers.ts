@@ -52,6 +52,7 @@ function darkenColor(color: string, amount: number): string {
 }
 
 // AI : Simple marker creation - one base color, generate everything else
+// AI : Used for city markers, country markers (generic map markers)
 function createMarkerSVG(color: MarkerColor): string {
   const baseColor = markerColors[color];
   const lightColor = lightenColor(baseColor, 40);
@@ -61,6 +62,49 @@ function createMarkerSVG(color: MarkerColor): string {
 
   return `
     <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 50 82" role="img" aria-label="Map pin">
+      <defs>
+        <!-- Simple gradient for marker body -->
+        <linearGradient id="g-${color}" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="${lightColor}"/>
+          <stop offset="55%" stop-color="${baseColor}"/>
+          <stop offset="100%" stop-color="${darkColor}"/>
+        </linearGradient>
+
+        <!-- Shadow gradient -->
+        <linearGradient id="shadow-grad-${color}" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="black" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="black" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+
+      <!-- Cast shadow (skewed ellipse to the right) -->
+      <ellipse cx="38" cy="80" rx="18" ry="6"
+               fill="url(#shadow-grad-${color})" transform="rotate(-8 38 80)"/>
+
+      <!-- Pin body with darker contrasting edge -->
+      <path d="M25 1
+               C38.807 1 50 12.193 50 26
+               C50 45 25 81 25 81
+               S0 45 0 26
+               C0 12.193 11.193 1 25 1Z"
+            fill="url(#g-${color})" stroke="rgba(0,0,0,0.3)" stroke-width="1.5" />
+
+      <!-- Inner white circle - simple and clean -->
+      <circle cx="25" cy="25" r="9.5" fill="#ffffff" stroke="#e6f2ff" stroke-width="1"/>
+    </svg>
+  `;
+}
+
+// AI : Overlay marker with picture frame icon to indicate images/overlays
+function createOverlayMarkerSVG(color: MarkerColor): string {
+  const baseColor = markerColors[color];
+  const lightColor = lightenColor(baseColor, 40);
+  const darkColor = darkenColor(baseColor, 40);
+  const width = 32;
+  const height = 40;
+
+  return `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 50 82" role="img" aria-label="Map pin">
       <defs>
         <!-- Simple gradient for marker body -->
         <linearGradient id="g-${color}" x1="0" x2="0" y1="0" y2="1">
@@ -90,11 +134,21 @@ function createMarkerSVG(color: MarkerColor): string {
 
       <!-- Inner white circle -->
       <circle cx="25" cy="25" r="9.5" fill="#ffffff" stroke="#e6f2ff" stroke-width="1"/>
+
+      <!-- Image / Frame icon bottom-left (high-contrast border) -->
+<g transform="translate(24,52) scale(1.6)">
+<svg class="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="white" viewBox="0 0 24 24">
+  <path fill-rule="evenodd" d="M13 10a1 1 0 0 1 1-1h.01a1 1 0 1 1 0 2H14a1 1 0 0 1-1-1Z" clip-rule="evenodd"/>
+  <path fill-rule="evenodd" d="M2 6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12c0 .556-.227 1.06-.593 1.422A.999.999 0 0 1 20.5 20H4a2.002 2.002 0 0 1-2-2V6Zm6.892 12 3.833-5.356-3.99-4.322a1 1 0 0 0-1.549.097L4 12.879V6h16v9.95l-3.257-3.619a1 1 0 0 0-1.557.088L11.2 18H8.892Z" clip-rule="evenodd"/>
+</svg>
+
+
     </svg>
+
   `;
 }
 
-// AI : Create standalone project marker SVG with basic project icon instead of circle
+// AI : Simple standalone project marker - standard look for projects without overlays
 function createStandaloneProjectMarkerSVG(color: MarkerColor): string {
   const baseColor = markerColors[color];
   const lightColor = lightenColor(baseColor, 40);
@@ -103,7 +157,7 @@ function createStandaloneProjectMarkerSVG(color: MarkerColor): string {
   const height = Math.round(markerSize * 1.6);
 
   return `
-     <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 52 82" role="img" aria-label="Project marker">
+    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 50 82" role="img" aria-label="Project marker">
       <defs>
         <!-- Simple gradient for marker body -->
         <linearGradient id="g-${color}-standalone" x1="0" x2="0" y1="0" y2="1">
@@ -111,7 +165,7 @@ function createStandaloneProjectMarkerSVG(color: MarkerColor): string {
           <stop offset="55%" stop-color="${baseColor}"/>
           <stop offset="100%" stop-color="${darkColor}"/>
         </linearGradient>
-        
+
         <!-- Shadow gradient -->
         <linearGradient id="shadow-grad-${color}-standalone" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0%" stop-color="black" stop-opacity="0.35"/>
@@ -131,23 +185,13 @@ function createStandaloneProjectMarkerSVG(color: MarkerColor): string {
                C0 12.193 11.193 1 25 1Z"
             fill="url(#g-${color}-standalone)" stroke="rgba(0,0,0,0.3)" stroke-width="1.5" />
 
-      <!-- Inner white circle background -->
+      <!-- Inner white circle - simple and standard -->
       <circle cx="25" cy="25" r="9.5" fill="#ffffff" stroke="#e6f2ff" stroke-width="1"/>
-
-    <!-- House icon bottom-left -->
-    <g transform="translate(24,52) scale(1.6)">
-        <!-- Roof -->
-        <polygon points="10,0 20,10 0,10" fill="black" stroke="white" stroke-width="1.5"/>
-        <!-- Body -->
-        <rect x="3" y="10" width="14" height="12" fill="black" stroke="white" stroke-width="1.5"/>
-        <!-- Door -->
-        <rect x="8" y="14" width="4" height="8" fill="white" stroke="white" stroke-width="1"/>
-      </g>
     </svg>
   `;
 }
 
-// AI : Create SVG icon for Leaflet
+// AI : Create simple SVG icon for Leaflet (city, country markers)
 export function createColorIcon(color: MarkerColor): L.DivIcon {
   const svgString = createMarkerSVG(color);
 
@@ -160,8 +204,21 @@ export function createColorIcon(color: MarkerColor): L.DivIcon {
   });
 }
 
-// AI : Create standalone/project marker icon with basic project icon instead of circle
-export function createBasicProjectIcon(color: MarkerColor): L.DivIcon {
+// AI : Create overlay marker icon with picture frame (for overlay markers specifically)
+export function createOverlayIcon(color: MarkerColor): L.DivIcon {
+  const svgString = createOverlayMarkerSVG(color);
+
+  return L.divIcon({
+    html: svgString,
+    className: 'custom-svg-marker overlay-marker',
+    iconSize: [markerSize, markerHeight],
+    iconAnchor: [markerSize / 2, markerHeight], // AI : Anchor at bottom center (pin tip)
+    popupAnchor: [0, -markerHeight],
+  });
+}
+
+// AI : Create standalone/project marker icon with simple circle (for standalone projects)
+export function createStandaloneProjectIcon(color: MarkerColor): L.DivIcon {
   const svgString = createStandaloneProjectMarkerSVG(color);
 
   return L.divIcon({
@@ -450,7 +507,7 @@ export function updateOverlayMarkersColors(
     const overlayObject = overlays.value[specificOverlayId];
     if (overlayObject?.marker != null) {
       const markerColor = getOverlayMarkerColor(overlayObject, overlayStore.mode);
-      const colorIcon = createColorIcon(markerColor);
+      const colorIcon = createOverlayIcon(markerColor);
       overlayObject.marker.setIcon(colorIcon);
     }
     return;
@@ -461,7 +518,7 @@ export function updateOverlayMarkersColors(
     if (overlayObject?.marker != null) {
       // AI : Update marker color based on current mode and overlay state
       const markerColor = getOverlayMarkerColor(overlayObject, overlayStore.mode);
-      const colorIcon = createColorIcon(markerColor);
+      const colorIcon = createOverlayIcon(markerColor);
       overlayObject.marker.setIcon(colorIcon);
     }
   });

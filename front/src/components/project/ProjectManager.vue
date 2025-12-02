@@ -102,7 +102,7 @@ import { loadCityProjects, createProjectInfoTeleportTarget, updateStandaloneProj
 import { getStandaloneProjectMarkerByProjectId } from '@composables/map/useStandaloneProjectMarkers'
 import { loadCitiesForCountry } from '@composables/map/useCountryMarkers'
 import { useMapStore } from '@stores/pinia/mapStore'
-import { createBasicProjectIcon } from '@composables/map/useMarkers'
+import { createStandaloneProjectIcon } from '@composables/map/useMarkers'
 import { addOverlay } from '@composables/overlay/useOverlay'
 import { setLastCreatedProject } from '@composables/ui/useProjectState'
 import { createProject } from '@composables/project/useProjects'
@@ -358,7 +358,7 @@ function onMarkerModeEnabled() {
     }
 
     // AI : Create temporary marker using StandaloneProjectMarkerSVG in orange for visual feedback
-    const markerIcon = createBasicProjectIcon('orange');
+    const markerIcon = createStandaloneProjectIcon('orange');
     tempMarker.value = L.marker([coordinates.lat, coordinates.lng], {
       icon: markerIcon,
       draggable: false,
