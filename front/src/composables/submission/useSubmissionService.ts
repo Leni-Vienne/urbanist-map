@@ -436,8 +436,11 @@ export function useSubmissionService() {
 
         // AI : Optimistically update user contributions based on change type
         if (context.changeType === 'create') {
-          // AI : New project - add to contributions
-          projectStore.addProjectToUserContributions(project)
+          // AI : New project - add to contributions using updated project from store (not stale reference)
+          const updatedProjectForContributions = projectStore.projects[project.id]
+          if (updatedProjectForContributions) {
+            projectStore.addProjectToUserContributions(updatedProjectForContributions)
+          }
         } else if (context.changeType === 'update_pending') {
           // AI : Updating pending project - update in contributions
           projectStore.updateProjectInUserContributions(project.id, {
