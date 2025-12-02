@@ -66,9 +66,9 @@
                     <AccordionHeader>
                       <div class="accordion-header-content">
                         <span class="project-name">{{ project.name }}</span>
-                        <!-- AI : Show normal status tag -->
+                        <!-- AI : Show normal status tag (handle null for unsubmitted projects) -->
                         <Tag
-                          :value="$t(`status.${project.status}`)"
+                          :value="$t(`status.${project.status ?? 'draft'}`)"
                           :severity="getStatusSeverity(project.status)"
                           class="project-status-tag"
                           rounded
@@ -631,7 +631,7 @@ function hideFlagOnError(event: Event) {
 }
 
 // AI : Get badge severity based on status
-function getStatusSeverity(status: string): string {
+function getStatusSeverity(status: string | null): string {
   switch (status) {
     case 'approved':
       return 'success'
@@ -641,6 +641,8 @@ function getStatusSeverity(status: string): string {
       return 'warn'
     case 'replaced':
       return 'secondary'
+    case null:
+      return 'info' // AI : Unsubmitted local projects
     default:
       return 'info'
   }

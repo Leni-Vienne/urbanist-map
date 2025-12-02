@@ -122,7 +122,9 @@ export interface Country extends DBCountry {
 }
 
 // AI : Base runtime project type - extends DB schema with computed fields
-export interface Project extends DBProject {
+export interface Project extends Omit<DBProject, 'status'> {
+  // AI : Override status to allow null for local unsubmitted projects
+  status: 'pending' | 'approved' | 'rejected' | 'replaced' | null;
   // AI : Computed fields for all contexts
   city: DBCity;
   overlayIds: string[];

@@ -407,10 +407,10 @@ async function handleProjectSubmitted(project: Partial<Project>) {
     if (!project.id) {
       // AI : Create the project and get the generated ID
       // AI : isModified: true ensures new projects show as orange in edit mode
+      // AI : Don't set status here - let factory default it to null for unsubmitted projects
       projectId = createProject({
         ...project,
         isModified: true,  // AI : New projects need to be submitted
-        status: undefined  // AI : No status until submitted (prevents being treated as update)
       })
       setLastCreatedProject(projectId)
 

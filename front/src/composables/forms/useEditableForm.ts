@@ -25,7 +25,7 @@ export interface EditableFormOptions<T> {
   entityType: 'project' | 'overlay'
   entityId: string
   initialData: T
-  entityStatus?: 'pending' | 'approved' | 'rejected' | 'replaced'
+  entityStatus?: 'pending' | 'approved' | 'rejected' | 'replaced' | null
   localOnly?: boolean // AI : If true, only update local store, don't submit to backend
   getAvailableCities?: () => Array<{ id: string; name: string; countryCode: string; lat: number; lng: number; distance?: number }> // AI : Function to get current cities dynamically
   onSubmitted?: () => void

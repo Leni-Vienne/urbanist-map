@@ -79,6 +79,7 @@ import { citiesWithProjects, cleanupProjectInfoTeleportTarget } from '@composabl
 import type { OverlayObject, Project } from '@types';
 import { useProjectDeletion } from '@composables/project/useProjectDeletion';
 import type { DBProject, DBCity } from '../../../../back/src/db/schema';
+import type { ApprovalStatus } from '../../../../back/src/lib/types';
 
 const UnifiedProjectPopup = defineAsyncComponent(() => import('./popups/UnifiedProjectPopup.vue'));
 const OverlayEditor = defineAsyncComponent(() => import('./OverlayEditor.vue'));
@@ -163,7 +164,7 @@ const overlayObject = computed(() => {
 });
 
 // AI : Helper to convert backend project data and add to store
-function convertAndCacheBackendProject(backendProject: DBProject & { city: DBCity }): Project {
+function convertAndCacheBackendProject(backendProject: Omit<DBProject, 'status'> & { status: ApprovalStatus | null; city: DBCity }): Project {
   const convertedProject: Project = {
     ...backendProject,
     name: backendProject.name,

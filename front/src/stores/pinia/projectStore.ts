@@ -149,10 +149,16 @@ export const useProjectStore = defineStore('project', () => {
       userContributions.value = replaceAtIndex(userContributions.value, existingProjectIndex, updatedProject);
     } else {
       // AI : Project doesn't exist in contributions, add both project and overlay
+      // AI : Skip if project is local-only (not yet submitted)
+      if (project.status === null) {
+        return;
+      }
+
       userContributions.value = [
         {
           ...project,
           ...extractCityMetadata(project),
+          status: project.status as Exclude<typeof project.status, null>, // AI : Type assertion - null already filtered above
           overlays: [createOverlayMetadata(overlay, project, filename)],
           overlayCount: 1,
         },
@@ -168,6 +174,11 @@ export const useProjectStore = defineStore('project', () => {
       return;
     }
 
+    // AI : Skip local-only projects (not yet submitted to backend)
+    if (project.status === null) {
+      return;
+    }
+
     // AI : Check if project already exists
     const existingIndex = userContributions.value.findIndex(p => p.id === project.id);
     if (existingIndex >= 0) {
@@ -180,6 +191,7 @@ export const useProjectStore = defineStore('project', () => {
       {
         ...project,
         ...extractCityMetadata(project),
+        status: project.status as Exclude<typeof project.status, null>, // AI : Type assertion - null already filtered above
         overlays: [],
         overlayCount: 0,
       },

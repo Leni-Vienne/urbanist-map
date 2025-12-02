@@ -42,12 +42,16 @@ export function useUserContributions() {
 
   async function deleteOverlay(overlayId: string): Promise<boolean> {
     try {
+      // AI : Try backend deletion first (will fail gracefully if overlay not in backend)
       const result = await withErrorHandling(
         async () => trpc.overlay.deleteOverlay.mutate({ id: overlayId }),
-        { errorMessage: t('contributions.deleteOverlayError') }
+        { errorMessage: undefined } // AI : Suppress error toast - we'll handle locally if backend fails
       )
 
-      if (result?.success) {
+      // AI : Whether backend succeeded or failed, clean up local state
+      const shouldCleanup = result?.success || !result
+
+      if (shouldCleanup) {
         // AI : Find the project that contains this overlay and remove the overlay ID from it
         const allProjectsData = projectStore.allProjects
         const projectWithOverlay = Object.values(allProjectsData).find(p =>
@@ -90,15 +94,55 @@ export function useUserContributions() {
 
   async function deleteProject(projectId: string): Promise<boolean> {
     try {
+      // AI : Get project to check if it's local-only (not submitted to backend)
+      const project = projectStore.allProjects[projectId]
+      const isLocalOnly = project?.status === null
+
+      // AI : For local-only projects, skip backend call and just remove from local state
+      if (isLocalOnly) {
+        // AI : If project has no overlays, remove its marker from the map
+        const hasNoOverlays = !project?.overlayIds || project.overlayIds.length === 0
+        if (hasNoOverlays) {
+          const marker = getStandaloneProjectMarkerByProjectId(projectId)
+          if (marker && map.value) {
+            map.value.removeLayer(marker)
+          }
+        }
+
+        // AI : Remove all overlays for this project from the map and caches
+        if (project?.overlayIds) {
+          project.overlayIds.forEach(overlayId => {
+            removeOverlay(overlayId)
+            // AI : Clear from overlay store caches
+            overlayStore.viewModeOverlays = overlayStore.viewModeOverlays.filter(o => o.id !== overlayId)
+            overlayStore.loadedEditOverlays.delete(overlayId)
+          })
+        }
+
+        // AI : Remove project from main project store
+        if (projectStore.projects[projectId]) {
+          delete projectStore.projects[projectId]
+        }
+
+        // AI : Clear city caches to force reload when zooming (prevents ghost markers)
+        mapStore.clearCityProjectsCache()
+        mapStore.clearCityStandaloneProjectsCache()
+
+        toast.add({
+          severity: 'success',
+          summary: t('contributions.projectDeleted'),
+          life: 3000
+        })
+        return true
+      }
+
+      // AI : For backend projects, call the API
       const result = await withErrorHandling(
         async () => trpc.project.deleteProject.mutate({ id: projectId }),
         { errorMessage: t('contributions.deleteProjectError') }
       )
 
       if (result?.success) {
-        // AI : Get project to check if it has overlays
-        const project = projectStore.allProjects[projectId]
-
         // AI : Remove from user contributions
         projectStore.removeProjectFromUserContributions(projectId)
 
