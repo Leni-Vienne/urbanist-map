@@ -6,9 +6,60 @@ import { trpc } from '@client'
 import { withErrorHandling } from '@composables/core/useErrorHandling'
 import { useToast } from '@composables/ui/useToast'
 import { useI18n } from 'vue-i18n'
-import { removeOverlay } from '@composables/overlay/useOverlay'
+import { removeOverlayFromMap } from '@composables/overlay/useOverlayRemoval'
 import { getStandaloneProjectMarkerByProjectId } from '@composables/map/useStandaloneProjectMarkers'
+import { addStandaloneProjectMarkerForProject } from '@composables/map/useStandaloneProjectMarkers'
 import { map } from '@composables/core/useMap'
+
+/**
+ * AI : Non-composable overlay deletion function that can be called from anywhere
+ * AI : Does not use Vue composables, safe to call from Leaflet toolbar handlers
+ */
+export async function deleteOverlayDirect(overlayId: string): Promise<boolean> {
+  try {
+    const projectStore = useProjectStore()
+
+    const result = await withErrorHandling(
+      async () => trpc.overlay.deleteOverlay.mutate({ id: overlayId }),
+      { errorMessage: undefined }
+    )
+
+    const shouldCleanup = result?.success || !result
+
+    if (shouldCleanup) {
+      const allProjectsData = projectStore.allProjects
+      const projectWithOverlay = Object.values(allProjectsData).find(p =>
+        p.overlayIds?.includes(overlayId)
+      )
+
+      if (projectWithOverlay) {
+        const updatedOverlayIds = projectWithOverlay.overlayIds.filter(id => id !== overlayId)
+        projectStore.updateProject(projectWithOverlay.id, { overlayIds: updatedOverlayIds })
+
+        const isLastOverlay = updatedOverlayIds.length === 0
+        if (isLastOverlay && projectWithOverlay.lat && projectWithOverlay.lng) {
+          setTimeout(() => {
+            addStandaloneProjectMarkerForProject(projectWithOverlay)
+          }, 150)
+        }
+      }
+
+      removeOverlayFromMap(overlayId)
+
+      const standaloneMarker = getStandaloneProjectMarkerByProjectId(overlayId)
+      if (standaloneMarker && map.value) {
+        map.value.removeLayer(standaloneMarker)
+      }
+
+      return true
+    }
+
+    return false
+  } catch (error) {
+    console.error('Failed to delete overlay:', error)
+    return false
+  }
+}
 
 export function useUserContributions() {
   const projectStore = useProjectStore()
@@ -68,7 +119,7 @@ export function useUserContributions() {
         projectStore.removeOverlayFromUserContributions(overlayId)
 
         // AI : Remove from map and overlay store (this removes from overlayStore.overlays and allMarkers)
-        removeOverlay(overlayId)
+        removeOverlayFromMap(overlayId)
 
         // AI : Clear overlay from all overlay store caches
         overlayStore.viewModeOverlays = overlayStore.viewModeOverlays.filter(o => o.id !== overlayId)
@@ -112,7 +163,7 @@ export function useUserContributions() {
         // AI : Remove all overlays for this project from the map and caches
         if (project?.overlayIds) {
           project.overlayIds.forEach(overlayId => {
-            removeOverlay(overlayId)
+            removeOverlayFromMap(overlayId)
             // AI : Clear from overlay store caches
             overlayStore.viewModeOverlays = overlayStore.viewModeOverlays.filter(o => o.id !== overlayId)
             overlayStore.loadedEditOverlays.delete(overlayId)
@@ -158,7 +209,7 @@ export function useUserContributions() {
         // AI : Remove all overlays for this project from the map and caches
         if (project?.overlayIds) {
           project.overlayIds.forEach(overlayId => {
-            removeOverlay(overlayId)
+            removeOverlayFromMap(overlayId)
             // AI : Clear from overlay store caches
             overlayStore.viewModeOverlays = overlayStore.viewModeOverlays.filter(o => o.id !== overlayId)
             overlayStore.loadedEditOverlays.delete(overlayId)

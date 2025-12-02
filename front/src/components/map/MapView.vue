@@ -48,7 +48,8 @@ import { ref, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue';
 import { initializeMap, disableLeafletKeyboardEvents, map } from '@composables/core/useMap';
 import { addTileLayer } from '@composables/map/useTileLayers';
 import { initializeCameraBounds } from '@composables/map/useMapNavigation';
-import { renderViewModeOverlays, removeOverlay, undo, redo, setupMapClickToDeselect } from '@composables/overlay/useOverlay';
+import { renderViewModeOverlays, undo, redo, setupMapClickToDeselect } from '@composables/overlay/useOverlay';
+import { removeOverlayFromMap } from '@composables/overlay/useOverlayRemoval';
 import { useToast } from '@composables/ui/useToast';
 import { useI18n } from '@composables/useI18n';
 import { updateOverlayMarkersForFilters } from '@composables/map/useCityOverlays';
@@ -110,7 +111,7 @@ async function filterOverlaysByCompletionStatus() {
 
   // AI : Remove overlays that should be hidden
   const overlaysToHide = cityOverlays.filter(overlay => !visibleOverlayIds.has(overlay.id));
-  overlaysToHide.forEach(overlay => removeOverlay(overlay.id));
+  overlaysToHide.forEach(overlay => removeOverlayFromMap(overlay.id));
 
   // AI : Find overlays that should be visible but aren't currently rendered
   const overlaysToRender = visibleOverlays.filter(cdnOverlay => {
