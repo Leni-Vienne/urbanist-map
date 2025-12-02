@@ -35,6 +35,8 @@ import {
 import { withErrorHandling } from '@composables/core/useErrorHandling';
 import { validateOverlaySize, leafletCornersToCorners, calculateCentroidFromCorners } from '../../../../back/src/utils/overlayValidation';
 import { useToast } from '@composables/ui/useToast';
+import { removeOverlayFromMap } from '@composables/overlay/useOverlayRemoval';
+import { deleteOverlayDirect } from '@composables/project/useUserContributions';
 
 /**
  * AI : Update overlay editing state based on current mode
@@ -896,32 +898,6 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   // AI : Marker tooltip already updated in createSingleMarker - no need to duplicate
 }
 
-/**
- * AI : Remove a specific overlay from the map and collections
- */
-export function removeOverlay(overlayId: string): void {
-  const overlayStore = useOverlayStore();
-
-  if (!map.value) return;
-
-  const overlayObject = overlayStore.overlays[overlayId];
-  if (!overlayObject) return;
-
-  if (overlayObject.overlay) {
-    map.value.removeLayer(overlayObject.overlay);
-  }
-
-  if (overlayObject.marker) {
-    map.value.removeLayer(overlayObject.marker);
-  }
-
-  delete overlayStore.overlays[overlayId];
-  delete overlayStore.allMarkers[overlayId];
-
-  if (overlayStore.idSelectedOverlay === overlayId) {
-    overlayStore.idSelectedOverlay = null;
-  }
-}
 
 /**
  * AI : Update marker tooltip based on overlay storage status
@@ -1720,7 +1696,7 @@ export function deleteOverlayButtonPressed(id: string) {
       }
     }
   }
-  removeOverlay(id);
+  removeOverlayFromMap(id);
 }
 
 export function updateOverlayInfo(id: string, info: { caption?: string }): void {
@@ -1953,19 +1929,42 @@ export const customDeleteTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       className: "pi pi-trash",
-      tooltip: "Delete this overlay from local storage",
+      tooltip: "Delete this overlay",
     },
   },
   addHooks: function () {
     const overlayStore = useOverlayStore();
+
     if (!overlayStore.idSelectedOverlay) {
       return;
     }
 
-    if (confirm('Are you sure you want to delete this overlay from local storage?')) {
-      deleteOverlayButtonPressed(overlayStore.idSelectedOverlay);
-      overlayStore.idSelectedOverlay = null;
+    const overlayId = overlayStore.idSelectedOverlay;
+    const overlayObject = overlayStore.overlays[overlayId];
+    if (!overlayObject) return;
+
+    const overlayName = overlayObject.caption ?? 'this overlay';
+    if (!confirm(`Are you sure you want to delete ${overlayName}?`)) {
+      return;
     }
+
+    withErrorHandling(
+      async () => {
+        const success = await deleteOverlayDirect(overlayId);
+
+        if (success) {
+          overlayStore.idSelectedOverlay = null;
+
+          const toast = useToast();
+          toast.add({
+            severity: 'success',
+            summary: 'Overlay deleted',
+            life: 3000
+          });
+        }
+      },
+      { errorMessage: 'Failed to delete overlay', logError: true }
+    );
   },
 });
 

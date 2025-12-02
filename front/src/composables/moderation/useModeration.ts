@@ -4,7 +4,8 @@ import { withErrorHandling } from '@composables/core/useErrorHandling'
 import { useModerationStore } from '@stores/pinia/moderationStore'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useAuthStore } from '@stores/authStore'
-import { updateMarkerTooltip, removeOverlay } from '@composables/overlay/useOverlay'
+import { updateMarkerTooltip } from '@composables/overlay/useOverlay';
+import { removeOverlayFromMap } from '@composables/overlay/useOverlayRemoval';
 import { updateOverlayMarkersColors } from '@composables/map/useMarkers'
 import { useI18n } from '@composables/useI18n'
 
@@ -173,7 +174,7 @@ export function useModeration() {
       // AI : If this was a replacement overlay approval with conflict handling, remove the original and competing overlays from map
       if (status === 'approved' && handleReplacementConflicts && replacesOverlayId) {
         // AI : Remove the original overlay that was replaced
-        removeOverlay(replacesOverlayId)
+        removeOverlayFromMap(replacesOverlayId)
 
         // AI : Remove competing replacement overlays from the map
         // AI : Find all overlays that tried to replace the same original overlay
@@ -182,7 +183,7 @@ export function useModeration() {
         )
 
         for (const competing of competingReplacements) {
-          removeOverlay(competing.id)
+          removeOverlayFromMap(competing.id)
         }
       }
     }
