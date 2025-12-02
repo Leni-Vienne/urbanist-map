@@ -21,6 +21,7 @@ import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useUiStore } from '@stores/uiStore';
+import { useAuthStore } from '@stores/authStore';
 import type { OverlayObject, OverlayData, MarkerColor } from '@types';
 import { createOverlayObject, createOverlayFromCDN, convertOverlayToData } from '@utils/typeFactories';
 import { toRef } from 'vue';
@@ -1163,13 +1164,14 @@ function setupOverlayMovementTracking(overlay: L.DistortableImageOverlay, overla
 // AI : Helper function to create new overlay with proper Drizzle schema structure
 function createNewOverlayObject(id: string, imageUrl: string, projectId: string): OverlayObject {
   const filename = imageUrl.split('/').pop() ?? '';
+  const authStore = useAuthStore();
 
   // AI : Use factory function for consistent object creation
   return createOverlayObject({
     id,
     filename,
     projectId,
-    authorId: null,
+    authorId: authStore.user?.id ?? null, // AI : Set to current user's ID
     imageUrl,
     isModified: true // AI : New overlays need to be uploaded
   });

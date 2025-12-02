@@ -38,7 +38,7 @@ export interface OverlayData {
     };
     corners: { lat: number; lng: number }[]; // AI : ALWAYS approved position from database (never changes meaning)
     suggestedCorners?: { lat: number; lng: number }[]; // AI : Suggested position if pending change requests exist
-    project?: (DBProject & { city: DBCity; }) | null;
+    project?: (Omit<DBProject, 'status'> & { status: ApprovalStatus | null; city: DBCity; }) | null;
     distance?: number;
     isModified?: boolean;
     hasPendingChanges?: boolean; // AI : True if user has pending change requests for this overlay

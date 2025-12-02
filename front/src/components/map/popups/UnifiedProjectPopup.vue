@@ -29,9 +29,9 @@
             @click="emit('edit-project', project)"
             v-tooltip.top="project.ownerId === user.id ? $t('project.edit') : $t('tooltips.suggestChanges')"
           />
-          <!-- AI : Delete button (only for pending projects owned by user) -->
+          <!-- AI : Delete button (for unsubmitted projects or pending projects owned by user) -->
           <Button
-            v-if="!viewMode && project && user && project.status === 'pending' && project.ownerId === user.id"
+            v-if="!viewMode && project && user && (project.status === null || project.status === 'pending') && project.ownerId === user.id"
             icon="pi pi-trash"
             :class="['p-button-sm', 'p-button-text', 'p-button-danger']"
             @click="emit('delete-project', project)"
@@ -191,12 +191,12 @@ const emit = defineEmits<{
 const authStore = useAuthStore()
 const { user } = storeToRefs(authStore)
 
-// AI : Check if project/overlay is published to backend
+// AI : Check if project/overlay is published to backend (null status means not yet submitted)
 const isPublishedToBackend = computed(() => {
   if (props.overlay) {
     return props.overlay.status === 'approved' || props.overlay.status === 'pending'
   }
-  return props.project?.status === 'approved' || props.project?.status === 'pending'
+  return props.project?.status !== null && (props.project?.status === 'approved' || props.project?.status === 'pending')
 })
 
 // AI : Check if overlay or project has changes that need to be published

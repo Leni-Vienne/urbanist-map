@@ -25,7 +25,7 @@ export function createProjectObject(data: Partial<Project> = {}): Project {
     updatedAt: data.updatedAt ?? new Date(),
     ownerId: data.ownerId ?? '',
     cityId: data.cityId ?? '',
-    status: data.status ?? 'pending',
+    status: data.status ?? null,
     // AI : Center coordinate fields - all projects now have center coordinates
     lat: data.lat ?? null,
     lng: data.lng ?? null,
