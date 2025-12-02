@@ -158,7 +158,7 @@ export const useProjectStore = defineStore('project', () => {
         {
           ...project,
           ...extractCityMetadata(project),
-          status: project.status as Exclude<typeof project.status, null>, // AI : Type assertion - null already filtered above
+          status: project.status, // AI : Type assertion - null already filtered above
           overlays: [createOverlayMetadata(overlay, project, filename)],
           overlayCount: 1,
         },
@@ -191,7 +191,7 @@ export const useProjectStore = defineStore('project', () => {
       {
         ...project,
         ...extractCityMetadata(project),
-        status: project.status as Exclude<typeof project.status, null>, // AI : Type assertion - null already filtered above
+        status: project.status, // AI : Type assertion - null already filtered above
         overlays: [],
         overlayCount: 0,
       },
