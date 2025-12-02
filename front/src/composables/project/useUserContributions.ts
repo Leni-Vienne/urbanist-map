@@ -7,9 +7,109 @@ import { withErrorHandling } from '@composables/core/useErrorHandling'
 import { useToast } from '@composables/ui/useToast'
 import { useI18n } from 'vue-i18n'
 import { removeOverlayFromMap } from '@composables/overlay/useOverlayRemoval'
-import { getStandaloneProjectMarkerByProjectId } from '@composables/map/useStandaloneProjectMarkers'
-import { addStandaloneProjectMarkerForProject } from '@composables/map/useStandaloneProjectMarkers'
+import { getStandaloneProjectMarkerByProjectId, addStandaloneProjectMarkerForProject } from '@composables/map/useStandaloneProjectMarkers'
 import { map } from '@composables/core/useMap'
+
+/**
+ * AI : Shared function to clean up overlay from stores and map
+ */
+function cleanupOverlayFromState(overlayId: string, options: {
+  updateUserContributions?: boolean
+  clearCaches?: boolean
+} = {}) {
+  const projectStore = useProjectStore()
+  const mapStore = useMapStore()
+  const overlayStore = useOverlayStore()
+
+  // AI : Find the project that contains this overlay and remove the overlay ID from it
+  const allProjectsData = projectStore.allProjects
+  const projectWithOverlay = Object.values(allProjectsData).find(p =>
+    p.overlayIds?.includes(overlayId)
+  )
+
+  if (projectWithOverlay) {
+    // AI : Remove overlay ID from project's overlayIds array
+    const updatedOverlayIds = projectWithOverlay.overlayIds.filter(id => id !== overlayId)
+    projectStore.updateProject(projectWithOverlay.id, { overlayIds: updatedOverlayIds })
+
+    // AI : If this was the last overlay, add standalone marker back
+    const isLastOverlay = updatedOverlayIds.length === 0
+    if (isLastOverlay && projectWithOverlay.lat && projectWithOverlay.lng) {
+      setTimeout(() => {
+        addStandaloneProjectMarkerForProject(projectWithOverlay)
+      }, 150)
+    }
+  }
+
+  // AI : Remove from user contributions if requested
+  if (options.updateUserContributions) {
+    projectStore.removeOverlayFromUserContributions(overlayId)
+  }
+
+  // AI : Remove from map and overlay store
+  removeOverlayFromMap(overlayId)
+
+  // AI : Clear overlay from all overlay store caches
+  overlayStore.viewModeOverlays = overlayStore.viewModeOverlays.filter(o => o.id !== overlayId)
+  overlayStore.loadedEditOverlays.delete(overlayId)
+
+  // AI : Remove standalone project marker if it exists (for overlay-only projects)
+  const standaloneMarker = getStandaloneProjectMarkerByProjectId(overlayId)
+  if (standaloneMarker && map.value) {
+    map.value.removeLayer(standaloneMarker)
+  }
+
+  // AI : Clear city cache if requested
+  if (options.clearCaches) {
+    mapStore.clearCityProjectsCache()
+    mapStore.clearCityStandaloneProjectsCache()
+  }
+}
+
+/**
+ * AI : Shared function to clean up project from stores and map
+ */
+function cleanupProjectFromState(projectId: string, options: {
+  updateUserContributions?: boolean
+} = {}) {
+  const projectStore = useProjectStore()
+  const mapStore = useMapStore()
+  const overlayStore = useOverlayStore()
+
+  const project = projectStore.allProjects[projectId]
+
+  // AI : If project has no overlays, remove its standalone marker from the map
+  const hasNoOverlays = !project?.overlayIds || project.overlayIds.length === 0
+  if (hasNoOverlays) {
+    const marker = getStandaloneProjectMarkerByProjectId(projectId)
+    if (marker && map.value) {
+      map.value.removeLayer(marker)
+    }
+  }
+
+  // AI : Remove all overlays for this project from the map and caches
+  if (project?.overlayIds) {
+    project.overlayIds.forEach(overlayId => {
+      removeOverlayFromMap(overlayId)
+      overlayStore.viewModeOverlays = overlayStore.viewModeOverlays.filter(o => o.id !== overlayId)
+      overlayStore.loadedEditOverlays.delete(overlayId)
+    })
+  }
+
+  // AI : Remove project from main project store
+  if (projectStore.projects[projectId]) {
+    delete projectStore.projects[projectId]
+  }
+
+  // AI : Remove from user contributions if requested
+  if (options.updateUserContributions) {
+    projectStore.removeProjectFromUserContributions(projectId)
+  }
+
+  // AI : Clear city caches to force reload when zooming (prevents ghost markers)
+  mapStore.clearCityProjectsCache()
+  mapStore.clearCityStandaloneProjectsCache()
+}
 
 /**
  * AI : Non-composable overlay deletion function that can be called from anywhere
@@ -17,40 +117,15 @@ import { map } from '@composables/core/useMap'
  */
 export async function deleteOverlayDirect(overlayId: string): Promise<boolean> {
   try {
-    const projectStore = useProjectStore()
-
     const result = await withErrorHandling(
       async () => trpc.overlay.deleteOverlay.mutate({ id: overlayId }),
       { errorMessage: undefined }
     )
 
-    const shouldCleanup = result?.success || !result
+    const shouldCleanup = result?.success ?? !result
 
     if (shouldCleanup) {
-      const allProjectsData = projectStore.allProjects
-      const projectWithOverlay = Object.values(allProjectsData).find(p =>
-        p.overlayIds?.includes(overlayId)
-      )
-
-      if (projectWithOverlay) {
-        const updatedOverlayIds = projectWithOverlay.overlayIds.filter(id => id !== overlayId)
-        projectStore.updateProject(projectWithOverlay.id, { overlayIds: updatedOverlayIds })
-
-        const isLastOverlay = updatedOverlayIds.length === 0
-        if (isLastOverlay && projectWithOverlay.lat && projectWithOverlay.lng) {
-          setTimeout(() => {
-            addStandaloneProjectMarkerForProject(projectWithOverlay)
-          }, 150)
-        }
-      }
-
-      removeOverlayFromMap(overlayId)
-
-      const standaloneMarker = getStandaloneProjectMarkerByProjectId(overlayId)
-      if (standaloneMarker && map.value) {
-        map.value.removeLayer(standaloneMarker)
-      }
-
+      cleanupOverlayFromState(overlayId, { clearCaches: false })
       return true
     }
 
@@ -63,8 +138,6 @@ export async function deleteOverlayDirect(overlayId: string): Promise<boolean> {
 
 export function useUserContributions() {
   const projectStore = useProjectStore()
-  const mapStore = useMapStore()
-  const overlayStore = useOverlayStore()
   const toast = useToast()
   const { t } = useI18n()
 
@@ -96,38 +169,17 @@ export function useUserContributions() {
       // AI : Try backend deletion first (will fail gracefully if overlay not in backend)
       const result = await withErrorHandling(
         async () => trpc.overlay.deleteOverlay.mutate({ id: overlayId }),
-        { errorMessage: undefined } // AI : Suppress error toast - we'll handle locally if backend fails
+        { errorMessage: undefined }
       )
 
       // AI : Whether backend succeeded or failed, clean up local state
-      const shouldCleanup = result?.success || !result
+      const shouldCleanup = result?.success ?? !result
 
       if (shouldCleanup) {
-        // AI : Find the project that contains this overlay and remove the overlay ID from it
-        const allProjectsData = projectStore.allProjects
-        const projectWithOverlay = Object.values(allProjectsData).find(p =>
-          p.overlayIds?.includes(overlayId)
-        )
-
-        if (projectWithOverlay) {
-          // AI : Remove overlay ID from project's overlayIds array
-          const updatedOverlayIds = projectWithOverlay.overlayIds.filter(id => id !== overlayId)
-          projectStore.updateProject(projectWithOverlay.id, { overlayIds: updatedOverlayIds })
-        }
-
-        // AI : Remove from user contributions
-        projectStore.removeOverlayFromUserContributions(overlayId)
-
-        // AI : Remove from map and overlay store (this removes from overlayStore.overlays and allMarkers)
-        removeOverlayFromMap(overlayId)
-
-        // AI : Clear overlay from all overlay store caches
-        overlayStore.viewModeOverlays = overlayStore.viewModeOverlays.filter(o => o.id !== overlayId)
-        overlayStore.loadedEditOverlays.delete(overlayId)
-
-        // AI : Clear city cache to force reload when zooming (prevents ghost markers)
-        mapStore.clearCityProjectsCache()
-        mapStore.clearCityStandaloneProjectsCache()
+        cleanupOverlayFromState(overlayId, {
+          updateUserContributions: true,
+          clearCaches: true
+        })
 
         toast.add({
           severity: 'success',
@@ -151,33 +203,7 @@ export function useUserContributions() {
 
       // AI : For local-only projects, skip backend call and just remove from local state
       if (isLocalOnly) {
-        // AI : If project has no overlays, remove its marker from the map
-        const hasNoOverlays = !project?.overlayIds || project.overlayIds.length === 0
-        if (hasNoOverlays) {
-          const marker = getStandaloneProjectMarkerByProjectId(projectId)
-          if (marker && map.value) {
-            map.value.removeLayer(marker)
-          }
-        }
-
-        // AI : Remove all overlays for this project from the map and caches
-        if (project?.overlayIds) {
-          project.overlayIds.forEach(overlayId => {
-            removeOverlayFromMap(overlayId)
-            // AI : Clear from overlay store caches
-            overlayStore.viewModeOverlays = overlayStore.viewModeOverlays.filter(o => o.id !== overlayId)
-            overlayStore.loadedEditOverlays.delete(overlayId)
-          })
-        }
-
-        // AI : Remove project from main project store
-        if (projectStore.projects[projectId]) {
-          delete projectStore.projects[projectId]
-        }
-
-        // AI : Clear city caches to force reload when zooming (prevents ghost markers)
-        mapStore.clearCityProjectsCache()
-        mapStore.clearCityStandaloneProjectsCache()
+        cleanupProjectFromState(projectId, { updateUserContributions: false })
 
         toast.add({
           severity: 'success',
@@ -194,36 +220,7 @@ export function useUserContributions() {
       )
 
       if (result?.success) {
-        // AI : Remove from user contributions
-        projectStore.removeProjectFromUserContributions(projectId)
-
-        // AI : If project has no overlays, remove its marker from the map
-        const hasNoOverlays = !project?.overlayIds || project.overlayIds.length === 0
-        if (hasNoOverlays) {
-          const marker = getStandaloneProjectMarkerByProjectId(projectId)
-          if (marker && map.value) {
-            map.value.removeLayer(marker)
-          }
-        }
-
-        // AI : Remove all overlays for this project from the map and caches
-        if (project?.overlayIds) {
-          project.overlayIds.forEach(overlayId => {
-            removeOverlayFromMap(overlayId)
-            // AI : Clear from overlay store caches
-            overlayStore.viewModeOverlays = overlayStore.viewModeOverlays.filter(o => o.id !== overlayId)
-            overlayStore.loadedEditOverlays.delete(overlayId)
-          })
-        }
-
-        // AI : Remove project from main project store
-        if (projectStore.projects[projectId]) {
-          delete projectStore.projects[projectId]
-        }
-
-        // AI : Clear city caches to force reload when zooming (prevents ghost markers)
-        mapStore.clearCityProjectsCache()
-        mapStore.clearCityStandaloneProjectsCache()
+        cleanupProjectFromState(projectId, { updateUserContributions: true })
 
         toast.add({
           severity: 'success',
