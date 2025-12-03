@@ -86,6 +86,71 @@ function zoomToOverlayAndSelect(overlayId: string, corners: { lat: number; lng: 
 }
 
 /**
+ * AI : Get corners from either loaded overlay or mapStore data
+ */
+function getOverlayCorners(overlayId: string, mapStore: ReturnType<typeof useMapStore>, overlayStore: ReturnType<typeof useOverlayStore>): { lat: number; lng: number }[] | null {
+  // AI : Try loaded overlay first (respects current display position)
+  const overlayObject = overlayStore.overlays[overlayId];
+  if (overlayObject != null) {
+    return getCurrentDisplayCorners(overlayObject);
+  }
+
+  // AI : Fallback to mapStore data
+  const overlayData = mapStore.currentCityOverlays.find(o => o.id === overlayId);
+  return overlayData?.corners ?? null;
+}
+
+/**
+ * AI : Handle navigation when clicking the same overlay again
+ */
+function handleSameOverlayNavigation(overlayId: string, overlayStore: ReturnType<typeof useOverlayStore>): boolean {
+  const overlayObject = overlayStore.overlays[overlayId];
+  if (overlayObject != null) {
+    const corners = getCurrentDisplayCorners(overlayObject);
+    if (corners != null) {
+      zoomToOverlayAndSelect(overlayId, corners);
+    }
+  }
+  return true;
+}
+
+/**
+ * AI : Handle navigation when overlay is in the currently selected city
+ */
+function handleSameCityNavigation(overlayId: string, mapStore: ReturnType<typeof useMapStore>, overlayStore: ReturnType<typeof useOverlayStore>): boolean | null {
+  const corners = getOverlayCorners(overlayId, mapStore, overlayStore);
+  if (corners != null) {
+    return zoomToOverlayAndSelect(overlayId, corners);
+  }
+  return null; // AI : Couldn't find corners, need to try different city path
+}
+
+/**
+ * AI : Handle navigation when switching to a different city
+ */
+async function handleDifferentCityNavigation(
+  overlayId: string,
+  cityId: string,
+  cityName: string,
+  countryCode: string | undefined,
+  mapStore: ReturnType<typeof useMapStore>
+): Promise<boolean> {
+  await prepareNavigationToCity(cityId, cityName, countryCode);
+
+  if (!map.value) {
+    return false;
+  }
+
+  const overlayData = mapStore.currentCityOverlays.find(o => o.id === overlayId);
+  if (overlayData?.corners != null) {
+    return zoomToOverlayAndSelect(overlayId, overlayData.corners);
+  }
+
+  // AI : Fallback: if overlay not in current city overlays, use the old method
+  return navigateToOverlay(overlayId, true, false);
+}
+
+/**
  * AI : Navigates to an overlay by simulating the complete marker click flow
  * AI : This replicates exactly what happens when clicking country marker → city marker → overlay
  * @param overlayId - The ID of the overlay to navigate to
@@ -106,15 +171,7 @@ export async function navigateToOverlayWithCity(
 
     // AI : Optimization 1: Check if clicking the same overlay again
     if (overlayStore.idSelectedOverlay === overlayId) {
-      const overlayObject = overlayStore.overlays[overlayId];
-      if (overlayObject != null) {
-        // AI : Respect current display position (suggested or approved)
-        const corners = getCurrentDisplayCorners(overlayObject);
-        if (corners != null) {
-          zoomToOverlayAndSelect(overlayId, corners);
-        }
-      }
-      return true;
+      return handleSameOverlayNavigation(overlayId, overlayStore);
     }
 
     // AI : Optimization 2: Check if overlay is from the currently selected city
@@ -122,39 +179,15 @@ export async function navigateToOverlayWithCity(
     const isSameCity = currentCity?.id === cityId;
 
     if (isSameCity) {
-      const overlayObject = overlayStore.overlays[overlayId];
-
-      // AI : If overlay is loaded, respect its current display position
-      if (overlayObject != null) {
-        const corners = getCurrentDisplayCorners(overlayObject);
-        if (corners != null) {
-          return zoomToOverlayAndSelect(overlayId, corners);
-        }
-      } else {
-        // AI : Fallback to data corners if overlay not yet loaded
-        const overlayData = mapStore.currentCityOverlays.find(o => o.id === overlayId);
-        if (overlayData?.corners != null) {
-          return zoomToOverlayAndSelect(overlayId, overlayData.corners);
-        }
+      const result = handleSameCityNavigation(overlayId, mapStore, overlayStore);
+      if (result !== null) {
+        return result;
       }
+      // AI : If null, fall through to different city path
     }
 
     // AI : Different city or no data - load everything
-    await prepareNavigationToCity(cityId, cityName, countryCode);
-
-    if (!map.value) {
-      return false;
-    }
-
-    // AI : Get the overlay data from mapStore (already loaded by getCityOverlaysAndProjects)
-    const overlayData = mapStore.currentCityOverlays.find(o => o.id === overlayId);
-
-    if (overlayData?.corners != null) {
-      return zoomToOverlayAndSelect(overlayId, overlayData.corners);
-    }
-
-    // AI : Fallback: if overlay not in current city overlays, use the old method
-    return await navigateToOverlay(overlayId, true, false);
+    return await handleDifferentCityNavigation(overlayId, cityId, cityName, countryCode, mapStore);
   } catch (error) {
     console.error('Failed to navigate to overlay with city:', error);
     throw error;
