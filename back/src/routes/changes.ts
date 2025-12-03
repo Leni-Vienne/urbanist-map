@@ -1,10 +1,10 @@
 import { adminProcedure, protectedProcedure, router } from '../trpc';
 import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
-import { projects, overlays, changeRequests, changeHistory, cities, countries, users } from '../db/schema';
+import { projects, overlays, changeRequests, changeHistory, users } from '../db/schema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { db } from '../database';
-import { addConflictFlags } from '../db/helpers';
+import { addConflictFlags, enrichChangeRequestsWithNames } from '../db/helpers';
 
 const submitChangeRequestSchema = z.object({
   entityType: z.enum(['project', 'overlay']),
@@ -17,9 +17,8 @@ const submitChangeRequestSchema = z.object({
   })),
 });
 
-// AI : Export types for frontend usage
-export type SubmitChangeRequestInput = z.infer<typeof submitChangeRequestSchema>;
-export type FieldChange = SubmitChangeRequestInput['changes'][0];
+// AI : Re-export shared types for backward compatibility
+export type { SubmitChangeRequestInput, FieldChange } from '../shared/types';
 
 const approveChangeRequestSchema = z.object({
   changeRequestIds: z.array(z.uuid()),
@@ -81,23 +80,6 @@ function buildUpdateData(change: { entityType: string; fieldName: string; newVal
   return { [change.fieldName]: change.newValue };
 }
 
-// AI : Base interface for change requests that can be enriched with city names
-interface BaseChangeRequest {
-  fieldName: string;
-  oldValue: unknown;
-  newValue: unknown;
-}
-
-// AI : Default empty enrichment object for non-cityId fields
-const EMPTY_CITY_ENRICHMENT = {
-  oldCityName: null,
-  newCityName: null,
-  oldCountryCode: null,
-  newCountryCode: null,
-  oldCountryName: null,
-  newCountryName: null,
-} as const;
-
 // AI : Common select fields for change requests with user info
 const changeRequestSelectFields = {
   id: changeRequests.id,
@@ -113,78 +95,6 @@ const changeRequestSelectFields = {
   requestedByReportCount: sql<number>`0`.as('requestedByReportCount'),
   createdAt: changeRequests.createdAt,
 } as const;
-
-// AI : Helper function to enrich change requests with city and country names
-export async function enrichChangeRequestsWithNames<T extends BaseChangeRequest>(
-  changes: T[]
-){
-  // AI : Extract all unique cityIds from change requests where fieldName is 'cityId'
-  const cityIds = new Set<string>();
-
-  for (const change of changes) {
-    if (change.fieldName === 'cityId') {
-      // AI : Handle JSONB values - they might be strings or need to be extracted
-      const oldValue = typeof change.oldValue === 'string' ? change.oldValue : String(change.oldValue);
-      const newValue = typeof change.newValue === 'string' ? change.newValue : String(change.newValue);
-
-      if (change.oldValue && oldValue !== 'null' && oldValue !== 'undefined') {
-        cityIds.add(oldValue);
-      }
-      if (change.newValue && newValue !== 'null' && newValue !== 'undefined') {
-        cityIds.add(newValue);
-      }
-    }
-  }
-
-  // AI : If no city changes, return with empty enrichment
-  if (cityIds.size === 0) {
-    return changes.map(change => ({
-      ...change,
-      ...EMPTY_CITY_ENRICHMENT,
-    }));
-  }
-
-  // AI : Fetch all cities with their country names in one query using a join
-  const cityData = await db
-    .select({
-      id: cities.id,
-      name: cities.name,
-      countryCode: cities.countryCode,
-      countryName: countries.name,
-    })
-    .from(cities)
-    .leftJoin(countries, eq(cities.countryCode, countries.code))
-    .where(inArray(cities.id, Array.from(cityIds)));
-
-  // AI : Create a map for quick lookup
-  const cityMap = new Map(cityData.map(c => [c.id, c]));
-
-  // AI : Enrich change requests with city and country names
-  return changes.map(change => {
-    if (change.fieldName === 'cityId') {
-      const oldValue = typeof change.oldValue === 'string' ? change.oldValue : String(change.oldValue);
-      const newValue = typeof change.newValue === 'string' ? change.newValue : String(change.newValue);
-
-      const oldCity = change.oldValue ? cityMap.get(oldValue) : null;
-      const newCity = change.newValue ? cityMap.get(newValue) : null;
-
-      return {
-        ...change,
-        oldCityName: oldCity?.name ?? null,
-        newCityName: newCity?.name ?? null,
-        oldCountryCode: oldCity?.countryCode ?? null,
-        newCountryCode: newCity?.countryCode ?? null,
-        oldCountryName: oldCity?.countryName ?? null,
-        newCountryName: newCity?.countryName ?? null,
-      };
-    }
-
-    return {
-      ...change,
-      ...EMPTY_CITY_ENRICHMENT,
-    };
-  });
-}
 
 export const changesRouter = router({
   submitChangeRequest: protectedProcedure

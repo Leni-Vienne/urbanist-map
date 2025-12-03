@@ -2,7 +2,6 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { Project, Country, MapMode, OverlayObject } from '@types';
 import type { NearbyProject } from '../../types/api';
-import { map } from '@composables/core/useMap';
 import { trpc, RouterOutput } from '@client';
 import { createProjectObjectFromAPI } from '../../utils/typeFactories';
 
@@ -317,15 +316,9 @@ export const useProjectStore = defineStore('project', () => {
 
   // AI : Fetch nearby projects with smart caching to avoid redundant API calls
   // AI : Cache is valid for 5 minutes and invalidated if map moves >11km from cached position
-  async function fetchNearbyProjects(force = false): Promise<NearbyProject[]> {
+  // AI : Accepts coordinates as parameters to avoid circular dependency with useMap composable
+  async function fetchNearbyProjects(lat: number, lng: number, force = false): Promise<NearbyProject[]> {
     try {
-      if (!map.value) {
-        console.warn('Map not available for fetching nearby projects');
-        return [];
-      }
-
-      // AI : Get current map center coordinates
-      const center = map.value.getCenter();
       const now = Date.now();
 
       // AI : Check if we have cached data and don't need to refetch
@@ -335,8 +328,8 @@ export const useProjectStore = defineStore('project', () => {
         const LOCATION_THRESHOLD = 0.1; // AI : ~11km at equator
 
         // AI : Calculate distance from cached location
-        const latDiff = Math.abs(center.lat - cachedLat);
-        const lngDiff = Math.abs(center.lng - cachedLng);
+        const latDiff = Math.abs(lat - cachedLat);
+        const lngDiff = Math.abs(lng - cachedLng);
 
         // AI : If location hasn't changed much and cache is fresh, return cached data
         if (
@@ -353,14 +346,14 @@ export const useProjectStore = defineStore('project', () => {
 
       // AI : Call the TRPC endpoint to fetch nearby projects
       const response = await trpc.project.getProjectsNearLocation.query({
-        lat: center.lat,
-        lng: center.lng,
+        lat,
+        lng,
       });
 
       nearbyProjects.value = response.projects;
       nearbyProjectsLastFetch.value = {
-        lat: center.lat,
-        lng: center.lng,
+        lat,
+        lng,
         timestamp: now
       };
 

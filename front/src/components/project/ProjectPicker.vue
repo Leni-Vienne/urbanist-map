@@ -100,10 +100,10 @@ import { ref, computed, watch, onUnmounted } from 'vue';
 
 import { useProjects } from '@composables/project/useProjects';
 import { useCityProjects, useSelectedProject } from '@composables/project/useProjectSelection';
-import { lastCreatedProjectId, setFileUploadFlow } from '@composables/ui/useProjectState';
 import { useUiStore } from '@stores/uiStore';
 import type { Project } from '@types';
 import { markerColors } from '@composables/map/useMarkers';
+import { storeToRefs } from 'pinia';
 
 const props = defineProps({
   modelValue: {
@@ -158,6 +158,7 @@ const { selectedProjectId } = useSelectedProject();
 
 // AI : Use UI store to open project dialog
 const uiStore = useUiStore();
+const { lastCreatedProjectId } = storeToRefs(uiStore);
 
 // AI : Get city projects composable
 const { 
@@ -310,7 +311,7 @@ function getStatusColor(project: Project | undefined): string {
 function openNewProjectDialog() {
   try {
     // AI : Set flag when creating from ProjectPicker
-    setFileUploadFlow(true);
+    uiStore.setFileUploadFlow(true);
     // AI : Use UI store to trigger dialog opening
     uiStore.openProjectDialog();
     // AI : Also emit event as fallback

@@ -9,11 +9,11 @@ import {
   buildOverlayModerationQuery,
   buildPaginationConditions,
   buildPaginationResponse,
-  addConflictFlags
+  addConflictFlags,
+  enrichChangeRequestsWithNames
 } from '../db/helpers';
 import { LocalFileStorage, R2StorageS3, getThumbnailFilename, streamToBuffer } from '../lib/storage';
 import { scheduleImageCleanup, deleteImages, daysFromNow } from '../lib/imageCleanup';
-import { enrichChangeRequestsWithNames } from './changes';
 
 // AI : Helper functions to update user moderation stats
 // AI : These are called within transactions to ensure atomicity

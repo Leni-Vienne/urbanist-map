@@ -48,6 +48,10 @@ export const useUiStore = defineStore("ui", () => {
     project: null as Project | null,
   });
 
+  // AI : Project creation flow state (moved from useProjectState)
+  const lastCreatedProjectId = ref<string | null>(null);
+  const inFileUploadFlow = ref<boolean>(false);
+
   // AI : Auth modal actions
   function openAuthModal() {
     authModalVisible.value = true;
@@ -148,6 +152,15 @@ export const useUiStore = defineStore("ui", () => {
     moderatedContributionsDialogVisible.value = false;
   }
 
+  // AI : Project creation flow actions (moved from useProjectState)
+  function setLastCreatedProject(projectId: string | null) {
+    lastCreatedProjectId.value = projectId;
+  }
+
+  function setFileUploadFlow(active: boolean) {
+    inFileUploadFlow.value = active;
+  }
+
   // AI : Close all UI elements (used for cleanup)
   function closeAllDialogs() {
     authModalVisible.value = false;
@@ -171,6 +184,8 @@ export const useUiStore = defineStore("ui", () => {
     mobileDrawerVisible,
     mobileDrawerHeightPercent,
     projectInfoPopup,
+    lastCreatedProjectId,
+    inFileUploadFlow,
 
     // AI : Actions
     openAuthModal,
@@ -189,6 +204,8 @@ export const useUiStore = defineStore("ui", () => {
     closeProjectInfoPopup,
     openModeratedContributionsDialog,
     closeModeratedContributionsDialog,
+    setLastCreatedProject,
+    setFileUploadFlow,
     closeAllDialogs,
   };
 });

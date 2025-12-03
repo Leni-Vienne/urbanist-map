@@ -8,7 +8,7 @@ import { trpc, getApiUrl } from '@client';
 import { storeToRefs } from 'pinia';
 import { buildProjectPayload } from '@composables/project/useProjectMutations';
 import type { OverlayObject, Project } from '@types';
-import { validateOverlaySize, leafletCornersToCorners } from '../../../../back/src/utils/overlayValidation';
+import { validateOverlaySize, leafletCornersToCorners } from '../../../../back/src/shared/validation';
 import { useI18n } from 'vue-i18n';
 
 export function useOverlayPublisher() {

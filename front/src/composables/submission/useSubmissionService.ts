@@ -5,10 +5,10 @@ import { buildProjectPayload } from '@composables/project/useProjectMutations'
 import { loadCityProjects, updateStandaloneProjectMarkerColor } from '@composables/map/useCityMarkers'
 import { updateMarkerTooltip } from '@composables/overlay/useOverlay'
 import type { Project, OverlayObject } from '@types'
-import type { FieldChange } from '../../../../back/src/routes/changes'
+import type { FieldChange } from '../../../../back/src/shared/types'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
-import { validateOverlaySize, leafletCornersToCorners } from '../../../../back/src/utils/overlayValidation'
+import { validateOverlaySize, leafletCornersToCorners } from '../../../../back/src/shared/validation'
 import { useI18n } from 'vue-i18n'
 import { useChangeRequests } from '@composables/changes/useChanges'
 import { formatDate } from '@utils/dateFormat'
@@ -160,9 +160,7 @@ export function useSubmissionService() {
         // AI : For non-date fields, direct comparison
         changes.push({
           fieldName: String(field),
-          // @ts-expect-error - Complex union types from Project fields don't match strict JSONType
           oldValue: oldValue ?? null,
-          // @ts-expect-error - Complex union types from Project fields don't match strict JSONType
           newValue: newValue ?? null,
           changeReason: customReason ?? undefined
         })

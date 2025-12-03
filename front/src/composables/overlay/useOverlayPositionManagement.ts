@@ -7,7 +7,7 @@
 
 import L from 'leaflet';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { calculateCentroidFromCorners } from '../../../../back/src/utils/overlayValidation';
+import { calculateCentroidFromCorners } from '../../../../back/src/shared/validation';
 import type { OverlayData, OverlayObject, MapMode } from '@types';
 
 // AI : ============================================================================

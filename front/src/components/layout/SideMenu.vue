@@ -84,7 +84,7 @@ usePanelTabs(activeTab)
 
 .sidecolumn__header {
   flex-shrink: 0;
-  padding: 2rem 1.5rem 1.5rem;
+  padding: 1rem 1.5rem 0.5rem;
   background-color: var(--p-surface-0);
   border-bottom: 1px solid var(--p-surface-100);
   display: flex;
