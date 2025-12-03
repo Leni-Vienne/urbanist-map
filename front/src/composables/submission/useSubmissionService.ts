@@ -17,13 +17,23 @@ import { formatDate } from '@utils/dateFormat'
 export type SubmissionChangeType = 'create' | 'update_pending' | 'update_approved'
 export type SubmissionEntityType = 'project' | 'overlay'
 
-export interface SubmissionContext {
-  entityType: SubmissionEntityType
+// AI : Base submission context interface
+interface BaseSubmissionContext {
   entityId: string
-  entity: any // AI : Use any to avoid strict type checking issues with Leaflet overlay objects
   changeType: SubmissionChangeType
   changedFields?: FieldChange[]
 }
+
+// AI : Discriminated union for type-safe entity handling
+export type SubmissionContext =
+  | (BaseSubmissionContext & {
+      entityType: 'project'
+      entity: Project
+    })
+  | (BaseSubmissionContext & {
+      entityType: 'overlay'
+      entity: OverlayObject
+    })
 
 export interface SubmissionChange {
   field: string
@@ -103,6 +113,28 @@ export function useSubmissionService() {
     }
 
     return 'create'
+  }
+
+  // AI : Helper to create properly typed project submission context
+  function createProjectContext(project: Project, changeType?: SubmissionChangeType): SubmissionContext {
+    const ctx: BaseSubmissionContext & { entityType: 'project'; entity: Project } = {
+      entityType: 'project',
+      entityId: project.id,
+      entity: project,
+      changeType: changeType ?? getChangeType(project)
+    }
+    return ctx
+  }
+
+  // AI : Helper to create properly typed overlay submission context
+  function createOverlayContext(overlay: OverlayObject, changeType?: SubmissionChangeType): SubmissionContext {
+    const ctx: BaseSubmissionContext & { entityType: 'overlay'; entity: OverlayObject } = {
+      entityType: 'overlay',
+      entityId: overlay.id,
+      entity: overlay as OverlayObject,
+      changeType: changeType ?? getChangeType(overlay)
+    }
+    return ctx
   }
 
   // AI : Detect all changes for a project entity by fetching original from backend cache
@@ -228,9 +260,9 @@ export function useSubmissionService() {
     }
 
     if (context.entityType === 'project') {
-      return detectProjectChanges(context.entity as Project, customReason)
+      return detectProjectChanges(context.entity, customReason)
     } else {
-      return detectOverlayChanges(context.entity as OverlayObject, customReason)
+      return detectOverlayChanges(context.entity, customReason)
     }
   }
 
@@ -278,8 +310,8 @@ export function useSubmissionService() {
   function buildSummary(context: SubmissionContext): SubmissionSummary {
     const changes = detectChanges(context)
     const entityName = context.entityType === 'project'
-      ? (context.entity as Project).name
-      : (context.entity as OverlayObject).caption ?? 'Unnamed Overlay'
+      ? context.entity.name
+      : context.entity.caption ?? 'Unnamed Overlay'
 
     let action: string
     let requiresModeration: boolean
@@ -321,34 +353,30 @@ export function useSubmissionService() {
 
     // AI : Project-specific validation
     if (context.entityType === 'project') {
-      const project = context.entity as Project
-
-      if (!project.name || project.name.trim().length < 8) {
+      if (!context.entity.name || context.entity.name.trim().length < 8) {
         errors.push('Project name must be at least 8 characters long')
       }
 
-      if (!project.cityId) {
+      if (!context.entity.cityId) {
         errors.push('Project must be assigned to a city')
       }
     }
 
     // AI : Overlay-specific validation
     if (context.entityType === 'overlay') {
-      const overlay = context.entity as OverlayObject
-
-      if (!overlay.projectId) {
+      if (!context.entity.projectId) {
         errors.push('Overlay must be assigned to a project')
       }
 
-      const corners = overlay.overlay?.getCorners() ?? overlay.corners
+      const corners = context.entity.overlay?.getCorners() ?? context.entity.corners
       if (!corners || corners.length !== 4 || corners.some(c => !c.lat || !c.lng)) {
         errors.push('Overlay must have valid position (4 corners)')
       } else {
         // AI : Validate overlay size constraints
-        const cornersArray = overlay.overlay 
-          ? leafletCornersToCorners(overlay.overlay.getCorners())
-          : overlay.corners.map(c => ({ lat: c.lat, lng: c.lng }))
-        
+        const cornersArray = context.entity.overlay
+          ? leafletCornersToCorners(context.entity.overlay.getCorners())
+          : context.entity.corners.map(c => ({ lat: c.lat, lng: c.lng }))
+
         const sizeValidation = validateOverlaySize(cornersArray)
         if (!sizeValidation.isValid) {
           // AI : Simple i18n error message
@@ -440,20 +468,22 @@ export function useSubmissionService() {
   }
 
   // AI : Route project submission to appropriate handler
-  async function submitProject(context: SubmissionContext, changes: FieldChange[]): Promise<void> {
-    const project = context.entity as Project
-
+  async function submitProject(
+    context: Extract<SubmissionContext, { entityType: 'project' }>,
+    changes: FieldChange[]
+  ): Promise<void> {
     if (context.changeType === 'update_approved') {
-      await submitProjectChangeRequest(project, changes)
+      await submitProjectChangeRequest(context.entity, changes)
     } else {
-      await publishProjectDirect(project, context.changeType)
+      await publishProjectDirect(context.entity, context.changeType)
     }
   }
 
   // AI : Submit overlay changes to backend
-  async function submitOverlay(context: SubmissionContext, changes: FieldChange[]): Promise<void> {
-    const overlay = context.entity as OverlayObject
-
+  async function submitOverlay(
+    context: Extract<SubmissionContext, { entityType: 'overlay' }>,
+    changes: FieldChange[]
+  ): Promise<void> {
     if (context.changeType === 'update_approved') {
       // AI : Submit change requests for approved overlays
       if (changes.length === 0) {
@@ -462,17 +492,17 @@ export function useSubmissionService() {
 
       await trpc.changes.submitChangeRequest.mutate({
         entityType: 'overlay',
-        entityId: overlay.id,
+        entityId: context.entity.id,
         changes
       })
 
       // AI : Reset modified flag and set pending changes flag after successfully submitting change request
-      overlay.isModified = false
-      overlay.hasPendingChanges = true
-      updateMarkerTooltip(overlay)
+      context.entity.isModified = false
+      context.entity.hasPendingChanges = true
+      updateMarkerTooltip(context.entity)
 
       // AI : Invalidate all mode caches for this city (change affects all modes)
-      const cityId = overlay.project?.cityId
+      const cityId = context.entity.project?.cityId
       if (cityId) {
         mapStore.clearCityProjectsCache(cityId)
         mapStore.clearCityStandaloneProjectsCache(cityId)
@@ -483,7 +513,7 @@ export function useSubmissionService() {
       await refreshPendingChangeRequests(true) // forceUserOnly = true for My Contributions
     } else if (context.changeType === 'update_pending') {
       // AI : Direct update for pending overlays
-      const overlayData: { id: string; caption?: string } = { id: overlay.id }
+      const overlayData: { id: string; caption?: string } = { id: context.entity.id }
 
       changes.forEach(change => {
         if (change.fieldName === 'caption') {
@@ -494,7 +524,7 @@ export function useSubmissionService() {
       await trpc.overlay.updateOverlay.mutate(overlayData)
 
       // AI : Invalidate all mode caches for this city (update affects all modes)
-      const cityId = overlay.project?.cityId
+      const cityId = context.entity.project?.cityId
       if (cityId) {
         mapStore.clearCityProjectsCache(cityId)
         mapStore.clearCityStandaloneProjectsCache(cityId)
@@ -502,7 +532,7 @@ export function useSubmissionService() {
 
       // AI : Optimistically update pending overlay in user contributions
       if (overlayData.caption !== undefined) {
-        projectStore.updateOverlayInUserContributions(overlay.id, {
+        projectStore.updateOverlayInUserContributions(context.entity.id, {
           name: overlayData.caption || 'Unnamed'
         })
       }
@@ -533,6 +563,8 @@ export function useSubmissionService() {
 
   return {
     getChangeType,
+    createProjectContext,
+    createOverlayContext,
     detectChanges,
     buildSummary,
     validate,

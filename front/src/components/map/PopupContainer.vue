@@ -254,7 +254,8 @@ async function confirmSubmission(reason: string) {
   try {
     isSubmitting.value = true;
 
-    await submissionService.submit(pendingSubmissionContext.value, reason);
+    // ugly ass type assertion but it prevents typescript from going crazy over the _map properties and stuff
+    await submissionService.submit(pendingSubmissionContext.value as SubmissionContext, reason);
 
     // AI : Show success message
     const context = pendingSubmissionContext.value;
@@ -313,13 +314,7 @@ async function handlePublishOverlay() {
 
   // AI : Handle project-only changes
   if (projectModified && !overlayModified && project) {
-    const context: SubmissionContext = {
-      entityType: 'project',
-      entityId: project.id,
-      entity: project,
-      changeType: submissionService.getChangeType(project)
-    };
-
+    const context = submissionService.createProjectContext(project);
     await prepareAndShowSubmissionDialog(context);
     return;
   }
@@ -337,12 +332,7 @@ async function handlePublishOverlay() {
 
       // AI : If project was also modified and approved, submit change request for project
       if (projectModified && project?.status === 'approved') {
-        const projectContext: SubmissionContext = {
-          entityType: 'project',
-          entityId: project.id,
-          entity: project,
-          changeType: 'update_approved'
-        };
+        const projectContext = submissionService.createProjectContext(project, 'update_approved');
         await prepareAndShowSubmissionDialog(projectContext);
       } else {
         // AI : Close popup after successful publish (if no project changes to submit)
@@ -362,13 +352,7 @@ async function handlePublishOverlay() {
 
   // AI : Handle overlay changes for approved overlays using unified submission service
   if (overlayModified && overlay.status === 'approved') {
-    const context: SubmissionContext = {
-      entityType: 'overlay',
-      entityId: overlay.id,
-      entity: overlay,
-      changeType: submissionService.getChangeType(overlay)
-    };
-
+    const context = submissionService.createOverlayContext(overlay);
     await prepareAndShowSubmissionDialog(context);
   }
 }
@@ -379,13 +363,7 @@ async function handlePublishProject() {
   if (!project) return;
 
   // AI : Always use unified submission service - it determines the correct flow based on status
-  const context: SubmissionContext = {
-    entityType: 'project',
-    entityId: project.id,
-    entity: project,
-    changeType: submissionService.getChangeType(project)
-  };
-
+  const context = submissionService.createProjectContext(project);
   await prepareAndShowSubmissionDialog(context);
 }
 
