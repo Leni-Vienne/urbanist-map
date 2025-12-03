@@ -3,6 +3,7 @@
   "scripts": {
     "unused": "bunx nyc report --reporter=html --reporter=text --report-dir=coverage",
     "check": "bunx vue-tsc@latest --noEmit",
+    "jscpd": "bunx jscpd .",
     "oxlint": "bunx oxlint --type-aware",
     "preview": "vite preview front",
     "dev-front": "bunx --bun vite front",

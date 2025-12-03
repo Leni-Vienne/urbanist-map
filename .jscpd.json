@@ -1,0 +1,18 @@
+{
+  "threshold": 1,
+  "minTokens": 70,
+  "ignore": [
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/.nuxt/**",
+    "**/coverage/**",
+    "**/drizzle/**",
+    "*.md",
+    "**/playwright-report/**",
+    "**/report/**"
+  ],
+  "reporters": ["console"],
+  "absolute": true
+}
