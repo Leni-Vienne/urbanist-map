@@ -41,6 +41,10 @@
       :id-prefix="idPrefix"
       @change="handleTimelineStatusChange"
     />
+    <!-- AI : Show change indicator when timeline status changes -->
+    <small v-if="showChangeIndicators && timelineStatusChanged" class="change-indicator">
+      {{ timelineStatusChangeMessage }}
+    </small>
 
     <!-- AI : Proposal date field (shown when project is proposed) -->
     <div class="form-group" v-if="localIsProposed">
@@ -163,6 +167,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import FloatLabel from 'primevue/floatlabel'
 import TimelineStatusSelector from './TimelineStatusSelector.vue'
 import CitySelect from './CitySelect.vue'
@@ -221,6 +226,9 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
+// AI : i18n for translations
+const { t } = useI18n()
+
 // AI : Reference to CitySelect component
 const citySelectRef = ref<InstanceType<typeof CitySelect> | null>(null)
 
@@ -246,6 +254,30 @@ const wasOriginallyProposed = computed(() => {
   return !!(props.originalData.proposalDate && !props.originalData.startDate && !props.originalData.endDate)
 })
 
+// AI : Computed to check if timeline status has changed
+const timelineStatusChanged = computed(() => {
+  if (!props.originalData) return false
+  return localIsProposed.value !== wasOriginallyProposed.value
+})
+
+// AI : Computed message to show what changed when timeline status changes
+const timelineStatusChangeMessage = computed(() => {
+  if (!props.originalData) return ''
+
+  if (wasOriginallyProposed.value && !localIsProposed.value) {
+    // AI : Changed from proposed to planned
+    const oldDate = formatDate(props.originalData.proposalDate) ?? t('overlay.notSet')
+    return t('project.timelineChangedFromProposedToPlanned', { proposalDate: oldDate })
+  } else if (!wasOriginallyProposed.value && localIsProposed.value) {
+    // AI : Changed from planned to proposed
+    const oldStart = formatDate(props.originalData.startDate) ?? t('overlay.notSet')
+    const oldEnd = formatDate(props.originalData.endDate) ?? t('overlay.notSet')
+    return t('project.timelineChangedFromPlannedToProposed', { startDate: oldStart, endDate: oldEnd })
+  }
+
+  return ''
+})
+
 // AI : Handle timeline status change
 function handleTimelineStatusChange(newIsProposed: boolean) {
   localIsProposed.value = newIsProposed
@@ -256,8 +288,6 @@ function handleTimelineStatusChange(newIsProposed: boolean) {
     // AI : Switching to proposed - clear planned dates
     props.formData.startDate = null
     props.formData.endDate = null
-    // AI : Set proposal date to today if not already set
-    props.formData.proposalDate ??= new Date()
   } else {
     // AI : Switching to planned - clear proposal date
     props.formData.proposalDate = null

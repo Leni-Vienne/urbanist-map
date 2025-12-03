@@ -34,7 +34,7 @@ const formFieldsRef = ref<InstanceType<typeof ProjectFormFields> | null>(null)
 const formData = reactive<ProjectFormData>({
     name: props.project.name ?? '',
     description: props.project.description ?? null,
-    proposalDate: props.mode === 'create' ? new Date() : (props.project.proposalDate ?? null),
+    proposalDate: props.project.proposalDate ?? null,
     startDate: props.project.startDate ?? null,
     endDate: props.project.endDate ?? null,
     latestUpdateOn: props.project.latestUpdateOn ?? null,
