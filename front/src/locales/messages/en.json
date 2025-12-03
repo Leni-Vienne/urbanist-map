@@ -108,6 +108,8 @@
     "locationRequired": "Location is required",
     "proposalDateRequired": "Proposal date is required for proposed projects",
     "datesRequired": "Start date and end date are required for planned projects",
+    "timelineChangedFromProposedToPlanned": "Timeline status changed from Proposed ({proposalDate}) to Planned",
+    "timelineChangedFromPlannedToProposed": "Timeline status changed from Planned ({startDate} to {endDate}) to Proposed",
     "chooseProjectType": "Choose Project Type",
     "whatTypeOfProject": "What type of project do you want to create?",
     "chooseProjectTypeDescription": "Select the type of project that best matches what you want to document.",
