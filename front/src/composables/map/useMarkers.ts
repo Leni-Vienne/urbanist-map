@@ -8,7 +8,6 @@ import L from 'leaflet';
 import type { MarkerColor, OverlayObject, OverlayData, MapMode } from '@types';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import type { ShallowRef } from 'vue';
-import { formatDate } from '@utils/dateFormat';
 
 // AI : ============================================================================
 // AI : ICON CREATION
@@ -261,11 +260,6 @@ export function createButtonSVG(color: MarkerColor): string {
 
 /**
  * AI : Centralized function to determine marker color based on overlay state and map mode
- * 
- * This replaces duplicated logic in multiple files. See COLOR_DECISION_TREE.md for
- * detailed flowcharts and explanations of each mode's color logic.
- * 
- * @see front/src/composables/overlay/COLOR_DECISION_TREE.md
  */
 export function getOverlayMarkerColor(
   overlayData: OverlayObject | OverlayData,
@@ -358,130 +352,6 @@ export function getOverlayMarkerColor(
   return 'orange'; // Ongoing
 }
 
-/**
- * AI : Debug helper to explain why an overlay has a specific color
- * Useful for troubleshooting color issues
- * 
- * @param overlayData - Overlay data
- * @param mode - Current map mode
- * @returns Explanation of color decision
- * 
- * @example
- * const explanation = explainOverlayColor(overlay, 'edit');
- * console.log(explanation);
- * // "Color: orange (Modified)
- * //  Reason: Overlay has unsaved local changes (isModified = true)
- * //  Mode: edit
- * //  Priority: #3 in edit mode hierarchy"
- */
-export function explainOverlayColor(
-  overlayData: OverlayObject | OverlayData,
-  mode: MapMode
-): string {
-  const color = getOverlayMarkerColor(overlayData, mode);
-  let reason = '';
-  let priority = '';
-
-  if (mode === 'moderation') {
-    const status = overlayData.status;
-    const hasPendingChangeRequests = (overlayData.pendingChangeRequestsCount ?? 0) > 0;
-    const isLocalUnsubmitted = 'isModified' in overlayData && overlayData.isModified;
-
-    if (overlayData.replacesOverlayId && isLocalUnsubmitted) {
-      reason = 'Local replacement overlay (not yet submitted) - shown as purple';
-      priority = '#1';
-    } else if (status === 'pending' && overlayData.replacesOverlayId) {
-      reason = 'Submitted replacement overlay awaiting moderator review - shown as yellow';
-      priority = '#2';
-    } else if (status === 'pending') {
-      reason = 'New submission awaiting moderator review';
-      priority = '#2';
-    } else if (status === 'approved' && hasPendingChangeRequests) {
-      reason = `Approved overlay with ${overlayData.pendingChangeRequestsCount} pending change request(s) from users`;
-      priority = '#3';
-    } else if (status === 'approved') {
-      reason = 'Approved and clean (no pending work)';
-      priority = '#4';
-    } else {
-      reason = 'Rejected or unknown status';
-      priority = '#5';
-    }
-  } else if (mode === 'edit') {
-    const hasBeenModified = 'isModified' in overlayData && overlayData.isModified;
-
-    if ('isTooBig' in overlayData && overlayData.isTooBig && hasBeenModified) {
-      reason = 'Size validation error: overlay exceeds 1km × 1km maximum (only checked for local overlays)';
-      priority = '#1';
-    } else if (overlayData.replacesOverlayId && hasBeenModified && overlayData.status !== 'approved') {
-      reason = 'Local replacement overlay (not yet submitted) - shown as purple';
-      priority = '#2';
-    } else if (overlayData.replacesOverlayId && !hasBeenModified && overlayData.status === 'pending') {
-      reason = 'Submitted replacement overlay (awaiting approval) - shown as yellow';
-      priority = '#3';
-    } else if (hasBeenModified) {
-      reason = 'Overlay has unsaved local changes (isModified = true)';
-      priority = '#4';
-    } else if ('hasPendingChanges' in overlayData && overlayData.hasPendingChanges && overlayData.status === 'approved') {
-      reason = 'Approved overlay with pending change requests';
-      priority = '#5';
-    } else if (overlayData.status === 'pending') {
-      reason = 'Awaiting moderator approval';
-      priority = '#6';
-    } else if (overlayData.status === 'rejected') {
-      reason = 'Rejected by moderator';
-      priority = '#7';
-    } else if (overlayData.status === 'approved') {
-      reason = 'Approved and unmodified';
-      priority = '#8';
-    } else {
-      reason = 'New overlay (not yet submitted)';
-      priority = '#9';
-    }
-  } else {
-    // View mode - timeline based
-    const project = overlayData.project;
-    if (!project) {
-      reason = 'No associated project';
-      return `Color: ${color} (${reason})`;
-    }
-
-    const { proposalDate, startDate, endDate } = project;
-
-    if (overlayData.status === 'pending') {
-      reason = 'Pending approval (safety check - should not appear in view mode)';
-    } else if (proposalDate && !startDate) {
-      reason = 'Proposed but not started (no start date set)';
-    } else if (!startDate) {
-      reason = 'Not yet scheduled (no start date)';
-    } else {
-      const now = new Date();
-      const start = new Date(startDate);
-      const end = endDate ? new Date(endDate) : null;
-
-      if (start > now) {
-        reason = `Upcoming (starts ${formatDate(start)})`;
-      } else if (end && end <= now) {
-        reason = `Completed (ended ${formatDate(end)})`;
-      } else {
-        reason = 'Ongoing construction';
-      }
-    }
-  }
-
-  const colorNames: Record<MarkerColor, string> = {
-    'yellow': 'Yellow',
-    'green': 'Green',
-    'orange': 'Orange',
-    'grey': 'Grey',
-    'red': 'Red',
-    'purple': 'Purple',
-    'blue': 'Blue',
-    'gold': 'Gold',
-    'black': 'Black'
-  };
-
-  return `Color: ${colorNames[color]} (${reason})\nMode: ${mode}${priority ? `\nPriority: ${priority} in ${mode} mode hierarchy` : ''}`;
-}
 
 // AI : ============================================================================
 // AI : MARKER UPDATES

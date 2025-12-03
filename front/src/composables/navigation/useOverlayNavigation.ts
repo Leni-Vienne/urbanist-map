@@ -6,6 +6,12 @@ import { map } from '@composables/core/useMap';
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from '@composables/map/useMapNavigation';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { useUiStore } from '@stores/uiStore';
+import { 
+  getStandaloneProjectMarkerByProjectId, 
+  updateStandaloneProjectMarkerOpacities 
+} from '@composables/map/useStandaloneProjectMarkers';
+import { createProjectInfoTeleportTarget } from '@composables/map/useProjectPopupTeleport';
 import type { OverlayObject } from '@types';
 
 /**
@@ -190,26 +196,27 @@ export async function navigateToStandaloneProject(
     if (projectId) {
       // AI : Wait for the flyTo animation to complete
       map.value.once('moveend', () => {
-        if (!map.value) return;
+        const overlayStore = useOverlayStore();
+        const uiStore = useUiStore();
 
-        // AI : Find the marker on the map and trigger click to open popup
-        const standaloneProjectLayer = (map.value as any)._layers;
-        let foundMarker: L.Marker | null = null;
+        // AI : Get the marker from the map using projectId (more efficient than searching)
+        const marker = getStandaloneProjectMarkerByProjectId(projectId);
+        if (!marker) return;
 
-        Object.values(standaloneProjectLayer).forEach((layer: any) => {
-          if (layer instanceof L.Marker) {
-            const markerLatLng = layer.getLatLng();
-            // AI : Check if this marker is at the same position as our target
-            if (Math.abs(markerLatLng.lat - lat) < 0.0001 && Math.abs(markerLatLng.lng - lng) < 0.0001) {
-              foundMarker = layer;
-            }
-          }
-        });
+        // AI : Create teleport target at marker position
+        createProjectInfoTeleportTarget(marker);
 
-        // AI : Click the marker to open the popup (which will also update opacity)
-        if (foundMarker) {
-          (foundMarker as any).fire('click');
+        // AI : Update marker opacities (make this one fully opaque)
+        updateStandaloneProjectMarkerOpacities(marker);
+
+        // AI : Close overlay popup if it's open (only one popup at a time)
+        if (overlayStore.showInfoPopup) {
+          overlayStore.hideInfoPopup();
         }
+
+        // AI : Open project info popup using uiStore (same as click handler)
+        // AI : Project data is loaded from backend by InfoPopupContainer if needed
+        uiStore.openProjectInfoPopup(projectId);
       });
     }
   } catch (error) {
