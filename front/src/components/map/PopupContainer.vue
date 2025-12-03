@@ -78,8 +78,8 @@ import type { SubmissionContext, SubmissionSummary } from '@composables/submissi
 import { citiesWithProjects, cleanupProjectInfoTeleportTarget } from '@composables/map/useCityMarkers';
 import type { OverlayObject, Project } from '@types';
 import { useProjectDeletion } from '@composables/project/useProjectDeletion';
-import type { DBProject, DBCity } from '../../../../back/src/db/schema';
-import type { ApprovalStatus } from '../../../../back/src/lib/types';
+import type { DBProject, DBCity } from '../../../../back/src/shared/schema';
+import type { ApprovalStatus } from '../../../../back/src/shared/types';
 
 const UnifiedProjectPopup = defineAsyncComponent(() => import('./popups/UnifiedProjectPopup.vue'));
 const OverlayEditor = defineAsyncComponent(() => import('./OverlayEditor.vue'));
@@ -254,7 +254,6 @@ async function confirmSubmission(reason: string) {
   try {
     isSubmitting.value = true;
 
-    // @ts-expect-error - Complex Pinia store types cause deep instantiation errors
     await submissionService.submit(pendingSubmissionContext.value, reason);
 
     // AI : Show success message

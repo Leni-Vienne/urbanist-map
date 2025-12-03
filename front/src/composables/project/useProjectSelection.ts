@@ -7,6 +7,7 @@
 import { computed } from 'vue';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
+import { map } from '@composables/core/useMap';
 import type { Project } from '@types';
 import { createProjectObject, createProjectObjectFromAPI } from '../../utils/typeFactories';
 
@@ -101,7 +102,12 @@ export function useCityProjects() {
 
   // AI : Lazy load nearby projects
   async function loadNearbyProjects() {
-    await projectStore.fetchNearbyProjects();
+    if (!map.value) {
+      console.warn('Map not available for loading nearby projects');
+      return;
+    }
+    const center = map.value.getCenter();
+    await projectStore.fetchNearbyProjects(center.lat, center.lng);
   }
 
   return {

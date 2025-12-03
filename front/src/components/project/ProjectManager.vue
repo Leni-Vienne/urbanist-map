@@ -73,7 +73,6 @@ import { loadCitiesForCountry } from '@composables/map/useCountryMarkers'
 import { useMapStore } from '@stores/pinia/mapStore'
 import { createStandaloneProjectIcon } from '@composables/map/useMarkers'
 import { addOverlay } from '@composables/overlay/useOverlay'
-import { setLastCreatedProject } from '@composables/ui/useProjectState'
 import { createProject } from '@composables/project/useProjects'
 import { createProjectObjectFromAPI, createProjectObject } from '../../utils/typeFactories'
 import { useCityProjects } from '@composables/project/useProjectSelection'
@@ -184,9 +183,10 @@ async function onProjectSelected(projectId: string) {
       }
 
       // AI : If still not found, try fetching fresh nearby projects as last resort
-      if (!projectToAdd) {
+      if (!projectToAdd && map.value) {
         console.log('Fetching nearby projects to find project ID:', projectId);
-        const nearbyProjects = await projectStore.fetchNearbyProjects();
+        const center = map.value.getCenter();
+        const nearbyProjects = await projectStore.fetchNearbyProjects(center.lat, center.lng);
         const nearbyProject = nearbyProjects.find((p: NearbyProject) => p.id === projectId);
         if (nearbyProject) {
           projectToAdd = createProjectObjectFromAPI(nearbyProject);
@@ -354,7 +354,7 @@ async function handleNewProjectCreation(project: Partial<Project>): Promise<stri
     ...project,
     isModified: true,
   })
-  setLastCreatedProject(projectId)
+  uiStore.setLastCreatedProject(projectId)
 
   const hasNoOverlays = !project.overlayIds || project.overlayIds.length === 0
   if (hasNoOverlays && project.lat && project.lng && project.city) {
@@ -394,7 +394,7 @@ function handleProjectUpdate(project: Partial<Project>): string {
     });
   }
 
-  setLastCreatedProject(projectId);
+  uiStore.setLastCreatedProject(projectId);
   return projectId
 }
 

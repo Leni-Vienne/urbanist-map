@@ -90,7 +90,7 @@ defineEmits<{
 .tab-button,
 .drawer-tab {
   flex: 1;
-  padding: var(--tab-padding-y, 1rem) var(--tab-padding-x, 0);
+  padding: var(--tab-padding-y, 0.5rem) var(--tab-padding-x, 0);
   border: none;
   background: transparent;
   font-weight: 500;
