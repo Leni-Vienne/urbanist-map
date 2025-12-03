@@ -8,12 +8,12 @@ import * as schema from '../db/schema';
 import {
   buildOverlayQuery,
   buildOverlayVisibilityCondition,
-  type ApprovalStatus,
   type MapMode
 } from '../db/helpers';
 import { validateOverlaySize, calculateCentroidFromCorners } from '../utils/overlayValidation';
 import { deleteLocalImages } from '../lib/imageCleanup';
 import { checkPendingLimitForNewContribution } from '../db/contributionHelpers';
+import type { ApprovalStatus } from '../shared/types';
 
 const publishOverlaySchema = z.object({
   id: z.uuid(), // AI : UUID length limit

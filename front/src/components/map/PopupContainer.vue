@@ -254,7 +254,7 @@ async function confirmSubmission(reason: string) {
   try {
     isSubmitting.value = true;
 
-    // ugly ass type assertion but it prevents typescript from going crazy over the _map properties and stuff
+    // ugly ass type assertion but it prevents typescript from going crazy over the _map property
     await submissionService.submit(pendingSubmissionContext.value as SubmissionContext, reason);
 
     // AI : Show success message

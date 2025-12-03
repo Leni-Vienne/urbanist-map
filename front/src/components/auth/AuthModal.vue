@@ -403,7 +403,7 @@ async function handleSubmit() {
 }
 
 // AI : Handle OAuth sign in
-async function handleOAuthSignIn(provider: 'google' | 'facebook') {
+async function handleOAuthSignIn(provider: 'google') {
   oauthLoading.value = true
   error.value = ''
 

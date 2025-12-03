@@ -50,20 +50,42 @@ export function useChangeRequestPreview() {
     clearChangeRequestPreview();
   }
 
+  // AI : Type guard for coordinate object
+  function isCoordinate(value: unknown): value is { lat: number; lng: number } {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      'lat' in value &&
+      'lng' in value &&
+      typeof value.lat === 'number' &&
+      typeof value.lng === 'number'
+    );
+  }
+
+  // AI : Type guard for coordinate array
+  function isCoordinateArray(value: unknown): value is { lat: number; lng: number }[] {
+    return (
+      Array.isArray(value) &&
+      value.length > 0 &&
+      value.every(isCoordinate)
+    );
+  }
+
   // AI : Parse geometry value into corner coordinates
+  // AI : Handles both single coordinate and coordinate arrays from JSONB fields
   function parseGeometry(geometryValue: unknown): { lat: number; lng: number }[] {
     if (!geometryValue || typeof geometryValue !== 'object') {
       return [];
     }
 
-    const geo = geometryValue as any;
-
-    if ('lat' in geo && 'lng' in geo) {
-      return [{ lat: geo.lat, lng: geo.lng }];
+    // AI : Single coordinate (centerCoordinate, centroid)
+    if (isCoordinate(geometryValue)) {
+      return [geometryValue];
     }
 
-    if (Array.isArray(geo) && geo.length > 0 && 'lat' in geo[0] && 'lng' in geo[0]) {
-      return geo;
+    // AI : Array of coordinates (corners)
+    if (isCoordinateArray(geometryValue)) {
+      return geometryValue;
     }
 
     return [];

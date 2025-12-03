@@ -10,6 +10,7 @@ import { buildProjectPayload } from '@composables/project/useProjectMutations';
 import type { OverlayObject, Project } from '@types';
 import { validateOverlaySize, leafletCornersToCorners } from '../../../../back/src/shared/validation';
 import { useI18n } from 'vue-i18n';
+import { ApprovalStatus } from '../../../../back/src/shared/types';
 
 export function useOverlayPublisher() {
   const isPublishing = ref(false);
@@ -259,7 +260,7 @@ export function useOverlayPublisher() {
 
         // AI : Update overlay properties with server response
         overlay.id = newId;
-        overlay.status = publishResult.status as 'pending' | 'approved' | 'rejected';
+        overlay.status = publishResult.status as ApprovalStatus;
         overlay.authorId = publishResult.authorId ?? null;
         overlay.isModified = false;
 

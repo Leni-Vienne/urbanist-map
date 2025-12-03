@@ -4,6 +4,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from './schema';
 import { db } from '../database';
 import { projects, cities, overlays, countries, changeRequests, users } from './schema';
+import type { ApprovalStatus } from '../shared/types';
 
 // AI : ============================================================================
 // AI : DATABASE HELPERS - Unified utilities for pagination, queries, and visibility
@@ -387,9 +388,6 @@ export type UserContext = {
 
 // AI : Type for map viewing modes
 export type MapMode = 'view' | 'edit' | 'moderation';
-
-// AI : Type for approval status
-export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
 // AI : Fetch overlay IDs where user has pending change requests
 export async function getUserOverlayChangeRequestIds(

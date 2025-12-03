@@ -1,13 +1,14 @@
 import { ref, computed } from 'vue'
 import { trpc } from '@client'
 import { withErrorHandling } from '@composables/core/useErrorHandling'
+import { ApprovalStatus } from '../../../../back/src/shared/types'
 
 // AI : Type for moderated contribution item
 export interface ModeratedContribution {
   id: string
   caption: string | null
   filename: string
-  status: 'rejected' | 'replaced'
+  status: ApprovalStatus
   updatedAt: Date
   projectId: string | null
   replacedByOverlayId: string | null
@@ -43,7 +44,7 @@ export function useModeratedContributions() {
       )
 
       if (result) {
-        moderatedContributions.value = result as ModeratedContribution[]
+        moderatedContributions.value = result
         hasBeenFetched.value = true
       }
     } finally {

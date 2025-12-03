@@ -1914,9 +1914,9 @@ function canDeleteOverlay(overlayObject: OverlayObject): boolean {
  * AI : Get edit tools for an overlay based on user permissions
  * AI : Dynamically builds toolbar with only tools the user has permission to use
  */
-function getEditToolsForOverlay(overlayObject: OverlayObject): typeof L.Toolbar2.Action[] {
+function getEditToolsForOverlay(overlayObject: OverlayObject) {
 
-  const baseTools: typeof L.Toolbar2.Action[] = [
+  const baseTools = [
     infoTool,
     undoTool,
     redoTool,

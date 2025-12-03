@@ -7,6 +7,7 @@
 
 import L from 'leaflet';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { map } from '@composables/core/useMap';
 import { calculateCentroidFromCorners } from '../../../../back/src/shared/validation';
 import type { OverlayData, OverlayObject, MapMode } from '@types';
 
@@ -344,8 +345,7 @@ export function applyPositionToOverlay(overlayObject: OverlayObject, useCache: b
 
   // AI : Check if overlay is actually on the map before manipulating it
   // AI : This prevents "Cannot read properties of null (reading 'getPane')" errors
-  const map = (overlayObject.overlay as any)._map;
-  if (!map) {
+  if (!map.value || !map.value.hasLayer(overlayObject.overlay)) {
     console.warn('[applyPositionToOverlay] Overlay not on map yet, skipping position update for', overlayObject.id);
     return;
   }
