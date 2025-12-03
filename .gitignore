@@ -16,6 +16,7 @@ CLAUDE.md
 .playwright-mcp
 prompts
 .specify
+report
 
 .env.test
 test-results
