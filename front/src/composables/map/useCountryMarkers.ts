@@ -1,18 +1,19 @@
 import L from "leaflet";
 import { ref } from 'vue';
 import { map } from '@composables/core/useMap';
+import { flyToCountry } from '@composables/map/useMapNavigation';
 import { addCityMarkersForCountry, removeCityMarkers } from '@composables/map/useCityMarkers';
 import { removeOverlayMarkers } from '@composables/map/useCityOverlays';
 import { clearAllOverlays } from '@composables/overlay/useOverlayLifecycle';
+import { clearAllStandaloneProjectMarkers } from '@composables/map/useStandaloneProjectMarkers';
 import { switchTileLayer, isTileLayerType } from '@composables/map/useTileLayers';
-import { flyToCountry } from '@composables/map/useMapNavigation';
 import { trpc } from '@client';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { storeToRefs } from 'pinia';
 import { withErrorHandling } from '@composables/core/useErrorHandling';
-import type { Country } from '@types';
+import type { Country, City } from '@types';
 import { MARKER_OPACITY } from '@constants/markerConstants';
 import { createMarkerLayer, type MarkerLayerConfig } from '@composables/map/useMarkerLayer';
 
@@ -111,6 +112,46 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
   }
 }
 
+/**
+ * AI : Clear all map content (markers, overlays, and state)
+ * AI : This is called when switching between countries
+ */
+function clearAllMapContent(): void {
+  removeCityMarkers();
+  removeOverlayMarkers();
+  clearAllOverlays();
+  clearAllStandaloneProjectMarkers();
+  const mapStore = useMapStore();
+  mapStore.currentCityOverlays = [];
+  mapStore.clearSelectedCity();
+}
+
+/**
+ * AI : Prepare country context by switching tile layer, clearing map, and loading cities
+ * AI : This is the common flow when navigating to a country
+ * @param countryCode - The country code to prepare context for
+ */
+export async function prepareCountryContext(countryCode: string): Promise<void> {
+  // AI : Step 1: Switch to appropriate tile layer for this country
+  switchTileLayer(isTileLayerType(countryCode) ? countryCode : 'esri');
+
+  // AI : Step 2: Clear all previous map content
+  clearAllMapContent();
+
+  // AI : Step 3: Set the selected country code
+  const mapStore = useMapStore();
+  mapStore.selectedCountryCode = countryCode;
+
+  // AI : Step 4: Load cities for the country
+  await loadCitiesForCountry(countryCode);
+
+  // AI : Step 5: Add city markers to the map
+  const projectStore = useProjectStore();
+  const country = projectStore.countries.find(c => c.code === countryCode);
+  if (country) {
+    addCityMarkersForCountry(country.cities.map((city: City) => ({ ...city, projectCount: 0 })));
+  }
+}
 
 export function addCountryMarkersToMap() {
   if (!map.value) {
@@ -156,27 +197,8 @@ export function addCountryMarkersToMap() {
       // AI : Fly to the country using bounding box
       flyToCountry(country.code, country.lat, country.lng);
 
-      // AI : Automatically switch to the appropriate tile layer for this country
-      switchTileLayer(isTileLayerType(country.code) ? country.code : 'esri');
-
-      // AI : Clear previous city markers, overlays and selected city state before loading new ones
-      removeCityMarkers();
-      removeOverlayMarkers();
-      clearAllOverlays();
-      const mapStore = useMapStore();
-      mapStore.currentCityOverlays = [];
-      mapStore.clearSelectedCity();
-
-      // AI : Set the selected country code
-      mapStore.selectedCountryCode = country.code;
-
-      // AI : Load cities (cache will handle whether to fetch from backend or use cached data)
-      await loadCitiesForCountry(country.code);
-      const updatedCountries = getCountries();
-      const updatedCountry = updatedCountries.value.find((c: Country) => c.code === country.code);
-      if (updatedCountry) {
-        addCityMarkersForCountry(updatedCountry.cities.map((c) => ({ ...c, projectCount: 0 })));
-      }
+      // AI : Prepare country context (switch tile layer, clear map, load cities, add city markers)
+      await prepareCountryContext(country.code);
     }
   };
 
