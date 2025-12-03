@@ -104,7 +104,7 @@ app.post('/api/login', async (c) => {
         // AI : Validate request body with Zod
         const validationResult = loginSchema.safeParse(body);
         if (!validationResult.success) {
-            const errorMessage = validationResult.error.issues.map((err: any) => err.message).join(', ');
+            const errorMessage = validationResult.error.issues.map((err) => err.message).join(', ');
             return c.json({ error: errorMessage }, 400);
         }
 
@@ -186,7 +186,7 @@ app.post('/api/google-login', async (c) => {
 
         const validationResult = googleLoginSchema.safeParse(body);
         if (!validationResult.success) {
-            const errorMessage = validationResult.error.issues.map((err: any) => err.message).join(', ');
+            const errorMessage = validationResult.error.issues.map((err) => err.message).join(', ');
             return c.json({ error: errorMessage }, 400);
         }
 
@@ -372,7 +372,7 @@ app.post('/api/upload-image', async (c) => {
         });
 
         if (!validationResult.success) {
-            const errorMessage = validationResult.error.issues.map((err: any) => err.message).join(', ');
+            const errorMessage = validationResult.error.issues.map((err) => err.message).join(', ');
             return c.json({ error: errorMessage } as FileUploadError, 400);
         }
 
@@ -428,7 +428,7 @@ app.get('/uploads/*', async (c) => {
         // AI : Validate filename parameter with Zod
         const validationResult = filenameParamSchema.safeParse({ filename });
         if (!validationResult.success) {
-            const errorMessage = validationResult.error.issues.map((err: any) => err.message).join(', ');
+            const errorMessage = validationResult.error.issues.map((err) => err.message).join(', ');
             return c.json({ error: errorMessage }, 400);
         }
 

@@ -7,8 +7,8 @@ import {
   getUserOverlayChangeRequestIds,
   buildProjectVisibilityCondition,
   buildProjectHasVisibleContentCondition,
-  type ApprovalStatus
 } from '../db/helpers';
+import type { ApprovalStatus } from '../shared/types';
 
 export const countriesRouter = router({
   getAllCountries: publicProcedure

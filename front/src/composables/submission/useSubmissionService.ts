@@ -131,7 +131,7 @@ export function useSubmissionService() {
     const ctx: BaseSubmissionContext & { entityType: 'overlay'; entity: OverlayObject } = {
       entityType: 'overlay',
       entityId: overlay.id,
-      entity: overlay as OverlayObject,
+      entity: overlay,
       changeType: changeType ?? getChangeType(overlay)
     }
     return ctx
