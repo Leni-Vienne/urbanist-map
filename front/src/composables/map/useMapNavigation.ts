@@ -179,7 +179,7 @@ export function mobileAwareFlyToBounds(
   // AI : Convert bounds expression to LatLngBounds object for comparison
   const targetBounds = bounds instanceof L.LatLngBounds 
     ? bounds 
-    : L.latLngBounds(bounds as L.LatLngBoundsLiteral);
+    : L.latLngBounds(bounds);
   const currentBounds = map.value.getBounds();
 
   // AI : Check if already viewing the same bounds to prevent camera shake
