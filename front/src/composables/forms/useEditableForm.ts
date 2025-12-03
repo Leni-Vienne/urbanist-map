@@ -1,4 +1,4 @@
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, toRaw } from 'vue'
 import { useChangeRequests } from '@composables/changes/useChanges'
 import { useToast } from '@composables/ui/useToast'
 import { useI18n } from '@composables/useI18n'
@@ -47,8 +47,10 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
 
   // AI : Check if a specific field has changed
   function hasChanged(fieldName: keyof T): boolean {
-    const original = (originalData as T)[fieldName] as any
-    const current = (formData as T)[fieldName] as any
+    const rawOriginal = toRaw(originalData) as T
+    const rawForm = toRaw(formData) as T
+    const original: any = rawOriginal[fieldName]
+    const current: any = rawForm[fieldName]
 
     // AI : Handle Date objects by comparing their time values
     if (original instanceof Date && current instanceof Date) {
@@ -77,14 +79,16 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
   // AI : Get array of changes to submit
   function getChangesToSubmit(): FieldChange[] {
     const changes: FieldChange[] = []
+    const rawOriginal = toRaw(originalData) as T
+    const rawForm = toRaw(formData) as T
 
     Object.keys(formData).forEach(key => {
       const fieldName = key as keyof T
       if (hasChanged(fieldName)) {
         changes.push({
           fieldName: String(fieldName),
-          oldValue: (originalData as T)[fieldName],
-          newValue: (formData as T)[fieldName],
+          oldValue: rawOriginal[fieldName],
+          newValue: rawForm[fieldName],
           changeReason: changeReason.value ?? undefined
         })
       }

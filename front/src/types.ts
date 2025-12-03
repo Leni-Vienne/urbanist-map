@@ -1,20 +1,25 @@
 import L from "leaflet";
-import type { RouterOutput } from '@client';
-import type {
-  DBCountry,
-  DBProject,
-  DBCity,
-} from '../../back/src/shared/schema';
+import type { RouterOutput } from "@client";
+import type { DBCountry, DBProject, DBCity } from "../../back/src/shared/schema";
 
 // AI : Type for marker colors used throughout the application
-export type MarkerColor = 'blue' | 'green' | 'orange' | 'red' | 'gold' | 'yellow' | 'purple' | 'grey' | 'black';
-export type viewModeMarkerColor = 'yellow' | 'orange' | 'grey' | 'green'
+export type MarkerColor =
+  | "blue"
+  | "green"
+  | "orange"
+  | "red"
+  | "gold"
+  | "yellow"
+  | "purple"
+  | "grey"
+  | "black";
+export type viewModeMarkerColor = "yellow" | "orange" | "grey" | "green";
 
 // AI : Type for map viewing modes
-export type MapMode = 'view' | 'edit' | 'moderation';
+export type MapMode = "view" | "edit" | "moderation";
 
 // AI : Type for project manager modes
-export type ProjectManagerMode = 'list' | 'edit' | 'view' | 'create';
+export type ProjectManagerMode = "list" | "edit" | "view" | "create";
 
 // AI : Interface for camera bounds used in view mode
 export interface CameraBounds {
@@ -28,7 +33,7 @@ export interface CameraBounds {
 // AI : Extend Leaflet namespace to include custom actions
 declare module "leaflet" {
   interface MapOptions {
-    doubleTapDragZoom?: boolean | 'center';
+    doubleTapDragZoom?: boolean | "center";
     doubleTapDragZoomOptions?: {
       reverse?: boolean;
     };
@@ -88,8 +93,8 @@ declare module "leaflet" {
       addTool: (tool: L.Toolbar2.Action) => void;
       removeTool: (tool: L.Toolbar2.Action) => void;
     };
-    getCorners: () => { lat: number, lng: number }[];
-    setCorners: (corners: { lat: number, lng: number }[]) => void;
+    getCorners: () => { lat: number; lng: number }[];
+    setCorners: (corners: { lat: number; lng: number }[]) => void;
     setOptions: (options: Partial<DistortableImageOverlayOptions>) => void;
     bindTooltip: (content: string, options?: L.TooltipOptions) => this;
     openTooltip: () => this;
@@ -99,19 +104,22 @@ declare module "leaflet" {
 
   interface DistortableImageOverlayOptions extends L.ImageOverlayOptions {
     actions?: L.Toolbar2.Action[];
-    corners?: { lat: number, lng: number }[];
+    corners?: { lat: number; lng: number }[];
     editable?: boolean;
     keyboard?: boolean;
-    dragBehavior?: 'map' | 'overlay' | 'auto';
+    dragBehavior?: "map" | "overlay" | "auto";
     selectOnDrag: boolean;
     draggable: boolean;
   }
 
-  function distortableImageOverlay(imageUrl: string, options?: DistortableImageOverlayOptions): DistortableImageOverlay;
+  function distortableImageOverlay(
+    imageUrl: string,
+    options?: DistortableImageOverlayOptions,
+  ): DistortableImageOverlay;
 }
 
 // AI : tRPC-inferred types from backend API (for transformed data)
-export type City = RouterOutput['cities']['getCitiesNearLocation'][number];
+export type City = RouterOutput["cities"]["getCitiesNearLocation"][number];
 
 // AI : Extended Country type for frontend use with additional properties
 export interface Country extends DBCountry {
@@ -122,9 +130,9 @@ export interface Country extends DBCountry {
 }
 
 // AI : Base runtime project type - extends DB schema with computed fields
-export interface Project extends Omit<DBProject, 'status'> {
+export interface Project extends Omit<DBProject, "status"> {
   // AI : Override status to allow null for local unsubmitted projects
-  status: 'pending' | 'approved' | 'rejected' | 'replaced' | null;
+  status: "pending" | "approved" | "rejected" | "replaced" | null;
   // AI : Computed fields for all contexts
   city: DBCity;
   overlayIds: string[];
@@ -136,8 +144,8 @@ export interface Project extends Omit<DBProject, 'status'> {
 }
 
 // AI : Import shared overlay data type from backend
-import type { OverlayData } from '../../back/src/shared/types';
-export type { OverlayData } from '../../back/src/shared/types';
+import type { OverlayData } from "../../back/src/shared/types";
+export type { OverlayData } from "../../back/src/shared/types";
 
 // AI : Frontend overlay type - extends backend OverlayData with UI state
 export interface OverlayObject extends OverlayData {
@@ -149,30 +157,39 @@ export interface OverlayObject extends OverlayData {
   marker: L.Marker | null;
 
   // AI : Editor state
-  history: { lat: number, lng: number }[][];
-  redoStack: { lat: number, lng: number }[][];
+  history: { lat: number; lng: number }[][];
+  redoStack: { lat: number; lng: number }[][];
   isTooBig?: boolean; // AI : Flag for real-time size validation warning
   isViewingApprovedPosition?: boolean; // AI : True when user is viewing approved position of overlay with pending changes
 }
 
 // AI : Utility types for specific use cases
-export type ProjectForForm = Pick<Project, 'name' | 'description' | 'sourceUrl' | 'startDate' | 'endDate'> & {
+export type ProjectForForm = Pick<
+  Project,
+  "name" | "description" | "sourceUrl" | "startDate" | "endDate"
+> & {
   projectName: string; // AI : Alias for name in forms
-  sourceLink: string;  // AI : Alias for sourceUrl in forms
+  sourceLink: string; // AI : Alias for sourceUrl in forms
 };
 
-export type ProjectForList = Pick<Project, 'id' | 'name' | 'description' | 'createdAt' | 'updatedAt' | 'cityId'> & {
+export type ProjectForList = Pick<
+  Project,
+  "id" | "name" | "description" | "createdAt" | "updatedAt" | "cityId"
+> & {
   overlayCount?: number;
   cityName?: string | null;
   countryCode?: string | null;
   countryName?: string | null;
 };
 
-export type OverlayForList = Pick<OverlayObject, 'id' | 'caption' | 'filename'> & {
+export type OverlayForList = Pick<OverlayObject, "id" | "caption" | "filename"> & {
   distance?: number;
 };
 
-export type OverlayForModeration = Pick<OverlayObject, 'id' | 'filename' | 'status' | 'version' | 'projectId' | 'updatedAt' | 'replacesOverlayId'> & {
+export type OverlayForModeration = Pick<
+  OverlayObject,
+  "id" | "filename" | "status" | "version" | "projectId" | "updatedAt" | "replacesOverlayId"
+> & {
   name: string; // AI : Display name
   authorId: string | null; // AI : For spam prevention reporting
   authorUsername?: string | null; // AI : Display friendly username in moderation UI
@@ -185,7 +202,23 @@ export type OverlayForModeration = Pick<OverlayObject, 'id' | 'filename' | 'stat
   countryName: string | null;
 };
 
-export type ProjectForModeration = Pick<Project, 'id' | 'name' | 'description' | 'status' | 'version' | 'createdAt' | 'updatedAt' | 'startDate' | 'endDate' | 'proposalDate' | 'sourceUrl' | 'lat' | 'lng' | 'cityId'> & {
+export type ProjectForModeration = Pick<
+  Project,
+  | "id"
+  | "name"
+  | "description"
+  | "status"
+  | "version"
+  | "createdAt"
+  | "updatedAt"
+  | "startDate"
+  | "endDate"
+  | "proposalDate"
+  | "sourceUrl"
+  | "lat"
+  | "lng"
+  | "cityId"
+> & {
   ownerId?: string | null; // AI : For spam prevention reporting (optional, only in moderation)
   ownerUsername?: string | null; // AI : Display friendly username in moderation UI
   ownerApprovedCount?: number | null; // AI : User stats for spam detection (optional, only in moderation)
@@ -199,4 +232,5 @@ export type ProjectForModeration = Pick<Project, 'id' | 'name' | 'description' |
 };
 
 // AI : Keep specific types that have unique structure
-export type PendingOverlay = RouterOutput['moderation']['getPendingSubmissions']['overlays'][number];
+export type PendingOverlay =
+  RouterOutput["moderation"]["getPendingSubmissions"]["overlays"][number];

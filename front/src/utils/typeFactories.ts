@@ -1,20 +1,20 @@
 // AI : Factory functions for creating type instances to reduce duplication
-import type { Project, OverlayObject, OverlayData } from '@types';
-import type { NearbyProject } from '../types/api';
-import { v4 as uuidv4 } from 'uuid';
-import { buildImageUrl } from '@utils/imageUrl';
-import { calculateCentroidFromCorners } from '../../../back/src/shared/validation';
+import type { Project, OverlayObject, OverlayData } from "@types";
+import type { NearbyProject } from "../types/api";
+import { v4 as uuidv4 } from "uuid";
+import { buildImageUrl } from "@utils/imageUrl";
+import { calculateCentroidFromCorners } from "../../../back/src/shared/validation";
 
 /**
  * AI : Create a new Project instance with defaults
  */
 export function createProjectObject(data: Partial<Project> = {}): Project {
   const id = data.id ?? uuidv4();
-  
+
   return {
     id,
     version: data.version ?? 1,
-    name: data.name ?? '',
+    name: data.name ?? "",
     description: data.description ?? null,
     sourceUrl: data.sourceUrl ?? null,
     proposalDate: data.proposalDate ?? null,
@@ -23,19 +23,26 @@ export function createProjectObject(data: Partial<Project> = {}): Project {
     latestUpdateOn: data.latestUpdateOn ?? null,
     createdAt: data.createdAt ?? new Date(),
     updatedAt: data.updatedAt ?? new Date(),
-    ownerId: data.ownerId ?? '',
-    cityId: data.cityId ?? '',
+    ownerId: data.ownerId ?? "",
+    cityId: data.cityId ?? "",
     status: data.status ?? null,
     // AI : Center coordinate fields - all projects now have center coordinates
     lat: data.lat ?? null,
     lng: data.lng ?? null,
     centerCoordinate: data.centerCoordinate ?? null,
     // AI : Computed fields
-    city: data.city ?? { id: '', name: '', countryCode: '', coordinates: { x: 0, y: 0 }, createdAt: new Date(), updatedAt: new Date() },
+    city: data.city ?? {
+      id: "",
+      name: "",
+      countryCode: "",
+      coordinates: { x: 0, y: 0 },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
     overlayIds: data.overlayIds ?? [],
     // AI : Map coordinates for display (computed from lat/lng)
     mapCoordinates: data.mapCoordinates ?? null,
-    ...data
+    ...data,
   };
 }
 
@@ -57,9 +64,9 @@ export function createProjectObjectFromAPI(nearbyProject: NearbyProject): Projec
     updatedAt: nearbyProject.updatedAt,
     ownerId: nearbyProject.ownerId,
     cityId: nearbyProject.cityId,
-    status: nearbyProject.status ?? 'approved',
+    status: nearbyProject.status ?? "approved",
     city: nearbyProject.city,
-    overlayIds: []
+    overlayIds: [],
   });
 }
 
@@ -72,10 +79,10 @@ export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayO
   return {
     id,
     version: data.version ?? 1,
-    filename: data.filename ?? '',
+    filename: data.filename ?? "",
     caption: data.caption ?? null,
-    status: data.status ?? 'pending',
-    authorId: data.authorId ?? '',
+    status: data.status ?? "pending",
+    authorId: data.authorId ?? "",
     projectId: data.projectId ?? null,
     replacesOverlayId: data.replacesOverlayId ?? null,
     replacedByOverlayId: data.replacedByOverlayId ?? null,
@@ -83,14 +90,14 @@ export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayO
     updatedAt: data.updatedAt ?? new Date(),
     centroid: data.centroid ?? { lat: 0, lng: 0 },
     corners: data.corners ?? [],
-    imageUrl: data.imageUrl ?? buildImageUrl(data.filename ?? ''),
+    imageUrl: data.imageUrl ?? buildImageUrl(data.filename ?? ""),
     isModified: data.isModified ?? false,
     overlay: data.overlay ?? null,
     marker: data.marker ?? null,
     history: data.history ?? [],
     redoStack: data.redoStack ?? [],
     project: data.project ?? null,
-    ...data
+    ...data,
   };
 }
 
@@ -98,7 +105,7 @@ export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayO
  * AI : Convert OverlayData from backend to OverlayObject with UI state
  */
 export function createOverlayFromCDN(overlayData: OverlayData): OverlayObject {
-  const isDataUrl = overlayData.filename.startsWith('data:');
+  const isDataUrl = overlayData.filename.startsWith("data:");
   const imageUrl = isDataUrl ? overlayData.filename : buildImageUrl(overlayData.filename);
 
   return createOverlayObject({
@@ -134,7 +141,7 @@ export function convertOverlayToData(overlayObject: OverlayObject): OverlayData 
     createdAt: overlayObject.createdAt,
     updatedAt: overlayObject.updatedAt,
     isModified: overlayObject.isModified,
-    hasPendingChanges: overlayObject.hasPendingChanges
+    hasPendingChanges: overlayObject.hasPendingChanges,
   };
 }
 
