@@ -347,7 +347,7 @@ async function waitForOverlayRendered(
 /**
  * AI : Watch for zoom level changes and update state
  */
-async function watchZoomLevel() {
+function watchZoomLevel() {
   watch(currentZoomLevel, async (newZoom) => {
     const newState = getCurrentState()
     newState.zoomLevel = getZoomLevel(newZoom)
@@ -361,12 +361,12 @@ async function watchZoomLevel() {
 
 // AI : Initialize zoom watcher and set initial state
 // AI : This is called from MapView.vue after map initialization
-export async function initializeOverlayModes() {
+export function initializeOverlayModes() {
   if (!map.value) {
     console.error('Map not initialized when trying to initialize overlay modes');
     return;
   }
   
-  await watchZoomLevel();
+  watchZoomLevel();
   currentState.value = getCurrentState();
 }

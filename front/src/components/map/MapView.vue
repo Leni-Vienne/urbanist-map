@@ -187,7 +187,7 @@ async function initializeMapAndOverlays() {
     addTileLayer(); // AI : Initialize tile layers after map is created
     initializeCameraBounds(); // AI : Initialize camera bounds tracking
     await initializeCountryMarkers(); // AI : Initialize country markers by default
-    await initializeOverlayModes(); // AI : Initialize overlay mode system and zoom watcher
+    initializeOverlayModes(); // AI : Initialize overlay mode system and zoom watcher
     setupMapClickToDeselect(); // AI : Setup click handler to deselect overlays when clicking map background
     window.addEventListener('keydown', handleKeyDown, true);
     disableLeafletKeyboardEvents();

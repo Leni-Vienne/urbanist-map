@@ -15,8 +15,8 @@ interface User {
 }
 
 // AI : Helper function to load Google Identity Services script
-function loadGoogleIdentityScript(): Promise<void> {
-  return new Promise((resolve, reject) => {
+async function loadGoogleIdentityScript() {
+  return new Promise<void>((resolve, reject) => {
     if (window.google) {
       resolve()
       return
@@ -27,8 +27,8 @@ function loadGoogleIdentityScript(): Promise<void> {
     script.async = true
     script.defer = true
     
-    script.onload = () => resolve()
-    script.onerror = () => reject(new Error('Failed to load Google Identity Services'))
+    script.onload = () => { resolve() }
+    script.onerror = () => { reject(new Error('Failed to load Google Identity Services')) }
     
     document.head.appendChild(script)
   })

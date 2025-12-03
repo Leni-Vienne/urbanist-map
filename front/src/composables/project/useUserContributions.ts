@@ -2,6 +2,7 @@ import { computed } from 'vue'
 import { useProjectStore } from '@stores/pinia/projectStore'
 import { useMapStore } from '@stores/pinia/mapStore'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
+import { useAuthStore } from '@stores/authStore'
 import { trpc } from '@client'
 import { withErrorHandling } from '@composables/core/useErrorHandling'
 import { useToast } from '@composables/ui/useToast'
@@ -20,6 +21,7 @@ function cleanupOverlayFromState(overlayId: string, options: {
   const projectStore = useProjectStore()
   const mapStore = useMapStore()
   const overlayStore = useOverlayStore()
+  const authStore = useAuthStore()
 
   // AI : Find the project that contains this overlay and remove the overlay ID from it
   const allProjectsData = projectStore.allProjects
@@ -43,7 +45,7 @@ function cleanupOverlayFromState(overlayId: string, options: {
 
   // AI : Remove from user contributions if requested
   if (options.updateUserContributions) {
-    projectStore.removeOverlayFromUserContributions(overlayId)
+    projectStore.removeOverlayFromUserContributions(overlayId, authStore.user?.id)
   }
 
   // AI : Remove from map and overlay store

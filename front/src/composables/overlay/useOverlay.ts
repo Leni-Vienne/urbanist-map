@@ -688,7 +688,7 @@ export function selectOverlay(overlayId: string | null): void {
       applySelectionOutline(newlySelected);
     } else {
       // AI : Image not loaded yet, wait for load event
-      imgElement.addEventListener("load", () => applySelectionOutline(newlySelected), { once: true });
+      imgElement.addEventListener("load", () => { applySelectionOutline(newlySelected) }, { once: true });
     }
   } finally {
     isSelectingOverlay = false;
@@ -1264,7 +1264,7 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
     throw new Error('Overlay element not found');
   }
 
-  L.DomEvent.on(element, 'load', async () => {
+  L.DomEvent.on(element, 'load', () => {
     if (element.complete && element.naturalWidth > 0) {
       overlayObject.overlay = newOverlay;
       overlayObject.corners = newOverlay.getCorners() ?? [];
@@ -1932,7 +1932,7 @@ export const customDeleteTool = L.Toolbar2.Action.extend({
       tooltip: "Delete this overlay",
     },
   },
-  addHooks: function () {
+  addHooks: async function () {
     const overlayStore = useOverlayStore();
 
     if (!overlayStore.idSelectedOverlay) {
@@ -1948,7 +1948,7 @@ export const customDeleteTool = L.Toolbar2.Action.extend({
       return;
     }
 
-    withErrorHandling(
+    await withErrorHandling(
       async () => {
         const success = await deleteOverlayDirect(overlayId);
 

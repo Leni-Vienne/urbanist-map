@@ -110,22 +110,22 @@ export const useProjectStore = defineStore('project', () => {
   });
 
   // AI : User contributions actions
-  const setUserContributions = (contributions: UserContribution[]) => {
+  function setUserContributions(contributions: UserContribution[]) {
     userContributions.value = contributions;
     userContributionsLoaded.value = true;
-  };
+  }
 
-  const setUserContributionsLoading = (loading: boolean) => {
+  function setUserContributionsLoading(loading: boolean) {
     userContributionsLoading.value = loading;
-  };
+  }
 
   // AI : Reset user contributions cache to force refresh on next load
-  const resetUserContributions = () => {
+  function resetUserContributions() {
     userContributionsLoaded.value = false;
-  };
+  }
 
   // AI : Optimistically add new overlay to user contributions without backend fetch
-  const addOverlayToUserContributions = (overlay: OverlayObject, project: Project, filename: string) => {
+  function addOverlayToUserContributions(overlay: OverlayObject, project: Project, filename: string) {
     if (!userContributionsLoaded.value) {
       // AI : If contributions not loaded yet, skip optimistic update
       return;
@@ -165,10 +165,10 @@ export const useProjectStore = defineStore('project', () => {
         ...userContributions.value,
       ];
     }
-  };
+  }
 
   // AI : Optimistically add new project to user contributions without backend fetch
-  const addProjectToUserContributions = (project: Project) => {
+  function addProjectToUserContributions(project: Project) {
     if (!userContributionsLoaded.value) {
       // AI : If contributions not loaded yet, skip optimistic update
       return;
@@ -197,10 +197,10 @@ export const useProjectStore = defineStore('project', () => {
       },
       ...userContributions.value,
     ];
-  };
+  }
 
   // AI : Update pending overlay in user contributions (for caption/field updates)
-  const updateOverlayInUserContributions = (overlayId: string, updates: Partial<UserContributionOverlay>) => {
+  function updateOverlayInUserContributions(overlayId: string, updates: Partial<UserContributionOverlay>) {
     if (!userContributionsLoaded.value) {
       return;
     }
@@ -220,10 +220,10 @@ export const useProjectStore = defineStore('project', () => {
         userContributions.value = replaceAtIndex(userContributions.value, projectIndex, updatedProject);
       }
     }
-  };
+  }
 
   // AI : Update pending project in user contributions (for field updates)
-  const updateProjectInUserContributions = (projectId: string, updates: Partial<UserContribution>) => {
+  function updateProjectInUserContributions(projectId: string, updates: Partial<UserContribution>) {
     if (!userContributionsLoaded.value) {
       return;
     }
@@ -233,10 +233,11 @@ export const useProjectStore = defineStore('project', () => {
       const updatedProject = { ...userContributions.value[projectIndex], ...updates };
       userContributions.value = replaceAtIndex(userContributions.value, projectIndex, updatedProject);
     }
-  };
+  }
 
   // AI : Remove overlay from user contributions (for deletion)
-  const removeOverlayFromUserContributions = (overlayId: string) => {
+  // AI : currentUserId param avoids circular dependency with authStore
+  function removeOverlayFromUserContributions(overlayId: string, currentUserId?: string) {
     if (!userContributionsLoaded.value) {
       return;
     }
@@ -251,7 +252,7 @@ export const useProjectStore = defineStore('project', () => {
       const updatedOverlays = project.overlays.filter((o: UserContributionOverlay) => o.id !== overlayId);
 
       // AI : If no overlays left and user doesn't own project, remove entire project
-      if (updatedOverlays.length === 0 && project.ownerId !== project.ownerId) {
+      if (updatedOverlays.length === 0 && project.ownerId !== currentUserId) {
         userContributions.value = removeAtIndex(userContributions.value, projectIndex);
       } else {
         // AI : Update project with remaining overlays
@@ -263,16 +264,16 @@ export const useProjectStore = defineStore('project', () => {
         userContributions.value = replaceAtIndex(userContributions.value, projectIndex, updatedProject);
       }
     }
-  };
+  }
 
   // AI : Remove project from user contributions (for deletion)
-  const removeProjectFromUserContributions = (projectId: string) => {
+  function removeProjectFromUserContributions(projectId: string) {
     if (!userContributionsLoaded.value) {
       return;
     }
 
     userContributions.value = userContributions.value.filter(p => p.id !== projectId);
-  };
+  }
 
   // AI : Update project in store with proper reactivity
   function updateProject(projectId: string, updates: Partial<Project>) {
