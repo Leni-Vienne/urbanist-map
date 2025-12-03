@@ -1,15 +1,11 @@
 import L from 'leaflet';
-import { loadCitiesForCountry } from '@composables/map/useCountryMarkers';
-import { removeCityMarkers, loadCityProjects, addCityMarkersForCountry } from '@composables/map/useCityMarkers';
-import { removeOverlayMarkers } from '@composables/map/useCityOverlays';
+import { loadCityProjects } from '@composables/map/useCityMarkers';
 import { navigateToOverlay, selectOverlay } from '@composables/overlay/useOverlay';
-import { clearAllOverlays } from '@composables/overlay/useOverlayLifecycle';
-import { switchTileLayer, isTileLayerType } from '@composables/map/useTileLayers';
+import { prepareCountryContext } from '@composables/map/useCountryMarkers';
 import { map } from '@composables/core/useMap';
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from '@composables/map/useMapNavigation';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { useProjectStore } from '@stores/pinia/projectStore';
 import type { OverlayObject } from '@types';
 
 /**
@@ -49,32 +45,9 @@ async function prepareNavigationToCity(
   cityName: string,
   countryCode?: string
 ): Promise<void> {
-  const mapStore = useMapStore();
-  const projectStore = useProjectStore();
-
   if (countryCode) {
-    // AI : Step 1: Simulate country marker click
-    // AI : Switch to appropriate tile layer
-    switchTileLayer(isTileLayerType(countryCode) ? countryCode : 'esri');
-
-    // AI : Clear previous state (exactly as country marker click does)
-    removeCityMarkers();
-    removeOverlayMarkers();
-    clearAllOverlays();
-    mapStore.currentCityOverlays = [];
-    mapStore.clearSelectedCity();
-
-    // AI : Set selected country code so edit mode can reload cities properly
-    mapStore.selectedCountryCode = countryCode;
-
-    // AI : Load cities for the country
-    await loadCitiesForCountry(countryCode);
-
-    // AI : Get updated countries and add city markers
-    const country = projectStore.countries.find((country) => country.code === countryCode);
-    if (country) {
-      addCityMarkersForCountry(country.cities.map((city) => ({ ...city, projectCount: 0 })));
-    }
+    // AI : Step 1: Simulate country marker click - prepare country context
+    await prepareCountryContext(countryCode);
   }
 
   // AI : Step 2: Simulate city marker click (this loads and renders all markers and overlays for the city)

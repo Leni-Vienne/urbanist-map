@@ -6,17 +6,13 @@ import { useToast } from '@composables/ui/useToast';
 import { map } from '@composables/core/useMap';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useMapStore } from '@stores/pinia/mapStore';
-import { useProjectStore } from '@stores/pinia/projectStore';
 import { updateMarkerPosition, updateMarkerTooltip, selectOverlay } from '@composables/overlay/useOverlay';
-import { clearAllOverlays } from '@composables/overlay/useOverlayLifecycle';
-import { loadCityProjects, removeCityMarkers, addCityMarkersForCountry } from '@composables/map/useCityMarkers';
-import { removeOverlayMarkers } from '@composables/map/useCityOverlays';
-import { loadCitiesForCountry } from '@composables/map/useCountryMarkers';
-import { switchTileLayer, isTileLayerType } from '@composables/map/useTileLayers';
+import { loadCityProjects } from '@composables/map/useCityMarkers';
+import { prepareCountryContext } from '@composables/map/useCountryMarkers';
 import { switchMode } from '@composables/overlay/useOverlayModes';
 import { mobileAwareFlyToBounds } from '@composables/map/useMapNavigation';
 import type { PendingChangeRequest } from '../../types/api';
-import type { OverlayForModeration, Country, City } from '@types';
+import type { OverlayForModeration } from '@types';
 import { previewState, clearChangeRequestPreview } from './changeRequestPreviewState';
 
 // AI : Composable to handle change request position preview
@@ -34,7 +30,6 @@ export function useChangeRequestPreview() {
   const toast = useToast();
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
-  const projectStore = useProjectStore();
 
   // AI : State management (from usePositionPreview)
   const hasActivePreview = computed(() => previewState.value.type !== 'none');
@@ -104,29 +99,10 @@ export function useChangeRequestPreview() {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    // AI : Step 2: Prepare map context (tile layer, clear old state)
-    switchTileLayer(
-      isTileLayerType(overlayForModeration.countryCode)
-        ? overlayForModeration.countryCode
-        : 'esri'
-    );
+    // AI : Step 2: Prepare country context (tile layer, clear map, load cities, add city markers)
+    await prepareCountryContext(overlayForModeration.countryCode);
 
-    removeCityMarkers();
-    removeOverlayMarkers();
-    clearAllOverlays();
-    mapStore.currentCityOverlays = [];
-    mapStore.clearSelectedCity();
-    mapStore.selectedCountryCode = overlayForModeration.countryCode;
-
-    // AI : Step 3: Load country/city data
-    await loadCitiesForCountry(overlayForModeration.countryCode);
-
-    const country = projectStore.countries.find((c: Country) => c.code === overlayForModeration.countryCode);
-    if (country) {
-      addCityMarkersForCountry(country.cities.map((city: City) => ({ ...city, projectCount: 0 })));
-    }
-
-    // AI : Step 4: Navigate to overlay position
+    // AI : Step 3: Navigate to overlay position
     const targetBounds = L.latLngBounds(targetCorners);
     mobileAwareFlyToBounds(targetBounds, {
       padding: [50, 50] as [number, number],
