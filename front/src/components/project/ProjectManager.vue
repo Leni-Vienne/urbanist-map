@@ -58,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, defineAsyncComponent, watch } from 'vue'
+import { ref, defineAsyncComponent } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import L from 'leaflet'
@@ -147,58 +147,66 @@ async function ensureCityMarkersForProject(
   }
 }
 
+// AI : Try to find project from replacement overlay
+function findProjectFromReplacementOverlay(projectId: string): Project | null {
+  if (!replacementOverlayId.value) return null;
+
+  const originalOverlay = overlayStore.overlays[replacementOverlayId.value];
+  if (originalOverlay?.project?.id === projectId) {
+    return createProjectObject({
+      ...originalOverlay.project,
+      description: originalOverlay.project.description ?? null,
+      overlayIds: []
+    });
+  }
+
+  return null;
+}
+
+// AI : Try to find project from city projects list
+function findProjectFromCityProjects(projectId: string): Project | null {
+  const { projects: cityProjectsList } = useCityProjects();
+  const cityProject = cityProjectsList.value.find((p: Project) => p.id === projectId);
+  return cityProject ?? null;
+}
+
+// AI : Try to find project by fetching nearby projects
+async function findProjectFromNearbyProjects(projectId: string): Promise<Project | null> {
+  if (!map.value) return null;
+
+  console.log('Fetching nearby projects to find project ID:', projectId);
+  const center = map.value.getCenter();
+  const nearbyProjects = await projectStore.fetchNearbyProjects(center.lat, center.lng);
+  const nearbyProject = nearbyProjects.find((p: NearbyProject) => p.id === projectId);
+
+  return nearbyProject ? createProjectObjectFromAPI(nearbyProject) : null;
+}
+
+// AI : Add project to store with reactivity trigger
+function addProjectToStore(projectId: string, project: Project): void {
+  // AI : Create new object reference to trigger shallowRef reactivity
+  const updatedProjects = { ...projects.value };
+  updatedProjects[projectId] = project;
+  projects.value = updatedProjects;
+}
+
 // AI : Process image after project selection
 async function onProjectSelected(projectId: string) {
-  const effectiveProjectId = projectId;
-
-  if (!effectiveProjectId) {
+  if (!projectId) {
     console.warn('No project ID available for overlay');
     return;
   }
 
   // AI : Check if project exists in local store, if not, try to get it from available sources
-  if (!projects.value[effectiveProjectId]) {
+  if (!projects.value[projectId]) {
     try {
-      let projectToAdd: Project | null = null;
+      // AI : Try multiple sources in order of preference
+      let projectToAdd = findProjectFromReplacementOverlay(projectId)
+        ?? findProjectFromCityProjects(projectId)
+        ?? await findProjectFromNearbyProjects(projectId);
 
-      // AI : For replacement overlays, try to get the project from the original overlay first
-      if (replacementOverlayId.value) {
-        const originalOverlay = overlayStore.overlays[replacementOverlayId.value];
-        if (originalOverlay?.project?.id === effectiveProjectId) {
-          projectToAdd = createProjectObject({
-            ...originalOverlay.project,
-            description: originalOverlay.project.description ?? null,
-            overlayIds: []
-          });
-        }
-      }
-
-      // AI : If not found in original overlay, get from city projects (includes city overlays + nearby projects)
-      if (!projectToAdd) {
-        const { projects: cityProjectsList } = useCityProjects();
-        const cityProject = cityProjectsList.value.find((p: Project) => p.id === projectId);
-        if (cityProject) {
-          projectToAdd = cityProject;
-        }
-      }
-
-      // AI : If still not found, try fetching fresh nearby projects as last resort
-      if (!projectToAdd && map.value) {
-        console.log('Fetching nearby projects to find project ID:', projectId);
-        const center = map.value.getCenter();
-        const nearbyProjects = await projectStore.fetchNearbyProjects(center.lat, center.lng);
-        const nearbyProject = nearbyProjects.find((p: NearbyProject) => p.id === projectId);
-        if (nearbyProject) {
-          projectToAdd = createProjectObjectFromAPI(nearbyProject);
-        }
-      }
-
-      // AI : Add the project to local store if found
       if (projectToAdd) {
-        // AI : Create new object reference to trigger shallowRef reactivity
-        const updatedProjects = { ...projects.value };
-        updatedProjects[projectId] = projectToAdd;
-        projects.value = updatedProjects;
+        addProjectToStore(projectId, projectToAdd);
       } else {
         console.warn('Project not found in any source, overlay creation may not work properly');
       }

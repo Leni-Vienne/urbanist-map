@@ -34,15 +34,104 @@ export interface ResolvedPosition {
 }
 
 /**
+ * AI : Calculate position from corners
+ */
+function calculatePositionFromCorners(
+  corners: { lat: number; lng: number }[],
+  source: PositionSource
+): ResolvedPosition | null {
+  if (!corners || corners.length !== 4) {
+    return null;
+  }
+
+  const calculatedPosition = calculateCentroidFromCorners(corners);
+  if (calculatedPosition) {
+    return {
+      position: calculatedPosition,
+      source,
+      corners
+    };
+  }
+
+  return null;
+}
+
+/**
+ * AI : Resolve position for view/moderation mode (always backend data)
+ */
+function resolveViewModePosition(overlayData: OverlayData): ResolvedPosition {
+  // AI : Try to calculate from corners first for accuracy
+  const result = calculatePositionFromCorners(
+    overlayData.corners,
+    'backend-corners'
+  );
+
+  if (result) {
+    return result;
+  }
+
+  // AI : Fallback to backend centroid
+  return {
+    position: { lat: overlayData.centroid.lat, lng: overlayData.centroid.lng },
+    source: 'backend-centroid'
+  };
+}
+
+/**
+ * AI : Resolve position for edit mode (check runtime, cache, then backend)
+ */
+function resolveEditModePosition(
+  overlayId: string,
+  overlayData: OverlayData
+): ResolvedPosition {
+  const overlayStore = useOverlayStore();
+
+  // AI : Priority 1: Currently loaded overlay (user might be actively editing)
+  const overlayObject = overlayStore.overlays[overlayId];
+  if (overlayObject?.corners?.length === 4) {
+    const result = calculatePositionFromCorners(
+      overlayObject.corners,
+      'runtime-overlay'
+    );
+    if (result) return result;
+  }
+
+  // AI : Priority 2: Edit mode cache (persisted modifications from previous session)
+  const cachedModifications = getFromEditModeOverlayCache(overlayId);
+  if (cachedModifications?.corners?.length === 4) {
+    const result = calculatePositionFromCorners(
+      cachedModifications.corners,
+      'edit-mode-cache'
+    );
+    if (result) return result;
+  }
+
+  // AI : Priority 3: Backend corners (calculate from database data)
+  if (overlayData?.corners?.length === 4) {
+    const result = calculatePositionFromCorners(
+      overlayData.corners,
+      'backend-corners'
+    );
+    if (result) return result;
+  }
+
+  // AI : Final fallback: Backend centroid
+  return {
+    position: { lat: overlayData.centroid.lat, lng: overlayData.centroid.lng },
+    source: 'backend-centroid'
+  };
+}
+
+/**
  * AI : Resolve overlay position based on current mode and state
- * 
+ *
  * Priority chain:
  * - View/Moderation mode: Always use backend data (centroid or corners)
  * - Edit mode:
  *   1. Runtime overlay (if loaded in memory)
  *   2. Edit mode cache (if user previously modified)
  *   3. Backend data (default fallback)
- * 
+ *
  * @param overlayId - ID of the overlay
  * @param overlayData - Backend overlay data (with centroid and corners)
  * @param mode - Current map mode
@@ -58,9 +147,9 @@ export function resolveOverlayPosition(
   // AI : Override for change request preview (highest priority)
   if (preview) {
     return {
-      position: calculateCentroidFromCorners(preview.corners) ?? { 
-        lat: overlayData.centroid.lat, 
-        lng: overlayData.centroid.lng 
+      position: calculateCentroidFromCorners(preview.corners) ?? {
+        lat: overlayData.centroid.lat,
+        lng: overlayData.centroid.lng
       },
       source: 'change-request',
       corners: preview.corners
@@ -69,71 +158,11 @@ export function resolveOverlayPosition(
 
   // AI : View/Moderation mode: Always use backend data (no user modifications)
   if (mode === 'view' || mode === 'moderation') {
-    // AI : Try to calculate from corners first for accuracy
-    if (overlayData.corners && overlayData.corners.length === 4) {
-      const calculatedPosition = calculateCentroidFromCorners(overlayData.corners);
-      if (calculatedPosition) {
-        return {
-          position: calculatedPosition,
-          source: 'backend-corners',
-          corners: overlayData.corners
-        };
-      }
-    }
-    
-    // AI : Fallback to backend centroid
-    return {
-      position: { lat: overlayData.centroid.lat, lng: overlayData.centroid.lng },
-      source: 'backend-centroid'
-    };
+    return resolveViewModePosition(overlayData);
   }
 
   // AI : Edit mode: Check for user modifications
-  const overlayStore = useOverlayStore();
-  const overlayObject = overlayStore.overlays[overlayId];
-
-  // AI : Priority 1: Currently loaded overlay (user might be actively editing)
-  if (overlayObject?.corners?.length === 4) {
-    const calculatedPosition = calculateCentroidFromCorners(overlayObject.corners);
-    if (calculatedPosition) {
-      return {
-        position: calculatedPosition,
-        source: 'runtime-overlay',
-        corners: overlayObject.corners
-      };
-    }
-  }
-
-  // AI : Priority 2: Edit mode cache (persisted modifications from previous session)
-  const cachedModifications = getFromEditModeOverlayCache(overlayId);
-  if (cachedModifications?.corners && cachedModifications.corners.length === 4) {
-    const calculatedPosition = calculateCentroidFromCorners(cachedModifications.corners);
-    if (calculatedPosition) {
-      return {
-        position: calculatedPosition,
-        source: 'edit-mode-cache',
-        corners: cachedModifications.corners
-      };
-    }
-  }
-
-  // AI : Priority 3: Backend corners (calculate from database data)
-  if (overlayData?.corners?.length === 4) {
-    const calculatedPosition = calculateCentroidFromCorners(overlayData.corners);
-    if (calculatedPosition) {
-      return {
-        position: calculatedPosition,
-        source: 'backend-corners',
-        corners: overlayData.corners
-      };
-    }
-  }
-
-  // AI : Final fallback: Backend centroid
-  return {
-    position: { lat: overlayData.centroid.lat, lng: overlayData.centroid.lng },
-    source: 'backend-centroid'
-  };
+  return resolveEditModePosition(overlayId, overlayData);
 }
 
 /**

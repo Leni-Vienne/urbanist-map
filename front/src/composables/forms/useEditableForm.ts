@@ -154,7 +154,7 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
   }
 
   // AI : Handle local-only project updates (no backend submission)
-  async function handleLocalOnlyUpdate() {
+  function handleLocalOnlyUpdate() {
     if (options.entityType !== 'project') return
 
     let currentProject = projectStore.projects[options.entityId] ?? projectStore.allProjects[options.entityId]
@@ -273,7 +273,7 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
       const changes = getChangesToSubmit();
 
       if (options.localOnly) {
-        await handleLocalOnlyUpdate()
+        handleLocalOnlyUpdate()
       } else if (options.entityStatus === 'pending') {
         await handlePendingEntityUpdate(changes)
       } else {

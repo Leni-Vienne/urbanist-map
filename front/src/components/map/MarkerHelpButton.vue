@@ -53,47 +53,54 @@ watch(() => mapStore.selectedCity, (city) => {
   }
 })
 
-// AI : Check what markers exist and update button type (debounced)
-function checkMarkers() {
+// AI : Query DOM for city and country markers
+function getMarkersFromDOM() {
   const cityMarkers = document.querySelectorAll('[data-city-id]')
   // AI : Country markers have data-country-code but NOT data-city-id
   const allMarkersWithCountry = document.querySelectorAll('[data-country-code]')
   const countryMarkers = Array.from(allMarkersWithCountry).filter(el => !el.hasAttribute('data-city-id'))
 
+  return { cityMarkers, countryMarkers }
+}
+
+// AI : Show button after delay if no city is selected
+function showButtonWithDelay(type: 'city' | 'country') {
+  if (buttonType.value !== type) {
+    buttonType.value = type
+    visible.value = false
+
+    if (timeoutId) clearTimeout(timeoutId)
+    timeoutId = window.setTimeout(() => {
+      if (!mapStore.selectedCity && buttonType.value === type) {
+        visible.value = true
+      }
+    }, 3000)
+  }
+}
+
+// AI : Hide button and reset state
+function hideAndResetButton() {
+  visible.value = false
+  buttonType.value = null
+  if (timeoutId) {
+    clearTimeout(timeoutId)
+    timeoutId = null
+  }
+}
+
+// AI : Check what markers exist and update button type (debounced)
+function checkMarkers() {
+  const { cityMarkers, countryMarkers } = getMarkersFromDOM()
+
   if (cityMarkers.length > 0 && !mapStore.selectedCity) {
     // AI : City markers exist - show city button after delay
-    if (buttonType.value !== 'city') {
-      buttonType.value = 'city'
-      visible.value = false
-
-      if (timeoutId) clearTimeout(timeoutId)
-      timeoutId = window.setTimeout(() => {
-        if (!mapStore.selectedCity) {
-          visible.value = true
-        }
-      }, 3000)
-    }
+    showButtonWithDelay('city')
   } else if (cityMarkers.length === 0 && countryMarkers.length > 0) {
-    // AI : Only country markers - set up timeout to show button
-    if (buttonType.value !== 'country') {
-      buttonType.value = 'country'
-
-      // AI : Start 5-second timeout when we first detect country markers
-      if (timeoutId) clearTimeout(timeoutId)
-      timeoutId = window.setTimeout(() => {
-        if (buttonType.value === 'country' && !mapStore.selectedCity) {
-          visible.value = true
-        }
-      }, 3000)
-    }
+    // AI : Only country markers - show country button after delay
+    showButtonWithDelay('country')
   } else {
     // AI : No relevant markers
-    visible.value = false
-    buttonType.value = null
-    if (timeoutId) {
-      clearTimeout(timeoutId)
-      timeoutId = null
-    }
+    hideAndResetButton()
   }
 }
 
