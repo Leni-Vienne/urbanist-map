@@ -75,7 +75,7 @@ import { useToast } from '@composables/ui/useToast';
 import { useOverlayPublisher } from '@composables/overlay/useOverlayPublisher';
 import { useSubmissionService } from '@composables/submission/useSubmissionService';
 import type { SubmissionContext, SubmissionSummary } from '@composables/submission/useSubmissionService';
-import { citiesWithProjects, cleanupProjectInfoTeleportTarget } from '@composables/map/useCityMarkers';
+import { citiesWithProjects, closeProjectPopupAndResetMarkers } from '@composables/map/useCityMarkers';
 import type { OverlayObject, Project } from '@types';
 import { useProjectDeletion } from '@composables/project/useProjectDeletion';
 import type { DBProject, DBCity } from '../../../../back/src/shared/schema';
@@ -402,7 +402,7 @@ function handleOverlayUpdate(overlayId: string, caption?: string) {
 // AI : Close project info popup (project mode only)
 function closeProjectInfoPopup() {
   uiStore.closeProjectInfoPopup();
-  cleanupProjectInfoTeleportTarget();
+  closeProjectPopupAndResetMarkers();
 }
 
 // AI : Handle view original overlay - navigate to the original overlay being replaced

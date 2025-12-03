@@ -690,16 +690,16 @@ export const moderationRouter = router({
                 .limit(1);
 
               if (currentProject.length === 0) {
-                return { success: false as const, error: 'Project not found' };
+                return { success: false, error: 'Project not found' };
               } else if (currentProject[0].status !== 'pending' && !(input.status === 'rejected' && currentProject[0].status === 'approved')) {
                 return {
-                  success: false as const,
+                  success: false,
                   error: 'Project already processed',
                   currentStatus: currentProject[0].status
                 };
               } else {
                 return {
-                  success: false as const,
+                  success: false,
                   error: 'Version mismatch',
                   expectedVersion: input.expectedVersion,
                   currentVersion: currentProject[0].version
@@ -867,7 +867,7 @@ export const moderationRouter = router({
               await tx
                 .update(overlays)
                 .set({
-                  status: 'replaced' as any, // AI : Cast needed due to enum type
+                  status: 'replaced', // AI : Cast needed due to enum type
                   replacedByOverlayId: input.id,
                   version: sql`${overlays.version} + 1`
                 })

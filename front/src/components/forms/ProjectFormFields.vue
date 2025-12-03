@@ -173,18 +173,10 @@ import TimelineStatusSelector from './TimelineStatusSelector.vue'
 import CitySelect from './CitySelect.vue'
 import type { Project } from '@types'
 import { formatDate } from '@utils/dateFormat'
+import type { ProjectFormData } from '../../types/forms'
 
-// AI : Form data type for project fields
-export interface ProjectFormData {
-  name: string
-  description: string | null
-  proposalDate: Date | null
-  startDate: Date | null
-  endDate: Date | null
-  latestUpdateOn?: Date | null
-  cityId: string | null
-  sourceUrl: string | null
-}
+// AI : Re-export for backward compatibility
+export type { ProjectFormData }
 
 interface Props {
   // AI : v-model for form data

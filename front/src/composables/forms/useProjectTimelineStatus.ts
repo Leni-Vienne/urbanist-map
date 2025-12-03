@@ -40,11 +40,11 @@ export function useProjectTimelineStatus(project: Partial<Project>, formData?: a
     watch(isProposed, (newValue) => {
       if (newValue) {
         // AI : Switching to proposed - clear planned dates
-        formData.startDate = null as any
-        formData.endDate = null as any
+        formData.startDate = null
+        formData.endDate = null
       } else {
         // AI : Switching to planned - clear proposal date and restore original planned dates if available
-        formData.proposalDate = null as any
+        formData.proposalDate = null
         if (project.startDate) {
           formData.startDate = project.startDate
         }

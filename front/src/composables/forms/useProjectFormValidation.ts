@@ -1,6 +1,6 @@
 import { useI18n } from 'vue-i18n'
 import { useToast } from '@composables/ui/useToast'
-import type { ProjectFormData } from '@components/forms/ProjectFormFields.vue'
+import type { ProjectFormData } from '../../types/forms'
 
 // AI : Shared validation logic for project forms
 export function useProjectFormValidation() {

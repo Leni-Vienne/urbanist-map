@@ -26,7 +26,7 @@ import {
   updateStandaloneProjectMarkerOpacities,
   clearAllStandaloneProjectMarkers
 } from '@composables/map/useStandaloneProjectMarkers';
-import { createProjectInfoTeleportTarget, cleanupProjectInfoTeleportTarget as cleanupTeleport } from '@composables/map/useProjectPopupTeleport';
+import { cleanupProjectInfoTeleportTarget } from '@composables/map/useProjectPopupTeleport';
 
 
 // AI : Type aliases using RouterOutput from tRPC
@@ -129,10 +129,12 @@ export function updateAllStandaloneProjectMarkerColors(): void {
   });
 }
 
-// AI : Teleport functions now in shared utility - re-export for backward compatibility
-export { createProjectInfoTeleportTarget };
-export function cleanupProjectInfoTeleportTarget() {
-  cleanupTeleport();
+/**
+ * AI : Close project popup and reset standalone project marker opacities
+ * This extends the base cleanup with marker opacity reset specific to city markers
+ */
+export function closeProjectPopupAndResetMarkers() {
+  cleanupProjectInfoTeleportTarget();
   updateStandaloneProjectMarkerOpacities(null); // AI : Reset marker opacities when popup closes
 }
 
@@ -221,7 +223,7 @@ export async function loadCityStandaloneProjects(cityId: string | null): Promise
         const projectData = 'overlayIds' in project ? project : createProjectObject({
           ...project,
           city: project.city,
-          status: ('status' in project ? project.status : 'approved') as 'pending' | 'approved' | 'rejected'
+          status: ('status' in project ? project.status : 'approved')
         });
 
         // AI : Add project to store so it can be edited
