@@ -1,35 +1,4 @@
 <template>
-  <!-- AI : Project Selector Dialog -->
-  <Dialog
-    v-model:visible="uiStore.projectSelectorVisible"
-    :header="$t('projectSelector.header')"
-    :modal="true"
-    :style="{ width: '450px' }"
-  >
-    <ProjectPicker
-      v-model="selectedProjectForUpload"
-      @create-project="uiStore.openProjectDialog()"
-      :useCityProjects="true"
-      appendTo="body"
-      ref="projectPickerRef"
-    />
-
-    <template #footer>
-      <div class="flex gap-2 justify-end">
-        <Button
-          :label="$t('common.cancel')"
-          severity="secondary"
-          @click="uiStore.closeProjectSelector()"
-        />
-        <Button
-          :label="$t('common.confirm')"
-          :disabled="!selectedProjectForUpload"
-          @click="onProjectConfirmed"
-        />
-      </div>
-    </template>
-  </Dialog>
-
   <!-- AI : Project Dialog for create/edit -->
   <ProjectDialog
     v-if="uiStore.projectDialog.visible"
@@ -112,7 +81,6 @@ import type { Project, OverlayObject } from '@types'
 import type { NearbyProject } from '../../types/api'
 
 import MarkerPlacementBar from '@components/map/MarkerPlacementBar.vue'
-import ProjectPicker from '@components/project/ProjectPicker.vue'
 const ProjectDialog = defineAsyncComponent(() => import('@components/project/ProjectDialog.vue'))
 const EditProjectForm = defineAsyncComponent(() => import('@components/forms/EditProjectForm.vue'))
 const EditOverlayForm = defineAsyncComponent(() => import('@components/forms/EditOverlayForm.vue'))
@@ -123,16 +91,12 @@ const mapStore = useMapStore()
 const uiStore = useUiStore()
 const toast = useToast()
 const { t: $t } = useI18n()
-const projectPickerRef = ref()
 const markerPlacementBar = ref()
 const tempMarker = ref<L.Marker | null>(null)
 
 const { projects } = storeToRefs(projectStore)
 const { pendingImageFile, replacementOverlayId } = storeToRefs(overlayStore)
 const { projectEditForm } = storeToRefs(uiStore)
-
-// AI : Track selected project for upload (preselects original project for replacements)
-const selectedProjectForUpload = ref<string>('')
 
 // AI : Helper to ensure city markers are properly set up for a project's city
 async function ensureCityMarkersForProject(
@@ -184,33 +148,9 @@ async function ensureCityMarkersForProject(
   }
 }
 
-// AI : Get the original overlay's project ID for replacements
-function getOriginalOverlayProjectId(): string | null {
-  if (!replacementOverlayId.value) return null;
-  const originalOverlay = overlayStore.overlays[replacementOverlayId.value];
-  return originalOverlay?.projectId ?? null;
-}
-
-// AI : Initialize selectedProjectForUpload when opening dialog for replacements
-watch(() => uiStore.projectSelectorVisible, (visible: boolean) => {
-  if (visible) {
-    selectedProjectForUpload.value = getOriginalOverlayProjectId() ?? '';
-  }
-})
-
-// AI : Handle project confirmation button click
-function onProjectConfirmed() {
-  if (selectedProjectForUpload.value) {
-    onProjectSelected(selectedProjectForUpload.value);
-  }
-}
-
 // AI : Process image after project selection
 async function onProjectSelected(projectId: string) {
-  // AI : For replacement overlays, use the original overlay's project if no specific project selected
-  const effectiveProjectId = (replacementOverlayId.value && !projectId)
-    ? getOriginalOverlayProjectId()
-    : projectId;
+  const effectiveProjectId = projectId;
 
   if (!effectiveProjectId) {
     console.warn('No project ID available for overlay');
@@ -273,14 +213,13 @@ async function onProjectSelected(projectId: string) {
 // AI : Handle file upload by user
 async function handleFileUpload(projectId: string, isReplacement: boolean = false) {
   if (!pendingImageFile.value) {
-    console.warn('No image file to upload')
+      console.warn('No image file to upload')
     toast.add({
       severity: 'warn',
       summary: $t('upload.noFileSelected'),
       detail: $t('upload.selectImageFile'),
       life: 3000
     })
-    uiStore.closeProjectSelector()
     return
   }
 
@@ -321,7 +260,6 @@ async function handleFileUpload(projectId: string, isReplacement: boolean = fals
     } finally {
       // AI : Reset state
       overlayStore.resetReplacement()
-      uiStore.closeProjectSelector()
     }
   }
   reader.readAsDataURL(pendingImageFile.value)
@@ -395,6 +333,71 @@ function onDialogVisibilityChange(visible: boolean) {
   }
 }
 
+// AI : Display project marker on map and open its info popup
+async function displayProjectMarkerAndPopup(projectId: string, city: { id: string; name: string; countryCode: string; coordinates: { x: number; y: number } }) {
+  await ensureCityMarkersForProject(city, true);
+  await loadCityProjects(city.id, city.name, true, city.countryCode);
+
+  const actualMarker = getStandaloneProjectMarkerByProjectId(projectId);
+  if (actualMarker) {
+    createProjectInfoTeleportTarget(actualMarker);
+    if (overlayStore.showInfoPopup) {
+      overlayStore.hideInfoPopup();
+    }
+    uiStore.openProjectInfoPopup(projectId, projectStore.projects[projectId]);
+  }
+}
+
+// AI : Handle new project creation
+async function handleNewProjectCreation(project: Partial<Project>): Promise<string> {
+  const projectId = createProject({
+    ...project,
+    isModified: true,
+  })
+  setLastCreatedProject(projectId)
+
+  const hasNoOverlays = !project.overlayIds || project.overlayIds.length === 0
+  if (hasNoOverlays && project.lat && project.lng && project.city) {
+    await displayProjectMarkerAndPopup(projectId, project.city);
+    toast.add({
+      severity: 'success',
+      summary: $t('common.success'),
+      detail: $t('toasts.standaloneProjectSuccess'),
+      life: 3000
+    });
+  }
+
+  return projectId
+}
+
+// AI : Handle existing project update
+function handleProjectUpdate(project: Partial<Project>): string {
+  const projectId = project.id!;
+  
+  if (projects.value[projectId]) {
+    projectStore.updateProject(projectId, {
+      ...project,
+      overlayIds: projects.value[projectId].overlayIds || [],
+      isModified: true
+    });
+
+    const hasNoOverlays = !projects.value[projectId].overlayIds || projects.value[projectId].overlayIds.length === 0
+    if (hasNoOverlays) {
+      updateStandaloneProjectMarkerColor(projectId, projects.value[projectId]);
+    }
+
+    toast.add({
+      severity: 'success',
+      summary: $t('toasts.projectUpdateSuccess'),
+      detail: $t('toasts.projectUpdateDetail'),
+      life: 3000
+    });
+  }
+
+  setLastCreatedProject(projectId);
+  return projectId
+}
+
 // AI : Handle project creation/update from dialog
 async function handleProjectSubmitted(project: Partial<Project>) {
   if (!project) return;
@@ -402,77 +405,10 @@ async function handleProjectSubmitted(project: Partial<Project>) {
   try {
     uiStore.closeProjectDialog()
 
-    let projectId: string;
+    const projectId = project.id 
+      ? handleProjectUpdate(project)
+      : await handleNewProjectCreation(project);
 
-    if (!project.id) {
-      // AI : Create the project and get the generated ID
-      // AI : isModified: true ensures new projects show as orange in edit mode
-      // AI : Don't set status here - let factory default it to null for unsubmitted projects
-      projectId = createProject({
-        ...project,
-        isModified: true,  // AI : New projects need to be submitted
-      })
-      setLastCreatedProject(projectId)
-
-      // AI : For projects with center coordinates (no overlays), load on map and show marker
-      const hasNoOverlays = !project.overlayIds || project.overlayIds.length === 0
-      if (hasNoOverlays && project.lat && project.lng && project.city) {
-        // AI : Ensure city markers are set up (force set selectedCity for proper map context)
-        await ensureCityMarkersForProject(project.city, true);
-
-        // AI : Load city projects to display the marker
-        await loadCityProjects(project.city.id, project.city.name, true, project.city.countryCode);
-
-        // AI : Get the marker and open its popup
-        const actualMarker = getStandaloneProjectMarkerByProjectId(projectId);
-        if (actualMarker) {
-          createProjectInfoTeleportTarget(actualMarker);
-          // AI : Close overlay popup if it's open (only one popup at a time)
-          if (overlayStore.showInfoPopup) {
-            overlayStore.hideInfoPopup();
-          }
-          uiStore.openProjectInfoPopup(projectId, projectStore.projects[projectId]);
-        }
-
-        toast.add({
-          severity: 'success',
-          summary: $t('common.success'),
-          detail: $t('toasts.standaloneProjectSuccess'),
-          life: 3000
-        });
-      }
-    } else {
-      // AI : Project already exists (edit mode), update the existing project data
-      projectId = project.id;
-      if (projects.value[project.id]) {
-        // AI : Use updateProject to properly set isModified flag
-        projectStore.updateProject(project.id, {
-          ...project,
-          // AI : Ensure we preserve important fields that might not be in the edit form
-          overlayIds: projects.value[project.id].overlayIds || [],
-          isModified: true
-        });
-
-        // AI : Update marker color to reflect modification if project has no overlays
-        const hasNoOverlays = !projects.value[project.id].overlayIds || projects.value[project.id].overlayIds.length === 0
-        if (hasNoOverlays) {
-          updateStandaloneProjectMarkerColor(project.id, projects.value[project.id]);
-        }
-
-        // AI : Just save locally for all projects (no auto-publishing)
-        toast.add({
-          severity: 'success',
-          summary: $t('toasts.projectUpdateSuccess'),
-          detail: $t('toasts.projectUpdateDetail'),
-          life: 3000
-        });
-      }
-
-      setLastCreatedProject(project.id);
-    }
-
-    // AI : If there's a pending image file, skip the project selector and directly proceed to file upload
-    // AI : This provides a smoother UX when creating a project specifically for a new overlay
     if (pendingImageFile.value) {
       await onProjectSelected(projectId);
     }

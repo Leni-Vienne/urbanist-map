@@ -159,7 +159,76 @@ export function useOverlayPublisher() {
     return { success: false, exists: false };
   }
 
-  // AI : Main publish overlay function
+  // AI : Synchronize overlay ID change across all stores and references
+  function synchronizeOverlayIdChange(
+    overlay: OverlayObject,
+    oldId: string,
+    newId: string,
+    project: Project | null
+  ): void {
+    console.log(`AI: Publishing changed overlay ID from ${oldId} to ${newId}`);
+    
+    // AI : Update overlays store with new key
+    const updatedOverlays = { ...overlays.value };
+    delete updatedOverlays[oldId];
+    updatedOverlays[newId] = overlay;
+    overlays.value = updatedOverlays;
+
+    // AI : Update marker in allMarkers if it exists
+    if (overlayStore.allMarkers[oldId]) {
+      const marker = overlayStore.allMarkers[oldId];
+      delete overlayStore.allMarkers[oldId];
+      overlayStore.allMarkers[newId] = marker;
+      console.log(`AI: Updated marker ID from ${oldId} to ${newId}`);
+    }
+
+    // AI : Update project's overlayIds array to use new ID
+    if (project?.id) {
+      const updatedProjects = { ...projects.value };
+      const projectToUpdate = { ...updatedProjects[project.id] };
+      const overlayIndex = projectToUpdate.overlayIds.indexOf(oldId);
+      
+      if (overlayIndex !== -1) {
+        projectToUpdate.overlayIds = [...projectToUpdate.overlayIds];
+        projectToUpdate.overlayIds[overlayIndex] = newId;
+        updatedProjects[project.id] = projectToUpdate;
+        projects.value = updatedProjects;
+      }
+    }
+
+    // AI : Update selected overlay ID if this was the selected one
+    if (idSelectedOverlay.value === oldId) {
+      idSelectedOverlay.value = newId;
+    }
+  }
+
+  // AI : Handle post-publish UI updates and cache invalidation
+  function handlePostPublishUpdates(overlay: OverlayObject, project: Project | null, filename: string): void {
+    // AI : Update marker tooltip to reflect new published state
+    updateMarkerTooltip(overlay);
+
+    // AI : Ensure the overlay stays visible on the map after ID change
+    if (overlay.overlay && map.value && !map.value.hasLayer(overlay.overlay)) {
+      console.log(`AI: Re-adding overlay ${overlay.id} to map after publishing`);
+      overlay.overlay.addTo(map.value);
+    }
+
+    // AI : Invalidate all mode caches for this city after successful publish
+    // AI : This ensures fresh data on next mode switch without overwriting current local state
+    const cityId = overlay.project?.cityId;
+    if (cityId) {
+      mapStore.clearCityProjectsCache(cityId);
+      mapStore.clearCityStandaloneProjectsCache(cityId);
+    }
+
+    // AI : Optimistically add overlay to user contributions (no backend fetch needed)
+    // AI : Latest overlays won't show pending submissions, so don't refresh that panel
+    if (project) {
+      projectStore.addOverlayToUserContributions(overlay, project, filename);
+    }
+  }
+
+  // AI : Main publish overlay function - orchestrates the publishing workflow
   async function publishOverlay(overlay: OverlayObject, project: Project | null): Promise<void> {
     if (!validateOverlayForPublishing(overlay, project)) {
       return;
@@ -172,7 +241,6 @@ export function useOverlayPublisher() {
       let projectIdChanged = false;
       if (project) {
         projectIdChanged = await ensureProjectOnServer(project);
-        // AI : If project ID changed, update overlay's project reference
         if (projectIdChanged) {
           overlay.projectId = project.id;
         }
@@ -184,76 +252,24 @@ export function useOverlayPublisher() {
       // AI : Step 3 - Publish overlay metadata
       const publishResult = await publishOverlayToServer(overlay, filename);
 
-      // AI : If publishing was successful, update overlay ID and update store
+      // AI : Step 4 - Handle successful publish result
       if (publishResult.success && publishResult.id) {
         const oldId = overlay.id;
         const newId = publishResult.id;
 
-        // AI : Update overlay ID, status, authorId, and reset modified flag since it's now saved
+        // AI : Update overlay properties with server response
         overlay.id = newId;
         overlay.status = publishResult.status as 'pending' | 'approved' | 'rejected';
         overlay.authorId = publishResult.authorId ?? null;
         overlay.isModified = false;
 
-        // AI : If ID changed, update the overlays store with new key
+        // AI : Synchronize ID change across all stores if ID changed
         if (oldId !== newId) {
-          console.log(`AI: Publishing changed overlay ID from ${oldId} to ${newId}`);
-          const updatedOverlays = { ...overlays.value };
-          delete updatedOverlays[oldId]; // Remove old entry
-          updatedOverlays[newId] = overlay; // Add with new ID
-          overlays.value = updatedOverlays;
-
-          // AI : Also update marker in allMarkers if it exists
-          if (overlayStore.allMarkers[oldId]) {
-            const marker = overlayStore.allMarkers[oldId];
-            delete overlayStore.allMarkers[oldId];
-            overlayStore.allMarkers[newId] = marker;
-            console.log(`AI: Updated marker ID from ${oldId} to ${newId}`);
-          }
-
-          // AI : Update project's overlayIds array to use new ID
-          if (project?.id) {
-            const updatedProjects = { ...projects.value };
-            const projectToUpdate = { ...updatedProjects[project.id] };
-
-            // Replace old overlay ID with new ID in the project's overlayIds array
-            const overlayIndex = projectToUpdate.overlayIds.indexOf(oldId);
-            if (overlayIndex !== -1) {
-              projectToUpdate.overlayIds = [...projectToUpdate.overlayIds];
-              projectToUpdate.overlayIds[overlayIndex] = newId;
-              updatedProjects[project.id] = projectToUpdate;
-              projects.value = updatedProjects;
-            }
-          }
-
-          // AI : Update selected overlay ID if this was the selected one
-          if (idSelectedOverlay.value === oldId) {
-            idSelectedOverlay.value = newId;
-          }
+          synchronizeOverlayIdChange(overlay, oldId, newId, project);
         }
 
-        // AI : Update marker tooltip to reflect new published state (green color)
-        updateMarkerTooltip(overlay);
-
-        // AI : Ensure the overlay stays visible on the map after ID change
-        if (overlay.overlay && map.value && !map.value.hasLayer(overlay.overlay)) {
-          console.log(`AI: Re-adding overlay ${newId} to map after publishing`);
-          overlay.overlay.addTo(map.value);
-        }
-
-        // AI : Invalidate all mode caches for this city after successful publish
-        // AI : This ensures fresh data on next mode switch without overwriting current local state
-        const cityId = overlay.project?.cityId
-        if (cityId) {
-          mapStore.clearCityProjectsCache(cityId);
-          mapStore.clearCityStandaloneProjectsCache(cityId);
-        }
-
-        // AI : Optimistically add overlay to user contributions (no backend fetch needed)
-        // AI : Latest overlays won't show pending submissions, so don't refresh that panel
-        if (project) {
-          projectStore.addOverlayToUserContributions(overlay, project, filename);
-        }
+        // AI : Handle post-publish UI updates and cache invalidation
+        handlePostPublishUpdates(overlay, project, filename);
       }
 
       // AI : Don't refresh city overlays immediately after publishing to avoid overwriting

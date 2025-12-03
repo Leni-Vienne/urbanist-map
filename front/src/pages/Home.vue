@@ -45,7 +45,6 @@
             v-if="
                 uiStore.projectDialog.visible ||
                 uiStore.markerPlacementBarVisible ||
-                uiStore.projectSelectorVisible ||
                 uiStore.projectEditForm.visible ||
                 uiStore.overlayEditForm.visible
             "

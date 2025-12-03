@@ -373,86 +373,82 @@ export function useSubmissionService() {
     }
   }
 
-  // AI : Submit project changes to backend
+  // AI : Submit change request for approved project
+  async function submitProjectChangeRequest(project: Project, changes: FieldChange[]): Promise<void> {
+    await trpc.changes.submitChangeRequest.mutate({
+      entityType: 'project',
+      entityId: project.id,
+      changes
+    })
+
+    projectStore.updateProject(project.id, { isModified: false })
+
+    if (project.cityId) {
+      mapStore.clearCityProjectsCache(project.cityId)
+      mapStore.clearCityStandaloneProjectsCache(project.cityId)
+    }
+
+    resetChangeRequestsLoaded()
+    await refreshPendingChangeRequests(true)
+  }
+
+  // AI : Publish pending or new project directly to backend
+  async function publishProjectDirect(project: Project, changeType: SubmissionChangeType): Promise<void> {
+    const publishResult = await trpc.project.publishProject.mutate(
+      buildProjectPayload(project)
+    )
+
+    if (!publishResult.success) {
+      throw new Error('Backend publish failed')
+    }
+
+    projectStore.updateProject(project.id, { isModified: false, status: 'pending' })
+    projectStore.cacheProjectBackendState(project.id)
+
+    const updatedProject = projectStore.projects[project.id]
+    if (updatedProject) {
+      updateStandaloneProjectMarkerColor(project.id, updatedProject)
+    }
+
+    if (project.cityId) {
+      mapStore.clearCityProjectsCache(project.cityId)
+      mapStore.clearCityStandaloneProjectsCache(project.cityId)
+    }
+
+    if (mapStore.selectedCity) {
+      await loadCityProjects(
+        mapStore.selectedCity.id,
+        mapStore.selectedCity.name,
+        true,
+        mapStore.selectedCity.countryCode
+      )
+    } else {
+      await loadCityProjects(null, '', true)
+    }
+
+    if (changeType === 'create') {
+      const updatedProjectForContributions = projectStore.projects[project.id]
+      if (updatedProjectForContributions) {
+        projectStore.addProjectToUserContributions(updatedProjectForContributions)
+      }
+    } else if (changeType === 'update_pending') {
+      projectStore.updateProjectInUserContributions(project.id, {
+        name: project.name,
+        description: project.description,
+        sourceUrl: project.sourceUrl,
+        updatedAt: new Date(),
+      })
+    }
+  }
+
+  // AI : Route project submission to appropriate handler
   async function submitProject(context: SubmissionContext, changes: FieldChange[]): Promise<void> {
     const project = context.entity as Project
 
     if (context.changeType === 'update_approved') {
-      // AI : Submit change requests for approved projects
-      await trpc.changes.submitChangeRequest.mutate({
-        entityType: 'project',
-        entityId: project.id,
-        changes
-      })
-
-      // AI : Reset modified flag after successfully submitting change request
-      projectStore.updateProject(project.id, { isModified: false })
-
-      // AI : Invalidate all mode caches for this city (change affects all modes)
-      if (project.cityId) {
-        mapStore.clearCityProjectsCache(project.cityId)
-        mapStore.clearCityStandaloneProjectsCache(project.cityId)
-      }
-
-      // AI : Refresh pending change requests to show in side menu (user's own only)
-      resetChangeRequestsLoaded()
-      await refreshPendingChangeRequests(true) // forceUserOnly = true for My Contributions
+      await submitProjectChangeRequest(project, changes)
     } else {
-      // AI : Direct update for pending/new projects
-      const publishResult = await trpc.project.publishProject.mutate(
-        buildProjectPayload(project)
-      )
-
-      if (publishResult.success) {
-        // AI : Reset modified flag and set status to pending after successful publish
-        projectStore.updateProject(project.id, { isModified: false, status: 'pending' })
-
-        // AI : Cache backend state for future change detection (enables detecting changes on next edit)
-        projectStore.cacheProjectBackendState(project.id)
-
-        // AI : Update standalone project marker color to reflect pending status (yellow)
-        const updatedProject = projectStore.projects[project.id]
-        if (updatedProject) {
-          updateStandaloneProjectMarkerColor(project.id, updatedProject)
-        }
-
-        // AI : Invalidate all mode caches for this city before refreshing
-        if (project.cityId) {
-          mapStore.clearCityProjectsCache(project.cityId)
-          mapStore.clearCityStandaloneProjectsCache(project.cityId)
-        }
-
-        // AI : Refresh city projects to show updated marker
-        if (mapStore.selectedCity) {
-          await loadCityProjects(
-            mapStore.selectedCity.id,
-            mapStore.selectedCity.name,
-            true,
-            mapStore.selectedCity.countryCode
-          )
-        } else {
-          await loadCityProjects(null, '', true)
-        }
-
-        // AI : Optimistically update user contributions based on change type
-        if (context.changeType === 'create') {
-          // AI : New project - add to contributions using updated project from store (not stale reference)
-          const updatedProjectForContributions = projectStore.projects[project.id]
-          if (updatedProjectForContributions) {
-            projectStore.addProjectToUserContributions(updatedProjectForContributions)
-          }
-        } else if (context.changeType === 'update_pending') {
-          // AI : Updating pending project - update in contributions
-          projectStore.updateProjectInUserContributions(project.id, {
-            name: project.name,
-            description: project.description,
-            sourceUrl: project.sourceUrl,
-            updatedAt: new Date(),
-          })
-        }
-      } else {
-        throw new Error('Backend publish failed')
-      }
+      await publishProjectDirect(project, context.changeType)
     }
   }
 

@@ -17,7 +17,6 @@ export const useUiStore = defineStore("ui", () => {
   // AI : Dialog visibility states
   const authModalVisible = ref(false);
   const markerPlacementBarVisible = ref(false);
-  const projectSelectorVisible = ref(false);
   const moderatedContributionsDialogVisible = ref(false);
 
   // AI : Project dialog state
@@ -65,15 +64,6 @@ export const useUiStore = defineStore("ui", () => {
 
   function closeMarkerPlacementBar() {
     markerPlacementBarVisible.value = false;
-  }
-
-  // AI : Project selector actions
-  function openProjectSelector() {
-    projectSelectorVisible.value = true;
-  }
-
-  function closeProjectSelector() {
-    projectSelectorVisible.value = false;
   }
 
   // AI : Project dialog actions
@@ -162,7 +152,6 @@ export const useUiStore = defineStore("ui", () => {
   function closeAllDialogs() {
     authModalVisible.value = false;
     markerPlacementBarVisible.value = false;
-    projectSelectorVisible.value = false;
     projectDialog.value.visible = false;
     projectEditForm.value.visible = false;
     overlayEditForm.value.visible = false;
@@ -174,7 +163,6 @@ export const useUiStore = defineStore("ui", () => {
     // AI : State
     authModalVisible,
     markerPlacementBarVisible,
-    projectSelectorVisible,
     moderatedContributionsDialogVisible,
     projectDialog,
     projectEditForm,
@@ -189,8 +177,6 @@ export const useUiStore = defineStore("ui", () => {
     closeAuthModal,
     openMarkerPlacementBar,
     closeMarkerPlacementBar,
-    openProjectSelector,
-    closeProjectSelector,
     openProjectDialog,
     closeProjectDialog,
     openProjectEditForm,

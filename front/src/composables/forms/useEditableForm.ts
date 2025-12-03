@@ -114,6 +114,153 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
     }
   }
 
+  // AI : Validate project name meets minimum length requirement
+  function validateProjectName(): boolean {
+    if (options.entityType === 'project' && formData.name) {
+      const trimmedName = String(formData.name).trim()
+      if (trimmedName.length < 8) {
+        toast.add({
+          severity: 'error',
+          summary: t('toast.validationError'),
+          detail: t('project.nameTooShort'),
+          life: 3000
+        })
+        return false
+      }
+    }
+    return true
+  }
+
+  // AI : Update city object when cityId changes
+  function getCityObjectForUpdate(currentProject: any) {
+    let cityObject = currentProject.city
+    
+    if (formData.cityId && formData.cityId !== currentProject.cityId && options.getAvailableCities) {
+      const citiesArray = options.getAvailableCities()
+      const newCity = citiesArray.find(c => c.id === formData.cityId)
+      if (newCity) {
+        cityObject = {
+          id: newCity.id,
+          name: newCity.name,
+          countryCode: newCity.countryCode,
+          coordinates: { x: newCity.lng, y: newCity.lat },
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      }
+    }
+    
+    return cityObject
+  }
+
+  // AI : Handle local-only project updates (no backend submission)
+  async function handleLocalOnlyUpdate() {
+    if (options.entityType !== 'project') return
+
+    let currentProject = projectStore.projects[options.entityId] ?? projectStore.allProjects[options.entityId]
+    
+    if (!currentProject) {
+      console.error('[useEditableForm] PROJECT NOT FOUND AT ALL!')
+      return
+    }
+
+    const cityObject = getCityObjectForUpdate(currentProject)
+    const updatedData = {
+      ...currentProject,
+      ...formData as any,
+      city: cityObject,
+      isModified: true
+    }
+    
+    projectStore.updateProject(options.entityId, updatedData)
+
+    const updatedProject = projectStore.projects[options.entityId]
+    const hasNoOverlays = !updatedProject?.overlayIds || updatedProject.overlayIds.length === 0
+    if (updatedProject && hasNoOverlays) {
+      updateStandaloneProjectMarkerColor(options.entityId, updatedProject)
+    }
+
+    toast.add({
+      severity: 'info',
+      summary: t('submission.changesSaved'),
+      detail: t('actions.saveChangesLocally'),
+      life: 4000
+    })
+  }
+
+  // AI : Handle pending project updates
+  async function handlePendingProjectUpdate() {
+    const result = await trpc.project.getUsersContributions.query({ limit: 100 })
+    const project = result.projects.find(p => p.id === options.entityId)
+    
+    if (!project) {
+      throw new Error(t('errors.projectNotFound'))
+    }
+    
+    const projectData = {
+      id: options.entityId,
+      name: formData.name,
+      description: formData.description,
+      cityId: project.cityId,
+      lat: project.lat,
+      lng: project.lng,
+      proposalDate: formData.proposalDate,
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      sourceUrl: formData.sourceUrl,
+      latestUpdateOn: formData.latestUpdateOn,
+    }
+
+    await trpc.project.publishProject.mutate(buildProjectPayload(projectData))
+
+    toast.add({
+      severity: 'info',
+      summary: t('moderation.projectUpdated'),
+      detail: t('submission.changesSaved'),
+      life: 3000
+    })
+  }
+
+  // AI : Handle pending overlay updates
+  async function handlePendingOverlayUpdate(changes: FieldChange[]) {
+    const overlayData: OverlayUpdateData = { id: options.entityId }
+    changes.forEach(change => {
+      if (change.fieldName === 'caption') {
+        overlayData.caption = change.newValue
+      }
+    })
+    
+    await trpc.overlay.updateOverlay.mutate(overlayData)
+    
+    toast.add({
+      severity: 'info',
+      summary: t('moderation.projectUpdated'),
+      detail: t('submission.changesSaved'),
+      life: 3000
+    })
+  }
+
+  // AI : Handle pending entity updates (direct changes without change requests)
+  async function handlePendingEntityUpdate(changes: FieldChange[]) {
+    if (options.entityType === 'project') {
+      await handlePendingProjectUpdate()
+    } else if (options.entityType === 'overlay') {
+      await handlePendingOverlayUpdate(changes)
+    }
+  }
+
+  // AI : Handle approved entity updates (via change requests)
+  async function handleApprovedEntityUpdate(changes: FieldChange[]) {
+    await submitMultipleFieldChanges(options.entityType, options.entityId, changes)
+
+    toast.add({
+      severity: 'success',
+      summary: t('submission.changeRequestSubmitted'),
+      detail: t('submission.changeRequestSubmitted'),
+      life: 3000
+    })
+  }
+
   // AI : Submit changes directly for pending entities or as change requests for approved entities
   async function submitChanges() {
     if (!hasChanges.value) return
@@ -121,146 +268,16 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
     try {
       isSubmitting.value = true
 
-      // AI : Validate project name length if it's a project and name has changed
-      if (options.entityType === 'project' && formData.name) {
-        const trimmedName = String(formData.name).trim()
-        if (trimmedName.length < 8) {
-          toast.add({
-            severity: 'error',
-            summary: t('toast.validationError'),
-            detail: t('project.nameTooShort'),
-            life: 3000
-          })
-          return
-        }
-      }
+      if (!validateProjectName()) return
 
       const changes = getChangesToSubmit();
 
-      // AI : If localOnly mode, just update local store without backend submission
       if (options.localOnly) {
-        if (options.entityType === 'project') {
-          // AI : Get current project - try local store first, then allProjects (includes nearby/backend)
-          let currentProject = projectStore.projects[options.entityId]
-          if (!currentProject) {
-            currentProject = projectStore.allProjects[options.entityId]
-          }
-
-          if (!currentProject) {
-            console.error('[useEditableForm] PROJECT NOT FOUND AT ALL!')
-          }
-
-          // AI : Update city object if cityId changed and we have available cities data
-          let cityObject = currentProject.city
-          if (formData.cityId && formData.cityId !== currentProject.cityId && options.getAvailableCities) {
-            // AI : Get current cities dynamically at save time
-            const citiesArray = options.getAvailableCities()
-            const newCity = citiesArray.find(c => c.id === formData.cityId)
-            if (newCity) {
-              cityObject = {
-                id: newCity.id,
-                name: newCity.name,
-                countryCode: newCity.countryCode,
-                coordinates: { x: newCity.lng, y: newCity.lat },
-                createdAt: new Date(),
-                updatedAt: new Date()
-              }
-            }
-          }
-
-          // AI : Update project in local store only and mark as modified
-          // AI : Merge form data with current project to preserve all fields (city, overlayIds, coordinates, etc.)
-          const updatedData = {
-            ...currentProject, // Preserve all existing fields
-            ...formData as any, // Apply form changes (includes cityId if changed)
-            city: cityObject, // Update city object if cityId changed
-            isModified: true
-          }
-          projectStore.updateProject(options.entityId, updatedData)
-
-
-          // AI : Get updated project from store and update marker color if it has no overlays
-          const updatedProject = projectStore.projects[options.entityId]
-          const hasNoOverlays = !updatedProject?.overlayIds || updatedProject.overlayIds.length === 0
-          if (updatedProject && hasNoOverlays) {
-            updateStandaloneProjectMarkerColor(options.entityId, updatedProject)
-          }
-
-          toast.add({
-            severity: 'info',
-            summary: t('submission.changesSaved'),
-            detail: t('actions.saveChangesLocally'),
-            life: 4000
-          })
-        }
-
-        options.onSubmitted?.()
-        options.onClose?.()
-        return
-      }
-
-      // AI : For pending entities, apply changes directly instead of creating change requests
-      if (options.entityStatus === 'pending') {
-        if (options.entityType === 'project') {
-          const result = await trpc.project.getUsersContributions.query({ limit: 100 })
-          const project = result.projects.find(p => p.id === options.entityId)
-          
-          if (!project) {
-            throw new Error(t('errors.projectNotFound'))
-          }
-          
-          // AI : Merge form data with current project data, preserving all fields
-          const projectData = {
-            id: options.entityId,
-            name: formData.name,
-            description: formData.description,
-            cityId: project.cityId, // AI : Preserve existing cityId
-            lat: project.lat, // AI : All projects now have center coordinates
-            lng: project.lng,
-            proposalDate: formData.proposalDate,
-            startDate: formData.startDate,
-            endDate: formData.endDate,
-            sourceUrl: formData.sourceUrl,
-            latestUpdateOn: formData.latestUpdateOn,
-          }
-
-          // AI : Use shared helper to build consistent payload
-          await trpc.project.publishProject.mutate(buildProjectPayload(projectData))
-
-          toast.add({
-            severity: 'info',
-            summary: t('moderation.projectUpdated'),
-            detail: t('submission.changesSaved'),
-            life: 3000
-          })
-        } else if (options.entityType === 'overlay') {
-          // AI : Apply changes directly to pending overlay using updateOverlay
-          const overlayData: OverlayUpdateData = { id: options.entityId }
-          changes.forEach(change => {
-            if (change.fieldName === 'caption') {
-              overlayData.caption = change.newValue
-            }
-          })
-          
-          await trpc.overlay.updateOverlay.mutate(overlayData)
-          
-          toast.add({
-            severity: 'info',
-            summary: t('moderation.projectUpdated'),
-            detail: t('submission.changesSaved'),
-            life: 3000
-          })
-        }
+        await handleLocalOnlyUpdate()
+      } else if (options.entityStatus === 'pending') {
+        await handlePendingEntityUpdate(changes)
       } else {
-        // AI : For approved entities, submit change requests for moderation
-        await submitMultipleFieldChanges(options.entityType, options.entityId, changes)
-
-        toast.add({
-          severity: 'success',
-          summary: t('submission.changeRequestSubmitted'),
-          detail: t('submission.changeRequestSubmitted'),
-          life: 3000
-        })
+        await handleApprovedEntityUpdate(changes)
       }
 
       options.onSubmitted?.()
