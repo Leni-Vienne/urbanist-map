@@ -145,6 +145,6 @@ export function wrapWithErrorHandling<TArgs extends any[], TReturn>(
   options: ErrorHandlingOptions = {}
 ): (...args: TArgs) => Promise<TReturn | null> {
   return async (...args: TArgs) => {
-    return withErrorHandling(() => fn(...args), options)
+    return withErrorHandling(async () => fn(...args), options)
   }
 }

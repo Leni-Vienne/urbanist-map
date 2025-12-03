@@ -85,7 +85,7 @@ export class DrizzleSessionStore {
   }
 
   // AI : Clean up expired sessions periodically
-  private async startCleanupInterval() {
+  private startCleanupInterval() {
     // AI : Run cleanup every hour
     this.cleanupInterval = setInterval(async () => {
       await this.cleanupExpiredSessions()

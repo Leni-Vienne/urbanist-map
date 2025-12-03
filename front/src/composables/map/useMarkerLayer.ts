@@ -57,6 +57,7 @@ export function resetLayerMarkersOpacity(layerGroup: L.LayerGroup | null, defaul
 
 /**
  * AI : Create a managed marker layer with unified event handling
+ * @param items - Array of cityies or countries
  * This eliminates the duplicated hover/click/opacity logic across multiple composables
  */
 export function createMarkerLayer<T extends { id?: string }>(

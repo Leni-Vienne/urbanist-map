@@ -43,7 +43,7 @@ export async function fetchCityProjectsData(cityId: string): Promise<OverlayData
   // AI : - corners = ALWAYS approved position
   // AI : - suggestedCorners = pending changes if they exist
   const overlaysData = await withErrorToast(
-    () => trpc.cities.getCityOverlaysAndProjects.query({ cityId, mode: overlayStore.mode }),
+    async () => trpc.cities.getCityOverlaysAndProjects.query({ cityId, mode: overlayStore.mode }),
     'Error fetching city projects data'
   );
 
@@ -302,7 +302,7 @@ export function checkZoomAndHideOverlays(): void {
 /**
  * AI : Fly to overlay marker position and open toolbar
  */
-async function flyToOverlayMarker(overlayData: OverlayData): Promise<void> {
+function flyToOverlayMarker(overlayData: OverlayData){
   if (!map.value) return;
   
   const overlayStore = useOverlayStore();

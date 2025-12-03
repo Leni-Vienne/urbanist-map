@@ -364,8 +364,8 @@ export const authRouter = router({
       const { email } = input;
 
       // AI : SECURITY: Fire and forget - respond immediately to prevent ALL timing attacks
-      // AI : Do ALL work asynchronously including DB lookup
-      (async () => {
+      // AI : Void the promise to indicate intentional fire-and-forget behavior
+      void (async () => {
         try {
           // AI : Find user
           const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
@@ -402,7 +402,6 @@ export const authRouter = router({
           console.error('Password reset background processing error:', error);
         }
       })();
-
       // AI : SECURITY: Always return the same response immediately (no timing leak, no info leak)
       return {
         success: true,
