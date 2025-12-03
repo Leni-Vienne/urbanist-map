@@ -7,6 +7,8 @@ import { useProjectStore } from '@stores/pinia/projectStore'
 import { updateStandaloneProjectMarkerColor } from '@composables/map/useCityMarkers'
 import { trpc } from '@client'
 import { formatDate } from '@utils/dateFormat'
+import type { Project } from '@types'
+import type { DBCity } from '../../../../back/src/shared/schema'
 
 // AI : Type for overlay update payload based on updateOverlaySchema
 interface OverlayUpdateData {
@@ -136,8 +138,8 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
   }
 
   // AI : Update city object when cityId changes
-  function getCityObjectForUpdate(currentProject: any) {
-    let cityObject = currentProject.city
+  function getCityObjectForUpdate(currentProject: Project): DBCity {
+    let cityObject: DBCity = currentProject.city
     
     if (formData.cityId && formData.cityId !== currentProject.cityId && options.getAvailableCities) {
       const citiesArray = options.getAvailableCities()
