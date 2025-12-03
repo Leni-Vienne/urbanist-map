@@ -1,7 +1,8 @@
 import { ref, computed, watch } from 'vue'
 import type { Project } from '@types'
+import type { ProjectFormData } from '../../types/forms'
 
-export function useProjectTimelineStatus(project: Partial<Project>, formData?: any) {
+export function useProjectTimelineStatus(project: Partial<Project>, formData?: ProjectFormData) {
   // AI : Determine initial timeline status based on project data
   const initialIsProposed = computed(() => {
     // AI : Project is proposed if it has proposalDate but no startDate/endDate
@@ -12,7 +13,7 @@ export function useProjectTimelineStatus(project: Partial<Project>, formData?: a
   const isProposed = ref<boolean>(initialIsProposed.value)
 
   // AI : Toggle between proposed and planned timeline status
-  function toggleTimelineStatus(newIsProposed: boolean, targetFormData?: any) {
+  function toggleTimelineStatus(newIsProposed: boolean, targetFormData?: ProjectFormData) {
     isProposed.value = newIsProposed
     
     const data = targetFormData ?? formData

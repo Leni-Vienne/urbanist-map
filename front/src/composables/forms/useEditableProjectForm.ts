@@ -1,4 +1,4 @@
-import { ref, computed, reactive, toRaw } from 'vue'
+import { ref, computed, reactive } from 'vue'
 import { useChangeRequests } from '@composables/changes/useChanges'
 import { useToast } from '@composables/ui/useToast'
 import { useI18n } from '@composables/useI18n'
@@ -8,33 +8,21 @@ import { updateStandaloneProjectMarkerColor } from '@composables/map/useCityMark
 import { trpc } from '@client'
 import { formatDate } from '@utils/dateFormat'
 import type { Project } from '@types'
+import type { ProjectFormData, FieldChange } from '../../types/forms'
 import type { DBCity } from '../../../../back/src/shared/schema'
+import { ApprovalStatus } from '../../../../back/src/shared/types'
 
-// AI : Type for overlay update payload based on updateOverlaySchema
-interface OverlayUpdateData {
-  id: string
-  caption?: string
-}
-
-export interface FieldChange {
-  fieldName: string
-  oldValue: any
-  newValue: any
-  changeReason?: string
-}
-
-export interface EditableFormOptions<T> {
-  entityType: 'project' | 'overlay'
+export interface EditableProjectFormOptions {
   entityId: string
-  initialData: T
-  entityStatus?: 'pending' | 'approved' | 'rejected' | 'replaced' | null
+  initialData: ProjectFormData
+  entityStatus?: ApprovalStatus | null
   localOnly?: boolean // AI : If true, only update local store, don't submit to backend
   getAvailableCities?: () => Array<{ id: string; name: string; countryCode: string; lat: number; lng: number; distance?: number }> // AI : Function to get current cities dynamically
   onSubmitted?: () => void
   onClose?: () => void
 }
 
-export function useEditableForm<T extends Record<string, any>>(options: EditableFormOptions<T>) {
+export function useEditableProjectForm(options: EditableProjectFormOptions) {
   const { submitMultipleFieldChanges } = useChangeRequests()
   const toast = useToast()
   const { t } = useI18n()
@@ -42,17 +30,17 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
 
   const isSubmitting = ref(false)
   const changeReason = ref('')
-  
+
   // AI : Create reactive objects for original and current data
+  // AI : Type is inferred from the object, no explicit generic needed
   const originalData = reactive({ ...options.initialData })
   const formData = reactive({ ...options.initialData })
 
   // AI : Check if a specific field has changed
-  function hasChanged(fieldName: keyof T): boolean {
-    const rawOriginal = toRaw(originalData) as T
-    const rawForm = toRaw(formData) as T
-    const original: any = rawOriginal[fieldName]
-    const current: any = rawForm[fieldName]
+  function hasChanged(fieldName: keyof ProjectFormData): boolean {
+    // AI : Access reactive values directly (not with toRaw) to maintain reactivity tracking
+    const original = originalData[fieldName]
+    const current = formData[fieldName]
 
     // AI : Handle Date objects by comparing their time values
     if (original instanceof Date && current instanceof Date) {
@@ -69,7 +57,7 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
 
   // AI : Check if any field has changed
   const hasChanges = computed(() => {
-    return Object.keys(formData).some(key => hasChanged(key as keyof T))
+    return Object.keys(formData).some(key => hasChanged(key as keyof ProjectFormData))
   })
 
   // AI : Reset all changes
@@ -81,16 +69,14 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
   // AI : Get array of changes to submit
   function getChangesToSubmit(): FieldChange[] {
     const changes: FieldChange[] = []
-    const rawOriginal = toRaw(originalData) as T
-    const rawForm = toRaw(formData) as T
 
     Object.keys(formData).forEach(key => {
-      const fieldName = key as keyof T
+      const fieldName = key as keyof ProjectFormData
       if (hasChanged(fieldName)) {
         changes.push({
           fieldName: String(fieldName),
-          oldValue: rawOriginal[fieldName],
-          newValue: rawForm[fieldName],
+          oldValue: originalData[fieldName],
+          newValue: formData[fieldName],
           changeReason: changeReason.value ?? undefined
         })
       }
@@ -114,7 +100,7 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
   }
 
   // AI : Get CSS classes for a field based on change status
-  function getFieldClasses(fieldName: keyof T) {
+  function getFieldClasses(fieldName: keyof ProjectFormData) {
     return {
       'field-changed': hasChanged(fieldName)
     }
@@ -122,17 +108,15 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
 
   // AI : Validate project name meets minimum length requirement
   function validateProjectName(): boolean {
-    if (options.entityType === 'project' && formData.name) {
-      const trimmedName = String(formData.name).trim()
-      if (trimmedName.length < 8) {
-        toast.add({
-          severity: 'error',
-          summary: t('toast.validationError'),
-          detail: t('project.nameTooShort'),
-          life: 3000
-        })
-        return false
-      }
+    const trimmedName = String(formData.name).trim()
+    if (trimmedName.length < 8) {
+      toast.add({
+        severity: 'error',
+        summary: t('toast.validationError'),
+        detail: t('project.nameTooShort'),
+        life: 3000
+      })
+      return false
     }
     return true
   }
@@ -140,7 +124,7 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
   // AI : Update city object when cityId changes
   function getCityObjectForUpdate(currentProject: Project): DBCity {
     let cityObject: DBCity = currentProject.city
-    
+
     if (formData.cityId && formData.cityId !== currentProject.cityId && options.getAvailableCities) {
       const citiesArray = options.getAvailableCities()
       const newCity = citiesArray.find(c => c.id === formData.cityId)
@@ -155,29 +139,34 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
         }
       }
     }
-    
+
     return cityObject
   }
 
   // AI : Handle local-only project updates (no backend submission)
   function handleLocalOnlyUpdate() {
-    if (options.entityType !== 'project') return
-
     let currentProject = projectStore.projects[options.entityId] ?? projectStore.allProjects[options.entityId]
-    
+
     if (!currentProject) {
-      console.error('[useEditableForm] PROJECT NOT FOUND AT ALL!')
+      console.error('[useEditableProjectForm] PROJECT NOT FOUND AT ALL!')
       return
     }
 
     const cityObject = getCityObjectForUpdate(currentProject)
-    const updatedData = {
+    const updatedData: Partial<Project> = {
       ...currentProject,
-      ...formData as any,
+      name: formData.name,
+      description: formData.description,
+      proposalDate: formData.proposalDate,
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      sourceUrl: formData.sourceUrl,
+      latestUpdateOn: formData.latestUpdateOn,
+      cityId: formData.cityId ?? undefined,
       city: cityObject,
       isModified: true
     }
-    
+
     projectStore.updateProject(options.entityId, updatedData)
 
     const updatedProject = projectStore.projects[options.entityId]
@@ -198,11 +187,11 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
   async function handlePendingProjectUpdate() {
     const result = await trpc.project.getUsersContributions.query({ limit: 100 })
     const project = result.projects.find(p => p.id === options.entityId)
-    
+
     if (!project) {
       throw new Error(t('errors.projectNotFound'))
     }
-    
+
     const projectData = {
       id: options.entityId,
       name: formData.name,
@@ -227,37 +216,9 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
     })
   }
 
-  // AI : Handle pending overlay updates
-  async function handlePendingOverlayUpdate(changes: FieldChange[]) {
-    const overlayData: OverlayUpdateData = { id: options.entityId }
-    changes.forEach(change => {
-      if (change.fieldName === 'caption') {
-        overlayData.caption = change.newValue
-      }
-    })
-    
-    await trpc.overlay.updateOverlay.mutate(overlayData)
-    
-    toast.add({
-      severity: 'info',
-      summary: t('moderation.projectUpdated'),
-      detail: t('submission.changesSaved'),
-      life: 3000
-    })
-  }
-
-  // AI : Handle pending entity updates (direct changes without change requests)
-  async function handlePendingEntityUpdate(changes: FieldChange[]) {
-    if (options.entityType === 'project') {
-      await handlePendingProjectUpdate()
-    } else if (options.entityType === 'overlay') {
-      await handlePendingOverlayUpdate(changes)
-    }
-  }
-
   // AI : Handle approved entity updates (via change requests)
   async function handleApprovedEntityUpdate(changes: FieldChange[]) {
-    await submitMultipleFieldChanges(options.entityType, options.entityId, changes)
+    await submitMultipleFieldChanges('project', options.entityId, changes)
 
     toast.add({
       severity: 'success',
@@ -281,7 +242,7 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
       if (options.localOnly) {
         handleLocalOnlyUpdate()
       } else if (options.entityStatus === 'pending') {
-        await handlePendingEntityUpdate(changes)
+        await handlePendingProjectUpdate()
       } else {
         await handleApprovedEntityUpdate(changes)
       }
@@ -307,10 +268,10 @@ export function useEditableForm<T extends Record<string, any>>(options: Editable
     originalData,
     changeReason,
     isSubmitting,
-    
+
     // Computed
     hasChanges,
-    
+
     // Methods
     hasChanged,
     resetChanges,

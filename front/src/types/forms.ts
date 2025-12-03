@@ -11,3 +11,16 @@ export interface ProjectFormData {
   cityId: string | null
   sourceUrl: string | null
 }
+
+// AI : Overlay form data type (minimal - just caption)
+export interface OverlayFormData {
+  caption: string
+}
+
+// AI : Shared field change type for both project and overlay forms
+export interface FieldChange {
+  fieldName: string
+  oldValue: any
+  newValue: any
+  changeReason?: string
+}

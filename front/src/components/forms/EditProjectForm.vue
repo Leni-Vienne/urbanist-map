@@ -1,44 +1,60 @@
 <template>
-  <BaseEditForm
-    entity-type="project"
-    :entity-id="project.id"
-    :initial-data="projectData"
-    :entity-status="project.status"
-    :local-only="true"
-    :get-available-cities="() => formFieldsRef?.cities ?? []"
-    container-class="editable-project-form"
-    form-class="project-form"
-    :submit-label="$t('forms.saveChanges')"
-    @close="$emit('close')"
-    @submitted="$emit('submitted')"
-  >
-    <template #fields="{ formData, originalData, hasChanged, getFieldClasses }">
+  <div class="editable-project-form">
+    <form @submit.prevent="form.submitChanges" class="project-form">
       <ProjectFormFields
         ref="formFieldsRef"
-        :form-data="formData"
-        :original-data="originalData"
+        :form-data="form.formData"
+        :original-data="form.originalData"
         :show-change-indicators="true"
         :show-latest-update-field="true"
         :is-proposed="isProposed"
         :prefilled-city="project.city"
         :marker-coordinates="markerCoordinates"
-        :field-classes="(n: string) => getFieldClasses(n as any)"
-        :has-changed="(n: string) => hasChanged(n as any)"
+        :field-classes="(fieldName: string) => form.getFieldClasses(fieldName as keyof ProjectFormData)"
+        :has-changed="(fieldName: string) => form.hasChanged(fieldName as keyof ProjectFormData)"
         id-prefix="edit"
         @update:is-proposed="isProposed = $event"
       />
-    </template>
-  </BaseEditForm>
+
+      <!-- Form actions -->
+      <div class="form-actions">
+        <Button
+          v-if="form.hasChanges.value"
+          type="button"
+          @click="form.resetChanges"
+          :label="$t('common.reset')"
+          severity="secondary"
+          outlined
+          icon="pi pi-undo"
+        />
+        <Button
+          type="button"
+          @click="$emit('close')"
+          :label="$t('common.cancel')"
+          severity="secondary"
+          outlined
+        />
+        <Button
+          type="submit"
+          :disabled="!form.hasChanges.value"
+          :loading="form.isSubmitting.value"
+          :label="$t('forms.saveChanges')"
+          icon="pi pi-send"
+        />
+      </div>
+    </form>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import BaseEditForm from './BaseEditForm.vue'
+import { useEditableProjectForm } from '@composables/forms/useEditableProjectForm'
 import ProjectFormFields from './ProjectFormFields.vue'
 import type { Project } from '@types'
+import type { ProjectFormData } from '../../types/forms'
 
 const props = defineProps<{ project: Project }>()
-defineEmits<{ close: [], submitted: [] }>()
+const emit = defineEmits<{ close: [], submitted: [] }>()
 
 const formFieldsRef = ref<InstanceType<typeof ProjectFormFields> | null>(null)
 
@@ -66,4 +82,45 @@ const projectData = computed(() => ({
   latestUpdateOn: toDateObject(props.project.latestUpdateOn),
   cityId: props.project.cityId,
 }))
+
+const form = useEditableProjectForm({
+  entityId: props.project.id,
+  initialData: projectData.value,
+  entityStatus: props.project.status,
+  localOnly: true,
+  getAvailableCities: () => formFieldsRef.value?.cities ?? [],
+  onSubmitted: () => emit('submitted'),
+  onClose: () => emit('close')
+})
 </script>
+
+<style scoped>
+.editable-project-form {
+  padding: 1.5rem;
+}
+
+.project-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+@media (max-width: 640px) {
+  .editable-project-form {
+    padding: 1rem;
+  }
+
+  .form-actions {
+    flex-direction: column-reverse;
+  }
+}
+</style>
