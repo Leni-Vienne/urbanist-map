@@ -629,7 +629,7 @@ let isSelectingOverlay = false;
 export function selectOverlay(overlayId: string | null): void {
   // AI : Prevent recursive calls (library's select event → selectOverlay → overlay.select → select event)
   if (isSelectingOverlay) return;
-  
+
   const overlayStore = useOverlayStore();
 
   // AI : Early exit if already selected
@@ -647,12 +647,12 @@ export function selectOverlay(overlayId: string | null): void {
     // AI : Clean up previous selection if different from new selection
     if (previouslySelected && previouslySelectedId !== overlayId) {
       removeOverlayOutline(previouslySelected);
-      
+
       // AI : Remove project outlines (sister highlights) when deselecting
       if (previouslySelected.projectId) {
         removeProjectOutlines(previouslySelected.projectId, true);
       }
-      
+
       // AI : Call deselect on the Leaflet overlay to remove toolbar and handles
       if (previouslySelected.overlay) {
         previouslySelected.overlay.deselect();
@@ -667,7 +667,21 @@ export function selectOverlay(overlayId: string | null): void {
 
     // AI : Call overlay.select() to show toolbar and handles (single source of truth)
     if (newlySelected.overlay) {
-      newlySelected.overlay.select();
+      // AI : Check if overlay element exists and is in the DOM before calling select()
+      // AI : This ensures the Leaflet library can properly handle the select() call and fire events
+      const element = newlySelected.overlay.getElement();
+      const isInDOM = element && document.body.contains(element);
+
+      if (!isInDOM) {
+        // AI : Wait for element to be added to DOM before selecting
+        requestAnimationFrame(() => {
+          if (newlySelected.overlay) {
+            newlySelected.overlay.select();
+          }
+        });
+      } else {
+        newlySelected.overlay.select();
+      }
     }
 
     // AI : Apply project highlights (sister overlays) when selecting

@@ -74,8 +74,12 @@ function zoomToOverlayAndSelect(overlayId: string, corners: { lat: number; lng: 
   });
 
   map.value.once('moveend', () => {
-    // AI : selectOverlay handles overlay.select() internally
-    selectOverlay(overlayId);
+    // AI : Use requestAnimationFrame to ensure overlay is fully rendered and ready before selecting
+    // AI : This fixes the bug where the first click on an overlay adds blue outline but doesn't open toolbar
+    requestAnimationFrame(() => {
+      // AI : selectOverlay handles overlay.select() internally
+      selectOverlay(overlayId);
+    });
   });
 
   return true;
