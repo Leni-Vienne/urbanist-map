@@ -34,11 +34,11 @@
         </div>
 
         <div
-          v-if="error"
+          v-if="errorMessage"
           class="p-error flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded"
         >
           <i class="pi pi-exclamation-triangle"></i>
-          {{ error }}
+          {{ errorMessage }}
         </div>
 
         <div
@@ -224,11 +224,11 @@
         </div>
 
         <div
-          v-if="error"
+          v-if="errorMessage"
           class="p-error flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded"
         >
           <i class="pi pi-exclamation-triangle"></i>
-          {{ error }}
+          {{ errorMessage }}
         </div>
 
         <div class="flex flex-col gap-3 mt-2">
@@ -284,7 +284,7 @@ const isLoginMode = ref(true)
 const isForgotPasswordMode = ref(false)
 const loading = ref(false)
 const oauthLoading = ref(false)
-const error = ref('')
+const errorMessage = ref('')
 const emailError = ref('')
 const passwordError = ref('')
 const forgotPasswordEmail = ref('')
@@ -320,7 +320,7 @@ watch(() => props.visible, (isVisible) => {
     // AI : Reset all state when modal opens
     oauthLoading.value = false
     loading.value = false
-    error.value = ''
+    errorMessage.value = ''
   } else {
     // AI : Clean up when modal closes
     oauthLoading.value = false
@@ -348,7 +348,7 @@ function resetForm() {
   form.password = ''
   form.username = ''
   form.rememberMe = false
-  error.value = ''
+  errorMessage.value = ''
   emailError.value = ''
   passwordError.value = ''
   forgotPasswordEmail.value = ''
@@ -357,21 +357,21 @@ function resetForm() {
 
 function toggleMode() {
   isLoginMode.value = !isLoginMode.value
-  error.value = ''
+  errorMessage.value = ''
   emailError.value = ''
   passwordError.value = ''
 }
 
 function showForgotPassword() {
   isForgotPasswordMode.value = true
-  error.value = ''
+  errorMessage.value = ''
   resetLinkSent.value = false
   forgotPasswordEmail.value = form.email
 }
 
 async function handleSubmit() {
   loading.value = true
-  error.value = ''
+  errorMessage.value = ''
   emailError.value = ''
   passwordError.value = ''
 
@@ -383,7 +383,7 @@ async function handleSubmit() {
         visible.value = false
         resetForm()
       } else {
-        error.value = translateError(result.error) || $t('auth.error.loginFailed')
+        errorMessage.value = translateError(result.error) || $t('auth.error.loginFailed')
       }
     } else {
       const result = await authStore.signUp(form.email, form.password, form.username)
@@ -392,11 +392,11 @@ async function handleSubmit() {
         visible.value = false
         resetForm()
       } else {
-        error.value = translateError(result.error) || $t('auth.error.registrationFailed')
+        errorMessage.value = translateError(result.error) || $t('auth.error.registrationFailed')
       }
     }
   } catch (error) {
-    error.value = translateError(error instanceof Error ? error.message : null) || $t('common.error')
+    errorMessage.value = translateError(error instanceof Error ? error.message : null) || $t('common.error')
   } finally {
     loading.value = false
   }
@@ -405,7 +405,7 @@ async function handleSubmit() {
 // AI : Handle OAuth sign in
 async function handleOAuthSignIn(provider: 'google') {
   oauthLoading.value = true
-  error.value = ''
+  errorMessage.value = ''
 
   try {
     const result = await authStore.signInWithOAuth(provider, form.rememberMe)
@@ -419,11 +419,11 @@ async function handleOAuthSignIn(provider: 'google') {
       visible.value = false
       resetForm()
     } else {
-      error.value = translateError(result.error) || $t('auth.error.googleAuthFailed')
+      errorMessage.value = translateError(result.error) || $t('auth.error.googleAuthFailed')
     }
   } catch (error) {
     console.error('AI: OAuth sign in error:', error)
-    error.value = translateError(error instanceof Error ? error.message : null) || $t('common.error')
+    errorMessage.value = translateError(error instanceof Error ? error.message : null) || $t('common.error')
   } finally {
     // AI : Always reset loading state to prevent modal from being stuck in disabled state
     oauthLoading.value = false
@@ -433,7 +433,7 @@ async function handleOAuthSignIn(provider: 'google') {
 // AI : Handle forgot password request
 async function handleForgotPassword() {
   loading.value = true
-  error.value = ''
+  errorMessage.value = ''
   resetLinkSent.value = false
 
   try {
@@ -447,10 +447,10 @@ async function handleForgotPassword() {
         life: 5000
       })
     } else {
-      error.value = translateError(result.error) || $t('common.error')
+      errorMessage.value = translateError(result.error) || $t('common.error')
     }
   } catch (error) {
-    error.value = translateError(error instanceof Error ? error.message : null) || $t('common.error')
+    errorMessage.value = translateError(error instanceof Error ? error.message : null) || $t('common.error')
   } finally {
     loading.value = false
   }

@@ -23,11 +23,11 @@ export function useBeforeUnload() {
   }
 
   onMounted(() => {
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    globalThis.addEventListener('beforeunload', handleBeforeUnload);
   });
 
   onUnmounted(() => {
-    window.removeEventListener('beforeunload', handleBeforeUnload);
+    globalThis.removeEventListener('beforeunload', handleBeforeUnload);
   });
 
   return {

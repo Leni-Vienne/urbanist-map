@@ -110,7 +110,7 @@ const distanceThreshold = 0.003;
  * AI : Only apply offset when on mobile AND drawer is open
  */
 function shouldApplyMobileOffset(): boolean {
-  const isMobile = window.innerWidth <= 768;
+  const isMobile = globalThis.innerWidth <= 768;
   if (!isMobile) return false;
   
   const uiStore = useUiStore();
@@ -160,7 +160,7 @@ export function mobileAwareFlyTo(
     ...options,
     maxZoom: zoom ?? map.value.getZoom(),
     paddingTopLeft: [50, 50] as [number, number],
-    paddingBottomRight: [50, window.innerHeight * 0.45] as [number, number]
+    paddingBottomRight: [50, globalThis.innerHeight * 0.45] as [number, number]
   };
 
   map.value.flyToBounds(bounds, fitOptions);
@@ -196,7 +196,7 @@ export function mobileAwareFlyToBounds(
     ? {
         ...options,
         paddingTopLeft: [50, 50] as [number, number],
-        paddingBottomRight: [50, window.innerHeight * 0.45] as [number, number] // AI : 45% to cover drawer + margin
+        paddingBottomRight: [50, globalThis.innerHeight * 0.45] as [number, number] // AI : 45% to cover drawer + margin
       }
     : {
         ...options,

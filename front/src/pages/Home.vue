@@ -116,13 +116,13 @@ const mobileSideMenuOpen = computed({
 
 // AI : Mobile detection for responsive drawer behavior
 const windowWidth = ref(
-    typeof window !== "undefined" ? window.innerWidth : 1024,
+    typeof globalThis !== "undefined" ? globalThis.innerWidth : 1024,
 );
 const isMobile = computed(() => windowWidth.value <= 768);
 
 // AI : Update window width on resize
 function updateWindowWidth() {
-    windowWidth.value = window.innerWidth;
+    windowWidth.value = globalThis.innerWidth;
 
     // AI : Update mobile overflow constraints when window size changes
     if (isMobile.value) {
@@ -142,7 +142,7 @@ useBeforeUnload();
 
 onMounted(async () => {
     // AI : Add window resize listener for mobile detection
-    window.addEventListener("resize", updateWindowWidth);
+    globalThis.addEventListener("resize", updateWindowWidth);
 
     // preload PopupContainer chunk on page load. Not needed on page load but improves responsiveness when first popup is shown
     import("@components/map/PopupContainer.vue");
@@ -224,7 +224,7 @@ function getErrorMessage(error: string): string {
 }
 
 onUnmounted(() => {
-    window.removeEventListener("resize", updateWindowWidth);
+    globalThis.removeEventListener("resize", updateWindowWidth);
 
     // AI : Restore normal overflow behavior when component unmounts
     document.documentElement.style.overflow = "";

@@ -30,9 +30,9 @@ const { t } = useI18n()
 const visible = ref(false)
 const mapStore = useMapStore()
 const uiStore = useUiStore()
-let timeoutId: number | null = null
+let timeoutId: ReturnType<typeof setTimeout> | null = null
 let observer: MutationObserver | null = null
-let checkMarkersDebounceId: number | null = null
+let checkMarkersDebounceId: ReturnType<typeof setTimeout> | null = null
 
 // AI : Determine which type of button to show: 'country' or 'city'
 const buttonType = ref<'country' | 'city' | null>(null)
@@ -76,7 +76,7 @@ function showButtonWithDelay(type: 'city' | 'country') {
     visible.value = false
 
     if (timeoutId) clearTimeout(timeoutId)
-    timeoutId = window.setTimeout(() => {
+    timeoutId = globalThis.setTimeout(() => {
       if (!mapStore.selectedCity && buttonType.value === type) {
         visible.value = true
       }
@@ -115,7 +115,7 @@ function debouncedCheckMarkers() {
   if (checkMarkersDebounceId) {
     clearTimeout(checkMarkersDebounceId)
   }
-  checkMarkersDebounceId = window.setTimeout(() => {
+  checkMarkersDebounceId = globalThis.setTimeout(() => {
     checkMarkers()
   }, 100) // AI : 100ms debounce
 }

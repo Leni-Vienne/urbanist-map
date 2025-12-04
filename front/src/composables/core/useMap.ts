@@ -24,8 +24,8 @@ const debouncedUpdateMapSize = debounce(function  debouncedUpdateMapSize() {
 // AI : Calculate minimum zoom based on viewport to avoid black borders
 // AI : Higher resolution displays need higher minimum zoom to fill the viewport
 function calculateMinZoom(): number {
-  const viewportWidth = window.innerWidth;
-  const viewportHeight = window.innerHeight;
+  const viewportWidth = globalThis.innerWidth;
+  const viewportHeight = globalThis.innerHeight;
   const largerDimension = Math.max(viewportWidth, viewportHeight);
 
   // AI : For displays wider/taller than 2560px (typical 4K), use zoom level 3
@@ -70,7 +70,7 @@ export function initializeMap() {
   debouncedUpdateMapSize();
 
   // AI : Update map size when window is resized (debounced to trigger only on resize end)
-  window.addEventListener('resize', debouncedUpdateMapSize);
+  globalThis.addEventListener('resize', debouncedUpdateMapSize);
 
   L.control.scale().addTo(map.value);
   // AI : Ensure the map initialization is complete

@@ -175,7 +175,7 @@ export function useSubmissionService() {
       return changes;
     }
 
-    const fieldsToCheck: Array<keyof Project> = [
+    const fieldsToCheck: (keyof Project)[] = [
       "name",
       "description",
       "sourceUrl",
