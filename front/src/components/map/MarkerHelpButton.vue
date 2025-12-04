@@ -146,7 +146,7 @@ function handleClick() {
     const lng = parseFloat(element.getAttribute('data-lng') ?? '0')
 
     const distance = Math.sqrt(
-      Math.pow(center.lat - lat, 2) + Math.pow(center.lng - lng, 2)
+      (center.lat - lat) ** 2 + (center.lng - lng) ** 2
     )
 
     if (distance < minDistance) {

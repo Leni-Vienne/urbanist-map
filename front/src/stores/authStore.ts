@@ -114,7 +114,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // AI : Sign in with email and password
-  async function signIn(email: string, password: string, rememberMe: boolean = false) {
+  async function signIn(email: string, password: string, rememberMe = false) {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/login`, {
         method: 'POST',
@@ -156,7 +156,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // AI : Google OAuth authentication using simple One Tap
-  async function signInWithOAuth(provider: 'google', rememberMe: boolean = false): Promise<{ success: boolean; user: User | null; error: string | null }> {
+  async function signInWithOAuth(provider: 'google', rememberMe = false): Promise<{ success: boolean; user: User | null; error: string | null }> {
     try {
       if (provider !== 'google') {
         return {

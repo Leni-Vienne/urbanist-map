@@ -22,6 +22,10 @@
       "warn",
       "declaration"
     ],
+    "arrow-body-style": [
+      "off", //temp
+      "as-needed"
+    ],
     /*"unicorn/filename-case": [
       "error",
       {
@@ -34,6 +38,9 @@
     "eslint/sort-imports": "off",
     "eslint/no-ternary": "off",
     "eslint/curly": "off",
+    "switch-case-braces": "off",
+    "max-params": "off", // temp
+    "no-continue": "off", // warns about early continues which is odd
     "typescript/consistent-type-definitions": "off", //temporary
     "eslint/prefer-destructuring": "off", //temporary
     "eslint/no-magic-numbers": "off", // temporary

@@ -329,7 +329,7 @@ async function autoSelectOverlayForProject(projectId: string): Promise<void> {
 async function waitForOverlayRendered(
   overlayId: string,
   overlayStore: ReturnType<typeof useOverlayStore>,
-  maxAttempts: number = 10
+  maxAttempts = 10
 ): Promise<ReturnType<typeof useOverlayStore>['overlays'][string] | null> {
   for (let i = 0; i < maxAttempts; i++) {
     const overlayObject = overlayStore.overlays[overlayId]

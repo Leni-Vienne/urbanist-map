@@ -65,14 +65,14 @@ export function useModeration() {
   }
 
   // AI : Generic approval handler for any moderation item type
-  const setApprovalStatus = async <T extends { id: string; name?: string; version: number }>(
+  async function setApprovalStatus<T extends { id: string; name?: string; version: number }>(
     id: string,
     status: 'approved' | 'rejected',
     itemType: 'overlay' | 'project',
     items: T[],
     apiCall: (params: { id: string; expectedVersion: number; status: 'approved' | 'rejected'; handleReplacementConflicts?: boolean }) => Promise<{ success: boolean }>,
     handleReplacementConflicts?: boolean
-  ): Promise<ApprovalResult> => {
+  ): Promise<ApprovalResult> {
     // AI : Find item by ID and validate existence
     const item = items.find(i => i.id === id)
     if (!item) {

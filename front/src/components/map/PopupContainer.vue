@@ -73,8 +73,7 @@ import { useUiStore } from '@stores/uiStore';
 import { updateMarkerTooltip, navigateToOverlay, addOverlay } from '@composables/overlay/useOverlay';
 import { useToast } from '@composables/ui/useToast';
 import { useOverlayPublisher } from '@composables/overlay/useOverlayPublisher';
-import { useSubmissionService } from '@composables/submission/useSubmissionService';
-import type { SubmissionContext, SubmissionSummary } from '@composables/submission/useSubmissionService';
+import { useSubmissionService, type SubmissionContext, type SubmissionSummary } from '@composables/submission/useSubmissionService';
 import { citiesWithProjects, closeProjectPopupAndResetMarkers } from '@composables/map/useCityMarkers';
 import type { OverlayObject, Project } from '@types';
 import { useProjectDeletion } from '@composables/project/useProjectDeletion';
@@ -130,7 +129,7 @@ const showProjectPopup = computed(() => {
 });
 
 // AI : Check if teleport targets exist (we need both for overlay and project popups)
-const checkTeleportTarget = () => {
+function checkTeleportTarget () {
   const overlayTarget = document.getElementById('info-popup-teleport-target');
   const projectTarget = document.getElementById('project-info-popup-teleport-target');
   teleportTargetExists.value = !!(overlayTarget || projectTarget);

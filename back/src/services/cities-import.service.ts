@@ -162,7 +162,7 @@ export class CitiesImportService {
       let imported = 0;
       let errors = 0;      // AI : Insert countries
       const insertData = [];
-      for (const [code, data] of [...countryMap.entries()]) {
+      for (const [code, data] of countryMap.entries()) {
         try {
           insertData.push({
             code: code,
