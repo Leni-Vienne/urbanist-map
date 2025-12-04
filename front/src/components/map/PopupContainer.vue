@@ -261,9 +261,9 @@ async function confirmSubmission(reason: string) {
     const context = pendingSubmissionContext.value;
     const message = context.changeType === 'update_approved'
       ? t('submission.changeRequestSubmitted')
-      : context.changeType === 'update_pending'
+      : (context.changeType === 'update_pending'
         ? t('submission.changesSaved')
-        : t('submission.submissionSuccessful');
+        : t('submission.submissionSuccessful'));
 
     toast.add({
       severity: 'success',

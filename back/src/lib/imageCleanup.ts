@@ -122,8 +122,8 @@ export async function deleteLocalImages(
     if (failedFiles.length > 0) {
       const fs = await import('fs/promises');
       const logEntry = `${new Date().toISOString()} - Failed to delete: ${failedFiles.join(', ')}\n`;
-      await fs.appendFile('./orphaned_files.txt', logEntry).catch(err => {
-        console.error('Failed to write to orphaned files log:', err);
+      await fs.appendFile('./orphaned_files.txt', logEntry).catch(error => {
+        console.error('Failed to write to orphaned files log:', error);
       });
     }
   } catch (error) {
@@ -173,8 +173,8 @@ export async function deleteImages(
     if (failedFiles.length > 0 && !isProduction) {
       const fs = await import('fs/promises');
       const logEntry = `${new Date().toISOString()} - Failed to delete: ${failedFiles.join(', ')}\n`;
-      await fs.appendFile('./orphaned_files.txt', logEntry).catch(err => {
-        console.error('Failed to write to orphaned files log:', err);
+      await fs.appendFile('./orphaned_files.txt', logEntry).catch(error => {
+        console.error('Failed to write to orphaned files log:', error);
       });
     }
   } catch (error) {

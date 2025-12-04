@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { trpc } from '@client'
 import { withErrorHandling } from '@composables/core/useErrorHandling'
-import { ApprovalStatus } from '../../../../back/src/shared/types'
+import type { ApprovalStatus } from '../../../../back/src/shared/types'
 
 // AI : Type for moderated contribution item
 export interface ModeratedContribution {

@@ -111,7 +111,7 @@ import { useUserContributions } from '@composables/project/useUserContributions'
 import { useModeratedContributions } from '@composables/moderation/useModeratedContributions'
 import { useUiStore } from '@stores/uiStore'
 import { useProjectDeletion } from '@composables/project/useProjectDeletion'
-import { RouterOutput } from '@client'
+import type { RouterOutput } from '@client'
 import type { ProjectForModeration, OverlayForModeration } from '@types'
 
 // AI : Type definitions from tRPC backend responses

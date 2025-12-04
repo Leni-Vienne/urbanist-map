@@ -28,7 +28,7 @@
         "case": "camelCase"
       }
     ],*/ // vue files are in pascal case, composables in camel case.....
-    
+     "prefer-object-spread": "off", // conflicts with oxc "no spread in map"
     "unicorn/filename-case": "off",
     "eslint/sort-keys": "off",
     "eslint/sort-imports": "off",

@@ -10,7 +10,7 @@ import { buildProjectPayload } from '@composables/project/useProjectMutations';
 import type { OverlayObject, Project } from '@types';
 import { validateOverlaySize, leafletCornersToCorners } from '../../../../back/src/shared/validation';
 import { useI18n } from 'vue-i18n';
-import { ApprovalStatus } from '../../../../back/src/shared/types';
+import type { ApprovalStatus } from '../../../../back/src/shared/types';
 
 // AI : Extract corners from overlay object, falling back to stored corners if needed
 function getCornersFromOverlay(overlay: OverlayObject) {

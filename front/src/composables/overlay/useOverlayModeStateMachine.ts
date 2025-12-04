@@ -1,7 +1,7 @@
 // AI : State machine for overlay mode management
 // AI : Defines all possible states and transitions for edit/view/moderation modes with zoom levels
 
-import { MapMode } from '@types'
+import type { MapMode } from '@types'
 export type ZoomLevel = 'high' | 'low'
 
 // AI : Explicit transition types for clarity and type safety

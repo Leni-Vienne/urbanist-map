@@ -64,7 +64,7 @@ function getMarkersFromDOM() {
   const cityMarkers = document.querySelectorAll('[data-city-id]')
   // AI : Country markers have data-country-code but NOT data-city-id
   const allMarkersWithCountry = document.querySelectorAll('[data-country-code]')
-  const countryMarkers = Array.from(allMarkersWithCountry).filter(el => !el.hasAttribute('data-city-id'))
+  const countryMarkers = [...allMarkersWithCountry].filter(el => !el.hasAttribute('data-city-id'))
 
   return { cityMarkers, countryMarkers }
 }
@@ -128,9 +128,9 @@ function handleClick() {
   if (buttonType.value === 'country') {
     // AI : Country markers have data-country-code but NOT data-city-id
     const allMarkersWithCountry = document.querySelectorAll('[data-country-code]')
-    markers = Array.from(allMarkersWithCountry).filter(el => !el.hasAttribute('data-city-id'))
+    markers = [...allMarkersWithCountry].filter(el => !el.hasAttribute('data-city-id'))
   } else {
-    markers = Array.from(document.querySelectorAll('[data-city-id]'))
+    markers = [...document.querySelectorAll('[data-city-id]')]
   }
 
   if (markers.length === 0) return

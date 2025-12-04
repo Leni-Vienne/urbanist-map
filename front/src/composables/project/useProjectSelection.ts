@@ -53,7 +53,7 @@ export function useCityProjects() {
       }
     });
 
-    return Array.from(projectMap.values());
+    return [...projectMap.values()];
   });
   
   const projectsWithCounts = computed(() => {
@@ -94,7 +94,7 @@ export function useCityProjects() {
       groups.get(cityKey)!.push(project);
     });
     
-    return Array.from(groups.entries()).map(([cityName, projects]) => ({
+    return [...groups.entries()].map(([cityName, projects]) => ({
       label: cityName,
       items: projects
     }));

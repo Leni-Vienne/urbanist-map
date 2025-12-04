@@ -162,7 +162,7 @@ interface Props {
   viewMode?: boolean
   publishLoading?: boolean
   loading?: boolean
-  availableCities?: Array<{ id: string; name: string; countryCode: string; }>
+  availableCities?: { id: string; name: string; countryCode: string; }[]
   // AI : Source determines popup positioning - overlay toolbar vs project marker
   source?: 'overlay' | 'marker'
 }

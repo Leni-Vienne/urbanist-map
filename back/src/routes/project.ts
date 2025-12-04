@@ -238,8 +238,8 @@ export const projectRouter = router({
           try {
             await deleteLocalImages(overlay.filename, 'both');
             console.log(`Deleted local images for overlay ${overlay.id}`);
-          } catch (imageError) {
-            console.error(`Failed to delete images for overlay ${overlay.id}:`, imageError);
+          } catch (error) {
+            console.error(`Failed to delete images for overlay ${overlay.id}:`, error);
           }
         }
 

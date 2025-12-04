@@ -4,7 +4,7 @@ import { overlays, projects, cities, countries } from '../db/schema';
 import { sql, eq, and } from 'drizzle-orm';
 import { db } from '../database';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import * as schema from '../db/schema';
+import type * as schema from '../db/schema';
 import {
   buildOverlayQuery,
   buildOverlayVisibilityCondition,
@@ -400,8 +400,8 @@ export const overlayRouter = router({
         try {
           await deleteLocalImages(overlay[0].filename, 'both');
           console.log(`Deleted local images for overlay ${input.id}`);
-        } catch (imageError) {
-          console.error(`Failed to delete images for overlay ${input.id}:`, imageError);
+        } catch (error) {
+          console.error(`Failed to delete images for overlay ${input.id}:`, error);
           // AI : Log to orphaned files but don't fail the deletion
           // The deleteLocalImages function handles logging internally
         }
@@ -490,8 +490,8 @@ export const overlayRouter = router({
         for (const overlay of overlaysToDelete) {
           try {
             await deleteLocalImages(overlay.filename, 'thumbnail');
-          } catch (imageError) {
-            console.error(`Failed to delete thumbnail for overlay ${overlay.id}:`, imageError);
+          } catch (error) {
+            console.error(`Failed to delete thumbnail for overlay ${overlay.id}:`, error);
             // AI : Continue with DB deletion even if image deletion fails
           }
         }

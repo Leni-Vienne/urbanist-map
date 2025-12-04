@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type { PendingOverlay, PendingChangeRequest } from '../../types/api';
 import type { ProjectForModeration } from '@types';
-import { ApprovalStatus } from '../../../../back/src/shared/types';
+import type { ApprovalStatus } from '../../../../back/src/shared/types';
 
 export const useModerationStore = defineStore('moderation', () => {
   const overlays = ref<PendingOverlay[]>([]);
@@ -16,7 +16,7 @@ export const useModerationStore = defineStore('moderation', () => {
   const selectedCountryCode = ref<string | null>(null);
 
   // AI : Cache all countries to avoid fetching on every panel mount
-  const allCountries = ref<Array<{ code: string; name: string }>>([]);
+  const allCountries = ref<{ code: string; name: string }[]>([]);
   const countriesLoaded = ref(false);
 
   interface RecentAction {
@@ -70,7 +70,7 @@ export const useModerationStore = defineStore('moderation', () => {
     selectedCountryCode.value = countryCode;
   }
 
-  function setAllCountries(countries: Array<{ code: string; name: string }>) {
+  function setAllCountries(countries: { code: string; name: string }[]) {
     allCountries.value = countries;
     countriesLoaded.value = true;
   }

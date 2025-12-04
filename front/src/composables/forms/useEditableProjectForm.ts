@@ -10,14 +10,14 @@ import { formatDate } from '@utils/dateFormat'
 import type { Project } from '@types'
 import type { ProjectFormData, FieldChange } from '../../types/forms'
 import type { DBCity } from '../../../../back/src/shared/schema'
-import { ApprovalStatus } from '../../../../back/src/shared/types'
+import type { ApprovalStatus } from '../../../../back/src/shared/types'
 
 export interface EditableProjectFormOptions {
   entityId: string
   initialData: ProjectFormData
   entityStatus: ApprovalStatus | null
   localOnly?: boolean // AI : If true, only update local store, don't submit to backend
-  getAvailableCities?: () => Array<{ id: string; name: string; countryCode: string; lat: number; lng: number; distance?: number }> // AI : Function to get current cities dynamically
+  getAvailableCities?: () => { id: string; name: string; countryCode: string; lat: number; lng: number; distance?: number }[] // AI : Function to get current cities dynamically
   onSubmitted?: () => void
   onClose?: () => void
 }

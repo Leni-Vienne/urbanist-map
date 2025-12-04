@@ -1,7 +1,7 @@
 import { sql, eq, and, inArray, type SQL } from 'drizzle-orm';
 import type { PgColumn } from 'drizzle-orm/pg-core';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import * as schema from './schema';
+import type * as schema from './schema';
 import { db } from '../database';
 import { projects, cities, overlays, countries, changeRequests, users } from './schema';
 import type { ApprovalStatus } from '../shared/types';
@@ -344,7 +344,7 @@ export async function enrichChangeRequestsWithNames<T extends BaseChangeRequest>
     })
     .from(cities)
     .leftJoin(countries, eq(cities.countryCode, countries.code))
-    .where(inArray(cities.id, Array.from(cityIds)));
+    .where(inArray(cities.id, [...cityIds]));
 
   // AI : Create a map for quick lookup
   const cityMap = new Map(cityData.map(c => [c.id, c]));

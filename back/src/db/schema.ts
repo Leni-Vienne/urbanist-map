@@ -1,8 +1,9 @@
 import {
   pgTable, uuid, text, timestamp, jsonb, index, doublePrecision, geometry, char, pgEnum, boolean, integer,
 } from 'drizzle-orm/pg-core';
+import type { InferSelectModel} from 'drizzle-orm';
 import {
-  sql, InferSelectModel, relations,
+  sql, relations,
 } from 'drizzle-orm';
 
 export const approvalStatusEnum = pgEnum('approval_status', ['pending', 'approved', 'rejected', 'replaced']);

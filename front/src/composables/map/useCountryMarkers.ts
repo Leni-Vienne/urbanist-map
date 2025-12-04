@@ -1,4 +1,4 @@
-import L from "leaflet";
+import type L from "leaflet";
 import { ref } from "vue";
 import { map } from "@composables/core/useMap";
 import { flyToCountry } from "@composables/map/useMapNavigation";

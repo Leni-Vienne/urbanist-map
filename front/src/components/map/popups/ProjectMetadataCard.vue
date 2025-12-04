@@ -72,7 +72,7 @@ import { formatSourceUrl } from '@utils/urlFormat'
 interface Props {
   project: Project | null
   showDescription?: boolean
-  availableCities?: Array<{ id: string; name: string; countryCode: string; }>
+  availableCities?: { id: string; name: string; countryCode: string; }[]
 }
 
 const props = withDefaults(defineProps<Props>(), {

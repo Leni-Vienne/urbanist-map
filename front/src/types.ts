@@ -62,7 +62,7 @@ declare module "leaflet" {
 
   // AI : Toolbar2 constructor (used in toolbar actions)
   class Toolbar2 extends L.Evented {
-    constructor(options?: { actions?: Array<typeof Toolbar2.Action> });
+    constructor(options?: { actions?: typeof Toolbar2.Action[] });
   }
 
   // AI : Leaflet distortableimage types - prefixed with _ to indicate intentionally unused
