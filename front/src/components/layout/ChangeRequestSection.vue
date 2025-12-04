@@ -82,10 +82,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useToast } from '@composables/ui/useToast';
 import { useChangeRequestPreview } from '@composables/overlay/useChangeRequestPreview';
+import { setChangeRequestsForPreview } from '@composables/overlay/changeRequestPreviewState';
 import type { PendingChangeRequest } from '../../types/api';
 import type { ProjectForModeration, OverlayForModeration } from '@types';
 import ChangeValueDisplay from './ChangeValueDisplay.vue';
@@ -124,7 +125,13 @@ const {
   previewGeometry: previewGeometryComposable
 } = useChangeRequestPreview();
 
+// AI : Sync change requests for preview state tracking when navigating via markers
+watchEffect(() => {
+  setChangeRequestsForPreview(props.allChangeRequests);
+});
+
 // AI : Computed property to check if a specific preview is active
+// AI : Preview state is now synced automatically when navigating to overlays via markers/selection
 const isPreviewActive = computed(() => {
   return (changeId: string, type: 'old' | 'new') => {
     if (!isPreviewingChange(changeId)) return false;
