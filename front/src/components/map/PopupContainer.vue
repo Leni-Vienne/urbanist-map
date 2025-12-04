@@ -443,14 +443,14 @@ function handleAddImages() {
   fileInput.accept = 'image/png, image/jpeg, image/jpg, image/webp';
   fileInput.style.display = 'none';
 
-  fileInput.onchange = async (e: Event) => {
+  fileInput.addEventListener('change', async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (!file) return;
 
     try {
       // AI : Read file as data URL for overlay creation
       const reader = new FileReader();
-      reader.onload = () => {
+      reader.addEventListener('load', () => {
         try {
           const projectId = project.id;
 
@@ -479,7 +479,7 @@ function handleAddImages() {
             life: 3000
           });
         }
-      };
+      });
       reader.readAsDataURL(file);
     } catch (error) {
       console.error('Error handling file upload:', error);
@@ -493,7 +493,7 @@ function handleAddImages() {
       // AI : Cleanup file input
       document.body.removeChild(fileInput);
     }
-  };
+  });
 
   // AI : Trigger file picker
   document.body.appendChild(fileInput);

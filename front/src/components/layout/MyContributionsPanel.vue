@@ -191,8 +191,8 @@ const filteredProjects = computed(() => {
 // AI : Delete handlers with confirmation
 async function handleDeleteOverlayClick(overlay: OverlayForModeration) {
   // AI : Find the project that contains this overlay
-  const project = projects.value.find(p =>
-    p.overlays?.some((o: UserContributionOverlay) => o.id === overlay.id)
+  const project = projects.value.find(project =>
+    project.overlays?.some((overlayElement: UserContributionOverlay) => overlayElement.id === overlay.id)
   )
 
   const overlayCount = project?.overlays?.length ?? 0

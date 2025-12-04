@@ -7,17 +7,38 @@
   // Enable all of these plugins (which are enabled by default):
   //"plugins": ["unicorn", "typescript", "oxc"],
   "categories": {
-    "suspicious": "off",
+    "suspicious": "off", // mostly type assertion stuff that I don't see how to fix
     "correctness": "warn",
     "perf": "warn",
     "nursery": "warn",
-    //"style": "warn",
+    "style": "warn",
     //"restriction": "warn",
     //"pedantic": "warn"
   },
   "rules": {
     "eslint/no-undef": "off", // warns about console, document, etc. in front-end code
-    "eslint/no-await-in-loop": "off" // false positives in several places
+    "eslint/no-await-in-loop": "off", // false positives in several places
+    "eslint/func-style": [
+      "warn",
+      "declaration"
+    ],
+    /*"unicorn/filename-case": [
+      "error",
+      {
+        "case": "camelCase"
+      }
+    ],*/ // vue files are in pascal case, composables in camel case.....
+    
+    "unicorn/filename-case": "off",
+    "eslint/sort-keys": "off",
+    "eslint/sort-imports": "off",
+    "eslint/no-ternary": "off",
+    "eslint/curly": "off",
+    "typescript/consistent-type-definitions": "off", //temporary
+    "eslint/prefer-destructuring": "off", //temporary
+    "eslint/no-magic-numbers": "off", // temporary
+    "unicorn/no-null": "off", // temp
+    "eslint/id-length": "off" // temp
   }
   /*"rules": {
     "typescript/await-thenable": "warn",

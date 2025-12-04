@@ -501,13 +501,13 @@ export const projectRouter = router({
 
           const allProjects = [...paginatedOwnedProjects, ...contributedProjects];
 
-          const projectIds = allProjects.map(p => p.id);
+          const projectIds = allProjects.map(project => project.id);
           let projectOverlays: Awaited<ReturnType<typeof buildOverlayModerationQuery>> = [];
 
           if (projectIds.length > 0) {
             // AI : For projects owned by user, get all overlays
             // AI : For contributed projects, get user's overlays OR overlays with user's change requests
-            const ownedProjectIds = ownedProjects.map(p => p.id);
+            const ownedProjectIds = ownedProjects.map(project => project.id);
 
             // AI : Get overlay IDs where user has submitted change requests
             const overlayIdsWithChangeRequests = contributedProjectIds.length > 0
@@ -523,7 +523,7 @@ export const projectRouter = router({
               : [];
 
             const overlayIdsWithChanges = overlayIdsWithChangeRequests
-              .map(r => r.overlayId)
+              .map(overlay => overlay.overlayId)
               .filter((id): id is string => id !== null);
 
             if (ownedProjectIds.length > 0 && contributedProjectIds.length > 0) {

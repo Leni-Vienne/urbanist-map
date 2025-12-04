@@ -27,8 +27,8 @@ async function loadGoogleIdentityScript() {
     script.async = true
     script.defer = true
     
-    script.onload = () => { resolve() }
-    script.onerror = () => { reject(new Error('Failed to load Google Identity Services')) }
+    script.addEventListener('load', () => { resolve() })
+    script.addEventListener('error', () => { reject(new Error('Failed to load Google Identity Services')) })
     
     document.head.appendChild(script)
   })
@@ -73,7 +73,7 @@ export const useAuthStore = defineStore('auth', () => {
       })
 
       if (response.ok) {
-        const result = await response.json() as { user: User; infoMessage: string | null }
+        const result: { user: User; infoMessage: string | null } = await response.json()
         user.value = result.user
         infoMessage.value = result.infoMessage
       } else {
@@ -125,7 +125,7 @@ export const useAuthStore = defineStore('auth', () => {
         credentials: 'include'
       })
 
-      const result = await response.json() as { success: boolean; user?: User; error?: string; message?: string }
+      const result: { success: boolean; user?: User; error?: string; message?: string } = await response.json()
 
       if (response.ok && result.success) {
         user.value = result.user ?? null
@@ -216,7 +216,7 @@ export const useAuthStore = defineStore('auth', () => {
                   credentials: 'include'
                 })
 
-                const data = await result.json() as { success: boolean; user?: User; error?: string }
+                const data: { success: boolean; user?: User; error?: string } = await result.json()
 
                 if (result.ok && data.success) {
                   user.value = data.user ?? null
@@ -302,7 +302,7 @@ export const useAuthStore = defineStore('auth', () => {
       if (response.ok) {
         return { success: true, error: null }
       } else {
-        const result = await response.json() as { error?: string }
+        const result: { error?: string } = await response.json()
         return { success: false, error: result.error ?? 'Logout failed' }
       }
     } catch (error: unknown) {
