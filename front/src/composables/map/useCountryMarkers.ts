@@ -1,22 +1,22 @@
 import L from "leaflet";
-import { ref } from 'vue';
-import { map } from '@composables/core/useMap';
-import { flyToCountry } from '@composables/map/useMapNavigation';
-import { addCityMarkersForCountry, removeCityMarkers } from '@composables/map/useCityMarkers';
-import { removeOverlayMarkers } from '@composables/map/useCityOverlays';
-import { clearAllOverlays } from '@composables/overlay/useOverlayLifecycle';
-import { clearAllStandaloneProjectMarkers } from '@composables/map/useStandaloneProjectMarkers';
-import { switchTileLayer, isTileLayerType } from '@composables/map/useTileLayers';
-import { trpc } from '@client';
-import { useProjectStore } from '@stores/pinia/projectStore';
-import { useMapStore } from '@stores/pinia/mapStore';
-import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { storeToRefs } from 'pinia';
-import { withErrorHandling } from '@composables/core/useErrorHandling';
-import type { Country, City } from '@types';
-import { MARKER_OPACITY } from '@constants/markerConstants';
-import { createMarkerLayer, type MarkerLayerConfig } from '@composables/map/useMarkerLayer';
-import countryBboxes from '@assets/country_bboxes.json';
+import { ref } from "vue";
+import { map } from "@composables/core/useMap";
+import { flyToCountry } from "@composables/map/useMapNavigation";
+import { addCityMarkersForCountry, removeCityMarkers } from "@composables/map/useCityMarkers";
+import { removeOverlayMarkers } from "@composables/map/useCityOverlays";
+import { clearAllOverlays } from "@composables/overlay/useOverlayLifecycle";
+import { clearAllStandaloneProjectMarkers } from "@composables/map/useStandaloneProjectMarkers";
+import { switchTileLayer, isTileLayerType } from "@composables/map/useTileLayers";
+import { trpc } from "@client";
+import { useProjectStore } from "@stores/pinia/projectStore";
+import { useMapStore } from "@stores/pinia/mapStore";
+import { useOverlayStore } from "@stores/pinia/overlayStore";
+import { storeToRefs } from "pinia";
+import { withErrorHandling } from "@composables/core/useErrorHandling";
+import type { Country, City } from "@types";
+import { MARKER_OPACITY } from "@constants/markerConstants";
+import { createMarkerLayer, type MarkerLayerConfig } from "@composables/map/useMarkerLayer";
+import countryBboxes from "@assets/country_bboxes.json";
 
 // AI : Type guard to validate country code against countryBboxes keys
 function isValidCountryCode(code: string): code is keyof typeof countryBboxes {
@@ -29,7 +29,6 @@ function getCountries() {
   const { countries } = storeToRefs(projectStore);
   return countries;
 }
-
 
 // AI : Opacity constants are now imported from markerConstants
 
@@ -57,19 +56,13 @@ export async function loadCountriesWithProjects(force: boolean = false): Promise
   try {
     const countriesData = await withErrorHandling(
       async () => trpc.country.getCountriesWithProjects.query({ mode: overlayStore.mode }),
-      { errorMessage: 'Failed to load countries. Please refresh the page.' }
+      { errorMessage: "Failed to load countries. Please refresh the page." },
     );
 
     if (countriesData) {
-      const mappedCountries = countriesData.map((country): Country => ({
-        ...country,
-        lat: country.centerCoordinates.y,
-        lng: country.centerCoordinates.x,
-        projectCount: 0,
-        cities: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }));
+      const mappedCountries = countriesData.map(
+        (country): Country => (Object.assign(country, {lat:country.centerCoordinates.y,lng:country.centerCoordinates.x,projectCount:0,cities:[],createdAt:new Date,updatedAt:new Date})),
+      );
 
       // AI : Update both the active countries ref and cache
       const countries = getCountries();
@@ -104,11 +97,13 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
     // AI : Pass mode to show appropriate content based on viewing mode
     const citiesData = await withErrorHandling(
       async () => trpc.cities.getCitiesWithProjects.query({ countryCode, mode: overlayStore.mode }),
-      { errorMessage: 'Failed to load cities. Please try again.' }
+      { errorMessage: "Failed to load cities. Please try again." },
     );
 
     if (citiesData) {
-      const cities = citiesData.map((city) => ({ ...city, distance: 0 }));
+      const cities = citiesData.map((city) => {
+        return Object.assign({}, city, { distance: 0 });
+      });
       country.cities = cities;
       // AI : Cache the cities for this country + mode
       projectStore.setCachedCities(countryCode, overlayStore.mode, cities);
@@ -139,7 +134,7 @@ function clearAllMapContent(): void {
  */
 export async function prepareCountryContext(countryCode: string): Promise<void> {
   // AI : Step 1: Switch to appropriate tile layer for this country
-  switchTileLayer(isTileLayerType(countryCode) ? countryCode : 'esri');
+  switchTileLayer(isTileLayerType(countryCode) ? countryCode : "esri");
 
   // AI : Step 2: Clear all previous map content
   clearAllMapContent();
@@ -153,15 +148,19 @@ export async function prepareCountryContext(countryCode: string): Promise<void> 
 
   // AI : Step 5: Add city markers to the map
   const projectStore = useProjectStore();
-  const country = projectStore.countries.find(c => c.code === countryCode);
+  const country = projectStore.countries.find((c) => c.code === countryCode);
   if (country) {
-    addCityMarkersForCountry(country.cities.map((city: City) => ({ ...city, projectCount: 0 })));
+    addCityMarkersForCountry(
+      country.cities.map((city) => {
+        return Object.assign({}, city, { projectCount: 0 });
+      }),
+    );
   }
 }
 
 export function addCountryMarkersToMap() {
   if (!map.value) {
-    console.error('Map not initialized when trying to add country markers');
+    console.error("Map not initialized when trying to add country markers");
     return;
   }
 
@@ -173,27 +172,27 @@ export function addCountryMarkersToMap() {
 
   // AI : Configure country marker behavior
   const config: MarkerLayerConfig<Country> = {
-    getOpacity: (hover) => hover ? MARKER_OPACITY.country.hover : MARKER_OPACITY.country.default,
-    getColor: () => 'blue',
+    getOpacity: (hover) => (hover ? MARKER_OPACITY.country.hover : MARKER_OPACITY.country.default),
+    getColor: () => "blue",
     getLatLng: (country) => ({ lat: country.lat, lng: country.lng }),
     getTooltip: (country) => country.name,
     getTestId: (country) => `country-marker-${country.code}`,
     getDataAttributes: (country) => ({
-      'data-country-code': country.code,
-      'data-country-name': country.name,
-      'data-lat': country.lat.toString(),
-      'data-lng': country.lng.toString(),
+      "data-country-code": country.code,
+      "data-country-name": country.name,
+      "data-lat": country.lat.toString(),
+      "data-lng": country.lng.toString(),
     }),
     onMarkerClick: async (_marker, country) => {
       // AI : Warn if there are unsaved overlays before switching countries
       const overlayStore = useOverlayStore();
       const hasUnsavedOverlays = Object.values(overlayStore.overlays).some(
-        overlay => overlay.isModified === true
+        (overlay) => overlay.isModified === true,
       );
 
       if (hasUnsavedOverlays) {
         const confirmed = confirm(
-          'You have unsaved overlays. Switching to another country will discard them. Continue?'
+          "You have unsaved overlays. Switching to another country will discard them. Continue?",
         );
         if (!confirmed) {
           return; // AI : User cancelled, don't switch countries
@@ -207,7 +206,7 @@ export function addCountryMarkersToMap() {
 
       // AI : Prepare country context (switch tile layer, clear map, load cities, add city markers)
       await prepareCountryContext(country.code);
-    }
+    },
   };
 
   // AI : Create marker layer using abstraction

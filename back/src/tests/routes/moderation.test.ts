@@ -213,8 +213,8 @@ describe('Moderation Routes - Version-Aware Approval Tests', () => {
       
       expect(result.success).toBe(false)
       expect(result.error).toBe('Version mismatch')
-      expect(result.expectedVersion).toBe(1)
-      expect(result.currentVersion).toBe(2)
+      expect('expectedVersion' in result && result.expectedVersion).toBe(1)
+      expect('currentVersion' in result && result.currentVersion).toBe(2)
     })
 
     test('handles rejection with version validation', async () => {
