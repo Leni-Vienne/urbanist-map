@@ -211,10 +211,11 @@ export const changesRouter = router({
 
         // AI : Add hasConflict field to maintain type consistency with getPendingChangeRequests
         // AI : For user's own changes, we show conflicts when status is 'conflicted' (another change was chosen)
-        const changesWithConflictInfo = myChanges.map(change => ({
-          ...change,
-          hasConflict: change.status === 'conflicted'
-        }));
+        const changesWithConflictInfo = myChanges.map(change => {
+          return Object.assign({}, change, {
+            hasConflict: change.status === 'conflicted'
+          });
+        });
 
         // AI : Enrich with city and country names
         const enrichedChanges = await enrichChangeRequestsWithNames(changesWithConflictInfo);

@@ -7,14 +7,17 @@
   // Enable all of these plugins (which are enabled by default):
   //"plugins": ["unicorn", "typescript", "oxc"],
   "categories": {
-    "suspicious": "warn",
+    "suspicious": "off",
     "correctness": "off",
     //"perf": "warn",
-    //"nursery": "warn",
+    "nursery": "warn",
     //"style": "warn",
     //"restriction": "warn",
     //"pedantic": "warn"
   },
+  "rules": {
+    "eslint/no-undef": "off" // warns about console, document, etc. in front-end code
+  }
   /*"rules": {
     "typescript/await-thenable": "warn",
     "typescript/no-array-delete": "error",

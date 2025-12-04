@@ -133,7 +133,9 @@ async function reloadCitiesAndMarkers(countryCode: string): Promise<void> {
   const { countries } = storeToRefs(projectStore)
   const currentCountry = countries.value.find(c => c.code === countryCode)
   if (currentCountry && currentCountry.cities.length > 0) {
-    addCityMarkersForCountry(currentCountry.cities.map(c => ({ ...c, projectCount: 0 })))
+    const citiesWithProjectCount = currentCountry.cities.map(c => Object.assign({}, c, { projectCount: 0 }))
+    addCityMarkersForCountry(citiesWithProjectCount)
+
   }
 }
 

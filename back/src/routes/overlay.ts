@@ -68,7 +68,7 @@ async function findIntersectingOverlays(db: PostgresJsDatabase<typeof schema>, e
     return intersectingOverlays;
   } catch (error) {
     console.error('Error finding intersecting overlays:', error);
-    throw new Error('Failed to find intersecting overlays');
+    throw new Error('Failed to find intersecting overlays', { cause: error });
   }
 }
 
@@ -161,13 +161,13 @@ export const overlayRouter = router({
 
         // AI : Combine and sort by updatedAt descending
         const combined = [...overlayContributions, ...standaloneProjectContributions]
-          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+          .toSorted((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
           .slice(0, input.limit);
 
         return combined;
       } catch (error) {
         console.error('Error fetching latest contributions:', error);
-        throw new Error('Failed to fetch latest contributions');
+        throw new Error('Failed to fetch latest contributions', { cause: error });
       }
     }),
 
@@ -205,7 +205,7 @@ export const overlayRouter = router({
         };
       } catch (error) {
         console.error('Error fetching overlay:', error);
-        throw new Error('Failed to fetch overlay');
+        throw new Error('Failed to fetch overlay', { cause: error });
       }
     }),
 
