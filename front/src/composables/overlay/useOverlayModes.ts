@@ -272,32 +272,36 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
 async function autoNavigateToSelectedOverlay(overlayId: string, previousBounds: L.LatLngBounds | null): Promise<void> {
   const overlayStore = useOverlayStore()
 
-  // AI : Wait for overlay to be rendered (poll with requestAnimationFrame)
-  const overlayObject = await waitForOverlayRendered(overlayId, overlayStore)
+  // AI : Get overlay directly from store - no polling needed since renderForStrategy() runs synchronously
+  // AI : before this afterTransition callback is executed, so overlays are already in the store
+  const overlayObject = overlayStore.overlays[overlayId]
 
-  if (overlayObject) {
-    // AI : Navigate to the overlay bounds using getOverlayBounds for accurate position
-    if (!map.value) return
+  if (!overlayObject?.corners || overlayObject.corners.length !== 4) {
+    console.warn('Overlay not ready for navigation:', overlayId)
+    return
+  }
 
-    // AI : Get actual overlay position using getOverlayBounds
-    const newBounds = getOverlayBounds(overlayObject)
+  // AI : Navigate to the overlay bounds using getOverlayBounds for accurate position
+  if (!map.value) return
 
-    if (newBounds) {
-      // AI : If we have previous bounds, create combined bounds to show both positions
-      // AI : This creates a smooth unzoom effect instead of jarring camera jump
-      let targetBounds = newBounds
+  // AI : Get actual overlay position using getOverlayBounds
+  const newBounds = getOverlayBounds(overlayObject)
 
-      if (previousBounds) {
-        // AI : Extend bounds to include both old and new positions
-        targetBounds = newBounds.extend(previousBounds)
-      }
+  if (newBounds) {
+    // AI : If we have previous bounds, create combined bounds to show both positions
+    // AI : This creates a smooth unzoom effect instead of jarring camera jump
+    let targetBounds = newBounds
 
-      mobileAwareFlyToBounds(targetBounds, {
-        padding: [50, 50] as [number, number],
-        duration: 0.8,
-        easeLinearity: 0.25
-      })
+    if (previousBounds) {
+      // AI : Extend bounds to include both old and new positions
+      targetBounds = newBounds.extend(previousBounds)
     }
+
+    mobileAwareFlyToBounds(targetBounds, {
+      padding: [50, 50] as [number, number],
+      duration: 0.8,
+      easeLinearity: 0.25
+    })
   }
 }
 
@@ -308,8 +312,9 @@ async function autoNavigateToSelectedOverlay(overlayId: string, previousBounds: 
 async function autoSelectOverlayForProject(projectId: string): Promise<void> {
   const overlayStore = useOverlayStore()
 
-  // AI : Wait for overlays to be rendered
-  await new Promise(resolve => setTimeout(resolve, 200))
+  // AI : Wait one frame to ensure DOM updates have propagated
+  // AI : This is only needed for UI coordination, overlays are already in store
+  await new Promise(resolve => requestAnimationFrame(resolve))
 
   // AI : Find an overlay belonging to this project
   const projectOverlay = Object.values(overlayStore.overlays).find(
@@ -320,29 +325,6 @@ async function autoSelectOverlayForProject(projectId: string): Promise<void> {
     // AI : selectOverlay handles overlay.select() internally
     selectOverlay(projectOverlay.id)
   }
-}
-
-/**
- * AI : Wait for overlay to be rendered in the store with correct position
- * AI : Uses requestAnimationFrame to sync with browser rendering cycles
- */
-async function waitForOverlayRendered(
-  overlayId: string,
-  overlayStore: ReturnType<typeof useOverlayStore>,
-  maxAttempts = 10
-): Promise<ReturnType<typeof useOverlayStore>['overlays'][string] | null> {
-  for (let i = 0; i < maxAttempts; i++) {
-    const overlayObject = overlayStore.overlays[overlayId]
-
-    // AI : Check if overlay has valid corner data
-    if (overlayObject?.corners && overlayObject.corners.length === 4) {
-      return overlayObject
-    }
-    // AI : Wait for next frame before checking again
-    await new Promise(resolve => requestAnimationFrame(resolve))
-  }
-
-  return null
 }
 
 /**
