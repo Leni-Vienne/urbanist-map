@@ -12,8 +12,8 @@
     "perf": "warn",
     "nursery": "warn",
     "style": "warn",
-    //"restriction": "warn",
-    //"pedantic": "warn"
+    "restriction": "off",
+    "pedantic": "off"
   },
   "rules": {
     "eslint/no-undef": "off", // warns about console, document, etc. in front-end code
@@ -45,7 +45,11 @@
     "eslint/prefer-destructuring": "off", //temporary
     "eslint/no-magic-numbers": "off", // temporary
     "unicorn/no-null": "off", // temp
-    "eslint/id-length": "off" // temp
+    "eslint/id-length": "off", // temp
+
+    // --------------------- restriction rules ---------------------
+    "no-async-await": "off",
+    "use-unknown-in-catch-callback-variable": "off" //temp?
   }
   /*"rules": {
     "typescript/await-thenable": "warn",
