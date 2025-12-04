@@ -473,7 +473,7 @@ export const moderationRouter = router({
 
           // AI : Step 4: Combine and format results
           const changeRequestsResult = [...overlayChanges, ...projectChanges]
-            .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+            .toSorted((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
           // AI : Add hasConflict flag to changes that have competing requests
           const changeRequestsWithConflictInfo = addConflictFlags(changeRequestsResult);

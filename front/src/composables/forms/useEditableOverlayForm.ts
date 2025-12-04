@@ -5,6 +5,7 @@ import { useI18n } from '@composables/useI18n'
 import { trpc } from '@client'
 import { formatDate } from '@utils/dateFormat'
 import type { OverlayFormData, FieldChange } from '../../types/forms'
+import { ApprovalStatus } from '../../../../back/src/shared/types'
 
 // AI : Overlay update payload based on updateOverlaySchema
 interface OverlayUpdateData {
@@ -15,7 +16,7 @@ interface OverlayUpdateData {
 export interface EditableOverlayFormOptions {
   entityId: string
   initialData: OverlayFormData
-  entityStatus?: 'pending' | 'approved' | 'rejected' | 'replaced' | null
+  entityStatus?: ApprovalStatus | null
   onSubmitted?: () => void
   onClose?: () => void
 }

@@ -377,18 +377,10 @@ app.post('/api/upload-image', async (c) => {
         }
 
         // AI : Extract file extension for filename generation
-        function getFileExtension(filename: string | undefined | null): string | null {
-            if (!filename || typeof filename !== 'string') {
-                return null
-            }
-            const lastDot = filename.lastIndexOf('.')
-            if (lastDot === -1 || lastDot === filename.length - 1) {
-                return null
-            }
-            return filename.slice(lastDot + 1).toLowerCase()
-        }
-
-        const fileExtension = getFileExtension(file.name)
+        const lastDot = file.name.lastIndexOf('.')
+        const fileExtension = lastDot !== -1 && lastDot !== file.name.length - 1
+            ? file.name.slice(lastDot + 1).toLowerCase()
+            : null
 
         // AI : Ensure we have a valid extension (this should not fail due to Zod validation)
         if (!fileExtension) {
