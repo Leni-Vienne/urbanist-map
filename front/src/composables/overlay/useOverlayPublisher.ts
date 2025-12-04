@@ -93,7 +93,7 @@ export function useOverlayPublisher() {
       return false; // AI : Project ID didn't change
     } catch (error) {
       const errorMessage = `Failed to publish project "${project.name}" to server: ${error instanceof Error ? error.message : String(error)}`;
-      throw new Error(errorMessage);
+      throw new Error(errorMessage, { cause: error });
     }
   }
 
@@ -279,7 +279,7 @@ export function useOverlayPublisher() {
       // AI : updated locally with the correct state and ID from the publish response.
     } catch (error) {
       console.error('Failed to publish overlay:', error);
-      throw new Error('Publish Failed: Failed to save to server. Please try again.');
+      throw new Error('Publish Failed: Failed to save to server. Please try again.', { cause: error });
     } finally {
       isPublishing.value = false;
     }

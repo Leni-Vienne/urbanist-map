@@ -24,7 +24,7 @@ export const countriesRouter = router({
           .orderBy(countries.name);
       } catch (error) {
         console.error('Error fetching all countries:', error);
-        throw new Error('Failed to fetch countries');
+        throw new Error('Failed to fetch countries', { cause: error });
       }
     }),
 
@@ -67,7 +67,7 @@ export const countriesRouter = router({
           .orderBy(countries.code, countries.name);
       } catch (error) {
         console.error('Error fetching countries with projects:', error);
-        throw new Error('Failed to fetch countries with projects');
+        throw new Error('Failed to fetch countries with projects', { cause: error });
       }
     })
 });

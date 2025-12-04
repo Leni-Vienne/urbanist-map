@@ -37,4 +37,5 @@ declare global {
   }
 }
 
-export {}
+// eslint-disable-next-line
+export {} // important otherwise it's not global, at least according to TS

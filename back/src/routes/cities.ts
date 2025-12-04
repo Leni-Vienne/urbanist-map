@@ -65,7 +65,7 @@ export const citiesRouter = router({
             
         } catch (error) {
           console.error('Error fetching cities near location:', error);
-          throw new Error('Failed to fetch cities near location');
+          throw new Error('Failed to fetch cities near location', { cause: error });
         }
       }),
 
@@ -102,7 +102,7 @@ export const citiesRouter = router({
           return result;
         } catch (error) {
           console.error('Error searching cities near location:', error);
-          throw new Error('Failed to search cities near location');
+          throw new Error('Failed to search cities near location', { cause: error });
         }
       }),
 
@@ -150,7 +150,7 @@ export const citiesRouter = router({
 
         } catch (error) {
           console.error('Error fetching cities with projects:', error);
-          throw new Error('Failed to fetch cities with projects');
+          throw new Error('Failed to fetch cities with projects', { cause: error });
         }
       }),
     // AI : Get all approved projects and overlays for a specific city
@@ -329,7 +329,7 @@ export const citiesRouter = router({
 
         } catch (error) {
           console.error('Error fetching city projects:', error);
-          throw new Error('Failed to fetch city projects');
+          throw new Error('Failed to fetch city projects', { cause: error });
         }
       }),
 });

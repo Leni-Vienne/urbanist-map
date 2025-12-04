@@ -305,7 +305,7 @@ export const projectRouter = router({
         return { projects: nearbyProjects };
       } catch (error) {
         console.error('Error fetching nearby projects:', error);
-        throw new Error('Failed to fetch nearby projects');
+        throw new Error('Failed to fetch nearby projects', { cause: error });
       }
     }),
 
@@ -389,7 +389,7 @@ export const projectRouter = router({
           return projectsInCity;
         } catch (error) {
           console.error('Error fetching projects by city:', error);
-          throw new Error('Failed to fetch projects by city');
+          throw new Error('Failed to fetch projects by city', { cause: error });
         }
       }),
       
@@ -567,11 +567,10 @@ export const projectRouter = router({
 
           const projectsWithOverlays = allProjects.map(project => {
             const projectOverlaysList = projectOverlays.filter(overlay => overlay.projectId === project.id);
-            return {
-              ...project,
+            return Object.assign({}, project, {
               overlays: projectOverlaysList,
               overlayCount: projectOverlaysList.length,
-            };
+            });
           });
 
           // AI : Build pagination response using shared helper (only for owned projects, as contributed are not paginated)
