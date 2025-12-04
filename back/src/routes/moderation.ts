@@ -554,7 +554,7 @@ export const moderationRouter = router({
             count: sql<number>`COUNT(*)`,
           })
           .from(userReports)
-          .where(inArray(userReports.reportedUserId, Array.from(userIds)))
+          .where(inArray(userReports.reportedUserId, [...userIds]))
           .groupBy(userReports.reportedUserId);
 
         // AI : Build map of user ID to report count
@@ -852,8 +852,8 @@ export const moderationRouter = router({
             // AI : Uses deleteImages helper to handle both production/R2 and development/local
             await deleteImages(overlayFilename, "full");
             await scheduleImageCleanup(input.id, overlayFilename, daysFromNow(15), "thumbnail");
-          } catch (cleanupError) {
-            console.error("Failed to cleanup rejected overlay images:", cleanupError);
+          } catch (error) {
+            console.error("Failed to cleanup rejected overlay images:", error);
             // AI : Don't fail the rejection if cleanup fails
           }
 
@@ -863,11 +863,11 @@ export const moderationRouter = router({
         // AI : Handle approval (more complex, especially for replacements)
         const transactionResult = await db.transaction(async (tx) => {
           // AI : Track competing replacements for post-transaction cleanup
-          let competingReplacements: Array<{
+          let competingReplacements: {
             id: string;
             filename: string;
             authorId: string | null;
-          }> = [];
+          }[] = [];
 
           // AI : Lock and verify the overlay hasn't changed
           const currentOverlay = await tx
@@ -1066,8 +1066,8 @@ export const moderationRouter = router({
         ) {
           try {
             await migrateImageToR2(overlayFilename);
-          } catch (migrationError) {
-            console.error("Failed to migrate image to R2:", migrationError);
+          } catch (error) {
+            console.error("Failed to migrate image to R2:", error);
             // AI : Don't fail the approval if R2 migration fails - image is still accessible in local storage
           }
         }

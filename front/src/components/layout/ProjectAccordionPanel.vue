@@ -491,7 +491,7 @@ const groupedByCountry = computed(() => {
     cityGroup.projects.push(project);
   }
 
-  const sorted = Array.from(countryMap.values()).toSorted((a, b) =>
+  const sorted = [...countryMap.values()].toSorted((a, b) =>
     a.countryName.localeCompare(b.countryName)
   );
 
@@ -633,18 +633,24 @@ function hideFlagOnError(event: Event) {
 // AI : Get badge severity based on status
 function getStatusSeverity(status: string | null): string {
   switch (status) {
-    case 'approved':
+    case 'approved': {
       return 'success'
-    case 'rejected':
+    }
+    case 'rejected': {
       return 'danger'
-    case 'pending':
+    }
+    case 'pending': {
       return 'warn'
-    case 'replaced':
+    }
+    case 'replaced': {
       return 'secondary'
-    case null:
-      return 'info' // AI : Unsubmitted local projects
-    default:
+    }
+    case null: {
       return 'info'
+    } // AI : Unsubmitted local projects
+    default: {
+      return 'info'
+    }
   }
 }
 

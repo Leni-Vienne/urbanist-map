@@ -395,8 +395,8 @@ async function handleSubmit() {
         error.value = translateError(result.error) || $t('auth.error.registrationFailed')
       }
     }
-  } catch (err: unknown) {
-    error.value = translateError(err instanceof Error ? err.message : null) || $t('common.error')
+  } catch (error) {
+    error.value = translateError(error instanceof Error ? error.message : null) || $t('common.error')
   } finally {
     loading.value = false
   }
@@ -421,9 +421,9 @@ async function handleOAuthSignIn(provider: 'google') {
     } else {
       error.value = translateError(result.error) || $t('auth.error.googleAuthFailed')
     }
-  } catch (err: unknown) {
-    console.error('AI: OAuth sign in error:', err)
-    error.value = translateError(err instanceof Error ? err.message : null) || $t('common.error')
+  } catch (error) {
+    console.error('AI: OAuth sign in error:', error)
+    error.value = translateError(error instanceof Error ? error.message : null) || $t('common.error')
   } finally {
     // AI : Always reset loading state to prevent modal from being stuck in disabled state
     oauthLoading.value = false
@@ -449,8 +449,8 @@ async function handleForgotPassword() {
     } else {
       error.value = translateError(result.error) || $t('common.error')
     }
-  } catch (err: unknown) {
-    error.value = translateError(err instanceof Error ? err.message : null) || $t('common.error')
+  } catch (error) {
+    error.value = translateError(error instanceof Error ? error.message : null) || $t('common.error')
   } finally {
     loading.value = false
   }

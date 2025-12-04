@@ -5,7 +5,7 @@ import { useI18n } from '@composables/useI18n'
 import { trpc } from '@client'
 import { formatDate } from '@utils/dateFormat'
 import type { OverlayFormData, FieldChange } from '../../types/forms'
-import { ApprovalStatus } from '../../../../back/src/shared/types'
+import type { ApprovalStatus } from '../../../../back/src/shared/types'
 
 // AI : Overlay update payload based on updateOverlaySchema
 interface OverlayUpdateData {

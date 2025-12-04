@@ -278,7 +278,7 @@ export function useChangeRequests() {
     function addFieldChange(fieldName: string, oldValue: FieldChange['oldValue'], newValue: FieldChange['newValue'], changeReason?: string) {
       const existingIndex = pendingChanges.findIndex(change => change.fieldName === fieldName);
       
-      if (existingIndex >= 0) {
+      if (existingIndex !== -1) {
         pendingChanges[existingIndex] = { fieldName, oldValue, newValue, changeReason };
       } else {
         pendingChanges.push({ fieldName, oldValue, newValue, changeReason });
@@ -287,7 +287,7 @@ export function useChangeRequests() {
 
     function removeFieldChange(fieldName: string) {
       const index = pendingChanges.findIndex(change => change.fieldName === fieldName);
-      if (index >= 0) {
+      if (index !== -1) {
         pendingChanges.splice(index, 1);
       }
     }

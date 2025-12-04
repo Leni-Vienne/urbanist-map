@@ -21,7 +21,7 @@ import countryBboxes from '@assets/country_bboxes.json';
 const currentCameraBounds = ref<CameraBounds | null>(null);
 
 // AI : Callbacks to call when camera stops moving
-const onCameraStopCallbacks: Array<(bounds: CameraBounds) => void> = [];
+const onCameraStopCallbacks: ((bounds: CameraBounds) => void)[] = [];
 
 /**
  * AI : Initialize camera bounds tracking
@@ -93,7 +93,7 @@ export function onCameraStop(callback: (bounds: CameraBounds) => void) {
   // AI : Return unsubscribe function
   return () => {
     const index = onCameraStopCallbacks.indexOf(callback);
-    if (index > -1) {
+    if (index !== -1) {
       onCameraStopCallbacks.splice(index, 1);
     }
   };

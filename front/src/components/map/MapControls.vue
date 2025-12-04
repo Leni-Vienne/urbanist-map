@@ -184,9 +184,9 @@ function zoomWithMobileOffset(zoomDelta: number) {
   if (!shouldOffset) {
     // AI : Desktop or drawer closed - use normal zoom with larger delta on mobile
     if (zoomDelta > 0) {
-      map.value.zoomIn(isMobile ? 1.0 : undefined)
+      map.value.zoomIn(isMobile ? 1 : undefined)
     } else {
-      map.value.zoomOut(isMobile ? 1.0 : undefined)
+      map.value.zoomOut(isMobile ? 1 : undefined)
     }
     return
   }

@@ -192,7 +192,7 @@ export const citiesRouter = router({
               centroidLat: sql<number>`ST_Y(${overlays.centroid})`,
               centroidLng: sql<number>`ST_X(${overlays.centroid})`,
               // AI : Extract corners as JSON array in a single query
-              corners: sql<Array<{ lat: number; lng: number }>>`(
+              corners: sql<{ lat: number; lng: number }[]>`(
                 SELECT json_agg(json_build_object('lat', ST_Y(geom), 'lng', ST_X(geom)) ORDER BY path[2])
                 FROM ST_DumpPoints(${overlays.corners}) AS dump(path, geom)
                 WHERE path[2] <= 4
@@ -210,14 +210,14 @@ export const citiesRouter = router({
             .orderBy(overlays.createdAt);
 
           // AI : Fetch change requests based on mode
-          let changeRequestsData: Array<{
+          let changeRequestsData: {
             id: string;
             entityType: string;
             entityId: string;
             fieldName: string;
             newValue: unknown;
             requestedBy: string | null;
-          }> = [];
+          }[] = [];
 
           if (ctx.user) {
             if (mode === 'edit') {

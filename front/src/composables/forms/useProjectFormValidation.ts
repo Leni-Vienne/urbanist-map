@@ -19,7 +19,7 @@ export function useProjectFormValidation() {
   function validateProjectForm(
     formData: ProjectFormData,
     isProposed: boolean,
-    cities: Array<{ id: string }>,
+    cities: { id: string }[],
     citiesLoaded: boolean
   ): boolean {
     if (!formData.name?.trim()) {

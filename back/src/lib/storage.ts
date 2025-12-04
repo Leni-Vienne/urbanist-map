@@ -1,4 +1,4 @@
-import { StorageInterface } from './types';
+import type { StorageInterface } from './types';
 import { S3Client } from 'bun';
 import sharp from 'sharp';
 import { mkdir } from 'node:fs/promises';

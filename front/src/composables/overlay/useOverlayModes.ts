@@ -1,6 +1,6 @@
 // AI : Overlay mode management - orchestrates edit/view mode switching using state machine
 import { ref, watch, toRef } from 'vue'
-import L from 'leaflet'
+import type L from 'leaflet'
 import { map, currentZoomLevel } from '@composables/core/useMap'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useMapStore } from '@stores/pinia/mapStore'

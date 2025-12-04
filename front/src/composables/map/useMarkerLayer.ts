@@ -80,9 +80,9 @@ export function createMarkerLayer<T extends { id?: string }>(
     const markerColor = config.getColor(item);
     const markerIcon = iconType === 'standalone'
       ? createStandaloneProjectIcon(markerColor)
-      : iconType === 'overlay'
+      : (iconType === 'overlay'
       ? createOverlayIcon(markerColor)
-      : createColorIcon(markerColor);
+      : createColorIcon(markerColor));
 
     // AI : Create marker with default opacity
     const marker = L.marker([latLng.lat, latLng.lng], {

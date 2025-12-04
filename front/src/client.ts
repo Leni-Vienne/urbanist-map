@@ -1,5 +1,5 @@
 import { createTRPCClient, httpBatchLink } from '@trpc/client';
-import { inferRouterOutputs, inferRouterInputs } from '@trpc/server';
+import type { inferRouterOutputs, inferRouterInputs } from '@trpc/server';
 import type { AppRouter } from '../../back/src/routes';
 import superjson from 'superjson';
 
@@ -7,7 +7,7 @@ export type RouterInput = inferRouterInputs<AppRouter>;
 export type RouterOutput = inferRouterOutputs<AppRouter>;
 
 // AI : Get API URL based on environment
-export const getApiUrl = () => {
+export function getApiUrl () {
   return import.meta.env.VITE_API_BASE_URL;
 };
 

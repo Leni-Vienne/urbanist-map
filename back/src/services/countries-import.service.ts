@@ -23,7 +23,7 @@ export class CountriesImportService {
       // AI : Read CSV file from project root
       const csvPath = join(__dirname, '..', '..', '..', 'countries.csv');
       
-      const csvData = readFileSync(csvPath, 'utf-8');
+      const csvData = readFileSync(csvPath, 'utf8');
       const lines = csvData.split('\n').filter(line => line.trim());
       
       if (lines.length === 0) {

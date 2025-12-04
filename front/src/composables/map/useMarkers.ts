@@ -38,11 +38,11 @@ function lightenColor(color: string, amount: number): string {
   const hex = color.slice(1);
   const num = parseInt(hex, 16);
   let r = (num >> 16) + amount;
-  let g = (num >> 8 & 0x00FF) + amount;
-  let b = (num & 0x0000FF) + amount;
-  r = r > 255 ? 255 : r < 0 ? 0 : r;
-  g = g > 255 ? 255 : g < 0 ? 0 : g;
-  b = b > 255 ? 255 : b < 0 ? 0 : b;
+  let g = (num >> 8 & 0x00_FF) + amount;
+  let b = (num & 0x00_00_FF) + amount;
+  r = r > 255 ? 255 : (r < 0 ? 0 : r);
+  g = g > 255 ? 255 : (g < 0 ? 0 : g);
+  b = b > 255 ? 255 : (b < 0 ? 0 : b);
   return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
 }
 

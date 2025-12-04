@@ -27,7 +27,7 @@ export class CitiesImportService {
     try {
       // AI : Read CSV file from project root (one directory up from back folder)
       const csvPath = join(__dirname, '..', '..', '..', 'worldcities.csv');
-      const csvContent = readFileSync(csvPath, 'utf-8');
+      const csvContent = readFileSync(csvPath, 'utf8');
       
       // AI : Parse CSV manually
       const lines = csvContent.split('\n');
@@ -162,7 +162,7 @@ export class CitiesImportService {
       let imported = 0;
       let errors = 0;      // AI : Insert countries
       const insertData = [];
-      for (const [code, data] of Array.from(countryMap.entries())) {
+      for (const [code, data] of [...countryMap.entries()]) {
         try {
           insertData.push({
             code: code,

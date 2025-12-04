@@ -18,7 +18,8 @@
 import { ref, watch, reactive } from 'vue'
 import { switchTileLayer, isTileLayerType } from '@composables/map/useTileLayers'
 import { useProjectFormValidation } from '@composables/forms/useProjectFormValidation'
-import ProjectFormFields, { type ProjectFormData } from './ProjectFormFields.vue'
+import type ProjectFormFields from './ProjectFormFields.vue';
+import { type ProjectFormData } from './ProjectFormFields.vue'
 import type { Project } from '@types'
 
 const props = defineProps<{

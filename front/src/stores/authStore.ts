@@ -197,7 +197,7 @@ export const useAuthStore = defineStore('auth', () => {
             user: null,
             error: 'Google authentication timed out'
           })
-        }, 60000) // 60 second timeout
+        }, 60_000) // 60 second timeout
 
         try {
           window.google.accounts.id.initialize({

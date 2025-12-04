@@ -317,8 +317,8 @@ function openNewProjectDialog() {
     uiStore.openProjectDialog();
     // AI : Also emit event as fallback
     emit('create-project');
-  } catch (err) {
-    console.error('AI: Failed to open project dialog', err);
+  } catch (error) {
+    console.error('AI: Failed to open project dialog', error);
   }
 }
 

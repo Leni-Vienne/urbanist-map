@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import type { Project, Country, MapMode, OverlayObject } from "@types";
 import type { NearbyProject } from "../../types/api";
-import { trpc, RouterOutput } from "@client";
+import { trpc, type RouterOutput } from "@client";
 import { createProjectObjectFromAPI } from "../../utils/typeFactories";
 
 // AI : Type for user contributions from backend
@@ -64,7 +64,7 @@ export const useProjectStore = defineStore("project", () => {
   const citiesCache = ref<
     Map<
       string,
-      Array<RouterOutput["cities"]["getCitiesWithProjects"][number] & { distance: number }>
+      (RouterOutput["cities"]["getCitiesWithProjects"][number] & { distance: number })[]
     >
   >(new Map());
 
@@ -147,7 +147,7 @@ export const useProjectStore = defineStore("project", () => {
     // AI : Find existing project in contributions
     const existingProjectIndex = userContributions.value.findIndex((p) => p.id === project.id);
 
-    if (existingProjectIndex >= 0) {
+    if (existingProjectIndex !== -1) {
       // AI : Project exists, add overlay to its overlays array
       const existingProject = userContributions.value[existingProjectIndex];
       const updatedProject = {
@@ -195,7 +195,7 @@ export const useProjectStore = defineStore("project", () => {
 
     // AI : Check if project already exists
     const existingIndex = userContributions.value.findIndex((p) => p.id === project.id);
-    if (existingIndex >= 0) {
+    if (existingIndex !== -1) {
       // AI : Project already exists, don't add duplicate
       return;
     }
@@ -227,13 +227,13 @@ export const useProjectStore = defineStore("project", () => {
       p.overlays.some((o: UserContributionOverlay) => o.id === overlayId),
     );
 
-    if (projectIndex >= 0) {
+    if (projectIndex !== -1) {
       const project = userContributions.value[projectIndex];
       const overlayIndex = project.overlays.findIndex(
         (o: UserContributionOverlay) => o.id === overlayId,
       );
 
-      if (overlayIndex >= 0) {
+      if (overlayIndex !== -1) {
         const updatedOverlays = replaceAtIndex(project.overlays, overlayIndex, {
           ...project.overlays[overlayIndex],
           ...updates,
@@ -255,7 +255,7 @@ export const useProjectStore = defineStore("project", () => {
     }
 
     const projectIndex = userContributions.value.findIndex((p) => p.id === projectId);
-    if (projectIndex >= 0) {
+    if (projectIndex !== -1) {
       const updatedProject = { ...userContributions.value[projectIndex], ...updates };
       userContributions.value = replaceAtIndex(
         userContributions.value,
@@ -277,7 +277,7 @@ export const useProjectStore = defineStore("project", () => {
       p.overlays.some((o: UserContributionOverlay) => o.id === overlayId),
     );
 
-    if (projectIndex >= 0) {
+    if (projectIndex !== -1) {
       const project = userContributions.value[projectIndex];
       const updatedOverlays = project.overlays.filter(
         (o: UserContributionOverlay) => o.id !== overlayId,
@@ -401,10 +401,10 @@ export const useProjectStore = defineStore("project", () => {
       };
 
       return response.projects;
-    } catch (err) {
-      console.error("Error fetching nearby projects:", err);
+    } catch (error) {
+      console.error("Error fetching nearby projects:", error);
       nearbyProjectsError.value =
-        err instanceof Error ? err.message : "Failed to fetch nearby projects";
+        error instanceof Error ? error.message : "Failed to fetch nearby projects";
       return [];
     } finally {
       nearbyProjectsLoading.value = false;
@@ -452,7 +452,7 @@ export const useProjectStore = defineStore("project", () => {
   function setCachedCities(
     countryCode: string,
     mode: MapMode,
-    cities: Array<RouterOutput["cities"]["getCitiesWithProjects"][number] & { distance: number }>,
+    cities: (RouterOutput["cities"]["getCitiesWithProjects"][number] & { distance: number })[],
   ): void {
     citiesCache.value.set(getCitiesCacheKey(countryCode, mode), cities);
   }

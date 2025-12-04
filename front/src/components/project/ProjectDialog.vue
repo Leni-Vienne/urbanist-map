@@ -40,7 +40,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useI18n } from '@composables/useI18n';
-import CreateProjectForm from '@components/forms/CreateProjectForm.vue';
+import type CreateProjectForm from '@components/forms/CreateProjectForm.vue';
 import type { Project } from '@types';
 
 const props = defineProps<{

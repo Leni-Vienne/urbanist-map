@@ -6,7 +6,7 @@ import { map } from '@composables/core/useMap';
 import { mobileAwareFlyTo } from '@composables/map/useMapNavigation';
 import { loadCityOverlays } from '@composables/map/useCityOverlays';
 import { useSelectedProject } from '@composables/project/useProjectSelection';
-import { RouterOutput, trpc } from '@client';
+import { trpc, type RouterOutput} from '@client';
 
 import { useAuthStore } from '@stores/authStore';
 import { useUiStore } from '@stores/uiStore';

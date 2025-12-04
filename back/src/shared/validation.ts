@@ -12,7 +12,7 @@ const MAX_DIAGONAL_METERS = 1450;
 
 // AI : Calculate distance between two points using Haversine formula (same as PostGIS ST_Distance on geography)
 function calculateDistance(point1: Corner, point2: Corner): number {
-  const R = 6371000; // AI : Earth's radius in meters
+  const R = 6_371_000; // AI : Earth's radius in meters
   const lat1 = (point1.lat * Math.PI) / 180;
   const lat2 = (point2.lat * Math.PI) / 180;
   const deltaLat = ((point2.lat - point1.lat) * Math.PI) / 180;
@@ -61,7 +61,7 @@ export function validateOverlaySize(corners: Corner[]): OverlaySizeValidationRes
 }
 
 // AI : Helper to convert Leaflet LatLng to Corner interface
-export function leafletCornersToCorners(leafletCorners: Array<{ lat: number; lng: number }>): Corner[] {
+export function leafletCornersToCorners(leafletCorners: { lat: number; lng: number }[]): Corner[] {
   return leafletCorners.map(c => ({ lat: c.lat, lng: c.lng }));
 }
 

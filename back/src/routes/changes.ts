@@ -30,7 +30,7 @@ const rejectChangeRequestSchema = z.object({
 
 // AI : Helper function to convert corners JSON array to PostGIS polygon geometry
 function convertCornersToGeometry(cornersValue: unknown) {
-  const cornersArray = cornersValue as Array<{ lat: number; lng: number }>;
+  const cornersArray = cornersValue as { lat: number; lng: number }[];
   if (!Array.isArray(cornersArray) || cornersArray.length !== 4) {
     throw new TRPCError({ 
       code: 'BAD_REQUEST', 

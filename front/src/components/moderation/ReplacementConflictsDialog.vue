@@ -150,7 +150,7 @@ export interface ReplacementConflicts {
   originalOverlayFilename: string;
   newOverlayFilename: string;
   newOverlayCaption: string | null;
-  pendingChangeRequests: Array<{
+  pendingChangeRequests: {
     id: string;
     fieldName: string;
     oldValue: any;
@@ -158,14 +158,14 @@ export interface ReplacementConflicts {
     changeReason: string | null;
     requestedBy: string | null;
     createdAt: Date;
-  }>;
-  competingReplacements: Array<{
+  }[];
+  competingReplacements: {
     id: string;
     filename: string;
     caption: string | null;
     authorId: string | null;
     createdAt: Date;
-  }>;
+  }[];
   hasConflicts: boolean;
 }
 

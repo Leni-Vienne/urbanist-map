@@ -49,7 +49,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useEditableProjectForm } from '@composables/forms/useEditableProjectForm'
-import ProjectFormFields from './ProjectFormFields.vue'
+import type ProjectFormFields from './ProjectFormFields.vue'
 import type { Project } from '@types'
 import type { ProjectFormData } from '../../types/forms'
 

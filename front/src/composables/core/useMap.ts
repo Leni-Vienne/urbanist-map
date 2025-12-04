@@ -9,7 +9,7 @@ const mapSize = ref({ width: 0, height: 0 });
 export const currentZoomLevel = ref<number>(13);
 
 // AI : Create a debounced version of updateMapSize
-const debouncedUpdateMapSize = debounce(function () {
+const debouncedUpdateMapSize = debounce(function  debouncedUpdateMapSize() {
   if (!map.value) return;
   const container = map.value.getContainer();
   mapSize.value = {
