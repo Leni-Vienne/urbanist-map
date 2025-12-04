@@ -22,7 +22,8 @@ interface CSVCity {
 export class CitiesImportService {
   /**
    * AI : Load cities data from CSV file
-   */  private static loadCitiesFromCSV(): CSVCity[] {
+   */  
+  private static loadCitiesFromCSV(): CSVCity[] {
     try {
       // AI : Read CSV file from project root (one directory up from back folder)
       const csvPath = join(__dirname, '..', '..', '..', 'worldcities.csv');

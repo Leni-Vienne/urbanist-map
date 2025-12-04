@@ -141,11 +141,10 @@ import { useAuthStore } from '@stores/authStore'
 import { useModerationStore } from '@stores/pinia/moderationStore'
 import { trpc } from '@client'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
-import ReplacementConflictsDialog from '@components/moderation/ReplacementConflictsDialog.vue'
+import ReplacementConflictsDialog, { type ReplacementConflicts } from '@components/moderation/ReplacementConflictsDialog.vue'
 import ReportUserDialog from '@components/moderation/ReportUserDialog.vue'
 import UserStatsDialog from '@components/moderation/UserStatsDialog.vue'
 import ModerationActionButtons from '@components/moderation/ModerationActionButtons.vue'
-import type { ReplacementConflicts } from '@components/moderation/ReplacementConflictsDialog.vue'
 
 // AI : Use i18n for translations
 const { t } = useI18n()

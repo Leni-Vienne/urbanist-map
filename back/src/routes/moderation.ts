@@ -1238,7 +1238,7 @@ export const moderationRouter = router({
         > = {};
 
         for (const userId of input.userIds) {
-          const count = reportCounts.find((r) => r.reportedUserId === userId);
+          const count = reportCounts.find((report) => report.reportedUserId === userId);
           const totalReports = Number(count?.count ?? 0);
           const reportedByMe = myReportedUserIds.has(userId);
 

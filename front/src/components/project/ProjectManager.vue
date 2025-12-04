@@ -233,7 +233,7 @@ async function handleFileUpload(projectId: string, isReplacement: boolean = fals
   }
 
   const reader = new FileReader()
-  reader.onload = async () => {
+  reader.addEventListener('load', async () => {
     try {
       if (isReplacement && replacementOverlayId.value) {
         // AI : Create replacement overlay using the standard overlay creation process
@@ -270,7 +270,7 @@ async function handleFileUpload(projectId: string, isReplacement: boolean = fals
       // AI : Reset state
       overlayStore.resetReplacement()
     }
-  }
+  })
   reader.readAsDataURL(pendingImageFile.value)
 }
 
