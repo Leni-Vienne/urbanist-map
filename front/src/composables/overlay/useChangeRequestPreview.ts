@@ -16,7 +16,7 @@ import { prepareCountryContext } from "@composables/map/useCountryMarkers";
 import { switchMode } from "@composables/overlay/useOverlayModes";
 import { mobileAwareFlyToBounds } from "@composables/map/useMapNavigation";
 import type { PendingChangeRequest } from "../../types/api";
-import type { OverlayForModeration } from "@types";
+import type { OverlayForModeration, OverlayObject } from "@types";
 import { previewState, clearChangeRequestPreview } from "./changeRequestPreviewState";
 
 // AI : Composable to handle change request position preview
@@ -190,15 +190,63 @@ export function useChangeRequestPreview() {
     return true;
   }
 
+  // AI : Navigate to position with smooth bounds transition
+  function navigateToPosition(
+    targetLatLngs: L.LatLng[],
+    previousBounds: L.LatLngBounds | null,
+    overlayId: string,
+  ): void {
+    if (!map.value) return;
+
+    const newBounds = L.latLngBounds(targetLatLngs);
+
+    // AI : If we have previous bounds, create combined bounds to show both positions
+    // AI : This creates a smooth unzoom effect instead of jarring camera jump
+    const targetBounds = previousBounds ? newBounds.extend(previousBounds) : newBounds;
+
+    mobileAwareFlyToBounds(targetBounds, {
+      padding: [50, 50] as [number, number],
+      duration: 1.5,
+      easeLinearity: 0.25,
+    });
+
+    // AI : Select overlay after flyTo completes
+    map.value.once("moveend", () => {
+      selectOverlayAfterNavigation(overlayId);
+    });
+  }
+
+  // AI : Get target corners based on preview type
+  function getTargetCorners(
+    overlayObject: OverlayObject,
+    type: "old" | "new",
+  ): L.LatLng[] | null {
+    if (type === "new") {
+      // AI : Show suggested position
+      if (!overlayObject.suggestedCorners || overlayObject.suggestedCorners.length !== 4) {
+        console.warn("No suggested corners available for overlay", overlayObject.id);
+        return null;
+      }
+      return overlayObject.suggestedCorners.map(
+        (c: { lat: number; lng: number }) => L.latLng(c.lat, c.lng),
+      );
+    } else {
+      // AI : Show approved position (always in corners field)
+      if (overlayObject.corners.length !== 4) {
+        return null;
+      }
+      return overlayObject.corners.map((c: { lat: number; lng: number }) => L.latLng(c.lat, c.lng));
+    }
+  }
+
   // AI : Apply position preview to loaded overlay
   function applyPositionPreview(
     overlayId: string,
-    corners: LatLng[],
     type: "old" | "new",
     wasAlreadyLoaded: boolean,
   ): void {
     const overlayObject = overlayStore.overlays[overlayId];
-    if (!overlayObject?.overlay || corners.length !== 4) {
+    if (!overlayObject?.overlay) {
       return;
     }
 
@@ -209,74 +257,28 @@ export function useChangeRequestPreview() {
       previousBounds = getOverlayBounds(overlayObject);
     }
 
-    // AI : Consistent naming: corners = ALWAYS approved, suggestedCorners = pending changes
+    // AI : Get target corners based on type
+    const targetLatLngs = getTargetCorners(overlayObject, type);
+    if (!targetLatLngs) {
+      return;
+    }
 
+    // AI : Update overlay state based on type
     if (type === "new") {
-      // AI : Show suggested position
-      if (!overlayObject.suggestedCorners || overlayObject.suggestedCorners.length !== 4) {
-        console.warn("No suggested corners available for overlay", overlayId);
-        return;
-      }
-
-      const suggestedLatLngs = overlayObject.suggestedCorners.map((c) => L.latLng(c.lat, c.lng));
-      overlayObject.overlay.setCorners(suggestedLatLngs);
       overlayObject.hasPendingChanges = true;
       overlayObject.isViewingApprovedPosition = false;
-      updateMarkerPosition(overlayObject);
-      updateMarkerTooltip(overlayObject);
-
-      // AI : Fly to suggested position and select overlay
-      if (wasAlreadyLoaded && map.value) {
-        const newBounds = L.latLngBounds(suggestedLatLngs);
-
-        // AI : If we have previous bounds, create combined bounds to show both positions
-        // AI : This creates a smooth unzoom effect instead of jarring camera jump
-        let targetBounds = newBounds;
-        if (previousBounds) {
-          targetBounds = newBounds.extend(previousBounds);
-        }
-
-        mobileAwareFlyToBounds(targetBounds, {
-          padding: [50, 50] as [number, number],
-          duration: 1.5,
-          easeLinearity: 0.25,
-        });
-
-        // AI : Select overlay after flyTo completes
-        map.value.once("moveend", () => {
-          selectOverlayAfterNavigation(overlayId);
-        });
-      }
     } else {
-      // AI : Show approved position (always in corners field)
-      const approvedLatLngs = overlayObject.corners.map((c) => L.latLng(c.lat, c.lng));
-      overlayObject.overlay.setCorners(approvedLatLngs);
       overlayObject.isViewingApprovedPosition = true;
-      updateMarkerPosition(overlayObject);
-      updateMarkerTooltip(overlayObject);
+    }
 
-      // AI : Fly to approved position and select overlay
-      if (wasAlreadyLoaded && map.value) {
-        const newBounds = L.latLngBounds(approvedLatLngs);
+    // AI : Apply the position change
+    overlayObject.overlay.setCorners(targetLatLngs);
+    updateMarkerPosition(overlayObject);
+    updateMarkerTooltip(overlayObject);
 
-        // AI : If we have previous bounds, create combined bounds to show both positions
-        // AI : This creates a smooth unzoom effect instead of jarring camera jump
-        let targetBounds = newBounds;
-        if (previousBounds) {
-          targetBounds = newBounds.extend(previousBounds);
-        }
-
-        mobileAwareFlyToBounds(targetBounds, {
-          padding: [50, 50] as [number, number],
-          duration: 1.5,
-          easeLinearity: 0.25,
-        });
-
-        // AI : Select overlay after flyTo completes
-        map.value.once("moveend", () => {
-          selectOverlayAfterNavigation(overlayId);
-        });
-      }
+    // AI : Navigate to position if overlay was already loaded
+    if (wasAlreadyLoaded) {
+      navigateToPosition(targetLatLngs, previousBounds, overlayId);
     }
   }
 
@@ -316,7 +318,7 @@ export function useChangeRequestPreview() {
       }
 
       // AI : Step 4: Apply position preview
-      applyPositionPreview(change.entityId, latLngs, type, wasAlreadyLoaded);
+      applyPositionPreview(change.entityId, type, wasAlreadyLoaded);
 
       // AI : Step 5: Update state machine
       if (type === "new") {
