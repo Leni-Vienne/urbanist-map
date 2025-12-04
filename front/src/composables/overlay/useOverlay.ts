@@ -28,6 +28,7 @@ import { toRef } from 'vue';
 import { useProjects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import { trpc } from '@client';
 import { removeStandaloneProjectMarkerForProject, addStandaloneProjectMarkerForProject } from '@composables/map/useStandaloneProjectMarkers';
+import { syncPreviewStateOnNavigation } from '@composables/overlay/changeRequestPreviewState';
 import {
   getFromEditModeOverlayCache,
   saveToEditModeOverlayCache,
@@ -665,6 +666,15 @@ export function selectOverlay(overlayId: string | null): void {
     const newlySelected = overlayStore.overlays[overlayId];
     if (!newlySelected) return;
 
+    // AI : Set position state for dynamic button feedback when selecting overlay
+    // AI : If no explicit position state, default to showing approved position
+    if (newlySelected.isViewingApprovedPosition === undefined) {
+      newlySelected.isViewingApprovedPosition = true;
+    }
+
+    // AI : Sync preview state for reactive button highlighting in change request UI
+    syncPreviewStateOnNavigation(overlayId, newlySelected.isViewingApprovedPosition ?? true);
+
     // AI : Call overlay.select() to show toolbar and handles (single source of truth)
     if (newlySelected.overlay) {
       // AI : Check if overlay element exists and is in the DOM before calling select()
@@ -1002,6 +1012,15 @@ function createSingleMarker(savedOverlay: OverlayObject): void {
   marker.on('click', () => {
     const overlayObject = overlayStore.overlays[savedOverlay.id];
     if (!overlayObject) return;
+
+    // AI : Set position state for dynamic button feedback
+    // AI : If no explicit position state, default to showing approved position
+    if (overlayObject.isViewingApprovedPosition === undefined) {
+      overlayObject.isViewingApprovedPosition = true;
+    }
+
+    // AI : Sync preview state for reactive button highlighting in change request UI
+    syncPreviewStateOnNavigation(savedOverlay.id, overlayObject.isViewingApprovedPosition ?? true);
 
     // AI : Fly to overlay bounds first
     const bounds = getOverlayBounds(overlayObject);
