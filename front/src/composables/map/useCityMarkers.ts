@@ -287,8 +287,9 @@ export async function loadCityProjects(cityId: string | null, cityName: string, 
       }
 
       // AI : Load both overlay projects and standalone projects
+      // AI : Pass isSwitchingCity flag to avoid clearing overlays when navigating within same city
       await Promise.all([
-        loadCityOverlays(cityId, forceFullLoad),
+        loadCityOverlays(cityId, forceFullLoad, isSwitchingCity),
         loadCityStandaloneProjects(cityId)
       ]);
     } else {

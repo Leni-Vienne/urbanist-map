@@ -210,7 +210,8 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
   if (selectedCity && newState.selectedCityId && newState.hasLoadedOverlays && newState.zoomLevel === 'high') {
     await fetchCityProjectsData(newState.selectedCityId)
   } else if (selectedCity && newState.selectedCityId) {
-    await loadCityOverlays(newState.selectedCityId, false)
+    // AI : Not switching cities during mode change, just switching modes
+    await loadCityOverlays(newState.selectedCityId, false, false)
   }
 
   // AI : Execute state transition with side effects
