@@ -337,6 +337,29 @@ export const moderationRouter = router({
         const isAdmin = ctx.user.role === "admin";
         const moderatorId = ctx.user.id;
 
+        // AI : Early permission check - validate country access before any DB queries
+        let effectiveCountryCode = input.countryCode;
+
+        if (!isAdmin && userModeratedCountries && userModeratedCountries.length > 0) {
+          // AI : User is a moderator with assigned countries
+          if (!input.countryCode) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Moderators must select a country to moderate",
+            });
+          }
+
+          // AI : Verify moderator has permission for requested country
+          if (!userModeratedCountries.includes(input.countryCode)) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "You do not have permission to moderate this country",
+            });
+          }
+
+          effectiveCountryCode = input.countryCode;
+        }
+
         // AI : Get users that should be hidden from this moderator
         // AI : Rules: reported by me = hidden for me, 3+ reports = hidden for all
         const allReports = await db
@@ -365,28 +388,6 @@ export const moderationRouter = router({
           if (myReportedUsers.has(userId) || count >= 3) {
             hiddenUserIds.add(userId);
           }
-        }
-
-        let effectiveCountryCode = input.countryCode;
-
-        if (!isAdmin && userModeratedCountries && userModeratedCountries.length > 0) {
-          // AI : User is a moderator with assigned countries
-          if (!input.countryCode) {
-            throw new TRPCError({
-              code: "BAD_REQUEST",
-              message: "Moderators must select a country to moderate",
-            });
-          }
-
-          // AI : Verify moderator has permission for requested country
-          if (!userModeratedCountries.includes(input.countryCode)) {
-            throw new TRPCError({
-              code: "FORBIDDEN",
-              message: "You do not have permission to moderate this country",
-            });
-          }
-
-          effectiveCountryCode = input.countryCode;
         }
 
         // AI : Step 1: Find all project IDs that need moderation (pending projects, pending overlays, pending changes)
