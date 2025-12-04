@@ -9,6 +9,7 @@ import {
   updateMarkerPosition,
   updateMarkerTooltip,
   selectOverlay,
+  getOverlayBounds,
 } from "@composables/overlay/useOverlay";
 import { loadCityProjects } from "@composables/map/useCityMarkers";
 import { prepareCountryContext } from "@composables/map/useCountryMarkers";
@@ -201,6 +202,13 @@ export function useChangeRequestPreview() {
       return;
     }
 
+    // AI : Capture the current bounds BEFORE switching positions
+    // AI : This allows us to show both old and new positions after the switch
+    let previousBounds: L.LatLngBounds | null = null;
+    if (wasAlreadyLoaded) {
+      previousBounds = getOverlayBounds(overlayObject);
+    }
+
     // AI : Consistent naming: corners = ALWAYS approved, suggestedCorners = pending changes
 
     if (type === "new") {
@@ -219,8 +227,16 @@ export function useChangeRequestPreview() {
 
       // AI : Fly to suggested position and select overlay
       if (wasAlreadyLoaded && map.value) {
-        const bounds = L.latLngBounds(suggestedLatLngs);
-        mobileAwareFlyToBounds(bounds, {
+        const newBounds = L.latLngBounds(suggestedLatLngs);
+
+        // AI : If we have previous bounds, create combined bounds to show both positions
+        // AI : This creates a smooth unzoom effect instead of jarring camera jump
+        let targetBounds = newBounds;
+        if (previousBounds) {
+          targetBounds = newBounds.extend(previousBounds);
+        }
+
+        mobileAwareFlyToBounds(targetBounds, {
           padding: [50, 50] as [number, number],
           duration: 1.5,
           easeLinearity: 0.25,
@@ -241,8 +257,16 @@ export function useChangeRequestPreview() {
 
       // AI : Fly to approved position and select overlay
       if (wasAlreadyLoaded && map.value) {
-        const bounds = L.latLngBounds(approvedLatLngs);
-        mobileAwareFlyToBounds(bounds, {
+        const newBounds = L.latLngBounds(approvedLatLngs);
+
+        // AI : If we have previous bounds, create combined bounds to show both positions
+        // AI : This creates a smooth unzoom effect instead of jarring camera jump
+        let targetBounds = newBounds;
+        if (previousBounds) {
+          targetBounds = newBounds.extend(previousBounds);
+        }
+
+        mobileAwareFlyToBounds(targetBounds, {
           padding: [50, 50] as [number, number],
           duration: 1.5,
           easeLinearity: 0.25,
