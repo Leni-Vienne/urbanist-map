@@ -526,6 +526,15 @@ export function useSubmissionService() {
       // AI : Reset modified flag and set pending changes flag after successfully submitting change request
       context.entity.isModified = false;
       context.entity.hasPendingChanges = true;
+
+      // AI : Save suggested corners from the change request so "view suggested position" button works immediately
+      const cornersChange = changes.find(c => c.fieldName === 'corners');
+      if (cornersChange?.newValue) {
+        context.entity.suggestedCorners = cornersChange.newValue as { lat: number; lng: number }[];
+        // AI : Default to viewing approved position (user can toggle to suggested)
+        context.entity.isViewingApprovedPosition = true;
+      }
+
       updateMarkerTooltip(context.entity);
 
       // AI : Invalidate all mode caches for this city (change affects all modes)
