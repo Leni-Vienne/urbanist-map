@@ -1,7 +1,7 @@
-import { adminProcedure, protectedProcedure, router } from '../trpc';
+import { adminProcedure, moderatorProcedure, protectedProcedure, router } from '../trpc';
 import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
-import { projects, overlays, changeRequests, changeHistory, users } from '../db/schema';
-import { eq, and, inArray, sql } from 'drizzle-orm';
+import { projects, overlays, changeRequests, changeHistory, users, cities } from '../db/schema';
+import { eq, and, inArray, sql, or } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { db } from '../database';
 import { addConflictFlags, enrichChangeRequestsWithNames } from '../db/helpers';
@@ -78,6 +78,73 @@ function buildUpdateData(change: { entityType: string; fieldName: string; newVal
 
   // AI : For non-geometry fields, use the value directly
   return { [change.fieldName]: change.newValue };
+}
+
+// AI : Helper to get country code for an entity (project or overlay)
+async function getEntityCountryCode(
+  entityType: 'project' | 'overlay',
+  entityId: string
+): Promise<string | undefined> {
+  // AI : Build query based on entity type - projects join city directly, overlays via projects
+  const query = entityType === 'project'
+    ? db
+        .select({ countryCode: cities.countryCode })
+        .from(projects)
+        .innerJoin(cities, eq(projects.cityId, cities.id))
+        .where(eq(projects.id, entityId))
+    : db
+        .select({ countryCode: cities.countryCode })
+        .from(overlays)
+        .innerJoin(projects, eq(overlays.projectId, projects.id))
+        .innerJoin(cities, eq(projects.cityId, cities.id))
+        .where(eq(overlays.id, entityId));
+
+  const result = await query.limit(1);
+  return result[0]?.countryCode;
+}
+
+// AI : Helper to check if moderator has permission for a change request's country
+async function checkModeratorChangeRequestPermission(
+  changeRequestId: string,
+  user: { role: string | null; moderatedCountries: string[] | null },
+): Promise<string> {
+  // AI : Admins can moderate any country
+  if (user.role === "admin" || user.moderatedCountries === null) {
+    return "*";
+  }
+
+  // AI : Get the change request and its entity's country code
+  const changeRequest = await db
+    .select({
+      entityType: changeRequests.entityType,
+      entityId: changeRequests.entityId,
+    })
+    .from(changeRequests)
+    .where(eq(changeRequests.id, changeRequestId))
+    .limit(1);
+
+  if (changeRequest.length === 0) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Change request not found" });
+  }
+
+  const { entityType, entityId } = changeRequest[0];
+
+  // AI : Get country code for the entity
+  const countryCode = await getEntityCountryCode(entityType as 'project' | 'overlay', entityId);
+
+  if (!countryCode) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Entity not found" });
+  }
+
+  // AI : Check if moderator has permission for this country
+  if (!user.moderatedCountries.includes(countryCode)) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "You do not have permission to moderate content in this country",
+    });
+  }
+
+  return countryCode;
 }
 
 // AI : Common select fields for change requests with user info
@@ -202,11 +269,20 @@ export const changesRouter = router({
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Must be logged in to view change requests' });
         }
 
+        // AI : Only show pending/conflicted change requests (not approved/rejected)
         const myChanges = await db
           .select(changeRequestSelectFields)
           .from(changeRequests)
           .leftJoin(users, eq(changeRequests.requestedBy, users.id))
-          .where(eq(changeRequests.requestedBy, userId))
+          .where(
+            and(
+              eq(changeRequests.requestedBy, userId),
+              or(
+                eq(changeRequests.status, 'pending'),
+                eq(changeRequests.status, 'conflicted')
+              )
+            )
+          )
           .orderBy(changeRequests.createdAt);
 
         // AI : Add hasConflict field to maintain type consistency with getPendingChangeRequests
@@ -227,9 +303,12 @@ export const changesRouter = router({
       }
     }),
 
-  getPendingChangeRequests: adminProcedure
-    .query(async () => {
+  getPendingChangeRequests: moderatorProcedure
+    .query(async ({ ctx }) => {
       try {
+        const userModeratedCountries = ctx.user.moderatedCountries;
+        const isAdmin = ctx.user.role === "admin";
+
         // AI : Only show 'pending' changes to moderators
         // AI : 'conflicted' status means "another change was chosen" (soft rejection by moderator)
         const pendingChanges = await db
@@ -239,8 +318,36 @@ export const changesRouter = router({
           .where(eq(changeRequests.status, 'pending'))
           .orderBy(changeRequests.createdAt);
 
+        // AI : Filter change requests by moderator's assigned countries
+        let filteredChanges = pendingChanges;
+        if (!isAdmin && userModeratedCountries && userModeratedCountries.length > 0) {
+          // AI : Get country codes for all change requests
+          const changeRequestCountries = await Promise.all(
+            pendingChanges.map(async (change) => {
+              try {
+                const countryCode = await getEntityCountryCode(
+                  change.entityType as 'project' | 'overlay',
+                  change.entityId
+                );
+                return { changeId: change.id, countryCode };
+              } catch {
+                return { changeId: change.id, countryCode: undefined };
+              }
+            })
+          );
+
+          // AI : Filter to only changes in moderator's countries
+          const allowedChangeIds = new Set(
+            changeRequestCountries
+              .filter((c) => c.countryCode && userModeratedCountries.includes(c.countryCode))
+              .map((c) => c.changeId)
+          );
+
+          filteredChanges = pendingChanges.filter((change) => allowedChangeIds.has(change.id));
+        }
+
         // AI : Add hasConflict flag to changes that have competing requests
-        const changesWithConflictInfo = addConflictFlags(pendingChanges);
+        const changesWithConflictInfo = addConflictFlags(filteredChanges);
 
         // AI : Enrich with city and country names
         const enrichedChanges = await enrichChangeRequestsWithNames(changesWithConflictInfo);
@@ -252,7 +359,7 @@ export const changesRouter = router({
       }
     }),
 
-  approveChangeRequests: adminProcedure
+  approveChangeRequests: moderatorProcedure
     .input(approveChangeRequestSchema)
     .mutation(async ({ input, ctx }) => {
       try {
@@ -260,9 +367,14 @@ export const changesRouter = router({
           return { success: true };
         }
 
-        const adminUserId = ctx.user?.id;
-        if (!adminUserId) {
-          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Admin access required' });
+        const moderatorUserId = ctx.user?.id;
+        if (!moderatorUserId) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Moderator access required' });
+        }
+
+        // AI : Check moderator has permission for all change requests
+        for (const changeRequestId of input.changeRequestIds) {
+          await checkModeratorChangeRequestPermission(changeRequestId, ctx.user);
         }
 
         const changesToApprove = await db
@@ -295,7 +407,7 @@ export const changesRouter = router({
               oldValue: change.oldValue,
               newValue: change.newValue,
               changedBy: change.requestedBy,
-              approvedBy: adminUserId,
+              approvedBy: moderatorUserId,
             });
 
             // AI : Mark this change as approved instead of deleting
@@ -304,7 +416,7 @@ export const changesRouter = router({
               .set({
                 status: 'approved',
                 resolvedAt: new Date(),
-                resolvedBy: adminUserId,
+                resolvedBy: moderatorUserId,
               })
               .where(eq(changeRequests.id, change.id));
 
@@ -324,7 +436,7 @@ export const changesRouter = router({
               .set({
                 status: 'conflicted',
                 resolvedAt: new Date(),
-                resolvedBy: adminUserId,
+                resolvedBy: moderatorUserId,
               })
               .where(
                 and(
@@ -345,7 +457,7 @@ export const changesRouter = router({
       }
     }),
 
-  rejectChangeRequests: adminProcedure
+  rejectChangeRequests: moderatorProcedure
     .input(rejectChangeRequestSchema)
     .mutation(async ({ input, ctx }) => {
       try {
@@ -353,9 +465,14 @@ export const changesRouter = router({
           return { success: true };
         }
 
-        const adminUserId = ctx.user?.id;
-        if (!adminUserId) {
-          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Admin access required' });
+        const moderatorUserId = ctx.user?.id;
+        if (!moderatorUserId) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Moderator access required' });
+        }
+
+        // AI : Check moderator has permission for all change requests
+        for (const changeRequestId of input.changeRequestIds) {
+          await checkModeratorChangeRequestPermission(changeRequestId, ctx.user);
         }
 
         // AI : Get the requestedBy for each change request to increment their rejection counts
@@ -372,7 +489,7 @@ export const changesRouter = router({
             .set({
               status: 'rejected',
               resolvedAt: new Date(),
-              resolvedBy: adminUserId,
+              resolvedBy: moderatorUserId,
             })
             .where(inArray(changeRequests.id, input.changeRequestIds));
 
