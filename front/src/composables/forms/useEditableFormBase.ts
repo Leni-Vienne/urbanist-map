@@ -126,6 +126,38 @@ export function useEditableFormBase<TFormData extends Record<string, any>>(
     })
   }
 
+  // AI : Generic submit handler that can be extended by specific forms
+  async function createSubmitHandler(
+    handlePendingUpdate: (changes: FieldChange[]) => Promise<void>,
+    validateFn?: () => boolean
+  ) {
+    return async () => {
+      if (!hasChanges.value) return
+
+      try {
+        isSubmitting.value = true
+
+        if (validateFn && !validateFn()) return
+
+        const changes = getChangesToSubmit()
+
+        if (options.entityStatus === 'pending') {
+          await handlePendingUpdate(changes)
+        } else {
+          await handleApprovedEntityUpdate(changes)
+        }
+
+        options.onSubmitted?.()
+        options.onClose?.()
+      } catch (error) {
+        console.error('Failed to submit changes:', error)
+        showErrorToast()
+      } finally {
+        isSubmitting.value = false
+      }
+    }
+  }
+
   return {
     // State
     formData,
@@ -143,6 +175,7 @@ export function useEditableFormBase<TFormData extends Record<string, any>>(
     formatValue,
     getFieldClasses,
     handleApprovedEntityUpdate,
-    showErrorToast
+    showErrorToast,
+    createSubmitHandler
   }
 }

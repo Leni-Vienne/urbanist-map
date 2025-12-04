@@ -20,12 +20,7 @@ export interface EditableProjectFormOptions {
   onClose?: () => void
 }
 
-export function useEditableProjectForm(options: EditableProjectFormOptions) {
-  const projectStore = useProjectStore()
-  const toast = useToast()
-  const { t } = useI18n()
-
-  // AI : Custom comparator for Date handling in project forms
+// AI : Custom comparator for Date handling in project forms
   function projectComparator(_fieldName: keyof ProjectFormData, original: any, current: any): boolean {
     // AI : Handle Date objects by comparing their time values
     if (original instanceof Date && current instanceof Date) {
@@ -39,6 +34,11 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
 
     return original !== current
   }
+
+export function useEditableProjectForm(options: EditableProjectFormOptions) {
+  const projectStore = useProjectStore()
+  const toast = useToast()
+  const { t } = useI18n()
 
   // AI : Use base composable for common form logic with custom Date comparator
   const base = useEditableFormBase<ProjectFormData>(
@@ -163,7 +163,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     })
   }
 
-  // AI : Submit changes directly for pending entities or as change requests for approved entities
+  // AI : Submit changes with local-only handling and validation
   async function submitChanges() {
     if (!base.hasChanges.value) return
 
@@ -172,14 +172,16 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
 
       if (!validateProjectName()) return
 
-      const changes = base.getChangesToSubmit()
-
       if (options.localOnly) {
         handleLocalOnlyUpdate()
-      } else if (options.entityStatus === 'pending') {
-        await handlePendingProjectUpdate()
       } else {
-        await base.handleApprovedEntityUpdate(changes)
+        const changes = base.getChangesToSubmit()
+
+        if (options.entityStatus === 'pending') {
+          await handlePendingProjectUpdate()
+        } else {
+          await base.handleApprovedEntityUpdate(changes)
+        }
       }
 
       options.onSubmitted?.()
@@ -193,21 +195,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
   }
 
   return {
-    // State
-    formData: base.formData,
-    originalData: base.originalData,
-    changeReason: base.changeReason,
-    isSubmitting: base.isSubmitting,
-
-    // Computed
-    hasChanges: base.hasChanges,
-
-    // Methods
-    hasChanged: base.hasChanged,
-    resetChanges: base.resetChanges,
-    getChangesToSubmit: base.getChangesToSubmit,
-    formatValue: base.formatValue,
-    getFieldClasses: base.getFieldClasses,
+    ...base,
     submitChanges
   }
 }

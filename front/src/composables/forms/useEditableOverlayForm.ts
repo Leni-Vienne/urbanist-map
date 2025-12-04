@@ -52,47 +52,11 @@ export function useEditableOverlayForm(options: EditableOverlayFormOptions) {
     })
   }
 
-  // AI : Submit changes directly for pending entities or as change requests for approved entities
-  async function submitChanges() {
-    if (!base.hasChanges.value) return
-
-    try {
-      base.isSubmitting.value = true
-
-      const changes = base.getChangesToSubmit()
-
-      if (options.entityStatus === 'pending') {
-        await handlePendingOverlayUpdate(changes)
-      } else {
-        await base.handleApprovedEntityUpdate(changes)
-      }
-
-      options.onSubmitted?.()
-      options.onClose?.()
-    } catch (error) {
-      console.error('Failed to submit changes:', error)
-      base.showErrorToast()
-    } finally {
-      base.isSubmitting.value = false
-    }
-  }
+  // AI : Create submit handler using base composable
+  const submitChanges = base.createSubmitHandler(handlePendingOverlayUpdate)
 
   return {
-    // State
-    formData: base.formData,
-    originalData: base.originalData,
-    changeReason: base.changeReason,
-    isSubmitting: base.isSubmitting,
-
-    // Computed
-    hasChanges: base.hasChanges,
-
-    // Methods
-    hasChanged: base.hasChanged,
-    resetChanges: base.resetChanges,
-    getChangesToSubmit: base.getChangesToSubmit,
-    formatValue: base.formatValue,
-    getFieldClasses: base.getFieldClasses,
+    ...base,
     submitChanges
   }
 }
