@@ -17,19 +17,31 @@
           @mousedown="handleMouseDown"
         >
           <!-- AI : Slot for content above drawer (e.g., mode controls) -->
-          <div class="drawer-above-content" :style="{ bottom: aboveContentBottom }">
+          <div
+            class="drawer-above-content"
+            :style="{ bottom: aboveContentBottom }"
+          >
             <slot name="above"></slot>
           </div>
 
           <!-- AI : Drag handle at the top -->
-          <div class="drawer-handle" @click.stop>
+          <div
+            class="drawer-handle"
+            @click.stop
+          >
             <div class="handle-bar"></div>
           </div>
 
           <!-- AI : Header -->
-          <div class="drawer-header" :class="{ 'drawer-header--compact': isCompact }">
+          <div
+            class="drawer-header"
+            :class="{ 'drawer-header--compact': isCompact }"
+          >
             <slot name="header">
-              <h3 class="drawer-title" :class="{ 'drawer-title--compact': isCompact }">{{ header }}</h3>
+              <h3
+                class="drawer-title"
+                :class="{ 'drawer-title--compact': isCompact }"
+              >{{ header }}</h3>
             </slot>
           </div>
 
@@ -83,12 +95,12 @@ const minHeightPercent = computed(() => {
 const aboveContentBottom = computed(() => {
   const drawerHeightPx = (currentHeight.value / 100) * viewportHeight.value
   const MIN_FROM_BOTTOM = 110 // AI : Minimum pixels from viewport bottom
-  
+
   // AI : If drawer is below 100px, clamp above-content to stay at 110px from bottom
   if (drawerHeightPx < MIN_FROM_BOTTOM) {
     return `${MIN_FROM_BOTTOM}px`
   }
-  
+
   // AI : Otherwise, position normally above drawer
   return '100%'
 })
@@ -151,7 +163,7 @@ function handleTouchMove(e: TouchEvent) {
 
   const newHeight = Math.min(MAX_HEIGHT_PERCENT, startHeight.value + deltaPercent)
   currentHeight.value = newHeight
-  
+
   // AI : Emit updates during drag for continuous reactivity
   emit('update:heightPercent', newHeight)
   emit('heightChanged', newHeight)
@@ -175,7 +187,7 @@ function handleMouseDown(e: MouseEvent) {
   startHeight.value = currentHeight.value
   viewportHeight.value = window.innerHeight
 
-  const handleMouseMove = (moveEvent: MouseEvent) => {
+  function handleMouseMove(moveEvent: MouseEvent) {
     if (!isDragging.value) return
 
     const deltaY = startY.value - moveEvent.clientY
@@ -183,13 +195,13 @@ function handleMouseDown(e: MouseEvent) {
 
     const newHeight = Math.min(MAX_HEIGHT_PERCENT, startHeight.value + deltaPercent)
     currentHeight.value = newHeight
-    
+
     // AI : Emit updates during drag for continuous reactivity
     emit('update:heightPercent', newHeight)
     emit('heightChanged', newHeight)
   }
 
-  const handleMouseUp = () => {
+  function handleMouseUp() {
     if (!isDragging.value) return
 
     isDragging.value = false
@@ -217,7 +229,7 @@ onMounted(() => {
   currentHeight.value = props.heightPercent
   viewportHeight.value = window.innerHeight
 
-  const handleResize = () => {
+  function handleResize() {
     viewportHeight.value = window.innerHeight
   }
 

@@ -1,164 +1,164 @@
-import { defineStore } from 'pinia'
-import { ref, shallowRef } from 'vue'
-import type L from 'leaflet'
-import type { OverlayObject, OverlayData, MapMode } from '@types'
-import type { LatestContribution } from '../../types/api'
+import { defineStore } from "pinia";
+import { ref, shallowRef } from "vue";
+import type L from "leaflet";
+import type { OverlayObject, OverlayData, MapMode } from "@types";
+import type { LatestContribution } from "../../types/api";
 
-export const useOverlayStore = defineStore('overlay', () => {
+export const useOverlayStore = defineStore("overlay", () => {
   // AI : Central store for overlay data
-  const overlays = shallowRef<Record<string, OverlayObject>>({})
-  const idSelectedOverlay = ref<string | null>(null)
+  const overlays = shallowRef<Record<string, OverlayObject>>({});
+  const idSelectedOverlay = ref<string | null>(null);
 
   // AI : Tracking of all markers, even for images not currently loaded
-  const allMarkers = shallowRef<Record<string, L.Marker>>({})
+  const allMarkers = shallowRef<Record<string, L.Marker>>({});
 
   // AI : Map mode state (view, edit, or moderation)
-  const mode = ref<MapMode>('view')
-  const isTogglingMode = ref(false)
+  const mode = ref<MapMode>("view");
+  const isTogglingMode = ref(false);
 
   // AI : Edit mode overlay cache - stores overlay modifications for persistence across zoom changes
-  type EditModeCache = { corners: { lat: number, lng: number }[], isModified: boolean }
-  const editModeOverlayCache = ref<Map<string, EditModeCache>>(new Map())
+  type EditModeCache = { corners: { lat: number; lng: number }[]; isModified: boolean };
+  const editModeOverlayCache = ref<Map<string, EditModeCache>>(new Map());
 
   // AI : Overlay data for different modes
-  const viewModeOverlays = ref<OverlayData[]>([])
-  const loadedEditOverlays = ref<Set<string>>(new Set())
-  const overlaysLoading = ref(false)
-  const overlaysError = ref<string | null>(null)
+  const viewModeOverlays = ref<OverlayData[]>([]);
+  const loadedEditOverlays = ref<Set<string>>(new Set());
+  const overlaysLoading = ref(false);
+  const overlaysError = ref<string | null>(null);
 
   // AI : Latest contributions cache (overlays + standalone projects) - simple loaded flag
-  const latestContributions = ref<LatestContribution[]>([])
-  const latestContributionsLoading = ref(false)
-  const latestContributionsLoaded = ref(false)
+  const latestContributions = ref<LatestContribution[]>([]);
+  const latestContributionsLoading = ref(false);
+  const latestContributionsLoaded = ref(false);
 
   // AI : UI state
-  const replacementOverlayId = ref<string | null>(null)
-  const pendingImageFile = ref<File | null>(null)
-  const showInfoPopup = ref(false)
-  const infoPopupOverlayId = ref<string | null>(null)
+  const replacementOverlayId = ref<string | null>(null);
+  const pendingImageFile = ref<File | null>(null);
+  const showInfoPopup = ref(false);
+  const infoPopupOverlayId = ref<string | null>(null);
 
   // AI : Basic actions
-  const setViewModeOverlays = (overlayData: OverlayData[]) => {
-    viewModeOverlays.value = overlayData
-    overlaysError.value = null
+  function setViewModeOverlays(overlayData: OverlayData[]) {
+    viewModeOverlays.value = overlayData;
+    overlaysError.value = null;
   }
 
-  const clearViewModeOverlays = () => {
-    viewModeOverlays.value = []
-    overlaysError.value = null
+  function clearViewModeOverlays() {
+    viewModeOverlays.value = [];
+    overlaysError.value = null;
   }
 
-  const setOverlaysLoading = (loading: boolean) => {
-    overlaysLoading.value = loading
+  function setOverlaysLoading(loading: boolean) {
+    overlaysLoading.value = loading;
   }
 
-  const setOverlaysError = (error: string | null) => {
-    overlaysError.value = error
+  function setOverlaysError(error: string | null) {
+    overlaysError.value = error;
   }
 
   // AI : Latest contributions actions
-  const setLatestContributions = (contributions: LatestContribution[]) => {
-    latestContributions.value = contributions
-    latestContributionsLoaded.value = true
+  function setLatestContributions(contributions: LatestContribution[]) {
+    latestContributions.value = contributions;
+    latestContributionsLoaded.value = true;
   }
 
-  const setLatestContributionsLoading = (loading: boolean) => {
-    latestContributionsLoading.value = loading
+  function setLatestContributionsLoading(loading: boolean) {
+    latestContributionsLoading.value = loading;
   }
 
   // AI : Reset latest contributions cache to force refresh on next load
-  const resetLatestContributions = () => {
-    latestContributionsLoaded.value = false
+  function resetLatestContributions() {
+    latestContributionsLoaded.value = false;
   }
 
-  const addEditModeOverlay = (overlayId: string) => {
-    loadedEditOverlays.value.add(overlayId)
+  function addEditModeOverlay(overlayId: string) {
+    loadedEditOverlays.value.add(overlayId);
   }
 
-  const removeEditModeOverlay = (overlayId: string) => {
-    loadedEditOverlays.value.delete(overlayId)
+  function removeEditModeOverlay(overlayId: string) {
+    loadedEditOverlays.value.delete(overlayId);
   }
 
-  const clearEditModeMarkersAndState = () => {
+  function clearEditModeMarkersAndState() {
     // AI : Clear state
-    loadedEditOverlays.value.clear()
+    loadedEditOverlays.value.clear();
   }
 
-  const setMode = (newMode: MapMode) => {
-    mode.value = newMode
+  function setMode(newMode: MapMode) {
+    mode.value = newMode;
   }
 
   // AI : Edit mode cache management
   function saveToEditModeCache(overlayId: string, data: EditModeCache) {
-    editModeOverlayCache.value.set(overlayId, data)
+    editModeOverlayCache.value.set(overlayId, data);
   }
 
   function getFromEditModeCache(overlayId: string): EditModeCache | undefined {
-    return editModeOverlayCache.value.get(overlayId)
+    return editModeOverlayCache.value.get(overlayId);
   }
 
   function clearEditModeCache() {
-    editModeOverlayCache.value.clear()
+    editModeOverlayCache.value.clear();
   }
 
   // AI : Update overlay in store with proper reactivity for shallowRef
   function updateOverlay(overlayId: string, updates: Partial<OverlayObject>) {
-    const current = overlays.value[overlayId]
-    if (current == null) return
+    const current = overlays.value[overlayId];
+    if (current == null) return;
 
     // AI : Create new object with updates to trigger reactivity
     overlays.value = {
       ...overlays.value,
-      [overlayId]: { ...current, ...updates }
-    }
+      [overlayId]: { ...current, ...updates },
+    };
   }
 
-  const handleFileSelected = (file: File) => {
-    pendingImageFile.value = file
+  function handleFileSelected(file: File) {
+    pendingImageFile.value = file;
   }
 
-  const clearPendingFile = () => {
-    pendingImageFile.value = null
+  function clearPendingFile() {
+    pendingImageFile.value = null;
   }
 
-  const requestOverlayReplacement = (overlayId: string) => {
-    replacementOverlayId.value = overlayId
+  function requestOverlayReplacement(overlayId: string) {
+    replacementOverlayId.value = overlayId;
   }
 
-  const resetReplacement = () => {
-    replacementOverlayId.value = null
-    clearPendingFile()
+  function resetReplacement() {
+    replacementOverlayId.value = null;
+    clearPendingFile();
   }
 
-  const showInfoPopupForOverlay = (overlayId: string) => {
-    infoPopupOverlayId.value = overlayId
-    showInfoPopup.value = true
+  function showInfoPopupForOverlay(overlayId: string) {
+    infoPopupOverlayId.value = overlayId;
+    showInfoPopup.value = true;
   }
 
-  const hideInfoPopup = () => {
-    showInfoPopup.value = false
-    infoPopupOverlayId.value = null
+  function hideInfoPopup() {
+    showInfoPopup.value = false;
+    infoPopupOverlayId.value = null;
   }
 
-  const toggleInfoPopup = () => {
+  function toggleInfoPopup() {
     if (showInfoPopup.value) {
-      hideInfoPopup()
+      hideInfoPopup();
     } else if (idSelectedOverlay.value != null) {
-      showInfoPopupForOverlay(idSelectedOverlay.value)
+      showInfoPopupForOverlay(idSelectedOverlay.value);
     }
   }
 
-  const resetAllUIStates = () => {
-    hideInfoPopup()
-    resetReplacement()
+  function resetAllUIStates() {
+    hideInfoPopup();
+    resetReplacement();
   }
 
-  const closeAllUIElements = () => {
-    hideInfoPopup()
+  function closeAllUIElements() {
+    hideInfoPopup();
     // AI : Don't reset replacement (which clears pendingImageFile) if we have a pending file
     // AI : This preserves the file during dialog navigation in overlay import flow
     if (!pendingImageFile.value) {
-      resetReplacement()
+      resetReplacement();
     }
   }
 
@@ -206,6 +206,6 @@ export const useOverlayStore = defineStore('overlay', () => {
     hideInfoPopup,
     toggleInfoPopup,
     resetAllUIStates,
-    closeAllUIElements
-  }
-})
+    closeAllUIElements,
+  };
+});

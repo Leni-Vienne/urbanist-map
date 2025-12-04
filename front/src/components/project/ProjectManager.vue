@@ -220,7 +220,7 @@ async function onProjectSelected(projectId: string) {
 }
 
 // AI : Handle file upload by user
-async function handleFileUpload(projectId: string, isReplacement: boolean = false) {
+async function handleFileUpload(projectId: string, isReplacement = false) {
   if (!pendingImageFile.value) {
       console.warn('No image file to upload')
     toast.add({
@@ -295,7 +295,7 @@ function onMarkerModeEnabled() {
   if (!map.value) return;
 
   // AI : Add temporary click listener for marker placement
-  const handleMapClick = (e: L.LeafletMouseEvent) => {
+  function handleMapClick(e: L.LeafletMouseEvent) {
     const coordinates = { lat: e.latlng.lat, lng: e.latlng.lng };
 
     // AI : Remove previous temp marker if exists

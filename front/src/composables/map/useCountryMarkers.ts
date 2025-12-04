@@ -37,7 +37,7 @@ const isLoadingCountryProjects = ref(false);
 
 let countryMarkersLayer: L.LayerGroup | null = null;
 
-export async function loadCountriesWithProjects(force: boolean = false): Promise<void> {
+export async function loadCountriesWithProjects(force = false): Promise<void> {
   const overlayStore = useOverlayStore();
   const projectStore = useProjectStore();
 

@@ -269,7 +269,7 @@ export const citiesRouter = router({
           });
 
           // AI : In moderation mode, count change requests per overlay
-          let allChangeRequestCounts: Map<string, number> = new Map();
+          let allChangeRequestCounts = new Map<string, number>();
           if (mode === 'moderation') {
             changeRequestsByOverlay.forEach((requests, overlayId) => {
               allChangeRequestCounts.set(overlayId, requests.length);

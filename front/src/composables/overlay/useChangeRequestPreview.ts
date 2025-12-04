@@ -1,5 +1,4 @@
-import L from "leaflet";
-import type { LatLng } from "leaflet";
+import L, { type LatLng } from "leaflet";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { useToast } from "@composables/ui/useToast";
