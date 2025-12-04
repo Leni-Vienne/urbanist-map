@@ -56,7 +56,7 @@ export async function fetchCityProjectsData(cityId: string): Promise<OverlayData
 /**
  * AI : Load projects for a specific city and display overlays on map
  */
-export async function loadCityOverlays(cityId: string, forceFullLoad = false): Promise<void | null> {
+export async function loadCityOverlays(cityId: string, forceFullLoad = false, isSwitchingCity = true): Promise<void | null> {
   return withErrorHandling(
     async () => {
       const mapStore = useMapStore();
@@ -75,7 +75,8 @@ export async function loadCityOverlays(cityId: string, forceFullLoad = false): P
 
       if (hasCachedData && shouldShowFullOverlays) {
         // AI : We have cached data and zoom is high enough - show full overlays immediately
-        renderFullOverlaysFromCache(cityId);
+        // AI : Only clear overlays if switching cities to prevent glitches
+        renderFullOverlaysFromCache(cityId, isSwitchingCity);
         return;
       } else if (hasCachedData && !shouldShowFullOverlays) {
         // AI : We have cached data but zoom is too low - show markers only
@@ -86,16 +87,18 @@ export async function loadCityOverlays(cityId: string, forceFullLoad = false): P
       // AI : No cached data - need to fetch from API
       // AI : If zoom is too low and not forcing full load, show overlay markers only
       if (currentZoom < MIN_ZOOM_FOR_OVERLAYS && !forceFullLoad) {
-        await showOverlayMarkers(cityId);
+        await showOverlayMarkers(cityId, isSwitchingCity);
         return;
       }
 
       // AI : Load full overlays
       isLoadingCityProjects.value = true;
 
-      // AI : Clear any existing overlays and markers before loading new city
-      clearAllOverlays();
-      removeOverlayMarkers();
+      // AI : Only clear existing overlays and markers when switching cities to prevent glitches
+      if (isSwitchingCity) {
+        clearAllOverlays();
+        removeOverlayMarkers();
+      }
 
       // AI : Clear view mode overlays state using store
       overlayStore.clearViewModeOverlays();
@@ -180,15 +183,17 @@ function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void {
   }
 }
 
-async function showOverlayMarkers(cityId: string): Promise<void> {
+async function showOverlayMarkers(cityId: string, isSwitchingCity = true): Promise<void> {
   return withErrorHandling(
     async () => {
       const mapStore = useMapStore();
       isLoadingCityProjects.value = true;
 
-      // AI : Clear any existing overlays and markers before loading new city
-      clearAllOverlays();
-      removeOverlayMarkers();
+      // AI : Only clear existing overlays and markers when switching cities to prevent glitches
+      if (isSwitchingCity) {
+        clearAllOverlays();
+        removeOverlayMarkers();
+      }
 
       // AI : Get overlays data (cached or fresh)
       const overlaysData = await fetchCityProjectsData(cityId);
@@ -224,7 +229,7 @@ export function removeOverlayMarkers(): void {
 /**
  * AI : Render full overlays from cached data for current mode
  */
-function renderFullOverlaysFromCache(cityId: string) {
+function renderFullOverlaysFromCache(cityId: string, isSwitchingCity = true) {
   const mapStore = useMapStore();
   const overlayStore = useOverlayStore();
   const overlaysData = mapStore.getCityOverlaysAndProjectsCache(cityId, overlayStore.mode);
@@ -234,9 +239,11 @@ function renderFullOverlaysFromCache(cityId: string) {
 
   void withErrorHandling(
     () => {
-      // AI : Clear any existing overlays and markers before loading
-      clearAllOverlays();
-      removeOverlayMarkers();
+      // AI : Only clear existing overlays and markers when switching cities to prevent glitches
+      if (isSwitchingCity) {
+        clearAllOverlays();
+        removeOverlayMarkers();
+      }
 
       // AI : Clear view mode overlays state using store
       const overlayStore = useOverlayStore();
