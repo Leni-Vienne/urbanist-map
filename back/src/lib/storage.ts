@@ -164,10 +164,6 @@ export class R2StorageS3 implements StorageInterface {
             await thumbnailS3file.write(thumbnailBuffer, {
                 type: 'image/webp',
             });
-
-            // AI : Verify thumbnail was uploaded successfully by checking its size
-            // AI : Prevents race condition where frontend tries to load thumbnail before it's fully available
-            await thumbnailS3file.size;
         } catch (error) {
             // AI : Re-throw thumbnail errors to prevent returning success when thumbnail creation fails
             // AI : This ensures frontend won't try to display a non-existent thumbnail
@@ -180,15 +176,9 @@ export class R2StorageS3 implements StorageInterface {
         try {
             // AI : Get lazy reference to S3 file
             const s3file = this.client.file(filename);
-            
-            // AI : Check if file exists by attempting to get size
-            // AI : S3File extends Blob, so we can check if it's accessible
-            try {
-                await s3file.size;
-            } catch {
-                return null;
-            }
 
+            // AI : S3File extends Blob and lazily fetches on first access
+            // AI : If file doesn't exist, accessing properties will throw
             return {
                 body: s3file.stream(),
                 contentType: s3file.type ?? 'application/octet-stream'

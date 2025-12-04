@@ -83,10 +83,19 @@ export const projectRouter = router({
         };
 
         if (input.id) {
-          // AI : Check if project exists and validate permissions
-          const existingProject = await db.select().from(projects).where(eq(projects.id, input.id)).limit(1);
+          // AI : Capture projectId in const for type narrowing inside transaction
+          const projectId = input.id;
 
-          if (existingProject.length > 0) {
+          // AI : Use transaction to prevent race conditions between validation and update
+          // AI : This ensures status/ownership checks remain valid when update executes
+          const result = await db.transaction(async (tx) => {
+            // AI : Check if project exists and validate permissions
+            const existingProject = await tx.select().from(projects).where(eq(projects.id, projectId)).limit(1);
+
+            if (existingProject.length === 0) {
+              return null;
+            }
+
             const project = existingProject[0];
 
             // AI : Security check - only owner can modify their project
@@ -106,7 +115,7 @@ export const projectRouter = router({
             }
 
             // AI : Allow updates only for pending/rejected projects owned by user
-            const result = await db
+            const updateResult = await tx
               .update(projects)
               .set({
                 name: data.name,
@@ -123,12 +132,16 @@ export const projectRouter = router({
                 version: sql`${projects.version} + 1`,
                 updatedAt: new Date()
               })
-              .where(eq(projects.id, input.id))
+              .where(eq(projects.id, projectId))
               .returning();
 
+            return updateResult[0];
+          });
+
+          if (result) {
             return {
               success: true,
-              id: result[0].id,
+              id: result.id,
               exists: true
             };
           }
@@ -165,45 +178,62 @@ export const projectRouter = router({
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Must be logged in to delete project' });
         }
 
-        // AI : Get project to check permissions and status
-        const project = await db
-          .select({
-            id: projects.id,
-            ownerId: projects.ownerId,
-            status: projects.status,
-            name: projects.name
-          })
-          .from(projects)
-          .where(eq(projects.id, input.id))
-          .limit(1);
+        // AI : Use transaction to ensure atomic deletion of project and overlays
+        // AI : This prevents partial deletes and race conditions
+        const projectOverlays = await db.transaction(async (tx) => {
+          // AI : Get project to check permissions and status
+          const project = await tx
+            .select({
+              id: projects.id,
+              ownerId: projects.ownerId,
+              status: projects.status,
+              name: projects.name
+            })
+            .from(projects)
+            .where(eq(projects.id, input.id))
+            .limit(1);
 
-        if (project.length === 0) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Project not found' });
-        }
+          if (project.length === 0) {
+            throw new TRPCError({ code: 'NOT_FOUND', message: 'Project not found' });
+          }
 
-        // AI : Only owner can delete their own project
-        if (project[0].ownerId !== userId) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Not authorized to delete this project' });
-        }
+          // AI : Only owner can delete their own project
+          if (project[0].ownerId !== userId) {
+            throw new TRPCError({ code: 'FORBIDDEN', message: 'Not authorized to delete this project' });
+          }
 
-        // AI : Only pending projects can be deleted
-        if (project[0].status !== 'pending') {
-          throw new TRPCError({
-            code: 'BAD_REQUEST',
-            message: 'Can only delete pending projects'
-          });
-        }
+          // AI : Only pending projects can be deleted
+          if (project[0].status !== 'pending') {
+            throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: 'Can only delete pending projects'
+            });
+          }
 
-        // AI : Get all overlays for this project to delete their images
-        const projectOverlays = await db
-          .select({
-            id: overlays.id,
-            filename: overlays.filename
-          })
-          .from(overlays)
-          .where(eq(overlays.projectId, input.id));
+          // AI : Get all overlays for this project to delete their images later
+          const overlaysToDelete = await tx
+            .select({
+              id: overlays.id,
+              filename: overlays.filename
+            })
+            .from(overlays)
+            .where(eq(overlays.projectId, input.id));
 
-        // AI : Delete all overlay images first
+          // AI : Delete all overlays from database first (foreign key constraint)
+          if (overlaysToDelete.length > 0) {
+            await tx.delete(overlays).where(eq(overlays.projectId, input.id));
+          }
+
+          // AI : Delete project from database
+          await tx.delete(projects).where(eq(projects.id, input.id));
+
+          // AI : Return overlays to delete images after transaction commits
+          return overlaysToDelete;
+        });
+
+        // AI : Delete all overlay images AFTER transaction commits
+        // AI : This prevents holding transaction open during slow I/O operations
+        // AI : If image deletion fails, DB is still consistent (orphaned images are less critical)
         for (const overlay of projectOverlays) {
           try {
             await deleteLocalImages(overlay.filename, 'both');
@@ -212,14 +242,6 @@ export const projectRouter = router({
             console.error(`Failed to delete images for overlay ${overlay.id}:`, imageError);
           }
         }
-
-        // AI : Delete all overlays from database
-        if (projectOverlays.length > 0) {
-          await db.delete(overlays).where(eq(overlays.projectId, input.id));
-        }
-
-        // AI : Delete project from database
-        await db.delete(projects).where(eq(projects.id, input.id));
 
         return { success: true };
       } catch (error) {

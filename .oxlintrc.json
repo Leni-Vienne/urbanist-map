@@ -8,15 +8,16 @@
   //"plugins": ["unicorn", "typescript", "oxc"],
   "categories": {
     "suspicious": "off",
-    "correctness": "off",
-    //"perf": "warn",
+    "correctness": "warn",
+    "perf": "warn",
     "nursery": "warn",
     //"style": "warn",
     //"restriction": "warn",
     //"pedantic": "warn"
   },
   "rules": {
-    "eslint/no-undef": "off" // warns about console, document, etc. in front-end code
+    "eslint/no-undef": "off", // warns about console, document, etc. in front-end code
+    "eslint/no-await-in-loop": "off" // false positives in several places
   }
   /*"rules": {
     "typescript/await-thenable": "warn",
