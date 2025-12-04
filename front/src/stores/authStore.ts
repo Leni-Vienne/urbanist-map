@@ -17,7 +17,7 @@ interface User {
 // AI : Helper function to load Google Identity Services script
 async function loadGoogleIdentityScript() {
   return new Promise<void>((resolve, reject) => {
-    if (window.google) {
+    if (globalThis.google) {
       resolve()
       return
     }
@@ -176,12 +176,12 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       // AI : Load Google Identity Services script if not already loaded
-      if (!window.google) {
+      if (!globalThis.google) {
         await loadGoogleIdentityScript()
       }
 
       return await new Promise((resolve) => {
-        if (!window.google) {
+        if (!globalThis.google) {
           resolve({
             success: false,
             user: null,
@@ -200,7 +200,7 @@ export const useAuthStore = defineStore('auth', () => {
         }, 60_000) // 60 second timeout
 
         try {
-          window.google.accounts.id.initialize({
+          globalThis.google.accounts.id.initialize({
             client_id: clientId,
             callback: async (response: { credential: string }) => {
               clearTimeout(timeout)
@@ -251,7 +251,7 @@ export const useAuthStore = defineStore('auth', () => {
 
           // AI : Prompt may fail silently or be blocked, catch and handle gracefully
           // @ts-ignore - Google Identity Services types may be incomplete
-          window.google.accounts.id.prompt((notification: any) => {
+          globalThis.google.accounts.id.prompt((notification: any) => {
             // AI : Handle prompt cancellation or dismissal
             if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.()) {
               clearTimeout(timeout)

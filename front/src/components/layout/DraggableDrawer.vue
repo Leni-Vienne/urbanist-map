@@ -151,7 +151,7 @@ function handleTouchStart(e: TouchEvent) {
   isDragging.value = true
   startY.value = e.touches[0].clientY
   startHeight.value = currentHeight.value
-  viewportHeight.value = window.innerHeight
+  viewportHeight.value = globalThis.innerHeight
 }
 
 function handleTouchMove(e: TouchEvent) {
@@ -185,7 +185,7 @@ function handleMouseDown(e: MouseEvent) {
   isDragging.value = true
   startY.value = e.clientY
   startHeight.value = currentHeight.value
-  viewportHeight.value = window.innerHeight
+  viewportHeight.value = globalThis.innerHeight
 
   function handleMouseMove(moveEvent: MouseEvent) {
     if (!isDragging.value) return
@@ -227,16 +227,16 @@ function finalizePosition() {
 // AI : Initialize height on mount
 onMounted(() => {
   currentHeight.value = props.heightPercent
-  viewportHeight.value = window.innerHeight
+  viewportHeight.value = globalThis.innerHeight
 
   function handleResize() {
-    viewportHeight.value = window.innerHeight
+    viewportHeight.value = globalThis.innerHeight
   }
 
-  window.addEventListener('resize', handleResize)
+  globalThis.addEventListener('resize', handleResize)
 
   onUnmounted(() => {
-    window.removeEventListener('resize', handleResize)
+    globalThis.removeEventListener('resize', handleResize)
   })
 })
 </script>

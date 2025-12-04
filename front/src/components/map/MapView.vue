@@ -161,7 +161,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   // AI : Clean up event listeners
-  window.removeEventListener('keydown', handleKeyDown, true);
+  globalThis.removeEventListener('keydown', handleKeyDown, true);
 });
 
 
@@ -187,7 +187,7 @@ async function initializeMapAndOverlays() {
     await initializeCountryMarkers(); // AI : Initialize country markers by default
     initializeOverlayModes(); // AI : Initialize overlay mode system and zoom watcher
     setupMapClickToDeselect(); // AI : Setup click handler to deselect overlays when clicking map background
-    window.addEventListener('keydown', handleKeyDown, true);
+    globalThis.addEventListener('keydown', handleKeyDown, true);
     disableLeafletKeyboardEvents();
 
   } catch (error) {

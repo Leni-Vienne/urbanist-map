@@ -177,7 +177,7 @@ async function toggleCompletionFilter(color: viewModeMarkerColor) {
 function zoomWithMobileOffset(zoomDelta: number) {
   if (!map.value) return
 
-  const isMobile = window.innerWidth <= 768
+  const isMobile = globalThis.innerWidth <= 768
   const uiStore = useUiStore()
   const shouldOffset = isMobile && uiStore.mobileDrawerVisible
 
@@ -196,8 +196,8 @@ function zoomWithMobileOffset(zoomDelta: number) {
   // AI : then zoom to that point so it stays in the same visible position
 
   // AI : The visual center is at 27.5% from top (middle of the 55% visible area)
-  const visualCenterY = window.innerHeight * 0.275
-  const screenCenterX = window.innerWidth / 2
+  const visualCenterY = globalThis.innerHeight * 0.275
+  const screenCenterX = globalThis.innerWidth / 2
 
   // AI : Get the lat/lng at the visual center point
   const visualCenterPoint = L.point(screenCenterX, visualCenterY)
