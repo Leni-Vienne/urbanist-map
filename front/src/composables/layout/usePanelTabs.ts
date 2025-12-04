@@ -8,17 +8,6 @@ import type { MapMode } from '@types'
 export type PanelTab = 'latest' | 'uploads' | 'moderation'
 
 /**
- * AI : Composable for managing panel tabs and mode synchronization
- * AI : Shared between SideMenu.vue and MobileDrawer.vue
- */
-export function usePanelTabs(initialTab: Ref<PanelTab>) {
-  const authStore = useAuthStore()
-  const overlayStore = useOverlayStore()
-
-  // AI : Flag to prevent infinite loops when syncing tab and mode
-  let isSyncing = false
-
-  /**
    * AI : Map tab to overlay mode
    */
   function tabToMode(tab: PanelTab): MapMode {
@@ -39,6 +28,17 @@ export function usePanelTabs(initialTab: Ref<PanelTab>) {
       case 'moderation': return 'moderation'
     }
   }
+
+/**
+ * AI : Composable for managing panel tabs and mode synchronization
+ * AI : Shared between SideMenu.vue and MobileDrawer.vue
+ */
+export function usePanelTabs(initialTab: Ref<PanelTab>) {
+  const authStore = useAuthStore()
+  const overlayStore = useOverlayStore()
+
+  // AI : Flag to prevent infinite loops when syncing tab and mode
+  let isSyncing = false
 
   /**
    * AI : Watch activeTab and switch mode with full state machine transition

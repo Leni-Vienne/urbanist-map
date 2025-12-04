@@ -33,6 +33,22 @@ async function loadGoogleIdentityScript() {
     document.head.appendChild(script)
   })
 }
+
+  // AI : Get authorization header for API calls (cookies are handled automatically)
+  function getAuthHeader() {
+    return null // AI : No need for auth headers with cookie-based auth
+  }
+
+  // AI : Get last login method for a given email (for UX hint)
+  function getLastLoginMethod(email: string): 'email' | 'google' | null {
+    try {
+      const method = localStorage.getItem(`lastLoginMethod:${email}`)
+      return method as 'email' | 'google' | null
+    } catch {
+      return null
+    }
+  }
+
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const loading = ref(true)
@@ -345,21 +361,6 @@ export const useAuthStore = defineStore('auth', () => {
         success: false,
         error:  error instanceof Error ? error.message : 'Password reset failed'
       }
-    }
-  }
-
-  // AI : Get authorization header for API calls (cookies are handled automatically)
-  function getAuthHeader() {
-    return null // AI : No need for auth headers with cookie-based auth
-  }
-
-  // AI : Get last login method for a given email (for UX hint)
-  function getLastLoginMethod(email: string): 'email' | 'google' | null {
-    try {
-      const method = localStorage.getItem(`lastLoginMethod:${email}`)
-      return method as 'email' | 'google' | null
-    } catch {
-      return null
     }
   }
 

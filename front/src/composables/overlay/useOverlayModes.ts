@@ -336,7 +336,6 @@ async function waitForOverlayRendered(
     if (overlayObject?.corners && overlayObject.corners.length === 4) {
       return overlayObject
     }
-
     // AI : Wait for next frame before checking again
     await new Promise(resolve => requestAnimationFrame(resolve))
   }

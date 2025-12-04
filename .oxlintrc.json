@@ -1,8 +1,22 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "ignorePatterns": ["useOverlay.ts", "**/*tests*/**"],
-  "rules": {
-     "typescript/await-thenable": "warn",
+  "ignorePatterns": [
+    "useOverlay.ts",
+    "**/*tests*/**"
+  ],
+  // Enable all of these plugins (which are enabled by default):
+  //"plugins": ["unicorn", "typescript", "oxc"],
+  "categories": {
+    "suspicious": "warn",
+    "correctness": "off",
+    //"perf": "warn",
+    //"nursery": "warn",
+    //"style": "warn",
+    //"restriction": "warn",
+    //"pedantic": "warn"
+  },
+  /*"rules": {
+    "typescript/await-thenable": "warn",
     "typescript/no-array-delete": "error",
     "typescript/no-base-to-string": "error",
     "typescript/no-confusing-void-expression": "error",
@@ -42,5 +56,5 @@
     "typescript/switch-exhaustiveness-check": "error",
     "typescript/unbound-method": "error",
     "typescript/use-unknown-in-catch-callback-variable": "error"
-  }
+  }*/
 }

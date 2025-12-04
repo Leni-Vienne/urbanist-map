@@ -1,13 +1,13 @@
-import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
-import type { Project, Country, MapMode, OverlayObject } from '@types';
-import type { NearbyProject } from '../../types/api';
-import { trpc, RouterOutput } from '@client';
-import { createProjectObjectFromAPI } from '../../utils/typeFactories';
+import { defineStore } from "pinia";
+import { ref, computed } from "vue";
+import type { Project, Country, MapMode, OverlayObject } from "@types";
+import type { NearbyProject } from "../../types/api";
+import { trpc, RouterOutput } from "@client";
+import { createProjectObjectFromAPI } from "../../utils/typeFactories";
 
 // AI : Type for user contributions from backend
-type UserContribution = RouterOutput['project']['getUsersContributions']['projects'][number];
-type UserContributionOverlay = UserContribution['overlays'][number];
+type UserContribution = RouterOutput["project"]["getUsersContributions"]["projects"][number];
+type UserContributionOverlay = UserContribution["overlays"][number];
 
 // AI : Helper function to replace an item in an array immutably at a given index
 function replaceAtIndex<T>(arr: T[], index: number, newItem: T): T[] {
@@ -32,9 +32,9 @@ function extractCityMetadata(project: Project) {
 function createOverlayMetadata(overlay: OverlayObject, project: Project, filename: string) {
   return {
     id: overlay.id,
-    name: overlay.caption ?? 'Unnamed',
+    name: overlay.caption ?? "Unnamed",
     filename: filename,
-    status: 'pending' as const,
+    status: "pending" as const,
     version: 1,
     projectId: project.id,
     authorId: overlay.authorId ?? null,
@@ -49,14 +49,24 @@ function createOverlayMetadata(overlay: OverlayObject, project: Project, filenam
   };
 }
 
-export const useProjectStore = defineStore('project', () => {
+// AI : Cities cache management (separate cache per mode)
+function getCitiesCacheKey(countryCode: string, mode: MapMode): string {
+  return `${countryCode}:${mode}`;
+}
+
+export const useProjectStore = defineStore("project", () => {
   // AI : Central store for project data to avoid circular dependencies
   const projects = ref<Record<string, Project>>({});
   const selectedProjectId = ref<string | null>(null);
   const countries = ref<Country[]>([]);
 
   // AI : Cache for cities by country and mode (key format: "countryCode:mode")
-  const citiesCache = ref<Map<string, Array<RouterOutput['cities']['getCitiesWithProjects'][number] & { distance: number }>>>(new Map());
+  const citiesCache = ref<
+    Map<
+      string,
+      Array<RouterOutput["cities"]["getCitiesWithProjects"][number] & { distance: number }>
+    >
+  >(new Map());
 
   // AI : Cache countries separately per mode
   const countriesCache = ref<Map<MapMode, Country[]>>(new Map());
@@ -84,7 +94,7 @@ export const useProjectStore = defineStore('project', () => {
   function cacheCityName(cityId: string, cityName: string) {
     cityNamesCache.value = {
       ...cityNamesCache.value,
-      [cityId]: cityName
+      [cityId]: cityName,
     };
   }
 
@@ -100,12 +110,12 @@ export const useProjectStore = defineStore('project', () => {
     return combined;
   });
 
-  // AI : Writable computed for selected project ID  
+  // AI : Writable computed for selected project ID
   const selectedProjectIdRef = computed({
     get: () => selectedProjectId.value,
     set: (value: string | null) => {
       selectedProjectId.value = value;
-    }
+    },
   });
 
   // AI : User contributions actions
@@ -124,28 +134,33 @@ export const useProjectStore = defineStore('project', () => {
   }
 
   // AI : Optimistically add new overlay to user contributions without backend fetch
-  function addOverlayToUserContributions(overlay: OverlayObject, project: Project, filename: string) {
+  function addOverlayToUserContributions(
+    overlay: OverlayObject,
+    project: Project,
+    filename: string,
+  ) {
     if (!userContributionsLoaded.value) {
       // AI : If contributions not loaded yet, skip optimistic update
       return;
     }
 
     // AI : Find existing project in contributions
-    const existingProjectIndex = userContributions.value.findIndex(p => p.id === project.id);
+    const existingProjectIndex = userContributions.value.findIndex((p) => p.id === project.id);
 
     if (existingProjectIndex >= 0) {
       // AI : Project exists, add overlay to its overlays array
       const existingProject = userContributions.value[existingProjectIndex];
       const updatedProject = {
         ...existingProject,
-        overlays: [
-          ...existingProject.overlays,
-          createOverlayMetadata(overlay, project, filename)
-        ],
+        overlays: [...existingProject.overlays, createOverlayMetadata(overlay, project, filename)],
         overlayCount: existingProject.overlayCount + 1,
       };
 
-      userContributions.value = replaceAtIndex(userContributions.value, existingProjectIndex, updatedProject);
+      userContributions.value = replaceAtIndex(
+        userContributions.value,
+        existingProjectIndex,
+        updatedProject,
+      );
     } else {
       // AI : Project doesn't exist in contributions, add both project and overlay
       // AI : Skip if project is local-only (not yet submitted)
@@ -179,7 +194,7 @@ export const useProjectStore = defineStore('project', () => {
     }
 
     // AI : Check if project already exists
-    const existingIndex = userContributions.value.findIndex(p => p.id === project.id);
+    const existingIndex = userContributions.value.findIndex((p) => p.id === project.id);
     if (existingIndex >= 0) {
       // AI : Project already exists, don't add duplicate
       return;
@@ -199,24 +214,36 @@ export const useProjectStore = defineStore('project', () => {
   }
 
   // AI : Update pending overlay in user contributions (for caption/field updates)
-  function updateOverlayInUserContributions(overlayId: string, updates: Partial<UserContributionOverlay>) {
+  function updateOverlayInUserContributions(
+    overlayId: string,
+    updates: Partial<UserContributionOverlay>,
+  ) {
     if (!userContributionsLoaded.value) {
       return;
     }
 
     // AI : Find project containing this overlay
-    const projectIndex = userContributions.value.findIndex(p =>
-      p.overlays.some((o: UserContributionOverlay) => o.id === overlayId)
+    const projectIndex = userContributions.value.findIndex((p) =>
+      p.overlays.some((o: UserContributionOverlay) => o.id === overlayId),
     );
 
     if (projectIndex >= 0) {
       const project = userContributions.value[projectIndex];
-      const overlayIndex = project.overlays.findIndex((o: UserContributionOverlay) => o.id === overlayId);
+      const overlayIndex = project.overlays.findIndex(
+        (o: UserContributionOverlay) => o.id === overlayId,
+      );
 
       if (overlayIndex >= 0) {
-        const updatedOverlays = replaceAtIndex(project.overlays, overlayIndex, { ...project.overlays[overlayIndex], ...updates });
+        const updatedOverlays = replaceAtIndex(project.overlays, overlayIndex, {
+          ...project.overlays[overlayIndex],
+          ...updates,
+        });
         const updatedProject = { ...project, overlays: updatedOverlays };
-        userContributions.value = replaceAtIndex(userContributions.value, projectIndex, updatedProject);
+        userContributions.value = replaceAtIndex(
+          userContributions.value,
+          projectIndex,
+          updatedProject,
+        );
       }
     }
   }
@@ -227,10 +254,14 @@ export const useProjectStore = defineStore('project', () => {
       return;
     }
 
-    const projectIndex = userContributions.value.findIndex(p => p.id === projectId);
+    const projectIndex = userContributions.value.findIndex((p) => p.id === projectId);
     if (projectIndex >= 0) {
       const updatedProject = { ...userContributions.value[projectIndex], ...updates };
-      userContributions.value = replaceAtIndex(userContributions.value, projectIndex, updatedProject);
+      userContributions.value = replaceAtIndex(
+        userContributions.value,
+        projectIndex,
+        updatedProject,
+      );
     }
   }
 
@@ -242,13 +273,15 @@ export const useProjectStore = defineStore('project', () => {
     }
 
     // AI : Find project containing this overlay
-    const projectIndex = userContributions.value.findIndex(p =>
-      p.overlays.some((o: UserContributionOverlay) => o.id === overlayId)
+    const projectIndex = userContributions.value.findIndex((p) =>
+      p.overlays.some((o: UserContributionOverlay) => o.id === overlayId),
     );
 
     if (projectIndex >= 0) {
       const project = userContributions.value[projectIndex];
-      const updatedOverlays = project.overlays.filter((o: UserContributionOverlay) => o.id !== overlayId);
+      const updatedOverlays = project.overlays.filter(
+        (o: UserContributionOverlay) => o.id !== overlayId,
+      );
 
       // AI : If no overlays left and user doesn't own project, remove entire project
       if (updatedOverlays.length === 0 && project.ownerId !== currentUserId) {
@@ -260,7 +293,11 @@ export const useProjectStore = defineStore('project', () => {
           overlays: updatedOverlays,
           overlayCount: updatedOverlays.length,
         };
-        userContributions.value = replaceAtIndex(userContributions.value, projectIndex, updatedProject);
+        userContributions.value = replaceAtIndex(
+          userContributions.value,
+          projectIndex,
+          updatedProject,
+        );
       }
     }
   }
@@ -271,7 +308,7 @@ export const useProjectStore = defineStore('project', () => {
       return;
     }
 
-    userContributions.value = userContributions.value.filter(p => p.id !== projectId);
+    userContributions.value = userContributions.value.filter((p) => p.id !== projectId);
   }
 
   // AI : Update project in store with proper reactivity
@@ -286,19 +323,21 @@ export const useProjectStore = defineStore('project', () => {
 
     // AI : Save original backend version before first modification (for change detection)
     // AI : This applies to both approved and pending projects
-    if (!originalBackendProjects.value[projectId] &&
-        (current.status === 'approved' || current.status === 'pending') &&
-        !current.isModified) {
+    if (
+      !originalBackendProjects.value[projectId] &&
+      (current.status === "approved" || current.status === "pending") &&
+      !current.isModified
+    ) {
       originalBackendProjects.value = {
         ...originalBackendProjects.value,
-        [projectId]: { ...current }
+        [projectId]: { ...current },
       };
     }
 
     // AI : Create new object with updates to trigger reactivity
     projects.value = {
       ...projects.value,
-      [projectId]: { ...current, ...updates }
+      [projectId]: { ...current, ...updates },
     };
   }
 
@@ -309,7 +348,7 @@ export const useProjectStore = defineStore('project', () => {
     if (project) {
       originalBackendProjects.value = {
         ...originalBackendProjects.value,
-        [projectId]: { ...project }
+        [projectId]: { ...project },
       };
     }
   }
@@ -317,7 +356,11 @@ export const useProjectStore = defineStore('project', () => {
   // AI : Fetch nearby projects with smart caching to avoid redundant API calls
   // AI : Cache is valid for 5 minutes and invalidated if map moves >11km from cached position
   // AI : Accepts coordinates as parameters to avoid circular dependency with useMap composable
-  async function fetchNearbyProjects(lat: number, lng: number, force = false): Promise<NearbyProject[]> {
+  async function fetchNearbyProjects(
+    lat: number,
+    lng: number,
+    force = false,
+  ): Promise<NearbyProject[]> {
     try {
       const now = Date.now();
 
@@ -354,13 +397,14 @@ export const useProjectStore = defineStore('project', () => {
       nearbyProjectsLastFetch.value = {
         lat,
         lng,
-        timestamp: now
+        timestamp: now,
       };
 
       return response.projects;
     } catch (err) {
-      console.error('Error fetching nearby projects:', err);
-      nearbyProjectsError.value = err instanceof Error ? err.message : 'Failed to fetch nearby projects';
+      console.error("Error fetching nearby projects:", err);
+      nearbyProjectsError.value =
+        err instanceof Error ? err.message : "Failed to fetch nearby projects";
       return [];
     } finally {
       nearbyProjectsLoading.value = false;
@@ -401,25 +445,24 @@ export const useProjectStore = defineStore('project', () => {
     }
   }
 
-  // AI : Cities cache management (separate cache per mode)
-  function getCitiesCacheKey(countryCode: string, mode: MapMode): string {
-    return `${countryCode}:${mode}`
-  }
-
   function getCachedCities(countryCode: string, mode: MapMode) {
-    return citiesCache.value.get(getCitiesCacheKey(countryCode, mode)) ?? null
+    return citiesCache.value.get(getCitiesCacheKey(countryCode, mode)) ?? null;
   }
 
-  function setCachedCities(countryCode: string, mode: MapMode, cities: Array<RouterOutput['cities']['getCitiesWithProjects'][number] & { distance: number }>): void {
-    citiesCache.value.set(getCitiesCacheKey(countryCode, mode), cities)
+  function setCachedCities(
+    countryCode: string,
+    mode: MapMode,
+    cities: Array<RouterOutput["cities"]["getCitiesWithProjects"][number] & { distance: number }>,
+  ): void {
+    citiesCache.value.set(getCitiesCacheKey(countryCode, mode), cities);
   }
 
   function hasCachedCities(countryCode: string, mode: MapMode): boolean {
-    return citiesCache.value.has(getCitiesCacheKey(countryCode, mode))
+    return citiesCache.value.has(getCitiesCacheKey(countryCode, mode));
   }
 
   function clearCitiesCache(): void {
-    citiesCache.value.clear()
+    citiesCache.value.clear();
   }
 
   // AI : Countries cache management - store and retrieve countries per mode
@@ -491,6 +534,6 @@ export const useProjectStore = defineStore('project', () => {
     getCachedCountries,
     setCachedCountries,
     hasCachedCountries,
-    clearCountriesCache
+    clearCountriesCache,
   };
-})
+});

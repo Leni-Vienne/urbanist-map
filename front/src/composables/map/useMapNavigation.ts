@@ -220,7 +220,7 @@ export function mobileAwareFlyToBounds(
  * @param duration - Animation duration in seconds (default: 1.5)
  */
 export function flyToCountry(
-  countryCode: string,
+  countryCode: keyof typeof countryBboxes,
   fallbackLat?: number,
   fallbackLng?: number,
   fallbackZoom = 6,
@@ -228,7 +228,7 @@ export function flyToCountry(
 ) {
   if (!map.value) return;
 
-  const bbox = countryBboxes[countryCode as keyof typeof countryBboxes];
+  const bbox = countryBboxes[countryCode];
 
   if (bbox) {
     // AI : bbox format is [minLng, minLat, maxLng, maxLat]

@@ -16,6 +16,12 @@ import { withErrorHandling } from '@composables/core/useErrorHandling';
 import type { Country, City } from '@types';
 import { MARKER_OPACITY } from '@constants/markerConstants';
 import { createMarkerLayer, type MarkerLayerConfig } from '@composables/map/useMarkerLayer';
+import countryBboxes from '@assets/country_bboxes.json';
+
+// AI : Type guard to validate country code against countryBboxes keys
+function isValidCountryCode(code: string): code is keyof typeof countryBboxes {
+  return code in countryBboxes;
+}
 
 // AI : Function to get countries when needed
 function getCountries() {
@@ -195,7 +201,9 @@ export function addCountryMarkersToMap() {
       }
 
       // AI : Fly to the country using bounding box
-      flyToCountry(country.code, country.lat, country.lng);
+      if (isValidCountryCode(country.code)) {
+        flyToCountry(country.code, country.lat, country.lng);
+      }
 
       // AI : Prepare country context (switch tile layer, clear map, load cities, add city markers)
       await prepareCountryContext(country.code);

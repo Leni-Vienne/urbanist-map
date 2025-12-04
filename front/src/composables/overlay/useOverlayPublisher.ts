@@ -12,6 +12,15 @@ import { validateOverlaySize, leafletCornersToCorners } from '../../../../back/s
 import { useI18n } from 'vue-i18n';
 import { ApprovalStatus } from '../../../../back/src/shared/types';
 
+// AI : Extract corners from overlay object, falling back to stored corners if needed
+function getCornersFromOverlay(overlay: OverlayObject) {
+  if (overlay.overlay) {
+    return overlay.overlay.getCorners();
+  }
+  console.log("Corners undefined, using stored corners");
+  return overlay.corners;
+}
+
 export function useOverlayPublisher() {
   const isPublishing = ref(false);
   const projectStore = useProjectStore();
@@ -20,14 +29,6 @@ export function useOverlayPublisher() {
   const { projects } = storeToRefs(projectStore);
   const { overlays, idSelectedOverlay } = storeToRefs(overlayStore);
   const { t } = useI18n();
-
-  function getCornersFromOverlay(overlay: OverlayObject) {
-    if (overlay.overlay) {
-      return overlay.overlay.getCorners();
-    }
-    console.log("Corners undefined, using stored corners");
-    return overlay.corners;
-  }
 
   // AI : Validate if overlay can be published
   function validateOverlayForPublishing(overlay: OverlayObject, project: Project | null): boolean {

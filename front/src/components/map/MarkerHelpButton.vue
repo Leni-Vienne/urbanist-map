@@ -19,6 +19,12 @@ import { mobileAwareFlyTo, flyToCountry } from '@composables/map/useMapNavigatio
 import { useMapStore } from '@stores/pinia/mapStore'
 import { useUiStore } from '@stores/uiStore'
 import { useI18n } from 'vue-i18n'
+import countryBboxes from '@assets/country_bboxes.json'
+
+// AI : Type guard to validate country code against countryBboxes keys
+function isValidCountryCode(code: string): code is keyof typeof countryBboxes {
+  return code in countryBboxes
+}
 
 const { t } = useI18n()
 const visible = ref(false)
@@ -157,7 +163,7 @@ function handleClick() {
     // AI : For country markers, use bounding box if available
     if (buttonType.value === 'country') {
       const countryCode = markerToClick.getAttribute('data-country-code')
-      if (countryCode) {
+      if (countryCode && isValidCountryCode(countryCode)) {
         flyToCountry(countryCode, lat, lng)
       }
     } else {

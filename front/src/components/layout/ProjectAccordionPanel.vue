@@ -491,7 +491,7 @@ const groupedByCountry = computed(() => {
     cityGroup.projects.push(project);
   }
 
-  const sorted = Array.from(countryMap.values()).sort((a, b) =>
+  const sorted = Array.from(countryMap.values()).toSorted((a, b) =>
     a.countryName.localeCompare(b.countryName)
   );
 
