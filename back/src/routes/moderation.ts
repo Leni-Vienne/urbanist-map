@@ -563,18 +563,20 @@ export const moderationRouter = router({
           reportCountMap.set(row.reportedUserId, Number(row.count));
         }
 
-        const projectsWithOverlays = filteredProjects.map((project) => ({
-          ...project,
-          ownerReportCount: project.ownerId ? (reportCountMap.get(project.ownerId) ?? 0) : 0,
-          overlays: filteredOverlays.filter((overlay) => overlay.projectId === project.id),
-        }));
+        const projectsWithOverlays = filteredProjects.map((project) =>
+          Object.assign(project, {
+            ownerReportCount: project.ownerId ? (reportCountMap.get(project.ownerId) ?? 0) : 0,
+            overlays: filteredOverlays.filter((overlay) => overlay.projectId === project.id),
+          }),
+        );
 
         const overlaysWithReports = filteredOverlays
           .filter((overlay) => overlay.status === "pending")
-          .map((overlay) => ({
-            ...overlay,
-            authorReportCount: overlay.authorId ? (reportCountMap.get(overlay.authorId) ?? 0) : 0,
-          }));
+          .map((overlay) =>
+            Object.assign(overlay, {
+              authorReportCount: overlay.authorId ? (reportCountMap.get(overlay.authorId) ?? 0) : 0,
+            }),
+          );
 
         // AI : Enrich change requests with city and country names
         const enrichedChangeRequests = await enrichChangeRequestsWithNames(filteredChangeRequests);

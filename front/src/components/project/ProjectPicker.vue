@@ -195,15 +195,16 @@ const projectList = computed(() => {
   if (props.useCityProjects) {
     // AI : Return grouped or flat list depending on view mode
     if (useGroupedView.value) {
-      return cityProjectsByCity.value.map(group => ({
-        ...group,
-        items: group.items.filter(project => {
-          // AI : Include projects that have overlays
-          // AI : Check overlayIds from Project type
-          const overlayCount = project.overlayIds?.length ?? 0
-          return overlayCount > 0
+      return cityProjectsByCity.value.map(group =>
+        Object.assign({}, group, {
+          items: group.items.filter(project => {
+            // AI : Include projects that have overlays
+            // AI : Check overlayIds from Project type
+            const overlayCount = project.overlayIds?.length ?? 0
+            return overlayCount > 0
+          })
         })
-      })).filter(group => group.items.length > 0);
+      ).filter(group => group.items.length > 0);
     } else {
       return cityProjectsData.value.filter(project => {
         // AI : Include projects that have overlays

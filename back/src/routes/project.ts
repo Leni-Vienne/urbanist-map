@@ -132,25 +132,19 @@ export const projectRouter = router({
               exists: true
             };
           }
-
-          // AI : Project doesn't exist, create new one with provided ID
-          const result = await db
-            .insert(projects)
-            .values({ ...data, id: input.id })
-            .returning();
-
-          return {
-            success: true,
-            id: result[0].id,
-            exists: false
-          };
-        } else {
-          // AI : Insert new project without ID (will get auto-generated UUID)
-          const result = await db.insert(projects)
-            .values(data)
-            .returning();
-          return { success: true, id: result[0].id, exists: false };
         }
+
+        // AI : Insert new project (with provided ID or auto-generated UUID)
+        const result = await db
+          .insert(projects)
+          .values(input.id ? { ...data, id: input.id } : data)
+          .returning();
+
+        return {
+          success: true,
+          id: result[0].id,
+          exists: false
+        };
       } catch (error) {
         // AI : Re-throw TRPCErrors as-is to preserve error codes and messages
         if (error instanceof TRPCError) {

@@ -122,10 +122,8 @@ async function filterOverlaysByCompletionStatus() {
   // AI : Recreate missing overlays from scratch
   if (overlaysToRender.length > 0) {
     renderViewModeOverlays(overlaysToRender, true, false);
-    overlayStore.setViewModeOverlays(visibleOverlays);
-  } else {
-    overlayStore.setViewModeOverlays(visibleOverlays);
   }
+  overlayStore.setViewModeOverlays(visibleOverlays);
 
   // AI : Update currentCityOverlays AND cache to ensure they're preserved
   mapStore.currentCityOverlays = cityOverlays;
