@@ -298,6 +298,51 @@ const EMPTY_CITY_ENRICHMENT = {
 } as const;
 
 /**
+ * AI : Type for enriched change requests with city/country metadata
+ */
+type EnrichedChangeRequest<T extends BaseChangeRequest> = T & {
+  oldCityName: string | null;
+  newCityName: string | null;
+  oldCountryCode: string | null;
+  newCountryCode: string | null;
+  oldCountryName: string | null;
+  newCountryName: string | null;
+};
+
+/**
+ * AI : Convert JSONB value to string and validate it's a valid city ID
+ * AI : Returns null for invalid values (null, undefined, or their string representations)
+ */
+function toValidCityId(value: unknown): string | null {
+  if (!value) return null;
+
+  const stringValue = typeof value === 'string' ? value : String(value);
+
+  if (stringValue === 'null' || stringValue === 'undefined') return null;
+
+  return stringValue;
+}
+
+/**
+ * AI : Extract all unique city IDs from cityId field changes
+ */
+function extractCityIds(changes: BaseChangeRequest[]): Set<string> {
+  const cityIds = new Set<string>();
+
+  for (const change of changes) {
+    if (change.fieldName === 'cityId') {
+      const oldCityId = toValidCityId(change.oldValue);
+      const newCityId = toValidCityId(change.newValue);
+
+      if (oldCityId) cityIds.add(oldCityId);
+      if (newCityId) cityIds.add(newCityId);
+    }
+  }
+
+  return cityIds;
+}
+
+/**
  * AI : Enrich change requests with city and country names for cityId field changes
  * AI : This helper queries the database to fetch city/country names and adds them to the change objects
  * AI : Used by both changes router and moderation router
@@ -307,24 +352,9 @@ const EMPTY_CITY_ENRICHMENT = {
  */
 export async function enrichChangeRequestsWithNames<T extends BaseChangeRequest>(
   changes: T[]
-){
+): Promise<EnrichedChangeRequest<T>[]> {
   // AI : Extract all unique cityIds from change requests where fieldName is 'cityId'
-  const cityIds = new Set<string>();
-
-  for (const change of changes) {
-    if (change.fieldName === 'cityId') {
-      // AI : Handle JSONB values - they might be strings or need to be extracted
-      const oldValue = typeof change.oldValue === 'string' ? change.oldValue : String(change.oldValue);
-      const newValue = typeof change.newValue === 'string' ? change.newValue : String(change.newValue);
-
-      if (change.oldValue && oldValue !== 'null' && oldValue !== 'undefined') {
-        cityIds.add(oldValue);
-      }
-      if (change.newValue && newValue !== 'null' && newValue !== 'undefined') {
-        cityIds.add(newValue);
-      }
-    }
-  }
+  const cityIds = extractCityIds(changes);
 
   // AI : If no city changes, return with empty enrichment
   if (cityIds.size === 0) {
@@ -351,27 +381,27 @@ export async function enrichChangeRequestsWithNames<T extends BaseChangeRequest>
 
   // AI : Enrich change requests with city and country names
   return changes.map(change => {
-    if (change.fieldName === 'cityId') {
-      const oldValue = typeof change.oldValue === 'string' ? change.oldValue : String(change.oldValue);
-      const newValue = typeof change.newValue === 'string' ? change.newValue : String(change.newValue);
-
-      const oldCity = change.oldValue ? cityMap.get(oldValue) : null;
-      const newCity = change.newValue ? cityMap.get(newValue) : null;
-
+    if (change.fieldName !== 'cityId') {
       return {
         ...change,
-        oldCityName: oldCity?.name ?? null,
-        newCityName: newCity?.name ?? null,
-        oldCountryCode: oldCity?.countryCode ?? null,
-        newCountryCode: newCity?.countryCode ?? null,
-        oldCountryName: oldCity?.countryName ?? null,
-        newCountryName: newCity?.countryName ?? null,
+        ...EMPTY_CITY_ENRICHMENT,
       };
     }
 
+    const oldCityId = toValidCityId(change.oldValue);
+    const newCityId = toValidCityId(change.newValue);
+
+    const oldCity = oldCityId ? cityMap.get(oldCityId) : null;
+    const newCity = newCityId ? cityMap.get(newCityId) : null;
+
     return {
       ...change,
-      ...EMPTY_CITY_ENRICHMENT,
+      oldCityName: oldCity?.name ?? null,
+      newCityName: newCity?.name ?? null,
+      oldCountryCode: oldCity?.countryCode ?? null,
+      newCountryCode: newCity?.countryCode ?? null,
+      oldCountryName: oldCity?.countryName ?? null,
+      newCountryName: newCity?.countryName ?? null,
     };
   });
 }
