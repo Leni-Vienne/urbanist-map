@@ -555,8 +555,13 @@ watch(
 )
 
 /**
- * AI : Wait for accordion expansion animation to complete
- * AI : Uses requestAnimationFrame for smooth coordination with browser rendering
+ * AI : Wait for accordion expansion animation to complete, then scroll to overlay
+ * AI : NOTE: This uses DOM polling because PrimeVue's Accordion component does not expose
+ * AI : animation completion events. A more "Vue-like" approach would be to:
+ * AI :   1. Wrap Accordion in a custom component that emits @expand-complete events
+ * AI :   2. Use Vue refs instead of querySelector
+ * AI :   3. Use Vue Transition events if we controlled the animation
+ * AI : However, this pragmatic approach works reliably with third-party component animations.
  */
 async function waitForAccordionAnimation(overlayId: string): Promise<void> {
   // AI : Find the overlay element to check if it exists and is visible
@@ -596,8 +601,9 @@ async function scrollToOverlayWhenReady(element: Element): Promise<void> {
 }
 
 /**
- * AI : Wait for accordion expansion animation to complete for a project
- * AI : Uses requestAnimationFrame for smooth coordination with browser rendering
+ * AI : Wait for accordion expansion animation to complete for a project, then scroll to it
+ * AI : NOTE: This uses DOM polling for the same reason as waitForAccordionAnimation() above.
+ * AI : See comment on waitForAccordionAnimation() for architectural alternatives.
  */
 async function waitForProjectAccordionAnimation(projectId: string): Promise<void> {
   // AI : Find the project element to check if it exists and is visible
