@@ -73,13 +73,31 @@ function zoomToOverlayAndSelect(overlayId: string, corners: { lat: number; lng: 
     easeLinearity: 0.25
   });
 
+  const overlayStore = useOverlayStore();
+
   map.value.once('moveend', () => {
-    // AI : Use requestAnimationFrame to ensure overlay is fully rendered and ready before selecting
-    // AI : This fixes the bug where the first click on an overlay adds blue outline but doesn't open toolbar
-    requestAnimationFrame(() => {
-      // AI : selectOverlay handles overlay.select() internally
-      selectOverlay(overlayId);
-    });
+    // AI : Wait for element to exist, then wait for image to load before selecting
+    // AI : This fixes the bug where first click adds blue outline but doesn't open toolbar
+    // AI : getElement() returns null until the DOM element is created (takes a few frames)
+    function waitForElementThenSelect(): void {
+      const overlayObj = overlayStore.overlays[overlayId];
+      const element = overlayObj?.overlay?.getElement();
+
+      if (!element) {
+        requestAnimationFrame(waitForElementThenSelect);
+        return;
+      }
+
+      if (element.complete && element.naturalWidth > 0) {
+        selectOverlay(overlayId);
+      } else {
+        element.addEventListener('load', () => {
+          selectOverlay(overlayId);
+        }, { once: true });
+      }
+    }
+
+    waitForElementThenSelect();
   });
 
   return true;
