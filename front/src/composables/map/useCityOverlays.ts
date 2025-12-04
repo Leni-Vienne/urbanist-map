@@ -232,7 +232,7 @@ function renderFullOverlaysFromCache(cityId: string) {
     return;
   }
 
-  withErrorHandling(
+  void withErrorHandling(
     () => {
       // AI : Clear any existing overlays and markers before loading
       clearAllOverlays();
@@ -269,7 +269,7 @@ export function renderOverlayMarkersFromCache(cityId: string): void {
     return;
   }
 
-  withErrorHandling(
+  void withErrorHandling(
     () => {
       // AI : Store overlay data for navigation (even though we're only showing markers)
       mapStore.currentCityOverlays = overlaysData;

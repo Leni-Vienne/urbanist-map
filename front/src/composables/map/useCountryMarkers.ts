@@ -13,7 +13,7 @@ import { useMapStore } from "@stores/pinia/mapStore";
 import { useOverlayStore } from "@stores/pinia/overlayStore";
 import { storeToRefs } from "pinia";
 import { withErrorHandling } from "@composables/core/useErrorHandling";
-import type { Country, City } from "@types";
+import type { Country } from "@types";
 import { MARKER_OPACITY } from "@constants/markerConstants";
 import { createMarkerLayer, type MarkerLayerConfig } from "@composables/map/useMarkerLayer";
 import countryBboxes from "@assets/country_bboxes.json";

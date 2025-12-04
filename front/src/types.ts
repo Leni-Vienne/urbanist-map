@@ -47,7 +47,8 @@ declare module "leaflet" {
     _animatingZoom?: boolean; // _animatingZoom isn't documented for some reason
   }
 
-  // AI : Leaflet.Toolbar type definitions
+  // AI : Leaflet.Toolbar type definitions (not included in the package)
+  /* eslint-disable @typescript-eslint/no-unused-vars */
   namespace Toolbar2 {
     class Action extends L.Handler {
       constructor(map: L.Map, options: any);
@@ -65,6 +66,7 @@ declare module "leaflet" {
   }
 
   // AI : Leaflet distortableimage types - prefixed with _ to indicate intentionally unused
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const DistortAction: typeof L.Toolbar2.Action;
   const RotateAction: typeof L.Toolbar2.Action;
   const FreeRotateAction: typeof L.Toolbar2.Action;
