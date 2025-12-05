@@ -1,7 +1,6 @@
 // AI : Shared types used by both frontend and backend
-import type { DBProject, DBCity } from '../back/src/db/schema';
-
-export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'replaced';
+import type { DBProject, DBCity, ApprovalStatus } from '../back/src/db/schema';
+export type { ApprovalStatus } from '../back/src/db/schema';
 
 export interface OverlayData {
     id: string;

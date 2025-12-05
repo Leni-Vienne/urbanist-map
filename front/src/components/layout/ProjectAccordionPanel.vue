@@ -77,7 +77,7 @@
                     </AccordionHeader>
                     <AccordionContent>
                       <Card
-                        :class="{ 'marker-project-card': (project.overlayCount === 0 || (project.overlays && project.overlays.length === 0)) }"
+                        class="marker-project-card"
                         @click="handleCardClick(project)"
                       >
                         <template #content>
@@ -150,9 +150,9 @@
                                 :project="project"
                               ></slot>
 
-                              <!-- AI : Chevron indicator for projects with no overlays (standalone project) when no action buttons -->
+                              <!-- AI : Chevron indicator for all projects when no action buttons - signals clickability -->
                               <i
-                                v-else-if="(project.overlayCount === 0 || (project.overlays && project.overlays.length === 0))"
+                                v-else
                                 class="pi pi-chevron-right tap-indicator"
                               ></i>
                             </div>
@@ -731,12 +731,17 @@ function shouldShowOverlays(project: ProjectForModeration): boolean {
   return expandedPanels.value.has(project.id)
 }
 
-// AI : Handle card click - navigate for projects with no overlays (standalone project)
+// AI : Handle card click - navigate to project location and open popup
 function handleCardClick(project: ProjectForModeration) {
-  // AI : For projects with no overlays, clicking the card also navigates (in addition to the button)
-  // AI : This provides a larger click area for better UX
-  const hasNoOverlays = project.overlayCount === 0 || (project.overlays && project.overlays.length === 0)
-  if (hasNoOverlays) {
+  // AI : Check if project has overlays - if so, navigate to first overlay instead of standalone marker
+  // AI : (standalone project markers disappear when overlays exist)
+  const hasOverlays = project.overlays && project.overlays.length > 0
+  
+  if (hasOverlays) {
+    // AI : Navigate to first overlay (overlays replace the standalone marker)
+    handleOverlayCardClick(project.overlays[0], true)
+  } else {
+    // AI : Navigate to standalone project marker
     handleStandaloneProjectClick(project)
   }
 }

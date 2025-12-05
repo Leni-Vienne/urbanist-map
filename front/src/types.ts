@@ -1,6 +1,6 @@
 import L from "leaflet";
 import type { RouterOutput } from "@client";
-import type { DBCountry, DBProject, DBCity } from "../../back/src/db/schema";
+import type { DBCountry, DBProject, DBCity, ApprovalStatus } from "../../back/src/db/schema";
 
 // AI : Type for marker colors used throughout the application
 export type MarkerColor =
@@ -62,7 +62,7 @@ declare module "leaflet" {
 
   // AI : Toolbar2 constructor (used in toolbar actions)
   class Toolbar2 extends L.Evented {
-    constructor(options?: { actions?: typeof Toolbar2.Action[] });
+    constructor(options?: { actions?: (typeof Toolbar2.Action)[] });
   }
 
   // AI : Leaflet distortableimage types - prefixed with _ to indicate intentionally unused
@@ -134,7 +134,7 @@ export interface Country extends DBCountry {
 // AI : Base runtime project type - extends DB schema with computed fields
 export interface Project extends Omit<DBProject, "status"> {
   // AI : Override status to allow null for local unsubmitted projects
-  status: "pending" | "approved" | "rejected" | "replaced" | null;
+  status: ApprovalStatus | null;
   // AI : Computed fields for all contexts
   city: DBCity;
   overlayIds: string[];

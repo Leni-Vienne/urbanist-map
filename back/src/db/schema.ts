@@ -20,12 +20,16 @@ export const approvalStatusEnum = pgEnum("approval_status", [
   "rejected",
   "replaced",
 ]);
+export type ApprovalStatus = (typeof approvalStatusEnum.enumValues)[number];
+
 export const changeRequestStatusEnum = pgEnum("change_request_status", [
   "pending",
   "approved",
   "rejected",
   "conflicted",
 ]);
+
+export type ChangeRequestStatus = (typeof changeRequestStatusEnum.enumValues)[number];
 
 // AI : Users table for custom authentication
 export const users = pgTable(
@@ -395,6 +399,3 @@ export type DBChangeHistory = InferSelectModel<typeof changeHistory>;
 export type DBScheduledDeletion = InferSelectModel<typeof scheduledDeletions>;
 export type DBConfig = InferSelectModel<typeof config>;
 export type DBUserReport = InferSelectModel<typeof userReports>;
-
-// AI : Re-export ApprovalStatus from shared for convenience
-export type { ApprovalStatus } from '@shared/types';
