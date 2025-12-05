@@ -18,7 +18,7 @@ export function prepareProjectValidationData(
     sourceUrl: formData.sourceUrl ?? undefined,
     lat: options?.lat ?? 0,
     lng: options?.lng ?? 0,
-    cityId: formData.cityId || options?.cityId || DUMMY_UUID
+    cityId: formData.cityId ?? options?.cityId ?? DUMMY_UUID
   } as const
 }
 
@@ -34,9 +34,9 @@ export function prepareOverlayValidationData(overlay: {
 }) {
   return {
     id: overlay.id,
-    filename: overlay.filename || 'temp.png',
+    filename: overlay.filename ?? 'temp.png',
     caption: overlay.caption ?? undefined,
-    projectId: overlay.projectId || DUMMY_UUID,
+    projectId: overlay.projectId ?? DUMMY_UUID,
     corners: overlay.corners || [
       { lat: 0, lng: 0 },
       { lat: 0, lng: 0 },

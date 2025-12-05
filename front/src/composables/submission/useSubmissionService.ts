@@ -555,8 +555,9 @@ export function useSubmissionService() {
       const cornersChange = changes.find(c => c.fieldName === 'corners');
       if (cornersChange?.newValue) {
         context.entity.suggestedCorners = cornersChange.newValue as { lat: number; lng: number }[];
-        // AI : Default to viewing approved position (user can toggle to suggested)
-        context.entity.isViewingApprovedPosition = true;
+        // AI : User is currently viewing the suggested position (the position they just modified)
+        // AI : Set to false so marker shows yellow to indicate pending changes
+        context.entity.isViewingApprovedPosition = false;
       }
 
       updateMarkerTooltip(context.entity);

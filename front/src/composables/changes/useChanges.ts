@@ -31,6 +31,12 @@ const isLoading = ref(false);
 // AI : Simple loaded flag for change requests
 const changeRequestsLoaded = ref(false);
 
+function clearOverlayChangeRequestState(overlayObject: any) {
+  overlayObject.hasPendingChanges = false;
+  overlayObject.suggestedCorners = undefined;
+  overlayObject.isViewingApprovedPosition = undefined;
+}
+
 export function useChangeRequests() {
   
   async function submitChangeRequest(input: SubmitChangeRequestInput) {
@@ -135,6 +141,70 @@ export function useChangeRequests() {
     }
   }
 
+  // AI : ============================================================================
+  // AI : HELPER FUNCTIONS - Internal utilities for change request deletion
+  // AI : ============================================================================
+
+  function removeChangeRequestFromLocalState(changeRequestId: string) {
+    pendingChangeRequests.value = pendingChangeRequests.value.filter(
+      cr => cr.id !== changeRequestId
+    );
+  }
+
+  function hasOtherPendingChangeRequestsForOverlay(overlayId: string): boolean {
+    return pendingChangeRequests.value.some(
+      cr => cr.entityType === 'overlay' && cr.entityId === overlayId
+    );
+  }
+
+  function resetOverlayPositionToApproved(overlayObject: any, overlayId: string) {
+    const overlayStore = useOverlayStore();
+
+    // AI : Clear the edit mode cache for this overlay to reset position to approved
+    overlayStore.removeFromEditModeCache(overlayId);
+
+    // AI : Reset overlay position to approved corners
+    if (overlayObject.overlay && overlayObject.corners?.length === 4) {
+      const leafletCorners = overlayObject.corners.map((corner: { lat: number; lng: number }) =>
+        L.latLng(corner.lat, corner.lng)
+      );
+      overlayObject.overlay.setCorners(leafletCorners);
+      overlayObject.isModified = false;
+
+      // AI : Update marker position to match approved corners
+      updateMarkerPosition(overlayObject);
+    }
+  }
+
+  function handleOverlayStateAfterDeletion(changeRequest: ChangeRequest) {
+    if (changeRequest.entityType !== 'overlay') {
+      return;
+    }
+
+    const overlayStore = useOverlayStore();
+    const overlayObject = overlayStore.overlays[changeRequest.entityId];
+
+    if (!overlayObject) {
+      return;
+    }
+
+    // AI : Check if there are any other pending change requests for this overlay
+    if (hasOtherPendingChangeRequestsForOverlay(changeRequest.entityId)) {
+      return;
+    }
+
+    // AI : No other pending change requests exist, reset the overlay state
+    clearOverlayChangeRequestState(overlayObject);
+
+    // AI : If this was a position change request, clear edit mode cache and reset position
+    if (changeRequest.fieldName === 'corners') {
+      resetOverlayPositionToApproved(overlayObject, changeRequest.entityId);
+    }
+
+    // AI : Update marker color and tooltip to reflect new state
+    updateMarkerTooltip(overlayObject);
+  }
+
   async function deleteChangeRequest(changeRequestId: string) {
     isLoading.value = true;
     try {
@@ -148,50 +218,10 @@ export function useChangeRequests() {
 
       if (result?.success != undefined && changeRequest) {
         // AI : Remove deleted change request from local state
-        pendingChangeRequests.value = pendingChangeRequests.value.filter(
-          cr => cr.id !== changeRequestId
-        );
+        removeChangeRequestFromLocalState(changeRequestId);
 
-        // AI : If this was an overlay change request, update the overlay state
-        if (changeRequest.entityType === 'overlay') {
-          const overlayStore = useOverlayStore();
-          const overlayObject = overlayStore.overlays[changeRequest.entityId];
-
-          if (overlayObject) {
-            // AI : Check if there are any other pending change requests for this overlay
-            const otherChangeRequestsForOverlay = pendingChangeRequests.value.filter(
-              cr => cr.entityType === 'overlay' && cr.entityId === changeRequest.entityId
-            );
-
-            // AI : If no other pending change requests exist, reset the overlay state
-            if (otherChangeRequestsForOverlay.length === 0) {
-              overlayObject.hasPendingChanges = false;
-              overlayObject.suggestedCorners = undefined;
-              overlayObject.isViewingApprovedPosition = undefined;
-
-              // AI : If this was a position change request, clear edit mode cache and reset position
-              if (changeRequest.fieldName === 'corners') {
-                // AI : Clear the edit mode cache for this overlay to reset position to approved
-                overlayStore.removeFromEditModeCache(changeRequest.entityId);
-
-                // AI : Reset overlay position to approved corners
-                if (overlayObject.overlay && overlayObject.corners?.length === 4) {
-                  const leafletCorners = overlayObject.corners.map(corner =>
-                    L.latLng(corner.lat, corner.lng)
-                  );
-                  overlayObject.overlay.setCorners(leafletCorners);
-                  overlayObject.isModified = false;
-
-                  // AI : Update marker position to match approved corners
-                  updateMarkerPosition(overlayObject);
-                }
-              }
-
-              // AI : Update marker color and tooltip to reflect new state
-              updateMarkerTooltip(overlayObject);
-            }
-          }
-        }
+        // AI : Handle overlay-specific state updates
+        handleOverlayStateAfterDeletion(changeRequest);
       }
 
       return result;

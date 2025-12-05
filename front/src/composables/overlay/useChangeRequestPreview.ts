@@ -283,10 +283,11 @@ export function useChangeRequestPreview() {
     updateMarkerPosition(overlayObject);
     updateMarkerTooltip(overlayObject);
 
-    // AI : Navigate to position if overlay was already loaded
-    if (wasAlreadyLoaded) {
-      navigateToPosition(targetLatLngs, previousBounds, overlayId);
-    }
+    // AI : Always navigate to the final position to ensure camera is centered correctly
+    // AI : Force navigation even if position didn't change to provide user feedback
+    // AI : If overlay was already loaded, we show both old and new positions with combined bounds
+    // AI : If overlay was just loaded, we still navigate to ensure camera is at the correct position
+    navigateToPosition(targetLatLngs, previousBounds, overlayId);
   }
 
   // AI : Select overlay after navigation (shared helper)
