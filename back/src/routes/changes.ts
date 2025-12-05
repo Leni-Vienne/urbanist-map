@@ -8,9 +8,7 @@ import { addConflictFlags, enrichChangeRequestsWithNames } from '../db/helpers';
 import { submitChangeRequestSchema } from '@shared/validation/schemas';
 
 // AI : Use shared change request schema for validation
-
-// AI : Re-export shared types for backward compatibility
-export type { SubmitChangeRequestInput, FieldChange } from '../shared/types';
+export type { SubmitChangeRequestInput, FieldChange } from '../lib/types';
 
 const approveChangeRequestSchema = z.object({
   changeRequestIds: z.array(z.uuid()),

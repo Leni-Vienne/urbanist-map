@@ -8,9 +8,9 @@ import { trpc, getApiUrl } from '@client';
 import { storeToRefs } from 'pinia';
 import { buildProjectPayload } from '@composables/project/useProjectMutations';
 import type { OverlayObject, Project } from '@types';
-import { validateOverlaySize, leafletCornersToCorners } from '../../../../back/src/shared/validation';
+import { validateOverlaySize, leafletCornersToCorners } from '@shared/overlayValidation';
 import { useI18n } from 'vue-i18n';
-import type { ApprovalStatus } from '../../../../back/src/shared/types';
+import type { ApprovalStatus } from '@shared/types';
 
 // AI : Extract corners from overlay object, falling back to stored corners if needed
 function getCornersFromOverlay(overlay: OverlayObject) {

@@ -1,6 +1,6 @@
 import L from "leaflet";
 import type { RouterOutput } from "@client";
-import type { DBCountry, DBProject, DBCity } from "../../back/src/shared/schema";
+import type { DBCountry, DBProject, DBCity } from "../../back/src/db/schema";
 
 // AI : Type for marker colors used throughout the application
 export type MarkerColor =
@@ -145,9 +145,9 @@ export interface Project extends Omit<DBProject, "status"> {
   isModified?: boolean;
 }
 
-// AI : Import shared overlay data type from backend
-import type { OverlayData } from "../../back/src/shared/types";
-export type { OverlayData } from "../../back/src/shared/types";
+// AI : Import shared overlay data type
+import type { OverlayData } from "@shared/types";
+export type { OverlayData } from "@shared/types";
 
 // AI : Frontend overlay type - extends backend OverlayData with UI state
 export interface OverlayObject extends OverlayData {

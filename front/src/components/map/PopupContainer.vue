@@ -77,8 +77,8 @@ import { useSubmissionService, type SubmissionContext, type SubmissionSummary } 
 import { citiesWithProjects, closeProjectPopupAndResetMarkers } from '@composables/map/useCityMarkers';
 import type { OverlayObject, Project } from '@types';
 import { useProjectDeletion } from '@composables/project/useProjectDeletion';
-import type { DBProject, DBCity } from '../../../../back/src/shared/schema';
-import type { ApprovalStatus } from '../../../../back/src/shared/types';
+import type { DBProject, DBCity } from '../../../../back/src/db/schema';
+import type { ApprovalStatus } from '@shared/types';
 
 const UnifiedProjectPopup = defineAsyncComponent(() => import('./popups/UnifiedProjectPopup.vue'));
 const OverlayEditor = defineAsyncComponent(() => import('./OverlayEditor.vue'));

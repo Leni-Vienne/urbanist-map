@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type { PendingOverlay, PendingChangeRequest } from '../../types/api';
 import type { ProjectForModeration } from '@types';
-import type { ApprovalStatus } from '../../../../back/src/shared/types';
+import type { ApprovalStatus } from '@shared/types';
 
 export const useModerationStore = defineStore('moderation', () => {
   const overlays = ref<PendingOverlay[]>([]);

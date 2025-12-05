@@ -49,10 +49,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useEditableOverlayForm } from '@composables/forms/useEditableOverlayForm'
 import { useFieldValidation } from '@composables/forms/useFieldValidation'
 import { overlaySchema } from '@shared/validation/schemas'
+import { prepareOverlayValidationData } from '@utils/validationHelpers'
 import type { OverlayObject } from '@types'
 
 interface Props {
@@ -84,27 +85,26 @@ const form = useEditableOverlayForm({
 const captionSchema = overlaySchema.pick({ caption: true })
 const { getFieldError, hasFieldError, validateField, isFieldTouched } = useFieldValidation(captionSchema)
 
-// AI : Helper to create validation data
-function getValidationData() {
-  return {
+// AI : Shared validation helper
+function validateFieldHelper(fieldPath: string) {
+  const validationData = prepareOverlayValidationData({
     id: props.overlay.id,
-    filename: props.overlay.filename || 'dummy.png',
+    filename: props.overlay.filename,
     caption: form.formData.caption,
-    projectId: props.overlay.projectId || '00000000-0000-0000-0000-000000000000',
-    corners: props.overlay.corners || [{ lat: 0, lng: 0 }, { lat: 0, lng: 0 }, { lat: 0, lng: 0 }, { lat: 0, lng: 0 }]
-  }
+    projectId: props.overlay.projectId,
+    corners: props.overlay.corners
+  })
+  validateField(fieldPath, validationData)
 }
 
 // AI : Validation handler for caption - blur always validates and marks as touched
 function handleCaptionBlur() {
-  validateField('caption', getValidationData())
+  validateFieldHelper('caption')
 }
 
-// AI : Input handler - only validate if field was already touched (after first blur)
+// AI : Input handler - validate immediately on every input (real-time feedback)
 function handleCaptionInput() {
-  if (isFieldTouched('caption')) {
-    validateField('caption', getValidationData())
-  }
+  validateFieldHelper('caption')
 }
 
 // AI : Get combined class for caption input with validation state
@@ -143,7 +143,7 @@ async function handleSubmit() {
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.25rem;
 }
 
 .form-group label {

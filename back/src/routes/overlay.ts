@@ -10,10 +10,10 @@ import {
   buildOverlayVisibilityCondition,
   type MapMode
 } from '../db/helpers';
-import { validateOverlaySize, calculateCentroidFromCorners } from '../utils/overlayValidation';
+import { validateOverlaySize, calculateCentroidFromCorners } from '@shared/overlayValidation';
 import { deleteLocalImages } from '../lib/imageCleanup';
 import { checkPendingLimitForNewContribution } from '../db/contributionHelpers';
-import type { ApprovalStatus } from '../shared/types';
+import type { ApprovalStatus } from '../db/schema';
 import { overlaySchema } from '@shared/validation/schemas';
 
 // AI : Use shared overlay schema for validation

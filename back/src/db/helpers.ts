@@ -4,7 +4,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type * as schema from './schema';
 import { db } from '../database';
 import { projects, cities, overlays, countries, changeRequests, users } from './schema';
-import type { ApprovalStatus } from '../shared/types';
+import type { ApprovalStatus } from './schema';
 
 // AI : ============================================================================
 // AI : DATABASE HELPERS - Unified utilities for pagination, queries, and visibility
