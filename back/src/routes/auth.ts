@@ -6,23 +6,13 @@ import { publicProcedure, router } from '../trpc';
 import { db } from '../database';
 import { users } from '../db/schema';
 import type SMTPTransport from 'nodemailer/lib/smtp-transport';
+import { 
+  registerSchema, 
+  resetPasswordRequestSchema, 
+  resetPasswordSchema 
+} from '../../../shared/validation/schemas';
 
-// AI : Validation schemas with custom error messages
-const registerSchema = z.object({
-  email: z.string().email({ message: 'auth.error.invalidEmail' }),
-  password: z.string().min(8, { message: 'auth.error.passwordTooShort' }),
-  username: z.string().min(3, { message: 'auth.error.usernameTooShort' }).max(50, { message: 'auth.error.usernameTooLong' }),
-});
-
-
-const resetPasswordRequestSchema = z.object({
-  email: z.email(),
-});
-
-const resetPasswordSchema = z.object({
-  token: z.string(),
-  password: z.string().min(8),
-});
+// AI : Use shared validation schemas
 
 // AI : Utility functions
 function generateToken(): string {

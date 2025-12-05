@@ -14,18 +14,10 @@ import { validateOverlaySize, calculateCentroidFromCorners } from '../utils/over
 import { deleteLocalImages } from '../lib/imageCleanup';
 import { checkPendingLimitForNewContribution } from '../db/contributionHelpers';
 import type { ApprovalStatus } from '../shared/types';
+import { overlaySchema } from '@shared/validation/schemas';
 
-const publishOverlaySchema = z.object({
-  id: z.uuid(), // AI : UUID length limit
-  filename: z.string().min(1).max(255), // AI : Standard filename length limit
-  caption: z.string().max(500).or(z.literal('')).transform(val => val === '' ? undefined : val).optional(), // AI : Limit caption to 500 characters
-  projectId: z.uuid(), // AI : UUID length limit for project reference
-  replacesOverlayId: z.uuid().optional(), // AI : UUID for overlay replacement
-  corners: z.array(z.object({
-    lat: z.number().min(-90).max(90), // AI : Valid latitude range
-    lng: z.number().min(-180).max(180) // AI : Valid longitude range
-  })).length(4) // AI : Exactly 4 corners required
-});
+// AI : Use shared overlay schema for validation
+const publishOverlaySchema = overlaySchema;
 
 const getOverlaySchema = z.object({
   id: z.uuid(),

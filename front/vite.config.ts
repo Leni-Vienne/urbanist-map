@@ -23,8 +23,10 @@ export default defineConfig({
     }),
     tailwindcss(),
     vueDevTools(),
+    // eslint-disable-next-line
     Components({
       resolvers: [
+        // eslint-disable-next-line
         PrimeVueResolver()
       ]
     }),
@@ -53,6 +55,7 @@ export default defineConfig({
       '@api': path.resolve(__dirname, './src/types/api'),
       '@client': path.resolve(__dirname, './src/client'),
       '@utils': path.resolve(__dirname, './src/utils'),
+      '@shared': path.resolve(__dirname, '../shared'),
     }
   },
   // to prevent annoying automatic reloads in devmode 

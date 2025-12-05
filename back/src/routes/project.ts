@@ -12,45 +12,13 @@ import {
 } from '../db/helpers';
 import { checkPendingLimitForNewContribution } from '../db/contributionHelpers';
 import { deleteLocalImages } from '../lib/imageCleanup';
+import { projectSchema } from '@shared/validation/schemas';
 
 // AI : Nearby search radius configuration
 const NEARBY_SEARCH_RADIUS_METERS = 10 * 1000; // 10km
 
-const publishProjectSchema = z.object({
-  id: z.uuid().optional(),
-  name: z.string().min(8).max(200),
-  description: z.string().max(2000).or(z.literal('')).transform(val => val === '' ? undefined : val).optional(),
-  cityId: z.uuid(),
-  lat: z.number(), // AI : latitude for project center coordinate (required for all projects)
-  lng: z.number(), // AI : longitude for project center coordinate (required for all projects)
-  proposalDate: z.date().nullable().optional(),
-  startDate: z.date().nullable().optional(),
-  endDate: z.date().nullable().optional(),
-  sourceUrl: z.url().or(z.literal('')).transform(val => val === '' ? undefined : val).optional(),
-  latestUpdateOn: z.date().nullable().optional()
-}).superRefine((data, ctx) => {
-  // AI : Validate proposal date is not in the future
-  if (data.proposalDate && data.proposalDate > new Date()) {
-    ctx.addIssue({
-      code: 'custom',
-      message: 'Proposal date cannot be in the future',
-      path: ['proposalDate']
-    });
-  }
-
-  // AI : Validate project has either proposalDate OR both startDate and endDate
-  const hasProposalDate = data.proposalDate !== null && data.proposalDate !== undefined;
-  const hasPlannedDates = (data.startDate !== null && data.startDate !== undefined) &&
-                          (data.endDate !== null && data.endDate !== undefined);
-
-  if (!hasProposalDate && !hasPlannedDates) {
-    ctx.addIssue({
-      code: 'custom',
-      message: 'Project must have either a proposal date or both start and end dates',
-      path: ['proposalDate', 'startDate', 'endDate']
-    });
-  }
-});
+// AI : Use shared project schema for validation
+const publishProjectSchema = projectSchema;
 
 export const projectRouter = router({
   publishProject: protectedProcedure

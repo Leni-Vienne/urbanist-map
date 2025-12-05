@@ -18,6 +18,7 @@ import {
 import { useI18n } from "vue-i18n";
 import { useChangeRequests } from "@composables/changes/useChanges";
 import { formatDate } from "@utils/dateFormat";
+import { projectSchema, overlaySchema, getValidationErrorsMap } from "@shared/validation/schemas";
 
 // AI : Unified submission types for consolidated workflow
 export type SubmissionChangeType = "create" | "update_pending" | "update_approved";
@@ -370,39 +371,62 @@ export function useSubmissionService() {
     };
   }
 
-  // AI : Validate submission before proceeding
+  // AI : Validate submission before proceeding using Zod schemas
   function validate(context: SubmissionContext): ValidationResult {
     const errors: string[] = [];
 
-    // AI : Project-specific validation
+    // AI : Project-specific validation with Zod
     if (context.entityType === "project") {
-      if (!context.entity.name || context.entity.name.trim().length < 8) {
-        errors.push("Project name must be at least 8 characters long");
+      const validationData = {
+        ...context.entity,
+        lat: context.entity.lat ?? 0,
+        lng: context.entity.lng ?? 0
+      };
+      
+      const result = projectSchema.safeParse(validationData);
+      
+      if (!result.success) {
+        const zodErrors = getValidationErrorsMap(result.error);
+        Object.values(zodErrors).forEach(error => {
+          errors.push(t(error.key, error.params ?? {}));
+        });
       }
 
+      // AI : Additional city validation (not in Zod schema)
       if (!context.entity.cityId) {
-        errors.push("Project must be assigned to a city");
+        errors.push(t("validation.cityRequired"));
       }
     }
 
-    // AI : Overlay-specific validation
+    // AI : Overlay-specific validation with Zod
     if (context.entityType === "overlay") {
-      if (!context.entity.projectId) {
-        errors.push("Overlay must be assigned to a project");
+      const corners = context.entity.overlay?.getCorners() ?? context.entity.corners;
+      
+      const validationData = {
+        id: context.entity.id,
+        filename: context.entity.filename || 'temp.png',
+        caption: context.entity.caption,
+        projectId: context.entity.projectId,
+        corners: corners.map((c: any) => ({ lat: c.lat, lng: c.lng }))
+      };
+      
+      const result = overlaySchema.safeParse(validationData);
+      
+      if (!result.success) {
+        const zodErrors = getValidationErrorsMap(result.error);
+        Object.values(zodErrors).forEach(error => {
+          errors.push(t(error.key, error.params ?? {}));
+        });
       }
 
-      const corners = context.entity.overlay?.getCorners() ?? context.entity.corners;
-      if (!corners || corners.length !== 4 || corners.some((c) => !c.lat || !c.lng)) {
-        errors.push("Overlay must have valid position (4 corners)");
-      } else {
-        // AI : Validate overlay size constraints
+      // AI : Additional overlay size validation
+      if (corners && corners.length === 4) {
         const cornersArray = context.entity.overlay
           ? leafletCornersToCorners(context.entity.overlay.getCorners())
           : context.entity.corners.map((c) => ({ lat: c.lat, lng: c.lng }));
 
         const sizeValidation = validateOverlaySize(cornersArray);
         if (!sizeValidation.isValid) {
-          // AI : Simple i18n error message
           errors.push(t("overlay.overlayTooLarge"));
         }
       }

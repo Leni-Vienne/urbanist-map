@@ -5,17 +5,9 @@ import { eq, and, inArray, sql, or } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { db } from '../database';
 import { addConflictFlags, enrichChangeRequestsWithNames } from '../db/helpers';
+import { submitChangeRequestSchema } from '@shared/validation/schemas';
 
-const submitChangeRequestSchema = z.object({
-  entityType: z.enum(['project', 'overlay']),
-  entityId: z.uuid(),
-  changes: z.array(z.object({
-    fieldName: z.string(),
-    oldValue: z.json().optional(),
-    newValue: z.json(),
-    changeReason: z.string().or(z.literal('')).transform(val => val === '' ? undefined : val).optional(),
-  })),
-});
+// AI : Use shared change request schema for validation
 
 // AI : Re-export shared types for backward compatibility
 export type { SubmitChangeRequestInput, FieldChange } from '../shared/types';
