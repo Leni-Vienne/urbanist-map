@@ -105,7 +105,7 @@ export function getValidationError(error: z.ZodError, fieldPath?: string): Valid
   }
 
   const issue = issues[0];
-  const key = issue.message || 'validation.genericError';
+  const key = issue.message ?? 'validation.genericError';
   
   // AI : Extract constraint values from Zod issue for dynamic i18n parameters
   const params: Record<string, any> = {};
@@ -128,7 +128,7 @@ export function getValidationErrorsMap(error: z.ZodError): Record<string, Valida
   for (const issue of error.issues) {
     const fieldPath = issue.path.join('.');
     if (!errorMap[fieldPath]) {
-      const key = issue.message || 'validation.genericError';
+      const key = issue.message ?? 'validation.genericError';
       const params: Record<string, any> = {};
       
       // AI : Extract constraint values from Zod issue

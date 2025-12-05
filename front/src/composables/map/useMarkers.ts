@@ -297,6 +297,7 @@ export function getOverlayMarkerColor(
     const hasBeenModified = 'isModified' in overlayData ? overlayData.isModified : false;
     const isTooBig = 'isTooBig' in overlayData ? overlayData.isTooBig : false;
     const hasPendingChanges = 'hasPendingChanges' in overlayData ? overlayData.hasPendingChanges : false;
+    const isViewingApprovedPosition = 'isViewingApprovedPosition' in overlayData ? overlayData.isViewingApprovedPosition : undefined;
     const status = overlayData.status;
 
     // AI : Priority 1: Size validation error (only for local overlays - submitted ones passed backend validation)
@@ -313,9 +314,14 @@ export function getOverlayMarkerColor(
     // AI : Priority 4: Other local modifications (shows user they have unsaved work)
     if (hasBeenModified) return 'orange';
 
-    // AI : Priority 5: Pending change requests - show yellow regardless of which position is being viewed
-    // AI : After submitting changes to an approved overlay, marker should be yellow to indicate pending approval
-    if (hasPendingChanges && status === 'approved') return 'yellow';
+    // AI : Priority 5: Pending change requests - respect which position is being viewed
+    // AI : Show yellow when viewing suggested position (pending changes), green when viewing approved position
+    if (hasPendingChanges && status === 'approved') {
+      // AI : If explicitly viewing suggested position, show yellow
+      if (isViewingApprovedPosition === false) return 'yellow';
+      // AI : If viewing approved position (undefined or true), show green
+      return 'green';
+    }
 
     // AI : Priority 7: Pending approval (awaiting moderation)
     if (status === 'pending') return 'yellow';
