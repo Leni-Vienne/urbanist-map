@@ -890,9 +890,6 @@ function handleOverlayContributorClick(
   text-align: center;
 }
 
-.country-content {
-  padding: 0.5rem;
-}
 
 .city-group-header {
   display: flex;
@@ -973,8 +970,6 @@ function handleOverlayContributorClick(
 
 .panel-content {
   flex: 1;
-  padding: 0rem 0 1rem 1rem;
-  overflow: visible;
 }
 
 /* Sticky header for panel title  */
@@ -986,7 +981,7 @@ function handleOverlayContributorClick(
   align-items: center;
   justify-content: space-between;
   margin-bottom: 0.5rem;
-  padding: 1rem 1rem 0.75rem 0;
+  padding: 1rem 0 0.75rem 0;
   border-bottom: 2px solid var(--p-primary-100);
   z-index: 10; /* z-index to prevent accordion headers from overlapping */
 }
@@ -1103,9 +1098,6 @@ function handleOverlayContributorClick(
   flex-shrink: 0;
 }
 
-.metadata-item span {
-  line-height: 1.4;
-}
 
 @keyframes pulse {
   0%, 100% {
@@ -1141,11 +1133,6 @@ function handleOverlayContributorClick(
   cursor: pointer;
   transition: all 0.15s ease;
   border-radius: 0;
-}
-
-/* reduces the width of primevue accordion padding */
-:deep(.p-accordioncontent-content) {
-  padding: 0 0.5rem 0.5rem 0.5rem!important
 }
 
 .overlay-card:hover {
@@ -1190,6 +1177,11 @@ function handleOverlayContributorClick(
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* Prevent overflow in flex container */
+  max-width: 100%;
+  width: 0;
+  flex: 1;
+  min-width: 0;
 }
 
 /* AI : Replacement badge styling */
