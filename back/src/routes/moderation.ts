@@ -990,6 +990,9 @@ export const moderationRouter = router({
             .set({
               status: "approved",
               version: sql`${overlays.version} + 1`,
+              // AI : Clear replacesOverlayId - once approved, it's no longer a "replacement"
+              // AI : Historical relationship is preserved via replacedByOverlayId on the original overlay
+              replacesOverlayId: null,
             })
             .where(eq(overlays.id, input.id))
             .returning({ id: overlays.id });
