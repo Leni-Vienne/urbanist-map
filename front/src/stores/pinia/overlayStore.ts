@@ -101,6 +101,10 @@ export const useOverlayStore = defineStore("overlay", () => {
     editModeOverlayCache.value.clear();
   }
 
+  function removeFromEditModeCache(overlayId: string) {
+    editModeOverlayCache.value.delete(overlayId);
+  }
+
   // AI : Update overlay in store with proper reactivity for shallowRef
   function updateOverlay(overlayId: string, updates: Partial<OverlayObject>) {
     const current = overlays.value[overlayId];
@@ -197,6 +201,7 @@ export const useOverlayStore = defineStore("overlay", () => {
     saveToEditModeCache,
     getFromEditModeCache,
     clearEditModeCache,
+    removeFromEditModeCache,
     updateOverlay,
     handleFileSelected,
     clearPendingFile,
