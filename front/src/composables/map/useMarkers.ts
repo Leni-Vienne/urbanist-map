@@ -297,30 +297,25 @@ export function getOverlayMarkerColor(
     const hasBeenModified = 'isModified' in overlayData ? overlayData.isModified : false;
     const isTooBig = 'isTooBig' in overlayData ? overlayData.isTooBig : false;
     const hasPendingChanges = 'hasPendingChanges' in overlayData ? overlayData.hasPendingChanges : false;
-    // AI : Treat undefined as "viewing approved" (default state before any toggle)
-    const isViewingApprovedPosition = 'isViewingApprovedPosition' in overlayData ? overlayData.isViewingApprovedPosition : undefined;
     const status = overlayData.status;
 
     // AI : Priority 1: Size validation error (only for local overlays - submitted ones passed backend validation)
     if (isTooBig && hasBeenModified) return 'red';
 
     // AI : Priority 2: Local replacement overlay (before submission) - show purple
+    // AI : Note: Approved overlays should never have replacesOverlayId (cleared on approval)
     if (overlayData.replacesOverlayId && hasBeenModified && status !== 'approved') return 'purple';
 
     // AI : Priority 3: Submitted replacement overlay (pending) - show yellow
+    // AI : Note: Approved overlays should never have replacesOverlayId (cleared on approval)
     if (status === 'pending' && overlayData.replacesOverlayId && !hasBeenModified) return 'yellow';
 
     // AI : Priority 4: Other local modifications (shows user they have unsaved work)
     if (hasBeenModified) return 'orange';
 
-    // AI : Priority 5: User is viewing approved position of overlay with pending changes
-    // AI : Show green marker even though hasPendingChanges is true
-    // AI : isViewingApprovedPosition !== false means: explicitly true OR undefined (default/approved)
-    if (hasPendingChanges && isViewingApprovedPosition !== false && status === 'approved') return 'green';
-
-    // AI : Priority 6: Pending change requests - viewing suggested position (explicitly set to false)
-    // AI : Only show yellow when user explicitly toggled to view suggested position
-    if (hasPendingChanges && isViewingApprovedPosition === false && status === 'approved') return 'yellow';
+    // AI : Priority 5: Pending change requests - show yellow regardless of which position is being viewed
+    // AI : After submitting changes to an approved overlay, marker should be yellow to indicate pending approval
+    if (hasPendingChanges && status === 'approved') return 'yellow';
 
     // AI : Priority 7: Pending approval (awaiting moderation)
     if (status === 'pending') return 'yellow';

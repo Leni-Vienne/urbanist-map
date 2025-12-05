@@ -952,7 +952,9 @@ export function updateMarkerTooltip(overlayObject: OverlayObject, cachedMarkerCo
   const isViewingApprovedPosition = overlayObject.isViewingApprovedPosition;
 
   let tooltipText = '';
-  if (isReplacement) {
+  // AI : Only show "Replacement overlay" for pending/rejected overlays with replacesOverlayId
+  // AI : Approved overlays should have replacesOverlayId cleared, but defensive check prevents bugs
+  if (isReplacement && !isApproved) {
     tooltipText = 'Replacement overlay';
   } else if (isPending && !hasBeenModified) {
     tooltipText = 'Pending approval';
