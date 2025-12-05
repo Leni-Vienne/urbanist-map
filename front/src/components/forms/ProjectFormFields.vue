@@ -7,13 +7,15 @@
         <InputText
           id="project-name-input"
           v-model="formData.name"
-          :class="[{ 'w-full': true }, fieldClasses?.('name')]"
+          :class="getInputClass('name')"
           required
           minlength="8"
+          @blur="handleNameBlur"
+          @input="handleNameInput"
         />
         <label for="project-name-input" class="text-gray-600">{{ $t('project.name') }} *</label>
       </FloatLabel>
-      <small class="text-gray-500 mt-1">{{ $t('project.nameTooShort') }}</small>
+      <small v-if="nameError" class="validation-error">{{ nameError }}</small>
       <small v-if="showChangeIndicators && hasChanged?.('name')" class="change-indicator">
         {{ $t('overlay.changedFrom') }}: "{{ originalData?.name || $t('overlay.notSet') }}"
       </small>
@@ -25,11 +27,14 @@
         <Textarea
           id="project-description-input"
           v-model="formData.description"
-          :class="[{ 'w-full': true }, fieldClasses?.('description')]"
+          :class="getInputClass('description')"
           rows="2"
+          @blur="handleDescriptionBlur"
+          @input="handleDescriptionInput"
         />
         <label for="project-description-input" class="text-gray-600">{{ $t('project.description') }} ({{ $t('project.optionalField') }})</label>
       </FloatLabel>
+      <small v-if="descriptionError" class="validation-error">{{ descriptionError }}</small>
       <small v-if="showChangeIndicators && hasChanged?.('description')" class="change-indicator">
         {{ $t('overlay.changedFrom') }}: "{{ originalData?.description || $t('overlay.notSet') }}"
       </small>
@@ -74,15 +79,17 @@
           <DatePicker
             id="start-date-input"
             v-model="formData.startDate"
-            :class="[{ 'w-full': true }, fieldClasses?.('startDate')]"
+            :class="getInputClass('startDate')"
             dateFormat="dd/mm/yy"
             :updateModelType="'date'"
             showIcon
             required
+            @update:model-value="handleDateChange"
           />
           <label for="start-date-input" class="text-gray-600">{{ $t('project.startDate') }} *</label>
         </FloatLabel>
-        <small class="text-gray-500 block mt-1">{{ $t('project.startDateHelp') }}</small>
+        <small v-if="startDateError" class="validation-error">{{ startDateError }}</small>
+        <small v-else class="text-gray-500 block mt-1">{{ $t('project.startDateHelp') }}</small>
         <small v-if="showChangeIndicators && hasChanged?.('startDate') && !wasOriginallyProposed" class="change-indicator">
           {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData?.startDate) || $t('overlay.notSet') }}"
         </small>
@@ -93,15 +100,17 @@
           <DatePicker
             id="end-date-input"
             v-model="formData.endDate"
-            :class="[{ 'w-full': true }, fieldClasses?.('endDate')]"
+            :class="getInputClass('endDate')"
             dateFormat="dd/mm/yy"
             :updateModelType="'date'"
             showIcon
             required
+            @update:model-value="handleDateChange"
           />
           <label for="end-date-input" class="text-gray-600">{{ $t('project.endDate') }} *</label>
         </FloatLabel>
-        <small class="text-gray-500 block mt-1">{{ $t('project.endDateHelp') }}</small>
+        <small v-if="endDateError" class="validation-error">{{ endDateError }}</small>
+        <small v-else class="text-gray-500 block mt-1">{{ $t('project.endDateHelp') }}</small>
         <small v-if="showChangeIndicators && hasChanged?.('endDate') && !wasOriginallyProposed" class="change-indicator">
           {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData?.endDate) || $t('overlay.notSet') }}"
         </small>
@@ -154,10 +163,13 @@
           id="source-url-input"
           type="url"
           v-model="formData.sourceUrl"
-          :class="[{ 'w-full': true }, fieldClasses?.('sourceUrl')]"
+          :class="getInputClass('sourceUrl')"
+          @blur="handleSourceUrlBlur"
+          @input="handleSourceUrlInput"
         />
         <label for="source-url-input" class="text-gray-600">{{ $t('project.sourceUrl') }} ({{ $t('project.optionalField') }})</label>
       </FloatLabel>
+      <small v-if="sourceUrlError" class="validation-error">{{ sourceUrlError }}</small>
       <small v-if="showChangeIndicators && hasChanged?.('sourceUrl')" class="change-indicator">
         {{ $t('overlay.changedFrom') }}: "{{ originalData?.sourceUrl || $t('overlay.notSet') }}"
       </small>
@@ -174,6 +186,8 @@ import type CitySelect from './CitySelect.vue'
 import type { Project } from '@types'
 import { formatDate } from '@utils/dateFormat'
 import type { ProjectFormData } from '../../types/forms'
+import { useFieldValidation } from '@composables/forms/useFieldValidation'
+import { projectSchema } from '@shared/validation/schemas'
 
 // AI : Re-export for backward compatibility
 export type { ProjectFormData }
@@ -224,11 +238,80 @@ const { t } = useI18n()
 // AI : Reference to CitySelect component
 const citySelectRef = ref<InstanceType<typeof CitySelect> | null>(null)
 
+// AI : Setup field validation
+const { getFieldError, hasFieldError, validateField, isFieldTouched } = useFieldValidation(projectSchema)
+
 // AI : Local isProposed state synced with parent
 const localIsProposed = ref(props.isProposed)
 
 // AI : Convert null to undefined for CitySelect compatibility
 const cityIdForSelect = computed(() => props.formData.cityId ?? undefined)
+
+// AI : Create validation data helper
+function getValidationData() {
+  return { 
+    ...props.formData, 
+    description: props.formData.description ?? undefined,
+    sourceUrl: props.formData.sourceUrl ?? undefined,
+    lat: 0, 
+    lng: 0, 
+    cityId: props.formData.cityId || '00000000-0000-0000-0000-000000000000' 
+  }
+}
+
+// AI : Validation handlers for each field - blur always validates and marks as touched
+function handleNameBlur() {
+  validateField('name', getValidationData())
+}
+
+function handleDescriptionBlur() {
+  validateField('description', getValidationData())
+}
+
+function handleSourceUrlBlur() {
+  validateField('sourceUrl', getValidationData())
+}
+
+// AI : Input handlers - only validate if field was already touched (after first blur)
+function handleNameInput() {
+  if (isFieldTouched('name')) {
+    validateField('name', getValidationData())
+  }
+}
+
+function handleDescriptionInput() {
+  if (isFieldTouched('description')) {
+    validateField('description', getValidationData())
+  }
+}
+
+function handleSourceUrlInput() {
+  if (isFieldTouched('sourceUrl')) {
+    validateField('sourceUrl', getValidationData())
+  }
+}
+
+// AI : Get combined class for inputs with validation state
+function getInputClass(fieldName: string) {
+  const baseClasses = props.fieldClasses?.(fieldName) ?? ''
+  const errorClass = hasFieldError(fieldName) ? 'p-invalid' : ''
+  return [{ 'w-full': true }, baseClasses, errorClass]
+}
+
+// AI : Computed error messages for each field
+const nameError = computed(() => getFieldError('name'))
+const descriptionError = computed(() => getFieldError('description'))
+const sourceUrlError = computed(() => getFieldError('sourceUrl'))
+const startDateError = computed(() => getFieldError('startDate'))
+const endDateError = computed(() => getFieldError('endDate'))
+
+// AI : Date change handler - validates dates whenever they change
+function handleDateChange() {
+  const validationData = getValidationData()
+  // AI : Validate both date fields when either changes
+  validateField('startDate', validationData)
+  validateField('endDate', validationData)
+}
 
 // AI : Handle city ID updates from CitySelect (convert undefined to null)
 function handleCityIdUpdate(value: string | undefined) {
@@ -324,6 +407,13 @@ defineExpose({
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+/* AI : Validation error styling */
+.validation-error {
+  color: #dc2626;
+  font-size: 0.75rem;
+  display: block;
 }
 
 /* AI : Change indicator styling (matches BaseEditForm) */

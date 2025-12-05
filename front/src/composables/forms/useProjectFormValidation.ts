@@ -1,8 +1,9 @@
 import { useI18n } from 'vue-i18n'
 import { useToast } from '@composables/ui/useToast'
 import type { ProjectFormData } from '../../types/forms'
+import { projectSchema, getValidationErrorsMap } from '@shared/validation/schemas'
 
-// AI : Shared validation logic for project forms
+// AI : Shared validation logic for project forms using Zod
 export function useProjectFormValidation() {
   const { t } = useI18n()
   const toast = useToast()
@@ -22,16 +23,7 @@ export function useProjectFormValidation() {
     cities: { id: string }[],
     citiesLoaded: boolean
   ): boolean {
-    if (!formData.name?.trim()) {
-      showError(t('project.nameRequired'))
-      return false
-    }
-
-    if (formData.name.trim().length < 8) {
-      showError(t('project.nameTooShort'))
-      return false
-    }
-
+    // AI : City-related checks (not covered by Zod schema)
     if (!formData.cityId || !citiesLoaded) {
       showError(t('project.locationRequired'))
       return false
@@ -42,13 +34,15 @@ export function useProjectFormValidation() {
       return false
     }
 
-    if (isProposed) {
-      if (!formData.proposalDate) {
-        showError(t('project.proposalDateRequired'))
-        return false
-      }
-    } else if (!formData.startDate || !formData.endDate) {
-      showError(t('project.datesRequired'))
+    // AI : Validate with Zod schema (use dummy lat/lng for form-level validation)
+    const validationData = { ...formData, lat: 0, lng: 0 }
+    const result = projectSchema.safeParse(validationData)
+
+    if (!result.success) {
+      // AI : Get first error and show it
+      const errors = getValidationErrorsMap(result.error)
+      const firstError = Object.values(errors)[0]
+      showError(t(firstError.key, firstError.params ?? {}))
       return false
     }
 

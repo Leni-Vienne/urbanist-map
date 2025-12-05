@@ -2,7 +2,7 @@
   "type": "module",
   "scripts": {
     "unused": "bunx nyc report --reporter=html --reporter=text --report-dir=coverage",
-    "check": "bunx vue-tsc@latest --noEmit",
+    "check": "bunx vue-tsc --noEmit",
     "jscpd": "bunx jscpd .",
     "oxlint": "bunx oxlint --type-aware",
     "preview": "vite preview front",

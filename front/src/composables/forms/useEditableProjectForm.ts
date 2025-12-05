@@ -5,6 +5,7 @@ import { trpc } from '@client'
 import { useEditableFormBase } from './useEditableFormBase'
 import { useToast } from '@composables/ui/useToast'
 import { useI18n } from '@composables/useI18n'
+import { projectSchema, getValidationErrorsMap } from '@shared/validation/schemas'
 import type { Project } from '@types'
 import type { ProjectFormData } from '../../types/forms'
 import type { DBCity } from '../../../../back/src/shared/schema'
@@ -52,21 +53,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     },
     projectComparator
   )
-
-  // AI : Validate project name meets minimum length requirement
-  function validateProjectName(): boolean {
-    const trimmedName = String(base.formData.name).trim()
-    if (trimmedName.length < 8) {
-      toast.add({
-        severity: 'error',
-        summary: t('toast.validationError'),
-        detail: t('project.nameTooShort'),
-        life: 3000
-      })
-      return false
-    }
-    return true
-  }
 
   // AI : Update city object when cityId changes
   function getCityObjectForUpdate(currentProject: Project): DBCity {
@@ -163,6 +149,34 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     })
   }
 
+  // AI : Validate all form data using Zod schema
+  function validateFormData(): boolean {
+    // AI : Get current project for lat/lng
+    const currentProject = projectStore.projects[options.entityId] ?? projectStore.allProjects[options.entityId]
+    
+    const validationData = {
+      ...base.formData,
+      lat: currentProject?.lat ?? 0,
+      lng: currentProject?.lng ?? 0
+    }
+
+    const result = projectSchema.safeParse(validationData)
+    
+    if (!result.success) {
+      const errors = getValidationErrorsMap(result.error)
+      const firstError = Object.values(errors)[0]
+      toast.add({
+        severity: 'error',
+        summary: t('toast.validationError'),
+        detail: t(firstError.key, firstError.params ?? {}),
+        life: 3000
+      })
+      return false
+    }
+
+    return true
+  }
+
   // AI : Submit changes with local-only handling and validation
   async function submitChanges() {
     if (!base.hasChanges.value) return
@@ -170,7 +184,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     try {
       base.isSubmitting.value = true
 
-      if (!validateProjectName()) return
+      if (!validateFormData()) return
 
       if (options.localOnly) {
         handleLocalOnlyUpdate()

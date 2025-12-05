@@ -1,15 +1,18 @@
 <template>
   <div class="editable-overlay-form">
-    <form @submit.prevent="form.submitChanges" class="overlay-form">
+    <form @submit.prevent="handleSubmit" class="overlay-form">
       <div class="form-group">
         <label for="caption">{{ $t('overlay.overlayNameCaption') }}</label>
         <InputText
           id="caption"
           v-model="form.formData.caption"
-          :class="form.getFieldClasses('caption')"
+          :class="getCaptionInputClass()"
           :placeholder="$t('overlay.enterOverlayName')"
+          @blur="handleCaptionBlur"
+          @input="handleCaptionInput"
         />
-        <small v-if="form.hasChanged('caption')" class="change-indicator">
+        <small v-if="captionError" class="validation-error">{{ captionError }}</small>
+        <small v-else-if="form.hasChanged('caption')" class="change-indicator">
           {{ $t('overlay.changedFrom') }}: "{{ form.originalData.caption || $t('overlay.notSet') }}"
         </small>
         <div v-else class="change-indicator-placeholder"></div>
@@ -46,8 +49,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useEditableOverlayForm } from '@composables/forms/useEditableOverlayForm'
+import { useFieldValidation } from '@composables/forms/useFieldValidation'
+import { overlaySchema } from '@shared/validation/schemas'
 import type { OverlayObject } from '@types'
 
 interface Props {
@@ -74,6 +79,49 @@ const form = useEditableOverlayForm({
   onSubmitted: () => emit('submitted'),
   onClose: () => emit('close')
 })
+
+// AI : Setup caption validation (use partial schema for just caption field)
+const captionSchema = overlaySchema.pick({ caption: true })
+const { getFieldError, hasFieldError, validateField, isFieldTouched } = useFieldValidation(captionSchema)
+
+// AI : Helper to create validation data
+function getValidationData() {
+  return {
+    id: props.overlay.id,
+    filename: props.overlay.filename || 'dummy.png',
+    caption: form.formData.caption,
+    projectId: props.overlay.projectId || '00000000-0000-0000-0000-000000000000',
+    corners: props.overlay.corners || [{ lat: 0, lng: 0 }, { lat: 0, lng: 0 }, { lat: 0, lng: 0 }, { lat: 0, lng: 0 }]
+  }
+}
+
+// AI : Validation handler for caption - blur always validates and marks as touched
+function handleCaptionBlur() {
+  validateField('caption', getValidationData())
+}
+
+// AI : Input handler - only validate if field was already touched (after first blur)
+function handleCaptionInput() {
+  if (isFieldTouched('caption')) {
+    validateField('caption', getValidationData())
+  }
+}
+
+// AI : Get combined class for caption input with validation state
+function getCaptionInputClass() {
+  const baseClasses = form.getFieldClasses('caption')
+  const errorClass = hasFieldError('caption') ? 'p-invalid' : ''
+  return [baseClasses, errorClass]
+}
+
+// AI : Computed error message for caption
+const captionError = computed(() => getFieldError('caption'))
+
+// AI : Handle form submission - submitChanges is returned from createSubmitHandler
+async function handleSubmit() {
+  const submitFn = await form.submitChanges
+  await submitFn()
+}
 </script>
 
 <style scoped>
@@ -108,6 +156,13 @@ const form = useEditableOverlayForm({
 :deep(.field-changed) {
   border-color: #f59e0b !important;
   background-color: #fffbeb !important;
+}
+
+/* AI : Validation error styling */
+.validation-error {
+  color: #dc2626;
+  font-size: 0.75rem;
+  display: block;
 }
 
 /* AI : Change indicator styling */
