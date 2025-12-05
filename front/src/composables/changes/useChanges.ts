@@ -10,7 +10,7 @@ import type {
   SubmitChangeRequestInput,
   ChangeHistoryEntry,
 } from '../../types/api';
-import type { FieldChange } from '../../../../back/src/shared/types';
+import type { FieldChange } from '@shared/types';
 import { useAuthStore } from '@stores/authStore';
 import { useModerationStore } from '@stores/pinia/moderationStore';
 import { withErrorHandling, withErrorToast } from '@composables/core/useErrorHandling';

@@ -6,10 +6,11 @@ import { useEditableFormBase } from './useEditableFormBase'
 import { useToast } from '@composables/ui/useToast'
 import { useI18n } from '@composables/useI18n'
 import { projectSchema, getValidationErrorsMap } from '@shared/validation/schemas'
+import { prepareProjectValidationData } from '@utils/validationHelpers'
 import type { Project } from '@types'
 import type { ProjectFormData } from '../../types/forms'
-import type { DBCity } from '../../../../back/src/shared/schema'
-import type { ApprovalStatus } from '../../../../back/src/shared/types'
+import type { DBCity } from '../../../../back/src/db/schema'
+import type { ApprovalStatus } from '@shared/types'
 
 export interface EditableProjectFormOptions {
   entityId: string
@@ -154,11 +155,10 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     // AI : Get current project for lat/lng
     const currentProject = projectStore.projects[options.entityId] ?? projectStore.allProjects[options.entityId]
     
-    const validationData = {
-      ...base.formData,
-      lat: currentProject?.lat ?? 0,
-      lng: currentProject?.lng ?? 0
-    }
+    const validationData = prepareProjectValidationData(base.formData, {
+      lat: currentProject?.lat,
+      lng: currentProject?.lng
+    })
 
     const result = projectSchema.safeParse(validationData)
     

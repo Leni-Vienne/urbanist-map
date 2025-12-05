@@ -395,3 +395,6 @@ export type DBChangeHistory = InferSelectModel<typeof changeHistory>;
 export type DBScheduledDeletion = InferSelectModel<typeof scheduledDeletions>;
 export type DBConfig = InferSelectModel<typeof config>;
 export type DBUserReport = InferSelectModel<typeof userReports>;
+
+// AI : Re-export ApprovalStatus from shared for convenience
+export type { ApprovalStatus } from '@shared/types';

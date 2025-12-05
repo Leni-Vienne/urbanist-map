@@ -3,7 +3,7 @@ import type { Project, OverlayObject, OverlayData } from "@types";
 import type { NearbyProject } from "../types/api";
 import { v4 as uuidv4 } from "uuid";
 import { buildImageUrl } from "@utils/imageUrl";
-import { calculateCentroidFromCorners } from "../../../back/src/shared/validation";
+import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 
 /**
  * AI : Create a new Project instance with defaults

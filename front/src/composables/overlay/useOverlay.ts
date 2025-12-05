@@ -34,7 +34,7 @@ import {
   saveToEditModeOverlayCache,
 } from '@composables/overlay/useOverlayPositionManagement';
 import { withErrorHandling } from '@composables/core/useErrorHandling';
-import { validateOverlaySize, leafletCornersToCorners, calculateCentroidFromCorners } from '../../../../back/src/shared/validation';
+import { validateOverlaySize, leafletCornersToCorners, calculateCentroidFromCorners } from '@shared/overlayValidation';
 import { useToast } from '@composables/ui/useToast';
 import { removeOverlayFromMap } from '@composables/overlay/useOverlayRemoval';
 import { deleteOverlayDirect } from '@composables/project/useUserContributions';

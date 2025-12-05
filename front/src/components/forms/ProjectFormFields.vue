@@ -188,6 +188,7 @@ import { formatDate } from '@utils/dateFormat'
 import type { ProjectFormData } from '../../types/forms'
 import { useFieldValidation } from '@composables/forms/useFieldValidation'
 import { projectSchema } from '@shared/validation/schemas'
+import { prepareProjectValidationData } from '@utils/validationHelpers'
 
 // AI : Re-export for backward compatibility
 export type { ProjectFormData }
@@ -247,48 +248,36 @@ const localIsProposed = ref(props.isProposed)
 // AI : Convert null to undefined for CitySelect compatibility
 const cityIdForSelect = computed(() => props.formData.cityId ?? undefined)
 
-// AI : Create validation data helper
-function getValidationData() {
-  return { 
-    ...props.formData, 
-    description: props.formData.description ?? undefined,
-    sourceUrl: props.formData.sourceUrl ?? undefined,
-    lat: 0, 
-    lng: 0, 
-    cityId: props.formData.cityId || '00000000-0000-0000-0000-000000000000' 
-  }
+// AI : Shared validation helper to avoid rebuilding validation data
+function validateFieldHelper(fieldPath: string) {
+  const validationData = prepareProjectValidationData(props.formData)
+  validateField(fieldPath, validationData)
 }
 
 // AI : Validation handlers for each field - blur always validates and marks as touched
 function handleNameBlur() {
-  validateField('name', getValidationData())
+  validateFieldHelper('name')
 }
 
 function handleDescriptionBlur() {
-  validateField('description', getValidationData())
+  validateFieldHelper('description')
 }
 
 function handleSourceUrlBlur() {
-  validateField('sourceUrl', getValidationData())
+  validateFieldHelper('sourceUrl')
 }
 
-// AI : Input handlers - only validate if field was already touched (after first blur)
+// AI : Input handlers - validate immediately on every input (real-time feedback)
 function handleNameInput() {
-  if (isFieldTouched('name')) {
-    validateField('name', getValidationData())
-  }
+  validateFieldHelper('name')
 }
 
 function handleDescriptionInput() {
-  if (isFieldTouched('description')) {
-    validateField('description', getValidationData())
-  }
+  validateFieldHelper('description')
 }
 
 function handleSourceUrlInput() {
-  if (isFieldTouched('sourceUrl')) {
-    validateField('sourceUrl', getValidationData())
-  }
+  validateFieldHelper('sourceUrl')
 }
 
 // AI : Get combined class for inputs with validation state
@@ -307,10 +296,9 @@ const endDateError = computed(() => getFieldError('endDate'))
 
 // AI : Date change handler - validates dates whenever they change
 function handleDateChange() {
-  const validationData = getValidationData()
-  // AI : Validate both date fields when either changes
-  validateField('startDate', validationData)
-  validateField('endDate', validationData)
+  // AI : Validate both date fields when either changes (they depend on each other)
+  validateFieldHelper('startDate')
+  validateFieldHelper('endDate')
 }
 
 // AI : Handle city ID updates from CitySelect (convert undefined to null)
@@ -406,7 +394,7 @@ defineExpose({
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.25rem;
 }
 
 /* AI : Validation error styling */

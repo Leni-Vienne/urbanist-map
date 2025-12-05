@@ -8,17 +8,18 @@ import {
 } from "@composables/map/useCityMarkers";
 import { updateMarkerTooltip } from "@composables/overlay/useOverlay";
 import type { Project, OverlayObject } from "@types";
-import type { FieldChange } from "../../../../back/src/shared/types";
+import type { FieldChange } from "@shared/types";
 import { storeToRefs } from "pinia";
 import { computed } from "vue";
 import {
   validateOverlaySize,
   leafletCornersToCorners,
-} from "../../../../back/src/shared/validation";
+} from "@shared/overlayValidation";
 import { useI18n } from "vue-i18n";
 import { useChangeRequests } from "@composables/changes/useChanges";
 import { formatDate } from "@utils/dateFormat";
 import { projectSchema, overlaySchema, getValidationErrorsMap } from "@shared/validation/schemas";
+import { prepareProjectValidationData, prepareOverlayValidationData } from "@utils/validationHelpers";
 
 // AI : Unified submission types for consolidated workflow
 export type SubmissionChangeType = "create" | "update_pending" | "update_approved";
@@ -377,11 +378,10 @@ export function useSubmissionService() {
 
     // AI : Project-specific validation with Zod
     if (context.entityType === "project") {
-      const validationData = {
-        ...context.entity,
-        lat: context.entity.lat ?? 0,
-        lng: context.entity.lng ?? 0
-      };
+      const validationData = prepareProjectValidationData(context.entity, {
+        lat: context.entity.lat,
+        lng: context.entity.lng
+      });
       
       const result = projectSchema.safeParse(validationData);
       
@@ -402,13 +402,13 @@ export function useSubmissionService() {
     if (context.entityType === "overlay") {
       const corners = context.entity.overlay?.getCorners() ?? context.entity.corners;
       
-      const validationData = {
+      const validationData = prepareOverlayValidationData({
         id: context.entity.id,
-        filename: context.entity.filename || 'temp.png',
+        filename: context.entity.filename,
         caption: context.entity.caption,
         projectId: context.entity.projectId,
         corners: corners.map((c: any) => ({ lat: c.lat, lng: c.lng }))
-      };
+      });
       
       const result = overlaySchema.safeParse(validationData);
       

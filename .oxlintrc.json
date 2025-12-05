@@ -7,7 +7,7 @@
   // Enable all of these plugins (which are enabled by default):
   //"plugins": ["unicorn", "typescript", "oxc"],
   "categories": {
-    "suspicious": "off", // mostly type assertion stuff that I don't see how to fix
+    "suspicious": "error", // mostly type assertion stuff that I don't see how to fix
     "correctness": "warn",
     "perf": "warn",
     "nursery": "warn",

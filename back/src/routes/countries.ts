@@ -8,7 +8,7 @@ import {
   buildProjectVisibilityCondition,
   buildProjectHasVisibleContentCondition,
 } from '../db/helpers';
-import type { ApprovalStatus } from '../shared/types';
+import type { ApprovalStatus } from '../db/schema';
 
 export const countriesRouter = router({
   getAllCountries: publicProcedure
