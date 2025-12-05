@@ -14,6 +14,9 @@ import type { FieldChange } from '../../../../back/src/shared/types';
 import { useAuthStore } from '@stores/authStore';
 import { useModerationStore } from '@stores/pinia/moderationStore';
 import { withErrorHandling, withErrorToast } from '@composables/core/useErrorHandling';
+import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { updateMarkerPosition, updateMarkerTooltip } from '@composables/overlay/useOverlay';
+import L from 'leaflet';
 
 // AI : ============================================================================
 // AI : CHANGE REQUESTS
@@ -135,16 +138,60 @@ export function useChangeRequests() {
   async function deleteChangeRequest(changeRequestId: string) {
     isLoading.value = true;
     try {
+      // AI : Find the change request before deleting to get entity info
+      const changeRequest = pendingChangeRequests.value.find(cr => cr.id === changeRequestId);
+
       const result = await withErrorHandling(
         async () => trpc.changes.deleteChangeRequest.mutate({ id: changeRequestId }),
         { errorMessage: 'Failed to delete change request' }
       );
 
-      if (result?.success != undefined) {
+      if (result?.success != undefined && changeRequest) {
         // AI : Remove deleted change request from local state
         pendingChangeRequests.value = pendingChangeRequests.value.filter(
           cr => cr.id !== changeRequestId
         );
+
+        // AI : If this was an overlay change request, update the overlay state
+        if (changeRequest.entityType === 'overlay') {
+          const overlayStore = useOverlayStore();
+          const overlayObject = overlayStore.overlays[changeRequest.entityId];
+
+          if (overlayObject) {
+            // AI : Check if there are any other pending change requests for this overlay
+            const otherChangeRequestsForOverlay = pendingChangeRequests.value.filter(
+              cr => cr.entityType === 'overlay' && cr.entityId === changeRequest.entityId
+            );
+
+            // AI : If no other pending change requests exist, reset the overlay state
+            if (otherChangeRequestsForOverlay.length === 0) {
+              overlayObject.hasPendingChanges = false;
+              overlayObject.suggestedCorners = undefined;
+              overlayObject.isViewingApprovedPosition = undefined;
+
+              // AI : If this was a position change request, clear edit mode cache and reset position
+              if (changeRequest.fieldName === 'corners') {
+                // AI : Clear the edit mode cache for this overlay to reset position to approved
+                overlayStore.removeFromEditModeCache(changeRequest.entityId);
+
+                // AI : Reset overlay position to approved corners
+                if (overlayObject.overlay && overlayObject.corners?.length === 4) {
+                  const leafletCorners = overlayObject.corners.map(corner =>
+                    L.latLng(corner.lat, corner.lng)
+                  );
+                  overlayObject.overlay.setCorners(leafletCorners);
+                  overlayObject.isModified = false;
+
+                  // AI : Update marker position to match approved corners
+                  updateMarkerPosition(overlayObject);
+                }
+              }
+
+              // AI : Update marker color and tooltip to reflect new state
+              updateMarkerTooltip(overlayObject);
+            }
+          }
+        }
       }
 
       return result;
