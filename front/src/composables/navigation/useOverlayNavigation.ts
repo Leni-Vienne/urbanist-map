@@ -2,6 +2,7 @@ import L from 'leaflet';
 import { loadCityProjects } from '@composables/map/useCityMarkers';
 import { navigateToOverlay, selectOverlay } from '@composables/overlay/useOverlay';
 import { prepareCountryContext } from '@composables/map/useCountryMarkers';
+import { prepareCrossCountryFlight } from '@composables/map/useTileLayers';
 import { map } from '@composables/core/useMap';
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from '@composables/map/useMapNavigation';
 import { useMapStore } from '@stores/pinia/mapStore';
@@ -45,25 +46,37 @@ function getCurrentDisplayCorners(overlay: OverlayObject): { lat: number; lng: n
 /**
  * AI : Shared logic for navigating to a location by simulating country → city marker clicks
  * AI : This loads the country cities, adds city markers, and load city projects
+ * @returns Callback to switch to country layer after flight, or null if not cross-country
  */
 async function prepareNavigationToCity(
   cityId: string,
   cityName: string,
   countryCode?: string
-): Promise<void> {
+): Promise<(() => void) | null> {
+  let switchToCountryLayer: (() => void) | null = null;
+
   if (countryCode) {
-    // AI : Step 1: Simulate country marker click - prepare country context
+    // AI : Step 1: Prepare for cross-country flight (switches to esri if needed)
+    switchToCountryLayer = prepareCrossCountryFlight(countryCode);
+
+    // AI : Step 2: Prepare country context (clear map, load cities, add markers)
     await prepareCountryContext(countryCode);
   }
 
-  // AI : Step 2: Simulate city marker click (this loads and renders all markers and overlays for the city)
+  // AI : Step 3: Simulate city marker click (this loads and renders all markers and overlays for the city)
   await loadCityProjects(cityId, cityName, false, countryCode);
+
+  return switchToCountryLayer;
 }
 
 /**
  * AI : Zoom to overlay and select it once rendered
  */
-function zoomToOverlayAndSelect(overlayId: string, corners: { lat: number; lng: number }[]): boolean {
+function zoomToOverlayAndSelect(
+  overlayId: string,
+  corners: { lat: number; lng: number }[],
+  switchToCountryLayer: (() => void) | null
+): boolean {
   if (!map.value || corners.length !== 4) return false;
 
   const bounds = L.latLngBounds(corners.map(c => L.latLng(c.lat, c.lng)));
@@ -76,6 +89,11 @@ function zoomToOverlayAndSelect(overlayId: string, corners: { lat: number; lng: 
   const overlayStore = useOverlayStore();
 
   map.value.once('moveend', () => {
+    // AI : If cross-country flight, switch to country layer after arrival
+    if (switchToCountryLayer) {
+      switchToCountryLayer();
+    }
+
     // AI : Wait for element to exist, then wait for image to load before selecting
     // AI : This fixes the bug where first click adds blue outline but doesn't open toolbar
     // AI : getElement() returns null until the DOM element is created (takes a few frames)
@@ -126,47 +144,12 @@ function handleSameOverlayNavigation(overlayId: string, overlayStore: ReturnType
   if (overlayObject != null) {
     const corners = getCurrentDisplayCorners(overlayObject);
     if (corners != null) {
-      zoomToOverlayAndSelect(overlayId, corners);
+      zoomToOverlayAndSelect(overlayId, corners, null); // AI : Same overlay, no cross-country
     }
   }
   return true;
 }
 
-/**
- * AI : Handle navigation when overlay is in the currently selected city
- */
-function handleSameCityNavigation(overlayId: string, mapStore: ReturnType<typeof useMapStore>, overlayStore: ReturnType<typeof useOverlayStore>): boolean | null {
-  const corners = getOverlayCorners(overlayId, mapStore, overlayStore);
-  if (corners != null) {
-    return zoomToOverlayAndSelect(overlayId, corners);
-  }
-  return null; // AI : Couldn't find corners, need to try different city path
-}
-
-/**
- * AI : Handle navigation when switching to a different city
- */
-async function handleDifferentCityNavigation(
-  overlayId: string,
-  cityId: string,
-  cityName: string,
-  countryCode: string | undefined,
-  mapStore: ReturnType<typeof useMapStore>
-): Promise<boolean> {
-  await prepareNavigationToCity(cityId, cityName, countryCode);
-
-  if (!map.value) {
-    return false;
-  }
-
-  const overlayData = mapStore.currentCityOverlays.find(o => o.id === overlayId);
-  if (overlayData?.corners != null) {
-    return zoomToOverlayAndSelect(overlayId, overlayData.corners);
-  }
-
-  // AI : Fallback: if overlay not in current city overlays, use the old method
-  return navigateToOverlay(overlayId, true, false);
-}
 
 /**
  * AI : Navigates to an overlay by simulating the complete marker click flow
@@ -197,15 +180,27 @@ export async function navigateToOverlayWithCity(
     const isSameCity = currentCity?.id === cityId;
 
     if (isSameCity) {
-      const result = handleSameCityNavigation(overlayId, mapStore, overlayStore);
-      if (result !== null) {
-        return result;
+      const corners = getOverlayCorners(overlayId, mapStore, overlayStore);
+      if (corners != null) {
+        return zoomToOverlayAndSelect(overlayId, corners, null); // AI : Same city, no cross-country
       }
       // AI : If null, fall through to different city path
     }
 
-    // AI : Different city or no data - load everything
-    return await handleDifferentCityNavigation(overlayId, cityId, cityName, countryCode, mapStore);
+    // AI : Different city - load everything with cross-country flight support
+    const switchToCountryLayer = await prepareNavigationToCity(cityId, cityName, countryCode);
+
+    if (!map.value) {
+      return false;
+    }
+
+    const overlayData = mapStore.currentCityOverlays.find(o => o.id === overlayId);
+    if (overlayData?.corners != null) {
+      return zoomToOverlayAndSelect(overlayId, overlayData.corners, switchToCountryLayer);
+    }
+
+    // AI : Fallback: if overlay not in current city overlays, use the old method
+    return navigateToOverlay(overlayId, true, false);
   } catch (error) {
     console.error('Failed to navigate to overlay with city:', error);
     throw error;
@@ -231,8 +226,8 @@ export async function navigateToStandaloneProject(
   projectId?: string
 ): Promise<void> {
   try {
-    // AI : Prepare navigation (load country cities and city projects)
-    await prepareNavigationToCity(cityId, cityName, countryCode);
+    // AI : Prepare navigation with cross-country flight support
+    const switchToCountryLayer = await prepareNavigationToCity(cityId, cityName, countryCode);
 
     // AI : Wait a bit for markers to be added to the map
     await new Promise(resolve => setTimeout(resolve, 200));
@@ -247,10 +242,15 @@ export async function navigateToStandaloneProject(
       easeLinearity: 0.25
     });
 
-    // AI : If projectId provided, open the project info popup after flyTo completes
-    if (projectId) {
-      // AI : Wait for the flyTo animation to complete
-      map.value.once('moveend', () => {
+    // AI : Handle post-flight actions
+    map.value.once('moveend', () => {
+      // AI : If cross-country flight, switch to country layer after arrival
+      if (switchToCountryLayer) {
+        switchToCountryLayer();
+      }
+
+      // AI : If projectId provided, open the project info popup
+      if (projectId) {
         const overlayStore = useOverlayStore();
         const uiStore = useUiStore();
 
@@ -272,8 +272,8 @@ export async function navigateToStandaloneProject(
         // AI : Open project info popup using uiStore (same as click handler)
         // AI : Project data is loaded from backend by InfoPopupContainer if needed
         uiStore.openProjectInfoPopup(projectId);
-      });
-    }
+      }
+    });
   } catch (error) {
     console.error('Failed to navigate to marker project:', error);
     throw error;
