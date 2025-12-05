@@ -11,6 +11,9 @@ export const currentTileLayer = ref<TileLayerType>('esri');
 // AI : Reference to the currently active tile layer instance
 let activeTileLayer: L.TileLayer | L.GridLayer | null = null;
 
+// AI : Current country code for cross-country flight detection
+let currentCountryCode: string | null = null;
+
 // To prevent requesting the tileLayer server for tiles outside the valid range
 const tileLayerBounds = L.latLngBounds([-85, -180], [85, 180]);
 
@@ -171,3 +174,40 @@ export function getTileLayerOptions(): { label: string; value: TileLayerType; fl
 export function isTileLayerType(value: string): value is TileLayerType {
   return ['FRA', 'esri', 'USA', 'CHE'].includes(value);
 }
+
+/**
+ * AI : Prepare for cross-country flight navigation
+ * AI : Switches to esri immediately if navigating to a different country
+ * AI : Returns a callback to switch to target country layer after flight
+ * @param targetCountryCode - The country code being navigated to
+ * @returns Callback to execute after flight completes, or null if same country
+ */
+export function prepareCrossCountryFlight(targetCountryCode: string | null): (() => void) | null {
+  // AI : Check if this is a cross-country navigation
+  const isCrossCountry = currentCountryCode !== targetCountryCode;
+
+  if (isCrossCountry) {
+    // AI : Switch to esri immediately for global coverage during flight
+    if (currentTileLayer.value !== 'esri') {
+      switchTileLayer('esri');
+    }
+
+    // AI : Update current country
+    currentCountryCode = targetCountryCode;
+
+    // AI : Return callback to switch to target country layer after flight
+    return () => {
+      const targetLayer = targetCountryCode && isTileLayerType(targetCountryCode)
+        ? targetCountryCode
+        : 'esri';
+
+      if (currentTileLayer.value !== targetLayer) {
+        switchTileLayer(targetLayer);
+      }
+    };
+  }
+
+  // AI : Same country navigation - no tile layer changes needed
+  return null;
+}
+

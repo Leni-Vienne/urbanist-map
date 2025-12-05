@@ -15,6 +15,7 @@ import { loadCityProjects } from "@composables/map/useCityMarkers";
 import { prepareCountryContext } from "@composables/map/useCountryMarkers";
 import { switchMode } from "@composables/overlay/useOverlayModes";
 import { mobileAwareFlyToBounds } from "@composables/map/useMapNavigation";
+import { prepareCrossCountryFlight } from "@composables/map/useTileLayers";
 import type { PendingChangeRequest } from "../../types/api";
 import type { OverlayForModeration, OverlayObject } from "@types";
 import { previewState, clearChangeRequestPreview } from "./changeRequestPreviewState";
@@ -121,10 +122,13 @@ export function useChangeRequestPreview() {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
-    // AI : Step 2: Prepare country context (tile layer, clear map, load cities, add city markers)
+    // AI : Step 2: Prepare for cross-country flight (switches to esri if needed)
+    const switchToCountryLayer = prepareCrossCountryFlight(overlayForModeration.countryCode);
+
+    // AI : Step 3: Prepare country context (clear map, load cities, add markers)
     await prepareCountryContext(overlayForModeration.countryCode);
 
-    // AI : Step 3: Navigate to overlay position
+    // AI : Step 4: Navigate to overlay position
     const targetBounds = L.latLngBounds(targetCorners);
     mobileAwareFlyToBounds(targetBounds, {
       padding: [50, 50] as [number, number],
@@ -132,10 +136,13 @@ export function useChangeRequestPreview() {
       easeLinearity: 0.25,
     });
 
-    // AI : Wait for navigation to complete
+    // AI : Wait for navigation to complete and switch tile layer if cross-country
     await new Promise<void>((resolve) => {
       if (map.value != null) {
         map.value.once("moveend", () => {
+          if (switchToCountryLayer) {
+            switchToCountryLayer();
+          }
           setTimeout(resolve, 100);
         });
       } else {

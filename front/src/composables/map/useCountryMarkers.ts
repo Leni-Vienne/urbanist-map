@@ -6,7 +6,7 @@ import { addCityMarkersForCountry, removeCityMarkers } from "@composables/map/us
 import { removeOverlayMarkers } from "@composables/map/useCityOverlays";
 import { clearAllOverlays } from "@composables/overlay/useOverlayLifecycle";
 import { clearAllStandaloneProjectMarkers } from "@composables/map/useStandaloneProjectMarkers";
-import { switchTileLayer, isTileLayerType } from "@composables/map/useTileLayers";
+import { prepareCrossCountryFlight } from "@composables/map/useTileLayers";
 import { trpc } from "@client";
 import { useProjectStore } from "@stores/pinia/projectStore";
 import { useMapStore } from "@stores/pinia/mapStore";
@@ -128,25 +128,22 @@ function clearAllMapContent(): void {
 }
 
 /**
- * AI : Prepare country context by switching tile layer, clearing map, and loading cities
+ * AI : Prepare country context by clearing map and loading cities
  * AI : This is the common flow when navigating to a country
  * @param countryCode - The country code to prepare context for
  */
 export async function prepareCountryContext(countryCode: string): Promise<void> {
-  // AI : Step 1: Switch to appropriate tile layer for this country
-  switchTileLayer(isTileLayerType(countryCode) ? countryCode : "esri");
-
-  // AI : Step 2: Clear all previous map content
+  // AI : Step 1: Clear all previous map content
   clearAllMapContent();
 
-  // AI : Step 3: Set the selected country code
+  // AI : Step 2: Set the selected country code
   const mapStore = useMapStore();
   mapStore.selectedCountryCode = countryCode;
 
-  // AI : Step 4: Load cities for the country
+  // AI : Step 3: Load cities for the country
   await loadCitiesForCountry(countryCode);
 
-  // AI : Step 5: Add city markers to the map
+  // AI : Step 4: Add city markers to the map
   const projectStore = useProjectStore();
   const country = projectStore.countries.find((c) => c.code === countryCode);
   if (country) {
@@ -199,12 +196,20 @@ export function addCountryMarkersToMap() {
         }
       }
 
+      // AI : Prepare for cross-country flight (switches to esri if needed)
+      const switchToCountryLayer = prepareCrossCountryFlight(country.code);
+
       // AI : Fly to the country using bounding box
       if (isValidCountryCode(country.code)) {
         flyToCountry(country.code, country.lat, country.lng);
       }
 
-      // AI : Prepare country context (switch tile layer, clear map, load cities, add city markers)
+      // AI : If cross-country flight, switch to country layer after arrival
+      if (switchToCountryLayer && map.value) {
+        map.value.once('moveend', switchToCountryLayer);
+      }
+
+      // AI : Prepare country context (clear map, load cities, add markers)
       await prepareCountryContext(country.code);
     },
   };

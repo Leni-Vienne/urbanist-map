@@ -300,7 +300,7 @@ async function autoNavigateToSelectedOverlay(overlayId: string, previousBounds: 
 
     mobileAwareFlyToBounds(targetBounds, {
       padding: [50, 50] as [number, number],
-      duration: 0.8,
+      duration: 0.8, // change in overlay position between mode is smaller, so quicker transition
       easeLinearity: 0.25
     })
   }
