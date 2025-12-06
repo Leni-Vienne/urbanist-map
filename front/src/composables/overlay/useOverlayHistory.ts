@@ -1,0 +1,114 @@
+// AI : ============================================================================
+// AI : OVERLAY HISTORY - Undo/Redo and history state management
+// AI : ============================================================================
+// AI : Extracted from useOverlay.ts to manage overlay position history
+// AI : Provides undo/redo functionality and history state persistence
+// AI : Note: Marker updates are handled by the caller after history operations
+// AI : ============================================================================
+
+import type { OverlayObject } from '@types';
+import { useOverlayStore } from '@stores/pinia/overlayStore';
+import {
+  getFromEditModeOverlayCache,
+  saveToEditModeOverlayCache,
+} from '@composables/overlay/useOverlayPositionManagement';
+
+/**
+ * AI : Initialize history for overlay if not already set
+ */
+export function initializeOverlayHistory(overlayObject: OverlayObject): void {
+  if (!overlayObject.overlay) return;
+
+  // AI : Only initialize if history is completely empty
+  if (overlayObject.history.length > 0) {
+    return;
+  }
+
+  const initialCorners = overlayObject.overlay.getCorners();
+  if (initialCorners?.length === 4) {
+    //overlayObject.history = [JSON.parse(JSON.stringify(initialCorners))];
+    overlayObject.history = [globalThis.structuredClone(initialCorners)];
+    overlayObject.redoStack = [];
+  }
+}
+
+/**
+ * AI : Get corners for overlay based on priority: history > coordinates > default
+ */
+export function getCornersForOverlay(overlayObject: OverlayObject) {
+  // AI : Priority 1: Use history if available (for undo/redo)
+  if (overlayObject.history?.length > 0) {
+    const lastCorners = overlayObject.history.at(-1);
+    if (lastCorners?.length === 4) return lastCorners;
+  }
+
+  // AI : Priority 2: Use corners from overlayObject (skip if all zeros - indicates new overlay)
+  if (overlayObject.corners && overlayObject.corners.length === 4 &&
+    !(overlayObject.corners.every(c => c.lat === 0 && c.lng === 0))) {
+    return overlayObject.corners;
+  }
+
+  // AI : Priority 3: Initialize from current overlay state
+  const currentCorners = overlayObject.overlay?.getCorners();
+  if (currentCorners?.length === 4) {
+    //overlayObject.history = [JSON.parse(JSON.stringify(currentCorners))];
+    overlayObject.history = [globalThis.structuredClone(currentCorners)];
+    overlayObject.redoStack = [];
+    return currentCorners;
+  }
+
+  return null;
+}
+
+/**
+ * AI : Get corners for overlay with edit mode cache fallback
+ * This function prioritizes edit mode cached modifications for position persistence
+ */
+export function getCornersForOverlayWithCache(overlayObject: OverlayObject) {
+  const overlayStore = useOverlayStore();
+
+  // AI : Check edit mode cache only if in edit mode
+  // AI : This ensures view mode always uses backend positions, not stale cached positions
+  if (overlayStore.mode === 'edit') {
+    const cachedModifications = getFromEditModeOverlayCache(overlayObject.id);
+    if (cachedModifications?.corners?.length === 4) {
+      // AI : Update object history with cached modifications
+      overlayObject.history = [cachedModifications.corners];
+      overlayObject.isModified = cachedModifications.isModified;
+      return cachedModifications.corners;
+    }
+  }
+
+  // AI : Use backend corners (view mode or no cache available)
+  return getCornersForOverlay(overlayObject);
+}
+
+/**
+ * AI : Validate corners data
+ */
+export function isValidCorners(corners: { lat: number, lng: number }[]): boolean {
+  return corners.every(corner =>
+    corner &&
+    typeof corner.lat === 'number' &&
+    typeof corner.lng === 'number' &&
+    !isNaN(corner.lat) &&
+    !isNaN(corner.lng)
+  );
+}
+
+/**
+ * AI : Save overlay modifications to edit mode cache for persistence across zoom changes
+ */
+export function saveOverlayModificationsToCache(overlayObject: OverlayObject): void {
+  const overlayStore = useOverlayStore();
+
+  if (overlayStore.mode !== 'edit' || !overlayObject.overlay) return;
+  const corners = overlayObject.overlay.getCorners();
+  if (!corners?.length) return;
+
+  // AI : Save to persistent cache for zoom persistence
+  saveToEditModeOverlayCache(overlayObject.id, {
+    corners: corners.map(corner => ({ lat: corner.lat, lng: corner.lng })),
+    isModified: overlayObject.isModified ?? false
+  });
+}
