@@ -112,42 +112,18 @@ function getEmailService(): EmailService {
   return new EmailService(config);
 }
 
-async function sendVerificationEmail(email: string, token: string): Promise<void> {
+async function sendVerificationEmail(email: string, token: string, locale: 'en' | 'fr' = 'en'): Promise<void> {
   try {
     const emailService = getEmailService();
     const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${token}`;
 
-    const subject = 'Verify your email address - Construction Map';
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <title>Email Verification</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background-color: #f8f9fa; padding: 30px; border-radius: 8px;">
-            <h1 style="color: #2c3e50; margin-bottom: 20px;">Welcome to Construction Map!</h1>
-            <p style="color: #555; font-size: 16px; line-height: 1.5;">
-              Thank you for signing up. To activate your account, please click the link below:
-            </p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${verificationUrl}" 
-                 style="background-color: #3498db; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-                Verify my email
-              </a>
-            </div>
-            <p style="color: #777; font-size: 14px;">
-              If the button doesn't work, copy and paste this link in your browser:
-              <br><a href="${verificationUrl}" style="color: #3498db;">${verificationUrl}</a>
-            </p>
-            <p style="color: #777; font-size: 12px; margin-top: 30px;">
-              This link will expire in 24 hours. If you didn't request this verification, please ignore this email.
-            </p>
-          </div>
-        </body>
-      </html>
-    `;
+    // AI : Use template renderer with i18n support
+    const { renderEmailTemplate } = await import('../email/templateRenderer');
+    const { subject, html } = await renderEmailTemplate(
+      'verification',
+      { verificationUrl },
+      locale
+    );
 
     await emailService.sendEmail(email, subject, html);
     console.log(`Verification email sent successfully to ${email}`);
@@ -163,42 +139,18 @@ async function sendVerificationEmail(email: string, token: string): Promise<void
   }
 }
 
-async function sendPasswordResetEmail(email: string, token: string): Promise<void> {
+async function sendPasswordResetEmail(email: string, token: string, locale: 'en' | 'fr' = 'en'): Promise<void> {
   try {
     const emailService = getEmailService();
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
 
-    const subject = 'Reset your password - Construction Map';
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <title>Password Reset</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background-color: #f8f9fa; padding: 30px; border-radius: 8px;">
-            <h1 style="color: #e74c3c; margin-bottom: 20px;">Password Reset</h1>
-            <p style="color: #555; font-size: 16px; line-height: 1.5;">
-              You requested a password reset. Click the link below to create a new password:
-            </p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${resetUrl}" 
-                 style="background-color: #e74c3c; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-                Reset my password
-              </a>
-            </div>
-            <p style="color: #777; font-size: 14px;">
-              If the button doesn't work, copy and paste this link in your browser:
-              <br><a href="${resetUrl}" style="color: #e74c3c;">${resetUrl}</a>
-            </p>
-            <p style="color: #777; font-size: 12px; margin-top: 30px;">
-              This link will expire in 1 hour. If you didn't request this reset, please ignore this email.
-            </p>
-          </div>
-        </body>
-      </html>
-    `;
+    // AI : Use template renderer with i18n support
+    const { renderEmailTemplate } = await import('../email/templateRenderer');
+    const { subject, html } = await renderEmailTemplate(
+      'passwordReset',
+      { resetUrl },
+      locale
+    );
 
     await emailService.sendEmail(email, subject, html);
     console.log(`Password reset email sent successfully to ${email}`);
