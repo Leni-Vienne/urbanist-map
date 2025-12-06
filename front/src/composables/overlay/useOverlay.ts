@@ -1,72 +1,29 @@
-// AI : ============================================================================
-// AI : OVERLAY CORE - Central overlay management and rendering
-// AI : ============================================================================
-// AI : This file handles overlay lifecycle, rendering, and user interactions.
-// AI : It's large because overlays are the core domain object with many concerns:
-// AI : - Leaflet map integration (creation, rendering, event handling)
-// AI : - History management (undo/redo)
-// AI : - Navigation (next/prev overlay)
-// AI : - Toolbar actions (Leaflet UI glue code)
-// AI : - Marker management and positioning
-// AI : - Selection and highlighting
-// AI : ============================================================================
-
 import L from "leaflet";
 import 'leaflet-toolbar';
 import 'leaflet-distortableimage';
 import { map } from '@composables/core/useMap';
-import { getOverlayMarkerColor, updateOverlayMarkersColors, createOverlayIcon } from '@composables/map/useMarkers';
+import { updateOverlayMarkersColors } from '@composables/map/useMarkers';
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from '@composables/map/useMapNavigation';
 import { useOverlayStore } from '@stores/pinia/overlayStore';
 import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useUiStore } from '@stores/uiStore';
 import { useAuthStore } from '@stores/authStore';
-import type { OverlayObject, OverlayData, MarkerColor } from '@types';
+import type { OverlayObject, OverlayData } from '@types';
 import { createOverlayObject, createOverlayFromCDN, convertOverlayToData } from '@utils/typeFactories';
 import { toRef } from 'vue';
 import { useProjects, addOverlayToProjectWithId } from '@composables/project/useProjects';
 import { trpc } from '@client';
 import { removeStandaloneProjectMarkerForProject, addStandaloneProjectMarkerForProject } from '@composables/map/useStandaloneProjectMarkers';
-import { syncPreviewStateOnNavigation } from '@composables/overlay/changeRequestPreviewState';
-import {
-  getFromEditModeOverlayCache,
-  saveToEditModeOverlayCache,
-} from '@composables/overlay/useOverlayPositionManagement';
+import { getFromEditModeOverlayCache} from '@composables/overlay/useOverlayPositionManagement';
 import { withErrorHandling } from '@composables/core/useErrorHandling';
-import { validateOverlaySize, leafletCornersToCorners, calculateCentroidFromCorners } from '@shared/overlayValidation';
+import { validateOverlaySize, leafletCornersToCorners } from '@shared/overlayValidation';
 import { useToast } from '@composables/ui/useToast';
 import { removeOverlayFromMap } from '@composables/overlay/useOverlayRemoval';
 import { deleteOverlayDirect } from '@composables/project/useUserContributions';
-// AI : Selection functions extracted to useOverlaySelection.ts
-import {
-  selectOverlay,
-  highlightOverlayById,
-  removeOverlayHighlight,
-  removeProjectOutlines,
-  highlightProjectOverlaysOnHover,
-  setupProjectHoverEvents,
-  setupMapClickToDeselect,
-  calculateOutlineSize,
-} from '@composables/overlay/useOverlaySelection';
-// AI : History functions extracted to useOverlayHistory.ts
-import {
-  initializeOverlayHistory,
-  getCornersForOverlayWithCache,
-  isValidCorners,
-  saveOverlayModificationsToCache,
-  saveToHistory,
-} from '@composables/overlay/useOverlayHistory';
-// AI : Marker functions extracted to useOverlayMarkers.ts
-import {
-  updateMarkerPosition,
-  updateMarkerTooltip,
-  createMarkerTitle,
-  getOverlayBounds,
-  enrichOverlayWithProject,
-  createSingleMarker,
-  createMarker,
-} from '@composables/overlay/useOverlayMarkers';
+import { selectOverlay, setupProjectHoverEvents } from '@composables/overlay/useOverlaySelection';
+import { initializeOverlayHistory, getCornersForOverlayWithCache, isValidCorners, saveOverlayModificationsToCache, saveToHistory } from '@composables/overlay/useOverlayHistory';
+import { updateMarkerPosition, updateMarkerTooltip, getOverlayBounds, enrichOverlayWithProject, createSingleMarker, createMarker } from '@composables/overlay/useOverlayMarkers';
 
 /**
  * AI : Update overlay editing state based on current mode
