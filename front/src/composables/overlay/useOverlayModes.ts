@@ -16,6 +16,7 @@ import { cacheCurrentPosition } from './useOverlayPositionManagement'
 import { loadCityOverlays, fetchCityProjectsData } from '@composables/map/useCityOverlays'
 import { loadCityStandaloneProjects, removeCityMarkers, addCityMarkersForCountry, updateAllStandaloneProjectMarkerColors } from '@composables/map/useCityMarkers'
 import { loadCountriesWithProjects, loadCitiesForCountry, addCountryMarkersToMap } from '@composables/map/useCountryMarkers'
+import { navigateToStandaloneProject } from '@composables/navigation/useOverlayNavigation'
 import { useProjectStore } from '@stores/pinia/projectStore'
 import { useUiStore } from '@stores/uiStore'
 import { updateOverlayMarkersColors } from '@composables/map/useMarkers'
@@ -172,10 +173,12 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
   // AI : Capture the current position of selected overlay BEFORE mode switch
   // AI : This allows us to show both old and new positions after the switch
   let previousBounds: L.LatLngBounds | null = null
+  let selectedOverlayProjectId: string | null = null
   if (selectedOverlayId) {
     const currentOverlay = overlayStore.overlays[selectedOverlayId]
     if (currentOverlay) {
       previousBounds = getOverlayBounds(currentOverlay)
+      selectedOverlayProjectId = currentOverlay.projectId ?? null
     }
   }
 
@@ -250,9 +253,15 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
       if (projectPopupProjectId) {
         await autoSelectOverlayForProject(projectPopupProjectId)
       } else if (selectedOverlayId) {
-        // AI : Auto-navigate to selected overlay after mode change (only if not from project popup)
-        // AI : Pass previousBounds so we can show both old and new positions
-        await autoNavigateToSelectedOverlay(selectedOverlayId, previousBounds)
+        // AI : Check if switching from edit/moderation to view mode with a pending overlay selected
+        // AI : In this case, fly to the standalone marker instead (pending overlay won't exist in view mode)
+        if (targetMode === 'view' && selectedOverlayProjectId) {
+          await autoNavigateToStandaloneMarker(selectedOverlayProjectId)
+        } else {
+          // AI : Auto-navigate to selected overlay after mode change (only if not from project popup)
+          // AI : Pass previousBounds so we can show both old and new positions
+          await autoNavigateToSelectedOverlay(selectedOverlayId, previousBounds)
+        }
       }
 
       // AI : Call onModeExit when leaving edit mode
@@ -307,8 +316,49 @@ async function autoNavigateToSelectedOverlay(overlayId: string, previousBounds: 
 }
 
 /**
+ * AI : Auto-navigate to standalone marker after switching to view mode
+ * AI : Used when switching from edit/moderation mode with a selected pending overlay to view mode
+ * AI : Flies to the standalone marker that replaces the pending overlay
+ * @param projectId - ID of the project
+ * @param previousBounds - Bounds of the overlay position before mode switch (unused, kept for consistency)
+ */
+async function autoNavigateToStandaloneMarker(projectId: string): Promise<void> {
+  // AI : Get project data to extract coordinates and city info
+  const projectStore = useProjectStore()
+  const project = projectStore.projects[projectId]
+
+  if (!project?.lat || !project?.lng || !project?.cityId) {
+    console.warn('Project data incomplete for navigation:', projectId)
+    return
+  }
+
+  // AI : Get city info for navigation
+  const mapStore = useMapStore()
+  const selectedCity = mapStore.selectedCity
+  
+  if (!selectedCity) {
+    console.warn('No city selected for navigation')
+    return
+  }
+
+  // AI : Use existing navigateToStandaloneProject which handles everything:
+  // AI : - Cross-country flight support
+  // AI : - Proper marker loading
+  // AI : - Smooth camera animation
+  // AI : Note: We don't open the popup (projectId param omitted) to avoid confusion
+  await navigateToStandaloneProject(
+    project.lat,
+    project.lng,
+    selectedCity.id,
+    selectedCity.name,
+    selectedCity.countryCode
+  )
+}
+
+/**
  * AI : Auto-select the first overlay for a project after mode switch
  * AI : Used when switching from view mode (with project popup) to edit/moderation mode
+ * AI : Flies to the overlay to provide visual continuity for the user
  */
 async function autoSelectOverlayForProject(projectId: string): Promise<void> {
   const overlayStore = useOverlayStore()
@@ -323,6 +373,18 @@ async function autoSelectOverlayForProject(projectId: string): Promise<void> {
   )
 
   if (projectOverlay) {
+    // AI : Get overlay bounds for navigation
+    const overlayBounds = getOverlayBounds(projectOverlay)
+
+    if (overlayBounds && map.value) {
+      // AI : Fly to overlay position to show user where the pending overlay is
+      mobileAwareFlyToBounds(overlayBounds, {
+        padding: [50, 50] as [number, number],
+        duration: 1.5,
+        easeLinearity: 0.25
+      })
+    }
+
     // AI : selectOverlay handles overlay.select() internally
     selectOverlay(projectOverlay.id)
   }
