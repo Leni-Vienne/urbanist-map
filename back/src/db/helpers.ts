@@ -1,10 +1,10 @@
 import { sql, eq, and, inArray, type SQL } from 'drizzle-orm';
 import type { PgColumn } from 'drizzle-orm/pg-core';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import type * as schema from './schema';
 import { db } from '../database';
-import { projects, cities, overlays, countries, changeRequests, users } from './schema';
-import type { ApprovalStatus } from './schema';
+import { projects, cities, overlays, countries, changeRequests, users, type ApprovalStatus } from './schema';
+import type * as schema from './schema';
+import type { MapMode } from '@shared/types';
 
 // AI : ============================================================================
 // AI : DATABASE HELPERS - Unified utilities for pagination, queries, and visibility
@@ -416,8 +416,6 @@ export type UserContext = {
   role?: string | null;
 } | undefined | null;
 
-// AI : Type for map viewing modes
-export type MapMode = 'view' | 'edit' | 'moderation';
 
 // AI : Fetch overlay IDs where user has pending change requests
 export async function getUserOverlayChangeRequestIds(

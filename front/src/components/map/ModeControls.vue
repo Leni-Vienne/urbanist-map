@@ -1,6 +1,9 @@
 <template>
   <!-- AI : Shared mode controls component - used in both desktop and mobile -->
-  <div :class="isMobile ? 'mode-controls-wrapper-mobile' : 'mode-controls-wrapper'" @dblclick.stop>
+  <div
+    :class="isMobile ? 'mode-controls-wrapper-mobile' : 'mode-controls-wrapper'"
+    @dblclick.stop
+  >
     <button
       type="button"
       class="mode-indicator"
@@ -24,7 +27,7 @@ import { useAuthStore } from '@stores/authStore';
 import { useToast } from '@composables/ui/useToast';
 import { switchMode } from '@composables/overlay/useOverlayModes';
 import { useI18n } from 'vue-i18n';
-import type { MapMode } from '@types';
+import type { MapMode } from '@shared/types';
 
 defineProps<{
   isMobile?: boolean
