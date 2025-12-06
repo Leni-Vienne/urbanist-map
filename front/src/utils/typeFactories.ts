@@ -75,13 +75,16 @@ export function createProjectObjectFromAPI(nearbyProject: NearbyProject): Projec
  */
 export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayObject {
   const id = data.id ?? uuidv4();
+  const status = data.status ?? "pending";
+  // AI : Pending overlays are stored locally, not in R2 - force backend URL for them
+  const isPending = status === 'pending';
 
   return {
     id,
     version: data.version ?? 1,
     filename: data.filename ?? "",
     caption: data.caption ?? null,
-    status: data.status ?? "pending",
+    status,
     authorId: data.authorId ?? "",
     projectId: data.projectId ?? null,
     replacesOverlayId: data.replacesOverlayId ?? null,
@@ -90,7 +93,7 @@ export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayO
     updatedAt: data.updatedAt ?? new Date(),
     centroid: data.centroid ?? { lat: 0, lng: 0 },
     corners: data.corners ?? [],
-    imageUrl: data.imageUrl ?? buildImageUrl(data.filename ?? ""),
+    imageUrl: data.imageUrl ?? buildImageUrl(data.filename ?? "", isPending),
     isModified: data.isModified ?? false,
     overlay: data.overlay ?? null,
     marker: data.marker ?? null,
@@ -106,7 +109,9 @@ export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayO
  */
 export function createOverlayFromCDN(overlayData: OverlayData): OverlayObject {
   const isDataUrl = overlayData.filename.startsWith("data:");
-  const imageUrl = isDataUrl ? overlayData.filename : buildImageUrl(overlayData.filename);
+  // AI : Pending overlays are stored locally, not in R2 - force backend URL for them
+  const isPending = overlayData.status === 'pending';
+  const imageUrl = isDataUrl ? overlayData.filename : buildImageUrl(overlayData.filename, isPending);
 
   return createOverlayObject({
     ...overlayData,
