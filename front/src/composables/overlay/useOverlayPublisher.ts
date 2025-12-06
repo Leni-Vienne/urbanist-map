@@ -11,6 +11,7 @@ import type { OverlayObject, Project } from "@types";
 import { validateOverlaySize, leafletCornersToCorners } from "@shared/overlayValidation";
 import { useI18n } from "vue-i18n";
 import type { ApprovalStatus } from "@shared/types";
+import { useAuthStore } from "@stores/authStore";
 
 // AI : Extract corners from overlay object, falling back to stored corners if needed
 function getCornersFromOverlay(overlay: OverlayObject) {
@@ -242,7 +243,13 @@ export function useOverlayPublisher() {
     // AI : Optimistically add overlay to user contributions (no backend fetch needed)
     // AI : Latest overlays won't show pending submissions, so don't refresh that panel
     if (project) {
-      projectStore.addOverlayToUserContributions(overlay, project, filename);
+      const authStore = useAuthStore();
+      projectStore.addOverlayToUserContributions(
+        overlay,
+        project,
+        filename,
+        authStore.user?.username ?? null,
+      );
     }
   }
 
