@@ -1,16 +1,16 @@
-import { ref } from 'vue';
-import { useProjectStore } from '@stores/pinia/projectStore';
-import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { useMapStore } from '@stores/pinia/mapStore';
-import { updateMarkerTooltip } from '@composables/overlay/useOverlay';
-import { map } from '@composables/core/useMap';
-import { trpc, getApiUrl } from '@client';
-import { storeToRefs } from 'pinia';
-import { buildProjectPayload } from '@composables/project/useProjectMutations';
-import type { OverlayObject, Project } from '@types';
-import { validateOverlaySize, leafletCornersToCorners } from '@shared/overlayValidation';
-import { useI18n } from 'vue-i18n';
-import type { ApprovalStatus } from '@shared/types';
+import { ref } from "vue";
+import { useProjectStore } from "@stores/pinia/projectStore";
+import { useOverlayStore } from "@stores/pinia/overlayStore";
+import { useMapStore } from "@stores/pinia/mapStore";
+import { updateMarkerTooltip, addNewOverlayToCityCache } from "@composables/overlay/useOverlay";
+import { map } from "@composables/core/useMap";
+import { trpc, getApiUrl } from "@client";
+import { storeToRefs } from "pinia";
+import { buildProjectPayload } from "@composables/project/useProjectMutations";
+import type { OverlayObject, Project } from "@types";
+import { validateOverlaySize, leafletCornersToCorners } from "@shared/overlayValidation";
+import { useI18n } from "vue-i18n";
+import type { ApprovalStatus } from "@shared/types";
 
 // AI : Extract corners from overlay object, falling back to stored corners if needed
 function getCornersFromOverlay(overlay: OverlayObject) {
@@ -33,21 +33,21 @@ export function useOverlayPublisher() {
   // AI : Validate if overlay can be published
   function validateOverlayForPublishing(overlay: OverlayObject, project: Project | null): boolean {
     if (!project) {
-      throw new Error('Cannot Publish: Overlay must be assigned to a project');
+      throw new Error("Cannot Publish: Overlay must be assigned to a project");
     }
 
     const corners = getCornersFromOverlay(overlay);
-    if (!corners || corners.length !== 4 || corners.some(c => !c.lat || !c.lng)) {
-      throw new Error('Cannot Publish: Overlay must have valid position (4 corners)');
+    if (!corners || corners.length !== 4 || corners.some((c) => !c.lat || !c.lng)) {
+      throw new Error("Cannot Publish: Overlay must have valid position (4 corners)");
     }
 
     // AI : Validate overlay size constraints
     const cornersArray = leafletCornersToCorners(corners);
     const sizeValidation = validateOverlaySize(cornersArray);
-    
+
     if (!sizeValidation.isValid) {
       // AI : Simple i18n error message
-      throw new Error(t('overlay.overlayTooLarge'));
+      throw new Error(t("overlay.overlayTooLarge"));
     }
 
     return true;
@@ -58,17 +58,15 @@ export function useOverlayPublisher() {
     try {
       // AI : For approved projects, skip publishing - they already exist on server
       // AI : Project modifications will be handled separately via change request flow
-      if (project.status === 'approved') {
+      if (project.status === "approved") {
         return false; // AI : Project ID won't change for existing approved projects
       }
 
       // AI : Use shared helper to build consistent payload
-      const projectResult = await trpc.project.publishProject.mutate(
-        buildProjectPayload(project)
-      );
+      const projectResult = await trpc.project.publishProject.mutate(buildProjectPayload(project));
 
       if (!projectResult.success) {
-        throw new Error('Failed to publish project to server');
+        throw new Error("Failed to publish project to server");
       }
 
       // AI : Handle project ID update and IndexedDB cleanup if this is a new project
@@ -100,42 +98,51 @@ export function useOverlayPublisher() {
   // AI : Prepare image for server (upload or extract filename)
   // AI : Images are uploaded to local storage immediately, then migrated to R2 only after moderator approval
   async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
-    if (overlay.imageUrl.startsWith('data:')) {
+    if (overlay.imageUrl.startsWith("data:")) {
       // AI : Convert data URL to Blob with proper MIME type
       const response = await fetch(overlay.imageUrl);
       const blob = await response.blob();
-      
+
       // AI : Create a File object with proper name and type
-      const file = new File([blob], 'overlay-image.webp', { type: blob.type || 'image/webp' });
-      
+      const file = new File([blob], "overlay-image.webp", { type: blob.type || "image/webp" });
+
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append("image", file);
 
       // AI : Get API URL based on environment (same logic as tRPC client)
       // AI : Use shared getApiUrl function
       // AI : Upload to server's local storage - will migrate to R2 on approval
 
       const uploadResponse = await fetch(`${getApiUrl()}/api/upload-image`, {
-        method: 'POST',
+        method: "POST",
         body: formData,
-        credentials: 'include'
+        credentials: "include",
       });
 
       if (!uploadResponse.ok) {
-        throw new Error('Failed to upload image to server');
+        throw new Error("Failed to upload image to server");
       }
       const uploadResult: { filename: string } = await uploadResponse.json();
 
       return uploadResult.filename;
     } else {
       // AI : Extract filename from existing server URL
-      const urlParts = overlay.imageUrl.split('/');
+      const urlParts = overlay.imageUrl.split("/");
       return urlParts[urlParts.length - 1];
     }
   }
 
   // AI : Publish overlay metadata to server
-  async function publishOverlayToServer(overlay: OverlayObject, filename: string): Promise<{ success: boolean; exists: boolean; id?: string; status?: string; authorId?: string | null }> {
+  async function publishOverlayToServer(
+    overlay: OverlayObject,
+    filename: string,
+  ): Promise<{
+    success: boolean;
+    exists: boolean;
+    id?: string;
+    status?: string;
+    authorId?: string | null;
+  }> {
     const corners = getCornersFromOverlay(overlay);
     const payload = {
       id: overlay.id,
@@ -143,7 +150,7 @@ export function useOverlayPublisher() {
       caption: overlay.caption ?? undefined,
       projectId: overlay.projectId!,
       replacesOverlayId: overlay.replacesOverlayId ?? undefined,
-      corners: corners.map(c => ({ lat: c.lat, lng: c.lng })),
+      corners: corners.map((c) => ({ lat: c.lat, lng: c.lng })),
     };
 
     const overlayResult = await trpc.overlay.publishOverlay.mutate(payload);
@@ -154,7 +161,7 @@ export function useOverlayPublisher() {
         exists: overlayResult.exists,
         id: overlayResult.id,
         status: overlayResult.status,
-        authorId: overlayResult.authorId
+        authorId: overlayResult.authorId,
       };
     }
 
@@ -166,10 +173,10 @@ export function useOverlayPublisher() {
     overlay: OverlayObject,
     oldId: string,
     newId: string,
-    project: Project | null
+    project: Project | null,
   ): void {
     console.log(`AI: Publishing changed overlay ID from ${oldId} to ${newId}`);
-    
+
     // AI : Update overlays store with new key
     const updatedOverlays = { ...overlays.value };
     delete updatedOverlays[oldId];
@@ -189,7 +196,7 @@ export function useOverlayPublisher() {
       const updatedProjects = { ...projects.value };
       const projectToUpdate = { ...updatedProjects[project.id] };
       const overlayIndex = projectToUpdate.overlayIds.indexOf(oldId);
-      
+
       if (overlayIndex !== -1) {
         projectToUpdate.overlayIds = [...projectToUpdate.overlayIds];
         projectToUpdate.overlayIds[overlayIndex] = newId;
@@ -205,7 +212,11 @@ export function useOverlayPublisher() {
   }
 
   // AI : Handle post-publish UI updates and cache invalidation
-  function handlePostPublishUpdates(overlay: OverlayObject, project: Project | null, filename: string): void {
+  function handlePostPublishUpdates(
+    overlay: OverlayObject,
+    project: Project | null,
+    filename: string,
+  ): void {
     // AI : Update marker tooltip to reflect new published state
     updateMarkerTooltip(overlay);
 
@@ -215,11 +226,16 @@ export function useOverlayPublisher() {
       overlay.overlay.addTo(map.value);
     }
 
-    // AI : Invalidate all mode caches for this city after successful publish
-    // AI : This ensures fresh data on next mode switch without overwriting current local state
-    const cityId = overlay.project?.cityId;
+    // AI : Update cache with new overlay state to refresh marker color (changes from Orange to Yellow)
+    // AI : Use robust resolution for cityId as overlay.project might not be fully hydrated
+    const cityId = overlay.project?.cityId ?? project?.cityId;
+
     if (cityId) {
-      mapStore.clearCityProjectsCache(cityId);
+      // AI : Update the overlay in the cache to reflect the new status (yellow/pending instead of orange/modified)
+      // AI : This ensures markers at low zoom levels are correct immediately without needing a reload
+      addNewOverlayToCityCache(overlay, cityId);
+
+      // AI : Clear standalone cache to ensure project markers are updated correctly (removed if now has overlays)
       mapStore.clearCityStandaloneProjectsCache(cityId);
     }
 
@@ -278,8 +294,10 @@ export function useOverlayPublisher() {
       // AI : the just-published overlay with stale backend data. The overlay is already
       // AI : updated locally with the correct state and ID from the publish response.
     } catch (error) {
-      console.error('Failed to publish overlay:', error);
-      throw new Error('Publish Failed: Failed to save to server. Please try again.', { cause: error });
+      console.error("Failed to publish overlay:", error);
+      throw new Error("Publish Failed: Failed to save to server. Please try again.", {
+        cause: error,
+      });
     } finally {
       isPublishing.value = false;
     }
@@ -287,6 +305,6 @@ export function useOverlayPublisher() {
 
   return {
     isPublishing,
-    publishOverlay
+    publishOverlay,
   };
 }
