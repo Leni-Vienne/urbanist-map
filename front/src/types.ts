@@ -15,9 +15,6 @@ export type MarkerColor =
   | "black";
 export type viewModeMarkerColor = "yellow" | "orange" | "grey" | "green";
 
-// AI : Type for map viewing modes
-export type MapMode = "view" | "edit" | "moderation";
-
 // AI : Type for project manager modes
 export type ProjectManagerMode = "list" | "edit" | "view" | "create";
 
@@ -233,6 +230,4 @@ export type ProjectForModeration = Pick<
   overlayCount?: number;
 };
 
-// AI : Keep specific types that have unique structure
-export type PendingOverlay =
-  RouterOutput["moderation"]["getPendingSubmissions"]["overlays"][number];
+// AI : PendingOverlay is defined in types/api.ts - import from there if needed

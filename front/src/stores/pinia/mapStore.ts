@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { OverlayData, MapMode } from '@types'
+import type { OverlayData } from '@types'
+import type { MapMode } from '@shared/types'
 import type { RouterOutput } from '@client'
 
 // AI : Type for selected city data (compatible with previous latestClickedCity interface)

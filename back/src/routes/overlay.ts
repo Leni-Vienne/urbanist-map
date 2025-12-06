@@ -1,19 +1,18 @@
 import { publicProcedure, protectedProcedure, router, TRPCError } from '../trpc';
 import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
-import { overlays, projects, cities, countries } from '../db/schema';
+import { overlays, projects, cities, countries, type ApprovalStatus } from '../db/schema';
+import type * as schema from '../db/schema';
 import { sql, eq, and } from 'drizzle-orm';
 import { db } from '../database';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import type * as schema from '../db/schema';
 import {
   buildOverlayQuery,
   buildOverlayVisibilityCondition,
-  type MapMode
 } from '../db/helpers';
+import type { MapMode } from '@shared/types';
 import { validateOverlaySize, calculateCentroidFromCorners } from '@shared/overlayValidation';
 import { deleteLocalImages } from '../lib/imageCleanup';
 import { checkPendingLimitForNewContribution } from '../db/contributionHelpers';
-import type { ApprovalStatus } from '../db/schema';
 import { overlaySchema } from '@shared/validation/schemas';
 
 // AI : Use shared overlay schema for validation
