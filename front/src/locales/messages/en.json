@@ -493,6 +493,21 @@
     "approveProjectFirst": "Approve the project first to moderate its overlays",
     "undo": "Undo last action"
   },
+  "markerTooltip": {
+    "status": {
+      "replacementOverlay": "Replacement overlay",
+      "pendingApproval": "Pending approval",
+      "approved": "Approved",
+      "rejected": "Rejected overlay",
+      "localOverlay": "Local overlay",
+      "newOverlay": "New overlay"
+    },
+    "modifiers": {
+      "modified": "modified",
+      "hasPendingChanges": "has pending changes",
+      "viewingSuggested": "viewing suggested"
+    }
+  },
   "forms": {
     "saveChanges": "Save Changes",
     "submitLabel": {

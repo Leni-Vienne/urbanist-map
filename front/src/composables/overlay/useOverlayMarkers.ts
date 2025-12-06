@@ -17,6 +17,8 @@ import { syncPreviewStateOnNavigation } from '@composables/overlay/changeRequest
 import { calculateCentroidFromCorners } from '@shared/overlayValidation';
 import { getFromEditModeOverlayCache } from '@composables/overlay/useOverlayPositionManagement';
 import { createOverlayObject } from '@utils/typeFactories';
+// AI : useI18n() uses Vue's inject() mechanism which is only available synchronously during the setup() phase of a component.
+import { t } from '../../locales';
 
 /**
  * AI : Update the marker position based on overlay center
@@ -78,49 +80,58 @@ export function updateMarkerTooltip(overlayObject: OverlayObject, cachedMarkerCo
   overlayObject.marker.setIcon(colorIcon);
 
   if (overlayStore.mode !== 'edit') {
-    return;
-  }
-  // AI : Generate tooltip text based on overlay state
-  const hasBeenModified = overlayObject.isModified;
-  const hasPendingChanges = overlayObject.hasPendingChanges ?? false;
-  const isReplacement = overlayObject.replacesOverlayId !== null;
-  const isApproved = overlayObject.status === 'approved';
-  const isPending = overlayObject.status === 'pending';
-  // AI : Treat undefined as "viewing approved" (default state)
-  const isViewingApprovedPosition = overlayObject.isViewingApprovedPosition;
+      return;
+    }
+    // AI : Generate tooltip text based on overlay state with granular conditions
+    const hasBeenModified = overlayObject.isModified;
+    const hasPendingChanges = overlayObject.hasPendingChanges ?? false;
+    const isReplacement = overlayObject.replacesOverlayId !== null;
+    const isApproved = overlayObject.status === 'approved';
+    const isPending = overlayObject.status === 'pending';
+    const isRejected = overlayObject.status === 'rejected';
+    // AI : Treat undefined as "viewing approved" (default state)
+    const isViewingApprovedPosition = overlayObject.isViewingApprovedPosition;
 
-  let tooltipText = '';
-  // AI : Only show "Replacement overlay" for pending/rejected overlays with replacesOverlayId
-  // AI : Approved overlays should have replacesOverlayId cleared, but defensive check prevents bugs
-  if (isReplacement && !isApproved) {
-    tooltipText = 'Replacement overlay';
-  } else if (isPending && !hasBeenModified) {
-    tooltipText = 'Pending approval';
-  } else if (isPending && hasBeenModified) {
-    tooltipText = 'Pending approval (modified)';
-  } else if (isApproved && hasPendingChanges && isViewingApprovedPosition === false) {
-    // AI : Only show "Pending changes" when explicitly viewing suggested position
-    tooltipText = 'Pending changes (viewing suggested)';
-  } else if (isApproved && hasPendingChanges && isViewingApprovedPosition !== false) {
-    // AI : When viewing approved position (undefined or true), show that there are pending changes
-    tooltipText = 'Approved (has pending changes)';
-  } else if (isApproved && hasBeenModified) {
-    tooltipText = 'Approved (modified)';
-  } else if (isApproved && !hasBeenModified) {
-    tooltipText = 'Approved';
-  } else if (hasBeenModified) {
-    tooltipText = 'Local overlay';
-  } else if (overlayObject.status === 'rejected') {
-    tooltipText = 'Rejected overlay';
-  } else {
-    tooltipText = 'New overlay';
-  }
+    // AI : Determine base status text
+    let statusText = '';
+    let modifierText = '';
 
-  overlayObject.marker.bindTooltip(tooltipText, {
-    permanent: false,
-    direction: 'top',
-    offset: [0, -10]
-  });
+    // AI : Only show "Replacement overlay" for pending/rejected overlays with replacesOverlayId
+    // AI : Approved overlays should have replacesOverlayId cleared, but defensive check prevents bugs
+    if (isReplacement && !isApproved) {
+      statusText = t('markerTooltip.status.replacementOverlay');
+    } else if (isPending) {
+      statusText = t('markerTooltip.status.pendingApproval');
+      if (hasBeenModified) {
+        modifierText = t('markerTooltip.modifiers.modified');
+      }
+    } else if (isApproved) {
+      statusText = t('markerTooltip.status.approved');
+      if (hasPendingChanges && isViewingApprovedPosition === false) {
+        // AI : When explicitly viewing suggested position
+        modifierText = t('markerTooltip.modifiers.viewingSuggested');
+      } else if (hasPendingChanges && isViewingApprovedPosition !== false) {
+        // AI : When viewing approved position (undefined or true), show that there are pending changes
+        modifierText = t('markerTooltip.modifiers.hasPendingChanges');
+      } else if (hasBeenModified) {
+        modifierText = t('markerTooltip.modifiers.modified');
+      }
+    } else if (isRejected) {
+      statusText = t('markerTooltip.status.rejected');
+    } else if (hasBeenModified) {
+      statusText = t('markerTooltip.status.localOverlay');
+    } else {
+      statusText = t('markerTooltip.status.newOverlay');
+    }
+
+    // AI : Assemble final tooltip text with modifier in parentheses if present
+    const tooltipText = modifierText ? `${statusText} (${modifierText})` : statusText;
+
+    overlayObject.marker.bindTooltip(tooltipText, {
+      permanent: false,
+      direction: 'top',
+      offset: [0, -10]
+    });
 }
 
 /**
