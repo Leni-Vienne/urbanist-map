@@ -561,6 +561,7 @@
     "tokenRequired": "Token is required",
     "fieldNameRequired": "Field name is required",
     "changesRequired": "At least one change is required",
+    "invalidDate": "Invalid date",
     "genericError": "Invalid input"
   },
   "errors": {
