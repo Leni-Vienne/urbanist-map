@@ -9,7 +9,7 @@ import {
   updateMarkerPosition,
   updateMarkerTooltip,
   getOverlayBounds,
-} from "@composables/overlay/useOverlay";
+} from "@composables/overlay/useOverlayMarkers";
 import { selectOverlay } from "@composables/overlay/useOverlaySelection";
 import { loadCityProjects } from "@composables/map/useCityMarkers";
 import { prepareCountryContext } from "@composables/map/useCountryMarkers";

@@ -12,6 +12,7 @@ import {
   getFromEditModeOverlayCache,
   saveToEditModeOverlayCache,
 } from '@composables/overlay/useOverlayPositionManagement';
+import { updateMarkerTooltip } from '@composables/overlay/useOverlayMarkers';
 
 /**
  * AI : Initialize history for overlay if not already set
@@ -26,7 +27,7 @@ export function initializeOverlayHistory(overlayObject: OverlayObject): void {
 
   const initialCorners = overlayObject.overlay.getCorners();
   if (initialCorners?.length === 4) {
-    // eslint-disable-next-line
+    // eslint-disable-next-line prefer-structured-clone
     overlayObject.history = [JSON.parse(JSON.stringify(initialCorners))]; // can't use structuredClone because corners are a class instance
     overlayObject.redoStack = [];
   }
@@ -51,7 +52,7 @@ export function getCornersForOverlay(overlayObject: OverlayObject) {
   // AI : Priority 3: Initialize from current overlay state
   const currentCorners = overlayObject.overlay?.getCorners();
   if (currentCorners?.length === 4) {
-    // eslint-disable-next-line
+    // eslint-disable-next-line prefer-structured-clone
     overlayObject.history = [JSON.parse(JSON.stringify(currentCorners))]; // can't use structuredClone because corners are a class instance
     overlayObject.redoStack = [];
     return currentCorners;
@@ -110,5 +111,46 @@ export function saveOverlayModificationsToCache(overlayObject: OverlayObject): v
   saveToEditModeOverlayCache(overlayObject.id, {
     corners: corners.map(corner => ({ lat: corner.lat, lng: corner.lng })),
     isModified: overlayObject.isModified ?? false
+  });
+}
+
+/**
+ * AI : Save the current state of an overlay to history
+ */
+export function saveToHistory(overlayObject: OverlayObject): void {
+  if (!overlayObject.overlay) return;
+
+  const currentState = overlayObject.overlay.getCorners();
+  if (!currentState?.length) return;
+
+  // AI : Check if current state is different from last saved state
+  if (overlayObject.history.length > 0) {
+    const lastState = overlayObject.history[overlayObject.history.length - 1];
+    const currentStateStr = JSON.stringify(currentState);
+    const lastStateStr = JSON.stringify(lastState);
+
+    if (currentStateStr === lastStateStr) {
+      return;
+    }
+  }
+
+  // eslint-disable-next-line prefer-structured-clone
+  overlayObject.history.push(JSON.parse(JSON.stringify(currentState)) as { lat: number; lng: number }[]);
+  overlayObject.redoStack = [];
+
+  // AI : Mark overlay as modified when it's moved/changed
+  overlayObject.isModified = true;
+
+  // AI : Save modifications to edit mode cache if in edit mode for persistence across zoom changes
+  saveOverlayModificationsToCache(overlayObject);
+
+  updateMarkerTooltip(overlayObject);
+
+  // AI : Update store with proper reactivity - critical for info popup to see changes
+  const overlayStore = useOverlayStore();
+  overlayStore.updateOverlay(overlayObject.id, {
+    isModified: true,
+    history: overlayObject.history,
+    redoStack: overlayObject.redoStack
   });
 }

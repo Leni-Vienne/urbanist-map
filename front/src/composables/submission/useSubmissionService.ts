@@ -6,7 +6,7 @@ import {
   loadCityProjects,
   updateStandaloneProjectMarkerColor,
 } from "@composables/map/useCityMarkers";
-import { updateMarkerTooltip } from "@composables/overlay/useOverlay";
+import { updateMarkerTooltip } from "@composables/overlay/useOverlayMarkers";
 import type { Project, OverlayObject } from "@types";
 import type { FieldChange } from "@shared/types";
 import { storeToRefs } from "pinia";
