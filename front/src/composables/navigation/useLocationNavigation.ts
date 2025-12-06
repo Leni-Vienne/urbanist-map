@@ -1,10 +1,10 @@
-import { loadCityProjects } from '@composables/map/useCityMarkers';
-import { prepareCountryContext } from '@composables/map/useCountryMarkers';
-import { map } from '@composables/core/useMap';
-import { mobileAwareFlyTo } from '@composables/map/useMapNavigation';
-import { prepareCrossCountryFlight } from '@composables/map/useTileLayers';
-import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { useProjectStore } from '@stores/pinia/projectStore';
+import { loadCityProjects } from "@composables/map/useCityMarkers";
+import { prepareCountryContext } from "@composables/map/useCountryMarkers";
+import { map } from "@composables/core/useMap";
+import { mobileAwareFlyTo } from "@composables/map/useMapNavigation";
+import { prepareCrossCountryFlight } from "@composables/map/useTileLayers";
+import { useOverlayStore } from "@stores/pinia/overlayStore";
+import { useProjectStore } from "@stores/pinia/projectStore";
 
 /**
  * AI : Navigate to a city on the map
@@ -17,20 +17,18 @@ import { useProjectStore } from '@stores/pinia/projectStore';
 export async function navigateToCity(
   cityId: string,
   cityName: string,
-  countryCode: string
+  countryCode: string,
 ): Promise<void> {
   const overlayStore = useOverlayStore();
   const projectStore = useProjectStore();
 
   // AI : Check for unsaved overlays before navigating
   const hasUnsavedOverlays = Object.values(overlayStore.overlays).some(
-    overlay => overlay.isModified === true
+    (overlay) => overlay.isModified === true,
   );
 
   if (hasUnsavedOverlays) {
-    const confirmed = confirm(
-      'You have unsaved overlays. Navigating will discard them. Continue?'
-    );
+    const confirmed = confirm("You have unsaved overlays. Navigating will discard them. Continue?");
     if (!confirmed) {
       return;
     }
@@ -40,17 +38,17 @@ export async function navigateToCity(
   const switchToCountryLayer = prepareCrossCountryFlight(countryCode);
 
   // AI : Find the city coordinates and fly to them
-  const country = projectStore.countries.find(c => c.code === countryCode);
-  const city = country?.cities.find(c => c.id === cityId);
+  const country = projectStore.countries.find((c) => c.code === countryCode);
+  const city = country?.cities.find((c) => c.id === cityId);
 
   if (city && map.value) {
     mobileAwareFlyTo([city.lat, city.lng], 14, {
-      duration: 1.5
+      duration: 1.5,
     });
 
     // AI : If cross-country flight, switch to country layer after arrival
     if (switchToCountryLayer) {
-      map.value.once('moveend', switchToCountryLayer);
+      map.value.once("moveend", switchToCountryLayer);
     }
   }
 
