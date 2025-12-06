@@ -1,6 +1,7 @@
 import L from 'leaflet';
 import { loadCityProjects } from '@composables/map/useCityMarkers';
-import { navigateToOverlay, selectOverlay } from '@composables/overlay/useOverlay';
+import { navigateToOverlay } from '@composables/overlay/useOverlay';
+import { selectOverlay } from '@composables/overlay/useOverlaySelection';
 import { prepareCountryContext } from '@composables/map/useCountryMarkers';
 import { prepareCrossCountryFlight } from '@composables/map/useTileLayers';
 import { map } from '@composables/core/useMap';

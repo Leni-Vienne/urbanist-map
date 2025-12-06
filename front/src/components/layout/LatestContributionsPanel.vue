@@ -97,7 +97,7 @@ import { useLatestContributions } from '@composables/overlay/useLatestContributi
 import { useOverlayClickHandler } from '@composables/overlay/useOverlayClickHandler'
 import { useNewProject } from '@composables/overlay/useNewProject'
 import { useToast } from '@composables/ui/useToast'
-import { highlightOverlayById, removeOverlayHighlight } from '@composables/overlay/useOverlay'
+import { highlightOverlayById, removeOverlayHighlight } from '@composables/overlay/useOverlaySelection'
 import { navigateToStandaloneProject } from '@composables/navigation/useOverlayNavigation'
 import { buildThumbnailUrl } from '@utils/imageUrl'
 import { formatRelativeTime } from '@utils/dateFormat'

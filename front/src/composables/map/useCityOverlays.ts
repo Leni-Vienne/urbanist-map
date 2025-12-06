@@ -2,7 +2,8 @@
 import { ref } from 'vue';
 import L from 'leaflet';
 import { map } from '@composables/core/useMap';
-import { renderViewModeOverlays, selectOverlay } from '@composables/overlay/useOverlay';
+import { renderViewModeOverlays } from '@composables/overlay/useOverlay';
+import { selectOverlay } from '@composables/overlay/useOverlaySelection';
 import { clearAllOverlays } from '@composables/overlay/useOverlayLifecycle';
 import { hasCachedCityProjectsData, getSelectedCity } from '@composables/map/useCityData';
 import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
