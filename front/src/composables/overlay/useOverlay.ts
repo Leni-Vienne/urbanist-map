@@ -52,25 +52,26 @@ import {
 // AI : History functions extracted to useOverlayHistory.ts
 import {
   initializeOverlayHistory,
-  getCornersForOverlay,
   getCornersForOverlayWithCache,
   isValidCorners,
   saveOverlayModificationsToCache,
 } from '@composables/overlay/useOverlayHistory';
-// AI : Re-export selection functions for backward compatibility during migration
+// AI : Marker functions extracted to useOverlayMarkers.ts
+import {
+  updateMarkerPosition,
+  updateMarkerTooltip,
+  createMarkerTitle,
+  getOverlayBounds,
+  enrichOverlayWithProject,
+  createSingleMarker,
+  createMarker,
+} from '@composables/overlay/useOverlayMarkers';
+// AI : Re-export marker functions for consumers that import from useOverlay.ts
 export {
-  selectOverlay,
-  highlightOverlayById,
-  removeOverlayHighlight,
-  setupMapClickToDeselect,
-} from '@composables/overlay/useOverlaySelection';
-// AI : Re-export history functions for backward compatibility during migration
-export {
-  initializeOverlayHistory,
-  getCornersForOverlayWithCache,
-  isValidCorners,
-  saveOverlayModificationsToCache,
-} from '@composables/overlay/useOverlayHistory';
+  updateMarkerPosition,
+  updateMarkerTooltip,
+  getOverlayBounds,
+} from '@composables/overlay/useOverlayMarkers';
 
 /**
  * AI : Update overlay editing state based on current mode
@@ -171,24 +172,7 @@ export function updateOverlayEditingState(): void {
   }
 }
 
-/**
- * AI : Create a new overlay object from saved data
- */
-export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayObject {
-  const projectStore = useProjectStore();
-
-  // AI : Prefer the project data already on the overlay object, fallback to projects store
-  const project = savedOverlay.project ?? (savedOverlay.projectId ? projectStore.projects[savedOverlay.projectId] : null);
-
-  // AI : Use factory function but preserve existing data
-  return createOverlayObject({
-    ...savedOverlay,
-    project: project ? { ...project, city: project.city ?? null } : null,
-    overlay: null,
-    marker: null,
-    corners: savedOverlay.corners
-  });
-}
+// AI : enrichOverlayWithProject moved to useOverlayMarkers.ts
 
 /**
  * AI : Create a Leaflet overlay on the map
@@ -403,38 +387,7 @@ function checkOverlaySizeAndWarn(overlay: L.DistortableImageOverlay, overlayObje
 
 // AI : getCornersForOverlay, getCornersForOverlayWithCache, isValidCorners moved to useOverlayHistory.ts
 
-function createMarkerTitle(overlay: OverlayObject, projectId: string | null, markerType?: 'new' | 'replacement'): string {
-  const projectStore = useProjectStore();
-
-  let baseTitle = markerType === 'replacement' ? 'Replacement Overlay' :
-    markerType === 'new' ? 'New Overlay' : 'Overlay';
-
-  if (projectId && projectStore.projects[projectId]) {
-    const project = projectStore.projects[projectId];
-    const captionPart = overlay.caption ? ` - ${overlay.caption}` : '';
-    return markerType ? `${project.name} - ${baseTitle}${captionPart}` : `${project.name}${captionPart}`;
-  }
-
-  return baseTitle;
-}
-
-/**
- * AI : Update the marker position based on overlay center
- */
-export function updateMarkerPosition(overlayObject: OverlayObject): void {
-  if (!overlayObject.overlay || !overlayObject.marker) {
-    return;
-  }
-
-  // AI : Calculate centroid from corners (average of all 4 corners) to match backend calculation
-  // AI : This ensures marker position doesn't jump when zooming in/out
-  const corners = overlayObject.overlay.getCorners();
-  if (corners?.length === 4) {
-    const centroidLat = (corners[0].lat + corners[1].lat + corners[2].lat + corners[3].lat) / 4;
-    const centroidLng = (corners[0].lng + corners[1].lng + corners[2].lng + corners[3].lng) / 4;
-    overlayObject.marker.setLatLng([centroidLat, centroidLng]);
-  }
-}
+// AI : createMarkerTitle, updateMarkerPosition moved to useOverlayMarkers.ts
 
 /**
  * AI : Save the current state of an overlay to history
@@ -569,182 +522,11 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
 }
 
 
-/**
- * AI : Update marker tooltip based on overlay storage status
- * @param overlayObject - The overlay object to update
- * @param cachedMarkerColor - Optional pre-calculated marker color to avoid redundant computation
- */
-export function updateMarkerTooltip(overlayObject: OverlayObject, cachedMarkerColor?: MarkerColor): void {
-  const overlayStore = useOverlayStore();
+// AI : updateMarkerTooltip moved to useOverlayMarkers.ts
 
-  if (!overlayObject.marker) return;
+// AI : createSingleMarker moved to useOverlayMarkers.ts
 
-  overlayObject.marker.unbindTooltip();
-
-  const markerColor = cachedMarkerColor ?? getOverlayMarkerColor(overlayObject, overlayStore.mode);
-  const colorIcon = createOverlayIcon(markerColor);
-  overlayObject.marker.setIcon(colorIcon);
-
-  if (overlayStore.mode !== 'edit') {
-    return;
-  }
-  // AI : Generate tooltip text based on overlay state
-  const hasBeenModified = overlayObject.isModified;
-  const hasPendingChanges = overlayObject.hasPendingChanges ?? false;
-  const isReplacement = overlayObject.replacesOverlayId !== null;
-  const isApproved = overlayObject.status === 'approved';
-  const isPending = overlayObject.status === 'pending';
-  // AI : Treat undefined as "viewing approved" (default state)
-  const isViewingApprovedPosition = overlayObject.isViewingApprovedPosition;
-
-  let tooltipText = '';
-  // AI : Only show "Replacement overlay" for pending/rejected overlays with replacesOverlayId
-  // AI : Approved overlays should have replacesOverlayId cleared, but defensive check prevents bugs
-  if (isReplacement && !isApproved) {
-    tooltipText = 'Replacement overlay';
-  } else if (isPending && !hasBeenModified) {
-    tooltipText = 'Pending approval';
-  } else if (isPending && hasBeenModified) {
-    tooltipText = 'Pending approval (modified)';
-  } else if (isApproved && hasPendingChanges && isViewingApprovedPosition === false) {
-    // AI : Only show "Pending changes" when explicitly viewing suggested position
-    tooltipText = 'Pending changes (viewing suggested)';
-  } else if (isApproved && hasPendingChanges && isViewingApprovedPosition !== false) {
-    // AI : When viewing approved position (undefined or true), show that there are pending changes
-    tooltipText = 'Approved (has pending changes)';
-  } else if (isApproved && hasBeenModified) {
-    tooltipText = 'Approved (modified)';
-  } else if (isApproved && !hasBeenModified) {
-    tooltipText = 'Approved';
-  } else if (hasBeenModified) {
-    tooltipText = 'Local overlay';
-  } else if (overlayObject.status === 'rejected') {
-    tooltipText = 'Rejected overlay';
-  } else {
-    tooltipText = 'New overlay';
-  }
-
-  overlayObject.marker.bindTooltip(tooltipText, {
-    permanent: false,
-    direction: 'top',
-    offset: [0, -10]
-  });
-}
-
-/**
- * AI : Create a single marker for an overlay
- */
-function createSingleMarker(savedOverlay: OverlayObject): void {
-  const overlayStore = useOverlayStore();
-
-  if (!map.value || overlayStore.allMarkers[savedOverlay.id]) return;
-
-  // AI : Calculate centroid from corners using shared utility to match backend calculation
-  if (!savedOverlay.corners || savedOverlay.corners.length !== 4) return;
-
-  const centroid = calculateCentroidFromCorners(savedOverlay.corners);
-  if (!centroid) return;
-  const center = L.latLng(centroid.lat, centroid.lng);
-
-  const markerTitle = createMarkerTitle(savedOverlay, savedOverlay.projectId);
-  const tempOverlayObject = enrichOverlayWithProject(savedOverlay);
-  const markerColor = getOverlayMarkerColor(tempOverlayObject, overlayStore.mode);
-  const colorIcon = createOverlayIcon(markerColor);
-
-  const marker = L.marker(center, {
-    title: markerTitle,
-    icon: colorIcon
-  }).addTo(map.value);
-
-  // AI : Add click handler to select/deselect overlay when marker is clicked
-  marker.on('click', () => {
-    const overlayObject = overlayStore.overlays[savedOverlay.id];
-    if (!overlayObject) return;
-
-    // AI : Set position state for dynamic button feedback
-    // AI : If no explicit position state, default to showing approved position
-    if (overlayObject.isViewingApprovedPosition === undefined) {
-      overlayObject.isViewingApprovedPosition = true;
-    }
-
-    // AI : Sync preview state for reactive button highlighting in change request UI
-    syncPreviewStateOnNavigation(savedOverlay.id, overlayObject.isViewingApprovedPosition ?? true);
-
-    // AI : Fly to overlay bounds first
-    const bounds = getOverlayBounds(overlayObject);
-    if (bounds) {
-      mobileAwareFlyToBounds(bounds, {
-        padding: [50, 50] as [number, number],
-        duration: 1.5,
-        easeLinearity: 0.25
-      });
-    }
-
-    // AI : Toggle selection - selectOverlay handles overlay.select() internally
-    if (overlayStore.idSelectedOverlay === savedOverlay.id) {
-      selectOverlay(null);
-    } else {
-      selectOverlay(savedOverlay.id);
-    }
-  });
-
-  // AI : Add hover handlers to highlight overlay on marker hover
-  if (savedOverlay.projectId) {
-    marker.on('mouseover', () => {
-      highlightProjectOverlaysOnHover(savedOverlay.projectId!);
-    });
-
-    marker.on('mouseout', () => {
-      removeProjectOutlines(savedOverlay.projectId!);
-    });
-  }
-
-  overlayStore.allMarkers[savedOverlay.id] = marker;
-  tempOverlayObject.marker = marker;
-  // AI : Pass pre-calculated markerColor to avoid redundant getOverlayMarkerColor call
-  updateMarkerTooltip(tempOverlayObject, markerColor);
-}
-
-export function getOverlayBounds(overlay: OverlayObject): L.LatLngBounds | null {
-  const overlayStore = useOverlayStore();
-
-  // AI : Priority 0: If overlay is rendered, use actual Leaflet overlay position (most accurate)
-  if (overlay.overlay) {
-    const actualCorners = overlay.overlay.getCorners();
-    if (actualCorners?.length === 4) {
-      return L.latLngBounds(actualCorners);
-    }
-  }
-
-  // AI : Priority 1: Check edit mode cache if in edit mode for the most current position
-  if (overlayStore.mode === 'edit') {
-    const cachedModifications = getFromEditModeOverlayCache(overlay.id);
-    if (cachedModifications?.corners?.length === 4) {
-      const corners = cachedModifications.corners.map(corner => L.latLng(corner.lat, corner.lng));
-      return L.latLngBounds(corners);
-    }
-  }
-
-  // AI : Priority 2: Use overlay corners from overlayObject (pending position if hasPendingChanges, approved otherwise)
-  if (overlay.corners?.length === 4) {
-    const corners = overlay.corners.map(corner => L.latLng(corner.lat, corner.lng));
-    return L.latLngBounds(corners);
-  }
-
-  // AI : Priority 3: Validate all corner coordinates exist and are valid numbers
-  if (!overlay.corners || overlay.corners.length !== 4) {
-    return null;
-  }
-
-  const corners = overlay.corners.map(c => L.latLng(c.lat, c.lng));
-
-  // AI : Check if all corners are valid
-  if (corners.some(c => !c.lat || !c.lng)) {
-    return null;
-  }
-
-  return L.latLngBounds(corners);
-}
+// AI : getOverlayBounds moved to useOverlayMarkers.ts
 
 /**
  * AI : Set up additional movement tracking for overlays (real-time updates during manipulation)
@@ -859,51 +641,8 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
 }
 
 
-/**
- * AI : Create a marker for overlays with specified type and color
- */
-function createMarker(overlayObject: OverlayObject, projectId: string, markerType: 'new' | 'replacement'): void {
-  const overlayStore = useOverlayStore();
+// AI : createMarker moved to useOverlayMarkers.ts
 
-  if (!map.value) return;
-
-  // AI : Use current map center as initial marker position
-  const center = map.value.getCenter();
-  const markerTitle = createMarkerTitle(overlayObject, projectId, markerType);
-
-  // AI : Determine marker color based on overlay state
-  // AI : Let getOverlayMarkerColor handle all color logic including replacements after submission
-  const markerColor = getOverlayMarkerColor(overlayObject, 'edit');
-  const colorIcon = createOverlayIcon(markerColor);
-
-  const marker = L.marker(center, {
-    title: markerTitle,
-    icon: colorIcon
-  }).addTo(map.value);
-
-  // AI : Add click handler to marker to select the overlay
-  marker.on('click', () => {
-    // AI : Fly to overlay bounds first
-    const bounds = getOverlayBounds(overlayObject);
-    if (bounds) {
-      mobileAwareFlyToBounds(bounds, {
-        padding: [50, 50] as [number, number],
-        duration: 1.5,
-        easeLinearity: 0.25
-      });
-    }
-
-    // AI : selectOverlay handles overlay.select() internally
-    selectOverlay(overlayObject.id);
-  });
-
-  // AI : Store marker reference
-  overlayObject.marker = marker;
-  overlayStore.allMarkers[overlayObject.id] = marker;
-
-  // AI : Update marker tooltip with proper styling
-  updateMarkerTooltip(overlayObject);
-}
 
 /**
  *

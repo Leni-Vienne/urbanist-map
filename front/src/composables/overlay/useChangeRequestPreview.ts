@@ -8,9 +8,9 @@ import { useMapStore } from "@stores/pinia/mapStore";
 import {
   updateMarkerPosition,
   updateMarkerTooltip,
-  selectOverlay,
   getOverlayBounds,
 } from "@composables/overlay/useOverlay";
+import { selectOverlay } from "@composables/overlay/useOverlaySelection";
 import { loadCityProjects } from "@composables/map/useCityMarkers";
 import { prepareCountryContext } from "@composables/map/useCountryMarkers";
 import { switchMode } from "@composables/overlay/useOverlayModes";
