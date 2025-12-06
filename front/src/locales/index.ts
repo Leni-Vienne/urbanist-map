@@ -23,6 +23,14 @@ export function setI18nInstance(instance: I18nInstance): void {
   i18nInstance = instance
 }
 
+// AI : Global translation function for use outside of Vue components
+export function t(key: string): string {
+  if (!i18nInstance) {
+    return key
+  }
+  return i18nInstance.global.t(key)
+}
+
 const localeMessagesMap: Record<Locale, Record<string, unknown>> = {
   en: enMessages,
   fr: frMessages

@@ -493,6 +493,21 @@
     "approveProjectFirst": "Approuvez d'abord le projet pour modérer ses images",
     "undo": "Annuler la dernière action"
   },
+  "markerTooltip": {
+    "status": {
+      "replacementOverlay": "Image de remplacement",
+      "pendingApproval": "En attente d'approbation",
+      "approved": "Approuvé",
+      "rejected": "Image rejetée",
+      "localOverlay": "Image locale",
+      "newOverlay": "Nouvelle image"
+    },
+    "modifiers": {
+      "modified": "modifié",
+      "hasPendingChanges": "a des modifications en attente",
+      "viewingSuggested": "affichage suggéré"
+    }
+  },
   "forms": {
     "saveChanges": "Enregistrer les modifications",
     "submitLabel": {
