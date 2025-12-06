@@ -35,7 +35,14 @@ export function useProjectFormValidation() {
     }
 
     // AI : Validate with Zod schema (use dummy lat/lng for form-level validation)
-    const validationData = { ...formData, lat: 0, lng: 0 }
+    // AI : Transform null values to empty strings to match schema expectations
+    const validationData = { 
+      ...formData, 
+      lat: 0, 
+      lng: 0,
+      description: formData.description ?? '',
+      sourceUrl: formData.sourceUrl ?? ''
+    }
     const result = projectSchema.safeParse(validationData)
 
     if (!result.success) {

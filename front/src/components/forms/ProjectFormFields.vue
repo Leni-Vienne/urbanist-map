@@ -63,6 +63,7 @@
           showIcon
           required
           :maxDate="new Date()"
+          @update:model-value="handleProposalDateChange"
         />
         <label for="proposal-date-input" class="text-gray-600">{{ $t('project.proposalDate') }} *</label>
       </FloatLabel>
@@ -301,9 +302,16 @@ function handleDateChange() {
   validateFieldHelper('endDate')
 }
 
+// AI : Proposal date change handler
+function handleProposalDateChange() {
+  validateFieldHelper('proposalDate')
+}
+
 // AI : Handle city ID updates from CitySelect (convert undefined to null)
 function handleCityIdUpdate(value: string | undefined) {
   props.formData.cityId = value ?? null
+  // AI : Validate city field when it changes
+  validateFieldHelper('cityId')
 }
 
 // AI : Watch for external isProposed changes

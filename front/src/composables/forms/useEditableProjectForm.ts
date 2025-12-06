@@ -22,8 +22,9 @@ export interface EditableProjectFormOptions {
   onClose?: () => void
 }
 
+
 // AI : Custom comparator for Date handling in project forms
-  function projectComparator(_fieldName: keyof ProjectFormData, original: any, current: any): boolean {
+  function projectComparator(original: any, current: any): boolean {
     // AI : Handle Date objects by comparing their time values
     if (original instanceof Date && current instanceof Date) {
       return original.getTime() !== current.getTime()

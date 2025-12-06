@@ -561,6 +561,7 @@
     "tokenRequired": "Le jeton est requis",
     "fieldNameRequired": "Le nom du champ est requis",
     "changesRequired": "Au moins une modification est requise",
+    "invalidDate": "Date invalide",
     "genericError": "Entrée invalide"
   },
   "errors": {

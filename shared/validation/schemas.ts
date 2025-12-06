@@ -7,13 +7,13 @@ export const projectSchema = z.object({
   name: z.string().min(8, 'validation.nameTooShort').max(20, 'validation.nameTooLong'),
   description: z.string().max(2000, 'validation.descriptionTooLong').or(z.literal('')).transform(val => val === '' ? undefined : val).optional(),
   cityId: z.uuid({ message: 'validation.cityRequired' }),
-  lat: z.number().min(-90).max(90),
-  lng: z.number().min(-180).max(180),
-  proposalDate: z.date().nullable().optional(),
-  startDate: z.date().nullable().optional(),
-  endDate: z.date().nullable().optional(),
+  lat: z.number({ message: 'validation.invalidLatitude' }).min(-90, 'validation.invalidLatitude').max(90, 'validation.invalidLatitude'),
+  lng: z.number({ message: 'validation.invalidLongitude' }).min(-180, 'validation.invalidLongitude').max(180, 'validation.invalidLongitude'),
+  proposalDate: z.date({ message: 'validation.invalidDate' }).nullable().optional(),
+  startDate: z.date({ message: 'validation.invalidDate' }).nullable().optional(),
+  endDate: z.date({ message: 'validation.invalidDate' }).nullable().optional(),
   sourceUrl: z.url('validation.invalidUrl').or(z.literal('')).transform(val => val === '' ? undefined : val).optional(),
-  latestUpdateOn: z.date().nullable().optional()
+  latestUpdateOn: z.date({ message: 'validation.invalidDate' }).nullable().optional()
 }).superRefine((data, ctx) => {
   // AI : Validate proposal date is not in the future
   if (data.proposalDate && data.proposalDate > new Date()) {
@@ -105,7 +105,7 @@ export function getValidationError(error: z.ZodError, fieldPath?: string): Valid
   }
 
   const issue = issues[0];
-  const key = issue.message ?? 'validation.genericError';
+  const key = (issue.message && issue.message.startsWith('validation.')) ? issue.message : 'validation.genericError';
   
   // AI : Extract constraint values from Zod issue for dynamic i18n parameters
   const params: Record<string, any> = {};
@@ -128,7 +128,7 @@ export function getValidationErrorsMap(error: z.ZodError): Record<string, Valida
   for (const issue of error.issues) {
     const fieldPath = issue.path.join('.');
     if (!errorMap[fieldPath]) {
-      const key = issue.message ?? 'validation.genericError';
+      const key = (issue.message && issue.message.startsWith('validation.')) ? issue.message : 'validation.genericError';
       const params: Record<string, any> = {};
       
       // AI : Extract constraint values from Zod issue
