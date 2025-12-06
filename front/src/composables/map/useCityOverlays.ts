@@ -153,7 +153,19 @@ function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void {
     // AI : Use unified position resolver
     const overlayStore = useOverlayStore();
     const resolved = resolveOverlayPosition(overlay.id, overlay, overlayStore.mode);
-    const markerColor = getOverlayMarkerColor(overlay, overlayStore.mode);
+
+    // AI : Check edit mode cache for modifications to determine correct marker color
+    const cachedModifications = overlayStore.mode === 'edit'
+      ? overlayStore.getFromEditModeCache(overlay.id)
+      : undefined;
+
+    // AI : Create temporary overlay object with isModified flag from cache
+    const overlayWithModFlag = {
+      ...overlay,
+      isModified: cachedModifications?.isModified ?? false
+    };
+
+    const markerColor = getOverlayMarkerColor(overlayWithModFlag, overlayStore.mode);
     const markerIcon = createOverlayIcon(markerColor);
     const marker = L.marker([resolved.position.lat, resolved.position.lng], { icon: markerIcon });
 

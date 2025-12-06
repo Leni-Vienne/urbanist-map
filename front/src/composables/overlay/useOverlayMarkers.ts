@@ -173,9 +173,15 @@ export function getOverlayBounds(overlay: OverlayObject): L.LatLngBounds | null 
  */
 export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayObject {
   const projectStore = useProjectStore();
+  const overlayStore = useOverlayStore();
 
   // AI : Prefer the project data already on the overlay object, fallback to projects store
   const project = savedOverlay.project ?? (savedOverlay.projectId ? projectStore.projects[savedOverlay.projectId] : null);
+
+  // AI : Check edit mode cache to determine if overlay has been modified locally
+  const cachedModifications = overlayStore.mode === 'edit'
+    ? overlayStore.getFromEditModeCache(savedOverlay.id)
+    : undefined;
 
   // AI : Use factory function but preserve existing data
   return createOverlayObject({
@@ -183,7 +189,9 @@ export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayOb
     project: project ? { ...project, city: project.city ?? null } : null,
     overlay: null,
     marker: null,
-    corners: savedOverlay.corners
+    corners: savedOverlay.corners,
+    // AI : Set isModified flag based on edit mode cache for proper marker color
+    isModified: cachedModifications?.isModified ?? savedOverlay.isModified
   });
 }
 
