@@ -19,35 +19,9 @@ function removeAtIndex<T>(arr: T[], index: number): T[] {
   return [...arr.slice(0, index), ...arr.slice(index + 1)];
 }
 
-// AI : Helper function to extract city metadata from project for user contributions
-function extractCityMetadata(project: Project) {
-  return {
-    cityName: project.city?.name ?? null,
-    countryCode: project.city?.countryCode ?? null,
-    countryName: null,
-  };
-}
+// AI : Helper functions moved inside store to access state
 
-// AI : Helper function to create overlay metadata for user contributions
-function createOverlayMetadata(overlay: OverlayObject, project: Project, filename: string) {
-  return {
-    id: overlay.id,
-    name: overlay.caption ?? "Unnamed",
-    filename: filename,
-    status: "pending" as const,
-    version: 1,
-    projectId: project.id,
-    authorId: overlay.authorId ?? null,
-    authorUsername: null,
-    authorApprovedCount: null,
-    authorRejectedCount: null,
-    replacesOverlayId: overlay.replacesOverlayId ?? null,
-    replacedByOverlayId: null,
-    updatedAt: new Date(),
-    cityId: project.cityId,
-    ...extractCityMetadata(project),
-  };
-}
+// AI : Helper functions moved inside store to access state
 
 // AI : Cities cache management (separate cache per mode)
 function getCitiesCacheKey(countryCode: string, mode: MapMode): string {
@@ -98,6 +72,44 @@ export const useProjectStore = defineStore("project", () => {
     };
   }
 
+  // AI : Helper function to extract city metadata from project for user contributions
+  function extractCityMetadata(project: Project) {
+    const countryCode = project.city.countryCode;
+    const country = countries.value.find((c) => c.code === countryCode);
+
+    return {
+      cityName: project.city.name,
+      countryCode: countryCode,
+      countryName: country?.name ?? null,
+    };
+  }
+
+  // AI : Helper function to create overlay metadata for user contributions
+  function createOverlayMetadata(
+    overlay: OverlayObject,
+    project: Project,
+    filename: string,
+    authorUsername: string | null,
+  ) {
+    return {
+      id: overlay.id,
+      name: overlay.caption ?? "Unnamed",
+      filename: filename,
+      status: "pending" as const,
+      version: 1,
+      projectId: project.id,
+      authorId: overlay.authorId ?? null,
+      authorUsername: authorUsername,
+      authorApprovedCount: null,
+      authorRejectedCount: null,
+      replacesOverlayId: overlay.replacesOverlayId ?? null,
+      replacedByOverlayId: null,
+      updatedAt: new Date(),
+      cityId: project.cityId,
+      ...extractCityMetadata(project),
+    };
+  }
+
   // AI : Computed property for combined projects (local + nearby)
   const allProjects = computed(() => {
     const combined = { ...projects.value };
@@ -138,6 +150,7 @@ export const useProjectStore = defineStore("project", () => {
     overlay: OverlayObject,
     project: Project,
     filename: string,
+    authorUsername: string | null,
   ) {
     if (!userContributionsLoaded.value) {
       // AI : If contributions not loaded yet, skip optimistic update
@@ -150,10 +163,29 @@ export const useProjectStore = defineStore("project", () => {
     if (existingProjectIndex !== -1) {
       // AI : Project exists, add overlay to its overlays array
       const existingProject = userContributions.value[existingProjectIndex];
+
+      // AI : Check if overlay already exists in the project
+      const existingOverlayIndex = existingProject.overlays.findIndex((o) => o.id === overlay.id);
+
+      const overlayMetadata = createOverlayMetadata(
+        overlay,
+        project,
+        filename,
+        authorUsername,
+      );
+
+      const updatedOverlays =
+        existingOverlayIndex !== -1
+          ? replaceAtIndex(existingProject.overlays, existingOverlayIndex, overlayMetadata)
+          : [...existingProject.overlays, overlayMetadata];
+
+      const newOverlayCount =
+        existingProject.overlayCount + (existingOverlayIndex === -1 ? 1 : 0);
+
       const updatedProject = {
         ...existingProject,
-        overlays: [...existingProject.overlays, createOverlayMetadata(overlay, project, filename)],
-        overlayCount: existingProject.overlayCount + 1,
+        overlays: updatedOverlays,
+        overlayCount: newOverlayCount,
       };
 
       userContributions.value = replaceAtIndex(
@@ -173,7 +205,9 @@ export const useProjectStore = defineStore("project", () => {
           ...project,
           ...extractCityMetadata(project),
           status: project.status, // AI : Type assertion - null already filtered above
-          overlays: [createOverlayMetadata(overlay, project, filename)],
+          overlays: [
+            createOverlayMetadata(overlay, project, filename, authorUsername),
+          ],
           overlayCount: 1,
         },
         ...userContributions.value,

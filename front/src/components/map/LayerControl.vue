@@ -31,9 +31,12 @@
                         :value="layer.value"
                         @change="onLayerChange"
                     />
-                    <label :for="layer.value" class="flex items-center gap-2">
-                        <img 
-                            :src="layer.flagUrl" 
+                    <label
+                        :for="layer.value"
+                        class="flex items-center gap-2"
+                    >
+                        <img
+                            :src="layer.flagUrl"
                             :alt="`${layer.label} flag`"
                             class="flag-icon"
                             @error="hideFlagOnError"
@@ -55,7 +58,6 @@ import { flyToCountry, mobileAwareFlyTo } from '@composables/map/useMapNavigatio
 const showLayerPanel = ref(false);
 
 // AI : Refs for button and overlay panel
-const layerButton = ref();
 const layerPanel = ref();
 
 // AI : Get available layer options
