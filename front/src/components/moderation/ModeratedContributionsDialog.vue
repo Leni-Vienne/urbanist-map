@@ -32,7 +32,7 @@
         <!-- AI : Thumbnail -->
         <div class="thumbnail-container">
           <img
-            :src="buildThumbnailUrl(item.filename)"
+            :src="buildThumbnailUrl(item.filename, true)"
             :alt="item.caption || 'Overlay'"
             class="thumbnail"
             @error="handleImageError"

@@ -18,7 +18,7 @@
         <div class="comparison-item">
           <div class="comparison-label">{{ $t('common.current') }}</div>
           <img
-            :src="buildImageUrl(conflicts.originalOverlayFilename)"
+            :src="buildImageUrl(conflicts.originalOverlayFilename, false)"
             :alt="conflicts.originalOverlayCaption || 'Original overlay'"
             class="comparison-thumbnail"
           />
@@ -30,7 +30,7 @@
         <div class="comparison-item">
           <div class="comparison-label">{{ $t('common.new') }}</div>
           <img
-            :src="buildImageUrl(conflicts.newOverlayFilename)"
+            :src="buildImageUrl(conflicts.newOverlayFilename, true)"
             :alt="conflicts.newOverlayCaption || 'New overlay'"
             class="comparison-thumbnail"
           />
@@ -96,7 +96,7 @@
           >
             <div class="competing-content">
               <img
-                :src="buildThumbnailUrl(competing.filename)"
+                :src="buildThumbnailUrl(competing.filename, true)"
                 :alt="competing.caption || 'Competing overlay'"
                 class="competing-thumbnail"
               />
