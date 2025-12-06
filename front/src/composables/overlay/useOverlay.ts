@@ -55,6 +55,7 @@ import {
   getCornersForOverlayWithCache,
   isValidCorners,
   saveOverlayModificationsToCache,
+  saveToHistory,
 } from '@composables/overlay/useOverlayHistory';
 // AI : Marker functions extracted to useOverlayMarkers.ts
 import {
@@ -65,12 +66,6 @@ import {
   enrichOverlayWithProject,
   createSingleMarker,
   createMarker,
-} from '@composables/overlay/useOverlayMarkers';
-// AI : Re-export marker functions for consumers that import from useOverlay.ts
-export {
-  updateMarkerPosition,
-  updateMarkerTooltip,
-  getOverlayBounds,
 } from '@composables/overlay/useOverlayMarkers';
 
 /**
@@ -389,48 +384,7 @@ function checkOverlaySizeAndWarn(overlay: L.DistortableImageOverlay, overlayObje
 
 // AI : createMarkerTitle, updateMarkerPosition moved to useOverlayMarkers.ts
 
-/**
- * AI : Save the current state of an overlay to history
- */
-export function saveToHistory(overlayObject: OverlayObject): void {
-  if (!overlayObject.overlay) return;
-
-  const currentState = overlayObject.overlay.getCorners();
-  if (!currentState?.length) return;
-
-  // AI : Check if current state is different from last saved state
-  if (overlayObject.history.length > 0) {
-    const lastState = overlayObject.history[overlayObject.history.length - 1];
-    const currentStateStr = JSON.stringify(currentState);
-    const lastStateStr = JSON.stringify(lastState);
-
-    if (currentStateStr === lastStateStr) {
-      return;
-    }
-  }
-
-  overlayObject.history.push(JSON.parse(JSON.stringify(currentState)) as { lat: number; lng: number }[]);
-  overlayObject.redoStack = [];
-
-  // AI : Mark overlay as modified when it's moved/changed
-  overlayObject.isModified = true;
-
-  // AI : Save modifications to edit mode cache if in edit mode for persistence across zoom changes
-  saveOverlayModificationsToCache(overlayObject);
-
-  updateMarkerTooltip(overlayObject);
-
-  // AI : Update only this overlay's marker color (already updated via updateMarkerTooltip, but kept for consistency)
-  // AI : Note: updateMarkerTooltip already updates the icon, so this is technically redundant but kept for clarity
-  const overlayStore = useOverlayStore();
-
-  // AI : Update store with proper reactivity - critical for info popup to see changes
-  overlayStore.updateOverlay(overlayObject.id, {
-    isModified: true,
-    history: overlayObject.history,
-    redoStack: overlayObject.redoStack
-  });
-}
+// AI : saveToHistory moved to useOverlayHistory.ts
 
 // AI : saveOverlayModificationsToCache moved to useOverlayHistory.ts
 
