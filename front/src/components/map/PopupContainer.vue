@@ -70,7 +70,8 @@ import { useProjectStore } from '@stores/pinia/projectStore';
 import { useMapStore } from '@stores/pinia/mapStore';
 import { useUiStore } from '@stores/uiStore';
 
-import { updateMarkerTooltip, navigateToOverlay, addOverlay } from '@composables/overlay/useOverlay';
+import { navigateToOverlay, addOverlay } from '@composables/overlay/useOverlay';
+import { updateMarkerTooltip } from '@composables/overlay/useOverlayMarkers';
 import { useToast } from '@composables/ui/useToast';
 import { useOverlayPublisher } from '@composables/overlay/useOverlayPublisher';
 import { useSubmissionService, type SubmissionContext, type SubmissionSummary } from '@composables/submission/useSubmissionService';

@@ -4,7 +4,7 @@ import { withErrorHandling } from '@composables/core/useErrorHandling'
 import { useModerationStore } from '@stores/pinia/moderationStore'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useAuthStore } from '@stores/authStore'
-import { updateMarkerTooltip } from '@composables/overlay/useOverlay';
+import { updateMarkerTooltip } from '@composables/overlay/useOverlayMarkers';
 import { removeOverlayFromMap } from '@composables/overlay/useOverlayRemoval';
 import { updateOverlayMarkersColors } from '@composables/map/useMarkers'
 import { useI18n } from '@composables/useI18n'
