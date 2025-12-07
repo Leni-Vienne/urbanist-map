@@ -1,7 +1,7 @@
 // @ts-expect-error AI : PrimeVue toasteventbus lacks type declarations
 import ToastEventBus from 'primevue/toasteventbus';
 
-export interface ToastMessage {
+interface ToastMessage {
   severity?: 'success' | 'info' | 'warn' | 'error';
   summary?: string;
   detail?: string;
@@ -10,7 +10,7 @@ export interface ToastMessage {
   closable?: boolean;
 }
 
-export interface ToastServiceMethods {
+interface ToastServiceMethods {
   add(message: ToastMessage): void;
   remove(message: ToastMessage): void;
   removeGroup(group: string): void;

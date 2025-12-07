@@ -52,7 +52,7 @@
 import { ref } from 'vue';
 import { useToast } from '@/composables/ui/useToast';
 import { useI18n } from 'vue-i18n';
-import { updateTooltipText, updateOverlayInfo } from '@/composables/overlay/useOverlay';
+import { updateOverlayInfo } from '@/composables/overlay/useOverlay';
 import type { OverlayObject } from '@/types/index';
 
 // AI : Define document.body as a variable to avoid TypeScript errors
@@ -91,9 +91,6 @@ function saveChanges() {
     updateOverlayInfo(props.overlayObject.id, {
       caption: editingInfo.value.caption ?? undefined
     });
-    
-    // AI : Update the tooltip text
-    updateTooltipText();
     
     // AI : Emit update event
     emit('update', props.overlayObject.id, editingInfo.value.caption);

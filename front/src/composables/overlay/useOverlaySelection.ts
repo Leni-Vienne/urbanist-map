@@ -16,6 +16,90 @@ import type { OverlayObject } from '@/types/index';
 let isSelectingOverlay = false;
 
 /**
+ * AI : Clean up previously selected overlay
+ */
+function cleanupPreviousSelection(previouslySelected: OverlayObject, previouslySelectedId: string, newOverlayId: string | null): void {
+  if (!previouslySelected || previouslySelectedId === newOverlayId) return;
+
+  removeOverlayOutline(previouslySelected);
+
+  // AI : Remove project outlines (sister highlights) when deselecting
+  if (previouslySelected.projectId) {
+    removeProjectOutlines(previouslySelected.projectId, true);
+  }
+
+  // AI : Call deselect on the Leaflet overlay to remove toolbar and handles
+  if (previouslySelected.overlay) {
+    previouslySelected.overlay.deselect();
+  }
+}
+
+/**
+ * AI : Setup newly selected overlay with proper state and highlighting
+ */
+function setupNewSelection(newlySelected: OverlayObject, overlayId: string): void {
+  // AI : Set position state for dynamic button feedback when selecting overlay
+  // AI : If no explicit position state, default to showing approved position
+  if (newlySelected.isViewingApprovedPosition === undefined) {
+    newlySelected.isViewingApprovedPosition = true;
+  }
+
+  // AI : Sync preview state for reactive button highlighting in change request UI
+  syncPreviewStateOnNavigation(overlayId, newlySelected.isViewingApprovedPosition ?? true);
+
+  // AI : Call overlay.select() to show toolbar and handles (single source of truth)
+  if (newlySelected.overlay) {
+    selectOverlayInLeaflet(newlySelected.overlay);
+  }
+
+  // AI : Apply project highlights (sister overlays) when selecting
+  if (newlySelected.projectId) {
+    highlightProjectOverlaysOnHover(newlySelected.projectId);
+  }
+
+  // AI : Apply selection outline after image loads
+  applyOutlineAfterImageLoad(newlySelected);
+}
+
+/**
+ * AI : Select overlay in Leaflet, waiting for DOM if needed
+ */
+function selectOverlayInLeaflet(overlay: L.DistortableImageOverlay): void {
+  const element = overlay.getElement();
+  const isInDOM = element && document.body.contains(element);
+
+  if (!isInDOM) {
+    // AI : Wait for element to be added to DOM before selecting
+    requestAnimationFrame(() => {
+      overlay.select();
+    });
+  } else {
+    overlay.select();
+  }
+}
+
+/**
+ * AI : Apply selection outline, waiting for image load if needed
+ */
+function applyOutlineAfterImageLoad(overlayObject: OverlayObject): void {
+  const imgElement = overlayObject.overlay?.getElement();
+  
+  if (!(imgElement instanceof HTMLImageElement)) {
+    // AI : Fallback for non-image elements
+    applySelectionOutline(overlayObject);
+    return;
+  }
+
+  if (imgElement.complete && imgElement.naturalWidth > 0) {
+    // AI : Image is already loaded, apply outline immediately
+    applySelectionOutline(overlayObject);
+  } else {
+    // AI : Image not loaded yet, wait for load event
+    imgElement.addEventListener("load", () => { applySelectionOutline(overlayObject) }, { once: true });
+  }
+}
+
+/**
  * AI : Select an overlay with proper cleanup of previous selection
  * This ensures consistent selection behavior regardless of how selection is triggered
  */
@@ -38,73 +122,17 @@ export function selectOverlay(overlayId: string | null): void {
     overlayStore.idSelectedOverlay = overlayId;
 
     // AI : Clean up previous selection if different from new selection
-    if (previouslySelected && previouslySelectedId !== overlayId) {
-      removeOverlayOutline(previouslySelected);
-
-      // AI : Remove project outlines (sister highlights) when deselecting
-      if (previouslySelected.projectId) {
-        removeProjectOutlines(previouslySelected.projectId, true);
-      }
-
-      // AI : Call deselect on the Leaflet overlay to remove toolbar and handles
-      if (previouslySelected.overlay) {
-        previouslySelected.overlay.deselect();
-      }
+    if (previouslySelected && previouslySelectedId) {
+      cleanupPreviousSelection(previouslySelected, previouslySelectedId, overlayId);
     }
 
     if (!overlayId) return;
 
-    // AI : Apply selection outline to new selection
+    // AI : Apply selection to new overlay
     const newlySelected = overlayStore.overlays[overlayId];
     if (!newlySelected) return;
 
-    // AI : Set position state for dynamic button feedback when selecting overlay
-    // AI : If no explicit position state, default to showing approved position
-    if (newlySelected.isViewingApprovedPosition === undefined) {
-      newlySelected.isViewingApprovedPosition = true;
-    }
-
-    // AI : Sync preview state for reactive button highlighting in change request UI
-    syncPreviewStateOnNavigation(overlayId, newlySelected.isViewingApprovedPosition ?? true);
-
-    // AI : Call overlay.select() to show toolbar and handles (single source of truth)
-    if (newlySelected.overlay) {
-      // AI : Check if overlay element exists and is in the DOM before calling select()
-      const element = newlySelected.overlay.getElement();
-      const isInDOM = element && document.body.contains(element);
-
-      if (!isInDOM) {
-        // AI : Wait for element to be added to DOM before selecting
-        requestAnimationFrame(() => {
-          if (newlySelected.overlay) {
-            newlySelected.overlay.select();
-          }
-        });
-      } else {
-        newlySelected.overlay.select();
-      }
-    }
-
-    // AI : Apply project highlights (sister overlays) when selecting
-    if (newlySelected.projectId) {
-      highlightProjectOverlaysOnHover(newlySelected.projectId);
-    }
-
-    // AI : Wait for image to load before applying outline to avoid massive border
-    const imgElement = newlySelected.overlay?.getElement();
-    if (!(imgElement instanceof HTMLImageElement)) {
-      // AI : Fallback for non-image elements
-      applySelectionOutline(newlySelected);
-      return;
-    }
-
-    if (imgElement.complete && imgElement.naturalWidth > 0) {
-      // AI : Image is already loaded, apply outline immediately
-      applySelectionOutline(newlySelected);
-    } else {
-      // AI : Image not loaded yet, wait for load event
-      imgElement.addEventListener("load", () => { applySelectionOutline(newlySelected) }, { once: true });
-    }
+    setupNewSelection(newlySelected, overlayId);
   } finally {
     isSelectingOverlay = false;
   }

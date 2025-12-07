@@ -5,7 +5,7 @@ import type { MapMode } from '@shared/types'
 import type { RouterOutput } from '@/client'
 
 // AI : Type for selected city data (compatible with previous latestClickedCity interface)
-export interface SelectedCity {
+interface SelectedCity {
   id: string
   name: string
   countryCode?: string
