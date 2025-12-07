@@ -26,18 +26,18 @@ loki.process "json" {
   
   stage.json {
     expressions = {
-      level  = "level"
-      time   = "time"
-      msg    = "msg"
-      method = "method"
-      path   = "path"
-      status = "status"
+      level  = "level",
+      time   = "time",
+      msg    = "msg",
+      method = "method",
+      path   = "path",
+      status = "status",
     }
   }
   
   stage.labels {
     values = {
-      level = ""
+      level = "",
     }
   }
 }
