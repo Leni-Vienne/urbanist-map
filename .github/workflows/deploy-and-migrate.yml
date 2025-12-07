@@ -157,6 +157,8 @@ jobs:
           sudo cp /tmp/docker-compose.prod.yml ./
           sudo cp /tmp/Caddyfile ./
           sudo cp /tmp/Dockerfile.bun-sharp ./
+          # AI : Remove old alloy config if it's a directory (Docker creates it on failed mount)
+          sudo rm -rf ./alloy-config.alloy
           sudo cp /tmp/alloy-config.alloy ./
           
           # AI : Build custom bun-sharp image if it doesn't exist
