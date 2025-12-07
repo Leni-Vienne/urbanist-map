@@ -1,7 +1,7 @@
 import { trpc } from '@/client'
 import { useEditableFormBase } from './useEditableFormBase'
 import { useToast } from '@/composables/ui/useToast'
-import { useI18n } from '@/composables/useI18n'
+import { t } from '@/locales'
 import type { OverlayFormData, FieldChange } from '../../types/forms'
 import type { ApprovalStatus } from '@shared/types'
 
@@ -21,8 +21,7 @@ export interface EditableOverlayFormOptions {
 
 export function useEditableOverlayForm(options: EditableOverlayFormOptions) {
   const toast = useToast()
-  const { t } = useI18n()
-
+  
   // AI : Use base composable for common form logic
   const base = useEditableFormBase<OverlayFormData>({
     entityId: options.entityId,

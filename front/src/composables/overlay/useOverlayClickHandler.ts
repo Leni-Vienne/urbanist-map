@@ -4,7 +4,7 @@ import { switchMode } from '@/composables/overlay/useOverlayModes'
 import { useOverlayStore } from '@/stores/pinia/overlayStore'
 import { useMapStore } from '@/stores/pinia/mapStore'
 import { useToast } from '@/composables/ui/useToast'
-import { useI18n } from '@/composables/useI18n'
+import { t } from '@/locales'
 import type { OverlayForModeration } from '@/types/index'
 import type { LatestContribution } from '../../types/api'
 
@@ -17,8 +17,7 @@ type NavigableOverlay = OverlayForModeration | LatestContribution
  */
 export function useOverlayClickHandler() {
   const toast = useToast()
-  const { t } = useI18n()
-
+  
   /**
    * AI : Navigate to an overlay, handling all necessary state changes
    * AI : - Switches to edit mode if in view mode (required to see pending overlays)

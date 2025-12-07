@@ -1,12 +1,11 @@
-import { useI18n } from '@/composables/useI18n'
+import { t } from '@/locales'
 import { useToast } from '@/composables/ui/useToast'
 import type { ProjectFormData } from '../../types/forms'
 import { projectSchema, getValidationErrorsMap } from '@shared/validation/schemas'
 
 // AI : Shared validation logic for project forms using Zod
 export function useProjectFormValidation() {
-  const { t } = useI18n()
-  const toast = useToast()
+    const toast = useToast()
 
   function showError(detail: string) {
     toast.add({

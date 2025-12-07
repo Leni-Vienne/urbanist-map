@@ -15,7 +15,7 @@ import {
   validateOverlaySize,
   leafletCornersToCorners,
 } from "@shared/overlayValidation";
-import { useI18n } from "vue-i18n";
+import { t } from '@/locales';
 import { useChangeRequests } from "@/composables/changes/useChanges";
 import { formatDate } from "@/utils/dateFormat";
 import { projectSchema, overlaySchema, getValidationErrorsMap } from "@shared/validation/schemas";
@@ -107,7 +107,7 @@ export function useSubmissionService() {
   const projectStore = useProjectStore();
   const mapStore = useMapStore();
   const { currentCityOverlays } = storeToRefs(mapStore);
-  const { t } = useI18n();
+  ;
   const { resetChangeRequestsLoaded, refreshPendingChangeRequests } = useChangeRequests();
 
   // AI : Build a combined city name cache from store cache + projects we've seen

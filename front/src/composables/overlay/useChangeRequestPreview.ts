@@ -1,6 +1,6 @@
 import L, { type LatLng } from "leaflet";
 import { computed } from "vue";
-import { useI18n } from "vue-i18n";
+import { t } from '@/locales';
 import { useToast } from "@/composables/ui/useToast";
 import { map } from "@/composables/core/useMap";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -43,7 +43,6 @@ function isCoordinate(value: unknown): value is { lat: number; lng: number } {
 }
 
 export function useChangeRequestPreview() {
-  const { t } = useI18n();
   const toast = useToast();
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();

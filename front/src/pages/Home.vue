@@ -76,7 +76,7 @@ import { useToast } from "@/composables/ui/useToast";
 import { useBeforeUnload } from "@/composables/core/useBeforeUnload";
 import { useRoute } from "vue-router";
 import { useModeratedContributions } from "@/composables/moderation/useModeratedContributions";
-import { useI18n } from "@/composables/useI18n";
+import { useI18n } from "vue-i18n";
 
 
 import MapView from "@/components/map/MapView.vue";
