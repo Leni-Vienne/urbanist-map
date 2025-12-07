@@ -11,11 +11,12 @@
       :draggable="false"
       :resizable="false"
       :appendTo="bodyElement"
-      :transitionOptions="{disabled:true}"
+      :transitionOptions="{ disabled: true }"
       @keydown.stop
       @keyup.stop
       @keypress.stop
-    >      <div class="p-fluid">
+    >
+      <div class="p-fluid">
         <div class="field mb-4">
           <FloatLabel
             class="w-full"
@@ -25,8 +26,12 @@
               id="overlay-name-input"
               v-model="editingInfo.caption"
               class="w-full p-3"
+              autocomplete="off"
             />
-            <label for="overlay-name-input" class="text-gray-600">{{ $t('common.name') }}</label>
+            <label
+              for="overlay-name-input"
+              class="text-gray-600"
+            >{{ $t('common.name') }}</label>
           </FloatLabel>
         </div>
       </div>
@@ -91,10 +96,10 @@ function saveChanges() {
     updateOverlayInfo(props.overlayObject.id, {
       caption: editingInfo.value.caption ?? undefined
     });
-    
+
     // AI : Emit update event
     emit('update', props.overlayObject.id, editingInfo.value.caption);
-    
+
     // AI : Show info message
     toast.add({
       severity: 'info',

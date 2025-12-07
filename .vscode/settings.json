@@ -1,0 +1,16 @@
+{
+    "oxc.enable": true,
+    "oxc.fmt.experimental": false,
+    "html.format.wrapAttributes": "force-expand-multiline",
+    "[typescript]": {
+        "editor.defaultFormatter": "oxc.oxc-vscode" // "oxc.oxc-vscode" to enable, but messes with chatbots
+    },
+    "[vue]": {
+        "editor.defaultFormatter": "Vue.volar" // Vue.volar
+    },
+    // TypeScript behavior for better team feedback
+    "typescript.validate.enable": true,
+    "typescript.tsserver.experimental.enableProjectDiagnostics": true,
+    // Cleaner diffs across the team
+    "diffEditor.ignoreTrimWhitespace": true
+}
