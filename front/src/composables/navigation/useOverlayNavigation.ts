@@ -1,20 +1,20 @@
-import L from 'leaflet';
-import { loadCityProjects } from '@/composables/map/useCityMarkers';
-import { navigateToOverlay } from '@/composables/overlay/useOverlay';
-import { selectOverlay } from '@/composables/overlay/useOverlaySelection';
-import { prepareCountryContext } from '@/composables/map/useCountryMarkers';
-import { prepareCrossCountryFlight } from '@/composables/map/useTileLayers';
-import { map } from '@/composables/core/useMap';
-import { mobileAwareFlyTo, mobileAwareFlyToBounds } from '@/composables/map/useMapNavigation';
-import { useMapStore } from '@/stores/pinia/mapStore';
-import { useOverlayStore } from '@/stores/pinia/overlayStore';
-import { useUiStore } from '@/stores/uiStore';
-import { 
-  getStandaloneProjectMarkerByProjectId, 
-  updateStandaloneProjectMarkerOpacities 
-} from '@/composables/map/useStandaloneProjectMarkers';
-import { createProjectInfoTeleportTarget } from '@/composables/map/useProjectPopupTeleport';
-import type { OverlayObject } from '@/types/index';
+import L from "leaflet";
+import { loadCityProjects } from "@/composables/map/useCityMarkers";
+import { navigateToOverlay } from "@/composables/overlay/useOverlay";
+import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
+import { prepareCountryContext } from "@/composables/map/useCountryMarkers";
+import { prepareCrossCountryFlight } from "@/composables/map/useTileLayers";
+import { map } from "@/composables/core/useMap";
+import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
+import { useMapStore } from "@/stores/pinia/mapStore";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useUiStore } from "@/stores/uiStore";
+import {
+  getStandaloneProjectMarkerByProjectId,
+  updateStandaloneProjectMarkerOpacities,
+} from "@/composables/map/useStandaloneProjectMarkers";
+import { createProjectInfoTeleportTarget } from "@/composables/map/useProjectPopupTeleport";
+import type { OverlayObject } from "@/types/index";
 
 /**
  * AI : Get the corners that should be used for navigation based on current display state
@@ -27,7 +27,7 @@ function getCurrentDisplayCorners(overlay: OverlayObject): { lat: number; lng: n
   if (overlay.overlay) {
     const actualCorners = overlay.overlay.getCorners();
     if (actualCorners?.length === 4) {
-      return actualCorners.map(c => ({ lat: c.lat, lng: c.lng }));
+      return actualCorners.map((c) => ({ lat: c.lat, lng: c.lng }));
     }
   }
 
@@ -52,7 +52,7 @@ function getCurrentDisplayCorners(overlay: OverlayObject): { lat: number; lng: n
 async function prepareNavigationToCity(
   cityId: string,
   cityName: string,
-  countryCode?: string
+  countryCode?: string,
 ): Promise<(() => void) | null> {
   let switchToCountryLayer: (() => void) | null = null;
 
@@ -76,20 +76,20 @@ async function prepareNavigationToCity(
 function zoomToOverlayAndSelect(
   overlayId: string,
   corners: { lat: number; lng: number }[],
-  switchToCountryLayer: (() => void) | null
+  switchToCountryLayer: (() => void) | null,
 ): boolean {
   if (!map.value || corners.length !== 4) return false;
 
-  const bounds = L.latLngBounds(corners.map(c => L.latLng(c.lat, c.lng)));
+  const bounds = L.latLngBounds(corners.map((c) => L.latLng(c.lat, c.lng)));
   mobileAwareFlyToBounds(bounds, {
     padding: [50, 50] as [number, number],
     duration: 1.5,
-    easeLinearity: 0.25
+    easeLinearity: 0.25,
   });
 
   const overlayStore = useOverlayStore();
 
-  map.value.once('moveend', () => {
+  map.value.once("moveend", () => {
     // AI : If cross-country flight, switch to country layer after arrival
     if (switchToCountryLayer) {
       switchToCountryLayer();
@@ -110,9 +110,13 @@ function zoomToOverlayAndSelect(
       if (element.complete && element.naturalWidth > 0) {
         selectOverlay(overlayId);
       } else {
-        element.addEventListener('load', () => {
-          selectOverlay(overlayId);
-        }, { once: true });
+        element.addEventListener(
+          "load",
+          () => {
+            selectOverlay(overlayId);
+          },
+          { once: true },
+        );
       }
     }
 
@@ -125,7 +129,11 @@ function zoomToOverlayAndSelect(
 /**
  * AI : Get corners from either loaded overlay or mapStore data
  */
-function getOverlayCorners(overlayId: string, mapStore: ReturnType<typeof useMapStore>, overlayStore: ReturnType<typeof useOverlayStore>): { lat: number; lng: number }[] | null {
+function getOverlayCorners(
+  overlayId: string,
+  mapStore: ReturnType<typeof useMapStore>,
+  overlayStore: ReturnType<typeof useOverlayStore>,
+): { lat: number; lng: number }[] | null {
   // AI : Try loaded overlay first (respects current display position)
   const overlayObject = overlayStore.overlays[overlayId];
   if (overlayObject != null) {
@@ -133,14 +141,17 @@ function getOverlayCorners(overlayId: string, mapStore: ReturnType<typeof useMap
   }
 
   // AI : Fallback to mapStore data
-  const overlayData = mapStore.currentCityOverlays.find(o => o.id === overlayId);
+  const overlayData = mapStore.currentCityOverlays.find((o) => o.id === overlayId);
   return overlayData?.corners ?? null;
 }
 
 /**
  * AI : Handle navigation when clicking the same overlay again
  */
-function handleSameOverlayNavigation(overlayId: string, overlayStore: ReturnType<typeof useOverlayStore>): boolean {
+function handleSameOverlayNavigation(
+  overlayId: string,
+  overlayStore: ReturnType<typeof useOverlayStore>,
+): boolean {
   const overlayObject = overlayStore.overlays[overlayId];
   if (overlayObject != null) {
     const corners = getCurrentDisplayCorners(overlayObject);
@@ -150,7 +161,6 @@ function handleSameOverlayNavigation(overlayId: string, overlayStore: ReturnType
   }
   return true;
 }
-
 
 /**
  * AI : Navigates to an overlay by simulating the complete marker click flow
@@ -165,7 +175,7 @@ export async function navigateToOverlayWithCity(
   overlayId: string,
   cityId: string,
   cityName: string,
-  countryCode?: string
+  countryCode?: string,
 ): Promise<boolean> {
   try {
     const mapStore = useMapStore();
@@ -195,7 +205,7 @@ export async function navigateToOverlayWithCity(
       return false;
     }
 
-    const overlayData = mapStore.currentCityOverlays.find(o => o.id === overlayId);
+    const overlayData = mapStore.currentCityOverlays.find((o) => o.id === overlayId);
     if (overlayData?.corners != null) {
       return zoomToOverlayAndSelect(overlayId, overlayData.corners, switchToCountryLayer);
     }
@@ -203,7 +213,7 @@ export async function navigateToOverlayWithCity(
     // AI : Fallback: if overlay not in current city overlays, use the old method
     return navigateToOverlay(overlayId, true, false);
   } catch (error) {
-    console.error('Failed to navigate to overlay with city:', error);
+    console.error("Failed to navigate to overlay with city:", error);
     throw error;
   }
 }
@@ -224,27 +234,27 @@ export async function navigateToStandaloneProject(
   cityId: string,
   cityName: string,
   countryCode?: string,
-  projectId?: string
+  projectId?: string,
 ): Promise<void> {
   try {
     // AI : Prepare navigation with cross-country flight support
     const switchToCountryLayer = await prepareNavigationToCity(cityId, cityName, countryCode);
 
     // AI : Wait a bit for markers to be added to the map
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await new Promise((resolve) => setTimeout(resolve, 200));
 
     // AI : Fly to marker project coordinates
     if (!map.value) {
-      throw new Error('Map is not initialized');
+      throw new Error("Map is not initialized");
     }
 
     mobileAwareFlyTo([lat, lng], 18, {
       duration: 1.5,
-      easeLinearity: 0.25
+      easeLinearity: 0.25,
     });
 
     // AI : Handle post-flight actions
-    map.value.once('moveend', () => {
+    map.value.once("moveend", () => {
       // AI : If cross-country flight, switch to country layer after arrival
       if (switchToCountryLayer) {
         switchToCountryLayer();
@@ -276,7 +286,7 @@ export async function navigateToStandaloneProject(
       }
     });
   } catch (error) {
-    console.error('Failed to navigate to marker project:', error);
+    console.error("Failed to navigate to marker project:", error);
     throw error;
   }
 }

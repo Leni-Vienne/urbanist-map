@@ -1,9 +1,13 @@
 // AI : Marker layer abstraction - unified handling of marker groups
 // AI : Eliminates duplication across city/country/overlay marker management
 
-import L from 'leaflet';
-import type { MarkerColor } from '@/types/index';
-import { createColorIcon, createStandaloneProjectIcon, createOverlayIcon } from '@/composables/map/useMarkers';
+import L from "leaflet";
+import type { MarkerColor } from "@/types/index";
+import {
+  createColorIcon,
+  createStandaloneProjectIcon,
+  createOverlayIcon,
+} from "@/composables/map/useMarkers";
 
 // AI : Configuration for a marker layer
 export interface MarkerLayerConfig<T> {
@@ -14,7 +18,7 @@ export interface MarkerLayerConfig<T> {
   getColor: (item: T) => MarkerColor;
 
   // AI : Get marker icon type ('standard' | 'standalone' | 'overlay')
-  getIconType?: () => 'standard' | 'standalone' | 'overlay';
+  getIconType?: () => "standard" | "standalone" | "overlay";
 
   // AI : Optional click handler
   onMarkerClick?: (marker: L.Marker, item: T) => void | Promise<void>;
@@ -45,7 +49,10 @@ export interface MarkerLayerResult {
 /**
  * AI : Reset all markers in a layer group to default opacity
  */
-export function resetLayerMarkersOpacity(layerGroup: L.LayerGroup | null, defaultOpacity: number): void {
+export function resetLayerMarkersOpacity(
+  layerGroup: L.LayerGroup | null,
+  defaultOpacity: number,
+): void {
   if (!layerGroup) return;
 
   layerGroup.eachLayer((layer) => {
@@ -62,13 +69,13 @@ export function resetLayerMarkersOpacity(layerGroup: L.LayerGroup | null, defaul
  */
 export function createMarkerLayer<T extends { id?: string }>(
   items: T[],
-  config: MarkerLayerConfig<T>
+  config: MarkerLayerConfig<T>,
 ): MarkerLayerResult {
   const layer = L.layerGroup();
   const markers = new Map<string, L.Marker>();
   let selectedMarker: L.Marker | null = null;
 
-  const iconType = config.getIconType?.() ?? 'standard';
+  const iconType = config.getIconType?.() ?? "standard";
   const defaultOpacity = config.getOpacity(false);
   const hoverOpacity = config.getOpacity(true);
 
@@ -78,11 +85,12 @@ export function createMarkerLayer<T extends { id?: string }>(
 
     // AI : Get marker color and create appropriate icon
     const markerColor = config.getColor(item);
-    const markerIcon = iconType === 'standalone'
-      ? createStandaloneProjectIcon(markerColor)
-      : (iconType === 'overlay'
-      ? createOverlayIcon(markerColor)
-      : createColorIcon(markerColor));
+    const markerIcon =
+      iconType === "standalone"
+        ? createStandaloneProjectIcon(markerColor)
+        : iconType === "overlay"
+          ? createOverlayIcon(markerColor)
+          : createColorIcon(markerColor);
 
     // AI : Create marker with default opacity
     const marker = L.marker([latLng.lat, latLng.lng], {
@@ -98,12 +106,12 @@ export function createMarkerLayer<T extends { id?: string }>(
     }
 
     // AI : Set up data attributes after marker is added to DOM
-    marker.on('add', () => {
+    marker.on("add", () => {
       const markerElement = marker.getElement();
       if (markerElement) {
         // AI : Add test ID if provided
         if (config.getTestId) {
-          markerElement.setAttribute('data-testid', config.getTestId(item));
+          markerElement.setAttribute("data-testid", config.getTestId(item));
         }
 
         // AI : Add custom data attributes if provided
@@ -117,12 +125,12 @@ export function createMarkerLayer<T extends { id?: string }>(
     });
 
     // AI : Prevent double-click zoom on markers
-    marker.on('dblclick', (e) => {
+    marker.on("dblclick", (e) => {
       L.DomEvent.stopPropagation(e);
     });
 
     // AI : Hover event - increase opacity
-    marker.on('mouseover', () => {
+    marker.on("mouseover", () => {
       // AI : If custom hover handler provided, let it handle opacity
       if (config.onMarkerHover) {
         config.onMarkerHover(marker, item, true);
@@ -133,7 +141,7 @@ export function createMarkerLayer<T extends { id?: string }>(
     });
 
     // AI : Mouse out event - reset opacity (unless selected)
-    marker.on('mouseout', () => {
+    marker.on("mouseout", () => {
       // AI : If custom hover handler provided, let it handle opacity
       if (config.onMarkerHover) {
         config.onMarkerHover(marker, item, false);
@@ -145,7 +153,7 @@ export function createMarkerLayer<T extends { id?: string }>(
 
     // AI : Click event
     if (config.onMarkerClick) {
-      marker.on('click', async (e) => {
+      marker.on("click", async (e) => {
         // AI : Stop event propagation
         L.DomEvent.stopPropagation(e);
 

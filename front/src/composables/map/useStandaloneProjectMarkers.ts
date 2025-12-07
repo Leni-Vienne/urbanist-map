@@ -1,13 +1,13 @@
 // AI : Standalone project marker management - extracted to avoid circular dependencies
 import L from "leaflet";
-import type { Project } from '@/types/index';
-import { map } from '@/composables/core/useMap';
-import { createStandaloneProjectIcon } from '@/composables/map/useMarkers';
-import { useOverlayStore } from '@/stores/pinia/overlayStore';
-import { useUiStore } from '@/stores/uiStore';
-import { MARKER_OPACITY } from '@/constants/markerConstants';
-import { createProjectInfoTeleportTarget } from '@/composables/map/useProjectPopupTeleport';
-import { getProjectMarkerColor } from '../../utils/markerColors';
+import type { Project } from "@/types/index";
+import { map } from "@/composables/core/useMap";
+import { createStandaloneProjectIcon } from "@/composables/map/useMarkers";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useUiStore } from "@/stores/uiStore";
+import { MARKER_OPACITY } from "@/constants/markerConstants";
+import { createProjectInfoTeleportTarget } from "@/composables/map/useProjectPopupTeleport";
+import { getProjectMarkerColor } from "../../utils/markerColors";
 
 // AI : Layer group for standalone projects (standalone project markers)
 let standaloneProjectsLayer: L.LayerGroup | null = null;
@@ -103,21 +103,21 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
   // AI : Create marker with default opacity
   const marker = L.marker([project.lat, project.lng], {
     icon: markerIcon,
-    opacity: MARKER_OPACITY.standalone.default
+    opacity: MARKER_OPACITY.standalone.default,
   });
 
   // AI : Prevent double-click zoom on markers
-  marker.on('dblclick', (e) => {
+  marker.on("dblclick", (e) => {
     L.DomEvent.stopPropagation(e);
   });
 
   // AI : Add mouseover event to increase marker opacity
-  marker.on('mouseover', () => {
+  marker.on("mouseover", () => {
     marker.setOpacity(MARKER_OPACITY.standalone.hover);
   });
 
   // AI : Add mouseout event to reset marker opacity (unless it's the selected marker)
-  marker.on('mouseout', () => {
+  marker.on("mouseout", () => {
     if (selectedStandaloneProjectMarker === marker) {
       marker.setOpacity(MARKER_OPACITY.standalone.hover);
     } else {
@@ -126,7 +126,7 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
   });
 
   // AI : Add click handler for projects without overlays - show info popup
-  marker.on('click', (e) => {
+  marker.on("click", (e) => {
     L.DomEvent.stopPropagation(e);
     const uiStore = useUiStore();
 

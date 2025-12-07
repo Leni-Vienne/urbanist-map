@@ -1,12 +1,12 @@
 import L from "leaflet";
-import { ref } from 'vue';
-import { map } from '@/composables/core/useMap';
+import { ref } from "vue";
+import { map } from "@/composables/core/useMap";
 
 // AI : Available tile layer types
-export type TileLayerType = 'FRA' | 'esri' | 'CHE' | 'USA';
+export type TileLayerType = "FRA" | "esri" | "CHE" | "USA";
 
 // AI : Current active tile layer
-export const currentTileLayer = ref<TileLayerType>('esri');
+export const currentTileLayer = ref<TileLayerType>("esri");
 
 // AI : Reference to the currently active tile layer instance
 let activeTileLayer: L.TileLayer | L.GridLayer | null = null;
@@ -20,9 +20,9 @@ const tileLayerBounds = L.latLngBounds([-85, -180], [85, 180]);
 // AI : Tile layer configurations with UI labels
 const tileLayerConfigs = {
   esri: {
-    label: 'World (default)',
-    flagUrl: 'https://flagcdn.com/16x12/un.png', // UN flag for world
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    label: "World (default)",
+    flagUrl: "https://flagcdn.com/16x12/un.png", // UN flag for world
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     options: {
       minZoom: 0,
       maxZoom: 22,
@@ -34,9 +34,9 @@ const tileLayerConfigs = {
     },
   },
   FRA: {
-    label: 'France',
-    flagUrl: 'https://flagcdn.com/16x12/fr.png',
-    url: 'https://data.geopf.fr/wmts?service=WMTS&request=GetTile&version=1.0.0&tilematrixset=PM&tilematrix={z}&tilecol={x}&tilerow={y}&layer=ORTHOIMAGERY.ORTHOPHOTOS&format=image/jpeg&style=normal',
+    label: "France",
+    flagUrl: "https://flagcdn.com/16x12/fr.png",
+    url: "https://data.geopf.fr/wmts?service=WMTS&request=GetTile&version=1.0.0&tilematrixset=PM&tilematrix={z}&tilecol={x}&tilerow={y}&layer=ORTHOIMAGERY.ORTHOPHOTOS&format=image/jpeg&style=normal",
     options: {
       minZoom: 0,
       maxZoom: 22,
@@ -44,13 +44,13 @@ const tileLayerConfigs = {
       tileSize: 256,
       attribution: "IGN-F/Géoportail",
       noWrap: true,
-      bounds: tileLayerBounds
-    }
+      bounds: tileLayerBounds,
+    },
   },
   USA: {
-    label: 'USA',
-    flagUrl: 'https://flagcdn.com/16x12/us.png',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    label: "USA",
+    flagUrl: "https://flagcdn.com/16x12/us.png",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     options: {
       minZoom: 0,
       maxZoom: 22,
@@ -58,14 +58,14 @@ const tileLayerConfigs = {
       tileSize: 256,
       attribution: "Esri, Maxar, Earthstar Geographics, GIS User Community",
       noWrap: true,
-      bounds: tileLayerBounds
-    }
+      bounds: tileLayerBounds,
+    },
   },
   CHE: {
-    label: 'Switzerland',
-    flagUrl: 'https://flagcdn.com/16x12/ch.png',
+    label: "Switzerland",
+    flagUrl: "https://flagcdn.com/16x12/ch.png",
     //url: 'https://wmts.geo.moderation.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg',
-    url: 'https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage-product/default/2025/3857/{z}/{x}/{y}.png',
+    url: "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage-product/default/2025/3857/{z}/{x}/{y}.png",
     options: {
       minZoom: 2,
       maxZoom: 22,
@@ -73,8 +73,8 @@ const tileLayerConfigs = {
       tileSize: 256,
       attribution: "© swisstopo",
       noWrap: true,
-      bounds: tileLayerBounds
-    }
+      bounds: tileLayerBounds,
+    },
   },
 };
 
@@ -83,7 +83,7 @@ const tileLayerConfigs = {
  */
 export function addTileLayer(): void {
   if (!map.value) {
-    console.error('Map not initialized when trying to add tile layers');
+    console.error("Map not initialized when trying to add tile layers");
     return;
   }
 
@@ -103,17 +103,16 @@ function addTileLayersToMap(): void {
 
   try {
     // AI : Create and add only the default ESRI layer
-    activeTileLayer = createTileLayer('esri');
+    activeTileLayer = createTileLayer("esri");
     activeTileLayer.addTo(map.value);
   } catch (error) {
-    console.error('Failed to initialize tile layers:', error);
+    console.error("Failed to initialize tile layers:", error);
     // AI : Fallback to simple ESRI layer on error
-    const fallbackLayer = createTileLayer('esri');
+    const fallbackLayer = createTileLayer("esri");
     activeTileLayer = fallbackLayer;
     activeTileLayer.addTo(map.value);
   }
 }
-
 
 /**
  * AI : Create a tile layer based on configuration
@@ -124,7 +123,6 @@ function createTileLayer(layerType: TileLayerType): L.TileLayer | L.GridLayer {
   // AI : Create standard tile layer
   return L.tileLayer(config.url, config.options);
 }
-
 
 /**
  * AI : Switch to a different tile layer (for custom layer control)
@@ -146,14 +144,13 @@ export function switchTileLayer(layerType: TileLayerType) {
 
     // AI : Update current layer reference
     currentTileLayer.value = layerType;
-
   } catch (error) {
-    console.error('Failed to switch tile layer:', error);
+    console.error("Failed to switch tile layer:", error);
     // AI : Fallback to previous layer or default ESRI on error
-    if (layerType !== 'esri') {
-      activeTileLayer = createTileLayer('esri');
+    if (layerType !== "esri") {
+      activeTileLayer = createTileLayer("esri");
       activeTileLayer.addTo(map.value);
-      currentTileLayer.value = 'esri';
+      currentTileLayer.value = "esri";
     }
   }
 }
@@ -167,12 +164,12 @@ export function getTileLayerOptions(): { label: string; value: TileLayerType; fl
     .map(([value, config]) => ({
       label: config.label,
       value: value as TileLayerType,
-      flagUrl: config.flagUrl
+      flagUrl: config.flagUrl,
     }));
 }
 
 export function isTileLayerType(value: string): value is TileLayerType {
-  return ['FRA', 'esri', 'USA', 'CHE'].includes(value);
+  return ["FRA", "esri", "USA", "CHE"].includes(value);
 }
 
 /**
@@ -188,8 +185,8 @@ export function prepareCrossCountryFlight(targetCountryCode: string | null): (()
 
   if (isCrossCountry) {
     // AI : Switch to esri immediately for global coverage during flight
-    if (currentTileLayer.value !== 'esri') {
-      switchTileLayer('esri');
+    if (currentTileLayer.value !== "esri") {
+      switchTileLayer("esri");
     }
 
     // AI : Update current country
@@ -197,9 +194,8 @@ export function prepareCrossCountryFlight(targetCountryCode: string | null): (()
 
     // AI : Return callback to switch to target country layer after flight
     return () => {
-      const targetLayer = targetCountryCode && isTileLayerType(targetCountryCode)
-        ? targetCountryCode
-        : 'esri';
+      const targetLayer =
+        targetCountryCode && isTileLayerType(targetCountryCode) ? targetCountryCode : "esri";
 
       if (currentTileLayer.value !== targetLayer) {
         switchTileLayer(targetLayer);
@@ -210,4 +206,3 @@ export function prepareCrossCountryFlight(targetCountryCode: string | null): (()
   // AI : Same country navigation - no tile layer changes needed
   return null;
 }
-

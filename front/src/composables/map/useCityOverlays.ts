@@ -1,21 +1,21 @@
 // AI : City-specific overlay management - handles loading and displaying overlays for cities
-import { ref } from 'vue';
-import L from 'leaflet';
-import { map } from '@/composables/core/useMap';
-import { renderViewModeOverlays } from '@/composables/overlay/useOverlay';
-import { selectOverlay } from '@/composables/overlay/useOverlaySelection';
-import { clearAllOverlays } from '@/composables/overlay/useOverlayLifecycle';
-import { hasCachedCityProjectsData, getSelectedCity } from '@/composables/map/useCityData';
-import { useCompletionFilters } from '@/composables/overlay/useCompletionFilters';
-import { trpc } from '@/client';
-import { getOverlayMarkerColor, createOverlayIcon } from '@/composables/map/useMarkers';
-import { resolveOverlayPosition } from '@/composables/overlay/useOverlayPositionManagement';
-import { useMapStore } from '@/stores/pinia/mapStore';
-import { useOverlayStore } from '@/stores/pinia/overlayStore';
-import { withErrorHandling, withErrorToast } from '@/composables/core/useErrorHandling';
-import { mobileAwareFlyToBounds } from '@/composables/map/useMapNavigation';
-import type { OverlayData } from '@/types/index';
-import { MAP_CONFIG } from '@/constants/mapConstants';
+import { ref } from "vue";
+import L from "leaflet";
+import { map } from "@/composables/core/useMap";
+import { renderViewModeOverlays } from "@/composables/overlay/useOverlay";
+import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
+import { clearAllOverlays } from "@/composables/overlay/useOverlayLifecycle";
+import { hasCachedCityProjectsData, getSelectedCity } from "@/composables/map/useCityData";
+import { useCompletionFilters } from "@/composables/overlay/useCompletionFilters";
+import { trpc } from "@/client";
+import { getOverlayMarkerColor, createOverlayIcon } from "@/composables/map/useMarkers";
+import { resolveOverlayPosition } from "@/composables/overlay/useOverlayPositionManagement";
+import { useMapStore } from "@/stores/pinia/mapStore";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { withErrorHandling, withErrorToast } from "@/composables/core/useErrorHandling";
+import { mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
+import type { OverlayData } from "@/types/index";
+import { MAP_CONFIG } from "@/constants/mapConstants";
 
 // AI : Minimum zoom level required to load city projects and overlays
 const MIN_ZOOM_FOR_OVERLAYS = MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
@@ -45,7 +45,7 @@ export async function fetchCityProjectsData(cityId: string): Promise<OverlayData
   // AI : - suggestedCorners = pending changes if they exist
   const overlaysData = await withErrorToast(
     async () => trpc.cities.getCityOverlaysAndProjects.query({ cityId, mode: overlayStore.mode }),
-    'Error fetching city projects data'
+    "Error fetching city projects data",
   );
 
   // AI : Cache the data for future use - mode-specific cache
@@ -57,7 +57,11 @@ export async function fetchCityProjectsData(cityId: string): Promise<OverlayData
 /**
  * AI : Load projects for a specific city and display overlays on map
  */
-export async function loadCityOverlays(cityId: string, forceFullLoad = false, isSwitchingCity = true): Promise<void | null> {
+export async function loadCityOverlays(
+  cityId: string,
+  forceFullLoad = false,
+  isSwitchingCity = true,
+): Promise<void | null> {
   return withErrorHandling(
     async () => {
       const mapStore = useMapStore();
@@ -123,20 +127,19 @@ export async function loadCityOverlays(cityId: string, forceFullLoad = false, is
       checkZoomAndHideOverlays();
     },
     {
-      errorMessage: 'Failed to load city overlays',
+      errorMessage: "Failed to load city overlays",
       logError: true,
       onError: () => {
         const mapStore = useMapStore();
         mapStore.currentCityOverlays = [];
         isLoadingCityProjects.value = false;
-      }
-    }
+      },
+    },
   );
 }
 
 // AI : Common function to render overlay markers from overlay data
 function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void {
-
   // AI : Clear view mode overlays state using store
   const overlayStore = useOverlayStore();
   overlayStore.clearViewModeOverlays();
@@ -149,20 +152,19 @@ function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void {
   overlayMarkersLayer = L.layerGroup();
 
   // AI : Add simple markers for each visible overlay location
-  visibleOverlays.forEach(overlay => {
+  visibleOverlays.forEach((overlay) => {
     // AI : Use unified position resolver
     const overlayStore = useOverlayStore();
     const resolved = resolveOverlayPosition(overlay.id, overlay, overlayStore.mode);
 
     // AI : Check edit mode cache for modifications to determine correct marker color
-    const cachedModifications = overlayStore.mode === 'edit'
-      ? overlayStore.getFromEditModeCache(overlay.id)
-      : undefined;
+    const cachedModifications =
+      overlayStore.mode === "edit" ? overlayStore.getFromEditModeCache(overlay.id) : undefined;
 
     // AI : Create temporary overlay object with isModified flag from cache
     const overlayWithModFlag = {
       ...overlay,
-      isModified: cachedModifications?.isModified ?? false
+      isModified: cachedModifications?.isModified ?? false,
     };
 
     const markerColor = getOverlayMarkerColor(overlayWithModFlag, overlayStore.mode);
@@ -170,20 +172,20 @@ function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void {
     const marker = L.marker([resolved.position.lat, resolved.position.lng], { icon: markerIcon });
 
     // AI : Add click handler to fly to overlay position and open toolbar
-    marker.on('click', (e) => {
+    marker.on("click", (e) => {
       // AI : Stop propagation to prevent map click handler from deselecting
       L.DomEvent.stopPropagation(e);
       flyToOverlayMarker(overlay);
     });
 
     // AI : Add data-testid to the marker element after it's added to the DOM
-    marker.on('add', () => {
+    marker.on("add", () => {
       const markerElement = marker.getElement();
       if (markerElement) {
-        markerElement.setAttribute('data-testid', `overlay-marker-${overlay.id}`);
-        markerElement.setAttribute('data-overlay-id', overlay.id);
-        markerElement.setAttribute('data-project-id', overlay.projectId ?? 'unknown');
-        markerElement.setAttribute('data-overlay-status', overlay.project?.status ?? 'unknown');
+        markerElement.setAttribute("data-testid", `overlay-marker-${overlay.id}`);
+        markerElement.setAttribute("data-overlay-id", overlay.id);
+        markerElement.setAttribute("data-project-id", overlay.projectId ?? "unknown");
+        markerElement.setAttribute("data-overlay-status", overlay.project?.status ?? "unknown");
       }
     });
 
@@ -218,12 +220,12 @@ async function showOverlayMarkers(cityId: string, isSwitchingCity = true): Promi
       renderOverlayMarkersFromData(overlaysData);
     },
     {
-      errorMessage: 'Failed to load overlay markers',
+      errorMessage: "Failed to load overlay markers",
       logError: true,
       onError: () => {
         isLoadingCityProjects.value = false;
-      }
-    }
+      },
+    },
   ) as Promise<void>;
 }
 
@@ -272,7 +274,7 @@ function renderFullOverlaysFromCache(cityId: string, isSwitchingCity = true) {
       // AI : Render only visible overlays on the map with markers
       renderViewModeOverlays(visibleOverlays, true, true);
     },
-    { errorMessage: 'Failed to render cached overlays', logError: true }
+    { errorMessage: "Failed to render cached overlays", logError: true },
   );
 }
 
@@ -298,7 +300,7 @@ export function renderOverlayMarkersFromCache(cityId: string): void {
       // AI : Use shared function to render markers
       renderOverlayMarkersFromData(overlaysData);
     },
-    { errorMessage: 'Failed to render cached overlay markers', logError: true }
+    { errorMessage: "Failed to render cached overlay markers", logError: true },
   );
 }
 
@@ -320,23 +322,23 @@ export function checkZoomAndHideOverlays(): void {
 /**
  * AI : Fly to overlay marker position and open toolbar
  */
-function flyToOverlayMarker(overlayData: OverlayData){
+function flyToOverlayMarker(overlayData: OverlayData) {
   if (!map.value) return;
-  
+
   const overlayStore = useOverlayStore();
   const resolved = resolveOverlayPosition(overlayData.id, overlayData, overlayStore.mode);
-  
+
   if (resolved.corners?.length !== 4) return;
 
-  const bounds = L.latLngBounds(resolved.corners.map(c => L.latLng(c.lat, c.lng)));
+  const bounds = L.latLngBounds(resolved.corners.map((c) => L.latLng(c.lat, c.lng)));
 
   mobileAwareFlyToBounds(bounds, {
     padding: [50, 50] as [number, number],
     duration: 1.5,
-    easeLinearity: 0.25
+    easeLinearity: 0.25,
   });
 
-  map.value.once('moveend', () => {
+  map.value.once("moveend", () => {
     // AI : selectOverlay handles overlay.select() internally
     selectOverlay(overlayData.id);
   });
@@ -351,7 +353,7 @@ export function updateOverlayMarkersForFilters(): void {
   const overlayStore = useOverlayStore();
 
   // AI : Only update if we have overlay markers visible
-  if (!overlayMarkersLayer || map.value != null && !map.value.hasLayer(overlayMarkersLayer)) {
+  if (!overlayMarkersLayer || (map.value != null && !map.value.hasLayer(overlayMarkersLayer))) {
     return;
   }
 

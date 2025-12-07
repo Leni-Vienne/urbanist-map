@@ -1,23 +1,23 @@
-import { ref, computed } from 'vue'
-import { trpc } from '@/client'
-import { withErrorHandling } from '@/composables/core/useErrorHandling'
-import type { ApprovalStatus } from '@shared/types'
+import { ref, computed } from "vue";
+import { trpc } from "@/client";
+import { withErrorHandling } from "@/composables/core/useErrorHandling";
+import type { ApprovalStatus } from "@shared/types";
 
 // AI : Type for moderated contribution item
 export interface ModeratedContribution {
-  id: string
-  caption: string | null
-  filename: string
-  status: ApprovalStatus
-  updatedAt: Date
-  projectId: string | null
-  replacedByOverlayId: string | null
-  projectName: string | null
+  id: string;
+  caption: string | null;
+  filename: string;
+  status: ApprovalStatus;
+  updatedAt: Date;
+  projectId: string | null;
+  replacedByOverlayId: string | null;
+  projectName: string | null;
 }
 
-const moderatedContributions = ref<ModeratedContribution[]>([])
-const isLoading = ref(false)
-const hasBeenFetched = ref(false)
+const moderatedContributions = ref<ModeratedContribution[]>([]);
+const isLoading = ref(false);
+const hasBeenFetched = ref(false);
 
 /**
  * AI : Composable for managing moderated contributions (rejected/replaced overlays)
@@ -25,7 +25,7 @@ const hasBeenFetched = ref(false)
  * AI : Allows users to acknowledge and clean up these items immediately
  */
 export function useModeratedContributions() {
-  const hasUnacknowledgedItems = computed(() => moderatedContributions.value.length > 0)
+  const hasUnacknowledgedItems = computed(() => moderatedContributions.value.length > 0);
 
   /**
    * AI : Fetch moderated contributions from backend
@@ -33,22 +33,22 @@ export function useModeratedContributions() {
    */
   async function fetchModeratedContributions(force = false) {
     if (hasBeenFetched.value && !force) {
-      return
+      return;
     }
 
-    isLoading.value = true
+    isLoading.value = true;
     try {
       const result = await withErrorHandling(
         async () => trpc.overlay.getModeratedContributions.query(),
-        { errorMessage: 'Failed to load moderated contributions' }
-      )
+        { errorMessage: "Failed to load moderated contributions" },
+      );
 
       if (result) {
-        moderatedContributions.value = result
-        hasBeenFetched.value = true
+        moderatedContributions.value = result;
+        hasBeenFetched.value = true;
       }
     } finally {
-      isLoading.value = false
+      isLoading.value = false;
     }
   }
 
@@ -57,37 +57,37 @@ export function useModeratedContributions() {
    * AI : Deletes thumbnails and DB records immediately (instead of waiting 15 days)
    */
   async function acknowledgeContributions(overlayIds: string[]) {
-    if (overlayIds.length === 0) return { success: false }
+    if (overlayIds.length === 0) return { success: false };
 
     const result = await withErrorHandling(
       async () => trpc.overlay.acknowledgeModeratedContributions.mutate({ overlayIds }),
-      { errorMessage: 'Failed to acknowledge contributions' }
-    )
+      { errorMessage: "Failed to acknowledge contributions" },
+    );
 
     if (result?.success) {
       // AI : Remove acknowledged items from local cache
       moderatedContributions.value = moderatedContributions.value.filter(
-        item => !overlayIds.includes(item.id)
-      )
+        (item) => !overlayIds.includes(item.id),
+      );
     }
 
-    return result ?? { success: false }
+    return result ?? { success: false };
   }
 
   /**
    * AI : Acknowledge all moderated contributions at once
    */
   async function acknowledgeAll() {
-    const allIds = moderatedContributions.value.map(item => item.id)
-    return acknowledgeContributions(allIds)
+    const allIds = moderatedContributions.value.map((item) => item.id);
+    return acknowledgeContributions(allIds);
   }
 
   /**
    * AI : Reset cache (useful when user logs out)
    */
   function reset() {
-    moderatedContributions.value = []
-    hasBeenFetched.value = false
+    moderatedContributions.value = [];
+    hasBeenFetched.value = false;
   }
 
   return {
@@ -98,6 +98,6 @@ export function useModeratedContributions() {
     fetchModeratedContributions,
     acknowledgeContributions,
     acknowledgeAll,
-    reset
-  }
+    reset,
+  };
 }

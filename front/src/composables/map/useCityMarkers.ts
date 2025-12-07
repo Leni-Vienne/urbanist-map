@@ -1,37 +1,36 @@
 import L from "leaflet";
-import { createStandaloneProjectIcon } from '@/composables/map/useMarkers';
-import type { Project } from '@/types/index';
-import { ref, watch } from 'vue';
-import { t } from '@/locales'
-import { map } from '@/composables/core/useMap';
-import { mobileAwareFlyTo } from '@/composables/map/useMapNavigation';
-import { loadCityOverlays } from '@/composables/map/useCityOverlays';
-import { useSelectedProject } from '@/composables/project/useProjectSelection';
-import { trpc, type RouterOutput} from '@/client';
+import { createStandaloneProjectIcon } from "@/composables/map/useMarkers";
+import type { Project } from "@/types/index";
+import { ref, watch } from "vue";
+import { t } from "@/locales";
+import { map } from "@/composables/core/useMap";
+import { mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
+import { loadCityOverlays } from "@/composables/map/useCityOverlays";
+import { useSelectedProject } from "@/composables/project/useProjectSelection";
+import { trpc, type RouterOutput } from "@/client";
 
-import { useAuthStore } from '@/stores/authStore';
-import { useUiStore } from '@/stores/uiStore';
-import { useMapStore } from '@/stores/pinia/mapStore';
-import { useOverlayStore } from '@/stores/pinia/overlayStore';
-import { useProjectStore } from '@/stores/pinia/projectStore';
-import { useCompletionFilters } from '@/composables/overlay/useCompletionFilters';
-import { useProjects } from '@/composables/project/useProjects';
-import { createProjectObject } from '../../utils/typeFactories';
-import { getProjectMarkerColor } from '../../utils/markerColors';
-import { MARKER_OPACITY } from '@/constants/markerConstants';
-import { createMarkerLayer, type MarkerLayerConfig } from '@/composables/map/useMarkerLayer';
+import { useAuthStore } from "@/stores/authStore";
+import { useUiStore } from "@/stores/uiStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useCompletionFilters } from "@/composables/overlay/useCompletionFilters";
+import { useProjects } from "@/composables/project/useProjects";
+import { createProjectObject } from "../../utils/typeFactories";
+import { getProjectMarkerColor } from "../../utils/markerColors";
+import { MARKER_OPACITY } from "@/constants/markerConstants";
+import { createMarkerLayer, type MarkerLayerConfig } from "@/composables/map/useMarkerLayer";
 import {
   addStandaloneProjectMarkerForProject,
   getStandaloneProjectMarkerByProjectId,
   getStandaloneProjectMarkerMap,
   updateStandaloneProjectMarkerOpacities,
-  clearAllStandaloneProjectMarkers
-} from '@/composables/map/useStandaloneProjectMarkers';
-import { cleanupProjectInfoTeleportTarget } from '@/composables/map/useProjectPopupTeleport';
-
+  clearAllStandaloneProjectMarkers,
+} from "@/composables/map/useStandaloneProjectMarkers";
+import { cleanupProjectInfoTeleportTarget } from "@/composables/map/useProjectPopupTeleport";
 
 // AI : Type aliases using RouterOutput from tRPC
-export type CityWithProjects = RouterOutput['cities']['getCitiesWithProjects'][number];
+export type CityWithProjects = RouterOutput["cities"]["getCitiesWithProjects"][number];
 
 // AI : Cities with projects data
 export const citiesWithProjects = ref<CityWithProjects[]>([]);
@@ -41,7 +40,6 @@ let cityMarkersLayer: L.LayerGroup | null = null;
 
 // AI : Map to store city ID to marker references for easy lookup
 const cityMarkerMap = new Map<string, L.Marker>();
-
 
 // AI : Flag to ensure watcher is only set up once
 let modeWatcherInitialized = false;
@@ -54,9 +52,12 @@ function initializeModeWatcher() {
   if (modeWatcherInitialized) return;
 
   const overlayStore = useOverlayStore();
-  watch(() => overlayStore.mode, () => {
-    updateAllStandaloneProjectMarkerColors();
-  });
+  watch(
+    () => overlayStore.mode,
+    () => {
+      updateAllStandaloneProjectMarkerColors();
+    },
+  );
 
   modeWatcherInitialized = true;
 }
@@ -72,9 +73,12 @@ function initializeCityMarkerWatcher() {
   if (cityMarkerWatcherInitialized) return;
 
   const mapStore = useMapStore();
-  watch(() => mapStore.selectedCity, (selectedCity) => {
-    updateCityMarkerOpacities(selectedCity?.id ?? null);
-  });
+  watch(
+    () => mapStore.selectedCity,
+    (selectedCity) => {
+      updateCityMarkerOpacities(selectedCity?.id ?? null);
+    },
+  );
 
   cityMarkerWatcherInitialized = true;
 }
@@ -88,7 +92,7 @@ export function updateCityMarkerOpacities(selectedCityId: string | null): void {
   cityMarkersLayer.eachLayer((layer) => {
     if (layer instanceof L.Marker) {
       const markerElement = layer.getElement();
-      const cityId = markerElement?.getAttribute('data-city-id');
+      const cityId = markerElement?.getAttribute("data-city-id");
 
       if (selectedCityId && cityId === selectedCityId) {
         layer.setOpacity(MARKER_OPACITY.city.hover);
@@ -154,55 +158,60 @@ export async function loadCityStandaloneProjects(cityId: string | null): Promise
     const mapStore = useMapStore();
     const overlayStore = useOverlayStore();
 
-    let backendProjects: RouterOutput['project']['getCityProjects'] = [];
+    let backendProjects: RouterOutput["project"]["getCityProjects"] = [];
     if (cityId) {
       const cachedData = mapStore.getCityStandaloneProjectsCache(cityId, overlayStore.mode);
       if (cachedData) {
         backendProjects = cachedData;
       } else {
-        backendProjects = await trpc.project.getCityProjects.query({ cityId, mode: overlayStore.mode });
+        backendProjects = await trpc.project.getCityProjects.query({
+          cityId,
+          mode: overlayStore.mode,
+        });
         mapStore.setCityStandaloneProjectsCache(cityId, overlayStore.mode, backendProjects);
       }
     }
 
-    const backendProjectsWithNoOverlays = backendProjects.filter(project => {
-      const overlayCount = project.overlayCount ?? 0
-      return overlayCount === 0
+    const backendProjectsWithNoOverlays = backendProjects.filter((project) => {
+      const overlayCount = project.overlayCount ?? 0;
+      return overlayCount === 0;
     });
 
     const { projects: localProjects } = useProjects();
     const allLocalProjects = Object.values(localProjects.value);
     const authStore = useAuthStore();
 
-    const localProjectsWithNoOverlays = allLocalProjects
-      .filter(project => {
-        const overlayCount = project.overlayIds?.length ?? 0
-        const matchesCity = project.cityId === cityId || (cityId === null && (project.cityId === null || project.cityId === undefined))
+    const localProjectsWithNoOverlays = allLocalProjects.filter((project) => {
+      const overlayCount = project.overlayIds?.length ?? 0;
+      const matchesCity =
+        project.cityId === cityId ||
+        (cityId === null && (project.cityId === null || project.cityId === undefined));
 
-        // AI : Filter by mode and status (same logic as backend)
-        let matchesVisibilityFilter = false;
-        if (overlayStore.mode === 'view') {
-          // AI : View mode: only show approved projects
-          matchesVisibilityFilter = project.status === 'approved';
-        } else if (overlayStore.mode === 'edit' && authStore.user) {
-          // AI : Edit mode: show approved projects OR user's own projects
-          matchesVisibilityFilter = project.status === 'approved' || project.ownerId === authStore.user.id;
-        } else if (overlayStore.mode === 'moderation') {
-          // AI : Moderation mode: show approved OR pending projects
-          matchesVisibilityFilter = project.status === 'approved' || project.status === 'pending';
-        } else {
-          // AI : Default: only show approved
-          matchesVisibilityFilter = project.status === 'approved';
-        }
+      // AI : Filter by mode and status (same logic as backend)
+      let matchesVisibilityFilter = false;
+      if (overlayStore.mode === "view") {
+        // AI : View mode: only show approved projects
+        matchesVisibilityFilter = project.status === "approved";
+      } else if (overlayStore.mode === "edit" && authStore.user) {
+        // AI : Edit mode: show approved projects OR user's own projects
+        matchesVisibilityFilter =
+          project.status === "approved" || project.ownerId === authStore.user.id;
+      } else if (overlayStore.mode === "moderation") {
+        // AI : Moderation mode: show approved OR pending projects
+        matchesVisibilityFilter = project.status === "approved" || project.status === "pending";
+      } else {
+        // AI : Default: only show approved
+        matchesVisibilityFilter = project.status === "approved";
+      }
 
-        return overlayCount === 0 && matchesCity && matchesVisibilityFilter;
-      });
+      return overlayCount === 0 && matchesCity && matchesVisibilityFilter;
+    });
 
     const allProjectsWithNoOverlays = [
       ...backendProjectsWithNoOverlays,
-      ...localProjectsWithNoOverlays.filter(local =>
-        !backendProjectsWithNoOverlays.some(backend => backend.id === local.id)
-      )
+      ...localProjectsWithNoOverlays.filter(
+        (local) => !backendProjectsWithNoOverlays.some((backend) => backend.id === local.id),
+      ),
     ];
 
     // AI : Get set of project IDs that have overlays already rendered in the store
@@ -210,43 +219,48 @@ export async function loadCityStandaloneProjects(cityId: string | null): Promise
     // AI : (e.g., pending overlays visible in edit mode, or overlays from a different mode's cache)
     const projectIdsWithRenderedOverlays = new Set(
       Object.values(overlayStore.overlays)
-        .map(overlay => overlay.projectId)
-        .filter((id): id is string => id !== null && id !== undefined)
+        .map((overlay) => overlay.projectId)
+        .filter((id): id is string => id !== null && id !== undefined),
     );
 
-    allProjectsWithNoOverlays.forEach(project => {
+    allProjectsWithNoOverlays.forEach((project) => {
       // AI : Skip if project already has overlays rendered on the map
       if (projectIdsWithRenderedOverlays.has(project.id)) {
         return;
       }
 
       if (project.lat && project.lng) {
-        const projectData = 'overlayIds' in project ? project : createProjectObject({
-          ...project,
-          city: project.city,
-          status: ('status' in project ? project.status : 'approved')
-        });
+        const projectData =
+          "overlayIds" in project
+            ? project
+            : createProjectObject({
+                ...project,
+                city: project.city,
+                status: "status" in project ? project.status : "approved",
+              });
 
         // AI : Add project to store so it can be edited
         const { projects: localProjects } = useProjects();
         if (!localProjects.value[project.id]) {
           localProjects.value = {
             ...localProjects.value,
-            [project.id]: projectData
+            [project.id]: projectData,
           };
         }
 
         // AI : Apply completion filters (timeline filters in view mode)
         // AI : In edit/moderation modes, timeline filters don't apply
-        if (overlayStore.mode === 'view') {
+        if (overlayStore.mode === "view") {
           const completionFilters = useCompletionFilters();
           const projectColor = getProjectMarkerColor(projectData, overlayStore.mode);
 
           // AI : Check if this color is in the completion filters (some colors like 'gold', 'black' may not be)
-          const colorKey = projectColor as keyof typeof completionFilters.visibleCompletionStates.value;
-          const isVisibleByCompletionFilter = colorKey in completionFilters.visibleCompletionStates.value
-            ? completionFilters.visibleCompletionStates.value[colorKey]
-            : true; // AI : If color not in filters, show by default
+          const colorKey =
+            projectColor as keyof typeof completionFilters.visibleCompletionStates.value;
+          const isVisibleByCompletionFilter =
+            colorKey in completionFilters.visibleCompletionStates.value
+              ? completionFilters.visibleCompletionStates.value[colorKey]
+              : true; // AI : If color not in filters, show by default
 
           if (!isVisibleByCompletionFilter) {
             return;
@@ -257,14 +271,19 @@ export async function loadCityStandaloneProjects(cityId: string | null): Promise
       }
     });
   } catch (error) {
-    console.error('Error loading standalone projects:', error);
+    console.error("Error loading standalone projects:", error);
   }
 }
 
 /**
  * AI : Load projects for a specific city and display overlays on map
  */
-export async function loadCityProjects(cityId: string | null, cityName: string, forceFullLoad = false, cityCountryCode?: string): Promise<void> {
+export async function loadCityProjects(
+  cityId: string | null,
+  cityName: string,
+  forceFullLoad = false,
+  cityCountryCode?: string,
+): Promise<void> {
   try {
     // AI : Update selected city in store (only if cityId is not null)
     if (cityId) {
@@ -291,14 +310,14 @@ export async function loadCityProjects(cityId: string | null, cityName: string, 
       // AI : Pass isSwitchingCity flag to avoid clearing overlays when navigating within same city
       await Promise.all([
         loadCityOverlays(cityId, forceFullLoad, isSwitchingCity),
-        loadCityStandaloneProjects(cityId)
+        loadCityStandaloneProjects(cityId),
       ]);
     } else {
       // AI : Just load local standalone projects when no city is selected
       await loadCityStandaloneProjects(null);
     }
   } catch (error) {
-    console.error('Error loading city projects:', error);
+    console.error("Error loading city projects:", error);
   }
 }
 
@@ -321,17 +340,17 @@ export function removeCityMarkers(): void {
  */
 function getCityMarkerConfig(): MarkerLayerConfig<CityWithProjects> {
   return {
-    getOpacity: (hover) => hover ? MARKER_OPACITY.city.hover : MARKER_OPACITY.city.default,
-    getColor: () => 'blue',
+    getOpacity: (hover) => (hover ? MARKER_OPACITY.city.hover : MARKER_OPACITY.city.default),
+    getColor: () => "blue",
     getLatLng: (city) => ({ lat: city.lat, lng: city.lng }),
     getTooltip: (city) => city.name,
     getTestId: (city) => `city-marker-${city.id}`,
     getDataAttributes: (city) => ({
-      'data-city-id': city.id,
-      'data-city-name': city.name,
-      'data-country-code': city.countryCode,
-      'data-lat': city.lat.toString(),
-      'data-lng': city.lng.toString(),
+      "data-city-id": city.id,
+      "data-city-name": city.name,
+      "data-country-code": city.countryCode,
+      "data-lat": city.lat.toString(),
+      "data-lng": city.lng.toString(),
     }),
     onMarkerHover: (marker, city, isHovering) => {
       // AI : Custom hover handler that respects selected city state
@@ -351,18 +370,17 @@ function getCityMarkerConfig(): MarkerLayerConfig<CityWithProjects> {
     onMarkerClick: async (_marker, city) => {
       const mapStore = useMapStore();
       const overlayStore = useOverlayStore();
-      ;
 
       // AI : Check for unsaved overlays before loading city (same city or different)
       const hasUnsavedOverlays = Object.values(overlayStore.overlays).some(
-        overlay => overlay.isModified === true
+        (overlay) => overlay.isModified === true,
       );
 
       if (hasUnsavedOverlays) {
         const isSwitchingCity = mapStore.selectedCity?.id !== city.id;
         const message = isSwitchingCity
-          ? t('navigation.unsavedOverlaysSwitchCity')
-          : t('navigation.unsavedOverlaysReloadCity');
+          ? t("navigation.unsavedOverlaysSwitchCity")
+          : t("navigation.unsavedOverlaysReloadCity");
 
         const confirmed = confirm(message);
         if (!confirmed) {
@@ -373,21 +391,27 @@ function getCityMarkerConfig(): MarkerLayerConfig<CityWithProjects> {
       // AI : Zoom to the city marker position (same zoom level as MarkerHelpButton)
       if (map.value && map.value.getZoom() < 14) {
         mobileAwareFlyTo([city.lat, city.lng], 14, {
-          duration: 1.5
+          duration: 1.5,
         });
       }
 
       await loadCityProjects(city.id, city.name, false, city.countryCode);
-    }
+    },
   };
 }
 
 /**
  * AI : Add a single city marker without replacing existing ones
  */
-export function addSingleCityMarker(city: { id: string; name: string; lat: number; lng: number; countryCode: string }): void {
+export function addSingleCityMarker(city: {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  countryCode: string;
+}): void {
   if (!map.value) {
-    console.error('Map not initialized when trying to add city marker');
+    console.error("Map not initialized when trying to add city marker");
     return;
   }
 
@@ -417,7 +441,7 @@ export function addSingleCityMarker(city: { id: string; name: string; lat: numbe
  */
 export function addCityMarkersForCountry(cities: CityWithProjects[]): void {
   if (!map.value) {
-    console.error('Map not initialized when trying to add city markers for country');
+    console.error("Map not initialized when trying to add city markers for country");
     return;
   }
   addCityMarkersToMapInternal(cities);

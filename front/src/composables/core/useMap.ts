@@ -1,6 +1,6 @@
 import L from "leaflet";
-import { ref, shallowRef } from 'vue';
-import { debounce } from '@/utils/debounce';
+import { ref, shallowRef } from "vue";
+import { debounce } from "@/utils/debounce";
 
 // shallowRef is used to avoid reactivity issues with Leaflet, see https://stackoverflow.com/a/73588115/12498040
 export const map = shallowRef<L.Map | null>(null);
@@ -9,12 +9,12 @@ const mapSize = ref({ width: 0, height: 0 });
 export const currentZoomLevel = ref<number>(13);
 
 // AI : Create a debounced version of updateMapSize
-const debouncedUpdateMapSize = debounce(function  debouncedUpdateMapSize() {
+const debouncedUpdateMapSize = debounce(function debouncedUpdateMapSize() {
   if (!map.value) return;
   const container = map.value.getContainer();
   mapSize.value = {
     width: container.clientWidth,
-    height: container.clientHeight
+    height: container.clientHeight,
   };
 
   // AI : Trigger a resize event on the map to ensure all components adjust
@@ -37,12 +37,11 @@ function calculateMinZoom(): number {
     return 2;
   } else {
     // AI : Interpolate between 2 and 3 for resolutions between 1920 and 2560
-    return 2 + ((largerDimension - 1920) / (2560 - 1920));
+    return 2 + (largerDimension - 1920) / (2560 - 1920);
   }
 }
 
 export function initializeMap() {
-
   map.value = L.map("mapDiv", {
     center: [22, 10], // initializing with center and zoom to avoid setView call
     zoom: calculateMinZoom(),
@@ -53,14 +52,14 @@ export function initializeMap() {
     maxBoundsViscosity: 0.8, // gently bounce back
     touchZoom: true, // true otherwise the website is zoomed instead of the map on mobile,
     keyboard: false,
-  })
-  if (!map.value) throw new Error('No map element found');
+  });
+  if (!map.value) throw new Error("No map element found");
 
   // AI : Initialize reactive zoom level with Leaflet's default
   currentZoomLevel.value = map.value.getZoom();
 
   // AI : Listen for zoom changes to update reactive zoom level
-  map.value.on('zoomend', () => {
+  map.value.on("zoomend", () => {
     if (map.value != null) {
       currentZoomLevel.value = map.value.getZoom();
     }
@@ -70,7 +69,7 @@ export function initializeMap() {
   debouncedUpdateMapSize();
 
   // AI : Update map size when window is resized (debounced to trigger only on resize end)
-  globalThis.addEventListener('resize', debouncedUpdateMapSize);
+  globalThis.addEventListener("resize", debouncedUpdateMapSize);
 
   L.control.scale().addTo(map.value);
   // AI : Ensure the map initialization is complete
@@ -80,24 +79,27 @@ export function initializeMap() {
   }
 }
 
-
 export function disableLeafletKeyboardEvents() {
   if (!map.value) {
-    console.error('Map is not initialized yet!');
+    console.error("Map is not initialized yet!");
     return;
   }
 
   const mapContainer = map.value.getContainer();
   if (!mapContainer) {
-    console.error('Map container not found!');
+    console.error("Map container not found!");
     return;
   }
 
   // to prevent keystrokes from InfoPopup to be intercepted by Leaflet
   // unfortunately, it prevnts the user of the arrow keys to move the map (but there is prob a way around it)
-  ['keydown', 'keyup', 'keypress'].forEach(eventType => {
-    mapContainer.addEventListener(eventType, (e: Event) => {
-      e.stopPropagation();
-    }, true);
+  ["keydown", "keyup", "keypress"].forEach((eventType) => {
+    mapContainer.addEventListener(
+      eventType,
+      (e: Event) => {
+        e.stopPropagation();
+      },
+      true,
+    );
   });
 }

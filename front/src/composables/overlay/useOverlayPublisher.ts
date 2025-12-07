@@ -10,7 +10,7 @@ import { storeToRefs } from "pinia";
 import { buildProjectPayload } from "@/composables/project/useProjectMutations";
 import type { OverlayObject, Project } from "@/types/index";
 import { validateOverlaySize, leafletCornersToCorners } from "@shared/overlayValidation";
-import { t } from '@/locales';
+import { t } from "@/locales";
 import type { ApprovalStatus } from "@shared/types";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -30,7 +30,6 @@ export function useOverlayPublisher() {
   const mapStore = useMapStore();
   const { projects } = storeToRefs(projectStore);
   const { overlays, idSelectedOverlay } = storeToRefs(overlayStore);
-  ;
 
   // AI : Validate if overlay can be published
   function validateOverlayForPublishing(overlay: OverlayObject, project: Project | null): boolean {

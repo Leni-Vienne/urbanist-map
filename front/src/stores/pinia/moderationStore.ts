@@ -1,10 +1,10 @@
-import { defineStore } from 'pinia';
-import { ref } from 'vue';
-import type { PendingOverlay, PendingChangeRequest } from '../../types/api';
-import type { ProjectForModeration } from '@/types/index';
-import type { ApprovalStatus } from '@shared/types';
+import { defineStore } from "pinia";
+import { ref } from "vue";
+import type { PendingOverlay, PendingChangeRequest } from "../../types/api";
+import type { ProjectForModeration } from "@/types/index";
+import type { ApprovalStatus } from "@shared/types";
 
-export const useModerationStore = defineStore('moderation', () => {
+export const useModerationStore = defineStore("moderation", () => {
   const overlays = ref<PendingOverlay[]>([]);
   const projects = ref<ProjectForModeration[]>([]);
   const changeRequests = ref<PendingChangeRequest[]>([]);
@@ -22,7 +22,7 @@ export const useModerationStore = defineStore('moderation', () => {
   interface RecentAction {
     id: string;
     itemName: string;
-    itemType: 'overlay' | 'project';
+    itemType: "overlay" | "project";
     previousStatus: ApprovalStatus;
     newStatus: ApprovalStatus;
     timestamp: Date;
@@ -36,8 +36,8 @@ export const useModerationStore = defineStore('moderation', () => {
     changeRequests: PendingChangeRequest[];
   }) {
     overlays.value = data.overlays;
-    
-    projects.value = data.projects
+
+    projects.value = data.projects;
     changeRequests.value = data.changeRequests;
     moderationLoaded.value = true;
   }
@@ -61,9 +61,7 @@ export const useModerationStore = defineStore('moderation', () => {
 
   // AI : Remove change requests from local state after approval/rejection
   function removeChangeRequests(changeRequestIds: string[]) {
-    changeRequests.value = changeRequests.value.filter(
-      cr => !changeRequestIds.includes(cr.id)
-    );
+    changeRequests.value = changeRequests.value.filter((cr) => !changeRequestIds.includes(cr.id));
   }
 
   function setSelectedCountryCode(countryCode: string | null) {

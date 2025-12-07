@@ -1,9 +1,9 @@
-import { readFileSync } from 'fs';
-import { join } from 'path';
-import { db } from '../database';
-import { countries } from '../db/schema';
-import { sql, eq } from 'drizzle-orm';
-import { parseCSVLine } from '../utils/csv-parser';
+import { readFileSync } from "fs";
+import { join } from "path";
+import { db } from "../database";
+import { countries } from "../db/schema";
+import { sql, eq } from "drizzle-orm";
+import { parseCSVLine } from "../utils/csv-parser";
 
 interface CSVCountry {
   country: string;
@@ -21,13 +21,13 @@ export class CountriesImportService {
   private static loadCountriesFromCSV(): CSVCountry[] {
     try {
       // AI : Read CSV file from project root
-      const csvPath = join(__dirname, '..', '..', '..', 'countries.csv');
-      
-      const csvData = readFileSync(csvPath, 'utf8');
-      const lines = csvData.split('\n').filter(line => line.trim());
-      
+      const csvPath = join(__dirname, "..", "..", "..", "countries.csv");
+
+      const csvData = readFileSync(csvPath, "utf8");
+      const lines = csvData.split("\n").filter((line) => line.trim());
+
       if (lines.length === 0) {
-        throw new Error('Empty CSV file');
+        throw new Error("Empty CSV file");
       }
 
       // AI : Skip header line
@@ -40,19 +40,24 @@ export class CountriesImportService {
 
         try {
           const fields = parseCSVLine(line);
-          
+
           if (fields.length >= 6) {
             const country: CSVCountry = {
-              country: fields[0].replace(/"/g, ''),
+              country: fields[0].replace(/"/g, ""),
               alpha2Code: fields[1],
               alpha3Code: fields[2],
               numericCode: fields[3],
               latitude: parseFloat(fields[4]),
-              longitude: parseFloat(fields[5])
+              longitude: parseFloat(fields[5]),
             };
 
             // AI : Validate required fields
-            if (country.alpha3Code && country.country && !isNaN(country.latitude) && !isNaN(country.longitude)) {
+            if (
+              country.alpha3Code &&
+              country.country &&
+              !isNaN(country.latitude) &&
+              !isNaN(country.longitude)
+            ) {
               countries.push(country);
             } else {
               console.warn(`Skipping invalid country at line ${i + 2}: ${line}`);
@@ -64,7 +69,7 @@ export class CountriesImportService {
       }
       return countries;
     } catch (error) {
-      console.error('Error loading countries CSV:', error);
+      console.error("Error loading countries CSV:", error);
       throw error;
     }
   }
@@ -76,9 +81,9 @@ export class CountriesImportService {
   static async importCountries(): Promise<{ inserted: number; updated: number; errors: number }> {
     try {
       const csvCountries = this.loadCountriesFromCSV();
-      
+
       if (csvCountries.length === 0) {
-        throw new Error('No countries loaded from CSV');
+        throw new Error("No countries loaded from CSV");
       }
 
       let inserted = 0;
@@ -98,7 +103,7 @@ export class CountriesImportService {
           const countryData = {
             code: csvCountry.alpha3Code,
             name: csvCountry.country,
-            centerCoordinates: sql`ST_SetSRID(ST_MakePoint(${csvCountry.longitude}, ${csvCountry.latitude}), 4326)`
+            centerCoordinates: sql`ST_SetSRID(ST_MakePoint(${csvCountry.longitude}, ${csvCountry.latitude}), 4326)`,
           };
 
           if (existingCountry.length > 0) {
@@ -107,17 +112,16 @@ export class CountriesImportService {
               .update(countries)
               .set({
                 centerCoordinates: sql`ST_SetSRID(ST_MakePoint(${csvCountry.longitude}, ${csvCountry.latitude}), 4326)`,
-                updatedAt: sql`NOW()`
+                updatedAt: sql`NOW()`,
               })
               .where(eq(countries.code, csvCountry.alpha3Code));
-            
+
             updated++;
           } else {
             // AI : Insert new country
             await db.insert(countries).values(countryData);
             inserted++;
           }
-
         } catch (error) {
           console.error(`Error processing country ${csvCountry.country}:`, error);
           errors++;
@@ -126,7 +130,7 @@ export class CountriesImportService {
 
       return { inserted, updated, errors };
     } catch (error) {
-      console.error('Error importing countries:', error);
+      console.error("Error importing countries:", error);
       throw error;
     }
   }
@@ -141,7 +145,7 @@ export class CountriesImportService {
 
       return { totalCountries };
     } catch (error) {
-      console.error('Error getting countries stats:', error);
+      console.error("Error getting countries stats:", error);
       throw error;
     }
   }

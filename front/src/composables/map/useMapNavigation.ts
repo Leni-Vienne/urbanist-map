@@ -5,12 +5,12 @@
 // AI : and country-specific navigation with bounding boxes
 // AI : ============================================================================
 
-import { ref } from 'vue';
-import L, { type FitBoundsOptions, type ZoomPanOptions } from 'leaflet';
-import { map } from '@/composables/core/useMap';
-import { useUiStore } from '@/stores/uiStore';
-import type { CameraBounds } from '@/types/index';
-import countryBboxes from '@/assets/country_bboxes.json';
+import { ref } from "vue";
+import L, { type FitBoundsOptions, type ZoomPanOptions } from "leaflet";
+import { map } from "@/composables/core/useMap";
+import { useUiStore } from "@/stores/uiStore";
+import type { CameraBounds } from "@/types/index";
+import countryBboxes from "@/assets/country_bboxes.json";
 
 // AI : ============================================================================
 // AI : CAMERA BOUNDS TRACKING
@@ -24,27 +24,27 @@ const currentCameraBounds = ref<CameraBounds | null>(null);
  */
 export function initializeCameraBounds() {
   if (!map.value) {
-    console.warn('Map not available for camera bounds tracking');
+    console.warn("Map not available for camera bounds tracking");
     return;
   }
 
   // AI : Update bounds when map moves or zooms
   function updateBounds() {
     if (!map.value) {
-      console.warn('Map not available in updateBounds');
+      console.warn("Map not available in updateBounds");
       return;
     }
 
     try {
       const bounds = map.value.getBounds();
       if (!bounds) {
-        console.warn('Map bounds not available');
+        console.warn("Map bounds not available");
         return;
       }
 
       const zoom = map.value.getZoom();
       if (zoom === undefined || zoom === null) {
-        console.warn('Map zoom not available');
+        console.warn("Map zoom not available");
         return;
       }
 
@@ -53,12 +53,11 @@ export function initializeCameraBounds() {
         south: bounds.getSouth(),
         east: bounds.getEast(),
         west: bounds.getWest(),
-        zoom: zoom
+        zoom: zoom,
       };
       currentCameraBounds.value = newBounds;
-
     } catch (error) {
-      console.error('Error updating camera bounds:', error);
+      console.error("Error updating camera bounds:", error);
     }
   }
 
@@ -66,9 +65,9 @@ export function initializeCameraBounds() {
   updateBounds();
 
   // AI : Listen for map events - these fire when camera stops moving
-  map.value.on('load', updateBounds);
-  map.value.on('moveend', updateBounds);
-  map.value.on('zoomend', updateBounds);
+  map.value.on("load", updateBounds);
+  map.value.on("moveend", updateBounds);
+  map.value.on("zoomend", updateBounds);
 }
 
 /**
@@ -77,7 +76,6 @@ export function initializeCameraBounds() {
 export function getCameraBounds() {
   return currentCameraBounds;
 }
-
 
 // AI : ============================================================================
 // AI : MOBILE-AWARE NAVIGATION
@@ -93,7 +91,7 @@ const distanceThreshold = 0.003;
 function shouldApplyMobileOffset(): boolean {
   const isMobile = globalThis.innerWidth <= 768;
   if (!isMobile) return false;
-  
+
   const uiStore = useUiStore();
   return uiStore.mobileDrawerVisible;
 }
@@ -106,7 +104,7 @@ function shouldApplyMobileOffset(): boolean {
 export function mobileAwareFlyTo(
   latlng: L.LatLngExpression,
   zoom?: number,
-  options?: ZoomPanOptions
+  options?: ZoomPanOptions,
 ): void {
   if (!map.value) return;
 
@@ -117,7 +115,7 @@ export function mobileAwareFlyTo(
 
   // AI : Check if already at target location and zoom to prevent camera shake
   const distance = currentCenter.distanceTo(latLng);
-  
+
   if (distance < distanceThreshold && Math.abs(currentZoom - targetZoom) < 0.1) {
     return; // AI : Already at target, skip animation
   }
@@ -133,7 +131,7 @@ export function mobileAwareFlyTo(
   const offset = 0.001; // AI : Small offset to create minimal bounds
   const bounds = L.latLngBounds(
     [latLng.lat - offset, latLng.lng - offset],
-    [latLng.lat + offset, latLng.lng + offset]
+    [latLng.lat + offset, latLng.lng + offset],
   );
 
   // AI : Use flyToBounds with mobile-aware padding and target zoom
@@ -141,7 +139,7 @@ export function mobileAwareFlyTo(
     ...options,
     maxZoom: zoom ?? map.value.getZoom(),
     paddingTopLeft: [50, 50] as [number, number],
-    paddingBottomRight: [50, globalThis.innerHeight * 0.45] as [number, number]
+    paddingBottomRight: [50, globalThis.innerHeight * 0.45] as [number, number],
   };
 
   map.value.flyToBounds(bounds, fitOptions);
@@ -152,19 +150,19 @@ export function mobileAwareFlyTo(
  */
 export function mobileAwareFlyToBounds(
   bounds: L.LatLngBoundsExpression,
-  options?: FitBoundsOptions
+  options?: FitBoundsOptions,
 ): void {
   if (!map.value) return;
 
   // AI : Convert bounds expression to LatLngBounds object for comparison
-  const targetBounds = bounds instanceof L.LatLngBounds 
-    ? bounds 
-    : L.latLngBounds(bounds);
+  const targetBounds = bounds instanceof L.LatLngBounds ? bounds : L.latLngBounds(bounds);
   const currentBounds = map.value.getBounds();
 
   // AI : Check if already viewing the same bounds to prevent camera shake
-  const sameNorth = Math.abs(currentBounds.getNorth() - targetBounds.getNorth()) < distanceThreshold;
-  const sameSouth = Math.abs(currentBounds.getSouth() - targetBounds.getSouth()) < distanceThreshold;
+  const sameNorth =
+    Math.abs(currentBounds.getNorth() - targetBounds.getNorth()) < distanceThreshold;
+  const sameSouth =
+    Math.abs(currentBounds.getSouth() - targetBounds.getSouth()) < distanceThreshold;
   const sameEast = Math.abs(currentBounds.getEast() - targetBounds.getEast()) < distanceThreshold;
   const sameWest = Math.abs(currentBounds.getWest() - targetBounds.getWest()) < distanceThreshold;
 
@@ -177,11 +175,11 @@ export function mobileAwareFlyToBounds(
     ? {
         ...options,
         paddingTopLeft: [50, 50] as [number, number],
-        paddingBottomRight: [50, globalThis.innerHeight * 0.45] as [number, number] // AI : 45% to cover drawer + margin
+        paddingBottomRight: [50, globalThis.innerHeight * 0.45] as [number, number], // AI : 45% to cover drawer + margin
       }
     : {
         ...options,
-        padding: options?.padding ?? [50, 50] as [number, number]
+        padding: options?.padding ?? ([50, 50] as [number, number]),
       };
 
   map.value.flyToBounds(bounds, flyOptions);
@@ -204,7 +202,7 @@ export function flyToCountry(
   fallbackLat?: number,
   fallbackLng?: number,
   fallbackZoom = 6,
-  duration = 1.5
+  duration = 1.5,
 ) {
   if (!map.value) return;
 
@@ -215,17 +213,17 @@ export function flyToCountry(
     mobileAwareFlyToBounds(
       [
         [bbox[1], bbox[0]], // AI : southwest corner [lat, lng]
-        [bbox[3], bbox[2]]  // AI : northeast corner [lat, lng]
+        [bbox[3], bbox[2]], // AI : northeast corner [lat, lng]
       ],
       {
         duration,
-        padding: [30, 30] as [number, number]
-      }
+        padding: [30, 30] as [number, number],
+      },
     );
   } else if (fallbackLat !== undefined && fallbackLng !== undefined) {
     // AI : Fallback to flyTo if no bbox found
     mobileAwareFlyTo([fallbackLat, fallbackLng], fallbackZoom, {
-      duration
+      duration,
     });
   }
 }

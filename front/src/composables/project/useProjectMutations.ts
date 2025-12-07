@@ -1,5 +1,5 @@
-import type { Project } from '@/types/index';
-import type { PublishProjectInput } from '../../types/api';
+import type { Project } from "@/types/index";
+import type { PublishProjectInput } from "../../types/api";
 
 /**
  * AI : Builds a consistent payload for publishing projects to the backend

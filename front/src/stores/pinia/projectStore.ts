@@ -37,10 +37,7 @@ export const useProjectStore = defineStore("project", () => {
 
   // AI : Cache for cities by country and mode (key format: "countryCode:mode")
   const citiesCache = ref<
-    Map<
-      string,
-      (RouterOutput["cities"]["getCitiesWithProjects"][number] & { distance: number })[]
-    >
+    Map<string, (RouterOutput["cities"]["getCitiesWithProjects"][number] & { distance: number })[]>
   >(new Map());
 
   // AI : Cache countries separately per mode
@@ -168,20 +165,14 @@ export const useProjectStore = defineStore("project", () => {
       // AI : Check if overlay already exists in the project
       const existingOverlayIndex = existingProject.overlays.findIndex((o) => o.id === overlay.id);
 
-      const overlayMetadata = createOverlayMetadata(
-        overlay,
-        project,
-        filename,
-        authorUsername,
-      );
+      const overlayMetadata = createOverlayMetadata(overlay, project, filename, authorUsername);
 
       const updatedOverlays =
         existingOverlayIndex !== -1
           ? replaceAtIndex(existingProject.overlays, existingOverlayIndex, overlayMetadata)
           : [...existingProject.overlays, overlayMetadata];
 
-      const newOverlayCount =
-        existingProject.overlayCount + (existingOverlayIndex === -1 ? 1 : 0);
+      const newOverlayCount = existingProject.overlayCount + (existingOverlayIndex === -1 ? 1 : 0);
 
       const updatedProject = {
         ...existingProject,
@@ -206,9 +197,7 @@ export const useProjectStore = defineStore("project", () => {
           ...project,
           ...extractCityMetadata(project),
           status: project.status, // AI : Type assertion - null already filtered above
-          overlays: [
-            createOverlayMetadata(overlay, project, filename, authorUsername),
-          ],
+          overlays: [createOverlayMetadata(overlay, project, filename, authorUsername)],
           overlayCount: 1,
         },
         ...userContributions.value,

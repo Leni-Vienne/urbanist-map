@@ -1,9 +1,9 @@
-import type { Project } from '@/types/index';
-import { useOverlayStore } from '@/stores/pinia/overlayStore';
-import { useProjectStore } from '@/stores/pinia/projectStore';
-import { useAuthStore } from '@/stores/authStore';
-import { createProjectObject } from '@/utils/typeFactories';
-import { storeToRefs } from 'pinia';
+import type { Project } from "@/types/index";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useAuthStore } from "@/stores/authStore";
+import { createProjectObject } from "@/utils/typeFactories";
+import { storeToRefs } from "pinia";
 
 // AI : Export composable function that gets store refs when called (not at module level)
 export function useProjects() {
@@ -14,14 +14,14 @@ export function useProjects() {
   return { overlays, projects, countries, selectedProjectId };
 }
 
-export function createProject(projectData: Partial<Omit<Project, 'id' | 'overlayIds' | 'color'>>) {
+export function createProject(projectData: Partial<Omit<Project, "id" | "overlayIds" | "color">>) {
   const authStore = useAuthStore();
 
   // AI : Use factory function for consistent object creation
   const project = createProjectObject({
     ...projectData,
     // AI : Set ownerId to current user if not provided
-    ownerId: projectData.ownerId ?? authStore.user?.id ?? null
+    ownerId: projectData.ownerId ?? authStore.user?.id ?? null,
   });
 
   // AI : Create a new object reference to ensure shallowRef reactivity triggers
@@ -37,13 +37,13 @@ export function addOverlayToProjectWithId(projectId: string, overlayId: string):
   const { projects, overlays } = useProjects();
 
   if (projects.value[projectId] == null) {
-    console.error('Project not found in memory store:', projectId);
-    throw new Error('Project not found');
+    console.error("Project not found in memory store:", projectId);
+    throw new Error("Project not found");
   }
 
-  if (overlays.value[overlayId]  == null) {
-    console.error('Overlay not found in memory store:', overlayId);
-    throw new Error('Overlay not found');
+  if (overlays.value[overlayId] == null) {
+    console.error("Overlay not found in memory store:", overlayId);
+    throw new Error("Overlay not found");
   }
 
   // AI : Create new references to ensure reactivity with shallowRef

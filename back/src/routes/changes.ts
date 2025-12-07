@@ -1,14 +1,14 @@
-import { adminProcedure, moderatorProcedure, loggedInProcedure, router } from '../trpc';
-import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
-import { projects, overlays, changeRequests, changeHistory, users, cities } from '../db/schema';
-import { eq, and, inArray, sql, or } from 'drizzle-orm';
-import { TRPCError } from '@trpc/server';
-import { db } from '../database';
-import { addConflictFlags, enrichChangeRequestsWithNames } from '../db/helpers';
-import { submitChangeRequestSchema } from '@shared/validation/schemas';
+import { adminProcedure, moderatorProcedure, loggedInProcedure, router } from "../trpc";
+import * as z from "zod"; // smaller bundle compared to 'import { z } from 'zod';
+import { projects, overlays, changeRequests, changeHistory, users, cities } from "../db/schema";
+import { eq, and, inArray, sql, or } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
+import { db } from "../database";
+import { addConflictFlags, enrichChangeRequestsWithNames } from "../db/helpers";
+import { submitChangeRequestSchema } from "@shared/validation/schemas";
 
 // AI : Use shared change request schema for validation
-export type { SubmitChangeRequestInput, FieldChange } from '../lib/types';
+export type { SubmitChangeRequestInput, FieldChange } from "../lib/types";
 
 const approveChangeRequestSchema = z.object({
   changeRequestIds: z.array(z.uuid()),
@@ -22,37 +22,38 @@ const rejectChangeRequestSchema = z.object({
 function convertCornersToGeometry(cornersValue: unknown) {
   const cornersArray = cornersValue as { lat: number; lng: number }[];
   if (!Array.isArray(cornersArray) || cornersArray.length !== 4) {
-    throw new TRPCError({ 
-      code: 'BAD_REQUEST', 
-      message: 'Corners must be an array of 4 coordinate objects' 
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Corners must be an array of 4 coordinate objects",
     });
   }
-  
+
   // AI : Build WKT polygon string (same format as overlay publish)
   const [topLeft, topRight, bottomRight, bottomLeft] = cornersArray;
   const polygonWKT = `POLYGON((${topLeft.lng} ${topLeft.lat}, ${topRight.lng} ${topRight.lat}, ${bottomRight.lng} ${bottomRight.lat}, ${bottomLeft.lng} ${bottomLeft.lat}, ${topLeft.lng} ${topLeft.lat}))`;
-  
+
   return sql.raw(`ST_GeomFromText('${polygonWKT}', 4326)`);
 }
 
 // AI : Helper function to convert coordinate object to PostGIS point geometry
 function convertCoordinateToGeometry(coordValue: unknown) {
   const coordObj = coordValue as { lat: number; lng: number };
-  if (!coordObj || typeof coordObj.lat !== 'number' || typeof coordObj.lng !== 'number') {
-    throw new TRPCError({ 
-      code: 'BAD_REQUEST', 
-      message: 'Coordinate must be an object with lat and lng properties' 
+  if (!coordObj || typeof coordObj.lat !== "number" || typeof coordObj.lng !== "number") {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Coordinate must be an object with lat and lng properties",
     });
   }
-  
+
   return sql`ST_SetSRID(ST_MakePoint(${coordObj.lng}, ${coordObj.lat}), 4326)`;
 }
 
 // AI : Helper function to build update data with proper geometry handling
 function buildUpdateData(change: { entityType: string; fieldName: string; newValue: unknown }) {
-  const isOverlayCornersField = change.entityType === 'overlay' && change.fieldName === 'corners';
-  const isOverlayCentroidField = change.entityType === 'overlay' && change.fieldName === 'centroid';
-  const isProjectCenterCoordinateField = change.entityType === 'project' && change.fieldName === 'centerCoordinate';
+  const isOverlayCornersField = change.entityType === "overlay" && change.fieldName === "corners";
+  const isOverlayCentroidField = change.entityType === "overlay" && change.fieldName === "centroid";
+  const isProjectCenterCoordinateField =
+    change.entityType === "project" && change.fieldName === "centerCoordinate";
 
   if (isOverlayCornersField) {
     return { corners: convertCornersToGeometry(change.newValue) };
@@ -72,22 +73,23 @@ function buildUpdateData(change: { entityType: string; fieldName: string; newVal
 
 // AI : Helper to get country code for an entity (project or overlay)
 async function getEntityCountryCode(
-  entityType: 'project' | 'overlay',
-  entityId: string
+  entityType: "project" | "overlay",
+  entityId: string,
 ): Promise<string | undefined> {
   // AI : Build query based on entity type - projects join city directly, overlays via projects
-  const query = entityType === 'project'
-    ? db
-        .select({ countryCode: cities.countryCode })
-        .from(projects)
-        .innerJoin(cities, eq(projects.cityId, cities.id))
-        .where(eq(projects.id, entityId))
-    : db
-        .select({ countryCode: cities.countryCode })
-        .from(overlays)
-        .innerJoin(projects, eq(overlays.projectId, projects.id))
-        .innerJoin(cities, eq(projects.cityId, cities.id))
-        .where(eq(overlays.id, entityId));
+  const query =
+    entityType === "project"
+      ? db
+          .select({ countryCode: cities.countryCode })
+          .from(projects)
+          .innerJoin(cities, eq(projects.cityId, cities.id))
+          .where(eq(projects.id, entityId))
+      : db
+          .select({ countryCode: cities.countryCode })
+          .from(overlays)
+          .innerJoin(projects, eq(overlays.projectId, projects.id))
+          .innerJoin(cities, eq(projects.cityId, cities.id))
+          .where(eq(overlays.id, entityId));
 
   const result = await query.limit(1);
   return result[0]?.countryCode;
@@ -120,7 +122,7 @@ async function checkModeratorChangeRequestPermission(
   const { entityType, entityId } = changeRequest[0];
 
   // AI : Get country code for the entity
-  const countryCode = await getEntityCountryCode(entityType as 'project' | 'overlay', entityId);
+  const countryCode = await getEntityCountryCode(entityType as "project" | "overlay", entityId);
 
   if (!countryCode) {
     throw new TRPCError({ code: "NOT_FOUND", message: "Entity not found" });
@@ -149,7 +151,7 @@ const changeRequestSelectFields = {
   status: changeRequests.status,
   requestedBy: changeRequests.requestedBy,
   requestedByUsername: users.username,
-  requestedByReportCount: sql<number>`0`.as('requestedByReportCount'),
+  requestedByReportCount: sql<number>`0`.as("requestedByReportCount"),
   createdAt: changeRequests.createdAt,
 } as const;
 
@@ -160,7 +162,10 @@ export const changesRouter = router({
       try {
         const userId = ctx.user?.id;
         if (!userId) {
-          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Must be logged in to submit changes' });
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Must be logged in to submit changes",
+          });
         }
 
         // AI : Process each change request - replace existing ones for the same field from the same user
@@ -176,8 +181,8 @@ export const changesRouter = router({
                   eq(changeRequests.entityId, input.entityId),
                   eq(changeRequests.fieldName, change.fieldName),
                   eq(changeRequests.requestedBy, userId),
-                  sql`${changeRequests.status} IN ('pending', 'conflicted')`
-                )
+                  sql`${changeRequests.status} IN ('pending', 'conflicted')`,
+                ),
               );
 
             // AI : Insert the new change request with 'pending' status
@@ -191,15 +196,18 @@ export const changesRouter = router({
               newValue: change.newValue,
               changeReason: change.changeReason,
               requestedBy: userId,
-              status: 'pending',
+              status: "pending",
             });
           }
         });
 
         return { success: true };
       } catch (error) {
-        console.error('Error submitting change request:', error);
-        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to submit change request' });
+        console.error("Error submitting change request:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to submit change request",
+        });
       }
     }),
 
@@ -209,7 +217,10 @@ export const changesRouter = router({
       try {
         const userId = ctx.user?.id;
         if (!userId) {
-          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Must be logged in to delete change request' });
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Must be logged in to delete change request",
+          });
         }
 
         // AI : Get change request to check permissions and status
@@ -224,19 +235,22 @@ export const changesRouter = router({
           .limit(1);
 
         if (changeRequest.length === 0) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Change request not found' });
+          throw new TRPCError({ code: "NOT_FOUND", message: "Change request not found" });
         }
 
         // AI : Only the requester can delete their own change request
         if (changeRequest[0].requestedBy !== userId) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Not authorized to delete this change request' });
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Not authorized to delete this change request",
+          });
         }
 
         // AI : Only pending and conflicted change requests can be deleted
-        if (changeRequest[0].status !== 'pending' && changeRequest[0].status !== 'conflicted') {
+        if (changeRequest[0].status !== "pending" && changeRequest[0].status !== "conflicted") {
           throw new TRPCError({
-            code: 'BAD_REQUEST',
-            message: 'Can only delete pending or conflicted change requests'
+            code: "BAD_REQUEST",
+            message: "Can only delete pending or conflicted change requests",
           });
         }
 
@@ -245,109 +259,116 @@ export const changesRouter = router({
 
         return { success: true };
       } catch (error) {
-        console.error('Error deleting change request:', error);
+        console.error("Error deleting change request:", error);
         if (error instanceof TRPCError) throw error;
-        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to delete change request' });
-      }
-    }),
-
-  getMyChangeRequests: loggedInProcedure
-    .query(async ({ ctx }) => {
-      try {
-        const userId = ctx.user?.id;
-        if (!userId) {
-          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Must be logged in to view change requests' });
-        }
-
-        // AI : Only show pending/conflicted change requests (not approved/rejected)
-        const myChanges = await db
-          .select(changeRequestSelectFields)
-          .from(changeRequests)
-          .leftJoin(users, eq(changeRequests.requestedBy, users.id))
-          .where(
-            and(
-              eq(changeRequests.requestedBy, userId),
-              or(
-                eq(changeRequests.status, 'pending'),
-                eq(changeRequests.status, 'conflicted')
-              )
-            )
-          )
-          .orderBy(changeRequests.createdAt);
-
-        // AI : Add hasConflict field to maintain type consistency with getPendingChangeRequests
-        // AI : For user's own changes, we show conflicts when status is 'conflicted' (another change was chosen)
-        const changesWithConflictInfo = myChanges.map(change => {
-          return Object.assign({}, change, {
-            hasConflict: change.status === 'conflicted'
-          });
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to delete change request",
         });
-
-        // AI : Enrich with city and country names
-        const enrichedChanges = await enrichChangeRequestsWithNames(changesWithConflictInfo);
-
-        return enrichedChanges;
-      } catch (error) {
-        console.error('Error fetching my change requests:', error);
-        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch my change requests' });
       }
     }),
 
-  getPendingChangeRequests: moderatorProcedure
-    .query(async ({ ctx }) => {
-      try {
-        const userModeratedCountries = ctx.user.moderatedCountries;
-        const isAdmin = ctx.user.role === "admin";
-
-        // AI : Only show 'pending' changes to moderators
-        // AI : 'conflicted' status means "another change was chosen" (soft rejection by moderator)
-        const pendingChanges = await db
-          .select(changeRequestSelectFields)
-          .from(changeRequests)
-          .leftJoin(users, eq(changeRequests.requestedBy, users.id))
-          .where(eq(changeRequests.status, 'pending'))
-          .orderBy(changeRequests.createdAt);
-
-        // AI : Filter change requests by moderator's assigned countries
-        let filteredChanges = pendingChanges;
-        if (!isAdmin && userModeratedCountries && userModeratedCountries.length > 0) {
-          // AI : Get country codes for all change requests
-          const changeRequestCountries = await Promise.all(
-            pendingChanges.map(async (change) => {
-              try {
-                const countryCode = await getEntityCountryCode(
-                  change.entityType as 'project' | 'overlay',
-                  change.entityId
-                );
-                return { changeId: change.id, countryCode };
-              } catch {
-                return { changeId: change.id, countryCode: undefined };
-              }
-            })
-          );
-
-          // AI : Filter to only changes in moderator's countries
-          const allowedChangeIds = new Set(
-            changeRequestCountries
-              .filter((c) => c.countryCode && userModeratedCountries.includes(c.countryCode))
-              .map((c) => c.changeId)
-          );
-
-          filteredChanges = pendingChanges.filter((change) => allowedChangeIds.has(change.id));
-        }
-
-        // AI : Add hasConflict flag to changes that have competing requests
-        const changesWithConflictInfo = addConflictFlags(filteredChanges);
-
-        // AI : Enrich with city and country names
-        const enrichedChanges = await enrichChangeRequestsWithNames(changesWithConflictInfo);
-
-        return enrichedChanges;
-      } catch (error) {
-        console.error('Error fetching pending change requests:', error);
-        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch pending change requests' });
+  getMyChangeRequests: loggedInProcedure.query(async ({ ctx }) => {
+    try {
+      const userId = ctx.user?.id;
+      if (!userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Must be logged in to view change requests",
+        });
       }
-    }),
+
+      // AI : Only show pending/conflicted change requests (not approved/rejected)
+      const myChanges = await db
+        .select(changeRequestSelectFields)
+        .from(changeRequests)
+        .leftJoin(users, eq(changeRequests.requestedBy, users.id))
+        .where(
+          and(
+            eq(changeRequests.requestedBy, userId),
+            or(eq(changeRequests.status, "pending"), eq(changeRequests.status, "conflicted")),
+          ),
+        )
+        .orderBy(changeRequests.createdAt);
+
+      // AI : Add hasConflict field to maintain type consistency with getPendingChangeRequests
+      // AI : For user's own changes, we show conflicts when status is 'conflicted' (another change was chosen)
+      const changesWithConflictInfo = myChanges.map((change) => {
+        return Object.assign({}, change, {
+          hasConflict: change.status === "conflicted",
+        });
+      });
+
+      // AI : Enrich with city and country names
+      const enrichedChanges = await enrichChangeRequestsWithNames(changesWithConflictInfo);
+
+      return enrichedChanges;
+    } catch (error) {
+      console.error("Error fetching my change requests:", error);
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Failed to fetch my change requests",
+      });
+    }
+  }),
+
+  getPendingChangeRequests: moderatorProcedure.query(async ({ ctx }) => {
+    try {
+      const userModeratedCountries = ctx.user.moderatedCountries;
+      const isAdmin = ctx.user.role === "admin";
+
+      // AI : Only show 'pending' changes to moderators
+      // AI : 'conflicted' status means "another change was chosen" (soft rejection by moderator)
+      const pendingChanges = await db
+        .select(changeRequestSelectFields)
+        .from(changeRequests)
+        .leftJoin(users, eq(changeRequests.requestedBy, users.id))
+        .where(eq(changeRequests.status, "pending"))
+        .orderBy(changeRequests.createdAt);
+
+      // AI : Filter change requests by moderator's assigned countries
+      let filteredChanges = pendingChanges;
+      if (!isAdmin && userModeratedCountries && userModeratedCountries.length > 0) {
+        // AI : Get country codes for all change requests
+        const changeRequestCountries = await Promise.all(
+          pendingChanges.map(async (change) => {
+            try {
+              const countryCode = await getEntityCountryCode(
+                change.entityType as "project" | "overlay",
+                change.entityId,
+              );
+              return { changeId: change.id, countryCode };
+            } catch {
+              return { changeId: change.id, countryCode: undefined };
+            }
+          }),
+        );
+
+        // AI : Filter to only changes in moderator's countries
+        const allowedChangeIds = new Set(
+          changeRequestCountries
+            .filter((c) => c.countryCode && userModeratedCountries.includes(c.countryCode))
+            .map((c) => c.changeId),
+        );
+
+        filteredChanges = pendingChanges.filter((change) => allowedChangeIds.has(change.id));
+      }
+
+      // AI : Add hasConflict flag to changes that have competing requests
+      const changesWithConflictInfo = addConflictFlags(filteredChanges);
+
+      // AI : Enrich with city and country names
+      const enrichedChanges = await enrichChangeRequestsWithNames(changesWithConflictInfo);
+
+      return enrichedChanges;
+    } catch (error) {
+      console.error("Error fetching pending change requests:", error);
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Failed to fetch pending change requests",
+      });
+    }
+  }),
 
   approveChangeRequests: moderatorProcedure
     .input(approveChangeRequestSchema)
@@ -359,7 +380,7 @@ export const changesRouter = router({
 
         const moderatorUserId = ctx.user?.id;
         if (!moderatorUserId) {
-          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Moderator access required' });
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Moderator access required" });
         }
 
         // AI : Check moderator has permission for all change requests
@@ -377,16 +398,10 @@ export const changesRouter = router({
             // AI : Build update data with proper handling for geometry fields
             const updateData = buildUpdateData(change);
 
-            if (change.entityType === 'project') {
-              await tx
-                .update(projects)
-                .set(updateData)
-                .where(eq(projects.id, change.entityId));
-            } else if (change.entityType === 'overlay') {
-              await tx
-                .update(overlays)
-                .set(updateData)
-                .where(eq(overlays.id, change.entityId));
+            if (change.entityType === "project") {
+              await tx.update(projects).set(updateData).where(eq(projects.id, change.entityId));
+            } else if (change.entityType === "overlay") {
+              await tx.update(overlays).set(updateData).where(eq(overlays.id, change.entityId));
             }
 
             await tx.insert(changeHistory).values({
@@ -404,7 +419,7 @@ export const changesRouter = router({
             await tx
               .update(changeRequests)
               .set({
-                status: 'approved',
+                status: "approved",
                 resolvedAt: new Date(),
                 resolvedBy: moderatorUserId,
               })
@@ -424,7 +439,7 @@ export const changesRouter = router({
             await tx
               .update(changeRequests)
               .set({
-                status: 'conflicted',
+                status: "conflicted",
                 resolvedAt: new Date(),
                 resolvedBy: moderatorUserId,
               })
@@ -434,16 +449,19 @@ export const changesRouter = router({
                   eq(changeRequests.entityId, change.entityId),
                   eq(changeRequests.fieldName, change.fieldName),
                   sql`${changeRequests.id} != ${change.id}`,
-                  eq(changeRequests.status, 'pending')
-                )
+                  eq(changeRequests.status, "pending"),
+                ),
               );
           });
         }
 
         return { success: true };
       } catch (error) {
-        console.error('Error approving change requests:', error);
-        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to approve change requests' });
+        console.error("Error approving change requests:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to approve change requests",
+        });
       }
     }),
 
@@ -457,7 +475,7 @@ export const changesRouter = router({
 
         const moderatorUserId = ctx.user?.id;
         if (!moderatorUserId) {
-          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Moderator access required' });
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Moderator access required" });
         }
 
         // AI : Check moderator has permission for all change requests
@@ -477,7 +495,7 @@ export const changesRouter = router({
           await tx
             .update(changeRequests)
             .set({
-              status: 'rejected',
+              status: "rejected",
               resolvedAt: new Date(),
               resolvedBy: moderatorUserId,
             })
@@ -496,16 +514,21 @@ export const changesRouter = router({
 
         return { success: true };
       } catch (error) {
-        console.error('Error rejecting change requests:', error);
-        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to reject change requests' });
+        console.error("Error rejecting change requests:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to reject change requests",
+        });
       }
     }),
 
   getChangeHistory: adminProcedure
-    .input(z.object({
-      entityType: z.enum(['project', 'overlay']).optional(),
-      entityId: z.uuid().optional(),
-    }))
+    .input(
+      z.object({
+        entityType: z.enum(["project", "overlay"]).optional(),
+        entityId: z.uuid().optional(),
+      }),
+    )
     .query(async ({ input }) => {
       try {
         const baseQuery = db.select().from(changeHistory);
@@ -518,15 +541,17 @@ export const changesRouter = router({
           whereConditions.push(eq(changeHistory.entityId, input.entityId));
         }
 
-        const query = whereConditions.length > 0
-          ? baseQuery.where(and(...whereConditions))
-          : baseQuery;
+        const query =
+          whereConditions.length > 0 ? baseQuery.where(and(...whereConditions)) : baseQuery;
 
         const history = await query.orderBy(changeHistory.appliedAt);
         return history;
       } catch (error) {
-        console.error('Error fetching change history:', error);
-        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch change history' });
+        console.error("Error fetching change history:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch change history",
+        });
       }
     }),
 });

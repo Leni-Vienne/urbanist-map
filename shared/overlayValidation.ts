@@ -62,7 +62,7 @@ export function validateOverlaySize(corners: Corner[]): OverlaySizeValidationRes
 
 // AI : Helper to convert Leaflet LatLng to Corner interface
 export function leafletCornersToCorners(leafletCorners: { lat: number; lng: number }[]): Corner[] {
-  return leafletCorners.map(c => ({ lat: c.lat, lng: c.lng }));
+  return leafletCorners.map((c) => ({ lat: c.lat, lng: c.lng }));
 }
 
 /**
@@ -76,6 +76,6 @@ export function calculateCentroidFromCorners(corners: Corner[]): Corner | null {
 
   return {
     lat: (corners[0].lat + corners[1].lat + corners[2].lat + corners[3].lat) / 4,
-    lng: (corners[0].lng + corners[1].lng + corners[2].lng + corners[3].lng) / 4
+    lng: (corners[0].lng + corners[1].lng + corners[2].lng + corners[3].lng) / 4,
   };
 }

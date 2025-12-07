@@ -6,13 +6,13 @@
 // AI : Note: Marker updates are handled by the caller after history operations
 // AI : ============================================================================
 
-import type { OverlayObject } from '@/types/index';
-import { useOverlayStore } from '@/stores/pinia/overlayStore';
+import type { OverlayObject } from "@/types/index";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import {
   getFromEditModeOverlayCache,
   saveToEditModeOverlayCache,
-} from '@/composables/overlay/useOverlayPositionManagement';
-import { updateMarkerTooltip } from '@/composables/overlay/useOverlayMarkers';
+} from "@/composables/overlay/useOverlayPositionManagement";
+import { updateMarkerTooltip } from "@/composables/overlay/useOverlayMarkers";
 
 /**
  * AI : Initialize history for overlay if not already set
@@ -44,8 +44,11 @@ export function getCornersForOverlay(overlayObject: OverlayObject) {
   }
 
   // AI : Priority 2: Use corners from overlayObject (skip if all zeros - indicates new overlay)
-  if (overlayObject.corners && overlayObject.corners.length === 4 &&
-    !(overlayObject.corners.every(c => c.lat === 0 && c.lng === 0))) {
+  if (
+    overlayObject.corners &&
+    overlayObject.corners.length === 4 &&
+    !overlayObject.corners.every((c) => c.lat === 0 && c.lng === 0)
+  ) {
     return overlayObject.corners;
   }
 
@@ -70,7 +73,7 @@ export function getCornersForOverlayWithCache(overlayObject: OverlayObject) {
 
   // AI : Check edit mode cache only if in edit mode
   // AI : This ensures view mode always uses backend positions, not stale cached positions
-  if (overlayStore.mode === 'edit') {
+  if (overlayStore.mode === "edit") {
     const cachedModifications = getFromEditModeOverlayCache(overlayObject.id);
     if (cachedModifications?.corners?.length === 4) {
       // AI : Update object history with cached modifications
@@ -87,13 +90,14 @@ export function getCornersForOverlayWithCache(overlayObject: OverlayObject) {
 /**
  * AI : Validate corners data
  */
-export function isValidCorners(corners: { lat: number, lng: number }[]): boolean {
-  return corners.every(corner =>
-    corner &&
-    typeof corner.lat === 'number' &&
-    typeof corner.lng === 'number' &&
-    !isNaN(corner.lat) &&
-    !isNaN(corner.lng)
+export function isValidCorners(corners: { lat: number; lng: number }[]): boolean {
+  return corners.every(
+    (corner) =>
+      corner &&
+      typeof corner.lat === "number" &&
+      typeof corner.lng === "number" &&
+      !isNaN(corner.lat) &&
+      !isNaN(corner.lng),
   );
 }
 
@@ -103,14 +107,14 @@ export function isValidCorners(corners: { lat: number, lng: number }[]): boolean
 export function saveOverlayModificationsToCache(overlayObject: OverlayObject): void {
   const overlayStore = useOverlayStore();
 
-  if (overlayStore.mode !== 'edit' || !overlayObject.overlay) return;
+  if (overlayStore.mode !== "edit" || !overlayObject.overlay) return;
   const corners = overlayObject.overlay.getCorners();
   if (!corners?.length) return;
 
   // AI : Save to persistent cache for zoom persistence
   saveToEditModeOverlayCache(overlayObject.id, {
-    corners: corners.map(corner => ({ lat: corner.lat, lng: corner.lng })),
-    isModified: overlayObject.isModified ?? false
+    corners: corners.map((corner) => ({ lat: corner.lat, lng: corner.lng })),
+    isModified: overlayObject.isModified ?? false,
   });
 }
 
@@ -135,7 +139,9 @@ export function saveToHistory(overlayObject: OverlayObject): void {
   }
 
   // eslint-disable-next-line prefer-structured-clone
-  overlayObject.history.push(JSON.parse(JSON.stringify(currentState)) as { lat: number; lng: number }[]);
+  overlayObject.history.push(
+    JSON.parse(JSON.stringify(currentState)) as { lat: number; lng: number }[],
+  );
   overlayObject.redoStack = [];
 
   // AI : Mark overlay as modified when it's moved/changed
@@ -151,6 +157,6 @@ export function saveToHistory(overlayObject: OverlayObject): void {
   overlayStore.updateOverlay(overlayObject.id, {
     isModified: true,
     history: overlayObject.history,
-    redoStack: overlayObject.redoStack
+    redoStack: overlayObject.redoStack,
   });
 }

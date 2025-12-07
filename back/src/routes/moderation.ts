@@ -426,9 +426,8 @@ export const moderationRouter = router({
           await enrichWithReportCounts(filteredProjects, filteredOverlays, filteredChangeRequests);
 
         // AI : Enrich change requests with city and country names
-        const enrichedChangeRequests = await enrichChangeRequestsWithNames(
-          changeRequestsWithReports,
-        );
+        const enrichedChangeRequests =
+          await enrichChangeRequestsWithNames(changeRequestsWithReports);
 
         return {
           projects: projectsWithOverlays,
@@ -743,11 +742,18 @@ export const moderationRouter = router({
           input.handleReplacementConflicts &&
           transactionResult.competingReplacements
         ) {
-          await cleanupReplacementImages(transactionResult.competingReplacements, replacesOverlayId);
+          await cleanupReplacementImages(
+            transactionResult.competingReplacements,
+            replacesOverlayId,
+          );
         }
 
         // AI : Migrate image to R2 in production
-        if (input.status === "approved" && overlayFilename && process.env.NODE_ENV === "production") {
+        if (
+          input.status === "approved" &&
+          overlayFilename &&
+          process.env.NODE_ENV === "production"
+        ) {
           try {
             await migrateImageToR2(overlayFilename);
           } catch (error) {
@@ -948,7 +954,6 @@ export const moderationRouter = router({
     }),
 });
 
-
 // AI : Helper functions for getPendingSubmissions refactoring
 
 // AI : Build set of user IDs that should be hidden from the moderator
@@ -1098,11 +1103,9 @@ async function fetchModerationData(
 }
 
 // AI : Filter content by reported users
-function filterContentByReportedUsers<T extends { ownerId?: string | null; authorId?: string | null; requestedBy?: string | null }>(
-  items: T[],
-  hiddenUserIds: Set<string>,
-  userIdField: keyof T,
-): T[] {
+function filterContentByReportedUsers<
+  T extends { ownerId?: string | null; authorId?: string | null; requestedBy?: string | null },
+>(items: T[], hiddenUserIds: Set<string>, userIdField: keyof T): T[] {
   return items.filter((item) => {
     const userId = item[userIdField];
     return !userId || !hiddenUserIds.has(userId as string);
