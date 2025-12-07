@@ -1,4 +1,4 @@
-import { publicProcedure, protectedProcedure, router } from '../trpc';
+import { publicProcedure, loggedInProcedure, router } from '../trpc';
 import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
 import { projects, cities, overlays, changeRequests } from '../db/schema';
 import { eq, sql, and, or, inArray } from 'drizzle-orm';
@@ -21,7 +21,7 @@ const NEARBY_SEARCH_RADIUS_METERS = 10 * 1000; // 10km
 const publishProjectSchema = projectSchema;
 
 export const projectRouter = router({
-  publishProject: protectedProcedure
+  publishProject: loggedInProcedure
     .input(publishProjectSchema)
     .mutation(async ({ input, ctx }) => {
       try {
@@ -137,7 +137,7 @@ export const projectRouter = router({
       }
     }),
 
-  deleteProject: protectedProcedure
+  deleteProject: loggedInProcedure
     .input(z.object({ id: z.uuid() }))
     .mutation(async ({ input, ctx }) => {
       try {
@@ -220,7 +220,7 @@ export const projectRouter = router({
     }),
 
   // AI : Get projects with overlays within 100km of camera center
-  getProjectsNearLocation: protectedProcedure
+  getProjectsNearLocation: loggedInProcedure
     .input(z.object({
       lat: z.number(),
       lng: z.number(),
@@ -378,7 +378,7 @@ export const projectRouter = router({
       }),
       
     // AI : Get user's contributions including owned projects, projects with user-authored overlays, and projects with user's change requests
-    getUsersContributions: protectedProcedure
+    getUsersContributions: loggedInProcedure
       .input(z.object({
         limit: z.number().min(1).max(100).optional().default(50),
         cursor: z.string().uuid().optional(),

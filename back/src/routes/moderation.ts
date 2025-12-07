@@ -332,7 +332,6 @@ export const moderationRouter = router({
         const limit = input.limit ?? 50;
 
         // AI : Country-scoped moderation - moderators can only see their assigned countries
-        // AI : Admins (role='admin' or moderatedCountries=null) can see all countries
         const userModeratedCountries = ctx.user.moderatedCountries;
         const isAdmin = ctx.user.role === "admin";
         const moderatorId = ctx.user.id;
@@ -341,7 +340,6 @@ export const moderationRouter = router({
         let effectiveCountryCode = input.countryCode;
 
         if (!isAdmin && userModeratedCountries && userModeratedCountries.length > 0) {
-          // AI : User is a moderator with assigned countries
           if (!input.countryCode) {
             throw new TRPCError({
               code: "BAD_REQUEST",
@@ -349,7 +347,6 @@ export const moderationRouter = router({
             });
           }
 
-          // AI : Verify moderator has permission for requested country
           if (!userModeratedCountries.includes(input.countryCode)) {
             throw new TRPCError({
               code: "FORBIDDEN",
@@ -360,240 +357,83 @@ export const moderationRouter = router({
           effectiveCountryCode = input.countryCode;
         }
 
-        // AI : Get users that should be hidden from this moderator
-        // AI : Rules: reported by me = hidden for me, 3+ reports = hidden for all
-        const allReports = await db
-          .select({
-            reportedUserId: userReports.reportedUserId,
-            reportedBy: userReports.reportedBy,
-          })
-          .from(userReports);
-
-        // AI : Build set of hidden user IDs based on report rules
-        const reportCountByUser = new Map<string, number>();
-        const myReportedUsers = new Set<string>();
-
-        for (const report of allReports) {
-          const count = reportCountByUser.get(report.reportedUserId) ?? 0;
-          reportCountByUser.set(report.reportedUserId, count + 1);
-
-          if (report.reportedBy === moderatorId) {
-            myReportedUsers.add(report.reportedUserId);
-          }
-        }
-
-        // AI : User is hidden if: reported by current moderator OR has 3+ reports total
-        const hiddenUserIds = new Set<string>();
-        for (const [userId, count] of reportCountByUser) {
-          if (myReportedUsers.has(userId) || count >= 3) {
-            hiddenUserIds.add(userId);
-          }
-        }
-
-        // AI : Step 1: Find all project IDs that need moderation (pending projects, pending overlays, pending changes)
-        const [projectsWithPendingOverlays, projectsWithPendingChanges] = await Promise.all([
-          // AI : Projects with pending overlay submissions
-          db
-            .selectDistinct({ projectId: overlays.projectId })
-            .from(overlays)
-            .where(eq(overlays.status, "pending")),
-
-          // AI : Projects with pending change requests (on project or overlay)
-          db
-            .selectDistinct({
-              projectId: sql<string>`CASE
-                WHEN ${changeRequests.entityType} = 'project' THEN ${changeRequests.entityId}
-                WHEN ${changeRequests.entityType} = 'overlay' THEN ${overlays.projectId}
-              END`.as("projectId"),
-            })
-            .from(changeRequests)
-            .leftJoin(overlays, eq(changeRequests.entityId, overlays.id)).where(sql`CASE
-              WHEN ${changeRequests.entityType} = 'project' THEN ${changeRequests.entityId} IS NOT NULL
-              WHEN ${changeRequests.entityType} = 'overlay' THEN ${overlays.projectId} IS NOT NULL
-            END`),
+        // AI : Step 1: Get hidden users and pending project IDs
+        const [hiddenUserIds, pendingProjectIds] = await Promise.all([
+          buildHiddenUserIdsSet(moderatorId),
+          collectPendingProjectIds(),
         ]);
 
-        const projectIdsWithPendingOverlays = projectsWithPendingOverlays
-          .map((p) => p.projectId)
-          .filter((id): id is string => id !== null);
-
-        const projectIdsWithPendingChanges = projectsWithPendingChanges
-          .map((p) => p.projectId)
-          .filter((id): id is string => id !== null);
-
-        // AI : Step 2: Build filters for projects, overlays, and change requests
+        // AI : Step 2: Build pagination and moderation conditions
         const paginationConditions = await buildPaginationConditions(
           { cityId: input.cityId, countryCode: effectiveCountryCode, cursor: input.cursor },
           sortColumn,
         );
 
-        // AI : Projects needing moderation: pending status OR have pending overlays OR have pending changes
         const projectModerationConditions = [
           or(
             eq(projects.status, "pending"),
-            ...(projectIdsWithPendingOverlays.length > 0
-              ? [inArray(projects.id, projectIdsWithPendingOverlays)]
+            ...(pendingProjectIds.pendingOverlayProjectIds.length > 0
+              ? [inArray(projects.id, pendingProjectIds.pendingOverlayProjectIds)]
               : []),
-            ...(projectIdsWithPendingChanges.length > 0
-              ? [inArray(projects.id, projectIdsWithPendingChanges)]
+            ...(pendingProjectIds.pendingChangeProjectIds.length > 0
+              ? [inArray(projects.id, pendingProjectIds.pendingChangeProjectIds)]
               : []),
           ),
           ...paginationConditions,
         ];
 
-        // AI : Step 3: Fetch all moderation data in parallel
-        const [projectsResult, overlaysResult, overlayChanges, projectChanges] = await Promise.all([
-          // AI : Projects with pagination
-          buildProjectModerationQuery(db)
-            .where(and(...projectModerationConditions))
-            .orderBy(sortColumn)
-            .limit(limit + 1),
+        // AI : Step 3: Fetch all moderation data
+        const { projectsResult, overlaysResult, overlayChanges, projectChanges } =
+          await fetchModerationData(
+            projectModerationConditions,
+            paginationConditions,
+            sortColumn,
+            limit,
+          );
 
-          // AI : All overlays from moderation projects (to show in project accordions)
-          buildOverlayModerationQuery(db).where(and(...projectModerationConditions)),
-
-          // AI : Overlay change requests with city/country filters
-          db
-            .select({
-              id: changeRequests.id,
-              entityType: changeRequests.entityType,
-              entityId: changeRequests.entityId,
-              fieldName: changeRequests.fieldName,
-              oldValue: changeRequests.oldValue,
-              newValue: changeRequests.newValue,
-              changeReason: changeRequests.changeReason,
-              status: changeRequests.status,
-              requestedBy: changeRequests.requestedBy,
-              requestedByUsername: users.username, // AI : Display friendly username in moderation UI
-              createdAt: changeRequests.createdAt,
-            })
-            .from(changeRequests)
-            .leftJoin(overlays, eq(changeRequests.entityId, overlays.id))
-            .leftJoin(projects, eq(overlays.projectId, projects.id))
-            .leftJoin(cities, eq(projects.cityId, cities.id))
-            .leftJoin(users, eq(changeRequests.requestedBy, users.id))
-            .where(
-              and(
-                eq(changeRequests.entityType, "overlay"),
-                eq(changeRequests.status, "pending"),
-                ...paginationConditions,
-              ),
-            ),
-
-          // AI : Project change requests with city/country filters
-          db
-            .select({
-              id: changeRequests.id,
-              entityType: changeRequests.entityType,
-              entityId: changeRequests.entityId,
-              fieldName: changeRequests.fieldName,
-              oldValue: changeRequests.oldValue,
-              newValue: changeRequests.newValue,
-              changeReason: changeRequests.changeReason,
-              status: changeRequests.status,
-              requestedBy: changeRequests.requestedBy,
-              requestedByUsername: users.username, // AI : Display friendly username in moderation UI
-              createdAt: changeRequests.createdAt,
-            })
-            .from(changeRequests)
-            .leftJoin(projects, eq(changeRequests.entityId, projects.id))
-            .leftJoin(cities, eq(projects.cityId, cities.id))
-            .leftJoin(users, eq(changeRequests.requestedBy, users.id))
-            .where(
-              and(
-                eq(changeRequests.entityType, "project"),
-                eq(changeRequests.status, "pending"),
-                ...paginationConditions,
-              ),
-            ),
-        ]);
-
-        // AI : Step 4: Combine and format results
+        // AI : Step 4: Process and filter results
         const changeRequestsResult = [...overlayChanges, ...projectChanges].toSorted(
           (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
         );
 
-        // AI : Add hasConflict flag to changes that have competing requests
         const changeRequestsWithConflictInfo = addConflictFlags(changeRequestsResult);
-
         const paginationResponse = buildPaginationResponse(projectsResult, limit);
 
-        // AI : Filter out rejected and replaced overlays from moderation panel
+        // AI : Filter out rejected and replaced overlays
         const visibleOverlays = overlaysResult.filter(
           (overlay) => overlay.status !== "rejected" && overlay.status !== "replaced",
         );
 
-        // AI : Filter out content from hidden users (reported by moderator or 3+ reports)
-        const filteredProjects = paginationResponse.items.filter(
-          (project) => !project.ownerId || !hiddenUserIds.has(project.ownerId),
+        // AI : Filter by reported users
+        const filteredProjects = filterContentByReportedUsers(
+          paginationResponse.items,
+          hiddenUserIds,
+          "ownerId",
+        );
+        const filteredOverlays = filterContentByReportedUsers(
+          visibleOverlays,
+          hiddenUserIds,
+          "authorId",
+        );
+        const filteredChangeRequests = filterContentByReportedUsers(
+          changeRequestsWithConflictInfo,
+          hiddenUserIds,
+          "requestedBy",
         );
 
-        const filteredOverlays = visibleOverlays.filter(
-          (overlay) => !overlay.authorId || !hiddenUserIds.has(overlay.authorId),
-        );
-
-        const filteredChangeRequests = changeRequestsWithConflictInfo.filter(
-          (change) => !change.requestedBy || !hiddenUserIds.has(change.requestedBy),
-        );
-
-        // AI : Collect all user IDs to fetch report counts
-        const userIds = new Set<string>();
-        for (const project of filteredProjects) {
-          if (project.ownerId) userIds.add(project.ownerId);
-        }
-        for (const overlay of filteredOverlays) {
-          if (overlay.authorId) userIds.add(overlay.authorId);
-        }
-        for (const change of filteredChangeRequests) {
-          if (change.requestedBy) userIds.add(change.requestedBy);
-        }
-
-        // AI : Fetch report counts for all users
-        const reportCounts = await db
-          .select({
-            reportedUserId: userReports.reportedUserId,
-            count: sql<number>`COUNT(*)`,
-          })
-          .from(userReports)
-          .where(inArray(userReports.reportedUserId, [...userIds]))
-          .groupBy(userReports.reportedUserId);
-
-        // AI : Build map of user ID to report count
-        const reportCountMap = new Map<string, number>();
-        for (const row of reportCounts) {
-          reportCountMap.set(row.reportedUserId, Number(row.count));
-        }
-
-        const projectsWithOverlays = filteredProjects.map((project) =>
-          Object.assign(project, {
-            ownerReportCount: project.ownerId ? (reportCountMap.get(project.ownerId) ?? 0) : 0,
-            overlays: filteredOverlays.filter((overlay) => overlay.projectId === project.id),
-          }),
-        );
-
-        const overlaysWithReports = filteredOverlays
-          .filter((overlay) => overlay.status === "pending")
-          .map((overlay) =>
-            Object.assign(overlay, {
-              authorReportCount: overlay.authorId ? (reportCountMap.get(overlay.authorId) ?? 0) : 0,
-            }),
-          );
+        // AI : Step 5: Enrich with report counts
+        const { projectsWithOverlays, overlaysWithReports, changeRequestsWithReports } =
+          await enrichWithReportCounts(filteredProjects, filteredOverlays, filteredChangeRequests);
 
         // AI : Enrich change requests with city and country names
-        const enrichedChangeRequests = await enrichChangeRequestsWithNames(filteredChangeRequests);
-
-        // AI : Add report counts to change requests
-        const changeRequestsWithReports = enrichedChangeRequests.map((change) => {
-          const requestedByReportCount = change.requestedBy
-            ? (reportCountMap.get(change.requestedBy) ?? 0)
-            : 0;
-          return Object.assign(change, { requestedByReportCount });
-        });
+        const enrichedChangeRequests = await enrichChangeRequestsWithNames(
+          changeRequestsWithReports,
+        );
 
         return {
           projects: projectsWithOverlays,
           overlays: overlaysWithReports,
-          changeRequests: changeRequestsWithReports,
+          changeRequests: enrichedChangeRequests,
           pagination: paginationResponse.pagination,
         };
       } catch (error) {
@@ -784,7 +624,7 @@ export const moderationRouter = router({
   setOverlayApprovalStatusWithVersion: moderatorProcedure
     .input(
       setApprovalStatusWithVersionSchema.extend({
-        handleReplacementConflicts: z.boolean().optional().default(false), // AI : Whether to auto-handle replacement conflicts
+        handleReplacementConflicts: z.boolean().optional().default(false),
       }),
     )
     .mutation(async ({ input, ctx }) => {
@@ -815,61 +655,18 @@ export const moderationRouter = router({
         const replacesOverlayId = overlay.replacesOverlayId;
         const authorId = overlay.authorId;
 
-        // AI : Handle rejection first (simpler case)
+        // AI : Handle rejection
         if (input.status === "rejected") {
-          // AI : Use transaction to atomically update overlay and user stats
-          const rejectionResult = await db.transaction(async (tx) => {
-            // AI : Atomic update with version check
-            const result = await tx
-              .update(overlays)
-              .set({ status: input.status, version: sql`${overlays.version} + 1` })
-              .where(
-                and(
-                  eq(overlays.id, input.id),
-                  eq(overlays.version, input.expectedVersion),
-                  eq(overlays.status, "pending"),
-                ),
-              )
-              .returning({ id: overlays.id, version: overlays.version });
-
-            if (result.length === 0) {
-              return { success: false as const, error: "Version mismatch or already processed" };
-            }
-
-            // AI : Increment author's rejection count
-            await incrementRejectedCount(tx, authorId);
-
-            return { success: true as const };
-          });
-
-          if (!rejectionResult.success) {
-            return rejectionResult;
-          }
-
-          // AI : Delete images for rejected overlays (outside transaction)
-          try {
-            // AI : For both regular and replacement overlays: delete full immediately, keep thumbnail for 15 days
-            // AI : Thumbnails allow users to see what was rejected in ModeratedContributionsDialog
-            // AI : Uses deleteImages helper to handle both production/R2 and development/local
-            await deleteImages(overlayFilename, "full");
-            await scheduleImageCleanup(input.id, overlayFilename, daysFromNow(15), "thumbnail");
-          } catch (error) {
-            console.error("Failed to cleanup rejected overlay images:", error);
-            // AI : Don't fail the rejection if cleanup fails
-          }
-
-          return { success: true };
+          return await handleOverlayRejection(
+            input.id,
+            input.expectedVersion,
+            authorId,
+            overlayFilename,
+          );
         }
 
         // AI : Handle approval (more complex, especially for replacements)
         const transactionResult = await db.transaction(async (tx) => {
-          // AI : Track competing replacements for post-transaction cleanup
-          let competingReplacements: {
-            id: string;
-            filename: string;
-            authorId: string | null;
-          }[] = [];
-
           // AI : Lock and verify the overlay hasn't changed
           const currentOverlay = await tx
             .select({
@@ -904,105 +701,30 @@ export const moderationRouter = router({
             };
           }
 
-          // AI : If this is a replacement overlay, handle the replacement workflow
+          // AI : Handle replacement conflicts if needed
+          let competingReplacements: { id: string; filename: string; authorId: string | null }[] =
+            [];
           if (replacesOverlayId && input.handleReplacementConflicts) {
-            // AI : Lock the original overlay
-            const originalOverlay = await tx
-              .select({
-                id: overlays.id,
-                status: overlays.status,
-                version: overlays.version,
-                filename: overlays.filename,
-              })
-              .from(overlays)
-              .where(eq(overlays.id, replacesOverlayId))
-              .limit(1);
+            const replacementResult = await handleReplacementConflicts(
+              tx,
+              replacesOverlayId,
+              input.id,
+              ctx.user.id,
+            );
 
-            if (originalOverlay.length === 0 || originalOverlay[0].status !== "approved") {
-              return {
-                success: false,
-                error: "Original overlay not found or not approved",
-              };
+            if (!replacementResult.success) {
+              return { success: false, error: replacementResult.error };
             }
 
-            // AI : Mark original as 'replaced'
-            await tx
-              .update(overlays)
-              .set({
-                status: "replaced", // AI : Cast needed due to enum type
-                replacedByOverlayId: input.id,
-                version: sql`${overlays.version} + 1`,
-              })
-              .where(eq(overlays.id, replacesOverlayId));
-
-            // AI : Mark all pending change requests as 'conflicted'
-            await tx
-              .update(changeRequests)
-              .set({
-                status: "conflicted",
-                resolvedAt: new Date(),
-                resolvedBy: ctx.user.id,
-              })
-              .where(
-                and(
-                  eq(changeRequests.entityType, "overlay"),
-                  eq(changeRequests.entityId, replacesOverlayId),
-                  eq(changeRequests.status, "pending"),
-                ),
-              );
-
-            // AI : Find and reject competing replacement overlays
-            competingReplacements = await tx
-              .select({ id: overlays.id, filename: overlays.filename, authorId: overlays.authorId })
-              .from(overlays)
-              .where(
-                and(
-                  eq(overlays.replacesOverlayId, replacesOverlayId),
-                  eq(overlays.status, "pending"),
-                  ne(overlays.id, input.id),
-                ),
-              );
-
-            if (competingReplacements.length > 0) {
-              await tx
-                .update(overlays)
-                .set({
-                  status: "rejected",
-                  version: sql`${overlays.version} + 1`,
-                })
-                .where(
-                  inArray(
-                    overlays.id,
-                    competingReplacements.map((o) => o.id),
-                  ),
-                );
-
-              // AI : Increment rejection count for each competing replacement author
-              for (const competing of competingReplacements) {
-                await incrementRejectedCount(tx, competing.authorId);
-              }
-            }
+            competingReplacements = replacementResult.competingReplacements;
           }
 
           // AI : Approve the overlay
-          const result = await tx
-            .update(overlays)
-            .set({
-              status: "approved",
-              version: sql`${overlays.version} + 1`,
-              // AI : Clear replacesOverlayId - once approved, it's no longer a "replacement"
-              // AI : Historical relationship is preserved via replacedByOverlayId on the original overlay
-              replacesOverlayId: null,
-            })
-            .where(eq(overlays.id, input.id))
-            .returning({ id: overlays.id });
+          const approvalResult = await handleOverlayApproval(tx, input.id, authorId);
 
-          if (result.length === 0) {
-            return { success: false, error: "Failed to approve overlay" };
+          if (!approvalResult.success) {
+            return { success: false, error: approvalResult.error };
           }
-
-          // AI : Increment author's approval count
-          await incrementApprovedCount(tx, authorId);
 
           return {
             success: true,
@@ -1015,68 +737,25 @@ export const moderationRouter = router({
           return transactionResult;
         }
 
-        // AI : AFTER successful transaction, handle image cleanup for replacement workflow
+        // AI : Handle image cleanup for replacement workflow
         if (
           replacesOverlayId &&
           input.handleReplacementConflicts &&
           transactionResult.competingReplacements
         ) {
-          // AI : Delete images for competing replacements
-          for (const competing of transactionResult.competingReplacements) {
-            try {
-              // AI : Uses deleteImages helper to handle both production/R2 and development/local
-              await deleteImages(competing.filename, "full");
-              await scheduleImageCleanup(
-                competing.id,
-                competing.filename,
-                daysFromNow(15),
-                "thumbnail",
-              );
-            } catch (error) {
-              console.error(`Failed to cleanup competing replacement ${competing.id}:`, error);
-            }
-          }
-
-          // AI : Handle cleanup for replaced overlay images based on environment
-          try {
-            const originalOverlayData = await db
-              .select({ filename: overlays.filename })
-              .from(overlays)
-              .where(eq(overlays.id, replacesOverlayId))
-              .limit(1);
-
-            if (originalOverlayData.length > 0) {
-              // AI : Replaced overlays: delete full immediately, keep thumbnail for 15 days
-              // AI : Same behavior as rejected overlays - consistent across prod and dev
-              // AI : Uses deleteImages helper to handle both production/R2 and development/local
-              await deleteImages(originalOverlayData[0].filename, "full");
-              await scheduleImageCleanup(
-                replacesOverlayId,
-                originalOverlayData[0].filename,
-                daysFromNow(15),
-                "thumbnail",
-              );
-            }
-          } catch (error) {
-            console.error(`Failed to cleanup replaced overlay images:`, error);
-          }
+          await cleanupReplacementImages(transactionResult.competingReplacements, replacesOverlayId);
         }
 
-        // AI : After transaction, migrate image to R2 (outside transaction for safety)
-        if (
-          input.status === "approved" &&
-          overlayFilename &&
-          process.env.NODE_ENV === "production"
-        ) {
+        // AI : Migrate image to R2 in production
+        if (input.status === "approved" && overlayFilename && process.env.NODE_ENV === "production") {
           try {
             await migrateImageToR2(overlayFilename);
           } catch (error) {
             console.error("Failed to migrate image to R2:", error);
-            // AI : Don't fail the approval if R2 migration fails - image is still accessible in local storage
+            // AI : Don't fail the approval if R2 migration fails
           }
         }
 
-        // AI : Return the transaction result
         return transactionResult;
       } catch (error) {
         console.error("Error updating overlay status with version:", error);
@@ -1268,3 +947,452 @@ export const moderationRouter = router({
       }
     }),
 });
+
+
+// AI : Helper functions for getPendingSubmissions refactoring
+
+// AI : Build set of user IDs that should be hidden from the moderator
+// Rules: reported by me = hidden for me, 3+ reports = hidden for all
+async function buildHiddenUserIdsSet(moderatorId: string): Promise<Set<string>> {
+  const allReports = await db
+    .select({
+      reportedUserId: userReports.reportedUserId,
+      reportedBy: userReports.reportedBy,
+    })
+    .from(userReports);
+
+  const reportCountByUser = new Map<string, number>();
+  const myReportedUsers = new Set<string>();
+
+  for (const report of allReports) {
+    const count = reportCountByUser.get(report.reportedUserId) ?? 0;
+    reportCountByUser.set(report.reportedUserId, count + 1);
+
+    if (report.reportedBy === moderatorId) {
+      myReportedUsers.add(report.reportedUserId);
+    }
+  }
+
+  const hiddenUserIds = new Set<string>();
+  for (const [userId, count] of reportCountByUser) {
+    if (myReportedUsers.has(userId) || count >= 3) {
+      hiddenUserIds.add(userId);
+    }
+  }
+
+  return hiddenUserIds;
+}
+
+// AI : Collect all project IDs that need moderation
+async function collectPendingProjectIds(): Promise<{
+  pendingOverlayProjectIds: string[];
+  pendingChangeProjectIds: string[];
+}> {
+  const [projectsWithPendingOverlays, projectsWithPendingChanges] = await Promise.all([
+    // AI : Projects with pending overlay submissions
+    db
+      .selectDistinct({ projectId: overlays.projectId })
+      .from(overlays)
+      .where(eq(overlays.status, "pending")),
+
+    // AI : Projects with pending change requests (on project or overlay)
+    db
+      .selectDistinct({
+        projectId: sql<string>`CASE
+          WHEN ${changeRequests.entityType} = 'project' THEN ${changeRequests.entityId}
+          WHEN ${changeRequests.entityType} = 'overlay' THEN ${overlays.projectId}
+        END`.as("projectId"),
+      })
+      .from(changeRequests)
+      .leftJoin(overlays, eq(changeRequests.entityId, overlays.id)).where(sql`CASE
+        WHEN ${changeRequests.entityType} = 'project' THEN ${changeRequests.entityId} IS NOT NULL
+        WHEN ${changeRequests.entityType} = 'overlay' THEN ${overlays.projectId} IS NOT NULL
+      END`),
+  ]);
+
+  const pendingOverlayProjectIds = projectsWithPendingOverlays
+    .map((p) => p.projectId)
+    .filter((id): id is string => id !== null);
+
+  const pendingChangeProjectIds = projectsWithPendingChanges
+    .map((p) => p.projectId)
+    .filter((id): id is string => id !== null);
+
+  return { pendingOverlayProjectIds, pendingChangeProjectIds };
+}
+
+// AI : Fetch all moderation data in parallel
+async function fetchModerationData(
+  projectModerationConditions: any[],
+  paginationConditions: any[],
+  sortColumn: any,
+  limit: number,
+) {
+  const [projectsResult, overlaysResult, overlayChanges, projectChanges] = await Promise.all([
+    // AI : Projects with pagination
+    buildProjectModerationQuery(db)
+      .where(and(...projectModerationConditions))
+      .orderBy(sortColumn)
+      .limit(limit + 1),
+
+    // AI : All overlays from moderation projects (to show in project accordions)
+    buildOverlayModerationQuery(db).where(and(...projectModerationConditions)),
+
+    // AI : Overlay change requests with city/country filters
+    db
+      .select({
+        id: changeRequests.id,
+        entityType: changeRequests.entityType,
+        entityId: changeRequests.entityId,
+        fieldName: changeRequests.fieldName,
+        oldValue: changeRequests.oldValue,
+        newValue: changeRequests.newValue,
+        changeReason: changeRequests.changeReason,
+        status: changeRequests.status,
+        requestedBy: changeRequests.requestedBy,
+        requestedByUsername: users.username,
+        createdAt: changeRequests.createdAt,
+      })
+      .from(changeRequests)
+      .leftJoin(overlays, eq(changeRequests.entityId, overlays.id))
+      .leftJoin(projects, eq(overlays.projectId, projects.id))
+      .leftJoin(cities, eq(projects.cityId, cities.id))
+      .leftJoin(users, eq(changeRequests.requestedBy, users.id))
+      .where(
+        and(
+          eq(changeRequests.entityType, "overlay"),
+          eq(changeRequests.status, "pending"),
+          ...paginationConditions,
+        ),
+      ),
+
+    // AI : Project change requests with city/country filters
+    db
+      .select({
+        id: changeRequests.id,
+        entityType: changeRequests.entityType,
+        entityId: changeRequests.entityId,
+        fieldName: changeRequests.fieldName,
+        oldValue: changeRequests.oldValue,
+        newValue: changeRequests.newValue,
+        changeReason: changeRequests.changeReason,
+        status: changeRequests.status,
+        requestedBy: changeRequests.requestedBy,
+        requestedByUsername: users.username,
+        createdAt: changeRequests.createdAt,
+      })
+      .from(changeRequests)
+      .leftJoin(projects, eq(changeRequests.entityId, projects.id))
+      .leftJoin(cities, eq(projects.cityId, cities.id))
+      .leftJoin(users, eq(changeRequests.requestedBy, users.id))
+      .where(
+        and(
+          eq(changeRequests.entityType, "project"),
+          eq(changeRequests.status, "pending"),
+          ...paginationConditions,
+        ),
+      ),
+  ]);
+
+  return { projectsResult, overlaysResult, overlayChanges, projectChanges };
+}
+
+// AI : Filter content by reported users
+function filterContentByReportedUsers<T extends { ownerId?: string | null; authorId?: string | null; requestedBy?: string | null }>(
+  items: T[],
+  hiddenUserIds: Set<string>,
+  userIdField: keyof T,
+): T[] {
+  return items.filter((item) => {
+    const userId = item[userIdField];
+    return !userId || !hiddenUserIds.has(userId as string);
+  });
+}
+
+// AI : Enrich entities with report counts
+async function enrichWithReportCounts(
+  filteredProjects: any[],
+  filteredOverlays: any[],
+  filteredChangeRequests: any[],
+) {
+  // AI : Collect all user IDs
+  const userIds = new Set<string>();
+  for (const project of filteredProjects) {
+    if (project.ownerId) userIds.add(project.ownerId);
+  }
+  for (const overlay of filteredOverlays) {
+    if (overlay.authorId) userIds.add(overlay.authorId);
+  }
+  for (const change of filteredChangeRequests) {
+    if (change.requestedBy) userIds.add(change.requestedBy);
+  }
+
+  // AI : Fetch report counts for all users
+  const reportCounts = await db
+    .select({
+      reportedUserId: userReports.reportedUserId,
+      count: sql<number>`COUNT(*)`,
+    })
+    .from(userReports)
+    .where(inArray(userReports.reportedUserId, [...userIds]))
+    .groupBy(userReports.reportedUserId);
+
+  // AI : Build map of user ID to report count
+  const reportCountMap = new Map<string, number>();
+  for (const row of reportCounts) {
+    reportCountMap.set(row.reportedUserId, Number(row.count));
+  }
+
+  const projectsWithOverlays = filteredProjects.map((project) =>
+    Object.assign(project, {
+      ownerReportCount: project.ownerId ? (reportCountMap.get(project.ownerId) ?? 0) : 0,
+      overlays: filteredOverlays.filter((overlay) => overlay.projectId === project.id),
+    }),
+  );
+
+  const overlaysWithReports = filteredOverlays
+    .filter((overlay) => overlay.status === "pending")
+    .map((overlay) =>
+      Object.assign(overlay, {
+        authorReportCount: overlay.authorId ? (reportCountMap.get(overlay.authorId) ?? 0) : 0,
+      }),
+    );
+
+  const changeRequestsWithReports = filteredChangeRequests.map((change) => {
+    const requestedByReportCount = change.requestedBy
+      ? (reportCountMap.get(change.requestedBy) ?? 0)
+      : 0;
+    return Object.assign(change, { requestedByReportCount });
+  });
+
+  return { projectsWithOverlays, overlaysWithReports, changeRequestsWithReports };
+}
+
+// AI : Helper functions for setOverlayApprovalStatusWithVersion refactoring
+
+// AI : Handle overlay rejection workflow
+async function handleOverlayRejection(
+  overlayId: string,
+  expectedVersion: number,
+  authorId: string | null,
+  filename: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // AI : Use transaction to atomically update overlay and user stats
+    const rejectionResult = await db.transaction(async (tx) => {
+      // AI : Atomic update with version check
+      const result = await tx
+        .update(overlays)
+        .set({ status: "rejected", version: sql`${overlays.version} + 1` })
+        .where(
+          and(
+            eq(overlays.id, overlayId),
+            eq(overlays.version, expectedVersion),
+            eq(overlays.status, "pending"),
+          ),
+        )
+        .returning({ id: overlays.id, version: overlays.version });
+
+      if (result.length === 0) {
+        return { success: false as const, error: "Version mismatch or already processed" };
+      }
+
+      // AI : Increment author's rejection count
+      await incrementRejectedCount(tx, authorId);
+
+      return { success: true as const };
+    });
+
+    if (!rejectionResult.success) {
+      return rejectionResult;
+    }
+
+    // AI : Delete images for rejected overlays (outside transaction)
+    try {
+      // AI : For both regular and replacement overlays: delete full immediately, keep thumbnail for 15 days
+      // AI : Uses deleteImages helper to handle both production/R2 and development/local
+      await deleteImages(filename, "full");
+      await scheduleImageCleanup(overlayId, filename, daysFromNow(15), "thumbnail");
+    } catch (error) {
+      console.error("Failed to cleanup rejected overlay images:", error);
+      // AI : Don't fail the rejection if cleanup fails
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error in handleOverlayRejection:", error);
+    return { success: false, error: "Failed to process rejection" };
+  }
+}
+
+// AI : Handle replacement conflict resolution
+async function handleReplacementConflicts(
+  tx: any,
+  replacesOverlayId: string,
+  newOverlayId: string,
+  moderatorId: string,
+): Promise<{
+  success: boolean;
+  error?: string;
+  competingReplacements: { id: string; filename: string; authorId: string | null }[];
+}> {
+  try {
+    // AI : Lock the original overlay
+    const originalOverlay = await tx
+      .select({
+        id: overlays.id,
+        status: overlays.status,
+        version: overlays.version,
+        filename: overlays.filename,
+      })
+      .from(overlays)
+      .where(eq(overlays.id, replacesOverlayId))
+      .limit(1);
+
+    if (originalOverlay.length === 0 || originalOverlay[0].status !== "approved") {
+      return {
+        success: false,
+        error: "Original overlay not found or not approved",
+        competingReplacements: [],
+      };
+    }
+
+    // AI : Mark original as 'replaced'
+    await tx
+      .update(overlays)
+      .set({
+        status: "replaced",
+        replacedByOverlayId: newOverlayId,
+        version: sql`${overlays.version} + 1`,
+      })
+      .where(eq(overlays.id, replacesOverlayId));
+
+    // AI : Mark all pending change requests as 'conflicted'
+    await tx
+      .update(changeRequests)
+      .set({
+        status: "conflicted",
+        resolvedAt: new Date(),
+        resolvedBy: moderatorId,
+      })
+      .where(
+        and(
+          eq(changeRequests.entityType, "overlay"),
+          eq(changeRequests.entityId, replacesOverlayId),
+          eq(changeRequests.status, "pending"),
+        ),
+      );
+
+    // AI : Find and reject competing replacement overlays
+    const competingReplacements = await tx
+      .select({ id: overlays.id, filename: overlays.filename, authorId: overlays.authorId })
+      .from(overlays)
+      .where(
+        and(
+          eq(overlays.replacesOverlayId, replacesOverlayId),
+          eq(overlays.status, "pending"),
+          ne(overlays.id, newOverlayId),
+        ),
+      );
+
+    if (competingReplacements.length > 0) {
+      await tx
+        .update(overlays)
+        .set({
+          status: "rejected",
+          version: sql`${overlays.version} + 1`,
+        })
+        .where(
+          inArray(
+            overlays.id,
+            competingReplacements.map((o: { id: string }) => o.id),
+          ),
+        );
+
+      // AI : Increment rejection count for each competing replacement author
+      for (const competing of competingReplacements) {
+        await incrementRejectedCount(tx, competing.authorId);
+      }
+    }
+
+    return { success: true, competingReplacements };
+  } catch (error) {
+    console.error("Error in handleReplacementConflicts:", error);
+    return {
+      success: false,
+      error: "Failed to handle replacement conflicts",
+      competingReplacements: [],
+    };
+  }
+}
+
+// AI : Handle overlay approval
+async function handleOverlayApproval(
+  tx: any,
+  overlayId: string,
+  authorId: string | null,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // AI : Approve the overlay
+    const result = await tx
+      .update(overlays)
+      .set({
+        status: "approved",
+        version: sql`${overlays.version} + 1`,
+        // AI : Clear replacesOverlayId - once approved, it's no longer a "replacement"
+        replacesOverlayId: null,
+      })
+      .where(eq(overlays.id, overlayId))
+      .returning({ id: overlays.id });
+
+    if (result.length === 0) {
+      return { success: false, error: "Failed to approve overlay" };
+    }
+
+    // AI : Increment author's approval count
+    await incrementApprovedCount(tx, authorId);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error in handleOverlayApproval:", error);
+    return { success: false, error: "Failed to approve overlay" };
+  }
+}
+
+// AI : Cleanup images for replaced overlays and competing replacements
+async function cleanupReplacementImages(
+  competingReplacements: { id: string; filename: string }[],
+  replacesOverlayId: string,
+): Promise<void> {
+  try {
+    // AI : Delete images for competing replacements
+    for (const competing of competingReplacements) {
+      try {
+        await deleteImages(competing.filename, "full");
+        await scheduleImageCleanup(competing.id, competing.filename, daysFromNow(15), "thumbnail");
+      } catch (error) {
+        console.error(`Failed to cleanup competing replacement ${competing.id}:`, error);
+      }
+    }
+
+    // AI : Handle cleanup for replaced overlay images
+    const originalOverlayData = await db
+      .select({ filename: overlays.filename })
+      .from(overlays)
+      .where(eq(overlays.id, replacesOverlayId))
+      .limit(1);
+
+    if (originalOverlayData.length > 0) {
+      await deleteImages(originalOverlayData[0].filename, "full");
+      await scheduleImageCleanup(
+        replacesOverlayId,
+        originalOverlayData[0].filename,
+        daysFromNow(15),
+        "thumbnail",
+      );
+    }
+  } catch (error) {
+    console.error("Failed to cleanup replacement images:", error);
+    // AI : Non-throwing - just log errors
+  }
+}

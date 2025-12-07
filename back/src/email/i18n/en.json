@@ -1,5 +1,6 @@
 {
     "verification": {
+        "lang": "en",
         "subject": "Verify your email address - Construction Map",
         "title": "Welcome to Construction Map!",
         "message": "Thank you for signing up. To activate your account, please click the link below:",
@@ -8,6 +9,7 @@
         "disclaimer": "This link will expire in 24 hours. If you didn't request this verification, please ignore this email."
     },
     "passwordReset": {
+        "lang": "en",
         "subject": "Reset your password - Construction Map",
         "title": "Password Reset",
         "message": "You requested a password reset. Click the link below to create a new password:",

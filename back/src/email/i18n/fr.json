@@ -1,5 +1,6 @@
 {
     "verification": {
+        "lang": "fr",
         "subject": "Vérifiez votre adresse email - Construction Map",
         "title": "Bienvenue sur Construction Map !",
         "message": "Merci de vous être inscrit. Pour activer votre compte, veuillez cliquer sur le lien ci-dessous :",
@@ -8,6 +9,7 @@
         "disclaimer": "Ce lien expirera dans 24 heures. Si vous n'avez pas demandé cette vérification, veuillez ignorer cet email."
     },
     "passwordReset": {
+        "lang": "fr",
         "subject": "Réinitialiser votre mot de passe - Construction Map",
         "title": "Réinitialisation du mot de passe",
         "message": "Vous avez demandé une réinitialisation de mot de passe. Cliquez sur le lien ci-dessous pour créer un nouveau mot de passe :",
