@@ -11,6 +11,8 @@ import { config } from "./config";
 import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { generateMissingThumbnails } from "./lib/startup";
 import { DrizzleSessionStore } from "./lib/drizzleSessionStore";
+import { requestLogger } from "./middleware/requestLogger";
+import { errorAlerter } from "./services/errorAlerter";
 
 // AI : Session data type
 type SessionData = {
@@ -85,6 +87,9 @@ app.use(
     },
   }),
 );
+
+// AI : Request logging middleware (after session middleware)
+app.use("*", requestLogger);
 
 // AI : tRPC routes
 app.use(
@@ -592,6 +597,9 @@ const imageFileSchema = z.object({
 generateMissingThumbnails().catch((error) => {
   console.error("Failed to generate missing thumbnails:", error);
 });
+
+// AI : Start error alerting service
+errorAlerter.start();
 
 export type { AppRouter } from "./routes";
 

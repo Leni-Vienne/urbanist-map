@@ -44,10 +44,12 @@ services:
       R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
       R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
       R2_BUCKET_NAME: ${R2_BUCKET_NAME}
+      ALERT_EMAIL: ${ALERT_EMAIL}
     volumes:
       - ./server.bundle.js:/app/server.bundle.js:ro
       - backend_node_modules:/app/node_modules
       - backend_uploads:/app/uploads
+      - backend_logs:/app/logs
     working_dir: /app
     command: ["sh", "-c", "bun install sharp && bun ./server.bundle.js"]
     networks:
@@ -83,6 +85,8 @@ volumes:
   backend_node_modules:
     driver: local
   backend_uploads:
+    driver: local
+  backend_logs:
     driver: local
   caddy_data:
     driver: local
