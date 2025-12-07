@@ -2,6 +2,7 @@ import L from "leaflet";
 import { createStandaloneProjectIcon } from '@composables/map/useMarkers';
 import type { Project } from '@types';
 import { ref, watch } from 'vue';
+import { useI18n } from '@composables/useI18n'
 import { map } from '@composables/core/useMap';
 import { mobileAwareFlyTo } from '@composables/map/useMapNavigation';
 import { loadCityOverlays } from '@composables/map/useCityOverlays';
@@ -350,6 +351,7 @@ function getCityMarkerConfig(): MarkerLayerConfig<CityWithProjects> {
     onMarkerClick: async (_marker, city) => {
       const mapStore = useMapStore();
       const overlayStore = useOverlayStore();
+      const { t } = useI18n();
 
       // AI : Check for unsaved overlays before loading city (same city or different)
       const hasUnsavedOverlays = Object.values(overlayStore.overlays).some(
@@ -359,8 +361,8 @@ function getCityMarkerConfig(): MarkerLayerConfig<CityWithProjects> {
       if (hasUnsavedOverlays) {
         const isSwitchingCity = mapStore.selectedCity?.id !== city.id;
         const message = isSwitchingCity
-          ? 'You have unsaved overlays. Switching to another city will discard them. Continue?'
-          : 'You have unsaved overlays. Reloading this city will discard them. Continue?';
+          ? t('navigation.unsavedOverlaysSwitchCity')
+          : t('navigation.unsavedOverlaysReloadCity');
 
         const confirmed = confirm(message);
         if (!confirmed) {

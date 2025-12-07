@@ -1,5 +1,6 @@
 import type L from "leaflet";
 import { ref } from "vue";
+import { useI18n } from '@composables/useI18n';
 import { map } from "@composables/core/useMap";
 import { flyToCountry } from "@composables/map/useMapNavigation";
 import { addCityMarkersForCountry, removeCityMarkers } from "@composables/map/useCityMarkers";
@@ -183,14 +184,13 @@ export function addCountryMarkersToMap() {
     onMarkerClick: async (_marker, country) => {
       // AI : Warn if there are unsaved overlays before switching countries
       const overlayStore = useOverlayStore();
+      const { t } = useI18n();
       const hasUnsavedOverlays = Object.values(overlayStore.overlays).some(
         (overlay) => overlay.isModified === true,
       );
 
       if (hasUnsavedOverlays) {
-        const confirmed = confirm(
-          "You have unsaved overlays. Switching to another country will discard them. Continue?",
-        );
+        const confirmed = confirm(t('navigation.unsavedOverlaysSwitchCountry'));
         if (!confirmed) {
           return; // AI : User cancelled, don't switch countries
         }

@@ -60,7 +60,11 @@
     "profile": "Profile",
     "latestContributions": "Latest Contributions",
     "myContributions": "My Contributions",
-    "moderation": "Moderation"
+    "moderation": "Moderation",
+    "unsavedOverlaysWarning": "You have unsaved overlays. Navigating will discard them. Continue?",
+    "unsavedOverlaysSwitchCountry": "You have unsaved overlays. Switching to another country will discard them. Continue?",
+    "unsavedOverlaysSwitchCity": "You have unsaved overlays. Switching to another city will discard them. Continue?",
+    "unsavedOverlaysReloadCity": "You have unsaved overlays. Reloading this city will discard them. Continue?"
   },
   "projectPicker": {
     "noProjectsAvailable": "No projects available. Create your first project to add overlays.",
@@ -270,7 +274,8 @@
     "uploadFailed": "Upload Failed",
     "uploadFailedDetail": "Failed to upload the image file",
     "lastOverlayDeleted": "Last Overlay Deleted",
-    "projectNowShowsAsMarker": "The project now appears as a marker on the map"
+    "projectNowShowsAsMarker": "The project now appears as a marker on the map",
+    "confirmDelete": "Are you sure you want to delete {name}?"
   },
   "map": {
     "zoom": "Zoom",
