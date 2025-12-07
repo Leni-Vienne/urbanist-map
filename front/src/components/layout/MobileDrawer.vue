@@ -3,27 +3,47 @@
     <DraggableDrawer
         v-model:visible="isVisible"
         v-model:height-percent="drawerHeight"
-        :header="$t('app.title')"
         @height-changed="handleHeightChanged"
     >
         <!-- AI : Mode controls above drawer on mobile -->
         <template #above>
-            <ModeControls v-if="authStore.isAuthenticated" :is-mobile="true" />
+            <ModeControls
+                v-if="authStore.isAuthenticated"
+                :is-mobile="true"
+            />
         </template>
 
-        <!-- AI : Shared panel content with tabs -->
+        <!-- AI : Custom header with title and tab navigation -->
+        <template #header>
+            <div class="drawer-header-content">
+                <h3 class="drawer-title">{{ $t('app.title') }}</h3>
+
+                <!-- AI : Tab navigation inside fixed header -->
+                <PanelTabs
+                    v-model:active-tab="activeTab"
+                    tab-container-class="drawer-tabs"
+                    tab-button-class="drawer-tab"
+                />
+            </div>
+        </template>
+
+        <!-- AI : Scrollable content area -->
         <PanelContent
-            v-model:active-tab="activeTab"
-            tab-container-class="drawer-tabs"
-            tab-button-class="drawer-tab"
+            :active-tab="activeTab"
             content-container-class="drawer-content"
         />
 
         <!-- AI : Footer with legal links -->
         <div class="drawer-footer">
-            <a href="/legal" class="footer-link">{{ $t("footer.legalMentions") }}</a>
+            <a
+                href="/legal"
+                class="footer-link"
+            >{{ $t("footer.legalMentions") }}</a>
             <span class="footer-separator">•</span>
-            <a href="/contact" class="footer-link">{{ $t("footer.contact") }}</a>
+            <a
+                href="/contact"
+                class="footer-link"
+            >{{ $t("footer.contact") }}</a>
         </div>
     </DraggableDrawer>
 </template>
@@ -35,6 +55,7 @@ import { usePanelTabs } from "@/composables/layout/usePanelTabs";
 
 import DraggableDrawer from "./DraggableDrawer.vue";
 import PanelContent from "./PanelContent.vue";
+import PanelTabs from "./PanelTabs.vue";
 import ModeControls from "@/components/map/ModeControls.vue";
 
 const uiStore = useUiStore();
@@ -62,11 +83,26 @@ const { authStore } = usePanelTabs(activeTab);
 </script>
 
 <style scoped>
+.drawer-header-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.drawer-title {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--p-surface-900);
+    user-select: none;
+}
+
 :deep(.drawer-content) {
     flex: 1;
     overflow-y: auto;
     background-color: var(--p-surface-0);
-    padding-bottom: 3rem; /* AI : Account for footer height */
+    padding-bottom: 3rem;
+    /* AI : Account for footer height */
 }
 
 .drawer-footer {
