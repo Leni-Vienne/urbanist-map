@@ -3,32 +3,45 @@
     class="sidecolumn"
     :class="{ 'sidecolumn--collapsed': !isOpen }"
   >
-    <!-- AI : Common header for all panels -->
+    <!-- AI : Fixed header containing title, close button, and navigation tabs -->
     <div class="sidecolumn__header">
-      <h2 class="site-title">{{ $t('app.title') }}</h2>
-      <div class="header-actions">
-        <Button
-          icon="pi pi-times"
-          class="p-button-text p-button-rounded close-button"
-          @click="$emit('close')"
-          :aria-label="$t('app.closePanel')"
-        />
+      <div class="header-top">
+        <h2 class="site-title">{{ $t('app.title') }}</h2>
+        <div class="header-actions">
+          <Button
+            icon="pi pi-times"
+            class="p-button-text p-button-rounded close-button"
+            @click="$emit('close')"
+            :aria-label="$t('app.closePanel')"
+          />
+        </div>
       </div>
+
+      <!-- AI : Tab navigation inside fixed header -->
+      <PanelTabs
+        v-model:active-tab="activeTab"
+        tab-container-class="tab-navigation"
+        tab-button-class="tab-button"
+      />
     </div>
 
-    <!-- AI : Shared panel content with tabs -->
+    <!-- AI : Scrollable content area -->
     <PanelContent
-      v-model:active-tab="activeTab"
-      tab-container-class="tab-navigation"
-      tab-button-class="tab-button"
+      :active-tab="activeTab"
       content-container-class="sidecolumn__content"
     />
 
     <!-- AI : Footer with legal links -->
     <div class="sidecolumn__footer">
-      <a href="/legal" class="footer-link">{{ $t("footer.legalMentions") }}</a>
+      <a
+        href="/legal"
+        class="footer-link"
+      >{{ $t("footer.legalMentions") }}</a>
       <span class="footer-separator">•</span>
-      <a href="/contact" class="footer-link">{{ $t("footer.contact") }}</a>
+      <a
+        href="/contact"
+        class="footer-link"
+      >{{ $t("footer.contact") }}</a>
     </div>
   </div>
 </template>
@@ -36,6 +49,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import PanelContent from './PanelContent.vue'
+import PanelTabs from './PanelTabs.vue'
 import { usePanelTabs } from '@/composables/layout/usePanelTabs'
 
 defineProps<{
@@ -55,7 +69,6 @@ usePanelTabs(activeTab)
 </script>
 
 <style scoped>
-
 .sidecolumn {
   /* to make the accordion header highlight on hover */
   --p-accordion-header-hover-background: var(--p-surface-100);
@@ -83,10 +96,16 @@ usePanelTabs(activeTab)
 }
 
 .sidecolumn__header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   flex-shrink: 0;
-  padding: 1rem 1.5rem 0.5rem;
   background-color: var(--p-surface-0);
   border-bottom: 1px solid var(--p-surface-100);
+}
+
+.header-top {
+  padding: 1rem 1.5rem 0.5rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -136,10 +155,6 @@ usePanelTabs(activeTab)
 
   .site-title {
     font-size: 1.375rem;
-  }
-
-  .sidecolumn__header {
-    padding: 1rem;
   }
 
   .sidecolumn {
