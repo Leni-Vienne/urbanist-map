@@ -17,8 +17,8 @@
         ref="rejectBtn"
         class="action-btn reject-btn"
         :class="{ 'disabled-btn': finalRejectDisabled }"
-        :disabled="finalRejectDisabled"
         @click="toggleMenu"
+        :disabled="finalRejectDisabled"
         v-tooltip.top="finalRejectDisabled && disabledTooltip ? disabledTooltip : $t('moderation.rejectChange')"
       >
         <i class="pi pi-times"></i>

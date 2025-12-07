@@ -4,7 +4,7 @@ import { switchMode } from '@composables/overlay/useOverlayModes'
 import { useOverlayStore } from '@stores/pinia/overlayStore'
 import { useMapStore } from '@stores/pinia/mapStore'
 import { useToast } from '@composables/ui/useToast'
-import { useI18n } from 'vue-i18n'
+import { useI18n } from '@composables/useI18n'
 import type { OverlayForModeration } from '@types'
 import type { LatestContribution } from '../../types/api'
 

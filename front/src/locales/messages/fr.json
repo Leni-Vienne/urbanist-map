@@ -60,7 +60,11 @@
     "profile": "Profil",
     "latestContributions": "Contributions Récentes",
     "myContributions": "Mes contributions",
-    "moderation": "Modération"
+    "moderation": "Modération",
+    "unsavedOverlaysWarning": "Vous avez des images non enregistrées. La navigation les supprimera. Continuer ?",
+    "unsavedOverlaysSwitchCountry": "Vous avez des images non enregistrées. Changer de pays les supprimera. Continuer ?",
+    "unsavedOverlaysSwitchCity": "Vous avez des images non enregistrées. Changer de ville les supprimera. Continuer ?",
+    "unsavedOverlaysReloadCity": "Vous avez des images non enregistrées. Recharger cette ville les supprimera. Continuer ?"
   },
   "projectPicker": {
     "noProjectsAvailable": "Aucun projet disponible. Créez votre premier projet pour ajouter des images.",
@@ -270,7 +274,8 @@
     "uploadFailed": "Échec du téléchargement",
     "uploadFailedDetail": "Échec du téléchargement du fichier image",
     "lastOverlayDeleted": "Dernière image supprimée",
-    "projectNowShowsAsMarker": "Le projet apparaît maintenant comme un marqueur sur la carte"
+    "projectNowShowsAsMarker": "Le projet apparaît maintenant comme un marqueur sur la carte",
+    "confirmDelete": "Êtes-vous sûr de vouloir supprimer {name} ?"
   },
   "map": {
     "zoom": "Zoom",

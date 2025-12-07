@@ -92,7 +92,7 @@ export const citiesRouter = router({
             )`
             })
             .from(cities)
-            .where(sql`${cities.name} ILIKE ${'%' + search.trim() + '%'}`)
+            .where(sql`${cities.name} ILIKE ${`%${search.trim()}%`}`)
             .orderBy(sql`ST_Distance(
             ${cities.coordinates}, 
             ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography

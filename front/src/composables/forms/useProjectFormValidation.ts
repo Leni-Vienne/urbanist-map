@@ -1,4 +1,4 @@
-import { useI18n } from 'vue-i18n'
+import { useI18n } from '@composables/useI18n'
 import { useToast } from '@composables/ui/useToast'
 import type { ProjectFormData } from '../../types/forms'
 import { projectSchema, getValidationErrorsMap } from '@shared/validation/schemas'
