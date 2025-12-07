@@ -30,14 +30,24 @@ function updateTeleportTargetPosition() {
 export function createProjectInfoTeleportTarget(marker: L.Marker | L.CircleMarker) {
   if (!map.value) return;
 
-  cleanupProjectInfoTeleportTarget();
-
-  currentMarkerForPopup = marker;
-
   const markerLatLng = marker.getLatLng();
   const markerPoint = map.value.latLngToContainerPoint(markerLatLng);
 
-  const teleportTarget = document.createElement("div");
+  // AI : Check if teleport target already exists (switching markers)
+  let teleportTarget = document.querySelector("#project-info-popup-teleport-target") as HTMLElement;
+
+  if (teleportTarget) {
+    // AI : Target exists, just update its position for the new marker
+    teleportTarget.style.left = `${markerPoint.x}px`;
+    teleportTarget.style.top = `${markerPoint.y}px`;
+    currentMarkerForPopup = marker;
+    return;
+  }
+
+  // AI : No existing target, create a new one
+  currentMarkerForPopup = marker;
+
+  teleportTarget = document.createElement("div");
   teleportTarget.id = "project-info-popup-teleport-target";
 
   teleportTarget.style.cssText = `
