@@ -144,6 +144,9 @@ function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void {
   const overlayStore = useOverlayStore();
   overlayStore.clearViewModeOverlays();
 
+  // AI : Remove any existing overlay marker layer to prevent accumulation of orphaned layers
+  removeOverlayMarkers();
+
   // AI : Filter overlays based on current completion status filters
   const completionFilters = useCompletionFilters();
   const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData);

@@ -86,7 +86,7 @@ export async function requestLogger(c: Context, next: Next) {
   } catch (error) {
     // AI : Log error and re-throw
     const duration = Date.now() - startTime;
-    const status = c.res.status || 500;
+    const status = c.res.status ?? 500;
 
     logger.error({
       method,
