@@ -1,116 +1,131 @@
 // AI : Overlay mode management - orchestrates edit/view mode switching using state machine
-import { ref, watch, toRef } from 'vue'
-import type L from 'leaflet'
-import { map, currentZoomLevel } from '@/composables/core/useMap'
-import { useOverlayStore } from '@/stores/pinia/overlayStore'
-import { useMapStore } from '@/stores/pinia/mapStore'
-import { getSelectedCity, hasCachedCityProjectsData, getCachedCityProjectsData } from '@/composables/map/useCityData'
+import { ref, watch, toRef } from "vue";
+import type L from "leaflet";
+import { map, currentZoomLevel } from "@/composables/core/useMap";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
+import {
+  getSelectedCity,
+  hasCachedCityProjectsData,
+  getCachedCityProjectsData,
+} from "@/composables/map/useCityData";
 import {
   calculateTransition,
   shouldFullRerender,
   shouldCachePositions,
-  type OverlayModeState, type ZoomLevel, type StateTransition
-} from './useOverlayModeStateMachine'
-import { renderForStrategy, updateExistingOverlays, clearAllRenderedContent } from './useOverlayRenderer'
-import { cacheCurrentPosition } from './useOverlayPositionManagement'
-import { loadCityOverlays, fetchCityProjectsData } from '@/composables/map/useCityOverlays'
-import { loadCityStandaloneProjects, removeCityMarkers, addCityMarkersForCountry, updateAllStandaloneProjectMarkerColors } from '@/composables/map/useCityMarkers'
-import { loadCountriesWithProjects, loadCitiesForCountry, addCountryMarkersToMap } from '@/composables/map/useCountryMarkers'
-import { navigateToStandaloneProject } from '@/composables/navigation/useOverlayNavigation'
-import { useProjectStore } from '@/stores/pinia/projectStore'
-import { useUiStore } from '@/stores/uiStore'
-import { updateOverlayMarkersColors } from '@/composables/map/useMarkers'
-import { updateOverlayEditingState } from '@/composables/overlay/useOverlay'
-import { getOverlayBounds } from '@/composables/overlay/useOverlayMarkers'
-import { selectOverlay } from '@/composables/overlay/useOverlaySelection'
-import { storeToRefs } from 'pinia'
-import { MAP_CONFIG } from '@/constants/mapConstants'
-import { mobileAwareFlyToBounds } from '@/composables/map/useMapNavigation'
-import { clearChangeRequestPreview } from '@/composables/overlay/changeRequestPreviewState'
+  type OverlayModeState,
+  type ZoomLevel,
+  type StateTransition,
+} from "./useOverlayModeStateMachine";
+import {
+  renderForStrategy,
+  updateExistingOverlays,
+  clearAllRenderedContent,
+} from "./useOverlayRenderer";
+import { cacheCurrentPosition } from "./useOverlayPositionManagement";
+import { loadCityOverlays, fetchCityProjectsData } from "@/composables/map/useCityOverlays";
+import {
+  loadCityStandaloneProjects,
+  removeCityMarkers,
+  addCityMarkersForCountry,
+  updateAllStandaloneProjectMarkerColors,
+} from "@/composables/map/useCityMarkers";
+import {
+  loadCountriesWithProjects,
+  loadCitiesForCountry,
+  addCountryMarkersToMap,
+} from "@/composables/map/useCountryMarkers";
+import { navigateToStandaloneProject } from "@/composables/navigation/useOverlayNavigation";
+import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useUiStore } from "@/stores/uiStore";
+import { updateOverlayMarkersColors } from "@/composables/map/useMarkers";
+import { updateOverlayEditingState } from "@/composables/overlay/useOverlay";
+import { getOverlayBounds } from "@/composables/overlay/useOverlayMarkers";
+import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
+import { storeToRefs } from "pinia";
+import { MAP_CONFIG } from "@/constants/mapConstants";
+import { mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
+import { clearChangeRequestPreview } from "@/composables/overlay/changeRequestPreviewState";
 
 // AI : Transition effects - callbacks executed during state transitions
 interface TransitionEffects {
-  beforeTransition?: (from: OverlayModeState, to: OverlayModeState) => void
-  afterTransition?: (to: OverlayModeState) => void | Promise<void>
+  beforeTransition?: (from: OverlayModeState, to: OverlayModeState) => void;
+  afterTransition?: (to: OverlayModeState) => void | Promise<void>;
 }
 
 // AI : Constants
-const MIN_ZOOM_FOR_OVERLAYS = MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS
+const MIN_ZOOM_FOR_OVERLAYS = MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
 
 // AI : Current state of the overlay system
 const currentState = ref<OverlayModeState>({
-  mode: 'view',
-  zoomLevel: 'low',
+  mode: "view",
+  zoomLevel: "low",
   hasLoadedOverlays: false,
   selectedCityId: null,
-})
+});
 
 /**
  * AI : Convert numeric zoom to zoom level category
  */
 function getZoomLevel(zoom: number): ZoomLevel {
-  return zoom >= MIN_ZOOM_FOR_OVERLAYS ? 'high' : 'low'
+  return zoom >= MIN_ZOOM_FOR_OVERLAYS ? "high" : "low";
 }
 
 /**
  * AI : Get current state based on runtime values
  */
 function getCurrentState(): OverlayModeState {
-  const overlayStore = useOverlayStore()
-  const selectedCity = getSelectedCity()
-  const zoom = map.value?.getZoom() ?? 0
+  const overlayStore = useOverlayStore();
+  const selectedCity = getSelectedCity();
+  const zoom = map.value?.getZoom() ?? 0;
 
   return {
     mode: overlayStore.mode,
     zoomLevel: getZoomLevel(zoom),
     hasLoadedOverlays: Object.keys(overlayStore.overlays).length > 0,
     selectedCityId: selectedCity?.id ?? null,
-  }
+  };
 }
 
 /**
  * AI : Execute a state transition with optional side effects
  */
 async function transitionToState(newState: OverlayModeState, effects?: TransitionEffects) {
-  const transition = calculateTransition(currentState.value, newState)
+  const transition = calculateTransition(currentState.value, newState);
 
   // AI : Execute before-transition effects
-  effects?.beforeTransition?.(currentState.value, newState)
+  effects?.beforeTransition?.(currentState.value, newState);
 
   // AI : Determine if we need full re-render or just updates
   if (shouldFullRerender(transition)) {
-    performFullRender(newState, transition)
+    performFullRender(newState, transition);
   } else {
-    performPartialUpdate(transition)
+    performPartialUpdate(transition);
   }
 
   // AI : Update current state
-  currentState.value = newState
+  currentState.value = newState;
 
   // AI : Execute after-transition effects (fire-and-forget for async effects)
-  await effects?.afterTransition?.(newState)
+  await effects?.afterTransition?.(newState);
 }
 
 /**
  * AI : Perform full re-render with new state
  */
 function performFullRender(newState: OverlayModeState, transition: StateTransition): void {
-  const selectedCity = getSelectedCity()
+  const selectedCity = getSelectedCity();
 
   if (!selectedCity || !newState.selectedCityId) {
-    clearAllRenderedContent()
-    return
+    clearAllRenderedContent();
+    return;
   }
 
   // AI : Get overlays data for the city from mode-aware cache
   if (hasCachedCityProjectsData(newState.selectedCityId, newState.mode)) {
-    const overlaysData = getCachedCityProjectsData(newState.selectedCityId, newState.mode)!
+    const overlaysData = getCachedCityProjectsData(newState.selectedCityId, newState.mode)!;
 
-    renderForStrategy(
-      transition.renderStrategy,
-      overlaysData,
-      newState.selectedCityId,
-    )
+    renderForStrategy(transition.renderStrategy, overlaysData, newState.selectedCityId);
   }
 }
 
@@ -121,24 +136,25 @@ function performFullRender(newState: OverlayModeState, transition: StateTransiti
 function performPartialUpdate(transition: StateTransition): void {
   // AI : Simply update properties of existing overlays (positions, editing state, visibility)
   // AI : This preserves Leaflet instances and their internal state (selection, etc.)
-  updateExistingOverlays(transition.renderStrategy)
+  updateExistingOverlays(transition.renderStrategy);
 }
 
 /**
  * AI : Shared logic for reloading cities and updating map markers
  */
 async function reloadCitiesAndMarkers(countryCode: string): Promise<void> {
-  await loadCitiesForCountry(countryCode)
-  
-  // AI : Update city markers on the map with the new cities list
-  removeCityMarkers()
-  const projectStore = useProjectStore()
-  const { countries } = storeToRefs(projectStore)
-  const currentCountry = countries.value.find(c => c.code === countryCode)
-  if (currentCountry && currentCountry.cities.length > 0) {
-    const citiesWithProjectCount = currentCountry.cities.map(c => Object.assign({}, c, { projectCount: 0 }))
-    addCityMarkersForCountry(citiesWithProjectCount)
+  await loadCitiesForCountry(countryCode);
 
+  // AI : Update city markers on the map with the new cities list
+  removeCityMarkers();
+  const projectStore = useProjectStore();
+  const { countries } = storeToRefs(projectStore);
+  const currentCountry = countries.value.find((c) => c.code === countryCode);
+  if (currentCountry && currentCountry.cities.length > 0) {
+    const citiesWithProjectCount = currentCountry.cities.map((c) =>
+      Object.assign({}, c, { projectCount: 0 }),
+    );
+    addCityMarkersForCountry(citiesWithProjectCount);
   }
 }
 
@@ -148,8 +164,8 @@ async function reloadCitiesAndMarkers(countryCode: string): Promise<void> {
 function handleBeforeTransition(from: OverlayModeState, to: OverlayModeState): void {
   // AI : Cache positions when leaving edit mode (using predicate)
   if (shouldCachePositions(from, to)) {
-    const overlayStore = useOverlayStore()
-    Object.values(overlayStore.overlays).forEach(cacheCurrentPosition)
+    const overlayStore = useOverlayStore();
+    Object.values(overlayStore.overlays).forEach(cacheCurrentPosition);
   }
 }
 
@@ -159,52 +175,57 @@ function handleBeforeTransition(from: OverlayModeState, to: OverlayModeState): v
  * AI : Uses cached data if available for target mode, otherwise fetches from backend
  * AI : Auto-navigates to show both previous and new overlay positions after mode change
  */
-export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onModeExit?: () => void): Promise<void> {
-  const overlayStore = useOverlayStore()
-  const mapStore = useMapStore()
-  const uiStore = useUiStore()
+export async function switchMode(
+  targetMode: "view" | "edit" | "moderation",
+  onModeExit?: () => void,
+): Promise<void> {
+  const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
+  const uiStore = useUiStore();
 
   // AI : Don't do anything if we're already in the target mode
   if (overlayStore.mode === targetMode) {
-    return
+    return;
   }
 
   // AI : Store selected overlay ID before mode switch for auto-navigation
-  const selectedOverlayId = overlayStore.idSelectedOverlay
+  const selectedOverlayId = overlayStore.idSelectedOverlay;
 
   // AI : Capture the current position of selected overlay BEFORE mode switch
   // AI : This allows us to show both old and new positions after the switch
-  let previousBounds: L.LatLngBounds | null = null
-  let selectedOverlayProjectId: string | null = null
+  let previousBounds: L.LatLngBounds | null = null;
+  let selectedOverlayProjectId: string | null = null;
   if (selectedOverlayId) {
-    const currentOverlay = overlayStore.overlays[selectedOverlayId]
+    const currentOverlay = overlayStore.overlays[selectedOverlayId];
     if (currentOverlay) {
-      previousBounds = getOverlayBounds(currentOverlay)
-      selectedOverlayProjectId = currentOverlay.projectId ?? null
+      previousBounds = getOverlayBounds(currentOverlay);
+      selectedOverlayProjectId = currentOverlay.projectId ?? null;
     }
   }
 
   // AI : Capture project popup state before mode switch
   // AI : If switching to edit/moderation mode with a project popup open, we'll auto-select an overlay from that project
-  const projectPopupProjectId = (targetMode === 'edit' || targetMode === 'moderation') && 
-    uiStore.projectInfoPopup.visible ? uiStore.projectInfoPopup.projectId : null
+  const projectPopupProjectId =
+    (targetMode === "edit" || targetMode === "moderation") && uiStore.projectInfoPopup.visible
+      ? uiStore.projectInfoPopup.projectId
+      : null;
 
   // AI : Reset all toggle states when switching modes for consistent UX
   // AI : Each mode has its default view, toggling is temporary within that mode
-  Object.values(overlayStore.overlays).forEach(overlay => {
-    overlay.isViewingApprovedPosition = undefined
-  })
+  Object.values(overlayStore.overlays).forEach((overlay) => {
+    overlay.isViewingApprovedPosition = undefined;
+  });
 
   // AI : Clear change request preview state when switching modes
   // AI : This ensures buttons don't show "pressed" state after mode switch
-  clearChangeRequestPreview()
+  clearChangeRequestPreview();
 
   // AI : Set new mode
   overlayStore.setMode(targetMode);
 
   // AI : Calculate new state
-  const newState = getCurrentState()
-  const selectedCity = getSelectedCity()
+  const newState = getCurrentState();
+  const selectedCity = getSelectedCity();
 
   // AI : NO cache invalidation! Smart caching handles mode-specific data automatically
   // AI : fetchCityProjectsData and loadCityStandaloneProjects check mode-aware cache first
@@ -212,11 +233,16 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
   // AI : If not cached, fetches from backend and caches for future use
 
   // AI : Fetch data for new mode BEFORE transitioning (uses smart cache)
-  if (selectedCity && newState.selectedCityId && newState.hasLoadedOverlays && newState.zoomLevel === 'high') {
-    await fetchCityProjectsData(newState.selectedCityId)
+  if (
+    selectedCity &&
+    newState.selectedCityId &&
+    newState.hasLoadedOverlays &&
+    newState.zoomLevel === "high"
+  ) {
+    await fetchCityProjectsData(newState.selectedCityId);
   } else if (selectedCity && newState.selectedCityId) {
     // AI : Not switching cities during mode change, just switching modes
-    await loadCityOverlays(newState.selectedCityId, false, false)
+    await loadCityOverlays(newState.selectedCityId, false, false);
   }
 
   // AI : Execute state transition with side effects
@@ -225,53 +251,53 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
     afterTransition: async () => {
       // AI : Load standalone projects AFTER overlays are rendered to correctly detect which projects need markers
       if (selectedCity && newState.selectedCityId) {
-        await loadCityStandaloneProjects(newState.selectedCityId)
+        await loadCityStandaloneProjects(newState.selectedCityId);
       }
 
       // AI : Update overlay editing state (toolbar actions, draggability) after mode switch
-      updateOverlayEditingState()
+      updateOverlayEditingState();
 
       // AI : Update overlay marker colors immediately after mode switch
-      updateOverlayMarkersColors(toRef(overlayStore, 'overlays'))
+      updateOverlayMarkersColors(toRef(overlayStore, "overlays"));
 
       // AI : Update standalone project marker colors immediately after mode switch
-      updateAllStandaloneProjectMarkerColors()
+      updateAllStandaloneProjectMarkerColors();
 
       // AI : Load countries first (required for reloadCitiesAndMarkers)
-      await loadCountriesWithProjects()
+      await loadCountriesWithProjects();
 
       // AI : Then reload city markers if a country is selected
-      const countryCode = mapStore.selectedCountryCode
+      const countryCode = mapStore.selectedCountryCode;
       if (countryCode) {
-        await reloadCitiesAndMarkers(countryCode)
+        await reloadCitiesAndMarkers(countryCode);
       }
 
       // AI : Add country markers after both requests complete
-      addCountryMarkersToMap()
+      addCountryMarkersToMap();
 
       // AI : If project popup was open for a standalone project, auto-select first overlay from that project
       // AI : This provides continuity when switching from view mode (with project marker popup) to edit/moderation mode
       // AI : Do this INSTEAD of auto-navigate since we want to show toolbar, not fly to overlay
       if (projectPopupProjectId) {
-        await autoSelectOverlayForProject(projectPopupProjectId)
+        await autoSelectOverlayForProject(projectPopupProjectId);
       } else if (selectedOverlayId) {
         // AI : Check if switching from edit/moderation to view mode with a pending overlay selected
         // AI : In this case, fly to the standalone marker instead (pending overlay won't exist in view mode)
-        if (targetMode === 'view' && selectedOverlayProjectId) {
-          await autoNavigateToStandaloneMarker(selectedOverlayProjectId)
+        if (targetMode === "view" && selectedOverlayProjectId) {
+          await autoNavigateToStandaloneMarker(selectedOverlayProjectId);
         } else {
           // AI : Auto-navigate to selected overlay after mode change (only if not from project popup)
           // AI : Pass previousBounds so we can show both old and new positions
-          await autoNavigateToSelectedOverlay(selectedOverlayId, previousBounds)
+          await autoNavigateToSelectedOverlay(selectedOverlayId, previousBounds);
         }
       }
 
       // AI : Call onModeExit when leaving edit mode
-      if (targetMode !== 'edit' && onModeExit) {
-        onModeExit()
+      if (targetMode !== "edit" && onModeExit) {
+        onModeExit();
       }
-    }
-  })
+    },
+  });
 }
 
 /**
@@ -281,39 +307,42 @@ export async function switchMode(targetMode: 'view' | 'edit' | 'moderation', onM
  * @param overlayId - ID of the selected overlay
  * @param previousBounds - Bounds of the overlay position before mode switch
  */
-async function autoNavigateToSelectedOverlay(overlayId: string, previousBounds: L.LatLngBounds | null): Promise<void> {
-  const overlayStore = useOverlayStore()
+async function autoNavigateToSelectedOverlay(
+  overlayId: string,
+  previousBounds: L.LatLngBounds | null,
+): Promise<void> {
+  const overlayStore = useOverlayStore();
 
   // AI : Get overlay directly from store - no polling needed since renderForStrategy() runs synchronously
   // AI : before this afterTransition callback is executed, so overlays are already in the store
-  const overlayObject = overlayStore.overlays[overlayId]
+  const overlayObject = overlayStore.overlays[overlayId];
 
   if (!overlayObject?.corners || overlayObject.corners.length !== 4) {
-    console.warn('Overlay not ready for navigation:', overlayId)
-    return
+    console.warn("Overlay not ready for navigation:", overlayId);
+    return;
   }
 
   // AI : Navigate to the overlay bounds using getOverlayBounds for accurate position
-  if (!map.value) return
+  if (!map.value) return;
 
   // AI : Get actual overlay position using getOverlayBounds
-  const newBounds = getOverlayBounds(overlayObject)
+  const newBounds = getOverlayBounds(overlayObject);
 
   if (newBounds) {
     // AI : If we have previous bounds, create combined bounds to show both positions
     // AI : This creates a smooth unzoom effect instead of jarring camera jump
-    let targetBounds = newBounds
+    let targetBounds = newBounds;
 
     if (previousBounds) {
       // AI : Extend bounds to include both old and new positions
-      targetBounds = newBounds.extend(previousBounds)
+      targetBounds = newBounds.extend(previousBounds);
     }
 
     mobileAwareFlyToBounds(targetBounds, {
       padding: [50, 50] as [number, number],
       duration: 0.8, // change in overlay position between mode is smaller, so quicker transition
-      easeLinearity: 0.25
-    })
+      easeLinearity: 0.25,
+    });
   }
 }
 
@@ -326,21 +355,21 @@ async function autoNavigateToSelectedOverlay(overlayId: string, previousBounds: 
  */
 async function autoNavigateToStandaloneMarker(projectId: string): Promise<void> {
   // AI : Get project data to extract coordinates and city info
-  const projectStore = useProjectStore()
-  const project = projectStore.projects[projectId]
+  const projectStore = useProjectStore();
+  const project = projectStore.projects[projectId];
 
   if (!project?.lat || !project?.lng || !project?.cityId) {
-    console.warn('Project data incomplete for navigation:', projectId)
-    return
+    console.warn("Project data incomplete for navigation:", projectId);
+    return;
   }
 
   // AI : Get city info for navigation
-  const mapStore = useMapStore()
-  const selectedCity = mapStore.selectedCity
-  
+  const mapStore = useMapStore();
+  const selectedCity = mapStore.selectedCity;
+
   if (!selectedCity) {
-    console.warn('No city selected for navigation')
-    return
+    console.warn("No city selected for navigation");
+    return;
   }
 
   // AI : Use existing navigateToStandaloneProject which handles everything:
@@ -353,8 +382,8 @@ async function autoNavigateToStandaloneMarker(projectId: string): Promise<void> 
     project.lng,
     selectedCity.id,
     selectedCity.name,
-    selectedCity.countryCode
-  )
+    selectedCity.countryCode,
+  );
 }
 
 /**
@@ -363,32 +392,32 @@ async function autoNavigateToStandaloneMarker(projectId: string): Promise<void> 
  * AI : Flies to the overlay to provide visual continuity for the user
  */
 async function autoSelectOverlayForProject(projectId: string): Promise<void> {
-  const overlayStore = useOverlayStore()
+  const overlayStore = useOverlayStore();
 
   // AI : Wait one frame to ensure DOM updates have propagated
   // AI : This is only needed for UI coordination, overlays are already in store
-  await new Promise(resolve => requestAnimationFrame(resolve))
+  await new Promise((resolve) => requestAnimationFrame(resolve));
 
   // AI : Find an overlay belonging to this project
   const projectOverlay = Object.values(overlayStore.overlays).find(
-    overlay => overlay.projectId === projectId
-  )
+    (overlay) => overlay.projectId === projectId,
+  );
 
   if (projectOverlay) {
     // AI : Get overlay bounds for navigation
-    const overlayBounds = getOverlayBounds(projectOverlay)
+    const overlayBounds = getOverlayBounds(projectOverlay);
 
     if (overlayBounds && map.value) {
       // AI : Fly to overlay position to show user where the pending overlay is
       mobileAwareFlyToBounds(overlayBounds, {
         padding: [50, 50] as [number, number],
         duration: 1.5,
-        easeLinearity: 0.25
-      })
+        easeLinearity: 0.25,
+      });
     }
 
     // AI : selectOverlay handles overlay.select() internally
-    selectOverlay(projectOverlay.id)
+    selectOverlay(projectOverlay.id);
   }
 }
 
@@ -397,24 +426,24 @@ async function autoSelectOverlayForProject(projectId: string): Promise<void> {
  */
 function watchZoomLevel() {
   watch(currentZoomLevel, async (newZoom) => {
-    const newState = getCurrentState()
-    newState.zoomLevel = getZoomLevel(newZoom)
+    const newState = getCurrentState();
+    newState.zoomLevel = getZoomLevel(newZoom);
 
     // AI : Only transition if zoom level actually changed categories
     if (newState.zoomLevel !== currentState.value.zoomLevel) {
-      await transitionToState(newState)
+      await transitionToState(newState);
     }
-  })
+  });
 }
 
 // AI : Initialize zoom watcher and set initial state
 // AI : This is called from MapView.vue after map initialization
 export function initializeOverlayModes() {
   if (!map.value) {
-    console.error('Map not initialized when trying to initialize overlay modes');
+    console.error("Map not initialized when trying to initialize overlay modes");
     return;
   }
-  
+
   watchZoomLevel();
   currentState.value = getCurrentState();
 }

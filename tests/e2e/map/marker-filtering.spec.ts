@@ -1,19 +1,19 @@
-import { test, expect } from '@playwright/test';
-import { MapTestHelpers } from '../../helpers/map-helpers';
-import { setupMapTest } from '../../helpers/test-helpers';
+import { test, expect } from "@playwright/test";
+import { MapTestHelpers } from "../../helpers/map-helpers";
+import { setupMapTest } from "../../helpers/test-helpers";
 
-test.describe('Marker Filtering', () => {
+test.describe("Marker Filtering", () => {
   let mapHelpers: MapTestHelpers;
 
   test.beforeEach(async ({ page }) => {
     mapHelpers = await setupMapTest(page);
   });
 
-  test('should toggle project status filters', async ({ page }) => {
+  test("should toggle project status filters", async ({ page }) => {
     // AI : Navigate to overlays using proper hierarchy first
     const navigationSuccess = await mapHelpers.navigateToOverlays();
     if (!navigationSuccess) {
-      console.log('No country/city markers available for testing');
+      console.log("No country/city markers available for testing");
       return;
     }
 
@@ -27,14 +27,14 @@ test.describe('Marker Filtering', () => {
     }
 
     // AI : Verify filter button is visible (only in view mode)
-    const filterButton = page.getByRole('button', { name: 'Toggle project filters' });
+    const filterButton = page.getByRole("button", { name: "Toggle project filters" });
     await expect(filterButton).toBeVisible();
 
     // AI : Count initial visible overlays in sidebar
     const initialOverlays = await mapHelpers.getOverlayCount();
 
     // AI : Toggle off "planned" projects (green markers)
-    await mapHelpers.toggleProjectFilter('planned');
+    await mapHelpers.toggleProjectFilter("planned");
 
     // AI : Wait for filter to apply and count again
     await page.waitForTimeout(500);
@@ -44,7 +44,7 @@ test.describe('Marker Filtering', () => {
     expect(afterToggleOverlays).toBeLessThanOrEqual(initialOverlays);
 
     // AI : Toggle back on
-    await mapHelpers.toggleProjectFilter('planned');
+    await mapHelpers.toggleProjectFilter("planned");
 
     // AI : Verify overlays are visible again
     await page.waitForTimeout(500);
@@ -52,11 +52,11 @@ test.describe('Marker Filtering', () => {
     expect(finalOverlays).toBeGreaterThanOrEqual(afterToggleOverlays);
   });
 
-  test('should filter markers based on completion status', async ({ page }) => {
+  test("should filter markers based on completion status", async ({ page }) => {
     // AI : Navigate to overlays using proper hierarchy first
     const navigationSuccess = await mapHelpers.navigateToOverlays();
     if (!navigationSuccess) {
-      console.log('No country/city markers available for testing');
+      console.log("No country/city markers available for testing");
       return;
     }
 
@@ -72,7 +72,7 @@ test.describe('Marker Filtering', () => {
     const initialCount = initialMarkers.length;
 
     // AI : Toggle off completed projects
-    await mapHelpers.toggleProjectFilter('completed');
+    await mapHelpers.toggleProjectFilter("completed");
 
     // AI : Count markers after filtering
     await page.waitForTimeout(500);
@@ -84,11 +84,11 @@ test.describe('Marker Filtering', () => {
     console.log(`Markers before filter: ${initialCount}, after filter: ${filteredCount}`);
   });
 
-  test('should show different marker colors based on project timeline', async ({ page }) => {
+  test("should show different marker colors based on project timeline", async ({ page }) => {
     // AI : Navigate to overlays to get data-driven markers
     const navigationSuccess = await mapHelpers.navigateToOverlays();
     if (!navigationSuccess) {
-      console.log('No country/city markers available for testing');
+      console.log("No country/city markers available for testing");
       return;
     }
 
@@ -96,17 +96,17 @@ test.describe('Marker Filtering', () => {
     if (await mapHelpers.isEditModeActive()) {
       await mapHelpers.toggleEditMode();
     }
-    
+
     const viewModeColors = await mapHelpers.getVisibleMarkerColors();
-    console.log(`View mode marker colors: ${viewModeColors.join(', ')}`);
-    
+    console.log(`View mode marker colors: ${viewModeColors.join(", ")}`);
+
     // AI : Switch to edit mode and check state-based colors
     await mapHelpers.toggleEditMode();
     await page.waitForTimeout(500);
-    
+
     const editModeColors = await mapHelpers.getVisibleMarkerColors();
-    console.log(`Edit mode marker colors: ${editModeColors.join(', ')}`);
-    
+    console.log(`Edit mode marker colors: ${editModeColors.join(", ")}`);
+
     // AI : Verify we have markers in both modes
     expect(viewModeColors.length).toBeGreaterThan(0);
     expect(editModeColors.length).toBeGreaterThan(0);

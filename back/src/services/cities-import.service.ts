@@ -1,9 +1,9 @@
-import { readFileSync } from 'fs';
-import { join } from 'path';
-import { db } from '../database';
-import { cities, countries } from '../db/schema';
-import { sql } from 'drizzle-orm';
-import { parseCSVLine } from '../utils/csv-parser';
+import { readFileSync } from "fs";
+import { join } from "path";
+import { db } from "../database";
+import { cities, countries } from "../db/schema";
+import { sql } from "drizzle-orm";
+import { parseCSVLine } from "../utils/csv-parser";
 
 interface CSVCity {
   city: string;
@@ -22,19 +22,19 @@ interface CSVCity {
 export class CitiesImportService {
   /**
    * AI : Load cities data from CSV file
-   */  
+   */
   private static loadCitiesFromCSV(): CSVCity[] {
     try {
       // AI : Read CSV file from project root (one directory up from back folder)
-      const csvPath = join(__dirname, '..', '..', '..', 'worldcities.csv');
-      const csvContent = readFileSync(csvPath, 'utf8');
-      
+      const csvPath = join(__dirname, "..", "..", "..", "worldcities.csv");
+      const csvContent = readFileSync(csvPath, "utf8");
+
       // AI : Parse CSV manually
-      const lines = csvContent.split('\n');
+      const lines = csvContent.split("\n");
       const headers = parseCSVLine(lines[0]);
-      
+
       const cities: CSVCity[] = [];
-      
+
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (line) {
@@ -53,7 +53,7 @@ export class CitiesImportService {
               population: parseInt(values[9]) ?? 0,
               id: values[10],
             };
-            
+
             // AI : Only add cities with valid coordinates
             if (!isNaN(city.lat) && !isNaN(city.lng)) {
               cities.push(city);
@@ -61,10 +61,10 @@ export class CitiesImportService {
           }
         }
       }
-      
+
       return cities;
     } catch (error) {
-      console.error('Error loading cities data:', error);
+      console.error("Error loading cities data:", error);
       return [];
     }
   }
@@ -73,13 +73,12 @@ export class CitiesImportService {
    * AI : Import cities from CSV to database using simplified schema
    */
   static async importCities(): Promise<{ imported: number; skipped: number; errors: number }> {
-    
     try {
       // AI : Load cities from CSV
       const csvCities = this.loadCitiesFromCSV();
-      
+
       if (csvCities.length === 0) {
-        throw new Error('No cities loaded from CSV');
+        throw new Error("No cities loaded from CSV");
       }
 
       // AI : Clear existing cities
@@ -120,10 +119,9 @@ export class CitiesImportService {
         }
       }
 
-      
       return { imported, skipped, errors };
     } catch (error) {
-      console.error('Error importing cities:', error);
+      console.error("Error importing cities:", error);
       throw error;
     }
   }
@@ -132,26 +130,25 @@ export class CitiesImportService {
    * AI : Import unique countries from CSV to database
    */
   static async importCountries(): Promise<{ imported: number; skipped: number; errors: number }> {
-    
     try {
       // AI : Load cities from CSV to extract unique countries
       const csvCities = this.loadCitiesFromCSV();
-      
+
       if (csvCities.length === 0) {
-        throw new Error('No cities loaded from CSV');
+        throw new Error("No cities loaded from CSV");
       }
 
       // AI : Extract unique countries with their coordinates (using capital city or first city)
       const countryMap = new Map<string, { name: string; lat: number; lng: number }>();
-      
+
       for (const city of csvCities) {
         const key = city.iso3;
-        if (!countryMap.has(key) || city.capital === 'primary') {
+        if (!countryMap.has(key) || city.capital === "primary") {
           // AI : Prefer primary capital for country center, otherwise use first city found
           countryMap.set(key, {
             name: city.country,
             lat: city.lat,
-            lng: city.lng
+            lng: city.lng,
           });
         }
       }
@@ -160,7 +157,7 @@ export class CitiesImportService {
       await db.delete(countries);
 
       let imported = 0;
-      let errors = 0;      // AI : Insert countries
+      let errors = 0; // AI : Insert countries
       const insertData = [];
       for (const [code, data] of countryMap.entries()) {
         try {
@@ -185,10 +182,9 @@ export class CitiesImportService {
         }
       }
 
-      
       return { imported, skipped: 0, errors };
     } catch (error) {
-      console.error('Error importing countries:', error);
+      console.error("Error importing countries:", error);
       throw error;
     }
   }
@@ -206,7 +202,7 @@ export class CitiesImportService {
 
       return { totalCities, totalCountries };
     } catch (error) {
-      console.error('Error getting import stats:', error);
+      console.error("Error getting import stats:", error);
       throw error;
     }
   }

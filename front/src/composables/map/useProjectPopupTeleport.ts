@@ -1,7 +1,7 @@
 // AI : Shared teleport target management for project info popups
 import type L from "leaflet";
-import { map } from '@/composables/core/useMap';
-import { useUiStore } from '@/stores/uiStore';
+import { map } from "@/composables/core/useMap";
+import { useUiStore } from "@/stores/uiStore";
 
 let currentMarkerForPopup: L.Marker | L.CircleMarker | null = null;
 let mapClickHandler: (() => void) | null = null;
@@ -12,7 +12,9 @@ let mapClickHandler: (() => void) | null = null;
 function updateTeleportTargetPosition() {
   if (!currentMarkerForPopup || !map.value) return;
 
-  const teleportTarget = document.querySelector('#project-info-popup-teleport-target') as HTMLElement;
+  const teleportTarget = document.querySelector(
+    "#project-info-popup-teleport-target",
+  ) as HTMLElement;
   if (!teleportTarget) return;
 
   const markerLatLng = currentMarkerForPopup.getLatLng();
@@ -35,8 +37,8 @@ export function createProjectInfoTeleportTarget(marker: L.Marker | L.CircleMarke
   const markerLatLng = marker.getLatLng();
   const markerPoint = map.value.latLngToContainerPoint(markerLatLng);
 
-  const teleportTarget = document.createElement('div');
-  teleportTarget.id = 'project-info-popup-teleport-target';
+  const teleportTarget = document.createElement("div");
+  teleportTarget.id = "project-info-popup-teleport-target";
 
   teleportTarget.style.cssText = `
     pointer-events: none;
@@ -51,9 +53,9 @@ export function createProjectInfoTeleportTarget(marker: L.Marker | L.CircleMarke
   const mapContainer = map.value.getContainer();
   mapContainer.appendChild(teleportTarget);
 
-  map.value.on('move', updateTeleportTargetPosition);
-  map.value.on('zoom', updateTeleportTargetPosition);
-  map.value.on('resize', updateTeleportTargetPosition);
+  map.value.on("move", updateTeleportTargetPosition);
+  map.value.on("zoom", updateTeleportTargetPosition);
+  map.value.on("resize", updateTeleportTargetPosition);
 
   mapClickHandler = () => {
     const uiStore = useUiStore();
@@ -62,7 +64,7 @@ export function createProjectInfoTeleportTarget(marker: L.Marker | L.CircleMarke
       cleanupProjectInfoTeleportTarget();
     }
   };
-  map.value.on('click', mapClickHandler);
+  map.value.on("click", mapClickHandler);
 }
 
 /**
@@ -70,17 +72,17 @@ export function createProjectInfoTeleportTarget(marker: L.Marker | L.CircleMarke
  */
 export function cleanupProjectInfoTeleportTarget() {
   if (map.value != null) {
-    map.value.off('move', updateTeleportTargetPosition);
-    map.value.off('zoom', updateTeleportTargetPosition);
-    map.value.off('resize', updateTeleportTargetPosition);
+    map.value.off("move", updateTeleportTargetPosition);
+    map.value.off("zoom", updateTeleportTargetPosition);
+    map.value.off("resize", updateTeleportTargetPosition);
 
     if (mapClickHandler) {
-      map.value.off('click', mapClickHandler);
+      map.value.off("click", mapClickHandler);
       mapClickHandler = null;
     }
   }
 
-  const existingTarget = document.querySelector('#project-info-popup-teleport-target');
+  const existingTarget = document.querySelector("#project-info-popup-teleport-target");
   if (existingTarget) {
     existingTarget.remove();
   }

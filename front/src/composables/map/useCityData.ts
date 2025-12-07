@@ -1,8 +1,8 @@
 // AI : Shared city data utilities - now properly using store instead of module-level state
-import { useMapStore } from '@/stores/pinia/mapStore';
-import { storeToRefs } from 'pinia';
-import type { OverlayData } from '@/types/index';
-import type { MapMode } from '@shared/types';
+import { useMapStore } from "@/stores/pinia/mapStore";
+import { storeToRefs } from "pinia";
+import type { OverlayData } from "@/types/index";
+import type { MapMode } from "@shared/types";
 
 /**
  * AI : Get cached overlay data for a specific city and mode

@@ -4,26 +4,23 @@
 // AI : Combines change request handling and field-specific change utilities
 // AI : ============================================================================
 
-import { ref, computed } from 'vue';
-import { trpc, type RouterOutput } from '@/client';
-import type {
-  SubmitChangeRequestInput,
-  ChangeHistoryEntry,
-} from '../../types/api';
-import type { FieldChange } from '@shared/types';
-import { useAuthStore } from '@/stores/authStore';
-import { useModerationStore } from '@/stores/pinia/moderationStore';
-import { withErrorHandling, withErrorToast } from '@/composables/core/useErrorHandling';
-import { useOverlayStore } from '@/stores/pinia/overlayStore';
-import { updateMarkerPosition, updateMarkerTooltip } from '@/composables/overlay/useOverlayMarkers';
-import L from 'leaflet';
+import { ref, computed } from "vue";
+import { trpc, type RouterOutput } from "@/client";
+import type { SubmitChangeRequestInput, ChangeHistoryEntry } from "../../types/api";
+import type { FieldChange } from "@shared/types";
+import { useAuthStore } from "@/stores/authStore";
+import { useModerationStore } from "@/stores/pinia/moderationStore";
+import { withErrorHandling, withErrorToast } from "@/composables/core/useErrorHandling";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { updateMarkerPosition, updateMarkerTooltip } from "@/composables/overlay/useOverlayMarkers";
+import L from "leaflet";
 
 // AI : ============================================================================
 // AI : CHANGE REQUESTS
 // AI : ============================================================================
 
 // AI : Use the actual tRPC output type for change requests
-type ChangeRequest = RouterOutput['changes']['getPendingChangeRequests'][0];
+type ChangeRequest = RouterOutput["changes"]["getPendingChangeRequests"][0];
 const pendingChangeRequests = ref<ChangeRequest[]>([]);
 const changeHistory = ref<ChangeHistoryEntry[]>([]);
 const isLoading = ref(false);
@@ -38,13 +35,12 @@ function clearOverlayChangeRequestState(overlayObject: any) {
 }
 
 export function useChangeRequests() {
-  
   async function submitChangeRequest(input: SubmitChangeRequestInput) {
     isLoading.value = true;
     try {
       const result = await withErrorHandling(
         async () => trpc.changes.submitChangeRequest.mutate(input),
-        { errorMessage: 'Failed to submit change request' }
+        { errorMessage: "Failed to submit change request" },
       );
 
       if (result?.success != undefined) {
@@ -72,10 +68,11 @@ export function useChangeRequests() {
       // AI : Use moderation route for moderation panel, user route for My Contributions
       // AI : forceUserOnly ensures My Contributions always shows only user's own changes
       const result = await withErrorHandling(
-        async () => (isModerator && !forceUserOnly)
-          ? trpc.changes.getPendingChangeRequests.query()
-          : trpc.changes.getMyChangeRequests.query(),
-        { errorMessage: 'Failed to fetch pending change requests' }
+        async () =>
+          isModerator && !forceUserOnly
+            ? trpc.changes.getPendingChangeRequests.query()
+            : trpc.changes.getMyChangeRequests.query(),
+        { errorMessage: "Failed to fetch pending change requests" },
       );
 
       if (result) {
@@ -96,7 +93,7 @@ export function useChangeRequests() {
     try {
       const result = await withErrorHandling(
         async () => trpc.changes.approveChangeRequests.mutate({ changeRequestIds }),
-        { errorMessage: 'Failed to approve change requests' }
+        { errorMessage: "Failed to approve change requests" },
       );
 
       if (result?.success != undefined) {
@@ -121,13 +118,13 @@ export function useChangeRequests() {
     try {
       const result = await withErrorHandling(
         async () => trpc.changes.rejectChangeRequests.mutate({ changeRequestIds }),
-        { errorMessage: 'Failed to reject change requests' }
+        { errorMessage: "Failed to reject change requests" },
       );
 
       if (result?.success != undefined) {
         // AI : Remove rejected change requests from local state instead of refetching
         pendingChangeRequests.value = pendingChangeRequests.value.filter(
-          cr => !changeRequestIds.includes(cr.id)
+          (cr) => !changeRequestIds.includes(cr.id),
         );
 
         // AI : Also remove from moderation store if available
@@ -147,13 +144,13 @@ export function useChangeRequests() {
 
   function removeChangeRequestFromLocalState(changeRequestId: string) {
     pendingChangeRequests.value = pendingChangeRequests.value.filter(
-      cr => cr.id !== changeRequestId
+      (cr) => cr.id !== changeRequestId,
     );
   }
 
   function hasOtherPendingChangeRequestsForOverlay(overlayId: string): boolean {
     return pendingChangeRequests.value.some(
-      cr => cr.entityType === 'overlay' && cr.entityId === overlayId
+      (cr) => cr.entityType === "overlay" && cr.entityId === overlayId,
     );
   }
 
@@ -166,7 +163,7 @@ export function useChangeRequests() {
     // AI : Reset overlay position to approved corners
     if (overlayObject.overlay && overlayObject.corners?.length === 4) {
       const leafletCorners = overlayObject.corners.map((corner: { lat: number; lng: number }) =>
-        L.latLng(corner.lat, corner.lng)
+        L.latLng(corner.lat, corner.lng),
       );
       overlayObject.overlay.setCorners(leafletCorners);
       overlayObject.isModified = false;
@@ -177,7 +174,7 @@ export function useChangeRequests() {
   }
 
   function handleOverlayStateAfterDeletion(changeRequest: ChangeRequest) {
-    if (changeRequest.entityType !== 'overlay') {
+    if (changeRequest.entityType !== "overlay") {
       return;
     }
 
@@ -197,7 +194,7 @@ export function useChangeRequests() {
     clearOverlayChangeRequestState(overlayObject);
 
     // AI : If this was a position change request, clear edit mode cache and reset position
-    if (changeRequest.fieldName === 'corners') {
+    if (changeRequest.fieldName === "corners") {
       resetOverlayPositionToApproved(overlayObject, changeRequest.entityId);
     }
 
@@ -209,11 +206,11 @@ export function useChangeRequests() {
     isLoading.value = true;
     try {
       // AI : Find the change request before deleting to get entity info
-      const changeRequest = pendingChangeRequests.value.find(cr => cr.id === changeRequestId);
+      const changeRequest = pendingChangeRequests.value.find((cr) => cr.id === changeRequestId);
 
       const result = await withErrorHandling(
         async () => trpc.changes.deleteChangeRequest.mutate({ id: changeRequestId }),
-        { errorMessage: 'Failed to delete change request' }
+        { errorMessage: "Failed to delete change request" },
       );
 
       if (result?.success != undefined && changeRequest) {
@@ -230,12 +227,12 @@ export function useChangeRequests() {
     }
   }
 
-  async function getChangeHistory(entityType?: 'project' | 'overlay', entityId?: string) {
+  async function getChangeHistory(entityType?: "project" | "overlay", entityId?: string) {
     isLoading.value = true;
     try {
       const result = await withErrorHandling(
         async () => trpc.changes.getChangeHistory.query({ entityType, entityId }),
-        { errorMessage: 'Failed to fetch change history' }
+        { errorMessage: "Failed to fetch change history" },
       );
 
       if (result) {
@@ -250,7 +247,7 @@ export function useChangeRequests() {
   function groupChangeRequestsByEntity() {
     const grouped = new Map<string, ChangeRequest[]>();
 
-    pendingChangeRequests.value.forEach(request => {
+    pendingChangeRequests.value.forEach((request) => {
       const key = `${request.entityType}:${request.entityId}`;
       if (!grouped.has(key)) {
         grouped.set(key, []);
@@ -264,8 +261,8 @@ export function useChangeRequests() {
   function getConflictingChanges() {
     const conflicts = new Map<string, ChangeRequest[]>();
 
-    pendingChangeRequests.value.forEach(request => {
-      if (request.status === 'conflicted') {
+    pendingChangeRequests.value.forEach((request) => {
+      if (request.status === "conflicted") {
         const key = `${request.entityType}:${request.entityId}:${request.fieldName}`;
         if (!conflicts.has(key)) {
           conflicts.set(key, []);
@@ -294,20 +291,23 @@ export function useChangeRequests() {
     fieldName: string,
     oldValue: any,
     newValue: any,
-    changeReason?: string
+    changeReason?: string,
   ) {
     return withErrorToast(
-      async () => submitChangeRequest({
-        entityType: 'project',
-        entityId: projectId,
-        changes: [{
-          fieldName,
-          oldValue,
-          newValue,
-          changeReason,
-        }]
-      }),
-      'Failed to submit project field change'
+      async () =>
+        submitChangeRequest({
+          entityType: "project",
+          entityId: projectId,
+          changes: [
+            {
+              fieldName,
+              oldValue,
+              newValue,
+              changeReason,
+            },
+          ],
+        }),
+      "Failed to submit project field change",
     );
   }
 
@@ -316,44 +316,53 @@ export function useChangeRequests() {
     fieldName: string,
     oldValue: any,
     newValue: any,
-    changeReason?: string
+    changeReason?: string,
   ) {
     return withErrorToast(
-      async () => submitChangeRequest({
-        entityType: 'overlay',
-        entityId: overlayId,
-        changes: [{
-          fieldName,
-          oldValue,
-          newValue,
-          changeReason,
-        }]
-      }),
-      'Failed to submit overlay field change'
+      async () =>
+        submitChangeRequest({
+          entityType: "overlay",
+          entityId: overlayId,
+          changes: [
+            {
+              fieldName,
+              oldValue,
+              newValue,
+              changeReason,
+            },
+          ],
+        }),
+      "Failed to submit overlay field change",
     );
   }
 
   async function submitMultipleFieldChanges(
-    entityType: 'project' | 'overlay',
+    entityType: "project" | "overlay",
     entityId: string,
-    fieldChanges: FieldChange[]
+    fieldChanges: FieldChange[],
   ) {
     return withErrorToast(
-      async () => submitChangeRequest({
-        entityType,
-        entityId,
-        changes: fieldChanges
-      }),
-      'Failed to submit multiple field changes'
+      async () =>
+        submitChangeRequest({
+          entityType,
+          entityId,
+          changes: fieldChanges,
+        }),
+      "Failed to submit multiple field changes",
     );
   }
 
-  function createFieldChangeHelper(entityType: 'project' | 'overlay', entityId: string) {
+  function createFieldChangeHelper(entityType: "project" | "overlay", entityId: string) {
     const pendingChanges: FieldChange[] = [];
 
-    function addFieldChange(fieldName: string, oldValue: FieldChange['oldValue'], newValue: FieldChange['newValue'], changeReason?: string) {
-      const existingIndex = pendingChanges.findIndex(change => change.fieldName === fieldName);
-      
+    function addFieldChange(
+      fieldName: string,
+      oldValue: FieldChange["oldValue"],
+      newValue: FieldChange["newValue"],
+      changeReason?: string,
+    ) {
+      const existingIndex = pendingChanges.findIndex((change) => change.fieldName === fieldName);
+
       if (existingIndex !== -1) {
         pendingChanges[existingIndex] = { fieldName, oldValue, newValue, changeReason };
       } else {
@@ -362,7 +371,7 @@ export function useChangeRequests() {
     }
 
     function removeFieldChange(fieldName: string) {
-      const index = pendingChanges.findIndex(change => change.fieldName === fieldName);
+      const index = pendingChanges.findIndex((change) => change.fieldName === fieldName);
       if (index !== -1) {
         pendingChanges.splice(index, 1);
       }
@@ -370,7 +379,7 @@ export function useChangeRequests() {
 
     async function submitAllChanges() {
       if (pendingChanges.length === 0) {
-        throw new Error('No changes to submit');
+        throw new Error("No changes to submit");
       }
 
       const result = await submitMultipleFieldChanges(entityType, entityId, [...pendingChanges]);

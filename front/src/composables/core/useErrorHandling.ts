@@ -1,23 +1,23 @@
 // AI : Unified error handling utilities to eliminate repetitive try-catch-toast patterns
-import { useToast } from '@/composables/ui/useToast'
+import { useToast } from "@/composables/ui/useToast";
 
 export interface ErrorHandlingOptions {
   /** Toast message to show on error */
-  errorMessage?: string
+  errorMessage?: string;
   /** Toast message to show on success */
-  successMessage?: string
+  successMessage?: string;
   /** Toast summary for error (default: 'Error') */
-  errorSummary?: string
+  errorSummary?: string;
   /** Toast summary for success (default: 'Success') */
-  successSummary?: string
+  successSummary?: string;
   /** Whether to log error to console (default: true) */
-  logError?: boolean
+  logError?: boolean;
   /** Whether to rethrow error after handling (default: false) */
-  rethrow?: boolean
+  rethrow?: boolean;
   /** Custom error handler function */
-  onError?: (error: unknown) => void
+  onError?: (error: unknown) => void;
   /** Custom success handler function */
-  onSuccess?: <T>(result: T) => void
+  onSuccess?: <T>(result: T) => void;
 }
 
 /**
@@ -31,67 +31,67 @@ export interface ErrorHandlingOptions {
  */
 export async function withErrorHandling<T>(
   fn: () => T | Promise<T>,
-  options: ErrorHandlingOptions = {}
+  options: ErrorHandlingOptions = {},
 ): Promise<T | null> {
   const {
     errorMessage,
     successMessage,
-    errorSummary = 'Error',
-    successSummary = 'Success',
+    errorSummary = "Error",
+    successSummary = "Success",
     logError = true,
     rethrow = false,
     onError,
     onSuccess,
-  } = options
+  } = options;
 
-  const toast = useToast()
+  const toast = useToast();
 
   try {
-    const result = await fn()
+    const result = await fn();
 
     // AI : Show success toast if provided
     if (successMessage != undefined) {
       toast.add({
-        severity: 'success',
+        severity: "success",
         summary: successSummary,
         detail: successMessage,
         life: 3000,
-      })
+      });
     }
 
     // AI : Call custom success handler
     if (onSuccess) {
-      onSuccess(result)
+      onSuccess(result);
     }
 
-    return result
+    return result;
   } catch (error) {
     // AI : Log error to console
     if (logError) {
-      console.error(errorMessage ?? 'Error occurred:', error)
+      console.error(errorMessage ?? "Error occurred:", error);
     }
 
     // AI : Show error toast
     if (errorMessage) {
       toast.add({
-        severity: 'error',
+        severity: "error",
         summary: errorSummary,
         detail: errorMessage,
         life: 5000,
-      })
+      });
     }
 
     // AI : Call custom error handler
     if (onError) {
-      onError(error)
+      onError(error);
     }
 
     // AI : Rethrow if requested
     if (rethrow) {
-      throw error
+      throw error;
     }
 
-    return null
+    return null;
   }
 }
 
@@ -107,7 +107,7 @@ export async function withErrorHandling<T>(
  */
 export async function withErrorToast<T>(
   fn: () => T | Promise<T>,
-  errorMessage: string
+  errorMessage: string,
 ): Promise<T> {
   return withErrorHandling(fn, { errorMessage, rethrow: true }) as Promise<T>;
 }

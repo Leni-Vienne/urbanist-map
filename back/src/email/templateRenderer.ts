@@ -1,11 +1,11 @@
-import { join } from 'path';
-import enTranslations from './i18n/en.json';
-import frTranslations from './i18n/fr.json';
+import { join } from "path";
+import enTranslations from "./i18n/en.json";
+import frTranslations from "./i18n/fr.json";
 
 // AI : Type-safe translations
 type Translations = typeof enTranslations;
 type TemplateName = keyof Translations;
-type Locale = 'en' | 'fr';
+type Locale = "en" | "fr";
 
 const translations: Record<Locale, Translations> = {
   en: enTranslations,
@@ -18,11 +18,8 @@ const translations: Record<Locale, Translations> = {
  * @param data Key-value pairs to replace in the template
  * @returns Rendered HTML string
  */
-function renderTemplate(
-  template: string,
-  data: Record<string, string>
-): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => data[key] ?? '');
+function renderTemplate(template: string, data: Record<string, string>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => data[key] ?? "");
 }
 
 /**
@@ -35,7 +32,7 @@ function renderTemplate(
 export async function renderEmailTemplate(
   templateName: TemplateName,
   variables: Record<string, string>,
-  locale: Locale = 'en'
+  locale: Locale = "en",
 ): Promise<{ subject: string; html: string }> {
   try {
     // AI : Get translations for the specified locale
@@ -45,16 +42,16 @@ export async function renderEmailTemplate(
     }
 
     // AI : Convert camelCase template name to kebab-case for file lookup
-    const kebabCaseName = templateName.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
-    
+    const kebabCaseName = templateName.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
+
     // AI : Load HTML template file
-    const templatePath = join(__dirname, 'templates', `${kebabCaseName}-email.html`);
+    const templatePath = join(__dirname, "templates", `${kebabCaseName}-email.html`);
     const templateFile = Bun.file(templatePath);
-    
+
     if (!(await templateFile.exists())) {
       throw new Error(`Template file not found: ${templatePath}`);
     }
-    
+
     const template = await templateFile.text();
 
     // AI : Merge translations with dynamic variables
@@ -71,7 +68,7 @@ export async function renderEmailTemplate(
       html,
     };
   } catch (error) {
-    console.error('Email template rendering error:', error);
+    console.error("Email template rendering error:", error);
     throw error;
   }
 }

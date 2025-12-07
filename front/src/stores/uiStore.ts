@@ -35,9 +35,7 @@ export const useUiStore = defineStore("ui", () => {
   });
 
   // AI : Mobile drawer state
-  const mobileDrawerActiveTab = ref<"latest" | "uploads" | "moderation">(
-    "latest",
-  );
+  const mobileDrawerActiveTab = ref<"latest" | "uploads" | "moderation">("latest");
   const mobileDrawerVisible = ref(true); // AI : Open by default on mobile
   const mobileDrawerHeightPercent = ref(40); // AI : Drawer height as percentage of viewport (10-90%)
 
@@ -71,10 +69,7 @@ export const useUiStore = defineStore("ui", () => {
   }
 
   // AI : Project dialog actions
-  function openProjectDialog(
-    project?: Partial<Project>,
-    mode: "create" | "edit" = "create",
-  ) {
+  function openProjectDialog(project?: Partial<Project>, mode: "create" | "edit" = "create") {
     projectDialog.value = {
       visible: true,
       project,

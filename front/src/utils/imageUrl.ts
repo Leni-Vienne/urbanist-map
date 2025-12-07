@@ -1,4 +1,4 @@
-import { getApiUrl } from '@/client';
+import { getApiUrl } from "@/client";
 
 /**
  * AI : Build image URL for overlay files

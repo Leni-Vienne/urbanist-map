@@ -1,6 +1,6 @@
 import type L from "leaflet";
 import { ref } from "vue";
-import { t } from '@/locales';
+import { t } from "@/locales";
 import { map } from "@/composables/core/useMap";
 import { flyToCountry } from "@/composables/map/useMapNavigation";
 import { addCityMarkersForCountry, removeCityMarkers } from "@/composables/map/useCityMarkers";
@@ -62,7 +62,15 @@ export async function loadCountriesWithProjects(force = false): Promise<void> {
 
     if (countriesData) {
       const mappedCountries = countriesData.map(
-        (country): Country => (Object.assign(country, {lat:country.centerCoordinates.y,lng:country.centerCoordinates.x,projectCount:0,cities:[],createdAt:new Date,updatedAt:new Date})),
+        (country): Country =>
+          Object.assign(country, {
+            lat: country.centerCoordinates.y,
+            lng: country.centerCoordinates.x,
+            projectCount: 0,
+            cities: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }),
       );
 
       // AI : Update both the active countries ref and cache
@@ -189,7 +197,7 @@ export function addCountryMarkersToMap() {
       );
 
       if (hasUnsavedOverlays) {
-        const confirmed = confirm(t('navigation.unsavedOverlaysSwitchCountry'));
+        const confirmed = confirm(t("navigation.unsavedOverlaysSwitchCountry"));
         if (!confirmed) {
           return; // AI : User cancelled, don't switch countries
         }
@@ -205,7 +213,7 @@ export function addCountryMarkersToMap() {
 
       // AI : If cross-country flight, switch to country layer after arrival
       if (switchToCountryLayer && map.value) {
-        map.value.once('moveend', switchToCountryLayer);
+        map.value.once("moveend", switchToCountryLayer);
       }
 
       // AI : Prepare country context (clear map, load cities, add markers)

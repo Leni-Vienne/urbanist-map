@@ -1,29 +1,32 @@
-import { Page } from '@playwright/test';
+import { Page } from "@playwright/test";
 
 /**
  * AI : Helper functions for testing map functionality
  */
 
 export class MapTestHelpers {
-  constructor(private page: Page) { }
+  constructor(private page: Page) {}
 
   /**
    * AI : Wait for map to be fully initialized
    */
   async waitForMapReady() {
-    console.log('Waiting for map to be ready...');
-    await this.page.waitForSelector('.leaflet-container');
-    await this.page.waitForSelector('.map-buttons');
+    console.log("Waiting for map to be ready...");
+    await this.page.waitForSelector(".leaflet-container");
+    await this.page.waitForSelector(".map-buttons");
 
     // AI : Wait specifically for country markers to load (they should be the initial markers)
-    console.log('Waiting for country markers to load...');
-    await this.page.waitForFunction(() => {
-      const countryMarkers = document.querySelectorAll('[data-testid^="country-marker-"]');
-      console.log(`Found ${countryMarkers.length} country markers during wait`);
-      return countryMarkers.length > 0;
-    }, { timeout: 15000 });
+    console.log("Waiting for country markers to load...");
+    await this.page.waitForFunction(
+      () => {
+        const countryMarkers = document.querySelectorAll('[data-testid^="country-marker-"]');
+        console.log(`Found ${countryMarkers.length} country markers during wait`);
+        return countryMarkers.length > 0;
+      },
+      { timeout: 15000 },
+    );
 
-    console.log('Country markers detected, waiting for stabilization...');
+    console.log("Country markers detected, waiting for stabilization...");
     await this.page.waitForTimeout(1000); // Allow for stabilization
 
     // AI : Log final count for debugging
@@ -35,7 +38,7 @@ export class MapTestHelpers {
    * AI : Switch between view and edit modes (now uses ModeControls.vue switch button)
    */
   async toggleEditMode() {
-    const modeSwitchButton = this.page.getByRole('button', { name: /switch/i });
+    const modeSwitchButton = this.page.getByRole("button", { name: /switch/i });
     await modeSwitchButton.click();
     await this.page.waitForTimeout(300);
     return modeSwitchButton;
@@ -48,10 +51,10 @@ export class MapTestHelpers {
     return this.page.evaluate(() => {
       try {
         // AI : Direct Leaflet container access (most reliable)
-        const map = (document.querySelector('.leaflet-container') as any)._leaflet_map as L.Map;
+        const map = (document.querySelector(".leaflet-container") as any)._leaflet_map as L.Map;
         return map.getZoom();
       } catch (error) {
-        console.error('Error getting zoom level:', error);
+        console.error("Error getting zoom level:", error);
         return null;
       }
     });
@@ -87,9 +90,9 @@ export class MapTestHelpers {
 
       // AI : Click zoom in or zoom out button
       if (zoomDiff > 0) {
-        await this.page.getByRole('button', { name: 'Zoom In' }).click();
+        await this.page.getByRole("button", { name: "Zoom In" }).click();
       } else {
-        await this.page.getByRole('button', { name: 'Zoom Out' }).click();
+        await this.page.getByRole("button", { name: "Zoom Out" }).click();
       }
 
       await this.page.waitForTimeout(300);
@@ -105,10 +108,12 @@ export class MapTestHelpers {
    */
   async countMarkersByColor(color: string): Promise<number> {
     try {
-      const markers = this.page.locator(`.leaflet-marker-icon.custom-svg-marker:has(linearGradient[id*="${color}"])`);
+      const markers = this.page.locator(
+        `.leaflet-marker-icon.custom-svg-marker:has(linearGradient[id*="${color}"])`,
+      );
       return await markers.count();
     } catch (error) {
-      console.error('Error:', error);
+      console.error("Error:", error);
       return 0;
     }
   }
@@ -117,7 +122,7 @@ export class MapTestHelpers {
    * AI : Get all marker colors currently visible
    */
   async getVisibleMarkerColors(): Promise<string[]> {
-    const colors = ['green', 'orange', 'red', 'blue', 'purple', 'grey'];
+    const colors = ["green", "orange", "red", "blue", "purple", "grey"];
     const foundColors = [];
 
     for (const color of colors) {
@@ -133,25 +138,25 @@ export class MapTestHelpers {
   /**
    * AI : Toggle project status filter (now inside filter popover)
    */
-  async toggleProjectFilter(status: 'proposed' | 'planned' | 'in progress' | 'completed') {
+  async toggleProjectFilter(status: "proposed" | "planned" | "in progress" | "completed") {
     // AI : First, open the filter popover if it's not already open
-    const filterButton = this.page.getByRole('button', { name: 'Toggle project filters' });
+    const filterButton = this.page.getByRole("button", { name: "Toggle project filters" });
     await filterButton.click();
     await this.page.waitForTimeout(500);
 
     // AI : Map status to actual translated aria-label text
     const ariaLabelMap = {
-      'proposed': 'Toggle proposed projects',
-      'planned': 'Toggle planned projects',
-      'in progress': 'Toggle in progress projects',
-      'completed': 'Toggle completed projects'
+      proposed: "Toggle proposed projects",
+      planned: "Toggle planned projects",
+      "in progress": "Toggle in progress projects",
+      completed: "Toggle completed projects",
     };
 
     // AI : Find the filter button inside the popover
-    const filterToggleButton = this.page.getByRole('button', { name: ariaLabelMap[status] });
+    const filterToggleButton = this.page.getByRole("button", { name: ariaLabelMap[status] });
 
     // AI : Wait for button to be visible
-    await filterToggleButton.waitFor({ state: 'visible', timeout: 3000 });
+    await filterToggleButton.waitFor({ state: "visible", timeout: 3000 });
 
     console.log(`Clicking filter button for: ${status}`);
     await filterToggleButton.click();
@@ -169,10 +174,10 @@ export class MapTestHelpers {
    */
   async getTotalMarkerCount(): Promise<number> {
     try {
-      const markers = this.page.locator('.leaflet-marker-icon');
+      const markers = this.page.locator(".leaflet-marker-icon");
       return await markers.count();
     } catch (error) {
-      console.error('Error:', error);
+      console.error("Error:", error);
       return 0;
     }
   }
@@ -185,7 +190,7 @@ export class MapTestHelpers {
       const markers = this.page.locator('[data-testid^="country-marker-"]');
       return await markers.count();
     } catch (error) {
-      console.error('Error getting country marker count:', error);
+      console.error("Error getting country marker count:", error);
       return 0;
     }
   }
@@ -200,7 +205,7 @@ export class MapTestHelpers {
       const markers = this.page.locator('[data-testid^="city-marker-"]');
       return await markers.count();
     } catch (error) {
-      console.error('Error getting city marker count:', error);
+      console.error("Error getting city marker count:", error);
       return 0;
     }
   }
@@ -214,7 +219,7 @@ export class MapTestHelpers {
       const markers = this.page.locator('[data-testid^="overlay-marker-"]');
       return await markers.count();
     } catch (error) {
-      console.error('Error getting overlay marker count:', error);
+      console.error("Error getting overlay marker count:", error);
       return 0;
     }
   }
@@ -237,7 +242,7 @@ export class MapTestHelpers {
       // AI : Get marker position for precise targeting
       const markerBox = await marker.boundingBox();
       if (!markerBox) {
-        console.log('Could not get overlay marker bounding box');
+        console.log("Could not get overlay marker bounding box");
         return false;
       }
 
@@ -251,10 +256,10 @@ export class MapTestHelpers {
       // AI : Wait for flyTo animation to complete (1.5 seconds)
       await this.page.waitForTimeout(1500);
 
-      console.log('Overlay marker click completed');
+      console.log("Overlay marker click completed");
       return true;
     } catch (error) {
-      console.error('Error clicking overlay marker:', error);
+      console.error("Error clicking overlay marker:", error);
       return false;
     }
   }
@@ -267,12 +272,15 @@ export class MapTestHelpers {
       console.log(`Attempting to click country marker ${index}`);
 
       // AI : Wait for country markers to be visible first using data-testid
-      console.log('Waiting for country markers to appear...');
-      await this.page.waitForFunction(() => {
-        const markers = document.querySelectorAll('[data-testid^="country-marker-"]');
-        console.log(`Found ${markers.length} country markers`);
-        return markers.length > 0;
-      }, { timeout: 15000 });
+      console.log("Waiting for country markers to appear...");
+      await this.page.waitForFunction(
+        () => {
+          const markers = document.querySelectorAll('[data-testid^="country-marker-"]');
+          console.log(`Found ${markers.length} country markers`);
+          return markers.length > 0;
+        },
+        { timeout: 15000 },
+      );
 
       const markers = this.page.locator('[data-testid^="country-marker-"]');
       const markerCount = await markers.count();
@@ -286,28 +294,32 @@ export class MapTestHelpers {
       const marker = markers.nth(index);
 
       // AI : Wait for marker to be fully loaded with attributes
-      await this.page.waitForFunction((idx) => {
-        const markers = document.querySelectorAll('[data-testid^="country-marker-"]');
-        const marker = markers[idx];
-        if (!marker) return false;
+      await this.page.waitForFunction(
+        (idx) => {
+          const markers = document.querySelectorAll('[data-testid^="country-marker-"]');
+          const marker = markers[idx];
+          if (!marker) return false;
 
-        const hasTestId = marker.hasAttribute('data-testid');
-        const hasCountryCode = marker.hasAttribute('data-country-code');
-        const hasCountryName = marker.hasAttribute('data-country-name');
+          const hasTestId = marker.hasAttribute("data-testid");
+          const hasCountryCode = marker.hasAttribute("data-country-code");
+          const hasCountryName = marker.hasAttribute("data-country-name");
 
-        return hasTestId && hasCountryCode && hasCountryName;
-      }, index, { timeout: 10000 });
+          return hasTestId && hasCountryCode && hasCountryName;
+        },
+        index,
+        { timeout: 10000 },
+      );
 
       // AI : Log marker details for debugging
-      const testId = await marker.getAttribute('data-testid');
-      const countryCode = await marker.getAttribute('data-country-code');
-      const countryName = await marker.getAttribute('data-country-name');
+      const testId = await marker.getAttribute("data-testid");
+      const countryCode = await marker.getAttribute("data-country-code");
+      const countryName = await marker.getAttribute("data-country-name");
       console.log(`Clicking country marker: ${testId} (${countryName}, ${countryCode})`);
 
       // AI : Get marker position
       const markerBox = await marker.boundingBox();
       if (!markerBox) {
-        console.log('Could not get country marker bounding box');
+        console.log("Could not get country marker bounding box");
         return false;
       }
 
@@ -315,16 +327,16 @@ export class MapTestHelpers {
       const centerY = markerBox.y + markerBox.height / 2;
 
       // AI : Click the marker (clicking a country marker zooms to country center and shows cities/projects)
-      console.log('Clicking country marker...');
+      console.log("Clicking country marker...");
       await this.page.mouse.click(centerX, centerY);
 
       // AI : Wait for flyTo animation to complete (1.5 seconds)
       await this.page.waitForTimeout(1500);
 
-      console.log('Country marker click completed');
+      console.log("Country marker click completed");
       return true;
     } catch (error) {
-      console.error('Error clicking country marker:', error);
+      console.error("Error clicking country marker:", error);
       return false;
     }
   }
@@ -337,11 +349,14 @@ export class MapTestHelpers {
       console.log(`Attempting to click city marker ${index}`);
 
       // AI : Wait for city markers to appear after country click using data-testid
-      await this.page.waitForFunction(() => {
-        const markers = document.querySelectorAll('[data-testid^="city-marker-"]');
-        console.log(`Found ${markers.length} city markers`);
-        return markers.length > 0;
-      }, { timeout: 1000 });
+      await this.page.waitForFunction(
+        () => {
+          const markers = document.querySelectorAll('[data-testid^="city-marker-"]');
+          console.log(`Found ${markers.length} city markers`);
+          return markers.length > 0;
+        },
+        { timeout: 1000 },
+      );
 
       const markers = this.page.locator('[data-testid^="city-marker-"]');
       const markerCount = await markers.count();
@@ -355,15 +370,15 @@ export class MapTestHelpers {
       const marker = markers.nth(index);
 
       // AI : Log marker details for debugging
-      const testId = await marker.getAttribute('data-testid');
-      const cityName = await marker.getAttribute('data-city-name');
-      const countryCode = await marker.getAttribute('data-country-code');
+      const testId = await marker.getAttribute("data-testid");
+      const cityName = await marker.getAttribute("data-city-name");
+      const countryCode = await marker.getAttribute("data-country-code");
       console.log(`Clicking city marker: ${testId} (${cityName}, ${countryCode})`);
 
       // AI : Get marker position
       const markerBox = await marker.boundingBox();
       if (!markerBox) {
-        console.log('Could not get city marker bounding box');
+        console.log("Could not get city marker bounding box");
         return false;
       }
 
@@ -371,16 +386,16 @@ export class MapTestHelpers {
       const centerY = markerBox.y + markerBox.height / 2;
 
       // AI : Click the city marker (clicking a city marker reveals overlay markers within that city)
-      console.log('Clicking city marker...');
+      console.log("Clicking city marker...");
       await this.page.mouse.click(centerX, centerY);
 
       // AI : Wait for flyTo animation to complete (1.5 seconds) plus overlay loading
       await this.page.waitForTimeout(1500);
 
-      console.log('City marker click completed');
+      console.log("City marker click completed");
       return true;
     } catch (error) {
-      console.error('Error clicking city marker:', error);
+      console.error("Error clicking city marker:", error);
       return false;
     }
   }
@@ -390,14 +405,14 @@ export class MapTestHelpers {
    */
   async navigateToOverlays(countryIndex: number = 0, cityIndex: number = 0) {
     try {
-      console.log('Starting navigation to overlays...');
+      console.log("Starting navigation to overlays...");
 
       // AI : Check if we have initial country markers
       const initialCountryMarkers = await this.getCountryMarkerCount();
       console.log(`Initial country markers: ${initialCountryMarkers}`);
 
       if (initialCountryMarkers === 0) {
-        console.log('No country markers available for navigation');
+        console.log("No country markers available for navigation");
         return false;
       }
 
@@ -405,7 +420,7 @@ export class MapTestHelpers {
       console.log(`Attempting to click country marker ${countryIndex}`);
       const countryClicked = await this.clickCountryMarker(countryIndex);
       if (!countryClicked) {
-        console.log('Failed to click country marker');
+        console.log("Failed to click country marker");
         return false;
       }
 
@@ -418,14 +433,14 @@ export class MapTestHelpers {
         console.log(`Attempting to click city marker ${cityIndex}`);
         const cityClicked = await this.clickCityMarker(cityIndex);
         if (!cityClicked) {
-          console.log('Failed to click city marker');
+          console.log("Failed to click city marker");
           return false;
         }
 
         const overlayMarkers = await this.getOverlayMarkerCount();
         console.log(`Overlay markers after city click: ${overlayMarkers}`);
       } else {
-        console.log('No city markers appeared after country click - may have direct overlays');
+        console.log("No city markers appeared after country click - may have direct overlays");
         // AI : Check if overlays appeared directly after country click
         await this.page.waitForTimeout(1000);
         const overlayMarkers = await this.getOverlayMarkerCount();
@@ -436,11 +451,13 @@ export class MapTestHelpers {
       const finalCityMarkers = await this.getCityMarkerCount();
       const finalOverlayMarkers = await this.getOverlayMarkerCount();
 
-      console.log(`Final state - Country: ${finalCountryMarkers}, City: ${finalCityMarkers}, Overlay: ${finalOverlayMarkers}`);
+      console.log(
+        `Final state - Country: ${finalCountryMarkers}, City: ${finalCityMarkers}, Overlay: ${finalOverlayMarkers}`,
+      );
 
       return true;
     } catch (error) {
-      console.error('Navigation failed:', error);
+      console.error("Navigation failed:", error);
       return false;
     }
   }
@@ -451,22 +468,22 @@ export class MapTestHelpers {
   async isEditModeActive(): Promise<boolean> {
     try {
       // AI : First check if user is authenticated (edit mode only available for authenticated users)
-      const authHelper = await import('./auth-helpers');
+      const authHelper = await import("./auth-helpers");
       const authHelperInstance = new authHelper.AuthTestHelpers(this.page);
       const isAuthenticated = await authHelperInstance.isAuthenticated();
 
       if (!isAuthenticated) {
-        console.log('User not authenticated - edit mode not available');
+        console.log("User not authenticated - edit mode not available");
         return false;
       }
 
       // AI : Check if mode indicator has edit-mode class
-      const modeIndicator = this.page.locator('.mode-indicator');
+      const modeIndicator = this.page.locator(".mode-indicator");
       await modeIndicator.waitFor({ timeout: 5000 });
-      const hasEditClass = await modeIndicator.evaluate(el => el.classList.contains('edit-mode'));
+      const hasEditClass = await modeIndicator.evaluate((el) => el.classList.contains("edit-mode"));
       return hasEditClass;
     } catch (error) {
-      console.error('Error checking edit mode:', error);
+      console.error("Error checking edit mode:", error);
       return false;
     }
   }
@@ -480,11 +497,11 @@ export class MapTestHelpers {
       await this.page.waitForTimeout(500);
 
       // AI : Count visible overlay elements on the map
-      const overlayCount = await this.page.locator('.leaflet-overlay-pane img').count();
+      const overlayCount = await this.page.locator(".leaflet-overlay-pane img").count();
       console.log(`Found ${overlayCount} overlays on the map`);
       return overlayCount;
     } catch (error) {
-      console.error('Error counting overlays:', error);
+      console.error("Error counting overlays:", error);
       return 0;
     }
   }
@@ -497,8 +514,8 @@ export class MapTestHelpers {
     const alertCount = await alerts.count();
 
     for (let i = 0; i < alertCount; i++) {
-      const closeButton = alerts.nth(i).getByRole('button', { name: 'Close' });
-      if (await closeButton.count() > 0) {
+      const closeButton = alerts.nth(i).getByRole("button", { name: "Close" });
+      if ((await closeButton.count()) > 0) {
         await closeButton.click();
         await this.page.waitForTimeout(300);
       }

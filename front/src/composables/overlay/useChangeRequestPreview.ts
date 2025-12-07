@@ -1,6 +1,6 @@
 import L, { type LatLng } from "leaflet";
 import { computed } from "vue";
-import { t } from '@/locales';
+import { t } from "@/locales";
 import { useToast } from "@/composables/ui/useToast";
 import { map } from "@/composables/core/useMap";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -223,18 +223,15 @@ export function useChangeRequestPreview() {
   }
 
   // AI : Get target corners based on preview type
-  function getTargetCorners(
-    overlayObject: OverlayObject,
-    type: "old" | "new",
-  ): L.LatLng[] | null {
+  function getTargetCorners(overlayObject: OverlayObject, type: "old" | "new"): L.LatLng[] | null {
     if (type === "new") {
       // AI : Show suggested position
       if (!overlayObject.suggestedCorners || overlayObject.suggestedCorners.length !== 4) {
         console.warn("No suggested corners available for overlay", overlayObject.id);
         return null;
       }
-      return overlayObject.suggestedCorners.map(
-        (c: { lat: number; lng: number }) => L.latLng(c.lat, c.lng),
+      return overlayObject.suggestedCorners.map((c: { lat: number; lng: number }) =>
+        L.latLng(c.lat, c.lng),
       );
     } else {
       // AI : Show approved position (always in corners field)

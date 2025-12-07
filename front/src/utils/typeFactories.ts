@@ -77,7 +77,7 @@ export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayO
   const id = data.id ?? uuidv4();
   const status = data.status ?? "pending";
   // AI : Pending overlays are stored locally, not in R2 - force backend URL for them
-  const isPending = status === 'pending';
+  const isPending = status === "pending";
 
   return {
     id,
@@ -110,8 +110,10 @@ export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayO
 export function createOverlayFromCDN(overlayData: OverlayData): OverlayObject {
   const isDataUrl = overlayData.filename.startsWith("data:");
   // AI : Pending overlays are stored locally, not in R2 - force backend URL for them
-  const isPending = overlayData.status === 'pending';
-  const imageUrl = isDataUrl ? overlayData.filename : buildImageUrl(overlayData.filename, isPending);
+  const isPending = overlayData.status === "pending";
+  const imageUrl = isDataUrl
+    ? overlayData.filename
+    : buildImageUrl(overlayData.filename, isPending);
 
   return createOverlayObject({
     ...overlayData,

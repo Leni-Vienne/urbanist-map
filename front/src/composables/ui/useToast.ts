@@ -1,8 +1,8 @@
 // @ts-expect-error AI : PrimeVue toasteventbus lacks type declarations
-import ToastEventBus from 'primevue/toasteventbus';
+import ToastEventBus from "primevue/toasteventbus";
 
 interface ToastMessage {
-  severity?: 'success' | 'info' | 'warn' | 'error';
+  severity?: "success" | "info" | "warn" | "error";
   summary?: string;
   detail?: string;
   life?: number;
@@ -23,16 +23,16 @@ interface ToastServiceMethods {
 export function useToast(): ToastServiceMethods {
   return {
     add: (message) => {
-      ToastEventBus.emit('add', message);
+      ToastEventBus.emit("add", message);
     },
     remove: (message) => {
-      ToastEventBus.emit('remove', message);
+      ToastEventBus.emit("remove", message);
     },
     removeGroup: (group) => {
-      ToastEventBus.emit('remove-group', group);
+      ToastEventBus.emit("remove-group", group);
     },
     removeAllGroups: () => {
-      ToastEventBus.emit('remove-all-groups');
-    }
+      ToastEventBus.emit("remove-all-groups");
+    },
   };
 }

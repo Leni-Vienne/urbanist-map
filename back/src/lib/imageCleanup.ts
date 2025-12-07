@@ -1,26 +1,28 @@
-import { db } from '../database';
-import { scheduledDeletions } from '../db/schema';
-import { lte, eq } from 'drizzle-orm';
-import { LocalFileStorage, R2StorageS3, getThumbnailFilename } from './storage';
+import { db } from "../database";
+import { scheduledDeletions } from "../db/schema";
+import { lte, eq } from "drizzle-orm";
+import { LocalFileStorage, R2StorageS3, getThumbnailFilename } from "./storage";
 
 // AI : Schedule image deletion for a future date (used for replaced/rejected overlays)
 export async function scheduleImageCleanup(
   overlayId: string,
   filename: string,
   deletionDate: Date,
-  deletionType: 'full' | 'thumbnail' | 'both'
+  deletionType: "full" | "thumbnail" | "both",
 ): Promise<void> {
   try {
     await db.insert(scheduledDeletions).values({
       overlayId,
       filename,
       deletionDate,
-      deletionType
+      deletionType,
     });
 
-    console.log(`Scheduled ${deletionType} deletion for ${filename} on ${deletionDate.toISOString()}`);
+    console.log(
+      `Scheduled ${deletionType} deletion for ${filename} on ${deletionDate.toISOString()}`,
+    );
   } catch (error) {
-    console.error('Failed to schedule image cleanup:', error);
+    console.error("Failed to schedule image cleanup:", error);
     throw error;
   }
 }
@@ -45,7 +47,7 @@ export async function executePendingDeletions(): Promise<{ deleted: number; fail
       endpoint: process.env.R2_ENDPOINT!,
       accessKeyId: process.env.R2_ACCESS_KEY_ID!,
       secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-      bucketName: process.env.R2_BUCKET_NAME!
+      bucketName: process.env.R2_BUCKET_NAME!,
     });
 
     for (const item of pendingDeletions) {
@@ -53,7 +55,7 @@ export async function executePendingDeletions(): Promise<{ deleted: number; fail
         const thumbnailFilename = getThumbnailFilename(item.filename);
 
         // AI : Delete based on deletion type
-        if (item.deletionType === 'full' || item.deletionType === 'both') {
+        if (item.deletionType === "full" || item.deletionType === "both") {
           try {
             await r2Storage.delete(item.filename);
             console.log(`Deleted full image: ${item.filename}`);
@@ -62,7 +64,7 @@ export async function executePendingDeletions(): Promise<{ deleted: number; fail
           }
         }
 
-        if (item.deletionType === 'thumbnail' || item.deletionType === 'both') {
+        if (item.deletionType === "thumbnail" || item.deletionType === "both") {
           try {
             await r2Storage.delete(thumbnailFilename);
             console.log(`Deleted thumbnail: ${thumbnailFilename}`);
@@ -83,7 +85,7 @@ export async function executePendingDeletions(): Promise<{ deleted: number; fail
     console.log(`Cleanup complete: ${deleted} deleted, ${failed} failed`);
     return { deleted, failed };
   } catch (error) {
-    console.error('Error executing pending deletions:', error);
+    console.error("Error executing pending deletions:", error);
     throw error;
   }
 }
@@ -91,7 +93,7 @@ export async function executePendingDeletions(): Promise<{ deleted: number; fail
 // AI : Delete local images immediately (for rejected/deleted pending overlays)
 export async function deleteLocalImages(
   filename: string,
-  deleteType: 'full' | 'thumbnail' | 'both'
+  deleteType: "full" | "thumbnail" | "both",
 ): Promise<void> {
   const localStorage = new LocalFileStorage();
   const thumbnailFilename = getThumbnailFilename(filename);
@@ -99,7 +101,7 @@ export async function deleteLocalImages(
 
   try {
     // AI : Delete full image if requested
-    if (deleteType === 'full' || deleteType === 'both') {
+    if (deleteType === "full" || deleteType === "both") {
       try {
         await localStorage.delete(filename);
       } catch (error) {
@@ -109,7 +111,7 @@ export async function deleteLocalImages(
     }
 
     // AI : Delete thumbnail if requested
-    if (deleteType === 'thumbnail' || deleteType === 'both') {
+    if (deleteType === "thumbnail" || deleteType === "both") {
       try {
         await localStorage.delete(thumbnailFilename);
       } catch (error) {
@@ -120,14 +122,14 @@ export async function deleteLocalImages(
 
     // AI : Log failed deletions for manual cleanup (fallback strategy)
     if (failedFiles.length > 0) {
-      const fs = await import('fs/promises');
-      const logEntry = `${new Date().toISOString()} - Failed to delete: ${failedFiles.join(', ')}\n`;
-      await fs.appendFile('./orphaned_files.txt', logEntry).catch(error => {
-        console.error('Failed to write to orphaned files log:', error);
+      const fs = await import("fs/promises");
+      const logEntry = `${new Date().toISOString()} - Failed to delete: ${failedFiles.join(", ")}\n`;
+      await fs.appendFile("./orphaned_files.txt", logEntry).catch((error) => {
+        console.error("Failed to write to orphaned files log:", error);
       });
     }
   } catch (error) {
-    console.error('Error deleting local images:', error);
+    console.error("Error deleting local images:", error);
     throw error;
   }
 }
@@ -135,22 +137,24 @@ export async function deleteLocalImages(
 // AI : Delete images immediately (handles both production/R2 and development/local)
 export async function deleteImages(
   filename: string,
-  deleteType: 'full' | 'thumbnail' | 'both'
+  deleteType: "full" | "thumbnail" | "both",
 ): Promise<void> {
-  const isProduction = process.env.NODE_ENV === 'production';
-  const storage = isProduction ? new R2StorageS3({
-    endpoint: process.env.R2_ENDPOINT!,
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-    bucketName: process.env.R2_BUCKET_NAME!
-  }) : new LocalFileStorage();
+  const isProduction = process.env.NODE_ENV === "production";
+  const storage = isProduction
+    ? new R2StorageS3({
+        endpoint: process.env.R2_ENDPOINT!,
+        accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+        bucketName: process.env.R2_BUCKET_NAME!,
+      })
+    : new LocalFileStorage();
 
   const thumbnailFilename = getThumbnailFilename(filename);
   const failedFiles: string[] = [];
 
   try {
     // AI : Delete full image if requested
-    if (deleteType === 'full' || deleteType === 'both') {
+    if (deleteType === "full" || deleteType === "both") {
       try {
         await storage.delete(filename);
       } catch (error) {
@@ -160,7 +164,7 @@ export async function deleteImages(
     }
 
     // AI : Delete thumbnail if requested
-    if (deleteType === 'thumbnail' || deleteType === 'both') {
+    if (deleteType === "thumbnail" || deleteType === "both") {
       try {
         await storage.delete(thumbnailFilename);
       } catch (error) {
@@ -171,14 +175,14 @@ export async function deleteImages(
 
     // AI : Log failed deletions for manual cleanup
     if (failedFiles.length > 0 && !isProduction) {
-      const fs = await import('fs/promises');
-      const logEntry = `${new Date().toISOString()} - Failed to delete: ${failedFiles.join(', ')}\n`;
-      await fs.appendFile('./orphaned_files.txt', logEntry).catch(error => {
-        console.error('Failed to write to orphaned files log:', error);
+      const fs = await import("fs/promises");
+      const logEntry = `${new Date().toISOString()} - Failed to delete: ${failedFiles.join(", ")}\n`;
+      await fs.appendFile("./orphaned_files.txt", logEntry).catch((error) => {
+        console.error("Failed to write to orphaned files log:", error);
       });
     }
   } catch (error) {
-    console.error('Error deleting images:', error);
+    console.error("Error deleting images:", error);
     throw error;
   }
 }

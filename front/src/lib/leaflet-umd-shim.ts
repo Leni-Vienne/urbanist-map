@@ -7,7 +7,7 @@ This shim just provides the ESM export with TypeScript typing for the global L o
 */
 
 // AI : Use type-only import to avoid bundling
-import type * as LeafletTypes from 'leaflet';
+import type * as LeafletTypes from "leaflet";
 
 // AI : Get the global L object with proper typing
 const { L } = globalThis as { L: typeof LeafletTypes };

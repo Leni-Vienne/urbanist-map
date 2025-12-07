@@ -11,11 +11,14 @@ import type { Project, OverlayObject } from "@/types/index";
 import type { FieldChange } from "@shared/types";
 import { storeToRefs } from "pinia";
 import { computed } from "vue";
-import { t } from '@/locales';
+import { t } from "@/locales";
 import { useChangeRequests } from "@/composables/changes/useChanges";
 import { formatDate } from "@/utils/dateFormat";
 import { projectSchema, overlaySchema, getValidationErrorsMap } from "@shared/validation/schemas";
-import { prepareProjectValidationData, prepareOverlayValidationData } from "@/utils/validationHelpers";
+import {
+  prepareProjectValidationData,
+  prepareOverlayValidationData,
+} from "@/utils/validationHelpers";
 
 // AI : Unified submission types for consolidated workflow
 export type SubmissionChangeType = "create" | "update_pending" | "update_approved";
@@ -103,7 +106,6 @@ export function useSubmissionService() {
   const projectStore = useProjectStore();
   const mapStore = useMapStore();
   const { currentCityOverlays } = storeToRefs(mapStore);
-  ;
   const { resetChangeRequestsLoaded, refreshPendingChangeRequests } = useChangeRequests();
 
   // AI : Build a combined city name cache from store cache + projects we've seen
@@ -376,14 +378,14 @@ export function useSubmissionService() {
     if (context.entityType === "project") {
       const validationData = prepareProjectValidationData(context.entity, {
         lat: context.entity.lat,
-        lng: context.entity.lng
+        lng: context.entity.lng,
       });
-      
+
       const result = projectSchema.safeParse(validationData);
-      
+
       if (!result.success) {
         const zodErrors = getValidationErrorsMap(result.error);
-        Object.values(zodErrors).forEach(error => {
+        Object.values(zodErrors).forEach((error) => {
           errors.push(t(error.key, error.params ?? {}));
         });
       }
@@ -392,20 +394,20 @@ export function useSubmissionService() {
     // AI : Overlay-specific validation with Zod
     if (context.entityType === "overlay") {
       const corners = context.entity.overlay?.getCorners() ?? context.entity.corners;
-      
+
       const validationData = prepareOverlayValidationData({
         id: context.entity.id,
         filename: context.entity.filename,
         caption: context.entity.caption,
         projectId: context.entity.projectId,
-        corners: corners.map((c: any) => ({ lat: c.lat, lng: c.lng }))
+        corners: corners.map((c: any) => ({ lat: c.lat, lng: c.lng })),
       });
-      
+
       const result = overlaySchema.safeParse(validationData);
-      
+
       if (!result.success) {
         const zodErrors = getValidationErrorsMap(result.error);
-        Object.values(zodErrors).forEach(error => {
+        Object.values(zodErrors).forEach((error) => {
           errors.push(t(error.key, error.params ?? {}));
         });
       }
@@ -531,7 +533,7 @@ export function useSubmissionService() {
       context.entity.hasPendingChanges = true;
 
       // AI : Save suggested corners from the change request so "view suggested position" button works immediately
-      const cornersChange = changes.find(c => c.fieldName === 'corners');
+      const cornersChange = changes.find((c) => c.fieldName === "corners");
       if (cornersChange?.newValue) {
         context.entity.suggestedCorners = cornersChange.newValue as { lat: number; lng: number }[];
         // AI : User is currently viewing the suggested position (the position they just modified)

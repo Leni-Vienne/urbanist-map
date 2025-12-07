@@ -6,6 +6,7 @@
     >
       <div class="form-group">
         <label for="caption">{{ $t('overlay.overlayNameCaption') }}</label>
+
         <InputText
           id="caption"
           v-model="form.formData.caption"
