@@ -1,4 +1,4 @@
-import { adminProcedure, moderatorProcedure, protectedProcedure, router } from '../trpc';
+import { adminProcedure, moderatorProcedure, loggedInProcedure, router } from '../trpc';
 import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
 import { projects, overlays, changeRequests, changeHistory, users, cities } from '../db/schema';
 import { eq, and, inArray, sql, or } from 'drizzle-orm';
@@ -154,7 +154,7 @@ const changeRequestSelectFields = {
 } as const;
 
 export const changesRouter = router({
-  submitChangeRequest: protectedProcedure
+  submitChangeRequest: loggedInProcedure
     .input(submitChangeRequestSchema)
     .mutation(async ({ input, ctx }) => {
       try {
@@ -203,7 +203,7 @@ export const changesRouter = router({
       }
     }),
 
-  deleteChangeRequest: protectedProcedure
+  deleteChangeRequest: loggedInProcedure
     .input(z.object({ id: z.uuid() }))
     .mutation(async ({ input, ctx }) => {
       try {
@@ -251,7 +251,7 @@ export const changesRouter = router({
       }
     }),
 
-  getMyChangeRequests: protectedProcedure
+  getMyChangeRequests: loggedInProcedure
     .query(async ({ ctx }) => {
       try {
         const userId = ctx.user?.id;

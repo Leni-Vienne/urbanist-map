@@ -1,7 +1,7 @@
 <template>
   <!-- AI : Reusable timeline status selector for project forms -->
-  <div class="field">
-    <label class="text-gray-600 font-medium mb-2 block">{{ $t('project.timelineStatus') }} *</label>
+  <fieldset class="field">
+    <legend class="text-gray-600 font-medium mb-2 block">{{ $t('project.timelineStatus') }} *</legend>
     <div class="flex gap-4">
       <!-- AI : Proposed status option -->
       <div
@@ -51,7 +51,7 @@
         </div>
       </div>
     </div>
-  </div>
+  </fieldset>
 </template>
 
 <script setup lang="ts">

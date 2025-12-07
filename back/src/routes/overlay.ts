@@ -1,4 +1,4 @@
-import { publicProcedure, protectedProcedure, router, TRPCError } from '../trpc';
+import { publicProcedure, loggedInProcedure, router, TRPCError } from '../trpc';
 import * as z from 'zod' // smaller bundle compared to 'import { z } from 'zod';
 import { overlays, projects, cities, countries, type ApprovalStatus } from '../db/schema';
 import type * as schema from '../db/schema';
@@ -200,7 +200,7 @@ export const overlayRouter = router({
       }
     }),
 
-    publishOverlay: protectedProcedure
+    publishOverlay: loggedInProcedure
       .input(publishOverlaySchema)
       .mutation(async ({ input, ctx }) => {
         try {
@@ -306,7 +306,7 @@ export const overlayRouter = router({
           });
         }
       }),  // AI : Update overlay fields directly (for pending overlays)
-  updateOverlay: protectedProcedure
+  updateOverlay: loggedInProcedure
     .input(updateOverlaySchema)
     .mutation(async ({ input, ctx }) => {
       try {
@@ -349,7 +349,7 @@ export const overlayRouter = router({
     }),
 
   // AI : Delete overlay (only pending overlays can be deleted by their owner)
-  deleteOverlay: protectedProcedure
+  deleteOverlay: loggedInProcedure
     .input(z.object({ id: z.uuid() }))
     .mutation(async ({ input, ctx }) => {
       try {
@@ -409,7 +409,7 @@ export const overlayRouter = router({
     }),
 
   // AI : Get moderated contributions (rejected/replaced overlays) for the current user
-  getModeratedContributions: protectedProcedure
+  getModeratedContributions: loggedInProcedure
     .query(async ({ ctx }) => {
       try {
         const userId = ctx.user?.id;
@@ -445,7 +445,7 @@ export const overlayRouter = router({
     }),
 
   // AI : Acknowledge/clear moderated contributions (immediate cleanup)
-  acknowledgeModeratedContributions: protectedProcedure
+  acknowledgeModeratedContributions: loggedInProcedure
     .input(z.object({
       overlayIds: z.array(z.uuid()).min(1).max(50) // AI : Limit to 50 items at once
     }))

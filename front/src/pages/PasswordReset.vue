@@ -19,6 +19,7 @@
               toggleMask
               :placeholder="$t('auth.chooseStrongPassword')"
               :class="{ 'p-invalid': passwordError }"
+              :inputProps="{ autocomplete: 'new-password' }"
               required
             />
             <small v-if="passwordError" class="p-error">{{ passwordError }}</small>
@@ -33,6 +34,7 @@
               toggleMask
               :placeholder="$t('auth.confirmPassword')"
               :class="{ 'p-invalid': confirmError }"
+              :inputProps="{ autocomplete: 'new-password' }"
               required
             />
             <small v-if="confirmError" class="p-error">{{ confirmError }}</small>

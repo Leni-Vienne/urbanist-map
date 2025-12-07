@@ -95,6 +95,6 @@ export const isModeratorOrAdmin = t.middleware(async ({ ctx, next }) => {
     });
 });
 
-export const protectedProcedure = t.procedure.use(isAuthed);
+export const loggedInProcedure = t.procedure.use(isAuthed);
 export const adminProcedure = t.procedure.use(isAdmin);
 export const moderatorProcedure = t.procedure.use(isModeratorOrAdmin);

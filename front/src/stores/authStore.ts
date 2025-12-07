@@ -202,48 +202,51 @@ export const useAuthStore = defineStore('auth', () => {
         try {
           globalThis.google.accounts.id.initialize({
             client_id: clientId,
-            callback: async (response: { credential: string }) => {
-              clearTimeout(timeout)
+            callback: (response: { credential: string }) => {
+              clearTimeout(timeout);
 
-              try {
-                // AI : Send the Google token to our backend
-                const result = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/google-login`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({ token: response.credential, rememberMe }),
-                  credentials: 'include'
-                })
-
-                const data: { success: boolean; user?: User; error?: string } = await result.json()
-
-                if (result.ok && data.success) {
-                  user.value = data.user ?? null
-                  // AI : Store last login method for UX hint
-                  if (data.user?.email) {
-                    localStorage.setItem(`lastLoginMethod:${data.user.email}`, 'google')
-                  }
-                  resolve({
-                    success: true,
-                    user: data.user ?? null,
-                    error: null
+              // AI : Handle async operations internally to satisfy void return type
+              (async () => {
+                try {
+                  // AI : Send the Google token to our backend
+                  const result = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/google-login`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ token: response.credential, rememberMe }),
+                    credentials: 'include'
                   })
-                } else {
+
+                  const data: { success: boolean; user?: User; error?: string } = await result.json()
+
+                  if (result.ok && data.success) {
+                    user.value = data.user ?? null
+                    // AI : Store last login method for UX hint
+                    if (data.user?.email) {
+                      localStorage.setItem(`lastLoginMethod:${data.user.email}`, 'google')
+                    }
+                    resolve({
+                      success: true,
+                      user: data.user ?? null,
+                      error: null
+                    })
+                  } else {
+                    resolve({
+                      success: false,
+                      user: null,
+                      error: data.error ?? 'Google authentication failed'
+                    })
+                  }
+                } catch (error: unknown) {
+                  console.error('Google OAuth error:', error)
                   resolve({
                     success: false,
                     user: null,
-                    error: data.error ?? 'Google authentication failed'
+                    error: error instanceof Error ? error.message : 'Google authentication failed'
                   })
                 }
-              } catch (error: unknown) {
-                console.error('Google OAuth error:', error)
-                resolve({
-                  success: false,
-                  user: null,
-                  error: error instanceof Error ? error.message : 'Google authentication failed'
-                })
-              }
+              })()
             },
             auto_select: false,
             cancel_on_tap_outside: true

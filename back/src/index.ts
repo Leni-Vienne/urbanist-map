@@ -172,140 +172,204 @@ app.post('/api/login', async (c) => {
     }
 });
 
+// AI : Helper function to validate Google login request
+async function validateGoogleLoginRequest(body: unknown) {
+    const googleLoginSchema = z.object({
+        token: z.string().min(1, 'Google token is required'),
+        rememberMe: z.boolean().optional().default(false)
+    });
+
+    const validationResult = googleLoginSchema.safeParse(body);
+    if (!validationResult.success) {
+        const errorMessage = validationResult.error.issues.map((err) => err.message).join(', ');
+        throw new Error(errorMessage);
+    }
+
+    return validationResult.data;
+}
+
+// AI : Helper function to update existing user's email if changed on Google's side
+async function updateExistingUserEmail(existingUser: any, newEmail: string) {
+    const { db } = await import('./database');
+    const { users } = await import('./db/schema');
+    const { eq } = await import('drizzle-orm');
+
+    if (existingUser.email !== newEmail) {
+        await db.update(users)
+            .set({
+                email: newEmail,
+                emailVerified: true,
+                emailVerificationToken: null,
+            })
+            .where(eq(users.id, existingUser.id));
+
+        // AI : Refetch updated user
+        const [updatedUser] = await db.select().from(users).where(eq(users.id, existingUser.id)).limit(1);
+        return updatedUser;
+    }
+
+    return existingUser;
+}
+
+// AI : Helper function to link Google account to existing password-based account
+async function linkGoogleToPasswordAccount(emailUser: any, googleId: string) {
+    const { db } = await import('./database');
+    const { users } = await import('./db/schema');
+    const { eq } = await import('drizzle-orm');
+
+    await db.update(users)
+        .set({
+            googleId,
+            emailVerified: true,
+            emailVerificationToken: null,
+        })
+        .where(eq(users.id, emailUser.id));
+
+    return {
+        ...emailUser,
+        googleId,
+        emailVerified: true
+    };
+}
+
+// AI : Helper function to generate unique username
+async function generateUniqueUsername(baseUsername: string) {
+    const { db } = await import('./database');
+    const { users } = await import('./db/schema');
+    const { eq } = await import('drizzle-orm');
+
+    let finalUsername = baseUsername;
+    let counter = 1;
+
+    while (true) {
+        const existingUsername = await db.select().from(users).where(eq(users.username, finalUsername)).limit(1);
+        if (existingUsername.length === 0) break;
+        finalUsername = `${baseUsername}${counter}`;
+        counter++;
+    }
+
+    return finalUsername;
+}
+
+// AI : Helper function to create new Google OAuth user
+async function createGoogleUser(googleUser: { email: string; name: string; googleId: string }) {
+    const { db } = await import('./database');
+    const { users } = await import('./db/schema');
+
+    const finalUsername = await generateUniqueUsername(googleUser.name);
+
+    const [newUser] = await db.insert(users).values({
+        email: googleUser.email,
+        username: finalUsername,
+        emailVerified: true,
+        passwordHash: null,
+        googleId: googleUser.googleId,
+    }).returning();
+
+    return newUser;
+}
+
+// AI : Helper function to find or create user from Google authentication
+async function findOrCreateGoogleUser(googleUser: { email: string; name: string; googleId: string }) {
+    const { db } = await import('./database');
+    const { users } = await import('./db/schema');
+    const { eq } = await import('drizzle-orm');
+
+    // AI : SECURE: First check by googleId (not email!)
+    let [existingUser] = await db.select().from(users).where(eq(users.googleId, googleUser.googleId)).limit(1);
+
+    if (existingUser) {
+        // AI : User found by Google ID - update email if changed on Google's side
+        return await updateExistingUserEmail(existingUser, googleUser.email);
+    }
+
+    // AI : No user found by Google ID - check if email exists with different auth method
+    const [emailUser] = await db.select().from(users).where(eq(users.email, googleUser.email)).limit(1);
+
+    if (emailUser) {
+        if (emailUser.googleId) {
+            // AI : SECURITY: Email already linked to a different Google account
+            throw Object.assign(
+                new Error('auth.error.emailLinkedToDifferentGoogle'),
+                { statusCode: 409, action: 'account_conflict' }
+            );
+        }
+
+        // AI : SECURE AUTO-LINKING: Link Google account to existing password account
+        return await linkGoogleToPasswordAccount(emailUser, googleUser.googleId);
+    }
+
+    // AI : Create new Google OAuth user
+    return await createGoogleUser(googleUser);
+}
+
+// AI : Helper function to set user session
+function setUserSession(c: Context, user: any, rememberMe: boolean) {
+    const session = c.get('session');
+
+    const sessionDuration = rememberMe ? SESSION_DURATION_LONG : SESSION_DURATION_SHORT;
+    const expiresAt = new Date(Date.now() + sessionDuration * 1000);
+
+    session.set('user', {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+        moderatedCountries: user.moderatedCountries,
+        emailVerified: user.emailVerified,
+    });
+
+    session.set('expiresAt', expiresAt.toISOString());
+}
+
 // AI : Google OAuth login endpoint
 app.post('/api/google-login', async (c) => {
     try {
         const body = await c.req.json();
-
-        // AI : Validate request body with Zod
-        const googleLoginSchema = z.object({
-            token: z.string().min(1, 'Google token is required'),
-            rememberMe: z.boolean().optional().default(false)
-        });
-
-        const validationResult = googleLoginSchema.safeParse(body);
-        if (!validationResult.success) {
-            const errorMessage = validationResult.error.issues.map((err) => err.message).join(', ');
-            return c.json({ error: errorMessage }, 400);
-        }
-
-        const { token, rememberMe } = validationResult.data;
-
-        // AI : Import Google auth utility
-        const { verifyGoogleToken } = await import('./utils/googleAuth');
-        const { db } = await import('./database');
-        const { users } = await import('./db/schema');
-        const { eq } = await import('drizzle-orm');
+        const { token, rememberMe } = await validateGoogleLoginRequest(body);
 
         // AI : Verify Google token
+        const { verifyGoogleToken } = await import('./utils/googleAuth');
         const googleUser = await verifyGoogleToken(token);
+
         if (!googleUser) {
             return c.json({ error: 'auth.error.invalidGoogleToken' }, 401);
         }
 
-        // AI : SECURE: First check by googleId (not email!)
-        let [existingUser] = await db.select().from(users).where(eq(users.googleId, googleUser.googleId)).limit(1);
+        // AI : Find existing user or create new one
+        const user = await findOrCreateGoogleUser(googleUser);
 
-        if (existingUser) {
-            // AI : User found by Google ID - this is definitely the same person
-            // Update email if it changed on Google's side, but keep username stable
-            if (existingUser.email !== googleUser.email) {
-                await db.update(users)
-                    .set({
-                        email: googleUser.email, // AI : Email might have changed on Google
-                        emailVerified: true,
-                        emailVerificationToken: null,
-                    })
-                    .where(eq(users.id, existingUser.id));
-
-                // AI : Refetch updated user
-                [existingUser] = await db.select().from(users).where(eq(users.id, existingUser.id)).limit(1);
-            }
-        } else {
-            // AI : No user found by Google ID - check if email exists with different auth method
-            const [emailUser] = await db.select().from(users).where(eq(users.email, googleUser.email)).limit(1);
-
-            if (emailUser) {
-                // AI : Email exists with password-based account
-                if (emailUser.googleId) {
-                    // AI : SECURITY: Email already linked to a different Google account - block
-                    return c.json({
-                        error: 'auth.error.emailLinkedToDifferentGoogle',
-                        action: 'account_conflict'
-                    }, 409);
-                }
-
-                // AI : SECURE AUTO-LINKING: User authenticated via Google OAuth proves they control the email
-                // AI : Link Google account to existing email/password account
-                await db.update(users)
-                    .set({
-                        googleId: googleUser.googleId,
-                        emailVerified: true,
-                        emailVerificationToken: null,
-                    })
-                    .where(eq(users.id, emailUser.id));
-
-                existingUser = emailUser;
-                existingUser.googleId = googleUser.googleId;
-                existingUser.emailVerified = true;
-            } else {
-                // AI : Safe to create new Google OAuth user
-                const username = googleUser.name;
-
-                // AI : Check if username is taken and generate unique one if needed
-                let finalUsername = username;
-                let counter = 1;
-                while (true) {
-                    const existingUsername = await db.select().from(users).where(eq(users.username, finalUsername)).limit(1);
-                    if (existingUsername.length === 0) break;
-                    finalUsername = `${username}${counter}`;
-                    counter++;
-                }
-
-                // AI : Create user with Google ID as primary identifier
-                [existingUser] = await db.insert(users).values({
-                    email: googleUser.email,
-                    username: finalUsername,
-                    emailVerified: true,
-                    passwordHash: null, // AI : No password for OAuth users
-                    googleId: googleUser.googleId, // AI : Secure identifier from Google
-                }).returning();
-            }
-        }
-
-        // AI : Set session with full user data
-        const session = c.get('session');
-
-        // AI : Calculate session expiry based on Remember Me preference
-        const sessionDuration = rememberMe ? SESSION_DURATION_LONG : SESSION_DURATION_SHORT;
-        const expiresAt = new Date(Date.now() + sessionDuration * 1000);
-
-        session.set('user', {
-            id: existingUser.id,
-            email: existingUser.email,
-            username: existingUser.username,
-            role: existingUser.role,
-            moderatedCountries: existingUser.moderatedCountries,
-            emailVerified: existingUser.emailVerified,
-        });
-
-        // AI : Set custom session expiry
-        session.set('expiresAt', expiresAt.toISOString());
+        // AI : Set session
+        setUserSession(c, user, rememberMe);
 
         return c.json({
             success: true,
             message: 'auth.success.googleAuthSuccess',
             user: {
-                id: existingUser.id,
-                email: existingUser.email,
-                username: existingUser.username,
-                role: existingUser.role,
-                moderatedCountries: existingUser.moderatedCountries,
-                emailVerified: existingUser.emailVerified,
+                id: user.id,
+                email: user.email,
+                username: user.username,
+                role: user.role,
+                moderatedCountries: user.moderatedCountries,
+                emailVerified: user.emailVerified,
             },
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Google login error:', error);
+
+        // AI : Handle account conflict error
+        if (error.statusCode === 409) {
+            return c.json({
+                error: error.message,
+                action: error.action
+            }, 409);
+        }
+
+        // AI : Handle validation errors
+        if (error.message && !error.statusCode) {
+            return c.json({ error: error.message }, 400);
+        }
+
         return c.json({ error: 'auth.error.googleAuthFailed' }, 500);
     }
 });
