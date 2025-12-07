@@ -58,7 +58,7 @@ export interface SubmissionSummary {
   entityType: SubmissionEntityType;
 }
 
-export interface ValidationResult {
+interface ValidationResult {
   isValid: boolean;
   errors: string[];
 }

@@ -982,27 +982,6 @@ function selectAndCenterOverlay(overlayId: string, centerMap: boolean = true) {
   return true;
 }
 
-export function updateTooltipText() {
-  const overlayStore = useOverlayStore();
-  const { projects } = useProjects();
-
-  if (!overlayStore.idSelectedOverlay) return;
-
-  const overlayObject = overlayStore.overlays[overlayStore.idSelectedOverlay];
-  if (!overlayObject?.overlay) return;
-
-  if (overlayObject.projectId) {
-    const project = projects.value[overlayObject.projectId];
-    if (project) {
-      const captionSuffix = overlayObject.caption ? ` - ${overlayObject.caption}` : '';
-      const tooltipText = `${project.name}${captionSuffix}`;
-      overlayObject.overlay?.bindTooltip(tooltipText, { permanent: true, direction: 'top' }).openTooltip();
-    }
-  } else {
-    overlayObject.overlay.bindTooltip('Overlay', { permanent: true, direction: 'top' }).openTooltip();
-  }
-}
-
 export function deleteOverlayButtonPressed(id: string) {
   const overlayStore = useOverlayStore();
   const { projects } = useProjects();
@@ -1038,8 +1017,6 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
   if (!overlayObject) return;
 
   overlayObject.caption = info.caption ?? null;
-
-  updateTooltipText();
 
   // AI : Save only the specific overlay being updated, not all overlays
   updateMarkerTooltip(overlayObject);

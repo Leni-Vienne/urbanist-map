@@ -18,7 +18,6 @@ export interface EditableOverlayFormOptions {
   onSubmitted?: () => void
   onClose?: () => void
 }
-
 export function useEditableOverlayForm(options: EditableOverlayFormOptions) {
   const toast = useToast()
   

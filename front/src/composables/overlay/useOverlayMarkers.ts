@@ -18,7 +18,7 @@ import { calculateCentroidFromCorners } from '@shared/overlayValidation';
 import { getFromEditModeOverlayCache } from '@/composables/overlay/useOverlayPositionManagement';
 import { createOverlayObject } from '@/utils/typeFactories';
 // AI : useI18n() uses Vue's inject() mechanism which is only available synchronously during the setup() phase of a component.
-import { t } from '../../locales';
+import { t } from '@/locales';
 
 /**
  * AI : Update the marker position based on overlay center
@@ -50,8 +50,6 @@ export function createMarkerTitle(overlay: OverlayObject, projectId: string | nu
     baseTitle = 'Replacement Overlay';
   } else if (markerType === 'new') {
     baseTitle = 'New Overlay';
-  } else {
-    baseTitle = 'Overlay';
   }
 
   if (projectId && projectStore.projects[projectId]) {
