@@ -9,43 +9,39 @@
         :class="{ 'bg-blue-50 border-blue-500': modelValue, 'border-gray-300': !modelValue }"
         @click="handleSelect(true)"
       >
-        <!-- AI : RadioButton is display-only, click handled by parent div -->
+        <!-- AI : RadioButton click triggers parent div handler -->
         <RadioButton
           :inputId="`${idPrefix}-status-proposed`"
           :name="`${idPrefix}-timelineStatus`"
           :value="true"
           :modelValue="modelValue"
-          @click.stop.prevent
         />
         <div class="flex-1">
           <label
             :for="`${idPrefix}-status-proposed`"
             class="font-medium cursor-pointer"
-            @click.prevent
           >{{ $t('project.proposed') }}</label>
           <div class="text-xs text-gray-500">{{ $t('project.proposedDescription') }}</div>
         </div>
       </div>
-      
+
       <!-- AI : Planned status option -->
       <div
         class="flex items-center gap-2 flex-1 p-3 border rounded cursor-pointer hover:bg-gray-50"
         :class="{ 'bg-blue-50 border-blue-500': !modelValue, 'border-gray-300': modelValue }"
         @click="handleSelect(false)"
       >
-        <!-- AI : RadioButton is display-only, click handled by parent div -->
+        <!-- AI : RadioButton click triggers parent div handler -->
         <RadioButton
           :inputId="`${idPrefix}-status-planned`"
           :name="`${idPrefix}-timelineStatus`"
           :value="false"
           :modelValue="modelValue"
-          @click.stop.prevent
         />
         <div class="flex-1">
           <label
             :for="`${idPrefix}-status-planned`"
             class="font-medium cursor-pointer"
-            @click.prevent
           >{{ $t('project.plannedStatus') }}</label>
           <div class="text-xs text-gray-500">{{ $t('project.plannedDescription') }}</div>
         </div>
