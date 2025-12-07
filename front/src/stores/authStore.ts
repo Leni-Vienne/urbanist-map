@@ -49,6 +49,67 @@ async function loadGoogleIdentityScript() {
     }
   }
 
+// AI : Helper function to send Google token to backend
+async function sendGoogleTokenToBackend(credential: string, rememberMe: boolean) {
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/google-login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ token: credential, rememberMe }),
+    credentials: 'include'
+  })
+
+  const data: { success: boolean; user?: User; error?: string } = await response.json()
+
+  if (!response.ok || !data.success) {
+    throw new Error(data.error ?? 'Google authentication failed')
+  }
+
+  return data.user ?? null
+}
+
+// AI : Helper function to handle successful Google authentication
+function handleGoogleAuthSuccess(newUser: User | null) {
+  if (newUser?.email) {
+    localStorage.setItem(`lastLoginMethod:${newUser.email}`, 'google')
+  }
+  
+  return {
+    success: true,
+    user: newUser,
+    error: null
+  }
+}
+
+// AI : Helper function to create Google callback handler
+function createGoogleCallbackHandler(
+  rememberMe: boolean,
+  userRef: { value: User | null },
+  resolve: (value: { success: boolean; user: User | null; error: string | null }) => void,
+  clearTimeoutFn: () => void
+) {
+  return (response: { credential: string }) => {
+    clearTimeoutFn();
+
+    // AI : Handle async operations internally to satisfy void return type
+    (async () => {
+      try {
+        const newUser = await sendGoogleTokenToBackend(response.credential, rememberMe)
+        userRef.value = newUser
+        resolve(handleGoogleAuthSuccess(newUser))
+      } catch (error: unknown) {
+        console.error('Google OAuth error:', error)
+        resolve({
+          success: false,
+          user: null,
+          error: error instanceof Error ? error.message : 'Google authentication failed'
+        })
+      }
+    })()
+  }
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const loading = ref(true)
@@ -157,130 +218,78 @@ export const useAuthStore = defineStore('auth', () => {
 
   // AI : Google OAuth authentication using simple One Tap
   async function signInWithOAuth(provider: 'google', rememberMe = false): Promise<{ success: boolean; user: User | null; error: string | null }> {
+    // AI : Early validation checks
+    if (provider !== 'google') {
+      return {
+        success: false,
+        user: null,
+        error: 'Only Google OAuth is currently supported'
+      }
+    }
+
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+    if (!clientId) {
+      return {
+        success: false,
+        user: null,
+        error: 'Google Client ID not configured'
+      }
+    }
+
     try {
-      if (provider !== 'google') {
-        return {
-          success: false,
-          user: null,
-          error: 'Only Google OAuth is currently supported'
-        }
-      }
-
-      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
-      if (!clientId) {
-        return {
-          success: false,
-          user: null,
-          error: 'Google Client ID not configured'
-        }
-      }
-
       // AI : Load Google Identity Services script if not already loaded
       if (!globalThis.google) {
         await loadGoogleIdentityScript()
       }
 
-      return await new Promise((resolve) => {
-        if (!globalThis.google) {
-          resolve({
-            success: false,
-            user: null,
-            error: 'Google Identity Services not loaded'
-          })
-          return
+      if (!globalThis.google) {
+        return {
+          success: false,
+          user: null,
+          error: 'Google Identity Services not loaded'
         }
+      }
 
-        // AI : Set up timeout to handle cases where user doesn't interact
+      // AI : Initialize Google OAuth with Promise-based flow
+      return await new Promise((resolve) => {
         const timeout = setTimeout(() => {
           resolve({
             success: false,
             user: null,
             error: 'Google authentication timed out'
           })
-        }, 60_000) // 60 second timeout
+        }, 60_000)
 
-        try {
-          globalThis.google.accounts.id.initialize({
-            client_id: clientId,
-            callback: (response: { credential: string }) => {
-              clearTimeout(timeout);
-
-              // AI : Handle async operations internally to satisfy void return type
-              (async () => {
-                try {
-                  // AI : Send the Google token to our backend
-                  const result = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/google-login`, {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ token: response.credential, rememberMe }),
-                    credentials: 'include'
-                  })
-
-                  const data: { success: boolean; user?: User; error?: string } = await result.json()
-
-                  if (result.ok && data.success) {
-                    user.value = data.user ?? null
-                    // AI : Store last login method for UX hint
-                    if (data.user?.email) {
-                      localStorage.setItem(`lastLoginMethod:${data.user.email}`, 'google')
-                    }
-                    resolve({
-                      success: true,
-                      user: data.user ?? null,
-                      error: null
-                    })
-                  } else {
-                    resolve({
-                      success: false,
-                      user: null,
-                      error: data.error ?? 'Google authentication failed'
-                    })
-                  }
-                } catch (error: unknown) {
-                  console.error('Google OAuth error:', error)
-                  resolve({
-                    success: false,
-                    user: null,
-                    error: error instanceof Error ? error.message : 'Google authentication failed'
-                  })
-                }
-              })()
-            },
-            auto_select: false,
-            cancel_on_tap_outside: true
-          })
-
-          // AI : Prompt may fail silently or be blocked, catch and handle gracefully
-          // @ts-ignore - Google Identity Services types may be incomplete
-          globalThis.google.accounts.id.prompt((notification: any) => {
-            // AI : Handle prompt cancellation or dismissal
-            if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.()) {
-              clearTimeout(timeout)
-              resolve({
-                success: false,
-                user: null,
-                error: 'Google sign-in was cancelled or not displayed'
-              })
-            }
-          })
-        } catch (error: unknown) {
+        function clearTimeoutFn() {
           clearTimeout(timeout)
-          console.error('Google OAuth prompt error:', error)
-          resolve({
-            success: false,
-            user: null,
-            error: error instanceof Error ? error.message : 'Failed to initialize Google sign-in'
-          })
         }
+
+        globalThis.google!.accounts.id.initialize({
+          client_id: clientId,
+          callback: createGoogleCallbackHandler(rememberMe, user, resolve, clearTimeoutFn),
+          auto_select: false,
+          cancel_on_tap_outside: true
+        })
+
+        // AI : Prompt the user to sign in
+        // @ts-ignore - Google Identity Services types may be incomplete
+        globalThis.google!.accounts.id.prompt((notification: any) => {
+          if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.()) {
+            clearTimeoutFn()
+            resolve({
+              success: false,
+              user: null,
+              error: 'Google sign-in was cancelled or not displayed'
+            })
+          }
+        })
       })
     } catch (error: unknown) {
-      console.error('Google OAuth initialization error:', error)
+      console.error('Google OAuth error:', error)
       return { 
         success: false, 
         user: null,
-        error: error instanceof Error ? error.message : 'Google authentication not available'
+        error: error instanceof Error ? error.message : 'Google authentication failed'
       }
     }
   }

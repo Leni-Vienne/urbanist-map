@@ -10,7 +10,7 @@ import {
   buildOverlayVisibilityCondition,
 } from '../db/helpers';
 import type { MapMode } from '@shared/types';
-import { validateOverlaySize, calculateCentroidFromCorners } from '@shared/overlayValidation';
+import { calculateCentroidFromCorners } from '@shared/overlayValidation';
 import { deleteLocalImages } from '../lib/imageCleanup';
 import { checkPendingLimitForNewContribution } from '../db/contributionHelpers';
 import { overlaySchema } from '@shared/validation/schemas';
@@ -204,15 +204,6 @@ export const overlayRouter = router({
       .input(publishOverlaySchema)
       .mutation(async ({ input, ctx }) => {
         try {
-          // AI : Validate overlay size before processing
-          const sizeValidation = validateOverlaySize(input.corners);
-          if (!sizeValidation.isValid) {
-            throw new TRPCError({
-              code: 'BAD_REQUEST',
-              message: 'Overlay too large (max 1km × 1km)',
-            });
-          }
-
           // AI : Check pending contribution limit for new overlays
           await checkPendingLimitForNewContribution(ctx.user.id, input.id);
 

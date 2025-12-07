@@ -15,12 +15,11 @@ import { createOverlayObject, createOverlayFromCDN, convertOverlayToData } from 
 import { toRef } from 'vue';
 import { useProjects, addOverlayToProjectWithId } from '@/composables/project/useProjects';
 import { trpc } from '@/client';
-import { removeStandaloneProjectMarkerForProject, addStandaloneProjectMarkerForProject } from '@/composables/map/useStandaloneProjectMarkers';
+import { removeStandaloneProjectMarkerForProject } from '@/composables/map/useStandaloneProjectMarkers';
 import { getFromEditModeOverlayCache} from '@/composables/overlay/useOverlayPositionManagement';
 import { withErrorHandling } from '@/composables/core/useErrorHandling';
 import { validateOverlaySize, leafletCornersToCorners } from '@shared/overlayValidation';
 import { useToast } from '@/composables/ui/useToast';
-import { removeOverlayFromMap } from '@/composables/overlay/useOverlayRemoval';
 import { deleteOverlayDirect } from '@/composables/project/useUserContributions';
 import { selectOverlay, setupProjectHoverEvents } from '@/composables/overlay/useOverlaySelection';
 import { initializeOverlayHistory, getCornersForOverlayWithCache, isValidCorners, saveOverlayModificationsToCache, saveToHistory } from '@/composables/overlay/useOverlayHistory';

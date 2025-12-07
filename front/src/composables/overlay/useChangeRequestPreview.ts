@@ -218,7 +218,7 @@ export function useChangeRequestPreview() {
 
     // AI : Select overlay after flyTo completes
     map.value.once("moveend", () => {
-      selectOverlayAfterNavigation(overlayId);
+      selectOverlay(overlayId);
     });
   }
 
@@ -287,12 +287,6 @@ export function useChangeRequestPreview() {
     // AI : If overlay was already loaded, we show both old and new positions with combined bounds
     // AI : If overlay was just loaded, we still navigate to ensure camera is at the correct position
     navigateToPosition(targetLatLngs, previousBounds, overlayId);
-  }
-
-  // AI : Select overlay after navigation (shared helper)
-  function selectOverlayAfterNavigation(overlayId: string): void {
-    // AI : selectOverlay handles overlay.select() internally and has early exit if already selected
-    selectOverlay(overlayId);
   }
 
   // AI : Main function to preview geometry change

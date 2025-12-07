@@ -1,10 +1,6 @@
 {
   "type": "module",
   "scripts": {
-    "unused": "bunx nyc report --reporter=html --reporter=text --report-dir=coverage",
-    "check": "bunx vue-tsc --noEmit",
-    "jscpd": "bunx jscpd .",
-    "oxlint": "bunx oxlint --type-aware",
     "preview": "vite preview front",
     "dev-front": "bunx --bun vite front",
     "build-front-workflow": "bun --bun vite build front --mode=production",
@@ -20,6 +16,11 @@
     "import:cities": "cd back && bun run src/scripts/import-cities.ts",
     "migrate:r2-thumbnails": "cd back && bun --env-file=../.env run src/scripts/generate-r2-thumbnails.ts",
     "cleanup:images": "cd back && bun --env-file=../.env run src/scripts/cleanup-images.ts",
+    "unused-code": "bunx nyc report --reporter=html --reporter=text --report-dir=coverage",
+    "unused-export": "python scripts/find-truly-unused.py",
+    "typecheck": "bunx vue-tsc --noEmit",
+    "jscpd": "bunx jscpd .",
+    "oxlint": "bunx oxlint --type-aware",
     "deps:analyze": "madge --json front/src > deps-analysis.json",
     "deps:circular": "madge --circular --warning front/src",
     "test": "bun run test:back && bun run test:front",

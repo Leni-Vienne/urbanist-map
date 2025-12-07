@@ -11,10 +11,6 @@ import type { Project, OverlayObject } from "@/types/index";
 import type { FieldChange } from "@shared/types";
 import { storeToRefs } from "pinia";
 import { computed } from "vue";
-import {
-  validateOverlaySize,
-  leafletCornersToCorners,
-} from "@shared/overlayValidation";
 import { t } from '@/locales';
 import { useChangeRequests } from "@/composables/changes/useChanges";
 import { formatDate } from "@/utils/dateFormat";
@@ -391,11 +387,6 @@ export function useSubmissionService() {
           errors.push(t(error.key, error.params ?? {}));
         });
       }
-
-      // AI : Additional city validation (not in Zod schema)
-      if (!context.entity.cityId) {
-        errors.push(t("validation.cityRequired"));
-      }
     }
 
     // AI : Overlay-specific validation with Zod
@@ -417,18 +408,6 @@ export function useSubmissionService() {
         Object.values(zodErrors).forEach(error => {
           errors.push(t(error.key, error.params ?? {}));
         });
-      }
-
-      // AI : Additional overlay size validation
-      if (corners && corners.length === 4) {
-        const cornersArray = context.entity.overlay
-          ? leafletCornersToCorners(context.entity.overlay.getCorners())
-          : context.entity.corners.map((c) => ({ lat: c.lat, lng: c.lng }));
-
-        const sizeValidation = validateOverlaySize(cornersArray);
-        if (!sizeValidation.isValid) {
-          errors.push(t("overlay.overlayTooLarge"));
-        }
       }
     }
 

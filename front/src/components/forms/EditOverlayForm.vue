@@ -1,6 +1,9 @@
 <template>
   <div class="editable-overlay-form">
-    <form @submit.prevent="handleSubmit" class="overlay-form">
+    <form
+      @submit.prevent="handleSubmit"
+      class="overlay-form"
+    >
       <div class="form-group">
         <label for="caption">{{ $t('overlay.overlayNameCaption') }}</label>
         <InputText
@@ -8,14 +11,24 @@
           v-model="form.formData.caption"
           :class="getCaptionInputClass()"
           :placeholder="$t('overlay.enterOverlayName')"
+          autocomplete="off"
           @blur="handleCaptionBlur"
           @input="handleCaptionInput"
         />
-        <small v-if="captionError" class="validation-error">{{ captionError }}</small>
-        <small v-else-if="form.hasChanged('caption')" class="change-indicator">
+        <small
+          v-if="captionError"
+          class="validation-error"
+        >{{ captionError }}</small>
+        <small
+          v-else-if="form.hasChanged('caption')"
+          class="change-indicator"
+        >
           {{ $t('overlay.changedFrom') }}: "{{ form.originalData.caption || $t('overlay.notSet') }}"
         </small>
-        <div v-else class="change-indicator-placeholder"></div>
+        <div
+          v-else
+          class="change-indicator-placeholder"
+        ></div>
       </div>
 
       <!-- Form actions -->

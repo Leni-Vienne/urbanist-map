@@ -19,9 +19,6 @@ import countryBboxes from '@/assets/country_bboxes.json';
 // AI : Current camera bounds for view mode
 const currentCameraBounds = ref<CameraBounds | null>(null);
 
-// AI : Callbacks to call when camera stops moving
-const onCameraStopCallbacks: ((bounds: CameraBounds) => void)[] = [];
-
 /**
  * AI : Initialize camera bounds tracking
  */
@@ -60,8 +57,6 @@ export function initializeCameraBounds() {
       };
       currentCameraBounds.value = newBounds;
 
-      // AI : Call all registered callbacks when camera stops moving
-      onCameraStopCallbacks.forEach(callback => { callback(newBounds); });
     } catch (error) {
       console.error('Error updating camera bounds:', error);
     }

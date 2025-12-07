@@ -1,5 +1,6 @@
 // AI : Shared Zod validation schemas for frontend and backend
 import * as z from 'zod'
+import { validateOverlaySize } from '../overlayValidation'
 
 // AI : Project validation schema
 export const projectSchema = z.object({
@@ -58,6 +59,16 @@ export const overlaySchema = z.object({
     lat: z.number().min(-90, 'validation.invalidLatitude').max(90, 'validation.invalidLatitude'),
     lng: z.number().min(-180, 'validation.invalidLongitude').max(180, 'validation.invalidLongitude')
   })).length(4, 'validation.cornersRequired')
+}).superRefine((data, ctx) => {
+  // AI : Validate overlay size constraints (max dimensions in meters)
+  const sizeValidation = validateOverlaySize(data.corners);
+  if (!sizeValidation.isValid) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'overlay.overlayTooLarge',
+      path: ['corners']
+    });
+  }
 });
 
 // AI : Auth validation schemas
