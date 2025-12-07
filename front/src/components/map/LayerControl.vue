@@ -51,8 +51,8 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { currentTileLayer, switchTileLayer, getTileLayerOptions, type TileLayerType } from '@composables/map/useTileLayers';
-import { flyToCountry, mobileAwareFlyTo } from '@composables/map/useMapNavigation';
+import { currentTileLayer, switchTileLayer, getTileLayerOptions, type TileLayerType } from '@/composables/map/useTileLayers';
+import { flyToCountry, mobileAwareFlyTo } from '@/composables/map/useMapNavigation';
 
 // AI : Panel visibility state
 const showLayerPanel = ref(false);

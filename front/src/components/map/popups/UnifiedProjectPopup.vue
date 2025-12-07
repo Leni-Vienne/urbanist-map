@@ -149,9 +149,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useAuthStore } from '@stores/authStore'
+import { useAuthStore } from '@/stores/authStore'
 import { useI18n } from 'vue-i18n'
-import type { OverlayObject, Project } from '@types'
+import type { OverlayObject, Project } from '@/types/index'
 import ProjectMetadataCard from './ProjectMetadataCard.vue'
 
 const { t: $t } = useI18n()
@@ -217,7 +217,7 @@ function handlePublishClick() {
 </script>
 
 <style scoped>
-@import '@assets/info-card-shared.css';
+@import '../../../assets/info-card-shared.css';
 
 .unified-popup {
   padding: 1rem;

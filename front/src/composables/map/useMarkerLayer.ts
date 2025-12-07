@@ -2,8 +2,8 @@
 // AI : Eliminates duplication across city/country/overlay marker management
 
 import L from 'leaflet';
-import type { MarkerColor } from '@types';
-import { createColorIcon, createStandaloneProjectIcon, createOverlayIcon } from '@composables/map/useMarkers';
+import type { MarkerColor } from '@/types/index';
+import { createColorIcon, createStandaloneProjectIcon, createOverlayIcon } from '@/composables/map/useMarkers';
 
 // AI : Configuration for a marker layer
 export interface MarkerLayerConfig<T> {

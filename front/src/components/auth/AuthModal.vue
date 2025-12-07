@@ -265,8 +265,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useAuthStore } from '@stores/authStore'
-import { useToast } from '@composables/ui/useToast'
+import { useAuthStore } from '@/stores/authStore'
+import { useToast } from '@/composables/ui/useToast'
 
 const props = defineProps<{
   visible: boolean

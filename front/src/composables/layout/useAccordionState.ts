@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import type { ProjectForModeration } from '@types'
+import type { ProjectForModeration } from '@/types/index'
 
 // AI : Shared accordion state that persists across My Contributions and Moderation panels
 // AI : This allows users to maintain their expanded/collapsed state when switching between panels

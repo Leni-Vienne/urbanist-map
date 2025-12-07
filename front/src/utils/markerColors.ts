@@ -1,7 +1,7 @@
 // AI : Shared marker color logic for projects
 // AI : Used by both useCityMarkers and useStandaloneProjectMarkers
 
-import type { MarkerColor, Project } from '@types';
+import type { MarkerColor, Project } from '@/types/index';
 
 /**
  * AI : Get project marker color based on status, timeline, and mode

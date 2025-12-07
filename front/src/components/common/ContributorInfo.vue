@@ -15,7 +15,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { formatRelativeTime } from '@utils/dateFormat';
+import { formatRelativeTime } from '@/utils/dateFormat';
 
 interface Props {
   date: Date | string | null | undefined;

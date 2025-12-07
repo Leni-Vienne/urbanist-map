@@ -98,11 +98,11 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue';
 
-import { useProjects } from '@composables/project/useProjects';
-import { useCityProjects, useSelectedProject } from '@composables/project/useProjectSelection';
-import { useUiStore } from '@stores/uiStore';
-import type { Project } from '@types';
-import { markerColors } from '@composables/map/useMarkers';
+import { useProjects } from '@/composables/project/useProjects';
+import { useCityProjects, useSelectedProject } from '@/composables/project/useProjectSelection';
+import { useUiStore } from '@/stores/uiStore';
+import type { Project } from '@/types/index';
+import { markerColors } from '@/composables/map/useMarkers';
 import { storeToRefs } from 'pinia';
 
 const props = defineProps({

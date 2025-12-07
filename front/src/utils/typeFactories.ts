@@ -1,8 +1,8 @@
 // AI : Factory functions for creating type instances to reduce duplication
-import type { Project, OverlayObject, OverlayData } from "@types";
+import type { Project, OverlayObject, OverlayData } from "@/types/index";
 import type { NearbyProject } from "../types/api";
 import { v4 as uuidv4 } from "uuid";
-import { buildImageUrl } from "@utils/imageUrl";
+import { buildImageUrl } from "@/utils/imageUrl";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 
 /**

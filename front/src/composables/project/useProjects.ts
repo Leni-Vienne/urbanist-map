@@ -1,8 +1,8 @@
-import type { Project, OverlayObject } from '@types';
-import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { useProjectStore } from '@stores/pinia/projectStore';
-import { useAuthStore } from '@stores/authStore';
-import { createProjectObject } from '@utils/typeFactories';
+import type { Project, OverlayObject } from '@/types/index';
+import { useOverlayStore } from '@/stores/pinia/overlayStore';
+import { useProjectStore } from '@/stores/pinia/projectStore';
+import { useAuthStore } from '@/stores/authStore';
+import { createProjectObject } from '@/utils/typeFactories';
 import { storeToRefs } from 'pinia';
 
 // AI : Export composable function that gets store refs when called (not at module level)

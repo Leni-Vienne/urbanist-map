@@ -1,18 +1,18 @@
 import { ref } from "vue";
-import { useProjectStore } from "@stores/pinia/projectStore";
-import { useOverlayStore } from "@stores/pinia/overlayStore";
-import { useMapStore } from "@stores/pinia/mapStore";
-import { updateMarkerTooltip } from "@composables/overlay/useOverlayMarkers";
-import { addNewOverlayToCityCache } from "@composables/overlay/useOverlay";
-import { map } from "@composables/core/useMap";
-import { trpc, getApiUrl } from "@client";
+import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
+import { updateMarkerTooltip } from "@/composables/overlay/useOverlayMarkers";
+import { addNewOverlayToCityCache } from "@/composables/overlay/useOverlay";
+import { map } from "@/composables/core/useMap";
+import { trpc, getApiUrl } from "@/client";
 import { storeToRefs } from "pinia";
-import { buildProjectPayload } from "@composables/project/useProjectMutations";
-import type { OverlayObject, Project } from "@types";
+import { buildProjectPayload } from "@/composables/project/useProjectMutations";
+import type { OverlayObject, Project } from "@/types/index";
 import { validateOverlaySize, leafletCornersToCorners } from "@shared/overlayValidation";
 import { useI18n } from "vue-i18n";
 import type { ApprovalStatus } from "@shared/types";
-import { useAuthStore } from "@stores/authStore";
+import { useAuthStore } from "@/stores/authStore";
 
 // AI : Extract corners from overlay object, falling back to stored corners if needed
 function getCornersFromOverlay(overlay: OverlayObject) {

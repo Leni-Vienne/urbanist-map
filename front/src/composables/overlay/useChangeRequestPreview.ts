@@ -1,23 +1,23 @@
 import L, { type LatLng } from "leaflet";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import { useToast } from "@composables/ui/useToast";
-import { map } from "@composables/core/useMap";
-import { useOverlayStore } from "@stores/pinia/overlayStore";
-import { useMapStore } from "@stores/pinia/mapStore";
+import { useToast } from "@/composables/ui/useToast";
+import { map } from "@/composables/core/useMap";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import {
   updateMarkerPosition,
   updateMarkerTooltip,
   getOverlayBounds,
-} from "@composables/overlay/useOverlayMarkers";
-import { selectOverlay } from "@composables/overlay/useOverlaySelection";
-import { loadCityProjects } from "@composables/map/useCityMarkers";
-import { prepareCountryContext } from "@composables/map/useCountryMarkers";
-import { switchMode } from "@composables/overlay/useOverlayModes";
-import { mobileAwareFlyToBounds } from "@composables/map/useMapNavigation";
-import { prepareCrossCountryFlight } from "@composables/map/useTileLayers";
+} from "@/composables/overlay/useOverlayMarkers";
+import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
+import { loadCityProjects } from "@/composables/map/useCityMarkers";
+import { prepareCountryContext } from "@/composables/map/useCountryMarkers";
+import { switchMode } from "@/composables/overlay/useOverlayModes";
+import { mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
+import { prepareCrossCountryFlight } from "@/composables/map/useTileLayers";
 import type { PendingChangeRequest } from "../../types/api";
-import type { OverlayForModeration, OverlayObject } from "@types";
+import type { OverlayForModeration, OverlayObject } from "@/types/index";
 import { previewState, clearChangeRequestPreview } from "./changeRequestPreviewState";
 
 // AI : Composable to handle change request position preview

@@ -1,7 +1,7 @@
 // AI : Shared teleport target management for project info popups
 import type L from "leaflet";
-import { map } from '@composables/core/useMap';
-import { useUiStore } from '@stores/uiStore';
+import { map } from '@/composables/core/useMap';
+import { useUiStore } from '@/stores/uiStore';
 
 let currentMarkerForPopup: L.Marker | L.CircleMarker | null = null;
 let mapClickHandler: (() => void) | null = null;

@@ -5,17 +5,17 @@
 // AI : ============================================================================
 
 import { ref, computed } from 'vue';
-import { trpc, type RouterOutput } from '@client';
+import { trpc, type RouterOutput } from '@/client';
 import type {
   SubmitChangeRequestInput,
   ChangeHistoryEntry,
 } from '../../types/api';
 import type { FieldChange } from '@shared/types';
-import { useAuthStore } from '@stores/authStore';
-import { useModerationStore } from '@stores/pinia/moderationStore';
-import { withErrorHandling, withErrorToast } from '@composables/core/useErrorHandling';
-import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { updateMarkerPosition, updateMarkerTooltip } from '@composables/overlay/useOverlayMarkers';
+import { useAuthStore } from '@/stores/authStore';
+import { useModerationStore } from '@/stores/pinia/moderationStore';
+import { withErrorHandling, withErrorToast } from '@/composables/core/useErrorHandling';
+import { useOverlayStore } from '@/stores/pinia/overlayStore';
+import { updateMarkerPosition, updateMarkerTooltip } from '@/composables/overlay/useOverlayMarkers';
 import L from 'leaflet';
 
 // AI : ============================================================================

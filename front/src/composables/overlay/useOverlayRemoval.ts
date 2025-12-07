@@ -2,8 +2,8 @@
 // AI : This file contains low-level overlay removal logic that can be imported
 // AI : by both useOverlay.ts and useUserContributions.ts
 
-import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { map } from '@composables/core/useMap';
+import { useOverlayStore } from '@/stores/pinia/overlayStore';
+import { map } from '@/composables/core/useMap';
 
 /**
  * AI : Remove a specific overlay from the map and collections

@@ -1,13 +1,13 @@
-import { useProjectStore } from "@stores/pinia/projectStore";
-import { useMapStore } from "@stores/pinia/mapStore";
-import { trpc } from "@client";
-import { buildProjectPayload } from "@composables/project/useProjectMutations";
+import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
+import { trpc } from "@/client";
+import { buildProjectPayload } from "@/composables/project/useProjectMutations";
 import {
   loadCityProjects,
   updateStandaloneProjectMarkerColor,
-} from "@composables/map/useCityMarkers";
-import { updateMarkerTooltip } from "@composables/overlay/useOverlayMarkers";
-import type { Project, OverlayObject } from "@types";
+} from "@/composables/map/useCityMarkers";
+import { updateMarkerTooltip } from "@/composables/overlay/useOverlayMarkers";
+import type { Project, OverlayObject } from "@/types/index";
 import type { FieldChange } from "@shared/types";
 import { storeToRefs } from "pinia";
 import { computed } from "vue";
@@ -16,10 +16,10 @@ import {
   leafletCornersToCorners,
 } from "@shared/overlayValidation";
 import { useI18n } from "vue-i18n";
-import { useChangeRequests } from "@composables/changes/useChanges";
-import { formatDate } from "@utils/dateFormat";
+import { useChangeRequests } from "@/composables/changes/useChanges";
+import { formatDate } from "@/utils/dateFormat";
 import { projectSchema, overlaySchema, getValidationErrorsMap } from "@shared/validation/schemas";
-import { prepareProjectValidationData, prepareOverlayValidationData } from "@utils/validationHelpers";
+import { prepareProjectValidationData, prepareOverlayValidationData } from "@/utils/validationHelpers";
 
 // AI : Unified submission types for consolidated workflow
 export type SubmissionChangeType = "create" | "update_pending" | "update_approved";

@@ -55,8 +55,8 @@
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
 import LatestContributionsPanel from './LatestContributionsPanel.vue'
-import type { PanelTab } from '@composables/layout/usePanelTabs'
-import { useAuthStore } from '@stores/authStore'
+import type { PanelTab } from '@/composables/layout/usePanelTabs'
+import { useAuthStore } from '@/stores/authStore'
 
 // AI : Lazy load panels to reduce initial bundle size
 const ModerationPanel = defineAsyncComponent(() => import('./ModerationPanel.vue'))

@@ -1,7 +1,7 @@
-import { useAuthStore } from '@stores/authStore'
-import { useUiStore } from '@stores/uiStore'
-import { useOverlayStore } from '@stores/pinia/overlayStore'
-import { switchMode } from '@composables/overlay/useOverlayModes'
+import { useAuthStore } from '@/stores/authStore'
+import { useUiStore } from '@/stores/uiStore'
+import { useOverlayStore } from '@/stores/pinia/overlayStore'
+import { switchMode } from '@/composables/overlay/useOverlayModes'
 import { storeToRefs } from 'pinia'
 
 // AI : Composable for handling new project button click logic (opens marker placement bar)

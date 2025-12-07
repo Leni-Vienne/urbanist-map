@@ -1,5 +1,5 @@
 // AI : Centralized tRPC types for consistent type safety across the application
-import type { RouterInput, RouterOutput } from '@client';
+import type { RouterInput, RouterOutput } from '@/client';
 
 // AI : Project API types
 export type ProjectsNearLocationQuery = RouterInput['project']['getProjectsNearLocation'];

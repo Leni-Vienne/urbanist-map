@@ -1,5 +1,5 @@
 import { ref, computed, watch } from 'vue'
-import type { Project } from '@types'
+import type { Project } from '@/types/index'
 import type { ProjectFormData } from '../../types/forms'
 
 export function useProjectTimelineStatus(project: Partial<Project>, formData?: ProjectFormData) {

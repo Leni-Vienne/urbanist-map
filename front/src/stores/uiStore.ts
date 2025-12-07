@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import type { Project, OverlayObject } from "@types";
+import type { Project, OverlayObject } from "@/types/index";
 
 export interface ProjectDialogState {
   visible: boolean;

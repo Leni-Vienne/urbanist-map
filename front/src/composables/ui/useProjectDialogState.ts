@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import type { Project } from '@types';
+import type { Project } from '@/types/index';
 
 // AI : Global state for project dialog communication
 const showProjectDialogGlobally = ref(false);

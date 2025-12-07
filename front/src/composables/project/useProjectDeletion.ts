@@ -1,8 +1,8 @@
-import { useI18n } from '@composables/useI18n'
-import { useToast } from '@composables/ui/useToast'
-import { useUserContributions } from '@composables/project/useUserContributions'
-import { addStandaloneProjectMarkerForProject } from '@composables/map/useStandaloneProjectMarkers'
-import { useProjectStore } from '@stores/pinia/projectStore'
+import { useI18n } from '@/composables/useI18n'
+import { useToast } from '@/composables/ui/useToast'
+import { useUserContributions } from '@/composables/project/useUserContributions'
+import { addStandaloneProjectMarkerForProject } from '@/composables/map/useStandaloneProjectMarkers'
+import { useProjectStore } from '@/stores/pinia/projectStore'
 
 export function useProjectDeletion() {
   const { t } = useI18n()

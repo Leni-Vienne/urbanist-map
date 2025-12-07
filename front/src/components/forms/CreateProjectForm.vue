@@ -16,11 +16,11 @@
 
 <script setup lang="ts">
 import { ref, watch, reactive } from 'vue'
-import { switchTileLayer, isTileLayerType } from '@composables/map/useTileLayers'
-import { useProjectFormValidation } from '@composables/forms/useProjectFormValidation'
+import { switchTileLayer, isTileLayerType } from '@/composables/map/useTileLayers'
+import { useProjectFormValidation } from '@/composables/forms/useProjectFormValidation'
 import type ProjectFormFields from './ProjectFormFields.vue';
 import type { ProjectFormData } from './ProjectFormFields.vue';
-import type { Project } from '@types'
+import type { Project } from '@/types/index'
 
 const props = defineProps<{
     project: Partial<Project>

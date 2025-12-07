@@ -91,7 +91,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
-import { useAuthStore } from '@stores/authStore';
+import { useAuthStore } from '@/stores/authStore';
 
 interface Props {
   modelValue: boolean;

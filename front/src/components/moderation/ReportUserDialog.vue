@@ -46,8 +46,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useToast } from '@composables/ui/useToast'
-import { trpc } from '@client'
+import { useToast } from '@/composables/ui/useToast'
+import { trpc } from '@/client'
 
 // AI : Props for the dialog
 const props = defineProps<{

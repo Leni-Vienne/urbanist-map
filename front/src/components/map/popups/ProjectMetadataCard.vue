@@ -65,9 +65,9 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Project } from '@types'
-import { formatDate } from '@utils/dateFormat'
-import { formatSourceUrl } from '@utils/urlFormat'
+import type { Project } from '@/types/index'
+import { formatDate } from '@/utils/dateFormat'
+import { formatSourceUrl } from '@/utils/urlFormat'
 
 interface Props {
   project: Project | null
@@ -103,7 +103,7 @@ const projectLocationDisplay = computed(() => {
 </script>
 
 <style scoped>
-@import '@assets/info-card-shared.css';
+@import '../../../assets/info-card-shared.css';
 
 .project-actions {
   display: flex;

@@ -1,23 +1,23 @@
 import type L from "leaflet";
 import { ref } from "vue";
-import { useI18n } from '@composables/useI18n';
-import { map } from "@composables/core/useMap";
-import { flyToCountry } from "@composables/map/useMapNavigation";
-import { addCityMarkersForCountry, removeCityMarkers } from "@composables/map/useCityMarkers";
-import { removeOverlayMarkers } from "@composables/map/useCityOverlays";
-import { clearAllOverlays } from "@composables/overlay/useOverlayLifecycle";
-import { clearAllStandaloneProjectMarkers } from "@composables/map/useStandaloneProjectMarkers";
-import { prepareCrossCountryFlight } from "@composables/map/useTileLayers";
-import { trpc } from "@client";
-import { useProjectStore } from "@stores/pinia/projectStore";
-import { useMapStore } from "@stores/pinia/mapStore";
-import { useOverlayStore } from "@stores/pinia/overlayStore";
+import { useI18n } from '@/composables/useI18n';
+import { map } from "@/composables/core/useMap";
+import { flyToCountry } from "@/composables/map/useMapNavigation";
+import { addCityMarkersForCountry, removeCityMarkers } from "@/composables/map/useCityMarkers";
+import { removeOverlayMarkers } from "@/composables/map/useCityOverlays";
+import { clearAllOverlays } from "@/composables/overlay/useOverlayLifecycle";
+import { clearAllStandaloneProjectMarkers } from "@/composables/map/useStandaloneProjectMarkers";
+import { prepareCrossCountryFlight } from "@/composables/map/useTileLayers";
+import { trpc } from "@/client";
+import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { storeToRefs } from "pinia";
-import { withErrorHandling } from "@composables/core/useErrorHandling";
-import type { Country } from "@types";
-import { MARKER_OPACITY } from "@constants/markerConstants";
-import { createMarkerLayer, type MarkerLayerConfig } from "@composables/map/useMarkerLayer";
-import countryBboxes from "@assets/country_bboxes.json";
+import { withErrorHandling } from "@/composables/core/useErrorHandling";
+import type { Country } from "@/types/index";
+import { MARKER_OPACITY } from "@/constants/markerConstants";
+import { createMarkerLayer, type MarkerLayerConfig } from "@/composables/map/useMarkerLayer";
+import countryBboxes from "@/assets/country_bboxes.json";
 
 // AI : Type guard to validate country code against countryBboxes keys
 function isValidCountryCode(code: string): code is keyof typeof countryBboxes {

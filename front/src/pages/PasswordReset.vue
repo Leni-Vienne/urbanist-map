@@ -62,8 +62,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { useAuthStore } from '@stores/authStore'
-import { useToast } from '@composables/ui/useToast'
+import { useAuthStore } from '@/stores/authStore'
+import { useToast } from '@/composables/ui/useToast'
 
 const { t: $t } = useI18n()
 

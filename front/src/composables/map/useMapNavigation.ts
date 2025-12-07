@@ -7,10 +7,10 @@
 
 import { ref } from 'vue';
 import L, { type FitBoundsOptions, type ZoomPanOptions } from 'leaflet';
-import { map } from '@composables/core/useMap';
-import { useUiStore } from '@stores/uiStore';
-import type { CameraBounds } from '@types';
-import countryBboxes from '@assets/country_bboxes.json';
+import { map } from '@/composables/core/useMap';
+import { useUiStore } from '@/stores/uiStore';
+import type { CameraBounds } from '@/types/index';
+import countryBboxes from '@/assets/country_bboxes.json';
 
 // AI : ============================================================================
 // AI : CAMERA BOUNDS TRACKING
