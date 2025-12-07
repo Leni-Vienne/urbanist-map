@@ -30,8 +30,8 @@ loki.source.docker "backend_logs" {
           method = "method",
           path   = "path",
           status = "status",
-        }
-      }
+        },
+      },
     },
   ]
 }
