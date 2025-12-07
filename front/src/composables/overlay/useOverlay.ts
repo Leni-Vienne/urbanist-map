@@ -649,11 +649,7 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
       overlayStore.overlays[id] = overlayObject;
 
       // AI : Create marker with appropriate color based on replacement status
-      if (replacesOverlayId) {
-        createMarker(overlayObject, projectId, "replacement");
-      } else {
-        createMarker(overlayObject, projectId, "new");
-      }
+      createMarker(overlayObject);
 
       // AI : Add to project AFTER storing in overlays to avoid "not found" error
       const isFirstOverlay = addOverlayToProjectWithId(projectId, id);

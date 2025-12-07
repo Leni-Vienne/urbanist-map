@@ -24,12 +24,12 @@ loki.source.docker "backend_logs" {
     {
       json = {
         expressions = {
-          level  = "level"
-          time   = "time"
-          msg    = "msg"
-          method = "method"
-          path   = "path"
-          status = "status"
+          level  = "level",
+          time   = "time",
+          msg    = "msg",
+          method = "method",
+          path   = "path",
+          status = "status",
         }
       }
     },

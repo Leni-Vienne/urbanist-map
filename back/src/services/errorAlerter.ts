@@ -11,7 +11,7 @@ interface ErrorEntry {
 }
 
 // AI : Error alerter configuration
-const THRESHOLD_COUNT = 1; // Number of errors to trigger alert
+const THRESHOLD_COUNT = 5; // Number of errors to trigger alert
 const THRESHOLD_WINDOW = 5 * 60 * 1000; // 5 minutes in milliseconds
 const CHECK_INTERVAL = 5 * 60 * 1000; // Check every 5 minutes
 const COOLDOWN_PERIOD = 30 * 60 * 1000; // 30 minutes - don't send duplicate alerts
@@ -74,7 +74,7 @@ class ErrorAlerter {
             <td style="padding: 8px; border: 1px solid #ddd;">${new Date(error.timestamp).toISOString()}</td>
             <td style="padding: 8px; border: 1px solid #ddd;">${error.method} ${error.path}</td>
             <td style="padding: 8px; border: 1px solid #ddd;">${error.status}</td>
-            <td style="padding: 8px; border: 1px solid #ddd;">${error.message || "N/A"}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">${error.message ?? "N/A"}</td>
           </tr>
         `,
         )

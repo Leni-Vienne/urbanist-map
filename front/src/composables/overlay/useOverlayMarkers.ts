@@ -43,35 +43,6 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
 }
 
 /**
- * AI : Create marker title string for overlay markers
- */
-export function createMarkerTitle(
-  overlay: OverlayObject,
-  projectId: string | null,
-  markerType?: "new" | "replacement",
-): string {
-  const projectStore = useProjectStore();
-
-  // AI : Determine base title based on marker type
-  let baseTitle = "Overlay";
-  if (markerType === "replacement") {
-    baseTitle = "Replacement Overlay";
-  } else if (markerType === "new") {
-    baseTitle = "New Overlay";
-  }
-
-  if (projectId && projectStore.projects[projectId]) {
-    const project = projectStore.projects[projectId];
-    const captionPart = overlay.caption ? ` - ${overlay.caption}` : "";
-    return markerType
-      ? `${project.name} - ${baseTitle}${captionPart}`
-      : `${project.name}${captionPart}`;
-  }
-
-  return baseTitle;
-}
-
-/**
  * AI : Update marker tooltip based on overlay storage status
  * @param overlayObject - The overlay object to update
  * @param cachedMarkerColor - Optional pre-calculated marker color to avoid redundant computation
@@ -233,15 +204,12 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
   if (!centroid) return;
   const center = L.latLng(centroid.lat, centroid.lng);
 
-  const markerTitle = createMarkerTitle(savedOverlay, savedOverlay.projectId);
-
   // AI : Enrich overlay with project data for proper marker color calculation
   const tempOverlayObject = enrichOverlayWithProject(savedOverlay);
   const markerColor = getOverlayMarkerColor(tempOverlayObject, overlayStore.mode);
   const colorIcon = createOverlayIcon(markerColor);
 
   const marker = L.marker(center, {
-    title: markerTitle,
     icon: colorIcon,
   }).addTo(map.value);
 
@@ -297,18 +265,13 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
 /**
  * AI : Create a marker for new/replacement overlays (for edit mode)
  */
-export function createMarker(
-  overlayObject: OverlayObject,
-  projectId: string,
-  markerType: "new" | "replacement",
-): void {
+export function createMarker(overlayObject: OverlayObject): void {
   const overlayStore = useOverlayStore();
 
   if (!map.value) return;
 
   // AI : Use current map center as initial marker position
   const center = map.value.getCenter();
-  const markerTitle = createMarkerTitle(overlayObject, projectId, markerType);
 
   // AI : Determine marker color based on overlay state
   // AI : Let getOverlayMarkerColor handle all color logic including replacements after submission
@@ -316,7 +279,6 @@ export function createMarker(
   const colorIcon = createOverlayIcon(markerColor);
 
   const marker = L.marker(center, {
-    title: markerTitle,
     icon: colorIcon,
   }).addTo(map.value);
 
