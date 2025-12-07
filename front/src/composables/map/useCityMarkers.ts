@@ -2,7 +2,7 @@ import L from "leaflet";
 import { createStandaloneProjectIcon } from '@/composables/map/useMarkers';
 import type { Project } from '@/types/index';
 import { ref, watch } from 'vue';
-import { useI18n } from '@/composables/useI18n'
+import { t } from '@/locales'
 import { map } from '@/composables/core/useMap';
 import { mobileAwareFlyTo } from '@/composables/map/useMapNavigation';
 import { loadCityOverlays } from '@/composables/map/useCityOverlays';
@@ -351,7 +351,7 @@ function getCityMarkerConfig(): MarkerLayerConfig<CityWithProjects> {
     onMarkerClick: async (_marker, city) => {
       const mapStore = useMapStore();
       const overlayStore = useOverlayStore();
-      const { t } = useI18n();
+      ;
 
       // AI : Check for unsaved overlays before loading city (same city or different)
       const hasUnsavedOverlays = Object.values(overlayStore.overlays).some(

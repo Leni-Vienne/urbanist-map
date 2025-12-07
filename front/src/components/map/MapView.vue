@@ -52,7 +52,7 @@ import { renderViewModeOverlays, undo, redo } from '@/composables/overlay/useOve
 import { setupMapClickToDeselect } from '@/composables/overlay/useOverlaySelection';
 import { removeOverlayFromMap } from '@/composables/overlay/useOverlayRemoval';
 import { useToast } from '@/composables/ui/useToast';
-import { useI18n } from '@/composables/useI18n';
+import { useI18n } from 'vue-i18n';
 import { updateOverlayMarkersForFilters } from '@/composables/map/useCityOverlays';
 import { initializeCountryMarkers } from '@/composables/map/useCountryMarkers';
 import { initializeOverlayModes } from '@/composables/overlay/useOverlayModes';

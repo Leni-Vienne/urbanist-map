@@ -6,7 +6,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { trpc } from '@/client'
 import { withErrorHandling } from '@/composables/core/useErrorHandling'
 import { useToast } from '@/composables/ui/useToast'
-import { useI18n } from '@/composables/useI18n'
+import { t } from '@/locales'
 import { removeOverlayFromMap } from '@/composables/overlay/useOverlayRemoval'
 import { getStandaloneProjectMarkerByProjectId, addStandaloneProjectMarkerForProject } from '@/composables/map/useStandaloneProjectMarkers'
 import { map } from '@/composables/core/useMap'
@@ -141,8 +141,7 @@ export async function deleteOverlayDirect(overlayId: string): Promise<boolean> {
 export function useUserContributions() {
   const projectStore = useProjectStore()
   const toast = useToast()
-  const { t } = useI18n()
-
+  
   const isLoading = computed(() => projectStore.userContributionsLoading)
   const projects = computed(() => projectStore.userContributions)
 

@@ -1,7 +1,7 @@
 import { ref, computed, reactive } from 'vue'
 import { useChangeRequests } from '@/composables/changes/useChanges'
 import { useToast } from '@/composables/ui/useToast'
-import { useI18n } from '@/composables/useI18n'
+import { t } from '@/locales'
 import { formatDate } from '@/utils/dateFormat'
 import type { FieldChange } from '../../types/forms'
 import type { ApprovalStatus } from '@shared/types'
@@ -30,8 +30,7 @@ export function useEditableFormBase<TFormData extends Record<string, any>>(
 ) {
   const { submitMultipleFieldChanges } = useChangeRequests()
   const toast = useToast()
-  const { t } = useI18n()
-
+  
   const isSubmitting = ref(false)
   const changeReason = ref('')
 

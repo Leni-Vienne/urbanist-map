@@ -5,7 +5,7 @@ import { mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
 import { prepareCrossCountryFlight } from "@/composables/map/useTileLayers";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useI18n } from '@/composables/useI18n';
+import { t } from '@/locales';
 
 /**
  * AI : Navigate to a city on the map
@@ -22,7 +22,7 @@ export async function navigateToCity(
 ): Promise<void> {
   const overlayStore = useOverlayStore();
   const projectStore = useProjectStore();
-  const { t } = useI18n();
+  ;
 
   // AI : Check for unsaved overlays before navigating
   const hasUnsavedOverlays = Object.values(overlayStore.overlays).some(

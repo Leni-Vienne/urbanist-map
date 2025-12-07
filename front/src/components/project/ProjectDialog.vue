@@ -39,7 +39,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { useI18n } from '@/composables/useI18n';
+import { useI18n } from 'vue-i18n';
 import type CreateProjectForm from '@/components/forms/CreateProjectForm.vue';
 import type { Project } from '@/types/index';
 

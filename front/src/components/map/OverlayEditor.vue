@@ -51,7 +51,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useToast } from '@/composables/ui/useToast';
-import { useI18n } from '@/composables/useI18n';
+import { useI18n } from 'vue-i18n';
 import { updateTooltipText, updateOverlayInfo } from '@/composables/overlay/useOverlay';
 import type { OverlayObject } from '@/types/index';
 

@@ -7,7 +7,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { updateMarkerTooltip } from '@/composables/overlay/useOverlayMarkers';
 import { removeOverlayFromMap } from '@/composables/overlay/useOverlayRemoval';
 import { updateOverlayMarkersColors } from '@/composables/map/useMarkers'
-import { useI18n } from '@/composables/useI18n'
+import { t } from '@/locales'
 
 // AI : Result types for approval operations
 type ApprovalResult = {
@@ -19,8 +19,7 @@ type ApprovalResult = {
 
 export function useModeration() {
   const moderationStore = useModerationStore()
-  const { t } = useI18n()
-
+  
   const overlays = computed(() => moderationStore.overlays)
   const projects = computed(() => moderationStore.projects)
   const changeRequests = computed(() => moderationStore.changeRequests)

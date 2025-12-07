@@ -1,13 +1,12 @@
 // AI : Frontend composable for Zod validation with i18n error mapping
 import { ref, computed } from 'vue'
-import { useI18n } from '@/composables/useI18n'
+import { t } from '@/locales'
 import { type z } from 'zod'
 import { getValidationError, getValidationErrorsMap, type ValidationError } from '@shared/validation/schemas'
 
 // AI : Composable for reactive field validation
 export function useFieldValidation<T>(schema: z.ZodType<T>) {
-  const { t } = useI18n()
-  
+    
   // AI : Map of field paths to ValidationError (key + params)
   const fieldErrors = ref<Record<string, ValidationError>>({})
   

@@ -1,7 +1,7 @@
 import L from "leaflet";
 import 'leaflet-toolbar';
 import 'leaflet-distortableimage';
-import { useI18n } from '@/composables/useI18n';
+import { t } from '@/locales';
 import { map } from '@/composables/core/useMap';
 import { updateOverlayMarkersColors } from '@/composables/map/useMarkers';
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from '@/composables/map/useMapNavigation';
@@ -1266,7 +1266,7 @@ export const customDeleteTool = L.Toolbar2.Action.extend({
   },
   addHooks: async function () {
     const overlayStore = useOverlayStore();
-    const { t } = useI18n();
+    ;
 
     if (!overlayStore.idSelectedOverlay) {
       return;

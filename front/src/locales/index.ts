@@ -24,11 +24,12 @@ export function setI18nInstance(instance: I18nInstance): void {
 }
 
 // AI : Global translation function for use outside of Vue components
-export function t(key: string): string {
+// AI : Supports interpolation values for pluralization, named parameters, etc.
+export function t(key: string, values?: Record<string, unknown>): string {
   if (!i18nInstance) {
     return key
   }
-  return i18nInstance.global.t(key)
+  return i18nInstance.global.t(key, values ?? {})
 }
 
 const localeMessagesMap: Record<Locale, Record<string, unknown>> = {

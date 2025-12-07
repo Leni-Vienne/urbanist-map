@@ -4,7 +4,7 @@ import { updateStandaloneProjectMarkerColor } from '@/composables/map/useCityMar
 import { trpc } from '@/client'
 import { useEditableFormBase } from './useEditableFormBase'
 import { useToast } from '@/composables/ui/useToast'
-import { useI18n } from '@/composables/useI18n'
+import { t } from '@/locales'
 import { projectSchema, getValidationErrorsMap } from '@shared/validation/schemas'
 import { prepareProjectValidationData } from '@/utils/validationHelpers'
 import type { Project } from '@/types/index'
@@ -41,8 +41,7 @@ export interface EditableProjectFormOptions {
 export function useEditableProjectForm(options: EditableProjectFormOptions) {
   const projectStore = useProjectStore()
   const toast = useToast()
-  const { t } = useI18n()
-
+  
   // AI : Use base composable for common form logic with custom Date comparator
   const base = useEditableFormBase<ProjectFormData>(
     {
