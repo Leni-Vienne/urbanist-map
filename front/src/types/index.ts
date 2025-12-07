@@ -15,9 +15,6 @@ export type MarkerColor =
   | "black";
 export type viewModeMarkerColor = "yellow" | "orange" | "grey" | "green";
 
-// AI : Type for project manager modes
-export type ProjectManagerMode = "list" | "edit" | "view" | "create";
-
 // AI : Interface for camera bounds used in view mode
 export interface CameraBounds {
   north: number;
@@ -161,29 +158,6 @@ export interface OverlayObject extends OverlayData {
   isTooBig?: boolean; // AI : Flag for real-time size validation warning
   isViewingApprovedPosition?: boolean; // AI : True when user is viewing approved position of overlay with pending changes
 }
-
-// AI : Utility types for specific use cases
-export type ProjectForForm = Pick<
-  Project,
-  "name" | "description" | "sourceUrl" | "startDate" | "endDate"
-> & {
-  projectName: string; // AI : Alias for name in forms
-  sourceLink: string; // AI : Alias for sourceUrl in forms
-};
-
-export type ProjectForList = Pick<
-  Project,
-  "id" | "name" | "description" | "createdAt" | "updatedAt" | "cityId"
-> & {
-  overlayCount?: number;
-  cityName?: string | null;
-  countryCode?: string | null;
-  countryName?: string | null;
-};
-
-export type OverlayForList = Pick<OverlayObject, "id" | "caption" | "filename"> & {
-  distance?: number;
-};
 
 export type OverlayForModeration = Pick<
   OverlayObject,

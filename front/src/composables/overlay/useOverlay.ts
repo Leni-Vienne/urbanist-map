@@ -982,34 +982,6 @@ function selectAndCenterOverlay(overlayId: string, centerMap: boolean = true) {
   return true;
 }
 
-export function deleteOverlayButtonPressed(id: string) {
-  const overlayStore = useOverlayStore();
-  const { projects } = useProjects();
-
-  const overlayObject = overlayStore.overlays[id];
-  if (!overlayObject) return;
-
-  // AI : Update project if overlay belongs to one
-  if (overlayObject.projectId) {
-    if (projects.value[overlayObject.projectId]) {
-      const project = projects.value[overlayObject.projectId];
-
-      // AI : Check if this is the last overlay for the project (before removing it)
-      const isLastOverlay = project.overlayIds.length === 1 && project.overlayIds[0] === id;
-
-      // Update local reference only - no backend calls during editing
-      project.overlayIds = project.overlayIds.filter(overlayId => overlayId !== id);
-      project.updatedAt = new Date();
-
-      // AI : Restore standalone project marker when last overlay is deleted
-      if (isLastOverlay) {
-        addStandaloneProjectMarkerForProject(project);
-      }
-    }
-  }
-  removeOverlayFromMap(id);
-}
-
 export function updateOverlayInfo(id: string, info: { caption?: string }): void {
   const overlayStore = useOverlayStore();
 

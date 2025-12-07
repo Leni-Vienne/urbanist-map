@@ -159,36 +159,8 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
 }
 
 /**
- * AI : Get the standalone projects layer (for external access)
- */
-export function getStandaloneProjectsLayer(): L.LayerGroup | null {
-  return standaloneProjectsLayer;
-}
-
-/**
- * AI : Set the standalone projects layer (for external management)
- */
-export function setStandaloneProjectsLayer(layer: L.LayerGroup | null): void {
-  standaloneProjectsLayer = layer;
-}
-
-/**
  * AI : Get the standalone project marker map (for external access)
  */
 export function getStandaloneProjectMarkerMap(): Map<string, L.Marker> {
   return standaloneProjectMarkerMap;
-}
-
-/**
- * AI : Get the selected standalone project marker
- */
-export function getSelectedStandaloneProjectMarker(): L.Marker | null {
-  return selectedStandaloneProjectMarker;
-}
-
-/**
- * AI : Set the selected standalone project marker
- */
-export function setSelectedStandaloneProjectMarker(marker: L.Marker | null): void {
-  selectedStandaloneProjectMarker = marker;
 }

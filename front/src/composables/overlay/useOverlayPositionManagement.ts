@@ -167,52 +167,6 @@ export function resolveOverlayPosition(
   return resolveEditModePosition(overlayId, overlayData);
 }
 
-/**
- * AI : Get marker color and position in one call (for marker rendering)
- * This is the main function to use when rendering overlay markers
- * 
- * @param overlayData - Backend overlay data
- * @param mode - Current map mode
- * @returns Position and color for marker rendering
- */
-export function getOverlayMarkerInfo(
-  overlayData: OverlayData,
-  mode: MapMode
-): { position: { lat: number; lng: number }; source: PositionSource } {
-  const resolved = resolveOverlayPosition(
-    overlayData.id,
-    overlayData,
-    mode
-  );
-
-  return {
-    position: resolved.position,
-    source: resolved.source
-  };
-}
-
-/**
- * AI : Debug helper to explain position resolution
- * Useful for troubleshooting position issues
- */
-export function explainPositionResolution(
-  overlayId: string,
-  overlayData: OverlayData,
-  mode: MapMode
-): string {
-  const resolved = resolveOverlayPosition(overlayId, overlayData, mode);
-  
-  const sourceExplanations: Record<PositionSource, string> = {
-    'runtime-overlay': 'Using position from currently loaded overlay (user may be editing)',
-    'edit-mode-cache': 'Using cached position from previous edit session',
-    'backend-centroid': 'Using original database centroid (default fallback)',
-    'backend-corners': 'Calculated from database corner coordinates',
-    'change-request': 'Showing preview position from change request'
-  };
-
-  return `Position resolved from: ${resolved.source}\n${sourceExplanations[resolved.source]}\nCoordinates: (${resolved.position.lat.toFixed(6)}, ${resolved.position.lng.toFixed(6)})`;
-}
-
 // AI : ============================================================================
 // AI : EDIT MODE CACHE
 // AI : ============================================================================
@@ -221,33 +175,6 @@ export function explainPositionResolution(
 export interface CachedPosition {
   corners: { lat: number; lng: number }[];
   isModified: boolean;
-}
-
-/**
- * AI : Get overlay data with edit modifications applied (for edit mode)
- * This function checks if there are any edit mode modifications cached and applies them
- *
- * @param overlayData - Original overlay data from backend
- * @returns Overlay data with edit modifications applied if in edit mode
- */
-export function getOverlayDataWithEditModifications(overlayData: OverlayData): OverlayData {
-  const overlayStore = useOverlayStore();
-
-  if (overlayStore.mode !== 'edit') {
-    return overlayData;
-  }
-
-  const editModifications = overlayStore.getFromEditModeCache(overlayData.id);
-
-  if (editModifications) {
-    return {
-      ...overlayData,
-      corners: editModifications.corners,
-      isModified: editModifications.isModified
-    };
-  }
-
-  return overlayData;
 }
 
 /**
@@ -275,14 +202,6 @@ export function getFromEditModeOverlayCache(
 ): { corners: { lat: number, lng: number }[], isModified: boolean } | undefined {
   const overlayStore = useOverlayStore();
   return overlayStore.getFromEditModeCache(overlayId);
-}
-
-/**
- * AI : Clear all edit mode cache
- */
-export function clearEditModeOverlayCache(): void {
-  const overlayStore = useOverlayStore();
-  overlayStore.clearEditModeCache();
 }
 
 // AI : ============================================================================
@@ -327,14 +246,6 @@ export function cacheCurrentPosition(overlayObject: OverlayObject): void {
 }
 
 /**
- * AI : Clear all cached positions
- */
-export function clearAllCachedPositions(): void {
-  const overlayStore = useOverlayStore();
-  overlayStore.clearEditModeCache();
-}
-
-/**
  * AI : Apply cached or backend position to a single overlay
  * @param overlayObject - The overlay to update
  * @param useCache - If true, use cached position; if false, use backend position
@@ -376,12 +287,4 @@ export function applyPositionsToOverlays(overlays: OverlayObject[], useCache: bo
   overlays.forEach(overlay => {
     applyPositionToOverlay(overlay, useCache);
   });
-}
-
-/**
- * AI : Check if an overlay has cached position
- */
-export function hasCachedPosition(overlayId: string): boolean {
-  const cached = getCachedPosition(overlayId);
-  return cached !== null && cached.corners.length === 4;
 }

@@ -96,19 +96,3 @@ export function useFieldValidation<T>(schema: z.ZodType<T>) {
     hasErrors
   }
 }
-
-// AI : Helper to create a partial schema for single field validation
-export function createFieldValidator<T>(schema: z.ZodType<T>, fieldPath: string) {
-  return (value: any, fullData?: T) => {
-    // AI : If full data is provided, validate the entire object
-    // AI : Otherwise, create a partial object with just this field
-    const dataToValidate = fullData ?? { [fieldPath]: value } as T
-    const result = schema.safeParse(dataToValidate)
-    
-    if (result.success) {
-      return null
-    }
-    
-    return getValidationError(result.error, fieldPath)
-  }
-}

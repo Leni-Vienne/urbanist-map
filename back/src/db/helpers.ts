@@ -503,17 +503,6 @@ export function buildOverlayVisibilityCondition(
   return eq(overlays.status, 'approved');
 }
 
-// AI : Build WHERE condition for project status (handles admin includeStatus filter)
-export function buildProjectStatusCondition(
-  user: UserContext,
-  adminIncludeStatus?: ApprovalStatus[]
-): SQL {
-  if (adminIncludeStatus && user?.role === 'admin' && adminIncludeStatus.length > 0) {
-    return inArray(projects.status, adminIncludeStatus);
-  }
-  return eq(projects.status, 'approved');
-}
-
 // AI : Build condition to filter projects that have visible content (projects without images OR projects with visible overlays)
 // AI : This ensures all projects are shown whether they have images or not
 // AI : In edit mode, also show user's own projects even if they don't have overlays yet

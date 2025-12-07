@@ -83,20 +83,6 @@ export function getCameraBounds() {
   return currentCameraBounds;
 }
 
-/**
- * AI : Register callback to be called when camera stops moving
- */
-export function onCameraStop(callback: (bounds: CameraBounds) => void) {
-  onCameraStopCallbacks.push(callback);
-  
-  // AI : Return unsubscribe function
-  return () => {
-    const index = onCameraStopCallbacks.indexOf(callback);
-    if (index !== -1) {
-      onCameraStopCallbacks.splice(index, 1);
-    }
-  };
-}
 
 // AI : ============================================================================
 // AI : MOBILE-AWARE NAVIGATION

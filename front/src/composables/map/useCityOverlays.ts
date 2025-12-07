@@ -237,8 +237,6 @@ export function removeOverlayMarkers(): void {
   }
 }
 
-// AI : getOverlayDataWithEditModifications is now imported from useOverlayEditCache
-
 /**
  * AI : Render full overlays from cached data for current mode
  */
@@ -343,8 +341,6 @@ function flyToOverlayMarker(overlayData: OverlayData){
     selectOverlay(overlayData.id);
   });
 }
-
-// AI : Old getOverlayMarkerInfo function removed - now using unified resolveOverlayPosition from useOverlayPosition
 
 /**
  * AI : Update overlay markers when completion filters change

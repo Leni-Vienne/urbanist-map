@@ -147,11 +147,6 @@ export function getValidationErrorsMap(error: z.ZodError): Record<string, Valida
   return errorMap;
 }
 
-// AI : Legacy function for backward compatibility (returns just the key)
-export function getValidationErrorKey(error: z.ZodError, fieldPath?: string): string {
-  return getValidationError(error, fieldPath).key;
-}
-
 // AI : Type exports for TypeScript inference
 export type ProjectInput = z.infer<typeof projectSchema>;
 export type OverlayInput = z.infer<typeof overlaySchema>;
