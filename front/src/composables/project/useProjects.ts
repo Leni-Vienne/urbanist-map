@@ -1,4 +1,4 @@
-import type { Project, OverlayObject } from '@/types/index';
+import type { Project } from '@/types/index';
 import { useOverlayStore } from '@/stores/pinia/overlayStore';
 import { useProjectStore } from '@/stores/pinia/projectStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -68,50 +68,4 @@ export function addOverlayToProjectWithId(projectId: string, overlayId: string):
 
   // AI : Return whether this was the first overlay (caller can handle marker removal)
   return isFirstOverlay;
-}
-
-export function removeOverlayFromProjectWithId(projectId: string, overlayId: string) {
-  const { projects, overlays } = useProjects();
-  
-  if (projects.value[projectId] != null) {
-    console.error('Project not found:', projectId);
-    throw new Error('Project not found');
-  }
-
-  // AI : Create new references to ensure reactivity with shallowRef
-  const updatedProjects = { ...projects.value };
-  const project = { ...updatedProjects[projectId] };
-
-  // Filter out the overlay ID from the project's overlay IDs
-  project.overlayIds = project.overlayIds.filter((id: string) => id !== overlayId);
-
-  // Update projects collection with the modified project
-  updatedProjects[projectId] = project;
-  projects.value = updatedProjects;
-
-  // Update overlay
-  if (overlays.value[overlayId]) {
-    const overlayObject = overlays.value[overlayId];
-    overlayObject.projectId = ''; // Use empty string instead of undefined
-
-    // Remove project styling
-    removeProjectStyling(overlayObject);
-  }
-}
-
-function removeProjectStyling(overlayObject: OverlayObject): void {
-  if (!overlayObject.overlay) return;
-
-  const element = overlayObject.overlay.getElement();
-  if (!element) return;
-
-  // Remove all project styling using outline instead of individual borders
-  element.style.outline = '';
-  element.style.boxShadow = '';
-
-  // Reset marker styling - only reset tooltip, no border or shadow
-  if (overlayObject.marker) {
-    // Reset tooltip
-    overlayObject.marker.setTooltipContent('Overlay');
-  }
 }

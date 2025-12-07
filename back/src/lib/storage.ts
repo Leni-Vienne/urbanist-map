@@ -207,40 +207,7 @@ export class R2StorageS3 implements StorageInterface {
     }
 }
 
-// AI : Cloudflare R2 storage implementation for Cloudflare Workers runtime
-// AI : Only works when running inside Cloudflare Workers with R2 bindings
-export class R2Storage implements StorageInterface {
-    constructor(private bucket: R2Bucket) {}
 
-    async put(filename: string, buffer: ArrayBuffer): Promise<void> {
-        await this.bucket.put(filename, buffer);
-    }
-
-    async get(filename: string): Promise<{ body: ReadableStream; contentType?: string } | null> {
-        try {
-            const object = await this.bucket.get(filename);
-            if (!object) {
-                return null;
-            }
-            
-            return {
-                body: object.body,
-                contentType: object.httpMetadata?.contentType
-            };
-        } catch {
-            return null;
-        }
-    }
-
-    async delete(filename: string): Promise<void> {
-        try {
-            await this.bucket.delete(filename);
-        } catch (error) {
-            // AI : Log but don't throw - file might already be deleted
-            console.warn(`Failed to delete file ${filename} from R2:`, error);
-        }
-    }
-}
 
 // AI : Helper function to derive thumbnail path from original filename
 // Thumbnails stored in separate folder for better organization

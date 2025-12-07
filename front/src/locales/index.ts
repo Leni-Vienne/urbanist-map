@@ -10,7 +10,6 @@ export const availableLocales = [
 ] as const
 
 export type Locale = (typeof availableLocales)[number]['code']
-export type AvailableLocale = (typeof availableLocales)[number]
 
 // AI : I18n instance type matching createI18n with legacy: false
 type I18nInstance = I18n<NonNullable<I18nOptions['messages']>, NonNullable<I18nOptions['datetimeFormats']>, NonNullable<I18nOptions['numberFormats']>, string, false>

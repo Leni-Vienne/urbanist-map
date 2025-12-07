@@ -26,18 +26,3 @@ export const MARKER_OPACITY = {
     selected: 1,
   },
 } as const;
-
-// AI : Marker interaction timing constants (in milliseconds)
-export const MARKER_TIMING = {
-  // AI : Delay for mode transition animations
-  MODE_TRANSITION: 100,
-
-  // AI : Debounce delay for filter changes
-  FILTER_DEBOUNCE: 300,
-
-  // AI : Delay for overlay render operations
-  OVERLAY_RENDER: 150,
-
-  // AI : Animation duration for popup/tooltip
-  POPUP_ANIMATION: 200,
-} as const;
