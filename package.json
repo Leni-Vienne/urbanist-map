@@ -6,7 +6,7 @@
     "build-front-workflow": "bun --bun vite build front --mode=production",
     "build-front": "vite build front --mode=production",
     "dev-back": "bun --hot back/src/index.ts",
-    "build-back": "bun build back/src/index.ts --target=bun --outfile=./server.bundle.js --external sharp",
+    "build-back": "bun build back/src/index.ts --target=bun --outfile=./server.bundle.js --external sharp --external pino-roll --external pino-pretty",
     "start-back": "bun ./server.bundle.js",
     "db:generate": "cd back && bun --env-file=../.env --bun run drizzle-kit generate --config=drizzle.config.ts",
     "db:push": "cd back && bun --env-file=../.env --bun run drizzle-kit push --config=drizzle.config.ts",

@@ -51,7 +51,7 @@ services:
       - backend_uploads:/app/uploads
       - backend_logs:/app/logs
     working_dir: /app
-    command: ["sh", "-c", "bun install sharp && bun ./server.bundle.js"]
+    command: ["sh", "-c", "bun install sharp pino-roll pino-pretty && bun ./server.bundle.js"]
     networks:
       - construction-map
     healthcheck:
