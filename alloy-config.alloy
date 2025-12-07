@@ -16,24 +16,30 @@ discovery.docker "containers" {
 loki.source.docker "backend_logs" {
   host             = "unix:///var/run/docker.sock"
   targets          = discovery.docker.containers.targets
-  forward_to       = [loki.write.default.receiver]
+  forward_to       = [loki.process.json.receiver]
   relabel_rules    = loki.relabel.backend.rules
+}
+
+// AI : Process JSON logs from Pino
+loki.process "json" {
+  forward_to = [loki.write.default.receiver]
   
-  // AI : Keep JSON formatting from pino
-  json_pipeline_stages = [
-    {
-      json = {
-        expressions = {
-          level  = "level",
-          time   = "time",
-          msg    = "msg",
-          method = "method",
-          path   = "path",
-          status = "status",
-        },
-      },
-    },
-  ]
+  stage.json {
+    expressions = {
+      level  = "level"
+      time   = "time"
+      msg    = "msg"
+      method = "method"
+      path   = "path"
+      status = "status"
+    }
+  }
+  
+  stage.labels {
+    values = {
+      level = ""
+    }
+  }
 }
 
 // AI : Add labels to logs for better filtering in Grafana
@@ -54,7 +60,7 @@ loki.relabel "backend" {
 // AI : Push logs to Loki
 loki.write "default" {
   endpoint {
-    url = env("LOKI_URL")
+    url = env("LOKI_URL") + "/loki/api/v1/push"
     
     // AI : Add basic auth if needed (optional)
     // basic_auth {
