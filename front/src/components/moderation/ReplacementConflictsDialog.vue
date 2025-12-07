@@ -137,9 +137,9 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { buildImageUrl, buildThumbnailUrl } from '@utils/imageUrl'
+import { buildImageUrl, buildThumbnailUrl } from '@/utils/imageUrl'
 import { useI18n } from 'vue-i18n'
-import { formatDate } from '@utils/dateFormat'
+import { formatDate } from '@/utils/dateFormat'
 
 const { t: $t } = useI18n();
 

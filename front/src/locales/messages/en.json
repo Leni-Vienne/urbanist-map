@@ -447,7 +447,7 @@
         "rectification": "Right to rectification: correct inaccurate data",
         "deletion": "Right to erasure: delete your account and all associated data",
         "portability": "Right to portability: export your data in a standard format",
-        "howTo": "To exercise these rights, contact us at contact{'@'}constructionmap.org. We will respond within 30 days."
+        "howTo": "To exercise these rights, contact us at contact{'@/'}constructionmap.org. We will respond within 30 days."
       },
       "thirdParty": {
         "title": "Third-Party Services",

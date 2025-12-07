@@ -1,33 +1,33 @@
 import L from "leaflet";
-import { createStandaloneProjectIcon } from '@composables/map/useMarkers';
-import type { Project } from '@types';
+import { createStandaloneProjectIcon } from '@/composables/map/useMarkers';
+import type { Project } from '@/types/index';
 import { ref, watch } from 'vue';
-import { useI18n } from '@composables/useI18n'
-import { map } from '@composables/core/useMap';
-import { mobileAwareFlyTo } from '@composables/map/useMapNavigation';
-import { loadCityOverlays } from '@composables/map/useCityOverlays';
-import { useSelectedProject } from '@composables/project/useProjectSelection';
-import { trpc, type RouterOutput} from '@client';
+import { useI18n } from '@/composables/useI18n'
+import { map } from '@/composables/core/useMap';
+import { mobileAwareFlyTo } from '@/composables/map/useMapNavigation';
+import { loadCityOverlays } from '@/composables/map/useCityOverlays';
+import { useSelectedProject } from '@/composables/project/useProjectSelection';
+import { trpc, type RouterOutput} from '@/client';
 
-import { useAuthStore } from '@stores/authStore';
-import { useUiStore } from '@stores/uiStore';
-import { useMapStore } from '@stores/pinia/mapStore';
-import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { useProjectStore } from '@stores/pinia/projectStore';
-import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
-import { useProjects } from '@composables/project/useProjects';
+import { useAuthStore } from '@/stores/authStore';
+import { useUiStore } from '@/stores/uiStore';
+import { useMapStore } from '@/stores/pinia/mapStore';
+import { useOverlayStore } from '@/stores/pinia/overlayStore';
+import { useProjectStore } from '@/stores/pinia/projectStore';
+import { useCompletionFilters } from '@/composables/overlay/useCompletionFilters';
+import { useProjects } from '@/composables/project/useProjects';
 import { createProjectObject } from '../../utils/typeFactories';
 import { getProjectMarkerColor } from '../../utils/markerColors';
-import { MARKER_OPACITY } from '@constants/markerConstants';
-import { createMarkerLayer, type MarkerLayerConfig } from '@composables/map/useMarkerLayer';
+import { MARKER_OPACITY } from '@/constants/markerConstants';
+import { createMarkerLayer, type MarkerLayerConfig } from '@/composables/map/useMarkerLayer';
 import {
   addStandaloneProjectMarkerForProject,
   getStandaloneProjectMarkerByProjectId,
   getStandaloneProjectMarkerMap,
   updateStandaloneProjectMarkerOpacities,
   clearAllStandaloneProjectMarkers
-} from '@composables/map/useStandaloneProjectMarkers';
-import { cleanupProjectInfoTeleportTarget } from '@composables/map/useProjectPopupTeleport';
+} from '@/composables/map/useStandaloneProjectMarkers';
+import { cleanupProjectInfoTeleportTarget } from '@/composables/map/useProjectPopupTeleport';
 
 
 // AI : Type aliases using RouterOutput from tRPC

@@ -29,12 +29,12 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { trpc, type RouterOutput } from '@client';
-import { getCameraBounds } from '@composables/map/useMapNavigation'
-import { useOverlayStore } from '@stores/pinia/overlayStore'
-import { useProjectStore } from '@stores/pinia/projectStore'
+import { trpc, type RouterOutput } from '@/client';
+import { getCameraBounds } from '@/composables/map/useMapNavigation'
+import { useOverlayStore } from '@/stores/pinia/overlayStore'
+import { useProjectStore } from '@/stores/pinia/projectStore'
 import { storeToRefs } from 'pinia'
-import type { Project } from '@types'
+import type { Project } from '@/types/index'
 
 interface Props {
   modelValue: string | undefined

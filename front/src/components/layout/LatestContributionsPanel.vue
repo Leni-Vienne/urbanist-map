@@ -93,15 +93,15 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useLatestContributions } from '@composables/overlay/useLatestContributions'
-import { useOverlayClickHandler } from '@composables/overlay/useOverlayClickHandler'
-import { useNewProject } from '@composables/overlay/useNewProject'
-import { useToast } from '@composables/ui/useToast'
-import { highlightOverlayById, removeOverlayHighlight } from '@composables/overlay/useOverlaySelection'
-import { navigateToStandaloneProject } from '@composables/navigation/useOverlayNavigation'
-import { buildThumbnailUrl } from '@utils/imageUrl'
-import { formatRelativeTime } from '@utils/dateFormat'
-import type { LatestContribution } from '../../types/api'
+import { useLatestContributions } from '@/composables/overlay/useLatestContributions'
+import { useOverlayClickHandler } from '@/composables/overlay/useOverlayClickHandler'
+import { useNewProject } from '@/composables/overlay/useNewProject'
+import { useToast } from '@/composables/ui/useToast'
+import { highlightOverlayById, removeOverlayHighlight } from '@/composables/overlay/useOverlaySelection'
+import { navigateToStandaloneProject } from '@/composables/navigation/useOverlayNavigation'
+import { buildThumbnailUrl } from '@/utils/imageUrl'
+import { formatRelativeTime } from '@/utils/dateFormat'
+import type { LatestContribution } from '@/types/api'
 
 const { t } = useI18n()
 const toast = useToast()

@@ -1,20 +1,20 @@
 import L from 'leaflet';
-import { loadCityProjects } from '@composables/map/useCityMarkers';
-import { navigateToOverlay } from '@composables/overlay/useOverlay';
-import { selectOverlay } from '@composables/overlay/useOverlaySelection';
-import { prepareCountryContext } from '@composables/map/useCountryMarkers';
-import { prepareCrossCountryFlight } from '@composables/map/useTileLayers';
-import { map } from '@composables/core/useMap';
-import { mobileAwareFlyTo, mobileAwareFlyToBounds } from '@composables/map/useMapNavigation';
-import { useMapStore } from '@stores/pinia/mapStore';
-import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { useUiStore } from '@stores/uiStore';
+import { loadCityProjects } from '@/composables/map/useCityMarkers';
+import { navigateToOverlay } from '@/composables/overlay/useOverlay';
+import { selectOverlay } from '@/composables/overlay/useOverlaySelection';
+import { prepareCountryContext } from '@/composables/map/useCountryMarkers';
+import { prepareCrossCountryFlight } from '@/composables/map/useTileLayers';
+import { map } from '@/composables/core/useMap';
+import { mobileAwareFlyTo, mobileAwareFlyToBounds } from '@/composables/map/useMapNavigation';
+import { useMapStore } from '@/stores/pinia/mapStore';
+import { useOverlayStore } from '@/stores/pinia/overlayStore';
+import { useUiStore } from '@/stores/uiStore';
 import { 
   getStandaloneProjectMarkerByProjectId, 
   updateStandaloneProjectMarkerOpacities 
-} from '@composables/map/useStandaloneProjectMarkers';
-import { createProjectInfoTeleportTarget } from '@composables/map/useProjectPopupTeleport';
-import type { OverlayObject } from '@types';
+} from '@/composables/map/useStandaloneProjectMarkers';
+import { createProjectInfoTeleportTarget } from '@/composables/map/useProjectPopupTeleport';
+import type { OverlayObject } from '@/types/index';
 
 /**
  * AI : Get the corners that should be used for navigation based on current display state

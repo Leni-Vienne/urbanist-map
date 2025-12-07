@@ -137,15 +137,15 @@
 import { storeToRefs } from 'pinia';
 import { defineAsyncComponent, ref } from 'vue';
 import L from 'leaflet';
-import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { useUiStore } from '@stores/uiStore';
-import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
-import { createButtonSVG } from '@composables/map/useMarkers';
-import { map } from '@composables/core/useMap';
-import type { viewModeMarkerColor } from '@types';
+import { useOverlayStore } from '@/stores/pinia/overlayStore';
+import { useUiStore } from '@/stores/uiStore';
+import { useCompletionFilters } from '@/composables/overlay/useCompletionFilters';
+import { createButtonSVG } from '@/composables/map/useMarkers';
+import { map } from '@/composables/core/useMap';
+import type { viewModeMarkerColor } from '@/types/index';
 
-const LayerControl = defineAsyncComponent(() => import('@components/map/LayerControl.vue'));
-const MapHelpModal = defineAsyncComponent(() => import('@components/map/MapHelpModal.vue'));
+const LayerControl = defineAsyncComponent(() => import('@/components/map/LayerControl.vue'));
+const MapHelpModal = defineAsyncComponent(() => import('@/components/map/MapHelpModal.vue'));
 
 const overlayStore = useOverlayStore();
 

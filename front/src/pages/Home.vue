@@ -69,30 +69,30 @@ import {
     watch,
 } from "vue";
 
-import { useOverlayStore } from "@stores/pinia/overlayStore";
-import { useAuthStore } from "@stores/authStore";
-import { useUiStore } from "@stores/uiStore";
-import { useToast } from "@composables/ui/useToast";
-import { useBeforeUnload } from "@composables/core/useBeforeUnload";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useAuthStore } from "@/stores/authStore";
+import { useUiStore } from "@/stores/uiStore";
+import { useToast } from "@/composables/ui/useToast";
+import { useBeforeUnload } from "@/composables/core/useBeforeUnload";
 import { useRoute } from "vue-router";
-import { useModeratedContributions } from "@composables/moderation/useModeratedContributions";
-import { useI18n } from "@composables/useI18n";
+import { useModeratedContributions } from "@/composables/moderation/useModeratedContributions";
+import { useI18n } from "@/composables/useI18n";
 
 
-import MapView from "@components/map/MapView.vue";
-import SideMenu from "@components/layout/SideMenu.vue";
-import MobileDrawer from "@components/layout/MobileDrawer.vue";
+import MapView from "@/components/map/MapView.vue";
+import SideMenu from "@/components/layout/SideMenu.vue";
+import MobileDrawer from "@/components/layout/MobileDrawer.vue";
 
 // AI : Split PopupContainer into separate chunk - loads when first popup is shown
 const PopupContainer = defineAsyncComponent(
-    () => import("@components/map/PopupContainer.vue"),
+    () => import("@/components/map/PopupContainer.vue"),
 );
 const ProjectManager = defineAsyncComponent(
-    () => import("@components/project/ProjectManager.vue"),
+    () => import("@/components/project/ProjectManager.vue"),
 );
 // AI : Async import for non-critical dialog - only loaded when needed
 const ModeratedContributionsDialog = defineAsyncComponent(
-    () => import("@components/moderation/ModeratedContributionsDialog.vue"),
+    () => import("@/components/moderation/ModeratedContributionsDialog.vue"),
 );
 
 // AI : Create refs to track app state
@@ -145,7 +145,7 @@ onMounted(async () => {
     globalThis.addEventListener("resize", updateWindowWidth);
 
     // preload PopupContainer chunk on page load. Not needed on page load but improves responsiveness when first popup is shown
-    import("@components/map/PopupContainer.vue");
+    import("@/components/map/PopupContainer.vue");
 
     // AI : Prevent page scrolling on mobile to avoid viewport issues
     if (isMobile.value) {

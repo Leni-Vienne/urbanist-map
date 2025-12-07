@@ -50,10 +50,10 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useToast } from '@composables/ui/useToast';
-import { useI18n } from '@composables/useI18n';
-import { updateTooltipText, updateOverlayInfo } from '@composables/overlay/useOverlay';
-import type { OverlayObject } from '@types';
+import { useToast } from '@/composables/ui/useToast';
+import { useI18n } from '@/composables/useI18n';
+import { updateTooltipText, updateOverlayInfo } from '@/composables/overlay/useOverlay';
+import type { OverlayObject } from '@/types/index';
 
 // AI : Define document.body as a variable to avoid TypeScript errors
 const bodyElement = document.body;

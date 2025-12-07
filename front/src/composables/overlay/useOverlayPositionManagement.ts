@@ -6,10 +6,10 @@
 // AI : ============================================================================
 
 import L from 'leaflet';
-import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { map } from '@composables/core/useMap';
+import { useOverlayStore } from '@/stores/pinia/overlayStore';
+import { map } from '@/composables/core/useMap';
 import { calculateCentroidFromCorners } from '@shared/overlayValidation';
-import type { OverlayData, OverlayObject } from '@types';
+import type { OverlayData, OverlayObject } from '@/types/index';
 import type { MapMode } from '@shared/types';
 
 // AI : ============================================================================

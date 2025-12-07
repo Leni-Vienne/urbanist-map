@@ -1,6 +1,6 @@
 import L from "leaflet";
-import type { RouterOutput } from "@client";
-import type { DBCountry, DBProject, DBCity, ApprovalStatus } from "../../back/src/db/schema";
+import type { RouterOutput } from "@/client";
+import type { DBCountry, DBProject, DBCity, ApprovalStatus } from "../../../back/src/db/schema";
 
 // AI : Type for marker colors used throughout the application
 export type MarkerColor =
@@ -63,7 +63,7 @@ declare module "leaflet" {
   }
 
   // AI : Leaflet distortableimage types - prefixed with _ to indicate intentionally unused
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // eslint-disable-next-line @typesript-eslint/no-unused-vars
   const DistortAction: typeof L.Toolbar2.Action;
   const RotateAction: typeof L.Toolbar2.Action;
   const FreeRotateAction: typeof L.Toolbar2.Action;

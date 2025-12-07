@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { trpc } from '../client'
-import { useMapStore } from '@stores/pinia/mapStore'
-import { useProjectStore } from '@stores/pinia/projectStore'
+import { useMapStore } from '@/stores/pinia/mapStore'
+import { useProjectStore } from '@/stores/pinia/projectStore'
 
 // AI : User type for our custom authentication
 interface User {

@@ -15,8 +15,8 @@
 
 <script setup lang="ts">
 
-import { navigateToCity } from '@composables/navigation/useLocationNavigation'
-import { useToast } from '@composables/ui/useToast'
+import { navigateToCity } from '@/composables/navigation/useLocationNavigation'
+import { useToast } from '@/composables/ui/useToast'
 import { useI18n } from 'vue-i18n'
 
 // AI : Props interface for location data

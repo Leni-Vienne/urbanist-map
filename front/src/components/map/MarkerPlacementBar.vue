@@ -45,9 +45,9 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onUnmounted } from 'vue';
-import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { map } from '@composables/core/useMap';
-import { getMarkerSvg } from '@composables/map/useMarkers';
+import { useOverlayStore } from '@/stores/pinia/overlayStore';
+import { map } from '@/composables/core/useMap';
+import { getMarkerSvg } from '@/composables/map/useMarkers';
 
 // AI : Component props and emits
 interface Props {

@@ -1,4 +1,4 @@
-import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { useOverlayStore } from '@/stores/pinia/overlayStore';
 import { onMounted, onUnmounted } from 'vue';
 
 /**

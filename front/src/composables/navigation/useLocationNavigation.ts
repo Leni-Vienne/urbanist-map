@@ -1,11 +1,11 @@
-import { loadCityProjects } from "@composables/map/useCityMarkers";
-import { prepareCountryContext } from "@composables/map/useCountryMarkers";
-import { map } from "@composables/core/useMap";
-import { mobileAwareFlyTo } from "@composables/map/useMapNavigation";
-import { prepareCrossCountryFlight } from "@composables/map/useTileLayers";
-import { useOverlayStore } from "@stores/pinia/overlayStore";
-import { useProjectStore } from "@stores/pinia/projectStore";
-import { useI18n } from '@composables/useI18n';
+import { loadCityProjects } from "@/composables/map/useCityMarkers";
+import { prepareCountryContext } from "@/composables/map/useCountryMarkers";
+import { map } from "@/composables/core/useMap";
+import { mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
+import { prepareCrossCountryFlight } from "@/composables/map/useTileLayers";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useI18n } from '@/composables/useI18n';
 
 /**
  * AI : Navigate to a city on the map

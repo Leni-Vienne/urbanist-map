@@ -1,20 +1,20 @@
 // AI : Handles rendering of overlays and markers based on mode state
 // AI : Single responsibility: converting overlay data into visible map elements
 
-import type { OverlayData, OverlayObject } from '@types'
+import type { OverlayData, OverlayObject } from '@/types/index'
 import type { RenderStrategy } from './useOverlayModeStateMachine'
-import { map } from '@composables/core/useMap'
-import { renderViewModeOverlays, updateOverlayEditingState } from '@composables/overlay/useOverlay'
-import { updateMarkerTooltip, updateMarkerPosition } from '@composables/overlay/useOverlayMarkers'
-import { clearAllOverlays } from '@composables/overlay/useOverlayLifecycle'
-import { renderOverlayMarkersFromCache, updateOverlayMarkersForFilters, removeOverlayMarkers } from '@composables/map/useCityOverlays'
+import { map } from '@/composables/core/useMap'
+import { renderViewModeOverlays, updateOverlayEditingState } from '@/composables/overlay/useOverlay'
+import { updateMarkerTooltip, updateMarkerPosition } from '@/composables/overlay/useOverlayMarkers'
+import { clearAllOverlays } from '@/composables/overlay/useOverlayLifecycle'
+import { renderOverlayMarkersFromCache, updateOverlayMarkersForFilters, removeOverlayMarkers } from '@/composables/map/useCityOverlays'
 import { applyPositionsToOverlays } from './useOverlayPositionManagement'
-import { useOverlayStore } from '@stores/pinia/overlayStore'
-import { useMapStore } from '@stores/pinia/mapStore'
-import { useCompletionFilters } from '@composables/overlay/useCompletionFilters'
-import { addStandaloneProjectMarkerForProject } from '@composables/map/useStandaloneProjectMarkers'
-import { useProjectStore } from '@stores/pinia/projectStore'
-import { useAuthStore } from '@stores/authStore'
+import { useOverlayStore } from '@/stores/pinia/overlayStore'
+import { useMapStore } from '@/stores/pinia/mapStore'
+import { useCompletionFilters } from '@/composables/overlay/useCompletionFilters'
+import { addStandaloneProjectMarkerForProject } from '@/composables/map/useStandaloneProjectMarkers'
+import { useProjectStore } from '@/stores/pinia/projectStore'
+import { useAuthStore } from '@/stores/authStore'
 
 /**
  * AI : Update markers and editing state for all overlays

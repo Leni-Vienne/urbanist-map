@@ -1,7 +1,7 @@
 import { ref } from 'vue';
-import { getOverlayMarkerColor } from '@composables/map/useMarkers';
-import { useOverlayStore } from '@stores/pinia/overlayStore';
-import type { OverlayData, OverlayObject, viewModeMarkerColor } from '@types';
+import { getOverlayMarkerColor } from '@/composables/map/useMarkers';
+import { useOverlayStore } from '@/stores/pinia/overlayStore';
+import type { OverlayData, OverlayObject, viewModeMarkerColor } from '@/types/index';
 
 // AI : Global completion status filter state
 // AI : Includes all colors that can be returned by getOverlayMarkerColor for any mode

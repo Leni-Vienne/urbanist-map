@@ -1,12 +1,12 @@
 // AI : Standalone project marker management - extracted to avoid circular dependencies
 import L from "leaflet";
-import type { Project } from '@types';
-import { map } from '@composables/core/useMap';
-import { createStandaloneProjectIcon } from '@composables/map/useMarkers';
-import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { useUiStore } from '@stores/uiStore';
-import { MARKER_OPACITY } from '@constants/markerConstants';
-import { createProjectInfoTeleportTarget } from '@composables/map/useProjectPopupTeleport';
+import type { Project } from '@/types/index';
+import { map } from '@/composables/core/useMap';
+import { createStandaloneProjectIcon } from '@/composables/map/useMarkers';
+import { useOverlayStore } from '@/stores/pinia/overlayStore';
+import { useUiStore } from '@/stores/uiStore';
+import { MARKER_OPACITY } from '@/constants/markerConstants';
+import { createProjectInfoTeleportTarget } from '@/composables/map/useProjectPopupTeleport';
 import { getProjectMarkerColor } from '../../utils/markerColors';
 
 // AI : Layer group for standalone projects (standalone project markers)

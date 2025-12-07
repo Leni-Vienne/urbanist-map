@@ -84,11 +84,11 @@
 <script setup lang="ts">
 import { computed, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useToast } from '@composables/ui/useToast';
-import { useChangeRequestPreview } from '@composables/overlay/useChangeRequestPreview';
-import { setChangeRequestsForPreview } from '@composables/overlay/changeRequestPreviewState';
+import { useToast } from '@/composables/ui/useToast';
+import { useChangeRequestPreview } from '@/composables/overlay/useChangeRequestPreview';
+import { setChangeRequestsForPreview } from '@/composables/overlay/changeRequestPreviewState';
 import type { PendingChangeRequest } from '../../types/api';
-import type { ProjectForModeration, OverlayForModeration } from '@types';
+import type { ProjectForModeration, OverlayForModeration } from '@/types/index';
 import ChangeValueDisplay from './ChangeValueDisplay.vue';
 
 interface Props {

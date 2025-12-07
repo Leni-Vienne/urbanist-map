@@ -45,28 +45,28 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue';
 
-import { initializeMap, disableLeafletKeyboardEvents, map } from '@composables/core/useMap';
-import { addTileLayer } from '@composables/map/useTileLayers';
-import { initializeCameraBounds } from '@composables/map/useMapNavigation';
-import { renderViewModeOverlays, undo, redo } from '@composables/overlay/useOverlay';
-import { setupMapClickToDeselect } from '@composables/overlay/useOverlaySelection';
-import { removeOverlayFromMap } from '@composables/overlay/useOverlayRemoval';
-import { useToast } from '@composables/ui/useToast';
-import { useI18n } from '@composables/useI18n';
-import { updateOverlayMarkersForFilters } from '@composables/map/useCityOverlays';
-import { initializeCountryMarkers } from '@composables/map/useCountryMarkers';
-import { initializeOverlayModes } from '@composables/overlay/useOverlayModes';
-import { loadCityStandaloneProjects } from '@composables/map/useCityMarkers';
-import { useMapStore } from '@stores/pinia/mapStore';
-import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { useAuthStore } from '@stores/authStore';
-import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
-import type { OverlayData } from '@types';
-import ModeControls from '@components/map/ModeControls.vue';
+import { initializeMap, disableLeafletKeyboardEvents, map } from '@/composables/core/useMap';
+import { addTileLayer } from '@/composables/map/useTileLayers';
+import { initializeCameraBounds } from '@/composables/map/useMapNavigation';
+import { renderViewModeOverlays, undo, redo } from '@/composables/overlay/useOverlay';
+import { setupMapClickToDeselect } from '@/composables/overlay/useOverlaySelection';
+import { removeOverlayFromMap } from '@/composables/overlay/useOverlayRemoval';
+import { useToast } from '@/composables/ui/useToast';
+import { useI18n } from '@/composables/useI18n';
+import { updateOverlayMarkersForFilters } from '@/composables/map/useCityOverlays';
+import { initializeCountryMarkers } from '@/composables/map/useCountryMarkers';
+import { initializeOverlayModes } from '@/composables/overlay/useOverlayModes';
+import { loadCityStandaloneProjects } from '@/composables/map/useCityMarkers';
+import { useMapStore } from '@/stores/pinia/mapStore';
+import { useOverlayStore } from '@/stores/pinia/overlayStore';
+import { useAuthStore } from '@/stores/authStore';
+import { useCompletionFilters } from '@/composables/overlay/useCompletionFilters';
+import type { OverlayData } from '@/types/index';
+import ModeControls from '@/components/map/ModeControls.vue';
 
-const MapControls = defineAsyncComponent(() => import('@components/map/MapControls.vue'));
-const UserMenu = defineAsyncComponent(() => import('@components/auth/UserMenu.vue'));
-const MarkerHelpButton = defineAsyncComponent(() => import('@components/map/MarkerHelpButton.vue'));
+const MapControls = defineAsyncComponent(() => import('@/components/map/MapControls.vue'));
+const UserMenu = defineAsyncComponent(() => import('@/components/auth/UserMenu.vue'));
+const MarkerHelpButton = defineAsyncComponent(() => import('@/components/map/MarkerHelpButton.vue'));
 
 // AI: Get stores
 const mapStore = useMapStore();

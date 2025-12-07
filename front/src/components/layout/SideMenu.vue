@@ -36,7 +36,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import PanelContent from './PanelContent.vue'
-import { usePanelTabs } from '@composables/layout/usePanelTabs'
+import { usePanelTabs } from '@/composables/layout/usePanelTabs'
 
 defineProps<{
   isOpen: boolean

@@ -48,9 +48,9 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useEditableProjectForm } from '@composables/forms/useEditableProjectForm'
+import { useEditableProjectForm } from '@/composables/forms/useEditableProjectForm'
 import type ProjectFormFields from './ProjectFormFields.vue'
-import type { Project } from '@types'
+import type { Project } from '@/types/index'
 import type { ProjectFormData } from '../../types/forms'
 
 const props = defineProps<{ project: Project }>()

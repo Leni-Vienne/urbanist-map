@@ -1,8 +1,8 @@
 // AI : Composable for managing latest contributions (overlays + standalone projects) with caching
 import { computed } from 'vue'
-import { useOverlayStore } from '@stores/pinia/overlayStore'
-import { trpc } from '@client'
-import { withErrorHandling } from '@composables/core/useErrorHandling'
+import { useOverlayStore } from '@/stores/pinia/overlayStore'
+import { trpc } from '@/client'
+import { withErrorHandling } from '@/composables/core/useErrorHandling'
 
 export function useLatestContributions() {
   const overlayStore = useOverlayStore()

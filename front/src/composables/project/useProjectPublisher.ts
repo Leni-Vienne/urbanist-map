@@ -1,9 +1,9 @@
 import { ref } from 'vue';
-import { useMapStore } from '@stores/pinia/mapStore';
-import { trpc } from '@client';
-import { loadCityProjects } from '@composables/map/useCityMarkers';
+import { useMapStore } from '@/stores/pinia/mapStore';
+import { trpc } from '@/client';
+import { loadCityProjects } from '@/composables/map/useCityMarkers';
 import { buildProjectPayload } from './useProjectMutations';
-import type { Project } from '@types';
+import type { Project } from '@/types/index';
 
 export function useProjectPublisher() {
   const isPublishing = ref(false);

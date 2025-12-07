@@ -62,9 +62,9 @@
 import { ref, computed, watch } from 'vue'
 import AuthModal from './AuthModal.vue'
 import LanguageSwitcherMenu from '../map/LanguageSwitcherMenu.vue'
-import { useAuthStore } from '@stores/authStore'
-import { useUiStore } from '@stores/uiStore'
-import { useToast } from '@composables/ui/useToast'
+import { useAuthStore } from '@/stores/authStore'
+import { useUiStore } from '@/stores/uiStore'
+import { useToast } from '@/composables/ui/useToast'
 import { useI18n } from 'vue-i18n'
 
 const authStore = useAuthStore()

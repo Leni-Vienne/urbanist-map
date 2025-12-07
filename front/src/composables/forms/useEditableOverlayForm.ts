@@ -1,7 +1,7 @@
-import { trpc } from '@client'
+import { trpc } from '@/client'
 import { useEditableFormBase } from './useEditableFormBase'
-import { useToast } from '@composables/ui/useToast'
-import { useI18n } from '@composables/useI18n'
+import { useToast } from '@/composables/ui/useToast'
+import { useI18n } from '@/composables/useI18n'
 import type { OverlayFormData, FieldChange } from '../../types/forms'
 import type { ApprovalStatus } from '@shared/types'
 

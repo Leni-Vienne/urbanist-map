@@ -13,38 +13,11 @@
             "@cloudflare/workers-types" // for R2Bucket type
         ],
         "paths": {
-            "@api": [
-                "./front/src/types/api"
+            "@/*": [
+                "./front/src/*"
             ],
             "@tables": [
                 "./back/src/db/schema"
-            ],
-            "@assets/*": [
-                "./front/src/assets/*"
-            ],
-            "@composables/*": [
-                "./front/src/composables/*"
-            ],
-            "@components/*": [
-                "./front/src/components/*"
-            ],
-            "@constants/*": [
-                "./front/src/constants/*"
-            ],
-            "@stores/*": [
-                "./front/src/stores/*"
-            ],
-            "@types": [
-                "./front/src/types"
-            ],
-            "@client": [
-                "./front/src/client"
-            ],
-            "@pages/*": [
-                "./front/src/pages/*"
-            ],
-            "@utils/*": [
-                "./front/src/utils/*"
             ],
             "@shared/*": [
                 "./shared/*"

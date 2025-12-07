@@ -6,13 +6,13 @@
 // AI : Note: Marker updates are handled by the caller after history operations
 // AI : ============================================================================
 
-import type { OverlayObject } from '@types';
-import { useOverlayStore } from '@stores/pinia/overlayStore';
+import type { OverlayObject } from '@/types/index';
+import { useOverlayStore } from '@/stores/pinia/overlayStore';
 import {
   getFromEditModeOverlayCache,
   saveToEditModeOverlayCache,
-} from '@composables/overlay/useOverlayPositionManagement';
-import { updateMarkerTooltip } from '@composables/overlay/useOverlayMarkers';
+} from '@/composables/overlay/useOverlayPositionManagement';
+import { updateMarkerTooltip } from '@/composables/overlay/useOverlayMarkers';
 
 /**
  * AI : Initialize history for overlay if not already set

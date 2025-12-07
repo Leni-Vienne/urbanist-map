@@ -65,25 +65,25 @@
 import { computed, ref, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
-import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { useProjectStore } from '@stores/pinia/projectStore';
-import { useMapStore } from '@stores/pinia/mapStore';
-import { useUiStore } from '@stores/uiStore';
+import { useOverlayStore } from '@/stores/pinia/overlayStore';
+import { useProjectStore } from '@/stores/pinia/projectStore';
+import { useMapStore } from '@/stores/pinia/mapStore';
+import { useUiStore } from '@/stores/uiStore';
 
-import { navigateToOverlay, addOverlay } from '@composables/overlay/useOverlay';
-import { updateMarkerTooltip } from '@composables/overlay/useOverlayMarkers';
-import { useToast } from '@composables/ui/useToast';
-import { useOverlayPublisher } from '@composables/overlay/useOverlayPublisher';
-import { useSubmissionService, type SubmissionContext, type SubmissionSummary } from '@composables/submission/useSubmissionService';
-import { citiesWithProjects, closeProjectPopupAndResetMarkers } from '@composables/map/useCityMarkers';
-import type { OverlayObject, Project } from '@types';
-import { useProjectDeletion } from '@composables/project/useProjectDeletion';
+import { navigateToOverlay, addOverlay } from '@/composables/overlay/useOverlay';
+import { updateMarkerTooltip } from '@/composables/overlay/useOverlayMarkers';
+import { useToast } from '@/composables/ui/useToast';
+import { useOverlayPublisher } from '@/composables/overlay/useOverlayPublisher';
+import { useSubmissionService, type SubmissionContext, type SubmissionSummary } from '@/composables/submission/useSubmissionService';
+import { citiesWithProjects, closeProjectPopupAndResetMarkers } from '@/composables/map/useCityMarkers';
+import type { OverlayObject, Project } from '@/types/index';
+import { useProjectDeletion } from '@/composables/project/useProjectDeletion';
 import type { DBProject, DBCity } from '../../../../back/src/db/schema';
 import type { ApprovalStatus } from '@shared/types';
 
 const UnifiedProjectPopup = defineAsyncComponent(() => import('./popups/UnifiedProjectPopup.vue'));
 const OverlayEditor = defineAsyncComponent(() => import('./OverlayEditor.vue'));
-const SubmissionConfirmationDialog = defineAsyncComponent(() => import('@components/submission/SubmissionConfirmationDialog.vue'));
+const SubmissionConfirmationDialog = defineAsyncComponent(() => import('@/components/submission/SubmissionConfirmationDialog.vue'));
 
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();

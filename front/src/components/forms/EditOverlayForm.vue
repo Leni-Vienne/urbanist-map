@@ -50,11 +50,11 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useEditableOverlayForm } from '@composables/forms/useEditableOverlayForm'
-import { useFieldValidation } from '@composables/forms/useFieldValidation'
+import { useEditableOverlayForm } from '@/composables/forms/useEditableOverlayForm'
+import { useFieldValidation } from '@/composables/forms/useFieldValidation'
 import { overlaySchema } from '@shared/validation/schemas'
-import { prepareOverlayValidationData } from '@utils/validationHelpers'
-import type { OverlayObject } from '@types'
+import { prepareOverlayValidationData } from '@/utils/validationHelpers'
+import type { OverlayObject } from '@/types/index'
 
 interface Props {
   overlay: OverlayObject

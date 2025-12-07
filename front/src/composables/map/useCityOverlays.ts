@@ -1,21 +1,21 @@
 // AI : City-specific overlay management - handles loading and displaying overlays for cities
 import { ref } from 'vue';
 import L from 'leaflet';
-import { map } from '@composables/core/useMap';
-import { renderViewModeOverlays } from '@composables/overlay/useOverlay';
-import { selectOverlay } from '@composables/overlay/useOverlaySelection';
-import { clearAllOverlays } from '@composables/overlay/useOverlayLifecycle';
-import { hasCachedCityProjectsData, getSelectedCity } from '@composables/map/useCityData';
-import { useCompletionFilters } from '@composables/overlay/useCompletionFilters';
-import { trpc } from '@client';
-import { getOverlayMarkerColor, createOverlayIcon } from '@composables/map/useMarkers';
-import { resolveOverlayPosition } from '@composables/overlay/useOverlayPositionManagement';
-import { useMapStore } from '@stores/pinia/mapStore';
-import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { withErrorHandling, withErrorToast } from '@composables/core/useErrorHandling';
-import { mobileAwareFlyToBounds } from '@composables/map/useMapNavigation';
-import type { OverlayData } from '@types';
-import { MAP_CONFIG } from '@constants/mapConstants';
+import { map } from '@/composables/core/useMap';
+import { renderViewModeOverlays } from '@/composables/overlay/useOverlay';
+import { selectOverlay } from '@/composables/overlay/useOverlaySelection';
+import { clearAllOverlays } from '@/composables/overlay/useOverlayLifecycle';
+import { hasCachedCityProjectsData, getSelectedCity } from '@/composables/map/useCityData';
+import { useCompletionFilters } from '@/composables/overlay/useCompletionFilters';
+import { trpc } from '@/client';
+import { getOverlayMarkerColor, createOverlayIcon } from '@/composables/map/useMarkers';
+import { resolveOverlayPosition } from '@/composables/overlay/useOverlayPositionManagement';
+import { useMapStore } from '@/stores/pinia/mapStore';
+import { useOverlayStore } from '@/stores/pinia/overlayStore';
+import { withErrorHandling, withErrorToast } from '@/composables/core/useErrorHandling';
+import { mobileAwareFlyToBounds } from '@/composables/map/useMapNavigation';
+import type { OverlayData } from '@/types/index';
+import { MAP_CONFIG } from '@/constants/mapConstants';
 
 // AI : Minimum zoom level required to load city projects and overlays
 const MIN_ZOOM_FOR_OVERLAYS = MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;

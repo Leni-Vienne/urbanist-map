@@ -26,9 +26,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useAuthStore } from '@stores/authStore'
-import { useToast } from '@composables/ui/useToast'
-import { useI18n } from '@composables/useI18n'
+import { useAuthStore } from '@/stores/authStore'
+import { useToast } from '@/composables/ui/useToast'
+import { useI18n } from '@/composables/useI18n'
 
 const route = useRoute()
 const router = useRouter()

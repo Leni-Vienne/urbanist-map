@@ -103,16 +103,16 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useNewProject } from '@composables/overlay/useNewProject'
+import { useNewProject } from '@/composables/overlay/useNewProject'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
-import { useToast } from '@composables/ui/useToast'
-import { useChangeRequests } from '@composables/changes/useChanges'
-import { useUserContributions } from '@composables/project/useUserContributions'
-import { useModeratedContributions } from '@composables/moderation/useModeratedContributions'
-import { useUiStore } from '@stores/uiStore'
-import { useProjectDeletion } from '@composables/project/useProjectDeletion'
-import type { RouterOutput } from '@client'
-import type { ProjectForModeration, OverlayForModeration } from '@types'
+import { useToast } from '@/composables/ui/useToast'
+import { useChangeRequests } from '@/composables/changes/useChanges'
+import { useUserContributions } from '@/composables/project/useUserContributions'
+import { useModeratedContributions } from '@/composables/moderation/useModeratedContributions'
+import { useUiStore } from '@/stores/uiStore'
+import { useProjectDeletion } from '@/composables/project/useProjectDeletion'
+import type { RouterOutput } from '@/client'
+import type { ProjectForModeration, OverlayForModeration } from '@/types/index'
 
 // AI : Type definitions from tRPC backend responses
 type UserContribution = RouterOutput['project']['getUsersContributions']['projects'][number]

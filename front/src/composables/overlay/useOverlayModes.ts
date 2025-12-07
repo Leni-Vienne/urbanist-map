@@ -1,10 +1,10 @@
 // AI : Overlay mode management - orchestrates edit/view mode switching using state machine
 import { ref, watch, toRef } from 'vue'
 import type L from 'leaflet'
-import { map, currentZoomLevel } from '@composables/core/useMap'
-import { useOverlayStore } from '@stores/pinia/overlayStore'
-import { useMapStore } from '@stores/pinia/mapStore'
-import { getSelectedCity, hasCachedCityProjectsData, getCachedCityProjectsData } from '@composables/map/useCityData'
+import { map, currentZoomLevel } from '@/composables/core/useMap'
+import { useOverlayStore } from '@/stores/pinia/overlayStore'
+import { useMapStore } from '@/stores/pinia/mapStore'
+import { getSelectedCity, hasCachedCityProjectsData, getCachedCityProjectsData } from '@/composables/map/useCityData'
 import {
   calculateTransition,
   shouldFullRerender,
@@ -13,20 +13,20 @@ import {
 } from './useOverlayModeStateMachine'
 import { renderForStrategy, updateExistingOverlays, clearAllRenderedContent } from './useOverlayRenderer'
 import { cacheCurrentPosition } from './useOverlayPositionManagement'
-import { loadCityOverlays, fetchCityProjectsData } from '@composables/map/useCityOverlays'
-import { loadCityStandaloneProjects, removeCityMarkers, addCityMarkersForCountry, updateAllStandaloneProjectMarkerColors } from '@composables/map/useCityMarkers'
-import { loadCountriesWithProjects, loadCitiesForCountry, addCountryMarkersToMap } from '@composables/map/useCountryMarkers'
-import { navigateToStandaloneProject } from '@composables/navigation/useOverlayNavigation'
-import { useProjectStore } from '@stores/pinia/projectStore'
-import { useUiStore } from '@stores/uiStore'
-import { updateOverlayMarkersColors } from '@composables/map/useMarkers'
-import { updateOverlayEditingState } from '@composables/overlay/useOverlay'
-import { getOverlayBounds } from '@composables/overlay/useOverlayMarkers'
-import { selectOverlay } from '@composables/overlay/useOverlaySelection'
+import { loadCityOverlays, fetchCityProjectsData } from '@/composables/map/useCityOverlays'
+import { loadCityStandaloneProjects, removeCityMarkers, addCityMarkersForCountry, updateAllStandaloneProjectMarkerColors } from '@/composables/map/useCityMarkers'
+import { loadCountriesWithProjects, loadCitiesForCountry, addCountryMarkersToMap } from '@/composables/map/useCountryMarkers'
+import { navigateToStandaloneProject } from '@/composables/navigation/useOverlayNavigation'
+import { useProjectStore } from '@/stores/pinia/projectStore'
+import { useUiStore } from '@/stores/uiStore'
+import { updateOverlayMarkersColors } from '@/composables/map/useMarkers'
+import { updateOverlayEditingState } from '@/composables/overlay/useOverlay'
+import { getOverlayBounds } from '@/composables/overlay/useOverlayMarkers'
+import { selectOverlay } from '@/composables/overlay/useOverlaySelection'
 import { storeToRefs } from 'pinia'
-import { MAP_CONFIG } from '@constants/mapConstants'
-import { mobileAwareFlyToBounds } from '@composables/map/useMapNavigation'
-import { clearChangeRequestPreview } from '@composables/overlay/changeRequestPreviewState'
+import { MAP_CONFIG } from '@/constants/mapConstants'
+import { mobileAwareFlyToBounds } from '@/composables/map/useMapNavigation'
+import { clearChangeRequestPreview } from '@/composables/overlay/changeRequestPreviewState'
 
 // AI : Transition effects - callbacks executed during state transitions
 interface TransitionEffects {

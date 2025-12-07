@@ -14,12 +14,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { map } from '@composables/core/useMap'
-import { mobileAwareFlyTo, flyToCountry } from '@composables/map/useMapNavigation'
-import { useMapStore } from '@stores/pinia/mapStore'
-import { useUiStore } from '@stores/uiStore'
+import { map } from '@/composables/core/useMap'
+import { mobileAwareFlyTo, flyToCountry } from '@/composables/map/useMapNavigation'
+import { useMapStore } from '@/stores/pinia/mapStore'
+import { useUiStore } from '@/stores/uiStore'
 import { useI18n } from 'vue-i18n'
-import countryBboxes from '@assets/country_bboxes.json'
+import countryBboxes from '@/assets/country_bboxes.json'
 
 // AI : Type guard to validate country code against countryBboxes keys
 function isValidCountryCode(code: string): code is keyof typeof countryBboxes {

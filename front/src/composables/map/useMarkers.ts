@@ -5,9 +5,9 @@
 // AI : ============================================================================
 
 import L from 'leaflet';
-import type { MarkerColor, OverlayObject, OverlayData } from '@types';
+import type { MarkerColor, OverlayObject, OverlayData } from '@/types/index';
 import type { MapMode } from '@shared/types';
-import { useOverlayStore } from '@stores/pinia/overlayStore';
+import { useOverlayStore } from '@/stores/pinia/overlayStore';
 import type { ShallowRef } from 'vue';
 
 // AI : ============================================================================

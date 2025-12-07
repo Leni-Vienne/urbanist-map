@@ -62,28 +62,28 @@ import { ref, defineAsyncComponent } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import L from 'leaflet'
-import { useOverlayStore } from '@stores/pinia/overlayStore'
-import { useProjectStore } from '@stores/pinia/projectStore'
-import { useUiStore } from '@stores/uiStore'
-import { useToast } from '@composables/ui/useToast'
-import { map } from '@composables/core/useMap'
-import { loadCityProjects, updateStandaloneProjectMarkerColor, addSingleCityMarker, addCityMarkersForCountry } from '@composables/map/useCityMarkers'
-import { createProjectInfoTeleportTarget } from '@composables/map/useProjectPopupTeleport'
-import { getStandaloneProjectMarkerByProjectId } from '@composables/map/useStandaloneProjectMarkers'
-import { loadCitiesForCountry } from '@composables/map/useCountryMarkers'
-import { useMapStore } from '@stores/pinia/mapStore'
-import { createStandaloneProjectIcon } from '@composables/map/useMarkers'
-import { addOverlay } from '@composables/overlay/useOverlay'
-import { createProject } from '@composables/project/useProjects'
+import { useOverlayStore } from '@/stores/pinia/overlayStore'
+import { useProjectStore } from '@/stores/pinia/projectStore'
+import { useUiStore } from '@/stores/uiStore'
+import { useToast } from '@/composables/ui/useToast'
+import { map } from '@/composables/core/useMap'
+import { loadCityProjects, updateStandaloneProjectMarkerColor, addSingleCityMarker, addCityMarkersForCountry } from '@/composables/map/useCityMarkers'
+import { createProjectInfoTeleportTarget } from '@/composables/map/useProjectPopupTeleport'
+import { getStandaloneProjectMarkerByProjectId } from '@/composables/map/useStandaloneProjectMarkers'
+import { loadCitiesForCountry } from '@/composables/map/useCountryMarkers'
+import { useMapStore } from '@/stores/pinia/mapStore'
+import { createStandaloneProjectIcon } from '@/composables/map/useMarkers'
+import { addOverlay } from '@/composables/overlay/useOverlay'
+import { createProject } from '@/composables/project/useProjects'
 import { createProjectObjectFromAPI, createProjectObject } from '../../utils/typeFactories'
-import { useCityProjects } from '@composables/project/useProjectSelection'
-import type { Project, OverlayObject } from '@types'
+import { useCityProjects } from '@/composables/project/useProjectSelection'
+import type { Project, OverlayObject } from '@/types/index'
 import type { NearbyProject } from '../../types/api'
 
-import MarkerPlacementBar from '@components/map/MarkerPlacementBar.vue'
-const ProjectDialog = defineAsyncComponent(() => import('@components/project/ProjectDialog.vue'))
-const EditProjectForm = defineAsyncComponent(() => import('@components/forms/EditProjectForm.vue'))
-const EditOverlayForm = defineAsyncComponent(() => import('@components/forms/EditOverlayForm.vue'))
+import MarkerPlacementBar from '@/components/map/MarkerPlacementBar.vue'
+const ProjectDialog = defineAsyncComponent(() => import('@/components/project/ProjectDialog.vue'))
+const EditProjectForm = defineAsyncComponent(() => import('@/components/forms/EditProjectForm.vue'))
+const EditOverlayForm = defineAsyncComponent(() => import('@/components/forms/EditOverlayForm.vue'))
 
 const overlayStore = useOverlayStore()
 const projectStore = useProjectStore()
