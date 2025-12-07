@@ -137,17 +137,18 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
       return;
     }
 
-    // AI : Create teleport target at marker position (shared utility)
+    // AI : Close overlay popup if it's open (only one popup at a time)
+    if (overlayStore.showInfoPopup) {
+      overlayStore.hideInfoPopup();
+    }
+
+    // AI : Create/update teleport target at marker position
     createProjectInfoTeleportTarget(marker);
 
     // AI : Update marker opacities (make this one fully opaque)
     updateStandaloneProjectMarkerOpacities(marker);
 
-    // AI : Use uiStore to show project info popup
-    // AI : Close overlay popup if it's open (only one popup at a time)
-    if (overlayStore.showInfoPopup) {
-      overlayStore.hideInfoPopup();
-    }
+    // AI : Open or update project info popup (openProjectInfoPopup handles both cases)
     uiStore.openProjectInfoPopup(project.id, project);
   });
 
