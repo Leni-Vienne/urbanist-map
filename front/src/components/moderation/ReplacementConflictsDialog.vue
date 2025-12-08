@@ -51,7 +51,7 @@
           <div
             v-for="change in conflicts.pendingChangeRequests"
             :key="change.id"
-            class="conflict-item change-request-item"
+            class="conflict-item"
           >
             <div class="item-header">
               <strong>{{ $t(`fields.${change.fieldName}`) }}</strong>

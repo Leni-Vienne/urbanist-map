@@ -498,6 +498,16 @@
     "approveProjectFirst": "Approuvez d'abord le projet pour modérer ses images",
     "undo": "Annuler la dernière action"
   },
+  "toolbar": {
+    "info": "Infos",
+    "previousOverlay": "Aller à l'image précédente",
+    "nextOverlay": "Aller à l'image suivante",
+    "undo": "Annuler (ctrl + z)",
+    "redo": "Rétablir (ctrl + y)",
+    "resetRatio": "Réinitialiser le ratio de l'image",
+    "delete": "Supprimer cette image",
+    "replace": "Remplacer cette image"
+  },
   "markerTooltip": {
     "status": {
       "replacementOverlay": "Image de remplacement",

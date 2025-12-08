@@ -711,11 +711,3 @@ async function handleRejectAndReportChange(changeId: string, userId: string | nu
   border-color: #e5e7eb;
 }
 </style>
-
-<!-- AI : Global styles for portal-based overlays that render outside component scope -->
-<style>
-/* AI : Ensure Select dropdown overlay appears above mode outline (z-index 1050) */
-.p-select-overlay {
-  z-index: 1100 !important;
-}
-</style>

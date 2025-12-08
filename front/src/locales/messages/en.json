@@ -498,6 +498,16 @@
     "approveProjectFirst": "Approve the project first to moderate its overlays",
     "undo": "Undo last action"
   },
+  "toolbar": {
+    "info": "Info",
+    "previousOverlay": "Go to previous overlay",
+    "nextOverlay": "Go to next overlay",
+    "undo": "Undo (ctrl + z)",
+    "redo": "Redo (ctrl + y)",
+    "resetRatio": "Reset Image Ratio",
+    "delete": "Delete this overlay",
+    "replace": "Replace this overlay image"
+  },
   "markerTooltip": {
     "status": {
       "replacementOverlay": "Replacement overlay",

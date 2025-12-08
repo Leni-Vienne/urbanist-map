@@ -1,7 +1,13 @@
 <template>
   <div :class="['change-requests-container', containerClass]">
-    <div v-if="showHeader" class="change-requests-header">
-      <div v-if="isOverlayChanges" class="change-indicator">
+    <div
+      v-if="showHeader"
+      class="change-requests-header"
+    >
+      <div
+        v-if="isOverlayChanges"
+        class="change-indicator"
+      >
         <i class="pi pi-exclamation-triangle text-orange-500"></i>
         <span class="change-header-text">
           {{ isMyContributions
@@ -10,20 +16,32 @@
           }}
         </span>
       </div>
-      <h3 v-else class="change-requests-title">
+      <h3
+        v-else
+        class="change-requests-title"
+      >
         {{ isMyContributions ? $t('moderation.yourPendingChanges') : $t('moderation.pendingChanges') }}
       </h3>
-      <p v-if="isMyContributions" class="change-requests-subtitle">
+      <p
+        v-if="isMyContributions"
+        class="change-requests-subtitle"
+      >
         {{ $t('moderation.moderatorReviewRequired') }}
       </p>
     </div>
 
     <div class="change-requests-list">
       <!-- AI : Iterate over grouped changes -->
-      <template v-for="group in groupedChanges" :key="group.type === 'single' ? group.change.id : `conflict-${group.entityId}-${group.fieldName}`">
+      <template
+        v-for="group in groupedChanges"
+        :key="group.type === 'single' ? group.change.id : `conflict-${group.entityId}-${group.fieldName}`"
+      >
 
         <!-- AI : Single non-conflicting change -->
-        <div v-if="group.type === 'single'" class="change-item">
+        <div
+          v-if="group.type === 'single'"
+          class="change-item"
+        >
           <div class="change-content">
             <div class="change-field">
               <div class="field-header">
@@ -38,14 +56,23 @@
                 @click-contributor="handleClickContributor"
               />
             </div>
-            <div v-if="$slots['change-actions']" class="change-actions">
-              <slot name="change-actions" :change="group.change"></slot>
+            <div
+              v-if="$slots['change-actions']"
+              class="change-actions"
+            >
+              <slot
+                name="change-actions"
+                :change="group.change"
+              ></slot>
             </div>
           </div>
         </div>
 
         <!-- AI : Grouped conflicting changes -->
-        <div v-else class="change-item conflicted">
+        <div
+          v-else
+          class="change-item conflicted"
+        >
           <div class="conflict-banner">
             <i
               class="pi pi-info-circle conflict-info-icon"
@@ -55,7 +82,11 @@
           </div>
 
           <!-- AI : List all competing changes -->
-          <div v-for="change in group.changes" :key="change.id" class="conflict-option">
+          <div
+            v-for="change in group.changes"
+            :key="change.id"
+            class="conflict-option"
+          >
             <div class="change-content">
               <div class="change-field">
                 <div class="field-header">
@@ -69,8 +100,14 @@
                   @click-contributor="handleClickContributor"
                 />
               </div>
-              <div v-if="$slots['change-actions']" class="change-actions">
-                <slot name="change-actions" :change="change"></slot>
+              <div
+                v-if="$slots['change-actions']"
+                class="change-actions"
+              >
+                <slot
+                  name="change-actions"
+                  :change="change"
+                ></slot>
               </div>
             </div>
           </div>
@@ -263,19 +300,6 @@ async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', chan
   margin-top: 1rem;
 }
 
-.project-change-requests {
-  padding: 0.75rem;
-  background: var(--p-surface-50);
-  border: 1px solid var(--p-surface-200);
-  border-radius: 6px;
-}
-
-.overlay-change-requests {
-  padding: 0.75rem 1rem;
-  background: var(--p-orange-25);
-  border-top: 1px solid var(--p-orange-200);
-}
-
 .change-requests-title {
   margin: 0 0 0.75rem 0;
   font-size: 0.875rem;
@@ -356,16 +380,13 @@ async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', chan
   margin-bottom: 0.25rem;
 }
 
-.requested-by {
-  font-size: 0.75rem;
-  color: var(--p-surface-500);
-  font-weight: 400;
-}
-
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.6;
   }
@@ -418,7 +439,7 @@ async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', chan
 }
 
 /* AI : Adjust conflict banner for grouped display */
-.change-item.conflicted > .conflict-banner {
+.change-item.conflicted>.conflict-banner {
   margin: 0;
   border-radius: 4px 4px 0 0;
 }

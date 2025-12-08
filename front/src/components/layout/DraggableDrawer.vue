@@ -343,22 +343,12 @@ onMounted(() => {
   background: var(--p-surface-0);
 }
 
-/* AI : Smooth fade transition */
-.drawer-fade-enter-active,
-.drawer-fade-leave-active {
+.draggable-drawer {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   transition: opacity 0.3s ease;
 }
 
-.drawer-fade-enter-from,
-.drawer-fade-leave-to {
-  opacity: 0;
-}
-
-.drawer-fade-enter-active .draggable-drawer,
-.drawer-fade-leave-active .draggable-drawer {
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
+/* No idea why but those 4 classes below are needed, otherwise the dragrabble drawer disappears on mobile */
 .drawer-fade-enter-from .draggable-drawer,
 .drawer-fade-leave-to .draggable-drawer {
   transform: translateY(100%);

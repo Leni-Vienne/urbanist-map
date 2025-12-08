@@ -156,12 +156,6 @@ defineExpose({
   line-height: 1.5;
 }
 
-.help-intro {
-  margin-bottom: 1.5rem;
-  color: var(--text-color-secondary);
-  text-align: center;
-}
-
 .help-sections {
   display: flex;
   flex-direction: column;
@@ -205,12 +199,6 @@ defineExpose({
   background: var(--surface-0);
   border: 1px solid var(--surface-border);
   border-radius: 6px;
-}
-
-.help-svg-icon {
-  width: 1.2em;
-  height: 1.2em;
-  color: var(--text-color-secondary);
 }
 
 .help-text {

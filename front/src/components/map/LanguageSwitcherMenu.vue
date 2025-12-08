@@ -26,7 +26,10 @@
         >
           <span class="text-lg">{{ locale.flag }}</span>
           <span class="text-sm font-medium">{{ locale.name }}</span>
-          <i v-if="isLoading && loadingLocale === locale.code" class="pi pi-spin pi-spinner ml-auto"></i>
+          <i
+            v-if="isLoading && loadingLocale === locale.code"
+            class="pi pi-spin pi-spinner ml-auto"
+          ></i>
         </button>
       </div>
     </Popover>
@@ -126,4 +129,5 @@ async function changeLocale(newLocale: Locale): Promise<void> {
 .pi-language {
   font-size: 16px;
 }
+
 </style>

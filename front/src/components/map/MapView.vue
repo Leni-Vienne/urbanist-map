@@ -286,10 +286,6 @@ async function initializeMapAndOverlays() {
 
 /* AI : Move Leaflet attribution above mobile drawer handle */
 @media (max-width: 768px) {
-  /* AI : Adjust mode indicator position on mobile to be above drawer */
-  .mode-indicator {
-    bottom: 5rem;
-  }
 
   :deep(.leaflet-control-attribution) {
     bottom: 4.5rem !important;

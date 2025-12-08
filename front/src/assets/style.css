@@ -3,7 +3,8 @@
 /* doesn't seem useful? */
 
 /* AI : Prevent scrollbars on map page */
-html, body {
+html,
+body {
   overflow: hidden;
   margin: 0;
   padding: 0;
@@ -16,21 +17,14 @@ html, body {
   display: inline;
 }
 
-/* to flip any icon */
-.icon-flipped {
-  transform: scaleX(-1);
-  -moz-transform: scaleX(-1);
-  -webkit-transform: scaleX(-1);
-  -ms-transform: scaleX(-1);
-}
-
 /* making map background black to avoid white flash on load and on tilelayer change */
 #mapDiv {
   background: black;
 }
 
 .leaflet-control-attribution a {
-  color: #005a7d !important; /* Darker blue that passes WCAG AA against #ccc, otherwise ANDI flags the attribution link */
+  color: #005a7d !important;
+  /* Darker blue that passes WCAG AA against #ccc, otherwise ANDI flags the attribution link */
 }
 
 /* Ensure overlay markers don't appear above the info popup */
@@ -39,14 +33,14 @@ html, body {
 }
 
 /* To prevent draggable corner icons from being shown above the info popup */
-.leaflet-interactive{
+.leaflet-interactive {
   z-index: 200 !important;
 }
 
 :root {
   /* Tag */
-  --p-tag-warn-background: #fef9c3!important;
-  --p-tag-warn-color: #ca8a04!important;
+  --p-tag-warn-background: #fef9c3 !important;
+  --p-tag-warn-color: #ca8a04 !important;
 
   --p-message-warn-background: #fef9c3;
   --p-message-warn-color: #ca8a04;
@@ -64,7 +58,8 @@ html, body {
 }
 
 .p-popover {
-  z-index: 1200 !important; /* Ensure popovers appear above other elements like drawers */
+  z-index: 1200 !important;
+  /* Ensure popovers appear above other elements like drawers */
 }
 
 /* AI : Shared link styling for consistent, accessible links across the app */
@@ -80,4 +75,13 @@ html, body {
 .app-link:hover {
   color: var(--p-primary-700);
   text-decoration-color: var(--p-primary-700);
+}
+
+/* AI : Reduce tooltip delay for Leaflet toolbar buttons */
+.leaflet-toolbar-icon {
+  transition-delay: 0.2s !important;
+}
+
+.leaflet-toolbar-icon:hover::after {
+  transition-delay: 0.2s !important;
 }

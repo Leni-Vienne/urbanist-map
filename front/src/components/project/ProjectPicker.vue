@@ -340,11 +340,3 @@ onUnmounted(() => {
   width: 100%;
 }
 </style>
-
-<style>
-/* AI : Ensure dropdown panel appears above dialogs when appendTo="body" */
-/* AI : PrimeVue dialogs can have z-index up to 2000+, so we go higher */
-.project-picker-panel {
-  z-index: 9999 !important;
-}
-</style>
