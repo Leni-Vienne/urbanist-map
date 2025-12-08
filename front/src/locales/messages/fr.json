@@ -59,6 +59,7 @@
     "settings": "Paramètres",
     "profile": "Profil",
     "latestContributions": "Contributions Récentes",
+    "currentCity": "Ville Actuelle",
     "myContributions": "Mes contributions",
     "moderation": "Modération",
     "unsavedOverlaysWarning": "Vous avez des images non enregistrées. La navigation les supprimera. Continuer ?",
@@ -201,6 +202,13 @@
     "noContributionsFound": "Aucune contribution trouvée.",
     "beFirstToAdd": "Soyez le premier à ajouter une image ou un projet de bâtiment",
     "loadingContributions": "Chargement des contributions..."
+  },
+  "currentCity": {
+    "title": "{cityName}",
+    "noCity": "Aucune Ville Sélectionnée",
+    "selectCityPrompt": "Sélectionnez une ville sur la carte pour parcourir ses projets",
+    "noProjects": "Aucun projet dans cette ville",
+    "noProjectsDetail": "Cette ville n'a pas encore de projets"
   },
   "overlay": {
     "title": "Images",

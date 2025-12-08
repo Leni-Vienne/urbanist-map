@@ -13,10 +13,7 @@
         />
       </div>
 
-      <div
-        class="contributions-list"
-        v-if="contributions.length > 0"
-      >
+      <div class="contributions-list" v-if="contributions.length > 0">
         <!-- AI : Clean borderless cards for both overlays and standalone projects -->
         <div
           v-for="contribution in contributions"
@@ -190,8 +187,8 @@ function handleContributionLeave(contribution: LatestContribution) {
 // AI : Handle contribution click - navigate to overlay or standalone project
 async function handleContributionClick(contribution: LatestContribution) {
   if (contribution.type === 'overlay') {
-    // AI : Use existing overlay navigation - pass contribution directly as it's part of NavigableOverlay union
-    await handleOverlayClickNavigation(contribution, false)
+    // AI : Use existing overlay navigation - don't auto-select, let user click overlay
+    await handleOverlayClickNavigation(contribution, false, false)
   } else if (contribution.type === 'standalone') {
     // AI : Navigate to standalone project using full navigation flow (tile layer, city load, etc.)
     if (contribution.cityId && contribution.lat && contribution.lng) {

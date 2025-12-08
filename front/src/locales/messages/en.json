@@ -59,6 +59,7 @@
     "settings": "Settings",
     "profile": "Profile",
     "latestContributions": "Latest Contributions",
+    "currentCity": "Current City",
     "myContributions": "My Contributions",
     "moderation": "Moderation",
     "unsavedOverlaysWarning": "You have unsaved overlays. Navigating will discard them. Continue?",
@@ -202,6 +203,13 @@
     "beFirstToAdd": "Be the first to add a construction overlay or standalone project",
     "loadingContributions": "Loading contributions..."
   },
+  "currentCity": {
+    "title": "{cityName}",
+    "noCity": "No City Selected",
+    "selectCityPrompt": "Select a city on the map to browse its projects",
+    "noProjects": "No projects in this city",
+    "noProjectsDetail": "This city doesn't have any projects yet"
+  },
   "overlay": {
     "title": "Images",
     "overlayImages": "images",
@@ -284,8 +292,8 @@
     "satellite": "Satellite",
     "terrain": "Terrain",
     "street": "Street Map",
-    "clickCountryMarker": "Click on a country marker to explore",
-    "clickCityMarker": "Click on a city",
+    "clickCountryMarker": "Click on a country marker",
+    "clickCityMarker": "Click on a city marker",
     "viewMode": "View Mode",
     "editMode": "Edit Mode",
     "viewModeTooltip": "Browse and view projects on the map",

@@ -3,56 +3,53 @@
     <div class="panel-content">
       <div class="panel-header">
         <h2 class="panel-title">{{ title }}</h2>
-        <div
-          v-if="$slots['header-actions']"
-          class="header-actions"
-        >
+        <div v-if="$slots['header-actions']" class="header-actions">
           <slot name="header-actions"></slot>
         </div>
       </div>
 
-      <div
-        v-if="projects.length > 0"
-        class="grouped-accordion-container"
-      >
-        <template
-          v-for="countryGroup in groupedByCountry"
-          :key="countryGroup.countryCode"
-        >
+      <div v-if="projects.length > 0" class="grouped-accordion-container">
+        <template v-for="countryGroup in groupedByCountry" :key="countryGroup.countryCode">
           <div class="country-group">
+            <!-- AI : Country header (hide if grouping disabled) -->
             <div
+              v-if="!disableGrouping"
               class="country-group-header"
               @click="handleToggleCountryExpanded(countryGroup.countryCode)"
             >
               <div class="country-header-content">
                 <i
-                  :class="['pi', isCountryExpanded(countryGroup.countryCode) ? 'pi-chevron-down' : 'pi-chevron-right']"></i>
+                  :class="['pi', isCountryExpanded(countryGroup.countryCode) ? 'pi-chevron-down' : 'pi-chevron-right']"
+                ></i>
                 <h3 class="country-group-title">{{ countryGroup.countryName }}</h3>
                 <span class="country-group-count">{{ countryGroup.totalProjects }}</span>
               </div>
             </div>
 
+            <!-- AI : Country content (always expanded if grouping disabled) -->
             <div
-              v-if="isCountryExpanded(countryGroup.countryCode)"
+              v-if="!disableGrouping ? isCountryExpanded(countryGroup.countryCode) : true"
               class="country-content"
             >
-              <template
-                v-for="cityGroup in countryGroup.cities"
-                :key="cityGroup.key"
-              >
+              <template v-for="cityGroup in countryGroup.cities" :key="cityGroup.key">
+                <!-- AI : City header (hide if grouping disabled) -->
                 <div
+                  v-if="!disableGrouping"
                   class="city-group-header"
                   @click="toggleCityExpanded(cityGroup.key)"
                 >
                   <div class="city-header-content">
-                    <i :class="['pi', isCityExpanded(cityGroup.key) ? 'pi-chevron-down' : 'pi-chevron-right']"></i>
+                    <i
+                      :class="['pi', isCityExpanded(cityGroup.key) ? 'pi-chevron-down' : 'pi-chevron-right']"
+                    ></i>
                     <h4 class="city-group-title">{{ cityGroup.cityName }}</h4>
                   </div>
                   <span class="city-group-count">{{ cityGroup.projects.length }}</span>
                 </div>
 
+                <!-- AI : City accordion (always expanded if grouping disabled) -->
                 <Accordion
-                  v-if="isCityExpanded(cityGroup.key)"
+                  v-if="!disableGrouping ? isCityExpanded(cityGroup.key) : true"
                   :multiple="true"
                   v-model:value="activeAccordionPanels"
                   class="city-accordion"
@@ -68,6 +65,7 @@
                         <span class="project-name">{{ project.name }}</span>
                         <!-- AI : Show normal status tag (handle null for unsubmitted projects) -->
                         <Tag
+                          v-if="!hideStatusBadges"
                           :value="$t(`status.${project.status ?? 'draft'}`)"
                           :severity="getStatusSeverity(project.status)"
                           class="project-status-tag"
@@ -76,17 +74,11 @@
                       </div>
                     </AccordionHeader>
                     <AccordionContent>
-                      <Card
-                        class="marker-project-card"
-                        @click="handleCardClick(project)"
-                      >
+                      <Card class="marker-project-card" @click="handleCardClick(project)">
                         <template #content>
                           <div class="project-content-wrapper">
                             <div class="project-info-section">
-                              <div
-                                v-if="project.description"
-                                class="project-description"
-                              >
+                              <div v-if="project.description" class="project-description">
                                 <p>{{ project.description }}</p>
                               </div>
                               <div class="project-metadata">
@@ -115,27 +107,24 @@
                                 </div>
                                 <div class="metadata-item">
                                   <i class="pi pi-images"></i>
-                                  <span>{{ project.overlayCount || (project.overlays ? project.overlays.length : 0) }}
-                                    {{ $t('overlay.overlayImages') }}</span>
+                                  <span
+                                    >{{ project.overlayCount || (project.overlays ? project.overlays.length : 0) }}
+                                    {{ $t('overlay.overlayImages') }}</span
+                                  >
                                 </div>
                                 <div
                                   class="metadata-item"
                                   v-if="project.startDate || project.endDate || project.proposalDate"
                                 >
                                   <i class="pi pi-calendar"></i>
-                                  <span>{{ formatProjectDateRange(project.startDate, project.endDate,
-                                    project.proposalDate) }}</span>
-                                </div>
-                                <div
-                                  class="metadata-item"
-                                  v-if="project.sourceUrl"
-                                >
-                                  <i class="pi pi-link"></i>
-                                  <a
-                                    :href="project.sourceUrl"
-                                    target="_blank"
-                                    class="app-link"
+                                  <span
+                                    >{{ formatProjectDateRange(project.startDate, project.endDate,
+                                    project.proposalDate) }}</span
                                   >
+                                </div>
+                                <div class="metadata-item" v-if="project.sourceUrl">
+                                  <i class="pi pi-link"></i>
+                                  <a :href="project.sourceUrl" target="_blank" class="app-link">
                                     {{ formatSourceUrl(project.sourceUrl) }}
                                   </a>
                                 </div>
@@ -152,10 +141,7 @@
                               ></slot>
 
                               <!-- AI : Chevron indicator for all projects when no action buttons - signals clickability -->
-                              <i
-                                v-else
-                                class="pi pi-chevron-right tap-indicator"
-                              ></i>
+                              <i v-else class="pi pi-chevron-right tap-indicator"></i>
                             </div>
                           </div>
 
@@ -171,10 +157,7 @@
                             container-class="project-change-requests"
                           >
                             <template #change-actions="{ change }">
-                              <slot
-                                name="change-actions"
-                                :change="change"
-                              ></slot>
+                              <slot name="change-actions" :change="change"></slot>
                             </template>
                           </ChangeRequestSection>
                         </template>
@@ -219,7 +202,9 @@
                             <!-- AI : Overlay info -->
                             <div class="flex-1 min-w-0">
                               <div class="flex items-center gap-2 mb-1">
-                                <p class="overlay-name">{{ overlay.name || $t('overlay.untitled') }}</p>
+                                <p class="overlay-name">
+                                  {{ overlay.name || $t('overlay.untitled') }}
+                                </p>
                               </div>
                               <div class="flex items-center gap-1.5 text-surface-600 text-xs mb-1">
                                 <i class="pi pi-map-marker text-surface-500"></i>
@@ -230,7 +215,10 @@
                                   class="w-4 h-3 rounded-sm"
                                   @error="hideFlagOnError"
                                 />
-                                <span class="truncate">{{ getOverlayLocationDisplay(overlay) }}</span>
+                                <span
+                                  class="truncate"
+                                  >{{ getOverlayLocationDisplay(overlay) }}</span
+                                >
                               </div>
                               <div class="text-xs text-surface-500 mb-2">
                                 <ContributorInfo
@@ -244,6 +232,7 @@
                               </div>
                               <div class="flex items-center gap-2 flex-wrap">
                                 <Tag
+                                  v-if="!hideStatusBadges"
                                   :value="$t(`status.${overlay.status}`)"
                                   :severity="getStatusSeverity(overlay.status)"
                                   class="overlay-status-tag"
@@ -295,10 +284,7 @@
                             container-class="overlay-change-requests"
                           >
                             <template #change-actions="{ change }">
-                              <slot
-                                name="change-actions"
-                                :change="change"
-                              ></slot>
+                              <slot name="change-actions" :change="change"></slot>
                             </template>
                           </ChangeRequestSection>
                         </div>
@@ -366,13 +352,19 @@ interface Props {
   changeRequests?: PendingChangeRequest[]
   onOverlayClick?: (overlay: OverlayForModeration, shouldFitBounds: boolean) => Promise<void>
   showUserStatsLink?: boolean
+  hideStatusBadges?: boolean
+  disableAutoModeSwitch?: boolean
+  disableGrouping?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   emptyMessage: '',
   emptySubMessage: '',
   changeRequests: () => [],
-  showUserStatsLink: false
+  showUserStatsLink: false,
+  hideStatusBadges: false,
+  disableAutoModeSwitch: false,
+  disableGrouping: false
 })
 
 const emit = defineEmits<{
@@ -771,8 +763,9 @@ async function handleStandaloneProjectClick(project: ProjectForModeration) {
     }
 
     // AI : Ensure edit mode is enabled before navigating (required to see markers)
+    // AI : Skip mode switch if disableAutoModeSwitch prop is true (e.g., in Current City panel)
     const overlayStore = useOverlayStore()
-    if (overlayStore.mode !== 'edit') {
+    if (!props.disableAutoModeSwitch && overlayStore.mode !== 'edit') {
       overlayStore.setMode('edit')
     }
 
@@ -834,7 +827,6 @@ function handleOverlayContributorClick(
     reportCount: data.reportCount
   })
 }
-
 </script>
 
 <style scoped>

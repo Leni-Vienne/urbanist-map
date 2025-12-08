@@ -1,34 +1,43 @@
 <template>
-    <!-- AI : Tab navigation -->
-    <div :class="tabContainerClass">
-        <button
-            :class="[tabButtonClass, { active: activeTab === 'latest' }]"
-            @click="$emit('update:activeTab', 'latest')"
-        >
-            {{ $t('navigation.latestContributions') }}
-        </button>
-        <button
-            v-if="authStore.isAuthenticated"
-            :class="[tabButtonClass, { active: activeTab === 'uploads' }]"
-            @click="$emit('update:activeTab', 'uploads')"
-        >
-            {{ $t('navigation.myContributions') }}
-        </button>
-        <button
-            v-if="authStore.isModerator"
-            :class="[tabButtonClass, { active: activeTab === 'moderation' }]"
-            @click="$emit('update:activeTab', 'moderation')"
-        >
-            {{ $t('navigation.moderation') }}
-        </button>
-    </div>
+  <!-- AI : Tab navigation -->
+  <div :class="tabContainerClass">
+    <button
+      :class="[tabButtonClass, { active: activeTab === 'latest' }]"
+      @click="$emit('update:activeTab', 'latest')"
+    >
+      {{ $t('navigation.latestContributions') }}
+    </button>
+    <button
+      v-if="mapStore.selectedCity"
+      :class="[tabButtonClass, { active: activeTab === 'currentCity' }]"
+      @click="$emit('update:activeTab', 'currentCity')"
+    >
+      {{ $t('navigation.currentCity') }}
+    </button>
+    <button
+      v-if="authStore.isAuthenticated"
+      :class="[tabButtonClass, { active: activeTab === 'uploads' }]"
+      @click="$emit('update:activeTab', 'uploads')"
+    >
+      {{ $t('navigation.myContributions') }}
+    </button>
+    <button
+      v-if="authStore.isModerator"
+      :class="[tabButtonClass, { active: activeTab === 'moderation' }]"
+      @click="$emit('update:activeTab', 'moderation')"
+    >
+      {{ $t('navigation.moderation') }}
+    </button>
+  </div>
 </template>
 
 <script setup lang="ts">
 import type { PanelTab } from '@/composables/layout/usePanelTabs'
 import { useAuthStore } from '@/stores/authStore'
+import { useMapStore } from '@/stores/pinia/mapStore'
 
 const authStore = useAuthStore()
+const mapStore = useMapStore()
 
 defineProps<{
     activeTab: PanelTab

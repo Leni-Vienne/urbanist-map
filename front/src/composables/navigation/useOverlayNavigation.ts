@@ -71,12 +71,14 @@ async function prepareNavigationToCity(
 }
 
 /**
- * AI : Zoom to overlay and select it once rendered
+ * AI : Zoom to overlay and optionally select it once rendered
+ * @param autoSelect - Whether to auto-select the overlay after zoom (default: true)
  */
 function zoomToOverlayAndSelect(
   overlayId: string,
   corners: { lat: number; lng: number }[],
   switchToCountryLayer: (() => void) | null,
+  autoSelect = true,
 ): boolean {
   if (!map.value || corners.length !== 4) return false;
 
@@ -106,6 +108,9 @@ function zoomToOverlayAndSelect(
         requestAnimationFrame(waitForElementThenSelect);
         return;
       }
+
+      // AI : Only select if autoSelect is enabled
+      if (!autoSelect) return;
 
       if (element.complete && element.naturalWidth > 0) {
         selectOverlay(overlayId);
@@ -176,6 +181,7 @@ export async function navigateToOverlayWithCity(
   cityId: string,
   cityName: string,
   countryCode?: string,
+  autoSelect = true,
 ): Promise<boolean> {
   try {
     const mapStore = useMapStore();
@@ -193,7 +199,7 @@ export async function navigateToOverlayWithCity(
     if (isSameCity) {
       const corners = getOverlayCorners(overlayId, mapStore, overlayStore);
       if (corners != null) {
-        return zoomToOverlayAndSelect(overlayId, corners, null); // AI : Same city, no cross-country
+        return zoomToOverlayAndSelect(overlayId, corners, null, autoSelect); // AI : Same city, pass autoSelect
       }
       // AI : If null, fall through to different city path
     }
@@ -207,7 +213,12 @@ export async function navigateToOverlayWithCity(
 
     const overlayData = mapStore.currentCityOverlays.find((o) => o.id === overlayId);
     if (overlayData?.corners != null) {
-      return zoomToOverlayAndSelect(overlayId, overlayData.corners, switchToCountryLayer);
+      return zoomToOverlayAndSelect(
+        overlayId,
+        overlayData.corners,
+        switchToCountryLayer,
+        autoSelect,
+      );
     }
 
     // AI : Fallback: if overlay not in current city overlays, use the old method
