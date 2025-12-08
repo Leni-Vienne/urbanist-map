@@ -24,10 +24,12 @@ export function useOverlayClickHandler() {
    * AI : - In moderation mode, don't switch modes (pending overlays already visible)
    * AI : - Clears city cache to force reload
    * AI : - Uses city-aware navigation when possible for better UX
+   * @param autoSelect - Whether to auto-select overlay after navigation (default: true)
    */
   async function handleOverlayClickNavigation(
     overlay: NavigableOverlay,
     shouldToggleEditMode = false,
+    autoSelect = true,
   ): Promise<void> {
     try {
       // AI : Check if overlay is rejected or replaced and show appropriate message
@@ -78,6 +80,7 @@ export function useOverlayClickHandler() {
           overlay.cityId,
           overlay.cityName,
           overlay.countryCode ?? undefined,
+          autoSelect,
         );
       } else {
         // AI : Fallback to direct navigation if no city info

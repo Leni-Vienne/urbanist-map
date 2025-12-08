@@ -5,7 +5,7 @@ import { switchMode } from "@/composables/overlay/useOverlayModes";
 import type { MapMode } from "@shared/types";
 
 // AI : Type for available tabs in side menu and mobile drawer
-export type PanelTab = "latest" | "uploads" | "moderation";
+export type PanelTab = "latest" | "currentCity" | "uploads" | "moderation";
 
 /**
  * AI : Map tab to overlay mode
@@ -13,6 +13,9 @@ export type PanelTab = "latest" | "uploads" | "moderation";
 function tabToMode(tab: PanelTab): MapMode {
   switch (tab) {
     case "latest":
+      return "view";
+    case "currentCity":
+      // AI : Current city tab always shows view mode (approved overlays only)
       return "view";
     case "uploads":
       return "edit";
