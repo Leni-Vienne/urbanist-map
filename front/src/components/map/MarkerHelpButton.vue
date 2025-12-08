@@ -253,13 +253,4 @@ onUnmounted(() => {
   color: var(--p-primary-500);
 }
 
-.help-fade-enter-active,
-.help-fade-leave-active {
-  transition: none;
-}
-
-.help-fade-enter-from,
-.help-fade-leave-to {
-  opacity: 0;
-}
 </style>

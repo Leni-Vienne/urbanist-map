@@ -129,12 +129,12 @@ export function updateOverlayEditingState(): void {
         // AI : Find and click the info button to recreate teleport target and reopen popup
         const overlayElement = overlay.overlay.getElement();
         let infoButton = overlayElement?.parentElement?.querySelector(
-          ".leaflet-toolbar-icon.pi-info-circle",
+          ".leaflet-toolbar-icon.pi-ellipsis-v",
         ) as HTMLElement;
 
         if (!infoButton) {
           // AI : Fallback to document-wide search if not found in parent
-          const allInfoButtons = document.querySelectorAll(".leaflet-toolbar-icon.pi-info-circle");
+          const allInfoButtons = document.querySelectorAll(".leaflet-toolbar-icon.pi-ellipsis-v");
           infoButton = allInfoButtons[0] as HTMLElement;
         }
 
@@ -1055,28 +1055,35 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
 export const infoTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
-      className: "pi pi-info-circle",
-      tooltip: "Info",
+      className: "pi pi-ellipsis-v",
+      tooltip: "", // AI : Will be set in initialize
     },
     subToolbar: new L.Toolbar2({
       actions: [
         L.EditAction.extend({
           options: {
             toolbarIcon: {
-              tooltip: "Info",
+              tooltip: "", // AI : Will be set in initialize
               className: "more-info-popup",
             },
           },
           initialize: function () {
+            // AI : Set tooltip dynamically after i18n is ready
+            this.options.toolbarIcon.tooltip = t("toolbar.info");
             L.EditAction.prototype.initialize?.apply(this, Array.from(arguments));
           },
         }),
       ],
     }),
   },
+  initialize: function () {
+    // AI : Set tooltip dynamically after i18n is ready
+    this.options.toolbarIcon.tooltip = t("toolbar.info");
+    L.Toolbar2.Action.prototype.initialize?.apply(this, Array.from(arguments));
+  },
   // very fragile code but necessary to plug into the leaflet toolbar. If you have a better idea, please contribute!
   addHooks() {
-    const link = this._link;
+    //const link = this._link;
     const overlayStore = useOverlayStore();
     const uiStore = useUiStore();
 
@@ -1120,7 +1127,7 @@ export const infoTool = L.Toolbar2.Action.extend({
           const originalButton = document.createElement("a");
           originalButton.className = "leaflet-toolbar-icon more-info-popup";
           originalButton.href = "#";
-          originalButton.title = "Info";
+          originalButton.title = t("toolbar.info");
           originalButton.setAttribute("role", "button");
           staleTarget.parentNode.replaceChild(originalButton, staleTarget);
         }
@@ -1151,8 +1158,8 @@ export const infoTool = L.Toolbar2.Action.extend({
       }
     }
 
-    L.IconUtil.toggleXlink(link, "information", "close");
-    L.IconUtil.toggleTitle(link, "Close", "About");
+    //L.IconUtil.toggleXlink(link, "information", "close");
+    //L.IconUtil.toggleTitle(link, "Close", "About");
   },
 });
 
@@ -1160,8 +1167,13 @@ export const previousOverlayTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       className: "pi pi-arrow-left",
-      tooltip: "Go to previous overlay",
+      tooltip: "", // AI : Will be set in initialize
     },
+  },
+  initialize: function () {
+    // AI : Set tooltip dynamically after i18n is ready
+    this.options.toolbarIcon.tooltip = t("toolbar.previousOverlay");
+    L.Toolbar2.Action.prototype.initialize?.apply(this, Array.from(arguments));
   },
   addHooks: function () {
     focusCameraToOverlay("previous");
@@ -1172,8 +1184,13 @@ export const nextOverlayTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       className: "pi pi-arrow-right",
-      tooltip: "Go to next overlay",
+      tooltip: "", // AI : Will be set in initialize
     },
+  },
+  initialize: function () {
+    // AI : Set tooltip dynamically after i18n is ready
+    this.options.toolbarIcon.tooltip = t("toolbar.nextOverlay");
+    L.Toolbar2.Action.prototype.initialize?.apply(this, Array.from(arguments));
   },
   addHooks: function () {
     focusCameraToOverlay("next");
@@ -1184,8 +1201,13 @@ export const undoTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       className: "pi pi-undo",
-      tooltip: "Undo (ctrl + z)",
+      tooltip: "", // AI : Will be set in initialize
     },
+  },
+  initialize: function () {
+    // AI : Set tooltip dynamically after i18n is ready
+    this.options.toolbarIcon.tooltip = t("toolbar.undo");
+    L.Toolbar2.Action.prototype.initialize?.apply(this, Array.from(arguments));
   },
   addHooks: function () {
     undo();
@@ -1196,8 +1218,13 @@ export const redoTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       className: "pi pi-refresh",
-      tooltip: "Redo (ctrl + y)",
+      tooltip: "", // AI : Will be set in initialize
     },
+  },
+  initialize: function () {
+    // AI : Set tooltip dynamically after i18n is ready
+    this.options.toolbarIcon.tooltip = t("toolbar.redo");
+    L.Toolbar2.Action.prototype.initialize?.apply(this, Array.from(arguments));
   },
   addHooks: function () {
     redo();
@@ -1208,8 +1235,13 @@ export const resetRatioTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       html: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0078a8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-move-diagonal-icon lucide-move-diagonal"><path d="M11 19H5v-6"/><path d="M13 5h6v6"/><path d="M19 5 5 19"/></svg>',
-      tooltip: "Reset Image Ratio",
+      tooltip: "", // AI : Will be set in initialize
     },
+  },
+  initialize: function () {
+    // AI : Set tooltip dynamically after i18n is ready
+    this.options.toolbarIcon.tooltip = t("toolbar.resetRatio");
+    L.Toolbar2.Action.prototype.initialize?.apply(this, Array.from(arguments));
   },
   addHooks: function () {
     resetImageRatio();
@@ -1276,8 +1308,13 @@ export const customDeleteTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       className: "pi pi-trash",
-      tooltip: "Delete this overlay",
+      tooltip: "", // AI : Will be set in initialize
     },
+  },
+  initialize: function () {
+    // AI : Set tooltip dynamically after i18n is ready
+    this.options.toolbarIcon.tooltip = t("toolbar.delete");
+    L.Toolbar2.Action.prototype.initialize?.apply(this, Array.from(arguments));
   },
   addHooks: async function () {
     const overlayStore = useOverlayStore();
@@ -1319,8 +1356,13 @@ export const replaceOverlayTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       className: "pi pi-image",
-      tooltip: "Replace this overlay image",
+      tooltip: "", // AI : Will be set in initialize
     },
+  },
+  initialize: function () {
+    // AI : Set tooltip dynamically after i18n is ready
+    this.options.toolbarIcon.tooltip = t("toolbar.replace");
+    L.Toolbar2.Action.prototype.initialize?.apply(this, Array.from(arguments));
   },
   addHooks: function () {
     const overlayStore = useOverlayStore();

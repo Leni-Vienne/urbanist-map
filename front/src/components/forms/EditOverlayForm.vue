@@ -160,7 +160,7 @@ async function handleSubmit() {
   gap: 0.25rem;
 }
 
-.form-group label {
+.form-group {
   font-weight: 600;
   color: #374151;
   font-size: 0.875rem;

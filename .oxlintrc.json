@@ -1,9 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "ignorePatterns": [
-    "useOverlay.ts",
-    "**/*tests*/**"
-  ],
+  "ignorePatterns": ["useOverlay.ts", "**/*tests*/**"],
   // Enable all of these plugins (which are enabled by default):
   //"plugins": ["unicorn", "typescript", "oxc"],
   "categories": {
@@ -18,10 +15,7 @@
   "rules": {
     "eslint/no-undef": "off", // warns about console, document, etc. in front-end code
     "eslint/no-await-in-loop": "off", // false positives in several places
-    "eslint/func-style": [
-      "warn",
-      "declaration"
-    ],
+    "eslint/func-style": ["warn", "declaration"],
     "arrow-body-style": [
       "off", //temp
       "as-needed"
@@ -32,7 +26,7 @@
         "case": "camelCase"
       }
     ],*/ // vue files are in pascal case, composables in camel case.....
-     "prefer-object-spread": "off", // conflicts with oxc "no spread in map"
+    "prefer-object-spread": "off", // conflicts with oxc "no spread in map"
     "unicorn/filename-case": "off",
     "eslint/sort-keys": "off",
     "eslint/sort-imports": "off",
@@ -46,7 +40,6 @@
     "eslint/no-magic-numbers": "off", // temporary
     "unicorn/no-null": "off", // temp
     "eslint/id-length": "off", // temp
-
     // --------------------- restriction rules ---------------------
     "no-async-await": "off",
     "use-unknown-in-catch-callback-variable": "off" //temp?

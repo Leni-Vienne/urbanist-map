@@ -257,18 +257,6 @@ onMounted(() => {
   white-space: nowrap;
 }
 
-/* AI : Add overlay button styling */
-.add-overlay-button {
-  margin-top: 1rem;
-  min-width: 160px;
-  padding: 0.75rem 1.5rem;
-  font-weight: 600;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
 
 /* AI : Delete button styling */
 .delete-btn {

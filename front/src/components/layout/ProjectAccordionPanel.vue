@@ -123,7 +123,8 @@
                                   v-if="project.startDate || project.endDate || project.proposalDate"
                                 >
                                   <i class="pi pi-calendar"></i>
-                                  <span>{{ formatProjectDateRange(project.startDate, project.endDate, project.proposalDate) }}</span>
+                                  <span>{{ formatProjectDateRange(project.startDate, project.endDate,
+                                    project.proposalDate) }}</span>
                                 </div>
                                 <div
                                   class="metadata-item"
@@ -736,7 +737,7 @@ function handleCardClick(project: ProjectForModeration) {
   // AI : Check if project has overlays - if so, navigate to first overlay instead of standalone marker
   // AI : (standalone project markers disappear when overlays exist)
   const hasOverlays = project.overlays && project.overlays.length > 0
-  
+
   if (hasOverlays) {
     // AI : Navigate to first overlay (overlays replace the standalone marker)
     handleOverlayCardClick(project.overlays[0], true)
@@ -988,7 +989,8 @@ function handleOverlayContributorClick(
   margin-bottom: 0.5rem;
   padding: 1rem 0 0.75rem 0;
   border-bottom: 2px solid var(--p-primary-100);
-  z-index: 10; /* z-index to prevent accordion headers from overlapping */
+  z-index: 10;
+  /* z-index to prevent accordion headers from overlapping */
 }
 
 .panel-title {
@@ -1105,9 +1107,12 @@ function handleOverlayContributorClick(
 
 
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.6;
   }
@@ -1216,4 +1221,17 @@ function handleOverlayContributorClick(
   font-size: 0.625rem;
 }
 
+/* AI : Change request container styles (applied via container-class prop) */
+.project-change-requests {
+  padding: 0.75rem;
+  background: var(--p-surface-50);
+  border: 1px solid var(--p-surface-200);
+  border-radius: 6px;
+}
+
+.overlay-change-requests {
+  padding: 0.75rem 1rem;
+  background: var(--p-orange-25);
+  border-top: 1px solid var(--p-orange-200);
+}
 </style>
