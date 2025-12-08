@@ -114,9 +114,11 @@ export function mobileAwareFlyTo(
   const targetZoom = zoom ?? currentZoom;
 
   // AI : Check if already at target location and zoom to prevent camera shake
+  // AI : Only skip if BOTH distance and zoom are already correct
   const distance = currentCenter.distanceTo(latLng);
+  const zoomDiff = Math.abs(currentZoom - targetZoom);
 
-  if (distance < distanceThreshold && Math.abs(currentZoom - targetZoom) < 0.1) {
+  if (distance < distanceThreshold && zoomDiff < 0.1) {
     return; // AI : Already at target, skip animation
   }
 
@@ -157,6 +159,7 @@ export function mobileAwareFlyToBounds(
   // AI : Convert bounds expression to LatLngBounds object for comparison
   const targetBounds = bounds instanceof L.LatLngBounds ? bounds : L.latLngBounds(bounds);
   const currentBounds = map.value.getBounds();
+  const currentZoom = map.value.getZoom();
 
   // AI : Check if already viewing the same bounds to prevent camera shake
   const sameNorth =
@@ -165,9 +168,17 @@ export function mobileAwareFlyToBounds(
     Math.abs(currentBounds.getSouth() - targetBounds.getSouth()) < distanceThreshold;
   const sameEast = Math.abs(currentBounds.getEast() - targetBounds.getEast()) < distanceThreshold;
   const sameWest = Math.abs(currentBounds.getWest() - targetBounds.getWest()) < distanceThreshold;
+  const sameBounds = sameNorth && sameSouth && sameEast && sameWest;
 
-  if (sameNorth && sameSouth && sameEast && sameWest) {
-    return; // AI : Already viewing these bounds, skip animation
+  // AI : Check if zoom would be different from current zoom
+  // AI : Calculate what zoom would be used for these bounds
+  const targetZoom =
+    options?.maxZoom ?? map.value.getBoundsZoom(targetBounds, false, options?.padding as L.Point);
+  const zoomDiff = Math.abs(currentZoom - targetZoom);
+
+  // AI : Only skip if BOTH bounds and zoom are already correct
+  if (sameBounds && zoomDiff < 0.1) {
+    return; // AI : Already viewing these bounds at this zoom, skip animation
   }
 
   const applyOffset = shouldApplyMobileOffset();
