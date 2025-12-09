@@ -1,8 +1,5 @@
 <template>
-  <div
-    class="sidecolumn"
-    :class="{ 'sidecolumn--collapsed': !isOpen }"
-  >
+  <div class="sidecolumn" :class="{ 'sidecolumn--collapsed': !isOpen }">
     <!-- AI : Fixed header containing title, close button, and navigation tabs -->
     <div class="sidecolumn__header">
       <div class="header-top">
@@ -26,31 +23,25 @@
     </div>
 
     <!-- AI : Scrollable content area -->
-    <PanelContent
-      :active-tab="activeTab"
-      content-container-class="sidecolumn__content"
-    />
+    <PanelContent :active-tab="activeTab" content-container-class="sidecolumn__content" />
 
     <!-- AI : Footer with legal links -->
     <div class="sidecolumn__footer">
-      <a
-        href="/legal"
-        class="footer-link"
-      >{{ $t("footer.legalMentions") }}</a>
+      <a href="/legal" class="footer-link">{{ $t("footer.legalMentions") }}</a>
       <span class="footer-separator">•</span>
-      <a
-        href="/contact"
-        class="footer-link"
-      >{{ $t("footer.contact") }}</a>
+      <a href="/contact" class="footer-link">{{ $t("footer.contact") }}</a>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import PanelContent from './PanelContent.vue'
 import PanelTabs from './PanelTabs.vue'
 import { usePanelTabs } from '@/composables/layout/usePanelTabs'
+import { useOverlayStore } from '@/stores/pinia/overlayStore'
+import { useMapStore } from '@/stores/pinia/mapStore'
+import type { PanelTab } from '@/types'
 
 defineProps<{
   isOpen: boolean
@@ -61,8 +52,18 @@ defineEmits<{
   close: []
 }>()
 
-// AI : Tab state - default to "latest"
-const activeTab = ref<'latest' | 'uploads' | 'moderation'>('latest')
+// AI : Local tab state
+const activeTab = ref<PanelTab>('latest')
+
+// AI : Watch for overlay selection and auto-switch to Current City tab
+const overlayStore = useOverlayStore()
+const mapStore = useMapStore()
+watch(() => overlayStore.idSelectedOverlay, (overlayId) => {
+  // AI : When an overlay is selected and we have a city loaded, switch to Current City tab
+  if (overlayId && mapStore.selectedCity) {
+    activeTab.value = 'currentCity'
+  }
+})
 
 // AI : Initialize shared tab logic (mode syncing, authentication watchers)
 usePanelTabs(activeTab)

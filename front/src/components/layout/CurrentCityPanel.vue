@@ -20,6 +20,21 @@
     :empty-message="$t('currentCity.noProjects')"
     :empty-sub-message="$t('currentCity.noProjectsDetail')"
   >
+    <!-- AI : Custom header showing Country > City -->
+    <template #header-actions>
+      <div v-if="cityHeader" class="city-header">
+        <span
+          class="country-link"
+          @click="handleCountryClick"
+          :title="$t('currentCity.clickToZoomCountry')"
+        >
+          {{ cityHeader.countryName }}
+        </span>
+        <i class="pi pi-angle-right separator"></i>
+        <span class="city-name">{{ cityHeader.cityName }}</span>
+      </div>
+    </template>
+
     <template #empty-state>
       <i class="pi pi-folder text-5xl text-surface-400 mb-4"></i>
       <p class="text-base mb-2">{{ $t('currentCity.noProjects') }}</p>
@@ -29,11 +44,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch, nextTick, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMapStore } from '@/stores/pinia/mapStore'
 import { useOverlayStore } from '@/stores/pinia/overlayStore'
+import { useProjectStore } from '@/stores/pinia/projectStore'
 import { useOverlayClickHandler } from '@/composables/overlay/useOverlayClickHandler'
+import { prepareCountryContext, isValidCountryCode } from '@/composables/map/useCountryMarkers'
+import { flyToCountry } from '@/composables/map/useMapNavigation'
+import { useAccordionState } from '@/composables/layout/useAccordionState'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import type { ProjectForModeration, OverlayForModeration } from '@/types/index'
 
@@ -41,6 +60,44 @@ import type { ProjectForModeration, OverlayForModeration } from '@/types/index'
 const { t } = useI18n()
 const mapStore = useMapStore()
 const overlayStore = useOverlayStore()
+const projectStore = useProjectStore()
+
+// AI : Get accordion state to manually expand when needed
+const { expandAccordionForOverlay } = useAccordionState()
+
+// AI : Compute header showing "Country > City"
+const cityHeader = computed(() => {
+    if (!mapStore.selectedCity) return null
+
+    const { countryCode, name: cityName } = mapStore.selectedCity
+    if (!countryCode) return null
+
+    // AI : Find country name from countries list
+    const country = projectStore.countries.find(c => c.code === countryCode)
+    if (!country) return null
+
+    return {
+        countryName: country.name,
+        countryCode,
+        cityName,
+        lat: country.lat,
+        lng: country.lng
+    }
+})
+
+// AI : Handle country click - zoom to country view (same as country marker click)
+async function handleCountryClick() {
+    const header = cityHeader.value
+    if (!header) return
+
+    if (!isValidCountryCode(header.countryCode)) return
+
+    // AI : Fly to the country using its centroid
+    flyToCountry(header.countryCode, header.lat, header.lng)
+
+    // AI : Prepare country context (clear map, load cities, add markers)
+    await prepareCountryContext(header.countryCode)
+}
 
 // AI : Custom overlay click handler that doesn't switch to edit mode (like Latest Contributions)
 const { handleOverlayClickNavigation } = useOverlayClickHandler()
@@ -84,7 +141,13 @@ const projectsWithOverlays = computed(() => {
                 updatedAt: projectInfo?.updatedAt ?? overlayData.updatedAt,
                 version: projectInfo?.version ?? overlayData.version,
                 countryCode: projectInfo?.city?.countryCode ?? mapStore.selectedCity.countryCode ?? null,
-                countryName: null, // AI : Not available in data
+                countryName: (() => {
+                    // AI : Get country name from projectStore using country code
+                    const code = projectInfo?.city?.countryCode ?? mapStore.selectedCity.countryCode
+                    if (!code) return null
+                    const country = projectStore.countries.find(c => c.code === code)
+                    return country?.name ?? null
+                })(),
                 cityName: projectInfo?.city?.name ?? mapStore.selectedCity.name,
                 overlays: []
             })
@@ -138,7 +201,13 @@ const projectsWithOverlays = computed(() => {
                 updatedAt: standaloneSummary.updatedAt,
                 version: 0, // Not in summary
                 countryCode: standaloneSummary.city.countryCode ?? null,
-                countryName: null, // AI : Not available in summary
+                countryName: (() => {
+                    // AI : Get country name from projectStore using country code
+                    const code = standaloneSummary.city.countryCode
+                    if (!code) return null
+                    const country = projectStore.countries.find(c => c.code === code)
+                    return country?.name ?? null
+                })(),
                 cityName: standaloneSummary.city.name,
                 overlays: []
             })
@@ -148,6 +217,39 @@ const projectsWithOverlays = computed(() => {
     // AI : Convert to array and sort by name
     return [...projectsMap.values()].toSorted((a, b) => a.name.localeCompare(b.name))
 })
+
+// AI : When component mounts, check if an overlay is already selected
+// AI : This handles the case where the tab switches to currentCity after overlay is selected
+onMounted(async () => {
+    const selectedOverlayId = overlayStore.idSelectedOverlay
+    const projects = projectsWithOverlays.value
+
+    if (selectedOverlayId && projects.length > 0) {
+        // AI : Wait for DOM to be ready
+        await nextTick()
+        await nextTick() // Extra tick for accordion to be ready
+
+        // AI : Trigger accordion expansion
+        const expanded = expandAccordionForOverlay(selectedOverlayId, projects)
+    }
+})
+
+// AI : Watch for overlay selection to manually trigger accordion expansion
+// AI : This ensures the accordion expands even if the default watcher in ProjectAccordionPanel
+// AI : fires before the projects are fully populated
+watch(
+    () => [overlayStore.idSelectedOverlay, projectsWithOverlays.value] as const,
+    async ([selectedOverlayId, projects]) => {
+        if (selectedOverlayId && projects.length > 0) {
+            // AI : Wait for Vue to render the updated projects
+            await nextTick()
+
+            // AI : Manually trigger accordion expansion
+            const expanded = expandAccordionForOverlay(selectedOverlayId, projects)
+        }
+    },
+    { deep: true }
+)
 </script>
 
 <style scoped>
@@ -161,5 +263,41 @@ const projectsWithOverlays = computed(() => {
     text-align: center;
     color: var(--p-surface-600);
     height: 100%;
+}
+
+/* AI : City header breadcrumb styles */
+.city-header {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    font-size: 1rem;
+    color: var(--p-surface-700);
+    font-weight: 600;
+    padding: 0.25rem 0;
+}
+
+.country-link {
+    color: var(--p-primary-500);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--p-border-radius);
+    margin: -0.25rem -0.5rem;
+}
+
+.country-link:hover {
+    color: var(--p-primary-600);
+    background-color: var(--p-primary-50);
+}
+
+.separator {
+    color: var(--p-surface-500);
+    font-size: 0.875rem;
+    margin: 0 0.125rem;
+}
+
+.city-name {
+    color: var(--p-surface-800);
+    font-weight: 600;
 }
 </style>

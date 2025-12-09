@@ -1,57 +1,47 @@
 <template>
-    <!-- AI : Mobile Bottom Drawer - Custom Draggable Implementation -->
-    <DraggableDrawer
-        v-model:visible="isVisible"
-        v-model:height-percent="drawerHeight"
-        @height-changed="handleHeightChanged"
-    >
-        <!-- AI : Mode controls above drawer on mobile -->
-        <template #above>
-            <ModeControls
-                v-if="authStore.isAuthenticated"
-                :is-mobile="true"
-            />
-        </template>
+  <!-- AI : Mobile Bottom Drawer - Custom Draggable Implementation -->
+  <DraggableDrawer
+    v-model:visible="isVisible"
+    v-model:height-percent="drawerHeight"
+    @height-changed="handleHeightChanged"
+  >
+    <!-- AI : Mode controls above drawer on mobile -->
+    <template #above>
+      <ModeControls v-if="authStore.isAuthenticated" :is-mobile="true" />
+    </template>
 
-        <!-- AI : Custom header with title and tab navigation -->
-        <template #header>
-            <div class="drawer-header-content">
-                <h3 class="drawer-title">{{ $t('app.title') }}</h3>
+    <!-- AI : Custom header with title and tab navigation -->
+    <template #header>
+      <div class="drawer-header-content">
+        <h3 class="drawer-title">{{ $t('app.title') }}</h3>
 
-                <!-- AI : Tab navigation inside fixed header -->
-                <PanelTabs
-                    v-model:active-tab="activeTab"
-                    tab-container-class="drawer-tabs"
-                    tab-button-class="drawer-tab"
-                />
-            </div>
-        </template>
-
-        <!-- AI : Scrollable content area -->
-        <PanelContent
-            :active-tab="activeTab"
-            content-container-class="drawer-content"
+        <!-- AI : Tab navigation inside fixed header -->
+        <PanelTabs
+          v-model:active-tab="activeTab"
+          tab-container-class="drawer-tabs"
+          tab-button-class="drawer-tab"
         />
+      </div>
+    </template>
 
-        <!-- AI : Footer with legal links -->
-        <div class="drawer-footer">
-            <a
-                href="/legal"
-                class="footer-link"
-            >{{ $t("footer.legalMentions") }}</a>
-            <span class="footer-separator">•</span>
-            <a
-                href="/contact"
-                class="footer-link"
-            >{{ $t("footer.contact") }}</a>
-        </div>
-    </DraggableDrawer>
+    <!-- AI : Scrollable content area -->
+    <PanelContent :active-tab="activeTab" content-container-class="drawer-content" />
+
+    <!-- AI : Footer with legal links -->
+    <div class="drawer-footer">
+      <a href="/legal" class="footer-link">{{ $t("footer.legalMentions") }}</a>
+      <span class="footer-separator">•</span>
+      <a href="/contact" class="footer-link">{{ $t("footer.contact") }}</a>
+    </div>
+  </DraggableDrawer>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, watch } from "vue";
 import { useUiStore } from "@/stores/uiStore";
 import { usePanelTabs } from "@/composables/layout/usePanelTabs";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 
 import DraggableDrawer from "./DraggableDrawer.vue";
 import PanelContent from "./PanelContent.vue";
@@ -72,11 +62,21 @@ function handleHeightChanged(height: number) {
     uiStore.setMobileDrawerHeight(height);
 }
 
-// AI : Use UI store for active tab state (shared with Home component)
+// AI : Use UI store for active tab state
 const activeTab = computed({
     get: () => uiStore.mobileDrawerActiveTab,
     set: (value) => uiStore.setMobileDrawerActiveTab(value),
 });
+
+// AI : Watch for overlay selection and auto-switch to Current City tab
+const overlayStore = useOverlayStore()
+const mapStore = useMapStore()
+watch(() => overlayStore.idSelectedOverlay, (overlayId) => {
+    // AI : When an overlay is selected and we have a city loaded, switch to Current City tab
+    if (overlayId && mapStore.selectedCity) {
+        uiStore.setMobileDrawerActiveTab('currentCity')
+    }
+})
 
 // AI : Initialize shared tab logic (mode syncing, authentication watchers)
 const { authStore } = usePanelTabs(activeTab);
@@ -90,7 +90,7 @@ const { authStore } = usePanelTabs(activeTab);
 }
 
 .drawer-title {
-    margin: 0;
+    margin: 0 0 0rem 1rem;
     font-size: 1.125rem;
     font-weight: 600;
     color: var(--p-surface-900);

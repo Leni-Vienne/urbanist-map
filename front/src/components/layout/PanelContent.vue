@@ -32,7 +32,7 @@
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
 import LatestContributionsPanel from './LatestContributionsPanel.vue'
-import type { PanelTab } from '@/composables/layout/usePanelTabs'
+import type { PanelTab } from '@/types'
 import { useAuthStore } from '@/stores/authStore'
 
 // AI : Lazy load panels to reduce initial bundle size

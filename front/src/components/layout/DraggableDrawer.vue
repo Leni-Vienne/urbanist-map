@@ -2,11 +2,7 @@
   <!-- AI : Custom draggable bottom drawer with continuous positioning -->
   <Teleport to="body">
     <Transition name="drawer-fade">
-      <div
-        v-if="visible"
-        class="draggable-drawer-container"
-        @click.self="handleBackdropClick"
-      >
+      <div v-if="visible" class="draggable-drawer-container" @click.self="handleBackdropClick">
         <div
           ref="drawerRef"
           class="draggable-drawer"
@@ -17,31 +13,21 @@
           @mousedown="handleMouseDown"
         >
           <!-- AI : Slot for content above drawer (e.g., mode controls) -->
-          <div
-            class="drawer-above-content"
-            :style="{ bottom: aboveContentBottom }"
-          >
+          <div class="drawer-above-content" :style="{ bottom: aboveContentBottom }">
             <slot name="above"></slot>
           </div>
 
           <!-- AI : Drag handle at the top -->
-          <div
-            class="drawer-handle"
-            @click.stop
-          >
+          <div class="drawer-handle" @click.stop>
             <div class="handle-bar"></div>
           </div>
 
           <!-- AI : Header -->
-          <div
-            class="drawer-header"
-            :class="{ 'drawer-header--compact': isCompact }"
-          >
+          <div class="drawer-header" :class="{ 'drawer-header--compact': isCompact }">
             <slot name="header">
-              <h3
-                class="drawer-title"
-                :class="{ 'drawer-title--compact': isCompact }"
-              >{{ header }}</h3>
+              <h3 class="drawer-title" :class="{ 'drawer-title--compact': isCompact }">
+                {{ header }}
+              </h3>
             </slot>
           </div>
 
@@ -305,8 +291,6 @@ onMounted(() => {
 }
 
 .drawer-header {
-  padding: 0.5rem 1.5rem 1rem;
-  border-bottom: 1px solid var(--p-surface-100);
   flex-shrink: 0;
   background: var(--p-surface-0);
   cursor: grab;
