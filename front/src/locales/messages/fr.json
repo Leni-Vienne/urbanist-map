@@ -174,7 +174,8 @@
       "description": "Bouton pour basculer entre le Mode Visualisation (projets approuvés uniquement) et le Mode Édition (modifier vos propres projets)"
     },
     "filters": {
-      "onlyShowPending": "Afficher uniquement en attente"
+      "showPending": "Afficher en attente",
+      "showApproved": "Afficher approuvé"
     }
   },
   "contributions": {

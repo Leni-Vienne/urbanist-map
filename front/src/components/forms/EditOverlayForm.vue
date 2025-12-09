@@ -1,36 +1,22 @@
 <template>
   <div class="editable-overlay-form">
-    <form
-      @submit.prevent="handleSubmit"
-      class="overlay-form"
-    >
-      <div class="form-group">
-        <label for="caption">{{ $t('overlay.overlayNameCaption') }}</label>
+    <form @submit.prevent="handleSubmit" class="overlay-form">
+      <label for="caption">{{ $t('overlay.overlayNameCaption') }}</label>
 
-        <InputText
-          id="caption"
-          v-model="form.formData.caption"
-          :class="getCaptionInputClass()"
-          :placeholder="$t('overlay.enterOverlayName')"
-          autocomplete="off"
-          @blur="handleCaptionBlur"
-          @input="handleCaptionInput"
-        />
-        <small
-          v-if="captionError"
-          class="validation-error"
-        >{{ captionError }}</small>
-        <small
-          v-else-if="form.hasChanged('caption')"
-          class="change-indicator"
-        >
-          {{ $t('overlay.changedFrom') }}: "{{ form.originalData.caption || $t('overlay.notSet') }}"
-        </small>
-        <div
-          v-else
-          class="change-indicator-placeholder"
-        ></div>
-      </div>
+      <InputText
+        id="caption"
+        v-model="form.formData.caption"
+        :class="getCaptionInputClass()"
+        :placeholder="$t('overlay.enterOverlayName')"
+        autocomplete="off"
+        @blur="handleCaptionBlur"
+        @input="handleCaptionInput"
+      />
+      <small v-if="captionError" class="validation-error">{{ captionError }}</small>
+      <small v-else-if="form.hasChanged('caption')" class="change-indicator">
+        {{ $t('overlay.changedFrom') }}: "{{ form.originalData.caption || $t('overlay.notSet') }}"
+      </small>
+      <div v-else class="change-indicator-placeholder"></div>
 
       <!-- Form actions -->
       <div class="form-actions">
@@ -154,17 +140,6 @@ async function handleSubmit() {
   gap: 1rem;
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.form-group {
-  font-weight: 600;
-  color: #374151;
-  font-size: 0.875rem;
-}
 
 /* AI : Global field change styling */
 :deep(.field-changed) {

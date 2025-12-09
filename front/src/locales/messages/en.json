@@ -174,7 +174,8 @@
       "description": "Button to toggle between View Mode (approved projects only) and Edit Mode (modify your own projects)"
     },
     "filters": {
-      "onlyShowPending": "Only show pending"
+      "showPending": "Show Pending",
+      "showApproved": "Show Approved"
     }
   },
   "contributions": {

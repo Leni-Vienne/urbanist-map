@@ -42,15 +42,9 @@
     </template>
 
     <template #header-actions>
-      <div class="header-actions-container">
-        <div class="filter-controls">
-          <div class="field-checkbox">
-            <Checkbox v-model="onlyShowPending" inputId="onlyShowPending" binary />
-            <label for="onlyShowPending">{{ $t('help.filters.onlyShowPending') }}</label>
-          </div>
-        </div>
-
-        <div class="right-actions">
+      <div class="my-contributions-header">
+        <!-- AI : First row - action buttons -->
+        <div class="header-buttons-row">
           <!-- AI : Moderation results button -->
           <Button
             v-if="hasUnacknowledgedItems"
@@ -77,6 +71,18 @@
             v-tooltip.bottom="$t('dialog.createNewProject')"
           />
         </div>
+
+        <!-- AI : Second row - filter checkboxes -->
+        <div class="header-filters-row">
+          <div class="field-checkbox">
+            <Checkbox v-model="showPending" inputId="showPending" binary />
+            <label for="showPending">{{ $t('help.filters.showPending') }}</label>
+          </div>
+          <div class="field-checkbox">
+            <Checkbox v-model="showApproved" inputId="showApproved" binary />
+            <label for="showApproved">{{ $t('help.filters.showApproved') }}</label>
+          </div>
+        </div>
       </div>
     </template>
 
@@ -97,7 +103,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useNewProject } from '@/composables/overlay/useNewProject'
+import { useAddOverlay } from '@/composables/overlay/useAddOverlay'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import { useToast } from '@/composables/ui/useToast'
 import { useChangeRequests } from '@/composables/changes/useChanges'
@@ -126,60 +132,61 @@ const { moderatedContributions, hasUnacknowledgedItems } = useModeratedContribut
 const uiStore = useUiStore()
 const moderatedContributionsCount = computed(() => moderatedContributions.value.length)
 
-const onlyShowPending = ref(true)
+// AI : Filter state - both true by default to show everything
+const showPending = ref(true)
+const showApproved = ref(true)
 
-// AI : New project composable
-const { handleNewProjectClick } = useNewProject()
+// AI : Use shared composable for add overlay button
+const { handleAddOverlayClick } = useAddOverlay()
 
-async function handleAddOverlayClick() {
-  const result = await handleNewProjectClick()
-
-  if (!result.success && result.reason === 'edit_mode_error') {
-    toast.add({
-      severity: 'error',
-      summary: t('moderation.modeSwitchError'),
-      detail: t('moderation.modeSwitchErrorDetail'),
-      life: 3000
-    })
-  }
-  // AI : No toast for success - dialog opening is self-explanatory
-}
+// AI : Toast for delete operations
 const toast = useToast()
 
 // AI : Change requests functionality
 const { pendingChangeRequests, refreshPendingChangeRequests, deleteChangeRequest } = useChangeRequests()
 
-// AI : Computed filtered projects
+// AI : Computed filtered projects based on two independent checkboxes
 const filteredProjects = computed(() => {
-  if (onlyShowPending.value) {
-    // AI : Show projects that are pending OR have pending overlays/change requests
-    return projects.value.filter(project => {
-      // AI : If the project itself is pending, include it
-      if (project.status === 'pending') {
-        return true
-      }
-
-      // AI : If project has pending overlays (user's suggestions on approved projects), include it
-      const hasPendingOverlays = project.overlays?.some((overlay: UserContributionOverlay) => overlay.status === 'pending') ?? false
-      if (hasPendingOverlays) {
-        return true
-      }
-
-      // AI : If project has pending change requests (user's suggestions), include it
-      const hasPendingChanges = pendingChangeRequests.value.some(change => {
-        if (change.entityType === 'project' && change.entityId === project.id) {
-          return true
-        }
-        // AI : Check if any overlay in this project has pending changes
-        return project.overlays?.some((overlay: UserContributionOverlay) =>
-          change.entityType === 'overlay' && change.entityId === overlay.id
-        ) ?? false
-      })
-
-      return hasPendingChanges
-    })
+  // AI : If neither checkbox is selected, show nothing
+  if (!showPending.value && !showApproved.value) {
+    return []
   }
-  return projects.value
+
+  // AI : If both are selected, show everything
+  if (showPending.value && showApproved.value) {
+    return projects.value
+  }
+
+  // AI : Filter based on which checkbox(es) are selected
+  return projects.value.filter(project => {
+    const isPending = project.status === 'pending'
+    const isApproved = project.status === 'approved' || project.status === 'rejected' || project.status === 'replaced'
+
+    // AI : Check if project has pending overlays/changes (contributes to "pending")
+    const hasPendingOverlays = project.overlays?.some((overlay: UserContributionOverlay) => overlay.status === 'pending') ?? false
+    const hasPendingChanges = pendingChangeRequests.value.some(change => {
+      if (change.entityType === 'project' && change.entityId === project.id) {
+        return true
+      }
+      return project.overlays?.some((overlay: UserContributionOverlay) =>
+        change.entityType === 'overlay' && change.entityId === overlay.id
+      ) ?? false
+    })
+
+    const hasAnyPending = isPending || hasPendingOverlays || hasPendingChanges
+
+    // AI : Show if "pending" checkbox is on and project has pending items
+    if (showPending.value && hasAnyPending) {
+      return true
+    }
+
+    // AI : Show if "approved" checkbox is on and project is approved (and has no pending items)
+    if (showApproved.value && isApproved && !hasAnyPending) {
+      return true
+    }
+
+    return false
+  })
 })
 
 // AI : Delete handlers with confirmation
@@ -221,27 +228,32 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* AI : Component-specific styles - most moved to shared component */
-.header-actions-container {
+/* AI : Import shared panel CSS */
+@import '../../assets/panel-common.css';
+
+/* AI : Custom two-row header layout for My Contributions panel */
+.my-contributions-header {
   display: flex;
-  gap: 1rem;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 0.75rem;
   width: 100%;
 }
 
-.filter-controls {
+/* AI : First row - action buttons aligned to the right */
+.header-buttons-row {
   display: flex;
   align-items: center;
   gap: 1rem;
+  justify-content: flex-end;
+  width: 100%;
 }
 
-.right-actions {
+/* AI : Second row - filter checkboxes */
+.header-filters-row {
   display: flex;
   align-items: center;
   gap: 1rem;
-  margin-left: auto;
+  flex-wrap: wrap;
 }
 
 .field-checkbox {
@@ -255,17 +267,5 @@ onMounted(() => {
   color: var(--p-surface-600);
   cursor: pointer;
   white-space: nowrap;
-}
-
-
-/* AI : Delete button styling */
-.delete-btn {
-  color: var(--p-red-600);
-  transition: all 0.2s ease;
-}
-
-.delete-btn:hover {
-  color: var(--p-red-700);
-  background-color: var(--p-red-50);
 }
 </style>

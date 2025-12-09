@@ -88,20 +88,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useLatestContributions } from '@/composables/overlay/useLatestContributions'
 import { useOverlayClickHandler } from '@/composables/overlay/useOverlayClickHandler'
-import { useNewProject } from '@/composables/overlay/useNewProject'
-import { useToast } from '@/composables/ui/useToast'
+import { useAddOverlay } from '@/composables/overlay/useAddOverlay'
 import { highlightOverlayById, removeOverlayHighlight } from '@/composables/overlay/useOverlaySelection'
 import { navigateToStandaloneProject } from '@/composables/navigation/useOverlayNavigation'
 import { buildThumbnailUrl } from '@/utils/imageUrl'
 import { formatRelativeTime } from '@/utils/dateFormat'
+import { getFlagUrl, hideFlagOnError, useImageErrors } from '@/utils/imageHelpers'
 import type { LatestContribution } from '@/types/api'
 
 const { t } = useI18n()
-const toast = useToast()
 
 // AI : Use cached composable for latest contributions
 const { contributions, isLoading, fetchLatestContributions } = useLatestContributions()
@@ -109,53 +108,15 @@ const { contributions, isLoading, fetchLatestContributions } = useLatestContribu
 // AI : Use shared overlay click handler for overlay navigation
 const { handleOverlayClickNavigation } = useOverlayClickHandler()
 
-// AI : New project composable
-const { handleNewProjectClick } = useNewProject()
+// AI : Use shared composable for add overlay button
+const { handleAddOverlayClick } = useAddOverlay()
 
-const imageErrors = ref<Record<string, boolean>>({})
-
-// AI : Handle add new project button click
-async function handleAddOverlayClick() {
-  const result = await handleNewProjectClick()
-
-  if (!result.success && result.reason === 'edit_mode_error') {
-    toast.add({
-      severity: 'error',
-      summary: t('moderation.modeSwitchError'),
-      detail: t('moderation.modeSwitchErrorDetail'),
-      life: 3000
-    })
-  }
-  // AI : Auth modal is already opened by useNewProject for not_authenticated
-  // AI : No toast for success - dialog opening is self-explanatory
-}
+// AI : Use shared image error handling
+const { imageErrors, handleImageError, handleImageLoad } = useImageErrors()
 
 // AI : Get contribution thumbnail URL using the utility function
 function getContributionImageUrl(filename: string): string {
   return buildThumbnailUrl(filename)
-}
-
-// AI : Get flag URL for country
-function getFlagUrl(countryCode: string): string {
-  return `https://flagcdn.com/16x12/${countryCode.toLowerCase()}.png`
-}
-
-// AI : Handle image loading errors
-function handleImageError(event: Event, contributionId: string) {
-  imageErrors.value[contributionId] = true
-  const target = event.target as HTMLImageElement
-  target.style.display = 'none'
-}
-
-// AI : Handle image loading success
-function handleImageLoad(event: Event, contributionId: string) {
-  imageErrors.value[contributionId] = false
-}
-
-// AI : Hide flag on error
-function hideFlagOnError(event: Event) {
-  const target = event.target as HTMLImageElement
-  target.style.display = 'none'
 }
 
 // AI : Get location display (city, country)
@@ -211,6 +172,9 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* AI : Import shared panel CSS */
+@import '../../assets/panel-common.css';
+
 /* AI : Latest contributions panel with prototype-inspired design */
 .latest-contributions-panel {
   height: 100%;
@@ -232,10 +196,6 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   flex-shrink: 0;
-}
-
-.add-project-button {
-  font-weight: 600;
 }
 
 /* AI : Contributions list container */

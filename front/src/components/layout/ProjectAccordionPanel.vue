@@ -328,6 +328,7 @@ import { useI18n } from 'vue-i18n'
 import { buildThumbnailUrl } from '@/utils/imageUrl'
 import { formatDate } from '@/utils/dateFormat'
 import { formatSourceUrl } from '@/utils/urlFormat'
+import { getFlagUrl, hideFlagOnError, useImageErrors } from '@/utils/imageHelpers'
 import { navigateToStandaloneProject } from '@/composables/navigation/useOverlayNavigation'
 import { useOverlayClickHandler } from '@/composables/overlay/useOverlayClickHandler'
 import { highlightOverlayById, removeOverlayHighlight } from '@/composables/overlay/useOverlaySelection'
@@ -388,8 +389,8 @@ const {
   expandAccordionForProject
 } = useAccordionState()
 
-// AI : Reactive state for image errors
-const imageErrors = ref<Record<string, boolean>>({})
+// AI : Use shared image error handling
+const { imageErrors, handleImageError, handleImageLoad } = useImageErrors()
 
 // AI : Use overlay click handler composable for shared navigation logic
 const { handleOverlayClickNavigation } = useOverlayClickHandler()
@@ -618,16 +619,7 @@ async function waitForProjectAccordionAnimation(projectId: string): Promise<void
   await scrollToOverlayWhenReady(projectElement)
 }
 
-// AI : Get flag URL for country
-function getFlagUrl(countryCode: string): string {
-  return `https://flagcdn.com/16x12/${countryCode.toLowerCase()}.png`
-}
 
-// AI : Hide flag on error
-function hideFlagOnError(event: Event) {
-  const target = event.target as HTMLImageElement
-  target.style.display = 'none'
-}
 
 // AI : Get badge severity based on status
 function getStatusSeverity(status: string | null): string {
@@ -662,17 +654,7 @@ function getOverlayImageUrl(filename: string, status?: string): string {
 }
 
 
-// AI : Handle image loading errors
-function handleImageError(event: Event, overlayId: string) {
-  imageErrors.value[overlayId] = true
-  const target = event.target as HTMLImageElement
-  target.style.display = 'none'
-}
 
-// AI : Handle image loading success
-function handleImageLoad(event: Event, overlayId: string) {
-  imageErrors.value[overlayId] = false
-}
 
 // AI : Get overlay location display (city, country) - avoid duplication
 function getOverlayLocationDisplay(overlay: OverlayForModeration): string {

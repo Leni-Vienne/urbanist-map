@@ -253,6 +253,15 @@ onMounted(() => {
   z-index: 1101;
   touch-action: none;
   pointer-events: auto;
+  /*transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.3s ease;*/
+}
+
+
+/* No idea why but those 4 classes below are needed, otherwise the dragrabble drawer disappears on mobile */
+.drawer-fade-enter-from .draggable-drawer,
+.drawer-fade-leave-to .draggable-drawer {
+  transform: translateY(100%);
 }
 
 /* AI : Content above drawer - positioned above the drawer, moves with it
@@ -325,16 +334,5 @@ onMounted(() => {
   overflow-y: auto;
   overflow-x: hidden;
   background: var(--p-surface-0);
-}
-
-.draggable-drawer {
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  transition: opacity 0.3s ease;
-}
-
-/* No idea why but those 4 classes below are needed, otherwise the dragrabble drawer disappears on mobile */
-.drawer-fade-enter-from .draggable-drawer,
-.drawer-fade-leave-to .draggable-drawer {
-  transform: translateY(100%);
 }
 </style>

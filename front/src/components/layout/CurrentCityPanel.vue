@@ -65,8 +65,7 @@ import { useOverlayClickHandler } from '@/composables/overlay/useOverlayClickHan
 import { prepareCountryContext, isValidCountryCode } from '@/composables/map/useCountryMarkers'
 import { flyToCountry } from '@/composables/map/useMapNavigation'
 import { useAccordionState } from '@/composables/layout/useAccordionState'
-import { useNewProject } from '@/composables/overlay/useNewProject'
-import { useToast } from '@/composables/ui/useToast'
+import { useAddOverlay } from '@/composables/overlay/useAddOverlay'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import type { ProjectForModeration, OverlayForModeration } from '@/types/index'
 
@@ -75,28 +74,12 @@ const { t } = useI18n()
 const mapStore = useMapStore()
 const overlayStore = useOverlayStore()
 const projectStore = useProjectStore()
-const toast = useToast()
 
 // AI : Get accordion state to manually expand when needed
 const { expandAccordionForOverlay } = useAccordionState()
 
-// AI : New project composable
-const { handleNewProjectClick } = useNewProject()
-
-// AI : Handle add overlay button click
-async function handleAddOverlayClick() {
-    const result = await handleNewProjectClick()
-
-    if (!result.success && result.reason === 'edit_mode_error') {
-        toast.add({
-            severity: 'error',
-            summary: t('moderation.modeSwitchError'),
-            detail: t('moderation.modeSwitchErrorDetail'),
-            life: 3000
-        })
-    }
-    // AI : No toast for success - dialog opening is self-explanatory
-}
+// AI : Use shared composable for add overlay button
+const { handleAddOverlayClick } = useAddOverlay()
 
 // AI : Compute header showing "Country > City"
 const cityHeader = computed(() => {
@@ -234,13 +217,7 @@ const projectsWithOverlays = computed(() => {
                 updatedAt: standaloneSummary.updatedAt,
                 version: 0, // Not in summary
                 countryCode: standaloneSummary.city.countryCode ?? null,
-                countryName: (() => {
-                    // AI : Get country name from projectStore using country code
-                    const code = standaloneSummary.city.countryCode
-                    if (!code) return null
-                    const country = projectStore.countries.find(c => c.code === code)
-                    return country?.name ?? null
-                })(),
+                countryName: projectStore.countries.find(c => c.code === standaloneSummary.city.countryCode)?.name ?? null,
                 cityName: standaloneSummary.city.name,
                 overlays: []
             })
@@ -282,6 +259,9 @@ watch(
 </script>
 
 <style scoped>
+/* AI : Import shared panel CSS */
+@import '../../assets/panel-common.css';
+
 /* AI : Empty state when no city is selected */
 .empty-state {
     display: flex;
@@ -292,15 +272,6 @@ watch(
     text-align: center;
     color: var(--p-surface-600);
     height: 100%;
-}
-
-/* AI : Header actions container - matches MyContributionsPanel pattern */
-.header-actions-container {
-    display: flex;
-    gap: 1rem;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
 }
 
 /* AI : City header breadcrumb styles */
