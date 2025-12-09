@@ -43,45 +43,39 @@
 
     <template #header-actions>
       <div class="header-actions-container">
-        <!-- AI : Moderation results button -->
-        <Button
-          v-if="hasUnacknowledgedItems"
-          @click="uiStore.openModeratedContributionsDialog()"
-          :label="$t('moderation.moderatedContributions.viewResults')"
-          severity="secondary"
-          size="small"
-          outlined
-        >
-          <template #icon>
-            <Badge
-              :value="moderatedContributionsCount"
-              severity="danger"
-              class="mr-2"
-            />
-            <i class="pi pi-bell"></i>
-          </template>
-        </Button>
-
-        <!-- AI : New Project button - primary action with icon only on small screens -->
-        <Button
-          @click="handleAddOverlayClick"
-          severity="primary"
-          size="small"
-          icon="pi pi-plus"
-          :label="$t('common.add')"
-          class="add-project-button"
-          v-tooltip.bottom="$t('dialog.createNewProject')"
-        />
-
         <div class="filter-controls">
           <div class="field-checkbox">
-            <Checkbox
-              v-model="onlyShowPending"
-              inputId="onlyShowPending"
-              binary
-            />
+            <Checkbox v-model="onlyShowPending" inputId="onlyShowPending" binary />
             <label for="onlyShowPending">{{ $t('help.filters.onlyShowPending') }}</label>
           </div>
+        </div>
+
+        <div class="right-actions">
+          <!-- AI : Moderation results button -->
+          <Button
+            v-if="hasUnacknowledgedItems"
+            @click="uiStore.openModeratedContributionsDialog()"
+            :label="$t('moderation.moderatedContributions.viewResults')"
+            severity="secondary"
+            size="small"
+            outlined
+          >
+            <template #icon>
+              <Badge :value="moderatedContributionsCount" severity="danger" class="mr-2" />
+              <i class="pi pi-bell"></i>
+            </template>
+          </Button>
+
+          <!-- AI : New Project button - aligned to the right like CurrentCityPanel -->
+          <Button
+            @click="handleAddOverlayClick"
+            severity="primary"
+            size="small"
+            icon="pi pi-plus"
+            :label="$t('common.add')"
+            class="add-project-button"
+            v-tooltip.bottom="$t('dialog.createNewProject')"
+          />
         </div>
       </div>
     </template>
@@ -224,7 +218,6 @@ onMounted(() => {
   // AI : Force user-only mode to show only this user's change requests, even for moderators
   refreshPendingChangeRequests(true)
 })
-
 </script>
 
 <style scoped>
@@ -234,7 +227,7 @@ onMounted(() => {
   gap: 1rem;
   align-items: center;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: space-between;
   width: 100%;
 }
 
@@ -242,6 +235,13 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 1rem;
+}
+
+.right-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-left: auto;
 }
 
 .field-checkbox {

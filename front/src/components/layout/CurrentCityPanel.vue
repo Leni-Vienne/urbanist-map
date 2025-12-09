@@ -22,16 +22,28 @@
   >
     <!-- AI : Custom header showing Country > City -->
     <template #header-actions>
-      <div v-if="cityHeader" class="city-header">
-        <span
-          class="country-link"
-          @click="handleCountryClick"
-          :title="$t('currentCity.clickToZoomCountry')"
-        >
-          {{ cityHeader.countryName }}
+      <div class="header-actions-container">
+        <span v-if="cityHeader" class="city-header">
+          <span
+            class="country-link"
+            @click="handleCountryClick"
+            :title="$t('currentCity.clickToZoomCountry')"
+          >
+            {{ cityHeader.countryName }}
+          </span>
+          <i class="pi pi-angle-right separator"></i>
+          <span class="city-name">{{ cityHeader.cityName }}</span>
         </span>
-        <i class="pi pi-angle-right separator"></i>
-        <span class="city-name">{{ cityHeader.cityName }}</span>
+        <!-- AI : New Project button - aligned to the right -->
+        <Button
+          @click="handleAddOverlayClick"
+          severity="primary"
+          size="small"
+          icon="pi pi-plus"
+          :label="$t('common.add')"
+          class="add-project-button"
+          v-tooltip.bottom="$t('dialog.createNewProject')"
+        />
       </div>
     </template>
 
@@ -44,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, nextTick, onMounted } from 'vue'
+import { computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMapStore } from '@/stores/pinia/mapStore'
 import { useOverlayStore } from '@/stores/pinia/overlayStore'
@@ -53,6 +65,8 @@ import { useOverlayClickHandler } from '@/composables/overlay/useOverlayClickHan
 import { prepareCountryContext, isValidCountryCode } from '@/composables/map/useCountryMarkers'
 import { flyToCountry } from '@/composables/map/useMapNavigation'
 import { useAccordionState } from '@/composables/layout/useAccordionState'
+import { useNewProject } from '@/composables/overlay/useNewProject'
+import { useToast } from '@/composables/ui/useToast'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import type { ProjectForModeration, OverlayForModeration } from '@/types/index'
 
@@ -61,9 +75,28 @@ const { t } = useI18n()
 const mapStore = useMapStore()
 const overlayStore = useOverlayStore()
 const projectStore = useProjectStore()
+const toast = useToast()
 
 // AI : Get accordion state to manually expand when needed
 const { expandAccordionForOverlay } = useAccordionState()
+
+// AI : New project composable
+const { handleNewProjectClick } = useNewProject()
+
+// AI : Handle add overlay button click
+async function handleAddOverlayClick() {
+    const result = await handleNewProjectClick()
+
+    if (!result.success && result.reason === 'edit_mode_error') {
+        toast.add({
+            severity: 'error',
+            summary: t('moderation.modeSwitchError'),
+            detail: t('moderation.modeSwitchErrorDetail'),
+            life: 3000
+        })
+    }
+    // AI : No toast for success - dialog opening is self-explanatory
+}
 
 // AI : Compute header showing "Country > City"
 const cityHeader = computed(() => {
@@ -223,32 +256,28 @@ const projectsWithOverlays = computed(() => {
 onMounted(async () => {
     const selectedOverlayId = overlayStore.idSelectedOverlay
     const projects = projectsWithOverlays.value
-
     if (selectedOverlayId && projects.length > 0) {
-        // AI : Wait for DOM to be ready
-        await nextTick()
-        await nextTick() // Extra tick for accordion to be ready
-
-        // AI : Trigger accordion expansion
-        const expanded = expandAccordionForOverlay(selectedOverlayId, projects)
+        expandAccordionForOverlay(selectedOverlayId, projects)
     }
 })
 
 // AI : Watch for overlay selection to manually trigger accordion expansion
 // AI : This ensures the accordion expands even if the default watcher in ProjectAccordionPanel
 // AI : fires before the projects are fully populated
+// AI : We track projects by length rather than deep watching to avoid fragile reactive dependencies
 watch(
-    () => [overlayStore.idSelectedOverlay, projectsWithOverlays.value] as const,
-    async ([selectedOverlayId, projects]) => {
-        if (selectedOverlayId && projects.length > 0) {
-            // AI : Wait for Vue to render the updated projects
-            await nextTick()
-
-            // AI : Manually trigger accordion expansion
-            const expanded = expandAccordionForOverlay(selectedOverlayId, projects)
+    () => ({
+        overlayId: overlayStore.idSelectedOverlay,
+        projectCount: projectsWithOverlays.value.length,
+        // AI : Include project IDs to detect when projects actually change (not just re-render)
+        projectIds: projectsWithOverlays.value.map(p => p.id).join(',')
+    }),
+    async ({ overlayId, projectCount }) => {
+        if (overlayId && projectCount > 0) {
+            // AI : Wait for DOM updates before expanding accordion
+            expandAccordionForOverlay(overlayId, projectsWithOverlays.value)
         }
-    },
-    { deep: true }
+    }
 )
 </script>
 
@@ -263,6 +292,16 @@ watch(
     text-align: center;
     color: var(--p-surface-600);
     height: 100%;
+}
+
+/* AI : Header actions container - matches MyContributionsPanel pattern */
+.header-actions-container {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    width: 100%;
 }
 
 /* AI : City header breadcrumb styles */

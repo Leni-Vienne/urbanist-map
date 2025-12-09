@@ -67,64 +67,65 @@
       @show-user-stats="handleShowUserStats"
       :on-overlay-click="handleViewOverlayPosition"
     >
-    <template #header-actions>
-      <Button
-        icon="pi pi-undo"
-        @click="handleUndo"
-        :disabled="!canUndo"
-        size="small"
-        :label="$t('actions.undo')"
-        severity="secondary"
-        v-tooltip.top="undoTooltip"
-        :aria-label="$t('tooltips.undo')"
-      />
-    </template>
+      <template #header-actions>
+        <div class="moderation-header-actions">
+          <Button
+            icon="pi pi-undo"
+            @click="handleUndo"
+            :disabled="!canUndo"
+            size="small"
+            :label="$t('actions.undo')"
+            severity="secondary"
+            v-tooltip.top="undoTooltip"
+            :aria-label="$t('tooltips.undo')"
+          />
+        </div>
+      </template>
 
-    <template #project-actions="{ project }">
-      <!-- AI : Show moderation buttons for pending projects -->
-      <ModerationActionButtons
-        v-if="project.status === 'pending'"
-        :user-id="project.ownerId ?? null"
-        @approve="handleApproveProject(project.id)"
-        @reject="handleRejectProject(project.id)"
-        @reject-and-report="handleRejectAndReportProject(project.id, project.ownerId ?? null)"
-      />
-    </template>
+      <template #project-actions="{ project }">
+        <!-- AI : Show moderation buttons for pending projects -->
+        <ModerationActionButtons
+          v-if="project.status === 'pending'"
+          :user-id="project.ownerId ?? null"
+          @approve="handleApproveProject(project.id)"
+          @reject="handleRejectProject(project.id)"
+          @reject-and-report="handleRejectAndReportProject(project.id, project.ownerId ?? null)"
+        />
+      </template>
 
-    <template #overlay-actions="{ overlay, project }">
-      <!-- AI : Show moderation buttons for pending overlays if project is approved -->
-      <ModerationActionButtons
-        v-if="overlay.status === 'pending' && project.status === 'approved'"
-        :disabled="!!overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id)"
-        :disabled-tooltip="overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id) ? $t('overlay.viewPositionRequired') : ''"
-        :user-id="overlay.authorId"
-        @approve="handleApproveOverlay(overlay.id)"
-        @reject="handleRejectOverlay(overlay.id)"
-        @reject-and-report="handleRejectAndReportOverlay(overlay.id, overlay.authorId)"
-      />
-      <!-- AI : Show locked button if project not approved yet -->
-      <button
-        v-if="overlay.status === 'pending' && project.status !== 'approved'"
-        class="action-btn disabled-btn"
-        disabled
-        v-tooltip.top="$t('tooltips.approveProjectFirst')"
-      >
-        <i class="pi pi-lock"></i>
-      </button>
-    </template>
+      <template #overlay-actions="{ overlay, project }">
+        <!-- AI : Show moderation buttons for pending overlays if project is approved -->
+        <ModerationActionButtons
+          v-if="overlay.status === 'pending' && project.status === 'approved'"
+          :disabled="!!overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id)"
+          :disabled-tooltip="overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id) ? $t('overlay.viewPositionRequired') : ''"
+          :user-id="overlay.authorId"
+          @approve="handleApproveOverlay(overlay.id)"
+          @reject="handleRejectOverlay(overlay.id)"
+          @reject-and-report="handleRejectAndReportOverlay(overlay.id, overlay.authorId)"
+        />
+        <!-- AI : Show locked button if project not approved yet -->
+        <button
+          v-if="overlay.status === 'pending' && project.status !== 'approved'"
+          class="action-btn disabled-btn"
+          disabled
+          v-tooltip.top="$t('tooltips.approveProjectFirst')"
+        >
+          <i class="pi pi-lock"></i>
+        </button>
+      </template>
 
-    <template #change-actions="{ change }">
-      <!-- AI : Show moderation buttons for change requests -->
-      <ModerationActionButtons
-        :disabled="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id)"
-        :disabled-tooltip="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) ? $t('overlay.viewSuggestedPosition') : ''"
-        :user-id="change.requestedBy"
-        @approve="handleApproveChange(change.id)"
-        @reject="handleRejectChange(change.id)"
-        @reject-and-report="handleRejectAndReportChange(change.id, change.requestedBy)"
-      />
-    </template>
-
+      <template #change-actions="{ change }">
+        <!-- AI : Show moderation buttons for change requests -->
+        <ModerationActionButtons
+          :disabled="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id)"
+          :disabled-tooltip="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) ? $t('overlay.viewSuggestedPosition') : ''"
+          :user-id="change.requestedBy"
+          @approve="handleApproveChange(change.id)"
+          @reject="handleRejectChange(change.id)"
+          @reject-and-report="handleRejectAndReportChange(change.id, change.requestedBy)"
+        />
+      </template>
     </ProjectAccordionPanel>
   </div>
 </template>
@@ -351,7 +352,7 @@ async function handleUndo() {
 // AI : Handle project approval with toast notifications
 async function handleApproveProject(id: string) {
   const result = await approveProject(id)
-  
+
   if (result.success) {
     toast.add({
       severity: 'success',
@@ -615,7 +616,6 @@ async function handleRejectAndReportChange(changeId: string, userId: string | nu
   pendingRejection.value = { type: 'change', id: changeId }
   openReportDialog(userId)
 }
-
 </script>
 
 <style scoped>
@@ -623,6 +623,13 @@ async function handleRejectAndReportChange(changeId: string, userId: string | nu
 .moderation-container {
   display: flex;
   flex-direction: column;
+}
+
+/* AI : Moderation header actions - align button to the right */
+.moderation-header-actions {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
 }
 
 /* AI : Country selector styling */
