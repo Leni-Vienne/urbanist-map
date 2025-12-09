@@ -132,7 +132,7 @@
                             </div>
 
                             <!-- AI : Actions column - either slot actions or chevron indicator -->
-                            <div class="project-actions-column">
+                            <div class="project-actions-column" @click.stop>
                               <!-- AI : Project actions slot for moderation panel -->
                               <slot
                                 v-if="$slots['project-actions']"

@@ -55,12 +55,13 @@ defineEmits<{
 // AI : Local tab state
 const activeTab = ref<PanelTab>('latest')
 
-// AI : Watch for overlay selection and auto-switch to Current City tab
+// AI : Watch for overlay selection and auto-switch to Current City tab (only in view mode)
 const overlayStore = useOverlayStore()
 const mapStore = useMapStore()
 watch(() => overlayStore.idSelectedOverlay, (overlayId) => {
   // AI : When an overlay is selected and we have a city loaded, switch to Current City tab
-  if (overlayId && mapStore.selectedCity) {
+  // AI : Only do this in view mode - in edit/moderation modes, preserve the current workflow
+  if (overlayId && mapStore.selectedCity && overlayStore.mode === 'view') {
     activeTab.value = 'currentCity'
   }
 })
