@@ -208,7 +208,8 @@
     "noCity": "Aucune Ville Sélectionnée",
     "selectCityPrompt": "Sélectionnez une ville sur la carte pour parcourir ses projets",
     "noProjects": "Aucun projet dans cette ville",
-    "noProjectsDetail": "Cette ville n'a pas encore de projets"
+    "noProjectsDetail": "Cette ville n'a pas encore de projets",
+    "clickToZoomCountry": "Cliquez pour zoomer sur le pays"
   },
   "overlay": {
     "title": "Images",

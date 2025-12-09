@@ -3,9 +3,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { switchMode } from "@/composables/overlay/useOverlayModes";
 import type { MapMode } from "@shared/types";
-
-// AI : Type for available tabs in side menu and mobile drawer
-export type PanelTab = "latest" | "currentCity" | "uploads" | "moderation";
+import type { PanelTab } from "@/types";
 
 /**
  * AI : Map tab to overlay mode

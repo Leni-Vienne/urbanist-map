@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import type { Project, OverlayObject } from "@/types/index";
+import type { PanelTab } from "@/types";
 
 export interface ProjectDialogState {
   visible: boolean;
@@ -35,7 +36,7 @@ export const useUiStore = defineStore("ui", () => {
   });
 
   // AI : Mobile drawer state
-  const mobileDrawerActiveTab = ref<"latest" | "uploads" | "moderation">("latest");
+  const mobileDrawerActiveTab = ref<PanelTab>("latest");
   const mobileDrawerVisible = ref(true); // AI : Open by default on mobile
   const mobileDrawerHeightPercent = ref(40); // AI : Drawer height as percentage of viewport (10-90%)
 
@@ -113,7 +114,7 @@ export const useUiStore = defineStore("ui", () => {
   }
 
   // AI : Mobile drawer actions
-  function setMobileDrawerActiveTab(tab: "latest" | "uploads" | "moderation") {
+  function setMobileDrawerActiveTab(tab: PanelTab) {
     mobileDrawerActiveTab.value = tab;
   }
 

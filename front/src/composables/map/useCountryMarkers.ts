@@ -20,7 +20,7 @@ import { createMarkerLayer, type MarkerLayerConfig } from "@/composables/map/use
 import countryBboxes from "@/assets/country_bboxes.json";
 
 // AI : Type guard to validate country code against countryBboxes keys
-function isValidCountryCode(code: string): code is keyof typeof countryBboxes {
+export function isValidCountryCode(code: string): code is keyof typeof countryBboxes {
   return code in countryBboxes;
 }
 

@@ -979,8 +979,7 @@ function handleOverlayContributorClick(
   align-items: center;
   justify-content: space-between;
   margin-bottom: 0.5rem;
-  padding: 1rem 0 0.75rem 0;
-  border-bottom: 2px solid var(--p-primary-100);
+  padding: 1rem 1rem 0.75rem 1rem;
   z-index: 10;
   /* z-index to prevent accordion headers from overlapping */
 }
