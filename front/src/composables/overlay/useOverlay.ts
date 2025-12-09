@@ -1083,7 +1083,6 @@ export const infoTool = L.Toolbar2.Action.extend({
   },
   // very fragile code but necessary to plug into the leaflet toolbar. If you have a better idea, please contribute!
   addHooks() {
-    //const link = this._link;
     const overlayStore = useOverlayStore();
     const uiStore = useUiStore();
 
@@ -1157,9 +1156,6 @@ export const infoTool = L.Toolbar2.Action.extend({
         }
       }
     }
-
-    //L.IconUtil.toggleXlink(link, "information", "close");
-    //L.IconUtil.toggleTitle(link, "Close", "About");
   },
 });
 

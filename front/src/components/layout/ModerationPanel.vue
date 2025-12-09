@@ -619,6 +619,9 @@ async function handleRejectAndReportChange(changeId: string, userId: string | nu
 </script>
 
 <style scoped>
+/* AI : Import shared panel CSS */
+@import '../../assets/panel-common.css';
+
 /* AI : Main moderation container */
 .moderation-container {
   display: flex;
@@ -685,36 +688,5 @@ async function handleRejectAndReportChange(changeId: string, userId: string | nu
   margin: 0;
   font-size: 0.9375rem;
   font-weight: 500;
-}
-
-/* AI : Locked button style for overlays when project not approved */
-.action-btn {
-  width: 32px;
-  height: 32px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  background: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  font-size: 0.875rem;
-}
-
-.action-btn:hover {
-  border-color: #d1d5db;
-  background-color: #f9fafb;
-}
-
-.disabled-btn {
-  color: #9ca3af;
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.disabled-btn:hover {
-  background-color: white;
-  border-color: #e5e7eb;
 }
 </style>
