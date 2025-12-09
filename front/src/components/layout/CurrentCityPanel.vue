@@ -299,7 +299,6 @@ watch(
     display: flex;
     gap: 1rem;
     align-items: center;
-    flex-wrap: wrap;
     justify-content: space-between;
     width: 100%;
 }
@@ -313,6 +312,10 @@ watch(
     color: var(--p-surface-700);
     font-weight: 600;
     padding: 0.25rem 0;
+    min-width: 0;
+    /* AI : Allow flex-shrink to work properly */
+    flex: 1;
+    /* AI : Allow city header to take available space */
 }
 
 .country-link {
@@ -322,6 +325,8 @@ watch(
     padding: 0.25rem 0.5rem;
     border-radius: var(--p-border-radius);
     margin: -0.25rem -0.5rem;
+    flex-shrink: 0;
+    /* AI : Prevent country name from shrinking */
 }
 
 .country-link:hover {
@@ -333,10 +338,20 @@ watch(
     color: var(--p-surface-500);
     font-size: 0.875rem;
     margin: 0 0.125rem;
+    flex-shrink: 0;
+    /* AI : Keep separator visible */
 }
 
 .city-name {
     color: var(--p-surface-800);
     font-weight: 600;
+    overflow: hidden;
+    /* AI : Enable text truncation */
+    text-overflow: ellipsis;
+    /* AI : Show ellipsis for overflow */
+    white-space: nowrap;
+    /* AI : Prevent wrapping */
+    min-width: 0;
+    /* AI : Allow shrinking in flex container */
 }
 </style>
