@@ -990,12 +990,14 @@ function handleOverlayContributorClick(
   font-weight: 600;
   color: var(--p-surface-900);
   letter-spacing: -0.025em;
+  white-space: nowrap;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  width: 100%;
 }
 
 /* AI : Project content wrapper with vertical button stack on the right */
