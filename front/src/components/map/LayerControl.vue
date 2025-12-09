@@ -1,52 +1,42 @@
 <template>
-    <!-- AI : Layer control button -->
-    <Button
-        ref="layerButton"
-        icon="pi pi-map"
-        raised
-        @click.stop="toggleLayerPanel"
-        @dblclick.stop
-        aria-label="Layer Control"
-        v-tooltip.right="'Map Layers'"
-        :severity="showLayerPanel ? undefined : 'secondary'"
-    />
+  <!-- AI : Layer control button -->
+  <Button
+    ref="layerButton"
+    icon="pi pi-map"
+    raised
+    @click.stop="toggleLayerPanel"
+    @dblclick.stop
+    aria-label="Layer Control"
+    v-tooltip.right="'Map Layers'"
+    :severity="showLayerPanel ? undefined : 'secondary'"
+  />
 
-    <!-- AI : Layer panel using PrimeVue Popover for small popup -->
-    <Popover ref="layerPanel">
-        <!-- AI : Base layers section using PrimeVue Panel -->
-        <Panel
-            :header="$t('layerControl.baseMaps')"
-            :toggleable="false"
-        >
-            <div class="flex flex-col gap-2">
-                <div
-                    v-for="layer in layerOptions"
-                    :key="layer.value"
-                    class="flex items-center gap-2"
-                >
-                    <RadioButton
-                        :id="layer.value"
-                        v-model="selectedLayer"
-                        :inputId="layer.value"
-                        :value="layer.value"
-                        @change="onLayerChange"
-                    />
-                    <label
-                        :for="layer.value"
-                        class="flex items-center gap-2"
-                    >
-                        <img
-                            :src="layer.flagUrl"
-                            :alt="`${layer.label} flag`"
-                            class="flag-icon"
-                            @error="hideFlagOnError"
-                        />
-                        {{ layer.label }}
-                    </label>
-                </div>
-            </div>
-        </Panel>
-    </Popover>
+  <!-- AI : Layer panel using PrimeVue Popover for small popup -->
+  <Popover ref="layerPanel">
+    <!-- AI : Base layers section using PrimeVue Panel -->
+    <Panel :header="$t('layerControl.baseMaps')" :toggleable="false">
+      <div class="flex flex-col gap-2">
+        <div v-for="layer in layerOptions" :key="layer.value" class="flex items-center gap-2">
+          <RadioButton
+            :id="layer.value"
+            v-model="selectedLayer"
+            :inputId="layer.value"
+            :value="layer.value"
+            @change="onLayerChange"
+          />
+          <label :for="layer.value" class="flex items-center gap-2">
+            <img
+              :src="layer.flagUrl"
+              :alt="`${layer.label} flag`"
+              class="flag-icon"
+              @error="hideFlagOnError"
+            />
+            {{ layer.label }}
+          </label>
+        </div>
+      </div>
+    </Panel>
+  </Popover>
 </template>
 
 <script setup lang="ts">
@@ -109,6 +99,11 @@ function hideFlagOnError(event: Event) {
     const target = event.target as HTMLImageElement;
     target.style.display = 'none';
 }
+
+// AI : Expose the layer panel ref so parent can close it when needed
+defineExpose({
+    layerPanel
+});
 </script>
 
 <style scoped>
