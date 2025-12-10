@@ -74,6 +74,14 @@ export const useProjectStore = defineStore("project", () => {
     };
   }
 
+  // AI : Helper to get original project state for change detection
+  // AI : Checks both originalBackendProjects (from map) and originalUserContributions (from MyContributions)
+  function getOriginalProject(projectId: string): Project | UserContribution | null {
+    return (
+      originalBackendProjects.value[projectId] ?? originalUserContributions.value[projectId] ?? null
+    );
+  }
+
   // AI : Helper function to extract city metadata from project for user contributions
   function extractCityMetadata(project: Project) {
     const countryCode = project.city.countryCode;
@@ -548,6 +556,7 @@ export const useProjectStore = defineStore("project", () => {
     updateProject,
     cacheProjectBackendState,
     cacheCityName,
+    getOriginalProject,
 
     // User contributions actions
     setUserContributions,

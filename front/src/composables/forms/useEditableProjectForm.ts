@@ -146,7 +146,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       }
     } else if (userContributionProject) {
       // AI : Project only exists in userContributions - add to projects store so infopopup finds it
-      // AI : Convert UserContribution to Project type
+      // AI : Convert UserContribution to Project type inline
       const projectFromContribution: Project = {
         id: userContributionProject.id,
         name: base.formData.name,
@@ -170,7 +170,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
         status: userContributionProject.status,
         overlayIds: userContributionProject.overlays?.map((o) => o.id) ?? [],
         isModified: true,
-        // AI : Add required Project properties
         createdAt: userContributionProject.createdAt ?? new Date(),
         updatedAt: userContributionProject.updatedAt ?? new Date(),
         ownerId: userContributionProject.ownerId ?? null,
