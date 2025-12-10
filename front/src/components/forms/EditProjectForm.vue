@@ -75,12 +75,9 @@ function toDateObject(value: Date | string | null | undefined): Date | null {
 }
 
 // AI : Get original backend project if available (for comparison baseline)
-// AI : This ensures "modified from X" shows the original backend value, not the current modified value
-// AI : Check both originalBackendProjects (from map) and originalUserContributions (from MyContributions)
+// AI : Uses centralized helper that checks both originalBackendProjects and originalUserContributions
 const originalProject = computed(() => {
-  const originalFromProjects = projectStore.originalBackendProjects[props.project.id]
-  const originalFromContributions = projectStore.originalUserContributions[props.project.id]
-  return originalFromProjects ?? originalFromContributions ?? props.project
+  return projectStore.getOriginalProject(props.project.id) ?? props.project
 })
 
 // AI : Use original backend values as the comparison baseline for "modified from X" indicators

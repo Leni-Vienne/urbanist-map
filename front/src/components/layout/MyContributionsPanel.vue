@@ -430,7 +430,7 @@ function getProjectSaveTooltip(project: ProjectForModeration): string {
   return t('common.save')
 }
 
-// AI : Handle save project click - uses submission service like infopopup
+// AI : Handle save project click - uses submission service
 async function handleSaveProjectClick(project: ProjectForModeration) {
   if (!isProjectModified(project.id)) return
 
@@ -485,13 +485,19 @@ async function confirmSubmission(reason: string) {
 
     await submissionService.submit(pendingSubmissionContext.value as SubmissionContext, reason)
 
-    // AI : Show success message
+    // AI : Show success message based on change type
     const context = pendingSubmissionContext.value
-    const message = context.changeType === 'update_approved'
-      ? t('submission.changeRequestSubmitted')
-      : (context.changeType === 'update_pending'
-        ? t('submission.changesSaved')
-        : t('submission.submissionSuccessful'))
+    let message: string
+    switch (context.changeType) {
+      case 'update_approved':
+        message = t('submission.changeRequestSubmitted')
+        break
+      case 'update_pending':
+        message = t('submission.changesSaved')
+        break
+      default:
+        message = t('submission.submissionSuccessful')
+    }
 
     toast.add({
       severity: 'success',

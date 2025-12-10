@@ -166,12 +166,8 @@ export function useSubmissionService() {
   function detectProjectChanges(project: Project, customReason?: string): FieldChange[] {
     const changes: FieldChange[] = [];
 
-    // AI : Try to find original project from the originalBackendProjects cache first
-    // AI : Then try originalUserContributions (for projects opened from MyContributions panel)
-    // AI : These caches store snapshots of approved/pending projects before local modifications
-    const originalProject =
-      projectStore.originalBackendProjects[project.id] ??
-      projectStore.originalUserContributions[project.id];
+    // AI : Use centralized helper to find original project from either cache
+    const originalProject = projectStore.getOriginalProject(project.id);
 
     if (!originalProject) {
       // AI : No original version found in cache - might be a new/pending project
@@ -190,7 +186,8 @@ export function useSubmissionService() {
     ];
 
     fieldsToCheck.forEach((field) => {
-      const oldValue = originalProject[field];
+      // AI : Cast to any as originalProject can be Project or UserContribution, both have these fields
+      const oldValue = (originalProject as any)[field];
       const newValue = project[field];
 
       // AI : Special handling for date fields
