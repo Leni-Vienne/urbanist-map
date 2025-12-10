@@ -49,6 +49,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useEditableProjectForm } from '@/composables/forms/useEditableProjectForm'
+import { useProjectStore } from '@/stores/pinia/projectStore'
 import type ProjectFormFields from './ProjectFormFields.vue'
 import type { Project } from '@/types/index'
 import type { ProjectFormData } from '../../types/forms'
@@ -56,6 +57,7 @@ import type { ProjectFormData } from '../../types/forms'
 const props = defineProps<{ project: Project }>()
 const emit = defineEmits<{ close: [], submitted: [] }>()
 
+const projectStore = useProjectStore()
 const formFieldsRef = ref<InstanceType<typeof ProjectFormFields> | null>(null)
 
 const markerCoordinates = props.project.lat && props.project.lng
@@ -72,7 +74,29 @@ function toDateObject(value: Date | string | null | undefined): Date | null {
   return isNaN(date.getTime()) ? null : date
 }
 
+// AI : Get original backend project if available (for comparison baseline)
+// AI : This ensures "modified from X" shows the original backend value, not the current modified value
+// AI : Check both originalBackendProjects (from map) and originalUserContributions (from MyContributions)
+const originalProject = computed(() => {
+  const originalFromProjects = projectStore.originalBackendProjects[props.project.id]
+  const originalFromContributions = projectStore.originalUserContributions[props.project.id]
+  return originalFromProjects ?? originalFromContributions ?? props.project
+})
+
+// AI : Use original backend values as the comparison baseline for "modified from X" indicators
 const projectData = computed(() => ({
+  name: originalProject.value.name,
+  description: originalProject.value.description || '',
+  sourceUrl: originalProject.value.sourceUrl || '',
+  proposalDate: toDateObject(originalProject.value.proposalDate),
+  startDate: toDateObject(originalProject.value.startDate),
+  endDate: toDateObject(originalProject.value.endDate),
+  latestUpdateOn: toDateObject(originalProject.value.latestUpdateOn),
+  cityId: originalProject.value.cityId,
+}))
+
+// AI : Use current project values for the form's initial state (what user will see and edit)
+const currentProjectData = computed(() => ({
   name: props.project.name,
   description: props.project.description || '',
   sourceUrl: props.project.sourceUrl || '',
@@ -85,7 +109,8 @@ const projectData = computed(() => ({
 
 const form = useEditableProjectForm({
   entityId: props.project.id,
-  initialData: projectData.value,
+  initialData: projectData.value, // AI : Original backend values for comparison
+  currentData: currentProjectData.value, // AI : Current values to display in form
   entityStatus: props.project.status,
   localOnly: true,
   getAvailableCities: () => formFieldsRef.value?.cities ?? [],

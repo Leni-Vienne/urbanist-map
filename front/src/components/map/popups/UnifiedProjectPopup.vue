@@ -1,18 +1,9 @@
 <template>
-  <div
-    :class="['unified-popup', `popup-source-${props.source}`]"
-    @click.stop
-  >
-    <div
-      v-if="loading"
-      class="loading-spinner"
-    >
+  <div :class="['unified-popup', `popup-source-${props.source}`]" @click.stop>
+    <div v-if="loading" class="loading-spinner">
       <i class="pi pi-spin pi-spinner"></i>
     </div>
-    <div
-      v-else
-      class="project-details"
-    >
+    <div v-else class="project-details">
       <!-- Project Information Section -->
       <ProjectMetadataCard
         :project="project"
@@ -49,10 +40,7 @@
       </ProjectMetadataCard>
 
       <!-- Overlay Information Section (only if viewing an overlay) -->
-      <div
-        v-if="overlay"
-        class="overlay-section"
-      >
+      <div v-if="overlay" class="overlay-section">
         <div class="section-header-row">
           <div class="section-header">{{ $t("overlay.overlayInformation") }}</div>
           <div class="overlay-actions">
@@ -98,10 +86,7 @@
     </div>
 
     <!-- Actions Section - Edit mode buttons -->
-    <div
-      v-if="!viewMode"
-      class="actions-section"
-    >
+    <div v-if="!viewMode" class="actions-section">
       <Button
         v-if="hasChanges"
         :label="isPublishedToBackend ? $t('project.submitChangeRequest') : (overlay ? $t('overlay.publishOverlay') : $t('project.publish'))"
@@ -134,11 +119,7 @@
             <path d="M19 2v6" />
             <path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5" />
             <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-            <circle
-              cx="9"
-              cy="9"
-              r="2"
-            />
+            <circle cx="9" cy="9" r="2" />
           </svg>
         </template>
       </Button>
@@ -235,14 +216,37 @@ function handlePublishClick() {
   z-index: 1000;
 }
 
+/* AI : Triangle arrow pointing to the triggering element */
+.unified-popup::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-bottom: 10px solid var(--p-surface-0);
+}
+
 /* AI : Positioning for overlay toolbar source - appears to the right of toolbar */
 .popup-source-overlay {
   transform: translateY(20px);
 }
 
+/* AI : Triangle position for overlay source - positioned at left edge for now (user will translate) */
+.popup-source-overlay::before {
+  left: 10px;
+}
+
 /* AI : Positioning for project marker source - centered below marker */
 .popup-source-marker {
   transform: translateX(-50%) translateY(20px);
+}
+
+/* AI : Triangle position for marker source - centered at top */
+.popup-source-marker::before {
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .loading-spinner {

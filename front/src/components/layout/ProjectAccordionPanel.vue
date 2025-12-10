@@ -131,7 +131,7 @@
                               </div>
                             </div>
 
-                            <!-- AI : Actions column - either slot actions or chevron indicator -->
+                            <!-- AI : Actions column - either slot actions, edit button, or chevron indicator -->
                             <div class="project-actions-column" @click.stop>
                               <!-- AI : Project actions slot for moderation panel -->
                               <slot
@@ -139,6 +139,16 @@
                                 name="project-actions"
                                 :project="project"
                               ></slot>
+
+                              <!-- AI : Edit button if showEditButtons prop is true and no slot actions -->
+                              <button
+                                v-else-if="showEditButtons"
+                                class="action-btn edit-btn"
+                                @click.stop=""
+                                v-tooltip.top="$t('common.edit')"
+                              >
+                                <i class="pi pi-pencil"></i>
+                              </button>
 
                               <!-- AI : Chevron indicator for all projects when no action buttons - signals clickability -->
                               <i v-else class="pi pi-chevron-right tap-indicator"></i>
@@ -263,11 +273,18 @@
                               ></slot>
                             </div>
 
+                            <!-- AI : Edit button if showEditButtons prop is true and no slot actions -->
+                            <button
+                              v-else-if="showEditButtons"
+                              class="action-btn edit-btn"
+                              @click.stop=""
+                              v-tooltip.top="$t('common.edit')"
+                            >
+                              <i class="pi pi-pencil"></i>
+                            </button>
+
                             <!-- AI : Chevron indicator when no action buttons -->
-                            <i
-                              v-if="!$slots['overlay-actions']"
-                              class="pi pi-chevron-right tap-indicator"
-                            ></i>
+                            <i v-else class="pi pi-chevron-right tap-indicator"></i>
                           </div>
 
                           <ChangeRequestSection
@@ -356,6 +373,8 @@ interface Props {
   hideStatusBadges?: boolean
   disableAutoModeSwitch?: boolean
   disableGrouping?: boolean
+  showEditButtons?: boolean
+  shouldSwitchToEditMode?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -365,7 +384,9 @@ const props = withDefaults(defineProps<Props>(), {
   showUserStatsLink: false,
   hideStatusBadges: false,
   disableAutoModeSwitch: false,
-  disableGrouping: false
+  disableGrouping: false,
+  showEditButtons: false,
+  shouldSwitchToEditMode: false
 })
 
 const emit = defineEmits<{
@@ -1024,6 +1045,17 @@ function handleOverlayContributorClick(
 .action-btn:hover {
   border-color: #d1d5db;
   background-color: #f9fafb;
+}
+
+/* AI : Edit button styling */
+.edit-btn {
+  color: var(--p-primary-500);
+}
+
+.edit-btn:hover {
+  color: var(--p-primary-600);
+  background-color: var(--p-primary-50);
+  border-color: var(--p-primary-200);
 }
 
 /* AI : Standalone project card styling - similar to overlay cards */

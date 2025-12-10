@@ -285,7 +285,12 @@
     "uploadFailedDetail": "Failed to upload the image file",
     "lastOverlayDeleted": "Last Overlay Deleted",
     "projectNowShowsAsMarker": "The project now appears as a marker on the map",
-    "confirmDelete": "Are you sure you want to delete {name}?"
+    "confirmDelete": "Are you sure you want to delete {name}?",
+    "noChangesToSave": "No changes to save",
+    "navigateToSave": "Navigate to Overlay",
+    "navigateToSaveDetail": "Click on the overlay card to navigate and save changes",
+    "navigateToEdit": "Navigate to Overlay",
+    "navigateToEditDetail": "Click on the overlay card to navigate and edit it on the map"
   },
   "map": {
     "zoom": "Zoom",
@@ -763,8 +768,7 @@
   },
   "projectSelector": {
     "header": "Select a nearby project for the new overlay",
-    "suggestProjectChanges": "Suggest Project Changes",
-    "suggestOverlayChanges": "Suggest Overlay Changes"
+    "suggestChanges": "Suggest Changes"
   },
   "layerControl": {
     "baseMaps": "Base Maps"

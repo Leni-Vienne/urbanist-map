@@ -9,9 +9,10 @@ import {
   users,
   userReports,
 } from "../db/schema";
-import { eq, inArray, or, and, sql, ne } from "drizzle-orm";
+import { eq, inArray, or, and, sql, ne, type SQL } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { db } from "../database";
+import { db, type Database } from "../database";
+import type { PgColumn } from "drizzle-orm/pg-core";
 import {
   buildProjectModerationQuery,
   buildOverlayModerationQuery,
@@ -1028,9 +1029,9 @@ async function collectPendingProjectIds(): Promise<{
 
 // AI : Fetch all moderation data in parallel
 async function fetchModerationData(
-  projectModerationConditions: any[],
-  paginationConditions: any[],
-  sortColumn: any,
+  projectModerationConditions: (SQL | undefined)[],
+  paginationConditions: (SQL | undefined)[],
+  sortColumn: PgColumn,
   limit: number,
 ) {
   const [projectsResult, overlaysResult, overlayChanges, projectChanges] = await Promise.all([
@@ -1113,10 +1114,24 @@ function filterContentByReportedUsers<
 }
 
 // AI : Enrich entities with report counts
+// AI : Proper types inferred from query builder return types
 async function enrichWithReportCounts(
-  filteredProjects: any[],
-  filteredOverlays: any[],
-  filteredChangeRequests: any[],
+  filteredProjects: Awaited<ReturnType<ReturnType<typeof buildProjectModerationQuery>["execute"]>>,
+  filteredOverlays: Awaited<ReturnType<ReturnType<typeof buildOverlayModerationQuery>["execute"]>>,
+  filteredChangeRequests: {
+    id: string;
+    entityType: string;
+    entityId: string;
+    fieldName: string;
+    oldValue: unknown;
+    newValue: unknown;
+    changeReason: string | null;
+    status: "pending" | "approved" | "rejected" | "conflicted";
+    requestedBy: string | null;
+    requestedByUsername: string | null;
+    createdAt: Date;
+    hasConflict: boolean;
+  }[],
 ) {
   // AI : Collect all user IDs
   const userIds = new Set<string>();
@@ -1229,8 +1244,9 @@ async function handleOverlayRejection(
 }
 
 // AI : Handle replacement conflict resolution
+// AI : Transaction type: Parameters<Parameters<Database['transaction']>[0]>[0]
 async function handleReplacementConflicts(
-  tx: any,
+  tx: Parameters<Parameters<Database["transaction"]>[0]>[0],
   replacesOverlayId: string,
   newOverlayId: string,
   moderatorId: string,
@@ -1330,8 +1346,9 @@ async function handleReplacementConflicts(
 }
 
 // AI : Handle overlay approval
+// AI : Transaction type: Parameters<Parameters<Database['transaction']>[0]>[0]
 async function handleOverlayApproval(
-  tx: any,
+  tx: Parameters<Parameters<Database["transaction"]>[0]>[0],
   overlayId: string,
   authorId: string | null,
 ): Promise<{ success: boolean; error?: string }> {

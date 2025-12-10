@@ -15,6 +15,8 @@
     :hide-status-badges="true"
     :disable-auto-mode-switch="true"
     :disable-grouping="true"
+    :show-edit-buttons="false"
+    :should-switch-to-edit-mode="true"
     title=""
     panel-class="current-city-panel"
     :empty-message="$t('currentCity.noProjects')"

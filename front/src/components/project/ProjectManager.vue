@@ -17,7 +17,7 @@
     :modal="true"
     :closable="true"
     :draggable="false"
-    :header="$t('projectSelector.suggestProjectChanges')"
+    :header="$t('projectSelector.suggestChanges')"
     @update:visible="uiStore.closeProjectEditForm"
     class="edit-form-dialog"
   >
@@ -35,7 +35,7 @@
     :modal="true"
     :closable="true"
     :draggable="false"
-    :header="$t('projectSelector.suggestOverlayChanges')"
+    :header="$t('projectSelector.suggestChanges')"
     @update:visible="uiStore.closeOverlayEditForm"
     class="edit-form-dialog"
   >
@@ -222,7 +222,7 @@ async function onProjectSelected(projectId: string) {
 // AI : Handle file upload by user
 async function handleFileUpload(projectId: string, isReplacement = false) {
   if (!pendingImageFile.value) {
-      console.warn('No image file to upload')
+    console.warn('No image file to upload')
     toast.add({
       severity: 'warn',
       summary: $t('upload.noFileSelected'),
@@ -382,7 +382,7 @@ async function handleNewProjectCreation(project: Partial<Project>): Promise<stri
 // AI : Handle existing project update
 function handleProjectUpdate(project: Partial<Project>): string {
   const projectId = project.id!;
-  
+
   if (projects.value[projectId]) {
     projectStore.updateProject(projectId, {
       ...project,
@@ -414,7 +414,7 @@ async function handleProjectSubmitted(project: Partial<Project>) {
   try {
     uiStore.closeProjectDialog()
 
-    const projectId = project.id 
+    const projectId = project.id
       ? handleProjectUpdate(project)
       : await handleNewProjectCreation(project);
 
