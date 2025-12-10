@@ -10,7 +10,8 @@ import type { ApprovalStatus } from "@shared/types";
 export interface EditableFormBaseOptions<TFormData> {
   entityId: string;
   entityType: "project" | "overlay";
-  initialData: TFormData;
+  initialData: TFormData; // AI : Original backend values for "modified from X" comparison
+  currentData?: TFormData; // AI : Current values to display in form (if different from initialData after local saves)
   entityStatus?: ApprovalStatus | null;
   onSubmitted?: () => void;
   onClose?: () => void;
@@ -34,9 +35,10 @@ export function useEditableFormBase<TFormData extends Record<string, any>>(
   const isSubmitting = ref(false);
   const changeReason = ref("");
 
-  // AI : Create reactive objects for original and current data
+  // AI : Create reactive objects for original (comparison baseline) and current (displayed) data
+  // AI : originalData is for comparison ("modified from X"), formData is for editing
   const originalData = reactive({ ...options.initialData }) as TFormData;
-  const formData = reactive({ ...options.initialData }) as TFormData;
+  const formData = reactive({ ...(options.currentData ?? options.initialData) }) as TFormData;
 
   // AI : Check if a specific field has changed
   function hasChanged(fieldName: keyof TFormData): boolean {

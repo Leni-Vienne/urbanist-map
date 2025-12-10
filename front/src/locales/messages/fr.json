@@ -285,7 +285,12 @@
     "uploadFailedDetail": "Échec du téléchargement du fichier image",
     "lastOverlayDeleted": "Dernière image supprimée",
     "projectNowShowsAsMarker": "Le projet apparaît maintenant comme un marqueur sur la carte",
-    "confirmDelete": "Êtes-vous sûr de vouloir supprimer {name} ?"
+    "confirmDelete": "Êtes-vous sûr de vouloir supprimer {name} ?",
+    "noChangesToSave": "Aucune modification à enregistrer",
+    "navigateToSave": "Naviguer vers l'image",
+    "navigateToSaveDetail": "Cliquez sur la carte d'image pour naviguer et enregistrer les modifications",
+    "navigateToEdit": "Naviguer vers l'image",
+    "navigateToEditDetail": "Cliquez sur la carte d'image pour naviguer et la modifier sur la carte"
   },
   "map": {
     "zoom": "Zoom",
@@ -765,8 +770,7 @@
   },
   "projectSelector": {
     "header": "Sélectionner un projet à proximité pour la nouvelle image",
-    "suggestProjectChanges": "Suggérer des modifications du projet",
-    "suggestOverlayChanges": "Suggérer des modifications de l'image"
+    "suggestChanges": "Suggérer des modifications"
   },
   "layerControl": {
     "baseMaps": "Cartes de base"

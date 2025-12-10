@@ -3,12 +3,56 @@
     :projects="filteredProjects"
     :is-loading="isLoading"
     :change-requests="pendingChangeRequests"
+    :show-edit-buttons="true"
+    :should-switch-to-edit-mode="false"
     title=""
     panel-class="my-contributions-panel"
     :empty-message="projects.length > 0 && filteredProjects.length === 0 ? $t('contributions.noProjectsMatchFilter') : $t('contributions.noProjectsFound')"
     :empty-sub-message="projects.length > 0 && filteredProjects.length === 0 ? $t('contributions.tryChangingFilters') : $t('contributions.createFirstProject')"
   >
     <template #project-actions="{ project }">
+      <!-- AI : Edit button - navigates to project for editing -->
+      <button
+        class="action-btn edit-btn"
+        @click.stop="handleEditProjectClick(project)"
+        v-tooltip.top="$t('tooltips.editProject')"
+      >
+        <i class="pi pi-pencil"></i>
+      </button>
+      <!-- AI : Add image button - same icon as in UnifiedProjectPopup -->
+      <button
+        class="action-btn add-image-btn"
+        @click.stop="handleAddImageToProject(project)"
+        v-tooltip.top="$t('project.addImages')"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="1em"
+          height="1em"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M16 5h6" />
+          <path d="M19 2v6" />
+          <path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5" />
+          <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+          <circle cx="9" cy="9" r="2" />
+        </svg>
+      </button>
+      <!-- AI : Save button - uses save icon, disabled when no changes -->
+      <button
+        class="action-btn save-btn"
+        :class="{ disabled: !isProjectModified(project.id) }"
+        :disabled="!isProjectModified(project.id)"
+        @click.stop="handleSaveProjectClick(project)"
+        v-tooltip.top="getProjectSaveTooltip(project)"
+      >
+        <i class="pi pi-save"></i>
+      </button>
       <button
         v-if="project.status === 'pending'"
         class="action-btn delete-btn"
@@ -20,6 +64,14 @@
     </template>
 
     <template #overlay-actions="{ overlay }">
+      <!-- AI : Edit button - opens overlay editor for individual overlay editing -->
+      <button
+        class="action-btn edit-btn"
+        @click.stop="handleEditOverlayClick(overlay)"
+        v-tooltip.top="$t('tooltips.editOverlay')"
+      >
+        <i class="pi pi-pencil"></i>
+      </button>
       <button
         v-if="overlay.status === 'pending'"
         class="action-btn delete-btn"
@@ -98,21 +150,37 @@
       </p>
     </template>
   </ProjectAccordionPanel>
+
+  <!-- AI : Submission Confirmation Dialog for publishing projects -->
+  <SubmissionConfirmationDialog
+    v-model:visible="showSubmissionDialog"
+    :summary="submissionSummary"
+    :is-submitting="isSubmitting"
+    @confirm="confirmSubmission"
+    @cancel="cancelSubmission"
+  />
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAddOverlay } from '@/composables/overlay/useAddOverlay'
+import { addOverlay } from '@/composables/overlay/useOverlay'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import { useToast } from '@/composables/ui/useToast'
 import { useChangeRequests } from '@/composables/changes/useChanges'
 import { useUserContributions } from '@/composables/project/useUserContributions'
 import { useModeratedContributions } from '@/composables/moderation/useModeratedContributions'
 import { useUiStore } from '@/stores/uiStore'
+import { useOverlayStore } from '@/stores/pinia/overlayStore'
+import { useProjectStore } from '@/stores/pinia/projectStore'
 import { useProjectDeletion } from '@/composables/project/useProjectDeletion'
+import { useSubmissionService, type SubmissionContext, type SubmissionSummary } from '@/composables/submission/useSubmissionService'
 import type { RouterOutput } from '@/client'
 import type { ProjectForModeration, OverlayForModeration } from '@/types/index'
+
+// AI : Async component import for submission dialog
+const SubmissionConfirmationDialog = defineAsyncComponent(() => import('@/components/submission/SubmissionConfirmationDialog.vue'))
 
 // AI : Type definitions from tRPC backend responses
 type UserContribution = RouterOutput['project']['getUsersContributions']['projects'][number]
@@ -130,7 +198,16 @@ const { handleDeleteOverlay: deleteOverlayWithMarker, handleDeleteProject: delet
 // AI : Moderated contributions state
 const { moderatedContributions, hasUnacknowledgedItems } = useModeratedContributions()
 const uiStore = useUiStore()
+const overlayStore = useOverlayStore()
+const projectStore = useProjectStore()
+const submissionService = useSubmissionService()
 const moderatedContributionsCount = computed(() => moderatedContributions.value.length)
+
+// AI : Submission dialog state for publishing projects
+const showSubmissionDialog = ref(false)
+const submissionSummary = ref<SubmissionSummary | null>(null)
+const pendingSubmissionContext = ref<SubmissionContext | null>(null)
+const isSubmitting = ref(false)
 
 // AI : Filter state - both true by default to show everything
 const showPending = ref(true)
@@ -219,6 +296,247 @@ async function handleDeleteChangeRequestClick(change: ChangeRequest) {
   }
 }
 
+// AI : Check if overlay is modified in the overlay store
+function isOverlayModified(overlayId: string): boolean {
+  const overlayObject = overlayStore.overlays[overlayId]
+  if (!overlayObject) {
+    // AI : Overlay not loaded in store - check edit mode cache for unsaved position changes
+    const cached = overlayStore.getFromEditModeCache(overlayId)
+    return cached?.isModified ?? false
+  }
+  return overlayObject.isModified ?? false
+}
+
+// AI : Get save button tooltip based on overlay status and modification state
+function getOverlaySaveTooltip(overlay: OverlayForModeration): string {
+  if (!isOverlayModified(overlay.id)) {
+    return t('overlay.noChangesToSave')
+  }
+  if (overlay.status === 'approved') {
+    return t('project.submitChangeRequest')
+  }
+  return t('overlay.publishOverlay')
+}
+
+// AI : Handle save overlay click - navigates to overlay first, then triggers save
+async function handleSaveOverlayClick(overlay: OverlayForModeration, project: ProjectForModeration) {
+  if (!isOverlayModified(overlay.id)) return
+
+  // AI : For now, we navigate to the overlay which will show the info popup where save can be triggered
+  // AI : The save logic is complex and lives in PopupContainer, so we guide user there
+  toast.add({
+    severity: 'info',
+    summary: t('overlay.navigateToSave'),
+    detail: t('overlay.navigateToSaveDetail'),
+    life: 3000
+  })
+}
+
+// AI : Handle edit overlay click - opens overlay edit form
+function handleEditOverlayClick(overlay: OverlayForModeration) {
+  // AI : The overlay edit form needs an OverlayObject, but we only have OverlayForModeration
+  // AI : We need to convert it or use the store's overlay if loaded
+  const overlayObject = overlayStore.overlays[overlay.id]
+  if (overlayObject) {
+    uiStore.openOverlayEditForm(overlayObject)
+  } else {
+    // AI : Overlay not loaded, show a message to navigate to it first
+    toast.add({
+      severity: 'info',
+      summary: t('overlay.navigateToEdit'),
+      detail: t('overlay.navigateToEditDetail'),
+      life: 3000
+    })
+  }
+}
+
+// AI : Handle add image to project - opens file picker to add overlay to project
+function handleAddImageToProject(project: ProjectForModeration) {
+  // AI : Create hidden file input to trigger file picker
+  const fileInput = document.createElement('input')
+  fileInput.type = 'file'
+  fileInput.accept = 'image/png, image/jpeg, image/jpg, image/webp'
+  fileInput.style.display = 'none'
+
+  fileInput.addEventListener('change', async (e: Event) => {
+    const file = (e.target as HTMLInputElement).files?.[0]
+    if (!file) return
+
+    try {
+      // AI : Read file as data URL for overlay creation
+      const reader = new FileReader()
+      reader.addEventListener('load', () => {
+        try {
+          // AI : Create overlay directly for this project
+          addOverlay(reader.result as string, project.id)
+
+          toast.add({
+            severity: 'success',
+            summary: t('overlay.overlayCreated'),
+            detail: t('overlay.positionOverlayOnMap'),
+            life: 3000
+          })
+        } catch (error) {
+          console.error('Error creating overlay:', error)
+          toast.add({
+            severity: 'error',
+            summary: t('overlay.uploadFailed'),
+            detail: t('overlay.uploadFailedDetail'),
+            life: 3000
+          })
+        }
+      })
+      reader.readAsDataURL(file)
+    } catch (error) {
+      console.error('Error handling file upload:', error)
+      toast.add({
+        severity: 'error',
+        summary: t('overlay.uploadFailed'),
+        detail: t('overlay.uploadFailedDetail'),
+        life: 3000
+      })
+    } finally {
+      // AI : Cleanup file input
+      document.body.removeChild(fileInput)
+    }
+  })
+
+  // AI : Trigger file picker
+  document.body.appendChild(fileInput)
+  fileInput.click()
+}
+
+// AI : Check if project or any of its overlays is modified
+function isProjectModified(projectId: string): boolean {
+  // AI : First check if the project itself is modified (from edit form)
+  const projectInStore = projectStore.projects[projectId]
+  if (projectInStore?.isModified) return true
+
+  // AI : Also check all overlays for this project
+  const project = projects.value.find(p => p.id === projectId)
+  if (!project?.overlays) return false
+
+  return project.overlays.some(overlay => isOverlayModified(overlay.id))
+}
+
+// AI : Get save button tooltip based on project status and modification state
+function getProjectSaveTooltip(project: ProjectForModeration): string {
+  if (!isProjectModified(project.id)) {
+    return t('overlay.noChangesToSave')
+  }
+  if (project.status === 'approved') {
+    return t('project.submitChangeRequest')
+  }
+  return t('common.save')
+}
+
+// AI : Handle save project click - uses submission service like infopopup
+async function handleSaveProjectClick(project: ProjectForModeration) {
+  if (!isProjectModified(project.id)) return
+
+  // AI : Get the full project from projectStore.projects
+  const fullProject = projectStore.projects[project.id]
+  if (!fullProject) {
+    toast.add({
+      severity: 'error',
+      summary: t('errors.projectNotFound'),
+      detail: t('errors.projectNotFoundDetail'),
+      life: 3000
+    })
+    return
+  }
+
+  try {
+    // AI : Create project context and validate
+    const context = submissionService.createProjectContext(fullProject)
+    const validation = submissionService.validate(context)
+
+    if (!validation.isValid) {
+      toast.add({
+        severity: 'error',
+        summary: t('toast.validationFailed'),
+        detail: validation.errors.join(', '),
+        life: 5000
+      })
+      return
+    }
+
+    // AI : Build summary and show confirmation dialog
+    submissionSummary.value = submissionService.buildSummary(context)
+    pendingSubmissionContext.value = context
+    showSubmissionDialog.value = true
+  } catch (error: any) {
+    console.error('Error preparing submission:', error)
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: error.message || t('errors.preparingSubmission'),
+      life: 5000
+    })
+  }
+}
+
+// AI : Confirm submission after user approves in dialog
+async function confirmSubmission(reason: string) {
+  if (!pendingSubmissionContext.value) return
+
+  try {
+    isSubmitting.value = true
+
+    await submissionService.submit(pendingSubmissionContext.value as SubmissionContext, reason)
+
+    // AI : Show success message
+    const context = pendingSubmissionContext.value
+    const message = context.changeType === 'update_approved'
+      ? t('submission.changeRequestSubmitted')
+      : (context.changeType === 'update_pending'
+        ? t('submission.changesSaved')
+        : t('submission.submissionSuccessful'))
+
+    toast.add({
+      severity: 'success',
+      summary: t('common.success'),
+      detail: message,
+      life: 3000
+    })
+
+    // AI : Close dialog and reset state
+    showSubmissionDialog.value = false
+    pendingSubmissionContext.value = null
+    submissionSummary.value = null
+
+    // AI : Refresh user contributions to show updated status
+    await fetchUserContributions()
+  } catch (error: any) {
+    console.error('Error submitting:', error)
+    toast.add({
+      severity: 'error',
+      summary: t('toast.submissionFailed'),
+      detail: error.message || t('errors.submissionFailed'),
+      life: 5000
+    })
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+// AI : Cancel submission dialog
+function cancelSubmission() {
+  showSubmissionDialog.value = false
+  pendingSubmissionContext.value = null
+  submissionSummary.value = null
+}
+
+// AI : Handle edit project click - opens project edit form
+function handleEditProjectClick(project: ProjectForModeration) {
+  // AI : Get the latest project data from userContributions (not the potentially stale passed parameter)
+  const latestProjectData = projects.value.find((p: UserContribution) => p.id === project.id)
+  const projectToEdit = latestProjectData ?? project
+
+  // AI : Open the project edit form via uiStore
+  uiStore.openProjectEditForm(projectToEdit as any)
+}
+
 // AI : Load initial data
 onMounted(() => {
   fetchUserContributions()
@@ -267,5 +585,76 @@ onMounted(() => {
   color: var(--p-surface-600);
   cursor: pointer;
   white-space: nowrap;
+}
+
+/* AI : Action button styling - matches moderation panel buttons */
+.action-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 0.875rem;
+}
+
+.action-btn:hover {
+  border-color: #d1d5db;
+  background-color: #f9fafb;
+}
+
+/* AI : Edit button styling */
+.edit-btn {
+  color: var(--p-primary-500);
+}
+
+.edit-btn:hover {
+  color: var(--p-primary-600);
+  background-color: var(--p-primary-50);
+  border-color: var(--p-primary-200);
+}
+
+/* AI : Delete button styling */
+.delete-btn {
+  color: var(--p-red-500);
+}
+
+.delete-btn:hover {
+  color: var(--p-red-600);
+  background-color: var(--p-red-50);
+  border-color: var(--p-red-200);
+}
+
+/* AI : Save button styling - uses success/green colors */
+.save-btn {
+  color: var(--p-green-500);
+}
+
+.save-btn:hover:not(.disabled) {
+  color: var(--p-green-600);
+  background-color: var(--p-green-50);
+  border-color: var(--p-green-200);
+}
+
+/* AI : Add image button styling - secondary style */
+.add-image-btn {
+  color: var(--p-surface-600);
+}
+
+.add-image-btn:hover {
+  color: var(--p-surface-700);
+  background-color: var(--p-surface-100);
+  border-color: var(--p-surface-300);
+}
+
+/* AI : Disabled button state */
+.action-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 </style>

@@ -58,6 +58,10 @@ export const useProjectStore = defineStore("project", () => {
   // AI : Stores snapshots of approved projects before local modifications
   const originalBackendProjects = ref<Record<string, Project>>({});
 
+  // AI : Cache original user contributions for change detection (from MyContributionsPanel)
+  // AI : Stores snapshots of contribution projects before local modifications
+  const originalUserContributions = ref<Record<string, UserContribution>>({});
+
   // AI : Simple cache for city names (cityId -> city name)
   // AI : Populated when cities are used in forms or loaded from backend
   const cityNamesCache = ref<Record<string, string>>({});
@@ -132,6 +136,16 @@ export const useProjectStore = defineStore("project", () => {
   function setUserContributions(contributions: UserContribution[]) {
     userContributions.value = contributions;
     userContributionsLoaded.value = true;
+
+    // AI : Cache original backend state for change detection (only if not already cached)
+    contributions.forEach((contribution) => {
+      if (!originalUserContributions.value[contribution.id]) {
+        originalUserContributions.value = {
+          ...originalUserContributions.value,
+          [contribution.id]: { ...contribution },
+        };
+      }
+    });
   }
 
   function setUserContributionsLoading(loading: boolean) {
@@ -336,6 +350,7 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   // AI : Update project in store with proper reactivity
+  // AI : Can also create new project if it doesn't exist (when updates contains full project data)
   function updateProject(projectId: string, updates: Partial<Project>) {
     let current = projects.value[projectId];
 
@@ -347,7 +362,9 @@ export const useProjectStore = defineStore("project", () => {
 
     // AI : Save original backend version before first modification (for change detection)
     // AI : This applies to both approved and pending projects
+    // AI : Only do this if current exists and is from backend
     if (
+      current &&
       !originalBackendProjects.value[projectId] &&
       (current.status === "approved" || current.status === "pending") &&
       !current.isModified
@@ -359,9 +376,10 @@ export const useProjectStore = defineStore("project", () => {
     }
 
     // AI : Create new object with updates to trigger reactivity
+    // AI : If current is undefined, we're creating a new project - use updates as the base
     projects.value = {
       ...projects.value,
-      [projectId]: { ...current, ...updates },
+      [projectId]: current ? { ...current, ...updates } : (updates as Project),
     };
   }
 
@@ -518,6 +536,7 @@ export const useProjectStore = defineStore("project", () => {
     userContributionsLoading,
     userContributionsLoaded,
     originalBackendProjects,
+    originalUserContributions,
     cityNamesCache,
 
     // Computed properties

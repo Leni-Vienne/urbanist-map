@@ -14,7 +14,8 @@ import type { ApprovalStatus } from "@shared/types";
 
 export interface EditableProjectFormOptions {
   entityId: string;
-  initialData: ProjectFormData;
+  initialData: ProjectFormData; // AI : Original backend values for "modified from X" comparison
+  currentData?: ProjectFormData; // AI : Current values to display in form (if different from initialData after local saves)
   entityStatus: ApprovalStatus | null;
   localOnly?: boolean; // AI : If true, only update local store, don't submit to backend
   getAvailableCities?: () => {
@@ -57,7 +58,8 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     {
       entityId: options.entityId,
       entityType: "project",
-      initialData: options.initialData,
+      initialData: options.initialData, // AI : Original backend values for comparison
+      currentData: options.currentData, // AI : Current values to display in form
       entityStatus: options.entityStatus,
       onSubmitted: options.onSubmitted,
       onClose: options.onClose,
@@ -96,32 +98,91 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     let currentProject =
       projectStore.projects[options.entityId] ?? projectStore.allProjects[options.entityId];
 
-    if (!currentProject) {
+    // AI : Check if project exists in userContributions (for projects opened from MyContributionsPanel)
+    const userContributionProject = projectStore.userContributions.find(
+      (p) => p.id === options.entityId,
+    );
+
+    if (!currentProject && !userContributionProject) {
       console.error("[useEditableProjectForm] PROJECT NOT FOUND AT ALL!");
       return;
     }
 
-    const cityObject = getCityObjectForUpdate(currentProject);
-    const updatedData: Partial<Project> = {
-      ...currentProject,
+    // AI : Update userContributions so MyContributionsPanel shows updated data
+    projectStore.updateProjectInUserContributions(options.entityId, {
       name: base.formData.name,
-      description: base.formData.description,
-      proposalDate: base.formData.proposalDate,
-      startDate: base.formData.startDate,
-      endDate: base.formData.endDate,
-      sourceUrl: base.formData.sourceUrl,
-      latestUpdateOn: base.formData.latestUpdateOn,
-      cityId: base.formData.cityId ?? undefined,
-      city: cityObject,
-      isModified: true,
-    };
+      description: base.formData.description ?? null,
+      proposalDate: base.formData.proposalDate ?? null,
+      startDate: base.formData.startDate ?? null,
+      endDate: base.formData.endDate ?? null,
+      sourceUrl: base.formData.sourceUrl ?? null,
+      latestUpdateOn: base.formData.latestUpdateOn ?? null,
+    });
 
-    projectStore.updateProject(options.entityId, updatedData);
+    // AI : Update or create project in projectStore.projects for infopopup sync
+    if (currentProject) {
+      // AI : Project exists in projects store - update it
+      const cityObject = getCityObjectForUpdate(currentProject);
+      const updatedData: Partial<Project> = {
+        ...currentProject,
+        name: base.formData.name,
+        description: base.formData.description,
+        proposalDate: base.formData.proposalDate,
+        startDate: base.formData.startDate,
+        endDate: base.formData.endDate,
+        sourceUrl: base.formData.sourceUrl,
+        latestUpdateOn: base.formData.latestUpdateOn,
+        cityId: base.formData.cityId ?? undefined,
+        city: cityObject,
+        isModified: true,
+      };
 
-    const updatedProject = projectStore.projects[options.entityId];
-    const hasNoOverlays = !updatedProject?.overlayIds || updatedProject.overlayIds.length === 0;
-    if (updatedProject && hasNoOverlays) {
-      updateStandaloneProjectMarkerColor(options.entityId, updatedProject);
+      projectStore.updateProject(options.entityId, updatedData);
+
+      const updatedProject = projectStore.projects[options.entityId];
+      const hasNoOverlays = !updatedProject?.overlayIds || updatedProject.overlayIds.length === 0;
+      if (updatedProject && hasNoOverlays) {
+        updateStandaloneProjectMarkerColor(options.entityId, updatedProject);
+      }
+    } else if (userContributionProject) {
+      // AI : Project only exists in userContributions - add to projects store so infopopup finds it
+      // AI : Convert UserContribution to Project type
+      const projectFromContribution: Project = {
+        id: userContributionProject.id,
+        name: base.formData.name,
+        description: base.formData.description ?? null,
+        proposalDate: base.formData.proposalDate ?? null,
+        startDate: base.formData.startDate ?? null,
+        endDate: base.formData.endDate ?? null,
+        sourceUrl: base.formData.sourceUrl ?? null,
+        latestUpdateOn: base.formData.latestUpdateOn ?? null,
+        lat: userContributionProject.lat,
+        lng: userContributionProject.lng,
+        cityId: userContributionProject.cityId,
+        city: {
+          id: userContributionProject.cityId,
+          name: userContributionProject.cityName ?? "Unknown",
+          countryCode: userContributionProject.countryCode ?? "XX",
+          coordinates: { x: userContributionProject.lng ?? 0, y: userContributionProject.lat ?? 0 },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        status: userContributionProject.status,
+        overlayIds: userContributionProject.overlays?.map((o) => o.id) ?? [],
+        isModified: true,
+        // AI : Add required Project properties
+        createdAt: userContributionProject.createdAt ?? new Date(),
+        updatedAt: userContributionProject.updatedAt ?? new Date(),
+        ownerId: userContributionProject.ownerId ?? null,
+        centerCoordinate: {
+          x: userContributionProject.lng ?? 0,
+          y: userContributionProject.lat ?? 0,
+        },
+        version: userContributionProject.version ?? 1,
+      };
+
+      // AI : Add to projects store (updateProject handles creating new entries)
+      projectStore.updateProject(options.entityId, projectFromContribution);
     }
 
     toast.add({
