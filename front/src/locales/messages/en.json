@@ -50,7 +50,8 @@
     "endDate": "End Date",
     "sourceUrl": "Source URL",
     "lat": "Latitude",
-    "lng": "Longitude"
+    "lng": "Longitude",
+    "caption": "Name"
   },
   "navigation": {
     "home": "Home",

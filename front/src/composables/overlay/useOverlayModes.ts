@@ -195,11 +195,14 @@ export async function switchMode(
   // AI : This allows us to show both old and new positions after the switch
   let previousBounds: L.LatLngBounds | null = null;
   let selectedOverlayProjectId: string | null = null;
+  let selectedOverlayWasPending = false;
   if (selectedOverlayId) {
     const currentOverlay = overlayStore.overlays[selectedOverlayId];
     if (currentOverlay) {
       previousBounds = getOverlayBounds(currentOverlay);
       selectedOverlayProjectId = currentOverlay.projectId ?? null;
+      // AI : Track if the overlay was pending - only pending overlays become invisible in view mode
+      selectedOverlayWasPending = currentOverlay.status === "pending";
     }
   }
 
@@ -282,8 +285,9 @@ export async function switchMode(
         await autoSelectOverlayForProject(projectPopupProjectId);
       } else if (selectedOverlayId) {
         // AI : Check if switching from edit/moderation to view mode with a pending overlay selected
-        // AI : In this case, fly to the standalone marker instead (pending overlay won't exist in view mode)
-        if (targetMode === "view" && selectedOverlayProjectId) {
+        // AI : Only fly to standalone marker if overlay was pending (pending overlays are invisible in view mode)
+        // AI : Approved overlays remain visible, so they should use normal overlay navigation
+        if (targetMode === "view" && selectedOverlayProjectId && selectedOverlayWasPending) {
           await autoNavigateToStandaloneMarker(selectedOverlayProjectId);
         } else {
           // AI : Auto-navigate to selected overlay after mode change (only if not from project popup)

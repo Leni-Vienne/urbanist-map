@@ -1046,7 +1046,17 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
   const overlayObject = overlayStore.overlays[id];
   if (!overlayObject) return;
 
-  overlayObject.caption = info.caption ?? null;
+  // AI : Track if caption actually changed to set isModified flag
+  const oldCaption = overlayObject.caption;
+  const newCaption = info.caption ?? null;
+  const captionChanged = oldCaption !== newCaption;
+
+  overlayObject.caption = newCaption;
+
+  // AI : Mark as modified if caption changed, so save button enables
+  if (captionChanged) {
+    overlayObject.isModified = true;
+  }
 
   // AI : Save only the specific overlay being updated, not all overlays
   updateMarkerTooltip(overlayObject);

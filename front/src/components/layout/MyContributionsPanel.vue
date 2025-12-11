@@ -176,7 +176,7 @@ import { useOverlayStore } from '@/stores/pinia/overlayStore'
 import { useProjectStore } from '@/stores/pinia/projectStore'
 import { useProjectDeletion } from '@/composables/project/useProjectDeletion'
 import { useSubmissionService, type SubmissionContext, type SubmissionSummary } from '@/composables/submission/useSubmissionService'
-import type { RouterOutput } from '@/client'
+import { trpc, type RouterOutput } from '@/client'
 import type { ProjectForModeration, OverlayForModeration } from '@/types/index'
 
 // AI : Async component import for submission dialog
@@ -296,8 +296,13 @@ async function handleDeleteChangeRequestClick(change: ChangeRequest) {
   }
 }
 
-// AI : Check if overlay is modified in the overlay store
+// AI : Check if overlay is modified in the overlay store or pending caption changes cache
 function isOverlayModified(overlayId: string): boolean {
+  // AI : Check pending caption changes cache (for side panel edits)
+  if (overlayStore.hasPendingCaptionChange(overlayId)) {
+    return true
+  }
+
   const overlayObject = overlayStore.overlays[overlayId]
   if (!overlayObject) {
     // AI : Overlay not loaded in store - check edit mode cache for unsaved position changes
@@ -332,22 +337,24 @@ async function handleSaveOverlayClick(overlay: OverlayForModeration, project: Pr
   })
 }
 
-// AI : Handle edit overlay click - opens overlay edit form
+// AI : Handle edit overlay click - opens the shared OverlayEditor dialog via store
+// AI : This uses the SAME dialog component that PopupContainer uses
 function handleEditOverlayClick(overlay: OverlayForModeration) {
-  // AI : The overlay edit form needs an OverlayObject, but we only have OverlayForModeration
-  // AI : We need to convert it or use the store's overlay if loaded
-  const overlayObject = overlayStore.overlays[overlay.id]
-  if (overlayObject) {
-    uiStore.openOverlayEditForm(overlayObject)
-  } else {
-    // AI : Overlay not loaded, show a message to navigate to it first
-    toast.add({
-      severity: 'info',
-      summary: t('overlay.navigateToEdit'),
-      detail: t('overlay.navigateToEditDetail'),
-      life: 3000
-    })
+  // AI : Convert OverlayForModeration to OverlayObject for the editor
+  // AI : The editor only needs id and caption for editing
+  const overlayForEditor = {
+    id: overlay.id,
+    caption: overlay.name ?? '',
+    // AI : Include other required fields from the overlay
+    filename: overlay.name ?? '',
+    projectId: overlay.projectId ?? null,
+    corners: [],
+    status: overlay.status,
+    isModified: false,
   }
+
+  // AI : Open the shared overlay edit dialog
+  uiStore.openOverlayEditDialog(overlayForEditor as any)
 }
 
 // AI : Handle add image to project - opens file picker to add overlay to project
@@ -430,49 +437,117 @@ function getProjectSaveTooltip(project: ProjectForModeration): string {
   return t('common.save')
 }
 
-// AI : Handle save project click - uses submission service
+// AI : Handle save project click - handles both project and overlay changes
 async function handleSaveProjectClick(project: ProjectForModeration) {
   if (!isProjectModified(project.id)) return
 
-  // AI : Get the full project from projectStore.projects
-  const fullProject = projectStore.projects[project.id]
-  if (!fullProject) {
-    toast.add({
-      severity: 'error',
-      summary: t('errors.projectNotFound'),
-      detail: t('errors.projectNotFoundDetail'),
-      life: 3000
-    })
-    return
-  }
+  // AI : Check for pending overlay caption changes
+  const overlayIdsWithCaptionChanges = project.overlays
+    ?.filter(overlay => overlayStore.hasPendingCaptionChange(overlay.id))
+    .map(overlay => overlay.id) ?? []
 
-  try {
-    // AI : Create project context and validate
-    const context = submissionService.createProjectContext(fullProject)
-    const validation = submissionService.validate(context)
+  // AI : Check if project itself has changes (not just overlays)
+  const projectInStore = projectStore.projects[project.id]
+  const projectHasChanges = projectInStore?.isModified ?? false
 
-    if (!validation.isValid) {
+  if (projectHasChanges) {
+    // AI : Project has changes - use submission service flow
+    const fullProject = projectStore.projects[project.id]
+    if (!fullProject) {
       toast.add({
         severity: 'error',
-        summary: t('toast.validationFailed'),
-        detail: validation.errors.join(', '),
-        life: 5000
+        summary: t('errors.projectNotFound'),
+        detail: t('errors.projectNotFoundDetail'),
+        life: 3000
       })
       return
     }
 
-    // AI : Build summary and show confirmation dialog
-    submissionSummary.value = submissionService.buildSummary(context)
-    pendingSubmissionContext.value = context
-    showSubmissionDialog.value = true
-  } catch (error: any) {
-    console.error('Error preparing submission:', error)
-    toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: error.message || t('errors.preparingSubmission'),
-      life: 5000
-    })
+    try {
+      const context = submissionService.createProjectContext(fullProject)
+      const validation = submissionService.validate(context)
+
+      if (!validation.isValid) {
+        toast.add({
+          severity: 'error',
+          summary: t('toast.validationFailed'),
+          detail: validation.errors.join(', '),
+          life: 5000
+        })
+        return
+      }
+
+      // AI : Store pending overlay changes for submission after project
+      // AI : (will be handled in confirmSubmission)
+      submissionSummary.value = submissionService.buildSummary(context)
+      pendingSubmissionContext.value = { ...context, pendingOverlayCaptionChanges: overlayIdsWithCaptionChanges } as any
+      showSubmissionDialog.value = true
+    } catch (error: any) {
+      console.error('Error preparing submission:', error)
+      toast.add({
+        severity: 'error',
+        summary: t('common.error'),
+        detail: error.message || t('errors.preparingSubmission'),
+        life: 5000
+      })
+    }
+  } else if (overlayIdsWithCaptionChanges.length > 0) {
+    // AI : Only overlay caption changes, no project changes - submit directly
+    try {
+      isSubmitting.value = true
+      await submitPendingOverlayCaptionChanges(overlayIdsWithCaptionChanges)
+
+      toast.add({
+        severity: 'success',
+        summary: t('common.success'),
+        detail: t('submission.changesSaved'),
+        life: 3000
+      })
+
+      // AI : Refresh user contributions to show updated status
+      await fetchUserContributions()
+    } catch (error: any) {
+      console.error('Error submitting overlay changes:', error)
+      toast.add({
+        severity: 'error',
+        summary: t('toast.submissionFailed'),
+        detail: error.message || t('errors.submissionFailed'),
+        life: 5000
+      })
+    } finally {
+      isSubmitting.value = false
+    }
+  }
+}
+
+// AI : Submit pending caption changes for overlays
+async function submitPendingOverlayCaptionChanges(overlayIds: string[]) {
+  for (const overlayId of overlayIds) {
+    const change = overlayStore.getPendingCaptionChange(overlayId)
+    if (!change) continue
+
+    if (change.status === 'approved') {
+      // AI : For approved overlays, submit a change request
+      await trpc.changes.submitChangeRequest.mutate({
+        entityType: 'overlay',
+        entityId: overlayId,
+        changes: [{
+          fieldName: 'caption',
+          oldValue: change.originalCaption,
+          newValue: change.caption,
+          changeReason: undefined
+        }]
+      })
+    } else {
+      // AI : For pending/rejected overlays, update directly
+      await trpc.overlay.updateOverlay.mutate({
+        id: overlayId,
+        caption: change.caption
+      })
+    }
+
+    // AI : Clear the pending change after successful submission
+    overlayStore.removePendingCaptionChange(overlayId)
   }
 }
 
@@ -485,9 +560,14 @@ async function confirmSubmission(reason: string) {
 
     await submissionService.submit(pendingSubmissionContext.value as SubmissionContext, reason)
 
+    // AI : Also submit any pending overlay caption changes
+    const context = pendingSubmissionContext.value as any
+    if (context.pendingOverlayCaptionChanges?.length > 0) {
+      await submitPendingOverlayCaptionChanges(context.pendingOverlayCaptionChanges)
+    }
+
     // AI : Show success message based on change type
-    const context = pendingSubmissionContext.value
-    let message: string
+    let message = ''
     switch (context.changeType) {
       case 'update_approved':
         message = t('submission.changeRequestSubmitted')

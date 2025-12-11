@@ -31,8 +31,13 @@ export const useUiStore = defineStore("ui", () => {
     visible: false,
   });
 
-  const overlayEditForm = ref<EditFormState>({
+  // AI : Shared overlay edit dialog state - can be opened from anywhere
+  const overlayEditDialog = ref<{
+    visible: boolean;
+    overlay: OverlayObject | null;
+  }>({
     visible: false,
+    overlay: null,
   });
 
   // AI : Mobile drawer state
@@ -99,17 +104,18 @@ export const useUiStore = defineStore("ui", () => {
     };
   }
 
-  // AI : Overlay edit form actions
-  function openOverlayEditForm(overlay: OverlayObject) {
-    overlayEditForm.value = {
+  // AI : Shared overlay edit dialog actions - used by both sidemenu and info popup
+  function openOverlayEditDialog(overlay: OverlayObject) {
+    overlayEditDialog.value = {
       visible: true,
-      data: overlay,
+      overlay,
     };
   }
 
-  function closeOverlayEditForm() {
-    overlayEditForm.value = {
+  function closeOverlayEditDialog() {
+    overlayEditDialog.value = {
       visible: false,
+      overlay: null,
     };
   }
 
@@ -163,7 +169,7 @@ export const useUiStore = defineStore("ui", () => {
     markerPlacementBarVisible.value = false;
     projectDialog.value.visible = false;
     projectEditForm.value.visible = false;
-    overlayEditForm.value.visible = false;
+    overlayEditDialog.value.visible = false;
     projectInfoPopup.value.visible = false;
     moderatedContributionsDialogVisible.value = false;
   }
@@ -175,7 +181,7 @@ export const useUiStore = defineStore("ui", () => {
     moderatedContributionsDialogVisible,
     projectDialog,
     projectEditForm,
-    overlayEditForm,
+    overlayEditDialog,
     mobileDrawerActiveTab,
     mobileDrawerVisible,
     mobileDrawerHeightPercent,
@@ -192,8 +198,8 @@ export const useUiStore = defineStore("ui", () => {
     closeProjectDialog,
     openProjectEditForm,
     closeProjectEditForm,
-    openOverlayEditForm,
-    closeOverlayEditForm,
+    openOverlayEditDialog,
+    closeOverlayEditDialog,
     setMobileDrawerActiveTab,
     setMobileDrawerHeight,
     openProjectInfoPopup,
