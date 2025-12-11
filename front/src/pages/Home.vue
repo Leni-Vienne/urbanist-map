@@ -1,62 +1,62 @@
 <template>
-    <div class="home-container">
-        <!-- AI : Desktop SideMenu -->
-        <SideMenu
-            v-if="!isMobile"
-            :is-open="desktopSideMenuOpen"
-            :is-moderator="authStore.isModerator"
-            @close="() => (desktopSideMenuOpen = false)"
-        />
+  <div class="home-container">
+    <!-- AI : Desktop SideMenu -->
+    <SideMenu
+      v-if="!isMobile"
+      :is-open="desktopSideMenuOpen"
+      :is-moderator="authStore.isModerator"
+      @close="() => (desktopSideMenuOpen = false)"
+    />
 
-        <!-- AI : Mobile Bottom Drawer -->
-        <MobileDrawer v-if="isMobile" v-model:visible="mobileSideMenuOpen" />
+    <!-- AI : Mobile Bottom Drawer -->
+    <MobileDrawer v-if="isMobile" v-model:visible="mobileSideMenuOpen" />
 
-        <div class="main-content">
-            <Toast />
+    <div class="main-content">
+      <Toast />
 
-            <!-- AI : Info message banner (displayed at top when config.infoMessage is set) -->
-            <Message
-                v-if="authStore.infoMessage && !infoBannerDismissed"
-                severity="info"
-                :closable="true"
-                @close="infoBannerDismissed = true"
-                class="info-message-banner"
-                icon="pi pi-info-circle"
-            >
-                {{authStore.infoMessage }}
-            </Message>
+      <!-- AI : Info message banner (displayed at top when config.infoMessage is set) -->
+      <Message
+        v-if="authStore.infoMessage && !infoBannerDismissed"
+        severity="info"
+        :closable="true"
+        @close="infoBannerDismissed = true"
+        class="info-message-banner"
+        icon="pi pi-info-circle"
+      >
+        {{ authStore.infoMessage }}
+      </Message>
 
-            <!-- AI : Map container that fills remaining space -->
-            <div class="map-container">
-                <MapView />
-            </div>
+      <!-- AI : Map container that fills remaining space -->
+      <div class="map-container">
+        <MapView />
+      </div>
 
-            <!-- AI : Popup container handles both overlay and project popups -->
-            <PopupContainer
-                v-if="
-                    overlayStore.showInfoPopup ||
-                    uiStore.projectInfoPopup.visible
-                "
-            />
-        </div>
-
-        <!-- AI : Project Management Dialogs -->
-        <ProjectManager
-            v-if="
-                uiStore.projectDialog.visible ||
-                uiStore.markerPlacementBarVisible ||
-                uiStore.projectEditForm.visible ||
-                uiStore.overlayEditForm.visible
+      <!-- AI : Popup container handles both overlay and project popups, AND the shared overlay edit dialog -->
+      <PopupContainer
+        v-if="
+                overlayStore.showInfoPopup ||
+                uiStore.projectInfoPopup.visible ||
+                uiStore.overlayEditDialog.visible
             "
-        />
-
-        <!-- AI : Moderated Contributions Dialog -->
-        <ModeratedContributionsDialog
-            v-if="uiStore.moderatedContributionsDialogVisible"
-            v-model:visible="uiStore.moderatedContributionsDialogVisible"
-            @close="uiStore.closeModeratedContributionsDialog"
-        />
+      />
     </div>
+
+    <!-- AI : Project Management Dialogs -->
+    <ProjectManager
+      v-if="
+            uiStore.projectDialog.visible ||
+            uiStore.markerPlacementBarVisible ||
+            uiStore.projectEditForm.visible
+        "
+    />
+
+    <!-- AI : Moderated Contributions Dialog -->
+    <ModeratedContributionsDialog
+      v-if="uiStore.moderatedContributionsDialogVisible"
+      v-model:visible="uiStore.moderatedContributionsDialogVisible"
+      @close="uiStore.closeModeratedContributionsDialog"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">

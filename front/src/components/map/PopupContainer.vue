@@ -24,10 +24,7 @@
   </Teleport>
 
   <!-- Unified Project Popup - for projects without overlay -->
-  <Teleport
-    to="#project-info-popup-teleport-target"
-    v-if="showProjectPopup && activeProject"
-  >
+  <Teleport to="#project-info-popup-teleport-target" v-if="showProjectPopup && activeProject">
     <UnifiedProjectPopup
       :project="activeProject"
       :viewMode="mode !== 'edit'"
@@ -43,9 +40,9 @@
     />
   </Teleport>
 
-  <!-- Overlay Editor Dialog -->
+  <!-- AI : Overlay Editor Dialog - renders when local overlay exists OR store has overlay -->
   <OverlayEditor
-    v-if="overlayObject"
+    v-if="overlayObject || uiStore.overlayEditDialog.overlay"
     ref="overlayEditorRef"
     :overlayObject="overlayObject"
     @update="handleOverlayUpdate"
@@ -124,13 +121,13 @@ const availableCities = computed(() => {
 // AI : Computed for overlay popup visibility
 const showOverlayPopup = computed(() => showInfoPopup.value);
 
-// AI : Computed for project popup visibility  
+// AI : Computed for project popup visibility
 const showProjectPopup = computed(() => {
   return projectInfoPopup.value.visible && activeProject.value && teleportTargetExists.value;
 });
 
 // AI : Check if teleport targets exist (we need both for overlay and project popups)
-function checkTeleportTarget () {
+function checkTeleportTarget() {
   const overlayTarget = document.getElementById('info-popup-teleport-target');
   const projectTarget = document.getElementById('project-info-popup-teleport-target');
   teleportTargetExists.value = !!(overlayTarget || projectTarget);
@@ -526,5 +523,4 @@ async function handleDeleteProject(project: Project) {
     }
   });
 }
-
 </script>

@@ -38,6 +38,11 @@ export const useOverlayStore = defineStore("overlay", () => {
   const showInfoPopup = ref(false);
   const infoPopupOverlayId = ref<string | null>(null);
 
+  // AI : Pending caption changes cache - for overlays edited from side panel (not loaded on map)
+  // AI : Key is overlay ID, value is { caption, originalCaption, status }
+  type PendingCaptionChange = { caption: string; originalCaption: string | null; status: string };
+  const pendingCaptionChanges = ref<Map<string, PendingCaptionChange>>(new Map());
+
   // AI : Basic actions
   function setViewModeOverlays(overlayData: OverlayData[]) {
     viewModeOverlays.value = overlayData;
@@ -167,6 +172,32 @@ export const useOverlayStore = defineStore("overlay", () => {
     }
   }
 
+  // AI : Pending caption changes management (for side panel edits)
+  function savePendingCaptionChange(
+    overlayId: string,
+    caption: string,
+    originalCaption: string | null,
+    status: string,
+  ) {
+    pendingCaptionChanges.value.set(overlayId, { caption, originalCaption, status });
+  }
+
+  function getPendingCaptionChange(overlayId: string): PendingCaptionChange | undefined {
+    return pendingCaptionChanges.value.get(overlayId);
+  }
+
+  function hasPendingCaptionChange(overlayId: string): boolean {
+    return pendingCaptionChanges.value.has(overlayId);
+  }
+
+  function removePendingCaptionChange(overlayId: string) {
+    pendingCaptionChanges.value.delete(overlayId);
+  }
+
+  function clearPendingCaptionChanges() {
+    pendingCaptionChanges.value.clear();
+  }
+
   return {
     // State
     overlays,
@@ -186,6 +217,7 @@ export const useOverlayStore = defineStore("overlay", () => {
     pendingImageFile,
     showInfoPopup,
     infoPopupOverlayId,
+    pendingCaptionChanges,
 
     // Actions
     setViewModeOverlays,
@@ -213,5 +245,10 @@ export const useOverlayStore = defineStore("overlay", () => {
     toggleInfoPopup,
     resetAllUIStates,
     closeAllUIElements,
+    savePendingCaptionChange,
+    getPendingCaptionChange,
+    hasPendingCaptionChange,
+    removePendingCaptionChange,
+    clearPendingCaptionChanges,
   };
 });

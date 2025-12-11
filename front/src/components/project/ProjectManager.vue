@@ -29,24 +29,6 @@
     />
   </Dialog>
 
-  <!-- AI : Overlay Edit Form Dialog -->
-  <Dialog
-    v-model:visible="uiStore.overlayEditForm.visible"
-    :modal="true"
-    :closable="true"
-    :draggable="false"
-    :header="$t('projectSelector.suggestChanges')"
-    @update:visible="uiStore.closeOverlayEditForm"
-    class="edit-form-dialog"
-  >
-    <EditOverlayForm
-      v-if="uiStore.overlayEditForm.data && uiStore.overlayEditForm.visible"
-      :overlay="(uiStore.overlayEditForm.data as OverlayObject)"
-      @close="uiStore.closeOverlayEditForm"
-      @submitted="uiStore.closeOverlayEditForm"
-    />
-  </Dialog>
-
   <!-- AI : Marker Placement Dialog -->
   <MarkerPlacementBar
     ref="markerPlacementBar"
@@ -77,13 +59,12 @@ import { addOverlay } from '@/composables/overlay/useOverlay'
 import { createProject } from '@/composables/project/useProjects'
 import { createProjectObjectFromAPI, createProjectObject } from '../../utils/typeFactories'
 import { useCityProjects } from '@/composables/project/useProjectSelection'
-import type { Project, OverlayObject } from '@/types/index'
+import type { Project } from '@/types/index'
 import type { NearbyProject } from '../../types/api'
 
 import MarkerPlacementBar from '@/components/map/MarkerPlacementBar.vue'
 const ProjectDialog = defineAsyncComponent(() => import('@/components/project/ProjectDialog.vue'))
 const EditProjectForm = defineAsyncComponent(() => import('@/components/forms/EditProjectForm.vue'))
-const EditOverlayForm = defineAsyncComponent(() => import('@/components/forms/EditOverlayForm.vue'))
 
 const overlayStore = useOverlayStore()
 const projectStore = useProjectStore()
