@@ -21,7 +21,8 @@
     "after": "After",
     "current": "Current",
     "new": "New",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "noValue": "(no value)"
   },
   "relativeTime": {
     "justNow": "just now",
@@ -411,7 +412,13 @@
     "changesSaved": "Changes saved successfully",
     "submissionSuccessful": "Submission successful",
     "pendingLimitReached": "Pending Contribution Limit Reached",
-    "pendingLimitMessage": "You have reached the maximum number of pending contributions. Please wait for your existing contributions to be reviewed before submitting more."
+    "pendingLimitMessage": "You have reached the maximum number of pending contributions. Please wait for your existing contributions to be reviewed before submitting more.",
+    "overlayCaption": "Overlay Caption",
+    "overlayPosition": "Overlay Position",
+    "previousPosition": "(Current position)",
+    "newPosition": "(New position)",
+    "submitChangeRequest": "Submit Change Request",
+    "updateOverlays": "Update Overlays"
   },
   "pages": {
     "home": {

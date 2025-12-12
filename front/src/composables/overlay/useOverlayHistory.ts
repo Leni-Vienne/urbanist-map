@@ -8,6 +8,7 @@
 
 import type { OverlayObject } from "@/types/index";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import {
   getFromEditModeOverlayCache,
   saveToEditModeOverlayCache,
@@ -103,19 +104,33 @@ export function isValidCorners(corners: { lat: number; lng: number }[]): boolean
 
 /**
  * AI : Save overlay modifications to edit mode cache for persistence across zoom changes
+ * AI : Also saves to pendingModificationsStore for unified modification tracking
  */
 export function saveOverlayModificationsToCache(overlayObject: OverlayObject): void {
   const overlayStore = useOverlayStore();
+  const pendingModsStore = usePendingModificationsStore();
 
   if (overlayStore.mode !== "edit" || !overlayObject.overlay) return;
   const corners = overlayObject.overlay.getCorners();
   if (!corners?.length) return;
 
-  // AI : Save to persistent cache for zoom persistence
+  const mappedCorners = corners.map((corner) => ({ lat: corner.lat, lng: corner.lng }));
+
+  // AI : Save to old cache for backwards compatibility during migration
   saveToEditModeOverlayCache(overlayObject.id, {
-    corners: corners.map((corner) => ({ lat: corner.lat, lng: corner.lng })),
+    corners: mappedCorners,
     isModified: overlayObject.isModified ?? false,
   });
+
+  // AI : Save to new unified store
+  const overlayStatus = (overlayObject.status ?? "pending") as "pending" | "approved" | "rejected";
+  pendingModsStore.saveCornersChange(
+    overlayObject.id,
+    overlayObject.projectId ?? null,
+    mappedCorners,
+    overlayObject.corners ?? [], // original corners from database
+    overlayStatus,
+  );
 }
 
 /**

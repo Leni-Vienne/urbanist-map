@@ -66,6 +66,7 @@ import { useOverlayStore } from '@/stores/pinia/overlayStore';
 import { useProjectStore } from '@/stores/pinia/projectStore';
 import { useMapStore } from '@/stores/pinia/mapStore';
 import { useUiStore } from '@/stores/uiStore';
+import { usePendingModificationsStore } from '@/stores/pinia/pendingModificationsStore';
 
 import { navigateToOverlay, addOverlay } from '@/composables/overlay/useOverlay';
 import { updateMarkerTooltip } from '@/composables/overlay/useOverlayMarkers';
@@ -95,12 +96,45 @@ const { t } = useI18n();
 const { publishOverlay } = useOverlayPublisher();
 const submissionService = useSubmissionService();
 const { handleDeleteOverlay: deleteOverlayWithMarker, handleDeleteProject: deleteProjectWithConfirm } = useProjectDeletion();
+const pendingModsStore = usePendingModificationsStore();
+
+// AI : Extended context type for combined overlay+project submissions
+type SubmissionContextExtended = SubmissionContext & {
+  projectId?: string;
+  projectModified: boolean;
+  overlayModified: boolean;
+  allProjectModifications: ReturnType<typeof pendingModsStore.getModificationsForProject>;
+};
 
 // AI : Submission dialog state
 const showSubmissionDialog = ref(false);
 const submissionSummary = ref<SubmissionSummary | null>(null);
-const pendingSubmissionContext = ref<SubmissionContext | null>(null);
+const pendingSubmissionContext = ref<SubmissionContext | SubmissionContextExtended | null>(null);
 const isSubmitting = ref(false);
+
+// AI : Build change list from pending modifications
+function buildOverlayChanges(mods: ReturnType<typeof pendingModsStore.getModificationsForProject>) {
+  const changes: { field: string; oldValue: any; newValue: any; displayLabel: string }[] = [];
+  for (const mod of mods) {
+    if (mod.caption) {
+      changes.push({
+        field: 'caption',
+        oldValue: mod.caption.original ?? t('common.noValue'),
+        newValue: mod.caption.current,
+        displayLabel: t('submission.overlayCaption')
+      });
+    }
+    if (mod.corners) {
+      changes.push({
+        field: 'corners',
+        oldValue: t('submission.previousPosition'),
+        newValue: t('submission.newPosition'),
+        displayLabel: t('submission.overlayPosition')
+      });
+    }
+  }
+  return changes;
+}
 
 // AI : Track teleport target existence
 let targetObserver: MutationObserver | null = null;
@@ -230,6 +264,9 @@ async function prepareAndShowSubmissionDialog(context: SubmissionContext) {
     }
 
     // AI : Build summary for confirmation dialog
+    // AI : Note: buildSummary -> detectChanges -> detectOverlayChanges already detects
+    // AI : caption and corners changes by comparing overlay to original, so we don't
+    // AI : need to add from pendingModificationsStore here (that would cause duplicates)
     submissionSummary.value = submissionService.buildSummary(context);
     pendingSubmissionContext.value = context;
     showSubmissionDialog.value = true;
@@ -250,12 +287,70 @@ async function confirmSubmission(reason: string) {
 
   try {
     isSubmitting.value = true;
+    const context = pendingSubmissionContext.value;
+    const project = activeProject.value;
 
-    // ugly ass type assertion but it prevents typescript from going crazy over the _map property
-    await submissionService.submit(pendingSubmissionContext.value as SubmissionContext, reason);
+    // AI : Check if this is an extended context (combined overlay+project submission)
+    const isExtended = 'overlayModified' in context;
+
+    if (isExtended) {
+      const extCtx = context as SubmissionContextExtended;
+      // AI : Handle ALL overlay changes in the project
+      if (extCtx.overlayModified && extCtx.allProjectModifications?.length > 0) {
+        for (const mod of extCtx.allProjectModifications) {
+          const overlayId = mod.overlayId;
+          const overlayObj = overlays.value[overlayId];
+
+          if (!overlayObj) {
+            console.warn(`Cannot submit changes for overlay ${overlayId}: not loaded`);
+            continue;
+          }
+
+          if (overlayObj.status !== 'approved') {
+            // AI : Pending overlay - publish directly
+            const overlayToPublish = {
+              ...overlayObj,
+              caption: mod.caption?.current ?? overlayObj.caption,
+              corners: mod.corners?.current ?? overlayObj.corners
+            };
+            await publishOverlay(overlayToPublish, project);
+          } else {
+            // AI : Approved overlay - submit change request
+            const overlayWithChanges = {
+              ...overlayObj,
+              caption: mod.caption?.current ?? overlayObj.caption,
+              corners: mod.corners?.current ?? overlayObj.corners
+            };
+            const overlayContext = submissionService.createOverlayContext(overlayWithChanges as OverlayObject, 'update_approved');
+            await submissionService.submit(overlayContext, reason);
+          }
+
+          // AI : Clear overlay modifications from unified store
+          pendingModsStore.clearModification(overlayId);
+        }
+      }
+
+      // AI : Handle project changes
+      if (extCtx.projectModified && project) {
+        const projectContext = submissionService.createProjectContext(project);
+        await submissionService.submit(projectContext, reason);
+        projectStore.updateProject(project.id, { isModified: false });
+      }
+
+      overlayStore.hideInfoPopup();
+    } else {
+      // AI : Standard project-only submission (from handlePublishProject)
+      await submissionService.submit(context as SubmissionContext, reason);
+
+      if (context.entityType === 'project') {
+        projectStore.updateProject(context.entityId, { isModified: false });
+        if (showProjectPopup.value) {
+          closeProjectInfoPopup();
+        }
+      }
+    }
 
     // AI : Show success message
-    const context = pendingSubmissionContext.value;
     const message = context.changeType === 'update_approved'
       ? t('submission.changeRequestSubmitted')
       : (context.changeType === 'update_pending'
@@ -268,13 +363,6 @@ async function confirmSubmission(reason: string) {
       detail: message,
       life: 3000
     });
-
-    // AI : Close the appropriate popup after successful submission
-    if (context.entityType === 'overlay' && showOverlayPopup.value) {
-      overlayStore.hideInfoPopup();
-    } else if (context.entityType === 'project' && showProjectPopup.value) {
-      closeProjectInfoPopup();
-    }
 
     // AI : Close dialog and reset state
     showSubmissionDialog.value = false;
@@ -300,58 +388,76 @@ function cancelSubmission() {
   submissionSummary.value = null;
 }
 
-// AI : Handle overlay publishing (overlay mode only) - NEW UNIFIED APPROACH
+// AI : Handle overlay publishing (overlay mode only) - ALWAYS SHOW CONFIRMATION DIALOG
 async function handlePublishOverlay() {
   const overlay = overlayObject.value;
   if (!overlay) return;
 
   const project = activeProject.value;
-  const overlayModified = overlay.isModified || false;
-  const projectModified = project?.isModified || false;
 
-  // AI : Handle project-only changes
-  if (projectModified && !overlayModified && project) {
-    const context = submissionService.createProjectContext(project);
-    await prepareAndShowSubmissionDialog(context);
+  // AI : Get ALL pending overlay modifications for this PROJECT (not just current overlay!)
+  // AI : This matches the side menu behavior which shows all changes for the project
+  const projectId = project?.id ?? overlay.projectId;
+  const allProjectMods = projectId ? pendingModsStore.getModificationsForProject(projectId) : [];
+  const currentOverlayMod = pendingModsStore.getPendingModifications(overlay.id);
+
+  // AI : Check if current overlay or any other overlay in project has modifications
+  const hasAnyOverlayMods = allProjectMods.length > 0 || currentOverlayMod !== null || (overlay.isModified ?? false);
+  const projectModified = project?.isModified ?? false;
+
+  // AI : If nothing is modified, nothing to do
+  if (!hasAnyOverlayMods && !projectModified) {
     return;
   }
 
-  // AI : Handle overlay changes using new overlay publisher for new overlays
-  if (overlayModified && overlay.status !== 'approved') {
-    try {
-      await publishOverlay(overlay, project);
-      toast.add({
-        severity: 'success',
-        summary: t('overlay.publishSuccess'),
-        detail: t('overlay.publishSuccessDetail'),
-        life: 3000
-      });
+  // AI : Build combined changes list from ALL overlays using helper
+  const changes = buildOverlayChanges(allProjectMods);
 
-      // AI : If project was also modified and approved, submit change request for project
-      if (projectModified && project?.status === 'approved') {
-        const projectContext = submissionService.createProjectContext(project, 'update_approved');
-        await prepareAndShowSubmissionDialog(projectContext);
-      } else {
-        // AI : Close popup after successful publish (if no project changes to submit)
-        overlayStore.hideInfoPopup();
-      }
-    } catch (error: any) {
-      console.error('Error publishing overlay:', error);
-      toast.add({
-        severity: 'error',
-        summary: t('overlay.publishFailed'),
-        detail: error.message || t('overlay.publishFailedDetail'),
-        life: 5000
-      });
-      return;
-    }
+  // AI : Add project changes from submissionService if project is modified
+  if (projectModified && project) {
+    const projectContext = submissionService.createProjectContext(project);
+    const projectSummary = submissionService.buildSummary(projectContext);
+    changes.push(...projectSummary.changes);
   }
 
-  // AI : Handle overlay changes for approved overlays using unified submission service
-  if (overlayModified && overlay.status === 'approved') {
-    const context = submissionService.createOverlayContext(overlay);
-    await prepareAndShowSubmissionDialog(context);
+  // AI : Determine if this requires moderation (check all modified overlays)
+  const anyOverlayRequiresMod = allProjectMods.some(mod => mod.overlayStatus === 'approved') || overlay.status === 'approved';
+  const projectRequiresMod = project?.status === 'approved';
+  const requiresModeration = anyOverlayRequiresMod || projectRequiresMod;
+
+  // AI : Determine action label
+  let action = '';
+  if (requiresModeration) {
+    action = t('submission.submitChangeRequest');
+  } else if (overlay.status === 'pending' || overlay.status === null) {
+    action = t('overlay.publishOverlay');
+  } else {
+    action = t('submission.updateOverlays');
   }
+
+  // AI : Build summary for confirmation dialog
+  submissionSummary.value = {
+    action,
+    entityName: overlay.caption ?? project?.name ?? 'Overlay',
+    changes,
+    requiresModeration,
+    entityType: 'overlay'
+  };
+
+  // AI : Store typed context with all info needed for confirmSubmission
+  const extendedContext: SubmissionContextExtended = {
+    entityType: 'overlay',
+    entityId: overlay.id,
+    changeType: requiresModeration ? 'update_approved' : 'update_pending',
+    entity: overlay,
+    projectId: project?.id,
+    projectModified,
+    overlayModified: hasAnyOverlayMods,
+    allProjectModifications: allProjectMods
+  };
+  pendingSubmissionContext.value = extendedContext;
+
+  showSubmissionDialog.value = true;
 }
 
 // AI : Handle project publishing (project mode only) - NEW UNIFIED APPROACH

@@ -21,7 +21,8 @@
     "after": "Après",
     "current": "Actuel",
     "new": "Nouveau",
-    "unknown": "Inconnu"
+    "unknown": "Inconnu",
+    "noValue": "(aucune valeur)"
   },
   "relativeTime": {
     "justNow": "à l'instant",
@@ -411,7 +412,13 @@
     "changesSaved": "Modifications enregistrées avec succès",
     "submissionSuccessful": "Enregistrement réussi",
     "pendingLimitReached": "Limite de contributions en attente atteinte",
-    "pendingLimitMessage": "Vous avez atteint le nombre maximum de contributions en attente. Veuillez attendre que vos contributions existantes soient examinées avant d'en soumettre d'autres."
+    "pendingLimitMessage": "Vous avez atteint le nombre maximum de contributions en attente. Veuillez attendre que vos contributions existantes soient examinées avant d'en soumettre d'autres.",
+    "overlayCaption": "Légende de l'image",
+    "overlayPosition": "Position de l'image",
+    "previousPosition": "(Position actuelle)",
+    "newPosition": "(Nouvelle position)",
+    "submitChangeRequest": "Soumettre une demande de modification",
+    "updateOverlays": "Mettre à jour les images"
   },
   "pages": {
     "home": {

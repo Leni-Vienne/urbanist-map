@@ -55,6 +55,7 @@ import { useI18n } from 'vue-i18n';
 import { updateOverlayInfo } from '@/composables/overlay/useOverlay';
 import { useUiStore } from '@/stores/uiStore';
 import { useOverlayStore } from '@/stores/pinia/overlayStore';
+import { usePendingModificationsStore } from '@/stores/pinia/pendingModificationsStore';
 import type { OverlayObject } from '@/types/index';
 
 // AI : Define document.body as a variable to avoid TypeScript errors
@@ -72,6 +73,7 @@ const toast = useToast();
 const { t } = useI18n();
 const uiStore = useUiStore();
 const overlayStore = useOverlayStore();
+const pendingModsStore = usePendingModificationsStore();
 
 // AI : Local dialog state for direct openDialog() usage
 const localDialogVisible = ref(false);
@@ -155,7 +157,8 @@ const hasChanges = computed(() => {
 });
 
 // AI : Save changes to the overlay
-// AI : BOTH modes save locally - user clicks Save button on project card to submit
+// AI : Uses unified pendingModificationsStore for all caption changes
+// AI : User clicks Save button on project card to submit to backend
 function saveChanges() {
   const overlay = currentOverlay.value;
   if (!overlay) {
@@ -175,23 +178,31 @@ function saveChanges() {
   }
 
   try {
-    if (isStoreModeActive.value) {
-      // AI : Store mode (from side panel) - save to pending caption changes cache
-      // AI : User will click Save button on project card to submit
-      overlayStore.savePendingCaptionChange(
-        overlay.id,
-        editingInfo.value.caption,
-        overlay.caption ?? null,
-        overlay.status ?? 'pending'
-      );
-    } else {
-      // AI : Prop mode (from map popup) - save to overlay object in store
-      updateOverlayInfo(overlay.id, {
-        caption: editingInfo.value.caption ?? undefined
-      });
+    // AI : Save to unified pendingModificationsStore - works for BOTH popup and side panel
+    const overlayStatus = (overlay.status ?? 'pending') as 'pending' | 'approved' | 'rejected';
+    pendingModsStore.saveCaptionChange(
+      overlay.id,
+      overlay.projectId ?? null,
+      editingInfo.value.caption,
+      overlay.caption ?? null,
+      overlayStatus
+    );
 
-      emit('update', overlay.id, editingInfo.value.caption);
-    }
+    // AI : Also update the in-memory overlay object for immediate UI feedback
+    updateOverlayInfo(overlay.id, {
+      caption: editingInfo.value.caption ?? undefined
+    });
+
+    // AI : Emit update event for PopupContainer to update marker tooltip
+    emit('update', overlay.id, editingInfo.value.caption);
+
+    // AI : Keep old store in sync during migration (will be removed later)
+    overlayStore.savePendingCaptionChange(
+      overlay.id,
+      editingInfo.value.caption,
+      overlay.caption ?? null,
+      overlay.status ?? 'pending'
+    );
 
     // AI : Show success message
     toast.add({
