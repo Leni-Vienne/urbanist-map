@@ -12,6 +12,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { withErrorHandling, withErrorToast } from "@/composables/core/useErrorHandling";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { updateMarkerPosition, updateMarkerTooltip } from "@/composables/overlay/useOverlayMarkers";
 import L from "leaflet";
 
@@ -156,9 +157,11 @@ export function useChangeRequests() {
 
   function resetOverlayPositionToApproved(overlayObject: any, overlayId: string) {
     const overlayStore = useOverlayStore();
+    const pendingModsStore = usePendingModificationsStore();
 
-    // AI : Clear the edit mode cache for this overlay to reset position to approved
+    // AI : Clear from both old cache and new unified store to reset position to approved
     overlayStore.removeFromEditModeCache(overlayId);
+    pendingModsStore.clearModification(overlayId);
 
     // AI : Reset overlay position to approved corners
     if (overlayObject.overlay && overlayObject.corners?.length === 4) {

@@ -174,6 +174,7 @@ import { useModeratedContributions } from '@/composables/moderation/useModerated
 import { useUiStore } from '@/stores/uiStore'
 import { useOverlayStore } from '@/stores/pinia/overlayStore'
 import { useProjectStore } from '@/stores/pinia/projectStore'
+import { usePendingModificationsStore } from '@/stores/pinia/pendingModificationsStore'
 import { useProjectDeletion } from '@/composables/project/useProjectDeletion'
 import { useSubmissionService, type SubmissionContext, type SubmissionSummary } from '@/composables/submission/useSubmissionService'
 import { trpc, type RouterOutput } from '@/client'
@@ -200,6 +201,7 @@ const { moderatedContributions, hasUnacknowledgedItems } = useModeratedContribut
 const uiStore = useUiStore()
 const overlayStore = useOverlayStore()
 const projectStore = useProjectStore()
+const pendingModsStore = usePendingModificationsStore()
 const submissionService = useSubmissionService()
 const moderatedContributionsCount = computed(() => moderatedContributions.value.length)
 
@@ -296,9 +298,14 @@ async function handleDeleteChangeRequestClick(change: ChangeRequest) {
   }
 }
 
-// AI : Check if overlay is modified in the overlay store or pending caption changes cache
+// AI : Check if overlay is modified using unified pendingModificationsStore
 function isOverlayModified(overlayId: string): boolean {
-  // AI : Check pending caption changes cache (for side panel edits)
+  // AI : Primary check: unified pending modifications store
+  if (pendingModsStore.hasPendingModifications(overlayId)) {
+    return true
+  }
+
+  // AI : Fallback: check old stores during migration (will be removed)
   if (overlayStore.hasPendingCaptionChange(overlayId)) {
     return true
   }
@@ -441,10 +448,15 @@ function getProjectSaveTooltip(project: ProjectForModeration): string {
 async function handleSaveProjectClick(project: ProjectForModeration) {
   if (!isProjectModified(project.id)) return
 
-  // AI : Check for pending overlay caption changes
-  const overlayIdsWithCaptionChanges = project.overlays
+  // AI : Get all pending overlay modifications for this project from unified store
+  const pendingMods = pendingModsStore.getModificationsForProject(project.id)
+  const modifiedOverlayIds = pendingMods.map(mod => mod.overlayId)
+
+  // AI : Fallback: also check old store during migration (will be removed)
+  const legacyOverlayIds = project.overlays
     ?.filter(overlay => overlayStore.hasPendingCaptionChange(overlay.id))
     .map(overlay => overlay.id) ?? []
+  const allModifiedOverlayIds = [...new Set([...modifiedOverlayIds, ...legacyOverlayIds])]
 
   // AI : Check if project itself has changes (not just overlays)
   const projectInStore = projectStore.projects[project.id]
@@ -479,8 +491,31 @@ async function handleSaveProjectClick(project: ProjectForModeration) {
 
       // AI : Store pending overlay changes for submission after project
       // AI : (will be handled in confirmSubmission)
-      submissionSummary.value = submissionService.buildSummary(context)
-      pendingSubmissionContext.value = { ...context, pendingOverlayCaptionChanges: overlayIdsWithCaptionChanges } as any
+      const baseSummary = submissionService.buildSummary(context)
+
+      // AI : Append overlay modifications to the summary so they show in the dialog
+      const pendingMods = pendingModsStore.getModificationsForProject(project.id)
+      for (const mod of pendingMods) {
+        if (mod.caption) {
+          baseSummary.changes.push({
+            field: 'caption',
+            oldValue: mod.caption.original ?? t('common.noValue'),
+            newValue: mod.caption.current,
+            displayLabel: t('submission.overlayCaption')
+          })
+        }
+        if (mod.corners) {
+          baseSummary.changes.push({
+            field: 'corners',
+            oldValue: t('submission.previousPosition'),
+            newValue: t('submission.newPosition'),
+            displayLabel: t('submission.overlayPosition')
+          })
+        }
+      }
+
+      submissionSummary.value = baseSummary
+      pendingSubmissionContext.value = { ...context, pendingOverlayModifications: allModifiedOverlayIds } as any
       showSubmissionDialog.value = true
     } catch (error: any) {
       console.error('Error preparing submission:', error)
@@ -491,63 +526,137 @@ async function handleSaveProjectClick(project: ProjectForModeration) {
         life: 5000
       })
     }
-  } else if (overlayIdsWithCaptionChanges.length > 0) {
-    // AI : Only overlay caption changes, no project changes - submit directly
-    try {
-      isSubmitting.value = true
-      await submitPendingOverlayCaptionChanges(overlayIdsWithCaptionChanges)
+  } else if (allModifiedOverlayIds.length > 0) {
+    // AI : Only overlay changes, no project changes - show confirmation dialog
+    // AI : Build a summary of overlay modifications for the confirmation dialog
+    const pendingMods = pendingModsStore.getModificationsForProject(project.id)
+    const changes: { field: string; oldValue: any; newValue: any; displayLabel: string }[] = []
 
-      toast.add({
-        severity: 'success',
-        summary: t('common.success'),
-        detail: t('submission.changesSaved'),
-        life: 3000
-      })
-
-      // AI : Refresh user contributions to show updated status
-      await fetchUserContributions()
-    } catch (error: any) {
-      console.error('Error submitting overlay changes:', error)
-      toast.add({
-        severity: 'error',
-        summary: t('toast.submissionFailed'),
-        detail: error.message || t('errors.submissionFailed'),
-        life: 5000
-      })
-    } finally {
-      isSubmitting.value = false
+    // AI : Build human-readable change list
+    for (const mod of pendingMods) {
+      if (mod.caption) {
+        changes.push({
+          field: 'caption',
+          oldValue: mod.caption.original ?? t('common.noValue'),
+          newValue: mod.caption.current,
+          displayLabel: t('submission.overlayCaption')
+        })
+      }
+      if (mod.corners) {
+        changes.push({
+          field: 'corners',
+          oldValue: t('submission.previousPosition'),
+          newValue: t('submission.newPosition'),
+          displayLabel: t('submission.overlayPosition')
+        })
+      }
     }
+
+    // AI : Determine if this requires moderation (approved overlays need change requests)
+    const requiresModeration = pendingMods.some(mod => mod.overlayStatus === 'approved')
+
+    submissionSummary.value = {
+      action: requiresModeration ? t('submission.submitChangeRequest') : t('submission.updateOverlays'),
+      entityName: project.name,
+      changes,
+      requiresModeration,
+      entityType: 'overlay'
+    }
+    pendingSubmissionContext.value = {
+      entityType: 'overlay',
+      entityId: project.id,
+      changeType: requiresModeration ? 'update_approved' : 'update_pending',
+      pendingOverlayModifications: allModifiedOverlayIds
+    } as any
+    showSubmissionDialog.value = true
   }
 }
 
-// AI : Submit pending caption changes for overlays
-async function submitPendingOverlayCaptionChanges(overlayIds: string[]) {
+// AI : Submit pending overlay modifications (caption and position changes)
+async function submitPendingOverlayModifications(overlayIds: string[]) {
   for (const overlayId of overlayIds) {
-    const change = overlayStore.getPendingCaptionChange(overlayId)
-    if (!change) continue
+    // AI : Get modification from unified store first
+    const mod = pendingModsStore.getPendingModifications(overlayId)
+    // AI : Fallback to old store during migration
+    const legacyChange = overlayStore.getPendingCaptionChange(overlayId)
 
-    if (change.status === 'approved') {
-      // AI : For approved overlays, submit a change request
+    if (!mod && !legacyChange) continue
+
+    const overlayStatus = mod?.overlayStatus ?? legacyChange?.status ?? 'pending'
+    const isApproved = overlayStatus === 'approved'
+
+    // AI : Build changes array for approved overlays (need change requests)
+    const changes: { fieldName: string; oldValue: any; newValue: any; changeReason?: string }[] = []
+
+    // AI : Handle caption change
+    if (mod?.caption) {
+      if (isApproved) {
+        changes.push({
+          fieldName: 'caption',
+          oldValue: mod.caption.original,
+          newValue: mod.caption.current,
+          changeReason: undefined
+        })
+      } else {
+        await trpc.overlay.updateOverlay.mutate({
+          id: overlayId,
+          caption: mod.caption.current
+        })
+      }
+    } else if (legacyChange) {
+      // AI : Fallback to old store format
+      if (isApproved) {
+        changes.push({
+          fieldName: 'caption',
+          oldValue: legacyChange.originalCaption,
+          newValue: legacyChange.caption,
+          changeReason: undefined
+        })
+      } else {
+        await trpc.overlay.updateOverlay.mutate({
+          id: overlayId,
+          caption: legacyChange.caption
+        })
+      }
+    }
+
+    // AI : Handle position (corners) change
+    if (mod?.corners) {
+      if (isApproved) {
+        changes.push({
+          fieldName: 'corners',
+          oldValue: mod.corners.original,
+          newValue: mod.corners.current,
+          changeReason: undefined
+        })
+      } else {
+        // AI : For pending overlays, use publishOverlay which requires full overlay data
+        const overlayObject = overlayStore.overlays[overlayId]
+        if (overlayObject) {
+          await trpc.overlay.publishOverlay.mutate({
+            id: overlayId,
+            filename: overlayObject.filename ?? overlayObject.imageUrl ?? 'unknown.png',
+            caption: mod.caption?.current ?? overlayObject.caption ?? undefined,
+            projectId: overlayObject.projectId ?? mod.projectId ?? '',
+            corners: mod.corners.current
+          })
+        } else {
+          console.warn(`Cannot submit position change: overlay ${overlayId} not loaded in store`)
+        }
+      }
+    }
+
+    // AI : Submit change requests for approved overlays
+    if (isApproved && changes.length > 0) {
       await trpc.changes.submitChangeRequest.mutate({
         entityType: 'overlay',
         entityId: overlayId,
-        changes: [{
-          fieldName: 'caption',
-          oldValue: change.originalCaption,
-          newValue: change.caption,
-          changeReason: undefined
-        }]
-      })
-    } else {
-      // AI : For pending/rejected overlays, update directly
-      await trpc.overlay.updateOverlay.mutate({
-        id: overlayId,
-        caption: change.caption
+        changes
       })
     }
 
-    // AI : Clear the pending change after successful submission
-    overlayStore.removePendingCaptionChange(overlayId)
+    // AI : Clear the pending changes after successful submission
+    pendingModsStore.clearModification(overlayId)
   }
 }
 
@@ -557,13 +666,22 @@ async function confirmSubmission(reason: string) {
 
   try {
     isSubmitting.value = true
-
-    await submissionService.submit(pendingSubmissionContext.value as SubmissionContext, reason)
-
-    // AI : Also submit any pending overlay caption changes
     const context = pendingSubmissionContext.value as any
-    if (context.pendingOverlayCaptionChanges?.length > 0) {
-      await submitPendingOverlayCaptionChanges(context.pendingOverlayCaptionChanges)
+
+    // AI : Handle overlay-only submissions (no project entity to submit)
+    if (context.entityType === 'overlay') {
+      // AI : Submit overlay modifications directly
+      if (context.pendingOverlayModifications?.length > 0) {
+        await submitPendingOverlayModifications(context.pendingOverlayModifications)
+      }
+    } else {
+      // AI : Project submission - use submission service
+      await submissionService.submit(pendingSubmissionContext.value as SubmissionContext, reason)
+
+      // AI : Also submit any pending overlay modifications (caption + position)
+      if (context.pendingOverlayModifications?.length > 0) {
+        await submitPendingOverlayModifications(context.pendingOverlayModifications)
+      }
     }
 
     // AI : Show success message based on change type
@@ -590,6 +708,12 @@ async function confirmSubmission(reason: string) {
     showSubmissionDialog.value = false
     pendingSubmissionContext.value = null
     submissionSummary.value = null
+
+    // AI : Clear project's isModified state after successful submission
+    if (context.entityType === 'project' || context.entityId) {
+      const projectId = context.entityType === 'project' ? context.entityId : context.entityId
+      projectStore.updateProject(projectId, { isModified: false })
+    }
 
     // AI : Refresh user contributions to show updated status
     await fetchUserContributions()

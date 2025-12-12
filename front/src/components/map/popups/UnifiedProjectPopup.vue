@@ -172,6 +172,10 @@ const emit = defineEmits<{
 const authStore = useAuthStore()
 const { user } = storeToRefs(authStore)
 
+// AI : Import pending modifications store for unified change detection
+import { usePendingModificationsStore } from '@/stores/pinia/pendingModificationsStore'
+const pendingModsStore = usePendingModificationsStore()
+
 // AI : Check if project/overlay is published to backend (null status means not yet submitted)
 const isPublishedToBackend = computed(() => {
   if (props.overlay) {
@@ -181,9 +185,19 @@ const isPublishedToBackend = computed(() => {
 })
 
 // AI : Check if overlay or project has changes that need to be published
+// AI : Unified check: uses BOTH prop-based isModified AND pendingModificationsStore
 const hasChanges = computed(() => {
-  const overlayModified = props.overlay?.isModified || false
-  const projectModified = props.project?.isModified || false
+  // AI : Check new unified store first (for caption/position changes)
+  if (props.overlay && pendingModsStore.hasPendingModifications(props.overlay.id)) {
+    return true
+  }
+  // AI : Check project's overlays in pending mods store
+  if (props.project && pendingModsStore.getModificationCountForProject(props.project.id) > 0) {
+    return true
+  }
+  // AI : Fallback to old prop-based isModified flags
+  const overlayModified = props.overlay?.isModified ?? false
+  const projectModified = props.project?.isModified ?? false
   return overlayModified || projectModified || !isPublishedToBackend.value
 })
 
