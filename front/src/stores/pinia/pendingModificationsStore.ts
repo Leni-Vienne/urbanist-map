@@ -99,6 +99,28 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
     return getModificationsForProject(projectId).length;
   }
 
+  // AI : Clear a specific field modification for an overlay (caption or corners)
+  // AI : Returns true if the overlay still has other modifications, false if it was removed entirely
+  function clearFieldModification(overlayId: string, field: "caption" | "corners"): boolean {
+    const existing = modifications.value.get(overlayId);
+    if (!existing) return false;
+
+    // AI : Remove the specific field
+    if (field === "corners") {
+      delete existing.corners;
+    } else if (field === "caption") {
+      delete existing.caption;
+    }
+
+    // AI : If no more modifications remain, remove the entire entry
+    if (!existing.corners && !existing.caption) {
+      modifications.value.delete(overlayId);
+      return false;
+    }
+
+    return true;
+  }
+
   // AI : Clear modification for a specific overlay (after successful submission)
   function clearModification(overlayId: string): void {
     modifications.value.delete(overlayId);
@@ -131,6 +153,7 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
     getModifiedOverlayIds,
     getModificationsForProject,
     getModificationCountForProject,
+    clearFieldModification,
     clearModification,
     clearAllModifications,
   };

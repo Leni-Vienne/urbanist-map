@@ -22,7 +22,8 @@
     "current": "Current",
     "new": "New",
     "unknown": "Unknown",
-    "noValue": "(no value)"
+    "noValue": "(no value)",
+    "info": "Info"
   },
   "relativeTime": {
     "justNow": "just now",
@@ -418,7 +419,9 @@
     "previousPosition": "(Current position)",
     "newPosition": "(New position)",
     "submitChangeRequest": "Submit Change Request",
-    "updateOverlays": "Update Overlays"
+    "updateOverlays": "Update Overlays",
+    "removeChange": "Remove this change",
+    "noChangesToSubmit": "No changes to submit"
   },
   "pages": {
     "home": {

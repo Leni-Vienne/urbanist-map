@@ -246,17 +246,25 @@ export const useProjectStore = defineStore("project", () => {
       return;
     }
 
+    // AI : Create the new contribution entry
+    const newContrib = {
+      ...project,
+      ...extractCityMetadata(project),
+      status: project.status, // AI : Type assertion - null already filtered above
+      overlays: [],
+      overlayCount: 0,
+    };
+
     // AI : Add new project to the beginning of the array
-    userContributions.value = [
-      {
-        ...project,
-        ...extractCityMetadata(project),
-        status: project.status, // AI : Type assertion - null already filtered above
-        overlays: [],
-        overlayCount: 0,
-      },
-      ...userContributions.value,
-    ];
+    userContributions.value = [newContrib, ...userContributions.value];
+
+    // AI : Cache the original for change detection/reset functionality
+    if (!originalUserContributions.value[project.id]) {
+      originalUserContributions.value = {
+        ...originalUserContributions.value,
+        [project.id]: { ...newContrib } as UserContribution,
+      };
+    }
   }
 
   // AI : Update pending overlay in user contributions (for caption/field updates)
@@ -369,12 +377,12 @@ export const useProjectStore = defineStore("project", () => {
     }
 
     // AI : Save original backend version before first modification (for change detection)
-    // AI : This applies to both approved and pending projects
-    // AI : Only do this if current exists and is from backend
+    // AI : This applies to all backend projects (approved, pending, or rejected)
+    // AI : Cache original before first modification for reset functionality
     if (
       current &&
       !originalBackendProjects.value[projectId] &&
-      (current.status === "approved" || current.status === "pending") &&
+      current.status !== null && // AI : Has a backend status (not local-only)
       !current.isModified
     ) {
       originalBackendProjects.value = {
@@ -394,13 +402,61 @@ export const useProjectStore = defineStore("project", () => {
   // AI : Cache project backend state for change detection
   // AI : Called after successful submission to store baseline for future modifications
   function cacheProjectBackendState(projectId: string) {
-    const project = projects.value[projectId];
-    if (project) {
+    // AI : Check projects.value first, then allProjects (includes nearbyProjects)
+    let project = projects.value[projectId];
+    if (!project) {
+      project = allProjects.value[projectId];
+    }
+
+    if (project && !originalBackendProjects.value[projectId]) {
       originalBackendProjects.value = {
         ...originalBackendProjects.value,
         [projectId]: { ...project },
       };
     }
+  }
+
+  // AI : Reset a specific project field to its original backend value
+  // AI : Used when user removes a single change from the submission dialog
+  function resetProjectField(projectId: string, fieldName: string): boolean {
+    let original = getOriginalProject(projectId);
+
+    // AI : Fallback: if not in cache, check if project exists in userContributions
+    if (!original) {
+      const contribInList = userContributions.value.find((p) => p.id === projectId);
+      if (contribInList) {
+        // AI : Project exists but original wasn't cached - can't reset
+        return false;
+      }
+      return false;
+    }
+
+    // AI : Get the original value to reset to
+    const originalValue = (original as any)[fieldName];
+
+    let didReset = false;
+
+    // AI : Update in projects store if present
+    const current = projects.value[projectId];
+    if (current && originalValue !== undefined) {
+      updateProject(projectId, { [fieldName]: originalValue });
+      didReset = true;
+    }
+
+    // AI : Also update user contributions if present (critical for MyContributionsPanel)
+    const contribIndex = userContributions.value.findIndex((p) => p.id === projectId);
+    if (contribIndex !== -1 && originalValue !== undefined) {
+      const contrib = userContributions.value[contribIndex];
+      const updatedContrib = { ...contrib, [fieldName]: originalValue };
+      userContributions.value = replaceAtIndex(
+        userContributions.value,
+        contribIndex,
+        updatedContrib,
+      );
+      didReset = true;
+    }
+
+    return didReset;
   }
 
   // AI : Fetch nearby projects with smart caching to avoid redundant API calls
@@ -555,6 +611,7 @@ export const useProjectStore = defineStore("project", () => {
     addOverlayToProjectWithId,
     updateProject,
     cacheProjectBackendState,
+    resetProjectField,
     cacheCityName,
     getOriginalProject,
 

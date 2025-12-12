@@ -55,6 +55,7 @@
     :is-submitting="isSubmitting"
     @confirm="confirmSubmission"
     @cancel="cancelSubmission"
+    @remove-change="handleRemoveChange"
   />
 </template>
 
@@ -62,6 +63,7 @@
 import { computed, ref, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
+import L from 'leaflet';
 import { useOverlayStore } from '@/stores/pinia/overlayStore';
 import { useProjectStore } from '@/stores/pinia/projectStore';
 import { useMapStore } from '@/stores/pinia/mapStore';
@@ -69,12 +71,13 @@ import { useUiStore } from '@/stores/uiStore';
 import { usePendingModificationsStore } from '@/stores/pinia/pendingModificationsStore';
 
 import { navigateToOverlay, addOverlay } from '@/composables/overlay/useOverlay';
-import { updateMarkerTooltip } from '@/composables/overlay/useOverlayMarkers';
+import { updateMarkerTooltip, updateMarkerPosition } from '@/composables/overlay/useOverlayMarkers';
 import { useToast } from '@/composables/ui/useToast';
 import { useOverlayPublisher } from '@/composables/overlay/useOverlayPublisher';
 import { useSubmissionService, type SubmissionContext, type SubmissionSummary } from '@/composables/submission/useSubmissionService';
 import { citiesWithProjects, closeProjectPopupAndResetMarkers } from '@/composables/map/useCityMarkers';
 import type { OverlayObject, Project } from '@/types/index';
+import { buildThumbnailUrl } from '@/utils/imageUrl';
 import { useProjectDeletion } from '@/composables/project/useProjectDeletion';
 import type { DBProject, DBCity } from '../../../../back/src/db/schema';
 import type { ApprovalStatus } from '@shared/types';
@@ -112,16 +115,24 @@ const submissionSummary = ref<SubmissionSummary | null>(null);
 const pendingSubmissionContext = ref<SubmissionContext | SubmissionContextExtended | null>(null);
 const isSubmitting = ref(false);
 
-// AI : Build change list from pending modifications
+// AI : Build change list from pending modifications with overlay info for thumbnails
 function buildOverlayChanges(mods: ReturnType<typeof pendingModsStore.getModificationsForProject>) {
-  const changes: { field: string; oldValue: any; newValue: any; displayLabel: string }[] = [];
+  const changes: { field: string; oldValue: any; newValue: any; displayLabel: string; overlayId?: string; thumbnailUrl?: string }[] = [];
   for (const mod of mods) {
+    // AI : Get overlay object from store to access filename for thumbnail
+    const overlay = overlays.value[mod.overlayId];
+    const thumbnailUrl = overlay?.filename
+      ? buildThumbnailUrl(overlay.filename, overlay.status !== 'approved')
+      : undefined;
+
     if (mod.caption) {
       changes.push({
         field: 'caption',
         oldValue: mod.caption.original ?? t('common.noValue'),
         newValue: mod.caption.current,
-        displayLabel: t('submission.overlayCaption')
+        displayLabel: t('submission.overlayCaption'),
+        overlayId: mod.overlayId,
+        thumbnailUrl
       });
     }
     if (mod.corners) {
@@ -129,12 +140,15 @@ function buildOverlayChanges(mods: ReturnType<typeof pendingModsStore.getModific
         field: 'corners',
         oldValue: t('submission.previousPosition'),
         newValue: t('submission.newPosition'),
-        displayLabel: t('submission.overlayPosition')
+        displayLabel: t('submission.overlayPosition'),
+        overlayId: mod.overlayId,
+        thumbnailUrl
       });
     }
   }
   return changes;
 }
+
 
 // AI : Track teleport target existence
 let targetObserver: MutationObserver | null = null;
@@ -209,6 +223,12 @@ function convertAndCacheBackendProject(backendProject: Omit<DBProject, 'status'>
       ...projects.value,
       [backendProject.id]: convertedProject
     };
+
+    // AI : Cache original for reset functionality (critical for map popup edits)
+    // AI : This is needed because this function bypasses updateProject which normally does the caching
+    if (backendProject.status !== null) {
+      projectStore.cacheProjectBackendState(backendProject.id);
+    }
   }
 
   return convertedProject;
@@ -386,6 +406,109 @@ function cancelSubmission() {
   showSubmissionDialog.value = false;
   pendingSubmissionContext.value = null;
   submissionSummary.value = null;
+}
+
+// AI : Handle removing a single change from the submission dialog
+function handleRemoveChange(index: number, field: string, overlayId?: string) {
+  if (!submissionSummary.value) return;
+
+  // AI : Remove the change at the specified index from the summary
+  submissionSummary.value.changes.splice(index, 1);
+
+  // AI : Handle overlay-specific changes
+  if (overlayId) {
+    // AI : Get the original values BEFORE clearing - pendingMod is a reference that will be mutated
+    const pendingMod = pendingModsStore.getPendingModifications(overlayId);
+
+    // AI : CRITICAL: Capture the original values NOW before clearFieldModification mutates the object
+    const capturedOriginalCaption = pendingMod?.caption?.original;
+    const capturedOriginalCorners = pendingMod?.corners?.original;
+
+    const overlayObject = overlays.value[overlayId];
+
+    // AI : Clear only the specific field modification (not the entire overlay)
+    // AI : This MUTATES the pendingMod object, so we captured values above
+    const hasRemainingMods = pendingModsStore.clearFieldModification(
+      overlayId,
+      field as 'caption' | 'corners'
+    );
+
+    if (overlayObject) {
+      // AI : Reset only the specific field that was removed
+      if (field === 'corners') {
+        // AI : Clear from edit mode cache
+        overlayStore.removeFromEditModeCache(overlayId);
+
+        // AI : Reset position to backend corners (use captured original if available)
+        const cornersToUse = capturedOriginalCorners ?? overlayObject.corners;
+        if (overlayObject.overlay && cornersToUse?.length === 4) {
+          const leafletCorners = cornersToUse.map((corner: { lat: number; lng: number }) =>
+            L.latLng(corner.lat, corner.lng)
+          );
+          overlayObject.overlay.setCorners(leafletCorners);
+        }
+
+        // AI : Update marker position
+        updateMarkerPosition(overlayObject);
+      } else if (field === 'caption') {
+        // AI : Reset caption to original backend value
+        // AI : Use the captured value from BEFORE clearFieldModification was called
+        if (capturedOriginalCaption !== undefined) {
+          overlayStore.updateOverlay(overlayId, { caption: capturedOriginalCaption ?? '' });
+        }
+      }
+
+      // AI : Only mark as unmodified if no more modifications remain
+      if (!hasRemainingMods) {
+        overlayStore.updateOverlay(overlayId, { isModified: false });
+      }
+
+      // AI : Update marker tooltip to reflect new state
+      updateMarkerTooltip(overlayStore.overlays[overlayId]);
+    }
+
+    // AI : Update the extended context if present and no more mods for this overlay
+    if (!hasRemainingMods && pendingSubmissionContext.value && 'allProjectModifications' in pendingSubmissionContext.value) {
+      const extCtx = pendingSubmissionContext.value as SubmissionContextExtended;
+      extCtx.allProjectModifications = extCtx.allProjectModifications.filter(
+        mod => mod.overlayId !== overlayId
+      );
+    }
+  } else {
+    // AI : For project changes (no overlayId), reset the project field to its original value
+    // AI : Get the project ID from the submission context
+    if (pendingSubmissionContext.value) {
+      // AI : For overlay contexts, entityId is the OVERLAY ID, projectId is stored separately
+      // AI : For project contexts, entityId IS the project ID
+      let projectId: string | undefined = undefined;
+
+      if ('overlayModified' in pendingSubmissionContext.value) {
+        // AI : Extended overlay context - use the projectId field
+        projectId = (pendingSubmissionContext.value as SubmissionContextExtended).projectId;
+      } else if ('entityId' in pendingSubmissionContext.value && pendingSubmissionContext.value.entityType === 'project') {
+        // AI : Project context - entityId IS the project ID
+        projectId = pendingSubmissionContext.value.entityId;
+      }
+
+      if (projectId) {
+        projectStore.resetProjectField(projectId, field);
+      }
+    }
+
+    // AI : Close project edit form to force fresh data on reopen
+    uiStore.closeProjectEditForm();
+  }
+
+  // AI : If no more changes, close the dialog
+  if (submissionSummary.value.changes.length === 0) {
+    cancelSubmission();
+    toast.add({
+      severity: 'info',
+      summary: t('common.info'),
+      detail: t('submission.noChangesToSubmit'),
+      life: 3000
+    });
+  }
 }
 
 // AI : Handle overlay publishing (overlay mode only) - ALWAYS SHOW CONFIRMATION DIALOG
