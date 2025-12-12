@@ -455,20 +455,16 @@ export function useSubmissionDialog() {
 
   // AI : Helper function to handle standard single-entity submission
   async function submitStandardContext(context: SubmissionContext, reason: string): Promise<void> {
-    // AI : Note: Type assertions needed here because TypeScript cannot narrow the
-    // AI : entity type from SubmissionContextExtended's union (OverlayObject | Project)
-    // AI : even with entityType checks. The runtime guards ensure type safety.
+    // AI : TypeScript discriminated union automatically narrows entity type based on entityType check
     if (context.entityType === "project") {
-      const projectEntity = context.entity as Project;
       await submissionService.submit(
-        submissionService.createProjectContext(projectEntity, context.changeType),
+        submissionService.createProjectContext(context.entity, context.changeType),
         reason,
       );
       projectStore.updateProject(context.entityId, { isModified: false });
     } else if (context.entityType === "overlay") {
-      const overlayEntity = context.entity as OverlayObject;
       await submissionService.submit(
-        submissionService.createOverlayContext(overlayEntity, context.changeType),
+        submissionService.createOverlayContext(context.entity, context.changeType),
         reason,
       );
     }

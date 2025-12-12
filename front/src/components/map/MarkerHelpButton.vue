@@ -1,11 +1,6 @@
 <template>
   <Transition name="help-fade">
-    <button
-      v-if="actuallyVisible"
-      type="button"
-      class="help-button"
-      @click="handleClick"
-    >
+    <button v-if="actuallyVisible" type="button" class="help-button" @click="handleClick">
       <i class="pi pi-map-marker"></i>
       <span>{{ buttonText }}</span>
     </button>
@@ -124,7 +119,7 @@ function debouncedCheckMarkers() {
 function handleClick() {
   if (!map.value || !buttonType.value) return
 
-  let markers: Element[]
+  let markers: Element[] = []
   if (buttonType.value === 'country') {
     // AI : Country markers have data-country-code but NOT data-city-id
     const allMarkersWithCountry = document.querySelectorAll('[data-country-code]')
@@ -252,5 +247,4 @@ onUnmounted(() => {
   font-size: 0.875rem;
   color: var(--p-primary-500);
 }
-
 </style>

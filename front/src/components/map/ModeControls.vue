@@ -1,9 +1,6 @@
 <template>
   <!-- AI : Shared mode controls component - used in both desktop and mobile -->
-  <div
-    :class="isMobile ? 'mode-controls-wrapper-mobile' : 'mode-controls-wrapper'"
-    @dblclick.stop
-  >
+  <div :class="isMobile ? 'mode-controls-wrapper-mobile' : 'mode-controls-wrapper'" @dblclick.stop>
     <button
       type="button"
       class="mode-indicator"
@@ -85,7 +82,7 @@ async function handleModeSwitch() {
     isSwitchingMode = true;
     const currentMode = overlayStore.mode;
 
-    let newMode: MapMode;
+    let newMode: MapMode = 'view';
 
     if (authStore.isModerator) {
       // AI : Moderators cycle through all 3 modes
