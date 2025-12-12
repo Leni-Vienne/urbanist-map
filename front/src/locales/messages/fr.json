@@ -22,7 +22,8 @@
     "current": "Actuel",
     "new": "Nouveau",
     "unknown": "Inconnu",
-    "noValue": "(aucune valeur)"
+    "noValue": "(aucune valeur)",
+    "info": "Info"
   },
   "relativeTime": {
     "justNow": "à l'instant",
@@ -418,7 +419,9 @@
     "previousPosition": "(Position actuelle)",
     "newPosition": "(Nouvelle position)",
     "submitChangeRequest": "Soumettre une demande de modification",
-    "updateOverlays": "Mettre à jour les images"
+    "updateOverlays": "Mettre à jour les images",
+    "removeChange": "Retirer cette modification",
+    "noChangesToSubmit": "Aucune modification à soumettre"
   },
   "pages": {
     "home": {

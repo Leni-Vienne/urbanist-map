@@ -47,6 +47,9 @@ export interface SubmissionChange {
   oldValue: any;
   newValue: any;
   displayLabel: string;
+  // AI : Optional overlay identification for deletion and thumbnail display
+  overlayId?: string;
+  thumbnailUrl?: string;
 }
 
 export interface SubmissionSummary {

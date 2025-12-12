@@ -6,10 +6,7 @@
     :style="{ width: '600px' }"
     @update:visible="handleVisibilityChange"
   >
-    <div
-      v-if="summary"
-      class="submission-summary"
-    >
+    <div v-if="summary" class="submission-summary">
       <!-- Entity Information -->
       <div class="entity-info">
         <strong>{{ summary.entityName }}</strong>
@@ -20,17 +17,33 @@
       </div>
 
       <!-- Changes List -->
-      <div
-        v-if="summary.changes.length > 0"
-        class="changes-section"
-      >
+      <div v-if="summary.changes.length > 0" class="changes-section">
         <div class="changes-list">
-          <div
-            v-for="(change, index) in summary.changes"
-            :key="index"
-            class="change-item"
-          >
-            <div class="field-label">{{ change.displayLabel }}</div>
+          <div v-for="(change, index) in summary.changes" :key="index" class="change-item">
+            <!-- AI : Header row with thumbnail (for overlays), label, and delete button -->
+            <div class="change-header">
+              <div class="change-thumbnail-row">
+                <img
+                  v-if="change.thumbnailUrl"
+                  :src="change.thumbnailUrl"
+                  :alt="change.displayLabel"
+                  class="change-thumbnail"
+                  @error="handleImageError"
+                />
+                <div class="field-label">{{ change.displayLabel }}</div>
+              </div>
+              <!-- AI : Delete button for all changes -->
+              <Button
+                icon="pi pi-times"
+                severity="danger"
+                text
+                rounded
+                class="delete-change-btn"
+                @click="handleRemoveChange(index, change.field, change.overlayId)"
+                v-tooltip.top="$t('submission.removeChange')"
+              />
+            </div>
+
             <div class="change-diff">
               <span class="value-text old-value">{{ change.oldValue }}</span>
               <i class="pi pi-arrow-right"></i>
@@ -42,7 +55,14 @@
 
       <!-- AI : Reason for changes input (optional) -->
       <div v-if="summary?.requiresModeration" class="reason-section">
-        <label for="changeReason">{{ $t('common.reasonForChanges') }} <span class="optional-label">({{ $t('project.optionalField') }})</span></label>
+        <label for="changeReason"
+          >{{ $t('common.reasonForChanges') }}
+          <span class="optional-label"
+            >({{
+          $t('project.optionalField')
+            }})</span
+          ></label
+        >
         <Textarea
           id="changeReason"
           v-model="changeReason"
@@ -54,15 +74,12 @@
 
     <template #footer>
       <div class="dialog-footer">
-        <Button
-          :label="$t('common.cancel')"
-          severity="secondary"
-          @click="handleCancel"
-        />
+        <Button :label="$t('common.cancel')" severity="secondary" @click="handleCancel" />
         <Button
           :label="$t('submission.confirmSubmit')"
           :severity="summary?.requiresModeration ? 'warn' : 'success'"
           :loading="isSubmitting"
+          :disabled="summary?.changes.length === 0"
           @click="handleConfirm"
         />
       </div>
@@ -96,6 +113,7 @@ const emit = defineEmits<{
   'update:visible': [value: boolean];
   'confirm': [reason: string];
   'cancel': [];
+  'remove-change': [index: number, field: string, overlayId?: string];
 }>();
 
 // AI : Local visibility state
@@ -122,6 +140,17 @@ function handleCancel() {
 function handleConfirm() {
   emit('confirm', changeReason.value);
   changeReason.value = '';
+}
+
+// AI : Handle remove change button click
+function handleRemoveChange(index: number, field: string, overlayId?: string) {
+  emit('remove-change', index, field, overlayId);
+}
+
+// AI : Handle image load error - replace with fallback icon
+function handleImageError(event: Event) {
+  const img = event.target as HTMLImageElement;
+  img.style.display = 'none';
 }
 </script>
 
@@ -162,6 +191,37 @@ function handleConfirm() {
   background: var(--p-surface-0);
   border: 1px solid var(--p-surface-200);
   border-radius: 4px;
+}
+
+/* AI : Header row for overlay changes with thumbnail and delete button */
+.change-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.change-thumbnail-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+/* AI : Thumbnail image styling */
+.change-thumbnail {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid var(--p-surface-200);
+  flex-shrink: 0;
+}
+
+/* AI : Delete button for individual changes */
+.delete-change-btn {
+  flex-shrink: 0;
 }
 
 .field-label {

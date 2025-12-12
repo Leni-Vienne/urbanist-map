@@ -158,12 +158,14 @@
     :is-submitting="isSubmitting"
     @confirm="confirmSubmission"
     @cancel="cancelSubmission"
+    @remove-change="handleRemoveChange"
   />
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, computed, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
+import L from 'leaflet'
 import { useAddOverlay } from '@/composables/overlay/useAddOverlay'
 import { addOverlay } from '@/composables/overlay/useOverlay'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
@@ -173,11 +175,13 @@ import { useUserContributions } from '@/composables/project/useUserContributions
 import { useModeratedContributions } from '@/composables/moderation/useModeratedContributions'
 import { useUiStore } from '@/stores/uiStore'
 import { useOverlayStore } from '@/stores/pinia/overlayStore'
+import { updateMarkerPosition, updateMarkerTooltip } from '@/composables/overlay/useOverlayMarkers'
 import { useProjectStore } from '@/stores/pinia/projectStore'
 import { usePendingModificationsStore } from '@/stores/pinia/pendingModificationsStore'
 import { useProjectDeletion } from '@/composables/project/useProjectDeletion'
 import { useSubmissionService, type SubmissionContext, type SubmissionSummary } from '@/composables/submission/useSubmissionService'
 import { trpc, type RouterOutput } from '@/client'
+import { buildThumbnailUrl } from '@/utils/imageUrl'
 import type { ProjectForModeration, OverlayForModeration } from '@/types/index'
 
 // AI : Async component import for submission dialog
@@ -496,12 +500,20 @@ async function handleSaveProjectClick(project: ProjectForModeration) {
       // AI : Append overlay modifications to the summary so they show in the dialog
       const pendingMods = pendingModsStore.getModificationsForProject(project.id)
       for (const mod of pendingMods) {
+        // AI : Get overlay thumbnail for the change display
+        const overlay = project.overlays?.find(o => o.id === mod.overlayId)
+        const thumbnailUrl = overlay?.filename
+          ? buildThumbnailUrl(overlay.filename, overlay.status !== 'approved')
+          : undefined
+
         if (mod.caption) {
           baseSummary.changes.push({
             field: 'caption',
             oldValue: mod.caption.original ?? t('common.noValue'),
             newValue: mod.caption.current,
-            displayLabel: t('submission.overlayCaption')
+            displayLabel: t('submission.overlayCaption'),
+            overlayId: mod.overlayId,
+            thumbnailUrl
           })
         }
         if (mod.corners) {
@@ -509,7 +521,9 @@ async function handleSaveProjectClick(project: ProjectForModeration) {
             field: 'corners',
             oldValue: t('submission.previousPosition'),
             newValue: t('submission.newPosition'),
-            displayLabel: t('submission.overlayPosition')
+            displayLabel: t('submission.overlayPosition'),
+            overlayId: mod.overlayId,
+            thumbnailUrl
           })
         }
       }
@@ -530,16 +544,24 @@ async function handleSaveProjectClick(project: ProjectForModeration) {
     // AI : Only overlay changes, no project changes - show confirmation dialog
     // AI : Build a summary of overlay modifications for the confirmation dialog
     const pendingMods = pendingModsStore.getModificationsForProject(project.id)
-    const changes: { field: string; oldValue: any; newValue: any; displayLabel: string }[] = []
+    const changes: { field: string; oldValue: any; newValue: any; displayLabel: string; overlayId?: string; thumbnailUrl?: string }[] = []
 
-    // AI : Build human-readable change list
+    // AI : Build human-readable change list with overlay info
     for (const mod of pendingMods) {
+      // AI : Get overlay thumbnail for the change display
+      const overlay = project.overlays?.find(o => o.id === mod.overlayId)
+      const thumbnailUrl = overlay?.filename
+        ? buildThumbnailUrl(overlay.filename, overlay.status !== 'approved')
+        : undefined
+
       if (mod.caption) {
         changes.push({
           field: 'caption',
           oldValue: mod.caption.original ?? t('common.noValue'),
           newValue: mod.caption.current,
-          displayLabel: t('submission.overlayCaption')
+          displayLabel: t('submission.overlayCaption'),
+          overlayId: mod.overlayId,
+          thumbnailUrl
         })
       }
       if (mod.corners) {
@@ -547,7 +569,9 @@ async function handleSaveProjectClick(project: ProjectForModeration) {
           field: 'corners',
           oldValue: t('submission.previousPosition'),
           newValue: t('submission.newPosition'),
-          displayLabel: t('submission.overlayPosition')
+          displayLabel: t('submission.overlayPosition'),
+          overlayId: mod.overlayId,
+          thumbnailUrl
         })
       }
     }
@@ -735,6 +759,92 @@ function cancelSubmission() {
   showSubmissionDialog.value = false
   pendingSubmissionContext.value = null
   submissionSummary.value = null
+}
+
+// AI : Handle removing a single change from the submission dialog
+function handleRemoveChange(index: number, field: string, overlayId?: string) {
+  if (!submissionSummary.value) return
+
+  // AI : Remove the change at the specified index from the summary
+  submissionSummary.value.changes.splice(index, 1)
+
+  // AI : Handle overlay-specific changes
+  if (overlayId) {
+    // AI : Get the original values before clearing
+    const pendingMod = pendingModsStore.getPendingModifications(overlayId)
+    const overlayObject = overlayStore.overlays[overlayId]
+
+    // AI : Clear only the specific field modification (not the entire overlay)
+    const hasRemainingMods = pendingModsStore.clearFieldModification(
+      overlayId,
+      field as 'caption' | 'corners'
+    )
+
+    if (overlayObject) {
+      // AI : Reset only the specific field that was removed
+      if (field === 'corners') {
+        // AI : Clear from edit mode cache
+        overlayStore.removeFromEditModeCache(overlayId)
+
+        // AI : Reset position to backend corners
+        if (overlayObject.overlay && overlayObject.corners?.length === 4) {
+          const leafletCorners = overlayObject.corners.map((corner: { lat: number; lng: number }) =>
+            L.latLng(corner.lat, corner.lng)
+          )
+          overlayObject.overlay.setCorners(leafletCorners)
+        }
+
+        // AI : Update marker position
+        updateMarkerPosition(overlayObject)
+      } else if (field === 'caption') {
+        // AI : Reset caption to original backend value via store (shallowRef needs this for reactivity)
+        if (pendingMod?.caption?.original !== undefined) {
+          overlayStore.updateOverlay(overlayId, { caption: pendingMod.caption.original ?? '' })
+        }
+      }
+
+      // AI : Only mark as unmodified if no more modifications remain
+      if (!hasRemainingMods) {
+        overlayStore.updateOverlay(overlayId, { isModified: false })
+      }
+
+      // AI : Update marker tooltip to reflect new state
+      updateMarkerTooltip(overlayStore.overlays[overlayId])
+    }
+
+    // AI : Update the context's pending overlay modifications if no more mods
+    if (!hasRemainingMods && pendingSubmissionContext.value) {
+      const ctx = pendingSubmissionContext.value as any
+      if (ctx.pendingOverlayModifications) {
+        ctx.pendingOverlayModifications = ctx.pendingOverlayModifications.filter(
+          (id: string) => id !== overlayId
+        )
+      }
+    }
+  } else {
+    // AI : For project changes (no overlayId), reset the project field to its original value
+    // AI : Get the project ID from the submission context
+    if (pendingSubmissionContext.value && 'entityId' in pendingSubmissionContext.value) {
+      const projectId = (pendingSubmissionContext.value as any).entityId
+      if (projectId) {
+        projectStore.resetProjectField(projectId, field)
+      }
+    }
+
+    // AI : Close project edit form to force fresh data on reopen
+    uiStore.closeProjectEditForm()
+  }
+
+  // AI : If no more changes, close the dialog
+  if (submissionSummary.value.changes.length === 0) {
+    cancelSubmission()
+    toast.add({
+      severity: 'info',
+      summary: t('common.info'),
+      detail: t('errors.noChangesToSubmit'),
+      life: 3000
+    })
+  }
 }
 
 // AI : Handle edit project click - opens project edit form

@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import type { Project, OverlayObject } from "@/types/index";
 import type { PanelTab } from "@/types";
+import { useProjectStore } from "@/stores/pinia/projectStore";
 
 export interface ProjectDialogState {
   visible: boolean;
@@ -92,6 +93,14 @@ export const useUiStore = defineStore("ui", () => {
 
   // AI : Project edit form actions
   function openProjectEditForm(project: Project) {
+    // AI : Cache original project state for reset functionality
+    // AI : This is critical for projects loaded from nearbyProjects or allProjects
+    // AI : which bypass the normal caching in updateProject
+    const projectStore = useProjectStore();
+    if (project.id && project.status !== null && !project.isModified) {
+      projectStore.cacheProjectBackendState(project.id);
+    }
+
     projectEditForm.value = {
       visible: true,
       data: project,
