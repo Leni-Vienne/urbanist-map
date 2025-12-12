@@ -88,6 +88,14 @@ function normalizeDate(val: any): string | null {
   return null;
 }
 
+// AI : Normalize empty values for comparison (treat null, undefined, and "" as equivalent)
+function normalizeEmptyValue(val: any): any {
+  if (val === null || val === undefined || val === "") {
+    return null;
+  }
+  return val;
+}
+
 // AI : Determine submission change type based on entity status
 function getChangeType(entity: Project | OverlayObject): SubmissionChangeType {
   if (!entity.id || entity.id.startsWith("temp-")) {
@@ -210,14 +218,19 @@ export function useSubmissionService() {
             changeReason: customReason ?? undefined,
           });
         }
-      } else if (oldValue !== newValue) {
-        // AI : For non-date fields, direct comparison
-        changes.push({
-          fieldName: String(field),
-          oldValue: oldValue ?? null,
-          newValue: newValue ?? null,
-          changeReason: customReason ?? undefined,
-        });
+      } else {
+        // AI : For non-date fields, normalize empty values before comparison
+        const normalizedOld = normalizeEmptyValue(oldValue);
+        const normalizedNew = normalizeEmptyValue(newValue);
+
+        if (normalizedOld !== normalizedNew) {
+          changes.push({
+            fieldName: String(field),
+            oldValue: normalizedOld,
+            newValue: normalizedNew,
+            changeReason: customReason ?? undefined,
+          });
+        }
       }
     });
 
@@ -245,12 +258,15 @@ export function useSubmissionService() {
       });
     }
 
-    // AI : Check caption change
-    if (overlay.caption !== originalOverlay.caption) {
+    // AI : Check caption change (normalize empty values to avoid false positives)
+    const normalizedOldCaption = normalizeEmptyValue(originalOverlay.caption);
+    const normalizedNewCaption = normalizeEmptyValue(overlay.caption);
+
+    if (normalizedOldCaption !== normalizedNewCaption) {
       changes.push({
         fieldName: "caption",
-        oldValue: originalOverlay.caption ?? null,
-        newValue: overlay.caption,
+        oldValue: normalizedOldCaption,
+        newValue: normalizedNewCaption,
         changeReason: customReason ?? undefined,
       });
     }
@@ -349,7 +365,6 @@ export function useSubmissionService() {
         break;
       case "update_pending":
         action = `Update pending ${context.entityType}`;
-        requiresModeration = false;
         break;
       case "update_approved":
         action = `Suggest changes to approved ${context.entityType}`;
