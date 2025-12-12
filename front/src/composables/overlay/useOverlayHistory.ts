@@ -153,10 +153,7 @@ export function saveToHistory(overlayObject: OverlayObject): void {
     }
   }
 
-  // eslint-disable-next-line prefer-structured-clone
-  overlayObject.history.push(
-    JSON.parse(JSON.stringify(currentState)) as { lat: number; lng: number }[],
-  );
+  overlayObject.history.push(structuredClone(currentState) as { lat: number; lng: number }[]);
   overlayObject.redoStack = [];
 
   // AI : Mark overlay as modified when it's moved/changed

@@ -339,8 +339,8 @@ export function useSubmissionService() {
         ? context.entity.name
         : (context.entity.caption ?? "Unnamed Overlay");
 
-    let action: string;
-    let requiresModeration: boolean;
+    let action = "";
+    let requiresModeration = false;
 
     switch (context.changeType) {
       case "create":

@@ -1,5 +1,5 @@
 import { publicProcedure, router } from "../trpc";
-import { countries, cities, projects } from "../db/schema";
+import { countries, cities, projects, type ApprovalStatus } from "../db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { db } from "../database";
 import * as z from "zod";
@@ -8,7 +8,6 @@ import {
   buildProjectVisibilityCondition,
   buildProjectHasVisibleContentCondition,
 } from "../db/helpers";
-import type { ApprovalStatus } from "../db/schema";
 
 export const countriesRouter = router({
   getAllCountries: publicProcedure.query(async () => {
@@ -45,12 +44,10 @@ export const countriesRouter = router({
             ? await getUserOverlayChangeRequestIds(db, ctx.user.id)
             : undefined;
 
-        let projectCondition;
-        if (input?.includeStatus && ctx.user?.role === "admin" && input.includeStatus.length > 0) {
-          projectCondition = inArray(projects.status, input.includeStatus as ApprovalStatus[]);
-        } else {
-          projectCondition = buildProjectVisibilityCondition(ctx.user, mode);
-        }
+        const projectCondition =
+          input?.includeStatus && ctx.user?.role === "admin" && input.includeStatus.length > 0
+            ? inArray(projects.status, input.includeStatus as ApprovalStatus[])
+            : buildProjectVisibilityCondition(ctx.user, mode);
 
         const contentCondition = buildProjectHasVisibleContentCondition(
           ctx.user,

@@ -52,14 +52,11 @@ class ErrorAlerter {
       }
 
       // AI : Group errors by path for summary
-      const errorsByPath = recentErrors.reduce(
-        (acc, error) => {
-          const key = `${error.method} ${error.path}`;
-          acc[key] = (acc[key] || 0) + 1;
-          return acc;
-        },
-        {} as Record<string, number>,
-      );
+      const errorsByPath = recentErrors.reduce<Record<string, number>>((acc, error) => {
+        const key = `${error.method} ${error.path}`;
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {});
 
       // AI : Build HTML email content
       const errorList = Object.entries(errorsByPath)
