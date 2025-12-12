@@ -21,7 +21,12 @@ import { useOverlayPublisher } from "@/composables/overlay/useOverlayPublisher";
 import { updateMarkerTooltip, updateMarkerPosition } from "@/composables/overlay/useOverlayMarkers";
 import { buildThumbnailUrl } from "@/utils/imageUrl";
 import { trpc } from "@/client";
-import type { OverlayObject, Project } from "@/types/index";
+import type {
+  OverlayObject,
+  Project,
+  ProjectForModeration,
+  OverlayForModeration,
+} from "@/types/index";
 
 // AI : Extended context type for combined overlay+project submissions
 // AI : Separate interface to avoid discriminated union issues
@@ -53,6 +58,31 @@ function isValidFieldType(field: string): field is "caption" | "corners" {
   return field === "caption" || field === "corners";
 }
 
+// AI : Apply pending modifications to overlay object
+function applyModificationsToOverlay(
+  overlay: OverlayObject,
+  mod: PendingOverlayModification,
+): OverlayObject {
+  return {
+    ...overlay,
+    caption: mod.caption?.current ?? overlay.caption,
+    corners: mod.corners?.current ?? overlay.corners,
+  };
+}
+
+// AI : Determine if submission requires moderation based on approval status
+function checkRequiresModeration(
+  overlayMods: PendingOverlayModification[],
+  projectStatus: string | null,
+  overlayStatus?: string | null,
+): boolean {
+  return (
+    overlayMods.some((mod) => mod.overlayStatus === "approved") ||
+    projectStatus === "approved" ||
+    overlayStatus === "approved"
+  );
+}
+
 export function useSubmissionDialog() {
   const { t } = useI18n();
   const toast = useToast();
@@ -72,7 +102,7 @@ export function useSubmissionDialog() {
   // AI : Build human-readable changes from pending modifications
   function buildOverlayModificationChanges(
     mods: PendingOverlayModification[],
-    overlays: Record<string, OverlayObject>,
+    overlays: Record<string, OverlayObject | OverlayForModeration>,
   ): SubmissionChange[] {
     const changes: SubmissionChange[] = [];
 
@@ -106,6 +136,22 @@ export function useSubmissionDialog() {
     return changes;
   }
 
+  // AI : Helper to append project changes to changes array if project is modified
+  function appendProjectChanges(
+    changes: SubmissionChange[],
+    projectId: string,
+    projectModified: boolean,
+  ): void {
+    if (projectModified) {
+      const fullProject = projectStore.projects[projectId];
+      if (fullProject) {
+        const projectContext = submissionService.createProjectContext(fullProject);
+        const projectSummary = submissionService.buildSummary(projectContext);
+        changes.push(...projectSummary.changes);
+      }
+    }
+  }
+
   // AI : Helper function to submit pending overlay modification (can update directly)
   async function submitPendingOverlayModification(
     overlayId: string,
@@ -115,11 +161,7 @@ export function useSubmissionDialog() {
   ): Promise<void> {
     if (mod.corners && overlayObject) {
       // AI : For pending overlays with position changes, use publishOverlay
-      const overlayToPublish = {
-        ...overlayObject,
-        caption: mod.caption?.current ?? overlayObject.caption,
-        corners: mod.corners.current,
-      };
+      const overlayToPublish = applyModificationsToOverlay(overlayObject, mod);
       await publishOverlay(overlayToPublish, project ?? null);
     } else if (mod.caption) {
       // AI : Caption-only change for pending overlay
@@ -225,7 +267,7 @@ export function useSubmissionDialog() {
 
   // AI : Prepare combined project+overlay submission (for save project button)
   function prepareProjectWithOverlaysSubmission(
-    project: Project | { id: string; name: string; status: string | null; overlays?: any[] },
+    project: Project | ProjectForModeration,
     projectHasChanges: boolean,
   ): void {
     try {
@@ -238,7 +280,7 @@ export function useSubmissionDialog() {
       // AI : Add overlay changes
       if (pendingMods.length > 0) {
         // AI : Build overlay info map for thumbnails
-        const overlayInfoMap: Record<string, OverlayObject> = {};
+        const overlayInfoMap: Record<string, OverlayObject | OverlayForModeration> = {};
         for (const mod of pendingMods) {
           const storeOverlay = overlayStore.overlays[mod.overlayId];
           if (storeOverlay) {
@@ -247,7 +289,7 @@ export function useSubmissionDialog() {
             // AI : Fall back to project.overlays array (only available on ProjectForModeration)
             const projOverlay = project.overlays.find((o) => o.id === mod.overlayId);
             if (projOverlay) {
-              overlayInfoMap[mod.overlayId] = projOverlay as OverlayObject;
+              overlayInfoMap[mod.overlayId] = projOverlay;
             }
           }
         }
@@ -256,19 +298,10 @@ export function useSubmissionDialog() {
       }
 
       // AI : Add project changes if project has modifications
-      if (projectHasChanges) {
-        const fullProject = projectStore.projects[project.id];
-        if (fullProject) {
-          const projectContext = submissionService.createProjectContext(fullProject);
-          const projectSummary = submissionService.buildSummary(projectContext);
-          changes = [...changes, ...projectSummary.changes];
-        }
-      }
+      appendProjectChanges(changes, project.id, projectHasChanges);
 
       // AI : Determine if this requires moderation
-      const anyOverlayRequiresMod = pendingMods.some((mod) => mod.overlayStatus === "approved");
-      const projectRequiresMod = project.status === "approved";
-      const requiresModeration = anyOverlayRequiresMod ?? projectRequiresMod;
+      const requiresModeration = checkRequiresModeration(pendingMods, project.status);
 
       // AI : Determine action label
       let action = "";
@@ -331,18 +364,16 @@ export function useSubmissionDialog() {
     const changes = buildOverlayModificationChanges(allProjectMods, overlayStore.overlays);
 
     // AI : Add project changes if project is modified
-    if (projectModified && project) {
-      const projectContext = submissionService.createProjectContext(project);
-      const projectSummary = submissionService.buildSummary(projectContext);
-      changes.push(...projectSummary.changes);
+    if (project) {
+      appendProjectChanges(changes, project.id, projectModified);
     }
 
     // AI : Determine if this requires moderation
-    const anyOverlayRequiresMod =
-      allProjectMods.some((mod) => mod.overlayStatus === "approved") ??
-      overlay.status === "approved";
-    const projectRequiresMod = project?.status === "approved";
-    const requiresModeration = anyOverlayRequiresMod ?? projectRequiresMod;
+    const requiresModeration = checkRequiresModeration(
+      allProjectMods,
+      project?.status ?? null,
+      overlay.status,
+    );
 
     // AI : Determine action label
     let action = "";
@@ -392,20 +423,12 @@ export function useSubmissionDialog() {
 
     if (overlayObj.status !== "approved") {
       // AI : Pending overlay - publish directly
-      const overlayToPublish = {
-        ...overlayObj,
-        caption: mod.caption?.current ?? overlayObj.caption,
-        corners: mod.corners?.current ?? overlayObj.corners,
-      };
+      const overlayToPublish = applyModificationsToOverlay(overlayObj, mod);
       const project = projectId ? projectStore.projects[projectId] : null;
       await publishOverlay(overlayToPublish, project ?? null);
     } else {
       // AI : Approved overlay - submit change request
-      const overlayWithChanges = {
-        ...overlayObj,
-        caption: mod.caption?.current ?? overlayObj.caption,
-        corners: mod.corners?.current ?? overlayObj.corners,
-      };
+      const overlayWithChanges = applyModificationsToOverlay(overlayObj, mod);
       const overlayContext = submissionService.createOverlayContext(
         overlayWithChanges,
         "update_approved",
@@ -537,7 +560,7 @@ export function useSubmissionDialog() {
     overlayId: string,
     overlayObject: OverlayObject,
     capturedOriginalCaption: string | null | undefined,
-    capturedOriginalCorners: any,
+    capturedOriginalCorners: { lat: number; lng: number }[] | null | undefined,
   ): void {
     if (field === "corners") {
       // AI : Clear from edit mode cache
@@ -546,9 +569,7 @@ export function useSubmissionDialog() {
       // AI : Reset position to backend corners (use captured original if available)
       const cornersToUse = capturedOriginalCorners ?? overlayObject.corners;
       if (overlayObject.overlay && cornersToUse?.length === 4) {
-        const leafletCorners = cornersToUse.map((corner: { lat: number; lng: number }) =>
-          L.latLng(corner.lat, corner.lng),
-        );
+        const leafletCorners = cornersToUse.map((corner) => L.latLng(corner.lat, corner.lng));
         overlayObject.overlay.setCorners(leafletCorners);
       }
 
