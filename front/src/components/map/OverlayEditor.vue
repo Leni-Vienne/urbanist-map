@@ -196,14 +196,6 @@ function saveChanges() {
     // AI : Emit update event for PopupContainer to update marker tooltip
     emit('update', overlay.id, editingInfo.value.caption);
 
-    // AI : Keep old store in sync during migration (will be removed later)
-    overlayStore.savePendingCaptionChange(
-      overlay.id,
-      editingInfo.value.caption,
-      overlay.caption ?? null,
-      overlay.status ?? 'pending'
-    );
-
     // AI : Show success message
     toast.add({
       severity: 'info',
