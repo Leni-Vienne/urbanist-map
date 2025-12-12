@@ -8,6 +8,8 @@ export class DrizzleSessionStore {
   private cleanupInterval: NodeJS.Timeout | null = null;
 
   constructor() {
+    // AI : Run cleanup immediately on startup to clear sessions from previous runs
+    this.cleanupExpiredSessions();
     this.startCleanupInterval();
   }
 
@@ -35,10 +37,25 @@ export class DrizzleSessionStore {
 
   async createSession(sessionId: string, initialData: any): Promise<void> {
     try {
-      // AI : Calculate expiry from session data or use default 30 days
-      const expiresAt = initialData.expiresAt
-        ? new Date(initialData.expiresAt)
-        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      // AI : hono-sessions stores user data in _data property
+      const userData = initialData?._data?.user;
+
+      // AI : Skip persisting empty sessions (anonymous visitors)
+      // AI : Only logged-in users need database-backed sessions
+      if (!userData) {
+        return;
+      }
+
+      // AI : Safely parse expiry date, fallback to 30 days if invalid
+      const rawExpiry = initialData._data?.expiresAt;
+      const defaultExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      let expiresAt = defaultExpiry;
+      if (rawExpiry) {
+        const parsed = new Date(rawExpiry);
+        if (!isNaN(parsed.getTime())) {
+          expiresAt = parsed;
+        }
+      }
 
       await db.insert(sessions).values({
         id: sessionId,
@@ -53,19 +70,41 @@ export class DrizzleSessionStore {
 
   async persistSessionData(sessionId: string, sessionData: any): Promise<void> {
     try {
-      // AI : Update expiry if it changed in session data
-      const expiresAt = sessionData.expiresAt
-        ? new Date(sessionData.expiresAt)
-        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      // AI : hono-sessions stores user data in _data property
+      const userData = sessionData?._data?.user;
 
+      // AI : Skip persisting empty sessions (anonymous visitors)
+      if (!userData) {
+        return;
+      }
+
+      // AI : Safely parse expiry date, fallback to 30 days if invalid
+      const rawExpiry = sessionData._data?.expiresAt;
+      const defaultExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      let expiresAt = defaultExpiry;
+      if (rawExpiry) {
+        const parsed = new Date(rawExpiry);
+        if (!isNaN(parsed.getTime())) {
+          expiresAt = parsed;
+        }
+      }
+
+      // AI : Upsert - insert if session doesn't exist (was skipped at creation), update if it does
       await db
-        .update(sessions)
-        .set({
+        .insert(sessions)
+        .values({
+          id: sessionId,
           data: sessionData,
           expiresAt,
-          updatedAt: new Date(),
         })
-        .where(eq(sessions.id, sessionId));
+        .onConflictDoUpdate({
+          target: sessions.id,
+          set: {
+            data: sessionData,
+            expiresAt,
+            updatedAt: new Date(),
+          },
+        });
     } catch (error) {
       console.error("Failed to persist session data:", error);
       throw error;
