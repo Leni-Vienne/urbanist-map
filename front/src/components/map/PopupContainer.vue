@@ -63,7 +63,6 @@
 import { computed, ref, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
-import L from 'leaflet';
 import { useOverlayStore } from '@/stores/pinia/overlayStore';
 import { useProjectStore } from '@/stores/pinia/projectStore';
 import { useMapStore } from '@/stores/pinia/mapStore';

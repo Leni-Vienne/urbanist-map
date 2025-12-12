@@ -340,7 +340,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { computed, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { buildThumbnailUrl } from '@/utils/imageUrl'
 import { formatDate } from '@/utils/dateFormat'

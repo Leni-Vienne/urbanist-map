@@ -404,9 +404,7 @@ export const useProjectStore = defineStore("project", () => {
   function cacheProjectBackendState(projectId: string) {
     // AI : Check projects.value first, then allProjects (includes nearbyProjects)
     let project = projects.value[projectId];
-    if (!project) {
-      project = allProjects.value[projectId];
-    }
+    project ??= allProjects.value[projectId];
 
     if (project && !originalBackendProjects.value[projectId]) {
       originalBackendProjects.value = {
