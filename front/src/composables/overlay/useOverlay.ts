@@ -635,38 +635,47 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
   // Create the overlay
   const newOverlay = createLeafletOverlay(imageUrl, overlayObject);
   if (!newOverlay) return;
-  const element = newOverlay.getElement();
-  if (!element) {
-    throw new Error("Overlay element not found");
-  }
 
-  L.DomEvent.on(element, "load", () => {
-    if (element.complete && element.naturalWidth > 0) {
-      overlayObject.overlay = newOverlay;
-      overlayObject.corners = newOverlay.getCorners() ?? [];
-
-      // Store reference and initialize
-      overlayStore.overlays[id] = overlayObject;
-
-      // AI : Create marker with appropriate color based on replacement status
-      createMarker(overlayObject);
-
-      // AI : Add to project AFTER storing in overlays to avoid "not found" error
-      const isFirstOverlay = addOverlayToProjectWithId(projectId, id);
-
-      // AI : Remove standalone project marker when first overlay is added to project
-      if (isFirstOverlay) {
-        removeStandaloneProjectMarkerForProject(projectId);
-      }
-
-      // AI : Add new overlay to city cache so it persists across zoom changes
-      const projectStore = useProjectStore();
-      const project = projectStore.projects[projectId];
-      if (project?.city) {
-        addNewOverlayToCityCache(overlayObject, project.city.id);
-      }
+  // AI : Wait for element to load asynchronously - getElement() returns undefined until added to DOM
+  const waitForElement = () => {
+    const element = newOverlay.getElement();
+    if (!element) {
+      // AI : Element not ready yet, try again on next frame
+      requestAnimationFrame(waitForElement);
+      return;
     }
-  });
+
+    L.DomEvent.on(element, "load", () => {
+      if (element.complete && element.naturalWidth > 0) {
+        overlayObject.overlay = newOverlay;
+        overlayObject.corners = newOverlay.getCorners() ?? [];
+
+        // Store reference and initialize
+        overlayStore.overlays[id] = overlayObject;
+
+        // AI : Create marker with appropriate color based on replacement status
+        createMarker(overlayObject);
+
+        // AI : Add to project AFTER storing in overlays to avoid "not found" error
+        const isFirstOverlay = addOverlayToProjectWithId(projectId, id);
+
+        // AI : Remove standalone project marker when first overlay is added to project
+        if (isFirstOverlay) {
+          removeStandaloneProjectMarkerForProject(projectId);
+        }
+
+        // AI : Add new overlay to city cache so it persists across zoom changes
+        const projectStore = useProjectStore();
+        const project = projectStore.projects[projectId];
+        if (project?.city) {
+          addNewOverlayToCityCache(overlayObject, project.city.id);
+        }
+      }
+    });
+  };
+
+  // AI : Start waiting for element to be ready
+  waitForElement();
 
   return id;
 }

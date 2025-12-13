@@ -411,7 +411,12 @@ function isProjectModified(projectId: string): boolean {
   const projectInStore = projectStore.projects[projectId]
   if (projectInStore?.isModified) return true
 
-  // AI : Also check all overlays for this project
+  // AI : Check for any pending modifications in the unified store (matches infopopup logic)
+  if (pendingModsStore.getModificationCountForProject(projectId) > 0) {
+    return true
+  }
+
+  // AI : Also check all overlays for this project from user contributions
   const project = projects.value.find(p => p.id === projectId)
   if (!project?.overlays) return false
 

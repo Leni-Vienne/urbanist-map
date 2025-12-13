@@ -319,6 +319,7 @@ export function useSubmissionDialog() {
         changes,
         requiresModeration,
         entityType: projectHasChanges ? "project" : "overlay",
+        changeType: requiresModeration ? "update_approved" : "update_pending",
       };
 
       const extendedContext: SubmissionContextExtended = {
@@ -391,6 +392,7 @@ export function useSubmissionDialog() {
       changes,
       requiresModeration,
       entityType: "overlay",
+      changeType: requiresModeration ? "update_approved" : "update_pending",
     };
 
     const extendedContext: SubmissionContextExtended = {

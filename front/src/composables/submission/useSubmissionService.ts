@@ -58,6 +58,7 @@ export interface SubmissionSummary {
   changes: SubmissionChange[];
   requiresModeration: boolean;
   entityType: SubmissionEntityType;
+  changeType: SubmissionChangeType;
 }
 
 interface ValidationResult {
@@ -351,6 +352,7 @@ export function useSubmissionService() {
       changes: formattedChanges,
       requiresModeration,
       entityType: context.entityType,
+      changeType: context.changeType,
     };
   }
 
