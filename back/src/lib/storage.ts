@@ -104,19 +104,12 @@ export class LocalFileStorage implements StorageInterface {
     }
   }
 
+  // AI : Delete a single file - does NOT automatically delete related thumbnails
+  // AI : Callers are responsible for deciding what files to delete (see deleteLocalImages in imageCleanup.ts)
   async delete(filename: string): Promise<void> {
     try {
       const { unlink } = await import("node:fs/promises");
       await unlink(`./uploads/${filename}`);
-
-      // AI : Also delete thumbnail if it exists
-      const thumbnailPath = `./uploads/thumbnails/${filename}`;
-      try {
-        await unlink(thumbnailPath);
-      } catch (error) {
-        // AI : Thumbnail might not exist, don't fail main deletion
-        console.warn(`Failed to delete thumbnail ${thumbnailPath}:`, error);
-      }
     } catch (error) {
       // AI : Log but don't throw - file might already be deleted
       console.warn(`Failed to delete file ${filename}:`, error);
@@ -196,18 +189,11 @@ export class R2StorageS3 implements StorageInterface {
     }
   }
 
+  // AI : Delete a single file - does NOT automatically delete related thumbnails
+  // AI : Callers are responsible for deciding what files to delete (see deleteImages in imageCleanup.ts)
   async delete(filename: string): Promise<void> {
     try {
       await this.client.delete(filename);
-
-      // AI : Also delete thumbnail if it exists
-      const thumbnailFilename = getThumbnailFilename(filename);
-      try {
-        await this.client.delete(thumbnailFilename);
-      } catch (error) {
-        // AI : Thumbnail might not exist, don't fail main deletion
-        console.warn(`Failed to delete thumbnail ${thumbnailFilename} from R2:`, error);
-      }
     } catch (error) {
       // AI : Log but don't throw - file might already be deleted
       console.warn(`Failed to delete file ${filename} from R2:`, error);

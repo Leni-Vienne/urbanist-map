@@ -27,7 +27,13 @@ import {
   getThumbnailFilename,
   streamToBuffer,
 } from "../lib/storage";
-import { scheduleImageCleanup, deleteImages, daysFromNow } from "../lib/imageCleanup";
+import {
+  scheduleImageCleanup,
+  deleteImages,
+  deleteLocalImages,
+  daysFromNow,
+} from "../lib/imageCleanup";
+import { THUMBNAIL_RETENTION_DAYS } from "../lib/imageCleanupConfig";
 
 // AI : Helper functions to update user moderation stats
 // AI : These are called within transactions to ensure atomicity
@@ -1227,10 +1233,15 @@ async function handleOverlayRejection(
 
     // AI : Delete images for rejected overlays (outside transaction)
     try {
-      // AI : For both regular and replacement overlays: delete full immediately, keep thumbnail for 15 days
-      // AI : Uses deleteImages helper to handle both production/R2 and development/local
-      await deleteImages(filename, "full");
-      await scheduleImageCleanup(overlayId, filename, daysFromNow(15), "thumbnail");
+      // AI : For rejected overlays: delete full immediately, keep thumbnail for THUMBNAIL_RETENTION_DAYS
+      // AI : Uses deleteLocalImages since pending overlays are always stored locally (not in R2)
+      await deleteLocalImages(filename, "full");
+      await scheduleImageCleanup(
+        overlayId,
+        filename,
+        daysFromNow(THUMBNAIL_RETENTION_DAYS),
+        "thumbnail",
+      );
     } catch (error) {
       console.error("Failed to cleanup rejected overlay images:", error);
       // AI : Don't fail the rejection if cleanup fails
@@ -1385,11 +1396,16 @@ async function cleanupReplacementImages(
   replacesOverlayId: string,
 ): Promise<void> {
   try {
-    // AI : Delete images for competing replacements
+    // AI : Delete images for competing replacements (pending overlays = local storage)
     for (const competing of competingReplacements) {
       try {
-        await deleteImages(competing.filename, "full");
-        await scheduleImageCleanup(competing.id, competing.filename, daysFromNow(15), "thumbnail");
+        await deleteLocalImages(competing.filename, "full");
+        await scheduleImageCleanup(
+          competing.id,
+          competing.filename,
+          daysFromNow(THUMBNAIL_RETENTION_DAYS),
+          "thumbnail",
+        );
       } catch (error) {
         console.error(`Failed to cleanup competing replacement ${competing.id}:`, error);
       }
@@ -1407,7 +1423,7 @@ async function cleanupReplacementImages(
       await scheduleImageCleanup(
         replacesOverlayId,
         originalOverlayData[0].filename,
-        daysFromNow(15),
+        daysFromNow(THUMBNAIL_RETENTION_DAYS),
         "thumbnail",
       );
     }

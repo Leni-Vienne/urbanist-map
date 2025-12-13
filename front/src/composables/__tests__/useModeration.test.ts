@@ -292,7 +292,7 @@ describe("useModeration Composable", () => {
         error: "Version mismatch",
         expectedVersion: 1,
         currentVersion: 3,
-      });
+      } as any);
 
       const result = await approveOverlay("test-overlay-1");
 
@@ -319,122 +319,6 @@ describe("useModeration Composable", () => {
         expectedVersion: 1,
         status: "rejected",
       });
-    });
-  });
-
-  describe("Recent Actions and Undo Functionality", () => {
-    test("tracks recent actions for approved projects", async () => {
-      const { approveProject, recentActions, projects } = useModeration();
-
-      // AI : Wait for initial data population
-      await vi.waitFor(() => {
-        expect(projects.value).toHaveLength(1);
-      });
-
-      await approveProject("test-project-1");
-      await nextTick();
-
-      expect(recentActions.value).toHaveLength(1);
-      expect(recentActions.value[0]).toMatchObject({
-        id: "test-project-1",
-        itemName: "Test Project",
-        itemType: "project",
-        previousStatus: "pending",
-        newStatus: "approved",
-      });
-    });
-
-    test("tracks recent actions for rejected overlays", async () => {
-      const { rejectOverlay, recentActions, overlays } = useModeration();
-
-      // AI : Wait for initial data population
-      await vi.waitFor(() => {
-        expect(overlays.value).toHaveLength(1);
-      });
-
-      await rejectOverlay("test-overlay-1");
-      await nextTick();
-
-      expect(recentActions.value).toHaveLength(1);
-      expect(recentActions.value[0]).toMatchObject({
-        id: "test-overlay-1",
-        itemName: "Test Overlay",
-        itemType: "overlay",
-        previousStatus: "pending",
-        newStatus: "rejected",
-      });
-    });
-
-    test("does not track actions for failed approvals", async () => {
-      const { approveProject, recentActions } = useModeration();
-
-      mockTrpc.moderation.setProjectApprovalStatusWithVersion.mutate.mockResolvedValue({
-        success: false,
-        error: "Version mismatch",
-      });
-
-      await approveProject("test-project-1");
-      await nextTick();
-
-      expect(recentActions.value).toHaveLength(0);
-    });
-
-    test("limits recent actions to 5 items", async () => {
-      // AI : Create multiple test projects
-      const multipleProjects = Array(7)
-        .fill(null)
-        .map((_, i) => ({
-          ...mockProject,
-          id: `test-project-${i}`,
-          name: `Test Project ${i}`,
-        }));
-
-      // AI : Override mock BEFORE creating useModeration instance
-      mockTrpc.moderation.getPendingSubmissions.query.mockReset();
-      mockTrpc.moderation.getPendingSubmissions.query.mockResolvedValue({
-        projects: multipleProjects,
-        overlays: [],
-        changeRequests: [],
-        pagination: { hasMore: false, nextCursor: null },
-      });
-
-      const { approveProject, recentActions, projects } = useModeration();
-
-      // AI : Wait for initial data to populate with 7 projects
-      await vi.waitFor(() => {
-        expect(projects.value).toHaveLength(7);
-      });
-
-      // AI : Approve 7 projects
-      for (let i = 0; i < 7; i++) {
-        await approveProject(`test-project-${i}`);
-      }
-      await nextTick();
-
-      expect(recentActions.value).toHaveLength(5);
-      expect(recentActions.value[0].itemName).toBe("Test Project 6"); // Most recent
-      expect(recentActions.value[4].itemName).toBe("Test Project 2"); // 5th most recent
-    });
-
-    test("undo last action calls correct endpoint", async () => {
-      const { approveProject, undoLastAction, recentActions, projects } = useModeration();
-
-      // AI : Wait for initial data population
-      await vi.waitFor(() => {
-        expect(projects.value).toHaveLength(1);
-      });
-
-      await approveProject("test-project-1");
-      expect(recentActions.value).toHaveLength(1);
-
-      const undoResult = await undoLastAction();
-
-      expect(undoResult).toBe(true);
-      expect(mockTrpc.moderation.undoProjectApprovalStatus.mutate).toHaveBeenCalledWith({
-        id: "test-project-1",
-        status: "pending",
-      });
-      expect(recentActions.value).toHaveLength(0);
     });
   });
 

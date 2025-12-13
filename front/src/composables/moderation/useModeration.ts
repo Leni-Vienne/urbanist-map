@@ -23,7 +23,6 @@ export function useModeration() {
   const overlays = computed(() => moderationStore.overlays);
   const projects = computed(() => moderationStore.projects);
   const changeRequests = computed(() => moderationStore.changeRequests);
-  const recentActions = computed(() => moderationStore.recentActions);
 
   async function fetchPendingSubmissions() {
     if (moderationStore.moderationLoaded) {
@@ -128,15 +127,6 @@ export function useModeration() {
       };
     }
 
-    moderationStore.addRecentAction({
-      id,
-      itemName,
-      itemType,
-      previousStatus: "pending",
-      newStatus: status,
-      timestamp: new Date(),
-    });
-
     resetModerationLoaded();
     await fetchPendingSubmissions();
 
@@ -213,38 +203,6 @@ export function useModeration() {
     return setOverlayStatus(id, "rejected");
   }
 
-  async function undoLastAction() {
-    if (moderationStore.recentActions.length === 0) {
-      console.warn("No recent actions to undo");
-      return false;
-    }
-
-    const lastAction = moderationStore.recentActions[0];
-
-    const result = await withErrorHandling(
-      async () =>
-        lastAction.itemType === "overlay"
-          ? trpc.moderation.undoOverlayApprovalStatus.mutate({
-              id: lastAction.id,
-              status: lastAction.previousStatus,
-            })
-          : trpc.moderation.undoProjectApprovalStatus.mutate({
-              id: lastAction.id,
-              status: lastAction.previousStatus,
-            }),
-      { errorMessage: "Failed to undo action. Please try again." },
-    );
-
-    if (!result) {
-      return false;
-    }
-
-    moderationStore.removeLastAction();
-    resetModerationLoaded();
-    await fetchPendingSubmissions();
-    return true;
-  }
-
   // AI : Only fetch on mount if user is admin OR if country is already selected
   // AI : For moderators with assigned countries, wait for country selection in ModerationPanel
   onMounted(async () => {
@@ -288,12 +246,10 @@ export function useModeration() {
     overlays,
     projects,
     changeRequests,
-    recentActions,
     approveOverlay,
     rejectOverlay,
     approveProject,
     rejectProject,
-    undoLastAction,
     resetModerationLoaded,
     fetchPendingSubmissions,
   };
