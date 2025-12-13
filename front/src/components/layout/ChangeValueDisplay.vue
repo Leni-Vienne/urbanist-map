@@ -111,11 +111,6 @@ function formatValue(value: unknown, fieldName: string, change?: PendingChangeRe
     return t('overlay.notSet');
   }
 
-  if (fieldName === 'projectId' && typeof value === 'string') {
-    const project = props.projects.find(p => p.id === value);
-    return project?.name ?? `Unknown Project (${value.slice(0, 8)}...)`;
-  }
-
   // AI : Handle cityId field using backend-enriched data
   if (fieldName === 'cityId' && typeof value === 'string' && change) {
     const isOldValue = change.oldValue === value;
