@@ -1,5 +1,6 @@
 // AI : Standalone project marker management - extracted to avoid circular dependencies
 import L from "leaflet";
+import { watch } from "vue";
 import type { Project } from "@/types/index";
 import { map } from "@/composables/core/useMap";
 import { createStandaloneProjectIcon } from "@/composables/map/useMarkers";
@@ -17,6 +18,30 @@ const standaloneProjectMarkerMap = new Map<string, L.Marker>();
 
 // AI : Track the currently selected standalone project marker (for opacity control)
 let selectedStandaloneProjectMarker: L.Marker | null = null;
+
+// AI : Track if watcher has been initialized (lazy initialization to avoid Pinia issues)
+let isWatcherInitialized = false;
+
+/**
+ * AI : Initialize watcher for project info popup closing (lazy initialization)
+ * Called once when first marker is added to avoid Pinia initialization issues
+ */
+function initializePopupWatcher() {
+  if (isWatcherInitialized) return;
+
+  const uiStore = useUiStore();
+  watch(
+    () => uiStore.projectInfoPopup.visible,
+    (isVisible, wasVisible) => {
+      // AI : When popup closes, reset marker opacity
+      if (wasVisible && !isVisible) {
+        updateStandaloneProjectMarkerOpacities(null);
+      }
+    },
+  );
+
+  isWatcherInitialized = true;
+}
 
 /**
  * AI : Get standalone project marker by project ID
@@ -89,6 +114,9 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
 
   // AI : Don't add if marker already exists
   if (standaloneProjectMarkerMap.has(project.id)) return;
+
+  // AI : Initialize popup watcher on first marker addition (lazy initialization)
+  initializePopupWatcher();
 
   // AI : Ensure standalone project layer exists
   if (!standaloneProjectsLayer) {
