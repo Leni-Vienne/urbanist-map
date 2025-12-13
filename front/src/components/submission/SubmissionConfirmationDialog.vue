@@ -60,6 +60,7 @@
           <span class="optional-label"
             >({{
           $t('project.optionalField')
+
             }})</span
           ></label
         >
@@ -79,7 +80,7 @@
           :label="$t('submission.confirmSubmit')"
           :severity="summary?.requiresModeration ? 'warn' : 'success'"
           :loading="isSubmitting"
-          :disabled="summary?.changes.length === 0"
+          :disabled="summary?.changes.length === 0 && summary?.changeType !== 'create'"
           @click="handleConfirm"
         />
       </div>

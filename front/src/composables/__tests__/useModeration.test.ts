@@ -1,5 +1,4 @@
 import { describe, test, expect, beforeEach, afterEach, vi } from "vitest";
-import { nextTick } from "vue";
 
 // AI : Mock Vue's onMounted to prevent issues with lifecycle hooks in tests
 vi.mock("vue", async () => {
