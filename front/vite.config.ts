@@ -6,7 +6,6 @@ import tailwindcss from "@tailwindcss/vite";
 import vueDevTools from "vite-plugin-vue-devtools";
 import path from "path";
 import { visualizer } from "rollup-plugin-visualizer";
-import istanbul from "vite-plugin-istanbul";
 import { qrcode } from "vite-plugin-qrcode";
 
 // https://vite.dev/config/
@@ -29,12 +28,6 @@ export default defineConfig({
         // eslint-disable-next-line
         PrimeVueResolver(),
       ],
-    }),
-    istanbul({
-      include: "front/src/*",
-      exclude: ["node_modules", "test/"],
-      extension: [".js", ".ts", ".vue"],
-      requireEnv: false,
     }),
   ],
   // AI : Configure aliases and externals for CDN usage
@@ -88,7 +81,7 @@ export default defineConfig({
   },
   // AI : External leaflet to prevent bundling
   build: {
-    sourcemap: "hidden", // AI : Hide sourcemaps to silence istanbul warning
+    sourcemap: true,
     cssCodeSplit: true, // AI : Extract CSS per chunk for parallel loading
     rollupOptions: {
       external: (id) => {
