@@ -75,7 +75,6 @@ const FIELD_DISPLAY_NAMES: Record<string, string> = {
   endDate: "End Date",
   latestUpdateOn: "Latest Update",
   caption: "Overlay Caption",
-  projectId: "Parent Project",
   corners: "Position",
   cityId: "City",
 };
@@ -206,31 +205,17 @@ export function useSubmissionService() {
         String(field),
       );
 
-      if (isDateField) {
-        const normalizedOld = normalizeDate(oldValue);
-        const normalizedNew = normalizeDate(newValue);
+      // AI : Normalize values based on field type
+      const normalizedOld = isDateField ? normalizeDate(oldValue) : normalizeEmptyValue(oldValue);
+      const normalizedNew = isDateField ? normalizeDate(newValue) : normalizeEmptyValue(newValue);
 
-        if (normalizedOld !== normalizedNew) {
-          changes.push({
-            fieldName: String(field),
-            oldValue: normalizedOld,
-            newValue: normalizedNew,
-            changeReason: customReason ?? undefined,
-          });
-        }
-      } else {
-        // AI : For non-date fields, normalize empty values before comparison
-        const normalizedOld = normalizeEmptyValue(oldValue);
-        const normalizedNew = normalizeEmptyValue(newValue);
-
-        if (normalizedOld !== normalizedNew) {
-          changes.push({
-            fieldName: String(field),
-            oldValue: normalizedOld,
-            newValue: normalizedNew,
-            changeReason: customReason ?? undefined,
-          });
-        }
+      if (normalizedOld !== normalizedNew) {
+        changes.push({
+          fieldName: String(field),
+          oldValue: normalizedOld,
+          newValue: normalizedNew,
+          changeReason: customReason ?? undefined,
+        });
       }
     });
 
@@ -246,16 +231,6 @@ export function useSubmissionService() {
     if (!originalOverlay) {
       // AI : If no original found, this is a new overlay or we can't detect changes
       return changes;
-    }
-
-    // AI : Check projectId change
-    if (overlay.projectId !== originalOverlay.projectId) {
-      changes.push({
-        fieldName: "projectId",
-        oldValue: originalOverlay.projectId,
-        newValue: overlay.projectId,
-        changeReason: customReason ?? undefined,
-      });
     }
 
     // AI : Check caption change (normalize empty values to avoid false positives)
@@ -321,15 +296,6 @@ export function useSubmissionService() {
         return cachedName;
       }
       return value; // AI : Fallback to ID if city name not found
-    }
-
-    // AI : Special handling for projectId - show project name
-    if (fieldName === "projectId" && typeof value === "string") {
-      const project = projectStore.allProjects[value];
-      if (project?.name) {
-        return project.name;
-      }
-      return value; // AI : Fallback to ID if project not found
     }
 
     if (value instanceof Date) {
