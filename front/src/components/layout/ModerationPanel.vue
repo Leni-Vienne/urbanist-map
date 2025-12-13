@@ -27,6 +27,15 @@
       @report="openReportDialog"
     />
 
+    <!-- AI : Rejection Dialog with optional report user -->
+    <RejectionDialog
+      v-model:visible="showRejectConfirmDialog"
+      :user-id="pendingRejection?.userId ?? null"
+      :is-loading="isProcessingRejection"
+      @confirm="handleRejectionConfirm"
+      @cancel="handleRejectionCancel"
+    />
+
     <!-- AI : Country Selector for Moderation -->
     <div v-if="showCountrySelector" class="country-selector-container">
       <label for="country-select" class="country-selector-label">
@@ -68,28 +77,15 @@
       :on-overlay-click="handleViewOverlayPosition"
     >
       <template #header-actions>
-        <div class="moderation-header-actions">
-          <Button
-            icon="pi pi-undo"
-            @click="handleUndo"
-            :disabled="!canUndo"
-            size="small"
-            :label="$t('actions.undo')"
-            severity="secondary"
-            v-tooltip.top="undoTooltip"
-            :aria-label="$t('tooltips.undo')"
-          />
-        </div>
+        <!-- AI : Header button slot - reserved for future actions -->
       </template>
 
       <template #project-actions="{ project }">
         <!-- AI : Show moderation buttons for pending projects -->
         <ModerationActionButtons
           v-if="project.status === 'pending'"
-          :user-id="project.ownerId ?? null"
           @approve="handleApproveProject(project.id)"
-          @reject="handleRejectProject(project.id)"
-          @reject-and-report="handleRejectAndReportProject(project.id, project.ownerId ?? null)"
+          @reject="handleRejectProject(project.id, project.ownerId ?? null)"
         />
       </template>
 
@@ -99,10 +95,8 @@
           v-if="overlay.status === 'pending' && project.status === 'approved'"
           :disabled="!!overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id)"
           :disabled-tooltip="overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id) ? $t('overlay.viewPositionRequired') : ''"
-          :user-id="overlay.authorId"
           @approve="handleApproveOverlay(overlay.id)"
-          @reject="handleRejectOverlay(overlay.id)"
-          @reject-and-report="handleRejectAndReportOverlay(overlay.id, overlay.authorId)"
+          @reject="handleRejectOverlay(overlay.id, overlay.authorId)"
         />
         <!-- AI : Show locked button if project not approved yet -->
         <button
@@ -120,10 +114,8 @@
         <ModerationActionButtons
           :disabled="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id)"
           :disabled-tooltip="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id) ? $t('overlay.viewSuggestedPosition') : ''"
-          :user-id="change.requestedBy"
           @approve="handleApproveChange(change.id)"
-          @reject="handleRejectChange(change.id)"
-          @reject-and-report="handleRejectAndReportChange(change.id, change.requestedBy)"
+          @reject="handleRejectChange(change.id, change.requestedBy)"
         />
       </template>
     </ProjectAccordionPanel>
@@ -146,6 +138,7 @@ import ReplacementConflictsDialog, { type ReplacementConflicts } from '@/compone
 import ReportUserDialog from '@/components/moderation/ReportUserDialog.vue'
 import UserStatsDialog from '@/components/moderation/UserStatsDialog.vue'
 import ModerationActionButtons from '@/components/moderation/ModerationActionButtons.vue'
+import RejectionDialog from '@/components/moderation/RejectionDialog.vue'
 
 // AI : Use i18n for translations
 const { t } = useI18n()
@@ -241,8 +234,6 @@ const {
   rejectProject,
   approveOverlay,
   rejectOverlay,
-  undoLastAction,
-  recentActions,
   fetchPendingSubmissions,
 } = useModeration()
 
@@ -278,10 +269,15 @@ const isProcessingConflicts = ref(false)
 const showReportDialog = ref(false)
 const userToReport = ref<string | null>(null)
 
-// AI : Pending rejection state (for reject+report flow)
+// AI : Rejection confirmation dialog state
+const showRejectConfirmDialog = ref(false)
+const isProcessingRejection = ref(false)
+
+// AI : Pending rejection state (stores type, id, and userId for report functionality)
 const pendingRejection = ref<{
   type: 'project' | 'overlay' | 'change'
   id: string
+  userId: string | null
 } | null>(null)
 
 // AI : Dialog state for user stats
@@ -330,24 +326,7 @@ async function handleViewOverlayPosition(overlay: any, shouldFitBounds: boolean)
   await handleOverlayClickNavigation(overlay, shouldFitBounds)
 }
 
-// AI : Computed properties for undo functionality
-const canUndo = computed(() => recentActions.value.length > 0)
-const lastAction = computed(() => recentActions.value[0] || null)
 
-// AI : Computed tooltip for undo button
-const undoTooltip = computed(() => {
-  if (!canUndo.value || !lastAction.value) return t('actions.noActionsToUndo')
-
-  const action = lastAction.value
-  const actionText = action.newStatus === 'approved' ? 'approved' : 'rejected'
-  const entityText = action.itemType === 'project' ? 'project' : 'overlay'
-  return t('moderation.undoAction', { action: actionText, entity: entityText, name: action.itemName })
-})
-
-// AI : Handle undo action
-async function handleUndo() {
-  await undoLastAction()
-}
 
 // AI : Handle project approval with toast notifications
 async function handleApproveProject(id: string) {
@@ -373,8 +352,14 @@ async function handleApproveProject(id: string) {
   }
 }
 
-// AI : Handle project rejection with toast notifications
-async function handleRejectProject(id: string) {
+// AI : Handle project rejection - show confirmation dialog first
+function handleRejectProject(id: string, userId: string | null) {
+  pendingRejection.value = { type: 'project', id, userId }
+  showRejectConfirmDialog.value = true
+}
+
+// AI : Execute project rejection after confirmation
+async function executeRejectProject(id: string) {
   const result = await rejectProject(id)
 
   if (result.success) {
@@ -395,14 +380,6 @@ async function handleRejectProject(id: string) {
       life: result.error === 'version_conflict' ? 5000 : 3000
     })
   }
-}
-
-// AI : Handle project rejection and report user (reject only after report confirmation)
-async function handleRejectAndReportProject(projectId: string, userId: string | null) {
-  if (!userId) return
-
-  pendingRejection.value = { type: 'project', id: projectId }
-  openReportDialog(userId)
 }
 
 // AI : Handle overlay approval with replacement conflict checking
@@ -508,29 +485,22 @@ function handleShowUserStats(data: { userId: string; username?: string | null; a
   showUserStatsDialog.value = true
 }
 
-// AI : Handle when a user is reported - execute pending rejection if exists, then refresh
+// AI : Handle when a user is reported from the old ReportUserDialog (legacy path)
+// AI : Note: This is now mostly unused since reporting is handled in the RejectionDialog
 async function handleUserReported() {
-  // AI : Execute pending rejection if user confirmed the report
-  if (pendingRejection.value) {
-    const { type, id } = pendingRejection.value
-
-    if (type === 'project') {
-      await handleRejectProject(id)
-    } else if (type === 'overlay') {
-      await handleRejectOverlay(id)
-    } else if (type === 'change') {
-      await handleRejectChange(id)
-    }
-
-    pendingRejection.value = null
-  }
-
+  // AI : Just refresh the moderation data
   moderationStore.resetModerationLoaded()
   await fetchPendingSubmissions()
 }
 
-// AI : Handle overlay rejection with toast notifications
-async function handleRejectOverlay(id: string) {
+// AI : Handle overlay rejection - show confirmation dialog first
+function handleRejectOverlay(id: string, userId: string | null) {
+  pendingRejection.value = { type: 'overlay', id, userId }
+  showRejectConfirmDialog.value = true
+}
+
+// AI : Execute overlay rejection after confirmation
+async function executeRejectOverlay(id: string) {
   const result = await rejectOverlay(id)
 
   if (result.success) {
@@ -551,14 +521,6 @@ async function handleRejectOverlay(id: string) {
       life: result.error === 'version_conflict' ? 5000 : 3000
     })
   }
-}
-
-// AI : Handle overlay rejection and report user (reject only after report confirmation)
-async function handleRejectAndReportOverlay(overlayId: string, userId: string | null) {
-  if (!userId) return
-
-  pendingRejection.value = { type: 'overlay', id: overlayId }
-  openReportDialog(userId)
 }
 
 // AI : Handle change request approval with toast notifications
@@ -585,8 +547,65 @@ async function handleApproveChange(changeId: string) {
   }
 }
 
-// AI : Handle change request rejection with toast notifications
-async function handleRejectChange(changeId: string) {
+// AI : Handle rejection confirmation from dialog
+async function handleRejectionConfirm(options: { reportUser: boolean; reportReason: string }) {
+  if (!pendingRejection.value) return
+
+  isProcessingRejection.value = true
+  const { type, id, userId } = pendingRejection.value
+
+  try {
+    // AI : Execute the rejection
+    if (type === 'project') {
+      await executeRejectProject(id)
+    } else if (type === 'overlay') {
+      await executeRejectOverlay(id)
+    } else if (type === 'change') {
+      await executeRejectChange(id)
+    }
+
+    // AI : If user checked "report user" and we have a userId, report them
+    if (options.reportUser && userId) {
+      try {
+        await trpc.moderation.reportUser.mutate({
+          userId,
+          reason: options.reportReason || undefined
+        })
+        toast.add({
+          severity: 'info',
+          summary: t('moderation.reportUser.reportSuccess'),
+          detail: t('moderation.reportUser.reportSuccessDetail'),
+          life: 3000
+        })
+      } catch (error) {
+        console.error('Failed to report user:', error)
+        toast.add({
+          severity: 'error',
+          summary: t('moderation.reportUser.reportFailed'),
+          life: 3000
+        })
+      }
+    }
+  } finally {
+    isProcessingRejection.value = false
+    showRejectConfirmDialog.value = false
+    pendingRejection.value = null
+  }
+}
+
+// AI : Handle rejection cancellation from dialog
+function handleRejectionCancel() {
+  pendingRejection.value = null
+}
+
+// AI : Handle change request rejection - show confirmation dialog first
+function handleRejectChange(changeId: string, userId: string | null) {
+  pendingRejection.value = { type: 'change', id: changeId, userId }
+  showRejectConfirmDialog.value = true
+}
+
+// AI : Execute change request rejection after confirmation
+async function executeRejectChange(changeId: string) {
   const result = await rejectChangeRequests([changeId])
 
   if (result?.success) {
@@ -607,14 +626,6 @@ async function handleRejectChange(changeId: string) {
       life: 3000
     })
   }
-}
-
-// AI : Handle change request rejection and report user (reject only after report confirmation)
-async function handleRejectAndReportChange(changeId: string, userId: string | null) {
-  if (!userId) return
-
-  pendingRejection.value = { type: 'change', id: changeId }
-  openReportDialog(userId)
 }
 </script>
 

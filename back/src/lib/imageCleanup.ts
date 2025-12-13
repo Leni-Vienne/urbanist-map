@@ -28,6 +28,7 @@ export async function scheduleImageCleanup(
 }
 
 // AI : Execute pending deletions (run by background job/cron)
+// AI : Deletes from both local storage and R2 since rejected/replaced overlay thumbnails are in local
 export async function executePendingDeletions(): Promise<{ deleted: number; failed: number }> {
   const now = new Date();
   let deleted = 0;
@@ -42,7 +43,8 @@ export async function executePendingDeletions(): Promise<{ deleted: number; fail
 
     console.log(`Found ${pendingDeletions.length} pending deletions to process`);
 
-    // AI : Initialize storage instances
+    // AI : Initialize storage instances - try both local and R2
+    const localStorage = new LocalFileStorage();
     const r2Storage = new R2StorageS3({
       endpoint: process.env.R2_ENDPOINT!,
       accessKeyId: process.env.R2_ACCESS_KEY_ID!,
@@ -54,26 +56,34 @@ export async function executePendingDeletions(): Promise<{ deleted: number; fail
       try {
         const thumbnailFilename = getThumbnailFilename(item.filename);
 
-        // AI : Delete based on deletion type
+        // AI : Delete based on deletion type - try both local and R2 storage
         if (item.deletionType === "full" || item.deletionType === "both") {
+          // AI : Try local first (for pending overlays), then R2 (for approved overlays)
+          try {
+            await localStorage.delete(item.filename);
+            console.log(`Deleted full image from local: ${item.filename}`);
+          } catch {
+            // AI : Might not exist locally, try R2
+          }
           try {
             await r2Storage.delete(item.filename);
-            console.log(`Deleted full image: ${item.filename}`);
-          } catch (error) {
-            console.error(`Failed to delete full image ${item.filename}:`, error);
+            console.log(`Deleted full image from R2: ${item.filename}`);
+          } catch {
+            // AI : Might not exist in R2
           }
         }
 
         if (item.deletionType === "thumbnail" || item.deletionType === "both") {
+          // AI : Thumbnails are always in local storage (not migrated to R2)
           try {
-            await r2Storage.delete(thumbnailFilename);
-            console.log(`Deleted thumbnail: ${thumbnailFilename}`);
+            await localStorage.delete(thumbnailFilename);
+            console.log(`Deleted thumbnail from local: ${thumbnailFilename}`);
           } catch (error) {
             console.error(`Failed to delete thumbnail ${thumbnailFilename}:`, error);
           }
         }
 
-        // AI : Remove from scheduled_deletions table after successful deletion
+        // AI : Remove from scheduled_deletions table after processing
         await db.delete(scheduledDeletions).where(eq(scheduledDeletions.id, item.id));
         deleted++;
       } catch (error) {
@@ -91,6 +101,8 @@ export async function executePendingDeletions(): Promise<{ deleted: number; fail
 }
 
 // AI : Delete local images immediately (for rejected/deleted pending overlays)
+// AI : This is the single place that handles "full", "thumbnail", or "both" logic
+// AI : Storage classes just delete individual files; this function decides WHAT to delete
 export async function deleteLocalImages(
   filename: string,
   deleteType: "full" | "thumbnail" | "both",
@@ -113,6 +125,7 @@ export async function deleteLocalImages(
     // AI : Delete thumbnail if requested
     if (deleteType === "thumbnail" || deleteType === "both") {
       try {
+        // AI : thumbnailFilename is "thumbnails/filename.ext", which is the path relative to ./uploads/
         await localStorage.delete(thumbnailFilename);
       } catch (error) {
         console.error(`Failed to delete local thumbnail ${thumbnailFilename}:`, error);

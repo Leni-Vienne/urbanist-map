@@ -2,7 +2,6 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import type { PendingOverlay, PendingChangeRequest } from "../../types/api";
 import type { ProjectForModeration } from "@/types/index";
-import type { ApprovalStatus } from "@shared/types";
 
 export const useModerationStore = defineStore("moderation", () => {
   const overlays = ref<PendingOverlay[]>([]);
@@ -18,17 +17,6 @@ export const useModerationStore = defineStore("moderation", () => {
   // AI : Cache all countries to avoid fetching on every panel mount
   const allCountries = ref<{ code: string; name: string }[]>([]);
   const countriesLoaded = ref(false);
-
-  interface RecentAction {
-    id: string;
-    itemName: string;
-    itemType: "overlay" | "project";
-    previousStatus: ApprovalStatus;
-    newStatus: ApprovalStatus;
-    timestamp: Date;
-  }
-
-  const recentActions = ref<RecentAction[]>([]);
 
   function setModerationData(data: {
     overlays: PendingOverlay[];
@@ -48,15 +36,6 @@ export const useModerationStore = defineStore("moderation", () => {
 
   function resetModerationLoaded() {
     moderationLoaded.value = false;
-  }
-
-  function addRecentAction(action: RecentAction) {
-    recentActions.value.unshift(action);
-    recentActions.value = recentActions.value.slice(0, 5);
-  }
-
-  function removeLastAction() {
-    recentActions.value = recentActions.value.slice(1);
   }
 
   // AI : Remove change requests from local state after approval/rejection
@@ -79,15 +58,12 @@ export const useModerationStore = defineStore("moderation", () => {
     changeRequests,
     moderationLoaded,
     moderationLoading,
-    recentActions,
     selectedCountryCode,
     allCountries,
     countriesLoaded,
     setModerationData,
     setModerationLoading,
     resetModerationLoaded,
-    addRecentAction,
-    removeLastAction,
     removeChangeRequests,
     setSelectedCountryCode,
     setAllCountries,
