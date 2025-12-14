@@ -8,6 +8,7 @@
 import type L from "leaflet";
 import { map } from "@/composables/core/useMap";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useUiStore } from "@/stores/uiStore";
 import { OVERLAY_OUTLINE_COLOR } from "@/composables/map/useMarkers";
 import { syncPreviewStateOnNavigation } from "@/composables/overlay/changeRequestPreviewState";
 import type { OverlayObject } from "@/types/index";
@@ -138,6 +139,12 @@ export function selectOverlay(overlayId: string | null): void {
     }
 
     if (!overlayId) return;
+
+    // AI : Close standalone project popup when selecting an overlay (mutual exclusivity)
+    const uiStore = useUiStore();
+    if (uiStore.projectInfoPopup.visible) {
+      uiStore.closeProjectInfoPopup();
+    }
 
     // AI : Apply selection to new overlay
     const newlySelected = overlayStore.overlays[overlayId];

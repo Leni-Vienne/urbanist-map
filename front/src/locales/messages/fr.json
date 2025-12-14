@@ -548,6 +548,14 @@
       "modified": "modifié",
       "hasPendingChanges": "a des modifications en attente",
       "viewingSuggested": "affichage suggéré"
+    },
+    "project": {
+      "pendingApproval": "En attente d'approbation",
+      "approved": "Approuvé",
+      "rejected": "Projet rejeté",
+      "localProject": "Projet local",
+      "newProject": "Nouveau projet",
+      "modified": "modifié"
     }
   },
   "forms": {
@@ -568,9 +576,9 @@
   "imageUpload": {
     "dialogTitle": "Ajouter une image au projet",
     "instructions": "Télécharger une image de construction",
-    "uploadDescription": "Ajouter une image d'un plan de rue, d'un plan de construction ou d'une vue aérienne. Le but est d'aligner l'image avec la carte pour mieux faire connaître le projet. Les images avec un angle de vue non vertical ne sont pas acceptées.",
+    "uploadDescription": "Ajouter une image d'un plan de rue, d'un plan de construction ou d'une vue aérienne. Le but est d'aligner l'image avec la carte pour mieux faire connaître le projet. Les images avec un angle de vue non vertical ne sont pas acceptées. Jetez un œil aux dernières contributions pour voir comment elles devraient se présenter.",
     "pdfExtraction": "Extraction depuis des PDFs",
-    "pdfExtractionDescription": "Si votre image provient d'un fichier PDF, utilisez {toolLink} pour la meilleure qualité possible.",
+    "pdfExtractionDescription": "Si votre image provient d'un fichier PDF, utilisez {toolLink} pour obtenir la meilleure qualité possible.",
     "tokenToolLink": "TokenTool",
     "dragDrop": "Glissez et déposez votre image ici",
     "orClick": "ou cliquez pour parcourir les fichiers",

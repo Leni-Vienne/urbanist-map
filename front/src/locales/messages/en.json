@@ -548,6 +548,14 @@
       "modified": "modified",
       "hasPendingChanges": "has pending changes",
       "viewingSuggested": "viewing suggested"
+    },
+    "project": {
+      "pendingApproval": "Pending approval",
+      "approved": "Approved",
+      "rejected": "Rejected project",
+      "localProject": "Local project",
+      "newProject": "New project",
+      "modified": "modified"
     }
   },
   "forms": {
@@ -568,9 +576,9 @@
   "imageUpload": {
     "dialogTitle": "Add Image to Project",
     "instructions": "Upload a Construction Image",
-    "uploadDescription": "Upload images showing street layouts, construction plans or aerial views. The goal is to align the image with the map to give a better understanding of the project. Images with a non-vertical view angle are not accepted since they can't be aligned with the map.",
+    "uploadDescription": "Upload images showing street layouts, construction plans or aerial views. The goal is to align the image with the map to give a better understanding of the project. Images with a non-vertical view angle are not accepted since they can't be aligned with the map. Have a look at the latest contributions to see how it should look like.",
     "pdfExtraction": "Extracting from PDFs",
-    "pdfExtractionDescription": "If your image comes from a PDF file, use {toolLink} for the best possible quality.",
+    "pdfExtractionDescription": "If your image comes from a PDF file, use {toolLink} to get the best possible quality.",
     "tokenToolLink": "TokenTool",
     "dragDrop": "Drag and drop your image here",
     "orClick": "or click to browse files",
