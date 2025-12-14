@@ -104,7 +104,7 @@ const {
   submissionSummary,
   isSubmitting,
   prepareOverlaySubmission,
-  prepareProjectSubmission,
+  prepareProjectWithOverlaysSubmission,
   confirmSubmission,
   cancelSubmission,
   handleRemoveChange,
@@ -239,11 +239,13 @@ async function handlePublishOverlay() {
 }
 
 // AI : Handle project publishing (project mode only) - uses shared composable
+// AI : Uses prepareProjectWithOverlaysSubmission for UNIFIED behavior with MyContributions panel
 async function handlePublishProject() {
   const project = activeProject.value;
   if (!project) return;
 
-  prepareProjectSubmission(project);
+  const projectModified = project.isModified ?? false;
+  prepareProjectWithOverlaysSubmission(project, projectModified);
 }
 
 // AI : Handle project editing (both modes)

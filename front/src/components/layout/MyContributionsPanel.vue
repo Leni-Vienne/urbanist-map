@@ -416,6 +416,13 @@ function isProjectModified(projectId: string): boolean {
     return true
   }
 
+  // AI : Check for NEW overlays in overlayStore (status null, never submitted)
+  // AI : This catches overlays that were just added but not yet moved
+  const hasNewOverlays = Object.values(overlayStore.overlays).some(
+    (overlay) => overlay.projectId === projectId && (overlay.status === null || overlay.status === undefined)
+  )
+  if (hasNewOverlays) return true
+
   // AI : Also check all overlays for this project from user contributions
   const project = projects.value.find(p => p.id === projectId)
   if (!project?.overlays) return false

@@ -421,7 +421,8 @@
     "submitChangeRequest": "Soumettre une demande de modification",
     "updateOverlays": "Mettre à jour les images",
     "removeChange": "Retirer cette modification",
-    "noChangesToSubmit": "Aucune modification à soumettre"
+    "noChangesToSubmit": "Aucune modification à soumettre",
+    "newOverlay": "Nouvelle image"
   },
   "pages": {
     "home": {

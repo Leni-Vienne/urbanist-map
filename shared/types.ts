@@ -10,7 +10,8 @@ export interface OverlayData {
   version: number;
   filename: string;
   caption: string | null;
-  status: ApprovalStatus;
+  // AI : Allow null for local overlays that haven't been submitted to backend yet
+  status: ApprovalStatus | null;
   projectId: string | null;
   authorId: string | null;
   replacesOverlayId: string | null;
