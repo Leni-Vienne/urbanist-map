@@ -421,7 +421,8 @@
     "submitChangeRequest": "Submit Change Request",
     "updateOverlays": "Update Overlays",
     "removeChange": "Remove this change",
-    "noChangesToSubmit": "No changes to submit"
+    "noChangesToSubmit": "No changes to submit",
+    "newOverlay": "New overlay"
   },
   "pages": {
     "home": {

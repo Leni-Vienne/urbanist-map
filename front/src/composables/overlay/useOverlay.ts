@@ -564,6 +564,7 @@ function createNewOverlayObject(id: string, imageUrl: string, projectId: string)
   const authStore = useAuthStore();
 
   // AI : Use factory function for consistent object creation
+  // AI : status: null indicates overlay hasn't been submitted to backend yet
   return createOverlayObject({
     id,
     filename,
@@ -571,6 +572,7 @@ function createNewOverlayObject(id: string, imageUrl: string, projectId: string)
     authorId: authStore.user?.id ?? null, // AI : Set to current user's ID
     imageUrl,
     isModified: true, // AI : New overlays need to be uploaded
+    status: null, // AI : null = never submitted, "pending" = submitted awaiting review
   });
 }
 

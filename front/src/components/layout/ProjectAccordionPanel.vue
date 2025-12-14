@@ -669,8 +669,9 @@ function getStatusSeverity(status: string | null): string {
 // AI : Get overlay thumbnail URL using the utility function
 // Thumbnails are much smaller (~3KB vs full image) for efficient list display
 // For pending overlays, always use backend URL (not migrated to R2 yet)
-function getOverlayImageUrl(filename: string, status?: string): string {
-  const forceBackendUrl = status === 'pending';
+function getOverlayImageUrl(filename: string, status?: string | null): string {
+  // AI : null status means local overlay - also force backend URL for pending
+  const forceBackendUrl = status === 'pending' || status === null;
   return buildThumbnailUrl(filename, forceBackendUrl)
 }
 
