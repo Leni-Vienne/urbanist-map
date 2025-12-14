@@ -57,6 +57,9 @@
     @cancel="cancelSubmission"
     @remove-change="handleRemoveChange"
   />
+
+  <!-- AI : Image Upload Dialog - global dialog rendered here -->
+  <ImageUploadDialog />
 </template>
 
 <script setup lang="ts">
@@ -83,6 +86,7 @@ import type { ApprovalStatus } from '@shared/types';
 const UnifiedProjectPopup = defineAsyncComponent(() => import('./popups/UnifiedProjectPopup.vue'));
 const OverlayEditor = defineAsyncComponent(() => import('./OverlayEditor.vue'));
 const SubmissionConfirmationDialog = defineAsyncComponent(() => import('@/components/submission/SubmissionConfirmationDialog.vue'));
+const ImageUploadDialog = defineAsyncComponent(() => import('@/components/common/ImageUploadDialog.vue'));
 
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
@@ -312,74 +316,17 @@ async function handleViewOriginalOverlay(originalOverlayId: string) {
   }
 }
 
-// AI : Handle add images button - directly open file picker for overlay upload
+// AI : Handle add images button - open dialog for image upload instructions
 function handleAddImages() {
   // AI : Get currently active project (works for both overlay and project popups)
   const project = activeProject.value;
   if (!project) return;
 
-  // AI : Create hidden file input to trigger file picker
-  const fileInput = document.createElement('input');
-  fileInput.type = 'file';
-  fileInput.accept = 'image/png, image/jpeg, image/jpg, image/webp';
-  fileInput.style.display = 'none';
-
-  fileInput.addEventListener('change', async (e: Event) => {
-    const file = (e.target as HTMLInputElement).files?.[0];
-    if (!file) return;
-
-    try {
-      // AI : Read file as data URL for overlay creation
-      const reader = new FileReader();
-      reader.addEventListener('load', () => {
-        try {
-          const projectId = project.id;
-
-          // AI : Create overlay directly for this project
-          addOverlay(reader.result as string, projectId);
-
-          // AI : Close the popup after adding overlay
-          if (showOverlayPopup.value) {
-            overlayStore.hideInfoPopup();
-          } else if (showProjectPopup.value) {
-            closeProjectInfoPopup();
-          }
-
-          toast.add({
-            severity: 'success',
-            summary: t('overlay.overlayCreated'),
-            detail: t('overlay.positionOverlayOnMap'),
-            life: 3000
-          });
-        } catch (error) {
-          console.error('Error creating overlay:', error);
-          toast.add({
-            severity: 'error',
-            summary: t('overlay.uploadFailed'),
-            detail: t('overlay.uploadFailedDetail'),
-            life: 3000
-          });
-        }
-      });
-      reader.readAsDataURL(file);
-    } catch (error) {
-      console.error('Error handling file upload:', error);
-      toast.add({
-        severity: 'error',
-        summary: t('overlay.uploadFailed'),
-        detail: t('overlay.uploadFailedDetail'),
-        life: 3000
-      });
-    } finally {
-      // AI : Cleanup file input
-      document.body.removeChild(fileInput);
-    }
-  });
-
-  // AI : Trigger file picker
-  document.body.appendChild(fileInput);
-  fileInput.click();
+  // AI : Open the instructional dialog
+  uiStore.openImageUploadDialog(project.id);
 }
+
+
 
 // AI : Handle overlay deletion and show standalone project marker if last overlay
 async function handleDeleteOverlay(overlay: OverlayObject) {

@@ -53,6 +53,12 @@ export const useUiStore = defineStore("ui", () => {
     project: null as Project | null,
   });
 
+  // AI : Image upload dialog state
+  const imageUploadDialog = ref({
+    visible: false,
+    projectId: null as string | null,
+  });
+
   // AI : Project creation flow state (moved from useProjectState)
   const lastCreatedProjectId = ref<string | null>(null);
   const inFileUploadFlow = ref<boolean>(false);
@@ -163,6 +169,21 @@ export const useUiStore = defineStore("ui", () => {
     moderatedContributionsDialogVisible.value = false;
   }
 
+  // AI : Image upload dialog actions
+  function openImageUploadDialog(projectId: string) {
+    imageUploadDialog.value = {
+      visible: true,
+      projectId,
+    };
+  }
+
+  function closeImageUploadDialog() {
+    imageUploadDialog.value = {
+      visible: false,
+      projectId: null,
+    };
+  }
+
   // AI : Project creation flow actions (moved from useProjectState)
   function setLastCreatedProject(projectId: string | null) {
     lastCreatedProjectId.value = projectId;
@@ -181,6 +202,7 @@ export const useUiStore = defineStore("ui", () => {
     overlayEditDialog.value.visible = false;
     projectInfoPopup.value.visible = false;
     moderatedContributionsDialogVisible.value = false;
+    imageUploadDialog.value.visible = false;
   }
 
   return {
@@ -195,6 +217,7 @@ export const useUiStore = defineStore("ui", () => {
     mobileDrawerVisible,
     mobileDrawerHeightPercent,
     projectInfoPopup,
+    imageUploadDialog,
     lastCreatedProjectId,
     inFileUploadFlow,
 
@@ -215,6 +238,8 @@ export const useUiStore = defineStore("ui", () => {
     closeProjectInfoPopup,
     openModeratedContributionsDialog,
     closeModeratedContributionsDialog,
+    openImageUploadDialog,
+    closeImageUploadDialog,
     setLastCreatedProject,
     setFileUploadFlow,
     closeAllDialogs,

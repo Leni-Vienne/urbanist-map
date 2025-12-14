@@ -331,6 +331,12 @@ function checkOverlaySizeAndWarn(
   overlayObject: OverlayObject,
 ): void {
   const corners = overlay.getCorners();
+
+  // AI : Guard clause - corners can be undefined for newly created overlays
+  if (!corners || corners.length !== 4) {
+    return;
+  }
+
   const cornersArray = leafletCornersToCorners(corners);
   const validation = validateOverlaySize(cornersArray);
 
@@ -572,7 +578,7 @@ function createNewOverlayObject(id: string, imageUrl: string, projectId: string)
     authorId: authStore.user?.id ?? null, // AI : Set to current user's ID
     imageUrl,
     isModified: true, // AI : New overlays need to be uploaded
-    status: null, // AI : null = never submitted, "pending" = submitted awaiting review
+    status: undefined, // AI : undefined = never submitted, "pending" = submitted awaiting review
   });
 }
 
@@ -672,6 +678,9 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
         if (project?.city) {
           addNewOverlayToCityCache(overlayObject, project.city.id);
         }
+
+        // AI : Automatically select the newly created overlay for immediate positioning
+        selectOverlay(id);
       }
     });
   };
