@@ -184,6 +184,7 @@ import type { ProjectForModeration, OverlayForModeration } from '@/types/index'
 // AI : Async component import for submission dialog
 const SubmissionConfirmationDialog = defineAsyncComponent(() => import('@/components/submission/SubmissionConfirmationDialog.vue'))
 
+
 // AI : Type definitions from tRPC backend responses
 type UserContribution = RouterOutput['project']['getUsersContributions']['projects'][number]
 type UserContributionOverlay = UserContribution['overlays'][number]
@@ -349,61 +350,13 @@ function handleEditOverlayClick(overlay: OverlayForModeration) {
   uiStore.openOverlayEditDialog(overlayForEditor as any)
 }
 
-// AI : Handle add image to project - opens file picker to add overlay to project
+// AI : Handle add image to project - open dialog for image upload instructions
 function handleAddImageToProject(project: ProjectForModeration) {
-  // AI : Create hidden file input to trigger file picker
-  const fileInput = document.createElement('input')
-  fileInput.type = 'file'
-  fileInput.accept = 'image/png, image/jpeg, image/jpg, image/webp'
-  fileInput.style.display = 'none'
-
-  fileInput.addEventListener('change', async (e: Event) => {
-    const file = (e.target as HTMLInputElement).files?.[0]
-    if (!file) return
-
-    try {
-      // AI : Read file as data URL for overlay creation
-      const reader = new FileReader()
-      reader.addEventListener('load', () => {
-        try {
-          // AI : Create overlay directly for this project
-          addOverlay(reader.result as string, project.id)
-
-          toast.add({
-            severity: 'success',
-            summary: t('overlay.overlayCreated'),
-            detail: t('overlay.positionOverlayOnMap'),
-            life: 3000
-          })
-        } catch (error) {
-          console.error('Error creating overlay:', error)
-          toast.add({
-            severity: 'error',
-            summary: t('overlay.uploadFailed'),
-            detail: t('overlay.uploadFailedDetail'),
-            life: 3000
-          })
-        }
-      })
-      reader.readAsDataURL(file)
-    } catch (error) {
-      console.error('Error handling file upload:', error)
-      toast.add({
-        severity: 'error',
-        summary: t('overlay.uploadFailed'),
-        detail: t('overlay.uploadFailedDetail'),
-        life: 3000
-      })
-    } finally {
-      // AI : Cleanup file input
-      document.body.removeChild(fileInput)
-    }
-  })
-
-  // AI : Trigger file picker
-  document.body.appendChild(fileInput)
-  fileInput.click()
+  // AI : Open the instructional dialog
+  uiStore.openImageUploadDialog(project.id)
 }
+
+
 
 // AI : Check if project or any of its overlays is modified
 function isProjectModified(projectId: string): boolean {

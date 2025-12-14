@@ -565,6 +565,26 @@
     "selectImageFile": "Please select an image file to upload",
     "pdfConversion": "If you want to upload an image that comes from a PDF, please use programs like TokenTool for the best possible quality."
   },
+  "imageUpload": {
+    "dialogTitle": "Add Image to Project",
+    "instructions": "Upload a Construction Image",
+    "uploadDescription": "Upload images showing street layouts, construction plans or aerial views. The goal is to align the image with the map to give a better understanding of the project. Images with a non-vertical view angle are not accepted since they can't be aligned with the map.",
+    "pdfExtraction": "Extracting from PDFs",
+    "pdfExtractionDescription": "If your image comes from a PDF file, use {toolLink} for the best possible quality.",
+    "tokenToolLink": "TokenTool",
+    "dragDrop": "Drag and drop your image here",
+    "orClick": "or click to browse files",
+    "supportedFormats": "Supported formats: PNG, JPEG, JPG, WebP",
+    "fileSelected": "Image Selected",
+    "fileSelectedDetail": "Image ready for upload",
+    "readyToPosition": "Ready to position on the map",
+    "positionImageNext": "Close this dialog to position the image on the map",
+    "selectedFile": "Selected File",
+    "filename": "Filename",
+    "fileSize": "Size",
+    "resolution": "Resolution",
+    "changeImage": "Change Image"
+  },
   "metadata": {
     "notSpecified": "Not specified",
     "notAvailable": "—"
