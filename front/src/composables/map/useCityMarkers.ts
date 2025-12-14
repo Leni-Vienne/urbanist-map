@@ -25,6 +25,7 @@ import {
   getStandaloneProjectMarkerByProjectId,
   getStandaloneProjectMarkerMap,
   updateStandaloneProjectMarkerOpacities,
+  updateStandaloneProjectMarkerTooltip,
   clearAllStandaloneProjectMarkers,
 } from "@/composables/map/useStandaloneProjectMarkers";
 import { cleanupProjectInfoTeleportTarget } from "@/composables/map/useProjectPopupTeleport";
@@ -130,6 +131,9 @@ export function updateAllStandaloneProjectMarkerColors(): void {
       const markerColor = getProjectMarkerColor(project, overlayStore.mode);
       const markerIcon = createStandaloneProjectIcon(markerColor);
       marker.setIcon(markerIcon);
+
+      // AI : Also update tooltip when mode changes
+      updateStandaloneProjectMarkerTooltip(marker, project, overlayStore.mode);
     }
   });
 }

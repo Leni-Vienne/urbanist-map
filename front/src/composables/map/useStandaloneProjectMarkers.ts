@@ -6,9 +6,12 @@ import { map } from "@/composables/core/useMap";
 import { createStandaloneProjectIcon } from "@/composables/map/useMarkers";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
+import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
 import { createProjectInfoTeleportTarget } from "@/composables/map/useProjectPopupTeleport";
 import { getProjectMarkerColor } from "../../utils/markerColors";
+// AI : useI18n() uses Vue's inject() mechanism which is only available synchronously during the setup() phase of a component.
+import { t } from "@/locales";
 
 // AI : Layer group for standalone projects (standalone project markers)
 let standaloneProjectsLayer: L.LayerGroup | null = null;
@@ -87,6 +90,78 @@ export function clearAllStandaloneProjectMarkers(): void {
 }
 
 /**
+ * AI : Update standalone project marker tooltip based on project status
+ * AI : Only shows tooltips in edit and moderation modes (similar to overlay markers)
+ * @param marker - The marker to update
+ * @param project - The project data
+ * @param mode - Current map mode
+ */
+export function updateStandaloneProjectMarkerTooltip(
+  marker: L.Marker,
+  project: Project,
+  mode: "view" | "edit" | "moderation",
+): void {
+  // AI : Remove any existing tooltip
+  marker.unbindTooltip();
+
+  // AI : Only show tooltips in edit and moderation modes (view mode doesn't need them)
+  if (mode === "view") {
+    return;
+  }
+
+  let tooltipText = "";
+  let modifierText = "";
+
+  if (mode === "moderation") {
+    // AI : Moderation mode: Show approval status
+    switch (project.status) {
+      case "pending":
+        tooltipText = t("markerTooltip.project.pendingApproval");
+        break;
+      case "approved":
+        tooltipText = t("markerTooltip.project.approved");
+        break;
+      case "rejected":
+        tooltipText = t("markerTooltip.project.rejected");
+        break;
+      default:
+        tooltipText = t("markerTooltip.project.newProject");
+    }
+  } else if (mode === "edit") {
+    // AI : Edit mode: Show status with modified state
+    const hasBeenModified = project.isModified ?? false;
+    const status = project.status;
+
+    if (status === "pending") {
+      tooltipText = t("markerTooltip.project.pendingApproval");
+      if (hasBeenModified) {
+        modifierText = t("markerTooltip.project.modified");
+      }
+    } else if (status === "approved") {
+      tooltipText = t("markerTooltip.project.approved");
+      if (hasBeenModified) {
+        modifierText = t("markerTooltip.project.modified");
+      }
+    } else if (status === "rejected") {
+      tooltipText = t("markerTooltip.project.rejected");
+    } else if (hasBeenModified) {
+      tooltipText = t("markerTooltip.project.localProject");
+    } else {
+      tooltipText = t("markerTooltip.project.newProject");
+    }
+  }
+
+  // AI : Assemble final tooltip text with modifier in parentheses if present
+  const finalTooltipText = modifierText ? `${tooltipText} (${modifierText})` : tooltipText;
+
+  marker.bindTooltip(finalTooltipText, {
+    permanent: false,
+    direction: "top",
+    offset: [0, -10],
+  });
+}
+
+/**
  * AI : Update standalone project marker opacities based on selected marker
  */
 export function updateStandaloneProjectMarkerOpacities(selectedMarker: L.Marker | null) {
@@ -153,6 +228,9 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
     }
   });
 
+  // AI : Add tooltip to show project status in edit/moderation modes
+  updateStandaloneProjectMarkerTooltip(marker, project, overlayStore.mode);
+
   // AI : Add click handler for projects without overlays - show info popup
   marker.on("click", (e) => {
     L.DomEvent.stopPropagation(e);
@@ -168,6 +246,11 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
     // AI : Close overlay popup if it's open (only one popup at a time)
     if (overlayStore.showInfoPopup) {
       overlayStore.hideInfoPopup();
+    }
+
+    // AI : Deselect any selected overlay (mutual exclusivity between overlay and standalone project selection)
+    if (overlayStore.idSelectedOverlay) {
+      selectOverlay(null);
     }
 
     // AI : Create/update teleport target at marker position
