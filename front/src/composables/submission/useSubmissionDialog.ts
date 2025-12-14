@@ -57,8 +57,8 @@ function isSubmissionContextExtended(ctx: unknown): ctx is SubmissionContextExte
 }
 
 // AI : Type predicate for field type
-function isValidFieldType(field: string): field is "caption" | "corners" {
-  return field === "caption" || field === "corners";
+function isValidFieldType(field: string): field is "caption" | "corners" | "new_overlay" {
+  return field === "caption" || field === "corners" || field === "new_overlay";
 }
 
 // AI : Apply pending modifications to overlay object
@@ -329,10 +329,9 @@ export function useSubmissionDialog() {
 
       // AI : Get new overlays (status is null, never submitted to backend)
       const newOverlays = getNewOverlaysForProject(project.id);
-      // AI : Filter out overlays that are already in pendingMods to avoid duplicates
-      const newOverlayIds = newOverlays
-        .filter((o) => !modifiedOverlayIds.includes(o.id))
-        .map((o) => o.id);
+      // AI : Keep ALL new overlays, even if they have position changes in pendingMods
+      // AI : New overlays should always be shown as "new overlay" with thumbnail, not as position changes
+      const newOverlayIds = newOverlays.map((o) => o.id);
 
       // AI : Build overlay info map for thumbnails (for both modified and new overlays)
       const overlayInfoMap: Record<string, OverlayObject | OverlayForModeration> = {};
@@ -359,15 +358,26 @@ export function useSubmissionDialog() {
       // AI : Build changes list
       let changes: SubmissionChange[] = [];
 
-      // AI : Add overlay modification changes
-      if (pendingMods.length > 0) {
-        changes = buildOverlayModificationChanges(pendingMods, overlayInfoMap);
-      }
-
-      // AI : Add changes for NEW overlays (status null)
+      // AI : Add changes for NEW overlays first (status null)
+      // AI : This takes priority over modification changes because new overlays should show as "new overlay"
       if (newOverlayIds.length > 0) {
         const newOverlayChanges = buildNewOverlayChanges(newOverlayIds, overlayInfoMap);
         changes.push(...newOverlayChanges);
+      }
+
+      // AI : Add overlay modification changes ONLY for non-new overlays
+      if (pendingMods.length > 0) {
+        // AI : Filter out modifications for new overlays since they're already shown as "new overlay"
+        const modsForExistingOverlays = pendingMods.filter(
+          (mod) => !newOverlayIds.includes(mod.overlayId),
+        );
+        if (modsForExistingOverlays.length > 0) {
+          const modChanges = buildOverlayModificationChanges(
+            modsForExistingOverlays,
+            overlayInfoMap,
+          );
+          changes.push(...modChanges);
+        }
       }
 
       // AI : Add project changes if project has modifications
@@ -741,23 +751,73 @@ export function useSubmissionDialog() {
 
   // AI : Helper function to handle removing an overlay change
   function handleRemoveOverlayChange(overlayId: string, field: string): void {
+    const overlayObject = overlayStore.overlays[overlayId];
+
+    // AI : Handle removing a NEW overlay (field === "new_overlay")
+    if (field === "new_overlay") {
+      // AI : Check if it's truly a new overlay (status null)
+      if (overlayObject && (overlayObject.status === null || overlayObject.status === undefined)) {
+        // AI : Remove the Leaflet overlay from the map if it exists
+        if (overlayObject.overlay) {
+          overlayObject.overlay.remove();
+        }
+
+        // AI : Remove the marker if it exists
+        const marker = overlayStore.allMarkers[overlayId];
+        if (marker) {
+          marker.remove();
+          const updatedMarkers = { ...overlayStore.allMarkers };
+          delete updatedMarkers[overlayId];
+          overlayStore.allMarkers = updatedMarkers;
+        }
+
+        // AI : Remove the overlay from the store
+        const updatedOverlays = { ...overlayStore.overlays };
+        delete updatedOverlays[overlayId];
+        overlayStore.overlays = updatedOverlays;
+
+        // AI : Remove from project's overlayIds array
+        if (overlayObject.projectId) {
+          const project = projectStore.projects[overlayObject.projectId];
+          if (project) {
+            const overlayIndex = project.overlayIds.indexOf(overlayId);
+            if (overlayIndex !== -1) {
+              project.overlayIds.splice(overlayIndex, 1);
+            }
+          }
+        }
+
+        // AI : Update the extended context to remove from newOverlayIds
+        if (isSubmissionContextExtended(pendingSubmissionContext.value)) {
+          const extCtx = pendingSubmissionContext.value;
+          if (extCtx.newOverlayIds) {
+            extCtx.newOverlayIds = extCtx.newOverlayIds.filter((id) => id !== overlayId);
+          }
+        }
+        return;
+      }
+    }
+
     // AI : CRITICAL: Capture original values BEFORE clearing (this fixes the bug)
     const pendingMod = pendingModsStore.getPendingModifications(overlayId);
     const capturedOriginalCaption = pendingMod?.caption?.original;
     const capturedOriginalCorners = pendingMod?.corners?.original;
 
-    const overlayObject = overlayStore.overlays[overlayId];
-
-    // AI : Clear only the specific field modification (not the entire overlay)
-    // AI : This MUTATES the pendingMod object, so we captured values above
+    // AI : At this point, field can only be "caption" or "corners" since "new_overlay" returns early above
+    // AI : We still validate with isValidFieldType for safety (handles unexpected field types)
     if (!isValidFieldType(field)) {
       console.warn("Invalid field type:", field);
       return;
     }
-    const hasRemainingMods = pendingModsStore.clearFieldModification(overlayId, field);
+
+    // AI : Type assertion is safe here since we validated and returned early for "new_overlay"
+    const modField = field as "caption" | "corners";
+
+    // AI : Clear only the specific field modification (not the entire overlay)
+    const hasRemainingMods = pendingModsStore.clearFieldModification(overlayId, modField);
 
     if (overlayObject) {
-      // AI : Reset only the specific field that was removed
+      // AI : Reset only the specific field that was removed (use original field, not modField)
       resetOverlayField(
         field,
         overlayId,
