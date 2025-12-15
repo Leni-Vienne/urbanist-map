@@ -91,6 +91,17 @@ function checkRequiresModeration(
   );
 }
 
+// AI : Determine change type based on submission context
+function determineChangeType(
+  projectIsNew: boolean,
+  newOverlayIds: string[],
+  requiresModeration: boolean,
+): SubmissionChangeType {
+  if (projectIsNew || newOverlayIds.length > 0) return "create";
+  if (requiresModeration) return "update_approved";
+  return "update_pending";
+}
+
 export function useSubmissionDialog() {
   const { t } = useI18n();
   const toast = useToast();
@@ -202,6 +213,86 @@ export function useSubmissionDialog() {
         changes.push(...projectSummary.changes);
       }
     }
+  }
+
+  // AI : Build overlay info map for both modified and new overlays
+  function buildOverlayInfoMap(
+    pendingMods: PendingOverlayModification[],
+    newOverlayIds: string[],
+    project: Project | ProjectForModeration,
+  ): Record<string, OverlayObject | OverlayForModeration> {
+    const overlayInfoMap: Record<string, OverlayObject | OverlayForModeration> = {};
+
+    // AI : Add pending modification overlays
+    for (const mod of pendingMods) {
+      const storeOverlay = overlayStore.overlays[mod.overlayId];
+      if (storeOverlay) {
+        overlayInfoMap[mod.overlayId] = storeOverlay;
+      } else if ("overlays" in project && project.overlays) {
+        // AI : Fall back to project.overlays array (only available on ProjectForModeration)
+        const projOverlay = project.overlays.find((o) => o.id === mod.overlayId);
+        if (projOverlay) {
+          overlayInfoMap[mod.overlayId] = projOverlay;
+        }
+      }
+    }
+
+    // AI : Add new overlays to the info map
+    for (const overlayId of newOverlayIds) {
+      const storeOverlay = overlayStore.overlays[overlayId];
+      if (storeOverlay) {
+        overlayInfoMap[overlayId] = storeOverlay;
+      }
+    }
+
+    return overlayInfoMap;
+  }
+
+  // AI : Build consolidated changes list for project with overlays submission
+  function buildProjectWithOverlaysChanges(
+    pendingMods: PendingOverlayModification[],
+    newOverlayIds: string[],
+    overlayInfoMap: Record<string, OverlayObject | OverlayForModeration>,
+    projectId: string,
+    projectHasChanges: boolean,
+  ): SubmissionChange[] {
+    const changes: SubmissionChange[] = [];
+
+    // AI : Add changes for NEW overlays first (takes priority)
+    if (newOverlayIds.length > 0) {
+      const newOverlayChanges = buildNewOverlayChanges(newOverlayIds, overlayInfoMap);
+      changes.push(...newOverlayChanges);
+    }
+
+    // AI : Add overlay modification changes ONLY for non-new overlays
+    if (pendingMods.length > 0) {
+      const modsForExistingOverlays = pendingMods.filter(
+        (mod) => !newOverlayIds.includes(mod.overlayId),
+      );
+      if (modsForExistingOverlays.length > 0) {
+        const modChanges = buildOverlayModificationChanges(modsForExistingOverlays, overlayInfoMap);
+        changes.push(...modChanges);
+      }
+    }
+
+    // AI : Add project changes if project has modifications
+    appendProjectChanges(changes, projectId, projectHasChanges);
+
+    return changes;
+  }
+
+  // AI : Determine submission action label based on project and overlay states
+  function determineSubmissionAction(
+    projectIsNew: boolean,
+    requiresModeration: boolean,
+    projectHasChanges: boolean,
+    newOverlayIds: string[],
+  ): string {
+    if (projectIsNew) return t("project.publish");
+    if (requiresModeration) return t("submission.submitChangeRequest");
+    if (projectHasChanges) return t("submission.updateProject");
+    if (newOverlayIds.length > 0) return t("overlay.publishOverlay");
+    return t("submission.updateOverlays");
   }
 
   // AI : Helper function to submit pending overlay modification (can update directly)
@@ -329,92 +420,35 @@ export function useSubmissionDialog() {
 
       // AI : Get new overlays (status is null, never submitted to backend)
       const newOverlays = getNewOverlaysForProject(project.id);
-      // AI : Keep ALL new overlays, even if they have position changes in pendingMods
-      // AI : New overlays should always be shown as "new overlay" with thumbnail, not as position changes
       const newOverlayIds = newOverlays.map((o) => o.id);
 
-      // AI : Build overlay info map for thumbnails (for both modified and new overlays)
-      const overlayInfoMap: Record<string, OverlayObject | OverlayForModeration> = {};
-      for (const mod of pendingMods) {
-        const storeOverlay = overlayStore.overlays[mod.overlayId];
-        if (storeOverlay) {
-          overlayInfoMap[mod.overlayId] = storeOverlay;
-        } else if ("overlays" in project && project.overlays) {
-          // AI : Fall back to project.overlays array (only available on ProjectForModeration)
-          const projOverlay = project.overlays.find((o) => o.id === mod.overlayId);
-          if (projOverlay) {
-            overlayInfoMap[mod.overlayId] = projOverlay;
-          }
-        }
-      }
-      // AI : Add new overlays to the info map
-      for (const overlayId of newOverlayIds) {
-        const storeOverlay = overlayStore.overlays[overlayId];
-        if (storeOverlay) {
-          overlayInfoMap[overlayId] = storeOverlay;
-        }
-      }
+      // AI : Build overlay info map for thumbnails
+      const overlayInfoMap = buildOverlayInfoMap(pendingMods, newOverlayIds, project);
 
-      // AI : Build changes list
-      let changes: SubmissionChange[] = [];
+      // AI : Build consolidated changes list
+      const changes = buildProjectWithOverlaysChanges(
+        pendingMods,
+        newOverlayIds,
+        overlayInfoMap,
+        project.id,
+        projectHasChanges,
+      );
 
-      // AI : Add changes for NEW overlays first (status null)
-      // AI : This takes priority over modification changes because new overlays should show as "new overlay"
-      if (newOverlayIds.length > 0) {
-        const newOverlayChanges = buildNewOverlayChanges(newOverlayIds, overlayInfoMap);
-        changes.push(...newOverlayChanges);
-      }
-
-      // AI : Add overlay modification changes ONLY for non-new overlays
-      if (pendingMods.length > 0) {
-        // AI : Filter out modifications for new overlays since they're already shown as "new overlay"
-        const modsForExistingOverlays = pendingMods.filter(
-          (mod) => !newOverlayIds.includes(mod.overlayId),
-        );
-        if (modsForExistingOverlays.length > 0) {
-          const modChanges = buildOverlayModificationChanges(
-            modsForExistingOverlays,
-            overlayInfoMap,
-          );
-          changes.push(...modChanges);
-        }
-      }
-
-      // AI : Add project changes if project has modifications
-      appendProjectChanges(changes, project.id, projectHasChanges);
-
-      // AI : Determine if this requires moderation
+      // AI : Determine submission metadata
       const requiresModeration = checkRequiresModeration(
         pendingMods,
         project.status,
         null,
         newOverlayIds,
       );
-
-      // AI : Check if project itself is new (status null, never submitted)
       const projectIsNew = project.status === null || project.status === undefined;
-
-      // AI : Determine action label
-      let action = "";
-      if (projectIsNew) {
-        action = t("project.publish");
-      } else if (requiresModeration) {
-        action = t("submission.submitChangeRequest");
-      } else if (projectHasChanges) {
-        action = t("submission.updateProject");
-      } else if (newOverlayIds.length > 0) {
-        action = t("overlay.publishOverlay");
-      } else {
-        action = t("submission.updateOverlays");
-      }
-
-      // AI : Determine changeType based on what we're submitting
-      function determineChangeType(): SubmissionChangeType {
-        if (projectIsNew || newOverlayIds.length > 0) return "create";
-        if (requiresModeration) return "update_approved";
-        return "update_pending";
-      }
-      const changeType = determineChangeType();
+      const action = determineSubmissionAction(
+        projectIsNew,
+        requiresModeration,
+        projectHasChanges,
+        newOverlayIds,
+      );
+      const changeType = determineChangeType(projectIsNew, newOverlayIds, requiresModeration);
 
       submissionSummary.value = {
         action,
@@ -502,13 +536,12 @@ export function useSubmissionDialog() {
       action = t("submission.updateOverlays");
     }
 
-    // AI : Determine changeType
-    function getChangeType(): SubmissionChangeType {
-      if (overlayIsNew) return "create";
-      if (requiresModeration) return "update_approved";
-      return "update_pending";
-    }
-    const changeType = getChangeType();
+    // AI : Determine changeType using common helper
+    const changeType = determineChangeType(
+      overlayIsNew,
+      overlayIsNew ? [overlay.id] : [],
+      requiresModeration,
+    );
 
     submissionSummary.value = {
       action,
@@ -576,14 +609,12 @@ export function useSubmissionDialog() {
     }
   }
 
-  // AI : Helper function to handle extended context submission (combined overlay+project)
-  async function submitExtendedContext(
+  // AI : Submit all overlay modifications from extended context
+  async function submitAllOverlayModifications(
     extCtx: SubmissionContextExtended,
+    project: Project | null,
     reason: string,
   ): Promise<void> {
-    const project = extCtx.projectId ? projectStore.projects[extCtx.projectId] : null;
-
-    // AI : Handle ALL overlay modifications (position/caption changes)
     if (extCtx.allProjectModifications && extCtx.allProjectModifications.length > 0) {
       for (const mod of extCtx.allProjectModifications) {
         await submitSingleOverlayModification(mod, extCtx.projectId, reason);
@@ -592,11 +623,15 @@ export function useSubmissionDialog() {
       extCtx.pendingOverlayModifications &&
       extCtx.pendingOverlayModifications.length > 0
     ) {
-      // AI : Handle overlay IDs array format (from MyContributionsPanel)
       await submitOverlayModifications(extCtx.pendingOverlayModifications, project);
     }
+  }
 
-    // AI : Handle NEW overlays (status null, never submitted to backend)
+  // AI : Submit all new overlays from extended context
+  async function submitAllNewOverlays(
+    extCtx: SubmissionContextExtended,
+    project: Project | null,
+  ): Promise<void> {
     if (extCtx.newOverlayIds && extCtx.newOverlayIds.length > 0) {
       for (const overlayId of extCtx.newOverlayIds) {
         const overlayObj = overlayStore.overlays[overlayId];
@@ -605,15 +640,15 @@ export function useSubmissionDialog() {
         }
       }
     }
+  }
 
-    // AI : Handle project changes (for existing projects that have been modified)
-    if (extCtx.projectModified && extCtx.projectId) {
-      await submitProjectModification(extCtx.projectId, reason);
-    }
-
-    // AI : Handle new project creation (status is null)
+  // AI : Submit new project creation if applicable
+  async function submitNewProjectIfApplicable(
+    extCtx: SubmissionContextExtended,
+    project: Project | null,
+    reason: string,
+  ): Promise<void> {
     if (extCtx.entityType === "project" && extCtx.changeType === "create" && project) {
-      // AI : Check if it's a truly new project (not just new overlays on existing project)
       if (project.status === null || project.status === undefined) {
         await submissionService.submit(
           submissionService.createProjectContext(project, "create"),
@@ -621,6 +656,28 @@ export function useSubmissionDialog() {
         );
       }
     }
+  }
+
+  // AI : Helper function to handle extended context submission (combined overlay+project)
+  async function submitExtendedContext(
+    extCtx: SubmissionContextExtended,
+    reason: string,
+  ): Promise<void> {
+    const project = extCtx.projectId ? projectStore.projects[extCtx.projectId] : null;
+
+    // AI : Submit all overlay modifications (position/caption changes)
+    await submitAllOverlayModifications(extCtx, project, reason);
+
+    // AI : Submit all new overlays
+    await submitAllNewOverlays(extCtx, project);
+
+    // AI : Submit project changes for existing modified projects
+    if (extCtx.projectModified && extCtx.projectId) {
+      await submitProjectModification(extCtx.projectId, reason);
+    }
+
+    // AI : Submit new project creation if applicable
+    await submitNewProjectIfApplicable(extCtx, project, reason);
 
     overlayStore.hideInfoPopup();
   }
@@ -749,95 +806,102 @@ export function useSubmissionDialog() {
     }
   }
 
-  // AI : Helper function to handle removing an overlay change
-  function handleRemoveOverlayChange(overlayId: string, field: string): void {
-    const overlayObject = overlayStore.overlays[overlayId];
+  // AI : Remove a new overlay completely from map and store
+  function removeNewOverlayCompletely(overlayId: string, overlayObject: OverlayObject): void {
+    // AI : Remove the Leaflet overlay from the map
+    if (overlayObject.overlay) {
+      overlayObject.overlay.remove();
+    }
 
-    // AI : Handle removing a NEW overlay (field === "new_overlay")
-    if (field === "new_overlay") {
-      // AI : Check if it's truly a new overlay (status null)
-      if (overlayObject && (overlayObject.status === null || overlayObject.status === undefined)) {
-        // AI : Remove the Leaflet overlay from the map if it exists
-        if (overlayObject.overlay) {
-          overlayObject.overlay.remove();
+    // AI : Remove the marker
+    const marker = overlayStore.allMarkers[overlayId];
+    if (marker) {
+      marker.remove();
+      const updatedMarkers = { ...overlayStore.allMarkers };
+      delete updatedMarkers[overlayId];
+      overlayStore.allMarkers = updatedMarkers;
+    }
+
+    // AI : Remove the overlay from the store
+    const updatedOverlays = { ...overlayStore.overlays };
+    delete updatedOverlays[overlayId];
+    overlayStore.overlays = updatedOverlays;
+
+    // AI : Remove from project's overlayIds array
+    if (overlayObject.projectId) {
+      const project = projectStore.projects[overlayObject.projectId];
+      if (project) {
+        const overlayIndex = project.overlayIds.indexOf(overlayId);
+        if (overlayIndex !== -1) {
+          project.overlayIds.splice(overlayIndex, 1);
         }
-
-        // AI : Remove the marker if it exists
-        const marker = overlayStore.allMarkers[overlayId];
-        if (marker) {
-          marker.remove();
-          const updatedMarkers = { ...overlayStore.allMarkers };
-          delete updatedMarkers[overlayId];
-          overlayStore.allMarkers = updatedMarkers;
-        }
-
-        // AI : Remove the overlay from the store
-        const updatedOverlays = { ...overlayStore.overlays };
-        delete updatedOverlays[overlayId];
-        overlayStore.overlays = updatedOverlays;
-
-        // AI : Remove from project's overlayIds array
-        if (overlayObject.projectId) {
-          const project = projectStore.projects[overlayObject.projectId];
-          if (project) {
-            const overlayIndex = project.overlayIds.indexOf(overlayId);
-            if (overlayIndex !== -1) {
-              project.overlayIds.splice(overlayIndex, 1);
-            }
-          }
-        }
-
-        // AI : Update the extended context to remove from newOverlayIds
-        if (isSubmissionContextExtended(pendingSubmissionContext.value)) {
-          const extCtx = pendingSubmissionContext.value;
-          if (extCtx.newOverlayIds) {
-            extCtx.newOverlayIds = extCtx.newOverlayIds.filter((id) => id !== overlayId);
-          }
-        }
-        return;
       }
     }
 
-    // AI : CRITICAL: Capture original values BEFORE clearing (this fixes the bug)
+    // AI : Update the extended context to remove from newOverlayIds
+    if (isSubmissionContextExtended(pendingSubmissionContext.value)) {
+      const extCtx = pendingSubmissionContext.value;
+      if (extCtx.newOverlayIds) {
+        extCtx.newOverlayIds = extCtx.newOverlayIds.filter((id) => id !== overlayId);
+      }
+    }
+  }
+
+  // AI : Reset a specific overlay field modification
+  function resetOverlayFieldModification(
+    overlayId: string,
+    field: string,
+    overlayObject: OverlayObject,
+  ): void {
+    // AI : Capture original values BEFORE clearing
     const pendingMod = pendingModsStore.getPendingModifications(overlayId);
     const capturedOriginalCaption = pendingMod?.caption?.original;
     const capturedOriginalCorners = pendingMod?.corners?.original;
 
-    // AI : At this point, field can only be "caption" or "corners" since "new_overlay" returns early above
-    // AI : We still validate with isValidFieldType for safety (handles unexpected field types)
+    // AI : Validate field type
     if (!isValidFieldType(field)) {
       console.warn("Invalid field type:", field);
       return;
     }
 
-    // AI : Type assertion is safe here since we validated and returned early for "new_overlay"
+    // AI : Clear the specific field modification
     const modField = field as "caption" | "corners";
-
-    // AI : Clear only the specific field modification (not the entire overlay)
     const hasRemainingMods = pendingModsStore.clearFieldModification(overlayId, modField);
 
-    if (overlayObject) {
-      // AI : Reset only the specific field that was removed (use original field, not modField)
-      resetOverlayField(
-        field,
-        overlayId,
-        overlayObject,
-        capturedOriginalCaption,
-        capturedOriginalCorners,
-      );
+    // AI : Reset the field to its original value
+    resetOverlayField(
+      field,
+      overlayId,
+      overlayObject,
+      capturedOriginalCaption,
+      capturedOriginalCorners,
+    );
 
-      // AI : Only mark as unmodified if no more modifications remain
-      if (!hasRemainingMods) {
-        overlayStore.updateOverlay(overlayId, { isModified: false });
-      }
-
-      // AI : Update marker tooltip to reflect new state
-      updateMarkerTooltip(overlayStore.overlays[overlayId]);
+    // AI : Update overlay state
+    if (!hasRemainingMods) {
+      overlayStore.updateOverlay(overlayId, { isModified: false });
+      updateExtendedContextAfterOverlayRemoval(overlayId);
     }
 
-    // AI : Update the extended context if present and no more mods for this overlay
-    if (!hasRemainingMods) {
-      updateExtendedContextAfterOverlayRemoval(overlayId);
+    // AI : Update marker tooltip
+    updateMarkerTooltip(overlayStore.overlays[overlayId]);
+  }
+
+  // AI : Helper function to handle removing an overlay change
+  function handleRemoveOverlayChange(overlayId: string, field: string): void {
+    const overlayObject = overlayStore.overlays[overlayId];
+
+    // AI : Handle removing a NEW overlay completely
+    if (field === "new_overlay") {
+      if (overlayObject && (overlayObject.status === null || overlayObject.status === undefined)) {
+        removeNewOverlayCompletely(overlayId, overlayObject);
+      }
+      return;
+    }
+
+    // AI : Handle resetting a field modification
+    if (overlayObject) {
+      resetOverlayFieldModification(overlayId, field, overlayObject);
     }
   }
 
