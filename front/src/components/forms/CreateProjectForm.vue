@@ -1,17 +1,17 @@
 <template>
-    <form @submit.prevent="handleSubmit">
-        <ProjectFormFields
-            ref="formFieldsRef"
-            :form-data="formData"
-            :show-latest-update-field="props.mode === 'edit'"
-            :is-proposed="isProposed"
-            :prefilled-city="props.project.city"
-            :marker-coordinates="markerCoordinates"
-            id-prefix="create"
-            @update:is-proposed="isProposed = $event"
-            @city-change="handleCityChange"
-        />
-    </form>
+  <form @submit.prevent="handleSubmit">
+    <ProjectFormFields
+      ref="formFieldsRef"
+      :form-data="formData"
+      :show-latest-update-field="props.mode === 'edit'"
+      :is-proposed="isProposed"
+      :prefilled-city="props.project.city"
+      :marker-coordinates="markerCoordinates"
+      id-prefix="create"
+      @update:is-proposed="isProposed = $event"
+      @city-change="handleCityChange"
+    />
+  </form>
 </template>
 
 <script setup lang="ts">
@@ -46,8 +46,8 @@ const formData = reactive<ProjectFormData>({
 const isProposed = ref(props.mode === 'create' ? true : !!(props.project.proposalDate && !props.project.startDate))
 
 const markerCoordinates = props.project.lat && props.project.lng
-  ? { lat: props.project.lat, lng: props.project.lng }
-  : null
+    ? { lat: props.project.lat, lng: props.project.lng }
+    : null
 
 function handleCityChange(newCityId: string | null) {
     if (!newCityId) return
@@ -95,6 +95,7 @@ function handleSubmit() {
             name: selectedCity.name,
             countryCode: selectedCity.countryCode,
             coordinates: { x: selectedCity.lng, y: selectedCity.lat },
+            approvedProjectCount: 0, // AI : Not available from form context, will be populated by backend
             createdAt: new Date(),
             updatedAt: new Date()
         }

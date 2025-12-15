@@ -9,19 +9,19 @@
       ]"
     ></div>
 
-    <div
-      id="mapDiv"
-      class="map-container"
-    >
-      <div
-        v-if="isLoading"
-        class="loading-overlay"
-      >
+    <div id="mapDiv" class="map-container">
+      <div v-if="isLoading" class="loading-overlay">
         <div class="loading-content">
           <i class="pi pi-spin pi-spinner text-4xl"></i>
           <p class="mt-2">{{ t('pages.home.loadingMapAndData') }}</p>
         </div>
       </div>
+
+      <!-- AI : City search in top-left corner -->
+      <div class="city-search-container">
+        <CitySearch />
+      </div>
+
       <!-- AI : User Menu in top-right corner -->
       <UserMenu />
 
@@ -32,10 +32,7 @@
       <MarkerHelpButton />
 
       <!-- AI : Mode controls wrapper - desktop only (mobile version is in MobileDrawer) -->
-      <div
-        v-if="authStore.isAuthenticated"
-        class="mode-controls-desktop"
-      >
+      <div v-if="authStore.isAuthenticated" class="mode-controls-desktop">
         <ModeControls />
       </div>
     </div>
@@ -67,6 +64,7 @@ import ModeControls from '@/components/map/ModeControls.vue';
 const MapControls = defineAsyncComponent(() => import('@/components/map/MapControls.vue'));
 const UserMenu = defineAsyncComponent(() => import('@/components/auth/UserMenu.vue'));
 const MarkerHelpButton = defineAsyncComponent(() => import('@/components/map/MarkerHelpButton.vue'));
+const CitySearch = defineAsyncComponent(() => import('@/components/map/CitySearch.vue'));
 
 // AI: Get stores
 const mapStore = useMapStore();
@@ -201,7 +199,6 @@ async function initializeMapAndOverlays() {
     });
   }
 }
-
 </script>
 
 <style scoped>
@@ -236,17 +233,20 @@ async function initializeMapAndOverlays() {
 }
 
 .edit-mode-border {
-  border-color: #f59e0b; /* Orange for edit mode */
+  border-color: #f59e0b;
+  /* Orange for edit mode */
 }
 
 .moderation-mode-border {
-  border-color: #3b82f6; /* Blue for moderation mode */
+  border-color: #3b82f6;
+  /* Blue for moderation mode */
 }
 
 @keyframes borderFadeIn {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -284,6 +284,24 @@ async function initializeMapAndOverlays() {
   text-align: center;
 }
 
+/* AI : City search positioned in top-left corner */
+.city-search-container {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 1000;
+  pointer-events: auto;
+}
+
+@media (max-width: 768px) {
+  .city-search-container {
+    left: 16px;
+    right: 16px;
+    max-width: calc(100% - 80px);
+    /* AI : Leave space for language/user menu */
+  }
+}
+
 /* AI : Move Leaflet attribution above mobile drawer handle */
 @media (max-width: 768px) {
 
@@ -297,17 +315,21 @@ async function initializeMapAndOverlays() {
     padding: 0.25rem 0.5rem !important;
     margin: 0 !important;
     font-size: 0.75rem !important;
-    max-width: calc(100vw - 8rem) !important; /* AI : Leave space for scale */
+    max-width: calc(100vw - 8rem) !important;
+    /* AI : Leave space for scale */
     position: fixed !important;
     display: block !important;
     visibility: visible !important;
     line-height: 1.3 !important;
-    white-space: normal !important; /* AI : Allow text wrapping */
-    word-break: break-word !important; /* AI : Break long words if needed */
+    white-space: normal !important;
+    /* AI : Allow text wrapping */
+    word-break: break-word !important;
+    /* AI : Break long words if needed */
   }
-  
+
   :deep(.leaflet-control-scale) {
-    bottom: 4.5rem !important; /* AI : Same level as attribution */
+    bottom: 4.5rem !important;
+    /* AI : Same level as attribution */
     left: 0.5rem !important;
     backdrop-filter: blur(4px) !important;
     border-radius: 0.5rem !important;

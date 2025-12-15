@@ -65,7 +65,7 @@ export function useFieldValidation<T>(schema: z.ZodType<T>) {
 
   // AI : Check if a field has an error
   function hasFieldError(fieldPath: string): boolean {
-    return !!fieldErrors.value[fieldPath];
+    return Boolean(fieldErrors.value[fieldPath]);
   }
 
   // AI : Check if a field has been touched (validated at least once)

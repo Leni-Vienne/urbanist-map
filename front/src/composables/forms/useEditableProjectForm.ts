@@ -84,6 +84,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
           name: newCity.name,
           countryCode: newCity.countryCode,
           coordinates: { x: newCity.lng, y: newCity.lat },
+          approvedProjectCount: 0, // AI : Not available from form context
           createdAt: new Date(),
           updatedAt: new Date(),
         };
@@ -164,6 +165,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
           name: userContributionProject.cityName ?? "Unknown",
           countryCode: userContributionProject.countryCode ?? "XX",
           coordinates: { x: userContributionProject.lng ?? 0, y: userContributionProject.lat ?? 0 },
+          approvedProjectCount: 0, // AI : Not available from contribution context
           createdAt: new Date(),
           updatedAt: new Date(),
         },

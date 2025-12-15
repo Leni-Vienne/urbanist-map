@@ -1,0 +1,186 @@
+<template>
+  <div class="city-search-wrapper" @mousedown.stop @touchstart.stop>
+    <span class="p-input-icon-left w-full">
+      <i class="pi pi-search" />
+      <AutoComplete
+        v-model="selectedCity"
+        :suggestions="suggestions"
+        :placeholder="$t('search.cities')"
+        option-label="displayName"
+        @complete="onSearch"
+        @item-select="onSelect"
+        class="city-search w-full"
+        :min-length="2"
+        :loading="isLoading"
+        :dropdown="false"
+      >
+        <template #option="{ option }">
+          <div class="search-result">
+            <span class="city-name">{{ option.name }}, {{ option.countryCode }}</span>
+            <Badge
+              v-if="option.approvedProjectCount > 0"
+              :value="option.approvedProjectCount"
+              severity="info"
+              class="project-count"
+            />
+          </div>
+        </template>
+      </AutoComplete>
+    </span>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+import { trpc } from '@/client'
+import { navigateToCity } from '@/composables/navigation/useLocationNavigation'
+import { useToast } from '@/composables/ui/useToast'
+import { useI18n } from 'vue-i18n'
+
+const toast = useToast()
+const { t } = useI18n()
+
+type CitySearchResult = {
+    id: string
+    name: string
+    countryCode: string
+    lat: number
+    lng: number
+    approvedProjectCount: number
+    displayName?: string
+}
+
+// AI : Search state
+const selectedCity = ref<CitySearchResult | null>(null)
+const suggestions = ref<CitySearchResult[]>([])
+const isLoading = ref(false)
+let searchTimeout: ReturnType<typeof setTimeout> | null = null
+
+// AI : Debounced search function (300ms)
+async function onSearch(event: { query: string }) {
+    const query = event.query?.trim()
+
+    // AI : Clear previous timeout
+    if (searchTimeout) {
+        clearTimeout(searchTimeout)
+    }
+
+    // AI : Require minimum 2 characters
+    if (!query || query.length < 2) {
+        suggestions.value = []
+        return
+    }
+
+    // AI : Debounce search
+    searchTimeout = setTimeout(async () => {
+        try {
+            isLoading.value = true
+            const results = await trpc.cities.searchCities.query({
+                query,
+                limit: 25,
+            })
+
+            // AI : Add display name for AutoComplete
+            suggestions.value = results.map(city =>
+                Object.assign({}, city, {
+                    displayName: `${city.name}, ${city.countryCode}`,
+                })
+            )
+        } catch (error) {
+            console.error('Error searching cities:', error)
+            suggestions.value = []
+        } finally {
+            isLoading.value = false
+        }
+    }, 300)
+}
+
+// AI : Handle city selection
+function onSelect(event: { value: any }) {
+    const city = event.value
+    if (city) {
+        // AI : Navigate to selected city (fly to it) - pass coordinates for cross-country navigation
+        navigateToCity(city.id, city.name, city.countryCode, { lat: city.lat, lng: city.lng })
+
+        // AI : Show toast if city has no contributions yet
+        if (city.approvedProjectCount === 0) {
+            toast.add({
+                severity: 'info',
+                summary: t('search.noCityContributions'),
+                detail: t('search.noCityContributionsDetail', { cityName: city.name }),
+                life: 5000,
+            })
+        }
+
+        // AI : Clear input after navigation
+        selectedCity.value = null
+        suggestions.value = []
+    }
+}
+</script>
+
+<style scoped>
+/* AI : Wrapper prevents map dragging when interacting with search */
+.city-search-wrapper {
+    pointer-events: auto;
+    max-width: 280px;
+    width: 100%;
+}
+
+@media (max-width: 768px) {
+    .city-search-wrapper {
+        max-width: none;
+    }
+}
+
+.city-search {
+    width: 100%;
+}
+
+.search-result {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+.city-name {
+    flex: 1;
+    font-size: 0.875rem;
+}
+
+.project-count {
+    flex-shrink: 0;
+}
+
+/* AI : Override PrimeVue AutoComplete styles for compact design */
+:deep(.p-autocomplete) {
+    width: 100%;
+}
+
+:deep(.p-autocomplete-input) {
+    padding: 0.5rem 0.75rem 0.5rem 2.5rem;
+    /* AI : Extra left padding for icon */
+    font-size: 0.875rem;
+    border-radius: 0.375rem;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+:deep(.p-autocomplete-panel) {
+    margin-top: 0.25rem;
+    border-radius: 0.375rem;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* AI : Position search icon */
+.p-input-icon-left>i {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--p-text-muted-color);
+    z-index: 1;
+}
+</style>

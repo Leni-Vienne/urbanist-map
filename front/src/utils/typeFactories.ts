@@ -36,6 +36,7 @@ export function createProjectObject(data: Partial<Project> = {}): Project {
       name: "",
       countryCode: "",
       coordinates: { x: 0, y: 0 },
+      approvedProjectCount: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     },

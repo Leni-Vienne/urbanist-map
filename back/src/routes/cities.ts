@@ -282,7 +282,7 @@ export const citiesRouter = router({
           const cornersChangeRequest = overlayChangeRequests.find(
             (cr) => cr.fieldName === "corners",
           );
-          const hasPendingCorners = !!cornersChangeRequest;
+          const hasPendingCorners = Boolean(cornersChangeRequest);
           const suggestedCorners =
             hasPendingCorners && cornersChangeRequest?.newValue
               ? (cornersChangeRequest.newValue as { lat: number; lng: number }[])
@@ -329,6 +329,44 @@ export const citiesRouter = router({
       } catch (error) {
         console.error("Error fetching city projects:", error);
         throw new Error("Failed to fetch city projects", { cause: error });
+      }
+    }),
+
+  // AI : Search cities by name with project counts
+  // AI : Optimized for 48k cities with minimum character requirement and indexed ILIKE search
+  searchCities: publicProcedure
+    .input(
+      z.object({
+        query: z.string().min(2).max(100), // AI : Minimum 2 characters to reduce search space
+        limit: z.number().min(1).max(50).default(25), // AI : Limit results, default 25
+      }),
+    )
+    .query(async ({ input }) => {
+      try {
+        const { query, limit } = input;
+
+        // AI : Use ILIKE for case-insensitive prefix matching
+        // AI : Order by cities with projects first, then alphabetically
+        return await db
+          .select({
+            id: cities.id,
+            name: cities.name,
+            countryCode: cities.countryCode,
+            // AI : Extract coordinates from PostGIS point
+            lat: sql<number>`ST_Y(${cities.coordinates})`,
+            lng: sql<number>`ST_X(${cities.coordinates})`,
+            approvedProjectCount: cities.approvedProjectCount,
+          })
+          .from(cities)
+          .where(sql`${cities.name} ILIKE ${`${query.trim()}%`}`) // AI : Prefix match is faster than substring
+          .orderBy(
+            sql`(${cities.approvedProjectCount} > 0) DESC`, // AI : Cities with projects first
+            cities.name, // AI : Then alphabetically
+          )
+          .limit(limit);
+      } catch (error) {
+        console.error("Error searching cities:", error);
+        throw new Error("Failed to search cities", { cause: error });
       }
     }),
 });
