@@ -133,6 +133,7 @@ describe("useModeration Composable", () => {
 
     mockTrpc.moderation.setProjectApprovalStatusWithVersion.mutate.mockResolvedValue({
       success: true,
+      cityId: "test-city-1",
     });
 
     mockTrpc.moderation.setOverlayApprovalStatusWithVersion.mutate.mockResolvedValue({

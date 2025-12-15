@@ -212,6 +212,7 @@ onUnmounted(() => {
   /* AI : Layout and styling */
   position: absolute;
   top: 10px;
+  /* AI : Desktop - plenty of space above */
   left: 50%;
   transform: translateX(-50%);
 
@@ -246,5 +247,13 @@ onUnmounted(() => {
 .help-button i {
   font-size: 0.875rem;
   color: var(--p-primary-500);
+}
+
+/* AI : Lower help button on mobile to avoid overlap with search/controls */
+@media (max-width: 768px) {
+  .help-button {
+    top: 80px;
+    /* AI : Account for search bar + controls on mobile */
+  }
 }
 </style>

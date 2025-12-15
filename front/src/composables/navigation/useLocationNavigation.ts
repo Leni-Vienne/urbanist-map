@@ -13,12 +13,14 @@ import { t } from "@/locales";
  * @param cityId - The city ID to navigate to
  * @param cityName - The city name (for display)
  * @param countryCode - The country code where the city is located
+ * @param cityCoords - Optional city coordinates (used when city not yet loaded in store)
  * @returns Promise that resolves when navigation is complete
  */
 export async function navigateToCity(
   cityId: string,
   cityName: string,
   countryCode: string,
+  cityCoords?: { lat: number; lng: number },
 ): Promise<void> {
   const overlayStore = useOverlayStore();
   const projectStore = useProjectStore();
@@ -38,12 +40,27 @@ export async function navigateToCity(
   // AI : Prepare for cross-country flight (switches to esri if needed)
   const switchToCountryLayer = prepareCrossCountryFlight(countryCode);
 
-  // AI : Find the city coordinates and fly to them
-  const country = projectStore.countries.find((c) => c.code === countryCode);
-  const city = country?.cities.find((c) => c.id === cityId);
+  // AI : Find the city coordinates (from store or provided coords)
+  let lat: number | undefined;
+  let lng: number | undefined;
 
-  if (city && map.value) {
-    mobileAwareFlyTo([city.lat, city.lng], 14, {
+  if (cityCoords) {
+    // AI : Use provided coordinates (from search result)
+    lat = cityCoords.lat;
+    lng = cityCoords.lng;
+  } else {
+    // AI : Try to find in store
+    const country = projectStore.countries.find((c) => c.code === countryCode);
+    const city = country?.cities.find((c) => c.id === cityId);
+    if (city) {
+      lat = city.lat;
+      lng = city.lng;
+    }
+  }
+
+  // AI : Fly to city coordinates if we have them
+  if (lat !== undefined && lng !== undefined && map.value) {
+    mobileAwareFlyTo([lat, lng], 14, {
       duration: 1.5,
     });
 

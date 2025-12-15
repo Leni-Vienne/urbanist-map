@@ -34,6 +34,7 @@ import {
   daysFromNow,
 } from "../lib/imageCleanup";
 import { THUMBNAIL_RETENTION_DAYS } from "../lib/imageCleanupConfig";
+import { incrementCityProjectCount, decrementCityProjectCount } from "../db/updateCityCounts";
 
 // AI : Helper functions to update user moderation stats
 // AI : These are called within transactions to ensure atomicity
@@ -573,7 +574,12 @@ export const moderationRouter = router({
                 statusCondition,
               ),
             )
-            .returning({ id: projects.id, version: projects.version, ownerId: projects.ownerId });
+            .returning({
+              id: projects.id,
+              version: projects.version,
+              ownerId: projects.ownerId,
+              cityId: projects.cityId,
+            });
 
           if (updateResult.length === 0) {
             // AI : Either project doesn't exist, version mismatch, or status not allowed
@@ -612,8 +618,24 @@ export const moderationRouter = router({
             await incrementRejectedCount(tx, ownerId);
           }
 
-          return { success: true as const };
+          return { success: true as const, cityId: updateResult[0].cityId };
         });
+
+        // AI : Update city project count after transaction succeeds
+        // AI : This is done outside transaction for performance - counts are eventually consistent
+        if (result.success && result.cityId) {
+          try {
+            if (input.status === "approved") {
+              await incrementCityProjectCount(result.cityId);
+            } else if (input.status === "rejected") {
+              // AI : Decrement count (already rejected in transaction above)
+              await decrementCityProjectCount(result.cityId);
+            }
+          } catch (error) {
+            console.error("Error updating city project count:", error);
+            // AI : Don't fail the request if count update fails
+          }
+        }
 
         return result;
       } catch (error) {

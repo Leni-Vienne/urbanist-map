@@ -323,6 +323,13 @@
       "toggleCompleted": "Toggle completed projects"
     }
   },
+  "search": {
+    "cities": "Search cities...",
+    "noResults": "No cities found",
+    "minCharacters": "Type at least {count} characters",
+    "noCityContributions": "No contributions yet",
+    "noCityContributionsDetail": "{cityName} has no contributions yet. Submit your own!"
+  },
   "auth": {
     "login": "Login",
     "logout": "Logout",

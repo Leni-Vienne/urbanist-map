@@ -157,7 +157,8 @@ function showHelpModal() {
 <style scoped>
 .map-buttons {
   position: absolute;
-  top: 16px;
+  top: 72px;
+  /* AI : Moved down to make room for city search (16px + 40px search + 16px gap) */
   left: 16px;
   z-index: 1000;
   /* important on mobile */

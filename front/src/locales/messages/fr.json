@@ -323,6 +323,13 @@
       "toggleCompleted": "Afficher/masquer les projets terminés"
     }
   },
+  "search": {
+    "cities": "Rechercher une ville...",
+    "noResults": "Aucune ville trouvée",
+    "minCharacters": "Tapez au moins {count} caractères",
+    "noCityContributions": "Aucune contribution pour le moment",
+    "noCityContributionsDetail": "{cityName} n'a pas encore de contributions. Ajoutez en une !"
+  },
   "auth": {
     "login": "Connexion",
     "logout": "Déconnexion",

@@ -195,6 +195,7 @@ export const cities = pgTable(
     name: text("name").notNull(),
     countryCode: char("country_code", { length: 3 }).notNull(), // AI : 3-letter country code (ISO 3166-1 alpha-3)
     coordinates: geometry("coordinates", { type: "point", mode: "xy", srid: 4326 }).notNull(), // AI : Geographic coordinates as PostGIS point
+    approvedProjectCount: integer("approved_project_count").default(0).notNull(), // AI : Pre-computed count of approved projects for fast search
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
@@ -203,6 +204,7 @@ export const cities = pgTable(
   },
   (cities) => [
     index("idx_cities_country").on(cities.countryCode),
+    index("idx_cities_name").on(cities.name), // AI : Index for fast ILIKE searches
     sql.raw("CREATE INDEX idx_cities_coordinates ON cities USING GIST (coordinates)"),
   ],
 );
