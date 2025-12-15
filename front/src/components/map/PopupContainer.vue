@@ -72,7 +72,7 @@ import { useMapStore } from '@/stores/pinia/mapStore';
 import { useUiStore } from '@/stores/uiStore';
 import { usePendingModificationsStore } from '@/stores/pinia/pendingModificationsStore';
 
-import { navigateToOverlay, addOverlay } from '@/composables/overlay/useOverlay';
+import { navigateToOverlay } from '@/composables/overlay/useOverlay';
 import { updateMarkerTooltip } from '@/composables/overlay/useOverlayMarkers';
 import { useToast } from '@/composables/ui/useToast';
 import { useOverlayPublisher } from '@/composables/overlay/useOverlayPublisher';

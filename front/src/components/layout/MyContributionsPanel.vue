@@ -166,7 +166,6 @@
 import { ref, onMounted, computed, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAddOverlay } from '@/composables/overlay/useAddOverlay'
-import { addOverlay } from '@/composables/overlay/useOverlay'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import { useToast } from '@/composables/ui/useToast'
 import { useChangeRequests } from '@/composables/changes/useChanges'
