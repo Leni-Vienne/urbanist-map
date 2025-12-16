@@ -6,6 +6,8 @@ import { TRPCError } from "@trpc/server";
 import { db } from "../database";
 import { addConflictFlags, enrichChangeRequestsWithNames } from "../db/helpers";
 import { submitChangeRequestSchema } from "@shared/validation/schemas";
+import { globalRateLimiter } from "../lib/rateLimit";
+import { getClientIp } from "../utils/ip";
 
 // AI : Use shared change request schema for validation
 export type { SubmitChangeRequestInput, FieldChange } from "../lib/types";
@@ -165,6 +167,15 @@ export const changesRouter = router({
           throw new TRPCError({
             code: "UNAUTHORIZED",
             message: "Must be logged in to submit changes",
+          });
+        }
+
+        // AI : Rate limit: 20 change requests per IP per hour
+        const ip = getClientIp(ctx.hono);
+        if (!globalRateLimiter.check(ip, 20, 60 * 60 * 1000)) {
+          throw new TRPCError({
+            code: "TOO_MANY_REQUESTS",
+            message: "Too many change requests. Please try again later.",
           });
         }
 

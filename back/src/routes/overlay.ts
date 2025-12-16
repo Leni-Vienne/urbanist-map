@@ -9,7 +9,10 @@ import { buildOverlayQuery, buildOverlayVisibilityCondition } from "../db/helper
 import type { MapMode } from "@shared/types";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { deleteLocalImages } from "../lib/imageCleanup";
-import { checkPendingLimitForNewContribution } from "../db/contributionHelpers";
+import {
+  checkPendingLimitForNewContribution,
+  checkTotalContributionLimit,
+} from "../db/contributionHelpers";
 import { overlaySchema } from "@shared/validation/schemas";
 
 // AI : Use shared overlay schema for validation
@@ -207,6 +210,11 @@ export const overlayRouter = router({
 
   publishOverlay: loggedInProcedure.input(publishOverlaySchema).mutation(async ({ input, ctx }) => {
     try {
+      // AI : Check contribution limits
+      // AI : Only check total limit if it's a NEW overlay (updates/re-submissions handled by pending limit checks)
+      // AI : Note: upsert logic below handles ID existence, but for limit we conservatively check before DB op
+      await checkTotalContributionLimit(ctx.user.id);
+
       // AI : Check pending contribution limit for new overlays
       await checkPendingLimitForNewContribution(ctx.user.id, input.id);
 

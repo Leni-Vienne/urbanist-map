@@ -658,8 +658,13 @@ generateMissingThumbnails().catch((error) => {
   console.error("Failed to generate missing thumbnails:", error);
 });
 
+import { startCleanupJob } from "./services/cleanupService";
+
+// ...
+
 // AI : Start error alerting service
 errorAlerter.start();
+startCleanupJob();
 
 export type { AppRouter } from "./routes";
 

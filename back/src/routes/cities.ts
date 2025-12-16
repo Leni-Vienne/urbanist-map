@@ -1,7 +1,7 @@
 import * as z from "zod"; // smaller bundle compared to 'import { z } from 'zod';
 import { publicProcedure, router } from "../trpc";
 import { cities, projects, overlays, changeRequests } from "../db/schema";
-import { sql, eq, isNotNull, and } from "drizzle-orm";
+import { sql, eq, isNotNull, and, ilike } from "drizzle-orm";
 import { db } from "../database";
 import type { OverlayData } from "../lib/types";
 import {
@@ -358,7 +358,7 @@ export const citiesRouter = router({
             approvedProjectCount: cities.approvedProjectCount,
           })
           .from(cities)
-          .where(sql`${cities.name} ILIKE ${`${query.trim()}%`}`) // AI : Prefix match is faster than substring
+          .where(ilike(cities.name, `${query.trim()}%`)) // AI : Prefix match is faster than substring
           .orderBy(
             sql`(${cities.approvedProjectCount} > 0) DESC`, // AI : Cities with projects first
             cities.name, // AI : Then alphabetically
