@@ -197,7 +197,7 @@ async function onProjectSelected(projectId: string) {
     }
   }
 
-  await handleFileUpload(projectId, !!replacementOverlayId.value)
+  await handleFileUpload(projectId, Boolean(replacementOverlayId.value))
 }
 
 // AI : Handle file upload by user

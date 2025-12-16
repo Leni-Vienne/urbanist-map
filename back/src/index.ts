@@ -439,7 +439,7 @@ app.get("/api/check-session", async (c) => {
 
     return c.json({
       userId: sessionUser?.id,
-      isAuthenticated: !!sessionUser,
+      isAuthenticated: Boolean(sessionUser),
       user: sessionUser ?? null,
       infoMessage: appConfig?.infoMessage ?? null,
     });
@@ -450,7 +450,7 @@ app.get("/api/check-session", async (c) => {
     const sessionUser = session.get("user");
     return c.json({
       userId: sessionUser?.id,
-      isAuthenticated: !!sessionUser,
+      isAuthenticated: Boolean(sessionUser),
       user: sessionUser ?? null,
       infoMessage: null,
     });

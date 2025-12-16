@@ -307,7 +307,7 @@ export function useChangeRequestPreview() {
       const latLngs = corners.map((c) => L.latLng(c.lat, c.lng));
 
       // AI : Step 2: Check if overlay is already loaded
-      const wasAlreadyLoaded = !!overlayStore.overlays[change.entityId]?.overlay;
+      const wasAlreadyLoaded = Boolean(overlayStore.overlays[change.entityId]?.overlay);
 
       // AI : Step 3: Ensure overlay is loaded (handles navigation if needed)
       const loaded = await ensureOverlayLoaded(overlayForModeration, latLngs);

@@ -3,10 +3,7 @@
   <div class="flex flex-col gap-4">
     <!-- AI : Project name field -->
     <div class="form-group">
-      <FloatLabel
-        class="w-full"
-        variant="in"
-      >
+      <FloatLabel class="w-full" variant="in">
         <InputText
           id="project-name-input"
           v-model="formData.name"
@@ -17,29 +14,17 @@
           @blur="handleNameBlur"
           @input="handleNameInput"
         />
-        <label
-          for="project-name-input"
-          class="text-gray-600"
-        >{{ $t('project.name') }} *</label>
+        <label for="project-name-input" class="text-gray-600">{{ $t('project.name') }} *</label>
       </FloatLabel>
-      <small
-        v-if="nameError"
-        class="validation-error"
-      >{{ nameError }}</small>
-      <small
-        v-if="showChangeIndicators && hasChanged?.('name')"
-        class="change-indicator"
-      >
+      <small v-if="nameError" class="validation-error">{{ nameError }}</small>
+      <small v-if="showChangeIndicators && hasChanged?.('name')" class="change-indicator">
         {{ $t('overlay.changedFrom') }}: "{{ originalData?.name || $t('overlay.notSet') }}"
       </small>
     </div>
 
     <!-- AI : Project description field -->
     <div class="form-group">
-      <FloatLabel
-        class="w-full"
-        variant="in"
-      >
+      <FloatLabel class="w-full" variant="in">
         <Textarea
           id="project-description-input"
           v-model="formData.description"
@@ -48,19 +33,12 @@
           @blur="handleDescriptionBlur"
           @input="handleDescriptionInput"
         />
-        <label
-          for="project-description-input"
-          class="text-gray-600"
-        >{{ $t('project.description') }} ({{ $t('project.optionalField') }})</label>
+        <label for="project-description-input" class="text-gray-600"
+          >{{ $t('project.description') }} ({{ $t('project.optionalField') }})</label
+        >
       </FloatLabel>
-      <small
-        v-if="descriptionError"
-        class="validation-error"
-      >{{ descriptionError }}</small>
-      <small
-        v-if="showChangeIndicators && hasChanged?.('description')"
-        class="change-indicator"
-      >
+      <small v-if="descriptionError" class="validation-error">{{ descriptionError }}</small>
+      <small v-if="showChangeIndicators && hasChanged?.('description')" class="change-indicator">
         {{ $t('overlay.changedFrom') }}: "{{ originalData?.description || $t('overlay.notSet') }}"
       </small>
     </div>
@@ -72,22 +50,13 @@
       @change="handleTimelineStatusChange"
     />
     <!-- AI : Show change indicator when timeline status changes -->
-    <small
-      v-if="showChangeIndicators && timelineStatusChanged"
-      class="change-indicator"
-    >
+    <small v-if="showChangeIndicators && timelineStatusChanged" class="change-indicator">
       {{ timelineStatusChangeMessage }}
     </small>
 
     <!-- AI : Proposal date field (shown when project is proposed) -->
-    <div
-      class="form-group"
-      v-if="localIsProposed"
-    >
-      <FloatLabel
-        class="w-full"
-        variant="in"
-      >
+    <div class="form-group" v-if="localIsProposed">
+      <FloatLabel class="w-full" variant="in">
         <DatePicker
           id="proposal-date-input"
           v-model="formData.proposalDate"
@@ -99,30 +68,24 @@
           :maxDate="new Date()"
           @update:model-value="handleProposalDateChange"
         />
-        <label
-          for="proposal-date-input"
-          class="text-gray-600"
-        >{{ $t('project.proposalDate') }} *</label>
+        <label for="proposal-date-input" class="text-gray-600"
+          >{{ $t('project.proposalDate') }} *</label
+        >
       </FloatLabel>
       <small class="text-gray-500 block mt-1">{{ $t('project.proposalDateHelp') }}</small>
       <small
         v-if="showChangeIndicators && hasChanged?.('proposalDate') && wasOriginallyProposed"
         class="change-indicator"
       >
-        {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData?.proposalDate) || $t('overlay.notSet') }}"
+        {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData?.proposalDate) || $t('overlay.notSet')
+        }}"
       </small>
     </div>
 
     <!-- AI : Start and end date fields (shown when project is planned) -->
-    <div
-      class="flex gap-3"
-      v-if="!localIsProposed"
-    >
+    <div class="flex gap-3" v-if="!localIsProposed">
       <div class="flex-1 form-group">
-        <FloatLabel
-          class="w-full"
-          variant="in"
-        >
+        <FloatLabel class="w-full" variant="in">
           <DatePicker
             id="start-date-input"
             v-model="formData.startDate"
@@ -133,32 +96,23 @@
             required
             @update:model-value="handleDateChange"
           />
-          <label
-            for="start-date-input"
-            class="text-gray-600"
-          >{{ $t('project.startDate') }} *</label>
+          <label for="start-date-input" class="text-gray-600"
+            >{{ $t('project.startDate') }} *</label
+          >
         </FloatLabel>
-        <small
-          v-if="startDateError"
-          class="validation-error"
-        >{{ startDateError }}</small>
-        <small
-          v-else
-          class="text-gray-500 block mt-1"
-        >{{ $t('project.startDateHelp') }}</small>
+        <small v-if="startDateError" class="validation-error">{{ startDateError }}</small>
+        <small v-else class="text-gray-500 block mt-1">{{ $t('project.startDateHelp') }}</small>
         <small
           v-if="showChangeIndicators && hasChanged?.('startDate') && !wasOriginallyProposed"
           class="change-indicator"
         >
-          {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData?.startDate) || $t('overlay.notSet') }}"
+          {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData?.startDate) || $t('overlay.notSet')
+          }}"
         </small>
       </div>
 
       <div class="flex-1 form-group">
-        <FloatLabel
-          class="w-full"
-          variant="in"
-        >
+        <FloatLabel class="w-full" variant="in">
           <DatePicker
             id="end-date-input"
             v-model="formData.endDate"
@@ -169,34 +123,23 @@
             required
             @update:model-value="handleDateChange"
           />
-          <label
-            for="end-date-input"
-            class="text-gray-600"
-          >{{ $t('project.endDate') }} *</label>
+          <label for="end-date-input" class="text-gray-600">{{ $t('project.endDate') }} *</label>
         </FloatLabel>
-        <small
-          v-if="endDateError"
-          class="validation-error"
-        >{{ endDateError }}</small>
-        <small
-          v-else
-          class="text-gray-500 block mt-1"
-        >{{ $t('project.endDateHelp') }}</small>
+        <small v-if="endDateError" class="validation-error">{{ endDateError }}</small>
+        <small v-else class="text-gray-500 block mt-1">{{ $t('project.endDateHelp') }}</small>
         <small
           v-if="showChangeIndicators && hasChanged?.('endDate') && !wasOriginallyProposed"
           class="change-indicator"
         >
-          {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData?.endDate) || $t('overlay.notSet') }}"
+          {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData?.endDate) || $t('overlay.notSet')
+          }}"
         </small>
       </div>
     </div>
 
     <!-- AI : City select field -->
     <div class="form-group">
-      <FloatLabel
-        class="w-full"
-        variant="in"
-      >
+      <FloatLabel class="w-full" variant="in">
         <CitySelect
           ref="citySelectRef"
           :model-value="cityIdForSelect"
@@ -206,28 +149,16 @@
           required
           @update:model-value="handleCityIdUpdate"
         />
-        <label
-          for="location-select"
-          class="text-gray-600"
-        >{{ $t('project.location') }} *</label>
+        <label for="location-select" class="text-gray-600">{{ $t('project.location') }} *</label>
       </FloatLabel>
-      <small
-        v-if="showChangeIndicators && hasChanged?.('cityId')"
-        class="change-indicator"
-      >
+      <small v-if="showChangeIndicators && hasChanged?.('cityId')" class="change-indicator">
         {{ $t('overlay.changedFrom') }}: {{ getCityNameSafe(originalData?.cityId) }}
       </small>
     </div>
 
     <!-- AI : Latest update date field (only shown in edit mode) -->
-    <div
-      class="form-group"
-      v-if="showLatestUpdateField"
-    >
-      <FloatLabel
-        class="w-full"
-        variant="in"
-      >
+    <div class="form-group" v-if="showLatestUpdateField">
+      <FloatLabel class="w-full" variant="in">
         <DatePicker
           id="latest-update-input"
           v-model="formData.latestUpdateOn"
@@ -237,26 +168,20 @@
           showIcon
           :showClear="true"
         />
-        <label
-          for="latest-update-input"
-          class="text-gray-600"
-        >{{ $t('project.latestUpdateOn') }} ({{ $t('project.optionalField') }})</label>
+        <label for="latest-update-input" class="text-gray-600"
+          >{{ $t('project.latestUpdateOn') }} ({{ $t('project.optionalField') }})</label
+        >
       </FloatLabel>
       <small class="text-gray-500 block mt-1">{{ $t('project.latestUpdateOnHelp') }}</small>
-      <small
-        v-if="showChangeIndicators && hasChanged?.('latestUpdateOn')"
-        class="change-indicator"
-      >
-        {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData?.latestUpdateOn) || $t('overlay.notSet') }}"
+      <small v-if="showChangeIndicators && hasChanged?.('latestUpdateOn')" class="change-indicator">
+        {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData?.latestUpdateOn) || $t('overlay.notSet')
+        }}"
       </small>
     </div>
 
     <!-- AI : Source URL field -->
     <div class="form-group">
-      <FloatLabel
-        class="w-full"
-        variant="in"
-      >
+      <FloatLabel class="w-full" variant="in">
         <InputText
           id="source-url-input"
           type="url"
@@ -266,19 +191,12 @@
           @blur="handleSourceUrlBlur"
           @input="handleSourceUrlInput"
         />
-        <label
-          for="source-url-input"
-          class="text-gray-600"
-        >{{ $t('project.sourceUrl') }} ({{ $t('project.optionalField') }})</label>
+        <label for="source-url-input" class="text-gray-600"
+          >{{ $t('project.sourceUrl') }} ({{ $t('project.optionalField') }})</label
+        >
       </FloatLabel>
-      <small
-        v-if="sourceUrlError"
-        class="validation-error"
-      >{{ sourceUrlError }}</small>
-      <small
-        v-if="showChangeIndicators && hasChanged?.('sourceUrl')"
-        class="change-indicator"
-      >
+      <small v-if="sourceUrlError" class="validation-error">{{ sourceUrlError }}</small>
+      <small v-if="showChangeIndicators && hasChanged?.('sourceUrl')" class="change-indicator">
         {{ $t('overlay.changedFrom') }}: "{{ originalData?.sourceUrl || $t('overlay.notSet') }}"
       </small>
     </div>
@@ -429,7 +347,7 @@ watch(() => props.isProposed, (newValue) => {
 // AI : Computed to check if project was originally proposed
 const wasOriginallyProposed = computed(() => {
   if (!props.originalData) return false
-  return !!(props.originalData.proposalDate && !props.originalData.startDate && !props.originalData.endDate)
+  return Boolean(props.originalData.proposalDate && !props.originalData.startDate && !props.originalData.endDate)
 })
 
 // AI : Computed to check if timeline status has changed

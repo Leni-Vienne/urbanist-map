@@ -63,7 +63,7 @@ const cities = ref<RouterOutput['cities']['getCitiesNearLocation']>(
   props.prefilledCity ? [convertDBCityToSelectFormat(props.prefilledCity)] : []
 )
 const citiesLoading = ref(false)
-const citiesLoaded = ref(!!props.prefilledCity)
+const citiesLoaded = ref(Boolean(props.prefilledCity))
 
 // AI : Cache the prefilled city if available
 if (props.prefilledCity) {

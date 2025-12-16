@@ -120,7 +120,7 @@ export const useAuthStore = defineStore("auth", () => {
   const infoMessage = ref<string | null>(null);
 
   // AI : Computed properties
-  const isAuthenticated = computed(() => !!user.value);
+  const isAuthenticated = computed(() => Boolean(user.value));
   // AI : User is a moderator if they're admin OR have moderatedCountries assigned
   const isModerator = computed(
     () =>

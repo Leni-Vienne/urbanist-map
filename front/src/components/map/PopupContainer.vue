@@ -143,7 +143,7 @@ const showProjectPopup = computed(() => {
 function checkTeleportTarget() {
   const overlayTarget = document.getElementById('info-popup-teleport-target');
   const projectTarget = document.getElementById('project-info-popup-teleport-target');
-  teleportTargetExists.value = !!(overlayTarget || projectTarget);
+  teleportTargetExists.value = Boolean(overlayTarget || projectTarget);
 };
 
 onMounted(() => {
