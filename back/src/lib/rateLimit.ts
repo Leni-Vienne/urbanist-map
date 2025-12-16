@@ -1,8 +1,8 @@
 export class RateLimiter {
-  private hits = new Map<string, number[]>();
-  private cleanupInterval: ReturnType<typeof setInterval>;
+  private readonly hits = new Map<string, number[]>();
+  private readonly cleanupInterval: ReturnType<typeof setInterval>;
 
-  constructor(private checkIntervalMs = 60_000) {
+  constructor(private readonly checkIntervalMs = 60_000) {
     // AI : Clean up expired entries periodically to prevent memory leaks
     this.cleanupInterval = setInterval(() => this.cleanup(), this.checkIntervalMs);
   }

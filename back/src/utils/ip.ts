@@ -16,5 +16,5 @@ export function getClientIp(c: Context): string {
 
   // AI : Fallback to direct connection IP (for local dev)
   console.log("getConnInfo(c).remote.address (fallback)", getConnInfo(c).remote.address);
-  return getConnInfo(c).remote.address || "unknown";
+  return getConnInfo(c).remote.address ?? "unknown";
 }
