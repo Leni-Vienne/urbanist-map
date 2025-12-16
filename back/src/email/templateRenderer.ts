@@ -1,4 +1,5 @@
 import { join } from "path";
+import { fileURLToPath } from "url";
 import enTranslations from "./i18n/en.json";
 import frTranslations from "./i18n/fr.json";
 
@@ -44,8 +45,9 @@ export async function renderEmailTemplate(
     // AI : Convert camelCase template name to kebab-case for file lookup
     const kebabCaseName = templateName.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
 
-    // AI : Load HTML template file
-    const templatePath = join(__dirname, "templates", `${kebabCaseName}-email.html`);
+    // AI : Load HTML template file using import.meta.url (works in bundled code)
+    const currentDir = fileURLToPath(new URL(".", import.meta.url));
+    const templatePath = join(currentDir, "templates", `${kebabCaseName}-email.html`);
     const templateFile = Bun.file(templatePath);
 
     if (!(await templateFile.exists())) {
