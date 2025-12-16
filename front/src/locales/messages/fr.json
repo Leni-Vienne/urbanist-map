@@ -391,7 +391,9 @@
       "loginFailed": "La connexion a échoué. Veuillez réessayer.",
       "invalidGoogleToken": "Authentification Google invalide. Veuillez réessayer.",
       "emailLinkedToDifferentGoogle": "Cet email est déjà associé à un autre compte Google.",
-      "googleAuthFailed": "L'authentification Google a échoué. Veuillez réessayer."
+      "googleAuthFailed": "L'authentification Google a échoué. Veuillez réessayer.",
+      "tooManyRequests": "Trop de tentatives. Veuillez réessayer plus tard.",
+      "invalidCaptcha": "CAPTCHA invalide. Veuillez réessayer."
     },
     "success": {
       "registered": "Compte créé avec succès ! Veuillez vérifier votre email pour valider votre compte.",

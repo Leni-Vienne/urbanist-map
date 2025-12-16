@@ -14,184 +14,186 @@ jobs:
     environment: ${{ github.event_name == 'pull_request' && 'preview' || (github.ref == 'refs/heads/production' && 'production' || 'preview') }}
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      # needed for wrangler deploy (cloudflare)
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '24'
+        # needed for wrangler deploy (cloudflare)
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
 
-    - name: Setup Bun
-      uses: oven-sh/setup-bun@v2
-      with:
-        bun-version: latest
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
 
-    - name: Install dependencies
-      run: bun install
+      - name: Install dependencies
+        run: bun install
 
-    - name: Set environment variables
-      run: |
-        if [ "${{ github.event_name }}" = "pull_request" ]; then
-          echo "WRANGLER_ENV=preview" >> $GITHUB_ENV
-          echo "DEPLOY_TARGET=preview" >> $GITHUB_ENV
-        elif [ "${{ github.ref }}" = "refs/heads/production" ]; then
-          echo "WRANGLER_ENV=" >> $GITHUB_ENV
-          echo "DEPLOY_TARGET=production" >> $GITHUB_ENV
-        else
-          echo "WRANGLER_ENV=preview" >> $GITHUB_ENV
-          echo "DEPLOY_TARGET=preview" >> $GITHUB_ENV
-        fi
-
-    - name: Run database migrations
-      run: bun run db:migrate || echo "⚠️ Migration skipped - database not accessible (probably fresh deployment)"
-      env:
-        DATABASE_URL: postgres://postgres:${{ secrets.POSTGRES_PASSWORD }}@${{ secrets.REMOTE_HOST }}:5432/construction_map
-
-    - name: Build frontend
-      run: bun run build-front-workflow
-      env:
-        VITE_R2_PUBLIC_URL: ${{ vars.VITE_R2_PUBLIC_URL }}
-        VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
-        VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
-        NODE_ENV: production
-
-    - name: Build backend bundle
-      run: bun run build-back
-      env:
-        NODE_ENV: production
-
-    - name: Deploy frontend to Cloudflare Pages
-      id: deploy-frontend
-      uses: cloudflare/wrangler-action@v3
-      with:
-        apiToken: ${{ secrets.CF_API_TOKEN }}
-        accountId: ${{ secrets.CF_ACCOUNT_ID }}
-        command: pages deploy front/dist --project-name=${{ env.WRANGLER_ENV == '' && 'construction-map' || 'construction-map-preview' }}
-        gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Extract frontend URL
-      id: extract-url
-      run: |
-        if [ "${{ env.WRANGLER_ENV }}" = "" ]; then
-          FRONTEND_URL="https://construction-map.pages.dev"
-          echo "PROJECT_NAME=construction-map" >> $GITHUB_ENV
-        else
-          FRONTEND_URL="https://preview.construction-map-preview.pages.dev"
-          echo "PROJECT_NAME=construction-map-preview" >> $GITHUB_ENV
-        fi
-        echo "FRONTEND_URL=$FRONTEND_URL" >> $GITHUB_ENV
-        echo "Frontend deployed to: $FRONTEND_URL"
-
-    - name: Cleanup old Cloudflare Pages deployments
-      run: |
-        # AI : Keep only the 5 most recent deployments, delete the rest
-        DEPLOYMENTS=$(curl -s -X GET \
-          "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ACCOUNT_ID }}/pages/projects/${{ env.PROJECT_NAME }}/deployments" \
-          -H "Authorization: Bearer ${{ secrets.CF_API_TOKEN }}" \
-          -H "Content-Type: application/json")
-        
-        # AI : Extract deployment IDs, skip the first 5 (most recent), delete the rest
-        echo "$DEPLOYMENTS" | jq -r '.result[5:] | .[].id' | while read -r DEPLOYMENT_ID; do
-          if [ -n "$DEPLOYMENT_ID" ]; then
-            echo "Deleting old deployment: $DEPLOYMENT_ID"
-            curl -s -X DELETE \
-              "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ACCOUNT_ID }}/pages/projects/${{ env.PROJECT_NAME }}/deployments/$DEPLOYMENT_ID?force=true" \
-              -H "Authorization: Bearer ${{ secrets.CF_API_TOKEN }}" \
-              -H "Content-Type: application/json"
-          fi
-        done
-        echo "Old deployments cleanup complete"
-
-    - name: Deploy backend with docker compose to remote server
-      env:
-        REMOTE_USER: ${{ secrets.REMOTE_USER }}
-        REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
-        REMOTE_PASSWORD: ${{ secrets.REMOTE_PASSWORD }}
-        POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-        JWT_SECRET: ${{ secrets.JWT_SECRET }}
-        SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
-        SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-        R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-        R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-        R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
-        R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
-        VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
-        CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
-        SES_REGION: ${{ vars.SES_REGION }}
-        FROM_EMAIL: ${{ vars.FROM_EMAIL }}
-        ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
-        LOKI_URL: ${{ vars.LOKI_URL }}
-
-      run: |
-        # AI : Install sshpass for password authentication
-        sudo apt-get update && sudo apt-get install -y sshpass
-        
-        # AI : Setup SSH to skip host key checking
-        mkdir -p ~/.ssh
-        echo "StrictHostKeyChecking no" >> ~/.ssh/config
-        
-        # AI : Check if files exist before transfer
-        ls -la server.bundle.js docker-compose.prod.yml Caddyfile Dockerfile.bun-sharp alloy-config.alloy
-        
-        # AI : Transfer files to remote server using password
-        sshpass -p "$REMOTE_PASSWORD" scp ./server.bundle.js "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
-        sshpass -p "$REMOTE_PASSWORD" scp ./docker-compose.prod.yml "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
-        sshpass -p "$REMOTE_PASSWORD" scp ./Caddyfile "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
-        sshpass -p "$REMOTE_PASSWORD" scp ./Dockerfile.bun-sharp "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
-        sshpass -p "$REMOTE_PASSWORD" scp ./alloy-config.alloy "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
-
-
-        # AI : Deploy with docker compose on remote server
-        sshpass -p "$REMOTE_PASSWORD" ssh "${REMOTE_USER}@${REMOTE_HOST}" << EOF
-          # AI : Create deployment directory
-          sudo mkdir -p /opt/construction-map
-          cd /opt/construction-map
-          
-          # AI : Stop existing containers
-          sudo docker compose -f docker-compose.prod.yml down || true
-          
-          # AI : Copy new files
-          sudo cp /tmp/server.bundle.js ./
-          sudo cp /tmp/docker-compose.prod.yml ./
-          sudo cp /tmp/Caddyfile ./
-          sudo cp /tmp/Dockerfile.bun-sharp ./
-          # AI : Remove old alloy config if it's a directory (Docker creates it on failed mount)
-          sudo rm -rf ./alloy-config.alloy
-          sudo cp /tmp/alloy-config.alloy ./
-          
-          # AI : Build custom bun-sharp image if it doesn't exist
-          if ! sudo docker images | grep -q "bun-sharp.*1.3-alpine"; then
-            echo "Building custom bun-sharp image with libvips..."
-            sudo docker build -f Dockerfile.bun-sharp -t bun-sharp:1.3-alpine .
+      - name: Set environment variables
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "WRANGLER_ENV=preview" >> $GITHUB_ENV
+            echo "DEPLOY_TARGET=preview" >> $GITHUB_ENV
+          elif [ "${{ github.ref }}" = "refs/heads/production" ]; then
+            echo "WRANGLER_ENV=" >> $GITHUB_ENV
+            echo "DEPLOY_TARGET=production" >> $GITHUB_ENV
           else
-            echo "Custom bun-sharp image already exists, skipping build"
+            echo "WRANGLER_ENV=preview" >> $GITHUB_ENV
+            echo "DEPLOY_TARGET=preview" >> $GITHUB_ENV
           fi
-          
-          # AI : Create .env file from GitHub secrets/vars
-          printf 'POSTGRES_PASSWORD=%s\nDATABASE_URL=postgres://postgres:%s@postgres:5432/construction_map\nLOKI_URL=%s\nJWT_SECRET=%s\nCORS_ORIGIN=%s\nVITE_GOOGLE_CLIENT_ID=%s\nFRONTEND_URL=%s\nPORT=3000\nALERT_EMAIL=%s\nSMTP_USERNAME=%s\nSMTP_PASSWORD=%s\nSES_REGION=%s\nFROM_EMAIL=%s\nR2_ENDPOINT=%s\nR2_ACCESS_KEY_ID=%s\nR2_SECRET_ACCESS_KEY=%s\nR2_BUCKET_NAME=%s\n' \
-            "${POSTGRES_PASSWORD}" "${POSTGRES_PASSWORD}" "${LOKI_URL}" "${JWT_SECRET}" "${CORS_ORIGIN}" "${VITE_GOOGLE_CLIENT_ID}" "${FRONTEND_URL}" "${ALERT_EMAIL}" "${SMTP_USERNAME}" "${SMTP_PASSWORD}" "${SES_REGION}" "${FROM_EMAIL}" "${R2_ENDPOINT}" "${R2_ACCESS_KEY_ID}" "${R2_SECRET_ACCESS_KEY}" "${R2_BUCKET_NAME}" > .env
-          
-          # AI : Start services (no build needed, using vanilla bun image)
-          sudo docker compose -f docker-compose.prod.yml up -d
-          
-          # AI : Show status
-          sudo docker compose -f docker-compose.prod.yml ps
-          
-          # AI : Clean up temp files
-          rm -f /tmp/server.bundle.js /tmp/docker-compose.prod.yml /tmp/Caddyfile /tmp/Dockerfile.bun-sharp /tmp/alloy-config.alloy
-        EOF
 
-    - name: Comment on PR with deployment status
-      if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const deploymentUrl = 'https://construction-map-preview.leni-vienne2.workers.dev';
-          
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: `✅ PR deployed to split environment for testing!\n\n🔗 **Frontend URL**: ${deploymentUrl}\n🖥️ **Backend**: Self-hosted with Docker Compose (DB + API)\n🗄️ **Database**: Self-hosted PostgreSQL\n\n⚠️ **Note**: This is a preview deployment. Production deployment happens only after merging to \`production\` branch.`
+      - name: Run database migrations
+        run: bun run db:migrate || echo "⚠️ Migration skipped - database not accessible (probably fresh deployment)"
+        env:
+          DATABASE_URL: postgres://postgres:${{ secrets.POSTGRES_PASSWORD }}@${{ secrets.REMOTE_HOST }}:5432/construction_map
+
+      - name: Build frontend
+        run: bun run build-front-workflow
+        env:
+          VITE_R2_PUBLIC_URL: ${{ vars.VITE_R2_PUBLIC_URL }}
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
+          NODE_ENV: production
+
+      - name: Build backend bundle
+        run: bun run build-back
+        env:
+          NODE_ENV: production
+
+      - name: Deploy frontend to Cloudflare Pages
+        id: deploy-frontend
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          command: pages deploy front/dist --project-name=${{ env.WRANGLER_ENV == '' && 'construction-map' || 'construction-map-preview' }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract frontend URL
+        id: extract-url
+        run: |
+          if [ "${{ env.WRANGLER_ENV }}" = "" ]; then
+            FRONTEND_URL="https://construction-map.pages.dev"
+            echo "PROJECT_NAME=construction-map" >> $GITHUB_ENV
+          else
+            FRONTEND_URL="https://preview.construction-map-preview.pages.dev"
+            echo "PROJECT_NAME=construction-map-preview" >> $GITHUB_ENV
+          fi
+          echo "FRONTEND_URL=$FRONTEND_URL" >> $GITHUB_ENV
+          echo "Frontend deployed to: $FRONTEND_URL"
+
+      - name: Cleanup old Cloudflare Pages deployments
+        run: |
+          # AI : Keep only the 5 most recent deployments, delete the rest
+          DEPLOYMENTS=$(curl -s -X GET \
+            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ACCOUNT_ID }}/pages/projects/${{ env.PROJECT_NAME }}/deployments" \
+            -H "Authorization: Bearer ${{ secrets.CF_API_TOKEN }}" \
+            -H "Content-Type: application/json")
+
+          # AI : Extract deployment IDs, skip the first 5 (most recent), delete the rest
+          echo "$DEPLOYMENTS" | jq -r '.result[5:] | .[].id' | while read -r DEPLOYMENT_ID; do
+            if [ -n "$DEPLOYMENT_ID" ]; then
+              echo "Deleting old deployment: $DEPLOYMENT_ID"
+              curl -s -X DELETE \
+                "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ACCOUNT_ID }}/pages/projects/${{ env.PROJECT_NAME }}/deployments/$DEPLOYMENT_ID?force=true" \
+                -H "Authorization: Bearer ${{ secrets.CF_API_TOKEN }}" \
+                -H "Content-Type: application/json"
+            fi
+          done
+          echo "Old deployments cleanup complete"
+
+      - name: Deploy backend with docker compose to remote server
+        env:
+          REMOTE_USER: ${{ secrets.REMOTE_USER }}
+          REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
+          REMOTE_PASSWORD: ${{ secrets.REMOTE_PASSWORD }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+          R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+          CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
+          SES_REGION: ${{ vars.SES_REGION }}
+          FROM_EMAIL: ${{ vars.FROM_EMAIL }}
+          ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
+          LOKI_URL: ${{ vars.LOKI_URL }}
+          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
+
+        run: |
+          # AI : Install sshpass for password authentication
+          sudo apt-get update && sudo apt-get install -y sshpass
+
+          # AI : Setup SSH to skip host key checking
+          mkdir -p ~/.ssh
+          echo "StrictHostKeyChecking no" >> ~/.ssh/config
+
+          # AI : Check if files exist before transfer
+          ls -la server.bundle.js docker-compose.prod.yml Caddyfile Dockerfile.bun-sharp alloy-config.alloy
+
+          # AI : Transfer files to remote server using password
+          sshpass -p "$REMOTE_PASSWORD" scp ./server.bundle.js "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
+          sshpass -p "$REMOTE_PASSWORD" scp ./docker-compose.prod.yml "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
+          sshpass -p "$REMOTE_PASSWORD" scp ./Caddyfile "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
+          sshpass -p "$REMOTE_PASSWORD" scp ./Dockerfile.bun-sharp "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
+          sshpass -p "$REMOTE_PASSWORD" scp ./alloy-config.alloy "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
+
+
+          # AI : Deploy with docker compose on remote server
+          sshpass -p "$REMOTE_PASSWORD" ssh "${REMOTE_USER}@${REMOTE_HOST}" << EOF
+            # AI : Create deployment directory
+            sudo mkdir -p /opt/construction-map
+            cd /opt/construction-map
+            
+            # AI : Stop existing containers
+            sudo docker compose -f docker-compose.prod.yml down || true
+            
+            # AI : Copy new files
+            sudo cp /tmp/server.bundle.js ./
+            sudo cp /tmp/docker-compose.prod.yml ./
+            sudo cp /tmp/Caddyfile ./
+            sudo cp /tmp/Dockerfile.bun-sharp ./
+            # AI : Remove old alloy config if it's a directory (Docker creates it on failed mount)
+            sudo rm -rf ./alloy-config.alloy
+            sudo cp /tmp/alloy-config.alloy ./
+            
+            # AI : Build custom bun-sharp image if it doesn't exist
+            if ! sudo docker images | grep -q "bun-sharp.*1.3-alpine"; then
+              echo "Building custom bun-sharp image with libvips..."
+              sudo docker build -f Dockerfile.bun-sharp -t bun-sharp:1.3-alpine .
+            else
+              echo "Custom bun-sharp image already exists, skipping build"
+            fi
+            
+            # AI : Create .env file from GitHub secrets/vars
+            printf 'POSTGRES_PASSWORD=%s\nDATABASE_URL=postgres://postgres:%s@postgres:5432/construction_map\nLOKI_URL=%s\nJWT_SECRET=%s\nCORS_ORIGIN=%s\nVITE_GOOGLE_CLIENT_ID=%s\nFRONTEND_URL=%s\nPORT=3000\nALERT_EMAIL=%s\nSMTP_USERNAME=%s\nSMTP_PASSWORD=%s\nSES_REGION=%s\nFROM_EMAIL=%s\nR2_ENDPOINT=%s\nR2_ACCESS_KEY_ID=%s\nR2_SECRET_ACCESS_KEY=%s\nR2_BUCKET_NAME=%s\nTURNSTILE_SECRET_KEY=%s\n' \
+              "${POSTGRES_PASSWORD}" "${POSTGRES_PASSWORD}" "${LOKI_URL}" "${JWT_SECRET}" "${CORS_ORIGIN}" "${VITE_GOOGLE_CLIENT_ID}" "${FRONTEND_URL}" "${ALERT_EMAIL}" "${SMTP_USERNAME}" "${SMTP_PASSWORD}" "${SES_REGION}" "${FROM_EMAIL}" "${R2_ENDPOINT}" "${R2_ACCESS_KEY_ID}" "${R2_SECRET_ACCESS_KEY}" "${R2_BUCKET_NAME}" "${TURNSTILE_SECRET_KEY}" > .env
+            
+            # AI : Start services (no build needed, using vanilla bun image)
+            sudo docker compose -f docker-compose.prod.yml up -d
+            
+            # AI : Show status
+            sudo docker compose -f docker-compose.prod.yml ps
+            
+            # AI : Clean up temp files
+            rm -f /tmp/server.bundle.js /tmp/docker-compose.prod.yml /tmp/Caddyfile /tmp/Dockerfile.bun-sharp /tmp/alloy-config.alloy
+          EOF
+
+      - name: Comment on PR with deployment status
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deploymentUrl = 'https://construction-map-preview.leni-vienne2.workers.dev';
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `✅ PR deployed to split environment for testing!\n\n🔗 **Frontend URL**: ${deploymentUrl}\n🖥️ **Backend**: Self-hosted with Docker Compose (DB + API)\n🗄️ **Database**: Self-hosted PostgreSQL\n\n⚠️ **Note**: This is a preview deployment. Production deployment happens only after merging to \`production\` branch.`

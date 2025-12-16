@@ -11,6 +11,9 @@ import {
   resetPasswordSchema,
 } from "../../../shared/validation/schemas";
 import { getEmailService } from "../services/emailService";
+import { globalRateLimiter } from "../lib/rateLimit";
+import { verifyTurnstileToken } from "../utils/captcha";
+import { getClientIp } from "../utils/ip";
 
 // AI : Use shared validation schemas
 
@@ -79,9 +82,30 @@ async function sendPasswordResetEmail(
 
 export const authRouter = router({
   // AI : User registration
-  register: publicProcedure.input(registerSchema).mutation(async ({ input }) => {
+  register: publicProcedure.input(registerSchema).mutation(async ({ input, ctx }) => {
     try {
-      const { email, password, username } = input;
+      const { email, password, username, captchaToken } = input;
+
+      // AI : Rate limit: 5 registrations per IP per hour
+      const ip = getClientIp(ctx.hono);
+      if (!globalRateLimiter.check(ip, 5, 60 * 60 * 1000)) {
+        throw new TRPCError({
+          code: "TOO_MANY_REQUESTS",
+          message: "auth.error.tooManyRequests",
+        });
+      }
+
+      // AI : Validate CAPTCHA
+      // AI : Optional if key not configured (dev mode), but frontend should send token if configured
+      if (process.env.TURNSTILE_SECRET_KEY && captchaToken) {
+        const isValidCaptcha = await verifyTurnstileToken(captchaToken, ip);
+        if (!isValidCaptcha) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "auth.error.invalidCaptcha",
+          });
+        }
+      }
 
       // AI : Check if user already exists
       const existingUser = await db.select().from(users).where(eq(users.email, email)).limit(1);
@@ -101,7 +125,7 @@ export const authRouter = router({
 
           throw new TRPCError({
             code: "CONFLICT",
-            message: "auth.error.emailAlreadyExists",
+            message: "auth.error.registrationFailed", // AI : Obscure existing email (security best practice)
           });
         }
       }
@@ -219,55 +243,72 @@ export const authRouter = router({
     }),
 
   // AI : Request password reset
-  requestPasswordReset: publicProcedure.input(resetPasswordRequestSchema).mutation(({ input }) => {
-    const { email } = input;
+  requestPasswordReset: publicProcedure
+    .input(resetPasswordRequestSchema)
+    .mutation(({ input, ctx }) => {
+      const { email } = input;
 
-    // AI : SECURITY: Fire and forget - respond immediately to prevent ALL timing attacks
-    // AI : Void the promise to indicate intentional fire-and-forget behavior
-    void (async () => {
-      try {
-        // AI : Find user
-        const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-
-        if (!user) {
-          // AI : User doesn't exist - silently fail for security
-          return;
-        }
-
-        // AI : SECURITY: Check if OAuth-only user - silently fail (don't reveal auth method)
-        if (user.googleId && !user.passwordHash) {
-          // AI : OAuth-only users can't reset password - silently fail to prevent enumeration
-          return;
-        }
-
-        // AI : Generate reset token and expiry (1 hour)
-        const plainResetToken = generateToken();
-        const resetToken = await Bun.password.hash(plainResetToken);
-        const resetExpiry = new Date();
-        resetExpiry.setHours(resetExpiry.getHours() + 1);
-
-        // AI : Update user with reset token
-        await db
-          .update(users)
-          .set({
-            passwordResetToken: resetToken,
-            passwordResetExpiresAt: resetExpiry,
-          })
-          .where(eq(users.id, user.id));
-
-        // AI : Send password reset email
-        await sendPasswordResetEmail(email, plainResetToken);
-      } catch (error) {
-        // AI : Log error but don't expose it to client
-        console.error("Password reset background processing error:", error);
+      // AI : Rate limit: 5 password reset requests per IP per hour
+      const ip = getClientIp(ctx.hono);
+      if (!globalRateLimiter.check(ip, 5, 60 * 60 * 1000)) {
+        throw new TRPCError({
+          code: "TOO_MANY_REQUESTS",
+          message: "auth.error.tooManyRequests",
+        });
       }
-    })();
-    // AI : SECURITY: Always return the same response immediately (no timing leak, no info leak)
-    return {
-      success: true,
-      message: "If an account with this email exists, a password reset link has been sent.",
-    };
-  }),
+
+      // AI : SECURITY: Fire and forget - respond immediately to prevent ALL timing attacks
+      // AI : Void the promise to indicate intentional fire-and-forget behavior
+      void (async () => {
+        try {
+          // AI : Find user
+          const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+
+          if (!user) {
+            // AI : User doesn't exist - silently fail for security
+            return;
+          }
+
+          // AI : SECURITY: Check if email is verified
+          // AI : Prevent password reset bypass for unverified emails
+          if (!user.emailVerified) {
+            return;
+          }
+
+          // AI : SECURITY: Check if OAuth-only user - silently fail (don't reveal auth method)
+          if (user.googleId && !user.passwordHash) {
+            // AI : OAuth-only users can't reset password - silently fail to prevent enumeration
+            return;
+          }
+
+          // AI : Generate reset token and expiry (1 hour)
+          const plainResetToken = generateToken();
+          const resetToken = await Bun.password.hash(plainResetToken);
+          const resetExpiry = new Date();
+          resetExpiry.setHours(resetExpiry.getHours() + 1);
+
+          // AI : Update user with reset token
+          await db
+            .update(users)
+            .set({
+              passwordResetToken: resetToken,
+              passwordResetExpiresAt: resetExpiry,
+            })
+            .where(eq(users.id, user.id));
+
+          // AI : Send password reset email
+          await sendPasswordResetEmail(email, plainResetToken);
+        } catch (error) {
+          // AI : Log error but don't expose it to client
+          console.error("Password reset background processing error:", error);
+        }
+      })();
+      // AI : SECURITY: Always return the same response immediately (no timing leak, no info leak)
+      return {
+        success: true,
+        message: "If an account with this email exists, a password reset link has been sent.",
+      };
+    }),
 
   // AI : Reset password
   resetPassword: publicProcedure.input(resetPasswordSchema).mutation(async ({ input }) => {
