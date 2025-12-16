@@ -48,6 +48,7 @@ services:
       TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY}
     volumes:
       - ./server.bundle.js:/app/server.bundle.js:ro
+      - ./back/src/email:/app/email:ro
       - backend_node_modules:/app/node_modules
       - backend_uploads:/app/uploads
     working_dir: /app
