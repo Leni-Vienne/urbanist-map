@@ -136,6 +136,7 @@ jobs:
 
           # AI : Check if files exist before transfer
           ls -la server.bundle.js docker-compose.prod.yml Caddyfile Dockerfile.bun-sharp alloy-config.alloy
+          ls -la back/src/email
 
           # AI : Transfer files to remote server using password
           sshpass -p "$REMOTE_PASSWORD" scp ./server.bundle.js "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
@@ -143,6 +144,7 @@ jobs:
           sshpass -p "$REMOTE_PASSWORD" scp ./Caddyfile "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
           sshpass -p "$REMOTE_PASSWORD" scp ./Dockerfile.bun-sharp "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
           sshpass -p "$REMOTE_PASSWORD" scp ./alloy-config.alloy "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
+          sshpass -p "$REMOTE_PASSWORD" scp -r ./back/src/email "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
 
 
           # AI : Deploy with docker compose on remote server
@@ -162,6 +164,10 @@ jobs:
             # AI : Remove old alloy config if it's a directory (Docker creates it on failed mount)
             sudo rm -rf ./alloy-config.alloy
             sudo cp /tmp/alloy-config.alloy ./
+            # AI : Copy email templates directory
+            sudo mkdir -p ./back/src
+            sudo rm -rf ./back/src/email
+            sudo cp -r /tmp/email ./back/src/
             
             # AI : Build custom bun-sharp image if it doesn't exist
             if ! sudo docker images | grep -q "bun-sharp.*1.3-alpine"; then
@@ -183,6 +189,7 @@ jobs:
             
             # AI : Clean up temp files
             rm -f /tmp/server.bundle.js /tmp/docker-compose.prod.yml /tmp/Caddyfile /tmp/Dockerfile.bun-sharp /tmp/alloy-config.alloy
+            rm -rf /tmp/email
           EOF
 
       - name: Comment on PR with deployment status
