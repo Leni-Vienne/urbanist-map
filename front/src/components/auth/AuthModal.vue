@@ -11,16 +11,13 @@
     <div v-if="isForgotPasswordMode">
       <p class="text-muted-color mb-4">{{ $t('auth.forgotPasswordMessage') }}</p>
 
-      <form
-        @submit.prevent="handleForgotPassword"
-        class="flex flex-col gap-4"
-        autocomplete="on"
-      >
+      <form @submit.prevent="handleForgotPassword" class="flex flex-col gap-4" autocomplete="on">
         <div class="field">
           <label
             for="forgot-email"
             class="block text-sm font-medium mb-2"
-          >{{ $t('auth.emailAddress') }}</label>
+            >{{ $t('auth.emailAddress') }}</label
+          >
           <InputText
             id="forgot-email"
             v-model="forgotPasswordEmail"
@@ -73,10 +70,7 @@
     </div>
 
     <!-- AI : Normal Auth Mode (Sign In / Sign Up) -->
-    <div
-      v-else
-      :class="{ 'pt-3': lastLoginMethod === 'google' && isLoginMode }"
-    >
+    <div v-else :class="{ 'pt-3': lastLoginMethod === 'google' && isLoginMode }">
       <!-- AI : Social Login Section -->
       <div class="mb-6 overflow-visible">
         <div class="flex flex-col gap-3 mb-4 overflow-visible">
@@ -110,16 +104,13 @@
         </div>
       </div>
 
-      <form
-        @submit.prevent="handleSubmit"
-        class="flex flex-col gap-4"
-        autocomplete="on"
-      >
+      <form @submit.prevent="handleSubmit" class="flex flex-col gap-4" autocomplete="on">
         <div class="field relative">
           <label
             for="auth-email"
             class="block text-sm font-medium mb-2"
-          >{{ $t('auth.emailAddress') }}</label>
+            >{{ $t('auth.emailAddress') }}</label
+          >
           <InputText
             id="auth-email"
             v-model="form.email"
@@ -141,10 +132,7 @@
           >
             {{ $t('auth.lastUsed') }}
           </span>
-          <small
-            v-if="emailError"
-            class="p-error"
-          >{{ emailError }}</small>
+          <small v-if="emailError" class="p-error">{{ emailError }}</small>
         </div>
 
         <div class="field">
@@ -152,7 +140,8 @@
             <label
               for="auth-password"
               class="block text-sm font-medium"
-            >{{ $t('auth.password') }}</label>
+              >{{ $t('auth.password') }}</label
+            >
             <Button
               v-if="isLoginMode"
               type="button"
@@ -175,20 +164,11 @@
             :inputProps="{ autocomplete: isLoginMode ? 'current-password' : 'new-password' }"
             data-testid="auth-password-input"
           />
-          <small
-            v-if="passwordError"
-            class="p-error"
-          >{{ passwordError }}</small>
+          <small v-if="passwordError" class="p-error">{{ passwordError }}</small>
         </div>
 
-        <div
-          v-if="!isLoginMode"
-          class="field"
-        >
-          <label
-            for="auth-username"
-            class="block text-sm font-medium mb-2"
-          >
+        <div v-if="!isLoginMode" class="field">
+          <label for="auth-username" class="block text-sm font-medium mb-2">
             {{ $t('auth.username') }}
           </label>
           <InputText
@@ -204,23 +184,22 @@
         </div>
 
         <!-- AI : Remember Me Checkbox (only in login mode) -->
-        <div
-          v-if="isLoginMode"
-          class="field-checkbox flex items-center gap-2"
-        >
+        <div v-if="isLoginMode" class="field-checkbox flex items-center gap-2">
           <Checkbox
             id="auth-remember-me"
             v-model="form.rememberMe"
             :binary="true"
             data-testid="auth-remember-me"
           />
-          <label
-            for="auth-remember-me"
-            class="text-sm cursor-pointer select-none"
-          >
+          <label for="auth-remember-me" class="text-sm cursor-pointer select-none">
             {{ $t('auth.rememberMe') }}
             <span class="text-muted-color text-xs ml-1">({{ $t('auth.rememberMeHint') }})</span>
           </label>
+        </div>
+
+        <!-- AI : CAPTCHA Widget (only for registration) -->
+        <div v-if="!isLoginMode" class="field flex justify-center py-2">
+          <div id="turnstile-widget"></div>
         </div>
 
         <div
@@ -261,9 +240,8 @@
   </Dialog>
 </template>
 
-
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/authStore'
 import { useToast } from '@/composables/ui/useToast'
@@ -289,6 +267,8 @@ const emailError = ref('')
 const passwordError = ref('')
 const forgotPasswordEmail = ref('')
 const resetLinkSent = ref(false)
+const captchaToken = ref('')
+const turnstileWidgetId = ref<string | null>(null)
 
 // AI : Track last login method hint
 const lastLoginMethod = ref<'email' | 'google' | null>(null)
@@ -326,7 +306,67 @@ watch(() => props.visible, (isVisible) => {
     oauthLoading.value = false
     loading.value = false
   }
+
+  // AI : Handle Turnstile rendering when modal opens or mode changes
+  if (isVisible && !isLoginMode.value) {
+    nextTick(() => renderTurnstile())
+  }
 })
+
+// AI : Watch mode switch to render/reset Turnstile
+watch(isLoginMode, (isLogin) => {
+  if (!isLogin && props.visible) {
+    nextTick(() => renderTurnstile())
+  } else {
+    resetTurnstile()
+  }
+})
+
+// AI : Cloudflare Turnstile Integration
+function renderTurnstile() {
+  // AI : Check if globalThis.turnstile is available (loaded from index.html)
+  if (globalThis.turnstile && document.getElementById('turnstile-widget')) {
+    // AI : Reset if already rendered to avoid duplicates
+    if (turnstileWidgetId.value) {
+      globalThis.turnstile.remove(turnstileWidgetId.value)
+    }
+
+    // AI : Get site key from env (Vite exposes env vars via import.meta.env)
+    const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY
+    if (!siteKey) {
+      console.warn('AI: Missing VITE_TURNSTILE_SITE_KEY, CAPTCHA will be skipped in dev')
+      return // Skip rendering if no key (dev mode)
+    }
+
+    turnstileWidgetId.value = globalThis.turnstile.render('#turnstile-widget', {
+      sitekey: siteKey,
+      callback: (token: string) => {
+        captchaToken.value = token
+      },
+      'expired-callback': () => {
+        captchaToken.value = ''
+      },
+      theme: 'auto'
+    })
+  }
+}
+
+function resetTurnstile() {
+  if (globalThis.turnstile && turnstileWidgetId.value) {
+    globalThis.turnstile.remove(turnstileWidgetId.value)
+    turnstileWidgetId.value = null
+  }
+  captchaToken.value = ''
+}
+
+// AI : Add types for globalThis.turnstile
+declare global {
+  var turnstile: {
+    render: (container: string | HTMLElement, options: any) => string
+    remove: (widgetId: string) => void
+    reset: (widgetId: string) => void
+  } | undefined
+}
 
 // AI : Helper to translate error messages (handles both i18n keys and plain text)
 function translateError(errorMessage: string | null | undefined): string {
@@ -353,6 +393,7 @@ function resetForm() {
   passwordError.value = ''
   forgotPasswordEmail.value = ''
   resetLinkSent.value = false
+  resetTurnstile()
 }
 
 function toggleMode() {
@@ -386,13 +427,19 @@ async function handleSubmit() {
         errorMessage.value = translateError(result.error) || $t('auth.error.loginFailed')
       }
     } else {
-      const result = await authStore.signUp(form.email, form.password, form.username)
+      // AI : Pass captcha token
+      const result = await authStore.signUp(form.email, form.password, form.username, captchaToken.value)
       if (result.success) {
         toast.add({ severity: 'success', summary: $t('common.success'), detail: $t('auth.success.registered'), life: 3000 })
         visible.value = false
         resetForm()
       } else {
         errorMessage.value = translateError(result.error) || $t('auth.error.registrationFailed')
+        // AI : Reset captcha on failure
+        if (globalThis.turnstile && turnstileWidgetId.value) {
+          globalThis.turnstile.reset(turnstileWidgetId.value)
+          captchaToken.value = ''
+        }
       }
     }
   } catch (error) {

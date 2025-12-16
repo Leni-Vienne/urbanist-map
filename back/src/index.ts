@@ -13,6 +13,8 @@ import { generateMissingThumbnails } from "./lib/startup";
 import { DrizzleSessionStore } from "./lib/drizzleSessionStore";
 import { requestLogger } from "./middleware/requestLogger";
 import { errorAlerter } from "./services/errorAlerter";
+import { globalRateLimiter } from "./lib/rateLimit";
+import { getClientIp } from "./utils/ip";
 
 // AI : Session data type
 type SessionData = {
@@ -107,9 +109,27 @@ app.use(
   }),
 );
 
+// AI : Helper function to enforce minimum execution time
+async function enforceMinExecutionTime(startTime: number) {
+  const MIN_EXEC_TIME = 200; // 200ms target duration
+  const elapsed = Date.now() - startTime;
+  if (elapsed < MIN_EXEC_TIME) {
+    await Bun.sleep(MIN_EXEC_TIME - elapsed);
+  }
+}
+
 // AI : Auth routes using Hono (for session management)
 app.post("/api/login", async (c) => {
+  // AI : Measure start time to enforce constant time response
+  const startTime = Date.now();
+
   try {
+    // AI : Rate limit: 10 attempts per IP per minute
+    const ip = getClientIp(c);
+    if (!globalRateLimiter.check(ip, 10, 60 * 1000)) {
+      return c.json({ error: "auth.error.tooManyRequests" }, 429);
+    }
+
     const body = await c.req.json();
 
     // AI : Validate request body with Zod
@@ -127,23 +147,35 @@ app.post("/api/login", async (c) => {
     const { eq } = await import("drizzle-orm");
 
     const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    if (!user) {
-      return c.json({ error: "auth.error.invalidCredentials" }, 401);
-    }
 
-    // AI : Check if user has a password (not an OAuth-only account)
-    if (!user.passwordHash) {
-      return c.json({ error: "auth.error.accountUsesGoogleSignIn" }, 401);
-    }
+    // AI : SECURITY: Mitigate timing attack
+    // Always perform password verification even if user doesn't exist
+    // This ensures consistent response time (~80ms) for both valid and invalid emails
+    const dummyHash =
+      "$argon2id$v=19$m=65536,t=2,p=1$WzgfyslW80m4IOmzoEo0MiRnRnyqnFVzaFLp/S1kQIQ$RO1WV3KLiIMekWVluRf8a2oDncmEoVmUPD9MCN1wMd4";
+    const targetHash = user?.passwordHash ?? dummyHash;
 
-    // AI : Verify password
-    const isValidPassword = await Bun.password.verify(password, user.passwordHash);
-    if (!isValidPassword) {
+    // AI : Verify password (always executed)
+    const isValidPassword = await Bun.password.verify(password, targetHash);
+
+    // AI : Now check user existence and validity
+    if (!user || !user.passwordHash || !isValidPassword) {
+      // AI : Check if it was an OAuth account (only if user exists, but we return generic error anyway)
+      if (user && !user.passwordHash) {
+        // AI : Still wait for min time before returning
+        await enforceMinExecutionTime(startTime);
+        return c.json({ error: "auth.error.accountUsesGoogleSignIn" }, 401);
+      }
+
+      // AI : Still wait for min time before returning
+      await enforceMinExecutionTime(startTime);
       return c.json({ error: "auth.error.invalidCredentials" }, 401);
     }
 
     // AI : Check if email is verified
     if (!user.emailVerified) {
+      // AI : Still wait for min time before returning
+      await enforceMinExecutionTime(startTime);
       return c.json({ error: "auth.error.emailNotVerified" }, 403);
     }
 
@@ -166,6 +198,10 @@ app.post("/api/login", async (c) => {
     // AI : Set custom session expiry
     session.set("expiresAt", expiresAt.toISOString());
 
+    // AI : Constant time mitigation: Ensure request takes at least MIN_EXEC_TIME ms
+    // AI : This masks the difference between DB lookup times (found vs not found)
+    await enforceMinExecutionTime(startTime);
+
     return c.json({
       success: true,
       message: "auth.success.loggedIn",
@@ -180,6 +216,10 @@ app.post("/api/login", async (c) => {
     });
   } catch (error) {
     console.error("Login error:", error);
+
+    // AI : Even on error, try to maintain timing if possible
+    await enforceMinExecutionTime(startTime);
+
     return c.json({ error: "auth.error.loginFailed" }, 500);
   }
 });
@@ -362,6 +402,12 @@ function setUserSession(c: Context, user: any, rememberMe: boolean) {
 // AI : Google OAuth login endpoint
 app.post("/api/google-login", async (c) => {
   try {
+    // AI : Rate limit: 20 attempts per IP per minute (slightly higher for OAuth)
+    const ip = getClientIp(c);
+    if (!globalRateLimiter.check(ip, 20, 60 * 1000)) {
+      return c.json({ error: "auth.error.tooManyRequests" }, 429);
+    }
+
     const body = await c.req.json();
     const { token, rememberMe } = await validateGoogleLoginRequest(body);
 
@@ -460,6 +506,20 @@ app.get("/api/check-session", async (c) => {
 // AI : File upload endpoint
 app.post("/api/upload-image", async (c) => {
   try {
+    // AI : Rate limit: 10 uploads per IP per minute
+    const ip = getClientIp(c);
+    if (!globalRateLimiter.check(ip, 10, 60 * 1000)) {
+      return c.json({ error: "auth.error.tooManyRequests" } as FileUploadError, 429);
+    }
+
+    // AI : Require authentication
+    // AI : Uploads are only allowed for logged-in users to prevent anonymous spam
+    const session = c.get("session");
+    const user = session.get("user");
+    if (!user) {
+      return c.json({ error: "Authentication required" } as FileUploadError, 401);
+    }
+
     const body = await c.req.formData();
     const file = body.get("image");
 

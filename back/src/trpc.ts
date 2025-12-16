@@ -7,7 +7,7 @@ export { TRPCError } from "@trpc/server";
 
 export type Context = {
   user?: DBUser | null;
-  hono?: HonoContext;
+  hono: HonoContext;
 };
 
 /**

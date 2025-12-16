@@ -391,7 +391,9 @@
       "loginFailed": "Login failed. Please try again.",
       "invalidGoogleToken": "Invalid Google authentication. Please try again.",
       "emailLinkedToDifferentGoogle": "This email is already associated with a different Google account.",
-      "googleAuthFailed": "Google authentication failed. Please try again."
+      "googleAuthFailed": "Google authentication failed. Please try again.",
+      "tooManyRequests": "Too many requests. Please try again later.",
+      "invalidCaptcha": "Invalid CAPTCHA. Please try again."
     },
     "success": {
       "registered": "Account created successfully! Please check your email to verify your account.",

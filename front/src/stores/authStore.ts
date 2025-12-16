@@ -156,12 +156,13 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   // AI : Sign up with email and password
-  async function signUp(email: string, password: string, username: string) {
+  async function signUp(email: string, password: string, username: string, captchaToken?: string) {
     try {
       const result = await trpc.auth.register.mutate({
         email,
         password,
         username,
+        captchaToken,
       });
 
       return {
