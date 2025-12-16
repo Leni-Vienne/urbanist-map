@@ -90,17 +90,24 @@ export class DrizzleSessionStore {
         }
       }
 
-      // AI : CRITICAL FIX: Only UPDATE existing sessions, don't create new ones
-      // AI : Session creation should ONLY happen in createSession() after successful login
-      // AI : This prevents the session explosion bug where every request created a new session
+      // AI : CRITICAL FIX: Use UPSERT to handle both create and update cases
+      // AI : This prevents session loss when persistSessionData is called before createSession
+      // AI : or when a session needs to be recreated after expiry
       await db
-        .update(sessions)
-        .set({
+        .insert(sessions)
+        .values({
+          id: sessionId,
           data: sessionData,
           expiresAt,
-          updatedAt: new Date(),
         })
-        .where(eq(sessions.id, sessionId));
+        .onConflictDoUpdate({
+          target: sessions.id,
+          set: {
+            data: sessionData,
+            expiresAt,
+            updatedAt: new Date(),
+          },
+        });
     } catch (error) {
       console.error("Failed to persist session data:", error);
       // AI : Don't throw - failing to persist session data shouldn't break the request
