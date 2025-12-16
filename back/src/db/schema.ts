@@ -117,7 +117,9 @@ export const projects = pgTable(
       .notNull()
       .$onUpdate(() => new Date()),
   },
-  (_projects) => [
+  (table) => [
+    index("idx_projects_status").on(table.status),
+    index("idx_projects_owner_id").on(table.ownerId),
     sql.raw(
       "CREATE INDEX idx_projects_center_coordinate ON projects USING GIST (center_coordinate)",
     ), // AI : Spatial index for project center coordinates
@@ -164,9 +166,11 @@ export const overlays = pgTable(
       .notNull()
       .$onUpdate(() => new Date()),
   },
-  (overlays) => [
-    index("idx_overlays_project").on(overlays.projectId),
-    index("idx_overlays_replaces").on(overlays.replacesOverlayId),
+  (table) => [
+    index("idx_overlays_status").on(table.status),
+    index("idx_overlays_author_id").on(table.authorId),
+    index("idx_overlays_project").on(table.projectId),
+    index("idx_overlays_replaces").on(table.replacesOverlayId),
     sql.raw("CREATE INDEX IF NOT EXISTS idx_overlays_corners ON overlays USING GIST (corners)"),
     sql.raw("CREATE INDEX IF NOT EXISTS idx_overlays_centroid ON overlays USING GIST (centroid)"),
   ],
