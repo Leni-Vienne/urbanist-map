@@ -74,6 +74,7 @@ export class DrizzleSessionStore {
       const userData = sessionData?._data?.user;
 
       // AI : Skip persisting empty sessions (anonymous visitors)
+      // AI : CRITICAL: Only persist authenticated user sessions to prevent session explosion
       if (!userData) {
         return;
       }
@@ -89,25 +90,21 @@ export class DrizzleSessionStore {
         }
       }
 
-      // AI : Upsert - insert if session doesn't exist (was skipped at creation), update if it does
+      // AI : CRITICAL FIX: Only UPDATE existing sessions, don't create new ones
+      // AI : Session creation should ONLY happen in createSession() after successful login
+      // AI : This prevents the session explosion bug where every request created a new session
       await db
-        .insert(sessions)
-        .values({
-          id: sessionId,
+        .update(sessions)
+        .set({
           data: sessionData,
           expiresAt,
+          updatedAt: new Date(),
         })
-        .onConflictDoUpdate({
-          target: sessions.id,
-          set: {
-            data: sessionData,
-            expiresAt,
-            updatedAt: new Date(),
-          },
-        });
+        .where(eq(sessions.id, sessionId));
     } catch (error) {
       console.error("Failed to persist session data:", error);
-      throw error;
+      // AI : Don't throw - failing to persist session data shouldn't break the request
+      // The session will still work in-memory, just won't be persisted to DB
     }
   }
 
