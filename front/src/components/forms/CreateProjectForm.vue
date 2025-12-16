@@ -43,7 +43,7 @@ const formData = reactive<ProjectFormData>({
     sourceUrl: props.project.sourceUrl ?? null,
 })
 
-const isProposed = ref(props.mode === 'create' ? true : !!(props.project.proposalDate && !props.project.startDate))
+const isProposed = ref(props.mode === 'create' ? true : Boolean(props.project.proposalDate && !props.project.startDate))
 
 const markerCoordinates = props.project.lat && props.project.lng
     ? { lat: props.project.lat, lng: props.project.lng }

@@ -6,7 +6,7 @@ import { validateOverlaySize } from "../overlayValidation";
 export const projectSchema = z
   .object({
     id: z.uuid().optional(),
-    name: z.string().min(8, "validation.nameTooShort").max(20, "validation.nameTooLong"),
+    name: z.string().min(7, "validation.nameTooShort").max(35, "validation.nameTooLong"),
     description: z
       .string()
       .max(2000, "validation.descriptionTooLong")

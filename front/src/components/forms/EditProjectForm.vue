@@ -64,7 +64,7 @@ const markerCoordinates = props.project.lat && props.project.lng
   ? { lat: props.project.lat, lng: props.project.lng }
   : null
 
-const isProposed = ref(!!(props.project.proposalDate && !props.project.startDate && !props.project.endDate))
+const isProposed = ref(Boolean(props.project.proposalDate && !props.project.startDate && !props.project.endDate))
 
 // AI : Helper to ensure dates are Date objects
 function toDateObject(value: Date | string | null | undefined): Date | null {

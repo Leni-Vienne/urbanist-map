@@ -20,7 +20,7 @@ const tileLayerBounds = L.latLngBounds([-85, -180], [85, 180]);
 // AI : Tile layer configurations with UI labels
 const tileLayerConfigs = {
   esri: {
-    label: "World (default)",
+    label: "World",
     flagUrl: "https://flagcdn.com/16x12/un.png", // UN flag for world
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     options: {

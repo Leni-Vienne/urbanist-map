@@ -147,7 +147,7 @@ function onDialogHide() {
 }
 
 // AI : Check if opened via store (side panel) or via prop/expose (map popup)
-const isStoreModeActive = computed(() => !!uiStore.overlayEditDialog.overlay);
+const isStoreModeActive = computed(() => Boolean(uiStore.overlayEditDialog.overlay));
 
 // AI : Check if there are actual changes to save
 const hasChanges = computed(() => {
