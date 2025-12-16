@@ -55,7 +55,7 @@ export async function checkPendingLimitForNewContribution(
       .where(eq(projects.id, entityId))
       .limit(1);
 
-    const existingEntity = existingOverlay || existingProject;
+    const existingEntity = existingOverlay ?? existingProject;
 
     // AI : If entity exists, check its status
     if (existingEntity) {

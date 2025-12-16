@@ -65,6 +65,12 @@ app.use(
   }),
 );
 
+// AI : CRITICAL: Health check endpoint MUST be before session middleware
+// AI : Caddy polls this every 30 seconds - we don't want to create sessions for health checks!
+app.get("/api/health", (c) => {
+  return c.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
 // AI : Database-backed session store using Drizzle ORM for persistence across server restarts
 const store = new DrizzleSessionStore();
 
@@ -159,7 +165,7 @@ app.post("/api/login", async (c) => {
     const isValidPassword = await Bun.password.verify(password, targetHash);
 
     // AI : Now check user existence and validity
-    if (!user || !user.passwordHash || !isValidPassword) {
+    if (!user?.passwordHash || !isValidPassword) {
       // AI : Check if it was an OAuth account (only if user exists, but we return generic error anyway)
       if (user && !user.passwordHash) {
         // AI : Still wait for min time before returning
@@ -608,11 +614,6 @@ app.get("/uploads/*", async (c) => {
     console.error("Error serving file:", error);
     return c.json({ error: "Failed to serve file" }, 500);
   }
-});
-
-// AI : Health check endpoint
-app.get("/api/health", (c) => {
-  return c.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
 // AI : Only serve frontend files in development mode

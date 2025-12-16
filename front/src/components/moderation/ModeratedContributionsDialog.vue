@@ -24,11 +24,7 @@
         {{ $t('moderation.moderatedContributions.description') }}
       </p>
 
-      <div
-        v-for="item in moderatedContributions"
-        :key="item.id"
-        class="moderated-item"
-      >
+      <div v-for="item in moderatedContributions" :key="item.id" class="moderated-item">
         <!-- AI : Thumbnail -->
         <div class="thumbnail-container">
           <img
@@ -66,12 +62,7 @@
 
     <!-- AI : Footer actions -->
     <template #footer>
-      <Button
-        :label="$t('common.close')"
-        severity="secondary"
-        outlined
-        @click="emit('close')"
-      />
+      <Button :label="$t('common.close')" severity="secondary" outlined @click="emit('close')" />
       <Button
         v-if="moderatedContributions.length > 0"
         :label="$t('moderation.moderatedContributions.acknowledgeAll')"
@@ -115,7 +106,6 @@ const {
 
 const isVisible = ref(props.visible)
 const isAcknowledging = ref(false)
-const imageBaseUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'
 
 // AI : Sync visibility with prop
 watch(() => props.visible, (newVal) => {

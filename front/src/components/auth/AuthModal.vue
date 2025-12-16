@@ -359,15 +359,6 @@ function resetTurnstile() {
   captchaToken.value = ''
 }
 
-// AI : Add types for globalThis.turnstile
-declare global {
-  var turnstile: {
-    render: (container: string | HTMLElement, options: any) => string
-    remove: (widgetId: string) => void
-    reset: (widgetId: string) => void
-  } | undefined
-}
-
 // AI : Helper to translate error messages (handles both i18n keys and plain text)
 function translateError(errorMessage: string | null | undefined): string {
   if (!errorMessage) return ''
