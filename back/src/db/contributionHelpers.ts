@@ -1,6 +1,6 @@
 import { db } from "../database";
 import { projects, overlays } from "./schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
 // AI : Maximum number of pending contributions (projects + overlays) per user
@@ -44,20 +44,28 @@ export async function checkPendingLimitForNewContribution(
   if (entityId) {
     // AI : Check if overlay or project already exists
     const [existingOverlay] = await db
-      .select({ id: overlays.id })
+      .select({ id: overlays.id, status: overlays.status })
       .from(overlays)
       .where(eq(overlays.id, entityId))
       .limit(1);
 
     const [existingProject] = await db
-      .select({ id: projects.id })
+      .select({ id: projects.id, status: projects.status })
       .from(projects)
       .where(eq(projects.id, entityId))
       .limit(1);
 
-    // AI : If entity exists, it's an edit, not a new contribution
-    if (existingOverlay || existingProject) {
-      return;
+    const existingEntity = existingOverlay || existingProject;
+
+    // AI : If entity exists, check its status
+    if (existingEntity) {
+      // AI : If it's already pending, this is just an edit to a pending item
+      // AI : We don't count it as a "new" pending contribution since it's already counted
+      if (existingEntity.status === "pending") {
+        return;
+      }
+      // AI : If it's NOT pending (e.g. rejected or approved), and we're submitting it
+      // AI : It will become 'pending' again, so we must check the limit!
     }
   }
 
@@ -67,6 +75,32 @@ export async function checkPendingLimitForNewContribution(
     throw new TRPCError({
       code: "BAD_REQUEST",
       message: `You have reached the maximum of ${MAX_PENDING_CONTRIBUTIONS} pending contributions. Please wait for your existing contributions to be reviewed before submitting more.`,
+    });
+  }
+}
+
+// AI : Lifetime limit: 2000 total approved/pending contributions (projects + overlays) per user
+// AI : This prevents database bloat and storage abuse (approx 10-20GB max per user)
+export const MAX_TOTAL_CONTRIBUTIONS = 2000;
+
+export async function checkTotalContributionLimit(userId: string): Promise<void> {
+  // AI : Count all contributions (approved + pending)
+  const [userProjects] = await db
+    .select({ count: sql<number>`cast(count(*) as integer)` })
+    .from(projects)
+    .where(and(eq(projects.ownerId, userId), inArray(projects.status, ["approved", "pending"])));
+
+  const [userOverlays] = await db
+    .select({ count: sql<number>`cast(count(*) as integer)` })
+    .from(overlays)
+    .where(and(eq(overlays.authorId, userId), inArray(overlays.status, ["approved", "pending"])));
+
+  const total = (userProjects?.count ?? 0) + (userOverlays?.count ?? 0);
+
+  if (total >= MAX_TOTAL_CONTRIBUTIONS) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `You have reached the maximum lifetime limit of ${MAX_TOTAL_CONTRIBUTIONS} contributions.`,
     });
   }
 }

@@ -10,7 +10,10 @@ import {
   buildPaginationConditions,
   buildPaginationResponse,
 } from "../db/helpers";
-import { checkPendingLimitForNewContribution } from "../db/contributionHelpers";
+import {
+  checkPendingLimitForNewContribution,
+  checkTotalContributionLimit,
+} from "../db/contributionHelpers";
 import { deleteLocalImages } from "../lib/imageCleanup";
 import { projectSchema } from "@shared/validation/schemas";
 
@@ -29,6 +32,12 @@ export const projectRouter = router({
         if (city.length === 0) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "City not found" });
         }
+      }
+
+      // AI : Check contribution limits
+      if (!input.id) {
+        // Only check total limit for NEW projects (updates don't increase count)
+        await checkTotalContributionLimit(ctx.user.id);
       }
 
       // AI : Check pending contribution limit for new projects

@@ -1,5 +1,7 @@
 import * as z from "zod"; // smaller bundle compared to 'import { z } from 'zod';
 import { TRPCError } from "@trpc/server";
+import { globalRateLimiter } from "../lib/rateLimit";
+import { getClientIp } from "../utils/ip";
 import crypto from "crypto";
 import { eq, gt } from "drizzle-orm";
 import { publicProcedure, router } from "../trpc";
@@ -11,9 +13,7 @@ import {
   resetPasswordSchema,
 } from "../../../shared/validation/schemas";
 import { getEmailService } from "../services/emailService";
-import { globalRateLimiter } from "../lib/rateLimit";
 import { verifyTurnstileToken } from "../utils/captcha";
-import { getClientIp } from "../utils/ip";
 
 // AI : Use shared validation schemas
 
@@ -195,8 +195,17 @@ export const authRouter = router({
   // AI : Verify email
   verifyEmail: publicProcedure
     .input(z.object({ token: z.string() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       try {
+        // AI : Rate limit: 5 verify attempts per IP per hour (brute force protection)
+        const ip = getClientIp(ctx.hono);
+        if (!globalRateLimiter.check(ip, 5, 60 * 60 * 1000)) {
+          throw new TRPCError({
+            code: "TOO_MANY_REQUESTS",
+            message: "auth.error.tooManyRequests",
+          });
+        }
+
         const { token } = input;
 
         // AI : Find all users with verification tokens and check each one

@@ -11,9 +11,16 @@ export class RateLimiter {
    * Check if an IP has exceeded the limit within the window.
    * Returns true if allowed, false if limit exceeded.
    */
-  check(ip: string, limit: number, windowMs: number): boolean {
+  /**
+   * Check if an IP has exceeded the limit within the window.
+   * Returns true if allowed, false if limit exceeded.
+   * @param key - The identifier (e.g. IP address).
+   * @param action - The specific action (e.g. 'login', 'upload'). If provided, limits are isolated per action.
+   */
+  check(ip: string, limit: number, windowMs: number, action = "default"): boolean {
+    const key = `${ip}:${action}`;
     const now = Date.now();
-    const timestamps = this.hits.get(ip) || [];
+    const timestamps = this.hits.get(key) || [];
 
     // AI : Filter out timestamps outside the current window
     const validTimestamps = timestamps.filter((ts) => now - ts < windowMs);
@@ -23,16 +30,17 @@ export class RateLimiter {
     }
 
     validTimestamps.push(now);
-    this.hits.set(ip, validTimestamps);
+    this.hits.set(key, validTimestamps);
     return true;
   }
 
   /**
    * Get remaining requests for an IP.
    */
-  getRemaining(ip: string, limit: number, windowMs: number): number {
+  getRemaining(ip: string, limit: number, windowMs: number, action = "default"): number {
+    const key = `${ip}:${action}`;
     const now = Date.now();
-    const timestamps = this.hits.get(ip) || [];
+    const timestamps = this.hits.get(key) || [];
     const validTimestamps = timestamps.filter((ts) => now - ts < windowMs);
     return Math.max(0, limit - validTimestamps.length);
   }
@@ -46,12 +54,12 @@ export class RateLimiter {
     // Let's assume a safe max window of 1 hour for cleanup logic simplicity for now.
     const MAX_WINDOW = 3600 * 1000;
 
-    for (const [ip, timestamps] of this.hits.entries()) {
+    for (const [key, timestamps] of this.hits.entries()) {
       const validTimestamps = timestamps.filter((ts) => now - ts < MAX_WINDOW);
       if (validTimestamps.length === 0) {
-        this.hits.delete(ip);
+        this.hits.delete(key);
       } else {
-        this.hits.set(ip, validTimestamps);
+        this.hits.set(key, validTimestamps);
       }
     }
   }
