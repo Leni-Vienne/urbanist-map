@@ -3,10 +3,16 @@ import { trpc } from "@/client";
 import { withErrorHandling } from "@/composables/core/useErrorHandling";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import { useAuthStore } from "@/stores/authStore";
 import { updateMarkerTooltip } from "@/composables/overlay/useOverlayMarkers";
 import { removeOverlayFromMap } from "@/composables/overlay/useOverlayRemoval";
 import { updateOverlayMarkersColors } from "@/composables/map/useMarkers";
+import { updateStandaloneProjectMarkerColor } from "@/composables/map/useCityMarkers";
+import {
+  getStandaloneProjectMarkerByProjectId,
+  updateStandaloneProjectMarkerTooltip,
+} from "@/composables/map/useStandaloneProjectMarkers";
 import { t } from "@/locales";
 
 // AI : Result types for approval operations
@@ -225,13 +231,45 @@ export function useModeration() {
     id: string,
     status: "approved" | "rejected",
   ): Promise<ApprovalResult> {
-    return setApprovalStatus(
+    // AI : Get project data BEFORE approval (it will be removed from pending list after)
+    const projectBeforeApproval = projects.value.find((p) => p.id === id);
+
+    const result = await setApprovalStatus(
       id,
       status,
       "project",
       projects.value,
       trpc.moderation.setProjectApprovalStatusWithVersion.mutate,
     );
+
+    // AI : Update marker visuals if project approval succeeded and project has a standalone marker
+    if (result.success && projectBeforeApproval) {
+      // AI : Update marker color to reflect new status (pending -> approved/rejected)
+      // AI : Type cast is safe here - marker functions only use common fields (id, status, name, etc.)
+      const projectWithNewStatus = { ...projectBeforeApproval, status };
+      updateStandaloneProjectMarkerColor(id, projectWithNewStatus as any);
+
+      // AI : Update marker tooltip to reflect new status
+      const marker = getStandaloneProjectMarkerByProjectId(id);
+      if (marker) {
+        const overlayStore = useOverlayStore();
+        updateStandaloneProjectMarkerTooltip(
+          marker,
+          projectWithNewStatus as any,
+          overlayStore.mode,
+        );
+      }
+
+      // AI : Invalidate city cache to prevent stale data when reloading the city
+      // AI : This ensures the next city load fetches fresh data from backend with updated status
+      if (projectBeforeApproval.cityId) {
+        const mapStore = useMapStore();
+        const overlayStore = useOverlayStore();
+        mapStore.clearCityStandaloneProjectsCache(projectBeforeApproval.cityId, overlayStore.mode);
+      }
+    }
+
+    return result;
   }
 
   async function approveProject(id: string): Promise<ApprovalResult> {
