@@ -15,6 +15,7 @@ import { requestLogger } from "./middleware/requestLogger";
 import { errorAlerter } from "./services/errorAlerter";
 import { globalRateLimiter } from "./lib/rateLimit";
 import { getClientIp } from "./utils/ip";
+import { logger } from "./services/logger";
 
 // AI : Session data type
 type SessionData = {
@@ -68,7 +69,21 @@ app.use(
 // AI : CRITICAL: Health check endpoint MUST be before session middleware
 // AI : Caddy polls this every 30 seconds - we don't want to create sessions for health checks!
 app.get("/api/health", (c) => {
-  return c.json({ status: "ok", timestamp: new Date().toISOString() });
+  const timestamp = new Date().toISOString();
+
+  // AI : Log health check at info level for Grafana heartbeat monitoring
+  // AI : Caddy polls every 30s - these logs are used to detect service downtime
+  logger.info(
+    {
+      method: "GET",
+      path: "/api/health",
+      status: 200,
+      timestamp,
+    },
+    "Health check",
+  );
+
+  return c.json({ status: "ok", timestamp });
 });
 
 // AI : Database-backed session store using Drizzle ORM for persistence across server restarts
