@@ -73,6 +73,7 @@
       empty-message="All projects reviewed!"
       empty-sub-message="No pending projects to moderate."
       :show-user-stats-link="true"
+      :disable-auto-mode-switch="true"
       @show-user-stats="handleShowUserStats"
       :on-overlay-click="handleViewOverlayPosition"
     >
