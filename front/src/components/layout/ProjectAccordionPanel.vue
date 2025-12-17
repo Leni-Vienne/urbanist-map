@@ -36,6 +36,7 @@
                 <div
                   v-if="!disableGrouping"
                   class="city-group-header"
+                  :data-city-key="cityGroup.key"
                   @click="toggleCityExpanded(cityGroup.key)"
                 >
                   <div class="city-header-content">
@@ -351,6 +352,7 @@ import { useOverlayClickHandler } from '@/composables/overlay/useOverlayClickHan
 import { highlightOverlayById, removeOverlayHighlight } from '@/composables/overlay/useOverlaySelection'
 import { useToast } from '@/composables/ui/useToast'
 import { useOverlayStore } from '@/stores/pinia/overlayStore'
+import { useMapStore } from '@/stores/pinia/mapStore'
 import { useUiStore } from '@/stores/uiStore'
 import { useAccordionState } from '@/composables/layout/useAccordionState'
 import type { ProjectForModeration, OverlayForModeration } from '@/types/index'
@@ -376,6 +378,18 @@ interface Props {
   showEditButtons?: boolean
   shouldSwitchToEditMode?: boolean
 }
+interface CityGroup {
+  key: string;
+  cityName: string;
+  projects: ProjectForModeration[];
+}
+
+interface CountryGroup {
+  countryCode: string;
+  countryName: string;
+  totalProjects: number;
+  cities: CityGroup[];
+}
 
 const props = withDefaults(defineProps<Props>(), {
   emptyMessage: '',
@@ -397,6 +411,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const toast = useToast()
 const overlayStore = useOverlayStore()
+const mapStore = useMapStore()
 const uiStore = useUiStore()
 
 // AI : Use shared accordion state (persists across My Contributions and Moderation panels)
@@ -416,62 +431,10 @@ const { imageErrors, handleImageError, handleImageLoad } = useImageErrors()
 // AI : Use overlay click handler composable for shared navigation logic
 const { handleOverlayClickNavigation } = useOverlayClickHandler()
 
-// AI : Wrapper to navigate to overlay by ID
-async function navigateToOverlayById(overlayId: string) {
-  for (const project of props.projects) {
-    if (project.overlays) {
-      const overlay = project.overlays.find(o => o.id === overlayId)
-      if (overlay) {
-        await handleOverlayClickNavigation(overlay, true)
-        return
-      }
-    }
-  }
-}
-
-// AI : Helper functions to filter change requests
-function getProjectChangeRequestsForProject(projectId: string): PendingChangeRequest[] {
-  const project = props.projects.find(p => p.id === projectId)
-  if (!project || project.status === 'pending') {
-    return []
-  }
-  return props.changeRequests.filter(
-    request => request.entityType === 'project' && request.entityId === projectId
-  )
-}
-
-function getOverlayChangeRequestsForOverlay(overlayId: string): PendingChangeRequest[] {
-  let overlay: OverlayForModeration | null = null
-  for (const project of props.projects) {
-    if (project.overlays) {
-      overlay = project.overlays.find((o: OverlayForModeration) => o.id === overlayId) ?? null
-      if (overlay) break
-    }
-  }
-  if (!overlay || overlay.status === 'pending') {
-    return []
-  }
-  return props.changeRequests.filter(
-    request => request.entityType === 'overlay' && request.entityId === overlayId
-  )
-}
 
 const expandedPanels = computed(() => new Set(activeAccordionPanels.value))
 
 const isMyContributionsPanel = computed(() => props.panelClass === 'my-contributions-panel')
-
-interface CityGroup {
-  key: string;
-  cityName: string;
-  projects: ProjectForModeration[];
-}
-
-interface CountryGroup {
-  countryCode: string;
-  countryName: string;
-  totalProjects: number;
-  cities: CityGroup[];
-}
 
 const groupedByCountry = computed(() => {
   const countryMap = new Map<string, CountryGroup>();
@@ -569,6 +532,44 @@ watch(
   { deep: true }
 )
 
+// AI : Watch for selected city changes to auto-scroll to city in panel (moderation/edit modes)
+watch(
+  () => [mapStore.selectedCity, props.projects] as const,
+  async ([selectedCity, projects]) => {
+    if (selectedCity && projects.length > 0 && !props.disableGrouping) {
+      // AI : Wait for Vue to finish rendering the updated projects
+      await nextTick()
+
+      // AI : Build city key using same format as groupedByCountry
+      const cityKey = `${selectedCity.countryCode ?? 'unknown'}-${selectedCity.name}`
+
+      // AI : Find the country and city in grouped data
+      const country = groupedByCountry.value.find(c =>
+        c.cities.some(city => city.key === cityKey)
+      )
+
+      if (country) {
+        // AI : Auto-expand country if collapsed
+        if (!isCountryExpanded(country.countryCode)) {
+          toggleCountryExpanded(country.countryCode, country)
+        }
+
+        // AI : Auto-expand city if collapsed
+        if (!isCityExpanded(cityKey)) {
+          toggleCityExpanded(cityKey)
+        }
+
+        // AI : Wait for DOM to update with expanded accordions
+        await nextTick()
+
+        // AI : Wait for accordion animation to complete, then scroll
+        await waitForCityAccordionAnimation(cityKey)
+      }
+    }
+  },
+  { deep: true }
+)
+
 /**
  * AI : Wait for accordion expansion animation to complete, then scroll to overlay
  * AI : NOTE: This uses DOM polling because PrimeVue's Accordion component does not expose
@@ -640,6 +641,69 @@ async function waitForProjectAccordionAnimation(projectId: string): Promise<void
   await scrollToOverlayWhenReady(projectElement)
 }
 
+/**
+ * AI : Wait for accordion expansion animation to complete for a city, then scroll to it
+ */
+async function waitForCityAccordionAnimation(cityKey: string): Promise<void> {
+  // AI : Find the city element to check if it exists and is visible
+  const cityElement = document.querySelector(`[data-city-key="${cityKey}"]`)
+
+  if (!cityElement) {
+    // AI : Element not found, wait a frame and try again (max 3 attempts)
+    for (let i = 0; i < 3; i++) {
+      await new Promise(resolve => requestAnimationFrame(resolve))
+      const element = document.querySelector(`[data-city-key="${cityKey}"]`)
+      if (element) {
+        await scrollToOverlayWhenReady(element)
+        return
+      }
+    }
+    return
+  }
+
+  await scrollToOverlayWhenReady(cityElement)
+}
+
+
+// AI : Wrapper to navigate to overlay by ID
+async function navigateToOverlayById(overlayId: string) {
+  for (const project of props.projects) {
+    if (project.overlays) {
+      const overlay = project.overlays.find(o => o.id === overlayId)
+      if (overlay) {
+        await handleOverlayClickNavigation(overlay, true)
+        return
+      }
+    }
+  }
+}
+
+// AI : Helper functions to filter change requests
+function getProjectChangeRequestsForProject(projectId: string): PendingChangeRequest[] {
+  const project = props.projects.find(p => p.id === projectId)
+  if (!project || project.status === 'pending') {
+    return []
+  }
+  return props.changeRequests.filter(
+    request => request.entityType === 'project' && request.entityId === projectId
+  )
+}
+
+function getOverlayChangeRequestsForOverlay(overlayId: string): PendingChangeRequest[] {
+  let overlay: OverlayForModeration | null = null
+  for (const project of props.projects) {
+    if (project.overlays) {
+      overlay = project.overlays.find((o: OverlayForModeration) => o.id === overlayId) ?? null
+      if (overlay) break
+    }
+  }
+  if (!overlay || overlay.status === 'pending') {
+    return []
+  }
+  return props.changeRequests.filter(
+    request => request.entityType === 'overlay' && request.entityId === overlayId
+  )
+}
 
 
 // AI : Get badge severity based on status
@@ -674,9 +738,6 @@ function getOverlayImageUrl(filename: string, status?: string | null): string {
   const forceBackendUrl = status === 'pending' || status === null;
   return buildThumbnailUrl(filename, forceBackendUrl)
 }
-
-
-
 
 // AI : Get overlay location display (city, country) - avoid duplication
 function getOverlayLocationDisplay(overlay: OverlayForModeration): string {
