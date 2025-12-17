@@ -567,16 +567,28 @@ export function buildProjectHasVisibleContentCondition(
   }
 
   if (mode === "moderation" && user) {
-    // AI : Moderation mode: show if no overlays OR has any overlays (approved or pending)
+    // AI : Moderation mode: only show projects that need moderation
+    // AI : This includes: pending projects OR projects with pending overlays OR projects with pending change requests
+    // AI : Excludes: approved projects with only approved content and no pending changes
     return sql`(
-      NOT EXISTS (
-        SELECT 1 FROM ${overlays}
-        WHERE ${overlays.projectId} = ${projects.id}
-      )
+      ${projects.status} = 'pending'
       OR EXISTS (
         SELECT 1 FROM ${overlays}
         WHERE ${overlays.projectId} = ${projects.id}
-        AND (${overlays.status} = 'approved' OR ${overlays.status} = 'pending')
+        AND ${overlays.status} = 'pending'
+      )
+      OR EXISTS (
+        SELECT 1 FROM ${changeRequests}
+        WHERE ${changeRequests.entityType} = 'project'
+        AND ${changeRequests.entityId} = ${projects.id}
+        AND ${changeRequests.status} = 'pending'
+      )
+      OR EXISTS (
+        SELECT 1 FROM ${changeRequests}
+        INNER JOIN ${overlays} ON ${changeRequests.entityId} = ${overlays.id}
+        WHERE ${changeRequests.entityType} = 'overlay'
+        AND ${overlays.projectId} = ${projects.id}
+        AND ${changeRequests.status} = 'pending'
       )
     )`;
   }
