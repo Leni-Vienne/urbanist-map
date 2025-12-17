@@ -111,6 +111,11 @@ export const citiesRouter = router({
     )
     .query(async ({ input, ctx }) => {
       try {
+        // AI : SECURITY: Reject moderation mode for unauthenticated users
+        if (input.mode === "moderation" && !ctx.user) {
+          throw new Error("Authentication required for moderation mode");
+        }
+
         // AI : Fetch user's overlay change request IDs if in edit mode
         const overlayChangeRequestIds =
           ctx.user && input.mode === "edit"
@@ -156,6 +161,11 @@ export const citiesRouter = router({
     .query(async ({ input, ctx }) => {
       try {
         const { cityId, mode } = input;
+
+        // AI : SECURITY: Reject moderation mode for unauthenticated users
+        if (mode === "moderation" && !ctx.user) {
+          throw new Error("Authentication required for moderation mode");
+        }
 
         // AI : Fetch user's overlay change request IDs if in edit mode
         const overlayChangeRequestIds =
