@@ -330,6 +330,11 @@ export const projectRouter = router({
     )
     .query(async ({ input, ctx }) => {
       try {
+        // AI : SECURITY: Reject moderation mode for unauthenticated users
+        if (input.mode === "moderation" && !ctx.user) {
+          throw new Error("Authentication required for moderation mode");
+        }
+
         // AI : Build where conditions based on user authentication and mode
         // AI : In edit mode, show approved OR user's own contributions (any status)
         // AI : In moderation mode, show approved OR pending from all users

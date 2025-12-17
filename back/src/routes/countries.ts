@@ -39,6 +39,11 @@ export const countriesRouter = router({
       try {
         const mode = input?.mode ?? "view";
 
+        // AI : SECURITY: Reject moderation mode for unauthenticated users
+        if (mode === "moderation" && !ctx.user) {
+          throw new Error("Authentication required for moderation mode");
+        }
+
         const overlayChangeRequestIds =
           ctx.user && mode === "edit"
             ? await getUserOverlayChangeRequestIds(db, ctx.user.id)
@@ -55,6 +60,17 @@ export const countriesRouter = router({
           overlayChangeRequestIds,
         );
 
+        // AI : Build country filter for moderators in moderation mode
+        let countryFilter = undefined;
+        if (mode === "moderation" && ctx.user) {
+          const moderatedCountries = ctx.user.moderatedCountries;
+          // AI : If not admin (moderatedCountries is an array), filter by assigned countries
+          if (moderatedCountries !== null) {
+            countryFilter = inArray(countries.code, moderatedCountries);
+          }
+          // AI : If admin (moderatedCountries is null), no country filter needed
+        }
+
         return await db
           .selectDistinctOn([countries.code], {
             id: countries.id,
@@ -65,7 +81,7 @@ export const countriesRouter = router({
           .from(countries)
           .innerJoin(cities, eq(cities.countryCode, countries.code))
           .innerJoin(projects, eq(projects.cityId, cities.id))
-          .where(and(projectCondition, contentCondition))
+          .where(and(projectCondition, contentCondition, countryFilter))
           .orderBy(countries.code, countries.name);
       } catch (error) {
         console.error("Error fetching countries with projects:", error);
