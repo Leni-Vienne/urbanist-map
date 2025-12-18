@@ -795,7 +795,18 @@
       "hiddenFromQueue": "Hidden from your queue",
       "reason": "Reason (optional)",
       "reasonPlaceholder": "Describe why you're reporting this user..."
-    }
+    },
+    "rejectionReason": {
+      "label": "Rejection Reason",
+      "placeholder": "Select a reason...",
+      "low_quality": "Low quality image",
+      "incorrect_location": "Incorrect location",
+      "duplicate": "Duplicate project",
+      "insufficient_info": "Insufficient information",
+      "not_construction": "Not a construction project",
+      "spam": "Spam or inappropriate content"
+    },
+    "rejectAllOverlays": "Also reject all {count} pending overlay(s)"
   },
   "location": {
     "unknownLocation": "Unknown Location",

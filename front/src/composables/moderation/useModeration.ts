@@ -80,8 +80,12 @@ export function useModeration() {
       expectedVersion: number;
       status: "approved" | "rejected";
       handleReplacementConflicts?: boolean;
+      rejectionReason?: string; // AI : New parameter for rejection feedback
+      rejectAllOverlays?: boolean; // AI : New parameter for cascading rejection to overlays
     }) => Promise<{ success: boolean }>,
     handleReplacementConflicts?: boolean,
+    rejectionReason?: string, // AI : Pass rejection reason to API
+    rejectAllOverlays?: boolean, // AI : Pass cascade flag to API
   ): Promise<ApprovalResult> {
     // AI : Find item by ID and validate existence
     const item = items.find((i) => i.id === id);
@@ -109,6 +113,8 @@ export function useModeration() {
           expectedVersion: item.version,
           status,
           handleReplacementConflicts,
+          rejectionReason, // AI : Pass rejection reason to backend
+          rejectAllOverlays, // AI : Pass cascade flag to backend
         }),
       { errorMessage: `${t(failureMessageKey)}. Please try again.` },
     );
@@ -147,6 +153,7 @@ export function useModeration() {
     id: string,
     status: "approved" | "rejected",
     handleReplacementConflicts?: boolean,
+    rejectionReason?: string, // AI : New parameter for rejection feedback
   ): Promise<ApprovalResult> {
     const overlayStore = useOverlayStore();
 
@@ -161,6 +168,7 @@ export function useModeration() {
       overlays.value,
       trpc.moderation.setOverlayApprovalStatusWithVersion.mutate,
       handleReplacementConflicts,
+      rejectionReason, // AI : Pass rejection reason through
     );
 
     // AI : Update overlay status in overlay store if approval succeeded and overlay is currently rendered
@@ -205,8 +213,8 @@ export function useModeration() {
     return setOverlayStatus(id, "approved", handleReplacementConflicts);
   }
 
-  async function rejectOverlay(id: string): Promise<ApprovalResult> {
-    return setOverlayStatus(id, "rejected");
+  async function rejectOverlay(id: string, rejectionReason?: string): Promise<ApprovalResult> {
+    return setOverlayStatus(id, "rejected", undefined, rejectionReason);
   }
 
   // AI : Only fetch on mount if user is admin OR if country is already selected
@@ -230,6 +238,8 @@ export function useModeration() {
   async function setProjectStatus(
     id: string,
     status: "approved" | "rejected",
+    rejectionReason?: string, // AI : New parameter for rejection feedback
+    rejectAllOverlays?: boolean, // AI : New parameter for cascading rejection
   ): Promise<ApprovalResult> {
     // AI : Get project data BEFORE approval (it will be removed from pending list after)
     const projectBeforeApproval = projects.value.find((p) => p.id === id);
@@ -240,6 +250,9 @@ export function useModeration() {
       "project",
       projects.value,
       trpc.moderation.setProjectApprovalStatusWithVersion.mutate,
+      undefined, // handleReplacementConflicts not used for projects
+      rejectionReason, // AI : Pass rejection reason through
+      rejectAllOverlays, // AI : Pass cascade flag through
     );
 
     // AI : Update marker visuals if project approval succeeded and project has a standalone marker
@@ -276,8 +289,12 @@ export function useModeration() {
     return setProjectStatus(id, "approved");
   }
 
-  async function rejectProject(id: string): Promise<ApprovalResult> {
-    return setProjectStatus(id, "rejected");
+  async function rejectProject(
+    id: string,
+    rejectionReason?: string,
+    rejectAllOverlays?: boolean,
+  ): Promise<ApprovalResult> {
+    return setProjectStatus(id, "rejected", rejectionReason, rejectAllOverlays);
   }
 
   return {

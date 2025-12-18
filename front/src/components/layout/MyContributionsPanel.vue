@@ -54,7 +54,7 @@
         <i class="pi pi-save"></i>
       </button>
       <button
-        v-if="project.status === 'pending'"
+        v-if="project.status === 'pending' || project.status === 'rejected'"
         class="action-btn delete-btn"
         @click.stop="handleDeleteProjectClick(project)"
         v-tooltip.top="$t('contributions.deleteProject')"
@@ -73,7 +73,7 @@
         <i class="pi pi-pencil"></i>
       </button>
       <button
-        v-if="overlay.status === 'pending'"
+        v-if="overlay.status === 'pending' || overlay.status === 'rejected'"
         class="action-btn delete-btn"
         @click.stop="handleDeleteOverlayClick(overlay)"
         v-tooltip.top="$t('contributions.deleteOverlay')"

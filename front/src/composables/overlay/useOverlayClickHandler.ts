@@ -4,7 +4,6 @@ import { switchMode } from "@/composables/overlay/useOverlayModes";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useToast } from "@/composables/ui/useToast";
-import { t } from "@/locales";
 import type { OverlayForModeration } from "@/types/index";
 import type { LatestContribution } from "../../types/api";
 
@@ -32,20 +31,37 @@ export function useOverlayClickHandler() {
     autoSelect = true,
   ): Promise<void> {
     try {
-      // AI : Check if overlay is rejected or replaced and show appropriate message
-      if (overlay.status === "rejected" || overlay.status === "replaced") {
-        const messageKey = overlay.status === "rejected" ? "rejected" : "replaced";
-        toast.add({
-          severity: "info",
-          summary: t("overlay.unavailable.title"),
-          detail: t(`overlay.unavailable.${messageKey}`),
-          life: 4000,
-        });
-        return;
-      }
-
       const overlayStore = useOverlayStore();
       const mapStore = useMapStore();
+
+      // AI : For rejected or replaced overlays, navigate to project coordinates instead
+      if (overlay.status === "rejected" || overlay.status === "replaced") {
+        // AI : Check if overlay is OverlayForModeration with project coordinates
+        if ("projectId" in overlay && overlay.projectId) {
+          // AI : Get project from userContributions to get coordinates
+          const { trpc } = await import("@/client");
+          try {
+            const contributions = await trpc.project.getUsersContributions.query({ limit: 100 });
+            const project = contributions.projects.find((p) => p.id === overlay.projectId);
+
+            if (project && project.lat && project.lng && project.cityId && project.cityName) {
+              const { navigateToStandaloneProject } =
+                await import("@/composables/navigation/useOverlayNavigation");
+              await navigateToStandaloneProject(
+                project.lat,
+                project.lng,
+                project.cityId,
+                project.cityName,
+                project.countryCode ?? undefined,
+                project.id,
+              );
+            }
+          } catch (error) {
+            console.error("Failed to navigate to project:", error);
+          }
+        }
+        return;
+      }
 
       // AI : Clear city cache when navigating to pending overlays
       // AI : This ensures we reload with the correct mode to see pending items

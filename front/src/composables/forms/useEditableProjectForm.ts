@@ -170,6 +170,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
           updatedAt: new Date(),
         },
         status: userContributionProject.status,
+        rejectionReason: null, // AI : Not available in local edit context (only for rejected items)
         overlayIds: userContributionProject.overlays?.map((o) => o.id) ?? [],
         isModified: true,
         createdAt: userContributionProject.createdAt ?? new Date(),

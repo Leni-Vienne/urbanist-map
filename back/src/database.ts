@@ -21,7 +21,7 @@ const client = postgres(config.DATABASE_URL, {
   prepare: true,
 
   // AI : Send keep-alive packet every 60 seconds to prevent connection drops
-  keep_alive: 60000,
+  keep_alive: 60_000,
 
   // AI : Log connection pool size in development
   onnotice: process.env.NODE_ENV === "development" ? console.log : undefined,

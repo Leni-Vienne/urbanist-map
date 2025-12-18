@@ -27,18 +27,28 @@
       <div v-for="item in moderatedContributions" :key="item.id" class="moderated-item">
         <!-- AI : Thumbnail -->
         <div class="thumbnail-container">
+          <!-- AI : Overlay thumbnail -->
           <img
+            v-if="item.type === 'overlay' && item.filename"
             :src="buildThumbnailUrl(item.filename, true)"
             :alt="item.caption || 'Overlay'"
             class="thumbnail"
             @error="handleImageError"
           />
+          <!-- AI : Standalone project icon -->
+          <i
+            v-else-if="item.type === 'standalone'"
+            class="pi pi-building text-3xl text-primary-500"
+          ></i>
         </div>
 
         <!-- AI : Content -->
         <div class="item-content">
           <div class="item-header">
-            <span class="item-title">{{ item.caption || $t('overlay.untitled') }}</span>
+            <span
+              class="item-title"
+              >{{ item.caption || item.projectName || $t('overlay.untitled') }}</span
+            >
             <Tag
               :value="$t(`status.${item.status}`)"
               :severity="item.status === 'rejected' ? 'danger' : 'secondary'"
@@ -46,11 +56,25 @@
             />
           </div>
 
-          <p class="item-project">{{ item.projectName || $t('overlay.unknownLocation') }}</p>
+          <!-- AI : Show location for all items -->
+          <p v-if="item.cityName" class="item-location">
+            <i class="pi pi-map-marker"></i>
+            {{ item.cityName }}{{ item.countryCode ? `, ${item.countryCode}` : '' }}
+          </p>
 
           <p v-if="item.status === 'replaced' && item.replacedByOverlayId" class="item-info">
             <i class="pi pi-info-circle"></i>
             {{ $t('moderation.moderatedContributions.replacedInfo') }}
+          </p>
+
+          <!-- AI : Display rejection reason if item was rejected -->
+          <p
+            v-if="item.status === 'rejected' && item.rejectionReason"
+            class="item-rejection-reason"
+          >
+            <i class="pi pi-ban"></i>
+            <strong>{{ $t('moderation.rejectionReason.label') }}:</strong>
+            {{ $t(`moderation.rejectionReason.${item.rejectionReason}`) }}
           </p>
 
           <p class="item-date">
@@ -166,6 +190,10 @@ function handleImageError(event: Event) {
   border-radius: var(--p-border-radius);
   overflow: hidden;
   background: var(--p-surface-100);
+  /* AI : Center the building icon */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .thumbnail {
@@ -178,7 +206,8 @@ function handleImageError(event: Event) {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.25rem;
+  /* AI : Reduced from 0.5rem for tighter spacing */
   min-width: 0;
 }
 
@@ -200,9 +229,20 @@ function handleImageError(event: Event) {
 .item-project {
   font-size: 0.875rem;
   color: var(--p-surface-600);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+/* AI : Standalone project location display */
+.item-location {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--p-surface-600);
+}
+
+.item-location i {
+  color: var(--p-surface-500);
+  font-size: 0.625rem;
 }
 
 .item-info {
@@ -211,6 +251,24 @@ function handleImageError(event: Event) {
   display: flex;
   align-items: center;
   gap: 0.375rem;
+}
+
+.item-rejection-reason {
+  font-size: 0.8125rem;
+  color: var(--p-red-600);
+  background: var(--p-red-50);
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--p-red-200);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  line-height: 1.4;
+}
+
+.item-rejection-reason i {
+  flex-shrink: 0;
+  margin-top: 0.125rem;
 }
 
 .item-date {

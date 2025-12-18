@@ -31,6 +31,7 @@
     <RejectionDialog
       v-model:visible="showRejectConfirmDialog"
       :user-id="pendingRejection?.userId ?? null"
+      :pending-overlay-count="pendingOverlayCount"
       :is-loading="isProcessingRejection"
       @confirm="handleRejectionConfirm"
       @cancel="handleRejectionCancel"
@@ -91,17 +92,18 @@
       </template>
 
       <template #overlay-actions="{ overlay, project }">
-        <!-- AI : Show moderation buttons for pending overlays if project is approved -->
+        <!--AI : Show moderation buttons for pending overlays regardless of project status -->
+        <!-- AI : Moderators should be able to reject overlays even if the project is rejected -->
         <ModerationActionButtons
-          v-if="overlay.status === 'pending' && project.status === 'approved'"
+          v-if="overlay.status === 'pending'"
           :disabled="!!overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id)"
           :disabled-tooltip="overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id) ? $t('overlay.viewPositionRequired') : ''"
           @approve="handleApproveOverlay(overlay.id)"
           @reject="handleRejectOverlay(overlay.id, overlay.authorId)"
         />
-        <!-- AI : Show locked button if project not approved yet -->
+        <!-- AI : Show locked button only if project is still pending (not yet approved or rejected) -->
         <button
-          v-if="overlay.status === 'pending' && project.status !== 'approved'"
+          v-if="overlay.status === 'pending' && project.status === 'pending'"
           class="action-btn disabled-btn"
           disabled
           v-tooltip.top="$t('tooltips.approveProjectFirst')"
@@ -291,6 +293,16 @@ const userStatsDialogData = ref({
   reportCount: 0
 })
 
+// AI : Computed: Pending overlay count for current rejection (only for projects)
+const pendingOverlayCount = computed(() => {
+  if (pendingRejection.value?.type !== 'project') return 0
+
+  const project = projects.value.find(p => p.id === pendingRejection.value?.id)
+  if (!project) return 0
+
+  return project.overlays?.filter(o => o.status === 'pending').length ?? 0
+})
+
 // AI : Check if a change request is for a geometry field (corners or centroid)
 function isGeometryChange(change: any): boolean {
   return change.fieldName === 'corners' || change.fieldName === 'centroid'
@@ -360,8 +372,8 @@ function handleRejectProject(id: string, userId: string | null) {
 }
 
 // AI : Execute project rejection after confirmation
-async function executeRejectProject(id: string) {
-  const result = await rejectProject(id)
+async function executeRejectProject(id: string, rejectionReason?: string, rejectAllOverlays?: boolean) {
+  const result = await rejectProject(id, rejectionReason, rejectAllOverlays)
 
   if (result.success) {
     toast.add({
@@ -501,8 +513,8 @@ function handleRejectOverlay(id: string, userId: string | null) {
 }
 
 // AI : Execute overlay rejection after confirmation
-async function executeRejectOverlay(id: string) {
-  const result = await rejectOverlay(id)
+async function executeRejectOverlay(id: string, rejectionReason?: string) {
+  const result = await rejectOverlay(id, rejectionReason)
 
   if (result.success) {
     toast.add({
@@ -549,18 +561,18 @@ async function handleApproveChange(changeId: string) {
 }
 
 // AI : Handle rejection confirmation from dialog
-async function handleRejectionConfirm(options: { reportUser: boolean; reportReason: string }) {
+async function handleRejectionConfirm(options: { rejectionReason: string; rejectAllOverlays: boolean; reportUser: boolean; reportReason: string }) {
   if (!pendingRejection.value) return
 
   isProcessingRejection.value = true
   const { type, id, userId } = pendingRejection.value
 
   try {
-    // AI : Execute the rejection
+    // AI : Execute the rejection with rejection reason and optional overlay cascade
     if (type === 'project') {
-      await executeRejectProject(id)
+      await executeRejectProject(id, options.rejectionReason, options.rejectAllOverlays)
     } else if (type === 'overlay') {
-      await executeRejectOverlay(id)
+      await executeRejectOverlay(id, options.rejectionReason)
     } else if (type === 'change') {
       await executeRejectChange(id)
     }

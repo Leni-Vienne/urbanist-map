@@ -111,6 +111,7 @@ export const projects = pgTable(
     lng: doublePrecision("lng"),
     centerCoordinate: geometry("center_coordinate", { type: "point", mode: "xy", srid: 4326 }), // AI : PostGIS point for spatial queries (computed from lat/lng)
     version: integer("version").default(1).notNull(), // AI : Version for optimistic locking during moderation
+    rejectionReason: text("rejection_reason"), // AI : Moderator-selected reason when rejecting (NULL for approved/pending)
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
@@ -160,6 +161,7 @@ export const overlays = pgTable(
     centroid: geometry("centroid", { type: "point", mode: "xy", srid: 4326 }).notNull(),
 
     version: integer("version").default(1).notNull(), // AI : Version for optimistic locking during moderation
+    rejectionReason: text("rejection_reason"), // AI : Moderator-selected reason when rejecting (NULL for approved/pending)
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()

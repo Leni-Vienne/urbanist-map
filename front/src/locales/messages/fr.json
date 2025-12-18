@@ -797,7 +797,18 @@
       "hiddenFromQueue": "Masqué de votre file",
       "reason": "Raison (optionnel)",
       "reasonPlaceholder": "Décrivez pourquoi vous signalez cet utilisateur..."
-    }
+    },
+    "rejectionReason": {
+      "label": "Raison du rejet",
+      "placeholder": "Sélectionnez une raison...",
+      "low_quality": "Image de faible qualité",
+      "incorrect_location": "Localisation incorrecte",
+      "duplicate": "Projet en double",
+      "insufficient_info": "Informations insuffisantes",
+      "not_construction": "Pas un projet de construction",
+      "spam": "Spam ou contenu inapproprié"
+    },
+    "rejectAllOverlays": "Rejeter également {count} image(s) en attente"
   },
   "location": {
     "unknownLocation": "Lieu inconnu",

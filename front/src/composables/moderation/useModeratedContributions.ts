@@ -1,19 +1,9 @@
 import { ref, computed } from "vue";
-import { trpc } from "@/client";
+import { trpc, type RouterOutput } from "@/client";
 import { withErrorHandling } from "@/composables/core/useErrorHandling";
-import type { ApprovalStatus } from "@shared/types";
 
-// AI : Type for moderated contribution item
-export interface ModeratedContribution {
-  id: string;
-  caption: string | null;
-  filename: string;
-  status: ApprovalStatus;
-  updatedAt: Date;
-  projectId: string | null;
-  replacedByOverlayId: string | null;
-  projectName: string | null;
-}
+// AI : Type inferred from tRPC backend - automatically includes all fields from getModeratedContributions
+export type ModeratedContribution = RouterOutput["overlay"]["getModeratedContributions"][number];
 
 const moderatedContributions = ref<ModeratedContribution[]>([]);
 const isLoading = ref(false);
