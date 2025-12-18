@@ -4,7 +4,7 @@ import { projects, overlays, changeRequests, changeHistory, users, cities } from
 import { eq, and, inArray, sql, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../database";
-import { addConflictFlags, enrichChangeRequestsWithNames } from "../db/helpers";
+import { addConflictFlags, enrichChangeRequestsWithNames, isUserBlocked } from "../db/helpers";
 import { submitChangeRequestSchema } from "@shared/validation/schemas";
 import { globalRateLimiter } from "../lib/rateLimit";
 import { getClientIp } from "../utils/ip";
@@ -167,6 +167,14 @@ export const changesRouter = router({
           throw new TRPCError({
             code: "UNAUTHORIZED",
             message: "Must be logged in to submit changes",
+          });
+        }
+
+        // AI : Spam prevention - block banned or heavily reported users
+        if (await isUserBlocked(userId)) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Your account has been flagged for review. Please contact support.",
           });
         }
 

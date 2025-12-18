@@ -5,7 +5,7 @@ import type * as schema from "../db/schema";
 import { sql, eq, and } from "drizzle-orm";
 import { db } from "../database";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import { buildOverlayQuery, buildOverlayVisibilityCondition } from "../db/helpers";
+import { buildOverlayQuery, buildOverlayVisibilityCondition, isUserBlocked } from "../db/helpers";
 import type { MapMode } from "@shared/types";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { deleteLocalImages } from "../lib/imageCleanup";
@@ -210,6 +210,14 @@ export const overlayRouter = router({
 
   publishOverlay: loggedInProcedure.input(publishOverlaySchema).mutation(async ({ input, ctx }) => {
     try {
+      // AI : Spam prevention - block banned or heavily reported users
+      if (await isUserBlocked(ctx.user.id)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Your account has been flagged for review. Please contact support.",
+        });
+      }
+
       // AI : Check contribution limits
       // AI : Only check total limit if it's a NEW overlay (updates/re-submissions handled by pending limit checks)
       // AI : Note: upsert logic below handles ID existence, but for limit we conservatively check before DB op

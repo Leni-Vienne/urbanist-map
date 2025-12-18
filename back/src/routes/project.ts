@@ -9,6 +9,7 @@ import {
   buildOverlayModerationQuery,
   buildPaginationConditions,
   buildPaginationResponse,
+  isUserBlocked,
 } from "../db/helpers";
 import {
   checkPendingLimitForNewContribution,
@@ -26,6 +27,14 @@ const publishProjectSchema = projectSchema;
 export const projectRouter = router({
   publishProject: loggedInProcedure.input(publishProjectSchema).mutation(async ({ input, ctx }) => {
     try {
+      // AI : Spam prevention - block banned or heavily reported users
+      if (await isUserBlocked(ctx.user.id)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Your account has been flagged for review. Please contact support.",
+        });
+      }
+
       // AI : Validate city exists
       if (input.cityId) {
         const city = await db.select().from(cities).where(eq(cities.id, input.cityId)).limit(1);

@@ -1,4 +1,4 @@
-import { moderatorProcedure, router } from "../trpc";
+import { moderatorProcedure, adminProcedure, router } from "../trpc";
 import * as z from "zod"; // smaller bundle compared to 'import { z } from 'zod';
 import {
   projects,
@@ -1041,6 +1041,201 @@ export const moderationRouter = router({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to fetch user report counts",
+        });
+      }
+    }),
+
+  // AI : Get reported users for admin review
+  // AI : Returns users with 2+ reports (threshold from config)
+  getReportedUsers: adminProcedure.query(async () => {
+    try {
+      // AI : Get report threshold from config
+      const configResult = await db
+        .select({ reportThreshold: sql<number>`coalesce(report_threshold, 2)` })
+        .from(sql`config`)
+        .limit(1);
+
+      const threshold = configResult[0]?.reportThreshold ?? 2;
+
+      // AI : Get users with report counts >= threshold
+      const reportedUsers = await db
+        .select({
+          userId: userReports.reportedUserId,
+          email: users.email,
+          username: users.username,
+          banned: users.banned,
+          bannedAt: users.bannedAt,
+          banReason: users.banReason,
+          reportCount: sql<number>`count(distinct ${userReports.reportedBy})::int`,
+        })
+        .from(userReports)
+        .leftJoin(users, eq(userReports.reportedUserId, users.id))
+        .groupBy(
+          userReports.reportedUserId,
+          users.email,
+          users.username,
+          users.banned,
+          users.bannedAt,
+          users.banReason,
+        )
+        .having(sql`count(distinct ${userReports.reportedBy}) >= ${threshold}`);
+
+      // AI : For each reported user, get detailed report info and content counts
+      const enrichedUsers = await Promise.all(
+        reportedUsers.map(async (user) => {
+          // AI : Get reporter details and reasons
+          const reports = await db
+            .select({
+              reporterId: userReports.reportedBy,
+              reporterUsername: users.username,
+              reporterEmail: users.email,
+              reason: userReports.reason,
+              createdAt: userReports.createdAt,
+            })
+            .from(userReports)
+            .leftJoin(users, eq(userReports.reportedBy, users.id))
+            .where(eq(userReports.reportedUserId, user.userId));
+
+          // AI : Get pending and rejected content counts
+          const [projectCounts, overlayCounts] = await Promise.all([
+            db
+              .select({
+                pending: sql<number>`count(case when status = 'pending' then 1 end)::int`,
+                rejected: sql<number>`count(case when status = 'rejected' then 1 end)::int`,
+              })
+              .from(projects)
+              .where(eq(projects.ownerId, user.userId)),
+            db
+              .select({
+                pending: sql<number>`count(case when status = 'pending' then 1 end)::int`,
+                rejected: sql<number>`count(case when status = 'rejected' then 1 end)::int`,
+              })
+              .from(overlays)
+              .where(eq(overlays.authorId, user.userId)),
+          ]);
+
+          return {
+            userId: user.userId,
+            email: user.email,
+            username: user.username,
+            banned: user.banned,
+            bannedAt: user.bannedAt,
+            banReason: user.banReason,
+            reportCount: user.reportCount,
+            reports,
+            pendingProjects: projectCounts[0]?.pending ?? 0,
+            rejectedProjects: projectCounts[0]?.rejected ?? 0,
+            pendingOverlays: overlayCounts[0]?.pending ?? 0,
+            rejectedOverlays: overlayCounts[0]?.rejected ?? 0,
+          };
+        }),
+      );
+
+      return enrichedUsers;
+    } catch (error) {
+      console.error("Error fetching reported users:", error);
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Failed to fetch reported users",
+      });
+    }
+  }),
+
+  // AI : Clear all reports for a user (unblock them)
+  clearUserReports: adminProcedure
+    .input(z.object({ userId: z.string().uuid() }))
+    .mutation(async ({ input }) => {
+      try {
+        await db.delete(userReports).where(eq(userReports.reportedUserId, input.userId));
+        return { success: true };
+      } catch (error) {
+        console.error("Error clearing user reports:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to clear user reports",
+        });
+      }
+    }),
+
+  // AI : Ban user and optionally delete all their content
+  banUser: adminProcedure
+    .input(
+      z.object({
+        userId: z.string().uuid(),
+        reason: z.string().min(1).max(500),
+        deleteContent: z.boolean().default(false),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      try {
+        await db.transaction(async (tx) => {
+          // AI : Mark user as banned
+          await tx
+            .update(users)
+            .set({
+              banned: true,
+              bannedAt: new Date(),
+              bannedBy: ctx.user.id,
+              banReason: input.reason,
+            })
+            .where(eq(users.id, input.userId));
+
+          // AI : Delete content if requested
+          if (input.deleteContent) {
+            // AI : Get all pending and rejected overlay filenames for cleanup
+            const overlaysToDelete = await tx
+              .select({ filename: overlays.filename })
+              .from(overlays)
+              .where(
+                and(
+                  eq(overlays.authorId, input.userId),
+                  or(eq(overlays.status, "pending"), eq(overlays.status, "rejected")),
+                ),
+              );
+
+            // AI : Delete pending and rejected projects
+            await tx
+              .delete(projects)
+              .where(
+                and(
+                  eq(projects.ownerId, input.userId),
+                  or(eq(projects.status, "pending"), eq(projects.status, "rejected")),
+                ),
+              );
+
+            // AI : Delete pending and rejected overlays
+            await tx
+              .delete(overlays)
+              .where(
+                and(
+                  eq(overlays.authorId, input.userId),
+                  or(eq(overlays.status, "pending"), eq(overlays.status, "rejected")),
+                ),
+              );
+
+            // AI : Clean up images after transaction commits
+            // AI : This is done outside transaction to avoid holding lock during I/O
+            // AI : If cleanup fails, images are orphaned but database is consistent
+            for (const overlay of overlaysToDelete) {
+              try {
+                await deleteLocalImages(overlay.filename, "both");
+              } catch (error) {
+                console.error(`Failed to delete images for ${overlay.filename}:`, error);
+                // AI : Continue with other deletions
+              }
+            }
+          }
+
+          // AI : Clear all reports (no longer needed after ban)
+          await tx.delete(userReports).where(eq(userReports.reportedUserId, input.userId));
+        });
+
+        return { success: true };
+      } catch (error) {
+        console.error("Error banning user:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to ban user",
         });
       }
     }),

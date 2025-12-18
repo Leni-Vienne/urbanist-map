@@ -848,5 +848,57 @@
     "projectCreationFailed": "Échec de la création du projet",
     "projectCreationFailedDetail": "Échec de la création du projet. Veuillez réessayer.",
     "projectUpdateFailedDetail": "Échec de l'enregistrement des modifications du projet"
+  },
+  "admin": {
+    "reports": {
+      "title": "Utilisateurs signalés",
+      "columns": {
+        "username": "Nom d'utilisateur",
+        "email": "Email",
+        "reportCount": "Signalements",
+        "pendingItems": "Éléments en attente",
+        "rejectedItems": "Éléments rejetés",
+        "status": "Statut",
+        "actions": "Actions"
+      },
+      "status": {
+        "blocked": "Bloqué",
+        "banned": "Banni"
+      },
+      "actions": {
+        "clearReports": "Effacer les signalements",
+        "banUser": "Bannir l'utilisateur"
+      },
+      "details": {
+        "reporters": "Modérateurs ayant signalé cet utilisateur",
+        "reporterUsername": "Modérateur",
+        "reporterEmail": "Email",
+        "reason": "Raison",
+        "noReason": "Aucune raison fournie",
+        "reportedAt": "Signalé le",
+        "banInfo": "Informations du bannissement",
+        "bannedAt": "Banni le",
+        "banReason": "Raison du bannissement"
+      },
+      "banDialog": {
+        "title": "Bannir l'utilisateur",
+        "confirmMessage": "Vous êtes sur le point de bannir l'utilisateur \"{username}\".",
+        "reason": "Raison du bannissement",
+        "reasonPlaceholder": "Entrez la raison du bannissement de cet utilisateur...",
+        "deleteContent": "Supprimer tout le contenu en attente et rejeté de cet utilisateur",
+        "cancel": "Annuler",
+        "confirm": "Bannir l'utilisateur"
+      },
+      "messages": {
+        "loadError": "Échec du chargement des utilisateurs signalés",
+        "noReports": "Aucun utilisateur avec 2+ signalements",
+        "clearSuccess": "Signalements effacés",
+        "clearSuccessDetail": "Tous les signalements pour {username} ont été effacés",
+        "clearError": "Échec de l'effacement des signalements",
+        "banSuccess": "Utilisateur banni",
+        "banSuccessDetail": "{username} a été banni définitivement",
+        "banError": "Échec du bannissement"
+      }
+    }
   }
 }

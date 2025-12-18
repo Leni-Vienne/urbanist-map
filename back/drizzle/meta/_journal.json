@@ -232,6 +232,13 @@
       "when": 1766060197542,
       "tag": "0032_eminent_the_santerians",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1766068136250,
+      "tag": "0033_conscious_alex_power",
+      "breakpoints": true
     }
   ]
 }
