@@ -208,6 +208,8 @@ const setApprovalStatusWithVersionSchema = z.object({
   id: z.string().uuid(),
   expectedVersion: z.number().int(),
   status: z.enum(approvalStatusEnum.enumValues),
+  rejectionReason: z.string().max(500).optional(), // AI : Moderator-selected rejection reason
+  rejectAllOverlays: z.boolean().optional(), // AI : Whether to also reject all pending overlays when rejecting a project
 });
 
 export const moderationRouter = router({
@@ -566,7 +568,11 @@ export const moderationRouter = router({
           // AI : Atomic update with version check and status check in WHERE clause
           const updateResult = await tx
             .update(projects)
-            .set({ status: input.status })
+            .set({
+              status: input.status,
+              // AI : Save rejection reason when rejecting, clear it when approving
+              rejectionReason: input.status === "rejected" ? (input.rejectionReason ?? null) : null,
+            })
             .where(
               and(
                 eq(projects.id, input.id),
@@ -616,6 +622,40 @@ export const moderationRouter = router({
             await incrementApprovedCount(tx, ownerId);
           } else if (input.status === "rejected") {
             await incrementRejectedCount(tx, ownerId);
+
+            // AI : Optionally cascade rejection to all pending overlays
+            let rejectedOverlayFilenames: string[] = [];
+            if (input.rejectAllOverlays) {
+              const pendingOverlays = await tx
+                .select({
+                  id: overlays.id,
+                  filename: overlays.filename,
+                  authorId: overlays.authorId,
+                })
+                .from(overlays)
+                .where(and(eq(overlays.projectId, input.id), eq(overlays.status, "pending")));
+
+              if (pendingOverlays.length > 0) {
+                // AI : Reject all pending overlays
+                await tx
+                  .update(overlays)
+                  .set({ status: "rejected", rejectionReason: input.rejectionReason ?? null })
+                  .where(and(eq(overlays.projectId, input.id), eq(overlays.status, "pending")));
+
+                // AI : Increment rejection counts for overlay authors
+                for (const overlay of pendingOverlays) {
+                  await incrementRejectedCount(tx, overlay.authorId);
+                }
+
+                rejectedOverlayFilenames = pendingOverlays.map((o) => o.filename);
+              }
+            }
+
+            return {
+              success: true as const,
+              cityId: updateResult[0].cityId,
+              rejectedOverlayFilenames,
+            };
           }
 
           return { success: true as const, cityId: updateResult[0].cityId };
@@ -634,6 +674,28 @@ export const moderationRouter = router({
           } catch (error) {
             console.error("Error updating city project count:", error);
             // AI : Don't fail the request if count update fails
+          }
+        }
+
+        // AI : Clean up rejected overlay images if cascade rejection was used
+        if (
+          result.success &&
+          result.rejectedOverlayFilenames &&
+          result.rejectedOverlayFilenames.length > 0
+        ) {
+          for (const filename of result.rejectedOverlayFilenames) {
+            try {
+              await deleteLocalImages(filename, "full");
+              await scheduleImageCleanup(
+                input.id, // Use project ID as identifier
+                filename,
+                daysFromNow(THUMBNAIL_RETENTION_DAYS),
+                "thumbnail",
+              );
+            } catch (error) {
+              console.error(`Failed to cleanup rejected overlay: ${filename}`, error);
+              // AI : Don't fail the request if cleanup fails
+            }
           }
         }
 
@@ -690,6 +752,7 @@ export const moderationRouter = router({
             input.expectedVersion,
             authorId,
             overlayFilename,
+            input.rejectionReason, // AI : Pass rejection reason from input
           );
         }
 
@@ -1222,6 +1285,7 @@ async function handleOverlayRejection(
   expectedVersion: number,
   authorId: string | null,
   filename: string,
+  rejectionReason?: string, // AI : Optional rejection reason from moderator
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // AI : Use transaction to atomically update overlay and user stats
@@ -1229,7 +1293,11 @@ async function handleOverlayRejection(
       // AI : Atomic update with version check
       const result = await tx
         .update(overlays)
-        .set({ status: "rejected", version: sql`${overlays.version} + 1` })
+        .set({
+          status: "rejected",
+          version: sql`${overlays.version} + 1`,
+          rejectionReason: rejectionReason ?? null, // AI : Save rejection reason
+        })
         .where(
           and(
             eq(overlays.id, overlayId),

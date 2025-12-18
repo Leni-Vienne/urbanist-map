@@ -543,21 +543,17 @@ export const projectRouter = router({
             // AI : Both owned and contributed projects exist
             projectOverlays = await buildOverlayModerationQuery(db)
               .where(
-                and(
-                  // AI : Exclude rejected and replaced overlays from My Contributions
-                  sql`${overlays.status} NOT IN ('rejected', 'replaced')`,
-                  or(
-                    // AI : All overlays for user's own projects
-                    inArray(overlays.projectId, ownedProjectIds),
-                    // AI : For contributed projects: user's overlays OR overlays with user's change requests
-                    and(
-                      inArray(overlays.projectId, contributedProjectIds),
-                      or(
-                        eq(overlays.authorId, ctx.user.id),
-                        overlayIdsWithChanges.length > 0
-                          ? inArray(overlays.id, overlayIdsWithChanges)
-                          : sql`false`,
-                      ),
+                or(
+                  // AI : All overlays for user's own projects
+                  inArray(overlays.projectId, ownedProjectIds),
+                  // AI : For contributed projects: user's overlays OR overlays with user's change requests
+                  and(
+                    inArray(overlays.projectId, contributedProjectIds),
+                    or(
+                      eq(overlays.authorId, ctx.user.id),
+                      overlayIdsWithChanges.length > 0
+                        ? inArray(overlays.id, overlayIdsWithChanges)
+                        : sql`false`,
                     ),
                   ),
                 ),
@@ -566,21 +562,13 @@ export const projectRouter = router({
           } else if (ownedProjectIds.length > 0) {
             // AI : Only owned projects exist
             projectOverlays = await buildOverlayModerationQuery(db)
-              .where(
-                and(
-                  // AI : Exclude rejected and replaced overlays from My Contributions
-                  sql`${overlays.status} NOT IN ('rejected', 'replaced')`,
-                  inArray(overlays.projectId, ownedProjectIds),
-                ),
-              )
+              .where(inArray(overlays.projectId, ownedProjectIds))
               .orderBy(overlays.updatedAt);
           } else if (contributedProjectIds.length > 0) {
             // AI : Only contributed projects exist
             projectOverlays = await buildOverlayModerationQuery(db)
               .where(
                 and(
-                  // AI : Exclude rejected and replaced overlays from My Contributions
-                  sql`${overlays.status} NOT IN ('rejected', 'replaced')`,
                   inArray(overlays.projectId, contributedProjectIds),
                   or(
                     eq(overlays.authorId, ctx.user.id),

@@ -421,7 +421,7 @@ export const overlayRouter = router({
       }
     }),
 
-  // AI : Get moderated contributions (rejected/replaced overlays) for the current user
+  // AI : Get moderated contributions (rejected/replaced overlays AND standalone projects) for the current user
   getModeratedContributions: loggedInProcedure.query(async ({ ctx }) => {
     try {
       const userId = ctx.user?.id;
@@ -433,22 +433,58 @@ export const overlayRouter = router({
       const moderatedOverlays = await db
         .select({
           id: overlays.id,
+          type: sql<"overlay">`'overlay'`,
           caption: overlays.caption,
           filename: overlays.filename,
           status: overlays.status,
+          rejectionReason: overlays.rejectionReason, // AI : Include rejection reason for display
           updatedAt: overlays.updatedAt,
           projectId: overlays.projectId,
           replacedByOverlayId: overlays.replacedByOverlayId,
           projectName: projects.name,
+          lat: sql<number | null>`NULL`,
+          lng: sql<number | null>`NULL`,
+          cityId: sql<string | null>`NULL`,
+          cityName: sql<string | null>`NULL`,
+          countryCode: sql<string | null>`NULL`,
         })
         .from(overlays)
         .leftJoin(projects, eq(overlays.projectId, projects.id))
         .where(
           and(eq(overlays.authorId, userId), sql`${overlays.status} IN ('rejected', 'replaced')`),
-        )
-        .orderBy(sql`${overlays.updatedAt} DESC`);
+        );
 
-      return moderatedOverlays;
+      // AI : Get rejected and replaced standalone projects (projects without overlays)
+      const moderatedProjects = await db
+        .select({
+          id: projects.id,
+          type: sql<"standalone">`'standalone'`,
+          caption: projects.name,
+          filename: sql<string | null>`NULL`,
+          status: projects.status,
+          rejectionReason: projects.rejectionReason,
+          updatedAt: projects.updatedAt,
+          projectId: projects.id,
+          replacedByOverlayId: sql<string | null>`NULL`,
+          projectName: projects.name,
+          lat: projects.lat,
+          lng: projects.lng,
+          cityId: projects.cityId,
+          cityName: cities.name,
+          countryCode: cities.countryCode,
+        })
+        .from(projects)
+        .leftJoin(cities, eq(projects.cityId, cities.id))
+        .where(
+          and(eq(projects.ownerId, userId), sql`${projects.status} IN ('rejected', 'replaced')`),
+        );
+
+      // AI : Combine and sort by updatedAt
+      const combined = [...moderatedOverlays, ...moderatedProjects].toSorted(
+        (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
+      );
+
+      return combined;
     } catch (error) {
       console.error("Error fetching moderated contributions:", error);
       throw new TRPCError({

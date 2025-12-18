@@ -9,6 +9,30 @@
     <!-- AI : Confirmation message -->
     <p class="rejection-message">{{ $t('moderation.confirmRejectionMessage') }}</p>
 
+    <!-- AI : Rejection reason dropdown -->
+    <div class="rejection-reason-section">
+      <label for="rejection-reason-select">{{ $t('moderation.rejectionReason.label') }}</label>
+      <Select
+        id="rejection-reason-select"
+        v-model="rejectionReason"
+        :options="rejectionReasons"
+        option-label="label"
+        option-value="value"
+        :placeholder="$t('moderation.rejectionReason.placeholder')"
+        class="w-full"
+      />
+    </div>
+
+    <!-- AI : Reject all pending overlays checkbox (only for projects) -->
+    <div v-if="pendingOverlayCount > 0" class="reject-overlays-section">
+      <div class="reject-overlays-checkbox">
+        <Checkbox v-model="rejectAllOverlays" input-id="reject-overlays" :binary="true" />
+        <label for="reject-overlays" class="reject-overlays-label">
+          {{ $t('moderation.rejectAllOverlays', { count: pendingOverlayCount }) }}
+        </label>
+      </div>
+    </div>
+
     <!-- AI : Report user checkbox (only show if userId is provided) -->
     <div v-if="userId" class="report-section">
       <div class="report-checkbox">
@@ -48,31 +72,49 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import Checkbox from 'primevue/checkbox'
 import Textarea from 'primevue/textarea'
+import Select from 'primevue/select'
+import { useI18n } from 'vue-i18n'
 
 // AI : Props
 interface Props {
   visible: boolean
   userId?: string | null
   isLoading?: boolean
+  pendingOverlayCount?: number // AI : Number of pending overlays for this project (0 for overlays)
 }
 
 const props = withDefaults(defineProps<Props>(), {
   userId: null,
-  isLoading: false
+  isLoading: false,
+  pendingOverlayCount: 0
 })
+
+const { t } = useI18n()
 
 // AI : Emits
 const emit = defineEmits<{
   'update:visible': [value: boolean]
-  'confirm': [options: { reportUser: boolean; reportReason: string }]
+  'confirm': [options: { rejectionReason: string; rejectAllOverlays: boolean; reportUser: boolean; reportReason: string }]
   'cancel': []
 }>()
 
+// AI : Rejection reasons
+const rejectionReasons = computed(() => [
+  { label: t('moderation.rejectionReason.low_quality'), value: 'low_quality' },
+  { label: t('moderation.rejectionReason.incorrect_location'), value: 'incorrect_location' },
+  { label: t('moderation.rejectionReason.duplicate'), value: 'duplicate' },
+  { label: t('moderation.rejectionReason.insufficient_info'), value: 'insufficient_info' },
+  { label: t('moderation.rejectionReason.not_construction'), value: 'not_construction' },
+  { label: t('moderation.rejectionReason.spam'), value: 'spam' },
+])
+
 // AI : Local state
 const isVisible = ref(props.visible)
+const rejectionReason = ref('')
+const rejectAllOverlays = ref(false)
 const reportUser = ref(false)
 const reportReason = ref('')
 
@@ -81,6 +123,8 @@ watch(() => props.visible, (newValue) => {
   isVisible.value = newValue
   // AI : Reset state when dialog opens
   if (newValue) {
+    rejectionReason.value = ''
+    rejectAllOverlays.value = false
     reportUser.value = false
     reportReason.value = ''
   }
@@ -103,6 +147,8 @@ function handleCancel() {
 // AI : Handle confirm button
 function handleConfirm() {
   emit('confirm', {
+    rejectionReason: rejectionReason.value,
+    rejectAllOverlays: rejectAllOverlays.value,
     reportUser: reportUser.value,
     reportReason: reportReason.value
   })
@@ -113,6 +159,42 @@ function handleConfirm() {
 .rejection-message {
   margin: 0 0 1rem 0;
   color: var(--p-surface-700);
+}
+
+.rejection-reason-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.rejection-reason-section label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--p-surface-700);
+}
+
+.reject-overlays-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background-color: var(--p-surface-50);
+  border-radius: 0.375rem;
+  border: 1px solid var(--p-surface-200);
+}
+
+.reject-overlays-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.reject-overlays-label {
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--p-surface-800);
 }
 
 .report-section {

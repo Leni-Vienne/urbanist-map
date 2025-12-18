@@ -176,10 +176,9 @@ export async function loadCityStandaloneProjects(cityId: string | null): Promise
       }
     }
 
-    const backendProjectsWithNoOverlays = backendProjects.filter((project) => {
-      const overlayCount = project.overlayCount ?? 0;
-      return overlayCount === 0;
-    });
+    // AI : Don't filter by overlayCount here - rejected overlays aren't rendered but still count
+    // AI : Instead, rely on the check below (lines 231-234) that skips projects with rendered overlays
+    const backendProjectsWithNoOverlays = backendProjects;
 
     const { projects: localProjects } = useProjects();
     const allLocalProjects = Object.values(localProjects.value);
