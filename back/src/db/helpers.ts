@@ -9,6 +9,7 @@ import {
   countries,
   changeRequests,
   users,
+  userReports,
   type ApprovalStatus,
 } from "./schema";
 import type * as schema from "./schema";
@@ -600,10 +601,59 @@ export function buildProjectHasVisibleContentCondition(
       WHERE ${overlays.projectId} = ${projects.id}
       AND ${overlays.status} = 'approved'
     )
-    OR EXISTS (
       SELECT 1 FROM ${overlays}
       WHERE ${overlays.projectId} = ${projects.id}
       AND ${overlays.status} = 'approved'
     )
   )`;
+}
+
+// AI : ============================================================================
+// AI : SPAM PREVENTION HELPERS
+// AI : ============================================================================
+
+/**
+ * AI : Check if a user is blocked from contributing content
+ * AI : A user is blocked if they are banned OR have reached the report threshold (2+ moderator reports)
+ *
+ * @param userId - The user ID to check
+ * @returns Promise<boolean> - True if the user is blocked from contributing
+ */
+export async function isUserBlocked(userId: string): Promise<boolean> {
+  try {
+    // AI : Fetch user banned status
+    const userResult = await db
+      .select({ banned: users.banned })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    // AI : If user not found or banned, block them
+    if (userResult.length === 0) return true;
+    if (userResult[0].banned) return true;
+
+    // AI : Get report threshold from config (default to 2)
+    const configResult = await db
+      .select({ reportThreshold: sql<number>`coalesce(report_threshold, 2)` })
+      .from(sql`config`)
+      .limit(1);
+
+    const threshold = configResult[0]?.reportThreshold ?? 2;
+
+    // AI : Count how many distinct moderators have reported this user
+    const reportCountResult = await db
+      .select({ count: sql<number>`count(distinct ${userReports.reportedBy})::int` })
+      .from(userReports)
+      .where(eq(userReports.reportedUserId, userId))
+      .limit(1);
+
+    const reportCount = reportCountResult[0]?.count ?? 0;
+
+    // AI : Block if report count meets or exceeds threshold
+    return reportCount >= threshold;
+  } catch (error) {
+    console.error("Error checking if user is blocked:", error);
+    // AI : Default to blocking on error for safety
+    return true;
+  }
 }

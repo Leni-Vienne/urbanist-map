@@ -4,13 +4,14 @@ import {
   text,
   timestamp,
   jsonb,
-  index,
-  doublePrecision,
-  geometry,
-  char,
-  pgEnum,
-  boolean,
   integer,
+  doublePrecision,
+  boolean,
+  pgEnum,
+  index,
+  char,
+  geometry,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { sql, relations, type InferSelectModel } from "drizzle-orm";
 
@@ -50,6 +51,11 @@ export const users = pgTable(
     // AI : Moderation stats for spam prevention - tracks approval/rejection counts across all entity types
     approvedCount: integer("approved_count").default(0).notNull(),
     rejectedCount: integer("rejected_count").default(0).notNull(),
+    // AI : Soft ban fields for spam/abuse prevention
+    banned: boolean("banned").default(false).notNull(),
+    bannedAt: timestamp("banned_at", { withTimezone: true }),
+    bannedBy: uuid("banned_by").references((): AnyPgColumn => users.id, { onDelete: "set null" }),
+    banReason: text("ban_reason"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
@@ -355,6 +361,7 @@ export const scheduledDeletionsRelations = relations(scheduledDeletions, ({ one 
 export const config = pgTable("config", {
   id: integer("id").primaryKey().default(1),
   infoMessage: text("info_message"), // AI : Optional info message to display at top of website
+  reportThreshold: integer("report_threshold").default(2).notNull(), // AI : Number of moderator reports before user is blocked
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .notNull()

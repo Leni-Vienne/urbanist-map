@@ -42,6 +42,10 @@ export class TestHelpers {
       passwordHash: await Bun.password.hash("testpassword"),
       role: overrides.role ?? "user",
       emailVerified: true,
+      banned: false,
+      bannedAt: null,
+      banReason: null,
+      bannedBy: null,
     };
 
     const [user] = await db.insert(users).values(userData).returning();
@@ -224,6 +228,10 @@ export class TestHelpers {
         googleId: null,
         approvedCount: 0,
         rejectedCount: 0,
+        banned: false,
+        bannedAt: null,
+        banReason: null,
+        bannedBy: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       },

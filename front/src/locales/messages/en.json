@@ -846,5 +846,57 @@
     "projectCreationFailed": "Project Creation Failed",
     "projectCreationFailedDetail": "Failed to create the project. Please try again.",
     "projectUpdateFailedDetail": "Failed to save project changes"
+  },
+  "admin": {
+    "reports": {
+      "title": "Reported Users",
+      "columns": {
+        "username": "Username",
+        "email": "Email",
+        "reportCount": "Reports",
+        "pendingItems": "Pending Items",
+        "rejectedItems": "Rejected Items",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "status": {
+        "blocked": "Blocked",
+        "banned": "Banned"
+      },
+      "actions": {
+        "clearReports": "Clear Reports",
+        "banUser": "Ban User"
+      },
+      "details": {
+        "reporters": "Moderators Who Reported This User",
+        "reporterUsername": "Moderator",
+        "reporterEmail": "Email",
+        "reason": "Reason",
+        "noReason": "No reason provided",
+        "reportedAt": "Reported At",
+        "banInfo": "Ban Information",
+        "bannedAt": "Banned At",
+        "banReason": "Ban Reason"
+      },
+      "banDialog": {
+        "title": "Ban User",
+        "confirmMessage": "You are about to ban user \"{username}\".",
+        "reason": "Ban Reason",
+        "reasonPlaceholder": "Enter the reason for banning this user...",
+        "deleteContent": "Delete all pending and rejected content from this user",
+        "cancel": "Cancel",
+        "confirm": "Ban User"
+      },
+      "messages": {
+        "loadError": "Failed to load reported users",
+        "noReports": "No users with 2+ reports",
+        "clearSuccess": "Reports Cleared",
+        "clearSuccessDetail": "All reports for {username} have been cleared",
+        "clearError": "Failed to clear reports",
+        "banSuccess": "User Banned",
+        "banSuccessDetail": "{username} has been permanently banned",
+        "banError": "Failed to ban user"
+      }
+    }
   }
 }
