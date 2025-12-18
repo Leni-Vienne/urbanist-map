@@ -1,4 +1,4 @@
-api.constructionmap.org {
+preview-api.constructionmap.org {
     reverse_proxy backend:3000 {
         health_uri /api/health
         health_interval 30s
