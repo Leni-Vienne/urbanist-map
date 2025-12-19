@@ -346,18 +346,23 @@ Push to any other branch → GitHub Actions automatically deploys to preview
 
 ## Database Migrations
 
-Migrations run automatically during GitHub Actions deployment:
+Migrations run automatically during GitHub Actions deployment, targeting the correct database for the environment:
 
 ```yaml
 - name: Run database migrations
+  # Runs against 'construction_map' (prod) or 'construction_map_preview' (preview)
   run: bun run db:migrate
 ```
 
 For manual migrations:
 
 ```bash
-# From your local machine
+# Default (Production)
 bun run db:migrate
+
+# Preview Environment
+# Requires specifying the preview port and database name
+POSTGRES_DB=construction_map_preview DB_PORT=5433 bun run db:migrate
 ```
 
 ## For Open Source Contributors
