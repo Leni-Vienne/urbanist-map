@@ -5,10 +5,10 @@
 discovery.docker "containers" {
   host = "unix:///var/run/docker.sock"
   
-  // AI : Only scrape the backend container logs
+  // AI : Scrape backend container logs (matches both prod and preview environments)
   filter {
     name   = "name"
-    values = ["construction-map-backend"]
+    values = [env("COMPOSE_PROJECT_NAME") + "-backend"]
   }
 }
 
