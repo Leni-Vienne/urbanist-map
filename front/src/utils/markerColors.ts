@@ -21,7 +21,10 @@ export function getProjectMarkerColor(
     // AI : Approved projects
     if (status === "approved") return "green";
 
-    // AI : Rejected projects (shouldn't appear in moderation but just in case)
+    // AI : Rejected projects
+    if (status === "rejected") return "red";
+
+    // AI : Default fallback (shouldn't happen)
     return "grey";
   }
 
