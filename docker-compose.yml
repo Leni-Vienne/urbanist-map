@@ -1,21 +1,25 @@
+# AI : Environment-agnostic Docker Compose for both production and preview
+# AI : Use with: docker compose --env-file .env.prod up -d
+# AI : Or with: docker compose --env-file .env.preview up -d
+
 services:
   # AI : PostGIS database service
   postgres:
     image: postgis/postgis:17-3.5-alpine
-    container_name: construction-map-db
+    container_name: ${COMPOSE_PROJECT_NAME}-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: construction_map
+      POSTGRES_DB: ${POSTGRES_DB:-construction_map}
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     networks:
-      - construction-map
+      - app-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d construction_map"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB:-construction_map}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -23,15 +27,15 @@ services:
   # AI : Backend web server service using custom Bun image with libvips for Sharp
   backend:
     image: bun-sharp:1.3-alpine
-    container_name: construction-map-backend
+    container_name: ${COMPOSE_PROJECT_NAME}-backend
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-production}
       PORT: 3000
-      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/construction_map
+      DATABASE_URL: ${DATABASE_URL}
       JWT_SECRET: ${JWT_SECRET}
       CORS_ORIGIN: "${CORS_ORIGIN}"
       VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
@@ -53,8 +57,11 @@ services:
       - backend_uploads:/app/uploads
     working_dir: /app
     command: ["sh", "-c", "bun install sharp && bun ./server.bundle.js"]
+    ports:
+      # AI : Expose backend to host for Caddy reverse proxy access
+      - "${BACKEND_PORT:-3000}:3000"
     networks:
-      - construction-map
+      - app-network
     healthcheck:
       test: ["CMD", "sh", "-c", "nc -z localhost 3000"]
       interval: 30s
@@ -62,28 +69,10 @@ services:
       retries: 3
       start_period: 40s
 
-  # AI : Caddy reverse proxy
-  caddy:
-    image: caddy:2.10-alpine
-    container_name: construction-map-caddy
-    restart: unless-stopped
-    depends_on:
-      backend:
-        condition: service_healthy
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    networks:
-      - construction-map
-
   # AI : Grafana Alloy - Log shipper that captures stdout and sends to Loki
   alloy:
     image: grafana/alloy:latest
-    container_name: construction-map-alloy
+    container_name: ${COMPOSE_PROJECT_NAME}-alloy
     restart: unless-stopped
     command: run --server.http.listen-addr=0.0.0.0:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
     volumes:
@@ -94,24 +83,25 @@ services:
       # AI : Loki endpoint - update this with your Loki URL
       LOKI_URL: ${LOKI_URL:-http://loki:3100/loki/api/v1/push}
     networks:
-      - construction-map
+      - app-network
     ports:
-      - "12345:12345" # Alloy UI
+      - "${ALLOY_PORT:-12345}:12345" # Alloy UI
 
 volumes:
   postgres_data:
+    name: ${COMPOSE_PROJECT_NAME}-postgres-data
     driver: local
   backend_node_modules:
+    name: ${COMPOSE_PROJECT_NAME}-node-modules
     driver: local
   backend_uploads:
+    name: ${COMPOSE_PROJECT_NAME}-uploads
     driver: local
   alloy_data:
-    driver: local
-  caddy_data:
-    driver: local
-  caddy_config:
+    name: ${COMPOSE_PROJECT_NAME}-alloy-data
     driver: local
 
 networks:
-  construction-map:
+  app-network:
+    name: ${COMPOSE_PROJECT_NAME}-network
     driver: bridge

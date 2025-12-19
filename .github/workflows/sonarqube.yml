@@ -10,16 +10,17 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: false
 
-
 jobs:
   sonarqube:
     name: Sonarqunbe Scan
-    runs-on: self-hosted
-    
+    runs-on:
+      - self-hosted
+      - home-github-runner
+
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+          fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
       - uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
