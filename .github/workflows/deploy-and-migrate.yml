@@ -10,11 +10,10 @@ concurrency:
 
 jobs:
   deploy-and-migrate:
-    # AI : Select runner based on environment-specific RUNNER_LABEL variable
-    # AI : Configure in GitHub Settings → Environments → production/preview
+    # AI : Runner must be hardcoded - environment vars aren't available at runs-on evaluation time
     runs-on:
       - self-hosted
-      - ${{ vars.RUNNER_LABEL }}
+      - home-github-runner
     environment: ${{ github.event_name == 'pull_request' && 'preview' || (github.ref == 'refs/heads/production' && 'production' || 'preview') }}
 
     steps:
