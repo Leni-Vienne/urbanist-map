@@ -3,7 +3,8 @@ import { serveStatic } from "hono/bun";
 import { cors } from "hono/cors";
 import { trpcServer } from "@hono/trpc-server";
 import { sessionMiddleware, type Session } from "hono-sessions";
-import * as z from "zod"; // smaller bundle compared to 'import { z } from 'zod'
+import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod'
+import { secureHeaders } from "hono/secure-headers";
 import { appRouter } from "./routes";
 import { LocalFileStorage, getThumbnailFilename } from "./lib/storage";
 import type { FileUploadResult, FileUploadError } from "./lib/types";
@@ -65,6 +66,10 @@ app.use(
     credentials: true,
   }),
 );
+
+// AI : Secure headers (Helmet equivalent)
+// AI : Adds CSP, HSTS, X-Frame-Options, etc.
+app.use("*", secureHeaders());
 
 // AI : CRITICAL: Health check endpoint MUST be before session middleware
 // AI : Caddy polls this every 30 seconds - we don't want to create sessions for health checks!
@@ -686,6 +691,6 @@ export type { AppRouter } from "./routes";
 
 export default {
   port: config.PORT,
-  //hostname: '0.0.0.0', //useful for testing on another device in dev, but breaks healthcheck in prod
+  // Hostname: '0.0.0.0', //useful for testing on another device in dev, but breaks healthcheck in prod
   fetch: app.fetch,
 };

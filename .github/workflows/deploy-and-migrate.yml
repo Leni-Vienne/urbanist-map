@@ -136,8 +136,11 @@ jobs:
           TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
 
         run: |
-          # AI : Install sshpass for password authentication
-          sudo apt-get update && sudo apt-get install -y sshpass
+
+          # AI : Install sshpass for password authentication if not present
+          if ! command -v sshpass &> /dev/null; then
+             sudo apt-get update && sudo apt-get install -y sshpass
+          fi
 
           # AI : Setup SSH to skip host key checking
           mkdir -p ~/.ssh
