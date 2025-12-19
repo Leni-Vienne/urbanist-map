@@ -1,9 +1,13 @@
-import { navigateToOverlayWithCity } from "@/composables/navigation/useOverlayNavigation";
+import {
+  navigateToOverlayWithCity,
+  navigateToStandaloneProject,
+} from "@/composables/navigation/useOverlayNavigation";
 import { navigateToOverlay } from "@/composables/overlay/useOverlay";
 import { switchMode } from "@/composables/overlay/useOverlayModes";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useToast } from "@/composables/ui/useToast";
+import { trpc } from "@/client";
 import type { OverlayForModeration } from "@/types/index";
 import type { LatestContribution } from "../../types/api";
 
@@ -39,14 +43,11 @@ export function useOverlayClickHandler() {
         // AI : Check if overlay is OverlayForModeration with project coordinates
         if ("projectId" in overlay && overlay.projectId) {
           // AI : Get project from userContributions to get coordinates
-          const { trpc } = await import("@/client");
           try {
             const contributions = await trpc.project.getUsersContributions.query({ limit: 100 });
             const project = contributions.projects.find((p) => p.id === overlay.projectId);
 
             if (project && project.lat && project.lng && project.cityId && project.cityName) {
-              const { navigateToStandaloneProject } =
-                await import("@/composables/navigation/useOverlayNavigation");
               await navigateToStandaloneProject(
                 project.lat,
                 project.lng,
