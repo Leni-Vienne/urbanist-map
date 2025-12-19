@@ -167,6 +167,35 @@ export const useOverlayStore = defineStore("overlay", () => {
     }
   }
 
+  // AI : Clear all state on logout/account switch
+  function clearAllState() {
+    // AI : Clear overlays and markers
+    overlays.value = {};
+    allMarkers.value = {};
+    idSelectedOverlay.value = null;
+
+    // AI : Clear edit mode cache and state
+    editModeOverlayCache.value.clear();
+    loadedEditOverlays.value.clear();
+
+    // AI : Clear view mode overlays
+    viewModeOverlays.value = [];
+    overlaysLoading.value = false;
+    overlaysError.value = null;
+
+    // AI : Clear latest contributions
+    latestContributions.value = [];
+    latestContributionsLoading.value = false;
+    latestContributionsLoaded.value = false;
+
+    // AI : Reset mode to view
+    mode.value = "view";
+    isTogglingMode.value = false;
+
+    // AI : Clear all UI state
+    resetAllUIStates();
+  }
+
   return {
     // State
     overlays,
@@ -213,5 +242,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     toggleInfoPopup,
     resetAllUIStates,
     closeAllUIElements,
+    clearAllState,
   };
 });
