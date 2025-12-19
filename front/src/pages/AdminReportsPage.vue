@@ -125,7 +125,7 @@
             <p>
               <strong>{{ t('admin.reports.details.bannedAt') }}:</strong>
               {{ new
-                            Date(slotProps.data.bannedAt).toLocaleString()
+                Date(slotProps.data.bannedAt).toLocaleString()
               }}
             </p>
             <p>
@@ -196,15 +196,6 @@ import { ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useToast } from 'primevue/usetoast';
 import { trpc, type RouterOutput } from '@/client';
-import DataTable from 'primevue/datatable';
-import Column from 'primevue/column';
-import Button from 'primevue/button';
-import Badge from 'primevue/badge';
-import Dialog from 'primevue/dialog';
-import Textarea from 'primevue/textarea';
-import Checkbox from 'primevue/checkbox';
-import ProgressSpinner from 'primevue/progressspinner';
-import Message from 'primevue/message';
 
 // AI : Use tRPC types from RouterOutput
 type ReportedUser = RouterOutput['moderation']['getReportedUsers'][number];
@@ -224,181 +215,181 @@ const isBanning = ref(false);
 
 // AI : Load reported users
 async function loadReportedUsers() {
-    try {
-        isLoading.value = true;
-        error.value = false;
-        reportedUsers.value = await trpc.moderation.getReportedUsers.query();
-    } catch (error) {
-        console.error('Error loading reported users:', error);
-        toast.add({
-            severity: 'error',
-            summary: t('admin.reports.messages.loadError'),
-            life: 5000,
-        });
-    } finally {
-        isLoading.value = false;
-    }
+  try {
+    isLoading.value = true;
+    error.value = false;
+    reportedUsers.value = await trpc.moderation.getReportedUsers.query();
+  } catch (error) {
+    console.error('Error loading reported users:', error);
+    toast.add({
+      severity: 'error',
+      summary: t('admin.reports.messages.loadError'),
+      life: 5000,
+    });
+  } finally {
+    isLoading.value = false;
+  }
 }
 
 // AI : Clear reports for a user
 async function clearReports(user: ReportedUser) {
-    try {
-        await trpc.moderation.clearUserReports.mutate({ userId: user.userId });
-        toast.add({
-            severity: 'success',
-            summary: t('admin.reports.messages.clearSuccess'),
-            detail: t('admin.reports.messages.clearSuccessDetail', { username: user.username }),
-            life: 5000,
-        });
-        // AI : Reload the list
-        await loadReportedUsers();
-    } catch (error) {
-        console.error('Error clearing reports:', error);
-        toast.add({
-            severity: 'error',
-            summary: t('admin.reports.messages.clearError'),
-            life: 5000,
-        });
-    }
+  try {
+    await trpc.moderation.clearUserReports.mutate({ userId: user.userId });
+    toast.add({
+      severity: 'success',
+      summary: t('admin.reports.messages.clearSuccess'),
+      detail: t('admin.reports.messages.clearSuccessDetail', { username: user.username }),
+      life: 5000,
+    });
+    // AI : Reload the list
+    await loadReportedUsers();
+  } catch (error) {
+    console.error('Error clearing reports:', error);
+    toast.add({
+      severity: 'error',
+      summary: t('admin.reports.messages.clearError'),
+      life: 5000,
+    });
+  }
 }
 
 // AI : Open ban dialog
 function openBanDialog(user: ReportedUser) {
-    selectedUser.value = user;
-    banReason.value = '';
-    deleteContent.value = false;
-    showBanDialog.value = true;
+  selectedUser.value = user;
+  banReason.value = '';
+  deleteContent.value = false;
+  showBanDialog.value = true;
 }
 
 // AI : Close ban dialog
 function closeBanDialog() {
-    showBanDialog.value = false;
-    selectedUser.value = null;
-    banReason.value = '';
-    deleteContent.value = false;
+  showBanDialog.value = false;
+  selectedUser.value = null;
+  banReason.value = '';
+  deleteContent.value = false;
 }
 
 // AI : Confirm ban
 async function confirmBan() {
-    if (!selectedUser.value || !banReason.value.trim()) return;
+  if (!selectedUser.value || !banReason.value.trim()) return;
 
-    try {
-        isBanning.value = true;
-        await trpc.moderation.banUser.mutate({
-            userId: selectedUser.value.userId,
-            reason: banReason.value.trim(),
-            deleteContent: deleteContent.value,
-        });
+  try {
+    isBanning.value = true;
+    await trpc.moderation.banUser.mutate({
+      userId: selectedUser.value.userId,
+      reason: banReason.value.trim(),
+      deleteContent: deleteContent.value,
+    });
 
-        toast.add({
-            severity: 'success',
-            summary: t('admin.reports.messages.banSuccess'),
-            detail: t('admin.reports.messages.banSuccessDetail', { username: selectedUser.value.username }),
-            life: 5000,
-        });
+    toast.add({
+      severity: 'success',
+      summary: t('admin.reports.messages.banSuccess'),
+      detail: t('admin.reports.messages.banSuccessDetail', { username: selectedUser.value.username }),
+      life: 5000,
+    });
 
-        closeBanDialog();
-        await loadReportedUsers();
-    } catch (error) {
-        console.error('Error banning user:', error);
-        toast.add({
-            severity: 'error',
-            summary: t('admin.reports.messages.banError'),
-            life: 5000,
-        });
-    } finally {
-        isBanning.value = false;
-    }
+    closeBanDialog();
+    await loadReportedUsers();
+  } catch (error) {
+    console.error('Error banning user:', error);
+    toast.add({
+      severity: 'error',
+      summary: t('admin.reports.messages.banError'),
+      life: 5000,
+    });
+  } finally {
+    isBanning.value = false;
+  }
 }
 
 // AI : Load data on mount
 onMounted(() => {
-    loadReportedUsers();
+  loadReportedUsers();
 });
 </script>
 
 <style scoped>
 .admin-reports-page {
-    padding: 2rem;
-    max-width: 1400px;
-    margin: 0 auto;
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .page-header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
 }
 
 .page-header h1 {
-    margin: 0;
-    font-size: 2rem;
-    font-weight: 600;
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 600;
 }
 
 .loading-container,
 .error-container,
 .empty-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 400px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
 }
 
 .action-buttons {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .expansion-content {
-    padding: 1rem 2rem;
+  padding: 1rem 2rem;
 }
 
 .expansion-content h3 {
-    margin-top: 1.5rem;
-    margin-bottom: 1rem;
-    font-size: 1.125rem;
-    font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  font-size: 1.125rem;
+  font-weight: 600;
 }
 
 .reporters-table {
-    margin-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .ban-info {
-    background: var(--surface-50);
-    padding: 1rem;
-    border-radius: 6px;
-    margin-top: 1rem;
+  background: var(--surface-50);
+  padding: 1rem;
+  border-radius: 6px;
+  margin-top: 1rem;
 }
 
 .ban-info h3 {
-    margin-top: 0;
+  margin-top: 0;
 }
 
 .ban-info p {
-    margin: 0.5rem 0;
+  margin: 0.5rem 0;
 }
 
 .ban-dialog-content .field {
-    margin-bottom: 1rem;
+  margin-bottom: 1rem;
 }
 
 .ban-dialog-content label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 600;
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
 }
 
 .field-checkbox {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .text-muted {
-    color: var(--text-color-secondary);
+  color: var(--text-color-secondary);
 }
 </style>
