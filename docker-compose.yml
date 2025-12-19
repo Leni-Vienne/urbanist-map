@@ -82,6 +82,8 @@ services:
     environment:
       # AI : Loki endpoint - update this with your Loki URL
       LOKI_URL: ${LOKI_URL:-http://loki:3100/loki/api/v1/push}
+      # AI : Project name for container filtering in alloy-config.alloy
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}
     networks:
       - app-network
     ports:
