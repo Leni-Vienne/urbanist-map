@@ -674,7 +674,7 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
 
         // AI : Add new overlay to city cache so it persists across zoom changes
         const projectStore = useProjectStore();
-        const project = projectStore.projects[projectId];
+        const project = projectStore.projects[projectId] ?? projectStore.allProjects[projectId];
         if (project?.city) {
           addNewOverlayToCityCache(overlayObject, project.city.id);
         }
