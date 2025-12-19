@@ -10,17 +10,16 @@ RUN apk add --no-cache libstdc++ vips-dev
 
 # AI : Pre-install sharp to cache it in the image (avoids runtime internet dependency)
 # AI : specific WORKDIR to ensure node_modules is created there
-WORKDIR /app
-# AI : Verify we are in a clean state and install sharp (without -g)
-# AI : This creates /app/node_modules/sharp
-RUN bun add sharp
-
 # AI : Create uploads directory and ensure bun user owns /app
 # AI : This is crucial so the app can write to ./uploads at runtime
 RUN mkdir -p /app/uploads && chown -R bun:bun /app
 
 # AI : Run as non-root user for security
 USER bun
+
+# AI : Verify we are in a clean state and install sharp (without -g)
+# AI : This creates /app/node_modules/sharp
+RUN bun add sharp
 
 LABEL description="Bun 1.3 Alpine with libvips and baked-in Sharp"
 LABEL maintainer="constructionmap.org"
