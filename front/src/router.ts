@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import Home from "@/pages/Home.vue";
+import { useAuthStore } from "@/stores/authStore";
 
 const routes = [
   {
@@ -42,8 +43,6 @@ export const router = createRouter({
 
 // AI : Router guard to check authentication and admin status
 router.beforeEach(async (to, from, next) => {
-  // AI : Import authStore dynamically to avoid circular dependencies
-  const { useAuthStore } = await import("@/stores/authStore");
   const authStore = useAuthStore();
 
   // AI : Wait for auth to initialize if it hasn't yet

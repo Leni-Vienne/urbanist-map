@@ -42,7 +42,7 @@ export default defineConfig({
       "@shared": path.resolve(__dirname, "../shared"),
     },
   },
-  // to prevent annoying automatic reloads in devmode
+  // To prevent annoying automatic reloads in devmode
   optimizeDeps: {
     include: [
       "primevue/badge",
@@ -100,7 +100,7 @@ export default defineConfig({
               id.includes("vue-i18n")
             )
               return "@vue";
-            if (id.includes("@primevue") || id.includes("@primeuix")) return "primevue";
+            //if (id.includes("@primevue") || id.includes("@primeuix")) return "primevue";
           }
 
           if (id.includes("locales")) return "locales";

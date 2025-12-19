@@ -84,11 +84,11 @@ jobs:
       - name: Extract frontend URL
         id: extract-url
         run: |
+          # AI : Use FRONTEND_URL from GitHub environment variables instead of hardcoding
+          FRONTEND_URL="${{ vars.FRONTEND_URL }}"
           if [ "${{ env.WRANGLER_ENV }}" = "" ]; then
-            FRONTEND_URL="https://construction-map.pages.dev"
             echo "PROJECT_NAME=construction-map" >> $GITHUB_ENV
           else
-            FRONTEND_URL="https://preview.construction-map-preview.pages.dev"
             echo "PROJECT_NAME=construction-map-preview" >> $GITHUB_ENV
           fi
           echo "FRONTEND_URL=$FRONTEND_URL" >> $GITHUB_ENV
