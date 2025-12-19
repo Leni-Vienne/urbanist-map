@@ -39,18 +39,24 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "WRANGLER_ENV=preview" >> $GITHUB_ENV
             echo "DEPLOY_TARGET=preview" >> $GITHUB_ENV
+            echo "DB_PORT=5433" >> $GITHUB_ENV
+            echo "DB_NAME=construction_map_preview" >> $GITHUB_ENV
           elif [ "${{ github.ref }}" = "refs/heads/production" ]; then
             echo "WRANGLER_ENV=" >> $GITHUB_ENV
             echo "DEPLOY_TARGET=production" >> $GITHUB_ENV
+            echo "DB_PORT=5432" >> $GITHUB_ENV
+            echo "DB_NAME=construction_map" >> $GITHUB_ENV
           else
             echo "WRANGLER_ENV=preview" >> $GITHUB_ENV
             echo "DEPLOY_TARGET=preview" >> $GITHUB_ENV
+            echo "DB_PORT=5433" >> $GITHUB_ENV
+            echo "DB_NAME=construction_map_preview" >> $GITHUB_ENV
           fi
 
       - name: Run database migrations
         run: bun run db:migrate || echo "⚠️ Migration skipped - database not accessible (probably fresh deployment)"
         env:
-          DATABASE_URL: postgres://postgres:${{ secrets.POSTGRES_PASSWORD }}@${{ secrets.REMOTE_HOST }}:5432/construction_map
+          DATABASE_URL: postgres://postgres:${{ secrets.POSTGRES_PASSWORD }}@${{ secrets.REMOTE_HOST }}:${{ env.DB_PORT }}/${{ env.DB_NAME }}
 
       - name: Build frontend
         run: bun run build-front-workflow
