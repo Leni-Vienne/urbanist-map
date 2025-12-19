@@ -616,7 +616,12 @@ export function useSubmissionDialog() {
     reason: string,
   ): Promise<void> {
     if (extCtx.allProjectModifications && extCtx.allProjectModifications.length > 0) {
-      for (const mod of extCtx.allProjectModifications) {
+      // AI : Filter out new overlays - they're handled by submitAllNewOverlays to avoid duplicate submissions
+      const modificationsForExistingOverlays = extCtx.allProjectModifications.filter(
+        (mod) => !extCtx.newOverlayIds?.includes(mod.overlayId),
+      );
+
+      for (const mod of modificationsForExistingOverlays) {
         await submitSingleOverlayModification(mod, extCtx.projectId, reason);
       }
     } else if (
@@ -671,13 +676,20 @@ export function useSubmissionDialog() {
     // AI : Submit all new overlays
     await submitAllNewOverlays(extCtx, project);
 
-    // AI : Submit project changes for existing modified projects
-    if (extCtx.projectModified && extCtx.projectId) {
+    // AI : Submit project changes for EXISTING modified projects only (not new projects)
+    // AI : New projects will be handled by ensureProjectOnServer or submitNewProjectIfApplicable
+    const isExistingProject = project && project.status !== null && project.status !== undefined;
+    if (extCtx.projectModified && extCtx.projectId && isExistingProject) {
       await submitProjectModification(extCtx.projectId, reason);
     }
 
     // AI : Submit new project creation if applicable
-    await submitNewProjectIfApplicable(extCtx, project, reason);
+    // AI : IMPORTANT: Skip if we have new overlays - ensureProjectOnServer already published the project
+    // AI : This prevents duplicate publishProject calls (overlay publisher already handled it)
+    const hasNewOverlays = extCtx.newOverlayIds && extCtx.newOverlayIds.length > 0;
+    if (!hasNewOverlays) {
+      await submitNewProjectIfApplicable(extCtx, project, reason);
+    }
 
     overlayStore.hideInfoPopup();
   }
