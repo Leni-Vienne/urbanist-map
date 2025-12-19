@@ -1,0 +1,34 @@
+# AI : Host-level Caddyfile for routing both production and preview environments
+# AI : This file should be deployed to /etc/caddy/Caddyfile on the server
+
+# AI : Production API
+api.constructionmap.org {
+    reverse_proxy localhost:3000 {
+        health_uri /api/health
+        health_interval 30s
+        health_timeout 10s
+    }
+    
+    encode zstd gzip
+    
+    log {
+        output stdout
+        format console
+    }
+}
+
+# AI : Preview API
+preview-api.constructionmap.org {
+    reverse_proxy localhost:3001 {
+        health_uri /api/health
+        health_interval 30s
+        health_timeout 10s
+    }
+    
+    encode zstd gzip
+    
+    log {
+        output stdout
+        format console
+    }
+}

@@ -10,7 +10,11 @@ concurrency:
 
 jobs:
   deploy-and-migrate:
-    runs-on: self-hosted
+    # AI : Select runner based on environment-specific RUNNER_LABEL variable
+    # AI : Configure in GitHub Settings → Environments → production/preview
+    runs-on:
+      - self-hosted
+      - ${{ vars.RUNNER_LABEL }}
     environment: ${{ github.event_name == 'pull_request' && 'preview' || (github.ref == 'refs/heads/production' && 'production' || 'preview') }}
 
     steps:
@@ -134,32 +138,66 @@ jobs:
           mkdir -p ~/.ssh
           echo "StrictHostKeyChecking no" >> ~/.ssh/config
 
+          # AI : Determine environment-specific values
+          if [ "${{ env.DEPLOY_TARGET }}" = "production" ]; then
+            DEPLOY_DIR="/opt/construction-map-prod"
+            COMPOSE_PROJECT_NAME="construction-map-prod"
+            POSTGRES_DB="construction_map"
+            DB_PORT="5432"
+            BACKEND_PORT="3000"
+            ALLOY_PORT="12345"
+            DATABASE_URL="postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/construction_map"
+          else
+            DEPLOY_DIR="/opt/construction-map-preview"
+            COMPOSE_PROJECT_NAME="construction-map-preview"
+            POSTGRES_DB="construction_map_preview"
+            DB_PORT="5433"
+            BACKEND_PORT="3001"
+            ALLOY_PORT="12346"
+            DATABASE_URL="postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/construction_map_preview"
+          fi
+
           # AI : Check if files exist before transfer
-          ls -la server.bundle.js docker-compose.prod.yml Caddyfile Dockerfile.bun-sharp alloy-config.alloy
+          ls -la server.bundle.js docker-compose.yml Dockerfile.bun-sharp alloy-config.alloy
           ls -la back/src/email
 
           # AI : Transfer files to remote server using password
           sshpass -p "$REMOTE_PASSWORD" scp ./server.bundle.js "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
-          sshpass -p "$REMOTE_PASSWORD" scp ./docker-compose.prod.yml "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
-          sshpass -p "$REMOTE_PASSWORD" scp ./Caddyfile "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
+          sshpass -p "$REMOTE_PASSWORD" scp ./docker-compose.yml "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
           sshpass -p "$REMOTE_PASSWORD" scp ./Dockerfile.bun-sharp "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
           sshpass -p "$REMOTE_PASSWORD" scp ./alloy-config.alloy "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
           sshpass -p "$REMOTE_PASSWORD" scp -r ./back/src/email "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
 
+          # AI : Conditionally transfer Caddyfile if reverse proxy deployment is enabled
+          if [ "${{ vars.INCLUDE_REVERSE_PROXY }}" = "true" ]; then
+            sshpass -p "$REMOTE_PASSWORD" scp ./Caddyfile.host "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
+          fi
 
           # AI : Deploy with docker compose on remote server
-          sshpass -p "$REMOTE_PASSWORD" ssh "${REMOTE_USER}@${REMOTE_HOST}" << EOF
+          sshpass -p "$REMOTE_PASSWORD" ssh "${REMOTE_USER}@${REMOTE_HOST}" <<EOF
+            # AI : Conditionally install and configure Caddy if reverse proxy is enabled
+            if [ "${{ vars.INCLUDE_REVERSE_PROXY }}" = "true" ]; then
+              if ! command -v caddy &> /dev/null; then
+                echo "Installing Caddy..."
+                sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+                curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+                curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+                sudo apt update
+                sudo apt install -y caddy
+                sudo systemctl enable caddy
+              fi
+            fi
+            
             # AI : Create deployment directory
-            sudo mkdir -p /opt/construction-map
-            cd /opt/construction-map
+            sudo mkdir -p ${DEPLOY_DIR}
+            cd ${DEPLOY_DIR}
             
             # AI : Stop existing containers
-            sudo docker compose -f docker-compose.prod.yml down || true
+            sudo docker compose down || true
             
             # AI : Copy new files
             sudo cp /tmp/server.bundle.js ./
-            sudo cp /tmp/docker-compose.prod.yml ./
-            sudo cp /tmp/Caddyfile ./
+            sudo cp /tmp/docker-compose.yml ./
             sudo cp /tmp/Dockerfile.bun-sharp ./
             # AI : Remove old alloy config if it's a directory (Docker creates it on failed mount)
             sudo rm -rf ./alloy-config.alloy
@@ -177,18 +215,25 @@ jobs:
               echo "Custom bun-sharp image already exists, skipping build"
             fi
             
-            # AI : Create .env file from GitHub secrets/vars
-            printf 'POSTGRES_PASSWORD=%s\nDATABASE_URL=postgres://postgres:%s@postgres:5432/construction_map\nLOKI_URL=%s\nJWT_SECRET=%s\nCORS_ORIGIN=%s\nVITE_GOOGLE_CLIENT_ID=%s\nFRONTEND_URL=%s\nPORT=3000\nALERT_EMAIL=%s\nSMTP_USERNAME=%s\nSMTP_PASSWORD=%s\nSES_REGION=%s\nFROM_EMAIL=%s\nR2_ENDPOINT=%s\nR2_ACCESS_KEY_ID=%s\nR2_SECRET_ACCESS_KEY=%s\nR2_BUCKET_NAME=%s\nTURNSTILE_SECRET_KEY=%s\n' \
-              "${POSTGRES_PASSWORD}" "${POSTGRES_PASSWORD}" "${LOKI_URL}" "${JWT_SECRET}" "${CORS_ORIGIN}" "${VITE_GOOGLE_CLIENT_ID}" "${FRONTEND_URL}" "${ALERT_EMAIL}" "${SMTP_USERNAME}" "${SMTP_PASSWORD}" "${SES_REGION}" "${FROM_EMAIL}" "${R2_ENDPOINT}" "${R2_ACCESS_KEY_ID}" "${R2_SECRET_ACCESS_KEY}" "${R2_BUCKET_NAME}" "${TURNSTILE_SECRET_KEY}" > .env
+            # AI : Create .env file from GitHub secrets/vars with environment-specific values
+            printf 'COMPOSE_PROJECT_NAME=%s\nNODE_ENV=%s\nPOSTGRES_DB=%s\nPOSTGRES_PASSWORD=%s\nDATABASE_URL=%s\nDB_PORT=%s\nBACKEND_PORT=%s\nALLOY_PORT=%s\nLOKI_URL=%s\nJWT_SECRET=%s\nCORS_ORIGIN=%s\nVITE_GOOGLE_CLIENT_ID=%s\nFRONTEND_URL=%s\nPORT=3000\nALERT_EMAIL=%s\nSMTP_USERNAME=%s\nSMTP_PASSWORD=%s\nSES_REGION=%s\nFROM_EMAIL=%s\nR2_ENDPOINT=%s\nR2_ACCESS_KEY_ID=%s\nR2_SECRET_ACCESS_KEY=%s\nR2_BUCKET_NAME=%s\nTURNSTILE_SECRET_KEY=%s\n' \
+              "${COMPOSE_PROJECT_NAME}" "${{ env.DEPLOY_TARGET }}" "${POSTGRES_DB}" "${POSTGRES_PASSWORD}" "${DATABASE_URL}" "${DB_PORT}" "${BACKEND_PORT}" "${ALLOY_PORT}" "${LOKI_URL}" "${JWT_SECRET}" "${CORS_ORIGIN}" "${VITE_GOOGLE_CLIENT_ID}" "${FRONTEND_URL}" "${ALERT_EMAIL}" "${SMTP_USERNAME}" "${SMTP_PASSWORD}" "${SES_REGION}" "${FROM_EMAIL}" "${R2_ENDPOINT}" "${R2_ACCESS_KEY_ID}" "${R2_SECRET_ACCESS_KEY}" "${R2_BUCKET_NAME}" "${TURNSTILE_SECRET_KEY}" > .env
             
-            # AI : Start services (no build needed, using vanilla bun image)
-            sudo docker compose -f docker-compose.prod.yml up -d
+            # AI : Start services using docker compose with .env file
+            sudo docker compose up -d
             
             # AI : Show status
-            sudo docker compose -f docker-compose.prod.yml ps
+            sudo docker compose ps
+            
+            # AI : Conditionally deploy Caddyfile and reload if reverse proxy is enabled
+            if [ "${{ vars.INCLUDE_REVERSE_PROXY }}" = "true" ]; then
+              sudo cp /tmp/Caddyfile.host /etc/caddy/Caddyfile
+              sudo systemctl reload caddy
+              echo "Caddy configuration deployed and reloaded"
+            fi
             
             # AI : Clean up temp files
-            rm -f /tmp/server.bundle.js /tmp/docker-compose.prod.yml /tmp/Caddyfile /tmp/Dockerfile.bun-sharp /tmp/alloy-config.alloy
+            rm -f /tmp/server.bundle.js /tmp/docker-compose.yml /tmp/Dockerfile.bun-sharp /tmp/alloy-config.alloy /tmp/Caddyfile.host
             rm -rf /tmp/email
           EOF
 
