@@ -53,10 +53,12 @@ services:
     volumes:
       - ./server.bundle.js:/app/server.bundle.js:ro
       - ./back/src/email:/app/email:ro
-      - backend_node_modules:/app/node_modules
       - backend_uploads:/app/uploads
     working_dir: /app
-    command: ["sh", "-c", "bun install sharp && bun ./server.bundle.js"]
+    # AI : Command simplified - sharp is now in the image (global) or node_modules
+    # AI : We still rely on local node_modules for other deps, but sharp is the critical native one
+    # AI : Ideally we would bundle everything, but for now this removes the build step
+    command: ["bun", "./server.bundle.js"]
     ports:
       # AI : Expose backend to host for Caddy reverse proxy access
       - "${BACKEND_PORT:-3000}:3000"
@@ -92,9 +94,6 @@ services:
 volumes:
   postgres_data:
     name: ${COMPOSE_PROJECT_NAME}-postgres-data
-    driver: local
-  backend_node_modules:
-    name: ${COMPOSE_PROJECT_NAME}-node-modules
     driver: local
   backend_uploads:
     name: ${COMPOSE_PROJECT_NAME}-uploads
