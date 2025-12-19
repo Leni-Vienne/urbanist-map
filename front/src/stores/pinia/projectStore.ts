@@ -586,6 +586,33 @@ export const useProjectStore = defineStore("project", () => {
     countriesCache.value.clear();
   }
 
+  // AI : Clear all state on logout/account switch
+  function clearAllState(): void {
+    // AI : Clear projects and selection
+    projects.value = {};
+    selectedProjectId.value = null;
+    countries.value = [];
+
+    // AI : Clear user contributions
+    userContributions.value = [];
+    userContributionsLoading.value = false;
+    userContributionsLoaded.value = false;
+
+    // AI : Clear nearby projects
+    clearNearbyProjects();
+
+    // AI : Clear original backend state caches
+    originalBackendProjects.value = {};
+    originalUserContributions.value = {};
+
+    // AI : Clear city names cache
+    cityNamesCache.value = {};
+
+    // AI : Clear all caches
+    clearCitiesCache();
+    clearCountriesCache();
+  }
+
   return {
     // State
     projects,
@@ -642,5 +669,8 @@ export const useProjectStore = defineStore("project", () => {
     setCachedCountries,
     hasCachedCountries,
     clearCountriesCache,
+
+    // Comprehensive cleanup
+    clearAllState,
   };
 });

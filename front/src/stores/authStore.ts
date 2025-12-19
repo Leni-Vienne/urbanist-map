@@ -3,6 +3,7 @@ import { ref, computed } from "vue";
 import { trpc } from "../client";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
 
 // AI : User type for our custom authentication
 interface User {
@@ -314,12 +315,19 @@ export const useAuthStore = defineStore("auth", () => {
 
       user.value = null;
 
-      // AI : Clear all caches on logout (cities, projects, standalone projects)
+      // AI : Clear all state on logout to prevent data leakage between accounts
       const mapStore = useMapStore();
       const projectStore = useProjectStore();
+      const overlayStore = useOverlayStore();
+
+      // AI : Clear map state
       mapStore.clearCityProjectsCache();
       mapStore.clearCityStandaloneProjectsCache();
-      projectStore.clearCitiesCache();
+      mapStore.clearSelectedCity();
+
+      // AI : Clear all project and overlay state
+      projectStore.clearAllState();
+      overlayStore.clearAllState();
 
       if (response.ok) {
         return { success: true, error: null };
