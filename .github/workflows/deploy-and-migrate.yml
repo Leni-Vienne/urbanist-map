@@ -216,6 +216,7 @@ jobs:
             sudo cp -r /tmp/email ./back/src/
             
             # AI : Build custom bun-sharp image if it doesn't exist
+            # AI : To force rebuild after Dockerfile changes: sudo docker rmi bun-sharp:1.3-alpine
             if ! sudo docker images | grep -q "bun-sharp.*1.3-alpine"; then
               echo "Building custom bun-sharp image with libvips..."
               sudo docker build -f Dockerfile.bun-sharp -t bun-sharp:1.3-alpine .

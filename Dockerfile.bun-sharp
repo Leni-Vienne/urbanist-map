@@ -8,19 +8,23 @@ FROM oven/bun:1.3-alpine
 # AI : libstdc++ is required for C++ runtime
 RUN apk add --no-cache libstdc++ vips-dev
 
-# AI : Pre-install sharp to cache it in the image (avoids runtime internet dependency)
-# AI : specific WORKDIR to ensure node_modules is created there
 # AI : Create uploads directory and ensure bun user owns /app
 # AI : This is crucial so the app can write to ./uploads at runtime
 RUN mkdir -p /app/uploads && chown -R bun:bun /app
 
+# AI : Set WORKDIR before switching user
+WORKDIR /app
+
 # AI : Run as non-root user for security
 USER bun
-# AI : Ensure HOME is set so bun uses /home/bun/.bun cache instead of /root/.bun
-ENV HOME=/home/bun
 
-# AI : Verify we are in a clean state and install sharp (without -g)
-# AI : This creates /app/node_modules/sharp
+# AI : Ensure HOME is set so bun uses /home/bun/.bun cache instead of /root/.bun
+# AI : Also set BUN_INSTALL_CACHE_DIR explicitly to avoid any ambiguity
+ENV HOME=/home/bun
+ENV BUN_INSTALL_CACHE_DIR=/home/bun/.bun/install/cache
+
+# AI : Pre-install sharp to cache it in the image (avoids runtime internet dependency)
+# AI : Running as bun user ensures the cache is in /home/bun/.bun, not /root/.bun
 RUN bun add sharp
 
 LABEL description="Bun 1.3 Alpine with libvips and baked-in Sharp"
