@@ -33,9 +33,6 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      # AI : Set HOME and BUN_INSTALL_CACHE_DIR to match Dockerfile.bun-sharp non-root setup
-      HOME: /home/bun
-      BUN_INSTALL_CACHE_DIR: /home/bun/.bun/install/cache
       NODE_ENV: ${NODE_ENV:-production}
       PORT: 3000
       DATABASE_URL: ${DATABASE_URL}
@@ -53,8 +50,6 @@ services:
       R2_BUCKET_NAME: ${R2_BUCKET_NAME}
       ALERT_EMAIL: ${ALERT_EMAIL}
       TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY}
-    # AI : Run as bun user (UID 1000) for security - matches Dockerfile.bun-sharp USER directive
-    user: "bun"
     volumes:
       - ./server.bundle.js:/app/server.bundle.js:ro
       - ./back/src/email:/app/email:ro
