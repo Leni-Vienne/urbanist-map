@@ -16,6 +16,8 @@ RUN mkdir -p /app/uploads && chown -R bun:bun /app
 
 # AI : Run as non-root user for security
 USER bun
+# AI : Ensure HOME is set so bun uses /home/bun/.bun cache instead of /root/.bun
+ENV HOME=/home/bun
 
 # AI : Verify we are in a clean state and install sharp (without -g)
 # AI : This creates /app/node_modules/sharp
