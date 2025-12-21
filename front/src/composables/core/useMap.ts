@@ -2,7 +2,7 @@ import L from "leaflet";
 import { ref, shallowRef } from "vue";
 import { debounce } from "@/utils/debounce";
 
-// shallowRef is used to avoid reactivity issues with Leaflet, see https://stackoverflow.com/a/73588115/12498040
+// ShallowRef is used to avoid reactivity issues with Leaflet, see https://stackoverflow.com/a/73588115/12498040
 export const map = shallowRef<L.Map | null>(null);
 const mapSize = ref({ width: 0, height: 0 });
 // AI : Reactive zoom level tracking
@@ -43,14 +43,14 @@ function calculateMinZoom(): number {
 
 export function initializeMap() {
   map.value = L.map("mapDiv", {
-    center: [22, 10], // initializing with center and zoom to avoid setView call
+    center: [22, 10], // Initializing with center and zoom to avoid setView call
     zoom: calculateMinZoom(),
     minZoom: calculateMinZoom(),
     maxZoom: 22,
-    zoomControl: false, // because we have our own zoom control
+    zoomControl: false, // Because we have our own zoom control
     maxBounds: L.latLngBounds([-85, -180], [85, 180]),
-    maxBoundsViscosity: 0.8, // gently bounce back
-    touchZoom: true, // true otherwise the website is zoomed instead of the map on mobile,
+    maxBoundsViscosity: 0.8, // Gently bounce back
+    touchZoom: true, // True otherwise the website is zoomed instead of the map on mobile,
     keyboard: false,
   });
   if (!map.value) throw new Error("No map element found");
@@ -91,8 +91,8 @@ export function disableLeafletKeyboardEvents() {
     return;
   }
 
-  // to prevent keystrokes from InfoPopup to be intercepted by Leaflet
-  // unfortunately, it prevnts the user of the arrow keys to move the map (but there is prob a way around it)
+  // To prevent keystrokes from InfoPopup to be intercepted by Leaflet
+  // Unfortunately, it prevnts the user of the arrow keys to move the map (but there is prob a way around it)
   ["keydown", "keyup", "keypress"].forEach((eventType) => {
     mapContainer.addEventListener(
       eventType,

@@ -29,7 +29,7 @@ export function initializeOverlayHistory(overlayObject: OverlayObject): void {
   const initialCorners = overlayObject.overlay.getCorners();
   if (initialCorners?.length === 4) {
     // eslint-disable-next-line prefer-structured-clone
-    overlayObject.history = [JSON.parse(JSON.stringify(initialCorners))]; // can't use structuredClone because corners are a class instance
+    overlayObject.history = [JSON.parse(JSON.stringify(initialCorners))]; // Can't use structuredClone because corners are a class instance
     overlayObject.redoStack = [];
   }
 }
@@ -57,7 +57,7 @@ export function getCornersForOverlay(overlayObject: OverlayObject) {
   const currentCorners = overlayObject.overlay?.getCorners();
   if (currentCorners?.length === 4) {
     // eslint-disable-next-line prefer-structured-clone
-    overlayObject.history = [JSON.parse(JSON.stringify(currentCorners))]; // can't use structuredClone because corners are a class instance
+    overlayObject.history = [JSON.parse(JSON.stringify(currentCorners))]; // Can't use structuredClone because corners are a class instance
     overlayObject.redoStack = [];
     return currentCorners;
   }
@@ -128,7 +128,7 @@ export function saveOverlayModificationsToCache(overlayObject: OverlayObject): v
     overlayObject.id,
     overlayObject.projectId ?? null,
     mappedCorners,
-    overlayObject.corners ?? [], // original corners from database
+    overlayObject.corners ?? [], // Original corners from database
     overlayStatus,
   );
 }
