@@ -40,6 +40,10 @@ export async function navigateToCity(
   // AI : Prepare for cross-country flight (switches to esri if needed)
   const switchToCountryLayer = prepareCrossCountryFlight(countryCode);
 
+  // AI : Prepare the country context FIRST (loads cities into store)
+  // AI : This ensures coordinates will be available when we look them up
+  await prepareCountryContext(countryCode);
+
   // AI : Find the city coordinates (from store or provided coords)
   let lat: number | undefined;
   let lng: number | undefined;
@@ -49,7 +53,7 @@ export async function navigateToCity(
     lat = cityCoords.lat;
     lng = cityCoords.lng;
   } else {
-    // AI : Try to find in store
+    // AI : Try to find in store (should now be available after prepareCountryContext)
     const country = projectStore.countries.find((c) => c.code === countryCode);
     const city = country?.cities.find((c) => c.id === cityId);
     if (city) {
@@ -68,10 +72,12 @@ export async function navigateToCity(
     if (switchToCountryLayer) {
       map.value.once("moveend", switchToCountryLayer);
     }
-  }
 
-  // AI : Prepare the country (clear map, load cities, add markers)
-  await prepareCountryContext(countryCode);
+    // AI : Wait for the fly animation to complete before loading city data
+    await new Promise<void>((resolve) => {
+      map.value!.once("moveend", () => resolve());
+    });
+  }
 
   // AI : Load city projects (like clicking on city marker)
   await loadCityProjects(cityId, cityName, null, false, countryCode);
