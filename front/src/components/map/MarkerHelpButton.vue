@@ -135,7 +135,8 @@ function handleClick() {
   let nearestMarker: HTMLElement | null = null
   let minDistance = Infinity
 
-  markers.forEach((markerElement) => {
+  // AI : Find nearest marker by distance
+  for (const markerElement of markers) {
     const element = markerElement as HTMLElement
     const lat = Number.parseFloat(element.getAttribute('data-lat') ?? '0')
     const lng = Number.parseFloat(element.getAttribute('data-lng') ?? '0')
@@ -148,7 +149,7 @@ function handleClick() {
       minDistance = distance
       nearestMarker = element
     }
-  })
+  }
 
   if (nearestMarker) {
     const markerToClick: HTMLElement = nearestMarker

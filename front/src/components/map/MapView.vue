@@ -110,12 +110,15 @@ async function filterOverlaysByCompletionStatus() {
 
   // AI : Remove overlays that should be hidden
   const overlaysToHide = cityOverlays.filter(overlay => !visibleOverlayIds.has(overlay.id));
-  overlaysToHide.forEach(overlay => removeOverlayFromMap(overlay.id));
+  for (const overlay of overlaysToHide) {
+    removeOverlayFromMap(overlay.id);
+  }
 
   // AI : Find overlays that should be visible but aren't currently rendered
   const overlaysToRender = visibleOverlays.filter(cdnOverlay => {
     const overlayObject = overlayStore.overlays[cdnOverlay.id];
-    return !overlayObject || !overlayObject.overlay || !map.value!.hasLayer(overlayObject.overlay);
+    const hasLayer = overlayObject?.overlay && map.value?.hasLayer(overlayObject.overlay);
+    return !overlayObject || !overlayObject.overlay || !hasLayer;
   });
 
   // AI : Recreate missing overlays from scratch

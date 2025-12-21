@@ -289,10 +289,13 @@ function onMarkerModeEnabled() {
 
     // AI : Create temporary marker using StandaloneProjectMarkerSVG in orange for visual feedback
     const markerIcon = createStandaloneProjectIcon('orange');
+    const mapValue = map.value;
+    if (!mapValue) return;
+
     tempMarker.value = L.marker([coordinates.lat, coordinates.lng], {
       icon: markerIcon,
       draggable: false,
-    }).addTo(map.value!);
+    }).addTo(mapValue);
 
     // AI : Pass coordinates back to marker placement bar
     if (markerPlacementBar.value) {
@@ -364,7 +367,11 @@ async function handleNewProjectCreation(project: Partial<Project>): Promise<stri
 
 // AI : Handle existing project update
 function handleProjectUpdate(project: Partial<Project>): string {
-  const projectId = project.id!;
+  const projectId = project.id;
+  if (!projectId) {
+    console.warn('Project ID is undefined in handleProjectUpdate');
+    return '';
+  }
 
   if (projects.value[projectId]) {
     projectStore.updateProject(projectId, {

@@ -66,6 +66,17 @@ watch(() => overlayStore.idSelectedOverlay, (overlayId) => {
   }
 })
 
+// AI : Watch for city changes and auto-switch to Current City tab (for standalone projects)
+// AI : This makes standalone projects behave like overlays when clicked from latest contributions
+let previousCityId = mapStore.selectedCity?.id
+watch(() => mapStore.selectedCity, (newCity) => {
+  // AI : Only switch if city actually changed (not just a refresh) and we're on Latest tab
+  if (newCity && newCity.id !== previousCityId && activeTab.value === 'latest') {
+    activeTab.value = 'currentCity'
+  }
+  previousCityId = newCity?.id
+})
+
 // AI : Initialize shared tab logic (mode syncing, authentication watchers)
 usePanelTabs(activeTab)
 </script>
