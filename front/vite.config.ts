@@ -10,7 +10,7 @@ import { qrcode } from "vite-plugin-qrcode";
 
 // https://vite.dev/config/
 export default defineConfig({
-  envDir: "../", // only way that .env can be imported, '../.env' don't work for some reason
+  envDir: "../", // Only way that .env can be imported, '../.env' don't work for some reason
   plugins: [
     //fontDisplaySwapPlugin(),
     vue(),
@@ -113,7 +113,7 @@ export default defineConfig({
     "process.env.NODE_ENV": JSON.stringify("production"),
     // AI : vue-i18n optimizations - tree-shake unused features
     __INTLIFY_PROD_DEVTOOLS__: false,
-    __VUE_I18N_FULL_INSTALL__: true, // we use globalInjection
-    __VUE_I18N_LEGACY_API__: false, // we use composition API (legacy: false)
+    __VUE_I18N_FULL_INSTALL__: true, // We use globalInjection
+    __VUE_I18N_LEGACY_API__: false, // We use composition API (legacy: false)
   },
 });

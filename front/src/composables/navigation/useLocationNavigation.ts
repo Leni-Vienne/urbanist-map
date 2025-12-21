@@ -45,8 +45,8 @@ export async function navigateToCity(
   await prepareCountryContext(countryCode);
 
   // AI : Find the city coordinates (from store or provided coords)
-  let lat: number | undefined;
-  let lng: number | undefined;
+  let lat: number | undefined = undefined;
+  let lng: number | undefined = undefined;
 
   if (cityCoords) {
     // AI : Use provided coordinates (from search result)

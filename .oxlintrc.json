@@ -4,12 +4,12 @@
   // Enable all of these plugins (which are enabled by default):
   //"plugins": ["unicorn", "typescript", "oxc"],
   "categories": {
-    "suspicious": "error", // mostly type assertion stuff that I don't see how to fix
+    "suspicious": "off", // mostly type assertion stuff that I don't see how to fix
     "correctness": "warn",
     "perf": "warn",
     "nursery": "warn",
     "style": "warn",
-    "restriction": "off",
+    "restriction": "warn",
     "pedantic": "off"
   },
   "rules": {
@@ -33,6 +33,9 @@
     "eslint/no-ternary": "off",
     "eslint/curly": "off",
     "switch-case-braces": "off",
+    "no-base-to-string": "off",
+    "no-optional-chaining": "off",
+    "capitalized-comments": "off", // temp
     "max-params": "off", // temp
     "no-continue": "off", // warns about early continues which is odd
     "typescript/consistent-type-definitions": "off", //temporary

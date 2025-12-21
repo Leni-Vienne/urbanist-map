@@ -15,7 +15,7 @@ export default defineConfig({
   globalSetup: "./tests/global-setup.ts",
   /* Run tests in files in parallel */
   fullyParallel: false,
-  /* reduce timeout because 30s is way too much */
+  /* Reduce timeout because 30s is way too much */
   timeout: 15 * 1000,
   /* Fail the build on CI if you accidentally left test.only in the source code */
   forbidOnly: Boolean(process.env.CI),

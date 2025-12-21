@@ -344,7 +344,7 @@ async function autoNavigateToSelectedOverlay(
 
     mobileAwareFlyToBounds(targetBounds, {
       padding: [50, 50] as [number, number],
-      duration: 0.8, // change in overlay position between mode is smaller, so quicker transition
+      duration: 0.8, // Change in overlay position between mode is smaller, so quicker transition
       easeLinearity: 0.25,
     });
   }

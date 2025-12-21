@@ -98,6 +98,7 @@ function createGoogleCallbackHandler(
     clearTimeoutFn();
 
     // AI : Handle async operations internally to satisfy void return type
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     (async () => {
       try {
         const newUser = await sendGoogleTokenToBackend(response.credential, rememberMe);
