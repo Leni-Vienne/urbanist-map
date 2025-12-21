@@ -461,7 +461,9 @@ const groupedByCountry = computed(() => {
       });
     }
 
-    const country = countryMap.get(countryCode)!;
+    const country = countryMap.get(countryCode);
+    if (!country) continue;
+
     country.totalProjects += 1;
 
     let cityGroup = country.cities.find(c => c.cityName === cityName);
@@ -484,9 +486,10 @@ const groupedByCountry = computed(() => {
     a.countryName.localeCompare(b.countryName)
   );
 
-  sorted.forEach(country => {
+  // AI : Sort each country's cities by name
+  for (const country of sorted) {
     country.cities.sort((a, b) => a.cityName.localeCompare(b.cityName));
-  });
+  }
 
   return sorted;
 })
