@@ -70,7 +70,7 @@ function toDateObject(value: Date | string | null | undefined): Date | null {
   if (!value) return null
   if (value instanceof Date) return value
   const date = new Date(value)
-  return isNaN(date.getTime()) ? null : date
+  return Number.isNaN(date.getTime()) ? null : date
 }
 
 // AI : Get original backend project if available (for comparison baseline)

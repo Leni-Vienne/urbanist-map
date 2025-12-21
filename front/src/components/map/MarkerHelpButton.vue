@@ -137,8 +137,8 @@ function handleClick() {
 
   markers.forEach((markerElement) => {
     const element = markerElement as HTMLElement
-    const lat = parseFloat(element.getAttribute('data-lat') ?? '0')
-    const lng = parseFloat(element.getAttribute('data-lng') ?? '0')
+    const lat = Number.parseFloat(element.getAttribute('data-lat') ?? '0')
+    const lng = Number.parseFloat(element.getAttribute('data-lng') ?? '0')
 
     const distance = Math.sqrt(
       (center.lat - lat) ** 2 + (center.lng - lng) ** 2
@@ -152,8 +152,8 @@ function handleClick() {
 
   if (nearestMarker) {
     const markerToClick: HTMLElement = nearestMarker
-    const lat = parseFloat(markerToClick.getAttribute('data-lat') ?? '0')
-    const lng = parseFloat(markerToClick.getAttribute('data-lng') ?? '0')
+    const lat = Number.parseFloat(markerToClick.getAttribute('data-lat') ?? '0')
+    const lng = Number.parseFloat(markerToClick.getAttribute('data-lng') ?? '0')
 
     // AI : For country markers, use bounding box if available
     if (buttonType.value === 'country') {

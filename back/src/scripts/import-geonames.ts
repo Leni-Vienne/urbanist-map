@@ -1,9 +1,9 @@
 import { db } from "../database";
 import { countries, cities } from "../db/schema";
 import { sql } from "drizzle-orm";
-import * as fs from "fs";
-import * as readline from "readline";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as readline from "node:readline";
+import * as path from "node:path";
 
 /**
  * AI : Import countries and cities from GeoNames data with local name support
@@ -72,7 +72,7 @@ async function loadCountryCoordinates(): Promise<void> {
 
   let lineNumber = 0;
   for await (const line of rl) {
-    lineNumber++;
+    lineNumber += 1;
 
     // AI : Skip header line
     if (lineNumber === 1) continue;
@@ -83,10 +83,10 @@ async function loadCountryCoordinates(): Promise<void> {
     if (fields.length >= 6) {
       const _alpha2 = fields[1]; // Alpha-2 code
       const alpha3 = fields[2]; // Alpha-3 code
-      const lat = parseFloat(fields[4]);
-      const lng = parseFloat(fields[5]);
+      const lat = Number.parseFloat(fields[4]);
+      const lng = Number.parseFloat(fields[5]);
 
-      if (alpha3 && !isNaN(lat) && !isNaN(lng)) {
+      if (alpha3 && !Number.isNaN(lat) && !Number.isNaN(lng)) {
         countryCoordinates.set(alpha3, { lat, lng });
       }
     }
@@ -218,7 +218,7 @@ async function importCountries(): Promise<void> {
     }
 
     countryBatch.push({
-      id: parseInt(geonameId, 10),
+      id: Number.parseInt(geonameId, 10),
       code: iso3,
       code2: iso2,
       name: countryName,
@@ -299,18 +299,18 @@ async function importCities(): Promise<void> {
     ] = fields;
 
     if (!geonameId || !name || !latitude || !longitude || !countryCode2) {
-      skippedCount++;
+      skippedCount += 1;
       continue;
     }
 
     // AI : Convert country code from alpha-2 to alpha-3
     const countryCode3 = alpha2ToAlpha3Map.get(countryCode2);
     if (!countryCode3) {
-      skippedCount++;
+      skippedCount += 1;
       continue;
     }
 
-    const cityId = parseInt(geonameId, 10);
+    const cityId = Number.parseInt(geonameId, 10);
 
     // AI : Store mapping for local name processing
     cityCountryMap.set(cityId, countryCode3);
@@ -321,8 +321,8 @@ async function importCities(): Promise<void> {
       name: name,
       nameLocal: null, // AI : Will be updated by updateCityLocalNames()
       countryCode: countryCode3,
-      latitude: parseFloat(latitude),
-      longitude: parseFloat(longitude),
+      latitude: Number.parseFloat(latitude),
+      longitude: Number.parseFloat(longitude),
     });
 
     if (cityBatch.length >= BATCH_SIZE) {
@@ -387,7 +387,7 @@ async function updateCityLocalNames(): Promise<void> {
     const fields = line.split("\t");
     if (fields.length < 5) continue;
 
-    const geonameId = parseInt(fields[1], 10);
+    const geonameId = Number.parseInt(fields[1], 10);
     const lang = fields[2]; // Language code
     const alternateName = fields[3];
     const _isPreferred = fields[4] === "1";
@@ -481,7 +481,7 @@ async function updateCityLocalNames(): Promise<void> {
       cityLocalNames.set(geonameId, { name: alternateName, priority });
     }
 
-    processedCount++;
+    processedCount += 1;
     if (processedCount % 100_000 === 0) {
       console.log(`  ⏳ Processed ${processedCount} name records...`);
     }
@@ -552,11 +552,13 @@ async function main() {
       console.log(
         "  3. alternateNamesV2.csv - https://download.geonames.org/export/dump/alternateNamesV2.zip",
       );
+      //eslint-disable-next-line no-process-exit
       process.exit(1);
     }
 
     if (!fs.existsSync(COUNTRIES_CSV)) {
       console.error(`\n❌ countries.csv not found: ${COUNTRIES_CSV}`);
+      //eslint-disable-next-line no-process-exit
       process.exit(1);
     }
 
@@ -583,10 +585,11 @@ async function main() {
     console.log("  - Verify imported data in your database");
     console.log("  - Update project city_id values as needed");
     console.log("  - Test city search with both English and local names");
-
+    //eslint-disable-next-line no-process-exit
     process.exit(0);
   } catch (error) {
     console.error("\n❌ Import failed:", error);
+    //eslint-disable-next-line no-process-exit
     process.exit(1);
   }
 }

@@ -177,7 +177,7 @@ import { useProjectStore } from '@/stores/pinia/projectStore'
 import { usePendingModificationsStore } from '@/stores/pinia/pendingModificationsStore'
 import { useProjectDeletion } from '@/composables/project/useProjectDeletion'
 import { useSubmissionDialog } from '@/composables/submission/useSubmissionDialog'
-import { type RouterOutput } from '@/client'
+import type { RouterOutput } from '@/client'
 import type { ProjectForModeration, OverlayForModeration } from '@/types/index'
 
 // AI : Async component import for submission dialog

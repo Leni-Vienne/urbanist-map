@@ -123,7 +123,7 @@ async function handleCountryClick() {
 // AI : Custom overlay click handler that doesn't switch to edit mode (like Latest Contributions)
 const { handleOverlayClickNavigation } = useOverlayClickHandler()
 
-async function handleOverlayClick(overlay: OverlayForModeration, shouldFitBounds: boolean) {
+async function handleOverlayClick(overlay: OverlayForModeration): Promise<void> {
     // AI : Pass false for shouldToggleEditMode to prevent unwanted mode switching
     // AI : This matches the behavior of Latest Contributions panel
     await handleOverlayClickNavigation(overlay, false)
