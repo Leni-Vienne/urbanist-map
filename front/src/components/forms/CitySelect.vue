@@ -37,8 +37,8 @@ import { storeToRefs } from 'pinia'
 import type { Project } from '@/types/index'
 
 interface Props {
-  modelValue: string | undefined
-  id?: string
+  modelValue: number | undefined
+  id?: number
   prefilledCity?: Project['city']
   markerCoordinates?: { lat: number; lng: number } | null
   disabled?: boolean
@@ -46,14 +46,14 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  id: 'location-select',
+  id: 0,
   disabled: false,
   required: false,
   markerCoordinates: null
 })
 
 defineEmits<{
-  'update:modelValue': [value: string | undefined]
+  'update:modelValue': [value: number | undefined]
 }>()
 
 const projectStore = useProjectStore()
@@ -84,6 +84,7 @@ function convertDBCityToSelectFormat(dbCity: Project['city']): RouterOutput['cit
   return {
     id: dbCity.id,
     name: dbCity.name,
+    nameLocal: dbCity.nameLocal,
     countryCode: dbCity.countryCode,
     lat: dbCity.coordinates.y,
     lng: dbCity.coordinates.x,
@@ -167,10 +168,10 @@ async function loadCities() {
 }
 
 // AI : Get city name by ID
-function getCityName(cityId: string | undefined): string {
+function getCityName(cityId: number | undefined): string {
   if (!cityId) return 'Not set'
   const city = cities.value.find(c => c.id === cityId)
-  return city ? `${city.name}, ${city.countryCode}` : cityId
+  return city ? `${city.name}, ${city.countryCode}` : String(cityId)
 }
 
 defineExpose({

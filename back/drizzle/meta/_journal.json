@@ -239,6 +239,13 @@
       "when": 1766068136250,
       "tag": "0033_conscious_alex_power",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1766247461956,
+      "tag": "0034_yielding_maria_hill",
+      "breakpoints": true
     }
   ]
 }

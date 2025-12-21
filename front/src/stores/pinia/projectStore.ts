@@ -64,10 +64,10 @@ export const useProjectStore = defineStore("project", () => {
 
   // AI : Simple cache for city names (cityId -> city name)
   // AI : Populated when cities are used in forms or loaded from backend
-  const cityNamesCache = ref<Record<string, string>>({});
+  const cityNamesCache = ref<Record<number, string>>({});
 
   // AI : Helper to cache a city name
-  function cacheCityName(cityId: string, cityName: string) {
+  function cacheCityName(cityId: number, cityName: string) {
     cityNamesCache.value = {
       ...cityNamesCache.value,
       [cityId]: cityName,

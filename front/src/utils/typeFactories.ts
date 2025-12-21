@@ -24,7 +24,7 @@ export function createProjectObject(data: Partial<Project> = {}): Project {
     createdAt: data.createdAt ?? new Date(),
     updatedAt: data.updatedAt ?? new Date(),
     ownerId: data.ownerId ?? "",
-    cityId: data.cityId ?? "",
+    cityId: data.cityId ?? 0,
     status: data.status ?? null,
     rejectionReason: data.rejectionReason ?? null, // AI : Moderator-selected rejection reason
     // AI : Center coordinate fields - all projects now have center coordinates
@@ -33,8 +33,9 @@ export function createProjectObject(data: Partial<Project> = {}): Project {
     centerCoordinate: data.centerCoordinate ?? null,
     // AI : Computed fields
     city: data.city ?? {
-      id: "",
+      id: 0,
       name: "",
+      nameLocal: null,
       countryCode: "",
       coordinates: { x: 0, y: 0 },
       approvedProjectCount: 0,

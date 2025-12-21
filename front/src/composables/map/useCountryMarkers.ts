@@ -68,6 +68,7 @@ export async function loadCountriesWithProjects(force = false): Promise<void> {
             lng: country.centerCoordinates.x,
             projectCount: 0,
             cities: [],
+            code2: country.code2 ?? "", // AI : Temporary default until GeoNames import populates alpha-2 codes
             createdAt: new Date(),
             updatedAt: new Date(),
           }),

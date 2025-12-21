@@ -1,5 +1,5 @@
 import { moderatorProcedure, adminProcedure, router } from "../trpc";
-import * as z from "zod"; // smaller bundle compared to 'import { z } from 'zod';
+import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
 import {
   projects,
   overlays,
@@ -103,7 +103,7 @@ async function migrateImageToR2(filename: string): Promise<void> {
   if (thumbnailFile) {
     const thumbnailBuffer = await streamToBuffer(thumbnailFile.body);
     // AI : On R2, store thumbnails in thumbnails/ prefix for organization
-    // skipThumbnail prevents recursive thumbnail generation
+    // SkipThumbnail prevents recursive thumbnail generation
     await r2Storage.put(thumbnailFilename, thumbnailBuffer.buffer as ArrayBuffer, {
       skipThumbnail: true,
     });
@@ -331,7 +331,7 @@ export const moderationRouter = router({
           limit: z.number().min(1).max(100).optional().default(50),
           cursor: z.string().uuid().optional(),
           sortBy: z.enum(["createdAt", "updatedAt"]).optional().default("createdAt"),
-          cityId: z.string().uuid().optional(),
+          cityId: z.number().optional(),
           countryCode: z.string().length(3).optional(),
         })
         .optional(),

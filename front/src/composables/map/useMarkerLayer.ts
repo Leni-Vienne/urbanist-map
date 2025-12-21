@@ -67,7 +67,7 @@ export function resetLayerMarkersOpacity(
  * @param items - Array of cityies or countries
  * This eliminates the duplicated hover/click/opacity logic across multiple composables
  */
-export function createMarkerLayer<T extends { id?: string }>(
+export function createMarkerLayer<T extends { id?: string | number }>(
   items: T[],
   config: MarkerLayerConfig<T>,
 ): MarkerLayerResult {
@@ -171,7 +171,7 @@ export function createMarkerLayer<T extends { id?: string }>(
 
     // AI : Store marker in map for easy lookup (if item has ID)
     if (item.id) {
-      markers.set(item.id, marker);
+      markers.set(String(item.id), marker);
     }
 
     // AI : Add marker to layer

@@ -6,7 +6,8 @@
       class="app-link"
       @click.stop="handleCityClick"
       :title="$t('location.navigateToCity', { city: cityName })"
-    >{{ cityName }}, {{ countryName }}</span>
+      >{{ cityName }}, {{ countryName }}</span
+    >
 
     <!-- AI : Fallback if no location data -->
     <span v-if="!cityName && !countryName">{{ $t('overlay.unknownLocation') }}</span>
@@ -21,7 +22,7 @@ import { useI18n } from 'vue-i18n'
 
 // AI : Props interface for location data
 interface Props {
-  cityId?: string | null
+  cityId?: number | null
   cityName?: string | null
   countryCode?: string | null
   countryName?: string | null
@@ -55,7 +56,6 @@ async function handleCityClick() {
     })
   }
 }
-
 </script>
 
 <style scoped>

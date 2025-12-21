@@ -10,7 +10,7 @@ import type { MapMode } from "@shared/types";
  * @param mode - The map mode (view/edit/moderation) to get data for
  * @returns The cached overlay data or null if not found
  */
-export function getCachedCityProjectsData(cityId: string, mode: MapMode): OverlayData[] | null {
+export function getCachedCityProjectsData(cityId: number, mode: MapMode): OverlayData[] | null {
   const mapStore = useMapStore();
   return mapStore.getCityOverlaysAndProjectsCache(cityId, mode);
 }
@@ -21,7 +21,7 @@ export function getCachedCityProjectsData(cityId: string, mode: MapMode): Overla
  * @param mode - The map mode (view/edit/moderation) to check
  * @returns True if data is cached, false otherwise
  */
-export function hasCachedCityProjectsData(cityId: string, mode: MapMode): boolean {
+export function hasCachedCityProjectsData(cityId: number, mode: MapMode): boolean {
   const mapStore = useMapStore();
   return mapStore.hasCityProjectsCache(cityId, mode);
 }

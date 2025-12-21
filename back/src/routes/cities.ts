@@ -1,4 +1,4 @@
-import * as z from "zod"; // smaller bundle compared to 'import { z } from 'zod';
+import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
 import { publicProcedure, router } from "../trpc";
 import { cities, projects, overlays, changeRequests } from "../db/schema";
 import { sql, eq, isNotNull, and, ilike } from "drizzle-orm";
@@ -25,7 +25,7 @@ const searchCitiesNearLocationSchema = z.object({
 });
 
 const getCityOverlaysAndProjectsSchema = z.object({
-  cityId: z.uuid(),
+  cityId: z.number(),
   mode: z.enum(["view", "edit", "moderation"]).optional().default("view"), // AI : Map viewing mode
 });
 
@@ -42,6 +42,7 @@ export const citiesRouter = router({
           .select({
             id: cities.id,
             name: cities.name,
+            nameLocal: cities.nameLocal,
             countryCode: cities.countryCode,
             // AI : Extract coordinates from PostGIS point
             lat: sql<number>`ST_Y(${cities.coordinates})`,
@@ -76,6 +77,7 @@ export const citiesRouter = router({
           .select({
             id: cities.id,
             name: cities.name,
+            nameLocal: cities.nameLocal,
             countryCode: cities.countryCode,
             // AI : Extract coordinates from PostGIS point
             lat: sql<number>`ST_Y(${cities.coordinates})`,
@@ -138,6 +140,7 @@ export const citiesRouter = router({
           .selectDistinct({
             id: cities.id,
             name: cities.name,
+            nameLocal: cities.nameLocal,
             countryCode: cities.countryCode,
             // AI : Extract coordinates from PostGIS point
             lat: sql<number>`ST_Y(${cities.coordinates})`,
@@ -361,6 +364,7 @@ export const citiesRouter = router({
           .select({
             id: cities.id,
             name: cities.name,
+            nameLocal: cities.nameLocal,
             countryCode: cities.countryCode,
             // AI : Extract coordinates from PostGIS point
             lat: sql<number>`ST_Y(${cities.coordinates})`,

@@ -17,7 +17,7 @@ import { t } from "@/locales";
  * @returns Promise that resolves when navigation is complete
  */
 export async function navigateToCity(
-  cityId: string,
+  cityId: number,
   cityName: string,
   countryCode: string,
   cityCoords?: { lat: number; lng: number },
@@ -74,5 +74,5 @@ export async function navigateToCity(
   await prepareCountryContext(countryCode);
 
   // AI : Load city projects (like clicking on city marker)
-  await loadCityProjects(cityId, cityName, false, countryCode);
+  await loadCityProjects(cityId, cityName, null, false, countryCode);
 }

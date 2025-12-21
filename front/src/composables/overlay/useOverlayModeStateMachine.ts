@@ -9,7 +9,7 @@ export interface OverlayModeState {
   mode: MapMode;
   zoomLevel: ZoomLevel;
   hasLoadedOverlays: boolean;
-  selectedCityId: string | null;
+  selectedCityId: number | null;
 }
 
 // AI : Define what should be rendered in each state

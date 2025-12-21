@@ -41,7 +41,7 @@ const toast = useToast()
 const { t } = useI18n()
 
 type CitySearchResult = {
-    id: string
+    id: number
     name: string
     countryCode: string
     lat: number

@@ -104,7 +104,7 @@ export const projects = pgTable(
       onDelete: "set null",
       onUpdate: "cascade",
     }),
-    cityId: uuid("city_id")
+    cityId: integer("city_id")
       .references(() => cities.id, { onDelete: "set null", onUpdate: "cascade" })
       .notNull(), // AI : Reference to the city where the project is located
     sourceUrl: text("source_url"),
@@ -203,8 +203,9 @@ export const overlaysRelations = relations(overlays, ({ one }) => ({
 export const cities = pgTable(
   "cities",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    name: text("name").notNull(),
+    id: integer("id").primaryKey(), // AI : GeoNames city ID (natural key from GeoNames database)
+    name: text("name").notNull(), // AI : English/ASCII name from GeoNames
+    nameLocal: text("name_local"), // AI : Local/native name in country's primary language (nullable - only if alternateNames available)
     countryCode: char("country_code", { length: 3 }).notNull(), // AI : 3-letter country code (ISO 3166-1 alpha-3)
     coordinates: geometry("coordinates", { type: "point", mode: "xy", srid: 4326 }).notNull(), // AI : Geographic coordinates as PostGIS point
     approvedProjectCount: integer("approved_project_count").default(0).notNull(), // AI : Pre-computed count of approved projects for fast search
@@ -216,7 +217,8 @@ export const cities = pgTable(
   },
   (cities) => [
     index("idx_cities_country").on(cities.countryCode),
-    index("idx_cities_name").on(cities.name), // AI : Index for fast ILIKE searches
+    index("idx_cities_name").on(cities.name), // AI : Index for fast ILIKE searches on English name
+    index("idx_cities_name_local").on(cities.nameLocal), // AI : Index for fast ILIKE searches on local name
     sql.raw("CREATE INDEX idx_cities_coordinates ON cities USING GIST (coordinates)"),
   ],
 );
@@ -228,8 +230,9 @@ export const citiesRelations = relations(cities, ({ many }) => ({
 export const countries = pgTable(
   "countries",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    code: char("code", { length: 3 }).notNull().unique(), // AI : ISO 3166-1 alpha-3 country code
+    id: integer("id").primaryKey(), // AI : GeoNames country ID (natural key from GeoNames database)
+    code: char("code", { length: 3 }).notNull().unique(), // AI : ISO 3166-1 alpha-3 country code (e.g., "FRA", "USA", "JPN")
+    code2: char("code2", { length: 2 }).notNull().unique(), // AI : ISO 3166-1 alpha-2 country code for flags (e.g., "FR", "US", "JP")
     name: text("name").notNull(), // AI : Country name in English
     centerCoordinates: geometry("center_coordinates", {
       type: "point",
@@ -244,6 +247,7 @@ export const countries = pgTable(
   },
   (countries) => [
     index("idx_countries_code").on(countries.code),
+    index("idx_countries_code2").on(countries.code2), // AI : Index for flag lookups
     sql.raw(`CREATE INDEX idx_countries_center ON countries USING GIST (center_coordinates)`),
   ],
 );

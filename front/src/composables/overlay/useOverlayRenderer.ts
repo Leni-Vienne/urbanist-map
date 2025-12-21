@@ -48,7 +48,7 @@ function updateMarkersAndEditingState(overlayObjects: OverlayObject[]): void {
 export function renderForStrategy(
   strategy: RenderStrategy,
   overlaysData: OverlayData[],
-  cityId: string,
+  cityId: number,
 ): void {
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();

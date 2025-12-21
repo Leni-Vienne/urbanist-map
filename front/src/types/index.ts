@@ -171,7 +171,7 @@ export type OverlayForModeration = Pick<
   authorApprovedCount?: number | null; // AI : User stats for spam detection (optional, only in moderation)
   authorRejectedCount?: number | null;
   authorReportCount?: number; // AI : Number of reports for this user
-  cityId: string | null;
+  cityId: number | null;
   cityName: string | null;
   countryCode: string | null;
   countryName: string | null;

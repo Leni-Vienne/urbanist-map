@@ -75,6 +75,7 @@ export const countriesRouter = router({
           .selectDistinctOn([countries.code], {
             id: countries.id,
             code: countries.code,
+            code2: countries.code2, // AI : ISO 3166-1 alpha-2 for flag icons
             name: countries.name,
             centerCoordinates: countries.centerCoordinates,
           })

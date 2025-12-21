@@ -78,6 +78,7 @@
         class="change-indicator"
       >
         {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData?.proposalDate) || $t('overlay.notSet')
+
         }}"
       </small>
     </div>
@@ -107,6 +108,7 @@
           class="change-indicator"
         >
           {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData?.startDate) || $t('overlay.notSet')
+
           }}"
         </small>
       </div>
@@ -132,6 +134,7 @@
           class="change-indicator"
         >
           {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData?.endDate) || $t('overlay.notSet')
+
           }}"
         </small>
       </div>
@@ -147,7 +150,7 @@
           :prefilled-city="prefilledCity"
           :marker-coordinates="markerCoordinates"
           required
-          @update:model-value="handleCityIdUpdate"
+          @update:modelValue="handleCityIdUpdate"
         />
         <label for="location-select" class="text-gray-600">{{ $t('project.location') }} *</label>
       </FloatLabel>
@@ -175,6 +178,7 @@
       <small class="text-gray-500 block mt-1">{{ $t('project.latestUpdateOnHelp') }}</small>
       <small v-if="showChangeIndicators && hasChanged?.('latestUpdateOn')" class="change-indicator">
         {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData?.latestUpdateOn) || $t('overlay.notSet')
+
         }}"
       </small>
     </div>
@@ -245,7 +249,7 @@ interface Props {
 interface Emits {
   (e: 'update:formData', value: ProjectFormData): void
   (e: 'update:isProposed', value: boolean): void
-  (e: 'cityChange', cityId: string | null): void
+  (e: 'cityChange', cityId: number | null): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -333,8 +337,10 @@ function handleProposalDateChange() {
 }
 
 // AI : Handle city ID updates from CitySelect (convert undefined to null)
-function handleCityIdUpdate(value: string | undefined) {
-  props.formData.cityId = value ?? null
+function handleCityIdUpdate(cityId: number | undefined) {
+  props.formData.cityId = cityId ?? null
+  // AI : Emit city change event for parent components (e.g., to switch tile layer)
+  emit('cityChange', cityId ?? null)
   // AI : Validate city field when it changes
   validateFieldHelper('cityId')
 }
@@ -403,7 +409,7 @@ watch(() => props.formData.cityId, (newCityId) => {
 })
 
 // AI : Safe getter for city name that handles null/undefined conversion
-function getCityNameSafe(cityId: string | null | undefined): string {
+function getCityNameSafe(cityId: number | null | undefined): string {
   return citySelectRef.value?.getCityName(cityId ?? undefined) ?? 'Not set'
 }
 
@@ -416,7 +422,7 @@ defineExpose({
   get citiesLoaded() {
     return citySelectRef.value?.citiesLoaded ?? false
   },
-  getCityName(cityId: string | null | undefined) {
+  getCityName(cityId: number | null | undefined) {
     return getCityNameSafe(cityId)
   }
 })

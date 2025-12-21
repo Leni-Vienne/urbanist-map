@@ -87,7 +87,7 @@ function initializeCityMarkerWatcher() {
 /**
  * AI : Update city marker opacities based on selected city
  */
-export function updateCityMarkerOpacities(selectedCityId: string | null): void {
+export function updateCityMarkerOpacities(selectedCityId: number | null): void {
   if (!cityMarkersLayer) return;
 
   cityMarkersLayer.eachLayer((layer) => {
@@ -95,7 +95,7 @@ export function updateCityMarkerOpacities(selectedCityId: string | null): void {
       const markerElement = layer.getElement();
       const cityId = markerElement?.getAttribute("data-city-id");
 
-      if (selectedCityId && cityId === selectedCityId) {
+      if (selectedCityId && Number(cityId) === selectedCityId) {
         layer.setOpacity(MARKER_OPACITY.city.hover);
       } else {
         layer.setOpacity(MARKER_OPACITY.city.default);
@@ -150,7 +150,7 @@ export function closeProjectPopupAndResetMarkers() {
 /**
  * AI : Load projects without overlays (standalone project markers) for a specific city and display them on map
  */
-export async function loadCityStandaloneProjects(cityId: string | null): Promise<void> {
+export async function loadCityStandaloneProjects(cityId: number | null): Promise<void> {
   if (!map.value) return;
 
   initializeModeWatcher();
@@ -282,8 +282,9 @@ export async function loadCityStandaloneProjects(cityId: string | null): Promise
  * AI : Load projects for a specific city and display overlays on map
  */
 export async function loadCityProjects(
-  cityId: string | null,
+  cityId: number | null,
   cityName: string,
+  nameLocal: string | null,
   forceFullLoad = false,
   cityCountryCode?: string,
 ): Promise<void> {
@@ -297,7 +298,12 @@ export async function loadCityProjects(
       const previousCityId = mapStore.selectedCity?.id;
       const isSwitchingCity = previousCityId !== cityId;
 
-      mapStore.setSelectedCity({ id: cityId, name: cityName, countryCode: cityCountryCode });
+      mapStore.setSelectedCity({
+        id: cityId,
+        name: cityName,
+        nameLocal,
+        countryCode: cityCountryCode,
+      });
 
       // AI : Only clear state when actually switching cities, not when refreshing
       if (isSwitchingCity) {
@@ -349,8 +355,9 @@ function getCityMarkerConfig(): MarkerLayerConfig<CityWithProjects> {
     getTooltip: (city) => city.name,
     getTestId: (city) => `city-marker-${city.id}`,
     getDataAttributes: (city) => ({
-      "data-city-id": city.id,
+      "data-city-id": String(city.id),
       "data-city-name": city.name,
+      "data-city-name-local": city.nameLocal ?? "",
       "data-country-code": city.countryCode,
       "data-lat": city.lat.toString(),
       "data-lng": city.lng.toString(),
@@ -398,7 +405,7 @@ function getCityMarkerConfig(): MarkerLayerConfig<CityWithProjects> {
         });
       }
 
-      await loadCityProjects(city.id, city.name, false, city.countryCode);
+      await loadCityProjects(city.id, city.name, city.nameLocal, false, city.countryCode);
     },
   };
 }
@@ -407,8 +414,9 @@ function getCityMarkerConfig(): MarkerLayerConfig<CityWithProjects> {
  * AI : Add a single city marker without replacing existing ones
  */
 export function addSingleCityMarker(city: {
-  id: string;
+  id: number;
   name: string;
+  nameLocal: string | null;
   lat: number;
   lng: number;
   countryCode: string;
@@ -419,7 +427,7 @@ export function addSingleCityMarker(city: {
   }
 
   // AI : Don't add if marker already exists
-  if (cityMarkerMap.has(city.id)) return;
+  if (cityMarkerMap.has(String(city.id))) return;
 
   // AI : Initialize layer if needed
   if (!cityMarkersLayer) {

@@ -3,14 +3,10 @@
 # AI : Build once on server, reuse for all deployments
 FROM oven/bun:1.3-alpine
 
-# AI : Install libvips and its dependencies for Sharp to work on Alpine
-# AI : vips-dev includes C++ bindings (libvips-cpp.so) that Sharp needs
-# AI : libstdc++ is required for C++ runtime
-RUN apk add --no-cache libstdc++ vips-dev
-
-# AI : Create uploads directory and ensure bun user owns /app
-# AI : This is crucial so the app can write to ./uploads at runtime
-RUN mkdir -p /app/uploads && chown -R bun:bun /app
+# AI : Install libvips for Sharp, create uploads dir, set ownership for bun user
+RUN apk add --no-cache libstdc++ vips-dev \
+    && mkdir -p /app/uploads \
+    && chown -R bun:bun /app
 
 # AI : Set WORKDIR before switching user
 WORKDIR /app

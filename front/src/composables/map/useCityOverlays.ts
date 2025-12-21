@@ -30,7 +30,7 @@ const isLoadingCityProjects = ref(false);
  * AI : Fetch city projects data with mode-aware caching to avoid repeated API calls
  * AI : Smart caching: Returns cached data if available for current mode, otherwise fetches from backend
  */
-export async function fetchCityProjectsData(cityId: string): Promise<OverlayData[]> {
+export async function fetchCityProjectsData(cityId: number): Promise<OverlayData[]> {
   const mapStore = useMapStore();
   const overlayStore = useOverlayStore();
 
@@ -58,7 +58,7 @@ export async function fetchCityProjectsData(cityId: string): Promise<OverlayData
  * AI : Load projects for a specific city and display overlays on map
  */
 export async function loadCityOverlays(
-  cityId: string,
+  cityId: number,
   forceFullLoad = false,
   isSwitchingCity = true,
 ): Promise<void | null> {
@@ -201,7 +201,7 @@ function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void {
   }
 }
 
-async function showOverlayMarkers(cityId: string, isSwitchingCity = true): Promise<void> {
+async function showOverlayMarkers(cityId: number, isSwitchingCity = true): Promise<void> {
   return withErrorHandling(
     async () => {
       const mapStore = useMapStore();
@@ -245,7 +245,7 @@ export function removeOverlayMarkers(): void {
 /**
  * AI : Render full overlays from cached data for current mode
  */
-function renderFullOverlaysFromCache(cityId: string, isSwitchingCity = true) {
+function renderFullOverlaysFromCache(cityId: number, isSwitchingCity = true) {
   const mapStore = useMapStore();
   const overlayStore = useOverlayStore();
   const overlaysData = mapStore.getCityOverlaysAndProjectsCache(cityId, overlayStore.mode);
@@ -284,7 +284,7 @@ function renderFullOverlaysFromCache(cityId: string, isSwitchingCity = true) {
 /**
  * AI : Render overlay markers from cached data for current mode
  */
-export function renderOverlayMarkersFromCache(cityId: string): void {
+export function renderOverlayMarkersFromCache(cityId: number): void {
   const mapStore = useMapStore();
   const overlayStore = useOverlayStore();
   const overlaysData = mapStore.getCityOverlaysAndProjectsCache(cityId, overlayStore.mode);

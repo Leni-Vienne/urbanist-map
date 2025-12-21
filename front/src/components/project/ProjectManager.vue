@@ -81,7 +81,7 @@ const { projectEditForm } = storeToRefs(uiStore)
 
 // AI : Helper to ensure city markers are properly set up for a project's city
 async function ensureCityMarkersForProject(
-  city: { id: string; name: string; countryCode: string; coordinates: { x: number; y: number } },
+  city: { id: number; name: string; nameLocal: string | null; countryCode: string; coordinates: { x: number; y: number } },
   forceSetSelectedCity = false
 ): Promise<void> {
   const countryCode = city.countryCode;
@@ -91,6 +91,7 @@ async function ensureCityMarkersForProject(
     mapStore.setSelectedCity({
       id: city.id,
       name: city.name,
+      nameLocal: city.nameLocal,
       countryCode: countryCode
     });
   }
@@ -103,6 +104,7 @@ async function ensureCityMarkersForProject(
   addSingleCityMarker({
     id: city.id,
     name: city.name,
+    nameLocal: city.nameLocal,
     lat: city.coordinates.y,
     lng: city.coordinates.x,
     countryCode: countryCode
@@ -121,6 +123,7 @@ async function ensureCityMarkersForProject(
       addSingleCityMarker({
         id: city.id,
         name: city.name,
+        nameLocal: city.nameLocal,
         lat: city.coordinates.y,
         lng: city.coordinates.x,
         countryCode: countryCode
@@ -324,9 +327,9 @@ function onDialogVisibilityChange(visible: boolean) {
 }
 
 // AI : Display project marker on map and open its info popup
-async function displayProjectMarkerAndPopup(projectId: string, city: { id: string; name: string; countryCode: string; coordinates: { x: number; y: number } }) {
+async function displayProjectMarkerAndPopup(projectId: string, city: { id: number; name: string; nameLocal: string | null; countryCode: string; coordinates: { x: number; y: number } }) {
   await ensureCityMarkersForProject(city, true);
-  await loadCityProjects(city.id, city.name, true, city.countryCode);
+  await loadCityProjects(city.id, city.name, city.nameLocal, true, city.countryCode);
 
   const actualMarker = getStandaloneProjectMarkerByProjectId(projectId);
   if (actualMarker) {
