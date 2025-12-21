@@ -834,7 +834,8 @@
     "suggestChanges": "Suggest Changes"
   },
   "layerControl": {
-    "baseMaps": "Base Maps"
+    "baseMaps": "Base Maps",
+    "submitTileLayer": "Suggest a new tile layer?"
   },
   "toasts": {
     "replacementOverlayCreated": "Replacement Overlay Created",
