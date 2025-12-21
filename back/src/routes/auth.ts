@@ -2,7 +2,7 @@ import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod'
 import { TRPCError } from "@trpc/server";
 import { globalRateLimiter } from "../lib/rateLimit";
 import { getClientIp } from "../utils/ip";
-import crypto from "crypto";
+import crypto from "node:crypto";
 import { eq, gt } from "drizzle-orm";
 import { publicProcedure, router } from "../trpc";
 import { db } from "../database";
@@ -268,6 +268,7 @@ export const authRouter = router({
 
       // AI : SECURITY: Fire and forget - respond immediately to prevent ALL timing attacks
       // AI : Void the promise to indicate intentional fire-and-forget behavior
+      // eslint-disable-next-line @eslint/no-void
       void (async () => {
         try {
           // AI : Find user

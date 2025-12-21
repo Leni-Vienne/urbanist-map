@@ -462,7 +462,7 @@ const groupedByCountry = computed(() => {
     }
 
     const country = countryMap.get(countryCode)!;
-    country.totalProjects++;
+    country.totalProjects += 1;
 
     let cityGroup = country.cities.find(c => c.cityName === cityName);
     if (!cityGroup) {
@@ -596,7 +596,7 @@ async function waitForAccordionAnimation(overlayId: string): Promise<void> {
 
   if (!overlayElement) {
     // AI : Element not found, wait a frame and try again (max 3 attempts)
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 3; i += 1) {
       await new Promise(resolve => requestAnimationFrame(resolve))
       const element = document.querySelector(`[data-overlay-id="${overlayId}"]`)
       if (element) {
@@ -638,7 +638,7 @@ async function waitForProjectAccordionAnimation(projectId: string): Promise<void
 
   if (!projectElement) {
     // AI : Element not found, wait a frame and try again (max 3 attempts)
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 3; i += 1) {
       await new Promise(resolve => requestAnimationFrame(resolve))
       const element = document.querySelector(`[data-project-id="${projectId}"]`)
       if (element) {
@@ -661,7 +661,7 @@ async function waitForCityAccordionAnimation(cityKey: string): Promise<void> {
 
   if (!cityElement) {
     // AI : Element not found, wait a frame and try again (max 3 attempts)
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 3; i += 1) {
       await new Promise(resolve => requestAnimationFrame(resolve))
       const element = document.querySelector(`[data-city-key="${cityKey}"]`)
       if (element) {
