@@ -21,7 +21,10 @@
                 <i
                   :class="['pi', isCountryExpanded(countryGroup.countryCode) ? 'pi-chevron-down' : 'pi-chevron-right']"
                 ></i>
-                <h3 class="country-group-title">{{ countryGroup.countryName }}</h3>
+                <h3 class="country-group-title">
+                  {{ countryGroup.countryName }}
+                  <span class="country-code-badge">({{ countryGroup.countryCode }})</span>
+                </h3>
                 <span class="country-group-count">{{ countryGroup.totalProjects }}</span>
               </div>
             </div>
@@ -43,7 +46,12 @@
                     <i
                       :class="['pi', isCityExpanded(cityGroup.key) ? 'pi-chevron-down' : 'pi-chevron-right']"
                     ></i>
-                    <h4 class="city-group-title">{{ cityGroup.cityName }}</h4>
+                    <h4 class="city-group-title">
+                      {{ cityGroup.cityName }}
+                      <span v-if="cityGroup.cityNameLocal" class="city-namelocal"
+                        >({{ cityGroup.cityNameLocal }})</span
+                      >
+                    </h4>
                   </div>
                   <span class="city-group-count">{{ cityGroup.projects.length }}</span>
                 </div>
@@ -381,6 +389,7 @@ interface Props {
 interface CityGroup {
   key: string;
   cityName: string;
+  cityNameLocal: string | null;
   projects: ProjectForModeration[];
 }
 
@@ -458,9 +467,12 @@ const groupedByCountry = computed(() => {
 
     let cityGroup = country.cities.find(c => c.cityName === cityName);
     if (!cityGroup) {
+      // AI : Extract cityNameLocal from project.city if available
+      const cityNameLocal = project.city?.nameLocal ?? null;
       cityGroup = {
         key: `${countryCode}-${cityName}`,
         cityName,
+        cityNameLocal,
         projects: []
       };
       country.cities.push(cityGroup);
@@ -940,6 +952,15 @@ function handleOverlayContributorClick(
   font-weight: 700;
   color: var(--p-surface-900);
   flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.country-code-badge {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--p-text-muted-color);
 }
 
 .country-group-count {
@@ -994,6 +1015,13 @@ function handleOverlayContributorClick(
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--p-surface-700);
+}
+
+.city-namelocal {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--p-text-muted-color);
+  margin-left: 0.25rem;
 }
 
 .city-group-count {

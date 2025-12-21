@@ -352,7 +352,7 @@ function getCityMarkerConfig(): MarkerLayerConfig<CityWithProjects> {
     getOpacity: (hover) => (hover ? MARKER_OPACITY.city.hover : MARKER_OPACITY.city.default),
     getColor: () => "blue",
     getLatLng: (city) => ({ lat: city.lat, lng: city.lng }),
-    getTooltip: (city) => city.name,
+    getTooltip: (city) => (city.nameLocal ? `${city.name} (${city.nameLocal})` : city.name),
     getTestId: (city) => `city-marker-${city.id}`,
     getDataAttributes: (city) => ({
       "data-city-id": String(city.id),
