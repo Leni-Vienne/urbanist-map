@@ -16,7 +16,11 @@
       >
         <template #option="{ option }">
           <div class="search-result">
-            <span class="city-name">{{ option.name }}, {{ option.countryCode }}</span>
+            <span class="city-name">
+              {{ option.name }}
+              <span v-if="option.nameLocal" class="city-name-local"> ({{ option.nameLocal }})</span>
+              , {{ option.countryCode }}
+            </span>
             <Badge
               v-if="option.approvedProjectCount > 0"
               :value="option.approvedProjectCount"
@@ -43,6 +47,7 @@ const { t } = useI18n()
 type CitySearchResult = {
     id: number
     name: string
+    nameLocal: string | null
     countryCode: string
     lat: number
     lng: number
@@ -80,10 +85,12 @@ async function onSearch(event: { query: string }) {
                 limit: 25,
             })
 
-            // AI : Add display name for AutoComplete
+            // AI : Add display name for AutoComplete with local name if available
             suggestions.value = results.map(city =>
                 Object.assign({}, city, {
-                    displayName: `${city.name}, ${city.countryCode}`,
+                    displayName: city.nameLocal
+                        ? `${city.name} (${city.nameLocal}), ${city.countryCode}`
+                        : `${city.name}, ${city.countryCode}`,
                 })
             )
         } catch (error) {
@@ -148,6 +155,10 @@ function onSelect(event: { value: any }) {
 .city-name {
     flex: 1;
     font-size: 0.875rem;
+}
+
+.city-name-local {
+    color: var(--p-text-muted-color);
 }
 
 .project-count {
