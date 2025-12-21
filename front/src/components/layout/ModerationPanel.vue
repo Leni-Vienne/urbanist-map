@@ -221,13 +221,15 @@ onMounted(async () => {
       await fetchPendingSubmissions()
     }
 
-    // AI : Fetch pending counts for all countries
-    try {
-      const counts = await trpc.moderation.getPendingCountsByCountry.query()
-      moderationStore.setPendingCounts(counts)
-    } catch (error) {
-      console.error('Failed to load pending counts:', error)
-      // AI : Don't block UI if counts fail to load
+    // AI : Fetch pending counts for all countries only if not already loaded
+    if (!moderationStore.pendingCountsLoaded) {
+      try {
+        const counts = await trpc.moderation.getPendingCountsByCountry.query()
+        moderationStore.setPendingCounts(counts)
+      } catch (error) {
+        console.error('Failed to load pending counts:', error)
+        // AI : Don't block UI if counts fail to load
+      }
     }
   } catch (error) {
     console.error('Failed to load countries:', error)
@@ -252,6 +254,17 @@ function handleCountryChange() {
 // AI : Get pending count for a specific country
 function getPendingCount(countryCode: string): number {
   return moderationStore.pendingCountsByCountry.get(countryCode) ?? 0
+}
+
+// AI : Helper to refetch pending counts after operations
+async function refetchPendingCounts() {
+  try {
+    moderationStore.resetPendingCounts()
+    const counts = await trpc.moderation.getPendingCountsByCountry.query()
+    moderationStore.setPendingCounts(counts)
+  } catch (error) {
+    console.error('Failed to refetch pending counts:', error)
+  }
 }
 
 // AI : Use moderation composable
@@ -371,6 +384,7 @@ async function handleApproveProject(id: string) {
   const result = await approveProject(id)
 
   if (result.success) {
+    refetchPendingCounts()
     toast.add({
       severity: 'success',
       summary: t('moderation.projectApproved'),
@@ -401,6 +415,7 @@ async function executeRejectProject(id: string, rejectionReason?: string, reject
   const result = await rejectProject(id, rejectionReason, rejectAllOverlays)
 
   if (result.success) {
+    refetchPendingCounts()
     toast.add({
       severity: 'info',
       summary: t('moderation.projectRejected'),
@@ -463,6 +478,7 @@ async function proceedWithApproval(id: string, handleConflicts = false) {
   const result = await approveOverlay(id, handleConflicts)
 
   if (result.success) {
+    refetchPendingCounts()
     toast.add({
       severity: 'success',
       summary: t('moderation.overlayApproved'),
@@ -542,6 +558,7 @@ async function executeRejectOverlay(id: string, rejectionReason?: string) {
   const result = await rejectOverlay(id, rejectionReason)
 
   if (result.success) {
+    refetchPendingCounts()
     toast.add({
       severity: 'info',
       summary: t('moderation.overlayRejected'),
@@ -566,6 +583,7 @@ async function handleApproveChange(changeId: string) {
   const result = await approveChangeRequests([changeId])
 
   if (result?.success) {
+    refetchPendingCounts()
     toast.add({
       severity: 'success',
       summary: t('moderation.changeApproved'),
@@ -647,6 +665,7 @@ async function executeRejectChange(changeId: string) {
   const result = await rejectChangeRequests([changeId])
 
   if (result?.success) {
+    refetchPendingCounts()
     toast.add({
       severity: 'info',
       summary: t('moderation.changeRejected'),

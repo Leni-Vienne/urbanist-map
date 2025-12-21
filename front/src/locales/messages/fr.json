@@ -836,7 +836,8 @@
     "suggestChanges": "Suggérer des modifications"
   },
   "layerControl": {
-    "baseMaps": "Cartes de base"
+    "baseMaps": "Cartes de base",
+    "submitTileLayer": "Suggérez une nouvelle carte"
   },
   "toasts": {
     "replacementOverlayCreated": "Image de remplacement créée",
