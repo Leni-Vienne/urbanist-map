@@ -50,7 +50,7 @@ async function populateInitialCounts() {
     // AI : Get all city IDs that have projects
     const cityIdsWithProjects = citiesWithCounts
       .map((c) => c.cityId)
-      .filter((id): id is string => id !== null);
+      .filter((id): id is number => id !== null);
 
     // AI : Update all cities not in that list to have count 0
     if (cityIdsWithProjects.length > 0) {

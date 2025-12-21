@@ -1,15 +1,9 @@
 <template>
-  <div
-    v-if="project"
-    class="mb-3"
-  >
+  <div v-if="project" class="mb-3">
     <div class="section-header-row">
       <div class="section-header">{{ $t('project.information') }}</div>
       <div class="project-actions">
-        <slot
-          name="actions"
-          :project="project"
-        />
+        <slot name="actions" :project="project" />
       </div>
     </div>
     <div class="info-card">
@@ -17,10 +11,7 @@
         <span class="info-label">{{ $t('project.name') }}:</span>
         <span class="info-value">{{ project.name ?? '—' }}</span>
       </div>
-      <div
-        v-if="showDescription"
-        class="info-row"
-      >
+      <div v-if="showDescription" class="info-row">
         <span class="info-label">{{ $t('project.description') }}:</span>
         <span class="info-value">{{ project.description ?? '—' }}</span>
       </div>
@@ -35,27 +26,23 @@
             {{ formatDate(project.startDate) || '—' }} - {{ formatDate(project.endDate) || '—' }}
           </span>
           <span v-else-if="project.proposalDate">
-            {{ $t('project.proposed') }} {{ formatDate(project.proposalDate) || '—' }}</span>
+            {{ $t('project.proposed') }} {{ formatDate(project.proposalDate) || '—' }}</span
+          >
           <span v-else>
             {{ $t('metadata.notSpecified') }}
           </span>
         </span>
       </div>
-      <div
-        v-if="project.sourceUrl"
-        class="info-row"
-      >
+      <div v-if="project.sourceUrl" class="info-row">
         <span class="info-label">{{ $t('project.source') }}:</span>
         <a
           :href="project.sourceUrl"
           target="_blank"
           class="app-link"
-        >{{ formatSourceUrl(project.sourceUrl) }}</a>
+          >{{ formatSourceUrl(project.sourceUrl) }}</a
+        >
       </div>
-      <div
-        v-if="project.latestUpdateOn"
-        class="info-row"
-      >
+      <div v-if="project.latestUpdateOn" class="info-row">
         <span class="info-label">{{ $t('project.latestUpdate') }}:</span>
         <span class="info-value info-small">{{ formatDate(project.latestUpdateOn) || '—' }}</span>
       </div>
@@ -72,7 +59,7 @@ import { formatSourceUrl } from '@/utils/urlFormat'
 interface Props {
   project: Project | null
   showDescription?: boolean
-  availableCities?: { id: string; name: string; countryCode: string; }[]
+  availableCities?: { id: number; name: string; countryCode: string; }[]
 }
 
 const props = withDefaults(defineProps<Props>(), {

@@ -386,7 +386,7 @@ function checkOverlaySizeAndWarn(
 /**
  * AI : Add new overlay to city cache so it persists across zoom changes
  */
-export function addNewOverlayToCityCache(overlayObject: OverlayObject, cityId: string): void {
+export function addNewOverlayToCityCache(overlayObject: OverlayObject, cityId: number): void {
   const mapStore = useMapStore();
   const overlayStore = useOverlayStore();
 

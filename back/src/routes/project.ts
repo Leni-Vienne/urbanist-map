@@ -1,5 +1,5 @@
 import { publicProcedure, loggedInProcedure, router } from "../trpc";
-import * as z from "zod"; // smaller bundle compared to 'import { z } from 'zod';
+import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
 import { projects, cities, overlays, changeRequests } from "../db/schema";
 import { eq, sql, and, or, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
@@ -332,7 +332,7 @@ export const projectRouter = router({
   getCityProjects: publicProcedure
     .input(
       z.object({
-        cityId: z.uuid(),
+        cityId: z.number(),
         limit: z.number().min(1).max(100).optional().default(20),
         mode: z.enum(["view", "edit", "moderation"]).optional().default("view"), // AI : Map viewing mode
       }),
@@ -431,7 +431,7 @@ export const projectRouter = router({
         limit: z.number().min(1).max(100).optional().default(50),
         cursor: z.string().uuid().optional(),
         sortBy: z.enum(["createdAt", "updatedAt"]).optional().default("updatedAt"),
-        cityId: z.string().uuid().optional(),
+        cityId: z.number().optional(),
         countryCode: z.string().length(3).optional(),
       }),
     )

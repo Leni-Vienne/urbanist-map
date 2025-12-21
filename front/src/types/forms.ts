@@ -8,7 +8,7 @@ export interface ProjectFormData {
   startDate: Date | null;
   endDate: Date | null;
   latestUpdateOn?: Date | null;
-  cityId: string | null;
+  cityId: number | null;
   sourceUrl: string | null;
 }
 

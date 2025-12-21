@@ -49,7 +49,7 @@ const markerCoordinates = props.project.lat && props.project.lng
     ? { lat: props.project.lat, lng: props.project.lng }
     : null
 
-function handleCityChange(newCityId: string | null) {
+function handleCityChange(newCityId: number | null) {
     if (!newCityId) return
     const cities = formFieldsRef.value?.cities ?? []
     const selectedCity = cities.find(c => c.id === newCityId)
@@ -93,6 +93,7 @@ function handleSubmit() {
         result.city = {
             id: selectedCity.id,
             name: selectedCity.name,
+            nameLocal: selectedCity.nameLocal,
             countryCode: selectedCity.countryCode,
             coordinates: { x: selectedCity.lng, y: selectedCity.lat },
             approvedProjectCount: 0, // AI : Not available from form context, will be populated by backend

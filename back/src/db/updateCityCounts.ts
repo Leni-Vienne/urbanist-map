@@ -7,7 +7,7 @@ import { eq, sql, and } from "drizzle-orm";
  * AI : Called after project approval/rejection in moderation
  * @param cityId - The city ID to update
  */
-export async function updateCityProjectCount(cityId: string): Promise<void> {
+export async function updateCityProjectCount(cityId: number): Promise<void> {
   // AI : Count approved projects in this city
   const result = await db
     .select({ count: sql<number>`COUNT(*)::int` })
@@ -25,7 +25,7 @@ export async function updateCityProjectCount(cityId: string): Promise<void> {
  * AI : Used when approving a project
  * @param cityId - The city ID to update
  */
-export async function incrementCityProjectCount(cityId: string): Promise<void> {
+export async function incrementCityProjectCount(cityId: number): Promise<void> {
   await db
     .update(cities)
     .set({ approvedProjectCount: sql`${cities.approvedProjectCount} + 1` })
@@ -37,7 +37,7 @@ export async function incrementCityProjectCount(cityId: string): Promise<void> {
  * AI : Used when rejecting an approved project
  * @param cityId - The city ID to update
  */
-export async function decrementCityProjectCount(cityId: string): Promise<void> {
+export async function decrementCityProjectCount(cityId: number): Promise<void> {
   await db
     .update(cities)
     .set({ approvedProjectCount: sql`GREATEST(${cities.approvedProjectCount} - 1, 0)` })

@@ -43,11 +43,15 @@ codebase_combined.txt
 combine.sh
 issues.json
 server.bundle.js
-countries.csv
 worldcities.csv
 specs.md
 bundle.md
 analyze_index_only.cjs
+
+!geonames-data
+geonames-data/*
+!geonames-data/countries.csv
+
 
 uploads
 node_modules
