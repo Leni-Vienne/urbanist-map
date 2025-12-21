@@ -214,9 +214,5 @@ export function getValidationErrorsMap(error: z.ZodError): Record<string, Valida
 }
 
 // AI : Type exports for TypeScript inference
-export type ProjectInput = z.infer<typeof projectSchema>;
-export type OverlayInput = z.infer<typeof overlaySchema>;
-export type RegisterInput = z.infer<typeof registerSchema>;
-export type ResetPasswordRequestInput = z.infer<typeof resetPasswordRequestSchema>;
-export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type SubmitChangeRequestInput = z.infer<typeof submitChangeRequestSchema>;
+export type FieldChange = SubmitChangeRequestInput["changes"][number];

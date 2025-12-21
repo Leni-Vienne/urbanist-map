@@ -30,16 +30,3 @@ export interface OverlayData {
   hasPendingChanges?: boolean;
   pendingChangeRequestsCount?: number;
 }
-
-export interface FieldChange {
-  fieldName: string;
-  oldValue?: any;
-  newValue: any;
-  changeReason?: string;
-}
-
-export interface SubmitChangeRequestInput {
-  entityType: "project" | "overlay";
-  entityId: string;
-  changes: FieldChange[];
-}

@@ -125,6 +125,12 @@ export interface Country extends DBCountry {
   cities: City[];
 }
 
+export type PendingChangeRequest =
+  RouterOutput["moderation"]["getPendingSubmissions"]["changeRequests"][0];
+
+export type LatestContribution = RouterOutput["overlay"]["getLatestContributions"][number];
+export type NearbyProject = RouterOutput["project"]["getProjectsNearLocation"]["projects"][0];
+
 // AI : Base runtime project type - extends DB schema with computed fields
 export interface Project extends Omit<DBProject, "status"> {
   // AI : Override status to allow null for local unsubmitted projects
@@ -137,6 +143,17 @@ export interface Project extends Omit<DBProject, "status"> {
   mapCoordinates?: { lat: number; lng: number } | null;
   // AI : UI state for tracking local modifications
   isModified?: boolean;
+}
+
+export interface ProjectFormData {
+  name: string;
+  description: string | null;
+  proposalDate: Date | null;
+  startDate: Date | null;
+  endDate: Date | null;
+  latestUpdateOn?: Date | null;
+  cityId: number | null;
+  sourceUrl: string | null;
 }
 
 // AI : Import shared overlay data type

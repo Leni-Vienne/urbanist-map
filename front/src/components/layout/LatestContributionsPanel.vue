@@ -98,7 +98,7 @@ import { navigateToStandaloneProject } from '@/composables/navigation/useOverlay
 import { buildThumbnailUrl } from '@/utils/imageUrl'
 import { formatRelativeTime } from '@/utils/dateFormat'
 import { getFlagUrl, hideFlagOnError, useImageErrors } from '@/utils/imageHelpers'
-import type { LatestContribution } from '@/types/api'
+import type { LatestContribution } from '@/types/index'
 
 const { t } = useI18n()
 

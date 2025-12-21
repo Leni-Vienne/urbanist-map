@@ -79,6 +79,7 @@
       >
         {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData?.proposalDate) || $t('overlay.notSet')
 
+
         }}"
       </small>
     </div>
@@ -109,6 +110,7 @@
         >
           {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData?.startDate) || $t('overlay.notSet')
 
+
           }}"
         </small>
       </div>
@@ -134,6 +136,7 @@
           class="change-indicator"
         >
           {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData?.endDate) || $t('overlay.notSet')
+
 
           }}"
         </small>
@@ -179,6 +182,7 @@
       <small v-if="showChangeIndicators && hasChanged?.('latestUpdateOn')" class="change-indicator">
         {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData?.latestUpdateOn) || $t('overlay.notSet')
 
+
         }}"
       </small>
     </div>
@@ -213,9 +217,8 @@ import { useI18n } from 'vue-i18n'
 import FloatLabel from 'primevue/floatlabel'
 import TimelineStatusSelector from './TimelineStatusSelector.vue'
 import type CitySelect from './CitySelect.vue'
-import type { Project } from '@/types/index'
+import type { Project, ProjectFormData } from '@/types/index'
 import { formatDate } from '@/utils/dateFormat'
-import type { ProjectFormData } from '../../types/forms'
 import { useFieldValidation } from '@/composables/forms/useFieldValidation'
 import { projectSchema } from '@shared/validation/schemas'
 import { prepareProjectValidationData } from '@/utils/validationHelpers'

@@ -3,7 +3,7 @@ import { useChangeRequests } from "@/composables/changes/useChanges";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 import { formatDate } from "@/utils/dateFormat";
-import type { FieldChange } from "../../types/forms";
+import type { FieldChange } from "@shared/validation/schemas";
 import type { ApprovalStatus } from "@shared/types";
 
 // AI : Generic base options interface for editable forms

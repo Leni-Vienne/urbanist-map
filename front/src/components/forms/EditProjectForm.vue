@@ -51,8 +51,7 @@ import { computed, ref } from 'vue'
 import { useEditableProjectForm } from '@/composables/forms/useEditableProjectForm'
 import { useProjectStore } from '@/stores/pinia/projectStore'
 import type ProjectFormFields from './ProjectFormFields.vue'
-import type { Project } from '@/types/index'
-import type { ProjectFormData } from '../../types/forms'
+import type { Project, ProjectFormData } from '@/types/index'
 
 const props = defineProps<{ project: Project }>()
 const emit = defineEmits<{ close: [], submitted: [] }>()

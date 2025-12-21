@@ -8,8 +8,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useToast } from "@/composables/ui/useToast";
 import { trpc } from "@/client";
-import type { OverlayForModeration } from "@/types/index";
-import type { LatestContribution } from "../../types/api";
+import type { OverlayForModeration, LatestContribution } from "@/types/index";
 
 // AI : Union type to accept overlays from moderation and contributions panels
 type NavigableOverlay = OverlayForModeration | LatestContribution;
