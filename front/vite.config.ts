@@ -4,7 +4,7 @@ import Components from "unplugin-vue-components/vite";
 import { PrimeVueResolver } from "@primevue/auto-import-resolver";
 import tailwindcss from "@tailwindcss/vite";
 import vueDevTools from "vite-plugin-vue-devtools";
-import path from "path";
+import path from "node:path";
 import { visualizer } from "rollup-plugin-visualizer";
 import { qrcode } from "vite-plugin-qrcode";
 
@@ -22,10 +22,10 @@ export default defineConfig({
     }),
     tailwindcss(),
     vueDevTools(),
-    // eslint-disable-next-line
+    // eslint-disable-next-line new-cap
     Components({
       resolvers: [
-        // eslint-disable-next-line
+        // eslint-disable-next-line new-cap
         PrimeVueResolver(),
       ],
     }),

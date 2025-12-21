@@ -97,8 +97,8 @@ export function isValidCorners(corners: { lat: number; lng: number }[]): boolean
       corner &&
       typeof corner.lat === "number" &&
       typeof corner.lng === "number" &&
-      !isNaN(corner.lat) &&
-      !isNaN(corner.lng),
+      !Number.isNaN(corner.lat) &&
+      !Number.isNaN(corner.lng),
   );
 }
 

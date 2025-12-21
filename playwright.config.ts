@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 import * as dotenv from "dotenv";
-import { existsSync } from "fs";
+import { existsSync } from "node:fs";
 
 // AI : Load test environment variables
 dotenv.config({ path: ".env" });

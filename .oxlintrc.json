@@ -35,8 +35,14 @@
     "switch-case-braces": "off",
     "no-base-to-string": "off",
     "no-optional-chaining": "off",
+    "no-console": "off",
+    "no-alert": "off", // temp
+    "explicit-module-boundary-types": "off", // temp
+    "explicit-function-return-type": "off", // temp
     "capitalized-comments": "off", // temp
     "max-params": "off", // temp
+    "no-rest-spread-properties": "off", // for older browsers
+    "no-namespace": "off", // conflicts with prefer-namespace-keyword
     "no-continue": "off", // warns about early continues which is odd
     "typescript/consistent-type-definitions": "off", //temporary
     "eslint/prefer-destructuring": "off", //temporary
