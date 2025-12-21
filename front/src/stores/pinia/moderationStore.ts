@@ -18,6 +18,9 @@ export const useModerationStore = defineStore("moderation", () => {
   const allCountries = ref<{ code: string; name: string }[]>([]);
   const countriesLoaded = ref(false);
 
+  // AI : Pending counts per country for dashboard indicators
+  const pendingCountsByCountry = ref<Map<string, number>>(new Map());
+
   function setModerationData(data: {
     overlays: PendingOverlay[];
     projects: ProjectForModeration[];
@@ -52,6 +55,10 @@ export const useModerationStore = defineStore("moderation", () => {
     countriesLoaded.value = true;
   }
 
+  function setPendingCounts(counts: { countryCode: string; total: number }[]) {
+    pendingCountsByCountry.value = new Map(counts.map((c) => [c.countryCode, c.total]));
+  }
+
   return {
     overlays,
     projects,
@@ -61,11 +68,13 @@ export const useModerationStore = defineStore("moderation", () => {
     selectedCountryCode,
     allCountries,
     countriesLoaded,
+    pendingCountsByCountry,
     setModerationData,
     setModerationLoading,
     resetModerationLoaded,
     removeChangeRequests,
     setSelectedCountryCode,
     setAllCountries,
+    setPendingCounts,
   };
 });

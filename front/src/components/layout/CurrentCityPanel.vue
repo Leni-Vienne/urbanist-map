@@ -129,16 +129,23 @@ async function handleOverlayClick(overlay: OverlayForModeration, shouldFitBounds
     await handleOverlayClickNavigation(overlay, false)
 }
 
-// AI : Build projects with overlays from already-loaded mapStore data
+// AI : Build projects with overlays from mode-aware cache
 const projectsWithOverlays = computed(() => {
     if (!mapStore.selectedCity) {
         return []
     }
 
-    // AI : Group overlays by project from currentCityOverlays (already loaded when city is clicked)
+    // AI : Get overlays from mode-aware cache (same pattern as standalone projects)
+    // AI : This ensures view mode only shows approved overlays, edit mode shows approved + user's own
+    const overlaysForMode = mapStore.getCityOverlaysAndProjectsCache(
+        mapStore.selectedCity.id,
+        overlayStore.mode
+    ) ?? []
+
+    // AI : Group overlays by project
     const projectsMap = new Map<string, ProjectForModeration>()
 
-    for (const overlayData of mapStore.currentCityOverlays) {
+    for (const overlayData of overlaysForMode) {
         const projectId = overlayData.projectId
         if (!projectId) continue
 
