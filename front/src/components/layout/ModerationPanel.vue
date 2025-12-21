@@ -54,7 +54,18 @@
         :loading="countriesLoading"
         @change="handleCountryChange"
         class="country-dropdown"
-      />
+      >
+        <template #option="{ option }">
+          <div class="country-option">
+            <span>{{ option.name }}</span>
+            <Badge
+              v-if="getPendingCount(option.code) > 0"
+              :value="getPendingCount(option.code)"
+              severity="warn"
+            />
+          </div>
+        </template>
+      </Select>
     </div>
 
     <!-- AI : Message when moderator needs to select a country -->
@@ -209,6 +220,15 @@ onMounted(async () => {
       // AI : This is necessary because useModeration's onMounted skips fetch when no country is selected yet
       await fetchPendingSubmissions()
     }
+
+    // AI : Fetch pending counts for all countries
+    try {
+      const counts = await trpc.moderation.getPendingCountsByCountry.query()
+      moderationStore.setPendingCounts(counts)
+    } catch (error) {
+      console.error('Failed to load pending counts:', error)
+      // AI : Don't block UI if counts fail to load
+    }
   } catch (error) {
     console.error('Failed to load countries:', error)
     toast.add({
@@ -227,6 +247,11 @@ function handleCountryChange() {
   moderationStore.setSelectedCountryCode(selectedCountryCode.value)
   moderationStore.resetModerationLoaded()
   fetchPendingSubmissions()
+}
+
+// AI : Get pending count for a specific country
+function getPendingCount(countryCode: string): number {
+  return moderationStore.pendingCountsByCountry.get(countryCode) ?? 0
 }
 
 // AI : Use moderation composable
@@ -688,6 +713,15 @@ async function executeRejectChange(changeId: string) {
   flex: 1;
   min-width: 200px;
   max-width: 300px;
+}
+
+/* AI : Country option with pending count badge */
+.country-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
 }
 
 

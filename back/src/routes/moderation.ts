@@ -454,6 +454,64 @@ export const moderationRouter = router({
       }
     }),
 
+  // AI : Get pending item counts per country for moderation dashboard
+  // AI : Returns total pending count (projects + overlays + change requests) for each country
+  // AI : Respects moderator country permissions (only shows counts for assigned countries)
+  getPendingCountsByCountry: moderatorProcedure.query(async ({ ctx }) => {
+    try {
+      const userModeratedCountries = ctx.user.moderatedCountries;
+      const isAdmin = ctx.user.role === "admin";
+
+      // AI : Build country filter based on moderator permissions
+      let countryFilter: SQL | undefined = undefined;
+      if (!isAdmin && userModeratedCountries && userModeratedCountries.length > 0) {
+        countryFilter = inArray(cities.countryCode, userModeratedCountries);
+      }
+
+      // AI : Efficient single-query approach using CASE statements for conditional counting
+      // AI : This prevents N+1 queries and uses database indexes optimally
+      const result = await db
+        .select({
+          countryCode: cities.countryCode,
+          // AI : Count distinct pending projects
+          pendingProjects: sql<number>`COUNT(DISTINCT CASE WHEN ${projects.status} = 'pending' THEN ${projects.id} END)`,
+          // AI : Count distinct pending overlays
+          pendingOverlays: sql<number>`COUNT(DISTINCT CASE WHEN ${overlays.status} = 'pending' THEN ${overlays.id} END)`,
+          // AI : Count distinct pending change requests (for both project and overlay changes)
+          pendingChanges: sql<number>`COUNT(DISTINCT CASE WHEN ${changeRequests.status} = 'pending' THEN ${changeRequests.id} END)`,
+        })
+        .from(cities)
+        .leftJoin(projects, eq(projects.cityId, cities.id))
+        .leftJoin(overlays, eq(overlays.projectId, projects.id))
+        .leftJoin(
+          changeRequests,
+          or(
+            and(eq(changeRequests.entityType, "project"), eq(changeRequests.entityId, projects.id)),
+            and(eq(changeRequests.entityType, "overlay"), eq(changeRequests.entityId, overlays.id)),
+          ),
+        )
+        .where(countryFilter)
+        .groupBy(cities.countryCode);
+
+      // AI : Calculate total pending items per country and filter out countries with zero counts
+      const countsWithTotals = result
+        .map((row) => ({
+          countryCode: row.countryCode,
+          total:
+            Number(row.pendingProjects) + Number(row.pendingOverlays) + Number(row.pendingChanges),
+        }))
+        .filter((row) => row.total > 0); // AI : Only return countries with pending items
+
+      return countsWithTotals;
+    } catch (error) {
+      console.error("Error fetching pending counts by country:", error);
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Failed to fetch pending counts",
+      });
+    }
+  }),
+
   // AI : Undo project approval - restores project to previous status (typically pending)
   // Frontend always sends single ID wrapped in array: ids: [singleId]
   undoProjectApprovalStatus: moderatorProcedure
