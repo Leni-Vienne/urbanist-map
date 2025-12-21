@@ -48,7 +48,7 @@ export class RateLimiter {
   private cleanup() {
     const now = Date.now();
     // AI : Rate limiters usually have a max window of 1 hour, so we can safely remove anything older than that
-    // to be safe, let's say 24 hours (86400000 ms) as a global cleanup threshold or just check emptiness
+    // To be safe, let's say 24 hours (86400000 ms) as a global cleanup threshold or just check emptiness
     // Actually, we can just iterate and remove empty arrays or very old entries.
     // A simple heuristic: if the array is empty or all timestamps are notably old.
     // Let's assume a safe max window of 1 hour for cleanup logic simplicity for now.

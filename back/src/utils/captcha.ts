@@ -39,7 +39,7 @@ export async function verifyTurnstileToken(token: string, ip?: string): Promise<
   } catch (error) {
     console.error("Error verifying Turnstile token:", error);
     // AI : Fail open or closed? For security, we should probably fail closed,
-    // but connection errors to Cloudflare shouldn't necessarily block users if it's intermittent.
+    // But connection errors to Cloudflare shouldn't necessarily block users if it's intermittent.
     // Let's fail safe (return false) to prevent automation if the service is unreachable?
     // Actually, false means "check failed", so user is blocked.
     return false;

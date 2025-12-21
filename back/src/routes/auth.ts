@@ -1,4 +1,4 @@
-import * as z from "zod"; // smaller bundle compared to 'import { z } from 'zod';
+import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
 import { TRPCError } from "@trpc/server";
 import { globalRateLimiter } from "../lib/rateLimit";
 import { getClientIp } from "../utils/ip";
@@ -179,7 +179,7 @@ export const authRouter = router({
       };
     } catch (error) {
       // AI : If the code threw a TRPCError (intentional client/server error), rethrow it
-      // so that the specific message (i18n key) is preserved and can be translated on the client.
+      // So that the specific message (i18n key) is preserved and can be translated on the client.
       if (error instanceof TRPCError) {
         throw error;
       }
