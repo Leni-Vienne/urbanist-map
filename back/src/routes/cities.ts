@@ -1,7 +1,7 @@
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
 import { publicProcedure, router } from "../trpc";
 import { cities, projects, overlays, changeRequests } from "../db/schema";
-import { sql, eq, isNotNull, and, ilike } from "drizzle-orm";
+import { sql, eq, isNotNull, and } from "drizzle-orm";
 import { db } from "../database";
 import type { OverlayData } from "../lib/types";
 import {
@@ -358,8 +358,9 @@ export const citiesRouter = router({
       try {
         const { query, limit } = input;
 
-        // AI : Use ILIKE for case-insensitive prefix matching
+        // AI : Use ILIKE for case-insensitive prefix matching on both name and nameLocal
         // AI : Order by cities with projects first, then alphabetically
+        const searchPattern = `${query.trim()}%`;
         return await db
           .select({
             id: cities.id,
@@ -372,10 +373,12 @@ export const citiesRouter = router({
             approvedProjectCount: cities.approvedProjectCount,
           })
           .from(cities)
-          .where(ilike(cities.name, `${query.trim()}%`)) // AI : Prefix match is faster than substring
+          .where(
+            sql`(${cities.name} ILIKE ${searchPattern} OR ${cities.nameLocal} ILIKE ${searchPattern})`,
+          ) // AI : Match against both English and local names
           .orderBy(
             sql`(${cities.approvedProjectCount} > 0) DESC`, // AI : Cities with projects first
-            cities.name, // AI : Then alphabetically
+            cities.name, // AI : Then alphabetically by English name
           )
           .limit(limit);
       } catch (error) {

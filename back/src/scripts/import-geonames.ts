@@ -193,20 +193,20 @@ async function importCountries(): Promise<void> {
     const [
       iso2, // 0: ISO alpha-2
       iso3, // 1: ISO alpha-3
-      isoNumeric, // 2: ISO numeric
-      fips, // 3: FIPS code
+      _isoNumeric, // 2: ISO numeric
+      _fips, // 3: FIPS code
       countryName, // 4: Country name
-      capital, // 5: Capital
-      area, // 6: Area
-      population, // 7: Population
-      continent, // 8: Continent
-      tld, // 9: TLD
-      currencyCode, // 10: Currency
-      currencyName, // 11: Currency name
-      phone, // 12: Phone prefix
-      postalCodeFormat, // 13: Postal code format
-      postalCodeRegex, // 14: Postal code regex
-      languages, // 15: Languages
+      _capital, // 5: Capital
+      _area, // 6: Area
+      _population, // 7: Population
+      _continent, // 8: Continent
+      _tld, // 9: TLD
+      _currencyCode, // 10: Currency
+      _currencyName, // 11: Currency name
+      _phone, // 12: Phone prefix
+      _postalCodeFormat, // 13: Postal code format
+      _postalCodeRegex, // 14: Postal code regex
+      _languages, // 15: Languages
       geonameId, // 16: GeoNames ID
     ] = fields;
 
@@ -292,12 +292,12 @@ async function importCities(): Promise<void> {
     const [
       geonameId, // 0: GeoNames ID
       name, // 1: Name (ASCII)
-      asciiname, // 2: ASCII name
-      alternateNames, // 3: Alternate names
+      _asciiname, // 2: ASCII name
+      _alternateNames, // 3: Alternate names
       latitude, // 4: Latitude
       longitude, // 5: Longitude
-      featureClass, // 6: Feature class
-      featureCode, // 7: Feature code
+      _featureClass, // 6: Feature class
+      _featureCode, // 7: Feature code
       countryCode2, // 8: Country code (ISO alpha-2)
     ] = fields;
 
@@ -440,7 +440,7 @@ async function updateCityLocalNames(): Promise<void> {
     }
 
     processedCount++;
-    if (processedCount % 100000 === 0) {
+    if (processedCount % 100_000 === 0) {
       console.log(`  ⏳ Processed ${processedCount} name records...`);
     }
   }

@@ -199,6 +199,13 @@ export type ProjectForModeration = Pick<
   ownerApprovedCount?: number | null; // AI : User stats for spam detection (optional, only in moderation)
   ownerRejectedCount?: number | null;
   ownerReportCount?: number; // AI : Number of reports for this user
+  city?: {
+    // AI : Full city object with local name support
+    id: number;
+    name: string;
+    nameLocal: string | null;
+    countryCode: string;
+  } | null;
   cityName: string | null;
   countryCode: string | null;
   countryName: string | null;

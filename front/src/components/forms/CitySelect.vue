@@ -17,7 +17,10 @@
   >
     <template #option="{ option }">
       <div class="flex items-center justify-between w-full">
-        <span>{{ option.name }}</span>
+        <span>
+          {{ option.name }}
+          <span v-if="option.nameLocal" class="text-gray-600"> ({{ option.nameLocal }})</span>
+        </span>
         <span class="text-xs text-gray-500">
           {{ option.countryCode }}
           <span v-if="option.distance > 0"> ({{ Math.round(option.distance) / 1000 }} km)</span>
@@ -70,11 +73,13 @@ if (props.prefilledCity) {
   projectStore.cacheCityName(props.prefilledCity.id, props.prefilledCity.name)
 }
 
-// AI : Computed property for cities with display names
+// AI : Computed property for cities with display names including local names
 const filteredCities = computed(() => {
   return cities.value.map(city => ({
     ...city,
-    displayName: `${city.name}, ${city.countryCode}`
+    displayName: city.nameLocal
+      ? `${city.name} (${city.nameLocal}), ${city.countryCode}`
+      : `${city.name}, ${city.countryCode}`
   }))
 })
 
