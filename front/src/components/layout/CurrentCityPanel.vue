@@ -25,16 +25,19 @@
     <!-- AI : Custom header showing Country > City -->
     <template #header-actions>
       <div class="header-actions-container">
-        <span v-if="cityHeader" class="city-header">
-          <span
-            class="country-link"
-            @click="handleCountryClick"
-            :title="$t('currentCity.clickToZoomCountry')"
-          >
-            {{ cityHeader.countryName }}
-          </span>
-          <i class="pi pi-angle-right separator"></i>
-          <span class="city-name">{{ cityHeader.cityName }}</span>
+        <!-- AI : Always render wrapper to maintain flex layout, conditionally render content -->
+        <span class="city-header">
+          <template v-if="cityHeader">
+            <span
+              class="country-link"
+              @click="handleCountryClick"
+              :title="$t('currentCity.clickToZoomCountry')"
+            >
+              {{ cityHeader.countryName }}
+            </span>
+            <i class="pi pi-angle-right separator"></i>
+            <span class="city-name">{{ cityHeader.cityName }}</span>
+          </template>
         </span>
         <!-- AI : New Project button - aligned to the right -->
         <Button

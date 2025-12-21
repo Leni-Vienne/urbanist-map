@@ -22,7 +22,7 @@ import * as path from "path";
  */
 
 const GEONAMES_DIR = path.join(process.cwd(), "geonames-data");
-const COUNTRIES_CSV = path.join(process.cwd(), "countries.csv");
+const COUNTRIES_CSV = path.join(GEONAMES_DIR, "countries.csv");
 const BATCH_SIZE = 1000; // Insert in batches for better performance
 
 interface CountryData {
@@ -49,6 +49,8 @@ const alpha2ToAlpha3Map = new Map<string, string>();
 const countryLanguageMap = new Map<string, string>();
 // AI : City ID to country code mapping (for local name filtering)
 const cityCountryMap = new Map<number, string>();
+// AI : City ID to ASCII name mapping (to skip duplicate alternate names)
+const cityNameMap = new Map<number, string>();
 // AI : Country coordinates from CSV
 const countryCoordinates = new Map<string, { lat: number; lng: number }>();
 
@@ -152,13 +154,10 @@ async function loadCountryLanguages(): Promise<void> {
 
       if (iso2 && iso3 && rawLang) {
         alpha2ToAlpha3Map.set(iso2, iso3);
-        countryLanguageMap.set(iso2, rawLang);
+        countryLanguageMap.set(iso3, rawLang); // AI : Use alpha-3 for consistency
       }
     }
   }
-
-  // AI : Manual fixes for common discrepancies
-  countryLanguageMap.set("CZ", "cs"); // Czech Republic
 
   console.log(`  ✓ Loaded languages for ${countryLanguageMap.size} countries`);
 }
@@ -316,7 +315,8 @@ async function importCities(): Promise<void> {
     const cityId = parseInt(geonameId, 10);
 
     // AI : Store mapping for local name processing
-    cityCountryMap.set(cityId, countryCode2);
+    cityCountryMap.set(cityId, countryCode3);
+    cityNameMap.set(cityId, name);
 
     cityBatch.push({
       id: cityId,
@@ -364,7 +364,7 @@ async function insertCityBatch(batch: CityData[]): Promise<void> {
  * AI : Logic inspired by alternateName.py - prioritizes native language names
  */
 async function updateCityLocalNames(): Promise<void> {
-  console.log("\n🌐 Processing local names from alternateNamesV2.txt...");
+  console.log("\n🌐 Processing local names from alternateNamesV2.txt... (may take a minute)");
   const filePath = path.join(GEONAMES_DIR, "alternateNamesV2.txt");
 
   if (!fs.existsSync(filePath)) {
@@ -392,19 +392,36 @@ async function updateCityLocalNames(): Promise<void> {
     const geonameId = parseInt(fields[1], 10);
     const lang = fields[2]; // Language code
     const alternateName = fields[3];
-    const isPreferred = fields[4] === "1";
+    const _isPreferred = fields[4] === "1";
 
     // AI : Skip Wikipedia/Wikidata URLs and other non-name entries
     // AI : GeoNames uses specific language codes for these:
     // AI : - 'link': Wikipedia URLs
     // AI : - 'wkdt': Wikidata URLs
     // AI : - 'unlc': UN location codes
-    if (lang === "link" || lang === "wkdt" || lang === "unlc") {
+    // AI : - 'iata': IATA airport codes
+    // AI : - 'icao': ICAO airport codes
+    // AI : - 'abbr': Abbreviations
+    // AI : - 'post': Postal codes
+    if (
+      lang === "link" ||
+      lang === "wkdt" ||
+      lang === "unlc" ||
+      lang === "iata" ||
+      lang === "icao" ||
+      lang === "abbr" ||
+      lang === "post"
+    ) {
       continue;
     }
 
     // AI : Also skip if it looks like a URL (backup check)
     if (alternateName.startsWith("http://") || alternateName.startsWith("https://")) {
+      continue;
+    }
+
+    // AI : Skip numeric-only values (postal codes, IDs, etc.)
+    if (/^\d+$/.test(alternateName.trim())) {
       continue;
     }
 
@@ -414,23 +431,50 @@ async function updateCityLocalNames(): Promise<void> {
 
     const targetLang = countryLanguageMap.get(countryCode);
 
-    // AI : Priority system (inspired by alternateName.py):
-    // 1st: Native language (e.g., 'ja' for Japan, 'ru' for Russia)
-    // 2nd: Unlabeled local names (empty string)
-    // 3rd: Preferred names
-    // Skip: English names (we already have ASCII names)
+    // AI : Skip if the alternate name is identical to the main ASCII name
+    // AI : This prevents redundant local names (e.g., "Paris" vs "Paris")
+    const cityName = cityNameMap.get(geonameId);
+    if (cityName && alternateName === cityName) {
+      continue;
+    }
+
+    // AI : Skip local names for English-speaking countries entirely
+    // AI : For these countries, the ASCII name is already correct
+    // AI : This prevents other languages from being used since it's not needed for those countries
+    const englishSpeakingCountries = new Set(["USA", "GBR", "CAN", "AUS", "NZL", "IRL"]);
+    if (englishSpeakingCountries.has(countryCode)) {
+      continue;
+    }
+
+    // AI : Priority system:
+    // If we know the target language:
+    //   - Priority 100: Names matching target language (e.g., 'ja' for Japan)
+    //   - Priority 50: Unlabeled names with non-ASCII (fallback)
+    //   - Skip: Other languages (prevents Russian names on Japanese cities, etc.)
+    // If we don't know the target language:
+    //   - Priority 75: Any language with non-ASCII (best guess)
+    //   - Priority 50: Unlabeled with non-ASCII
+    //   - Skip: Latin-only names
 
     let priority = 0;
-    if (lang === targetLang) {
-      priority = 100; // Highest priority: native language
-    } else if (lang === "") {
-      priority = 50; // Medium priority: unlabeled (often local)
-    } else if (isPreferred) {
-      priority = 25; // Lower priority: preferred but not native
-    } else if (lang === "en") {
-      continue; // Skip English - we already have ASCII names
+    if (targetLang) {
+      // AI : We know the target language - be strict
+      if (lang === targetLang) {
+        priority = 100; // Exact language match
+      } else if (lang === "" && /[^ -~]/.test(alternateName)) {
+        priority = 50; // Unlabeled with non-ASCII
+      } else {
+        continue; // Skip other languages to prevent cross-contamination
+      }
     } else {
-      priority = 10; // Lowest priority: other languages
+      // AI : We don't know the target language - accept any non-ASCII
+      if (lang && lang !== "" && /[^ -~]/.test(alternateName)) {
+        priority = 75; // Any language with non-ASCII
+      } else if (lang === "" && /[^ -~]/.test(alternateName)) {
+        priority = 50; // Unlabeled with non-ASCII
+      } else {
+        continue; // Skip Latin-only names
+      }
     }
 
     // AI : Only update if this is better than what we have
@@ -448,7 +492,7 @@ async function updateCityLocalNames(): Promise<void> {
   // AI : Update cities in database using batch SQL for performance
   console.log(`\n  💾 Updating ${cityLocalNames.size} cities with local names...`);
 
-  const entries = Array.from(cityLocalNames.entries());
+  const entries = [...cityLocalNames.entries()];
   const batchSize = 1000;
   let totalUpdated = 0;
 

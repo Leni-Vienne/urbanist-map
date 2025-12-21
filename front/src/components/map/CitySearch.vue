@@ -17,9 +17,10 @@
         <template #option="{ option }">
           <div class="search-result">
             <span class="city-name">
-              {{ option.name }}
-              <span v-if="option.nameLocal" class="city-name-local"> ({{ option.nameLocal }})</span>
-              , {{ option.countryCode }}
+              {{ option.name
+              }}<span v-if="option.nameLocal" class="city-name-local">
+                ({{ option.nameLocal }})</span
+              >, {{ option.countryCode }}
             </span>
             <Badge
               v-if="option.approvedProjectCount > 0"
