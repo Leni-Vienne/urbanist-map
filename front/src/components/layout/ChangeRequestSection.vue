@@ -167,7 +167,9 @@ const groupedChanges = computed<ChangeGroup[]>(() => {
       );
 
       // AI : Mark all as processed
-      conflictingChanges.forEach(c => processedIds.add(c.id));
+      for (const c of conflictingChanges) {
+        processedIds.add(c.id);
+      }
 
       // AI : Add as conflict group
       groups.push({

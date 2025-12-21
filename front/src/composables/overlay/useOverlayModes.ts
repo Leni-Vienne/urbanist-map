@@ -123,9 +123,10 @@ function performFullRender(newState: OverlayModeState, transition: StateTransiti
 
   // AI : Get overlays data for the city from mode-aware cache
   if (hasCachedCityProjectsData(newState.selectedCityId, newState.mode)) {
-    const overlaysData = getCachedCityProjectsData(newState.selectedCityId, newState.mode)!;
-
-    renderForStrategy(transition.renderStrategy, overlaysData, newState.selectedCityId);
+    const overlaysData = getCachedCityProjectsData(newState.selectedCityId, newState.mode);
+    if (overlaysData) {
+      renderForStrategy(transition.renderStrategy, overlaysData, newState.selectedCityId);
+    }
   }
 }
 
@@ -165,7 +166,9 @@ function handleBeforeTransition(from: OverlayModeState, to: OverlayModeState): v
   // AI : Cache positions when leaving edit mode (using predicate)
   if (shouldCachePositions(from, to)) {
     const overlayStore = useOverlayStore();
-    Object.values(overlayStore.overlays).forEach(cacheCurrentPosition);
+    for (const overlay of Object.values(overlayStore.overlays)) {
+      cacheCurrentPosition(overlay);
+    }
   }
 }
 
@@ -215,9 +218,9 @@ export async function switchMode(
 
   // AI : Reset all toggle states when switching modes for consistent UX
   // AI : Each mode has its default view, toggling is temporary within that mode
-  Object.values(overlayStore.overlays).forEach((overlay) => {
+  for (const overlay of Object.values(overlayStore.overlays)) {
     overlay.isViewingApprovedPosition = undefined;
-  });
+  }
 
   // AI : Clear change request preview state when switching modes
   // AI : This ensures buttons don't show "pressed" state after mode switch

@@ -149,13 +149,14 @@ async function loadCities() {
       limit: 20
     })
 
-    nearbyCities.forEach(city => {
+    // AI : Cache city names for all nearby cities
+    for (const city of nearbyCities) {
       projectStore.cacheCityName(city.id, city.name)
-    })
+    }
 
     // AI : Merge with prefilled city if not in results
     if (props.prefilledCity) {
-      const cityAlreadyInResults = nearbyCities.some(c => c.id === props.prefilledCity!.id)
+      const cityAlreadyInResults = nearbyCities.some(c => c.id === props.prefilledCity?.id)
       if (!cityAlreadyInResults) {
         cities.value = [convertDBCityToSelectFormat(props.prefilledCity), ...nearbyCities]
       } else {

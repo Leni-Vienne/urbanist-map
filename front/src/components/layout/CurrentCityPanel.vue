@@ -181,7 +181,8 @@ const projectsWithOverlays = computed(() => {
             })
         }
 
-        const project = projectsMap.get(projectId)!
+        const project = projectsMap.get(projectId);
+        if (!project) continue;
 
         const overlay: OverlayForModeration = {
             id: overlayData.id,

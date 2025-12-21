@@ -153,7 +153,9 @@ function handleFileInputChange(event: Event) {
 
 // AI : Handle drag over event
 function handleDragOver(event: DragEvent) {
-    event.dataTransfer!.dropEffect = 'copy';
+    if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'copy';
+    }
 }
 
 // AI : Handle drag leave event

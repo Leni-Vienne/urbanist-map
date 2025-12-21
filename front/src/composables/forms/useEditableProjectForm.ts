@@ -30,11 +30,11 @@ export interface EditableProjectFormOptions {
   onClose?: () => void;
 }
 
-// Kinda odd function signature but it makes use of FieldComparator, without fieldname all fields are tagged as changed
+// AI : Kinda odd function signature but it makes use of FieldComparator, without fieldname all fields are tagged as changed
 function projectComparator(
   _fieldName: keyof ProjectFormData,
-  original: any,
-  current: any,
+  original: ProjectFormData[keyof ProjectFormData],
+  current: ProjectFormData[keyof ProjectFormData],
 ): boolean {
   // AI : Handle Date objects by comparing their time values
   if (original instanceof Date && current instanceof Date) {
