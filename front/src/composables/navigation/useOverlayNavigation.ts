@@ -50,7 +50,7 @@ function getCurrentDisplayCorners(overlay: OverlayObject): { lat: number; lng: n
  * @returns Callback to switch to country layer after flight, or null if not cross-country
  */
 async function prepareNavigationToCity(
-  cityId: string,
+  cityId: number,
   cityName: string,
   countryCode?: string,
 ): Promise<(() => void) | null> {
@@ -65,7 +65,7 @@ async function prepareNavigationToCity(
   }
 
   // AI : Step 3: Simulate city marker click (this loads and renders all markers and overlays for the city)
-  await loadCityProjects(cityId, cityName, false, countryCode);
+  await loadCityProjects(cityId, cityName, null, false, countryCode);
 
   return switchToCountryLayer;
 }
@@ -178,7 +178,7 @@ function handleSameOverlayNavigation(
  */
 export async function navigateToOverlayWithCity(
   overlayId: string,
-  cityId: string,
+  cityId: number,
   cityName: string,
   countryCode?: string,
   autoSelect = true,
@@ -242,7 +242,7 @@ export async function navigateToOverlayWithCity(
 export async function navigateToStandaloneProject(
   lat: number,
   lng: number,
-  cityId: string,
+  cityId: number,
   cityName: string,
   countryCode?: string,
   projectId?: string,

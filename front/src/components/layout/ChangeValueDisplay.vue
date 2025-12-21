@@ -26,7 +26,7 @@
     <span class="old-value">
       <ClickableLocation
         v-if="change.oldValue"
-        :city-id="String(change.oldValue)"
+        :city-id="Number(change.oldValue)"
         :city-name="change.oldCityName"
         :country-code="change.oldCountryCode"
         :country-name="change.oldCountryName"
@@ -37,7 +37,7 @@
     <span class="new-value">
       <ClickableLocation
         v-if="change.newValue"
-        :city-id="String(change.newValue)"
+        :city-id="Number(change.newValue)"
         :city-name="change.newCityName"
         :country-code="change.newCountryCode"
         :country-name="change.newCountryName"

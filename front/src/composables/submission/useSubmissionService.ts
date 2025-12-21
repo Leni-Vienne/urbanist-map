@@ -463,11 +463,12 @@ export function useSubmissionService() {
       await loadCityProjects(
         mapStore.selectedCity.id,
         mapStore.selectedCity.name,
+        mapStore.selectedCity.nameLocal,
         true,
         mapStore.selectedCity.countryCode,
       );
     } else {
-      await loadCityProjects(null, "", true);
+      await loadCityProjects(null, "", null, true);
     }
 
     if (changeType === "create") {
@@ -538,7 +539,7 @@ export function useSubmissionService() {
 
       // AI : Refresh pending change requests to show in side menu (user's own only)
       resetChangeRequestsLoaded();
-      await refreshPendingChangeRequests(true); // forceUserOnly = true for My Contributions
+      await refreshPendingChangeRequests(true); // ForceUserOnly = true for My Contributions
     } else if (context.changeType === "update_pending") {
       // AI : Direct update for pending overlays
       const overlayData: { id: string; caption?: string } = { id: context.entity.id };

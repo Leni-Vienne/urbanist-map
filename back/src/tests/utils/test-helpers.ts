@@ -66,7 +66,7 @@ export class TestHelpers {
   // AI : Create a test project with guaranteed unique data
   static async createTestProject(
     ownerId: string,
-    cityId: string,
+    cityId: number,
     version: number = 1,
     overrides: Partial<Pick<DBProject, "name" | "description" | "status">> = {},
   ): Promise<DBProject> {

@@ -19,11 +19,12 @@ export function useProjectFormValidation() {
   function validateProjectForm(
     formData: ProjectFormData,
     isProposed: boolean,
-    cities: { id: string }[],
+    cities: { id: number }[],
     citiesLoaded: boolean,
   ): boolean {
     // AI : City-related checks (not covered by Zod schema)
-    if (!formData.cityId || !citiesLoaded) {
+    // AI : cityId is a number, so check explicitly (0 is invalid but falsy)
+    if (!formData.cityId || formData.cityId === 0 || !citiesLoaded) {
       showError(t("project.locationRequired"));
       return false;
     }

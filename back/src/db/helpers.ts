@@ -30,7 +30,7 @@ import type { MapMode } from "@shared/types";
  * AI : Standard pagination input filters used across multiple endpoints
  */
 export interface PaginationFilters {
-  cityId?: string;
+  cityId?: number;
   countryCode?: string;
   cursor?: string;
 }
@@ -322,21 +322,21 @@ type EnrichedChangeRequest<T extends BaseChangeRequest> = T & {
  * AI : Convert JSONB value to string and validate it's a valid city ID
  * AI : Returns null for invalid values (null, undefined, or their string representations)
  */
-function toValidCityId(value: unknown): string | null {
+function toValidCityId(value: unknown): number | null {
   if (!value) return null;
 
   const stringValue = typeof value === "string" ? value : String(value);
 
   if (stringValue === "null" || stringValue === "undefined") return null;
 
-  return stringValue;
+  return Number(stringValue);
 }
 
 /**
  * AI : Extract all unique city IDs from cityId field changes
  */
-function extractCityIds(changes: BaseChangeRequest[]): Set<string> {
-  const cityIds = new Set<string>();
+function extractCityIds(changes: BaseChangeRequest[]): Set<number> {
+  const cityIds = new Set<number>();
 
   for (const change of changes) {
     if (change.fieldName === "cityId") {
@@ -378,6 +378,7 @@ export async function enrichChangeRequestsWithNames<T extends BaseChangeRequest>
     .select({
       id: cities.id,
       name: cities.name,
+      nameLocal: cities.nameLocal,
       countryCode: cities.countryCode,
       countryName: countries.name,
     })

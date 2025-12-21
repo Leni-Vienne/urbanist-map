@@ -144,7 +144,7 @@ onMounted(async () => {
     // AI : Add window resize listener for mobile detection
     globalThis.addEventListener("resize", updateWindowWidth);
 
-    // preload PopupContainer chunk on page load. Not needed on page load but improves responsiveness when first popup is shown
+    // Preload PopupContainer chunk on page load. Not needed on page load but improves responsiveness when first popup is shown
     import("@/components/map/PopupContainer.vue");
 
     // AI : Prevent page scrolling on mobile to avoid viewport issues

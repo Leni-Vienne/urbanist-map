@@ -1,7 +1,9 @@
 // AI : Shared validation helper utilities
 import type { ProjectFormData } from "../types/forms";
 
-// AI : Dummy UUID for validation when actual value is not available
+// AI : Dummy city ID for validation when actual value is not available
+const DUMMY_CITY_ID = 0;
+// AI : Dummy UUID for validation when actual value is not available (for project/overlay IDs)
 const DUMMY_UUID = "00000000-0000-0000-0000-000000000000";
 
 /**
@@ -10,7 +12,7 @@ const DUMMY_UUID = "00000000-0000-0000-0000-000000000000";
  */
 export function prepareProjectValidationData(
   formData: ProjectFormData,
-  options?: { lat?: number | null; lng?: number | null; cityId?: string },
+  options?: { lat?: number | null; lng?: number | null; cityId?: number },
 ) {
   return {
     ...formData,
@@ -18,7 +20,7 @@ export function prepareProjectValidationData(
     sourceUrl: formData.sourceUrl ?? undefined,
     lat: options?.lat ?? 0,
     lng: options?.lng ?? 0,
-    cityId: formData.cityId ?? options?.cityId ?? DUMMY_UUID,
+    cityId: formData.cityId ?? options?.cityId ?? DUMMY_CITY_ID,
   } as const;
 }
 

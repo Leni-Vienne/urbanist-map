@@ -79,7 +79,7 @@ const mockProject: ModerationProject = {
   sourceUrl: null,
   lat: null, // AI : All projects now have center coordinates
   lng: null,
-  cityId: "test-city-1",
+  cityId: 1223454,
   ownerId: "test-user-1", // AI : For spam prevention
   ownerUsername: "testuser",
   ownerApprovedCount: 5, // AI : User stats for spam detection
@@ -106,7 +106,7 @@ const mockOverlay: ModerationOverlay = {
   replacesOverlayId: null,
   replacedByOverlayId: null,
   updatedAt: new Date(),
-  cityId: "test-city-1",
+  cityId: 1223454,
   cityName: "Test City",
   countryCode: "TST",
   countryName: "Test Country",
@@ -133,7 +133,7 @@ describe("useModeration Composable", () => {
 
     mockTrpc.moderation.setProjectApprovalStatusWithVersion.mutate.mockResolvedValue({
       success: true,
-      cityId: "test-city-1",
+      cityId: 1223454,
     });
 
     mockTrpc.moderation.setOverlayApprovalStatusWithVersion.mutate.mockResolvedValue({

@@ -153,6 +153,7 @@ export function useChangeRequestPreview() {
     await loadCityProjects(
       overlayForModeration.cityId,
       overlayForModeration.cityName ?? "City",
+      null, // AI : nameLocal
       true, // AI : Force full load regardless of zoom
       overlayForModeration.countryCode,
     );

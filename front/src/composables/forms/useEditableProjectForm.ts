@@ -19,8 +19,9 @@ export interface EditableProjectFormOptions {
   entityStatus: ApprovalStatus | null;
   localOnly?: boolean; // AI : If true, only update local store, don't submit to backend
   getAvailableCities?: () => {
-    id: string;
+    id: number;
     name: string;
+    nameLocal: string | null;
     countryCode: string;
     lat: number;
     lng: number;
@@ -30,7 +31,7 @@ export interface EditableProjectFormOptions {
   onClose?: () => void;
 }
 
-// kinda odd function signature but it makes use of FieldComparator, without fieldname all fields are tagged as changed
+// Kinda odd function signature but it makes use of FieldComparator, without fieldname all fields are tagged as changed
 function projectComparator(
   _fieldName: keyof ProjectFormData,
   original: any,
@@ -82,6 +83,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
         cityObject = {
           id: newCity.id,
           name: newCity.name,
+          nameLocal: newCity.nameLocal,
           countryCode: newCity.countryCode,
           coordinates: { x: newCity.lng, y: newCity.lat },
           approvedProjectCount: 0, // AI : Not available from form context
@@ -163,6 +165,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
         city: {
           id: userContributionProject.cityId,
           name: userContributionProject.cityName ?? "Unknown",
+          nameLocal: userContributionProject.city.nameLocal ?? null,
           countryCode: userContributionProject.countryCode ?? "XX",
           coordinates: { x: userContributionProject.lng ?? 0, y: userContributionProject.lat ?? 0 },
           approvedProjectCount: 0, // AI : Not available from contribution context
