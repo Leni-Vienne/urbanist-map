@@ -5,9 +5,8 @@
 // AI : ============================================================================
 
 import { ref, computed } from "vue";
-import { trpc, type RouterOutput } from "@/client";
-import type { SubmitChangeRequestInput, ChangeHistoryEntry } from "../../types/api";
-import type { FieldChange } from "@shared/types";
+import { trpc, type RouterOutput, type RouterInput } from "@/client";
+import type { FieldChange } from "@shared/validation/schemas";
 import { useAuthStore } from "@/stores/authStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { withErrorHandling, withErrorToast } from "@/composables/core/useErrorHandling";
@@ -21,7 +20,9 @@ import L from "leaflet";
 // AI : ============================================================================
 
 // AI : Use the actual tRPC output type for change requests
-type ChangeRequest = RouterOutput["changes"]["getPendingChangeRequests"][0];
+type ChangeHistoryEntry = RouterOutput["changes"]["getChangeHistory"][number];
+type ChangeRequest = RouterOutput["changes"]["getPendingChangeRequests"][number];
+type SubmitChangeRequestInput = RouterInput["changes"]["submitChangeRequest"];
 const pendingChangeRequests = ref<ChangeRequest[]>([]);
 const changeHistory = ref<ChangeHistoryEntry[]>([]);
 const isLoading = ref(false);

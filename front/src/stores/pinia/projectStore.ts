@@ -1,8 +1,7 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import type { Project, Country, OverlayObject } from "@/types/index";
+import type { Project, Country, OverlayObject, NearbyProject } from "@/types/index";
 import type { MapMode } from "@shared/types";
-import type { NearbyProject } from "../../types/api";
 import { trpc, type RouterOutput } from "@/client";
 import { createProjectObjectFromAPI } from "../../utils/typeFactories";
 

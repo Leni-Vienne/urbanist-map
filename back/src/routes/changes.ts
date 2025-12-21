@@ -1,5 +1,5 @@
 import { adminProcedure, moderatorProcedure, loggedInProcedure, router } from "../trpc";
-import * as z from "zod"; // smaller bundle compared to 'import { z } from 'zod';
+import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
 import { projects, overlays, changeRequests, changeHistory, users, cities } from "../db/schema";
 import { eq, and, inArray, sql, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";

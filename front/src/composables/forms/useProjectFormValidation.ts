@@ -1,6 +1,6 @@
 import { t } from "@/locales";
 import { useToast } from "@/composables/ui/useToast";
-import type { ProjectFormData } from "../../types/forms";
+import type { ProjectFormData } from "@/types/index";
 import { projectSchema, getValidationErrorsMap } from "@shared/validation/schemas";
 
 // AI : Shared validation logic for project forms using Zod

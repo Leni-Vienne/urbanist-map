@@ -1,5 +1,5 @@
 // AI : Shared validation helper utilities
-import type { ProjectFormData } from "../types/forms";
+import type { ProjectFormData } from "@/types/index";
 
 // AI : Dummy city ID for validation when actual value is not available
 const DUMMY_CITY_ID = 0;

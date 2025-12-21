@@ -1,5 +1,5 @@
 import { ref } from "vue";
-import type { PendingChangeRequest } from "../../types/api";
+import type { PendingChangeRequest } from "@/types/index";
 
 // AI : State machine for position preview
 // AI : Extracted to separate file to avoid circular dependency between

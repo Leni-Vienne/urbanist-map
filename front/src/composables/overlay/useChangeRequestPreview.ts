@@ -16,8 +16,7 @@ import { prepareCountryContext } from "@/composables/map/useCountryMarkers";
 import { switchMode } from "@/composables/overlay/useOverlayModes";
 import { mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
 import { prepareCrossCountryFlight } from "@/composables/map/useTileLayers";
-import type { PendingChangeRequest } from "../../types/api";
-import type { OverlayForModeration, OverlayObject } from "@/types/index";
+import type { OverlayForModeration, OverlayObject, PendingChangeRequest } from "@/types/index";
 import { previewState, clearChangeRequestPreview } from "./changeRequestPreviewState";
 
 // AI : Composable to handle change request position preview

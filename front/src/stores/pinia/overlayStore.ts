@@ -1,9 +1,8 @@
 import { defineStore } from "pinia";
 import { ref, shallowRef } from "vue";
 import type L from "leaflet";
-import type { OverlayObject, OverlayData } from "@/types/index";
+import type { OverlayObject, OverlayData, LatestContribution } from "@/types/index";
 import type { MapMode } from "@shared/types";
-import type { LatestContribution } from "../../types/api";
 
 export const useOverlayStore = defineStore("overlay", () => {
   // AI : Central store for overlay data

@@ -59,8 +59,7 @@ import { addOverlay } from '@/composables/overlay/useOverlay'
 import { createProject } from '@/composables/project/useProjects'
 import { createProjectObjectFromAPI, createProjectObject } from '../../utils/typeFactories'
 import { useCityProjects } from '@/composables/project/useProjectSelection'
-import type { Project } from '@/types/index'
-import type { NearbyProject } from '../../types/api'
+import type { Project, NearbyProject } from '@/types/index'
 
 import MarkerPlacementBar from '@/components/map/MarkerPlacementBar.vue'
 const ProjectDialog = defineAsyncComponent(() => import('@/components/project/ProjectDialog.vue'))
