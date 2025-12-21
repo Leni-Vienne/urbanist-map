@@ -7,8 +7,7 @@ import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 import { projectSchema, getValidationErrorsMap } from "@shared/validation/schemas";
 import { prepareProjectValidationData } from "@/utils/validationHelpers";
-import type { Project } from "@/types/index";
-import type { ProjectFormData } from "../../types/forms";
+import type { Project, ProjectFormData } from "@/types/index";
 import type { DBCity } from "../../../../back/src/db/schema";
 import type { ApprovalStatus } from "@shared/types";
 

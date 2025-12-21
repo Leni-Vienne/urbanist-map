@@ -1,7 +1,9 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import type { PendingOverlay, PendingChangeRequest } from "../../types/api";
-import type { ProjectForModeration } from "@/types/index";
+import type { ProjectForModeration, PendingChangeRequest } from "@/types/index";
+import type { RouterOutput } from "@/client";
+
+type PendingOverlay = RouterOutput["moderation"]["getPendingSubmissions"]["overlays"][0];
 
 export const useModerationStore = defineStore("moderation", () => {
   const overlays = ref<PendingOverlay[]>([]);

@@ -1,5 +1,7 @@
 import type { Project } from "@/types/index";
-import type { PublishProjectInput } from "../../types/api";
+import type { RouterInput } from "@/client";
+
+type PublishProjectInput = RouterInput["project"]["publishProject"];
 
 /**
  * AI : Builds a consistent payload for publishing projects to the backend

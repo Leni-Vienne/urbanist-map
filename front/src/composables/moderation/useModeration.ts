@@ -250,7 +250,7 @@ export function useModeration() {
       "project",
       projects.value,
       trpc.moderation.setProjectApprovalStatusWithVersion.mutate,
-      undefined, // handleReplacementConflicts not used for projects
+      undefined, // HandleReplacementConflicts not used for projects
       rejectionReason, // AI : Pass rejection reason through
       rejectAllOverlays, // AI : Pass cascade flag through
     );

@@ -8,13 +8,17 @@ import {
 } from "@/composables/map/useCityMarkers";
 import { updateMarkerTooltip } from "@/composables/overlay/useOverlayMarkers";
 import type { Project, OverlayObject } from "@/types/index";
-import type { FieldChange } from "@shared/types";
+import {
+  projectSchema,
+  overlaySchema,
+  getValidationErrorsMap,
+  type FieldChange,
+} from "@shared/validation/schemas";
 import { storeToRefs } from "pinia";
 import { computed } from "vue";
 import { t } from "@/locales";
 import { useChangeRequests } from "@/composables/changes/useChanges";
 import { formatDate } from "@/utils/dateFormat";
-import { projectSchema, overlaySchema, getValidationErrorsMap } from "@shared/validation/schemas";
 import {
   prepareProjectValidationData,
   prepareOverlayValidationData,

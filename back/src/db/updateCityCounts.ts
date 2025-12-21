@@ -1,24 +1,6 @@
 import { db } from "../database";
-import { cities, projects } from "./schema";
-import { eq, sql, and } from "drizzle-orm";
-
-/**
- * AI : Update the approved project count for a specific city
- * AI : Called after project approval/rejection in moderation
- * @param cityId - The city ID to update
- */
-export async function updateCityProjectCount(cityId: number): Promise<void> {
-  // AI : Count approved projects in this city
-  const result = await db
-    .select({ count: sql<number>`COUNT(*)::int` })
-    .from(projects)
-    .where(and(eq(projects.cityId, cityId), eq(projects.status, "approved")));
-
-  const count = result[0]?.count ?? 0;
-
-  // AI : Update the city's approved project count
-  await db.update(cities).set({ approvedProjectCount: count }).where(eq(cities.id, cityId));
-}
+import { cities } from "./schema";
+import { eq, sql } from "drizzle-orm";
 
 /**
  * AI : Increment a city's approved project count atomically

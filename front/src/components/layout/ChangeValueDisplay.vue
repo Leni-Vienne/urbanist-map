@@ -75,8 +75,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import type { PendingChangeRequest } from '../../types/api';
-import type { ProjectForModeration } from '@/types/index';
+import type { ProjectForModeration, PendingChangeRequest } from '@/types/index';
 import ClickableLocation from '@/components/common/ClickableLocation.vue';
 import ContributorInfo from '@/components/common/ContributorInfo.vue';
 

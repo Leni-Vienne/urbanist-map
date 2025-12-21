@@ -33,13 +33,14 @@ import {
   deleteLocalImages,
   daysFromNow,
 } from "../lib/imageCleanup";
-import { THUMBNAIL_RETENTION_DAYS } from "../lib/imageCleanupConfig";
 import { incrementCityProjectCount, decrementCityProjectCount } from "../db/updateCityCounts";
 
 // AI : Helper functions to update user moderation stats
 // AI : These are called within transactions to ensure atomicity
 // AI : Using Pick to accept both db and transaction objects
 type DbOrTx = Pick<typeof db, "update">;
+
+const THUMBNAIL_RETENTION_DAYS = 15;
 
 async function incrementApprovedCount(tx: DbOrTx, userId: string | null): Promise<void> {
   if (!userId) return;
