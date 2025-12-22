@@ -46,7 +46,7 @@ async function generateR2Thumbnails() {
             console.log(
               `Valid thumbnail already exists for ${overlay.filename} (${buffer.length} bytes), skipping`,
             );
-            skippedCount++;
+            skippedCount += 1;
             continue;
           }
         } catch {
@@ -60,7 +60,7 @@ async function generateR2Thumbnails() {
       const originalImage = await r2Storage.get(overlay.filename);
       if (!originalImage) {
         console.error(`Original image not found in R2: ${overlay.filename}`);
-        errorCount++;
+        errorCount += 1;
         continue;
       }
 
@@ -82,13 +82,13 @@ async function generateR2Thumbnails() {
       });
 
       console.log(`Generated and uploaded thumbnail for ${overlay.filename}`);
-      processedCount++;
+      processedCount += 1;
 
       // AI : Add small delay to avoid overwhelming R2 (optional, adjust as needed)
       await Bun.sleep(100);
     } catch (error) {
       console.error(`Failed to process ${overlay.filename}:`, error);
-      errorCount++;
+      errorCount += 1;
     }
   }
 
@@ -103,9 +103,11 @@ async function generateR2Thumbnails() {
 generateR2Thumbnails()
   .then(() => {
     console.log("Script completed successfully");
+    // eslint-disable-next-line no-process-exit
     process.exit(0);
   })
   .catch((error) => {
     console.error("Script failed:", error);
+    // eslint-disable-next-line no-process-exit
     process.exit(1);
   });

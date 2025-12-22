@@ -14,6 +14,7 @@ import {
   updateStandaloneProjectMarkerTooltip,
 } from "@/composables/map/useStandaloneProjectMarkers";
 import { t } from "@/locales";
+import type { Project } from "@/types/index";
 
 // AI : Result types for approval operations
 type ApprovalResult = {
@@ -258,19 +259,15 @@ export function useModeration() {
     // AI : Update marker visuals if project approval succeeded and project has a standalone marker
     if (result.success && projectBeforeApproval) {
       // AI : Update marker color to reflect new status (pending -> approved/rejected)
-      // AI : Type cast is safe here - marker functions only use common fields (id, status, name, etc.)
-      const projectWithNewStatus = { ...projectBeforeApproval, status };
-      updateStandaloneProjectMarkerColor(id, projectWithNewStatus as any);
+      // AI : Use unknown as intermediate type since moderation project may not have all Project fields
+      const projectWithNewStatus = { ...projectBeforeApproval, status } as unknown as Project;
+      updateStandaloneProjectMarkerColor(id, projectWithNewStatus);
 
       // AI : Update marker tooltip to reflect new status
       const marker = getStandaloneProjectMarkerByProjectId(id);
       if (marker) {
         const overlayStore = useOverlayStore();
-        updateStandaloneProjectMarkerTooltip(
-          marker,
-          projectWithNewStatus as any,
-          overlayStore.mode,
-        );
+        updateStandaloneProjectMarkerTooltip(marker, projectWithNewStatus, overlayStore.mode);
       }
 
       // AI : Invalidate city cache to prevent stale data when reloading the city

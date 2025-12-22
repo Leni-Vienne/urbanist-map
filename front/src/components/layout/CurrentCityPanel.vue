@@ -73,6 +73,7 @@ import { useAccordionState } from '@/composables/layout/useAccordionState'
 import { useAddOverlay } from '@/composables/overlay/useAddOverlay'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import type { ProjectForModeration, OverlayForModeration } from '@/types/index'
+import type { ApprovalStatus } from '@shared/types';
 
 // AI : Stores
 const { t } = useI18n()
@@ -156,7 +157,7 @@ const projectsWithOverlays = computed(() => {
                 id: projectId,
                 name: projectInfo?.name ?? projectId,
                 description: projectInfo?.description ?? null,
-                status: (projectInfo?.status ?? 'approved') as any,
+                status: (projectInfo?.status ?? 'approved') as ApprovalStatus,
                 ownerId: projectInfo?.ownerId ?? overlayData.authorId,
                 cityId: projectInfo?.cityId ?? mapStore.selectedCity.id,
                 lat: projectInfo?.lat ?? overlayData.centroid.lat,

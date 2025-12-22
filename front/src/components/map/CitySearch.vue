@@ -18,6 +18,7 @@
           <div class="search-result">
             <span class="city-name">
               {{ option.name
+
               }}<span v-if="option.nameLocal" class="city-name-local">
                 ({{ option.nameLocal }})</span
               >, {{ option.countryCode }}
@@ -104,7 +105,7 @@ async function onSearch(event: { query: string }) {
 }
 
 // AI : Handle city selection
-function onSelect(event: { value: any }) {
+function onSelect(event: { value: CitySearchResult }) {
     const city = event.value
     if (city) {
         // AI : Navigate to selected city (fly to it) - pass coordinates for cross-country navigation
