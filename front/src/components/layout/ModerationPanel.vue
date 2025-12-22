@@ -146,6 +146,7 @@ import { useChangeRequestPreview } from '@/composables/overlay/useChangeRequestP
 import { useToast } from '@/composables/ui/useToast'
 import { useAuthStore } from '@/stores/authStore'
 import { useModerationStore } from '@/stores/pinia/moderationStore'
+import type { OverlayForModeration } from '@/types/index'
 import { trpc } from '@/client'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import ReplacementConflictsDialog, { type ReplacementConflicts } from '@/components/moderation/ReplacementConflictsDialog.vue'
@@ -370,7 +371,7 @@ watch(showReportDialog, (isOpen) => {
 })
 
 // AI : Handle overlay zoom and mark as viewed
-async function handleViewOverlayPosition(overlay: any, shouldFitBounds: boolean) {
+async function handleViewOverlayPosition(overlay: OverlayForModeration, shouldFitBounds: boolean) {
   if (!viewedOverlayIds.value.includes(overlay.id)) {
     viewedOverlayIds.value.push(overlay.id)
   }

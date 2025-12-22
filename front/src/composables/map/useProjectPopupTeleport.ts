@@ -81,7 +81,7 @@ export function createProjectInfoTeleportTarget(marker: L.Marker | L.CircleMarke
  * AI : Clean up teleport target and event listeners
  */
 export function cleanupProjectInfoTeleportTarget() {
-  if (map.value != null) {
+  if (map.value !== null) {
     map.value.off("move", updateTeleportTargetPosition);
     map.value.off("zoom", updateTeleportTargetPosition);
     map.value.off("resize", updateTeleportTargetPosition);
