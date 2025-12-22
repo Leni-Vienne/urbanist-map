@@ -37,7 +37,7 @@ export const markerColors: Record<MarkerColor, string> = {
 // AI : Simple functions to generate variants from base color
 function lightenColor(color: string, amount: number): string {
   const hex = color.slice(1);
-  const num = parseInt(hex, 16);
+  const num = Number.parseInt(hex, 16);
   let r = (num >> 16) + amount;
   let g = ((num >> 8) & 0x00_ff) + amount;
   let b = (num & 0x00_00_ff) + amount;
@@ -374,14 +374,14 @@ export function updateOverlayMarkersColors(
   overlays: ShallowRef<Record<string, OverlayObject>>,
   specificOverlayId?: string,
 ): void {
-  if (overlays?.value == null) return;
+  if (overlays?.value === null) return;
 
   const overlayStore = useOverlayStore();
 
   // AI : If specific overlay ID provided, only update that one
   if (specificOverlayId) {
     const overlayObject = overlays.value[specificOverlayId];
-    if (overlayObject?.marker != null) {
+    if (overlayObject?.marker !== null) {
       const markerColor = getOverlayMarkerColor(overlayObject, overlayStore.mode);
       const colorIcon = createOverlayIcon(markerColor);
       overlayObject.marker.setIcon(colorIcon);
@@ -391,7 +391,7 @@ export function updateOverlayMarkersColors(
 
   // AI : Otherwise, iterate through all overlay objects that have markers
   Object.values(overlays.value).forEach((overlayObject: OverlayObject) => {
-    if (overlayObject?.marker != null) {
+    if (overlayObject?.marker !== null) {
       // AI : Update marker color based on current mode and overlay state
       const markerColor = getOverlayMarkerColor(overlayObject, overlayStore.mode);
       const colorIcon = createOverlayIcon(markerColor);

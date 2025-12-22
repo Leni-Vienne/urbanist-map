@@ -4,12 +4,12 @@
   // Enable all of these plugins (which are enabled by default):
   //"plugins": ["unicorn", "typescript", "oxc"],
   "categories": {
-    "suspicious": "off", // mostly type assertion stuff that I don't see how to fix
-    "correctness": "warn",
-    "perf": "warn",
-    "nursery": "warn",
-    "style": "warn",
-    "restriction": "warn",
+    "suspicious": "error", // mostly type assertion stuff that I don't see how to fix
+    "correctness": "off",
+    "perf": "off",
+    "nursery": "off",
+    "style": "off",
+    "restriction": "off",
     "pedantic": "off"
   },
   "rules": {
@@ -36,13 +36,16 @@
     "no-base-to-string": "off",
     "no-optional-chaining": "off",
     "no-console": "off",
+    "no-bitwise": "off",
+    "number-literal-case": "off",
+    "no-undefined": "off", // temp maybe
     "no-alert": "off", // temp
     "explicit-module-boundary-types": "off", // temp
     "explicit-function-return-type": "off", // temp
     "capitalized-comments": "off", // temp
     "max-params": "off", // temp
     "no-rest-spread-properties": "off", // for older browsers
-    "no-namespace": "off", // conflicts with prefer-namespace-keyword
+    "typescript/no-namespace": "off", // conflicts with prefer-namespace-keyword
     "no-continue": "off", // warns about early continues which is odd
     "typescript/consistent-type-definitions": "off", //temporary
     "eslint/prefer-destructuring": "off", //temporary

@@ -98,7 +98,7 @@ export function useChangeRequestPreview() {
     let overlayObject = overlayStore.overlays[overlayForModeration.id];
 
     // AI : Already loaded, nothing to do
-    if (overlayObject?.overlay != null) {
+    if (overlayObject?.overlay !== null) {
       return true;
     }
 
@@ -136,7 +136,7 @@ export function useChangeRequestPreview() {
 
     // AI : Wait for navigation to complete and switch tile layer if cross-country
     await new Promise<void>((resolve) => {
-      if (map.value != null) {
+      if (map.value !== null) {
         map.value.once("moveend", () => {
           if (switchToCountryLayer) {
             switchToCountryLayer();
@@ -183,7 +183,7 @@ export function useChangeRequestPreview() {
       }
     }
 
-    if (overlayObject?.overlay == null) {
+    if (overlayObject?.overlay === null) {
       toast.add({
         severity: "error",
         summary: t("overlay.loadFailed"),

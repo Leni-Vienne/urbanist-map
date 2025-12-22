@@ -12,10 +12,7 @@
     </div>
 
     <!-- AI : Project selector when projects exist -->
-    <div
-      v-else-if="!hideSelector && projectList.length > 0"
-      class="mb-4"
-    >
+    <div v-else-if="!hideSelector && projectList.length > 0" class="mb-4">
       <FloatLabel class="w-full">
         <Select
           ref="selectRef"
@@ -37,10 +34,7 @@
           @hide="emit('dropdown-hide')"
         >
           <template #value="{ value, placeholder }">
-            <div
-              v-if="value"
-              class="flex items-center gap-2"
-            >
+            <div v-if="value" class="flex items-center gap-2">
               <div
                 class="w-3 h-3 rounded-full flex-shrink-0"
                 :style="{ backgroundColor: getStatusColor(getProjectById(value)) }"
@@ -66,7 +60,13 @@
               <div>
                 <div class="flex items-center gap-2">
                   <span>{{ option.name }}</span>
-                  <span class="text-sm opacity-75">({{ $t('projectPicker.overlaysCount', { count: getOverlayCountForProject(option.id) }) }})</span>
+                  <span class="text-sm opacity-75"
+                    >({{ $t('projectPicker.overlaysCount', {
+                    count:
+                      getOverlayCountForProject(option.id)
+                  })
+                    }})</span
+                  >
                 </div>
                 <div v-if="option.city && !useGroupedView" class="text-xs opacity-60">
                   {{ option.city.name }}, {{ option.city.countryCode }}
@@ -75,10 +75,7 @@
             </div>
           </template>
 
-          <template
-            #footer
-            v-if="!hideCreate"
-          >
+          <template #footer v-if="!hideCreate">
             <div class="p-2 border-t">
               <Button
                 icon="pi pi-plus"
@@ -161,8 +158,8 @@ const uiStore = useUiStore();
 const { lastCreatedProjectId } = storeToRefs(uiStore);
 
 // AI : Get city projects composable
-const { 
-  projectsWithCounts: cityProjectsData, 
+const {
+  projectsWithCounts: cityProjectsData,
   projectsByCity: cityProjectsByCity,
   getOverlayCountForProject: getCityOverlayCount,
   loadNearbyProjects
@@ -179,13 +176,13 @@ function getOverlayCountForProject(projectId: string): number {
   if (props.useCityProjects) {
     return getCityOverlayCount(projectId);
   }
-  
+
   // AI : For local projects, check overlayIds array
   const project = flatProjectList.value.find(p => p.id === projectId);
   if (project?.overlayIds && Array.isArray(project.overlayIds)) {
     return project.overlayIds.length;
   }
-  
+
   return 0;
 }
 
@@ -204,7 +201,7 @@ const projectList = computed(() => {
             return overlayCount > 0
           })
         })
-      ).filter(group => group.items.length > 0);
+      ).filter(group => group.items.length > 0) as { label: string; items: Project[] }[];
     } else {
       return cityProjectsData.value.filter(project => {
         // AI : Include projects that have overlays
@@ -224,10 +221,12 @@ const projectList = computed(() => {
 
 // AI : Flatten grouped projects for easier searching
 const flatProjectList = computed(() => {
-  if (useGroupedView.value && Array.isArray(projectList.value)) {
-    return projectList.value.flatMap((group: any) => group.items || []);
+  const list = projectList.value;
+  if (useGroupedView.value && Array.isArray(list) && list.length > 0 && 'items' in list[0]) {
+    // AI : When grouped, we have an array of {label, items} objects
+    return (list as { label: string; items: Project[] }[]).flatMap(group => group.items || []);
   }
-  return projectList.value as Project[];
+  return list as Project[];
 });
 
 // AI : Update loading state
@@ -236,14 +235,14 @@ const isLoadingProjects = computed(() => loading.value);
 // AI : Function to auto-select a project by ID
 function autoSelectProject(projectId: string) {
   const projectExists = flatProjectList.value.some(p => p.id === projectId);
-  
+
   if (projectExists) {
     selectedProjectId.value = projectId;
     emit('update:modelValue', projectId);
     emit('project-selected', projectId);
     return true;
   }
-  
+
   return false;
 }
 
@@ -277,7 +276,7 @@ watch(() => props.modelValue, (newValue) => {
 // AI : Watch for changes to the selectedProjectId and emit them
 watch(selectedProjectId, (newValue, oldValue) => {
   emit('update:modelValue', newValue);
-  
+
   // AI : Also emit project-selected when manually changing selection (not just on initial mount)
   if (newValue && newValue !== oldValue) {
     emit('project-selected', newValue);

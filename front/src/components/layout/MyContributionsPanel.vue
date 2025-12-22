@@ -178,7 +178,7 @@ import { usePendingModificationsStore } from '@/stores/pinia/pendingModification
 import { useProjectDeletion } from '@/composables/project/useProjectDeletion'
 import { useSubmissionDialog } from '@/composables/submission/useSubmissionDialog'
 import type { RouterOutput } from '@/client'
-import type { ProjectForModeration, OverlayForModeration } from '@/types/index'
+import type { ProjectForModeration, OverlayForModeration, OverlayObject, Project } from '@/types/index'
 
 // AI : Async component import for submission dialog
 const SubmissionConfirmationDialog = defineAsyncComponent(() => import('@/components/submission/SubmissionConfirmationDialog.vue'))
@@ -346,7 +346,8 @@ function handleEditOverlayClick(overlay: OverlayForModeration) {
   }
 
   // AI : Open the shared overlay edit dialog
-  uiStore.openOverlayEditDialog(overlayForEditor as any)
+  // AI : Use unknown as intermediate type since OverlayForModeration doesn't have all OverlayObject fields
+  uiStore.openOverlayEditDialog(overlayForEditor as unknown as OverlayObject)
 }
 
 // AI : Handle add image to project - open dialog for image upload instructions
@@ -412,7 +413,8 @@ function handleEditProjectClick(project: ProjectForModeration) {
   const projectToEdit = latestProjectData ?? project
 
   // AI : Open the project edit form via uiStore
-  uiStore.openProjectEditForm(projectToEdit as any)
+  // AI : Use unknown as intermediate type since ProjectForModeration may not have all Project fields
+  uiStore.openProjectEditForm(projectToEdit as unknown as Project)
 }
 
 // AI : Load initial data
