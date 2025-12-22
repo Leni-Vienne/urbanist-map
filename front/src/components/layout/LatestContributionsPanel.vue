@@ -149,8 +149,8 @@ function handleContributionLeave(contribution: LatestContribution) {
 // AI : Handle contribution click - navigate to overlay or standalone project
 async function handleContributionClick(contribution: LatestContribution) {
   if (contribution.type === 'overlay') {
-    // AI : Use existing overlay navigation - don't auto-select, let user click overlay
-    await handleOverlayClickNavigation(contribution, false, false)
+    // AI : Use existing overlay navigation with auto-select so accordion expands
+    await handleOverlayClickNavigation(contribution, false, true)
   } else if (contribution.type === 'standalone') {
     // AI : Navigate to standalone project using full navigation flow (tile layer, city load, etc.)
     if (contribution.cityId && contribution.lat && contribution.lng) {
