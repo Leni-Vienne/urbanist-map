@@ -176,6 +176,8 @@ export function createLeafletOverlay(imageUrl: string, overlayObject?: OverlayOb
       dragBehavior: "auto",
       selectOnDrag: false,
       draggable: isEditMode,
+      // AI : CRITICAL: Enable credentials for cross-origin requests for pending overlay authorization
+      crossOrigin: "use-credentials",
       //mode: 'resizeRotate' // doesn't work but should, it's an issue from the package
     });
 

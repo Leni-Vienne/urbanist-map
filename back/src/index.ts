@@ -69,7 +69,14 @@ app.use(
 
 // AI : Secure headers (Helmet equivalent)
 // AI : Adds CSP, HSTS, X-Frame-Options, etc.
-app.use("*", secureHeaders());
+// AI : Exclude /uploads/* path from secureHeaders to allow cross-origin resource loading
+app.use("*", async (c, next) => {
+  if (c.req.path.startsWith("/uploads/")) {
+    // AI : Skip secureHeaders for uploads to allow custom CORS/CORP headers
+    return next();
+  }
+  return secureHeaders()(c, next);
+});
 
 // AI : CRITICAL: Health check endpoint MUST be before session middleware
 // AI : Caddy polls this every 30 seconds - we don't want to create sessions for health checks!
@@ -602,7 +609,9 @@ app.post("/api/upload-image", async (c) => {
   }
 });
 
-// AI : Serve uploaded files - only for local development
+// AI : Serve uploaded files with authorization
+// AI : Pending images are only accessible to: author, country moderators, and admins
+// AI : Approved images are public (legacy support for approved images still in local storage)
 app.get("/uploads/*", async (c) => {
   try {
     const filename = c.req.path.replace("/uploads/", "");
@@ -614,17 +623,81 @@ app.get("/uploads/*", async (c) => {
       return c.json({ error: errorMessage }, 400);
     }
 
-    const file = await storage.get(validationResult.data.filename);
+    const validatedFilename = validationResult.data.filename;
+
+    // AI : Extract actual filename (strip thumbnails/ prefix if present)
+    const actualFilename = validatedFilename.startsWith("thumbnails/")
+      ? validatedFilename.replace("thumbnails/", "")
+      : validatedFilename;
+
+    // AI : Query overlay info for authorization check
+    const { db } = await import("./database");
+    const { overlays, projects, cities } = await import("./db/schema");
+    const { eq } = await import("drizzle-orm");
+
+    const overlayInfo = await db
+      .select({
+        authorId: overlays.authorId,
+        status: overlays.status,
+        countryCode: cities.countryCode,
+      })
+      .from(overlays)
+      .innerJoin(projects, eq(overlays.projectId, projects.id))
+      .innerJoin(cities, eq(projects.cityId, cities.id))
+      .where(eq(overlays.filename, actualFilename))
+      .limit(1);
+
+    // AI : If overlay doesn't exist in DB, file not found
+    if (overlayInfo.length === 0) {
+      return c.json({ error: "File not found" }, 404);
+    }
+
+    const overlay = overlayInfo[0];
+
+    // AI : Authorization logic
+    // AI : Approved images are public (legacy support)
+    if (overlay.status === "approved") {
+      // AI : Allow access - approved images are public
+    } else {
+      // AI : Pending/rejected images require authentication
+      const session = c.get("session");
+      const user = session.get("user");
+
+      if (!user) {
+        return c.json({ error: "Authentication required" }, 401);
+      }
+
+      // AI : Check authorization for pending/rejected images
+      const isAuthor = user.id === overlay.authorId;
+      const isAdmin = user.role === "admin" || user.moderatedCountries === null;
+      const isCountryModerator =
+        user.moderatedCountries && user.moderatedCountries.includes(overlay.countryCode);
+
+      if (!isAuthor && !isAdmin && !isCountryModerator) {
+        return c.json({ error: "Forbidden" }, 403);
+      }
+    }
+
+    // AI : User is authorized, serve the file
+    const file = await storage.get(validatedFilename);
 
     if (file) {
+      // AI : Get origin from request for CORS (must match exact origin to allow credentials)
+      const origin = c.req.header("Origin");
+      const allowedOrigin = origin || "*"; // Fallback to * if no origin header
+
       return new Response(file.body, {
         headers: {
           "Content-Type": file.contentType ?? "application/octet-stream",
           "Cache-Control": "public, max-age=31536000, must-revalidate",
           ETag: `"${filename}-${Date.now()}"`,
-          "Access-Control-Allow-Origin": "*",
+          // AI : CRITICAL: Must use specific origin (not *) to allow credentials (session cookies)
+          "Access-Control-Allow-Origin": allowedOrigin,
+          "Access-Control-Allow-Credentials": "true",
           "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
           "Access-Control-Allow-Headers": "Content-Type",
+          // AI : Allow cross-origin resource loading (overrides secureHeaders middleware)
+          "Cross-Origin-Resource-Policy": "cross-origin",
         },
       });
     }
