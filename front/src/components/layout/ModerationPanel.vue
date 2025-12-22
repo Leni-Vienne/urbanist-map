@@ -103,16 +103,18 @@
       </template>
 
       <template #overlay-actions="{ overlay, project }">
-        <!--AI : Show moderation buttons for pending overlays regardless of project status -->
-        <!-- AI : Moderators should be able to reject overlays even if the project is rejected -->
+        <!-- AI : Show approve/reject buttons only when project is NOT pending (approved/rejected) -->
+        <!-- AI : This allows moderators to approve overlays once project is approved, -->
+        <!-- AI : and reject overlays even if project is rejected -->
         <ModerationActionButtons
-          v-if="overlay.status === 'pending'"
+          v-if="overlay.status === 'pending' && project.status !== 'pending'"
           :disabled="!!overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id)"
           :disabled-tooltip="overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id) ? $t('overlay.viewPositionRequired') : ''"
           @approve="handleApproveOverlay(overlay.id)"
           @reject="handleRejectOverlay(overlay.id, overlay.authorId)"
         />
-        <!-- AI : Show locked button only if project is still pending (not yet approved or rejected) -->
+        <!-- AI : Show locked button (padlock) when project is still pending -->
+        <!-- AI : This prevents approving overlays before their parent project is approved -->
         <button
           v-if="overlay.status === 'pending' && project.status === 'pending'"
           class="action-btn disabled-btn"
