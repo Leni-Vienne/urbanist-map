@@ -34,13 +34,12 @@
             {{ layer.label }}
           </label>
         </div>
+        <a
+          href="/contact"
+          class="contact-link text-sm text-muted-color text-center"
+          >{{ $t('layerControl.submitTileLayer') }}</a
+        >
       </div>
-      <!-- AI : Footer section with submit tile layer suggestion -->
-      <template #footer>
-        <div class="text-sm text-muted-color text-center">
-          <a href="/contact" class="contact-link">{{ $t('layerControl.submitTileLayer') }}</a>
-        </div>
-      </template>
     </Panel>
   </Popover>
 </template>

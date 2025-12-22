@@ -209,6 +209,7 @@
                                 :src="getOverlayImageUrl(overlay.filename, overlay.status)"
                                 :alt="overlay.name"
                                 class="w-full h-full object-cover"
+                                crossorigin="use-credentials"
                                 @error="(event) => handleImageError(event, overlay.id)"
                                 @load="(event) => handleImageLoad(event, overlay.id)"
                               />

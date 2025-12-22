@@ -30,6 +30,7 @@
               :src="getContributionImageUrl(contribution.filename)"
               :alt="contribution.name"
               class="w-full h-full object-cover"
+              crossorigin="use-credentials"
               @error="(event) => handleImageError(event, contribution.id)"
               @load="(event) => handleImageLoad(event, contribution.id)"
             />

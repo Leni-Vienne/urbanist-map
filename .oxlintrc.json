@@ -5,11 +5,11 @@
   //"plugins": ["unicorn", "typescript", "oxc"],
   "categories": {
     "suspicious": "error", // mostly type assertion stuff that I don't see how to fix
-    "correctness": "off",
-    "perf": "off",
-    "nursery": "off",
-    "style": "off",
-    "restriction": "off",
+    "correctness": "warn",
+    "perf": "warn",
+    "nursery": "warn",
+    "style": "warn",
+    "restriction": "warn",
     "pedantic": "off"
   },
   "rules": {
@@ -38,6 +38,7 @@
     "no-console": "off",
     "no-bitwise": "off",
     "number-literal-case": "off",
+    "max-statements": "off", // temp maybe
     "no-undefined": "off", // temp maybe
     "no-alert": "off", // temp
     "explicit-module-boundary-types": "off", // temp
