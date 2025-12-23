@@ -66,14 +66,23 @@ watch(() => overlayStore.idSelectedOverlay, (overlayId) => {
   }
 })
 
-// AI : Watch for city changes and auto-switch to Current City tab (for standalone projects)
+// AI : Watch for city changes and auto-switch tabs based on city state
 // AI : This makes standalone projects behave like overlays when clicked from latest contributions
+// AI : AND ensures we don't stay on Current City tab when there's no city selected
 let previousCityId = mapStore.selectedCity?.id
 watch(() => mapStore.selectedCity, (newCity) => {
-  // AI : Only switch if city actually changed (not just a refresh) and we're on Latest tab
+  // AI : Case 1: City was selected (either new or changed from another city)
+  // AI : Switch to Current City tab only if coming from Latest tab
   if (newCity && newCity.id !== previousCityId && activeTab.value === 'latest') {
     activeTab.value = 'currentCity'
   }
+
+  // AI : Case 2: City was cleared (e.g., by clicking a country marker)
+  // AI : Switch away from Current City tab to avoid showing empty state
+  if (!newCity && previousCityId && activeTab.value === 'currentCity') {
+    activeTab.value = 'latest'
+  }
+
   previousCityId = newCity?.id
 })
 

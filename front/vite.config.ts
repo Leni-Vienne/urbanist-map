@@ -45,6 +45,7 @@ export default defineConfig({
   // To prevent annoying automatic reloads in devmode
   optimizeDeps: {
     include: [
+      "primevue/autocomplete",
       "primevue/badge",
       "primevue/button",
       "primevue/floatlabel",

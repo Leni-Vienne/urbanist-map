@@ -41,6 +41,7 @@ import {
   createSingleMarker,
   createMarker,
 } from "@/composables/overlay/useOverlayMarkers";
+import { imageRequiresCredentials } from "@/utils/imageUrl";
 
 /**
  * AI : Update overlay editing state based on current mode
@@ -176,8 +177,9 @@ export function createLeafletOverlay(imageUrl: string, overlayObject?: OverlayOb
       dragBehavior: "auto",
       selectOnDrag: false,
       draggable: isEditMode,
-      // AI : CRITICAL: Enable credentials for cross-origin requests for pending overlay authorization
-      crossOrigin: "use-credentials",
+      // AI : CRITICAL: Only enable credentials for local backend URLs (pending images)
+      // AI : R2 CDN URLs don't support credentials and will fail if crossOrigin is set
+      crossOrigin: imageRequiresCredentials(imageUrl) ? "use-credentials" : undefined,
       //mode: 'resizeRotate' // doesn't work but should, it's an issue from the package
     });
 
