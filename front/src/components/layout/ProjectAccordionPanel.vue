@@ -209,7 +209,7 @@
                                 :src="getOverlayImageUrl(overlay.filename, overlay.status)"
                                 :alt="overlay.name"
                                 class="w-full h-full object-cover"
-                                crossorigin="use-credentials"
+                                :crossorigin="imageRequiresCredentials(getOverlayImageUrl(overlay.filename, overlay.status)) ? 'use-credentials' : undefined"
                                 @error="(event) => handleImageError(event, overlay.id)"
                                 @load="(event) => handleImageLoad(event, overlay.id)"
                               />
@@ -352,7 +352,7 @@
 <script setup lang="ts">
 import { computed, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { buildThumbnailUrl } from '@/utils/imageUrl'
+import { buildThumbnailUrl, imageRequiresCredentials } from '@/utils/imageUrl'
 import { formatDate } from '@/utils/dateFormat'
 import { formatSourceUrl } from '@/utils/urlFormat'
 import { getFlagUrl, hideFlagOnError, useImageErrors } from '@/utils/imageHelpers'

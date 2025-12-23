@@ -30,7 +30,7 @@
               :src="getContributionImageUrl(contribution.filename)"
               :alt="contribution.name"
               class="w-full h-full object-cover"
-              crossorigin="use-credentials"
+              :crossorigin="imageRequiresCredentials(getContributionImageUrl(contribution.filename)) ? 'use-credentials' : undefined"
               @error="(event) => handleImageError(event, contribution.id)"
               @load="(event) => handleImageLoad(event, contribution.id)"
             />
@@ -96,7 +96,7 @@ import { useOverlayClickHandler } from '@/composables/overlay/useOverlayClickHan
 import { useAddOverlay } from '@/composables/overlay/useAddOverlay'
 import { highlightOverlayById, removeOverlayHighlight } from '@/composables/overlay/useOverlaySelection'
 import { navigateToStandaloneProject } from '@/composables/navigation/useOverlayNavigation'
-import { buildThumbnailUrl } from '@/utils/imageUrl'
+import { buildThumbnailUrl, imageRequiresCredentials } from '@/utils/imageUrl'
 import { formatRelativeTime } from '@/utils/dateFormat'
 import { getFlagUrl, hideFlagOnError, useImageErrors } from '@/utils/imageHelpers'
 import type { LatestContribution } from '@/types/index'
