@@ -14,14 +14,14 @@ import {
 const getCitiesNearLocationSchema = z.object({
   lat: z.number().min(-90).max(90), // AI : Valid latitude range
   lng: z.number().min(-180).max(180), // AI : Valid longitude range
-  limit: z.number().min(1).max(50).default(10), // AI : Limit results between 1-50, default 10
+  limit: z.number().min(1).max(25).default(10), // AI : Limit results between 1-25, default 10
 });
 
 const searchCitiesNearLocationSchema = z.object({
   lat: z.number().min(-90).max(90), // AI : Valid latitude range
   lng: z.number().min(-180).max(180), // AI : Valid longitude range
   search: z.string().min(1).max(100), // AI : Limit search string to 100 characters
-  limit: z.number().min(1).max(50).default(10), // AI : Limit results between 1-50, default 10
+  limit: z.number().min(1).max(25).default(10), // AI : Limit results between 1-25, default 10
 });
 
 const getCityOverlaysAndProjectsSchema = z.object({
@@ -72,7 +72,9 @@ export const citiesRouter = router({
       try {
         const { lat, lng, search, limit } = input;
 
-        // AI : Use PostGIS ST_Distance to calculate distance and order by closest, with name filter
+        // AI : Use PostGIS ST_Distance to calculate distance, with smart ordering
+        // AI : Priority: exact match > starts with > contains, then by distance within each category
+        const searchLower = search.trim().toLowerCase();
         const result = await db
           .select({
             id: cities.id,
@@ -82,6 +84,7 @@ export const citiesRouter = router({
             // AI : Extract coordinates from PostGIS point
             lat: sql<number>`ST_Y(${cities.coordinates})`,
             lng: sql<number>`ST_X(${cities.coordinates})`,
+            approvedProjectCount: cities.approvedProjectCount,
             // AI : Calculate distance in meters using spherical earth model
             distance: sql<number>`ST_Distance(
               ${cities.coordinates}, 
@@ -89,11 +92,22 @@ export const citiesRouter = router({
             )`,
           })
           .from(cities)
-          .where(sql`${cities.name} ILIKE ${`%${search.trim()}%`}`)
-          .orderBy(sql`ST_Distance(
-            ${cities.coordinates}, 
-            ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
-          )`)
+          .where(
+            sql`(unaccent(${cities.name}) ILIKE unaccent(${`%${searchLower}%`}) OR unaccent(${cities.nameLocal}) ILIKE unaccent(${`%${searchLower}%`}))`,
+          )
+          .orderBy(
+            // AI : First priority: exact matches (case-insensitive, accent-insensitive)
+            sql`CASE WHEN unaccent(LOWER(${cities.name})) = unaccent(${searchLower}) OR unaccent(LOWER(${cities.nameLocal})) = unaccent(${searchLower}) THEN 0 ELSE 1 END`,
+            // AI : Second priority: prefix matches (starts with search term)
+            sql`CASE WHEN unaccent(LOWER(${cities.name})) LIKE unaccent(${`${searchLower}%`}) OR unaccent(LOWER(${cities.nameLocal})) LIKE unaccent(${`${searchLower}%`}) THEN 0 ELSE 1 END`,
+            // AI : Third priority: cities with projects
+            sql`CASE WHEN ${cities.approvedProjectCount} > 0 THEN 0 ELSE 1 END`,
+            // AI : Finally: order by distance within each category
+            sql`ST_Distance(
+              ${cities.coordinates}, 
+              ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
+            )`,
+          )
           .limit(limit);
 
         return result;
@@ -350,7 +364,7 @@ export const citiesRouter = router({
   searchCities: publicProcedure
     .input(
       z.object({
-        query: z.string().min(2).max(100), // AI : Minimum 2 characters to reduce search space
+        query: z.string().min(1).max(100), // AI : Minimum 1 character to support short city names (e.g., Chinese cities)
         limit: z.number().min(1).max(50).default(25), // AI : Limit results, default 25
       }),
     )
@@ -358,7 +372,7 @@ export const citiesRouter = router({
       try {
         const { query, limit } = input;
 
-        // AI : Use ILIKE for case-insensitive prefix matching on both name and nameLocal
+        // AI : Use unaccent() for accent-insensitive search (e.g., "Montreal" matches "Montréal")
         // AI : Order by cities with projects first, then alphabetically
         const searchPattern = `${query.trim()}%`;
         return await db
@@ -374,8 +388,8 @@ export const citiesRouter = router({
           })
           .from(cities)
           .where(
-            sql`(${cities.name} ILIKE ${searchPattern} OR ${cities.nameLocal} ILIKE ${searchPattern})`,
-          ) // AI : Match against both English and local names
+            sql`(unaccent(${cities.name}) ILIKE unaccent(${searchPattern}) OR unaccent(${cities.nameLocal}) ILIKE unaccent(${searchPattern}))`,
+          ) // AI : Match against both English and local names, accent-insensitive
           .orderBy(
             sql`(${cities.approvedProjectCount} > 0) DESC`, // AI : Cities with projects first
             cities.name, // AI : Then alphabetically by English name
