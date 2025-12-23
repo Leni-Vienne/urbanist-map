@@ -10,7 +10,7 @@
         @complete="onSearch"
         @item-select="onSelect"
         class="city-search w-full"
-        :min-length="2"
+        :min-length="1"
         :loading="isLoading"
         :dropdown="false"
       >
@@ -18,6 +18,7 @@
           <div class="search-result">
             <span class="city-name">
               {{ option.name
+
 
               }}<span v-if="option.nameLocal" class="city-name-local">
                 ({{ option.nameLocal }})</span
@@ -42,6 +43,7 @@ import { trpc } from '@/client'
 import { navigateToCity } from '@/composables/navigation/useLocationNavigation'
 import { useToast } from '@/composables/ui/useToast'
 import { useI18n } from 'vue-i18n'
+import { map } from '@/composables/core/useMap'
 
 const toast = useToast()
 const { t } = useI18n()
@@ -63,7 +65,7 @@ const suggestions = ref<CitySearchResult[]>([])
 const isLoading = ref(false)
 let searchTimeout: ReturnType<typeof setTimeout> | null = null
 
-// AI : Debounced search function (300ms)
+// AI : Debounced search function (300ms) with location-based ordering
 async function onSearch(event: { query: string }) {
     const query = event.query?.trim()
 
@@ -72,8 +74,8 @@ async function onSearch(event: { query: string }) {
         clearTimeout(searchTimeout)
     }
 
-    // AI : Require minimum 2 characters
-    if (!query || query.length < 2) {
+    // AI : Require minimum 1 character to support short city names (e.g., Chinese cities)
+    if (!query || query.length < 1) {
         suggestions.value = []
         return
     }
@@ -82,8 +84,21 @@ async function onSearch(event: { query: string }) {
     searchTimeout = setTimeout(async () => {
         try {
             isLoading.value = true
-            const results = await trpc.cities.searchCities.query({
-                query,
+
+            // AI : Get current map center for location-based ordering
+            const center = map.value?.getCenter()
+            if (!center) {
+                console.warn('Map center not available for city search')
+                suggestions.value = []
+                return
+            }
+
+            // AI : Use location-based search to prioritize nearby cities
+            // AI : This prevents confusion like getting Paris, Texas when viewing France
+            const results = await trpc.cities.searchCitiesNearLocation.query({
+                lat: center.lat,
+                lng: center.lng,
+                search: query,
                 limit: 25,
             })
 
