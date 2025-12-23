@@ -391,24 +391,43 @@ async function updateCityLocalNames(): Promise<void> {
     const lang = fields[2]; // Language code
     const alternateName = fields[3];
     const _isPreferred = fields[4] === "1";
+    const isShortName = fields[5] === "1"; // Column 5: short name flag
+    const isColloquial = fields[6] === "1"; // Column 6: colloquial name flag
+    const isHistoric = fields[7] === "1"; // Column 7: historic name flag
+
+    // AI : Skip colloquial, historical, and short name variants
+    // AI : Examples: "Ville-Lumière" (colloquial), "Lutetia" (historical), "NYC" (short)
+    // AI : We want actual proper names, not nicknames or old names
+    if (isColloquial || isHistoric || isShortName) {
+      continue;
+    }
 
     // AI : Skip Wikipedia/Wikidata URLs and other non-name entries
-    // AI : GeoNames uses specific language codes for these:
+    // AI : GeoNames uses specific pseudo language codes for these:
     // AI : - 'link': Wikipedia URLs
     // AI : - 'wkdt': Wikidata URLs
     // AI : - 'unlc': UN location codes
-    // AI : - 'iata': IATA airport codes
-    // AI : - 'icao': ICAO airport codes
+    // AI : - 'iata', 'icao', 'faac', 'tcid': Airport codes
     // AI : - 'abbr': Abbreviations
     // AI : - 'post': Postal codes
+    // AI : - 'phon': Phonetics
+    // AI : - 'piny': Pinyin
+    // AI : - 'nuts': EU NUTS codes
+    // AI : - 'lauc': EU LAU codes
     if (
       lang === "link" ||
       lang === "wkdt" ||
       lang === "unlc" ||
       lang === "iata" ||
       lang === "icao" ||
+      lang === "faac" ||
+      lang === "tcid" ||
       lang === "abbr" ||
-      lang === "post"
+      lang === "post" ||
+      lang === "phon" ||
+      lang === "piny" ||
+      lang === "nuts" ||
+      lang === "lauc"
     ) {
       continue;
     }
