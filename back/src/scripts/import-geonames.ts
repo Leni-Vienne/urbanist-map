@@ -1,6 +1,6 @@
 import { db } from "../database";
 import { countries, cities } from "../db/schema";
-import { sql } from "drizzle-orm";
+import { sql, inArray } from "drizzle-orm";
 import * as fs from "node:fs";
 import * as readline from "node:readline";
 import * as path from "node:path";
@@ -288,17 +288,28 @@ async function importCities(): Promise<void> {
 
     const [
       geonameId, // 0: GeoNames ID
-      name, // 1: Name (ASCII)
-      _asciiname, // 2: ASCII name
+      _name, // 1: Name (can have accents like "Zürich")
+      asciiname, // 2: ASCII name (no accents like "Zurich")
       _alternateNames, // 3: Alternate names
       latitude, // 4: Latitude
       longitude, // 5: Longitude
       _featureClass, // 6: Feature class
-      _featureCode, // 7: Feature code
+      featureCode, // 7: Feature code (PPL, PPLC, PPLX, etc.)
       countryCode2, // 8: Country code (ISO alpha-2)
     ] = fields;
 
-    if (!geonameId || !name || !latitude || !longitude || !countryCode2) {
+    if (!geonameId || !asciiname || !latitude || !longitude || !countryCode2) {
+      skippedCount += 1;
+      continue;
+    }
+
+    // AI : Only import actual cities (not streets, markets, historical places, etc.)
+    // AI : Allowed feature codes:
+    // AI :   PPL - populated place (city/town)
+    // AI :   PPLC - capital city
+    // AI :   PPLA, PPLA2, PPLA3, PPLA4 - administrative seats
+    const allowedFeatureCodes = ["PPL", "PPLC", "PPLA", "PPLA2", "PPLA3", "PPLA4"];
+    if (!allowedFeatureCodes.includes(featureCode)) {
       skippedCount += 1;
       continue;
     }
@@ -314,11 +325,11 @@ async function importCities(): Promise<void> {
 
     // AI : Store mapping for local name processing
     cityCountryMap.set(cityId, countryCode3);
-    cityNameMap.set(cityId, name);
+    cityNameMap.set(cityId, asciiname);
 
     cityBatch.push({
       id: cityId,
-      name: name,
+      name: asciiname,
       nameLocal: null, // AI : Will be updated by updateCityLocalNames()
       countryCode: countryCode3,
       latitude: Number.parseFloat(latitude),
@@ -381,6 +392,10 @@ async function updateCityLocalNames(): Promise<void> {
 
   // AI : Map to store best local name for each city
   const cityLocalNames = new Map<number, { name: string; priority: number }>();
+  // AI : Map to store English alternate names (to prefer over romanized names)
+  const cityEnglishNames = new Map<number, string>();
+  // AI : Set to track cities that have alternate names (real cities vs districts)
+  const citiesWithAlternates = new Set<number>();
 
   let processedCount = 0;
   for await (const line of rl) {
@@ -445,6 +460,21 @@ async function updateCityLocalNames(): Promise<void> {
     // AI : Only process cities we imported
     const countryCode = cityCountryMap.get(geonameId);
     if (!countryCode) continue;
+
+    // AI : Mark this city as having alternate names
+    citiesWithAlternates.add(geonameId);
+
+    // AI : Capture English alternate names to use as main city name
+    // AI : This gives us clean English names like "10th of Ramadan City"
+    // AI : instead of romanized names with diacritics like "Al 'Āshir min Ramaḑān"
+    if (lang === "en") {
+      const cityName = cityNameMap.get(geonameId);
+      // AI : Only use if different from current name (avoid duplicates)
+      if (cityName && alternateName !== cityName) {
+        cityEnglishNames.set(geonameId, alternateName);
+      }
+      continue; // Don't use English names as local names
+    }
 
     const targetLang = countryLanguageMap.get(countryCode);
 
@@ -547,6 +577,90 @@ async function updateCityLocalNames(): Promise<void> {
   }
 
   console.log(`✅ Updated ${totalUpdated} cities with local names`);
+
+  // AI : Update cities with English alternate names (for main name field)
+  console.log(`\n  💾 Updating ${cityEnglishNames.size} cities with English names...`);
+
+  const englishEntries = [...cityEnglishNames.entries()];
+  let totalEnglishUpdated = 0;
+
+  for (let i = 0; i < englishEntries.length; i += batchSize) {
+    const batch = englishEntries.slice(i, i + batchSize);
+
+    const cityIds = batch.map(([cityId]) => cityId);
+    const caseStatements = batch
+      .map(([cityId, name]) => {
+        const escapedName = name.replace(/'/g, "''");
+        return `WHEN ${cityId} THEN '${escapedName}'`;
+      })
+      .join(" ");
+
+    await db.execute(
+      sql.raw(`
+      UPDATE cities 
+      SET name = CASE id 
+        ${caseStatements}
+      END
+      WHERE id IN (${cityIds.join(",")})
+    `),
+    );
+
+    totalEnglishUpdated += batch.length;
+    console.log(`    ✓ Updated ${totalEnglishUpdated} cities with English names...`);
+  }
+
+  console.log(`✅ Updated ${totalEnglishUpdated} cities with English names`);
+
+  // AI : Clean up district entries by detecting naming patterns
+  /*console.log("\n  🧹 Cleaning up districts by detecting naming patterns...");
+
+  // AI : Get all cities from database
+  const allCities = await db.select({ id: cities.id, name: cities.name }).from(cities);
+
+  // AI : Group cities by their base name (text before the number)
+  // AI : Example: "Kreis 1" → base="Kreis", "Paris 08 Élysée" → base="Paris"
+  const baseNameGroups = new Map<string, number[]>(); // base name → array of city IDs
+
+  for (const city of allCities) {
+    // AI : Match pattern: text + space + digits + optional letters (ordinals) + non-alphanumeric or end
+    // AI : Catches various district naming schemes including ordinals
+    // AI : Examples:
+    // AI :   "Zurich Kreis 1" → base="Zurich Kreis"
+    // AI :   "Paris 08 Élysée" → base="Paris"
+    // AI :   "Paris 10e Arrondissement" → base="Paris"
+    // AI :   "Ct 0003" → base="Ct"
+    // AI :   "Zuerich (Kreis 10) / Name" → base="Zuerich (Kreis"
+    const match = city.name.match(/^(.+)\s+(\d+[a-z]*)(?:\W|$)/i);
+    if (match) {
+      const baseName = match[1]; // Everything before "space + digits"
+      if (!baseNameGroups.has(baseName)) {
+        baseNameGroups.set(baseName, []);
+      }
+      const group = baseNameGroups.get(baseName);
+      if (group) {
+        group.push(city.id);
+      }
+    }
+  }
+
+  // AI : Delete groups with 2+ cities (they're district series)
+  // AI : Examples: "Kreis 1", "Kreis 2" → both deleted
+  // AI :           "10th of Ramadan City" → only one, kept
+  const citiesToDelete: number[] = [];
+  for (const [baseName, cityIds] of baseNameGroups.entries()) {
+    if (cityIds.length >= 2) {
+      console.log(`  🗑️  Found district series: "${baseName}" (${cityIds.length} entries)`);
+      citiesToDelete.push(...cityIds);
+    }
+  }
+
+  if (citiesToDelete.length > 0) {
+    console.log(`  🗑️  Deleting ${citiesToDelete.length} likely district entries...`);
+    await db.delete(cities).where(inArray(cities.id, citiesToDelete));
+    console.log(`  ✅ Deleted ${citiesToDelete.length} district entries`);
+  } else {
+    console.log(`  ✅ No district entries found to clean up`);
+  }*/
 }
 
 /**
