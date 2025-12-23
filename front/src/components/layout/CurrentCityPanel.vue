@@ -67,7 +67,7 @@ import { useMapStore } from '@/stores/pinia/mapStore'
 import { useOverlayStore } from '@/stores/pinia/overlayStore'
 import { useProjectStore } from '@/stores/pinia/projectStore'
 import { useOverlayClickHandler } from '@/composables/overlay/useOverlayClickHandler'
-import { prepareCountryContext, isValidCountryCode } from '@/composables/map/useCountryMarkers'
+import { isValidCountryCode } from '@/composables/map/useCountryMarkers'
 import { flyToCountry } from '@/composables/map/useMapNavigation'
 import { useAccordionState } from '@/composables/layout/useAccordionState'
 import { useAddOverlay } from '@/composables/overlay/useAddOverlay'
@@ -107,7 +107,9 @@ const cityHeader = computed(() => {
     }
 })
 
-// AI : Handle country click - zoom to country view (same as country marker click)
+// AI : Handle country click - zoom to country view WITHOUT clearing selected city
+// AI : This differs from country marker clicks which use prepareCountryContext and clear the city
+// AI : Here we want to maintain panel context while allowing users to zoom out
 async function handleCountryClick() {
     const header = cityHeader.value
     if (!header) return
@@ -117,9 +119,15 @@ async function handleCountryClick() {
     // AI : Fly to the country using its centroid
     flyToCountry(header.countryCode, header.lat, header.lng)
 
-    // AI : Prepare country context (clear map, load cities, add markers)
-    await prepareCountryContext(header.countryCode)
+    // AI : Set the selected country code (for tile layer management)
+    mapStore.selectedCountryCode = header.countryCode
+
+    // AI : NOTE: We intentionally DO NOT clear the selected city or manually load/add markers
+    // AI : The city markers are already present from when the city was selected, and the
+    // AI : reactive state management handles everything else. This keeps the Current City
+    // AI : panel header visible and maintains user context while zooming out to country view
 }
+
 
 // AI : Custom overlay click handler that doesn't switch to edit mode (like Latest Contributions)
 const { handleOverlayClickNavigation } = useOverlayClickHandler()
