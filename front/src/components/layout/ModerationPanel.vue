@@ -380,30 +380,38 @@ async function handleViewOverlayPosition(overlay: OverlayForModeration, shouldFi
   await handleOverlayClickNavigation(overlay, shouldFitBounds)
 }
 
+// AI : Helper to show success toast and refetch pending counts
+function showSuccessToast(summaryKey: string, detailKey: string, severity: 'success' | 'info' = 'success') {
+  refetchPendingCounts()
+  toast.add({
+    severity,
+    summary: t(summaryKey),
+    detail: t(detailKey),
+    life: 3000
+  })
+}
 
+// AI : Helper to show error toast with version conflict handling
+function showErrorToast(result: { error?: string; message?: string }, approvalFailedKey: string) {
+  const severity = result.error === 'version_conflict' ? 'warn' : 'error'
+  const summary = result.error === 'version_conflict' ? t('moderation.projectUpdated') : t(approvalFailedKey)
+
+  toast.add({
+    severity,
+    summary,
+    detail: result.message,
+    life: result.error === 'version_conflict' ? 5000 : 3000
+  })
+}
 
 // AI : Handle project approval with toast notifications
 async function handleApproveProject(id: string) {
   const result = await approveProject(id)
 
   if (result.success) {
-    refetchPendingCounts()
-    toast.add({
-      severity: 'success',
-      summary: t('moderation.projectApproved'),
-      detail: t('moderation.projectApprovedDetail'),
-      life: 3000
-    })
+    showSuccessToast('moderation.projectApproved', 'moderation.projectApprovedDetail')
   } else {
-    const severity = result.error === 'version_conflict' ? 'warn' : 'error'
-    const summary = result.error === 'version_conflict' ? t('moderation.projectUpdated') : t('moderation.approvalFailed')
-
-    toast.add({
-      severity,
-      summary,
-      detail: result.message,
-      life: result.error === 'version_conflict' ? 5000 : 3000
-    })
+    showErrorToast(result, 'moderation.approvalFailed')
   }
 }
 
@@ -418,23 +426,9 @@ async function executeRejectProject(id: string, rejectionReason?: string, reject
   const result = await rejectProject(id, rejectionReason, rejectAllOverlays)
 
   if (result.success) {
-    refetchPendingCounts()
-    toast.add({
-      severity: 'info',
-      summary: t('moderation.projectRejected'),
-      detail: t('moderation.projectRejectedDetail'),
-      life: 3000
-    })
+    showSuccessToast('moderation.projectRejected', 'moderation.projectRejectedDetail', 'info')
   } else {
-    const severity = result.error === 'version_conflict' ? 'warn' : 'error'
-    const summary = result.error === 'version_conflict' ? t('moderation.projectUpdated') : t('moderation.rejectionFailed')
-
-    toast.add({
-      severity,
-      summary,
-      detail: result.message,
-      life: result.error === 'version_conflict' ? 5000 : 3000
-    })
+    showErrorToast(result, 'moderation.rejectionFailed')
   }
 }
 
@@ -481,23 +475,9 @@ async function proceedWithApproval(id: string, handleConflicts = false) {
   const result = await approveOverlay(id, handleConflicts)
 
   if (result.success) {
-    refetchPendingCounts()
-    toast.add({
-      severity: 'success',
-      summary: t('moderation.overlayApproved'),
-      detail: t('moderation.overlayApprovedDetail'),
-      life: 3000
-    })
+    showSuccessToast('moderation.overlayApproved', 'moderation.overlayApprovedDetail')
   } else {
-    const severity = result.error === 'version_conflict' ? 'warn' : 'error'
-    const summary = result.error === 'version_conflict' ? t('moderation.projectUpdated') : t('moderation.approvalFailed')
-
-    toast.add({
-      severity,
-      summary,
-      detail: result.message,
-      life: result.error === 'version_conflict' ? 5000 : 3000
-    })
+    showErrorToast(result, 'moderation.approvalFailed')
   }
 }
 
@@ -561,23 +541,9 @@ async function executeRejectOverlay(id: string, rejectionReason?: string) {
   const result = await rejectOverlay(id, rejectionReason)
 
   if (result.success) {
-    refetchPendingCounts()
-    toast.add({
-      severity: 'info',
-      summary: t('moderation.overlayRejected'),
-      detail: t('moderation.overlayRejectedDetail'),
-      life: 3000
-    })
+    showSuccessToast('moderation.overlayRejected', 'moderation.overlayRejectedDetail', 'info')
   } else {
-    const severity = result.error === 'version_conflict' ? 'warn' : 'error'
-    const summary = result.error === 'version_conflict' ? t('moderation.projectUpdated') : t('moderation.rejectionFailed')
-
-    toast.add({
-      severity,
-      summary,
-      detail: result.message,
-      life: result.error === 'version_conflict' ? 5000 : 3000
-    })
+    showErrorToast(result, 'moderation.rejectionFailed')
   }
 }
 

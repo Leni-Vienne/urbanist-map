@@ -1,6 +1,6 @@
 import { db } from "../database";
 import { countries, cities } from "../db/schema";
-import { sql, inArray } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import * as fs from "node:fs";
 import * as readline from "node:readline";
 import * as path from "node:path";
@@ -610,57 +610,6 @@ async function updateCityLocalNames(): Promise<void> {
   }
 
   console.log(`✅ Updated ${totalEnglishUpdated} cities with English names`);
-
-  // AI : Clean up district entries by detecting naming patterns
-  /*console.log("\n  🧹 Cleaning up districts by detecting naming patterns...");
-
-  // AI : Get all cities from database
-  const allCities = await db.select({ id: cities.id, name: cities.name }).from(cities);
-
-  // AI : Group cities by their base name (text before the number)
-  // AI : Example: "Kreis 1" → base="Kreis", "Paris 08 Élysée" → base="Paris"
-  const baseNameGroups = new Map<string, number[]>(); // base name → array of city IDs
-
-  for (const city of allCities) {
-    // AI : Match pattern: text + space + digits + optional letters (ordinals) + non-alphanumeric or end
-    // AI : Catches various district naming schemes including ordinals
-    // AI : Examples:
-    // AI :   "Zurich Kreis 1" → base="Zurich Kreis"
-    // AI :   "Paris 08 Élysée" → base="Paris"
-    // AI :   "Paris 10e Arrondissement" → base="Paris"
-    // AI :   "Ct 0003" → base="Ct"
-    // AI :   "Zuerich (Kreis 10) / Name" → base="Zuerich (Kreis"
-    const match = city.name.match(/^(.+)\s+(\d+[a-z]*)(?:\W|$)/i);
-    if (match) {
-      const baseName = match[1]; // Everything before "space + digits"
-      if (!baseNameGroups.has(baseName)) {
-        baseNameGroups.set(baseName, []);
-      }
-      const group = baseNameGroups.get(baseName);
-      if (group) {
-        group.push(city.id);
-      }
-    }
-  }
-
-  // AI : Delete groups with 2+ cities (they're district series)
-  // AI : Examples: "Kreis 1", "Kreis 2" → both deleted
-  // AI :           "10th of Ramadan City" → only one, kept
-  const citiesToDelete: number[] = [];
-  for (const [baseName, cityIds] of baseNameGroups.entries()) {
-    if (cityIds.length >= 2) {
-      console.log(`  🗑️  Found district series: "${baseName}" (${cityIds.length} entries)`);
-      citiesToDelete.push(...cityIds);
-    }
-  }
-
-  if (citiesToDelete.length > 0) {
-    console.log(`  🗑️  Deleting ${citiesToDelete.length} likely district entries...`);
-    await db.delete(cities).where(inArray(cities.id, citiesToDelete));
-    console.log(`  ✅ Deleted ${citiesToDelete.length} district entries`);
-  } else {
-    console.log(`  ✅ No district entries found to clean up`);
-  }*/
 }
 
 /**
