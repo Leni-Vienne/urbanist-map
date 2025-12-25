@@ -1,5 +1,4 @@
 import { moderatorProcedure, adminProcedure, router } from "../trpc";
-import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
 import {
   projects,
   overlays,
@@ -9,10 +8,16 @@ import {
   users,
   userReports,
 } from "../db/schema";
-import { eq, inArray, or, and, sql, ne, type SQL } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
-import { db, type Database } from "../database";
+import { and, eq, or, sql, inArray, ne, type SQL } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
+import { db, type Database } from "../database";
+import {
+  deleteImages,
+  deleteLocalImages,
+  scheduleImageCleanup,
+  daysFromNow,
+} from "../lib/imageCleanup";
+import { TRPCError } from "@trpc/server";
 import {
   buildProjectModerationQuery,
   buildOverlayModerationQuery,
@@ -21,19 +26,9 @@ import {
   addConflictFlags,
   enrichChangeRequestsWithNames,
 } from "../db/helpers";
-import {
-  LocalFileStorage,
-  R2StorageS3,
-  getThumbnailFilename,
-  streamToBuffer,
-} from "../lib/storage";
-import {
-  scheduleImageCleanup,
-  deleteImages,
-  deleteLocalImages,
-  daysFromNow,
-} from "../lib/imageCleanup";
 import { incrementCityProjectCount, decrementCityProjectCount } from "../db/updateCityCounts";
+import { queueR2Migration } from "../services/r2MigrationService";
+import * as z from "zod";
 
 // AI : Helper functions to update user moderation stats
 // AI : These are called within transactions to ensure atomicity
@@ -72,57 +67,6 @@ async function decrementRejectedCount(tx: DbOrTx, userId: string | null): Promis
     .update(users)
     .set({ rejectedCount: sql`GREATEST(${users.rejectedCount} - 1, 0)` })
     .where(eq(users.id, userId));
-}
-
-// AI : Helper function to migrate image and thumbnail from local storage to R2 on approval
-// Two-phase thumbnail strategy to prevent abuse:
-// 1. During upload: Thumbnail stays local (moderation UI only, served from backend's 1Gbit connection)
-// 2. After approval: Thumbnail migrates to R2 (public display, prevents R2 cost abuse from spam uploads)
-async function migrateImageToR2(filename: string): Promise<void> {
-  const localStorage = new LocalFileStorage();
-  const r2Storage = new R2StorageS3({
-    endpoint: process.env.R2_ENDPOINT!,
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-    bucketName: process.env.R2_BUCKET_NAME!,
-  });
-
-  // AI : Upload main image to R2
-  const localFile = await localStorage.get(filename);
-  if (!localFile) {
-    throw new Error(`Local file not found: ${filename}`);
-  }
-
-  const buffer = await streamToBuffer(localFile.body);
-  await r2Storage.put(filename, buffer.buffer as ArrayBuffer);
-
-  // AI : Upload thumbnail to R2 (for public display after approval)
-  // Thumbnails are stored in ./uploads/thumbnails/ locally
-  const thumbnailFilename = getThumbnailFilename(filename);
-  const thumbnailFile = await localStorage.get(thumbnailFilename);
-
-  if (thumbnailFile) {
-    const thumbnailBuffer = await streamToBuffer(thumbnailFile.body);
-    // AI : On R2, store thumbnails in thumbnails/ prefix for organization
-    // SkipThumbnail prevents recursive thumbnail generation
-    await r2Storage.put(thumbnailFilename, thumbnailBuffer.buffer as ArrayBuffer, {
-      skipThumbnail: true,
-    });
-  } else {
-    console.warn(`Thumbnail not found for ${filename}, skipping thumbnail upload`);
-  }
-
-  // AI : Delete local files after successful migration to R2 to save disk space
-  try {
-    await localStorage.delete(filename);
-
-    if (thumbnailFile) {
-      await localStorage.delete(thumbnailFilename);
-    }
-  } catch (error) {
-    console.error(`Failed to delete local files for ${filename}:`, error);
-    // AI : Don't throw - migration was successful, deletion is cleanup
-  }
 }
 
 // AI : Schema for legacy approval endpoints - supports arrays but frontend only sends single items
@@ -899,18 +843,13 @@ export const moderationRouter = router({
           );
         }
 
-        // AI : Migrate image to R2 in production
+        // AI : Queue R2 migration in production (non-blocking for instant response)
         if (
           input.status === "approved" &&
           overlayFilename &&
           process.env.NODE_ENV === "production"
         ) {
-          try {
-            await migrateImageToR2(overlayFilename);
-          } catch (error) {
-            console.error("Failed to migrate image to R2:", error);
-            // AI : Don't fail the approval if R2 migration fails
-          }
+          queueR2Migration(overlayFilename);
         }
 
         return transactionResult;

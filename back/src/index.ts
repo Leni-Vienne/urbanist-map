@@ -753,12 +753,12 @@ generateMissingThumbnails().catch((error) => {
 });
 
 import { startCleanupJob } from "./services/cleanupService";
-
-// ...
+import { startR2MigrationService } from "./services/r2MigrationService";
 
 // AI : Start error alerting service
 errorAlerter.start();
 startCleanupJob();
+startR2MigrationService();
 
 export type { AppRouter } from "./routes";
 
