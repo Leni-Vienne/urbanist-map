@@ -38,6 +38,19 @@ function getCountries() {
 const isLoadingCountries = ref(false);
 const isLoadingCountryProjects = ref(false);
 
+// AI : Track countries with unsaved projects (countryCode → country data)
+// AI : These countries get temporary markers even if they have no approved projects in backend
+const unsavedCountryMarkers = new Map<
+  string,
+  {
+    name: string;
+    lat: number;
+    lng: number;
+    code: string;
+    code2: string;
+  }
+>();
+
 let countryMarkersLayer: L.LayerGroup | null = null;
 
 export async function loadCountriesWithProjects(force = false): Promise<void> {
@@ -163,7 +176,29 @@ export async function prepareCountryContext(countryCode: string): Promise<void> 
       country.cities.map((city) => {
         return Object.assign({}, city, { projectCount: 0 });
       }),
+      countryCode, // AI : Pass country code explicitly to show unsaved markers
     );
+  } else {
+    // AI : Country not in backend yet, but show unsaved markers for this country
+    addCityMarkersForCountry([], countryCode);
+  }
+}
+
+/**
+ * AI : Add unsaved country marker for countries with unsaved projects
+ * AI : Called when creating a project in a country with no approved projects
+ */
+export function addUnsavedCountryMarker(country: {
+  code: string;
+  code2: string;
+  name: string;
+  lat: number;
+  lng: number;
+}): void {
+  if (!unsavedCountryMarkers.has(country.code)) {
+    unsavedCountryMarkers.set(country.code, country);
+    // AI : Refresh country markers to include the new unsaved country
+    addCountryMarkersToMap();
   }
 }
 
@@ -178,6 +213,25 @@ export function addCountryMarkersToMap() {
   }
 
   const countries = getCountries();
+
+  // AI : Merge backend countries with unsaved country markers
+  const unsavedCountries: Country[] = [...unsavedCountryMarkers.entries()]
+    .filter(([countryCode]) => !countries.value.some((c) => c.code === countryCode))
+    .map(([_countryCode, countryData]) => ({
+      id: -1, // AI : Temporary ID for unsaved country
+      code: countryData.code,
+      code2: countryData.code2,
+      name: countryData.name,
+      centerCoordinates: { x: countryData.lng, y: countryData.lat },
+      lat: countryData.lat,
+      lng: countryData.lng,
+      projectCount: 0,
+      cities: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
+
+  const allCountries = [...countries.value, ...unsavedCountries];
 
   // AI : Configure country marker behavior
   const config: MarkerLayerConfig<Country> = {
@@ -232,7 +286,7 @@ export function addCountryMarkersToMap() {
   };
 
   // AI : Create marker layer using abstraction
-  const result = createMarkerLayer(countries.value, config);
+  const result = createMarkerLayer(allCountries, config);
   countryMarkersLayer = result.layer;
 
   // AI : Add the layer group to the map

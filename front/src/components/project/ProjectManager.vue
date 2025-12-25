@@ -52,7 +52,7 @@ import { map } from '@/composables/core/useMap'
 import { loadCityProjects, updateStandaloneProjectMarkerColor, addSingleCityMarker, addCityMarkersForCountry } from '@/composables/map/useCityMarkers'
 import { createProjectInfoTeleportTarget } from '@/composables/map/useProjectPopupTeleport'
 import { getStandaloneProjectMarkerByProjectId } from '@/composables/map/useStandaloneProjectMarkers'
-import { loadCitiesForCountry } from '@/composables/map/useCountryMarkers'
+import { loadCitiesForCountry, prepareCountryContext, addUnsavedCountryMarker } from '@/composables/map/useCountryMarkers'
 import { useMapStore } from '@/stores/pinia/mapStore'
 import { createStandaloneProjectIcon } from '@/composables/map/useMarkers'
 import { addOverlay } from '@/composables/overlay/useOverlay'
@@ -62,6 +62,7 @@ import { useCityProjects } from '@/composables/project/useProjectSelection'
 import type { Project, NearbyProject } from '@/types/index'
 
 import MarkerPlacementBar from '@/components/map/MarkerPlacementBar.vue'
+import countryBboxes from '@/assets/country_bboxes.json'
 const ProjectDialog = defineAsyncComponent(() => import('@/components/project/ProjectDialog.vue'))
 const EditProjectForm = defineAsyncComponent(() => import('@/components/forms/EditProjectForm.vue'))
 
@@ -85,6 +86,16 @@ async function ensureCityMarkersForProject(
 ): Promise<void> {
   const countryCode = city.countryCode;
 
+  if (!countryCode) return;
+
+  // AI : Check if we're switching to a different country
+  const isCountrySwitch = mapStore.selectedCountryCode !== countryCode;
+
+  if (isCountrySwitch) {
+    // AI : Use prepareCountryContext to properly clear old country markers and load new country
+    await prepareCountryContext(countryCode);
+  }
+
   // AI : Set selectedCity if not already set (or if forced) to prevent overlay disappearance on zoom
   if (forceSetSelectedCity || !mapStore.selectedCity) {
     mapStore.setSelectedCity({
@@ -95,29 +106,32 @@ async function ensureCityMarkersForProject(
     });
   }
 
-  if (!countryCode) return;
-
   mapStore.selectedCountryCode = countryCode;
 
-  // AI : First add single marker immediately (fast feedback)
-  addSingleCityMarker({
-    id: city.id,
-    name: city.name,
-    nameLocal: city.nameLocal,
-    lat: city.coordinates.y,
-    lng: city.coordinates.x,
-    countryCode: countryCode
-  });
+  // AI : If not a country switch, add the single city marker for immediate feedback
+  // AI : (prepareCountryContext already adds markers, so only do this if we didn't switch countries)
+  if (!isCountrySwitch) {
+    // AI : First add single marker immediately (fast feedback) - mark as unsaved
+    addSingleCityMarker({
+      id: city.id,
+      name: city.name,
+      nameLocal: city.nameLocal,
+      lat: city.coordinates.y,
+      lng: city.coordinates.x,
+      countryCode: countryCode
+    }, true);
 
-  // AI : Then load all cities for the country
-  await loadCitiesForCountry(countryCode);
-  const country = projectStore.countries.find((c) => c.code === countryCode);
+    // AI : Then load all cities for the country (unsaved marker will be preserved)
+    await loadCitiesForCountry(countryCode);
+    const country = projectStore.countries.find((c) => c.code === countryCode);
 
-  if (country?.cities) {
-    addCityMarkersForCountry(country.cities.map((c) => ({ ...c, projectCount: 0 })));
-
-    // AI : Re-add single marker if city not in backend response (new city without approved projects)
-    const cityExistsInBackend = country.cities.some((c) => c.id === city.id);
+    if (country?.cities) {
+      addCityMarkersForCountry(country.cities.map((c) => ({ ...c, projectCount: 0 })));
+    }
+  } else {
+    // AI : After country switch, add the unsaved city marker if it's not in the backend
+    const country = projectStore.countries.find((c) => c.code === countryCode);
+    const cityExistsInBackend = country?.cities.some((c) => c.id === city.id);
     if (!cityExistsInBackend) {
       addSingleCityMarker({
         id: city.id,
@@ -126,8 +140,34 @@ async function ensureCityMarkersForProject(
         lat: city.coordinates.y,
         lng: city.coordinates.x,
         countryCode: countryCode
-      });
+      }, true);
     }
+  }
+
+  // AI : Add unsaved country marker if country doesn't exist in backend
+  const country = projectStore.countries.find((c) => c.code === countryCode);
+  if (!country) {
+    // AI : Get country center coordinates from bbox to avoid overlapping with city marker
+    const bbox = (countryBboxes as Record<string, number[]>)[countryCode];
+    let countryLat = city.coordinates.y;
+    let countryLng = city.coordinates.x;
+
+    if (bbox && bbox.length === 4) {
+      // AI : bbox format is [minLng, minLat, maxLng, maxLat]
+      const [minLng, minLat, maxLng, maxLat] = bbox;
+      countryLat = (minLat + maxLat) / 2; // AI : Calculate center latitude
+      countryLng = (minLng + maxLng) / 2; // AI : Calculate center longitude
+    }
+
+    // AI : Create temporary country marker to allow navigation back to unsaved projects
+    const countryName = city.countryCode; // AI : Fallback to code if name not available
+    addUnsavedCountryMarker({
+      code: countryCode,
+      code2: '', // AI : Will be populated when backend data loads
+      name: countryName,
+      lat: countryLat,
+      lng: countryLng
+    });
   }
 }
 
