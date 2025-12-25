@@ -206,6 +206,15 @@ export const useProjectStore = defineStore("project", () => {
         existingProjectIndex,
         updatedProject,
       );
+
+      // AI : Cache the original project state with overlay for change detection
+      // AI : Only cache if this is a new overlay (not replacing an existing one)
+      if (existingOverlayIndex === -1 && !originalUserContributions.value[project.id]) {
+        originalUserContributions.value = {
+          ...originalUserContributions.value,
+          [project.id]: { ...updatedProject } as UserContribution,
+        };
+      }
     } else {
       // AI : Project doesn't exist in contributions, add both project and overlay
       // AI : Skip if project is local-only (not yet submitted)
@@ -213,16 +222,23 @@ export const useProjectStore = defineStore("project", () => {
         return;
       }
 
-      userContributions.value = [
-        {
-          ...project,
-          ...extractCityMetadata(project),
-          status: project.status, // AI : Type assertion - null already filtered above
-          overlays: [createOverlayMetadata(overlay, project, filename, authorUsername)],
-          overlayCount: 1,
-        },
-        ...userContributions.value,
-      ];
+      const newProject = {
+        ...project,
+        ...extractCityMetadata(project),
+        status: project.status, // AI : Type assertion - null already filtered above
+        overlays: [createOverlayMetadata(overlay, project, filename, authorUsername)],
+        overlayCount: 1,
+      };
+
+      userContributions.value = [newProject, ...userContributions.value];
+
+      // AI : Cache the original project state for change detection
+      if (!originalUserContributions.value[project.id]) {
+        originalUserContributions.value = {
+          ...originalUserContributions.value,
+          [project.id]: { ...newProject } as UserContribution,
+        };
+      }
     }
   }
 
