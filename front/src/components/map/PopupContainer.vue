@@ -57,9 +57,6 @@
     @cancel="cancelSubmission"
     @remove-change="handleRemoveChange"
   />
-
-  <!-- AI : Image Upload Dialog - global dialog rendered here -->
-  <ImageUploadDialog />
 </template>
 
 <script setup lang="ts">
@@ -86,7 +83,6 @@ import type { ApprovalStatus } from '@shared/types';
 const UnifiedProjectPopup = defineAsyncComponent(() => import('./popups/UnifiedProjectPopup.vue'));
 const OverlayEditor = defineAsyncComponent(() => import('./OverlayEditor.vue'));
 const SubmissionConfirmationDialog = defineAsyncComponent(() => import('@/components/submission/SubmissionConfirmationDialog.vue'));
-const ImageUploadDialog = defineAsyncComponent(() => import('@/components/common/ImageUploadDialog.vue'));
 
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
