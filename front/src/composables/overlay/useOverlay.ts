@@ -2,7 +2,7 @@ import L from "leaflet";
 import "leaflet-toolbar";
 import "leaflet-distortableimage";
 import { t } from "@/locales";
-import { map } from "@/composables/core/useMap";
+import { map, currentZoomLevel } from "@/composables/core/useMap";
 import { updateOverlayMarkersColors } from "@/composables/map/useMarkers";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -42,6 +42,7 @@ import {
   createMarker,
 } from "@/composables/overlay/useOverlayMarkers";
 import { imageRequiresCredentials } from "@/utils/imageUrl";
+import { MAP_CONFIG } from "@/constants/mapConstants";
 
 /**
  * AI : Update overlay editing state based on current mode
@@ -646,53 +647,99 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
     overlayObject.caption = `Replacement for ${originalOverlay?.caption ?? "overlay"}`;
   }
 
-  // Create the overlay
-  const newOverlay = createLeafletOverlay(imageUrl, overlayObject);
-  if (!newOverlay) return;
+  // AI : Check if we need to zoom in to make overlay visible
+  const needsZoom = currentZoomLevel.value < MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
+  const projectStore = useProjectStore();
 
-  // AI : Wait for element to load asynchronously - getElement() returns undefined until added to DOM
-  const waitForElement = () => {
-    const element = newOverlay.getElement();
-    if (!element) {
-      // AI : Element not ready yet, try again on next frame
-      requestAnimationFrame(waitForElement);
-      return;
+  // AI : Try to find project in multiple store locations
+  let project = projectStore.projects[projectId] ?? projectStore.allProjects[projectId];
+
+  // AI : If not found in projects or allProjects, check userContributions
+  if (!project) {
+    const userContribution = projectStore.userContributions.find((p) => p.id === projectId);
+    if (userContribution) {
+      // AI : User contributions have lat/lng, use them directly
+      project = userContribution as any; // Type compatible enough for our needs (has lat/lng)
     }
+  }
 
-    L.DomEvent.on(element, "load", () => {
-      if (element.complete && element.naturalWidth > 0) {
-        overlayObject.overlay = newOverlay;
-        overlayObject.corners = newOverlay.getCorners() ?? [];
+  // AI : Function to create and setup the overlay (extracted to be called after zoom if needed)
+  const createAndSetupOverlay = () => {
+    // Create the overlay
+    const newOverlay = createLeafletOverlay(imageUrl, overlayObject);
+    if (!newOverlay) return;
 
-        // AI : Store reference and initialize with proper reactivity
-        overlayStore.addOverlay(id, overlayObject);
-
-        // AI : Create marker with appropriate color based on replacement status
-        createMarker(overlayObject);
-
-        // AI : Add to project AFTER storing in overlays to avoid "not found" error
-        const isFirstOverlay = addOverlayToProjectWithId(projectId, id);
-
-        // AI : Remove standalone project marker when first overlay is added to project
-        if (isFirstOverlay) {
-          removeStandaloneProjectMarkerForProject(projectId);
-        }
-
-        // AI : Add new overlay to city cache so it persists across zoom changes
-        const projectStore = useProjectStore();
-        const project = projectStore.projects[projectId] ?? projectStore.allProjects[projectId];
-        if (project?.city) {
-          addNewOverlayToCityCache(overlayObject, project.city.id);
-        }
-
-        // AI : Automatically select the newly created overlay for immediate positioning
-        selectOverlay(id);
+    // AI : Wait for element to load asynchronously - getElement() returns undefined until added to DOM
+    const waitForElement = () => {
+      const element = newOverlay.getElement();
+      if (!element) {
+        // AI : Element not ready yet, try again on next frame
+        requestAnimationFrame(waitForElement);
+        return;
       }
-    });
+
+      L.DomEvent.on(element, "load", () => {
+        if (element.complete && element.naturalWidth > 0) {
+          overlayObject.overlay = newOverlay;
+          overlayObject.corners = newOverlay.getCorners() ?? [];
+
+          // AI : Store reference and initialize with proper reactivity
+          overlayStore.addOverlay(id, overlayObject);
+
+          // AI : Create marker with appropriate color based on replacement status
+          createMarker(overlayObject);
+
+          // AI : Add to project AFTER storing in overlays to avoid "not found" error
+          const isFirstOverlay = addOverlayToProjectWithId(projectId, id);
+
+          // AI : Remove standalone project marker when first overlay is added to project
+          if (isFirstOverlay) {
+            removeStandaloneProjectMarkerForProject(projectId);
+          }
+
+          // AI : Add new overlay to city cache so it persists across zoom changes
+          if (project?.city) {
+            addNewOverlayToCityCache(overlayObject, project.city.id);
+          }
+
+          // AI : Automatically select the newly created overlay for immediate positioning
+          selectOverlay(id);
+        }
+      });
+    };
+
+    // AI : Start waiting for element to be ready
+    waitForElement();
   };
 
-  // AI : Start waiting for element to be ready
-  waitForElement();
+  // AI : If zoom level is too low, zoom to project location first, then create overlay
+  if (needsZoom && project?.lat != null && project?.lng != null) {
+    const targetZoom = 16; // AI : Zoom level high enough to show overlay clearly
+
+    // AI : Show toast to inform user about auto-zoom
+    const toast = useToast();
+    toast.add({
+      severity: "info",
+      summary: t("overlay.zoomingToProject"),
+      detail: t("overlay.zoomInToSeeOverlay"),
+      life: 4000,
+    });
+
+    mobileAwareFlyTo(L.latLng(project.lat, project.lng), targetZoom, {
+      duration: 1.5,
+      easeLinearity: 0.25,
+    });
+
+    // AI : Wait for zoom to complete before creating overlay
+    if (map.value) {
+      map.value.once("zoomend", () => {
+        createAndSetupOverlay();
+      });
+    }
+  } else {
+    // AI : Zoom is already sufficient, create overlay immediately
+    createAndSetupOverlay();
+  }
 
   return id;
 }

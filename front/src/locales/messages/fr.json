@@ -294,7 +294,9 @@
     "navigateToSave": "Naviguer vers l'image",
     "navigateToSaveDetail": "Cliquez sur la carte d'image pour naviguer et enregistrer les modifications",
     "navigateToEdit": "Naviguer vers l'image",
-    "navigateToEditDetail": "Cliquez sur la carte d'image pour naviguer et la modifier sur la carte"
+    "navigateToEditDetail": "Cliquez sur la carte d'image pour naviguer et la modifier sur la carte",
+    "zoomingToProject": "Zoom vers le projet",
+    "zoomInToSeeOverlay": "Le niveau de zoom était trop faible, zoom automatique pour afficher l'image téléchargée"
   },
   "map": {
     "zoom": "Zoom",
