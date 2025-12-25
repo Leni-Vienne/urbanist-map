@@ -217,18 +217,27 @@ export async function loadCityStandaloneProjects(cityId: number | null): Promise
       ),
     ];
 
-    // AI : Get set of project IDs that have overlays already rendered in the store
-    // AI : This prevents showing standalone project markers for projects that have visible overlays
-    // AI : (e.g., pending overlays visible in edit mode, or overlays from a different mode's cache)
-    const projectIdsWithRenderedOverlays = new Set(
-      Object.values(overlayStore.overlays)
-        .map((overlay) => overlay.projectId)
-        .filter((id): id is string => id !== null && id !== undefined),
-    );
+    // AI : Get set of project IDs that have overlays (either rendered in store OR in city overlay data)
+    // AI : This prevents showing standalone project markers for projects that have overlays
+    // AI : We check BOTH sources because:
+    // AI : - overlayStore.overlays: contains rendered overlays (high zoom)
+    // AI : - mapStore.currentCityOverlays: contains overlay data even when only showing markers (low zoom)
+    const projectIdsFromRenderedOverlays = Object.values(overlayStore.overlays)
+      .map((overlay) => overlay.projectId)
+      .filter((id): id is string => id !== null && id !== undefined);
+
+    const projectIdsFromCityOverlays = mapStore.currentCityOverlays
+      .map((overlay) => overlay.projectId)
+      .filter((id): id is string => id !== null && id !== undefined);
+
+    const projectIdsWithOverlays = new Set([
+      ...projectIdsFromRenderedOverlays,
+      ...projectIdsFromCityOverlays,
+    ]);
 
     allProjectsWithNoOverlays.forEach((project) => {
-      // AI : Skip if project already has overlays rendered on the map
-      if (projectIdsWithRenderedOverlays.has(project.id)) {
+      // AI : Skip if project has overlays (rendered or in city data)
+      if (projectIdsWithOverlays.has(project.id)) {
         return;
       }
 
@@ -315,12 +324,12 @@ export async function loadCityProjects(
         uiStore.closeProjectInfoPopup();
       }
 
-      // AI : Load both overlay projects and standalone projects
+      // AI : Load overlay projects FIRST, then standalone projects SEQUENTIALLY
+      // AI : This prevents race condition where standalone markers appear briefly for projects
+      // AI : that have overlays (standalone loader checks overlayStore.overlays which must be populated first)
       // AI : Pass isSwitchingCity flag to avoid clearing overlays when navigating within same city
-      await Promise.all([
-        loadCityOverlays(cityId, forceFullLoad, isSwitchingCity),
-        loadCityStandaloneProjects(cityId),
-      ]);
+      await loadCityOverlays(cityId, forceFullLoad, isSwitchingCity);
+      await loadCityStandaloneProjects(cityId);
     } else {
       // AI : Just load local standalone projects when no city is selected
       await loadCityStandaloneProjects(null);
