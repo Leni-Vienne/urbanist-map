@@ -231,8 +231,27 @@ export function useSubmissionService() {
   function detectOverlayChanges(overlay: OverlayObject, customReason?: string): FieldChange[] {
     const changes: FieldChange[] = [];
 
-    // AI : Find original overlay data from backend (approved version)
-    const originalOverlay = currentCityOverlays.value.find((o) => o.id === overlay.id);
+    // AI : Find original overlay data from backend
+    // AI : First try approved overlays, then try pending overlays from user contributions
+    let originalOverlay = currentCityOverlays.value.find((o) => o.id === overlay.id);
+
+    if (!originalOverlay) {
+      // AI : For pending overlays, check user contributions cache
+      const contribution = projectStore.userContributions.find((c) =>
+        c.overlays?.some((o) => o.id === overlay.id),
+      );
+      const overlayFromContributions = contribution?.overlays?.find((o) => o.id === overlay.id);
+
+      if (overlayFromContributions) {
+        // AI : Convert to the format we need for comparison
+        // AI : Don't set corners - will use fallback in comparison logic below
+        originalOverlay = {
+          id: overlayFromContributions.id,
+          caption: overlayFromContributions.name,
+        } as any; // AI : Minimal overlay type for comparison
+      }
+    }
+
     if (!originalOverlay) {
       // AI : If no original found, this is a new overlay or we can't detect changes
       return changes;
@@ -257,10 +276,14 @@ export function useSubmissionService() {
       : overlay.corners;
 
     const normalizedCurrentCorners = currentCorners.map((c) => ({ lat: c.lat, lng: c.lng }));
-    const normalizedOriginalCorners = originalOverlay.corners.map((c) => ({
-      lat: c.lat,
-      lng: c.lng,
-    }));
+
+    // AI : Get original corners - for approved overlays use backend data, for pending use stored corners
+    const normalizedOriginalCorners = originalOverlay.corners
+      ? originalOverlay.corners.map((c: { lat: number; lng: number }) => ({
+          lat: c.lat,
+          lng: c.lng,
+        }))
+      : overlay.corners.map((c) => ({ lat: c.lat, lng: c.lng })); // AI : Fallback for pending overlays
 
     if (JSON.stringify(normalizedCurrentCorners) !== JSON.stringify(normalizedOriginalCorners)) {
       changes.push({
@@ -451,6 +474,7 @@ export function useSubmissionService() {
     }
 
     projectStore.updateProject(project.id, { isModified: false, status: "pending" });
+
     projectStore.cacheProjectBackendState(project.id);
 
     const updatedProject = projectStore.projects[project.id];
@@ -476,9 +500,10 @@ export function useSubmissionService() {
     }
 
     if (changeType === "create") {
-      const updatedProjectForContributions = projectStore.projects[project.id];
-      if (updatedProjectForContributions) {
-        projectStore.addProjectToUserContributions(updatedProjectForContributions);
+      // AI : Optimistically add project to contributions (status is already "pending" from line 453)
+      const updatedProject = projectStore.projects[project.id];
+      if (updatedProject) {
+        projectStore.addProjectToUserContributions(updatedProject);
       }
     } else if (changeType === "update_pending") {
       projectStore.updateProjectInUserContributions(project.id, {

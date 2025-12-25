@@ -679,8 +679,17 @@ export function useSubmissionDialog() {
     // AI : Submit project changes for EXISTING modified projects only (not new projects)
     // AI : New projects will be handled by ensureProjectOnServer or submitNewProjectIfApplicable
     const isExistingProject = project && project.status !== null && project.status !== undefined;
-    if (extCtx.projectModified && extCtx.projectId && isExistingProject) {
-      await submitProjectModification(extCtx.projectId, reason);
+
+    // AI : Only submit if project is actually modified AND has detectable changes
+    // AI : This prevents "No changes detected" errors when only overlays changed
+    if (extCtx.projectModified && extCtx.projectId && isExistingProject && project) {
+      // AI : Create project context to detect if there are actual changes
+      const projectContext = submissionService.createProjectContext(project);
+      const projectChanges = submissionService.detectChanges(projectContext);
+
+      if (projectChanges.length > 0) {
+        await submitProjectModification(extCtx.projectId, reason);
+      }
     }
 
     // AI : Submit new project creation if applicable

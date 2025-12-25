@@ -87,6 +87,16 @@ export function useOverlayPublisher() {
 
           return true; // AI : Indicates project ID changed
         }
+
+        // AI : For newly created projects, add to contributions optimistically
+        if (!projectResult.exists) {
+          // AI : Update status locally to match backend
+          projectStore.updateProject(project.id, { status: "pending" });
+          const updatedProject = projectStore.projects[project.id];
+          if (updatedProject) {
+            projectStore.addProjectToUserContributions(updatedProject);
+          }
+        }
       }
 
       return false; // AI : Project ID didn't change
@@ -262,9 +272,10 @@ export function useOverlayPublisher() {
     isPublishing.value = true;
 
     try {
-      // AI : Step 1 - Ensure project exists on server first
+      // AI : Step 1 - Ensure project exists on server first (only for brand new projects)
+      // AI : Skip if project is already published (pending/approved) to avoid duplicate publishProject calls
       let projectIdChanged = false;
-      if (project) {
+      if (project && (project.status === null || project.status === undefined)) {
         projectIdChanged = await ensureProjectOnServer(project);
         if (projectIdChanged) {
           overlay.projectId = project.id;
@@ -287,6 +298,10 @@ export function useOverlayPublisher() {
         overlay.status = publishResult.status as ApprovalStatus;
         overlay.authorId = publishResult.authorId ?? null;
         overlay.isModified = false;
+
+        // AI : CRITICAL: Update imageUrl to server URL to prevent re-upload on next save
+        // AI : Build the server URL from the filename
+        overlay.imageUrl = `${getApiUrl()}/api/images/${filename}`;
 
         // AI : Synchronize ID change across all stores if ID changed
         if (oldId !== newId) {
