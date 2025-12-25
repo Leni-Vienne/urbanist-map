@@ -44,8 +44,6 @@ export function useAllContributions() {
       (overlay) => overlay.status === null || overlay.status === undefined,
     );
 
-    console.log("[useAllContributions] Found local overlays:", localOverlays.length);
-
     for (const overlay of localOverlays) {
       if (!overlay.projectId) continue;
 
@@ -78,12 +76,6 @@ export function useAllContributions() {
 
         // AI : Check if overlay already exists (avoid duplicates)
         if (!parentProject.overlays.some((o) => o.id === overlay.id)) {
-          console.log(
-            "[useAllContributions] Adding local overlay to existing project:",
-            overlay.id,
-            "project:",
-            overlay.projectId,
-          );
           parentProject = {
             ...parentProject,
             overlays: [...parentProject.overlays, localOverlayData],
@@ -97,10 +89,6 @@ export function useAllContributions() {
         const localProject = projectStore.projects[overlay.projectId];
 
         if (localProject && localProject.ownerId === user.id) {
-          console.log(
-            "[useAllContributions] Creating new project contribution for local overlay:",
-            overlay.id,
-          );
           // AI : Create new contribution entry for local project
           // AI : Use type assertion for local project with null status
           const newContribution = {
@@ -224,7 +212,6 @@ export function useAllContributions() {
       (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
     );
 
-    console.log("[useAllContributions] Total merged contributions:", result.length);
     return result;
   });
 

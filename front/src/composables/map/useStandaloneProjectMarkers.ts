@@ -81,10 +81,24 @@ export function removeStandaloneProjectMarkerForProject(projectId: string): void
  * This is called when switching cities to prevent marker accumulation
  */
 export function clearAllStandaloneProjectMarkers(): void {
+  // AI : Properly remove all markers and their event listeners
+  standaloneProjectMarkerMap.forEach((marker) => {
+    if (marker) {
+      // AI : Remove all event listeners before removing from map
+      marker.off();
+      // AI : Remove from layer if it exists
+      if (standaloneProjectsLayer?.hasLayer(marker)) {
+        standaloneProjectsLayer.removeLayer(marker);
+      }
+    }
+  });
+
+  // AI : Now remove the layer from map
   if (standaloneProjectsLayer && map.value) {
     map.value.removeLayer(standaloneProjectsLayer);
     standaloneProjectsLayer = null;
   }
+
   standaloneProjectMarkerMap.clear();
   selectedStandaloneProjectMarker = null;
 }

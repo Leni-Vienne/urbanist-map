@@ -42,6 +42,19 @@ let cityMarkersLayer: L.LayerGroup | null = null;
 // AI : Map to store city ID to marker references for easy lookup
 const cityMarkerMap = new Map<string, L.Marker>();
 
+// AI : Track city markers for unsaved projects (cityId  city data)
+// AI : These markers are preserved when rebuilding city marker layer from backend data
+const unsavedCityMarkers = new Map<
+  number,
+  {
+    name: string;
+    nameLocal: string | null;
+    lat: number;
+    lng: number;
+    countryCode: string;
+  }
+>();
+
 // AI : Flag to ensure watcher is only set up once
 let modeWatcherInitialized = false;
 
@@ -340,6 +353,13 @@ export async function loadCityProjects(
 }
 
 /**
+ * AI : Clear unsaved city markers (called when switching countries)
+ */
+export function clearUnsavedCityMarkers(): void {
+  unsavedCityMarkers.clear();
+}
+
+/**
  * AI : Remove city markers from the map
  * AI : NOTE: This does NOT remove standalone project markers - they are managed separately
  * AI : Standalone project markers persist across city marker reloads and are only cleared when changing cities
@@ -351,6 +371,8 @@ export function removeCityMarkers(): void {
   }
 
   cityMarkerMap.clear();
+  // AI : Don't clear unsaved city markers - they should persist across country switches
+  // AI : and will be filtered by country when displayed via addCityMarkersToMapInternal
 }
 
 /**
@@ -422,14 +444,17 @@ function getCityMarkerConfig(): MarkerLayerConfig<CityWithProjects> {
 /**
  * AI : Add a single city marker without replacing existing ones
  */
-export function addSingleCityMarker(city: {
-  id: number;
-  name: string;
-  nameLocal: string | null;
-  lat: number;
-  lng: number;
-  countryCode: string;
-}): void {
+export function addSingleCityMarker(
+  city: {
+    id: number;
+    name: string;
+    nameLocal: string | null;
+    lat: number;
+    lng: number;
+    countryCode: string;
+  },
+  isUnsaved = false,
+): void {
   if (!map.value) {
     console.error("Map not initialized when trying to add city marker");
     return;
@@ -454,23 +479,37 @@ export function addSingleCityMarker(city: {
     marker.addTo(cityMarkersLayer!);
     cityMarkerMap.set(cityId, marker);
   });
+
+  // AI : Track if this is an unsaved city marker
+  if (isUnsaved) {
+    unsavedCityMarkers.set(city.id, {
+      name: city.name,
+      nameLocal: city.nameLocal,
+      lat: city.lat,
+      lng: city.lng,
+      countryCode: city.countryCode,
+    });
+  }
 }
 
 /**
  * AI : Add city markers for a specific country
  */
-export function addCityMarkersForCountry(cities: CityWithProjects[]): void {
+export function addCityMarkersForCountry(cities: CityWithProjects[], countryCode?: string): void {
   if (!map.value) {
     console.error("Map not initialized when trying to add city markers for country");
     return;
   }
-  addCityMarkersToMapInternal(cities);
+  addCityMarkersToMapInternal(cities, countryCode);
 }
 
 /**
  * AI : Internal function to add city markers to map
  */
-function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
+function addCityMarkersToMapInternal(
+  cities: CityWithProjects[],
+  explicitCountryCode?: string,
+): void {
   if (!map.value) return;
 
   // AI : Remove existing layer to prevent stacking
@@ -478,9 +517,24 @@ function addCityMarkersToMapInternal(cities: CityWithProjects[]): void {
     map.value.removeLayer(cityMarkersLayer);
   }
 
+  // AI : Determine country code from explicit parameter or derive from cities
+  const countryCode = explicitCountryCode ?? (cities.length > 0 ? cities[0].countryCode : null);
+
+  // AI : Merge backend cities with unsaved city markers for THIS country only
+  const unsavedCities: CityWithProjects[] = [...unsavedCityMarkers.entries()]
+    .filter(([cityId, cityData]) => {
+      // AI : Only include unsaved markers for the current country
+      if (countryCode && cityData.countryCode !== countryCode) return false;
+      // AI : Don't include if city already exists in backend data
+      return !cities.some((c) => c.id === cityId);
+    })
+    .map(([cityId, cityData]) => Object.assign({ id: cityId, projectCount: 0 }, cityData));
+
+  const allCities = [...cities, ...unsavedCities];
+
   // AI : Use shared config to create markers
   const config = getCityMarkerConfig();
-  const result = createMarkerLayer(cities, config);
+  const result = createMarkerLayer(allCities, config);
   cityMarkersLayer = result.layer;
 
   // AI : Store markers for lookup
