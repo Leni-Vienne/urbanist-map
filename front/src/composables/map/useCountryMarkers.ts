@@ -12,6 +12,8 @@ import { trpc } from "@/client";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useModerationStore } from "@/stores/pinia/moderationStore";
+import { useAuthStore } from "@/stores/authStore";
 import { storeToRefs } from "pinia";
 import { withErrorHandling } from "@/composables/core/useErrorHandling";
 import type { Country } from "@/types/index";
@@ -219,6 +221,13 @@ export function addCountryMarkersToMap() {
 
       // AI : Prepare country context (clear map, load cities, add markers)
       await prepareCountryContext(country.code);
+
+      // AI : If user is admin/moderator, also update moderation panel's selected country
+      const authStore = useAuthStore();
+      if (authStore.isModerator) {
+        const moderationStore = useModerationStore();
+        moderationStore.setSelectedCountryCode(country.code);
+      }
     },
   };
 
