@@ -201,7 +201,7 @@ export function createLeafletOverlay(imageUrl: string, overlayObject?: OverlayOb
       // AI : Wait for zoom animation to complete
       map.value.once("zoomend", addOverlayWhenReady);
     } else {
-      // Only add if zoom is appropriate
+      // AI : No animation - add immediately if zoom is appropriate
       addOverlayWhenReady();
     }
     overlayObject.overlay = newOverlay;
@@ -469,7 +469,9 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
 
   overlayObjectWithMethods.overlay = newOverlay;
   overlayObjectWithMethods.marker = overlayStore.allMarkers[cdnOverlay.id];
-  overlayStore.overlays[cdnOverlay.id] = overlayObjectWithMethods;
+
+  // AI : Store overlay with proper reactivity
+  overlayStore.addOverlay(cdnOverlay.id, overlayObjectWithMethods);
 
   // AI : Remove standalone project marker for this project since we now have an overlay visible
   // AI : This handles the case where a project had only pending overlays (shown as a standalone project marker in view mode)
@@ -662,8 +664,8 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
         overlayObject.overlay = newOverlay;
         overlayObject.corners = newOverlay.getCorners() ?? [];
 
-        // Store reference and initialize
-        overlayStore.overlays[id] = overlayObject;
+        // AI : Store reference and initialize with proper reactivity
+        overlayStore.addOverlay(id, overlayObject);
 
         // AI : Create marker with appropriate color based on replacement status
         createMarker(overlayObject);
