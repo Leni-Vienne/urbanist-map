@@ -171,14 +171,29 @@ const overlayObject = computed(() => {
 
 // AI : Helper to convert backend project data and add to store
 function convertAndCacheBackendProject(backendProject: Omit<DBProject, 'status'> & { status: ApprovalStatus | null; city: DBCity }): Project {
+  // AI : CRITICAL: If project already exists, just return it to preserve overlayIds
+  // AI : This fixes bug where opening info popup clears overlayIds, breaking arrow navigation
+  const existingProject = projects.value[backendProject.id];
+  if (existingProject) {
+    return existingProject;  // AI : Don't create new project, return existing one!
+  }
+
+
+  // AI : Project doesn't exist yet, create new one
+  // AI : CRITICAL: Populate overlayIds from currently loaded overlays for this project
+  // AI : Otherwise arrow navigation breaks (thinks there are 0 overlays)
+  const overlaysForProject = Object.values(overlays.value)
+    .filter(o => o.projectId === backendProject.id)
+    .map(o => o.id);
+
   const convertedProject: Project = {
     ...backendProject,
     name: backendProject.name,
     city: backendProject.city,
-    overlayIds: []
+    overlayIds: overlaysForProject  // AI : Use actual loaded overlays, not empty array!
   };
 
-  // AI : Add to store for future use
+  // AI : Add to store for future use (or update if already exists)
   if (!projects.value[backendProject.id]) {
     projects.value = {
       ...projects.value,
