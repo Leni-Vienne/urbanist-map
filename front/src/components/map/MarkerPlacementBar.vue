@@ -2,20 +2,20 @@
   <!-- AI : Floating bar for marker placement, positioned inside map container -->
   <Teleport to="#mapDiv">
     <!-- AI : Semi-transparent backdrop to focus attention on map -->
-    <div
-      v-if="markerPlacementMode && visible"
-      class="marker-placement-backdrop"
-    ></div>
+    <div v-if="markerPlacementMode && visible" class="marker-placement-backdrop"></div>
 
-    <div
-      v-if="markerPlacementMode && visible"
-      class="marker-placement-bar"
-    >
+    <div v-if="markerPlacementMode && visible" class="marker-placement-bar" @click.stop>
       <div class="placement-content">
         <i class="pi pi-map-marker placement-icon"></i>
         <div class="placement-text">
-          <span v-if="!markerCoordinates" class="instruction">{{ $t('project.clickMapToPlace') }}</span>
-          <span v-else class="coordinates-text">{{ markerCoordinates.lat.toFixed(5) }}, {{ markerCoordinates.lng.toFixed(5) }}</span>
+          <span
+            v-if="!markerCoordinates"
+            class="instruction"
+            >{{ $t('project.clickMapToPlace') }}</span
+          >
+          <span v-else class="coordinates-text"
+            >{{ markerCoordinates.lat.toFixed(5) }}, {{ markerCoordinates.lng.toFixed(5) }}</span
+          >
         </div>
       </div>
       <div class="placement-actions">
@@ -25,12 +25,7 @@
           size="small"
           @click="onContinue"
         />
-        <Button
-          :label="$t('common.cancel')"
-          severity="secondary"
-          size="small"
-          @click="onCancel"
-        />
+        <Button :label="$t('common.cancel')" severity="secondary" size="small" @click="onCancel" />
       </div>
     </div>
     <!-- AI : Cursor-following marker icon until first click -->
@@ -159,6 +154,7 @@ defineExpose({
   background: rgba(0, 0, 0, 0.3);
   z-index: 1998;
   pointer-events: none;
+  /* AI : Allow clicks through to map for repositioning */
 }
 
 /* AI : Floating marker placement bar - positioned relative to map container */
