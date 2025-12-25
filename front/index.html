@@ -1,32 +1,62 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="A collaborative map to track construction projects worldwide"
+    />
+    <title>Construction Map</title>
 
-<head>
-  <meta charset="UTF-8">
-  <link
-    rel="icon"
-    href="/favicon.ico"
-  >
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
-  <title>Construction Map</title>
-</head>
+    <!-- AI : Preconnect to unpkg.com to reduce Leaflet loading time -->
+    <link rel="dns-prefetch" href="https://unpkg.com" />
+    <link rel="preconnect" href="https://unpkg.com" crossorigin />
 
-<body>
-  <div id="app"></div>
-  <script
-    type="module"
-    src="/src/main.ts"
-  ></script>
-</body>
+    <!-- AI : Leaflet CSS from CDN -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
 
+    <!-- AI : Load Leaflet JS early to avoid critical request chaining -->
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+      defer
+    ></script>
+
+    <!-- AI : Import map to redirect only core leaflet imports to CDN shim -->
+    <script type="importmap">
+      {
+        "imports": {
+          "leaflet": "/src/lib/leaflet-umd-shim.js"
+        }
+      }
+    </script>
+
+    <!-- AI : Cloudflare Turnstile (CAPTCHA) -->
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  </head>
+
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
 </html>
 
 <style>
   html,
   body {
     font-family: Arial, sans-serif;
+  }
+
+  /* AI : Black background only for map page, not admin pages */
+  body:has(#app > .home-view) {
+    background-color: black;
   }
 </style>

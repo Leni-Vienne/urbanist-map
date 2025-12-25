@@ -1,121 +1,236 @@
 <template>
-  <!-- AI : Mobile backdrop overlay -->
-  <div 
-    v-if="isOpen" 
-    class="mobile-backdrop" 
-    @click="$emit('close')"
-  ></div>
-  
-  <div
-    class="sidecolumn"
-    :class="{ 'sidecolumn--collapsed': !isOpen }"
-  >
-    <div class="sidecolumn__content">
-      <!-- AI : Dynamic content based on current panel -->
-      <component 
-        :is="currentPanel" 
-        @close="$emit('close')"
+  <div class="sidecolumn" :class="{ 'sidecolumn--collapsed': !isOpen }">
+    <!-- AI : Fixed header containing title, close button, and navigation tabs -->
+    <div class="sidecolumn__header">
+      <div class="header-top">
+        <h2 class="site-title">{{ $t('app.title') }}</h2>
+        <div class="header-actions">
+          <Button
+            icon="pi pi-times"
+            class="p-button-text p-button-rounded close-button"
+            @click="$emit('close')"
+            :aria-label="$t('app.closePanel')"
+          />
+        </div>
+      </div>
+
+      <!-- AI : Tab navigation inside fixed header -->
+      <PanelTabs
+        v-model:active-tab="activeTab"
+        tab-container-class="tab-navigation"
+        tab-button-class="tab-button"
       />
+    </div>
+
+    <!-- AI : Scrollable content area -->
+    <PanelContent :active-tab="activeTab" content-container-class="sidecolumn__content" />
+
+    <!-- AI : Footer with legal links -->
+    <div class="sidecolumn__footer">
+      <a href="/legal" class="footer-link">{{ $t("footer.legalMentions") }}</a>
+      <span class="footer-separator">•</span>
+      <a href="/contact" class="footer-link">{{ $t("footer.contact") }}</a>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, type Component } from 'vue'
+import { ref, watch } from 'vue'
+import PanelContent from './PanelContent.vue'
+import PanelTabs from './PanelTabs.vue'
+import { usePanelTabs } from '@/composables/layout/usePanelTabs'
+import { useOverlayStore } from '@/stores/pinia/overlayStore'
+import { useMapStore } from '@/stores/pinia/mapStore'
+import type { PanelTab } from '@/types'
 
-// AI : Lazy load ModerationPanel to reduce initial bundle size
-const ModerationPanel = defineAsyncComponent(() => import('./ModerationPanel.vue'))
-
-const props = defineProps<{
+defineProps<{
   isOpen: boolean
-  panel?: string
+  isModerator?: boolean
 }>()
 
 defineEmits<{
   close: []
 }>()
 
-// AI : Map of available panels
-const panels: Record<string, Component> = {
-  moderation: ModerationPanel,
-  // AI : Add more panels here as needed
-}
+// AI : Local tab state
+const activeTab = ref<PanelTab>('latest')
 
-// AI : Default to moderation panel if no panel specified
-const currentPanel = computed(() => {
-  return panels[props.panel ?? 'moderation'] ?? ModerationPanel
+// AI : Watch for overlay selection and auto-switch to Current City tab (only in view mode)
+const overlayStore = useOverlayStore()
+const mapStore = useMapStore()
+watch(() => overlayStore.idSelectedOverlay, (overlayId) => {
+  // AI : When an overlay is selected and we have a city loaded, switch to Current City tab
+  // AI : Only do this in view mode - in edit/moderation modes, preserve the current workflow
+  if (overlayId && mapStore.selectedCity && overlayStore.mode === 'view') {
+    activeTab.value = 'currentCity'
+  }
 })
+
+// AI : Watch for city changes and auto-switch tabs based on city state
+// AI : This makes standalone projects behave like overlays when clicked from latest contributions
+// AI : AND ensures we don't stay on Current City tab when there's no city selected
+let previousCityId = mapStore.selectedCity?.id
+watch(() => mapStore.selectedCity, (newCity) => {
+  // AI : Case 1: City was selected (either new or changed from another city)
+  // AI : Switch to Current City tab only if coming from Latest tab
+  if (newCity && newCity.id !== previousCityId && activeTab.value === 'latest') {
+    activeTab.value = 'currentCity'
+  }
+
+  // AI : Case 2: City was cleared (e.g., by clicking a country marker)
+  // AI : Switch away from Current City tab to avoid showing empty state
+  if (!newCity && previousCityId && activeTab.value === 'currentCity') {
+    activeTab.value = 'latest'
+  }
+
+  previousCityId = newCity?.id
+})
+
+// AI : Initialize shared tab logic (mode syncing, authentication watchers)
+usePanelTabs(activeTab)
 </script>
 
 <style scoped>
-/* AI : Mobile backdrop for overlay */
-.mobile-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 999;
-  display: none;
-}
-
 .sidecolumn {
+  /* to make the accordion header highlight on hover */
+  --p-accordion-header-hover-background: var(--p-surface-100);
+  --p-accordion-header-active-hover-background: var(--p-surface-100);
+
   position: relative;
   flex-shrink: 0;
-  width: 300px;
-  height: 100%;
-  background-color: #f8f9fa;
-  border-right: 1px solid #dee2e6;
-  transition: width 0.3s ease-in-out;
+  width: 380px;
+  height: 100vh;
+  max-height: 100vh;
+  background-color: var(--p-surface-0);
+  border-right: 1px solid var(--p-surface-200);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  transition: all 300ms ease-in-out;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  z-index: 1000;
 }
+
 
 .sidecolumn--collapsed {
   width: 0;
   border-right: none;
+  overflow: hidden;
 }
 
-.sidecolumn__content {
-  height: 100%;
-  overflow: hidden;
+.sidecolumn__header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  flex-shrink: 0;
+  background-color: var(--p-surface-0);
+  border-bottom: 1px solid var(--p-surface-100);
+}
+
+.header-top {
+  padding: 1rem 1.5rem 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+
+.site-title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  color: var(--p-surface-800);
+}
+
+.header-actions {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.close-button {
+  display: none;
+  color: var(--p-surface-500);
+}
+
+/* AI : Deep selector to apply overflow to content container passed to PanelContent */
+:deep(.sidecolumn__content) {
+  flex: 1;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  scrollbar-gutter: stable;
 }
+
 
 /* AI : Mobile responsive styles */
 @media (max-width: 768px) {
-  .mobile-backdrop {
-    display: block;
+
+  .close-button {
+    display: flex;
   }
-  
+
+  .site-title {
+    font-size: 1.375rem;
+  }
+
   .sidecolumn {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
+    width: 85%;
+    max-width: 380px;
     height: 100vh;
     transform: translateX(-100%);
     transition: transform 0.3s ease-in-out;
     border-right: none;
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
   }
-  
+
   .sidecolumn:not(.sidecolumn--collapsed) {
     transform: translateX(0);
   }
-  
+
   .sidecolumn--collapsed {
-    width: 100%;
+    width: 85%;
+    max-width: 380px;
     transform: translateX(-100%);
   }
 }
 
-/* AI : Tablet responsive styles */
-@media (min-width: 769px) and (max-width: 1024px) {
-  .sidecolumn {
-    width: 400px;
-  }
+/* AI : Footer with legal links */
+.sidecolumn__footer {
+  flex-shrink: 0;
+  padding: 0.5rem;
+  background: var(--p-surface-50);
+  border-top: 1px solid var(--p-surface-100);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.footer-link {
+  color: var(--p-surface-600);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--p-surface-400);
+  font-size: 0.75rem;
+  transition: all 0.15s ease;
+}
+
+.footer-link:hover {
+  color: var(--p-primary-600);
+  text-decoration-color: var(--p-primary-600);
+}
+
+.footer-separator {
+  color: var(--p-surface-400);
+  font-size: 0.75rem;
 }
 </style>

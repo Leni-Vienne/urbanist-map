@@ -1,4 +1,4 @@
-declare module 'primevue/config' {
+declare module "primevue/config" {
   interface PrimeVueConfiguration {
     ripple?: boolean;
     inputStyle?: string;

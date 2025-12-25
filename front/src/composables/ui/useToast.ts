@@ -1,7 +1,8 @@
-import ToastEventBus from 'primevue/toasteventbus';
+// @ts-expect-error AI : PrimeVue toasteventbus lacks type declarations
+import ToastEventBus from "primevue/toasteventbus";
 
-export interface ToastMessage {
-  severity?: 'success' | 'info' | 'warn' | 'error';
+interface ToastMessage {
+  severity?: "success" | "info" | "warn" | "error";
   summary?: string;
   detail?: string;
   life?: number;
@@ -9,7 +10,7 @@ export interface ToastMessage {
   closable?: boolean;
 }
 
-export interface ToastServiceMethods {
+interface ToastServiceMethods {
   add(message: ToastMessage): void;
   remove(message: ToastMessage): void;
   removeGroup(group: string): void;
@@ -22,16 +23,16 @@ export interface ToastServiceMethods {
 export function useToast(): ToastServiceMethods {
   return {
     add: (message) => {
-      ToastEventBus.emit('add', message);
+      ToastEventBus.emit("add", message);
     },
     remove: (message) => {
-      ToastEventBus.emit('remove', message);
+      ToastEventBus.emit("remove", message);
     },
     removeGroup: (group) => {
-      ToastEventBus.emit('remove-group', group);
+      ToastEventBus.emit("remove-group", group);
     },
     removeAllGroups: () => {
-      ToastEventBus.emit('remove-all-groups');
-    }
+      ToastEventBus.emit("remove-all-groups");
+    },
   };
 }

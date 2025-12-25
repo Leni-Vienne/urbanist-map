@@ -7,15 +7,34 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-.wrangler
-.dev.vars
 .claude
 CLAUDE.md
 .mcp.json
-.clinerules
+*instructions.md
 .github/instructions
+.serena
+.playwright-mcp
+prompts
+.specify
+report
+
+.env.test
+test-results
+test-results.json
+playwright-report
+playwright/.cache/
+
+# Test credentials - never commit
+.env.test.local
+tests/auth-state.json
 
 junk
+components.d.ts
+*report.md
+deps-analysis.json
+.nyc_output
+coverage
+*.puml
 .secrets
 stats.html
 .dev.vars
@@ -24,16 +43,21 @@ codebase_combined.txt
 combine.sh
 issues.json
 server.bundle.js
-countries.csv
 worldcities.csv
 specs.md
+bundle.md
+analyze_index_only.cjs
+
+!geonames-data
+geonames-data/*
+!geonames-data/countries.csv
+
 
 uploads
 node_modules
 .DS_Store
 dist
 dist-ssr
-coverage
 *.local
 .env
 
@@ -41,8 +65,6 @@ coverage
 /cypress/screenshots/
 
 # Editor directories and files
-.vscode
-!.vscode/extensions.json
 .idea
 *.suo
 *.ntvs*
