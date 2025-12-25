@@ -294,7 +294,9 @@
     "navigateToSave": "Navigate to Overlay",
     "navigateToSaveDetail": "Click on the overlay card to navigate and save changes",
     "navigateToEdit": "Navigate to Overlay",
-    "navigateToEditDetail": "Click on the overlay card to navigate and edit it on the map"
+    "navigateToEditDetail": "Click on the overlay card to navigate and edit it on the map",
+    "zoomingToProject": "Zooming to Project",
+    "zoomInToSeeOverlay": "Zoom level was too low, automatically zooming in to show the uploaded image"
   },
   "map": {
     "zoom": "Zoom",
