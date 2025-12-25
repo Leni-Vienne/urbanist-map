@@ -254,6 +254,21 @@ function handleCountryChange() {
   fetchPendingSubmissions()
 }
 
+// AI : Watch for external changes to moderationStore.selectedCountryCode (e.g., from country marker clicks)
+// AI : This ensures the moderation panel loads data when country is selected from the map
+watch(
+  () => moderationStore.selectedCountryCode,
+  (newCountryCode) => {
+    if (newCountryCode !== selectedCountryCode.value) {
+      selectedCountryCode.value = newCountryCode
+      if (newCountryCode) {
+        moderationStore.resetModerationLoaded()
+        fetchPendingSubmissions()
+      }
+    }
+  }
+)
+
 // AI : Get pending count for a specific country
 function getPendingCount(countryCode: string): number {
   return moderationStore.pendingCountsByCountry.get(countryCode) ?? 0
