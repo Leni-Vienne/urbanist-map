@@ -192,6 +192,7 @@ export type OverlayForModeration = Pick<
   cityName: string | null;
   countryCode: string | null;
   countryName: string | null;
+  imageUrl?: string; // AI : Optional for local overlays not yet uploaded
 };
 
 export type ProjectForModeration = Pick<
