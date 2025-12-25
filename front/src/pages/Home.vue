@@ -56,6 +56,9 @@
       v-model:visible="uiStore.moderatedContributionsDialogVisible"
       @close="uiStore.closeModeratedContributionsDialog"
     />
+
+    <!-- AI : Image Upload Dialog - always rendered so it's available from any part of the app -->
+    <ImageUploadDialog v-if="uiStore.imageUploadDialog.visible" />
   </div>
 </template>
 
@@ -93,6 +96,9 @@ const ProjectManager = defineAsyncComponent(
 // AI : Async import for non-critical dialog - only loaded when needed
 const ModeratedContributionsDialog = defineAsyncComponent(
     () => import("@/components/moderation/ModeratedContributionsDialog.vue"),
+);
+const ImageUploadDialog = defineAsyncComponent(
+    () => import("@/components/common/ImageUploadDialog.vue"),
 );
 
 // AI : Create refs to track app state
