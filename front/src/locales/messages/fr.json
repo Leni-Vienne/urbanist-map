@@ -153,8 +153,9 @@
     "createProjectMarkerDescription": "Placer un marqueur pour un nouveau projet de construction"
   },
   "status": {
-    "pending": "En attente",
     "approved": "Approuvé",
+    "draft": "Brouillon",
+    "pending": "En attente",
     "rejected": "Rejeté",
     "replaced": "Remplacé",
     "conflicted": "En conflit",

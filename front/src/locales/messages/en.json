@@ -153,8 +153,9 @@
     "createProjectMarkerDescription": "Place a marker for a new construction project"
   },
   "status": {
-    "pending": "Pending",
     "approved": "Approved",
+    "draft": "Draft",
+    "pending": "Pending",
     "rejected": "Rejected",
     "replaced": "Replaced",
     "conflicted": "Conflicted",
