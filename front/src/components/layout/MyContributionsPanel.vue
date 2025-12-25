@@ -7,8 +7,8 @@
     :should-switch-to-edit-mode="false"
     title=""
     panel-class="my-contributions-panel"
-    :empty-message="projects.length > 0 && filteredProjects.length === 0 ? $t('contributions.noProjectsMatchFilter') : $t('contributions.noProjectsFound')"
-    :empty-sub-message="projects.length > 0 && filteredProjects.length === 0 ? $t('contributions.tryChangingFilters') : $t('contributions.createFirstProject')"
+    :empty-message="allContributions.length > 0 && filteredProjects.length === 0 ? $t('contributions.noProjectsMatchFilter') : $t('contributions.noProjectsFound')"
+    :empty-sub-message="allContributions.length > 0 && filteredProjects.length === 0 ? $t('contributions.tryChangingFilters') : $t('contributions.createFirstProject')"
   >
     <template #project-actions="{ project }">
       <!-- AI : Edit button - navigates to project for editing -->
@@ -141,11 +141,11 @@
     <template #empty-state>
       <i class="pi pi-folder text-5xl text-surface-400 mb-4"></i>
       <p class="text-base mb-2">
-        {{ projects.length > 0 && filteredProjects.length === 0 ? $t('contributions.noProjectsMatchFilter') :
+        {{ allContributions.length > 0 && filteredProjects.length === 0 ? $t('contributions.noProjectsMatchFilter') :
           $t('contributions.noProjectsFound') }}
       </p>
       <p class="text-sm">
-        {{ projects.length > 0 && filteredProjects.length === 0 ? $t('contributions.tryChangingFilters') :
+        {{ allContributions.length > 0 && filteredProjects.length === 0 ? $t('contributions.tryChangingFilters') :
           $t('contributions.createFirstProject') }}
       </p>
     </template>
@@ -170,6 +170,7 @@ import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import { useToast } from '@/composables/ui/useToast'
 import { useChangeRequests } from '@/composables/changes/useChanges'
 import { useUserContributions } from '@/composables/project/useUserContributions'
+import { useAllContributions, type UserContribution, type UserContributionOverlay } from '@/composables/project/useAllContributions'
 import { useModeratedContributions } from '@/composables/moderation/useModeratedContributions'
 import { useUiStore } from '@/stores/uiStore'
 import { useOverlayStore } from '@/stores/pinia/overlayStore'
@@ -184,15 +185,16 @@ import type { ProjectForModeration, OverlayForModeration, OverlayObject, Project
 const SubmissionConfirmationDialog = defineAsyncComponent(() => import('@/components/submission/SubmissionConfirmationDialog.vue'))
 
 
-// AI : Type definitions from tRPC backend responses
-type UserContribution = RouterOutput['project']['getUsersContributions']['projects'][number]
-type UserContributionOverlay = UserContribution['overlays'][number]
+// AI : Type definition from tRPC backend response for change requests
 type ChangeRequest = RouterOutput['changes']['getPendingChangeRequests'][0]
 
 const { t } = useI18n()
 
-// AI : Use cached composable for user contributions
-const { projects, isLoading, fetchUserContributions } = useUserContributions()
+// AI : Use cached composable for user contributions (backend only)
+const { isLoading, fetchUserContributions } = useUserContributions()
+
+// AI : Use all contributions composable (merged local + backend)
+const { allContributions } = useAllContributions()
 
 // AI : Use deletion composable for delete operations
 const { handleDeleteOverlay: deleteOverlayWithMarker, handleDeleteProject: deleteProjectWithConfirm } = useProjectDeletion()
@@ -229,6 +231,7 @@ const toast = useToast()
 const { pendingChangeRequests, refreshPendingChangeRequests, deleteChangeRequest } = useChangeRequests()
 
 // AI : Computed filtered projects based on two independent checkboxes
+// AI : Now uses allContributions which includes local-only projects/overlays
 const filteredProjects = computed(() => {
   // AI : If neither checkbox is selected, show nothing
   if (!showPending.value && !showApproved.value) {
@@ -237,16 +240,19 @@ const filteredProjects = computed(() => {
 
   // AI : If both are selected, show everything
   if (showPending.value && showApproved.value) {
-    return projects.value
+    return allContributions.value
   }
 
   // AI : Filter based on which checkbox(es) are selected
-  return projects.value.filter(project => {
-    const isPending = project.status === 'pending'
+  return allContributions.value.filter(project => {
+    // AI : Treat unsaved/unsubmitted projects (status === null) as pending
+    const isPending = project.status === 'pending' || project.status === null || project.status === undefined
     const isApproved = project.status === 'approved' || project.status === 'rejected' || project.status === 'replaced'
 
-    // AI : Check if project has pending overlays/changes (contributes to "pending")
-    const hasPendingOverlays = project.overlays?.some((overlay: UserContributionOverlay) => overlay.status === 'pending') ?? false
+    // AI : Check if project has pending or unsaved overlays/changes (contributes to "pending")
+    const hasPendingOverlays = project.overlays?.some((overlay: UserContributionOverlay) =>
+      overlay.status === 'pending' || overlay.status === null || overlay.status === undefined
+    ) ?? false
     const hasPendingChanges = pendingChangeRequests.value.some(change => {
       if (change.entityType === 'project' && change.entityId === project.id) {
         return true
@@ -275,7 +281,7 @@ const filteredProjects = computed(() => {
 // AI : Delete handlers with confirmation
 async function handleDeleteOverlayClick(overlay: OverlayForModeration) {
   // AI : Find the project that contains this overlay
-  const project = projects.value.find(project =>
+  const project = allContributions.value.find((project: UserContribution) =>
     project.overlays?.some((overlayElement: UserContributionOverlay) => overlayElement.id === overlay.id)
   )
 
@@ -377,10 +383,10 @@ function isProjectModified(projectId: string): boolean {
   if (hasNewOverlays) return true
 
   // AI : Also check all overlays for this project from user contributions
-  const project = projects.value.find(p => p.id === projectId)
+  const project = allContributions.value.find((p: UserContribution) => p.id === projectId)
   if (!project?.overlays) return false
 
-  return project.overlays.some(overlay => isOverlayModified(overlay.id))
+  return project.overlays.some((overlay: UserContributionOverlay) => isOverlayModified(overlay.id))
 }
 
 // AI : Get save button tooltip based on project status and modification state
@@ -408,8 +414,8 @@ async function handleSaveProjectClick(project: ProjectForModeration) {
 
 // AI : Handle edit project click - opens project edit form
 function handleEditProjectClick(project: ProjectForModeration) {
-  // AI : Get the latest project data from userContributions (not the potentially stale passed parameter)
-  const latestProjectData = projects.value.find((p: UserContribution) => p.id === project.id)
+  // AI : Get the latest project data from allContributions (not the potentially stale passed parameter)
+  const latestProjectData = allContributions.value.find((p: UserContribution) => p.id === project.id)
   const projectToEdit = latestProjectData ?? project
 
   // AI : Open the project edit form via uiStore

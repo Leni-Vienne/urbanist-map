@@ -72,7 +72,7 @@
                     <AccordionHeader>
                       <div class="accordion-header-content">
                         <span class="project-name">{{ project.name }}</span>
-                        <!-- AI : Show normal status tag (handle null for unsubmitted projects) -->
+                        <!-- AI : Show normal status tag (handle null/undefined for unsubmitted projects) -->
                         <Tag
                           v-if="!hideStatusBadges"
                           :value="$t(`status.${project.status ?? 'draft'}`)"
@@ -206,10 +206,10 @@
                             >
                               <img
                                 v-if="shouldShowOverlays(project) && !imageErrors[overlay.id]"
-                                :src="getOverlayImageUrl(overlay.filename, overlay.status)"
+                                :src="overlay.imageUrl || getOverlayImageUrl(overlay.filename, overlay.status)"
                                 :alt="overlay.name"
                                 class="w-full h-full object-cover"
-                                :crossorigin="imageRequiresCredentials(getOverlayImageUrl(overlay.filename, overlay.status)) ? 'use-credentials' : undefined"
+                                :crossorigin="imageRequiresCredentials(overlay.imageUrl || getOverlayImageUrl(overlay.filename, overlay.status)) ? 'use-credentials' : undefined"
                                 @error="(event) => handleImageError(event, overlay.id)"
                                 @load="(event) => handleImageLoad(event, overlay.id)"
                               />
@@ -253,7 +253,7 @@
                               <div class="flex items-center gap-2 flex-wrap">
                                 <Tag
                                   v-if="!hideStatusBadges"
-                                  :value="$t(`status.${overlay.status}`)"
+                                  :value="$t(`status.${overlay.status ?? 'draft'}`)"
                                   :severity="getStatusSeverity(overlay.status)"
                                   class="overlay-status-tag"
                                   rounded
