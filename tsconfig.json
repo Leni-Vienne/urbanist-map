@@ -3,31 +3,32 @@
         "target": "esnext", // useful for this stuff : "const lastCorners = overlayObject.history.at(-1);"
         "module": "ESNext",
         "moduleResolution": "bundler",
+        "skipLibCheck": true,
         "strict": true,
         "strictNullChecks": true,
         "allowSyntheticDefaultImports": true,
+        "useUnknownInCatchVariables": true,
+        "types": [
+            "@types/bun",
+            "@cloudflare/workers-types" // for R2Bucket type
+        ],
         "paths": {
+            "@/*": [
+                "./front/src/*"
+            ],
             "@tables": [
                 "./back/src/db/schema"
             ],
-            "@assets/*": [
-                "./front/src/assets/*"
+            "@shared/*": [
+                "./shared/*"
             ],
-            "@composables/*": [
-                "./front/src/composables/*"
-            ],
-            "@components/*": [
-                "./front/src/components/*"
-            ],
-            "@stores/*": [
-                "./front/src/stores/*"
-            ],
-            "@types": [
-                "./front/src/types"
-            ],
-            "@client": [
-                "./front/src/client"
-            ],
+            "leaflet": [
+                "./node_modules/@types/leaflet"
+            ]
         }
-    }
+    },
+    "exclude": [
+        "node_modules",
+        "dist"
+    ]
 }

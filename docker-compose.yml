@@ -1,0 +1,108 @@
+# AI : Environment-agnostic Docker Compose for both production and preview
+# AI : Use with: docker compose --env-file .env.prod up -d
+# AI : Or with: docker compose --env-file .env.preview up -d
+
+services:
+  # AI : PostGIS database service
+  postgres:
+    image: postgis/postgis:17-3.5-alpine
+    container_name: ${COMPOSE_PROJECT_NAME}-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-construction_map}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB:-construction_map}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # AI : Backend web server service using custom Bun image with libvips for Sharp
+  backend:
+    image: bun-sharp:1.3-alpine
+    container_name: ${COMPOSE_PROJECT_NAME}-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGIN: "${CORS_ORIGIN}"
+      VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
+      SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SES_REGION: ${SES_REGION}
+      FROM_EMAIL: ${FROM_EMAIL}
+      FRONTEND_URL: ${FRONTEND_URL}
+      R2_ENDPOINT: ${R2_ENDPOINT}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
+      R2_BUCKET_NAME: ${R2_BUCKET_NAME}
+      ALERT_EMAIL: ${ALERT_EMAIL}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY}
+    volumes:
+      - ./server.bundle.js:/app/server.bundle.js:ro
+      - ./back/src/email:/app/email:ro
+      - backend_uploads:/app/uploads
+    working_dir: /app
+    # AI : Command simplified - sharp is now in the image (global) or node_modules
+    # AI : We still rely on local node_modules for other deps, but sharp is the critical native one
+    # AI : Ideally we would bundle everything, but for now this removes the build step
+    command: ["bun", "./server.bundle.js"]
+    ports:
+      # AI : Expose backend to host for Caddy reverse proxy access
+      - "${BACKEND_PORT:-3000}:3000"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "sh", "-c", "nc -z localhost 3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # AI : Grafana Alloy - Log shipper that captures stdout and sends to Loki
+  alloy:
+    image: grafana/alloy:latest
+    container_name: ${COMPOSE_PROJECT_NAME}-alloy
+    restart: unless-stopped
+    command: run --server.http.listen-addr=0.0.0.0:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
+    volumes:
+      - ./alloy-config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy_data:/var/lib/alloy/data
+    environment:
+      # AI : Loki endpoint - update this with your Loki URL
+      LOKI_URL: ${LOKI_URL:-http://loki:3100/loki/api/v1/push}
+      # AI : Project name for container filtering in alloy-config.alloy
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}
+    networks:
+      - app-network
+    ports:
+      - "${ALLOY_PORT:-12345}:12345" # Alloy UI
+
+volumes:
+  postgres_data:
+    name: ${COMPOSE_PROJECT_NAME}-postgres-data
+    driver: local
+  backend_uploads:
+    name: ${COMPOSE_PROJECT_NAME}-uploads
+    driver: local
+  alloy_data:
+    name: ${COMPOSE_PROJECT_NAME}-alloy-data
+    driver: local
+
+networks:
+  app-network:
+    name: ${COMPOSE_PROJECT_NAME}-network
+    driver: bridge

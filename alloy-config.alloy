@@ -1,0 +1,71 @@
+// AI : Grafana Alloy configuration for log shipping
+// AI : This captures Docker container logs and pushes them to Grafana Loki
+
+// AI : Discover Docker containers and scrape their logs
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+  
+  // AI : Scrape backend container logs (matches both prod and preview environments)
+  filter {
+    name   = "name"
+    values = [env("COMPOSE_PROJECT_NAME") + "-backend"]
+  }
+}
+
+// AI : Scrape logs from discovered containers
+loki.source.docker "backend_logs" {
+  host             = "unix:///var/run/docker.sock"
+  targets          = discovery.docker.containers.targets
+  forward_to       = [loki.process.json.receiver]
+  relabel_rules    = loki.relabel.backend.rules
+}
+
+// AI : Process JSON logs from Pino
+loki.process "json" {
+  forward_to = [loki.write.default.receiver]
+  
+  stage.json {
+    expressions = {
+      level  = "level",
+      time   = "time",
+      msg    = "msg",
+      method = "method",
+      path   = "path",
+      status = "status",
+    }
+  }
+  
+  stage.labels {
+    values = {
+      level = "",
+    }
+  }
+}
+
+// AI : Add labels to logs for better filtering in Grafana
+loki.relabel "backend" {
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    target_label  = "container"
+  }
+  
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+  
+  forward_to = []
+}
+
+// AI : Push logs to Loki
+loki.write "default" {
+  endpoint {
+    url = env("LOKI_URL") + "/loki/api/v1/push"
+    
+    // AI : Add basic auth if needed (optional)
+    // basic_auth {
+    //   username = env("LOKI_USERNAME")
+    //   password = env("LOKI_PASSWORD")
+    // }
+  }
+}

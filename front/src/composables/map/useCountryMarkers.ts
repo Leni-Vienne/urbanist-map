@@ -1,12 +1,28 @@
-import L from "leaflet";
-import { ref } from 'vue';
-import { map, onMapInitialized } from '@composables/core/useMap';
-import { addCityMarkersForCountry, removeCityMarkers, currentCityOverlays, removeOverlayMarkers } from '@composables/map/useCityMarkers';
-import { clearAllOverlays } from '@composables/overlay/useOverlay';
-import { trpc } from '@client';
-import { useProjectStore } from '@stores/pinia/projectStore';
-import { useMapStore } from '@stores/pinia/mapStore';
-import { storeToRefs } from 'pinia';
+import type L from "leaflet";
+import { ref } from "vue";
+import { t } from "@/locales";
+import { map } from "@/composables/core/useMap";
+import { flyToCountry } from "@/composables/map/useMapNavigation";
+import { addCityMarkersForCountry, removeCityMarkers } from "@/composables/map/useCityMarkers";
+import { removeOverlayMarkers } from "@/composables/map/useCityOverlays";
+import { clearAllOverlays } from "@/composables/overlay/useOverlayLifecycle";
+import { clearAllStandaloneProjectMarkers } from "@/composables/map/useStandaloneProjectMarkers";
+import { prepareCrossCountryFlight } from "@/composables/map/useTileLayers";
+import { trpc } from "@/client";
+import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { storeToRefs } from "pinia";
+import { withErrorHandling } from "@/composables/core/useErrorHandling";
+import type { Country } from "@/types/index";
+import { MARKER_OPACITY } from "@/constants/markerConstants";
+import { createMarkerLayer, type MarkerLayerConfig } from "@/composables/map/useMarkerLayer";
+import countryBboxes from "@/assets/country_bboxes.json";
+
+// AI : Type guard to validate country code against countryBboxes keys
+export function isValidCountryCode(code: string): code is keyof typeof countryBboxes {
+  return code in countryBboxes;
+}
 
 // AI : Function to get countries when needed
 function getCountries() {
@@ -15,71 +31,143 @@ function getCountries() {
   return countries;
 }
 
-// AI : Opacity constants for country markers
-const COUNTRY_MARKER_OPACITY = 0.6; // AI : Default opacity for country markers
-const COUNTRY_MARKER_HOVER_OPACITY = 1; // AI : Opacity for country markers on hover
+// AI : Opacity constants are now imported from markerConstants
 
-export const isLoadingCountries = ref(false);
-export const isLoadingCountryProjects = ref(false);
+const isLoadingCountries = ref(false);
+const isLoadingCountryProjects = ref(false);
 
 let countryMarkersLayer: L.LayerGroup | null = null;
 
-// AI : Mouse tooltip element for guidance
-let countryMouseTooltip: HTMLElement | null = null;
+export async function loadCountriesWithProjects(force = false): Promise<void> {
+  const overlayStore = useOverlayStore();
+  const projectStore = useProjectStore();
 
-// AI : Track the currently selected (clicked) country marker
-let selectedCountryMarker: L.Marker | null = null;
+  // AI : Check if we have cached countries for this mode
+  if (!force && projectStore.hasCachedCountries(overlayStore.mode)) {
+    // AI : Use cached countries and update the active countries ref
+    const cachedCountries = projectStore.getCachedCountries(overlayStore.mode);
+    if (cachedCountries) {
+      const countries = getCountries();
+      countries.value = cachedCountries;
+      return;
+    }
+  }
 
-export async function loadCountriesWithProjects(): Promise<void> {
+  isLoadingCountries.value = true;
   try {
-    isLoadingCountries.value = true;
-    const countriesData = await trpc.country.getCountriesWithProjects.query();
-    const countries = getCountries();
-    countries.value = countriesData.map((country) => ({
-      ...country,
-      lat: country.centerCoordinates.y,
-      lng: country.centerCoordinates.x,
-      projectCount: 0, // AI : This will be updated later
-      cities: [], // AI : Empty array, cities will be loaded when user clicks on country
-      createdAt: new Date(), // AI : Add fallback
-      updatedAt: new Date(), // AI : Add fallback
-    }));
-  } catch (error) {
-    console.error('Error loading countries with projects:', error);
+    const countriesData = await withErrorHandling(
+      async () => trpc.country.getCountriesWithProjects.query({ mode: overlayStore.mode }),
+      { errorMessage: "Failed to load countries. Please refresh the page." },
+    );
+
+    if (countriesData) {
+      const mappedCountries = countriesData.map(
+        (country): Country =>
+          Object.assign(country, {
+            lat: country.centerCoordinates.y,
+            lng: country.centerCoordinates.x,
+            projectCount: 0,
+            cities: [],
+            code2: country.code2 ?? "", // AI : Temporary default until GeoNames import populates alpha-2 codes
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }),
+      );
+
+      // AI : Update both the active countries ref and cache
+      const countries = getCountries();
+      countries.value = mappedCountries;
+      projectStore.setCachedCountries(overlayStore.mode, mappedCountries);
+    }
   } finally {
     isLoadingCountries.value = false;
   }
 }
 
 export async function loadCitiesForCountry(countryCode: string): Promise<void> {
-  try {
-    isLoadingCountryProjects.value = true;
-    const citiesData = await trpc.cities.getCitiesWithProjects.query({ countryCode });
-    const countries = getCountries();
-    const country = countries.value.find((c: any) => c.code === countryCode);
-    if (country) {
-      country.cities = citiesData.map((c: any) => ({ ...c, distance: 0 }));
+  const countries = getCountries();
+  const country = countries.value.find((c: Country) => c.code === countryCode);
+
+  if (!country) return;
+
+  const projectStore = useProjectStore();
+  const overlayStore = useOverlayStore();
+
+  // AI : Check cache first for this country + mode combination
+  if (projectStore.hasCachedCities(countryCode, overlayStore.mode)) {
+    const cachedCities = projectStore.getCachedCities(countryCode, overlayStore.mode);
+    if (cachedCities) {
+      country.cities = cachedCities;
+      return;
     }
-  } catch (error) {
-    console.error(`Error loading cities for country ${countryCode}:`, error);
+  }
+
+  isLoadingCountryProjects.value = true;
+  try {
+    // AI : Pass mode to show appropriate content based on viewing mode
+    const citiesData = await withErrorHandling(
+      async () => trpc.cities.getCitiesWithProjects.query({ countryCode, mode: overlayStore.mode }),
+      { errorMessage: "Failed to load cities. Please try again." },
+    );
+
+    if (citiesData) {
+      const cities = citiesData.map((city) => {
+        return Object.assign({}, city, { distance: 0 });
+      });
+      country.cities = cities;
+      // AI : Cache the cities for this country + mode
+      projectStore.setCachedCities(countryCode, overlayStore.mode, cities);
+    }
   } finally {
     isLoadingCountryProjects.value = false;
   }
 }
 
-
-export async function addCountryMarkersToMap(): Promise<void> {
-  if (!map.value) {
-    onMapInitialized(() => {
-      addCountryMarkersToMapInternal();
-    });
-    return;
-  }
-  await addCountryMarkersToMapInternal();
+/**
+ * AI : Clear all map content (markers, overlays, and state)
+ * AI : This is called when switching between countries
+ */
+function clearAllMapContent(): void {
+  removeCityMarkers();
+  removeOverlayMarkers();
+  clearAllOverlays();
+  clearAllStandaloneProjectMarkers();
+  const mapStore = useMapStore();
+  mapStore.currentCityOverlays = [];
+  mapStore.clearSelectedCity();
 }
 
-async function addCountryMarkersToMapInternal(): Promise<void> {
+/**
+ * AI : Prepare country context by clearing map and loading cities
+ * AI : This is the common flow when navigating to a country
+ * @param countryCode - The country code to prepare context for
+ */
+export async function prepareCountryContext(countryCode: string): Promise<void> {
+  // AI : Step 1: Clear all previous map content
+  clearAllMapContent();
+
+  // AI : Step 2: Set the selected country code
+  const mapStore = useMapStore();
+  mapStore.selectedCountryCode = countryCode;
+
+  // AI : Step 3: Load cities for the country
+  await loadCitiesForCountry(countryCode);
+
+  // AI : Step 4: Add city markers to the map
+  const projectStore = useProjectStore();
+  const country = projectStore.countries.find((c) => c.code === countryCode);
+  if (country) {
+    addCityMarkersForCountry(
+      country.cities.map((city) => {
+        return Object.assign({}, city, { projectCount: 0 });
+      }),
+    );
+  }
+}
+
+export function addCountryMarkersToMap() {
   if (!map.value) {
+    console.error("Map not initialized when trying to add country markers");
     return;
   }
 
@@ -87,159 +175,62 @@ async function addCountryMarkersToMapInternal(): Promise<void> {
     map.value.removeLayer(countryMarkersLayer);
   }
 
-  countryMarkersLayer = L.layerGroup();
   const countries = getCountries();
-  countries.value.forEach((country: any) => {
-    // AI : Create a standard Leaflet marker with hover opacity
-    const marker = L.marker([country.lat, country.lng], {
-      opacity: COUNTRY_MARKER_OPACITY // AI : Lower default opacity to suggest interactivity
-    });
 
-    // AI : Add tooltip with country name, only on hover
-    marker.bindTooltip(`${country.name}`, {
-      permanent: false, // AI : Tooltip appears only on hover
-    });
+  // AI : Configure country marker behavior
+  const config: MarkerLayerConfig<Country> = {
+    getOpacity: (hover) => (hover ? MARKER_OPACITY.country.hover : MARKER_OPACITY.country.default),
+    getColor: () => "blue",
+    getLatLng: (country) => ({ lat: country.lat, lng: country.lng }),
+    getTooltip: (country) => country.name,
+    getTestId: (country) => `country-marker-${country.code}`,
+    getDataAttributes: (country) => ({
+      "data-country-code": country.code,
+      "data-country-name": country.name,
+      "data-lat": country.lat.toString(),
+      "data-lng": country.lng.toString(),
+    }),
+    onMarkerClick: async (_marker, country) => {
+      // AI : Warn if there are unsaved overlays before switching countries
+      const overlayStore = useOverlayStore();
+      const hasUnsavedOverlays = Object.values(overlayStore.overlays).some(
+        (overlay) => overlay.isModified === true,
+      );
 
-    // AI : Add click event to load cities and set marker as selected
-    marker.on('click', async () => {
-      // AI : Set all country markers to default opacity except the clicked one
-      if (countryMarkersLayer) {
-        countryMarkersLayer.eachLayer((layer) => {
-          if (layer instanceof L.Marker) {
-            layer.setOpacity(COUNTRY_MARKER_OPACITY);
-          }
-        });
+      if (hasUnsavedOverlays) {
+        const confirmed = confirm(t("navigation.unsavedOverlaysSwitchCountry"));
+        if (!confirmed) {
+          return; // AI : User cancelled, don't switch countries
+        }
       }
-      marker.setOpacity(COUNTRY_MARKER_HOVER_OPACITY);
-      selectedCountryMarker = marker;
-      
-      // AI : Clear previous city markers, overlays and selected city state before loading new ones
-      removeCityMarkers();
-      removeOverlayMarkers();
-      clearAllOverlays();
-      currentCityOverlays.value = [];
-      const mapStore = useMapStore();
-      mapStore.clearSelectedCity();
-      
-      await loadCitiesForCountry(country.code);
-      const updatedCountries = getCountries();
-      const updatedCountry = updatedCountries.value.find((c: any) => c.code === country.code);
-      if (updatedCountry) {
-        addCityMarkersForCountry(updatedCountry.cities.map((c: any) => ({ ...c, projectCount: 0 })));
+
+      // AI : Prepare for cross-country flight (switches to esri if needed)
+      const switchToCountryLayer = prepareCrossCountryFlight(country.code);
+
+      // AI : Fly to the country using bounding box
+      if (isValidCountryCode(country.code)) {
+        flyToCountry(country.code, country.lat, country.lng);
       }
-    });
 
-    // AI : Add mouseover event to show guidance tooltip and increase marker opacity
-    marker.on('mouseover', (event) => {
-      createCountryMouseTooltip();
-      showCountryMouseTooltip(event.originalEvent);
-      // AI : Only increase opacity if not selected
-      if (selectedCountryMarker !== marker) {
-        marker.setOpacity(COUNTRY_MARKER_HOVER_OPACITY);
+      // AI : If cross-country flight, switch to country layer after arrival
+      if (switchToCountryLayer && map.value) {
+        map.value.once("moveend", switchToCountryLayer);
       }
-    });
 
-    // AI : Add mousemove event to update tooltip position
-    marker.on('mousemove', (event) => {
-      updateCountryMouseTooltipPosition(event.originalEvent);
-    });
+      // AI : Prepare country context (clear map, load cities, add markers)
+      await prepareCountryContext(country.code);
+    },
+  };
 
-    // AI : Add mouseout event to hide guidance tooltip and reset marker opacity if not selected
-    marker.on('mouseout', () => {
-      hideCountryMouseTooltip();
-      // AI : Only reset opacity if not selected
-      if (selectedCountryMarker !== marker) {
-        marker.setOpacity(COUNTRY_MARKER_OPACITY);
-      }
-    });
+  // AI : Create marker layer using abstraction
+  const result = createMarkerLayer(countries.value, config);
+  countryMarkersLayer = result.layer;
 
-    countryMarkersLayer!.addLayer(marker);
-  });
-
+  // AI : Add the layer group to the map
   countryMarkersLayer.addTo(map.value);
-
-  // AI : Reset selected marker when new markers are added
-  selectedCountryMarker = null;
-}
-
-export function removeCountryMarkers(): void {
-  if (map.value && countryMarkersLayer) {
-    map.value.removeLayer(countryMarkersLayer);
-    countryMarkersLayer = null;
-    // AI : Hide tooltip when removing markers
-    hideCountryMouseTooltip();
-  }
-}
-
-/**
- * AI : Create and initialize country mouse tooltip element
- */
-function createCountryMouseTooltip(): void {
-  if (countryMouseTooltip) return;
-
-  countryMouseTooltip = document.createElement('div');
-  countryMouseTooltip.style.cssText = `
-    position: fixed;
-    background: rgba(0, 0, 0, 0.8);
-    color: white;
-    padding: 8px 12px;
-    border-radius: 4px;
-    font-size: 14px;
-    z-index: 10000;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    white-space: nowrap;
-  `;
-  countryMouseTooltip.textContent = 'Click on a country marker to view its cities';
-  document.body.appendChild(countryMouseTooltip);
-}
-
-/**
- * AI : Show country mouse tooltip at cursor position
- */
-function showCountryMouseTooltip(event: MouseEvent): void {
-  if (!countryMouseTooltip) return;
-
-  countryMouseTooltip.style.left = event.clientX + 15 + 'px';
-  countryMouseTooltip.style.top = event.clientY - 10 + 'px';
-  countryMouseTooltip.style.opacity = '1';
-}
-
-/**
- * AI : Hide country mouse tooltip
- */
-function hideCountryMouseTooltip(): void {
-  if (!countryMouseTooltip) return;
-  countryMouseTooltip.style.opacity = '0';
-}
-
-/**
- * AI : Update country mouse tooltip position on mouse move
- */
-function updateCountryMouseTooltipPosition(event: MouseEvent): void {
-  if (!countryMouseTooltip || countryMouseTooltip.style.opacity === '0') return;
-
-  countryMouseTooltip.style.left = event.clientX + 15 + 'px';
-  countryMouseTooltip.style.top = event.clientY - 10 + 'px';
-}
-
-/**
- * AI : Clean up country mouse tooltip element
- */
-function cleanupCountryMouseTooltip(): void {
-  if (countryMouseTooltip) {
-    document.body.removeChild(countryMouseTooltip);
-    countryMouseTooltip = null;
-  }
 }
 
 export async function initializeCountryMarkers(): Promise<void> {
   await loadCountriesWithProjects();
   addCountryMarkersToMap();
-}
-
-export function cleanupCountryMarkers(): void {
-  removeCountryMarkers();
-  cleanupCountryMouseTooltip();
 }

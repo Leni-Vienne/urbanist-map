@@ -1,134 +1,106 @@
 <template>
   <div class="project-picker">
-    <!-- AI : Show error message for nearby projects -->
-    <div v-if="props.useNearbyProjects && nearbyError" class="text-center p-4">
-      <i class="pi pi-exclamation-triangle text-red-500 text-2xl mb-2"></i>
-      <p class="text-red-600 mb-4">{{ nearbyError }}</p>
-      <Button
-        icon="pi pi-refresh"
-        label="Retry"
-        class="p-button-secondary"
-        @click="onSelectFocus"
-      />
-    </div>
-
-    <!-- AI : Show loading message for nearby projects -->
-    <div v-else-if="props.useNearbyProjects && isLoadingProjects" class="text-center p-4">
-      <i class="pi pi-spin pi-spinner text-2xl mb-2"></i>
-      <p>Finding nearby projects...</p>
-    </div>
-
-    <!-- AI : Show message when no nearby projects are found -->
-    <div v-else-if="props.useNearbyProjects && projectList.length === 0 && !isLoadingProjects && !hideCreate" class="text-center p-4">
-      <p class="mb-4">No nearby projects found in this area. Create a new project to add your overlay.</p>
-      <Button
-        icon="pi pi-plus"
-        label="Create New Project"
-        class="p-button-primary"
-        @click="openNewProjectDialog"
-      />
-    </div>
-
     <!-- AI : Show message when no projects exist -->
-    <div v-else-if="!props.useNearbyProjects && projectList.length === 0 && !hideCreate" class="text-center p-4">
-      <p class="mb-4">No projects available. Create your first project to add overlays.</p>
+    <div v-if="projectList.length === 0 && !hideCreate" class="text-center p-4">
+      <p class="mb-4">{{ $t('projectPicker.noProjectsAvailable') }}</p>
       <Button
         icon="pi pi-plus"
-        label="Create New Project"
+        :label="$t('project.create')"
         class="p-button-primary"
         @click="openNewProjectDialog"
       />
     </div>
 
     <!-- AI : Project selector when projects exist -->
-    <div
-      v-else-if="!hideSelector && projectList.length > 0"
-      class="mb-4"
-    >
-      <div class="flex gap-2">
-        <FloatLabel class="w-full">
-          <Select
-            v-model="selectedProjectId"
-            :options="projectList"
-            optionLabel="name"
-            optionValue="id"
-            :placeholder="props.useNearbyProjects ? 'Select a nearby project' : (placeholder ?? 'Select a project')"
-            class="w-full"
-            :filter="true"
-            :showClear="true"
-            :loading="isLoadingProjects"
-            @focus="onSelectFocus"
-          >
-            <template #value="{ value, placeholder }">
+    <div v-else-if="!hideSelector && projectList.length > 0" class="mb-4">
+      <FloatLabel class="w-full">
+        <Select
+          ref="selectRef"
+          v-model="selectedProjectId"
+          :options="projectList"
+          optionLabel="name"
+          optionValue="id"
+          :placeholder="placeholder ?? $t('projectPicker.selectProject')"
+          class="w-full"
+          :filter="true"
+          :showClear="true"
+          :loading="isLoadingProjects"
+          :optionGroupLabel="useGroupedView ? 'label' : undefined"
+          :optionGroupChildren="useGroupedView ? 'items' : undefined"
+          :appendTo="appendTo"
+          panelClass="project-picker-panel"
+          @focus="onSelectFocus"
+          @show="emit('dropdown-show')"
+          @hide="emit('dropdown-hide')"
+        >
+          <template #value="{ value, placeholder }">
+            <div v-if="value" class="flex items-center gap-2">
               <div
-                v-if="value"
-                class="flex items-center"
-              >
-                <div
-                  class="color-circle mr-2"
-                  :style="{ backgroundColor: getProjectById(value)?.color ?? '#ccc' }"
-                ></div>
-                <div>&nbsp;&nbsp;{{ getProjectById(value)?.name }}</div>
-              </div>
-              <span v-else>{{ placeholder }}</span>
-            </template>
+                class="w-3 h-3 rounded-full flex-shrink-0"
+                :style="{ backgroundColor: getStatusColor(getProjectById(value)) }"
+              ></div>
+              <span>{{ getProjectById(value)?.name }}</span>
+            </div>
+            <span v-else>{{ placeholder }}</span>
+          </template>
 
-            <template #option="{ option }">
-              <div class="flex items-center">
-                <div
-                  class="color-circle mr-2"
-                  :style="{ backgroundColor: option.color }"
-                ></div>
-                <div>
-                  <span>&nbsp;&nbsp;{{ option.name }}</span>
-                  <span class="text-sm text-gray-500 ml-2">({{ getOverlayCountForProject(option.id) }} overlays)</span>
-                  <div v-if="props.useNearbyProjects && option.city" class="text-xs text-gray-400 ml-2">
-                    {{ option.city.name }}, {{ option.city.countryCode }}
-                  </div>
+          <template #optiongroup="{ option }" v-if="useGroupedView">
+            <div class="flex items-center gap-2 font-semibold text-sm opacity-75">
+              <i class="pi pi-map-marker"></i>
+              <span>{{ option.label }}</span>
+            </div>
+          </template>
+
+          <template #option="{ option }">
+            <div class="flex items-center gap-2">
+              <div
+                class="w-3 h-3 rounded-full flex-shrink-0"
+                :style="{ backgroundColor: getStatusColor(option) }"
+              ></div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span>{{ option.name }}</span>
+                  <span class="text-sm opacity-75"
+                    >({{ $t('projectPicker.overlaysCount', {
+                    count:
+                      getOverlayCountForProject(option.id)
+                  })
+                    }})</span
+                  >
+                </div>
+                <div v-if="option.city && !useGroupedView" class="text-xs opacity-60">
+                  {{ option.city.name }}, {{ option.city.countryCode }}
                 </div>
               </div>
-            </template>
+            </div>
+          </template>
 
-            <template
-              #footer
-              v-if="!hideCreate"
-            >
-              <div class="p-2 border-t">
-                <Button
-                  icon="pi pi-plus"
-                  label="Create New Project"
-                  class="p-button-primary p-button-sm w-full"
-                  @click="openNewProjectDialog"
-                  v-tooltip.top="'Create a new project'"
-                />
-              </div>
-            </template>
-          </Select>
-        </FloatLabel>
-        <slot name="selector-actions">
-          <Button
-            icon="pi pi-check"
-            class="p-button-primary"
-            @click="confirmSelection"
-            :disabled="!selectedProjectId"
-            v-tooltip.top="'Confirm selection'"
-          />
-        </slot>
-      </div>
+          <template #footer v-if="!hideCreate">
+            <div class="p-2 border-t">
+              <Button
+                icon="pi pi-plus"
+                :label="$t('project.create')"
+                class="p-button-primary p-button-sm w-full"
+                @click="openNewProjectDialog"
+                v-tooltip.top="$t('projectPicker.createNewProject')"
+              />
+            </div>
+          </template>
+        </Select>
+      </FloatLabel>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onUnmounted } from 'vue';
 
-import { useProjects } from '@composables/project/useProjects';
-import { fetchNearbyProjects, getNearbyProjects } from '@composables/project/useNearbyProjects';
-import { lastCreatedProjectId, setFileUploadFlow } from '@composables/ui/useRouterNavigation';
-import { useSelectedProject } from '@composables/project/useSelectedProject';
+import { useProjects } from '@/composables/project/useProjects';
+import { useCityProjects, useSelectedProject } from '@/composables/project/useProjectSelection';
+import { useUiStore } from '@/stores/uiStore';
+import type { Project } from '@/types/index';
+import { markerColors } from '@/composables/map/useMarkers';
 import { storeToRefs } from 'pinia';
-import { router } from '../../router';
-import type { Project } from '@types';
 
 const props = defineProps({
   modelValue: {
@@ -151,97 +123,148 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
-  useNearbyProjects: {
+  useCityProjects: {
     type: Boolean,
     default: false
+  },
+  appendTo: {
+    type: String,
+    default: 'self'
   }
 });
 
-const emit = defineEmits(['update:modelValue', 'project-selected', 'project-created', 'select-focus']);
+const emit = defineEmits(['update:modelValue', 'project-selected', 'project-created', 'create-project', 'dropdown-show', 'dropdown-hide']);
+
+// AI : Ref to the Select component for programmatic control
+const selectRef = ref();
+
+// AI : Expose method to hide dropdown (used when map moves with appendTo="body")
+function hideDropdown() {
+  selectRef.value?.hide();
+}
+
+defineExpose({ hideDropdown });
 
 // AI : Get store refs using the composable pattern
 const { projects } = useProjects();
 
 const loading = ref(false);
-const hasSelectError = ref(false);
 
 // AI : Use centralized selected project state
 const { selectedProjectId } = useSelectedProject();
 
-// AI : Get nearby projects composable
-const { projects: nearbyProjectsData, isLoading: nearbyLoading, error: nearbyError } = getNearbyProjects();
+// AI : Use UI store to open project dialog
+const uiStore = useUiStore();
+const { lastCreatedProjectId } = storeToRefs(uiStore);
+
+// AI : Get city projects composable
+const {
+  projectsWithCounts: cityProjectsData,
+  projectsByCity: cityProjectsByCity,
+  getOverlayCountForProject: getCityOverlayCount,
+  loadNearbyProjects
+} = useCityProjects();
+
+// AI : Determine if we should use grouped view (when using city projects with multiple cities)
+const useGroupedView = computed(() => {
+  return props.useCityProjects && cityProjectsByCity.value.length > 1;
+});
 
 // AI : Function to count overlays for a project using the appropriate data source
 function getOverlayCountForProject(projectId: string): number {
-  const project = projectList.value.find(p => p.id === projectId);
-  if (!project) return 0;
-  
-  // AI : For nearby projects, use the overlayCount from backend
-  if (props.useNearbyProjects && 'overlayCount' in project) {
-    return (project as any).overlayCount ?? 0;
+  // AI : Use city projects data when available (most efficient)
+  if (props.useCityProjects) {
+    return getCityOverlayCount(projectId);
   }
-  
-  // AI : For local projects, check both overlayIds and overlays arrays
-  if (project.overlayIds && project.overlayIds.length > 0) {
+
+  // AI : For local projects, check overlayIds array
+  const project = flatProjectList.value.find(p => p.id === projectId);
+  if (project?.overlayIds && Array.isArray(project.overlayIds)) {
     return project.overlayIds.length;
   }
-  
-  // AI : Some projects have overlays stored as full objects in an overlays array (from getCityProjects)
-  if ((project as any).overlays && Array.isArray((project as any).overlays)) {
-    return (project as any).overlays.length;
-  }
-  
+
   return 0;
 }
 
 // AI : Compute the project list based on the mode
+// AI : Projects with overlays are shown; standalone projects are excluded
 const projectList = computed(() => {
-  if (props.useNearbyProjects) {
-    // AI : Convert nearby projects to the expected format
-    return nearbyProjectsData.value.map(project => ({
-      id: project.id,
-      name: project.name,
-      description: project.description,
-      overlayIds: [], // AI : We don't have overlay IDs in nearby projects response
-      overlayCount: project.overlayCount ?? 0, // AI : Use overlay count from backend
-      color: '#007bff', // AI : Default color for nearby projects
-      cityId: project.cityId,
-      status: 'approved' as const, // AI : Only approved projects are returned from nearby endpoint
-      ownerId: project.ownerId,
-      createdAt: project.createdAt,
-      updatedAt: project.updatedAt,
-      metadata: project.metadata,
-      city: project.city ? {
-        id: project.city.id,
-        name: project.city.name,
-        countryCode: project.city.countryCode,
-        coordinates: { x: project.city.lng, y: project.city.lat },
-        createdAt: null,
-        updatedAt: new Date()
-      } : undefined,
-      sourceUrl: null,
-      startDate: null,
-      endDate: null,
-      latestUpdateOn: null
-    }));
+  if (props.useCityProjects) {
+    // AI : Return grouped or flat list depending on view mode
+    if (useGroupedView.value) {
+      return cityProjectsByCity.value.map(group =>
+        Object.assign({}, group, {
+          items: group.items.filter(project => {
+            // AI : Include projects that have overlays
+            // AI : Check overlayIds from Project type
+            const overlayCount = project.overlayIds?.length ?? 0
+            return overlayCount > 0
+          })
+        })
+      ).filter(group => group.items.length > 0) as { label: string; items: Project[] }[];
+    } else {
+      return cityProjectsData.value.filter(project => {
+        // AI : Include projects that have overlays
+        // AI : cityProjectsData has overlayCount added by useCityProjects composable
+        const overlayCount = project.overlayCount ?? 0
+        return overlayCount > 0
+      });
+    }
   } else {
-    return Object.values(projects.value);
+    // AI : Use local projects from store, exclude projects with no overlays
+    return Object.values(projects.value).filter(project => {
+      const overlayCount = project.overlayIds?.length ?? 0
+      return overlayCount > 0
+    });
   }
 });
 
-// AI : Update loading state based on the mode
-const isLoadingProjects = computed(() => {
-  return props.useNearbyProjects ? nearbyLoading.value : loading.value;
+// AI : Flatten grouped projects for easier searching
+const flatProjectList = computed(() => {
+  const list = projectList.value;
+  if (useGroupedView.value && Array.isArray(list) && list.length > 0 && 'items' in list[0]) {
+    // AI : When grouped, we have an array of {label, items} objects
+    return (list as { label: string; items: Project[] }[]).flatMap(group => group.items || []);
+  }
+  return list as Project[];
 });
 
-// AI : Watch for changes in the lastCreatedProjectId to auto-select newly created projects
-watch(() => lastCreatedProjectId.value, (newProjectId) => {
-  if (newProjectId && newProjectId !== selectedProjectId.value) {
-    selectedProjectId.value = newProjectId;
-    emit('update:modelValue', newProjectId);
-    emit('project-selected', newProjectId);
+// AI : Update loading state
+const isLoadingProjects = computed(() => loading.value);
+
+// AI : Function to auto-select a project by ID
+function autoSelectProject(projectId: string) {
+  const projectExists = flatProjectList.value.some(p => p.id === projectId);
+
+  if (projectExists) {
+    selectedProjectId.value = projectId;
+    emit('update:modelValue', projectId);
+    emit('project-selected', projectId);
+    return true;
   }
-});
+
+  return false;
+}
+
+// AI : Track if we've already auto-selected in this component instance
+const hasAutoSelected = ref(false);
+
+// AI : Watch for newly created projects and auto-select them
+const stopWatchingForAutoSelect = watch(
+  [flatProjectList, () => lastCreatedProjectId.value],
+  ([newList, pendingId]) => {
+    // AI : Only auto-select if we haven't done it yet AND the project isn't already selected
+    if (pendingId && newList.length > 0 && !hasAutoSelected.value && selectedProjectId.value !== pendingId) {
+      const project = newList.find(p => p.id === pendingId);
+      if (project && autoSelectProject(pendingId)) {
+        hasAutoSelected.value = true;
+      }
+    } else if (selectedProjectId.value === pendingId) {
+      hasAutoSelected.value = true;
+    }
+  },
+  { immediate: true }
+);
 
 // AI : Initialize selectedProjectId from modelValue prop
 watch(() => props.modelValue, (newValue) => {
@@ -251,58 +274,68 @@ watch(() => props.modelValue, (newValue) => {
 }, { immediate: true });
 
 // AI : Watch for changes to the selectedProjectId and emit them
-watch(selectedProjectId, (newValue) => {
+watch(selectedProjectId, (newValue, oldValue) => {
   emit('update:modelValue', newValue);
+
+  // AI : Also emit project-selected when manually changing selection (not just on initial mount)
+  if (newValue && newValue !== oldValue) {
+    emit('project-selected', newValue);
+  }
 });
 
-// AI : Watch for useNearbyProjects prop to fetch nearby projects when dialog opens
-watch(() => props.useNearbyProjects, async (useNearby) => {
-  if (useNearby) {
-    try {
-      await fetchNearbyProjects();
-    } catch (error) {
-      console.error('Error fetching nearby projects on dialog open:', error);
-    }
-  }
-}, { immediate: true });
 
 function getProjectById(id: string): Project | undefined {
-  return projectList.value.find(project => project.id === id);
+  return flatProjectList.value.find(project => project.id === id);
 }
 
-function confirmSelection() {
-  if (selectedProjectId.value) {
-    emit('project-selected', selectedProjectId.value);
+// AI : Get status-based color for project indicator dot (edit mode focused)
+function getStatusColor(project: Project | undefined): string {
+  if (!project) return markerColors.grey;
+
+  // AI : Check project status
+  if (project.status === 'pending') {
+    return markerColors.yellow; // Yellow for pending approval
   }
+
+  if (project.status === 'approved') {
+    return markerColors.green; // Green for approved
+  }
+
+  if (project.status === 'rejected') {
+    return markerColors.red; // Red for rejected
+  }
+
+  return markerColors.grey; // Default grey
 }
 
 function openNewProjectDialog() {
   try {
     // AI : Set flag when creating from ProjectPicker
-    setFileUploadFlow(true);
-    router.push('/projects/create');
-  } catch (err) {
-    console.error('AI: Failed to navigate to project creation', err);
+    uiStore.setFileUploadFlow(true);
+    // AI : Use UI store to trigger dialog opening
+    uiStore.openProjectDialog();
+    // AI : Also emit event as fallback
+    emit('create-project');
+  } catch (error) {
+    console.error('AI: Failed to open project dialog', error);
   }
 }
 
-// AI : Handle select focus/click to emit event for lazy loading
-function onSelectFocus() {
-  emit('select-focus');
+// AI : Handle select focus to lazy load nearby projects
+async function onSelectFocus() {
+  if (props.useCityProjects) {
+    await loadNearbyProjects();
+  }
 }
+
+// AI : Cleanup watcher on unmount
+onUnmounted(() => {
+  stopWatchingForAutoSelect();
+});
 </script>
 
 <style scoped>
-
 .project-picker {
   width: 100%;
-}
-
-.color-circle {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  display: inline-block;
-  flex-shrink: 0;
 }
 </style>

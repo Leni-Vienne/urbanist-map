@@ -1,0 +1,1 @@
+ALTER TABLE "projects" ADD COLUMN "proposal_date" timestamp with time zone;
