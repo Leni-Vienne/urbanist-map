@@ -1,0 +1,102 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "ignorePatterns": ["useOverlay.ts", "**/*tests*/**"],
+  // Enable all of these plugins (which are enabled by default):
+  //"plugins": ["unicorn", "typescript", "oxc"],
+  "categories": {
+    "suspicious": "error", // mostly type assertion stuff that I don't see how to fix
+    "correctness": "warn",
+    "perf": "warn",
+    "nursery": "warn",
+    "style": "warn",
+    "restriction": "warn",
+    "pedantic": "off"
+  },
+  "rules": {
+    "eslint/no-undef": "off", // warns about console, document, etc. in front-end code
+    "eslint/no-await-in-loop": "off", // false positives in several places
+    "eslint/func-style": ["warn", "declaration"],
+    "arrow-body-style": [
+      "off", //temp
+      "as-needed"
+    ],
+    /*"unicorn/filename-case": [
+      "error",
+      {
+        "case": "camelCase"
+      }
+    ],*/ // vue files are in pascal case, composables in camel case.....
+    "prefer-object-spread": "off", // conflicts with oxc "no spread in map"
+    "unicorn/filename-case": "off",
+    "eslint/sort-keys": "off",
+    "eslint/sort-imports": "off",
+    "eslint/no-ternary": "off",
+    "eslint/curly": "off",
+    "switch-case-braces": "off",
+    "no-base-to-string": "off",
+    "no-optional-chaining": "off",
+    "no-console": "off",
+    "no-bitwise": "off",
+    "number-literal-case": "off",
+    "max-statements": "off", // temp maybe
+    "no-undefined": "off", // temp maybe
+    "no-alert": "off", // temp
+    "explicit-module-boundary-types": "off", // temp
+    "explicit-function-return-type": "off", // temp
+    "capitalized-comments": "off", // temp
+    "max-params": "off", // temp
+    "no-rest-spread-properties": "off", // for older browsers
+    "typescript/no-namespace": "off", // conflicts with prefer-namespace-keyword
+    "no-continue": "off", // warns about early continues which is odd
+    "typescript/consistent-type-definitions": "off", //temporary
+    "eslint/prefer-destructuring": "off", //temporary
+    "eslint/no-magic-numbers": "off", // temporary
+    "unicorn/no-null": "off", // temp
+    "eslint/id-length": "off", // temp
+    // --------------------- restriction rules ---------------------
+    "no-async-await": "off",
+    "use-unknown-in-catch-callback-variable": "off" //temp?
+  }
+  /*"rules": {
+    "typescript/await-thenable": "warn",
+    "typescript/no-array-delete": "error",
+    "typescript/no-base-to-string": "error",
+    "typescript/no-confusing-void-expression": "error",
+    "typescript/no-duplicate-type-constituents": "error",
+    "typescript/no-floating-promises": "error",
+    "typescript/no-for-in-array": "error",
+    "typescript/no-implied-eval": "error",
+    "typescript/no-meaningless-void-operator": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/no-misused-spread": "error",
+    "typescript/no-mixed-enums": "error",
+    "typescript/no-redundant-type-constituents": "error",
+    "typescript/no-unnecessary-boolean-literal-compare": "error",
+    "typescript/no-unnecessary-template-expression": "error",
+    "typescript/no-unnecessary-type-arguments": "error",
+    "typescript/no-unnecessary-type-assertion": "error",
+    "typescript/no-unsafe-argument": "error",
+    "typescript/no-unsafe-assignment": "error",
+    "typescript/no-unsafe-call": "error",
+    "typescript/no-unsafe-enum-comparison": "error",
+    "typescript/no-unsafe-member-access": "error",
+    "typescript/no-unsafe-return": "error",
+    "typescript/no-unsafe-type-assertion": "error",
+    "typescript/no-unsafe-unary-minus": "error",
+    "typescript/non-nullable-type-assertion-style": "error",
+    "typescript/only-throw-error": "error",
+    "typescript/prefer-promise-reject-errors": "error",
+    "typescript/prefer-reduce-type-parameter": "error",
+    "typescript/prefer-return-this-type": "error",
+    "typescript/promise-function-async": "error",
+    "typescript/related-getter-setter-pairs": "error",
+    "typescript/require-array-sort-compare": "error",
+    "typescript/require-await": "error",
+    "typescript/restrict-plus-operands": "error",
+    "typescript/restrict-template-expressions": "error",
+    "typescript/return-await": "error",
+    "typescript/switch-exhaustiveness-check": "error",
+    "typescript/unbound-method": "error",
+    "typescript/use-unknown-in-catch-callback-variable": "error"
+  }*/
+}

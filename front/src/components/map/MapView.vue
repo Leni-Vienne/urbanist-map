@@ -1,171 +1,158 @@
-// filepath: d:\Documents\Perso\prog\city-map-overlay\src\components\MapView.vue
 <template>
-  <div
-    id="viewerDiv"
-    class="map-container"
-  >
+  <div class="map-wrapper">
+    <!-- AI : Mode border overlay - separate from map container to avoid Leaflet rendering issues -->
     <div
-      v-if="isLoading"
-      class="loading-overlay"
-    >
-      <div class="loading-content">
-        <i class="pi pi-spin pi-spinner text-4xl"></i>
-        <p class="mt-2">Loading map and data...</p>
-      </div>
-    </div>
-    <div
-      class="map-buttons"
-      :class="{ 'buttons-hidden': isRouteActive }"
-    >
-      <div class="card flex">
-        <Button
-          icon="pi pi-plus"
-          @click="handleAddOverlayClick"
-          aria-label="Add Image Overlay"
-          v-tooltip.right="'Add Image Overlay'"
-          class="p-button-rounded"
-        />
-      </div>
-      <div class="card flex">
-        <Button
-          icon="pi pi-bars"
-          @click="navigateToProjects"
-          aria-haspopup="true"
-          aria-controls="project_menu"
-          v-tooltip.right="'Manage Projects'"
-          class="p-button-rounded"
-        />
-      </div>
-      <div class="card flex">
-        <LayerControl />
+      v-if="overlayStore.mode !== 'view'"
+      :class="[
+        'mode-border',
+        overlayStore.mode === 'edit' ? 'edit-mode-border' : 'moderation-mode-border'
+      ]"
+    ></div>
+
+    <div id="mapDiv" class="map-container">
+      <div v-if="isLoading" class="loading-overlay">
+        <div class="loading-content">
+          <i class="pi pi-spin pi-spinner text-4xl"></i>
+          <p class="mt-2">{{ t('pages.home.loadingMapAndData') }}</p>
+        </div>
       </div>
 
-      <div class="card flex">
-        <EditModeToggle />
+      <!-- AI : City search in top-left corner -->
+      <div class="city-search-container">
+        <CitySearch />
+      </div>
+
+      <!-- AI : User Menu in top-right corner -->
+      <UserMenu />
+
+      <!-- AI : Map Controls Component -->
+      <MapControls @filter-overlays="filterOverlaysByCompletionStatus" />
+
+      <!-- AI : Help button to guide user to click markers -->
+      <MarkerHelpButton />
+
+      <!-- AI : Mode controls wrapper - desktop only (mobile version is in MobileDrawer) -->
+      <div v-if="authStore.isAuthenticated" class="mode-controls-desktop">
+        <ModeControls />
       </div>
     </div>
   </div>
-  <Dialog
-    v-model:visible="showProjectSelector"
-    header="Select a nearby project for the new overlay"
-    :modal="true"
-    :style="{ width: '450px' }"
-  >
-    <ProjectPicker
-      @project-selected="onProjectSelected"
-      :use-nearby-projects="true"
-    />
-  </Dialog>
-
-  <ImageUploadDialog
-    v-model:visible="showImageUploadDialog"
-    @file-selected="onImageUploadFromDialog"
-  />
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+import { ref, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue';
 
-import { initializeMap, disableLeafletKeyboardEvents } from '@composables/core/useMap';
-import { initializeCameraBounds } from '@composables/map/useCameraBounds';
-import { toggleEditMode } from '@composables/overlay/useEditMode';
-import { addOverlay, undo, redo } from '@composables/overlay/useOverlayActions';
-import { useToast } from '@composables/ui/useToast';
-import { navigateWithCoordinates } from '@composables/ui/useRouterNavigation';
-import { useViewModeOverlays } from '@composables/overlay/useViewModeOverlays';
-import { initializeCountryMarkers } from '@composables/map/useCountryMarkers';
-import { useProjectStore } from '@stores/pinia/projectStore';
-import { useOverlayStore } from '@stores/pinia/overlayStore';
-import { storeToRefs } from 'pinia';
-import { fetchNearbyProjects } from '@composables/project/useNearbyProjects';
-import LayerControl from '@components/map/LayerControl.vue';
-import EditModeToggle from '@components/map/EditModeToggle.vue';
-import ProjectPicker from '@components/project/ProjectPicker.vue';
-import ImageUploadDialog from '@components/dialogs/ImageUploadDialog.vue';
+import { initializeMap, disableLeafletKeyboardEvents, map } from '@/composables/core/useMap';
+import { addTileLayer } from '@/composables/map/useTileLayers';
+import { initializeCameraBounds } from '@/composables/map/useMapNavigation';
+import { renderViewModeOverlays, undo, redo } from '@/composables/overlay/useOverlay';
+import { setupMapClickToDeselect } from '@/composables/overlay/useOverlaySelection';
+import { removeOverlayFromMap } from '@/composables/overlay/useOverlayRemoval';
+import { useToast } from '@/composables/ui/useToast';
+import { useI18n } from 'vue-i18n';
+import { updateOverlayMarkersForFilters } from '@/composables/map/useCityOverlays';
+import { initializeCountryMarkers } from '@/composables/map/useCountryMarkers';
+import { initializeOverlayModes } from '@/composables/overlay/useOverlayModes';
+import { loadCityStandaloneProjects } from '@/composables/map/useCityMarkers';
+import { useMapStore } from '@/stores/pinia/mapStore';
+import { useOverlayStore } from '@/stores/pinia/overlayStore';
+import { useAuthStore } from '@/stores/authStore';
+import { useCompletionFilters } from '@/composables/overlay/useCompletionFilters';
+import type { OverlayData } from '@/types/index';
+import ModeControls from '@/components/map/ModeControls.vue';
 
-// AI: Get Pinia stores
-const projectStore = useProjectStore();
+const MapControls = defineAsyncComponent(() => import('@/components/map/MapControls.vue'));
+const UserMenu = defineAsyncComponent(() => import('@/components/auth/UserMenu.vue'));
+const MarkerHelpButton = defineAsyncComponent(() => import('@/components/map/MarkerHelpButton.vue'));
+const CitySearch = defineAsyncComponent(() => import('@/components/map/CitySearch.vue'));
+
+// AI: Get stores
+const mapStore = useMapStore();
 const overlayStore = useOverlayStore();
-const { projects } = storeToRefs(projectStore);
-const { 
-  isEditMode,  
-  showImageUploadDialog, 
-  replacementOverlayId,
-  pendingImageFile
-} = storeToRefs(overlayStore);
-
-// AI: Core state variables
-const router = useRouter();
-const route = useRoute();
+const authStore = useAuthStore();
 const toast = useToast();
-const showProjectSelector = ref(false);
+const { t } = useI18n();
 const isLoading = ref(true);
 
-// AI : Use view mode overlays for displaying overlays when camera moves
-const { startCameraTracking, stopCameraTracking } = useViewModeOverlays();
+// AI : Filter overlays based on completion status
+async function filterOverlaysByCompletionStatus() {
+  const completionFilters = useCompletionFilters();
 
-const isRouteActive = computed(() => route.path !== '/' && !route.path.startsWith('/overlay'));
+  if (!map.value) return;
 
-// Navigate to projects while preserving coordinates
-function navigateToProjects() {
-  navigateWithCoordinates('/projects');
-}
+  // AI : If we have overlay markers visible (when zoomed out), update them with filters
+  updateOverlayMarkersForFilters();
 
-// AI : Open image upload dialog
-function openImageUploadDialog() {
-  showImageUploadDialog.value = true;
-}
+  // AI : Get overlay data from cache instead of currentCityOverlays (which can be cleared)
+  const selectedCityId = mapStore.selectedCity?.id;
+  if (!selectedCityId) return;
 
-// AI : Handle add overlay button click - enable edit mode if in view mode, otherwise open dialog
-async function handleAddOverlayClick() {
-  if (!(isEditMode?.value ?? false)) {
-    // AI : Enable edit mode first if currently in view mode
-    await handleToggleEditMode(true);
-    // AI : Show toast notification to inform user about mode switch
-    toast.add({
-      severity: 'info',
-      summary: 'Switched to Edit Mode',
-      detail: 'Click the button again to add an overlay',
-      life: 4000
-    });
-  } else {
-    // AI : Already in edit mode, open the dialog
-    openImageUploadDialog();
+  // AI : Load from cache - this is more reliable than currentCityOverlays
+  const cachedData = mapStore.getCityOverlaysAndProjectsCache(selectedCityId, overlayStore.mode);
+
+  // AI : If cache is empty (null/undefined or empty array) but currentCityOverlays has data, use currentCityOverlays
+  if ((!cachedData || cachedData.length === 0) && mapStore.currentCityOverlays?.length) {
+    mapStore.setCityProjectsCache(selectedCityId, overlayStore.mode, mapStore.currentCityOverlays);
   }
-}
 
-// AI : Handle file selection from dialog
-async function onImageUploadFromDialog(file: File) {
-  overlayStore.handleFileSelected(file);
+  // AI : Use cached data only if it has items, otherwise fall back to currentCityOverlays
+  const cityOverlays = (cachedData?.length) ? cachedData : (mapStore.currentCityOverlays ?? []);
 
-  // AI : Always show project selector for both new overlays and replacements
-  showProjectSelector.value = true;
-}
+  // AI : Always reload standalone projects first (even if no overlays for this city)
+  await loadCityStandaloneProjects(selectedCityId);
 
-// AI : Handle legacy query parameters
-watch(() => route.query.overlay, (overlayId) => {
-  if (overlayId && typeof overlayId === 'string' && !isLoading.value) {
-    router.replace(`/overlay/${overlayId}`);
+  // AI : If no overlays, we're done (but standalone projects were reloaded above)
+  if (!cityOverlays.length) return;
+
+  // AI : Use the shared filtering utility
+  const visibleOverlays = completionFilters.filterByCompletionStatus(cityOverlays) as OverlayData[];
+  const visibleOverlayIds = new Set(visibleOverlays.map(o => o.id));
+
+  // AI : Remove overlays that should be hidden
+  const overlaysToHide = cityOverlays.filter(overlay => !visibleOverlayIds.has(overlay.id));
+  for (const overlay of overlaysToHide) {
+    removeOverlayFromMap(overlay.id);
   }
-}, { immediate: true });
 
-// AI : Watch for edit mode changes to start/stop camera tracking
-watch(() => isEditMode?.value, (editMode) => {
-  if (editMode) {
-    // AI : Stop view mode tracking when entering edit mode
-    stopCameraTracking();
-  } else {
-    // AI : Start view mode tracking when exiting edit mode
-    startCameraTracking();
+  // AI : Find overlays that should be visible but aren't currently rendered
+  const overlaysToRender = visibleOverlays.filter(cdnOverlay => {
+    const overlayObject = overlayStore.overlays[cdnOverlay.id];
+    const hasLayer = overlayObject?.overlay && map.value?.hasLayer(overlayObject.overlay);
+    return !overlayObject || !overlayObject.overlay || !hasLayer;
+  });
+
+  // AI : Recreate missing overlays from scratch
+  if (overlaysToRender.length > 0) {
+    renderViewModeOverlays(overlaysToRender, true, false);
+  }
+  overlayStore.setViewModeOverlays(visibleOverlays);
+
+  // AI : Update currentCityOverlays AND cache to ensure they're preserved
+  mapStore.currentCityOverlays = cityOverlays;
+  mapStore.setCityProjectsCache(selectedCityId, overlayStore.mode, cityOverlays);
+}
+
+// AI : Watch for mode changes to manage overlay state
+watch(() => overlayStore.mode, (newMode, oldMode) => {
+  if (newMode !== 'view' && oldMode === 'view') {
+    // AI : Entering edit or moderation mode from view mode - clear view mode tracking
+    overlayStore.clearViewModeOverlays();
+  } else if (newMode === 'view') {
+    // AI : Apply filters when entering view mode - but only if there are overlays to filter
+    // AI : The mode switch already handles rendering, this is just for completion status filtering
+    setTimeout(async () => {
+      // AI : Only filter if there are actually overlays loaded
+      if (Object.keys(overlayStore.overlays).length > 0) {
+        await filterOverlaysByCompletionStatus()
+      }
+    }, 100);
   }
 });
 
-// AI : Reset file input when dialog closes
-watch(() => showProjectSelector.value, (newVal) => {
-  if (!newVal) {
-    overlayStore.clearPendingFile();
-    // AI : Don't reset replacementOverlayId here as it's needed after project selection
+// AI : Watch for overlays changes to apply filters (only in view mode)
+watch(() => overlayStore.overlays ? Object.keys(overlayStore.overlays).length : 0, () => {
+  if (overlayStore.mode === 'view') {
+    setTimeout(async () => await filterOverlaysByCompletionStatus(), 100);
   }
 });
 
@@ -174,196 +161,114 @@ onMounted(async () => {
   isLoading.value = false;
 });
 
-// AI : Process image after project selection
-async function onProjectSelected(projectId: string) {
-  // AI : Check if project exists in local store, if not, try to get it from nearby projects
-  if (!projects.value[projectId]) {
-    try {
-      // AI : Fetch nearby projects to get the selected project data
-      const nearbyProjects = await fetchNearbyProjects();
-      const nearbyProject = nearbyProjects.find((p: any) => p.id === projectId);
+onUnmounted(() => {
+  // AI : Clean up event listeners
+  globalThis.removeEventListener('keydown', handleKeyDown, true);
+});
 
-      if (nearbyProject) {
-        // AI : Convert nearby project to local project format and add to store
-        const localProject = {
-          id: nearbyProject.id,
-          name: nearbyProject.name,
-          description: nearbyProject.description ?? '',
-          overlayIds: [],
-          color: '#007bff',
-          cityId: nearbyProject.cityId,
-          status: 'approved' as const,
-          ownerId: nearbyProject.ownerId,
-          createdAt: nearbyProject.createdAt,
-          updatedAt: nearbyProject.updatedAt,
-          metadata: nearbyProject.metadata,
-          city: nearbyProject.city ? {
-            id: nearbyProject.city.id,
-            name: nearbyProject.city.name,
-            countryCode: nearbyProject.city.countryCode,
-            coordinates: { x: nearbyProject.city.lng, y: nearbyProject.city.lat },
-            createdAt: null,
-            updatedAt: new Date()
-          } : undefined,
-          sourceUrl: null,
-          startDate: null,
-          endDate: null,
-          latestUpdateOn: null,
-          savedRemotely: true
-        };
-
-        // AI : Add project to local store
-        projects.value[projectId] = localProject;
-      } else {
-        console.warn('AI : Project not found in nearby projects, overlay creation may not work properly');
-      }
-    } catch (error) {
-      console.error('AI : Error fetching nearby projects for project selection:', error);
-    }
-  }
-
-  await handleFileUpload(projectId, !!replacementOverlayId.value);
-}
-
-// AI : Handle file upload by user
-async function handleFileUpload(projectId: string, isReplacement: boolean = false) {
-  if (!pendingImageFile.value) {
-    console.warn('No image file to upload');
-    toast.add({
-      severity: 'warn',
-      summary: 'No file selected',
-      detail: 'Please select an image file to upload',
-      life: 3000
-    });
-    showProjectSelector.value = false;
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = async () => {
-    try {
-      if (isReplacement && replacementOverlayId.value) {
-        // AI : Create replacement overlay using the standard overlay creation process
-        const overlayId = await addOverlay(reader.result as string, projectId, replacementOverlayId.value);
-
-        if (overlayId) {
-          toast.add({
-            severity: 'success',
-            summary: 'Replacement Overlay Created',
-            detail: 'Your replacement overlay has been created and is ready for editing',
-            life: 3000
-          });
-        }
-      } else {
-        // AI : Regular overlay addition
-        const overlayId = await addOverlay(reader.result as string, projectId);
-
-        if (overlayId) {
-          toast.add({
-            severity: 'success',
-            summary: 'Overlay added',
-            detail: `Overlay has been added to project`,
-            life: 3000
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error handling file upload:', error);
-      toast.add({
-        severity: 'error',
-        summary: 'Upload Failed',
-        detail: 'Failed to process the image overlay',
-        life: 3000
-      });
-    } finally {
-      // AI : Reset state
-      overlayStore.resetReplacement();
-      showProjectSelector.value = false;
-    }
-  };
-  reader.readAsDataURL(pendingImageFile.value);
-}
 
 // AI : Keyboard shortcuts handler
 function handleKeyDown(event: KeyboardEvent) {
-  if (event.ctrlKey && event.key === 'z') undo();
-  else if (event.ctrlKey && event.key === 'y') redo();
+  // AI : Undo: Ctrl+Z (works on all keyboard layouts)
+  if (event.ctrlKey && !event.shiftKey && event.key.toLowerCase() === 'z') {
+    undo();
+  }
+  // AI : Redo: Ctrl+Y (AZERTY) or Ctrl+Shift+Z (QWERTY)
+  else if (event.ctrlKey && (event.key.toLowerCase() === 'y' || (event.shiftKey && event.key.toLowerCase() === 'z'))) {
+    redo();
+  }
 }
+
 
 // AI : Initialize map and overlays
 async function initializeMapAndOverlays() {
   try {
-    await initializeMap();
+    initializeMap();
+    addTileLayer(); // AI : Initialize tile layers after map is created
     initializeCameraBounds(); // AI : Initialize camera bounds tracking
     await initializeCountryMarkers(); // AI : Initialize country markers by default
-    window.addEventListener('keydown', handleKeyDown, true);
+    initializeOverlayModes(); // AI : Initialize overlay mode system and zoom watcher
+    setupMapClickToDeselect(); // AI : Setup click handler to deselect overlays when clicking map background
+    globalThis.addEventListener('keydown', handleKeyDown, true);
     disableLeafletKeyboardEvents();
 
-    // AI : Start camera tracking if in view mode
-    if (!(isEditMode?.value ?? false)) {
-      startCameraTracking();
-    }
   } catch (error) {
     console.error('Error initializing map and overlays:', error);
     toast.add({
       severity: 'error',
-      summary: 'Initialization Error',
-      detail: 'Failed to initialize map and overlays',
+      summary: t('common.error'),
+      detail: t('pages.home.errors.initializationError'),
       life: 5000
-    });
-  }
-}
-
-// AI : Handle toggle edit mode with loading state
-async function handleToggleEditMode(newValue: boolean) {
-  try {
-    await toggleEditMode();
-  } catch (error) {
-    console.error('AI : Error toggling edit mode:', error);
-    toast.add({
-      severity: 'error',
-      summary: 'Mode Switch Error',
-      detail: 'Failed to switch mode. Please try again.',
-      life: 3000
     });
   }
 }
 </script>
 
 <style scoped>
+.map-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+}
+
 .map-container {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 1;
 }
 
-.map-buttons {
+/* AI : Mode borders - positioned relative to map container below tooltips and dialogs */
+.mode-border {
   position: absolute;
-  top: 60px;
-  left: 10px;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  transition: opacity 0.3s ease;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 4px solid;
+  pointer-events: none;
+  z-index: 900;
+  animation: borderFadeIn 0.3s ease-in-out;
 }
 
-.buttons-hidden {
-  opacity: 0.2;
+.edit-mode-border {
+  border-color: #f59e0b;
+  /* Orange for edit mode */
+}
+
+.moderation-mode-border {
+  border-color: #3b82f6;
+  /* Blue for moderation mode */
+}
+
+@keyframes borderFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* AI : Desktop mode controls - positioned absolutely within map container below tooltips and dialogs */
+.mode-controls-desktop {
+  position: absolute;
+  bottom: 1.25rem;
+  left: 0;
+  right: 0;
+  z-index: 900;
   pointer-events: none;
 }
 
-.buttons-hidden:hover {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.p-button-rounded:hover {
-  transform: scale(1.05);
-  transition: transform 0.2s ease;
+@media (max-width: 768px) {
+  .mode-controls-desktop {
+    display: none;
+  }
 }
 
 .loading-overlay {
@@ -375,92 +280,74 @@ async function handleToggleEditMode(newValue: boolean) {
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: rgba(255, 255, 255, 0.8);
-  z-index: 1000;
+  background-color: black;
 }
 
 .loading-content {
   text-align: center;
 }
 
-.view-mode-panel {
+/* AI : City search positioned in top-left corner */
+.city-search-container {
   position: absolute;
-  top: 20px;
-  right: 20px;
-  width: 300px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  top: 16px;
+  left: 16px;
   z-index: 1000;
-  overflow: hidden;
+  pointer-events: auto;
 }
 
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
+@media (max-width: 768px) {
+  .city-search-container {
+    left: 16px;
+    right: 16px;
+    max-width: calc(100% - 80px);
+    /* AI : Leave space for language/user menu */
+  }
 }
 
-.panel-header h3 {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: #495057;
+/* AI : Move Leaflet attribution above mobile drawer handle */
+@media (max-width: 768px) {
+
+  :deep(.leaflet-control-attribution) {
+    bottom: 4.5rem !important;
+    right: 0.5rem !important;
+    left: auto !important;
+    background: rgba(255, 255, 255, 0.9) !important;
+    backdrop-filter: blur(4px) !important;
+    border-radius: 0.5rem !important;
+    padding: 0.25rem 0.5rem !important;
+    margin: 0 !important;
+    font-size: 0.75rem !important;
+    max-width: calc(100vw - 8rem) !important;
+    /* AI : Leave space for scale */
+    position: fixed !important;
+    display: block !important;
+    visibility: visible !important;
+    line-height: 1.3 !important;
+    white-space: normal !important;
+    /* AI : Allow text wrapping */
+    word-break: break-word !important;
+    /* AI : Break long words if needed */
+  }
+
+  :deep(.leaflet-control-scale) {
+    bottom: 4.5rem !important;
+    /* AI : Same level as attribution */
+    left: 0.5rem !important;
+    backdrop-filter: blur(4px) !important;
+    border-radius: 0.5rem !important;
+    padding: 0.25rem !important;
+    margin: 0 !important;
+    position: fixed !important;
+    display: block !important;
+    visibility: visible !important;
+  }
 }
 
-.overlay-count {
-  background: #007bff;
-  color: white;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.panel-content {
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.overlay-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 16px;
-  border-bottom: 1px solid #f1f3f4;
-}
-
-.overlay-item:last-child {
-  border-bottom: none;
-}
-
-.overlay-item:hover {
-  background: #f8f9fa;
-}
-
-.overlay-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.overlay-caption {
-  font-size: 13px;
-  font-weight: 500;
-  color: #333;
-}
-
-.overlay-sequence {
-  font-size: 11px;
-  color: #6c757d;
-}
-
-.overlay-distance {
-  font-size: 12px;
-  color: #28a745;
-  font-weight: 500;
+/* AI : Global CSS for custom SVG markers */
+:global(.custom-svg-marker) {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 </style>

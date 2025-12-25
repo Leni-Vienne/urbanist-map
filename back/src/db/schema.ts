@@ -1,44 +1,139 @@
 import {
-  pgTable, uuid, text, timestamp, jsonb, index, doublePrecision, geometry, char, pgEnum,
-} from 'drizzle-orm/pg-core';
-import {
-  sql, InferSelectModel, relations,
-} from 'drizzle-orm';
+  pgTable,
+  uuid,
+  text,
+  timestamp,
+  jsonb,
+  integer,
+  doublePrecision,
+  boolean,
+  pgEnum,
+  index,
+  char,
+  geometry,
+  type AnyPgColumn,
+} from "drizzle-orm/pg-core";
+import { sql, relations, type InferSelectModel } from "drizzle-orm";
 
-export const approvalStatusEnum = pgEnum('approval_status', ['pending', 'approved', 'rejected']);
+export const approvalStatusEnum = pgEnum("approval_status", [
+  "pending",
+  "approved",
+  "rejected",
+  "replaced",
+]);
+export type ApprovalStatus = (typeof approvalStatusEnum.enumValues)[number];
 
-export const users = pgTable('users', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  username: text('username').notNull().unique(),
-  email: text('email').notNull().unique(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
-});
+export const changeRequestStatusEnum = pgEnum("change_request_status", [
+  "pending",
+  "approved",
+  "rejected",
+  "conflicted",
+]);
+
+export type ChangeRequestStatus = (typeof changeRequestStatusEnum.enumValues)[number];
+
+// AI : Users table for custom authentication
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    email: text("email").unique().notNull(),
+    username: text("username").unique(),
+    passwordHash: text("password_hash"), // AI : Now nullable for OAuth users
+    role: text("role").default("user"), // AI : Role can be 'user', 'admin', etc.
+    moderatedCountries: text("moderated_countries").array(), // AI : Array of ISO 3-letter country codes this moderator can moderate (null = admin with all countries)
+    emailVerified: boolean("email_verified").default(false).notNull(),
+    emailVerificationToken: text("email_verification_token"),
+    passwordResetToken: text("password_reset_token"),
+    passwordResetExpiresAt: timestamp("password_reset_expires_at", { withTimezone: true }),
+    // AI : OAuth provider IDs for secure authentication
+    googleId: text("google_id").unique(), // AI : Google's unique user ID (sub field)
+    // AI : Moderation stats for spam prevention - tracks approval/rejection counts across all entity types
+    approvedCount: integer("approved_count").default(0).notNull(),
+    rejectedCount: integer("rejected_count").default(0).notNull(),
+    // AI : Soft ban fields for spam/abuse prevention
+    banned: boolean("banned").default(false).notNull(),
+    bannedAt: timestamp("banned_at", { withTimezone: true }),
+    bannedBy: uuid("banned_by").references((): AnyPgColumn => users.id, { onDelete: "set null" }),
+    banReason: text("ban_reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull()
+      .$onUpdate(() => new Date()),
+  },
+  (users) => [
+    index("idx_users_email").on(users.email),
+    index("idx_users_email_verification").on(users.emailVerificationToken),
+    index("idx_users_password_reset").on(users.passwordResetToken),
+    index("idx_users_google_id").on(users.googleId), // AI : Index for Google OAuth lookups
+  ],
+);
 
 export const usersRelations = relations(users, ({ many }) => ({
   projects: many(projects),
   overlays: many(overlays),
 }));
 
-export const projects = pgTable('projects', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  name: text('name').notNull(),
-  description: text('description'),
-  status: approvalStatusEnum('status').default('pending').notNull(),
-  ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'set null', onUpdate: 'cascade' }),
-  cityId: uuid('city_id').references(() => cities.id, { onDelete: 'set null', onUpdate: 'cascade' }), // AI : Reference to the city where the project is located
-  metadata: jsonb('metadata'),
-  sourceUrl: text('source_url'),
-  startDate: timestamp('start_date', { withTimezone: true }),
-  endDate: timestamp('end_date', { withTimezone: true }),
-  latestUpdateOn: timestamp('latest_update_on', { withTimezone: true }),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
-});
+// AI : Sessions table for database-backed session storage
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: text("id").primaryKey(), // AI : Session ID from hono-sessions
+    data: jsonb("data").notNull(), // AI : Session data (user info, expiresAt, etc)
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull()
+      .$onUpdate(() => new Date()),
+  },
+  (sessions) => [
+    index("idx_sessions_expires_at").on(sessions.expiresAt), // AI : Index for cleanup queries
+  ],
+);
 
-export const projectsRelations = relations(projects, ({
-  one, many,
-}) => ({
+export const projects = pgTable(
+  "projects",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: text("name").notNull(),
+    description: text("description"),
+    status: approvalStatusEnum("status").default("pending").notNull(),
+    ownerId: uuid("owner_id").references(() => users.id, {
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }),
+    cityId: integer("city_id")
+      .references(() => cities.id, { onDelete: "set null", onUpdate: "cascade" })
+      .notNull(), // AI : Reference to the city where the project is located
+    sourceUrl: text("source_url"),
+    proposalDate: timestamp("proposal_date", { withTimezone: true }),
+    startDate: timestamp("start_date", { withTimezone: true }),
+    endDate: timestamp("end_date", { withTimezone: true }),
+    latestUpdateOn: timestamp("latest_update_on", { withTimezone: true }),
+    // AI : Center coordinate for all projects - used as marker position when no images exist
+    lat: doublePrecision("lat"),
+    lng: doublePrecision("lng"),
+    centerCoordinate: geometry("center_coordinate", { type: "point", mode: "xy", srid: 4326 }), // AI : PostGIS point for spatial queries (computed from lat/lng)
+    version: integer("version").default(1).notNull(), // AI : Version for optimistic locking during moderation
+    rejectionReason: text("rejection_reason"), // AI : Moderator-selected reason when rejecting (NULL for approved/pending)
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    index("idx_projects_status").on(table.status),
+    index("idx_projects_owner_id").on(table.ownerId),
+    sql.raw(
+      "CREATE INDEX idx_projects_center_coordinate ON projects USING GIST (center_coordinate)",
+    ), // AI : Spatial index for project center coordinates
+  ],
+);
+
+export const projectsRelations = relations(projects, ({ one, many }) => ({
   owner: one(users, {
     fields: [projects.ownerId],
     references: [users.id],
@@ -50,34 +145,44 @@ export const projectsRelations = relations(projects, ({
   overlays: many(overlays),
 }));
 
-export const overlays = pgTable('overlays', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  filename: text('filename').notNull(),
-  caption: text('caption'),
-  status: approvalStatusEnum('status').default('pending').notNull(),
-  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
-  authorId: uuid('author_id').references(() => users.id, { onDelete: 'set null', onUpdate: 'cascade' }),
-  replacesOverlayId: uuid('replaces_overlay_id'), // AI : Reference to the overlay this replaces (self-reference added via relations)
-  metadata: jsonb('metadata'), // pour EXIF, etc.
+export const overlays = pgTable(
+  "overlays",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    filename: text("filename").notNull(),
+    caption: text("caption"),
+    status: approvalStatusEnum("status").default("pending").notNull(),
+    projectId: uuid("project_id").references(() => projects.id, {
+      onDelete: "cascade",
+      onUpdate: "cascade",
+    }),
+    authorId: uuid("author_id").references(() => users.id, {
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }),
+    replacesOverlayId: uuid("replaces_overlay_id"), // AI : Reference to the overlay this replaces (set by user during upload)
+    replacedByOverlayId: uuid("replaced_by_overlay_id"), // AI : Reference to the overlay that replaced this one (set by moderator during approval)
 
-  // Coordonnées des 4 coins (séparées)
-  topLeftLat: doublePrecision('top_left_lat').notNull(),
-  topLeftLng: doublePrecision('top_left_lng').notNull(),
-  topRightLat: doublePrecision('top_right_lat').notNull(),
-  topRightLng: doublePrecision('top_right_lng').notNull(),
-  bottomRightLat: doublePrecision('bottom_right_lat').notNull(),
-  bottomRightLng: doublePrecision('bottom_right_lng').notNull(),
-  bottomLeftLat: doublePrecision('bottom_left_lat').notNull(),
-  bottomLeftLng: doublePrecision('bottom_left_lng').notNull(),
+    corners: geometry("corners", { type: "polygon", mode: "xy", srid: 4326 }).notNull(),
+    centroid: geometry("centroid", { type: "point", mode: "xy", srid: 4326 }).notNull(),
 
-  centroid: geometry('centroid', { type: 'point', mode: 'xy', srid: 4326 }).notNull(),
-
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
-}, (overlays) => ({
-  projectIndex: index('idx_overlays_project').on(overlays.projectId),
-  centroidIndex: sql.raw('CREATE INDEX idx_overlays_centroid ON overlays USING GIST (centroid)'),
-}));
+    version: integer("version").default(1).notNull(), // AI : Version for optimistic locking during moderation
+    rejectionReason: text("rejection_reason"), // AI : Moderator-selected reason when rejecting (NULL for approved/pending)
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    index("idx_overlays_status").on(table.status),
+    index("idx_overlays_author_id").on(table.authorId),
+    index("idx_overlays_project").on(table.projectId),
+    index("idx_overlays_replaces").on(table.replacesOverlayId),
+    sql.raw("CREATE INDEX IF NOT EXISTS idx_overlays_corners ON overlays USING GIST (corners)"),
+    sql.raw("CREATE INDEX IF NOT EXISTS idx_overlays_centroid ON overlays USING GIST (centroid)"),
+  ],
+);
 
 export const overlaysRelations = relations(overlays, ({ one }) => ({
   project: one(projects, {
@@ -91,38 +196,216 @@ export const overlaysRelations = relations(overlays, ({ one }) => ({
   replacesOverlay: one(overlays, {
     fields: [overlays.replacesOverlayId],
     references: [overlays.id],
-    relationName: 'overlay_replacement'
+    relationName: "overlay_replacement",
   }),
 }));
 
-export const cities = pgTable('cities', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  name: text('name').notNull(),
-  countryCode: char('country_code', { length: 3 }).notNull(), // AI : 3-letter country code (ISO 3166-1 alpha-3)
-  coordinates: geometry('coordinates', { type: 'point', mode: 'xy', srid: 4326 }).notNull(), // AI : Geographic coordinates as PostGIS point
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
-}, (cities) => ({
-  countryIndex: index('idx_cities_country').on(cities.countryCode),
-  coordinatesIndex: sql.raw('CREATE INDEX idx_cities_coordinates ON cities USING GIST (coordinates)'),
-}));
+export const cities = pgTable(
+  "cities",
+  {
+    id: integer("id").primaryKey(), // AI : GeoNames city ID (natural key from GeoNames database)
+    name: text("name").notNull(), // AI : English/ASCII name from GeoNames
+    nameLocal: text("name_local"), // AI : Local/native name in country's primary language (nullable - only if alternateNames available)
+    countryCode: char("country_code", { length: 3 }).notNull(), // AI : 3-letter country code (ISO 3166-1 alpha-3)
+    coordinates: geometry("coordinates", { type: "point", mode: "xy", srid: 4326 }).notNull(), // AI : Geographic coordinates as PostGIS point
+    approvedProjectCount: integer("approved_project_count").default(0).notNull(), // AI : Pre-computed count of approved projects for fast search
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull()
+      .$onUpdate(() => new Date()),
+  },
+  (cities) => [
+    index("idx_cities_country").on(cities.countryCode),
+    index("idx_cities_name").on(cities.name), // AI : Index for fast ILIKE searches on English name
+    index("idx_cities_name_local").on(cities.nameLocal), // AI : Index for fast ILIKE searches on local name
+    sql.raw("CREATE INDEX idx_cities_coordinates ON cities USING GIST (coordinates)"),
+  ],
+);
 
 export const citiesRelations = relations(cities, ({ many }) => ({
   projects: many(projects),
 }));
 
-export const countries = pgTable('countries', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  code: char('code', { length: 3 }).notNull().unique(), // AI : ISO 3166-1 alpha-3 country code
-  name: text('name').notNull(), // AI : Country name in English
-  centerCoordinates: geometry('center_coordinates', { type: 'point', mode: 'xy', srid: 4326 }).notNull(), // AI : Geographic center of the country
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date())
-}, (countries) => ({
-  codeIndex: index('idx_countries_code').on(countries.code),
-  centerIndex: sql.raw(`CREATE INDEX idx_countries_center ON countries USING GIST (center_coordinates)`)
+export const countries = pgTable(
+  "countries",
+  {
+    id: integer("id").primaryKey(), // AI : GeoNames country ID (natural key from GeoNames database)
+    code: char("code", { length: 3 }).notNull().unique(), // AI : ISO 3166-1 alpha-3 country code (e.g., "FRA", "USA", "JPN")
+    code2: char("code2", { length: 2 }).notNull().unique(), // AI : ISO 3166-1 alpha-2 country code for flags (e.g., "FR", "US", "JP")
+    name: text("name").notNull(), // AI : Country name in English
+    centerCoordinates: geometry("center_coordinates", {
+      type: "point",
+      mode: "xy",
+      srid: 4326,
+    }).notNull(), // AI : Geographic center of the country
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull()
+      .$onUpdate(() => new Date()),
+  },
+  (countries) => [
+    index("idx_countries_code").on(countries.code),
+    index("idx_countries_code2").on(countries.code2), // AI : Index for flag lookups
+    sql.raw(`CREATE INDEX idx_countries_center ON countries USING GIST (center_coordinates)`),
+  ],
+);
+
+export const changeRequests = pgTable(
+  "change_requests",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    entityType: text("entity_type").notNull(),
+    entityId: uuid("entity_id").notNull(),
+    fieldName: text("field_name").notNull(),
+    oldValue: jsonb("old_value"),
+    newValue: jsonb("new_value").notNull(),
+    changeReason: text("change_reason"),
+    status: changeRequestStatusEnum("status").default("pending").notNull(),
+    requestedBy: uuid("requested_by").references(() => users.id, {
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolvedBy: uuid("resolved_by").references(() => users.id, {
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }),
+  },
+  (table) => [
+    index("idx_change_requests_entity").on(table.entityType, table.entityId),
+    index("idx_change_requests_requested_by").on(table.requestedBy),
+    index("idx_change_requests_status").on(table.status),
+  ],
+);
+
+export const changeHistory = pgTable(
+  "change_history",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    changeRequestId: uuid("change_request_id").references(() => changeRequests.id, {
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }),
+    entityType: text("entity_type").notNull(),
+    entityId: uuid("entity_id").notNull(),
+    fieldName: text("field_name").notNull(),
+    oldValue: jsonb("old_value"),
+    newValue: jsonb("new_value").notNull(),
+    changedBy: uuid("changed_by").references(() => users.id, {
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }),
+    approvedBy: uuid("approved_by").references(() => users.id, {
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }),
+    appliedAt: timestamp("applied_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    index("idx_change_history_entity").on(table.entityType, table.entityId),
+    index("idx_change_history_request").on(table.changeRequestId),
+  ],
+);
+
+export const changeRequestsRelations = relations(changeRequests, ({ one }) => ({
+  requestedByUser: one(users, {
+    fields: [changeRequests.requestedBy],
+    references: [users.id],
+  }),
 }));
 
+export const changeHistoryRelations = relations(changeHistory, ({ one }) => ({
+  changeRequest: one(changeRequests, {
+    fields: [changeHistory.changeRequestId],
+    references: [changeRequests.id],
+  }),
+  changedByUser: one(users, {
+    fields: [changeHistory.changedBy],
+    references: [users.id],
+    relationName: "changed_by",
+  }),
+  approvedByUser: one(users, {
+    fields: [changeHistory.approvedBy],
+    references: [users.id],
+    relationName: "approved_by",
+  }),
+}));
+
+// AI : Scheduled deletions table for managing timed cleanup of replaced/rejected overlay images
+export const scheduledDeletions = pgTable(
+  "scheduled_deletions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    overlayId: uuid("overlay_id").references(() => overlays.id, {
+      onDelete: "cascade",
+      onUpdate: "cascade",
+    }),
+    filename: text("filename").notNull(),
+    deletionDate: timestamp("deletion_date", { withTimezone: true }).notNull(),
+    deletionType: text("deletion_type").notNull(), // AI : 'full', 'thumbnail', or 'both'
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_scheduled_deletions_date").on(table.deletionDate),
+    index("idx_scheduled_deletions_overlay").on(table.overlayId),
+  ],
+);
+
+export const scheduledDeletionsRelations = relations(scheduledDeletions, ({ one }) => ({
+  overlay: one(overlays, {
+    fields: [scheduledDeletions.overlayId],
+    references: [overlays.id],
+  }),
+}));
+
+// AI : Config table for application-wide settings (single row with id=1)
+export const config = pgTable("config", {
+  id: integer("id").primaryKey().default(1),
+  infoMessage: text("info_message"), // AI : Optional info message to display at top of website
+  reportThreshold: integer("report_threshold").default(2).notNull(), // AI : Number of moderator reports before user is blocked
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull()
+    .$onUpdate(() => new Date()),
+});
+
+// AI : User reports table for spam prevention
+// AI : Tracks which moderators have reported which users
+// AI : Rules: 1 report = hide for that moderator, 2+ reports = warning for all, 3+ or admin = global hide
+export const userReports = pgTable(
+  "user_reports",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    reportedUserId: uuid("reported_user_id")
+      .references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" })
+      .notNull(),
+    reportedBy: uuid("reported_by")
+      .references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" })
+      .notNull(),
+    reason: text("reason"), // AI : Optional reason for the report
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_user_reports_reported_user").on(table.reportedUserId),
+    index("idx_user_reports_reported_by").on(table.reportedBy),
+  ],
+);
+
+export const userReportsRelations = relations(userReports, ({ one }) => ({
+  reportedUser: one(users, {
+    fields: [userReports.reportedUserId],
+    references: [users.id],
+    relationName: "reports_received",
+  }),
+  reporter: one(users, {
+    fields: [userReports.reportedBy],
+    references: [users.id],
+    relationName: "reports_made",
+  }),
+}));
 
 // AI : Export Drizzle-inferred types for frontend consumption
 export type DBCity = InferSelectModel<typeof cities>;
@@ -130,3 +413,8 @@ export type DBProject = InferSelectModel<typeof projects>;
 export type DBOverlay = InferSelectModel<typeof overlays>;
 export type DBUser = InferSelectModel<typeof users>;
 export type DBCountry = InferSelectModel<typeof countries>;
+export type DBChangeRequest = InferSelectModel<typeof changeRequests>;
+export type DBChangeHistory = InferSelectModel<typeof changeHistory>;
+export type DBScheduledDeletion = InferSelectModel<typeof scheduledDeletions>;
+export type DBConfig = InferSelectModel<typeof config>;
+export type DBUserReport = InferSelectModel<typeof userReports>;

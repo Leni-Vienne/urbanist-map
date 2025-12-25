@@ -1,0 +1,69 @@
+/* AI : Shared CSS styles for side panel components */
+
+/* AI : Header actions container - used by CurrentCityPanel, MyContributionsPanel, etc. */
+.header-actions-container {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+/* AI : Empty state styling - consistent across all panels */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  text-align: center;
+  color: var(--p-surface-600);
+  height: 100%;
+}
+
+/* AI : Common button styles for panel headers */
+.add-project-button {
+  font-weight: 600;
+}
+
+/* AI : Delete button styling - used in My Contributions panel */
+.delete-btn {
+  color: var(--p-red-600);
+  transition: all 0.2s ease;
+}
+
+.delete-btn:hover {
+  color: var(--p-red-700);
+  background-color: var(--p-red-50);
+}
+
+/* AI : Action button styling - used in multiple panels */
+.action-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 0.875rem;
+}
+
+.action-btn:hover {
+  border-color: #d1d5db;
+  background-color: #f9fafb;
+}
+
+.disabled-btn {
+  color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.disabled-btn:hover {
+  background-color: white;
+  border-color: #e5e7eb;
+}
