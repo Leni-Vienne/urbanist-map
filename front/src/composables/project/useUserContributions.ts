@@ -129,20 +129,35 @@ function cleanupProjectFromState(
  * AI : Does not use Vue composables, safe to call from Leaflet toolbar handlers
  */
 export async function deleteOverlayDirect(overlayId: string): Promise<boolean> {
+  const overlayStore = useOverlayStore();
+  const overlayObject = overlayStore.overlays[overlayId];
+
   try {
-    const result = await withErrorHandling(
-      async () => trpc.overlay.deleteOverlay.mutate({ id: overlayId }),
-      { errorMessage: undefined },
-    );
+    // AI : Check if overlay exists in backend (has a status)
+    // AI : Brand new overlays (status === null or undefined) only exist locally
+    // AI : Using ?? to check for null/undefined - if status is null/undefined, existsInBackend = false
+    const existsInBackend = (overlayObject?.status ?? null) !== null;
 
-    const shouldCleanup = result?.success ?? !result;
+    if (existsInBackend) {
+      // AI : Overlay exists in backend, call API to delete it
+      const result = await withErrorHandling(
+        async () => trpc.overlay.deleteOverlay.mutate({ id: overlayId }),
+        { errorMessage: undefined },
+      );
 
-    if (shouldCleanup) {
+      const shouldCleanup = result?.success ?? !result;
+
+      if (shouldCleanup) {
+        cleanupOverlayFromState(overlayId, { clearCaches: false });
+        return true;
+      }
+
+      return false;
+    } else {
+      // AI : Brand new overlay, only exists locally - just clean up local state
       cleanupOverlayFromState(overlayId, { clearCaches: false });
       return true;
     }
-
-    return false;
   } catch (error) {
     console.error("Failed to delete overlay:", error);
     return false;
@@ -177,17 +192,41 @@ export function useUserContributions() {
   }
 
   async function deleteOverlay(overlayId: string): Promise<boolean> {
+    const overlayStore = useOverlayStore();
+    const overlayObject = overlayStore.overlays[overlayId];
+
     try {
-      // AI : Try backend deletion first (will fail gracefully if overlay not in backend)
-      const result = await withErrorHandling(
-        async () => trpc.overlay.deleteOverlay.mutate({ id: overlayId }),
-        { errorMessage: undefined },
-      );
+      // AI : Check if overlay exists in backend (has a status)
+      // AI : Brand new overlays (status === null or undefined) only exist locally
+      // AI : Using ?? to check for null/undefined - if status is null/undefined, existsInBackend = false
+      const existsInBackend = (overlayObject?.status ?? null) !== null;
 
-      // AI : Whether backend succeeded or failed, clean up local state
-      const shouldCleanup = result?.success ?? !result;
+      if (existsInBackend) {
+        // AI : Overlay exists in backend, call API to delete it
+        const result = await withErrorHandling(
+          async () => trpc.overlay.deleteOverlay.mutate({ id: overlayId }),
+          { errorMessage: undefined },
+        );
 
-      if (shouldCleanup) {
+        // AI : Whether backend succeeded or failed, clean up local state
+        const shouldCleanup = result?.success ?? !result;
+
+        if (shouldCleanup) {
+          cleanupOverlayFromState(overlayId, {
+            updateUserContributions: true,
+            clearCaches: true,
+          });
+
+          toast.add({
+            severity: "success",
+            summary: t("contributions.overlayDeleted"),
+            life: 3000,
+          });
+          return true;
+        }
+        return false;
+      } else {
+        // AI : Brand new overlay, only exists locally - just clean up local state
         cleanupOverlayFromState(overlayId, {
           updateUserContributions: true,
           clearCaches: true,
@@ -200,7 +239,6 @@ export function useUserContributions() {
         });
         return true;
       }
-      return false;
     } catch (error) {
       console.error("Error deleting overlay:", error);
       return false;
