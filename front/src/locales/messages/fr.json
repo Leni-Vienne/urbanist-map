@@ -296,7 +296,8 @@
     "navigateToEdit": "Naviguer vers l'image",
     "navigateToEditDetail": "Cliquez sur la carte d'image pour naviguer et la modifier sur la carte",
     "zoomingToProject": "Zoom vers le projet",
-    "zoomInToSeeOverlay": "Le niveau de zoom était trop faible, zoom automatique pour afficher l'image téléchargée"
+    "zoomInToSeeOverlay": "Le niveau de zoom était trop faible, zoom automatique pour afficher l'image téléchargée",
+    "onlyOneOverlayInProject": "Ce projet n'a qu'une seule image"
   },
   "map": {
     "zoom": "Zoom",

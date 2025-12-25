@@ -988,6 +988,8 @@ function focusCameraToOverlay(direction: "next" | "previous") {
   }
 
   if (projectOverlayIds.length <= 1) {
+    const toast = useToast();
+    toast.add({ severity: "info", summary: t("overlay.onlyOneOverlayInProject"), life: 3000 });
     return false;
   }
 
@@ -1181,9 +1183,8 @@ export const infoTool = L.Toolbar2.Action.extend({
 
     // IMPORTANT : This if/else is need to toggle open/close the info popup and be able to open it again
     if (isCurrentlyOpen) {
-      // AI : Close
+      // AI : Close - but don't call _hide() as it breaks parent toolbar event handlers (MAYBE)
       overlayStore.hideInfoPopup();
-      this.options.subToolbar._hide();
 
       // AI : Remove the teleport target and restore original button
       const teleportTarget = this.options.subToolbar._container?.querySelector(
