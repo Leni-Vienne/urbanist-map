@@ -65,6 +65,11 @@ export function updateOverlayEditingState(): void {
   Object.values(overlayStore.overlays).forEach((overlayObject: OverlayObject) => {
     if (!overlayObject.overlay) return;
 
+    // AI : Ensure overlay is on the map before attempting to manipulate it
+    // AI : This prevents errors when 'updateOverlayEditingState' is called during zoom transitions
+    // AI : where overlays might be created but waiting for zoom animation to finish before being added
+    if (!map.value || !map.value.hasLayer(overlayObject.overlay)) return;
+
     // AI : Update overlay options using the new setOptions method
     const isEditMode = overlayStore.mode === "edit";
     overlayObject.overlay.setOptions({
