@@ -63,7 +63,6 @@
 
 <script setup lang="ts">
 import { computed, watch, onMounted } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { useMapStore } from '@/stores/pinia/mapStore'
 import { useOverlayStore } from '@/stores/pinia/overlayStore'
 import { useProjectStore } from '@/stores/pinia/projectStore'
@@ -76,10 +75,8 @@ import { createProjectFromOverlayData, createOverlayForModeration } from '@/util
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import PanelEmptyState from '@/components/common/PanelEmptyState.vue'
 import type { ProjectForModeration, OverlayForModeration } from '@/types/index'
-import type { ApprovalStatus } from '@shared/types';
 
 // AI : Stores
-const { t } = useI18n()
 const mapStore = useMapStore()
 const overlayStore = useOverlayStore()
 const projectStore = useProjectStore()

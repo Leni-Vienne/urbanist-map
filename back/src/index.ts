@@ -670,8 +670,7 @@ app.get("/uploads/*", async (c) => {
       // AI : Check authorization for pending/rejected images
       const isAuthor = user.id === overlay.authorId;
       const isAdmin = user.role === "admin" || user.moderatedCountries === null;
-      const isCountryModerator =
-        user.moderatedCountries && user.moderatedCountries.includes(overlay.countryCode);
+      const isCountryModerator = user.moderatedCountries?.includes(overlay.countryCode);
 
       if (!isAuthor && !isAdmin && !isCountryModerator) {
         return c.json({ error: "Forbidden" }, 403);
@@ -684,7 +683,7 @@ app.get("/uploads/*", async (c) => {
     if (file) {
       // AI : Get origin from request for CORS (must match exact origin to allow credentials)
       const origin = c.req.header("Origin");
-      const allowedOrigin = origin || "*"; // Fallback to * if no origin header
+      const allowedOrigin = origin ?? "*"; // Fallback to * if no origin header
 
       return new Response(file.body, {
         headers: {

@@ -82,7 +82,7 @@ async function handleModeSwitch() {
     isSwitchingMode = true;
     const currentMode = overlayStore.mode;
 
-    let newMode: MapMode = 'view';
+    let newMode: MapMode;
 
     if (authStore.isModerator) {
       // AI : Moderators cycle through all 3 modes

@@ -394,8 +394,6 @@ async function updateCityLocalNames(): Promise<void> {
   const cityLocalNames = new Map<number, { name: string; priority: number }>();
   // AI : Map to store English alternate names (to prefer over romanized names)
   const cityEnglishNames = new Map<number, string>();
-  // AI : Set to track cities that have alternate names (real cities vs districts)
-  const citiesWithAlternates = new Set<number>();
 
   let processedCount = 0;
   for await (const line of rl) {
@@ -461,9 +459,6 @@ async function updateCityLocalNames(): Promise<void> {
     const countryCode = cityCountryMap.get(geonameId);
     if (!countryCode) continue;
 
-    // AI : Mark this city as having alternate names
-    citiesWithAlternates.add(geonameId);
-
     // AI : Capture English alternate names to use as main city name
     // AI : This gives us clean English names like "10th of Ramadan City"
     // AI : instead of romanized names with diacritics like "Al 'Āshir min Ramaḑān"
@@ -513,15 +508,13 @@ async function updateCityLocalNames(): Promise<void> {
       } else {
         continue; // Skip other languages to prevent cross-contamination
       }
-    } else {
+    } else if (lang && lang !== "" && /[^ -~]/.test(alternateName)) {
       // AI : We don't know the target language - accept any non-ASCII
-      if (lang && lang !== "" && /[^ -~]/.test(alternateName)) {
-        priority = 75; // Any language with non-ASCII
-      } else if (lang === "" && /[^ -~]/.test(alternateName)) {
-        priority = 50; // Unlabeled with non-ASCII
-      } else {
-        continue; // Skip Latin-only names
-      }
+      priority = 75; // Any language with non-ASCII
+    } else if (lang === "" && /[^ -~]/.test(alternateName)) {
+      priority = 50; // Unlabeled with non-ASCII
+    } else {
+      continue; // Skip Latin-only names
     }
 
     // AI : Only update if this is better than what we have
