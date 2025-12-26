@@ -20,7 +20,7 @@
             <strong>{{ t('pages.legal.publisher.name') }}:</strong> Léni Vienne
           </li>
           <li>
-            <strong>{{ t('pages.legal.publisher.email') }}:</strong> contact@constructionmap.org
+            <strong>{{ t('pages.legal.publisher.email') }}:</strong> {{ email }}
           </li>
         </ul>
       </section>
@@ -44,12 +44,12 @@
         <h2>{{ t('pages.legal.rights.title') }}</h2>
         <p>{{ t('pages.legal.rights.content') }}</p>
         <ul>
-          <li>{{ t('pages.legal.rights.access') }}</li>
+          <li>{{ t('pages.legal.rights.access', { email }) }}</li>
           <li>{{ t('pages.legal.rights.rectification') }}</li>
-          <li>{{ t('pages.legal.rights.deletion') }}</li>
-          <li>{{ t('pages.legal.rights.portability') }}</li>
+          <li>{{ t('pages.legal.rights.deletion', { email }) }}</li>
+          <li>{{ t('pages.legal.rights.portability', { email }) }}</li>
         </ul>
-        <p>{{ t('pages.legal.rights.howTo') }}</p>
+        <p>{{ t('pages.legal.rights.howTo', { email }) }}</p>
         <p class="legal-basis">
           <strong>{{ t('pages.legal.rights.note') }}</strong>
         </p>
@@ -137,6 +137,7 @@ import { useI18n } from 'vue-i18n'
 
 const router = useRouter()
 const { t } = useI18n()
+const email = 'contact@constructionmap.org'
 
 function goHome() {
   router.push('/')

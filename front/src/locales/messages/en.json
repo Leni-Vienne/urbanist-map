@@ -490,11 +490,11 @@
       "rights": {
         "title": "Your Rights (GDPR)",
         "content": "Under EU law, you have the following rights regarding your data:",
-        "access": "Right to access: request a copy of your data (email contact@constructionmap.org)",
+        "access": "Right to access: request a copy of your data (email {email})",
         "rectification": "Right to rectification: update your username and email in your account settings",
-        "deletion": "Right to erasure: delete your account and all personal data (email contact@constructionmap.org to request account deletion)",
-        "portability": "Right to portability: export your data in JSON format (email contact@constructionmap.org)",
-        "howTo": "To exercise these rights, contact us at contact@constructionmap.org. We will respond within 30 days.",
+        "deletion": "Right to erasure: delete your account and all personal data (email {email} to request account deletion)",
+        "portability": "Right to portability: export your data in JSON format (email {email})",
+        "howTo": "To exercise these rights, contact us at {email}. We will respond within 30 days.",
         "note": "Note: When you delete your account, your personal information (email, username) is removed, but your contributions (projects, overlays) are anonymized and may remain publicly visible."
       },
       "thirdParty": {
