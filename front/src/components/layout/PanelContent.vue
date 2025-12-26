@@ -4,7 +4,7 @@
     <!-- AI : Show content based on active tab -->
     <LatestContributionsPanel v-if="activeTab === 'latest'" />
     <CurrentCityPanel v-else-if="activeTab === 'currentCity'" />
-    <MyContributionsPanel v-else-if="activeTab === 'uploads' && authStore.isAuthenticated" />
+    <ContributePanel v-else-if="activeTab === 'uploads' && authStore.isAuthenticated" />
     <ModerationPanel v-else-if="activeTab === 'moderation' && authStore.isModerator" />
 
     <!-- AI : Show sign-in prompt for authenticated tabs when not signed in -->
@@ -38,7 +38,7 @@ import { useAuthStore } from '@/stores/authStore'
 // AI : Lazy load panels to reduce initial bundle size
 const CurrentCityPanel = defineAsyncComponent(() => import('./CurrentCityPanel.vue'))
 const ModerationPanel = defineAsyncComponent(() => import('./ModerationPanel.vue'))
-const MyContributionsPanel = defineAsyncComponent(() => import('./MyContributionsPanel.vue'))
+const ContributePanel = defineAsyncComponent(() => import('./ContributePanel.vue'))
 
 const authStore = useAuthStore()
 

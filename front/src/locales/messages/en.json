@@ -182,7 +182,11 @@
       "showApproved": "Show Approved"
     }
   },
-  "contributions": {
+  "contribute": {
+    "title": "Contribute",
+    "myContributions": "My Contributions",
+    "viewAllContributions": "Click to view all your contributions",
+    "viewCityProjects": "Click to view this city's projects",
     "noProjectsMatchFilter": "No projects match the current filter.",
     "tryChangingFilters": "Try changing your filter settings.",
     "noProjectsFound": "No projects found.",
@@ -203,6 +207,7 @@
     "deleteOverlayError": "Failed to delete overlay. Please try again.",
     "deleteProjectError": "Failed to delete project. Please try again."
   },
+  "contributions": {},
   "contribution": {
     "noContributionsFound": "No contributions found.",
     "beFirstToAdd": "Be the first to add a construction overlay or standalone project",
