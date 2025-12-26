@@ -7,7 +7,6 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 export interface ProjectDialogState {
   visible: boolean;
   project?: Partial<Project>;
-  mode: "create" | "edit";
 }
 
 export interface EditFormState {
@@ -24,7 +23,6 @@ export const useUiStore = defineStore("ui", () => {
   // AI : Project dialog state
   const projectDialog = ref<ProjectDialogState>({
     visible: false,
-    mode: "create",
   });
 
   // AI : Edit form states
@@ -82,18 +80,16 @@ export const useUiStore = defineStore("ui", () => {
   }
 
   // AI : Project dialog actions
-  function openProjectDialog(project?: Partial<Project>, mode: "create" | "edit" = "create") {
+  function openProjectDialog(project?: Partial<Project>) {
     projectDialog.value = {
       visible: true,
       project,
-      mode,
     };
   }
 
   function closeProjectDialog() {
     projectDialog.value = {
       visible: false,
-      mode: "create",
     };
   }
 

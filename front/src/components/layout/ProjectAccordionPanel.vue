@@ -169,7 +169,7 @@
                             :changes="getProjectChangeRequestsForProject(project.id)"
                             :all-change-requests="changeRequests"
                             :projects="projects"
-                            :is-my-contributions="isMyContributionsPanel"
+                            :is-my-contributions="isContributePanel"
                             :on-navigate-to-overlay="navigateToOverlayById"
                             :show-user-stats-link="showUserStatsLink"
                             @show-user-stats="(data) => emit('show-user-stats', data)"
@@ -302,7 +302,7 @@
                             :changes="getOverlayChangeRequestsForOverlay(overlay.id)"
                             :all-change-requests="changeRequests"
                             :projects="projects"
-                            :is-my-contributions="isMyContributionsPanel"
+                            :is-my-contributions="isContributePanel"
                             :is-overlay-changes="true"
                             :entity-name="overlay.name || $t('overlay.untitled')"
                             :on-navigate-to-overlay="navigateToOverlayById"
@@ -444,7 +444,7 @@ const { handleOverlayClickNavigation } = useOverlayClickHandler()
 
 const expandedPanels = computed(() => new Set(activeAccordionPanels.value))
 
-const isMyContributionsPanel = computed(() => props.panelClass === 'my-contributions-panel')
+const isContributePanel = computed(() => props.panelClass === 'my-contributions-panel')
 
 const groupedByCountry = computed(() => {
   const countryMap = new Map<string, CountryGroup>();

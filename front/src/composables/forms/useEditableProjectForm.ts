@@ -100,7 +100,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     let currentProject =
       projectStore.projects[options.entityId] ?? projectStore.allProjects[options.entityId];
 
-    // AI : Check if project exists in userContributions (for projects opened from MyContributionsPanel)
+    // AI : Check if project exists in userContributions (for projects opened from ContributePanel)
     const userContributionProject = projectStore.userContributions.find(
       (p) => p.id === options.entityId,
     );
@@ -110,7 +110,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       return;
     }
 
-    // AI : Update userContributions so MyContributionsPanel shows updated data
+    // AI : Update userContributions so ContributePanel shows updated data
     projectStore.updateProjectInUserContributions(options.entityId, {
       name: base.formData.name,
       description: base.formData.description ?? null,

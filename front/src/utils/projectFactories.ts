@@ -1,5 +1,5 @@
 // AI : Factory functions for creating project and overlay objects
-// AI : Eliminates massive code duplication across CurrentCityPanel, MyContributionsPanel, and useAllContributions
+// AI : Eliminates massive code duplication across CurrentCityPanel, ContributePanel, and useAllContributions
 
 import type { OverlayData, ProjectForModeration, OverlayForModeration } from "@/types/index";
 import type { RouterOutput } from "@/client";
