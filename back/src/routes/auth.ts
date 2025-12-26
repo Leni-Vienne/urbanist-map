@@ -4,9 +4,9 @@ import { globalRateLimiter } from "../lib/rateLimit";
 import { getClientIp } from "../utils/ip";
 import crypto from "node:crypto";
 import { eq, gt } from "drizzle-orm";
-import { publicProcedure, router } from "../trpc";
+import { publicProcedure, loggedInProcedure, router } from "../trpc";
 import { db } from "../database";
-import { users } from "../db/schema";
+import { users, projects, overlays, changeRequests } from "../db/schema";
 import {
   registerSchema,
   resetPasswordRequestSchema,
@@ -376,4 +376,179 @@ export const authRouter = router({
       });
     }
   }),
+
+  // AI : GDPR Right of Access - Export all user data
+  exportMyData: loggedInProcedure.query(async ({ ctx }) => {
+    try {
+      const userId = ctx.user.id;
+
+      // AI : Rate limit: 5 data exports per hour per user (prevent abuse)
+      const ip = getClientIp(ctx.hono);
+      if (!globalRateLimiter.check(`export:${userId}`, 5, 60 * 60 * 1000)) {
+        throw new TRPCError({
+          code: "TOO_MANY_REQUESTS",
+          message: "Too many data export requests. Please try again later.",
+        });
+      }
+
+      // AI : Get user account data (exclude sensitive fields)
+      const [user] = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          username: users.username,
+          role: users.role,
+          emailVerified: users.emailVerified,
+          googleId: users.googleId,
+          approvedCount: users.approvedCount,
+          rejectedCount: users.rejectedCount,
+          banned: users.banned,
+          bannedAt: users.bannedAt,
+          banReason: users.banReason,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!user) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "User not found",
+        });
+      }
+
+      // AI : Get all user projects (approved, pending, rejected - GDPR requires ALL)
+      const userProjects = await db.select().from(projects).where(eq(projects.ownerId, userId));
+
+      // AI : Get all user overlays (approved, pending, rejected - GDPR requires ALL)
+      const userOverlays = await db.select().from(overlays).where(eq(overlays.authorId, userId));
+
+      // AI : Get all user change requests
+      const userChangeRequests = await db
+        .select()
+        .from(changeRequests)
+        .where(eq(changeRequests.requestedBy, userId));
+
+      // AI : Audit log: Record data export for compliance
+      console.log(`[GDPR] Data export requested by user ${userId} (${user.email}) from IP ${ip}`);
+
+      // AI : Return complete data export
+      return {
+        account: user,
+        projects: userProjects,
+        overlays: userOverlays,
+        changeRequests: userChangeRequests,
+        exportedAt: new Date(),
+      };
+    } catch (error) {
+      console.error("Data export error:", error);
+      if (error instanceof TRPCError) throw error;
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Failed to export data",
+      });
+    }
+  }),
+
+  // AI : GDPR Right to Erasure - Delete account and anonymize contributions
+  deleteAccount: loggedInProcedure
+    .input(
+      z.object({
+        confirmEmail: z.email(),
+        currentPassword: z.string().min(8),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      try {
+        const userId = ctx.user.id;
+        const { confirmEmail, currentPassword } = input;
+
+        // AI : Rate limit: 3 deletion attempts per hour per IP (prevent brute force)
+        const ip = getClientIp(ctx.hono);
+        if (!globalRateLimiter.check(`delete:${ip}`, 3, 60 * 60 * 1000)) {
+          throw new TRPCError({
+            code: "TOO_MANY_REQUESTS",
+            message: "Too many deletion attempts. Please try again later.",
+          });
+        }
+
+        // AI : Get user to verify email confirmation
+        const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+
+        if (!user) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "User not found",
+          });
+        }
+
+        // AI : Verify email confirmation matches
+        if (user.email !== confirmEmail) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Email confirmation does not match",
+          });
+        }
+
+        // AI : SECURITY: Verify password before allowing deletion (critical safeguard)
+        // AI : Prevents session hijacking from deleting accounts
+        if (!user.passwordHash) {
+          // AI : OAuth-only users (no password) cannot self-delete via API
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Accounts created with OAuth cannot be deleted from this endpoint. Please contact support at contact@constructionmap.org to request account deletion.",
+          });
+        }
+
+        const validPassword = await Bun.password.verify(currentPassword, user.passwordHash);
+        if (!validPassword) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Invalid password. Account deletion cancelled.",
+          });
+        }
+
+        // AI : Audit log: Record account deletion for compliance and forensics
+        console.log(
+          `[GDPR] Account deletion initiated by user ${userId} (${user.email}) from IP ${ip}`,
+        );
+
+        // AI : Use transaction to ensure atomic operation
+        await db.transaction(async (tx) => {
+          // AI : Anonymize user contributions (set ownerId/authorId/requestedBy to NULL)
+          // AI : This preserves public contributions while removing personal data linkage
+          await tx.update(projects).set({ ownerId: null }).where(eq(projects.ownerId, userId));
+
+          await tx.update(overlays).set({ authorId: null }).where(eq(overlays.authorId, userId));
+
+          await tx
+            .update(changeRequests)
+            .set({ requestedBy: null })
+            .where(eq(changeRequests.requestedBy, userId));
+
+          // AI : Delete user account (removes all personal data)
+          await tx.delete(users).where(eq(users.id, userId));
+        });
+
+        // AI : Session invalidation handled by Hono middleware on logout
+
+        // AI : Audit log: Confirm successful deletion
+        console.log(`[GDPR] Account ${userId} (${user.email}) successfully deleted`);
+
+        return {
+          success: true,
+          message: "Account deleted successfully. All personal data has been removed.",
+        };
+      } catch (error) {
+        console.error("Account deletion error:", error);
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to delete account",
+        });
+      }
+    }),
 });

@@ -1,7 +1,13 @@
 <template>
   <div class="page-container">
     <div class="page-card">
-      <Button icon="pi pi-arrow-left" :label="t('common.back')" severity="secondary" text @click="goHome" />
+      <Button
+        icon="pi pi-arrow-left"
+        :label="t('common.back')"
+        severity="secondary"
+        text
+        @click="goHome"
+      />
 
       <h1>{{ t('pages.legal.title') }}</h1>
 
@@ -10,8 +16,12 @@
         <h2>{{ t('pages.legal.publisher.title') }}</h2>
         <p>{{ t('pages.legal.publisher.content') }}</p>
         <ul>
-          <li><strong>{{ t('pages.legal.publisher.name') }}:</strong> Léni Vienne</li>
-          <li><strong>{{ t('pages.legal.publisher.email') }}:</strong> contact@constructionmap.org</li>
+          <li>
+            <strong>{{ t('pages.legal.publisher.name') }}:</strong> Léni Vienne
+          </li>
+          <li>
+            <strong>{{ t('pages.legal.publisher.email') }}:</strong> contact@constructionmap.org
+          </li>
         </ul>
       </section>
 
@@ -23,6 +33,8 @@
           <li>{{ t('pages.legal.dataCollection.username') }}</li>
           <li>{{ t('pages.legal.dataCollection.email') }}</li>
           <li>{{ t('pages.legal.dataCollection.password') }}</li>
+          <li>{{ t('pages.legal.dataCollection.ipAddresses') }}</li>
+          <li>{{ t('pages.legal.dataCollection.oauthData') }}</li>
         </ul>
         <p class="legal-basis">{{ t('pages.legal.dataCollection.legalBasis') }}</p>
       </section>
@@ -38,6 +50,9 @@
           <li>{{ t('pages.legal.rights.portability') }}</li>
         </ul>
         <p>{{ t('pages.legal.rights.howTo') }}</p>
+        <p class="legal-basis">
+          <strong>{{ t('pages.legal.rights.note') }}</strong>
+        </p>
       </section>
 
       <!-- AI : Third-party services -->
@@ -47,15 +62,30 @@
         <ul>
           <li>
             <strong>Google OAuth:</strong> {{ t('pages.legal.thirdParty.google') }}
-            <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">{{ t('pages.legal.thirdParty.googleLink') }}</a>
+            <a
+              href="https://policies.google.com/privacy"
+              target="_blank"
+              rel="noopener"
+              >{{ t('pages.legal.thirdParty.googleLink') }}</a
+            >
           </li>
           <li>
             <strong>Cloudflare:</strong> {{ t('pages.legal.thirdParty.cloudflare') }}
-            <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">{{ t('pages.legal.thirdParty.cloudflareLink') }}</a>
+            <a
+              href="https://www.cloudflare.com/privacypolicy/"
+              target="_blank"
+              rel="noopener"
+              >{{ t('pages.legal.thirdParty.cloudflareLink') }}</a
+            >
           </li>
           <li>
             <strong>AWS:</strong> {{ t('pages.legal.thirdParty.aws') }}
-            <a href="https://aws.amazon.com/privacy/" target="_blank" rel="noopener">{{ t('pages.legal.thirdParty.awsLink') }}</a>
+            <a
+              href="https://aws.amazon.com/privacy/"
+              target="_blank"
+              rel="noopener"
+              >{{ t('pages.legal.thirdParty.awsLink') }}</a
+            >
           </li>
         </ul>
       </section>
@@ -64,12 +94,24 @@
       <section>
         <h2>{{ t('pages.legal.retention.title') }}</h2>
         <p>{{ t('pages.legal.retention.content') }}</p>
+        <ul>
+          <li>{{ t('pages.legal.retention.account') }}</li>
+          <li>{{ t('pages.legal.retention.logs') }}</li>
+          <li>{{ t('pages.legal.retention.sessions') }}</li>
+          <li>{{ t('pages.legal.retention.contributions') }}</li>
+        </ul>
+        <p class="legal-basis">{{ t('pages.legal.retention.deletion') }}</p>
       </section>
 
       <!-- AI : Cookies -->
       <section>
         <h2>{{ t('pages.legal.cookies.title') }}</h2>
         <p>{{ t('pages.legal.cookies.content') }}</p>
+        <ul>
+          <li>{{ t('pages.legal.cookies.sessionCookie') }}</li>
+          <li>{{ t('pages.legal.cookies.purpose') }}</li>
+        </ul>
+        <p>{{ t('pages.legal.cookies.noTracking') }}</p>
       </section>
 
       <!-- AI : User content / Terms -->
@@ -106,7 +148,7 @@ function goHome() {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  min-height: 100vh;
+  height: 100vh;
   background: linear-gradient(135deg, var(--p-primary-50), var(--p-primary-100));
   padding: 40px 20px;
   overflow-y: auto;
@@ -143,7 +185,8 @@ section:last-of-type {
   border-bottom: none;
 }
 
-p, li {
+p,
+li {
   color: var(--p-text-muted-color);
   line-height: 1.6;
   margin: 0;

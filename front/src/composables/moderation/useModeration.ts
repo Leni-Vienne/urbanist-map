@@ -218,13 +218,27 @@ export function useModeration() {
     return setOverlayStatus(id, "rejected", undefined, rejectionReason);
   }
 
-  // AI : Only fetch on mount if user is admin OR if country is already selected
-  // AI : For moderators with assigned countries, wait for country selection in ModerationPanel
   onMounted(async () => {
     const authStore = useAuthStore();
+    const mapStore = useMapStore();
     const user = authStore.user;
 
     if (!user) return;
+
+    // AI : Sync moderation store country with map store country on mount
+    // AI : This ensures we don't use stale state from previous sessions
+    // AI : BUT only if the map store country is valid for this user
+    const mapCountryCode = mapStore.selectedCountryCode;
+    const canAccessMapCountry =
+      !user.moderatedCountries ||
+      (mapCountryCode && user.moderatedCountries.includes(mapCountryCode));
+
+    if (mapCountryCode && canAccessMapCountry) {
+      moderationStore.setSelectedCountryCode(mapCountryCode);
+    } else {
+      // AI : If map country is invalid/restricted, clear moderation country
+      moderationStore.setSelectedCountryCode(null);
+    }
 
     const isAdmin = user.role === "admin";
     const hasSelectedCountry = moderationStore.selectedCountryCode !== null;
