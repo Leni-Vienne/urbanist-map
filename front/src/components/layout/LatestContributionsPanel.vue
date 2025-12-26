@@ -279,14 +279,6 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-/* AI : Chevron tap indicator - subtle hint that card is clickable */
-.tap-indicator {
-  color: var(--p-surface-400);
-  font-size: 0.875rem;
-  flex-shrink: 0;
-  transition: color 0.15s ease;
-}
-
 .contribution-card:hover .tap-indicator {
   color: var(--p-surface-600);
 }
