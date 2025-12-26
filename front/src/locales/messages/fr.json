@@ -490,11 +490,11 @@
       "rights": {
         "title": "Vos droits (RGPD)",
         "content": "En vertu du droit européen, vous disposez des droits suivants concernant vos données :",
-        "access": "Droit d'accès : demander une copie de vos données (envoyez un email à contact@constructionmap.org)",
+        "access": "Droit d'accès : demander une copie de vos données (envoyez un email à {email})",
         "rectification": "Droit de rectification : mettre à jour votre nom d'utilisateur et email dans les paramètres de votre compte",
-        "deletion": "Droit à l'effacement : supprimer votre compte et toutes vos données personnelles (envoyez un email à contact@constructionmap.org pour demander la suppression)",
-        "portability": "Droit à la portabilité : exporter vos données au format JSON (envoyez un email à contact@constructionmap.org)",
-        "howTo": "Pour exercer ces droits, contactez-nous à contact@constructionmap.org. Nous répondrons sous 30 jours.",
+        "deletion": "Droit à l'effacement : supprimer votre compte et toutes vos données personnelles (envoyez un email à {email} pour demander la suppression)",
+        "portability": "Droit à la portabilité : exporter vos données au format JSON (envoyez un email à {email})",
+        "howTo": "Pour exercer ces droits, contactez-nous à {email}. Nous répondrons sous 30 jours.",
         "note": "Note : Lorsque vous supprimez votre compte, vos informations personnelles (email, nom d'utilisateur) sont supprimées, mais vos contributions (projets, images) sont anonymisées et peuvent rester publiquement visibles."
       },
       "thirdParty": {
