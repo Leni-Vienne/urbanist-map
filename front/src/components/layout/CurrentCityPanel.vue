@@ -1,10 +1,11 @@
 <template>
   <!-- AI : No city selected state -->
-  <div v-if="!mapStore.selectedCity" class="empty-state">
-    <i class="pi pi-map-marker text-5xl text-surface-400 mb-4"></i>
-    <p class="text-base mb-2">{{ $t('currentCity.noCity') }}</p>
-    <p class="text-sm">{{ $t('currentCity.selectCityPrompt') }}</p>
-  </div>
+  <PanelEmptyState
+    v-if="!mapStore.selectedCity"
+    icon="map-marker"
+    :message="$t('currentCity.noCity')"
+    :sub-message="$t('currentCity.selectCityPrompt')"
+  />
 
   <!-- AI : Use ProjectAccordionPanel to display current city's projects -->
   <ProjectAccordionPanel
@@ -73,6 +74,7 @@ import { useAccordionState } from '@/composables/layout/useAccordionState'
 import { useAddOverlay } from '@/composables/overlay/useAddOverlay'
 import { createProjectFromOverlayData, createOverlayForModeration } from '@/utils/projectFactories'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
+import PanelEmptyState from '@/components/common/PanelEmptyState.vue'
 import type { ProjectForModeration, OverlayForModeration } from '@/types/index'
 import type { ApprovalStatus } from '@shared/types';
 
