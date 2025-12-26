@@ -7,8 +7,8 @@
     :should-switch-to-edit-mode="false"
     title=""
     panel-class="my-contributions-panel"
-    :empty-message="displayedProjects.length > 0 && filteredProjects.length === 0 ? $t('contributions.noProjectsMatchFilter') : $t('contributions.noProjectsFound')"
-    :empty-sub-message="displayedProjects.length > 0 && filteredProjects.length === 0 ? $t('contributions.tryChangingFilters') : $t('contributions.createFirstProject')"
+    :empty-message="displayedProjects.length > 0 && filteredProjects.length === 0 ? $t('contribute.noProjectsMatchFilter') : $t('contribute.noProjectsFound')"
+    :empty-sub-message="displayedProjects.length > 0 && filteredProjects.length === 0 ? $t('contribute.tryChangingFilters') : $t('contribute.createFirstProject')"
   >
     <template #project-actions="{ project }">
       <!-- AI : Edit button - navigates to project for editing -->
@@ -57,7 +57,7 @@
         v-if="project.status === 'pending' || project.status === 'rejected'"
         class="action-btn delete-btn"
         @click.stop="handleDeleteProjectClick(project)"
-        v-tooltip.top="$t('contributions.deleteProject')"
+        v-tooltip.top="$t('contribute.deleteProject')"
       >
         <i class="pi pi-trash"></i>
       </button>
@@ -76,7 +76,7 @@
         v-if="overlay.status === 'pending' || overlay.status === 'rejected'"
         class="action-btn delete-btn"
         @click.stop="handleDeleteOverlayClick(overlay)"
-        v-tooltip.top="$t('contributions.deleteOverlay')"
+        v-tooltip.top="$t('contribute.deleteOverlay')"
       >
         <i class="pi pi-trash"></i>
       </button>
@@ -87,7 +87,7 @@
         v-if="change.status === 'pending' || change.status === 'conflicted'"
         class="action-btn delete-btn"
         @click.stop="handleDeleteChangeRequestClick(change)"
-        v-tooltip.top="$t('contributions.deleteChangeRequest')"
+        v-tooltip.top="$t('contribute.deleteChangeRequest')"
       >
         <i class="pi pi-trash"></i>
       </button>
@@ -99,16 +99,22 @@
         <!-- AI : First row - breadcrumb and buttons -->
         <div class="header-actions-container">
           <span class="city-header">
-            <template v-if="contributionHeader">
+            <span
+              :class="['panel-name', { clickable: showingCityProjects }]"
+              @click="showingCityProjects ? handleMyContributionsClick() : null"
+              :title="showingCityProjects ? $t('contribute.viewAllContributions') : ''"
+            >
+              {{ $t('contribute.myContributions') }}
+            </span>
+            <template v-if="lastSelectedCity">
+              <span class="separator">|</span>
               <span
-                class="country-link"
-                @click="handleCountryClick"
-                :title="$t('currentCity.clickToZoomCountry')"
+                :class="['city-name', { clickable: !showingCityProjects }]"
+                @click="!showingCityProjects ? handleCityClick() : null"
+                :title="!showingCityProjects ? $t('contribute.viewCityProjects') : ''"
               >
-                {{ contributionHeader.countryName }}
+                {{ lastSelectedCity.name }}
               </span>
-              <i class="pi pi-angle-right separator"></i>
-              <span class="city-name">{{ contributionHeader.cityName }}</span>
             </template>
           </span>
 
@@ -157,12 +163,12 @@
     <template #empty-state>
       <i class="pi pi-folder text-5xl text-surface-400 mb-4"></i>
       <p class="text-base mb-2">
-        {{ displayedProjects.length > 0 && filteredProjects.length === 0 ? $t('contributions.noProjectsMatchFilter') :
-          $t('contributions.noProjectsFound') }}
+        {{ displayedProjects.length > 0 && filteredProjects.length === 0 ? $t('contribute.noProjectsMatchFilter') :
+          $t('contribute.noProjectsFound') }}
       </p>
       <p class="text-sm">
-        {{ displayedProjects.length > 0 && filteredProjects.length === 0 ? $t('contributions.tryChangingFilters') :
-          $t('contributions.createFirstProject') }}
+        {{ displayedProjects.length > 0 && filteredProjects.length === 0 ? $t('contribute.tryChangingFilters') :
+          $t('contribute.createFirstProject') }}
       </p>
     </template>
   </ProjectAccordionPanel>
@@ -251,16 +257,22 @@ const toast = useToast()
 // AI : Change requests functionality
 const { pendingChangeRequests, refreshPendingChangeRequests, deleteChangeRequest } = useChangeRequests()
 
-// AI : Watch for city and mode changes, refetch when they change
+// AI : Watch for city and mode changes to fetch appropriate contributions
+// AI : - Edit mode + city selected: ALL projects in that city (so users can contribute to any project)
+// AI : - Otherwise: User's own contributions from anywhere
 watch(
   () => ({ cityId: mapStore.selectedCity?.id, mode: overlayStore.mode }),
-  ({ cityId, mode }) => {
+  ({ cityId, mode }, oldValue) => {
     const isEditMode = mode === 'edit'
 
-    // AI : Reset user contributions loaded status to force refetch
-    projectStore.userContributionsLoaded = false
+    // AI : Only reset cache if parameters actually changed (prevents duplicate calls on mount)
+    const hasChanged = oldValue && (oldValue.cityId !== cityId || oldValue.mode !== mode)
+    if (hasChanged) {
+      projectStore.userContributionsLoaded = false
+    }
 
-    // AI : Fetch with backend doing the work!
+    // AI : Fetch contributions with appropriate scope
+    // AI : includeCityProjects=true returns ALL city projects (not just user's), allowing contributions to any project in the city
     fetchUserContributions({
       cityId: isEditMode ? cityId : undefined,
       includeCityProjects: isEditMode && Boolean(cityId),
@@ -273,37 +285,76 @@ watch(
 // AI : Just use allContributions directly - backend handles everything!
 const displayedProjects = allContributions
 
-// AI : Compute header showing "Country > City" when in edit mode with city selected
-const contributionHeader = computed(() => {
-  if (overlayStore.mode !== 'edit' || !mapStore.selectedCity) return null
+// AI : Track if we're currently showing city-scoped projects or ALL user contributions
+const showingCityProjects = ref(false)
+// AI : Remember the last selected city even after clearing selection
+const lastSelectedCity = ref<{ id: number; name: string; nameLocal: string | null; countryCode?: string } | null>(null)
 
-  const { countryCode, name: cityName } = mapStore.selectedCity
-  if (!countryCode) return null
+// AI : Update state based on city selection and mode
+watch(
+  () => ({ city: mapStore.selectedCity, mode: overlayStore.mode }),
+  ({ city, mode }) => {
+    if (mode === 'edit' && city) {
+      // AI : Remember this city and mark as showing city projects
+      lastSelectedCity.value = {
+        id: city.id,
+        name: city.name,
+        nameLocal: city.nameLocal,
+        countryCode: city.countryCode
+      }
+      showingCityProjects.value = true
+    } else if (city) {
+      // AI : In view mode, remember city but not showing city projects
+      lastSelectedCity.value = {
+        id: city.id,
+        name: city.name,
+        nameLocal: city.nameLocal,
+        countryCode: city.countryCode
+      }
+    }
+    // AI : Don't clear lastSelectedCity when city is cleared - keep it for breadcrumb
+  },
+  { immediate: true }
+)
 
-  // AI : Find country name from countries list
-  const country = projectStore.countries.find(c => c.code === countryCode)
-  if (!country) return null
+// AI : Handle "My Contributions" click - switch to show only user's contributions
+function handleMyContributionsClick() {
+  // AI : Switch to user contribution mode
+  showingCityProjects.value = false
 
-  return {
-    countryName: country.name,
-    countryCode,
-    cityName,
-    lat: country.lat,
-    lng: country.lng
-  }
-})
+  // AI : Clear the selected city to exit city-scoped view
+  mapStore.clearSelectedCity()
 
-// AI : Handle country click - behave like clicking a country marker
-async function handleCountryClick() {
-  const header = contributionHeader.value
-  if (!header) return
+  // AI : Reset the cache flag to force refetch without city filter
+  projectStore.userContributionsLoaded = false
 
-  const { isValidCountryCode, prepareCountryContext } = await import('@/composables/map/useCountryMarkers')
-  if (!isValidCountryCode(header.countryCode)) return
-
-  // AI : Use same logic as country marker click
-  await prepareCountryContext(header.countryCode)
+  // AI : Fetch all user contributions (no city scoping)
+  fetchUserContributions()
 }
+
+// AI : Handle city name click - switch back to showing city projects
+function handleCityClick() {
+  if (!lastSelectedCity.value) return
+
+  // AI : Switch to city project mode
+  showingCityProjects.value = true
+
+  // AI : Re-select the city to load city projects
+  mapStore.setSelectedCity(lastSelectedCity.value)
+
+  // AI : Switch to edit mode if not already
+  if (overlayStore.mode !== 'edit') {
+    overlayStore.setMode('edit')
+  }
+
+  // AI : Reset cache and refetch with city filter
+  projectStore.userContributionsLoaded = false
+  fetchUserContributions({
+    cityId: lastSelectedCity.value.id,
+    includeCityProjects: true
+  })
+}
+
 
 
 // AI : Computed filtered projects based on two independent checkboxes
@@ -371,14 +422,14 @@ async function handleDeleteProjectClick(project: ProjectForModeration) {
 
 async function handleDeleteChangeRequestClick(change: ChangeRequest) {
   const fieldName = change.fieldName
-  const confirmed = confirm(t('contributions.confirmDeleteChangeRequest', { field: fieldName }))
+  const confirmed = confirm(t('contribute.confirmDeleteChangeRequest', { field: fieldName }))
   if (!confirmed) return
 
   const result = await deleteChangeRequest(change.id)
   if (result?.success) {
     toast.add({
       severity: 'success',
-      summary: t('contributions.changeRequestDeleted'),
+      summary: t('contribute.changeRequestDeleted'),
       life: 3000
     })
   }
@@ -501,7 +552,6 @@ function handleEditProjectClick(project: ProjectForModeration) {
 
 // AI : Load initial data
 onMounted(() => {
-  fetchUserContributions()
   // AI : Force user-only mode to show only this user's change requests, even for moderators
   refreshPendingChangeRequests(true)
 })
@@ -620,27 +670,31 @@ onMounted(() => {
   pointer-events: none;
 }
 
-/* AI : Breadcrumb styling - copied from CurrentCityPanel */
-.country-link {
-  color: var(--p-primary-500);
+/* AI : Breadcrumb styling */
+.panel-name {
+  color: var(--p-surface-800);
   font-weight: 600;
+  flex-shrink: 0;
+}
+
+.panel-name.clickable {
+  color: var(--p-primary-500);
   cursor: pointer;
   transition: all 0.2s ease;
   padding: 0.25rem 0.5rem;
   border-radius: var(--p-border-radius);
   margin: -0.25rem -0.5rem;
-  flex-shrink: 0;
 }
 
-.country-link:hover {
+.panel-name.clickable:hover {
   color: var(--p-primary-600);
   background-color: var(--p-primary-50);
 }
 
 .separator {
-  color: var(--p-surface-500);
-  font-size: 0.875rem;
-  margin: 0 0.125rem;
+  color: var(--p-surface-400);
+  font-weight: 400;
+  margin: 0 0.5rem;
   flex-shrink: 0;
 }
 
@@ -651,5 +705,19 @@ onMounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+}
+
+.city-name.clickable {
+  color: var(--p-primary-500);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--p-border-radius);
+  margin: -0.25rem -0.5rem;
+}
+
+.city-name.clickable:hover {
+  color: var(--p-primary-600);
+  background-color: var(--p-primary-50);
 }
 </style>

@@ -182,7 +182,11 @@
       "showApproved": "Afficher approuvé"
     }
   },
-  "contributions": {
+  "contribute": {
+    "title": "Contribuer",
+    "myContributions": "Mes contributions",
+    "viewAllContributions": "Cliquez pour voir toutes vos contributions",
+    "viewCityProjects": "Cliquez pour voir les projets de cette ville",
     "noProjectsMatchFilter": "Aucun projet ne correspond au filtre actuel.",
     "tryChangingFilters": "Essayez de modifier vos paramètres de filtre.",
     "noProjectsFound": "Aucun projet trouvé.",
@@ -203,6 +207,7 @@
     "deleteOverlayError": "Échec de la suppression de l'image. Veuillez réessayer.",
     "deleteProjectError": "Échec de la suppression du projet. Veuillez réessayer."
   },
+  "contributions": {},
   "contribution": {
     "noContributionsFound": "Aucune contribution trouvée.",
     "beFirstToAdd": "Soyez le premier à ajouter une image ou un projet de bâtiment",
