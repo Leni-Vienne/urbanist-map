@@ -326,16 +326,16 @@
       </div>
 
       <!-- AI : Empty state -->
-      <div
+      <PanelEmptyState
         v-else-if="!isLoading"
-        class="flex flex-col items-center justify-center p-12 text-center text-surface-600"
+        icon="folder"
+        :message="emptyMessage"
+        :sub-message="emptySubMessage"
       >
-        <slot name="empty-state">
-          <i class="pi pi-folder text-5xl text-surface-400 mb-4"></i>
-          <p class="text-base mb-2">{{ emptyMessage }}</p>
-          <p class="text-sm">{{ emptySubMessage }}</p>
-        </slot>
-      </div>
+        <template v-if="$slots['empty-state']">
+          <slot name="empty-state"></slot>
+        </template>
+      </PanelEmptyState>
 
       <!-- AI : Loading state -->
       <div
@@ -368,6 +368,7 @@ import type { ProjectForModeration, OverlayForModeration, PendingChangeRequest }
 import ChangeRequestSection from './ChangeRequestSection.vue'
 import ClickableLocation from '@/components/common/ClickableLocation.vue'
 import ContributorInfo from '@/components/common/ContributorInfo.vue'
+import PanelEmptyState from '@/components/common/PanelEmptyState.vue'
 
 // AI : Props interface
 interface Props {
@@ -879,19 +880,27 @@ async function handleOverlayCardClick(overlay: OverlayForModeration, shouldFitBo
   }
 }
 
-// AI : Show project user stats
+// AI : Unified contributor click handler - works for both projects and overlays
+function handleContributorClick(
+  data: { userId: string; username: string | null; reportCount: number },
+  approvedCount: number | null | undefined,
+  rejectedCount: number | null | undefined
+) {
+  emit('show-user-stats', {
+    userId: data.userId,
+    username: data.username,
+    approvedCount: approvedCount ?? null,
+    rejectedCount: rejectedCount ?? null,
+    reportCount: data.reportCount
+  })
+}
+
 // AI : Handle project contributor click from ContributorInfo component
 function handleProjectContributorClick(
   project: ProjectForModeration,
   data: { userId: string; username: string | null; reportCount: number }
 ) {
-  emit('show-user-stats', {
-    userId: data.userId,
-    username: data.username,
-    approvedCount: project.ownerApprovedCount,
-    rejectedCount: project.ownerRejectedCount,
-    reportCount: data.reportCount
-  })
+  handleContributorClick(data, project.ownerApprovedCount, project.ownerRejectedCount)
 }
 
 // AI : Handle overlay contributor click from ContributorInfo component
@@ -899,13 +908,7 @@ function handleOverlayContributorClick(
   overlay: OverlayForModeration,
   data: { userId: string; username: string | null; reportCount: number }
 ) {
-  emit('show-user-stats', {
-    userId: data.userId,
-    username: data.username,
-    approvedCount: overlay.authorApprovedCount,
-    rejectedCount: overlay.authorRejectedCount,
-    reportCount: data.reportCount
-  })
+  handleContributorClick(data, overlay.authorApprovedCount, overlay.authorRejectedCount)
 }
 </script>
 
@@ -1140,17 +1143,6 @@ function handleOverlayContributorClick(
   background-color: #f9fafb;
 }
 
-/* AI : Edit button styling */
-.edit-btn {
-  color: var(--p-primary-500);
-}
-
-.edit-btn:hover {
-  color: var(--p-primary-600);
-  background-color: var(--p-primary-50);
-  border-color: var(--p-primary-200);
-}
-
 /* AI : Standalone project card styling - similar to overlay cards */
 .marker-project-card {
   cursor: pointer;
@@ -1253,14 +1245,6 @@ function handleOverlayContributorClick(
 .overlay-card:active {
   background-color: var(--p-surface-100);
   transform: scale(0.98);
-}
-
-/* AI : Chevron tap indicator - subtle hint that card is clickable */
-.tap-indicator {
-  color: var(--p-surface-400);
-  font-size: 0.875rem;
-  flex-shrink: 0;
-  transition: color 0.15s ease;
 }
 
 .overlay-card:hover .tap-indicator,

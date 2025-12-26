@@ -161,15 +161,11 @@
     </template>
 
     <template #empty-state>
-      <i class="pi pi-folder text-5xl text-surface-400 mb-4"></i>
-      <p class="text-base mb-2">
-        {{ displayedProjects.length > 0 && filteredProjects.length === 0 ? $t('contribute.noProjectsMatchFilter') :
-          $t('contribute.noProjectsFound') }}
-      </p>
-      <p class="text-sm">
-        {{ displayedProjects.length > 0 && filteredProjects.length === 0 ? $t('contribute.tryChangingFilters') :
-          $t('contribute.createFirstProject') }}
-      </p>
+      <PanelEmptyState
+        icon="folder"
+        :message="displayedProjects.length > 0 && filteredProjects.length === 0 ? $t('contribute.noProjectsMatchFilter') : $t('contribute.noProjectsFound')"
+        :sub-message="displayedProjects.length > 0 && filteredProjects.length === 0 ? $t('contribute.tryChangingFilters') : $t('contribute.createFirstProject')"
+      />
     </template>
   </ProjectAccordionPanel>
 
@@ -208,6 +204,8 @@ import type { ApprovalStatus } from '@shared/types'
 
 // AI : Async component import for submission dialog
 const SubmissionConfirmationDialog = defineAsyncComponent(() => import('@/components/submission/SubmissionConfirmationDialog.vue'))
+
+import PanelEmptyState from '@/components/common/PanelEmptyState.vue'
 
 
 // AI : Type definition from tRPC backend response for change requests
@@ -597,77 +595,6 @@ onMounted(() => {
   color: var(--p-surface-600);
   cursor: pointer;
   white-space: nowrap;
-}
-
-/* AI : Action button styling - matches moderation panel buttons */
-.action-btn {
-  width: 32px;
-  height: 32px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  background: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  font-size: 0.875rem;
-}
-
-.action-btn:hover {
-  border-color: #d1d5db;
-  background-color: #f9fafb;
-}
-
-/* AI : Edit button styling */
-.edit-btn {
-  color: var(--p-primary-500);
-}
-
-.edit-btn:hover {
-  color: var(--p-primary-600);
-  background-color: var(--p-primary-50);
-  border-color: var(--p-primary-200);
-}
-
-/* AI : Delete button styling */
-.delete-btn {
-  color: var(--p-red-500);
-}
-
-.delete-btn:hover {
-  color: var(--p-red-600);
-  background-color: var(--p-red-50);
-  border-color: var(--p-red-200);
-}
-
-/* AI : Save button styling - uses success/green colors */
-.save-btn {
-  color: var(--p-green-500);
-}
-
-.save-btn:hover:not(.disabled) {
-  color: var(--p-green-600);
-  background-color: var(--p-green-50);
-  border-color: var(--p-green-200);
-}
-
-/* AI : Add image button styling - secondary style */
-.add-image-btn {
-  color: var(--p-surface-600);
-}
-
-.add-image-btn:hover {
-  color: var(--p-surface-700);
-  background-color: var(--p-surface-100);
-  border-color: var(--p-surface-300);
-}
-
-/* AI : Disabled button state */
-.action-btn.disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  pointer-events: none;
 }
 
 /* AI : Breadcrumb styling */
