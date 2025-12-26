@@ -7,8 +7,8 @@
     :should-switch-to-edit-mode="false"
     title=""
     panel-class="my-contributions-panel"
-    :empty-message="allContributions.length > 0 && filteredProjects.length === 0 ? $t('contributions.noProjectsMatchFilter') : $t('contributions.noProjectsFound')"
-    :empty-sub-message="allContributions.length > 0 && filteredProjects.length === 0 ? $t('contributions.tryChangingFilters') : $t('contributions.createFirstProject')"
+    :empty-message="displayedProjects.length > 0 && filteredProjects.length === 0 ? $t('contributions.noProjectsMatchFilter') : $t('contributions.noProjectsFound')"
+    :empty-sub-message="displayedProjects.length > 0 && filteredProjects.length === 0 ? $t('contributions.tryChangingFilters') : $t('contributions.createFirstProject')"
   >
     <template #project-actions="{ project }">
       <!-- AI : Edit button - navigates to project for editing -->
@@ -94,37 +94,53 @@
     </template>
 
     <template #header-actions>
-      <div class="my-contributions-header">
-        <!-- AI : First row - action buttons -->
-        <div class="header-buttons-row">
-          <!-- AI : Moderation results button -->
-          <Button
-            v-if="hasUnacknowledgedItems"
-            @click="uiStore.openModeratedContributionsDialog()"
-            :label="$t('moderation.moderatedContributions.viewResults')"
-            severity="secondary"
-            size="small"
-            outlined
-          >
-            <template #icon>
-              <Badge :value="moderatedContributionsCount" severity="danger" class="mr-2" />
-              <i class="pi pi-bell"></i>
+      <!-- AI : Wrapper with column layout for two rows -->
+      <div style="display: flex; flex-direction: column; gap: 0.75rem; width: 100%;">
+        <!-- AI : First row - breadcrumb and buttons -->
+        <div class="header-actions-container">
+          <span class="city-header">
+            <template v-if="contributionHeader">
+              <span
+                class="country-link"
+                @click="handleCountryClick"
+                :title="$t('currentCity.clickToZoomCountry')"
+              >
+                {{ contributionHeader.countryName }}
+              </span>
+              <i class="pi pi-angle-right separator"></i>
+              <span class="city-name">{{ contributionHeader.cityName }}</span>
             </template>
-          </Button>
+          </span>
 
-          <!-- AI : New Project button - aligned to the right like CurrentCityPanel -->
-          <Button
-            @click="handleAddOverlayClick"
-            severity="primary"
-            size="small"
-            icon="pi pi-plus"
-            :label="$t('common.add')"
-            class="add-project-button"
-            v-tooltip.bottom="$t('dialog.createNewProject')"
-          />
+          <!-- AI : Buttons on the right -->
+          <div style="display: flex; gap: 0.5rem;">
+            <Button
+              v-if="hasUnacknowledgedItems"
+              @click="uiStore.openModeratedContributionsDialog()"
+              :label="$t('moderation.moderatedContributions.viewResults')"
+              severity="secondary"
+              size="small"
+              outlined
+            >
+              <template #icon>
+                <Badge :value="moderatedContributionsCount" severity="danger" class="mr-2" />
+                <i class="pi pi-bell"></i>
+              </template>
+            </Button>
+
+            <Button
+              @click="handleAddOverlayClick"
+              severity="primary"
+              size="small"
+              icon="pi pi-plus"
+              :label="$t('common.add')"
+              class="add-project-button"
+              v-tooltip.bottom="$t('dialog.createNewProject')"
+            />
+          </div>
         </div>
 
-        <!-- AI : Second row - filter checkboxes -->
+        <!-- AI : Second row - filters -->
         <div class="header-filters-row">
           <div class="field-checkbox">
             <Checkbox v-model="showPending" inputId="showPending" binary />
@@ -141,11 +157,11 @@
     <template #empty-state>
       <i class="pi pi-folder text-5xl text-surface-400 mb-4"></i>
       <p class="text-base mb-2">
-        {{ allContributions.length > 0 && filteredProjects.length === 0 ? $t('contributions.noProjectsMatchFilter') :
+        {{ displayedProjects.length > 0 && filteredProjects.length === 0 ? $t('contributions.noProjectsMatchFilter') :
           $t('contributions.noProjectsFound') }}
       </p>
       <p class="text-sm">
-        {{ allContributions.length > 0 && filteredProjects.length === 0 ? $t('contributions.tryChangingFilters') :
+        {{ displayedProjects.length > 0 && filteredProjects.length === 0 ? $t('contributions.tryChangingFilters') :
           $t('contributions.createFirstProject') }}
       </p>
     </template>
@@ -163,7 +179,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, defineAsyncComponent } from 'vue'
+import { ref, computed, watch, onMounted, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAddOverlay } from '@/composables/overlay/useAddOverlay'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
@@ -175,11 +191,14 @@ import { useModeratedContributions } from '@/composables/moderation/useModerated
 import { useUiStore } from '@/stores/uiStore'
 import { useOverlayStore } from '@/stores/pinia/overlayStore'
 import { useProjectStore } from '@/stores/pinia/projectStore'
+import { useMapStore } from '@/stores/pinia/mapStore'
 import { usePendingModificationsStore } from '@/stores/pinia/pendingModificationsStore'
 import { useProjectDeletion } from '@/composables/project/useProjectDeletion'
 import { useSubmissionDialog } from '@/composables/submission/useSubmissionDialog'
+import { useAuthStore } from '@/stores/authStore'
 import type { RouterOutput } from '@/client'
 import type { ProjectForModeration, OverlayForModeration, OverlayObject, Project } from '@/types/index'
+import type { ApprovalStatus } from '@shared/types'
 
 // AI : Async component import for submission dialog
 const SubmissionConfirmationDialog = defineAsyncComponent(() => import('@/components/submission/SubmissionConfirmationDialog.vue'))
@@ -203,6 +222,8 @@ const { moderatedContributions, hasUnacknowledgedItems } = useModeratedContribut
 const uiStore = useUiStore()
 const overlayStore = useOverlayStore()
 const projectStore = useProjectStore()
+const mapStore = useMapStore()
+const authStore = useAuthStore()
 const pendingModsStore = usePendingModificationsStore()
 const moderatedContributionsCount = computed(() => moderatedContributions.value.length)
 
@@ -230,8 +251,63 @@ const toast = useToast()
 // AI : Change requests functionality
 const { pendingChangeRequests, refreshPendingChangeRequests, deleteChangeRequest } = useChangeRequests()
 
+// AI : Watch for city and mode changes, refetch when they change
+watch(
+  () => ({ cityId: mapStore.selectedCity?.id, mode: overlayStore.mode }),
+  ({ cityId, mode }) => {
+    const isEditMode = mode === 'edit'
+
+    // AI : Reset user contributions loaded status to force refetch
+    projectStore.userContributionsLoaded = false
+
+    // AI : Fetch with backend doing the work!
+    fetchUserContributions({
+      cityId: isEditMode ? cityId : undefined,
+      includeCityProjects: isEditMode && Boolean(cityId),
+    })
+  },
+  { immediate: true } // AI : Run on mount
+)
+
+
+// AI : Just use allContributions directly - backend handles everything!
+const displayedProjects = allContributions
+
+// AI : Compute header showing "Country > City" when in edit mode with city selected
+const contributionHeader = computed(() => {
+  if (overlayStore.mode !== 'edit' || !mapStore.selectedCity) return null
+
+  const { countryCode, name: cityName } = mapStore.selectedCity
+  if (!countryCode) return null
+
+  // AI : Find country name from countries list
+  const country = projectStore.countries.find(c => c.code === countryCode)
+  if (!country) return null
+
+  return {
+    countryName: country.name,
+    countryCode,
+    cityName,
+    lat: country.lat,
+    lng: country.lng
+  }
+})
+
+// AI : Handle country click - behave like clicking a country marker
+async function handleCountryClick() {
+  const header = contributionHeader.value
+  if (!header) return
+
+  const { isValidCountryCode, prepareCountryContext } = await import('@/composables/map/useCountryMarkers')
+  if (!isValidCountryCode(header.countryCode)) return
+
+  // AI : Use same logic as country marker click
+  await prepareCountryContext(header.countryCode)
+}
+
+
 // AI : Computed filtered projects based on two independent checkboxes
-// AI : Now uses allContributions which includes local-only projects/overlays
+// AI : Uses displayedProjects which conditionally shows city data or user contributions
 const filteredProjects = computed(() => {
   // AI : If neither checkbox is selected, show nothing
   if (!showPending.value && !showApproved.value) {
@@ -240,11 +316,11 @@ const filteredProjects = computed(() => {
 
   // AI : If both are selected, show everything
   if (showPending.value && showApproved.value) {
-    return allContributions.value
+    return displayedProjects.value
   }
 
   // AI : Filter based on which checkbox(es) are selected
-  return allContributions.value.filter(project => {
+  return displayedProjects.value.filter(project => {
     // AI : Treat unsaved/unsubmitted projects (status === null) as pending
     const isPending = project.status === 'pending' || project.status === null || project.status === undefined
     const isApproved = project.status === 'approved' || project.status === 'rejected' || project.status === 'replaced'
@@ -278,10 +354,10 @@ const filteredProjects = computed(() => {
   })
 })
 
-// AI : Delete handlers with confirmation
+// AI : Handle delete overlay click - uses shared deletion composable
 async function handleDeleteOverlayClick(overlay: OverlayForModeration) {
   // AI : Find the project that contains this overlay
-  const project = allContributions.value.find((project: UserContribution) =>
+  const project = displayedProjects.value.find((project: UserContribution) =>
     project.overlays?.some((overlayElement: UserContributionOverlay) => overlayElement.id === overlay.id)
   )
 
@@ -382,8 +458,8 @@ function isProjectModified(projectId: string): boolean {
   )
   if (hasNewOverlays) return true
 
-  // AI : Also check all overlays for this project from user contributions
-  const project = allContributions.value.find((p: UserContribution) => p.id === projectId)
+  // AI : Also check all overlays for this project from displayed projects
+  const project = displayedProjects.value.find((p: UserContribution) => p.id === projectId)
   if (!project?.overlays) return false
 
   return project.overlays.some((overlay: UserContributionOverlay) => isOverlayModified(overlay.id))
@@ -414,8 +490,8 @@ async function handleSaveProjectClick(project: ProjectForModeration) {
 
 // AI : Handle edit project click - opens project edit form
 function handleEditProjectClick(project: ProjectForModeration) {
-  // AI : Get the latest project data from allContributions (not the potentially stale passed parameter)
-  const latestProjectData = allContributions.value.find((p: UserContribution) => p.id === project.id)
+  // AI : Get the latest project data from displayedProjects (not the potentially stale passed parameter)
+  const latestProjectData = displayedProjects.value.find((p: UserContribution) => p.id === project.id)
   const projectToEdit = latestProjectData ?? project
 
   // AI : Open the project edit form via uiStore
@@ -542,5 +618,38 @@ onMounted(() => {
   opacity: 0.4;
   cursor: not-allowed;
   pointer-events: none;
+}
+
+/* AI : Breadcrumb styling - copied from CurrentCityPanel */
+.country-link {
+  color: var(--p-primary-500);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--p-border-radius);
+  margin: -0.25rem -0.5rem;
+  flex-shrink: 0;
+}
+
+.country-link:hover {
+  color: var(--p-primary-600);
+  background-color: var(--p-primary-50);
+}
+
+.separator {
+  color: var(--p-surface-500);
+  font-size: 0.875rem;
+  margin: 0 0.125rem;
+  flex-shrink: 0;
+}
+
+.city-name {
+  color: var(--p-surface-800);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 </style>

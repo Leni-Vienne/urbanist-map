@@ -2,6 +2,10 @@ import { computed } from "vue";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
+import {
+  createLocalOverlayContribution,
+  createLocalProjectContribution,
+} from "@/utils/projectFactories";
 import type { RouterOutput } from "@/client";
 
 // AI : Type for user contributions from backend
@@ -51,28 +55,17 @@ export function useAllContributions() {
       let parentProject = contributionsMap.get(overlay.projectId);
 
       if (parentProject) {
-        // AI : Project exists - add local overlay to it
-        // AI : Use type assertion for local overlay data with null status
-        const localOverlayData = {
-          id: overlay.id,
-          name: overlay.caption ?? "Untitled",
-          filename: overlay.filename,
-          status: null,
-          version: 1,
-          projectId: overlay.projectId,
-          authorId: overlay.authorId ?? null,
-          authorUsername: user.username ?? null,
-          authorApprovedCount: null,
-          authorRejectedCount: null,
-          replacesOverlayId: overlay.replacesOverlayId ?? null,
-          replacedByOverlayId: null,
-          updatedAt: new Date(),
-          cityId: parentProject.cityId,
-          cityName: parentProject.cityName,
-          countryCode: parentProject.countryCode,
-          countryName: parentProject.countryName,
-          imageUrl: overlay.imageUrl, // AI : Use local image URL for thumbnail
-        } as unknown as UserContributionOverlay;
+        // AI : Project exists - add local overlay to it using factory
+        const localOverlayData = createLocalOverlayContribution(
+          overlay,
+          {
+            cityId: parentProject.cityId,
+            cityName: parentProject.cityName,
+            countryCode: parentProject.countryCode,
+            countryName: parentProject.countryName,
+          },
+          user.username ?? null,
+        );
 
         // AI : Check if overlay already exists (avoid duplicates)
         if (!parentProject.overlays.some((o) => o.id === overlay.id)) {
@@ -89,55 +82,12 @@ export function useAllContributions() {
         const localProject = projectStore.projects[overlay.projectId];
 
         if (localProject && localProject.ownerId === user.id) {
-          // AI : Create new contribution entry for local project
-          // AI : Use type assertion for local project with null status
-          const newContribution = {
-            id: localProject.id,
-            name: localProject.name,
-            description: localProject.description ?? null,
-            status: null,
-            version: 1,
-            ownerId: localProject.ownerId,
-            ownerUsername: user.username ?? null,
-            ownerApprovedCount: null,
-            ownerRejectedCount: null,
-            cityId: localProject.cityId,
-            cityName: localProject.city.name,
-            countryCode: localProject.city.countryCode,
-            countryName: null,
-            lat: localProject.lat,
-            lng: localProject.lng,
-            proposalDate: localProject.proposalDate,
-            startDate: localProject.startDate,
-            endDate: localProject.endDate,
-            sourceUrl: localProject.sourceUrl ?? null,
-            latestUpdateOn: localProject.latestUpdateOn ?? null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            overlays: [
-              {
-                id: overlay.id,
-                name: overlay.caption ?? "Untitled",
-                filename: overlay.filename,
-                status: null,
-                version: 1,
-                projectId: overlay.projectId,
-                authorId: overlay.authorId ?? null,
-                authorUsername: user.username ?? null,
-                authorApprovedCount: null,
-                authorRejectedCount: null,
-                replacesOverlayId: overlay.replacesOverlayId ?? null,
-                replacedByOverlayId: null,
-                updatedAt: new Date(),
-                cityId: localProject.cityId,
-                cityName: localProject.city.name,
-                countryCode: localProject.city.countryCode,
-                countryName: null,
-                imageUrl: overlay.imageUrl, // AI : Use local image URL for thumbnail
-              } as unknown as UserContributionOverlay,
-            ],
-            overlayCount: 1,
-          } as unknown as UserContribution;
+          // AI : Use factory to create new contribution entry for local project
+          const newContribution = createLocalProjectContribution(
+            localProject,
+            overlay,
+            user.username ?? null,
+          );
 
           contributionsMap.set(localProject.id, newContribution);
         }
