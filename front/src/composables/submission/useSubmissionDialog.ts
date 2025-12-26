@@ -1,5 +1,5 @@
 // AI : Shared composable for submission dialog state and handlers
-// AI : Eliminates duplication between MyContributionsPanel and PopupContainer
+// AI : Eliminates duplication between ContributePanel and PopupContainer
 import { ref } from "vue";
 import L from "leaflet";
 import { useI18n } from "vue-i18n";
@@ -409,7 +409,7 @@ export function useSubmissionDialog() {
   }
 
   // AI : Prepare combined project+overlay submission (for save project button)
-  // AI : UNIFIED function used by both MyContributions and InfoPopup for consistent behavior
+  // AI : UNIFIED function used by both ContributePanel and InfoPopup for consistent behavior
   function prepareProjectWithOverlaysSubmission(
     project: Project | ProjectForModeration,
     projectHasChanges: boolean,
@@ -489,7 +489,7 @@ export function useSubmissionDialog() {
   // AI : This now delegates to prepareProjectWithOverlaysSubmission for UNIFIED behavior
   function prepareOverlaySubmission(overlay: OverlayObject, project: Project | null): void {
     // AI : If we have a project, use the unified function for consistent behavior
-    // AI : This ensures InfoPopup and MyContributions buttons behave identically
+    // AI : This ensures InfoPopup and ContributePanel buttons behave identically
     if (project) {
       const projectModified = project.isModified ?? false;
       prepareProjectWithOverlaysSubmission(project, projectModified);

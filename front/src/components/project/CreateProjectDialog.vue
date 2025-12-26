@@ -1,7 +1,7 @@
 <template>
   <Dialog
     :visible="visible"
-    :header="dialogTitle"
+    :header="$t('dialog.createNewProject')"
     :modal="true"
     :closable="true"
     :draggable="false"
@@ -11,7 +11,6 @@
       <CreateProjectForm
         ref="projectFormRef"
         :project="project"
-        :mode="mode"
         @submit="handleSubmit"
         @cancel="handleCancel"
       />
@@ -28,7 +27,7 @@
         />
         <Button
           type="button"
-          :label="mode === 'create' ? $t('project.create') : $t('common.save')"
+          :label="$t('project.create')"
           icon="pi pi-save"
           @click="handleFormSubmit"
         />
@@ -38,54 +37,44 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { ref } from 'vue';
 import type CreateProjectForm from '@/components/forms/CreateProjectForm.vue';
 import type { Project } from '@/types/index';
 
-const props = defineProps<{
-  visible: boolean;
-  project: Partial<Project>;
-  mode: 'edit' | 'create';
-  title?: string;
+defineProps<{
+    visible: boolean;
+    project: Partial<Project>;
 }>();
 
 const emit = defineEmits<{
-  'update:visible': [visible: boolean];
-  submit: [project: Partial<Project>];
-  cancel: [];
+    'update:visible': [visible: boolean];
+    submit: [project: Partial<Project>];
+    cancel: [];
 }>();
 
 const projectFormRef = ref<InstanceType<typeof CreateProjectForm> | null>(null);
-const { t } = useI18n();
-
-// AI : Computed dialog title with fallback
-const dialogTitle = computed(() => {
-  if (props.title) return props.title;
-  return props.mode === 'create' ? t('dialog.createNewProject') : t('dialog.editProject');
-});
 
 // AI : Handle dialog visibility changes
 function handleVisibilityChange(newVisible: boolean) {
-  emit('update:visible', newVisible);
+    emit('update:visible', newVisible);
 }
 
 // AI : Handle form submission from ProjectForm
 function handleSubmit(project: Partial<Project>) {
-  emit('submit', project);
+    emit('submit', project);
 }
 
 // AI : Handle cancel from ProjectForm or dialog
 function handleCancel() {
-  emit('cancel');
-  emit('update:visible', false);
+    emit('cancel');
+    emit('update:visible', false);
 }
 
 // AI : Handle submit button click in footer (trigger form validation)
 function handleFormSubmit() {
-  // AI : Call the exposed handleSubmit method from ProjectForm
-  if (projectFormRef.value) {
-    projectFormRef.value.handleSubmit();
-  }
+    // AI : Call the exposed handleSubmit method from ProjectForm
+    if (projectFormRef.value) {
+        projectFormRef.value.handleSubmit();
+    }
 }
 </script>

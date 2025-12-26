@@ -187,8 +187,7 @@ import { useAddOverlay } from '@/composables/overlay/useAddOverlay'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import { useToast } from '@/composables/ui/useToast'
 import { useChangeRequests } from '@/composables/changes/useChanges'
-import { useUserContributions } from '@/composables/project/useUserContributions'
-import { useAllContributions, type UserContribution, type UserContributionOverlay } from '@/composables/project/useAllContributions'
+import { useUserContributions, type UserContribution, type UserContributionOverlay } from '@/composables/project/useUserContributions'
 import { useModeratedContributions } from '@/composables/moderation/useModeratedContributions'
 import { useUiStore } from '@/stores/uiStore'
 import { useOverlayStore } from '@/stores/pinia/overlayStore'
@@ -214,10 +213,7 @@ type ChangeRequest = RouterOutput['changes']['getPendingChangeRequests'][0]
 const { t } = useI18n()
 
 // AI : Use cached composable for user contributions (backend only)
-const { isLoading, fetchUserContributions } = useUserContributions()
-
-// AI : Use all contributions composable (merged local + backend)
-const { allContributions } = useAllContributions()
+const { isLoading, fetchUserContributions, allContributions } = useUserContributions()
 
 // AI : Use deletion composable for delete operations
 const { handleDeleteOverlay: deleteOverlayWithMarker, handleDeleteProject: deleteProjectWithConfirm } = useProjectDeletion()
