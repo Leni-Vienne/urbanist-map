@@ -26,7 +26,7 @@
             icon="pi pi-trash"
             :class="['p-button-sm', 'p-button-text', 'p-button-danger']"
             @click="emit('delete-project', project)"
-            v-tooltip.top="$t('contributions.deleteProject')"
+            v-tooltip.top="$t('contribute.deleteProject')"
           />
           <!-- AI : Close button (only for project-only view) -->
           <Button
@@ -58,7 +58,7 @@
               icon="pi pi-trash"
               :class="['p-button-sm', 'p-button-text', 'p-button-danger']"
               @click="emit('delete-overlay', overlay)"
-              v-tooltip.top="$t('contributions.deleteOverlay')"
+              v-tooltip.top="$t('contribute.deleteOverlay')"
             />
           </div>
         </div>

@@ -1,11 +1,9 @@
 <template>
   <!-- AI : Project Dialog for create/edit -->
-  <ProjectDialog
+  <CreateProjectDialog
     v-if="uiStore.projectDialog.visible"
     v-model:visible="uiStore.projectDialog.visible"
     :project="uiStore.projectDialog.project ?? {}"
-    :mode="uiStore.projectDialog.mode"
-    :title="uiStore.projectDialog.mode === 'create' ? $t('dialog.createNewProject') : $t('dialog.editProject')"
     @submit="handleProjectSubmitted"
     @cancel="uiStore.closeProjectDialog"
   />
@@ -63,7 +61,7 @@ import type { Project, NearbyProject } from '@/types/index'
 
 import MarkerPlacementBar from '@/components/map/MarkerPlacementBar.vue'
 import countryBboxes from '@/assets/country_bboxes.json'
-const ProjectDialog = defineAsyncComponent(() => import('@/components/project/ProjectDialog.vue'))
+const CreateProjectDialog = defineAsyncComponent(() => import('@/components/project/CreateProjectDialog.vue'))
 const EditProjectForm = defineAsyncComponent(() => import('@/components/forms/EditProjectForm.vue'))
 
 const overlayStore = useOverlayStore()
@@ -309,7 +307,7 @@ function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: number }) 
   uiStore.openProjectDialog({
     lat: coordinates.lat,
     lng: coordinates.lng
-  }, 'create');
+  });
 }
 
 

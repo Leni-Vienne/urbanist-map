@@ -57,7 +57,7 @@ export const useProjectStore = defineStore("project", () => {
   // AI : Stores snapshots of approved projects before local modifications
   const originalBackendProjects = ref<Record<string, Project>>({});
 
-  // AI : Cache original user contributions for change detection (from MyContributionsPanel)
+  // AI : Cache original user contributions for change detection (from ContributePanel)
   // AI : Stores snapshots of contribution projects before local modifications
   const originalUserContributions = ref<Record<string, UserContribution>>({});
 
@@ -74,7 +74,7 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   // AI : Helper to get original project state for change detection
-  // AI : Checks both originalBackendProjects (from map) and originalUserContributions (from MyContributions)
+  // AI : Checks both originalBackendProjects (from map) and originalUserContributions (from ContributePanel)
   function getOriginalProject(projectId: string): Project | UserContribution | null {
     return (
       originalBackendProjects.value[projectId] ?? originalUserContributions.value[projectId] ?? null
@@ -456,7 +456,7 @@ export const useProjectStore = defineStore("project", () => {
       didReset = true;
     }
 
-    // AI : Also update user contributions if present (critical for MyContributionsPanel)
+    // AI : Also update user contributions if present (critical for ContributePanel)
     const contribIndex = userContributions.value.findIndex((p) => p.id === projectId);
     if (contribIndex !== -1 && originalValue !== undefined) {
       const contrib = userContributions.value[contribIndex];

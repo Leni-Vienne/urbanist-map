@@ -3,7 +3,7 @@
     <ProjectFormFields
       ref="formFieldsRef"
       :form-data="formData"
-      :show-latest-update-field="props.mode === 'edit'"
+      :show-latest-update-field="false"
       :is-proposed="isProposed"
       :prefilled-city="props.project.city"
       :marker-coordinates="markerCoordinates"
@@ -24,7 +24,6 @@ import type { Project } from '@/types/index'
 
 const props = defineProps<{
     project: Partial<Project>
-    mode: 'edit' | 'create'
 }>()
 
 const emit = defineEmits<{ cancel: [], submit: [project: Partial<Project>] }>()
@@ -43,7 +42,7 @@ const formData = reactive<ProjectFormData>({
     sourceUrl: props.project.sourceUrl ?? null,
 })
 
-const isProposed = ref(props.mode === 'create' ? true : Boolean(props.project.proposalDate && !props.project.startDate))
+const isProposed = ref(true)
 
 const markerCoordinates = props.project.lat && props.project.lng
     ? { lat: props.project.lat, lng: props.project.lng }
