@@ -189,6 +189,14 @@ export function renderForStrategy(
         existingOverlay.suggestedCorners = newData.suggestedCorners; // AI : Suggested position if pending changes exist
         existingOverlay.centroid = newData.centroid;
         existingOverlay.isViewingApprovedPosition = undefined; // AI : Reset toggle state when receiving fresh data from mode switch
+
+        // AI : Ensure overlay is on the map if strategy requires it (e.g. zooming in from low zoom)
+        // AI : Existing overlays might have been removed from map during low zoom, need to re-add them
+        if (strategy.shouldRenderFullOverlays && existingOverlay.overlay && map.value) {
+          if (!map.value.hasLayer(existingOverlay.overlay)) {
+            existingOverlay.overlay.addTo(map.value);
+          }
+        }
       });
 
       // AI : Find new overlays that need to be created
@@ -247,17 +255,9 @@ export function updateExistingOverlays(strategy: RenderStrategy): void {
   const overlayStore = useOverlayStore();
   const overlayObjects = Object.values(overlayStore.overlays);
 
-  // AI : Update positions if needed
-  applyPositionsToOverlays(overlayObjects, strategy.shouldUseCachedPositions);
-
-  // AI : Update markers
+  // AI : 1. Manage visibility first (Add/Remove layers)
+  // AI : Must be done BEFORE applying positions, otherwise applyPositionToOverlay will skip updates
   overlayObjects.forEach((overlayObject) => {
-    if (overlayObject.marker) {
-      updateMarkerTooltip(overlayObject);
-      updateMarkerPosition(overlayObject);
-    }
-
-    // AI : Manage overlay visibility based on zoom level
     if (overlayObject.overlay && map.value) {
       if (strategy.shouldRenderFullOverlays && !map.value.hasLayer(overlayObject.overlay)) {
         // AI : Add overlay to map if zoom is high enough
@@ -266,6 +266,18 @@ export function updateExistingOverlays(strategy: RenderStrategy): void {
         // AI : Remove overlay from map if zoom is too low (but keep in store)
         map.value.removeLayer(overlayObject.overlay);
       }
+    }
+  });
+
+  // AI : 2. Update positions
+  // AI : Now that layers are on the map (if visible), we can safely apply positions
+  applyPositionsToOverlays(overlayObjects, strategy.shouldUseCachedPositions);
+
+  // AI : 3. Update markers and editing state
+  overlayObjects.forEach((overlayObject) => {
+    if (overlayObject.marker) {
+      updateMarkerTooltip(overlayObject);
+      updateMarkerPosition(overlayObject);
     }
   });
 
