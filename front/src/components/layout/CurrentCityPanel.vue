@@ -71,6 +71,7 @@ import { isValidCountryCode } from '@/composables/map/useCountryMarkers'
 import { flyToCountry } from '@/composables/map/useMapNavigation'
 import { useAccordionState } from '@/composables/layout/useAccordionState'
 import { useAddOverlay } from '@/composables/overlay/useAddOverlay'
+import { createProjectFromOverlayData, createOverlayForModeration } from '@/utils/projectFactories'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import type { ProjectForModeration, OverlayForModeration } from '@/types/index'
 import type { ApprovalStatus } from '@shared/types';
@@ -159,57 +160,19 @@ const projectsWithOverlays = computed(() => {
         if (!projectId) continue
 
         if (!projectsMap.has(projectId)) {
-            // AI : Create project entry from overlay data's project field
-            const projectInfo = overlayData.project
-            projectsMap.set(projectId, {
-                id: projectId,
-                name: projectInfo?.name ?? projectId,
-                description: projectInfo?.description ?? null,
-                status: (projectInfo?.status ?? 'approved') as ApprovalStatus,
-                ownerId: projectInfo?.ownerId ?? overlayData.authorId,
-                cityId: projectInfo?.cityId ?? mapStore.selectedCity.id,
-                lat: projectInfo?.lat ?? overlayData.centroid.lat,
-                lng: projectInfo?.lng ?? overlayData.centroid.lng,
-                proposalDate: projectInfo?.proposalDate ?? null,
-                startDate: projectInfo?.startDate ?? null,
-                endDate: projectInfo?.endDate ?? null,
-                sourceUrl: projectInfo?.sourceUrl ?? null,
-                createdAt: projectInfo?.createdAt ?? overlayData.createdAt,
-                updatedAt: projectInfo?.updatedAt ?? overlayData.updatedAt,
-                version: projectInfo?.version ?? overlayData.version,
-                countryCode: projectInfo?.city?.countryCode ?? mapStore.selectedCity.countryCode ?? null,
-                countryName: (() => {
-                    // AI : Get country name from projectStore using country code
-                    const code = projectInfo?.city?.countryCode ?? mapStore.selectedCity.countryCode
-                    if (!code) return null
-                    const country = projectStore.countries.find(c => c.code === code)
-                    return country?.name ?? null
-                })(),
-                cityName: projectInfo?.city?.name ?? mapStore.selectedCity.name,
-                overlays: []
-            })
+            // AI : Use factory to create project from overlay data
+            projectsMap.set(projectId, createProjectFromOverlayData(
+                overlayData,
+                mapStore.selectedCity,
+                projectStore.countries
+            ))
         }
 
         const project = projectsMap.get(projectId);
         if (!project) continue;
 
-        const overlay: OverlayForModeration = {
-            id: overlayData.id,
-            name: overlayData.caption ?? '',
-            filename: overlayData.filename,
-            status: overlayData.status,
-            version: overlayData.version,
-            projectId: overlayData.projectId,
-            updatedAt: overlayData.updatedAt,
-            authorId: overlayData.authorId,
-            authorUsername: undefined,
-            authorReportCount: undefined,
-            cityId: overlayData.project?.cityId ?? mapStore.selectedCity.id,
-            cityName: overlayData.project?.city?.name ?? mapStore.selectedCity.name,
-            countryCode: overlayData.project?.city?.countryCode ?? mapStore.selectedCity.countryCode ?? null,
-            countryName: null,
-            replacesOverlayId: overlayData.replacesOverlayId
-        }
+        // AI : Use factory to create overlay
+        const overlay = createOverlayForModeration(overlayData, mapStore.selectedCity)
 
         project.overlays = project.overlays || []
         project.overlays.push(overlay)

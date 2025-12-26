@@ -433,10 +433,59 @@ export const projectRouter = router({
         sortBy: z.enum(["createdAt", "updatedAt"]).optional().default("updatedAt"),
         cityId: z.number().optional(),
         countryCode: z.string().length(3).optional(),
+        includeCityProjects: z.boolean().optional(), // AI : When true + cityId provided, return ALL city projects
       }),
     )
     .query(async ({ input, ctx }) => {
       try {
+        // AI : NEW: If includeCityProjects + cityId provided, return ALL city projects in UserContribution format
+        if (input.includeCityProjects && input.cityId) {
+          // AI : Query ALL projects in the city (approved OR user's pending)
+          const cityProjects = await buildProjectWithLocationQuery(db)
+            .where(
+              and(
+                eq(projects.cityId, input.cityId),
+                or(
+                  eq(projects.status, "approved"),
+                  and(eq(projects.status, "pending"), eq(projects.ownerId, ctx.user.id)),
+                ),
+              ),
+            )
+            .orderBy(sql`${projects.updatedAt} DESC`)
+            .limit(input.limit);
+
+          const projectIds = cityProjects.map((p) => p.id);
+          let projectOverlays: Awaited<ReturnType<typeof buildOverlayModerationQuery>> = [];
+
+          if (projectIds.length > 0) {
+            // AI : Get overlays for these projects (approved OR user's own)
+            projectOverlays = await buildOverlayModerationQuery(db)
+              .where(
+                and(
+                  inArray(overlays.projectId, projectIds),
+                  or(eq(overlays.status, "approved"), eq(overlays.authorId, ctx.user.id)),
+                ),
+              )
+              .orderBy(overlays.updatedAt);
+          }
+
+          const projectsWithOverlays = cityProjects.map((project) => {
+            const projectOverlaysList = projectOverlays.filter(
+              (overlay) => overlay.projectId === project.id,
+            );
+            return Object.assign({}, project, {
+              overlays: projectOverlaysList,
+              overlayCount: projectOverlaysList.length,
+            });
+          });
+
+          return {
+            projects: projectsWithOverlays,
+            pagination: { hasMore: false, nextCursor: null }, // AI : No pagination for city projects
+          };
+        }
+
+        // AI : EXISTING: Return user's own contributions
         const sortColumn = input.sortBy === "createdAt" ? projects.createdAt : projects.updatedAt;
 
         // AI : Build pagination conditions using shared helper

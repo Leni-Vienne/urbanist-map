@@ -171,7 +171,10 @@ export function useUserContributions() {
   const isLoading = computed(() => projectStore.userContributionsLoading);
   const projects = computed(() => projectStore.userContributions);
 
-  async function fetchUserContributions() {
+  async function fetchUserContributions(options?: {
+    cityId?: number;
+    includeCityProjects?: boolean;
+  }) {
     if (projectStore.userContributionsLoaded) {
       return;
     }
@@ -179,7 +182,12 @@ export function useUserContributions() {
     projectStore.setUserContributionsLoading(true);
     try {
       const result = await withErrorHandling(
-        async () => trpc.project.getUsersContributions.query({ limit: 50 }),
+        async () =>
+          trpc.project.getUsersContributions.query({
+            limit: 50,
+            cityId: options?.cityId,
+            includeCityProjects: options?.includeCityProjects,
+          }),
         { errorMessage: "Failed to load contributions. Please refresh the page." },
       );
 
