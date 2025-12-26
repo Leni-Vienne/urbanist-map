@@ -4,6 +4,7 @@ import type L from "leaflet";
 import { map, currentZoomLevel } from "@/composables/core/useMap";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
+import { useAuthStore } from "@/stores/authStore";
 import {
   getSelectedCity,
   hasCachedCityProjectsData,
@@ -46,6 +47,8 @@ import { storeToRefs } from "pinia";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import { mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
 import { clearChangeRequestPreview } from "@/composables/overlay/changeRequestPreviewState";
+import { useToast } from "@/composables/ui/useToast";
+import { t } from "@/locales";
 
 // AI : Transition effects - callbacks executed during state transitions
 interface TransitionEffects {
@@ -185,7 +188,8 @@ export async function switchMode(
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
   const uiStore = useUiStore();
-
+  const authStore = useAuthStore();
+  const toast = useToast();
   // AI : Don't do anything if we're already in the target mode
   if (overlayStore.mode === targetMode) {
     return;
@@ -225,6 +229,31 @@ export async function switchMode(
   // AI : Clear change request preview state when switching modes
   // AI : This ensures buttons don't show "pressed" state after mode switch
   clearChangeRequestPreview();
+
+  // AI : If switching to moderation mode, ensure the user has rights to the currently selected area
+  // AI : If not, clear the selection to avoid showing an empty panel or confusing state
+  if (targetMode === "moderation") {
+    const user = authStore.user;
+    // AI : If user has specific moderated countries (not admin/all-access)
+    if (user?.moderatedCountries) {
+      // AI : Check if current selection matches user's permissions
+      const currentCountryCode = mapStore.selectedCity?.countryCode ?? mapStore.selectedCountryCode;
+
+      if (currentCountryCode && !user.moderatedCountries.includes(currentCountryCode)) {
+        // AI : User strictly moderated and current selection is not in their list -> clear it
+        mapStore.clearSelectedCity();
+        mapStore.selectedCountryCode = null;
+
+        // AI : Inform user with a toast
+        toast.add({
+          severity: "info",
+          summary: t("moderation.title"),
+          detail: t("moderation.noAccessToThisCountry"),
+          life: 4000,
+        });
+      }
+    }
+  }
 
   // AI : Set new mode
   overlayStore.setMode(targetMode);

@@ -1,7 +1,13 @@
 <template>
   <div class="page-container">
     <div class="page-card">
-      <Button icon="pi pi-arrow-left" :label="t('common.back')" severity="secondary" text @click="goHome" />
+      <Button
+        icon="pi pi-arrow-left"
+        :label="t('common.back')"
+        severity="secondary"
+        text
+        @click="goHome"
+      />
 
       <h1>{{ t('pages.contact.title') }}</h1>
 
@@ -34,7 +40,7 @@ function goHome() {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  min-height: 100vh;
+  height: 100vh;
   background: linear-gradient(135deg, var(--p-primary-50), var(--p-primary-100));
   padding: 40px 20px;
   overflow-y: auto;

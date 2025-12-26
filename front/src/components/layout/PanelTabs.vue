@@ -19,7 +19,7 @@
       :class="[tabButtonClass, { active: activeTab === 'uploads' }]"
       @click="$emit('update:activeTab', 'uploads')"
     >
-      {{ $t('navigation.myContributions') }}
+      {{ $t('navigation.contribute') }}
     </button>
     <button
       v-if="authStore.isModerator"

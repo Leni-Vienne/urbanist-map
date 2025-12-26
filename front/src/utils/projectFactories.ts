@@ -135,6 +135,7 @@ export function createLocalOverlayContribution(
     cityName: parentProject.cityName,
     countryCode: parentProject.countryCode,
     countryName: parentProject.countryName,
+    imageUrl: overlay.imageUrl, // AI : Preserve local image URL for thumbnail display
   } as unknown as UserContributionOverlay;
 }
 

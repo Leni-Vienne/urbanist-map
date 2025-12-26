@@ -63,7 +63,7 @@
     "profile": "Profile",
     "latestContributions": "Latest Contributions",
     "currentCity": "Current City",
-    "myContributions": "My Contributions",
+    "contribute": "Contribute",
     "moderation": "Moderation",
     "unsavedOverlaysWarning": "You have unsaved overlays. Navigating will discard them. Continue?",
     "unsavedOverlaysSwitchCountry": "You have unsaved overlays. Switching to another country will discard them. Continue?",
@@ -483,16 +483,19 @@
         "username": "Username (public display name)",
         "email": "Email address (for account recovery and notifications)",
         "password": "Password (stored encrypted)",
-        "legalBasis": "Legal basis: contract performance (providing the service you signed up for)."
+        "ipAddresses": "IP addresses (in server logs for security and spam prevention, retained for 90 days)",
+        "oauthData": "OAuth provider IDs (if you use Google Sign-In)",
+        "legalBasis": "Legal bases: Contract performance (providing the service), Legitimate interest (security, fraud prevention)."
       },
       "rights": {
         "title": "Your Rights (GDPR)",
         "content": "Under EU law, you have the following rights regarding your data:",
-        "access": "Right to access: request a copy of your data",
-        "rectification": "Right to rectification: correct inaccurate data",
-        "deletion": "Right to erasure: delete your account and all associated data",
-        "portability": "Right to portability: export your data in a standard format",
-        "howTo": "To exercise these rights, contact us at contact{'@/'}constructionmap.org. We will respond within 30 days."
+        "access": "Right to access: request a copy of your data (email contact@constructionmap.org)",
+        "rectification": "Right to rectification: update your username and email in your account settings",
+        "deletion": "Right to erasure: delete your account and all personal data (email contact@constructionmap.org to request account deletion)",
+        "portability": "Right to portability: export your data in JSON format (email contact@constructionmap.org)",
+        "howTo": "To exercise these rights, contact us at contact@constructionmap.org. We will respond within 30 days.",
+        "note": "Note: When you delete your account, your personal information (email, username) is removed, but your contributions (projects, overlays) are anonymized and may remain publicly visible."
       },
       "thirdParty": {
         "title": "Third-Party Services",
@@ -506,11 +509,19 @@
       },
       "retention": {
         "title": "Data Retention",
-        "content": "Your data is kept as long as your account exists. When you delete your account, all your personal data is permanently deleted within 30 days. Anonymized contribution data (overlays, projects) may be retained."
+        "content": "We retain your data as follows:",
+        "account": "Account data (email, username, password): Until you delete your account",
+        "logs": "Server logs (IP addresses): Automatically deleted after 90 days",
+        "sessions": "Session cookies: Expire after 30 days of inactivity",
+        "contributions": "Contributions (projects, overlays): Anonymized when you delete your account, but may remain publicly visible",
+        "deletion": "When you delete your account, all personal data is permanently removed within 30 days."
       },
       "cookies": {
         "title": "Cookies",
-        "content": "We only use a session cookie to keep you logged in. This cookie is strictly necessary and does not require consent. We do not use any tracking, analytics, or advertising cookies."
+        "content": "We only use essential cookies:",
+        "sessionCookie": "Session cookie: Keeps you logged in (expires after 30 days of inactivity)",
+        "purpose": "This cookie is strictly necessary for authentication and does not require consent.",
+        "noTracking": "We do not use any tracking, analytics, or advertising cookies."
       },
       "userContent": {
         "title": "User Content & Terms of Use",
@@ -680,6 +691,7 @@
     "title": "Moderation",
     "description": "Review pending submissions",
     "by": "by",
+    "noAccessToThisCountry": "You do not have permission to moderate this country.",
     "projectApproved": "Project Approved",
     "projectApprovedDetail": "The project has been approved successfully",
     "projectUpdated": "Project Updated",
@@ -844,7 +856,7 @@
   },
   "layerControl": {
     "baseMaps": "Base Maps",
-    "submitTileLayer": "Suggest a new tile layer?"
+    "submitTileLayer": "Submit a new tile layer"
   },
   "toasts": {
     "replacementOverlayCreated": "Replacement Overlay Created",

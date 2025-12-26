@@ -70,6 +70,18 @@ function initializeModeWatcher() {
     () => overlayStore.mode,
     () => {
       updateAllStandaloneProjectMarkerColors();
+
+      // AI : Reload city markers to apply visibility filters (moderation mode)
+      const mapStore = useMapStore();
+      // AI : If we are viewing a country (no specific city selected), we need to refresh the country's city markers
+      // AI : We can do this by re-adding the current markers with the new filter
+      if (!mapStore.selectedCity && cityMarkersLayer) {
+        // AI : We need to trigger a refresh. The simplest way is to conceptually "refresh" the view.
+        // AI : However, useCityMarkers doesn't store the full list of cities permanently in a way that's easy to access here without passing it in.
+        // AI : A better approach might be to leverage the existing data flow or just simple reactivity if we make `addCityMarkersForCountry` reactive?
+        // AI : Actually, `citiesWithProjects` is exported and reactive!
+        addCityMarkersForCountry(citiesWithProjects.value);
+      }
     },
   );
 
@@ -534,7 +546,23 @@ function addCityMarkersToMapInternal(
 
   // AI : Use shared config to create markers
   const config = getCityMarkerConfig();
-  const result = createMarkerLayer(allCities, config);
+
+  // AI : Filter cities for moderation mode if user is restricted
+  const overlayStore = useOverlayStore();
+  const authStore = useAuthStore();
+  let citiesToRender = allCities;
+
+  if (
+    overlayStore.mode === "moderation" &&
+    authStore.user &&
+    authStore.user.role !== "admin" &&
+    authStore.user.moderatedCountries
+  ) {
+    const moderatedCountries = authStore.user.moderatedCountries;
+    citiesToRender = citiesToRender.filter((city) => moderatedCountries.includes(city.countryCode));
+  }
+
+  const result = createMarkerLayer(citiesToRender, config);
   cityMarkersLayer = result.layer;
 
   // AI : Store markers for lookup
