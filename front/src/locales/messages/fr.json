@@ -63,7 +63,7 @@
     "profile": "Profil",
     "latestContributions": "Contributions Récentes",
     "currentCity": "Ville Actuelle",
-    "myContributions": "Mes contributions",
+    "contribute": "Contribuer",
     "moderation": "Modération",
     "unsavedOverlaysWarning": "Vous avez des images non enregistrées. La navigation les supprimera. Continuer ?",
     "unsavedOverlaysSwitchCountry": "Vous avez des images non enregistrées. Changer de pays les supprimera. Continuer ?",
@@ -483,16 +483,19 @@
         "username": "Nom d'utilisateur (nom public affiché)",
         "email": "Adresse email (pour récupération du compte et notifications)",
         "password": "Mot de passe (stocké chiffré)",
-        "legalBasis": "Base légale : exécution du contrat (fourniture du service auquel vous vous êtes inscrit)."
+        "ipAddresses": "Adresses IP (dans les journaux serveur pour la sécurité et la prévention du spam, conservées 90 jours)",
+        "oauthData": "Identifiants de fournisseur OAuth (si vous utilisez Google Sign-In)",
+        "legalBasis": "Bases légales : Exécution du contrat (fourniture du service), Intérêt légitime (sécurité, prévention de la fraude)."
       },
       "rights": {
         "title": "Vos droits (RGPD)",
         "content": "En vertu du droit européen, vous disposez des droits suivants concernant vos données :",
-        "access": "Droit d'accès : demander une copie de vos données",
-        "rectification": "Droit de rectification : corriger des données inexactes",
-        "deletion": "Droit à l'effacement : supprimer votre compte et toutes les données associées",
-        "portability": "Droit à la portabilité : exporter vos données dans un format standard",
-        "howTo": "Pour exercer ces droits, contactez-nous à contact{'@/'}constructionmap.org. Nous répondrons sous 30 jours."
+        "access": "Droit d'accès : demander une copie de vos données (envoyez un email à contact@constructionmap.org)",
+        "rectification": "Droit de rectification : mettre à jour votre nom d'utilisateur et email dans les paramètres de votre compte",
+        "deletion": "Droit à l'effacement : supprimer votre compte et toutes vos données personnelles (envoyez un email à contact@constructionmap.org pour demander la suppression)",
+        "portability": "Droit à la portabilité : exporter vos données au format JSON (envoyez un email à contact@constructionmap.org)",
+        "howTo": "Pour exercer ces droits, contactez-nous à contact@constructionmap.org. Nous répondrons sous 30 jours.",
+        "note": "Note : Lorsque vous supprimez votre compte, vos informations personnelles (email, nom d'utilisateur) sont supprimées, mais vos contributions (projets, images) sont anonymisées et peuvent rester publiquement visibles."
       },
       "thirdParty": {
         "title": "Services tiers",
@@ -506,11 +509,19 @@
       },
       "retention": {
         "title": "Conservation des données",
-        "content": "Vos données sont conservées tant que votre compte existe. Lorsque vous supprimez votre compte, toutes vos données personnelles sont définitivement supprimées sous 30 jours. Les données de contribution anonymisées (images, projets) peuvent être conservées."
+        "content": "Nous conservons vos données comme suit :",
+        "account": "Données de compte (email, nom d'utilisateur, mot de passe) : Jusqu'à la suppression de votre compte",
+        "logs": "Journaux serveur (adresses IP) : Supprimés automatiquement après 90 jours",
+        "sessions": "Cookies de session : Expirent après 30 jours d'inactivité",
+        "contributions": "Contributions (projets, images) : Anonymisées lorsque vous supprimez votre compte, mais peuvent rester publiquement visibles",
+        "deletion": "Lorsque vous supprimez votre compte, toutes vos données personnelles sont définitivement supprimées sous 30 jours."
       },
       "cookies": {
         "title": "Cookies",
-        "content": "Nous utilisons uniquement un cookie de session pour maintenir votre connexion. Ce cookie est strictement nécessaire et ne requiert pas de consentement. Nous n'utilisons aucun cookie de suivi, d'analyse ou publicitaire."
+        "content": "Nous utilisons uniquement des cookies essentiels :",
+        "sessionCookie": "Cookie de session : Maintient votre connexion (expire après 30 jours d'inactivité)",
+        "purpose": "Ce cookie est strictement nécessaire pour l'authentification et ne requiert pas de consentement.",
+        "noTracking": "Nous n'utilisons aucun cookie de suivi, d'analyse ou publicitaire."
       },
       "userContent": {
         "title": "Contenu utilisateur & Conditions d'utilisation",
@@ -680,6 +691,7 @@
     "title": "Modération",
     "description": "Examiner les contributions en attente",
     "by": "par",
+    "noAccessToThisCountry": "Vous n'avez pas la permission de modérer ce pays.",
     "unknownUser": "Utilisateur inconnu",
     "more": "plus",
     "projectApproved": "Projet approuvé",
@@ -846,7 +858,7 @@
   },
   "layerControl": {
     "baseMaps": "Cartes de base",
-    "submitTileLayer": "Suggérez une nouvelle carte"
+    "submitTileLayer": "Soumettre une nouvelle carte"
   },
   "toasts": {
     "replacementOverlayCreated": "Image de remplacement créée",

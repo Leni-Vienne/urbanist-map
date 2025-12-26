@@ -107,25 +107,18 @@ export function useAllContributions() {
       // AI : Get all local overlays for this project
       const projectLocalOverlays = localOverlays.filter((o) => o.projectId === localProject.id);
 
-      const overlayData = projectLocalOverlays.map((overlay) => ({
-        id: overlay.id,
-        name: overlay.caption ?? "Untitled",
-        filename: overlay.filename,
-        status: null,
-        version: 1,
-        projectId: overlay.projectId ?? "",
-        authorId: overlay.authorId ?? null,
-        authorUsername: user.username ?? null,
-        authorApprovedCount: null,
-        authorRejectedCount: null,
-        replacesOverlayId: overlay.replacesOverlayId ?? null,
-        replacedByOverlayId: null,
-        updatedAt: new Date(),
-        cityId: localProject.cityId,
-        cityName: localProject.city.name,
-        countryCode: localProject.city.countryCode,
-        countryName: null,
-      })) as unknown as UserContributionOverlay[];
+      const overlayData = projectLocalOverlays.map((overlay) =>
+        createLocalOverlayContribution(
+          overlay,
+          {
+            cityId: localProject.cityId,
+            cityName: localProject.city.name,
+            countryCode: localProject.city.countryCode,
+            countryName: null,
+          },
+          user.username ?? null,
+        ),
+      );
 
       const newContribution = {
         id: localProject.id,
