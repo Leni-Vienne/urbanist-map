@@ -3,7 +3,11 @@
     <!-- AI : Fixed header containing title, close button, and navigation tabs -->
     <div class="sidecolumn__header">
       <div class="header-top">
-        <h2 class="site-title">{{ $t('app.title') }}</h2>
+        <div class="title-container">
+          <h2 class="site-title">{{ $t('app.title') }}</h2>
+          <p class="site-subtitle">{{ $t('app.subtitle') }}</p>
+        </div>
+
         <div class="header-actions">
           <Button
             icon="pi pi-times"
@@ -41,6 +45,8 @@ import PanelTabs from './PanelTabs.vue'
 import { usePanelTabs } from '@/composables/layout/usePanelTabs'
 import { useOverlayStore } from '@/stores/pinia/overlayStore'
 import { useMapStore } from '@/stores/pinia/mapStore'
+import { useUiStore } from '@/stores/uiStore'
+import { useAuthStore } from '@/stores/authStore'
 import type { PanelTab } from '@/types'
 
 defineProps<{
@@ -58,11 +64,22 @@ const activeTab = ref<PanelTab>('latest')
 // AI : Watch for overlay selection and auto-switch to Current City tab (only in view mode)
 const overlayStore = useOverlayStore()
 const mapStore = useMapStore()
+const uiStore = useUiStore()
+const authStore = useAuthStore()
+
 watch(() => overlayStore.idSelectedOverlay, (overlayId) => {
   // AI : When an overlay is selected and we have a city loaded, switch to Current City tab
   // AI : Only do this in view mode - in edit/moderation modes, preserve the current workflow
   if (overlayId && mapStore.selectedCity && overlayStore.mode === 'view') {
     activeTab.value = 'currentCity'
+  }
+})
+
+// AI : Watch for authentication changes and execute post-login callback
+watch(() => authStore.isAuthenticated, (isAuthenticated) => {
+  if (isAuthenticated && uiStore.postLoginCallback) {
+    // AI : User just logged in, execute the callback
+    uiStore.executePostLoginCallback()
   }
 })
 
@@ -127,7 +144,7 @@ usePanelTabs(activeTab)
 }
 
 .header-top {
-  padding: 1rem 1.5rem 0.5rem;
+  padding: 0.5rem 1.5rem 0.5rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -141,6 +158,13 @@ usePanelTabs(activeTab)
   line-height: 1.2;
   letter-spacing: -0.025em;
   color: var(--p-surface-800);
+}
+
+.site-subtitle {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.875rem;
+  color: var(--p-surface-500);
+  line-height: 1.4;
 }
 
 .header-actions {

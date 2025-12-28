@@ -1,4 +1,5 @@
 <template>
+  <!-- AI : Full panel for authenticated users -->
   <ProjectAccordionPanel
     :projects="filteredProjects"
     :is-loading="isLoading"

@@ -61,6 +61,9 @@ export const useUiStore = defineStore("ui", () => {
   const lastCreatedProjectId = ref<string | null>(null);
   const inFileUploadFlow = ref<boolean>(false);
 
+  // AI : Post-login callback - stores action to execute after successful login
+  const postLoginCallback = ref<(() => void) | null>(null);
+
   // AI : Auth modal actions
   function openAuthModal() {
     authModalVisible.value = true;
@@ -189,6 +192,18 @@ export const useUiStore = defineStore("ui", () => {
     inFileUploadFlow.value = active;
   }
 
+  // AI : Post-login callback actions
+  function setPostLoginCallback(callback: (() => void) | null) {
+    postLoginCallback.value = callback;
+  }
+
+  function executePostLoginCallback() {
+    if (postLoginCallback.value) {
+      postLoginCallback.value();
+      postLoginCallback.value = null; // AI : Clear after execution
+    }
+  }
+
   // AI : Close all UI elements (used for cleanup)
   function closeAllDialogs() {
     authModalVisible.value = false;
@@ -216,6 +231,7 @@ export const useUiStore = defineStore("ui", () => {
     imageUploadDialog,
     lastCreatedProjectId,
     inFileUploadFlow,
+    postLoginCallback,
 
     // AI : Actions
     openAuthModal,
@@ -238,6 +254,8 @@ export const useUiStore = defineStore("ui", () => {
     closeImageUploadDialog,
     setLastCreatedProject,
     setFileUploadFlow,
+    setPostLoginCallback,
+    executePostLoginCallback,
     closeAllDialogs,
   };
 });
