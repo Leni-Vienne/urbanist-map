@@ -40,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue';
+import { ref, onMounted, onUnmounted, watch, nextTick, defineAsyncComponent } from 'vue';
 
 import { initializeMap, disableLeafletKeyboardEvents, map } from '@/composables/core/useMap';
 import { addTileLayer } from '@/composables/map/useTileLayers';
@@ -132,29 +132,22 @@ async function filterOverlaysByCompletionStatus() {
   mapStore.setCityProjectsCache(selectedCityId, overlayStore.mode, cityOverlays);
 }
 
-// AI : Watch for mode changes to manage overlay state
-watch(() => overlayStore.mode, (newMode, oldMode) => {
-  if (newMode !== 'view' && oldMode === 'view') {
-    // AI : Entering edit or moderation mode from view mode - clear view mode tracking
-    overlayStore.clearViewModeOverlays();
-  } else if (newMode === 'view') {
-    // AI : Apply filters when entering view mode - but only if there are overlays to filter
-    // AI : The mode switch already handles rendering, this is just for completion status filtering
-    setTimeout(async () => {
-      // AI : Only filter if there are actually overlays loaded
-      if (Object.keys(overlayStore.overlays).length > 0) {
-        await filterOverlaysByCompletionStatus()
-      }
-    }, 100);
+// AI : Watch for mode changes and overlay count to manage overlay state
+// AI : Consolidated from two separate watchers to avoid duplicate filtering
+watch(
+  () => [overlayStore.mode, Object.keys(overlayStore.overlays).length] as const,
+  async ([newMode, overlayCount], [oldMode]) => {
+    if (newMode !== 'view' && oldMode === 'view') {
+      // AI : Entering edit or moderation mode from view mode - clear view mode tracking
+      overlayStore.clearViewModeOverlays();
+    } else if (newMode === 'view' && overlayCount > 0) {
+      // AI : Apply filters when entering view mode or when overlays change in view mode
+      // AI : Use nextTick instead of setTimeout for proper async sequencing
+      await nextTick();
+      await filterOverlaysByCompletionStatus();
+    }
   }
-});
-
-// AI : Watch for overlays changes to apply filters (only in view mode)
-watch(() => overlayStore.overlays ? Object.keys(overlayStore.overlays).length : 0, () => {
-  if (overlayStore.mode === 'view') {
-    setTimeout(async () => await filterOverlaysByCompletionStatus(), 100);
-  }
-});
+);
 
 onMounted(async () => {
   await initializeMapAndOverlays();
