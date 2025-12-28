@@ -2,7 +2,10 @@
   <div class="reset-container">
     <div class="reset-card">
       <div v-if="loading" class="loading-state">
-        <i class="pi pi-spin pi-spinner" style="font-size: 2rem; color: var(--p-primary-color);"></i>
+        <i
+          class="pi pi-spin pi-spinner"
+          style="font-size: 2rem; color: var(--p-primary-color);"
+        ></i>
         <p>{{ $t('common.loading') }}</p>
       </div>
 
@@ -13,7 +16,7 @@
           <div class="field">
             <label for="password">{{ $t('auth.newPassword') }}</label>
             <Password
-              id="password"
+              inputId="password"
               v-model="newPassword"
               :feedback="true"
               toggleMask
@@ -28,7 +31,7 @@
           <div class="field">
             <label for="confirmPassword">{{ $t('auth.confirmPassword') }}</label>
             <Password
-              id="confirmPassword"
+              inputId="confirmPassword"
               v-model="confirmPassword"
               :feedback="false"
               toggleMask
@@ -84,10 +87,10 @@ const confirmError = ref('')
 const errorMessage = ref('')
 
 const isFormValid = computed(() => {
-  return newPassword.value.length >= 8 && 
-         newPassword.value === confirmPassword.value &&
-         !passwordError.value && 
-         !confirmError.value
+  return newPassword.value.length >= 8 &&
+    newPassword.value === confirmPassword.value &&
+    !passwordError.value &&
+    !confirmError.value
 })
 
 function validatePasswords() {
