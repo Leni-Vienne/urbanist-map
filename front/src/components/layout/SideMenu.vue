@@ -39,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import PanelContent from './PanelContent.vue'
 import PanelTabs from './PanelTabs.vue'
 import { usePanelTabs } from '@/composables/layout/usePanelTabs'
@@ -57,13 +57,17 @@ defineEmits<{
   close: []
 }>()
 
-// AI : Local tab state
-const activeTab = ref<PanelTab>('latest')
-
 // AI : Get stores
 const mapStore = useMapStore()
 const uiStore = useUiStore()
 const authStore = useAuthStore()
+
+// AI : Use uiStore.activeTab as single source of truth (shared with MobileDrawer)
+// AI : Computed with getter/setter for v-model compatibility
+const activeTab = computed<PanelTab>({
+  get: () => uiStore.activeTab,
+  set: (value) => uiStore.setActiveTab(value)
+})
 
 // AI : Watch for authentication changes and execute post-login callback
 watch(() => authStore.isAuthenticated, (isAuthenticated) => {
@@ -73,28 +77,26 @@ watch(() => authStore.isAuthenticated, (isAuthenticated) => {
   }
 })
 
-// AI : Watch for city changes and auto-switch tabs based on city state
-// AI : This makes standalone projects behave like overlays when clicked from latest contributions
-// AI : AND ensures we don't stay on Current City tab when there's no city selected
+// AI : Track previous city ID for detecting city changes
 let previousCityId = mapStore.selectedCity?.id
 watch(() => mapStore.selectedCity, (newCity) => {
   // AI : Case 1: City was selected (either new or changed from another city)
   // AI : Switch to Current City tab only if coming from Latest tab
-  if (newCity && newCity.id !== previousCityId && activeTab.value === 'latest') {
-    activeTab.value = 'currentCity'
+  if (newCity && newCity.id !== previousCityId && uiStore.activeTab === 'latest') {
+    uiStore.setActiveTab('currentCity')
   }
 
   // AI : Case 2: City was cleared (e.g., by clicking a country marker)
   // AI : Switch away from Current City tab to avoid showing empty state
-  if (!newCity && previousCityId && activeTab.value === 'currentCity') {
-    activeTab.value = 'latest'
+  if (!newCity && previousCityId && uiStore.activeTab === 'currentCity') {
+    uiStore.setActiveTab('latest')
   }
 
   previousCityId = newCity?.id
 })
 
-// AI : Initialize shared tab logic (mode syncing, authentication watchers)
-usePanelTabs(activeTab)
+// AI : Initialize panel tabs synchronization (mode/tab/auth watchers)
+usePanelTabs()
 </script>
 
 <style scoped>

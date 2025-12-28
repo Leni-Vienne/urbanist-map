@@ -43,12 +43,14 @@
 import { computed } from "vue";
 import { useUiStore } from "@/stores/uiStore";
 import { usePanelTabs } from "@/composables/layout/usePanelTabs";
+import type { PanelTab } from "@/types";
 
 import DraggableDrawer from "./DraggableDrawer.vue";
 import PanelContent from "./PanelContent.vue";
 import PanelTabs from "./PanelTabs.vue";
-import ModeControls from "@/components/map/ModeControls.vue";
+import ModeControls from "../map/ModeControls.vue";
 
+// AI : Get store
 const uiStore = useUiStore();
 
 const isVisible = defineModel<boolean>("visible", { default: false });
@@ -63,14 +65,15 @@ function handleHeightChanged(height: number) {
   uiStore.setMobileDrawerHeight(height);
 }
 
-// AI : Use UI store for active tab state
-const activeTab = computed({
-  get: () => uiStore.mobileDrawerActiveTab,
-  set: (value) => uiStore.setMobileDrawerActiveTab(value),
+// AI : Use uiStore.activeTab as single source of truth (shared with SideMenu)
+// AI : Computed with getter/setter for v-model compatibility
+const activeTab = computed<PanelTab>({
+  get: () => uiStore.activeTab,
+  set: (value) => uiStore.setActiveTab(value),
 });
 
 // AI : Initialize shared tab logic (mode syncing, authentication watchers, overlay selection)
-const { authStore } = usePanelTabs(activeTab);
+const { authStore } = usePanelTabs();
 </script>
 
 <style scoped>
