@@ -503,15 +503,20 @@ function handleToggleCountryExpanded(countryCode: string) {
 }
 
 // AI : Watch for overlay selection and mode changes to auto-expand accordions
+// AI : Watch only project IDs instead of deep watching entire project objects for performance
 watch(
-  () => [overlayStore.idSelectedOverlay, overlayStore.mode, props.projects] as const,
-  async ([selectedOverlayId, _mode, projects]) => {
-    if (selectedOverlayId && projects.length > 0) {
+  () => [
+    overlayStore.idSelectedOverlay,
+    overlayStore.mode,
+    props.projects.map(p => p.id).join(',')
+  ] as const,
+  async ([selectedOverlayId]) => {
+    if (selectedOverlayId && props.projects.length > 0) {
       // AI : Wait for Vue to finish rendering the updated projects
       await nextTick()
 
       // AI : Try to expand the accordion hierarchy
-      const expanded = expandAccordionForOverlay(selectedOverlayId, projects)
+      const expanded = expandAccordionForOverlay(selectedOverlayId, props.projects)
 
       if (expanded) {
         // AI : Wait for DOM to update with expanded accordion
@@ -521,20 +526,24 @@ watch(
         await waitForAccordionAnimation(selectedOverlayId)
       }
     }
-  },
-  { deep: true }
+  }
 )
 
 // AI : Watch for project info popup (standalone/standalone projects) to auto-expand and scroll
+// AI : Watch only project IDs instead of deep watching entire project objects for performance
 watch(
-  () => [uiStore.projectInfoPopup.visible, uiStore.projectInfoPopup.projectId, props.projects] as const,
-  async ([visible, projectId, projects]) => {
-    if (visible && projectId && projects.length > 0) {
+  () => [
+    uiStore.projectInfoPopup.visible,
+    uiStore.projectInfoPopup.projectId,
+    props.projects.map(p => p.id).join(',')
+  ] as const,
+  async ([visible, projectId]) => {
+    if (visible && projectId && props.projects.length > 0) {
       // AI : Wait for Vue to finish rendering the updated projects
       await nextTick()
 
       // AI : Try to expand the accordion hierarchy for the project
-      const expanded = expandAccordionForProject(projectId, projects)
+      const expanded = expandAccordionForProject(projectId, props.projects)
 
       if (expanded) {
         // AI : Wait for DOM to update with expanded accordion
@@ -544,15 +553,18 @@ watch(
         await waitForProjectAccordionAnimation(projectId)
       }
     }
-  },
-  { deep: true }
+  }
 )
 
 // AI : Watch for selected city changes to auto-scroll to city in panel (moderation/edit modes)
+// AI : Watch only project IDs instead of deep watching entire project objects for performance
 watch(
-  () => [mapStore.selectedCity, props.projects] as const,
-  async ([selectedCity, projects]) => {
-    if (selectedCity && projects.length > 0 && !props.disableGrouping) {
+  () => [
+    mapStore.selectedCity,
+    props.projects.map(p => p.id).join(',')
+  ] as const,
+  async ([selectedCity]) => {
+    if (selectedCity && props.projects.length > 0 && !props.disableGrouping) {
       // AI : Wait for Vue to finish rendering the updated projects
       await nextTick()
 
@@ -582,8 +594,7 @@ watch(
         await waitForCityAccordionAnimation(cityKey)
       }
     }
-  },
-  { deep: true }
+  }
 )
 
 /**

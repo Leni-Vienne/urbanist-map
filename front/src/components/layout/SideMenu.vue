@@ -43,7 +43,6 @@ import { ref, watch } from 'vue'
 import PanelContent from './PanelContent.vue'
 import PanelTabs from './PanelTabs.vue'
 import { usePanelTabs } from '@/composables/layout/usePanelTabs'
-import { useOverlayStore } from '@/stores/pinia/overlayStore'
 import { useMapStore } from '@/stores/pinia/mapStore'
 import { useUiStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
@@ -61,19 +60,10 @@ defineEmits<{
 // AI : Local tab state
 const activeTab = ref<PanelTab>('latest')
 
-// AI : Watch for overlay selection and auto-switch to Current City tab (only in view mode)
-const overlayStore = useOverlayStore()
+// AI : Get stores
 const mapStore = useMapStore()
 const uiStore = useUiStore()
 const authStore = useAuthStore()
-
-watch(() => overlayStore.idSelectedOverlay, (overlayId) => {
-  // AI : When an overlay is selected and we have a city loaded, switch to Current City tab
-  // AI : Only do this in view mode - in edit/moderation modes, preserve the current workflow
-  if (overlayId && mapStore.selectedCity && overlayStore.mode === 'view') {
-    activeTab.value = 'currentCity'
-  }
-})
 
 // AI : Watch for authentication changes and execute post-login callback
 watch(() => authStore.isAuthenticated, (isAuthenticated) => {

@@ -40,11 +40,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from "vue";
+import { computed } from "vue";
 import { useUiStore } from "@/stores/uiStore";
 import { usePanelTabs } from "@/composables/layout/usePanelTabs";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
 
 import DraggableDrawer from "./DraggableDrawer.vue";
 import PanelContent from "./PanelContent.vue";
@@ -71,17 +69,7 @@ const activeTab = computed({
   set: (value) => uiStore.setMobileDrawerActiveTab(value),
 });
 
-// AI : Watch for overlay selection and auto-switch to Current City tab
-const overlayStore = useOverlayStore()
-const mapStore = useMapStore()
-watch(() => overlayStore.idSelectedOverlay, (overlayId) => {
-  // AI : When an overlay is selected and we have a city loaded, switch to Current City tab
-  if (overlayId && mapStore.selectedCity) {
-    uiStore.setMobileDrawerActiveTab('currentCity')
-  }
-})
-
-// AI : Initialize shared tab logic (mode syncing, authentication watchers)
+// AI : Initialize shared tab logic (mode syncing, authentication watchers, overlay selection)
 const { authStore } = usePanelTabs(activeTab);
 </script>
 
