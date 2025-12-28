@@ -1,6 +1,7 @@
-import { watch, type Ref } from "vue";
+import { watch, nextTick, type Ref } from "vue";
 import { useAuthStore } from "@/stores/authStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import { switchMode } from "@/composables/overlay/useOverlayModes";
 import type { MapMode } from "@shared/types";
 import type { PanelTab } from "@/types";
@@ -55,15 +56,20 @@ export function usePanelTabs(initialTab: Ref<PanelTab>) {
     if (isSyncing) return;
     isSyncing = true;
 
-    const newMode = tabToMode(newTab);
+    try {
+      const newMode = tabToMode(newTab);
 
-    if (overlayStore.mode !== newMode) {
-      // AI : Use unified switchMode function for proper data reload and cache invalidation
-      // AI : This ensures each mode displays the correct data (approved, user's own, or pending)
-      await switchMode(newMode);
+      if (overlayStore.mode !== newMode) {
+        // AI : Use unified switchMode function for proper data reload and cache invalidation
+        // AI : This ensures each mode displays the correct data (approved, user's own, or pending)
+        await switchMode(newMode);
+      }
+    } finally {
+      // AI : Use nextTick to ensure mode watcher completes before clearing flag
+      // AI : This prevents race conditions where the flag clears before async operations finish
+      await nextTick();
+      isSyncing = false;
     }
-
-    isSyncing = false;
   });
 
   /**
@@ -107,6 +113,22 @@ export function usePanelTabs(initialTab: Ref<PanelTab>) {
     (isModerator) => {
       if (!isModerator && initialTab.value === "moderation") {
         initialTab.value = "latest";
+      }
+    },
+  );
+
+  /**
+   * AI : Watch for overlay selection and auto-switch to Current City tab (only in view mode)
+   * AI : Consolidated from SideMenu.vue and MobileDrawer.vue to avoid duplicate logic
+   */
+  const mapStore = useMapStore();
+  watch(
+    () => overlayStore.idSelectedOverlay,
+    (overlayId) => {
+      // AI : When an overlay is selected and we have a city loaded, switch to Current City tab
+      // AI : Only do this in view mode - in edit/moderation modes, preserve the current workflow
+      if (overlayId && mapStore.selectedCity && overlayStore.mode === "view") {
+        initialTab.value = "currentCity";
       }
     },
   );
