@@ -175,24 +175,27 @@ export const useOverlayStore = defineStore("overlay", () => {
     }
   }
 
-  // AI : Clear all state on logout/account switch
+  // AI : Clear user-specific state on logout/account switch
+  // AI : NOTE: We preserve public data (latestContributions, viewModeOverlays)
+  // AI : and only clear user-specific or edit-mode data
   function clearAllState() {
-    // AI : Clear overlays and markers
+    // AI : Clear overlays and markers (may contain unapproved user content)
     overlays.value = {};
     allMarkers.value = {};
     idSelectedOverlay.value = null;
 
-    // AI : Clear edit mode cache and state
+    // AI : Clear edit mode cache and state (user-specific)
     editModeOverlayCache.value.clear();
     loadedEditOverlays.value.clear();
 
-    // AI : Clear view mode overlays
-    viewModeOverlays.value = [];
+    // AI : KEEP viewModeOverlays - these are approved overlays for current city
+    // viewModeOverlays.value = [];
     overlaysLoading.value = false;
     overlaysError.value = null;
 
-    // AI : Clear latest contributions
-    latestContributions.value = [];
+    // AI : KEEP latestContributions - these are public approved content
+    // AI : Only reset the loaded flag to allow refresh if needed
+    // latestContributions.value = [];
     latestContributionsLoading.value = false;
     latestContributionsLoaded.value = false;
 
