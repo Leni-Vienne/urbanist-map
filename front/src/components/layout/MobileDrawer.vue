@@ -69,11 +69,12 @@ function handleHeightChanged(height: number) {
 // AI : Computed with getter/setter for v-model compatibility
 const activeTab = computed<PanelTab>({
   get: () => uiStore.activeTab,
-  set: (value) => uiStore.setActiveTab(value),
+  // AI : Use the explicit action from usePanelTabs to handle mode syncing securely
+  set: (value) => setActiveTab(value),
 });
 
 // AI : Initialize shared tab logic (mode syncing, authentication watchers, overlay selection)
-const { authStore } = usePanelTabs();
+const { authStore, setActiveTab } = usePanelTabs();
 </script>
 
 <style scoped>

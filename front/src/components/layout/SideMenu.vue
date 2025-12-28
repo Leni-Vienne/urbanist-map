@@ -39,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { watch, computed } from 'vue'
 import PanelContent from './PanelContent.vue'
 import PanelTabs from './PanelTabs.vue'
 import { usePanelTabs } from '@/composables/layout/usePanelTabs'
@@ -62,11 +62,15 @@ const mapStore = useMapStore()
 const uiStore = useUiStore()
 const authStore = useAuthStore()
 
+// AI : Initialize shared tab logic (mode syncing, authentication watchers, overlay selection)
+const { setActiveTab } = usePanelTabs()
+
 // AI : Use uiStore.activeTab as single source of truth (shared with MobileDrawer)
 // AI : Computed with getter/setter for v-model compatibility
 const activeTab = computed<PanelTab>({
   get: () => uiStore.activeTab,
-  set: (value) => uiStore.setActiveTab(value)
+  // AI : Use the explicit action from usePanelTabs to handle mode syncing securely
+  set: (value) => setActiveTab(value)
 })
 
 // AI : Watch for authentication changes and execute post-login callback
