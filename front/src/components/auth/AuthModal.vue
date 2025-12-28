@@ -154,7 +154,7 @@
             />
           </div>
           <Password
-            id="auth-password"
+            inputId="auth-password"
             v-model="form.password"
             :feedback="!isLoginMode"
             toggleMask
@@ -186,7 +186,7 @@
         <!-- AI : Remember Me Checkbox (only in login mode) -->
         <div v-if="isLoginMode" class="field-checkbox flex items-center gap-2">
           <Checkbox
-            id="auth-remember-me"
+            inputId="auth-remember-me"
             v-model="form.rememberMe"
             :binary="true"
             data-testid="auth-remember-me"
