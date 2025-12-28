@@ -28,10 +28,7 @@
         <i class="pi pi-user"></i>
       </span>
       <span class="username">{{ authStore.user?.username }}</span>
-      <i
-        class="pi pi-chevron-down"
-        :class="{ 'rotated': isMenuOpen }"
-      ></i>
+      <i class="pi pi-chevron-down" :class="{ 'rotated': isMenuOpen }"></i>
     </button>
 
     <!-- AI : User menu popover -->
@@ -39,7 +36,6 @@
       <div class="flex flex-col w-48">
         <div class="px-3 py-2 bg-surface-50 border-round">
           <div class="font-medium text-sm">{{ authStore.user?.email }}</div>
-
         </div>
         <button
           type="button"
@@ -60,12 +56,14 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import AuthModal from './AuthModal.vue'
-import LanguageSwitcherMenu from '../map/LanguageSwitcherMenu.vue'
+import { useUnsavedChanges } from '@/composables/core/useUnsavedChanges'
 import { useAuthStore } from '@/stores/authStore'
 import { useUiStore } from '@/stores/uiStore'
 import { useToast } from '@/composables/ui/useToast'
 import { useI18n } from 'vue-i18n'
+
+import AuthModal from './AuthModal.vue'
+import LanguageSwitcherMenu from '../map/LanguageSwitcherMenu.vue'
 
 const authStore = useAuthStore()
 const uiStore = useUiStore()
@@ -92,8 +90,19 @@ function toggleMenu(event: Event) {
   isMenuOpen.value = !isMenuOpen.value
 }
 
+const { hasUnsavedChanges } = useUnsavedChanges()
+
 // AI : Handle sign out
 async function handleSignOut() {
+  if (hasUnsavedChanges()) {
+    // AI : Use a generic warning about unsaved data (reusing existing key)
+    if (!confirm(t('navigation.unsavedOverlaysWarning'))) {
+      userPopover.value.hide()
+      isMenuOpen.value = false
+      return
+    }
+  }
+
   try {
     const result = await authStore.signOut()
     if (result.success) {
@@ -118,7 +127,6 @@ watch(() => userPopover.value?.visible, (visible) => {
 </script>
 
 <style scoped>
-
 .user-menu-container {
   position: absolute;
   top: 16px;
@@ -126,7 +134,8 @@ watch(() => userPopover.value?.visible, (visible) => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  z-index: 1000; /* important on mobile */
+  z-index: 1000;
+  /* important on mobile */
   isolation: isolate;
 }
 
