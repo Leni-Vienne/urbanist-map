@@ -6,7 +6,7 @@
     "cancel": "Annuler",
     "delete": "Supprimer",
     "edit": "Modifier",
-    "add": "Ajouter",
+    "add": "Nouveau",
     "loading": "Chargement...",
     "error": "Erreur",
     "success": "Succès",
@@ -411,7 +411,8 @@
     }
   },
   "app": {
-    "title": "ConstructionMap.org",
+    "title": "Constructionmap.org",
+    "subtitle": "Une carte collaborative des projets de construction dans le monde",
     "closePanel": "Fermer le panneau"
   },
   "footer": {
@@ -534,7 +535,7 @@
     },
     "contact": {
       "title": "Contact",
-      "description": "Pour questions, suggestions, ou problèmes, contactez-nous par email :"
+      "description": "Pour vos questions, suggestions, ou problèmes, contactez-nous par email :"
     }
   },
   "controls": {

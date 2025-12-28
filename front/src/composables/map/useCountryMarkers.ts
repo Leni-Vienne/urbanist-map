@@ -70,8 +70,12 @@ export async function loadCountriesWithProjects(force = false): Promise<void> {
 
   isLoadingCountries.value = true;
   try {
+    // AI : For unauthenticated users, ensure we always use 'view' mode
+    const authStore = useAuthStore();
+    const queryMode = authStore.isAuthenticated ? overlayStore.mode : "view";
+
     const countriesData = await withErrorHandling(
-      async () => trpc.country.getCountriesWithProjects.query({ mode: overlayStore.mode }),
+      async () => trpc.country.getCountriesWithProjects.query({ mode: queryMode }),
       { errorMessage: "Failed to load countries. Please refresh the page." },
     );
 
@@ -119,9 +123,13 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
 
   isLoadingCountryProjects.value = true;
   try {
+    // AI : For unauthenticated users, ensure we always use 'view' mode
+    const authStore = useAuthStore();
+    const queryMode = authStore.isAuthenticated ? overlayStore.mode : "view";
+
     // AI : Pass mode to show appropriate content based on viewing mode
     const citiesData = await withErrorHandling(
-      async () => trpc.cities.getCitiesWithProjects.query({ countryCode, mode: overlayStore.mode }),
+      async () => trpc.cities.getCitiesWithProjects.query({ countryCode, mode: queryMode }),
       { errorMessage: "Failed to load cities. Please try again." },
     );
 
