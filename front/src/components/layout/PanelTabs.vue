@@ -15,9 +15,8 @@
       {{ $t('navigation.currentCity') }}
     </button>
     <button
-      v-if="authStore.isAuthenticated"
       :class="[tabButtonClass, { active: activeTab === 'uploads' }]"
-      @click="$emit('update:activeTab', 'uploads')"
+      @click="handleUploadsTabClick"
     >
       {{ $t('navigation.contribute') }}
     </button>
@@ -35,9 +34,11 @@
 import type { PanelTab } from '@/types'
 import { useAuthStore } from '@/stores/authStore'
 import { useMapStore } from '@/stores/pinia/mapStore'
+import { useUiStore } from '@/stores/uiStore'
 
 const authStore = useAuthStore()
 const mapStore = useMapStore()
+const uiStore = useUiStore()
 
 defineProps<{
   activeTab: PanelTab
@@ -45,9 +46,23 @@ defineProps<{
   tabButtonClass: string
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   'update:activeTab': [tab: PanelTab]
 }>()
+
+// AI : Handle uploads tab click - show auth dialog if not authenticated
+function handleUploadsTabClick() {
+  if (!authStore.isAuthenticated) {
+    // AI : Store intent to switch to uploads tab after login
+    uiStore.setPostLoginCallback(() => {
+      emit('update:activeTab', 'uploads')
+    })
+    // AI : Open auth dialog
+    uiStore.openAuthModal()
+  } else {
+    emit('update:activeTab', 'uploads')
+  }
+}
 </script>
 
 <style scoped>

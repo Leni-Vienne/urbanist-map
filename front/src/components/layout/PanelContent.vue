@@ -7,20 +7,20 @@
     <ContributePanel v-else-if="activeTab === 'uploads' && authStore.isAuthenticated" />
     <ModerationPanel v-else-if="activeTab === 'moderation' && authStore.isModerator" />
 
-    <!-- AI : Show sign-in prompt for authenticated tabs when not signed in -->
+    <!-- AI : Show sign-in prompt for uploads and moderation tabs when not authenticated/authorized -->
     <div
-      v-else-if="(!authStore.isAuthenticated && (activeTab === 'uploads' || activeTab === 'moderation')) || (activeTab === 'moderation' && !authStore.isModerator)"
+      v-else-if="(activeTab === 'uploads' && !authStore.isAuthenticated) || (activeTab === 'moderation' && !authStore.isModerator)"
       class="signin-prompt"
     >
       <div class="signin-content">
         <i class="pi pi-user text-4xl text-muted-color mb-4"></i>
         <h3 class="text-lg font-semibold mb-2">
-          {{ activeTab === 'moderation' && authStore.isAuthenticated && !authStore.isModerator
+          {{ authStore.isAuthenticated
             ? $t('auth.moderationAccessRequired')
             : $t('auth.authenticationRequired') }}
         </h3>
         <p class="text-muted-color text-sm mb-4 text-center">
-          {{ activeTab === 'moderation' && authStore.isAuthenticated && !authStore.isModerator
+          {{ authStore.isAuthenticated
             ? $t('auth.moderationMessage')
             : $t('auth.signInMessage') }}
         </p>

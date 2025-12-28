@@ -156,30 +156,8 @@ export function mobileAwareFlyToBounds(
 ): void {
   if (!map.value) return;
 
-  // AI : Convert bounds expression to LatLngBounds object for comparison
   const targetBounds = bounds instanceof L.LatLngBounds ? bounds : L.latLngBounds(bounds);
-  const currentBounds = map.value.getBounds();
   const currentZoom = map.value.getZoom();
-
-  // AI : Check if already viewing the same bounds to prevent camera shake
-  const sameNorth =
-    Math.abs(currentBounds.getNorth() - targetBounds.getNorth()) < distanceThreshold;
-  const sameSouth =
-    Math.abs(currentBounds.getSouth() - targetBounds.getSouth()) < distanceThreshold;
-  const sameEast = Math.abs(currentBounds.getEast() - targetBounds.getEast()) < distanceThreshold;
-  const sameWest = Math.abs(currentBounds.getWest() - targetBounds.getWest()) < distanceThreshold;
-  const sameBounds = sameNorth && sameSouth && sameEast && sameWest;
-
-  // AI : Check if zoom would be different from current zoom
-  // AI : Calculate what zoom would be used for these bounds
-  const targetZoom =
-    options?.maxZoom ?? map.value.getBoundsZoom(targetBounds, false, options?.padding as L.Point);
-  const zoomDiff = Math.abs(currentZoom - targetZoom);
-
-  // AI : Only skip if BOTH bounds and zoom are already correct
-  if (sameBounds && zoomDiff < 0.1) {
-    return; // AI : Already viewing these bounds at this zoom, skip animation
-  }
 
   const applyOffset = shouldApplyMobileOffset();
   const flyOptions: FitBoundsOptions = applyOffset
@@ -192,6 +170,33 @@ export function mobileAwareFlyToBounds(
         ...options,
         padding: options?.padding ?? ([50, 50] as [number, number]),
       };
+
+  // AI : For shake prevention with asymmetric padding, we need a different approach
+  // AI : Calculate the center point that would result from fitting these bounds
+  const targetCenter = targetBounds.getCenter();
+  const currentCenter = map.value.getCenter();
+
+  // AI : Check distance between current center and target center
+  const centerDistance = currentCenter.distanceTo(targetCenter);
+
+  // AI : Calculate zoom - For asymmetric padding, we can't use getBoundsZoom directly
+  // AI : Instead, we'll check if maxZoom is set, or estimate based on bounds size
+  let targetZoom = currentZoom;
+  if (options?.maxZoom !== undefined) {
+    targetZoom = options.maxZoom;
+  } else {
+    // AI : Estimate zoom based on bounds size (will be refined by Leaflet)
+    // AI : This is just for comparison purposes
+    targetZoom = map.value.getBoundsZoom(targetBounds, false);
+  }
+
+  const zoomDiff = Math.abs(currentZoom - targetZoom);
+
+  // AI : Only skip if center is very close AND zoom is similar
+  // AI : Use larger threshold for bounds since we're comparing centers, not corners
+  if (centerDistance < distanceThreshold * 10 && zoomDiff < 0.1) {
+    return; // AI : Already viewing these bounds, skip animation
+  }
 
   map.value.flyToBounds(bounds, flyOptions);
 }
