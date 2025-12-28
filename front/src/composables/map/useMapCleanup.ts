@@ -1,5 +1,6 @@
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { clearAllStandaloneProjectMarkers } from "@/composables/map/useStandaloneProjectMarkers";
 
 /**
  * AI : Composable for handling map state during logout
@@ -15,6 +16,9 @@ export function useMapCleanup() {
    * AI : Called directly from authStore.signOut()
    */
   function clearMapOnLogout() {
+    // AI : Clear standalone project markers (which exist outside Pinia)
+    clearAllStandaloneProjectMarkers();
+
     // AI : Switch to view mode (default for logged-out users)
     // AI : This will trigger mode watchers to reload visible content
     const overlayStore = useOverlayStore();
