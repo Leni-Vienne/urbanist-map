@@ -148,9 +148,9 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
 
 /**
  * AI : Clear all map content (markers, overlays, and state)
- * AI : This is called when switching between countries
+ * AI : This is called when switching between countries or logging out
  */
-function clearAllMapContent(): void {
+export function clearAllMapContent(): void {
   removeCityMarkers();
   removeOverlayMarkers();
   clearAllOverlays();
@@ -301,7 +301,7 @@ export function addCountryMarkersToMap() {
   countryMarkersLayer.addTo(map.value);
 }
 
-export async function initializeCountryMarkers(): Promise<void> {
-  await loadCountriesWithProjects();
+export async function initializeCountryMarkers(force = false): Promise<void> {
+  await loadCountriesWithProjects(force);
   addCountryMarkersToMap();
 }
