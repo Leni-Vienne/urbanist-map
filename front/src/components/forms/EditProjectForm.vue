@@ -14,6 +14,7 @@
         :has-changed="(fieldName: string) => form.hasChanged(fieldName as keyof ProjectFormData)"
         id-prefix="edit"
         @update:is-proposed="isProposed = $event"
+        @update:form-data="Object.assign(form.formData, $event)"
       />
 
       <!-- Form actions -->

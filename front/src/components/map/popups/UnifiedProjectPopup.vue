@@ -22,7 +22,7 @@
           />
           <!-- AI : Delete button (for unsubmitted projects or pending projects owned by user) -->
           <Button
-            v-if="!viewMode && project && user && (project.status === null || project.status === 'pending') && project.ownerId === user.id"
+            v-if="canDeleteProject"
             icon="pi pi-trash"
             :class="['p-button-sm', 'p-button-text', 'p-button-danger']"
             @click="emit('delete-project', project)"
@@ -209,6 +209,14 @@ function handlePublishClick() {
     emit('publish-project')
   }
 }
+
+// AI : Computed property for delete button visibility
+const canDeleteProject = computed(() => {
+  if (!props.project || !user.value || props.viewMode) return false
+  const isDeletable = props.project.status === null || props.project.status === 'pending'
+  const isOwner = props.project.ownerId === user.value.id
+  return isDeletable && isOwner
+})
 </script>
 
 <style scoped>
