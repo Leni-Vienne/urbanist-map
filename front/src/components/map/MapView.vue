@@ -51,7 +51,7 @@ import { removeOverlayFromMap } from '@/composables/overlay/useOverlayRemoval';
 import { useToast } from '@/composables/ui/useToast';
 import { useI18n } from 'vue-i18n';
 import { updateOverlayMarkersForFilters } from '@/composables/map/useCityOverlays';
-import { initializeCountryMarkers, clearAllMapContent } from '@/composables/map/useCountryMarkers';
+import { initializeCountryMarkers } from '@/composables/map/useCountryMarkers';
 import { initializeOverlayModes } from '@/composables/overlay/useOverlayModes';
 import { loadCityStandaloneProjects } from '@/composables/map/useCityMarkers';
 import { useMapStore } from '@/stores/pinia/mapStore';
@@ -153,21 +153,6 @@ watch(() => overlayStore.mode, (newMode, oldMode) => {
 watch(() => overlayStore.overlays ? Object.keys(overlayStore.overlays).length : 0, () => {
   if (overlayStore.mode === 'view') {
     setTimeout(async () => await filterOverlaysByCompletionStatus(), 100);
-  }
-});
-
-// AI : Watch for user changes to clear map on logout and reload countries on account switch
-watch(() => authStore.user?.id, async (newUserId, oldUserId) => {
-  // AI : User logged out (oldUserId exists, newUserId is undefined)
-  if (oldUserId !== undefined && newUserId === undefined) {
-    // AI : Clear all visual map elements to prevent showing auth-only content
-    clearAllMapContent();
-  }
-  // AI : User switched accounts (both exist but different)
-  else if (oldUserId !== undefined && newUserId !== undefined && newUserId !== oldUserId) {
-    // AI : Clear map first, then reload with new permissions
-    clearAllMapContent();
-    await initializeCountryMarkers(true);
   }
 });
 
