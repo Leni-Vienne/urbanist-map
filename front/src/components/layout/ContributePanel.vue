@@ -55,7 +55,7 @@
         <i class="pi pi-save"></i>
       </button>
       <button
-        v-if="project.status === 'pending' || project.status === 'rejected'"
+        v-if="!project.status || project.status === 'pending' || project.status === 'rejected'"
         class="action-btn delete-btn"
         @click.stop="handleDeleteProjectClick(project)"
         v-tooltip.top="$t('contribute.deleteProject')"

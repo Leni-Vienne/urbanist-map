@@ -30,10 +30,7 @@
             </div>
 
             <!-- AI : Country content (always expanded if grouping disabled) -->
-            <div
-              v-if="!disableGrouping ? isCountryExpanded(countryGroup.countryCode) : true"
-              class="country-content"
-            >
+            <div v-if="shouldShowCountryContent(countryGroup.countryCode)" class="country-content">
               <template v-for="cityGroup in countryGroup.cities" :key="cityGroup.key">
                 <!-- AI : City header (hide if grouping disabled) -->
                 <div
@@ -58,7 +55,7 @@
 
                 <!-- AI : City accordion (always expanded if grouping disabled) -->
                 <Accordion
-                  v-if="!disableGrouping ? isCityExpanded(cityGroup.key) : true"
+                  v-if="shouldShowCityContent(cityGroup.key)"
                   :multiple="true"
                   v-model:value="activeAccordionPanels"
                   class="city-accordion"
@@ -500,6 +497,16 @@ const groupedByCountry = computed(() => {
 function handleToggleCountryExpanded(countryCode: string) {
   const country = groupedByCountry.value.find(c => c.countryCode === countryCode)
   toggleCountryExpanded(countryCode, country)
+}
+
+// AI : Computed helper for country content visibility
+function shouldShowCountryContent(countryCode: string): boolean {
+  return props.disableGrouping || isCountryExpanded(countryCode)
+}
+
+// AI : Computed helper for city content visibility
+function shouldShowCityContent(cityKey: string): boolean {
+  return props.disableGrouping || isCityExpanded(cityKey)
 }
 
 // AI : Watch for overlay selection and mode changes to auto-expand accordions
