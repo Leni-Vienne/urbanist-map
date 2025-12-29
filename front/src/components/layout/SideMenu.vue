@@ -31,7 +31,7 @@
 
     <!-- AI : Footer with legal links -->
     <div class="sidecolumn__footer">
-      <a href="/legal" class="footer-link">{{ $t("footer.legalMentions") }}</a>
+      <a href="/legal" class="footer-link">{{ $t("footer.legal") }}</a>
       <span class="footer-separator">•</span>
       <a href="/contact" class="footer-link">{{ $t("footer.contact") }}</a>
     </div>
@@ -85,15 +85,19 @@ watch(() => authStore.isAuthenticated, (isAuthenticated) => {
 let previousCityId = mapStore.selectedCity?.id
 watch(() => mapStore.selectedCity, (newCity) => {
   // AI : Case 1: City was selected (either new or changed from another city)
-  // AI : Switch to Current City tab only if coming from Latest tab
+  // AI : Switch to Current Location tab only if coming from Latest tab
   if (newCity && newCity.id !== previousCityId && uiStore.activeTab === 'latest') {
-    uiStore.setActiveTab('currentCity')
+    uiStore.setActiveTab('currentLocation')
   }
 
-  // AI : Case 2: City was cleared (e.g., by clicking a country marker)
-  // AI : Switch away from Current City tab to avoid showing empty state
-  if (!newCity && previousCityId && uiStore.activeTab === 'currentCity') {
-    uiStore.setActiveTab('latest')
+  // AI : Case 2: City was cleared (e.g., by clicking a country marker or breadcrumb)
+  // AI : Only switch away from Current Location tab if BOTH city AND country are cleared
+  // AI : If country is still selected, stay on Current Location to show city list
+  if (!newCity && previousCityId && uiStore.activeTab === 'currentLocation') {
+    // AI : Check if country is still selected - if so, keep showing Current Location panel
+    if (!mapStore.selectedCountryCode) {
+      uiStore.setActiveTab('latest')
+    }
   }
 
   previousCityId = newCity?.id
@@ -140,7 +144,7 @@ usePanelTabs()
 }
 
 .header-top {
-  padding: 0.5rem 1.5rem 0.5rem;
+  padding: 0.5rem 1rem 0.5rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
