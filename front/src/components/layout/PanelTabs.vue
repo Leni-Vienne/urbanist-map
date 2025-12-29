@@ -8,11 +8,11 @@
       {{ $t('navigation.latestContributions') }}
     </button>
     <button
-      v-if="mapStore.selectedCity"
-      :class="[tabButtonClass, { active: activeTab === 'currentCity' }]"
-      @click="$emit('update:activeTab', 'currentCity')"
+      v-if="mapStore.selectedCity || mapStore.selectedCountryCode"
+      :class="[tabButtonClass, { active: activeTab === 'currentLocation' }]"
+      @click="$emit('update:activeTab', 'currentLocation')"
     >
-      {{ $t('navigation.currentCity') }}
+      {{ $t('navigation.currentLocation') }}
     </button>
     <button
       :class="[tabButtonClass, { active: activeTab === 'uploads' }]"

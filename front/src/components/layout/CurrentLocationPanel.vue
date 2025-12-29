@@ -1,13 +1,55 @@
 <template>
-  <!-- AI : No city selected state -->
+  <!-- AI : No location selected state -->
   <PanelEmptyState
-    v-if="!mapStore.selectedCity"
+    v-if="!mapStore.selectedCity && !mapStore.selectedCountryCode"
     icon="map-marker"
-    :message="$t('currentCity.noCity')"
-    :sub-message="$t('currentCity.selectCityPrompt')"
+    :message="$t('currentLocation.noLocationSelected')"
+    :sub-message="$t('currentLocation.selectLocationPrompt')"
   />
 
-  <!-- AI : Use ProjectAccordionPanel to display current city's projects -->
+  <!-- AI : Country selected but no city - show city list -->
+  <div
+    v-else-if="!mapStore.selectedCity && mapStore.selectedCountryCode"
+    class="city-list-container"
+  >
+    <div class="city-list-header">
+      <h3 class="header-title">
+        {{ selectedCountryName }}
+      </h3>
+      <p class="header-subtitle">
+        {{ $t('currentLocation.selectCityToExplore') }}
+      </p>
+    </div>
+
+    <!-- AI : No cities state -->
+    <PanelEmptyState
+      v-if="citiesInCountry.length === 0"
+      icon="map"
+      :message="$t('currentLocation.noCitiesInCountry')"
+    />
+
+    <!-- AI : City list -->
+    <div v-else class="city-list">
+      <button
+        v-for="city in citiesInCountry"
+        :key="city.id"
+        class="city-item"
+        @click="handleCityClick(city)"
+      >
+        <div class="city-info">
+          <span class="city-name">{{ city.name }}</span>
+          <span v-if="city.nameLocal && city.nameLocal !== city.name" class="city-name-local">
+            {{ city.nameLocal }}
+          </span>
+        </div>
+        <span class="project-count">
+          {{ $t('currentLocation.projectsCount', { count: (city as any).projectCount ?? 0 }) }}
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <!-- AI : City selected - show project list -->
   <ProjectAccordionPanel
     v-else
     :projects="projectsWithOverlays"
@@ -19,9 +61,9 @@
     :show-edit-buttons="false"
     :should-switch-to-edit-mode="true"
     title=""
-    panel-class="current-city-panel"
-    :empty-message="$t('currentCity.noProjects')"
-    :empty-sub-message="$t('currentCity.noProjectsDetail')"
+    panel-class="current-location-panel"
+    :empty-message="$t('currentLocation.noProjects')"
+    :empty-sub-message="$t('currentLocation.noProjectsDetail')"
   >
     <!-- AI : Custom header showing Country > City -->
     <template #header-actions>
@@ -32,7 +74,7 @@
             <span
               class="country-link"
               @click="handleCountryClick"
-              :title="$t('currentCity.clickToZoomCountry')"
+              :title="$t('currentLocation.clickToZoomCountry')"
             >
               {{ cityHeader.countryName }}
             </span>
@@ -52,12 +94,6 @@
         />
       </div>
     </template>
-
-    <template #empty-state>
-      <i class="pi pi-folder text-5xl text-surface-400 mb-4"></i>
-      <p class="text-base mb-2">{{ $t('currentCity.noProjects') }}</p>
-      <p class="text-sm">{{ $t('currentCity.noProjectsDetail') }}</p>
-    </template>
   </ProjectAccordionPanel>
 </template>
 
@@ -71,6 +107,7 @@ import { isValidCountryCode } from '@/composables/map/useCountryMarkers'
 import { flyToCountry } from '@/composables/map/useMapNavigation'
 import { useAccordionState } from '@/composables/layout/useAccordionState'
 import { useAddOverlay } from '@/composables/overlay/useAddOverlay'
+import { loadCityProjects } from '@/composables/map/useCityMarkers'
 import { createProjectFromOverlayData, createOverlayForModeration } from '@/utils/projectFactories'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import PanelEmptyState from '@/components/common/PanelEmptyState.vue'
@@ -107,9 +144,44 @@ const cityHeader = computed(() => {
     }
 })
 
-// AI : Handle country click - zoom to country view WITHOUT clearing selected city
-// AI : This differs from country marker clicks which use prepareCountryContext and clear the city
-// AI : Here we want to maintain panel context while allowing users to zoom out
+// AI : Compute selected country name for city list header
+const selectedCountryName = computed(() => {
+    if (!mapStore.selectedCountryCode) return ''
+    const country = projectStore.countries.find(c => c.code === mapStore.selectedCountryCode)
+    return country?.name ?? mapStore.selectedCountryCode
+})
+
+// AI : Get cities in selected country with project counts
+const citiesInCountry = computed(() => {
+    if (!mapStore.selectedCountryCode) return []
+    const country = projectStore.countries.find(c => c.code === mapStore.selectedCountryCode)
+    return country?.cities ?? []
+})
+
+// AI : Handle city selection from list
+async function handleCityClick(city: { id: number; name: string; nameLocal: string | null; countryCode: string; lat: number; lng: number }) {
+    // AI : Set the selected city first
+    mapStore.setSelectedCity({
+        id: city.id,
+        name: city.name,
+        nameLocal: city.nameLocal,
+        countryCode: city.countryCode
+    })
+
+    // AI : Fly to the city (same behavior as city marker click)
+    const { map } = await import('@/composables/core/useMap')
+    const { mobileAwareFlyTo } = await import('@/composables/map/useMapNavigation')
+    if (map.value && map.value.getZoom() < 14) {
+        mobileAwareFlyTo([city.lat, city.lng], 14, {
+            duration: 1.5,
+        })
+    }
+
+    // AI : Load city projects and navigate to city
+    await loadCityProjects(city.id, city.name, city.nameLocal, true, city.countryCode)
+}
+
+// AI : Handle country click - zoom to country view AND clear selected city to show city list
 async function handleCountryClick() {
     const header = cityHeader.value
     if (!header) return
@@ -122,10 +194,8 @@ async function handleCountryClick() {
     // AI : Set the selected country code (for tile layer management)
     mapStore.selectedCountryCode = header.countryCode
 
-    // AI : NOTE: We intentionally DO NOT clear the selected city or manually load/add markers
-    // AI : The city markers are already present from when the city was selected, and the
-    // AI : reactive state management handles everything else. This keeps the Current City
-    // AI : panel header visible and maintains user context while zooming out to country view
+    // AI : Clear the selected city to show the city list panel
+    mapStore.clearSelectedCity()
 }
 
 
@@ -308,5 +378,94 @@ watch(
     /* AI : Prevent wrapping */
     min-width: 0;
     /* AI : Allow shrinking in flex container */
+}
+
+/* AI : City list view styles */
+.city-list-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.city-list-header {
+    padding: 1rem;
+    border-bottom: 1px solid var(--p-surface-100);
+    background: var(--p-surface-0);
+}
+
+.header-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--p-surface-800);
+}
+
+.header-subtitle {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.8125rem;
+    color: var(--p-surface-500);
+}
+
+.city-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+.city-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.875rem 1rem;
+    border: none;
+    background: var(--p-surface-0);
+    border-radius: var(--p-border-radius);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-bottom: 0.5rem;
+    text-align: left;
+}
+
+.city-item:hover {
+    background: var(--p-surface-50);
+    transform: translateX(2px);
+}
+
+.city-item:active {
+    background: var(--p-surface-100);
+}
+
+.city-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.city-info .city-name {
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--p-surface-800);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.city-name-local {
+    font-size: 0.8125rem;
+    color: var(--p-surface-500);
+    font-style: italic;
+}
+
+.project-count {
+    flex-shrink: 0;
+    font-size: 0.8125rem;
+    color: var(--p-surface-600);
+    background: var(--p-surface-100);
+    padding: 0.25rem 0.625rem;
+    border-radius: 1rem;
+    font-weight: 500;
 }
 </style>
