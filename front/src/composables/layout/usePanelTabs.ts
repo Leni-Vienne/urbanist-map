@@ -13,7 +13,7 @@ import type { PanelTab } from "@/types";
 function tabToMode(tab: PanelTab): MapMode {
   switch (tab) {
     case "latest":
-    case "currentCity":
+    case "currentLocation":
       // AI : View tabs always show view mode (approved overlays only)
       return "view";
     case "uploads":
@@ -79,12 +79,13 @@ export function usePanelTabs() {
 
     if (newMode === "view") {
       // AI : Smart switch for View Mode
-      if (uiStore.activeTab === "currentCity" || uiStore.activeTab === "latest") {
+      if (uiStore.activeTab === "currentLocation" || uiStore.activeTab === "latest") {
         // AI : Already in a view-compatible tab, don't change it!
         return;
       }
-      // AI : Default to Current City if a city is selected, otherwise Latest
-      targetTab = mapStore.selectedCity ? "currentCity" : "latest";
+      // AI : Prefer Current Location if a country OR city is selected, otherwise Latest
+      targetTab =
+        mapStore.selectedCity || mapStore.selectedCountryCode ? "currentLocation" : "latest";
     } else {
       // AI : For Edit/Moderation, use fixed mapping
       targetTab = modeToDefaultTab(newMode);
@@ -146,8 +147,8 @@ export function usePanelTabs() {
         // AI : Explicitly switch to Current City tab
         // AI : No need to call setActiveTab (which triggers switchMode) because we are already in view mode
         // AI : But for consistency we can use uiStore directly or our action
-        if (uiStore.activeTab !== "currentCity") {
-          uiStore.setActiveTab("currentCity");
+        if (uiStore.activeTab !== "currentLocation") {
+          uiStore.setActiveTab("currentLocation");
         }
       }
     },
