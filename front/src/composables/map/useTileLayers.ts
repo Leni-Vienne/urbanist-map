@@ -3,10 +3,10 @@ import { ref } from "vue";
 import { map } from "@/composables/core/useMap";
 
 // AI : Available tile layer types
-export type TileLayerType = "FRA" | "esri" | "CHE" | "USA";
+export type TileLayerType = "FRA" | "esri" | "CHE" | "USA" | "osm";
 
-// AI : Current active tile layer
-export const currentTileLayer = ref<TileLayerType>("esri");
+// AI : Current active tile layer (OSM as default for built-in labels)
+export const currentTileLayer = ref<TileLayerType>("osm");
 
 // AI : Reference to the currently active tile layer instance
 let activeTileLayer: L.TileLayer | L.GridLayer | null = null;
@@ -19,8 +19,22 @@ const tileLayerBounds = L.latLngBounds([-85, -180], [85, 180]);
 
 // AI : Tile layer configurations with UI labels
 const tileLayerConfigs = {
+  osm: {
+    label: "Plan",
+    flagUrl: "https://flagcdn.com/16x12/un.png", // UN flag for world map
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    options: {
+      minZoom: 0,
+      maxZoom: 19,
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors",
+      noWrap: true,
+      subdomains: "abc",
+      bounds: tileLayerBounds,
+    },
+  },
   esri: {
-    label: "World",
+    label: "Satellite",
     flagUrl: "https://flagcdn.com/16x12/un.png", // UN flag for world
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     options: {
@@ -50,7 +64,7 @@ const tileLayerConfigs = {
   USA: {
     label: "USA",
     flagUrl: "https://flagcdn.com/16x12/us.png",
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}.png",
     options: {
       minZoom: 0,
       maxZoom: 22,
@@ -102,13 +116,13 @@ function addTileLayersToMap(): void {
   }
 
   try {
-    // AI : Create and add only the default ESRI layer
-    activeTileLayer = createTileLayer("esri");
+    // AI : Create and add OSM layer as default (has built-in labels)
+    activeTileLayer = createTileLayer("osm");
     activeTileLayer.addTo(map.value);
   } catch (error) {
     console.error("Failed to initialize tile layers:", error);
-    // AI : Fallback to simple ESRI layer on error
-    const fallbackLayer = createTileLayer("esri");
+    // AI : Fallback to OSM layer on error
+    const fallbackLayer = createTileLayer("osm");
     activeTileLayer = fallbackLayer;
     activeTileLayer.addTo(map.value);
   }
@@ -146,11 +160,11 @@ export function switchTileLayer(layerType: TileLayerType) {
     currentTileLayer.value = layerType;
   } catch (error) {
     console.error("Failed to switch tile layer:", error);
-    // AI : Fallback to previous layer or default ESRI on error
-    if (layerType !== "esri") {
-      activeTileLayer = createTileLayer("esri");
+    // AI : Fallback to OSM on error
+    if (layerType !== "osm") {
+      activeTileLayer = createTileLayer("osm");
       activeTileLayer.addTo(map.value);
-      currentTileLayer.value = "esri";
+      currentTileLayer.value = "osm";
     }
   }
 }
@@ -169,7 +183,7 @@ export function getTileLayerOptions(): { label: string; value: TileLayerType; fl
 }
 
 export function isTileLayerType(value: string): value is TileLayerType {
-  return ["FRA", "esri", "USA", "CHE"].includes(value);
+  return ["FRA", "esri", "USA", "CHE", "osm"].includes(value);
 }
 
 /**
@@ -184,9 +198,9 @@ export function prepareCrossCountryFlight(targetCountryCode: string | null): (()
   const isCrossCountry = currentCountryCode !== targetCountryCode;
 
   if (isCrossCountry) {
-    // AI : Switch to esri immediately for global coverage during flight
-    if (currentTileLayer.value !== "esri") {
-      switchTileLayer("esri");
+    // AI : Switch to OSM immediately for global coverage during flight
+    if (currentTileLayer.value !== "osm") {
+      switchTileLayer("osm");
     }
 
     // AI : Update current country
@@ -195,7 +209,7 @@ export function prepareCrossCountryFlight(targetCountryCode: string | null): (()
     // AI : Return callback to switch to target country layer after flight
     return () => {
       const targetLayer =
-        targetCountryCode && isTileLayerType(targetCountryCode) ? targetCountryCode : "esri";
+        targetCountryCode && isTileLayerType(targetCountryCode) ? targetCountryCode : "osm";
 
       if (currentTileLayer.value !== targetLayer) {
         switchTileLayer(targetLayer);

@@ -6,6 +6,7 @@ import { navigateToOverlay } from "@/composables/overlay/useOverlay";
 import { switchMode } from "@/composables/overlay/useOverlayModes";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
+import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { trpc } from "@/client";
 import type { OverlayForModeration, LatestContribution } from "@/types/index";
