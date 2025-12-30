@@ -3,7 +3,8 @@
 
 export const MAP_CONFIG = {
   // AI : Minimum zoom level required to display actual overlay images (vs just markers)
-  MIN_ZOOM_FOR_OVERLAYS: 12,
+  // AI : Lowered to 10 to match viewport loading threshold
+  MIN_ZOOM_FOR_OVERLAYS: 10,
 
   // AI : Cache duration in milliseconds for various data types
   CACHE_DURATION_MS: 5 * 60 * 1000, // 5 minutes

@@ -459,17 +459,20 @@ async function autoSelectOverlayForProject(projectId: string): Promise<void> {
 
 /**
  * AI : Watch for zoom level changes and update state
+ * AI : DISABLED: This conflicts with viewport-based loading
+ * AI : The viewport loading system handles overlay rendering based on zoom automatically
  */
 function watchZoomLevel() {
-  watch(currentZoomLevel, async (newZoom) => {
-    const newState = getCurrentState();
-    newState.zoomLevel = getZoomLevel(newZoom);
-
-    // AI : Only transition if zoom level actually changed categories
-    if (newState.zoomLevel !== currentState.value.zoomLevel) {
-      await transitionToState(newState);
-    }
-  });
+  // AI : COMMENTED OUT - conflicts with viewport loading
+  // watch(currentZoomLevel, async (newZoom) => {
+  //   const newState = getCurrentState();
+  //   newState.zoomLevel = getZoomLevel(newZoom);
+  //
+  //   // AI : Only transition if zoom level actually changed categories
+  //   if (newState.zoomLevel !== currentState.value.zoomLevel) {
+  //     await transitionToState(newState);
+  //   }
+  // });
 }
 
 // AI : Initialize zoom watcher and set initial state
@@ -480,6 +483,7 @@ export function initializeOverlayModes() {
     return;
   }
 
-  watchZoomLevel();
+  // AI : DISABLED: zoom watcher conflicts with viewport loading
+  // watchZoomLevel();
   currentState.value = getCurrentState();
 }

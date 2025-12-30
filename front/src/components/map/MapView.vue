@@ -51,9 +51,11 @@ import { removeOverlayFromMap } from '@/composables/overlay/useOverlayRemoval';
 import { useToast } from '@/composables/ui/useToast';
 import { useI18n } from 'vue-i18n';
 import { updateOverlayMarkersForFilters } from '@/composables/map/useCityOverlays';
-import { initializeCountryMarkers } from '@/composables/map/useCountryMarkers';
+// AI : Load countries for breadcrumbs, but don't show country markers
+import { loadCountriesWithProjects } from '@/composables/map/useCountryMarkers';
 import { initializeOverlayModes } from '@/composables/overlay/useOverlayModes';
-import { loadCityStandaloneProjects } from '@/composables/map/useCityMarkers';
+import { loadCityStandaloneProjects, loadAllCityMarkersGlobally } from '@/composables/map/useCityMarkers';
+import { initializeViewportCityLoading, setAllCityMarkers, cleanupViewportCityLoading } from '@/composables/map/useViewportCityLoading';
 import { useMapStore } from '@/stores/pinia/mapStore';
 import { useOverlayStore } from '@/stores/pinia/overlayStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -157,6 +159,8 @@ onMounted(async () => {
 onUnmounted(() => {
   // AI : Clean up event listeners
   globalThis.removeEventListener('keydown', handleKeyDown, true);
+  // AI : Clean up viewport loading
+  cleanupViewportCityLoading();
 });
 
 
@@ -173,13 +177,26 @@ function handleKeyDown(event: KeyboardEvent) {
 }
 
 
+
 // AI : Initialize map and overlays
 async function initializeMapAndOverlays() {
   try {
     initializeMap();
     addTileLayer(); // AI : Initialize tile layers after map is created
     initializeCameraBounds(); // AI : Initialize camera bounds tracking
-    await initializeCountryMarkers(); // AI : Initialize country markers by default
+
+    // AI : Load countries first (needed for breadcrumbs in Current Location panel)
+    await loadCountriesWithProjects();
+
+    // AI : Load all city markers globally instead of country markers
+    const cities = await loadAllCityMarkersGlobally();
+
+    // AI : Set cities for viewport detection
+    setAllCityMarkers(cities);
+
+    // AI : Initialize viewport-based city loading
+    initializeViewportCityLoading();
+
     initializeOverlayModes(); // AI : Initialize overlay mode system and zoom watcher
     setupMapClickToDeselect(); // AI : Setup click handler to deselect overlays when clicking map background
     globalThis.addEventListener('keydown', handleKeyDown, true);
