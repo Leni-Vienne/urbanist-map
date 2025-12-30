@@ -8,10 +8,13 @@
 import type L from "leaflet";
 import { map } from "@/composables/core/useMap";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
+import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { OVERLAY_OUTLINE_COLOR } from "@/composables/map/useMarkers";
 import { syncPreviewStateOnNavigation } from "@/composables/overlay/changeRequestPreviewState";
-import type { OverlayObject } from "@/types/index";
+import { citiesWithProjects } from "@/composables/map/useCityMarkers";
+import type { OverlayObject, Project } from "@/types/index";
 
 // AI : Guard to prevent recursive selectOverlay calls when library fires select event
 let isSelectingOverlay = false;
@@ -149,6 +152,43 @@ export function selectOverlay(overlayId: string | null): void {
     // AI : Apply selection to new overlay
     const newlySelected = overlayStore.overlays[overlayId];
     if (!newlySelected) return;
+
+    // AI : Set selectedCity to enable panel auto-switch from Latest to Current Location
+    // AI : This ensures clicking an overlay on the map switches panel to show context
+    // AI : Search through cityProjectsCache to find which city this overlay belongs to
+    const mapStore = useMapStore();
+    let foundCityId: number | null = null;
+
+    // AI : Iterate through all cached cities to find which one contains this overlay
+    for (const [cityId, modeCache] of mapStore.cityProjectsCache.entries()) {
+      for (const [mode, overlays] of modeCache.entries()) {
+        const overlay = overlays.find((o) => o.id === overlayId);
+        if (overlay) {
+          foundCityId = cityId;
+          break;
+        }
+      }
+      if (foundCityId) break;
+    }
+
+    if (foundCityId) {
+      // AI : Now look up the city info from citiesWithProjects (loaded by viewport)
+      const city = citiesWithProjects.value.find((c) => c.id === foundCityId);
+
+      if (city) {
+        const { id: cityId, name: cityName, nameLocal: cityNameLocal, countryCode } = city;
+
+        // AI : Only set selectedCity if it's not already set or if switching cities
+        if (!mapStore.selectedCity || mapStore.selectedCity.id !== cityId) {
+          mapStore.setSelectedCity({
+            id: cityId,
+            name: cityName,
+            nameLocal: cityNameLocal,
+            countryCode,
+          });
+        }
+      }
+    }
 
     setupNewSelection(newlySelected, overlayId);
   } finally {
