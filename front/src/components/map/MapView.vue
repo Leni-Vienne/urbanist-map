@@ -54,8 +54,9 @@ import { updateOverlayMarkersForFilters } from '@/composables/map/useCityOverlay
 // AI : Load countries for breadcrumbs, but don't show country markers
 import { loadCountriesWithProjects } from '@/composables/map/useCountryMarkers';
 import { initializeOverlayModes } from '@/composables/overlay/useOverlayModes';
-import { loadCityStandaloneProjects, loadAllCityMarkersGlobally } from '@/composables/map/useCityMarkers';
+import { loadCityStandaloneProjects, loadAllCityMarkersGlobally, fetchCityDataForViewport } from '@/composables/map/useCityMarkers';
 import { initializeViewportCityLoading, setAllCityMarkers, cleanupViewportCityLoading } from '@/composables/map/useViewportCityLoading';
+import { addStandaloneProjectMarkerForProject } from '@/composables/map/useStandaloneProjectMarkers';
 import { useMapStore } from '@/stores/pinia/mapStore';
 import { useOverlayStore } from '@/stores/pinia/overlayStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -178,6 +179,7 @@ function handleKeyDown(event: KeyboardEvent) {
 
 
 
+
 // AI : Initialize map and overlays
 async function initializeMapAndOverlays() {
   try {
@@ -190,6 +192,17 @@ async function initializeMapAndOverlays() {
 
     // AI : Load all city markers globally instead of country markers
     const cities = await loadAllCityMarkersGlobally();
+
+    // AI : Populate cities lookup map in mapStore for panel auto-switch
+    mapStore.citiesLookup.clear();
+    cities.forEach(city => {
+      mapStore.citiesLookup.set(city.id, {
+        id: city.id,
+        name: city.name,
+        nameLocal: city.nameLocal,
+        countryCode: city.countryCode,
+      });
+    });
 
     // AI : Set cities for viewport detection
     setAllCityMarkers(cities);

@@ -9,12 +9,10 @@ import type L from "leaflet";
 import { map } from "@/composables/core/useMap";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { OVERLAY_OUTLINE_COLOR } from "@/composables/map/useMarkers";
 import { syncPreviewStateOnNavigation } from "@/composables/overlay/changeRequestPreviewState";
-import { citiesWithProjects } from "@/composables/map/useCityMarkers";
-import type { OverlayObject, Project } from "@/types/index";
+import type { OverlayObject } from "@/types/index";
 
 // AI : Guard to prevent recursive selectOverlay calls when library fires select event
 let isSelectingOverlay = false;
@@ -172,20 +170,13 @@ export function selectOverlay(overlayId: string | null): void {
     }
 
     if (foundCityId) {
-      // AI : Now look up the city info from citiesWithProjects (loaded by viewport)
-      const city = citiesWithProjects.value.find((c) => c.id === foundCityId);
+      // AI : Look up city info from citiesLookup map (no circular dependency)
+      const city = mapStore.citiesLookup.get(foundCityId);
 
       if (city) {
-        const { id: cityId, name: cityName, nameLocal: cityNameLocal, countryCode } = city;
-
         // AI : Only set selectedCity if it's not already set or if switching cities
-        if (!mapStore.selectedCity || mapStore.selectedCity.id !== cityId) {
-          mapStore.setSelectedCity({
-            id: cityId,
-            name: cityName,
-            nameLocal: cityNameLocal,
-            countryCode,
-          });
+        if (!mapStore.selectedCity || mapStore.selectedCity.id !== city.id) {
+          mapStore.setSelectedCity(city);
         }
       }
     }
