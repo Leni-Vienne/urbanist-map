@@ -5,7 +5,7 @@ import { ref, watch } from "vue";
 import { t } from "@/locales";
 import { map } from "@/composables/core/useMap";
 import { mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
-import { loadCityOverlays } from "@/composables/map/useCityOverlays";
+import { loadCityOverlays, fetchCityProjectsData } from "@/composables/map/useCityOverlays";
 import { useSelectedProject } from "@/composables/project/useProjectSelection";
 import { trpc, type RouterOutput } from "@/client";
 
@@ -376,16 +376,31 @@ export async function fetchCityDataForViewport(
     const mapStore = useMapStore();
     const overlayStore = useOverlayStore();
 
-    // AI : Fetch overlay data (uses cache if available)
-    const { fetchCityProjectsData } = await import("@/composables/map/useCityOverlays");
-    const overlaysData = await fetchCityProjectsData(cityId);
+    // AI : Check cache first to avoid duplicate fetches
+    const cachedOverlays = mapStore.getCityOverlaysAndProjectsCache(cityId, overlayStore.mode);
+    const cachedProjects = mapStore.getCityStandaloneProjectsCache(cityId, overlayStore.mode);
 
-    // AI : Cache the data
-    mapStore.setCityProjectsCache(cityId, overlayStore.mode, overlaysData);
+    // AI : If both are cached, return immediately
+    if (cachedOverlays && cachedProjects) {
+      return {
+        overlays: cachedOverlays,
+        projects: cachedProjects,
+      };
+    }
 
-    // AI : Fetch standalone projects
-    const projectsData = await trpc.project.getCityProjects.query({ cityId });
-    mapStore.setCityStandaloneProjectsCache(cityId, overlayStore.mode, projectsData);
+    // AI : Fetch overlay data if not cached
+    let overlaysData = cachedOverlays;
+    if (!overlaysData) {
+      overlaysData = await fetchCityProjectsData(cityId);
+      mapStore.setCityProjectsCache(cityId, overlayStore.mode, overlaysData);
+    }
+
+    // AI : Fetch standalone projects if not cached
+    let projectsData = cachedProjects;
+    if (!projectsData) {
+      projectsData = await trpc.project.getCityProjects.query({ cityId });
+      mapStore.setCityStandaloneProjectsCache(cityId, overlayStore.mode, projectsData);
+    }
 
     return {
       overlays: overlaysData,
