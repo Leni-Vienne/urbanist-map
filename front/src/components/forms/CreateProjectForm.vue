@@ -9,6 +9,7 @@
       :marker-coordinates="markerCoordinates"
       id-prefix="create"
       @update:is-proposed="isProposed = $event"
+      @update:form-data="Object.assign(formData, $event)"
       @city-change="handleCityChange"
     />
   </form>

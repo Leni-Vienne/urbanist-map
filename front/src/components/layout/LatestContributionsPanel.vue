@@ -1,18 +1,6 @@
 <template>
   <div class="latest-contributions-panel">
     <div class="panel-content">
-      <!-- AI : Panel header with New Project button -->
-      <div class="panel-header">
-        <Button
-          @click="handleAddOverlayClick"
-          severity="primary"
-          size="small"
-          icon="pi pi-plus"
-          :label="$t('common.add')"
-          class="add-project-button"
-        />
-      </div>
-
       <div class="contributions-list" v-if="contributions.length > 0">
         <!-- AI : Clean borderless cards for both overlays and standalone projects -->
         <div
@@ -93,7 +81,6 @@ import { onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useLatestContributions } from '@/composables/overlay/useLatestContributions'
 import { useOverlayClickHandler } from '@/composables/overlay/useOverlayClickHandler'
-import { useAddOverlay } from '@/composables/overlay/useAddOverlay'
 import { highlightOverlayById, removeOverlayHighlight } from '@/composables/overlay/useOverlaySelection'
 import { navigateToStandaloneProject } from '@/composables/navigation/useOverlayNavigation'
 import { buildThumbnailUrl, imageRequiresCredentials } from '@/utils/imageUrl'
@@ -108,9 +95,6 @@ const { contributions, isLoading, fetchLatestContributions } = useLatestContribu
 
 // AI : Use shared overlay click handler for overlay navigation
 const { handleOverlayClickNavigation } = useOverlayClickHandler()
-
-// AI : Use shared composable for add overlay button
-const { handleAddOverlayClick } = useAddOverlay()
 
 // AI : Use shared image error handling
 const { imageErrors, handleImageError, handleImageLoad } = useImageErrors()
@@ -189,14 +173,6 @@ onMounted(() => {
   overflow: visible;
   display: flex;
   flex-direction: column;
-}
-
-/* AI : Panel header with Add Overlay button */
-.panel-header {
-  padding: 1rem 1rem 0rem 1rem;
-  display: flex;
-  justify-content: flex-end;
-  flex-shrink: 0;
 }
 
 /* AI : Contributions list container */

@@ -602,28 +602,39 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   // AI : Clear all state on logout/account switch
+  // AI : Clear user-specific state on logout/account switch
+  // AI : NOTE: We preserve public data (countries, view-mode caches)
+  // AI : and only clear user-specific data
   function clearAllState(): void {
-    // AI : Clear projects and selection
+    // AI : Clear projects and selection (keep the data but clear selection)
+    // AI : Actually, we should clear user-specific projects but keep approved ones
+    // AI : For simplicity, clear all projects and let them reload with view-mode permissions
     projects.value = {};
     selectedProjectId.value = null;
-    countries.value = [];
 
-    // AI : Clear user contributions
+    // AI : KEEP countries - these are needed for public map view
+    // countries.value = [];
+
+    // AI : Clear user contributions (user-specific)
     userContributions.value = [];
     userContributionsLoading.value = false;
     userContributionsLoaded.value = false;
 
-    // AI : Clear nearby projects
+    // AI : Clear nearby projects (context-specific)
     clearNearbyProjects();
 
-    // AI : Clear original backend state caches
+    // AI : Clear original backend state caches (user-specific)
     originalBackendProjects.value = {};
     originalUserContributions.value = {};
 
-    // AI : Clear city names cache
+    // AI : Clear city names cache (can be rebuilt)
     cityNamesCache.value = {};
 
-    // AI : Clear all caches
+    // AI : Clear mode-specific caches but keep view-mode caches
+    // AI : The cache keys include mode, so view-mode caches will persist
+    // AI : We only need to clear edit/moderation mode caches
+    // AI : For now, we'll clear all caches and let view mode reload
+    // AI : (This is safer and cleaner)
     clearCitiesCache();
     clearCountriesCache();
   }

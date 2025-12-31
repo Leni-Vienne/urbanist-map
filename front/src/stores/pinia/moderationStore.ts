@@ -67,6 +67,20 @@ export const useModerationStore = defineStore("moderation", () => {
     pendingCountsLoaded.value = false;
   }
 
+  // AI : Clear all state on logout/account switch
+  function clearAllState() {
+    overlays.value = [];
+    projects.value = [];
+    changeRequests.value = [];
+    moderationLoaded.value = false;
+    moderationLoading.value = false;
+    selectedCountryCode.value = null;
+    allCountries.value = [];
+    countriesLoaded.value = false;
+    pendingCountsByCountry.value.clear();
+    pendingCountsLoaded.value = false;
+  }
+
   return {
     overlays,
     projects,
@@ -86,5 +100,6 @@ export const useModerationStore = defineStore("moderation", () => {
     setAllCountries,
     setPendingCounts,
     resetPendingCounts,
+    clearAllState,
   };
 });

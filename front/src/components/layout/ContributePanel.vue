@@ -1,4 +1,5 @@
 <template>
+  <!-- AI : Full panel for authenticated users -->
   <ProjectAccordionPanel
     :projects="filteredProjects"
     :is-loading="isLoading"
@@ -54,7 +55,7 @@
         <i class="pi pi-save"></i>
       </button>
       <button
-        v-if="project.status === 'pending' || project.status === 'rejected'"
+        v-if="!project.status || project.status === 'pending' || project.status === 'rejected'"
         class="action-btn delete-btn"
         @click.stop="handleDeleteProjectClick(project)"
         v-tooltip.top="$t('contribute.deleteProject')"
@@ -159,14 +160,6 @@
         </div>
       </div>
     </template>
-
-    <template #empty-state>
-      <PanelEmptyState
-        icon="folder"
-        :message="displayedProjects.length > 0 && filteredProjects.length === 0 ? $t('contribute.noProjectsMatchFilter') : $t('contribute.noProjectsFound')"
-        :sub-message="displayedProjects.length > 0 && filteredProjects.length === 0 ? $t('contribute.tryChangingFilters') : $t('contribute.createFirstProject')"
-      />
-    </template>
   </ProjectAccordionPanel>
 
   <!-- AI : Submission Confirmation Dialog for publishing projects -->
@@ -184,7 +177,6 @@
 import { ref, computed, watch, onMounted, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAddOverlay } from '@/composables/overlay/useAddOverlay'
-import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import { useToast } from '@/composables/ui/useToast'
 import { useChangeRequests } from '@/composables/changes/useChanges'
 import { useUserContributions, type UserContribution, type UserContributionOverlay } from '@/composables/project/useUserContributions'
@@ -199,13 +191,11 @@ import { useSubmissionDialog } from '@/composables/submission/useSubmissionDialo
 import { useAuthStore } from '@/stores/authStore'
 import type { RouterOutput } from '@/client'
 import type { ProjectForModeration, OverlayForModeration, OverlayObject, Project } from '@/types/index'
-import type { ApprovalStatus } from '@shared/types'
+
+import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 
 // AI : Async component import for submission dialog
 const SubmissionConfirmationDialog = defineAsyncComponent(() => import('@/components/submission/SubmissionConfirmationDialog.vue'))
-
-import PanelEmptyState from '@/components/common/PanelEmptyState.vue'
-
 
 // AI : Type definition from tRPC backend response for change requests
 type ChangeRequest = RouterOutput['changes']['getPendingChangeRequests'][0]

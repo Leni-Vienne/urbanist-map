@@ -3,7 +3,11 @@
     <!-- AI : Fixed header containing title, close button, and navigation tabs -->
     <div class="sidecolumn__header">
       <div class="header-top">
-        <h2 class="site-title">{{ $t('app.title') }}</h2>
+        <div class="title-container">
+          <h2 class="site-title">{{ $t('app.title') }}</h2>
+          <p class="site-subtitle">{{ $t('app.subtitle') }}</p>
+        </div>
+
         <div class="header-actions">
           <Button
             icon="pi pi-times"
@@ -35,12 +39,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { watch, computed } from 'vue'
 import PanelContent from './PanelContent.vue'
 import PanelTabs from './PanelTabs.vue'
 import { usePanelTabs } from '@/composables/layout/usePanelTabs'
-import { useOverlayStore } from '@/stores/pinia/overlayStore'
 import { useMapStore } from '@/stores/pinia/mapStore'
+import { useUiStore } from '@/stores/uiStore'
+import { useAuthStore } from '@/stores/authStore'
 import type { PanelTab } from '@/types'
 
 defineProps<{
@@ -52,42 +57,50 @@ defineEmits<{
   close: []
 }>()
 
-// AI : Local tab state
-const activeTab = ref<PanelTab>('latest')
-
-// AI : Watch for overlay selection and auto-switch to Current City tab (only in view mode)
-const overlayStore = useOverlayStore()
+// AI : Get stores
 const mapStore = useMapStore()
-watch(() => overlayStore.idSelectedOverlay, (overlayId) => {
-  // AI : When an overlay is selected and we have a city loaded, switch to Current City tab
-  // AI : Only do this in view mode - in edit/moderation modes, preserve the current workflow
-  if (overlayId && mapStore.selectedCity && overlayStore.mode === 'view') {
-    activeTab.value = 'currentCity'
+const uiStore = useUiStore()
+const authStore = useAuthStore()
+
+// AI : Initialize shared tab logic (mode syncing, authentication watchers, overlay selection)
+const { setActiveTab } = usePanelTabs()
+
+// AI : Use uiStore.activeTab as single source of truth (shared with MobileDrawer)
+// AI : Computed with getter/setter for v-model compatibility
+const activeTab = computed<PanelTab>({
+  get: () => uiStore.activeTab,
+  // AI : Use the explicit action from usePanelTabs to handle mode syncing securely
+  set: (value) => setActiveTab(value)
+})
+
+// AI : Watch for authentication changes and execute post-login callback
+watch(() => authStore.isAuthenticated, (isAuthenticated) => {
+  if (isAuthenticated && uiStore.postLoginCallback) {
+    // AI : User just logged in, execute the callback
+    uiStore.executePostLoginCallback()
   }
 })
 
-// AI : Watch for city changes and auto-switch tabs based on city state
-// AI : This makes standalone projects behave like overlays when clicked from latest contributions
-// AI : AND ensures we don't stay on Current City tab when there's no city selected
+// AI : Track previous city ID for detecting city changes
 let previousCityId = mapStore.selectedCity?.id
 watch(() => mapStore.selectedCity, (newCity) => {
   // AI : Case 1: City was selected (either new or changed from another city)
   // AI : Switch to Current City tab only if coming from Latest tab
-  if (newCity && newCity.id !== previousCityId && activeTab.value === 'latest') {
-    activeTab.value = 'currentCity'
+  if (newCity && newCity.id !== previousCityId && uiStore.activeTab === 'latest') {
+    uiStore.setActiveTab('currentCity')
   }
 
   // AI : Case 2: City was cleared (e.g., by clicking a country marker)
   // AI : Switch away from Current City tab to avoid showing empty state
-  if (!newCity && previousCityId && activeTab.value === 'currentCity') {
-    activeTab.value = 'latest'
+  if (!newCity && previousCityId && uiStore.activeTab === 'currentCity') {
+    uiStore.setActiveTab('latest')
   }
 
   previousCityId = newCity?.id
 })
 
-// AI : Initialize shared tab logic (mode syncing, authentication watchers)
-usePanelTabs(activeTab)
+// AI : Initialize panel tabs synchronization (mode/tab/auth watchers)
+usePanelTabs()
 </script>
 
 <style scoped>
@@ -127,7 +140,7 @@ usePanelTabs(activeTab)
 }
 
 .header-top {
-  padding: 1rem 1.5rem 0.5rem;
+  padding: 0.5rem 1.5rem 0.5rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -141,6 +154,13 @@ usePanelTabs(activeTab)
   line-height: 1.2;
   letter-spacing: -0.025em;
   color: var(--p-surface-800);
+}
+
+.site-subtitle {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.875rem;
+  color: var(--p-surface-500);
+  line-height: 1.4;
 }
 
 .header-actions {
