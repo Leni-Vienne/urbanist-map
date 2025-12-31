@@ -39,8 +39,9 @@ export const useUiStore = defineStore("ui", () => {
     overlay: null,
   });
 
-  // AI : Mobile drawer state
-  const mobileDrawerActiveTab = ref<PanelTab>("latest");
+  // AI : Unified active tab state (shared between desktop SideMenu and mobile MobileDrawer)
+  // AI : Single source of truth for panel tab navigation
+  const activeTab = ref<PanelTab>("latest");
   const mobileDrawerVisible = ref(true); // AI : Open by default on mobile
   const mobileDrawerHeightPercent = ref(40); // AI : Drawer height as percentage of viewport (10-90%)
 
@@ -60,6 +61,9 @@ export const useUiStore = defineStore("ui", () => {
   // AI : Project creation flow state (moved from useProjectState)
   const lastCreatedProjectId = ref<string | null>(null);
   const inFileUploadFlow = ref<boolean>(false);
+
+  // AI : Post-login callback - stores action to execute after successful login
+  const postLoginCallback = ref<(() => void) | null>(null);
 
   // AI : Auth modal actions
   function openAuthModal() {
@@ -130,9 +134,9 @@ export const useUiStore = defineStore("ui", () => {
     };
   }
 
-  // AI : Mobile drawer actions
-  function setMobileDrawerActiveTab(tab: PanelTab) {
-    mobileDrawerActiveTab.value = tab;
+  // AI : Unified tab navigation actions (works for both desktop and mobile)
+  function setActiveTab(tab: PanelTab) {
+    activeTab.value = tab;
   }
 
   function setMobileDrawerHeight(heightPercent: number) {
@@ -189,6 +193,18 @@ export const useUiStore = defineStore("ui", () => {
     inFileUploadFlow.value = active;
   }
 
+  // AI : Post-login callback actions
+  function setPostLoginCallback(callback: (() => void) | null) {
+    postLoginCallback.value = callback;
+  }
+
+  function executePostLoginCallback() {
+    if (postLoginCallback.value) {
+      postLoginCallback.value();
+      postLoginCallback.value = null; // AI : Clear after execution
+    }
+  }
+
   // AI : Close all UI elements (used for cleanup)
   function closeAllDialogs() {
     authModalVisible.value = false;
@@ -209,13 +225,14 @@ export const useUiStore = defineStore("ui", () => {
     projectDialog,
     projectEditForm,
     overlayEditDialog,
-    mobileDrawerActiveTab,
+    activeTab,
     mobileDrawerVisible,
     mobileDrawerHeightPercent,
     projectInfoPopup,
     imageUploadDialog,
     lastCreatedProjectId,
     inFileUploadFlow,
+    postLoginCallback,
 
     // AI : Actions
     openAuthModal,
@@ -228,7 +245,7 @@ export const useUiStore = defineStore("ui", () => {
     closeProjectEditForm,
     openOverlayEditDialog,
     closeOverlayEditDialog,
-    setMobileDrawerActiveTab,
+    setActiveTab,
     setMobileDrawerHeight,
     openProjectInfoPopup,
     closeProjectInfoPopup,
@@ -238,6 +255,8 @@ export const useUiStore = defineStore("ui", () => {
     closeImageUploadDialog,
     setLastCreatedProject,
     setFileUploadFlow,
+    setPostLoginCallback,
+    executePostLoginCallback,
     closeAllDialogs,
   };
 });

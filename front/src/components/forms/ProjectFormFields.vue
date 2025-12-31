@@ -6,7 +6,7 @@
       <FloatLabel class="w-full" variant="in">
         <InputText
           id="project-name-input"
-          v-model="formData.name"
+          v-model="localFormData.name"
           :class="getInputClass('name')"
           required
           minlength="8"
@@ -17,7 +17,7 @@
         <label for="project-name-input" class="text-gray-600">{{ $t('project.name') }} *</label>
       </FloatLabel>
       <small v-if="nameError" class="validation-error">{{ nameError }}</small>
-      <small v-if="showChangeIndicators && hasChanged?.('name')" class="change-indicator">
+      <small v-if="showNameChangeIndicator" class="change-indicator">
         {{ $t('overlay.changedFrom') }}: "{{ originalData?.name || $t('overlay.notSet') }}"
       </small>
     </div>
@@ -27,7 +27,7 @@
       <FloatLabel class="w-full" variant="in">
         <Textarea
           id="project-description-input"
-          v-model="formData.description"
+          v-model="localFormData.description"
           :class="getInputClass('description')"
           rows="2"
           @blur="handleDescriptionBlur"
@@ -38,7 +38,7 @@
         >
       </FloatLabel>
       <small v-if="descriptionError" class="validation-error">{{ descriptionError }}</small>
-      <small v-if="showChangeIndicators && hasChanged?.('description')" class="change-indicator">
+      <small v-if="showDescriptionChangeIndicator" class="change-indicator">
         {{ $t('overlay.changedFrom') }}: "{{ originalData?.description || $t('overlay.notSet') }}"
       </small>
     </div>
@@ -59,7 +59,7 @@
       <FloatLabel class="w-full" variant="in">
         <DatePicker
           id="proposal-date-input"
-          v-model="formData.proposalDate"
+          v-model="localFormData.proposalDate"
           :class="[{ 'w-full': true }, fieldClasses?.('proposalDate')]"
           dateFormat="dd/mm/yy"
           :updateModelType="'date'"
@@ -73,13 +73,8 @@
         >
       </FloatLabel>
       <small class="text-gray-500 block mt-1">{{ $t('project.proposalDateHelp') }}</small>
-      <small
-        v-if="showChangeIndicators && hasChanged?.('proposalDate') && wasOriginallyProposed"
-        class="change-indicator"
-      >
+      <small v-if="showProposalDateChangeIndicator" class="change-indicator">
         {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData?.proposalDate) || $t('overlay.notSet')
-
-
         }}"
       </small>
     </div>
@@ -90,7 +85,7 @@
         <FloatLabel class="w-full" variant="in">
           <DatePicker
             id="start-date-input"
-            v-model="formData.startDate"
+            v-model="localFormData.startDate"
             :class="getInputClass('startDate')"
             dateFormat="dd/mm/yy"
             :updateModelType="'date'"
@@ -104,13 +99,8 @@
         </FloatLabel>
         <small v-if="startDateError" class="validation-error">{{ startDateError }}</small>
         <small v-else class="text-gray-500 block mt-1">{{ $t('project.startDateHelp') }}</small>
-        <small
-          v-if="showChangeIndicators && hasChanged?.('startDate') && !wasOriginallyProposed"
-          class="change-indicator"
-        >
+        <small v-if="showStartDateChangeIndicator" class="change-indicator">
           {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData?.startDate) || $t('overlay.notSet')
-
-
           }}"
         </small>
       </div>
@@ -119,7 +109,7 @@
         <FloatLabel class="w-full" variant="in">
           <DatePicker
             id="end-date-input"
-            v-model="formData.endDate"
+            v-model="localFormData.endDate"
             :class="getInputClass('endDate')"
             dateFormat="dd/mm/yy"
             :updateModelType="'date'"
@@ -131,13 +121,8 @@
         </FloatLabel>
         <small v-if="endDateError" class="validation-error">{{ endDateError }}</small>
         <small v-else class="text-gray-500 block mt-1">{{ $t('project.endDateHelp') }}</small>
-        <small
-          v-if="showChangeIndicators && hasChanged?.('endDate') && !wasOriginallyProposed"
-          class="change-indicator"
-        >
+        <small v-if="showEndDateChangeIndicator" class="change-indicator">
           {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData?.endDate) || $t('overlay.notSet')
-
-
           }}"
         </small>
       </div>
@@ -149,7 +134,7 @@
         <CitySelect
           ref="citySelectRef"
           :model-value="cityIdForSelect"
-          :class="fieldClasses?.('cityId')"
+          :class="getInputClass('cityId')"
           :prefilled-city="prefilledCity"
           :marker-coordinates="markerCoordinates"
           required
@@ -157,7 +142,8 @@
         />
         <label for="location-select" class="text-gray-600">{{ $t('project.location') }} *</label>
       </FloatLabel>
-      <small v-if="showChangeIndicators && hasChanged?.('cityId')" class="change-indicator">
+      <small v-if="cityIdError" class="validation-error">{{ cityIdError }}</small>
+      <small v-if="showCityChangeIndicator" class="change-indicator">
         {{ $t('overlay.changedFrom') }}: {{ getCityNameSafe(originalData?.cityId) }}
       </small>
     </div>
@@ -167,7 +153,7 @@
       <FloatLabel class="w-full" variant="in">
         <DatePicker
           id="latest-update-input"
-          v-model="formData.latestUpdateOn"
+          v-model="localFormData.latestUpdateOn"
           :class="[{ 'w-full': true }, fieldClasses?.('latestUpdateOn')]"
           dateFormat="dd/mm/yy"
           :updateModelType="'date'"
@@ -179,10 +165,8 @@
         >
       </FloatLabel>
       <small class="text-gray-500 block mt-1">{{ $t('project.latestUpdateOnHelp') }}</small>
-      <small v-if="showChangeIndicators && hasChanged?.('latestUpdateOn')" class="change-indicator">
+      <small v-if="showLatestUpdateChangeIndicator" class="change-indicator">
         {{ $t('overlay.changedFrom') }}: "{{ formatDate(originalData?.latestUpdateOn) || $t('overlay.notSet')
-
-
         }}"
       </small>
     </div>
@@ -193,7 +177,7 @@
         <InputText
           id="source-url-input"
           type="url"
-          v-model="formData.sourceUrl"
+          v-model="localFormData.sourceUrl"
           :class="getInputClass('sourceUrl')"
           autocomplete="off"
           @blur="handleSourceUrlBlur"
@@ -204,7 +188,7 @@
         >
       </FloatLabel>
       <small v-if="sourceUrlError" class="validation-error">{{ sourceUrlError }}</small>
-      <small v-if="showChangeIndicators && hasChanged?.('sourceUrl')" class="change-indicator">
+      <small v-if="showSourceUrlChangeIndicator" class="change-indicator">
         {{ $t('overlay.changedFrom') }}: "{{ originalData?.sourceUrl || $t('overlay.notSet') }}"
       </small>
     </div>
@@ -212,7 +196,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, toRaw } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FloatLabel from 'primevue/floatlabel'
 import TimelineStatusSelector from './TimelineStatusSelector.vue'
@@ -278,12 +262,25 @@ const { getFieldError, hasFieldError, validateField, isFieldTouched } = useField
 // AI : Local isProposed state synced with parent
 const localIsProposed = ref(props.isProposed)
 
+// AI : Local copy of formData to avoid mutating props
+const localFormData = ref<ProjectFormData>({ ...props.formData })
+
+// AI : Watch for external formData changes and sync local copy
+watch(() => props.formData, (newFormData) => {
+  localFormData.value = { ...newFormData }
+}, { deep: true })
+
+// AI : Watch local formData changes and emit to parent
+watch(localFormData, (newFormData) => {
+  emit('update:formData', toRaw(newFormData))
+}, { deep: true })
+
 // AI : Convert null to undefined for CitySelect compatibility
-const cityIdForSelect = computed(() => props.formData.cityId ?? undefined)
+const cityIdForSelect = computed(() => localFormData.value.cityId ?? undefined)
 
 // AI : Shared validation helper to avoid rebuilding validation data
 function validateFieldHelper(fieldPath: string) {
-  const validationData = prepareProjectValidationData(props.formData)
+  const validationData = prepareProjectValidationData(localFormData.value)
   validateField(fieldPath, validationData)
 }
 
@@ -320,12 +317,46 @@ function getInputClass(fieldName: string) {
   return [{ 'w-full': true }, baseClasses, errorClass]
 }
 
+// AI : Computed properties for change indicators to simplify template logic
+const showNameChangeIndicator = computed(() =>
+  props.showChangeIndicators && props.hasChanged?.('name')
+)
+
+const showDescriptionChangeIndicator = computed(() =>
+  props.showChangeIndicators && props.hasChanged?.('description')
+)
+
+const showProposalDateChangeIndicator = computed(() =>
+  props.showChangeIndicators && props.hasChanged?.('proposalDate') && wasOriginallyProposed.value
+)
+
+const showStartDateChangeIndicator = computed(() =>
+  props.showChangeIndicators && props.hasChanged?.('startDate') && !wasOriginallyProposed.value
+)
+
+const showEndDateChangeIndicator = computed(() =>
+  props.showChangeIndicators && props.hasChanged?.('endDate') && !wasOriginallyProposed.value
+)
+
+const showCityChangeIndicator = computed(() =>
+  props.showChangeIndicators && props.hasChanged?.('cityId')
+)
+
+const showLatestUpdateChangeIndicator = computed(() =>
+  props.showChangeIndicators && props.hasChanged?.('latestUpdateOn')
+)
+
+const showSourceUrlChangeIndicator = computed(() =>
+  props.showChangeIndicators && props.hasChanged?.('sourceUrl')
+)
+
 // AI : Computed error messages for each field
 const nameError = computed(() => getFieldError('name'))
 const descriptionError = computed(() => getFieldError('description'))
 const sourceUrlError = computed(() => getFieldError('sourceUrl'))
 const startDateError = computed(() => getFieldError('startDate'))
 const endDateError = computed(() => getFieldError('endDate'))
+const cityIdError = computed(() => getFieldError('cityId'))
 
 // AI : Date change handler - validates dates whenever they change
 function handleDateChange() {
@@ -339,9 +370,10 @@ function handleProposalDateChange() {
   validateFieldHelper('proposalDate')
 }
 
-// AI : Handle city ID updates from CitySelect (convert undefined to null)
+// AI : Handle city ID updates from CitySelect
 function handleCityIdUpdate(cityId: number | undefined) {
-  props.formData.cityId = cityId ?? null
+  // AI : Update local form data (will trigger watch to emit)
+  localFormData.value.cityId = cityId ?? null
   // AI : Emit city change event for parent components (e.g., to switch tile layer)
   emit('cityChange', cityId ?? null)
   // AI : Validate city field when it changes
@@ -388,26 +420,26 @@ function handleTimelineStatusChange(newIsProposed: boolean) {
   localIsProposed.value = newIsProposed
   emit('update:isProposed', newIsProposed)
 
-  // AI : Update form data based on timeline status
+  // AI : Update local form data based on timeline status
   if (newIsProposed) {
     // AI : Switching to proposed - clear planned dates
-    props.formData.startDate = null
-    props.formData.endDate = null
+    localFormData.value.startDate = null
+    localFormData.value.endDate = null
   } else {
     // AI : Switching to planned - clear proposal date
-    props.formData.proposalDate = null
+    localFormData.value.proposalDate = null
     // AI : Restore original dates if available
-    if (props.originalData?.startDate && !props.formData.startDate) {
-      props.formData.startDate = props.originalData.startDate
+    if (props.originalData?.startDate && !localFormData.value.startDate) {
+      localFormData.value.startDate = props.originalData.startDate
     }
-    if (props.originalData?.endDate && !props.formData.endDate) {
-      props.formData.endDate = props.originalData.endDate
+    if (props.originalData?.endDate && !localFormData.value.endDate) {
+      localFormData.value.endDate = props.originalData.endDate
     }
   }
 }
 
-// AI : Watch for city changes
-watch(() => props.formData.cityId, (newCityId) => {
+// AI : Watch for city changes in local form data
+watch(() => localFormData.value.cityId, (newCityId) => {
   emit('cityChange', newCityId)
 })
 

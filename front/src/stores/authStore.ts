@@ -4,6 +4,8 @@ import { trpc } from "../client";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useModerationStore } from "@/stores/pinia/moderationStore";
+import { useMapCleanup } from "@/composables/map/useMapCleanup";
 
 // AI : User type for our custom authentication
 interface User {
@@ -320,6 +322,7 @@ export const useAuthStore = defineStore("auth", () => {
       const mapStore = useMapStore();
       const projectStore = useProjectStore();
       const overlayStore = useOverlayStore();
+      const moderationStore = useModerationStore();
 
       // AI : Clear map state
       mapStore.clearCityProjectsCache();
@@ -329,6 +332,11 @@ export const useAuthStore = defineStore("auth", () => {
       // AI : Clear all project and overlay state
       projectStore.clearAllState();
       overlayStore.clearAllState();
+      moderationStore.clearAllState();
+
+      // AI : Clear visual map elements directly (no watcher needed)
+      const { clearMapOnLogout } = useMapCleanup();
+      clearMapOnLogout();
 
       if (response.ok) {
         return { success: true, error: null };
