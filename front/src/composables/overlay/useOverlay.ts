@@ -175,6 +175,7 @@ export function createLeafletOverlay(imageUrl: string, overlayObject?: OverlayOb
         ? corners.map((corner) => L.latLng(corner.lat, corner.lng))
         : undefined;
     const isEditMode = overlayStore.mode === "edit";
+
     const newOverlay = L.distortableImageOverlay(imageUrl, {
       editable: true,
       keyboard: false,
@@ -189,16 +190,17 @@ export function createLeafletOverlay(imageUrl: string, overlayObject?: OverlayOb
       //mode: 'resizeRotate' // doesn't work but should, it's an issue from the package
     });
 
-    // AI : Check if we should add overlay to map based on current zoom level
-    const MIN_ZOOM_FOR_OVERLAYS = 12;
-    const currentZoom = map.value.getZoom();
-    const shouldRenderOverlay = currentZoom >= MIN_ZOOM_FOR_OVERLAYS;
-
-    // IMPORTANT : this waits for any ongoing zoom animation to complete before adding overlay to prevent visual glitch
-    // This fixes the bug when zooming multiple levels past the render threshold at once
+    // AI : Always add overlay to map - visibility based on zoom is handled by useOverlayZoomHandler
+    // AI : This waits for any ongoing zoom animation to complete before adding to prevent visual glitches
     const addOverlayWhenReady = () => {
-      if (map.value && newOverlay && shouldRenderOverlay) {
-        newOverlay.addTo(map.value);
+      if (map.value && newOverlay) {
+        const currentZoom = map.value.getZoom();
+        const shouldShowImage = currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
+
+        // AI : Only add to map if zoom is appropriate (zoom handler will manage later changes)
+        if (shouldShowImage) {
+          newOverlay.addTo(map.value);
+        }
       }
     };
 

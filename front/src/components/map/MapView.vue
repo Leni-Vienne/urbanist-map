@@ -140,10 +140,9 @@ async function filterOverlaysByCompletionStatus() {
 watch(
   () => [overlayStore.mode, Object.keys(overlayStore.overlays).length] as const,
   async ([newMode, overlayCount], [oldMode]) => {
-    if (newMode !== 'view' && oldMode === 'view') {
-      // AI : Entering edit or moderation mode from view mode - clear view mode tracking
-      overlayStore.clearViewModeOverlays();
-    } else if (newMode === 'view' && overlayCount > 0) {
+    // AI : Viewport loading now handles mode switches - it preserves overlays and refetches data
+    // AI : We only need to apply filters when entering view mode
+    if (newMode === 'view' && overlayCount > 0) {
       // AI : Apply filters when entering view mode or when overlays change in view mode
       // AI : Use nextTick instead of setTimeout for proper async sequencing
       await nextTick();
