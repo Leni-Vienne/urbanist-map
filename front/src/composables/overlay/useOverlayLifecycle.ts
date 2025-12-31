@@ -8,6 +8,7 @@ import type { OverlayObject } from "@/types/index";
  */
 export function clearAllOverlays(): void {
   const overlayStore = useOverlayStore();
+  overlayStore.clearViewModeOverlays();
 
   if (!map.value) return;
 

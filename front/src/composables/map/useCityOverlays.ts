@@ -138,8 +138,10 @@ export async function loadCityOverlays(
   );
 }
 
-// AI : Common function to render overlay markers from overlay data
-function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void {
+/**
+ * AI : Common function to render overlay markers from overlay data
+ */
+export function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void {
   // AI : Clear view mode overlays state using store
   const overlayStore = useOverlayStore();
   overlayStore.clearViewModeOverlays();
