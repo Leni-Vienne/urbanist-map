@@ -1,15 +1,14 @@
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useUnsavedChanges } from "@/composables/core/useUnsavedChanges";
 import { onMounted, onUnmounted } from "vue";
 
 /**
  * AI : Composable to handle user wanting to close tab/window while there are unsaved overlays
  */
 export function useBeforeUnload() {
-  function checkForModifiedOverlays(): boolean {
-    const overlayStore = useOverlayStore();
-    if (overlayStore?.overlays == null) return false;
+  const { hasUnsavedChanges } = useUnsavedChanges();
 
-    return Object.values(overlayStore.overlays).some((overlay) => overlay.isModified === true);
+  function checkForModifiedOverlays(): boolean {
+    return hasUnsavedChanges();
   }
 
   function handleBeforeUnload(event: BeforeUnloadEvent) {

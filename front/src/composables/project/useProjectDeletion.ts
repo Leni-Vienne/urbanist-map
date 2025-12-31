@@ -3,11 +3,13 @@ import { useToast } from "@/composables/ui/useToast";
 import { useUserContributions } from "@/composables/project/useUserContributions";
 import { addStandaloneProjectMarkerForProject } from "@/composables/map/useStandaloneProjectMarkers";
 import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useUiStore } from "@/stores/uiStore";
 
 export function useProjectDeletion() {
   const toast = useToast();
   const { deleteOverlay, deleteProject } = useUserContributions();
   const projectStore = useProjectStore();
+  const uiStore = useUiStore();
 
   /**
    * AI : Delete an overlay with confirmation and auto-add standalone project marker if it's the last one
@@ -71,6 +73,10 @@ export function useProjectDeletion() {
 
     const success = await deleteProject(projectId);
     if (!success) return false;
+
+    if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === projectId) {
+      uiStore.closeProjectInfoPopup();
+    }
 
     onSuccess?.();
     return true;

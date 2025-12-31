@@ -1,6 +1,8 @@
-import { watch, type Ref } from "vue";
+import { watch } from "vue";
 import { useAuthStore } from "@/stores/authStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
+import { useUiStore } from "@/stores/uiStore";
 import { switchMode } from "@/composables/overlay/useOverlayModes";
 import type { MapMode } from "@shared/types";
 import type { PanelTab } from "@/types";
@@ -11,9 +13,8 @@ import type { PanelTab } from "@/types";
 function tabToMode(tab: PanelTab): MapMode {
   switch (tab) {
     case "latest":
-      return "view";
     case "currentCity":
-      // AI : Current city tab always shows view mode (approved overlays only)
+      // AI : View tabs always show view mode (approved overlays only)
       return "view";
     case "uploads":
       return "edit";
@@ -24,8 +25,9 @@ function tabToMode(tab: PanelTab): MapMode {
 
 /**
  * AI : Map overlay mode to tab
+ * AI : Returns the default tab for a given mode
  */
-function modeToTab(mode: MapMode): PanelTab {
+function modeToDefaultTab(mode: MapMode): PanelTab {
   switch (mode) {
     case "view":
       return "latest";
@@ -39,48 +41,71 @@ function modeToTab(mode: MapMode): PanelTab {
 /**
  * AI : Composable for managing panel tabs and mode synchronization
  * AI : Shared between SideMenu.vue and MobileDrawer.vue
+ * AI : Uses explicit actions instead of fragile watcher cascades
  */
-export function usePanelTabs(initialTab: Ref<PanelTab>) {
+export function usePanelTabs() {
   const authStore = useAuthStore();
   const overlayStore = useOverlayStore();
-
-  // AI : Flag to prevent infinite loops when syncing tab and mode
-  let isSyncing = false;
+  const uiStore = useUiStore();
+  const mapStore = useMapStore();
 
   /**
-   * AI : Watch activeTab and switch mode with full state machine transition
-   * AI : Now uses switchMode() for consistent data reloading across all UI elements
+   * AI : Explicit action to change the active tab
+   * AI : Syncs the appropriate map mode automatically
    */
-  watch(initialTab, async (newTab) => {
-    if (isSyncing) return;
-    isSyncing = true;
+  async function setActiveTab(newTab: PanelTab) {
+    // 1. Update UI state immediately
+    uiStore.setActiveTab(newTab);
 
-    const newMode = tabToMode(newTab);
+    // 2. Determine target mode
+    const targetMode = tabToMode(newTab);
 
-    if (overlayStore.mode !== newMode) {
-      // AI : Use unified switchMode function for proper data reload and cache invalidation
-      // AI : This ensures each mode displays the correct data (approved, user's own, or pending)
-      await switchMode(newMode);
+    // 3. Sync map mode if needed
+    if (overlayStore.mode !== targetMode) {
+      await switchMode(targetMode);
+    }
+  }
+
+  /**
+   * AI : Explicit action to change the map mode
+   * AI : Syncs the appropriate tab automatically
+   */
+  function setMapMode(newMode: MapMode) {
+    // 1. Sync map mode is handled by component calling this (usually via switchMode direct call)
+    // but explicit call here would be redundant if called from ModeControls which calls switchMode.
+
+    // AI : Logic to determine which tab to switch to
+    let targetTab: PanelTab = "latest";
+
+    if (newMode === "view") {
+      // AI : Smart switch for View Mode
+      if (uiStore.activeTab === "currentCity" || uiStore.activeTab === "latest") {
+        // AI : Already in a view-compatible tab, don't change it!
+        return;
+      }
+      // AI : Default to Current City if a city is selected, otherwise Latest
+      targetTab = mapStore.selectedCity ? "currentCity" : "latest";
+    } else {
+      // AI : For Edit/Moderation, use fixed mapping
+      targetTab = modeToDefaultTab(newMode);
     }
 
-    isSyncing = false;
-  });
+    // 2. Update UI state if different
+    if (uiStore.activeTab !== targetTab) {
+      uiStore.setActiveTab(targetTab);
+    }
+  }
 
   /**
-   * AI : Watch mode and sync activeTab
+   * AI : Watch for map mode changes from other sources (e.g. ModeControls)
+   * AI : This ensures Tabs update even if mode is changed via map buttons
    */
   watch(
     () => overlayStore.mode,
     (newMode) => {
-      if (isSyncing) return;
-      isSyncing = true;
-
-      const newTab = modeToTab(newMode);
-      if (initialTab.value !== newTab) {
-        initialTab.value = newTab;
-      }
-
-      isSyncing = false;
+      // AI : We still need to react to external mode changes,
+      // but we use the smart logic in setMapMode to avoid overwriting "Current City"
+      setMapMode(newMode);
     },
   );
 
@@ -92,9 +117,9 @@ export function usePanelTabs(initialTab: Ref<PanelTab>) {
     (isAuthenticated) => {
       if (
         !isAuthenticated &&
-        (initialTab.value === "uploads" || initialTab.value === "moderation")
+        (uiStore.activeTab === "uploads" || uiStore.activeTab === "moderation")
       ) {
-        initialTab.value = "latest";
+        setActiveTab("latest");
       }
     },
   );
@@ -105,15 +130,32 @@ export function usePanelTabs(initialTab: Ref<PanelTab>) {
   watch(
     () => authStore.isModerator,
     (isModerator) => {
-      if (!isModerator && initialTab.value === "moderation") {
-        initialTab.value = "latest";
+      if (!isModerator && uiStore.activeTab === "moderation") {
+        setActiveTab("latest");
+      }
+    },
+  );
+
+  /**
+   * AI : Watch for overlay selection and auto-switch to Current City tab (only in view mode)
+   */
+  watch(
+    () => overlayStore.idSelectedOverlay,
+    (overlayId) => {
+      if (overlayId && mapStore.selectedCity && overlayStore.mode === "view") {
+        // AI : Explicitly switch to Current City tab
+        // AI : No need to call setActiveTab (which triggers switchMode) because we are already in view mode
+        // AI : But for consistency we can use uiStore directly or our action
+        if (uiStore.activeTab !== "currentCity") {
+          uiStore.setActiveTab("currentCity");
+        }
       }
     },
   );
 
   return {
     authStore,
-    tabToMode,
-    modeToTab,
+    setActiveTab,
+    // AI : Expose internal helpers if needed, but primary interface is setActiveTab
   };
 }
