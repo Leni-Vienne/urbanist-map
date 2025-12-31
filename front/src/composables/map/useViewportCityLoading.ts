@@ -1,4 +1,4 @@
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import { map } from "@/composables/core/useMap";
 import { debounce } from "@/utils/debounce";
 import type { CityWithProjects } from "@/composables/map/useCityMarkers";
@@ -14,15 +14,21 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { renderViewModeOverlays } from "@/composables/overlay/useOverlay";
 import { useCompletionFilters } from "@/composables/overlay/useCompletionFilters";
 import type { OverlayData } from "@/types/index";
+import { MAP_CONFIG } from "@/constants/mapConstants";
+import { checkZoomAndHideOverlays } from "@/composables/map/useCityOverlays";
 
 // AI : Zoom threshold - only load projects when zoomed in past this level
-const VIEWPORT_ZOOM_THRESHOLD = 10;
 
 // AI : Debounce delay for viewport changes (ms)
 const VIEWPORT_DEBOUNCE_MS = 500;
 
 // AI : Track currently loaded city IDs to avoid unnecessary reloads
 const loadedCityIds = ref(new Set<number>());
+
+// AI : Track previous zoom state to detect threshold crossings
+let wasAboveViewportThreshold = false;
+let wasAboveImageThreshold = false; // NEW: track image threshold separately
+let previousMode: "view" | "edit" | "moderation" = "view"; // Track mode changes
 
 // AI : Loading state for viewport-based loading
 export const isLoadingViewport = ref(false);
@@ -104,39 +110,62 @@ async function handleViewportChange(): Promise<void> {
 
   const currentZoom = map.value.getZoom();
 
+  // AI : Check if we crossed the viewport threshold (important for reload after zoom out/in)
+  const isAboveViewportThreshold = currentZoom >= MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD;
+  const crossedViewportThreshold = wasAboveViewportThreshold !== isAboveViewportThreshold;
+
+  // AI : Check if we crossed the image threshold (markers ↔ full images)
+  const isAboveImageThreshold = currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
+  const crossedImageThreshold = wasAboveImageThreshold !== isAboveImageThreshold;
+
   // AI : If zoomed out below threshold, clear all loaded cities
-  if (currentZoom < VIEWPORT_ZOOM_THRESHOLD) {
+  if (currentZoom < MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD) {
     if (loadedCityIds.value.size > 0) {
       removeOverlayMarkers();
       clearAllOverlays();
       clearAllStandaloneProjectMarkers();
       loadedCityIds.value.clear();
     }
+    wasAboveViewportThreshold = false;
+    wasAboveImageThreshold = false;
     return;
   }
+
+  // AI : Update threshold states for next check
+  wasAboveViewportThreshold = true;
+  wasAboveImageThreshold = isAboveImageThreshold;
+
+  // AI : Check if mode changed (view ↔ edit)
+  const overlayStore = useOverlayStore();
+  const currentMode = overlayStore.mode;
+  const modeChanged = previousMode !== currentMode;
+  previousMode = currentMode;
 
   // AI : Get cities within current viewport bounds
   const citiesInViewport = getCitiesInViewport();
   const viewportCityIds = new Set(citiesInViewport.map((c) => c.id));
 
-  // AI : Build set of cities to keep
+  // AI : Start with cities currently in viewport
   const currentLoadedIds = new Set(loadedCityIds.value);
   const citiesToKeep = new Set<number>();
 
-  // AI : Add cities with markers in viewport
-  viewportCityIds.forEach((id) => citiesToKeep.add(id));
+  // AI : CRITICAL: If mode changed, keep ALL currently loaded cities
+  // AI : This prevents clearing when zoomed close (city marker off-screen but content visible)
+  if (modeChanged && currentLoadedIds.size > 0) {
+    currentLoadedIds.forEach((id) => citiesToKeep.add(id));
+  } else {
+    // AI : Normal case: add cities with markers in viewport
+    viewportCityIds.forEach((id) => citiesToKeep.add(id));
+  }
 
-  // AI : CRITICAL: Check ALL currently loaded cities for visible content
-  // AI : This handles the case when zooming very close - city marker is out of view
-  // AI : but overlay content is still visible
+  // AI : Also keep cities that have visible content even if marker is outside viewport
   for (const cityId of currentLoadedIds) {
     if (cityHasContentInViewport(cityId)) {
       citiesToKeep.add(cityId);
     }
   }
 
-  // AI : Also check nearby cities (within expanded bounds) for visible content
-  // AI : This handles panning back to areas with overlays
+  // AI : Expand search bounds to include nearby cities with visible content
   if (map.value) {
     const bounds = map.value.getBounds();
     const expandedBounds = bounds.pad(0.5); // Expand by 50% in each direction
@@ -156,14 +185,33 @@ async function handleViewportChange(): Promise<void> {
     }
   }
 
-  // AI : Check if the set of cities has changed
+  // AI : Check if the set of cities has changed OR if we crossed viewport/image thresholds OR mode changed
   const hasChanges =
     citiesInViewport.some((city) => !currentLoadedIds.has(city.id)) ||
     [...currentLoadedIds].some((id) => !citiesToKeep.has(id)) ||
-    [...citiesToKeep].some((id) => !currentLoadedIds.has(id)); // Cities to load that aren't loaded yet
+    [...citiesToKeep].some((id) => !currentLoadedIds.has(id)) || // Cities to load that aren't loaded yet
+    crossedViewportThreshold || // Reload when crossing viewport threshold
+    crossedImageThreshold || // Re-render when crossing image threshold
+    modeChanged; // NEW: Re-render when mode changes
 
   if (hasChanges) {
-    // AI : Clear everything before loading new cities
+    // AI : Check if ONLY mode changed (no city/zoom changes)
+    // AI : If so, don't clear overlays - just refetch to update visibility/permissions
+    const citiesAreSame =
+      citiesToKeep.size === currentLoadedIds.size &&
+      [...citiesToKeep].every((id) => currentLoadedIds.has(id));
+
+    const onlyModeChanged =
+      modeChanged && !crossedViewportThreshold && !crossedImageThreshold && citiesAreSame; // Same cities = don't destroy overlays
+
+    if (onlyModeChanged) {
+      // AI : CRITICAL: When only mode changes, don't reload anything
+      // AI : The existing overlays are fine - mode change just affects visibility/permissions
+      // AI : Reloading causes flicker and complexity with timing issues
+      return; // Exit early, keep everything as-is
+    }
+
+    // AI : Cities or zoom changed - clear and reload everything
     removeOverlayMarkers();
     clearAllOverlays();
     clearAllStandaloneProjectMarkers();
@@ -190,8 +238,25 @@ async function handleViewportChange(): Promise<void> {
         const overlayStore = useOverlayStore();
         overlayStore.setViewModeOverlays(visibleOverlays);
 
-        // AI : Render all overlays at once
-        renderViewModeOverlays(visibleOverlays, true, true);
+        // AI : Decide what to render based on current zoom (matches pattern from loadCityOverlays)
+        const currentZoom = map.value.getZoom();
+        const shouldShowFullOverlays = currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
+
+        if (shouldShowFullOverlays) {
+          // AI : Zoom is high enough - render full overlay images
+          // AI : Remove overlay markers first (matches pattern from loadCityOverlays)
+          const { removeOverlayMarkers } = await import("@/composables/map/useCityOverlays");
+          removeOverlayMarkers();
+
+          // AI : If only mode changed, don't force re-render (preserves existing overlays)
+          // AI : Otherwise force re-render to ensure fresh state
+          renderViewModeOverlays(visibleOverlays, true, !onlyModeChanged);
+        } else {
+          // AI : Zoom too low - render overlay markers only (no images)
+          const { renderOverlayMarkersFromData } =
+            await import("@/composables/map/useCityOverlays");
+          renderOverlayMarkersFromData(visibleOverlays);
+        }
 
         // AI : Only render standalone markers for projects WITHOUT overlays
         const projectIdsWithOverlays = new Set(
@@ -228,9 +293,22 @@ export function initializeViewportCityLoading(): void {
     return;
   }
 
-  // AI : Listen for zoom and pan end events
-  map.value.on("zoomend", debouncedHandleViewportChange);
+  // AI : Handle zoom immediately (no debounce) - zoom is discrete, user stops on specific levels
+  // AI : This prevents missing cities when zooming quickly past the threshold
+  map.value.on("zoomend", handleViewportChange);
+
+  // AI : Debounce pan events - panning is continuous and can fire very frequently
   map.value.on("moveend", debouncedHandleViewportChange);
+
+  // AI : Watch for mode changes and trigger viewport reload
+  // AI : Mode changes don't fire map events, so we need a separate watcher
+  const overlayStore = useOverlayStore();
+  watch(
+    () => overlayStore.mode,
+    () => {
+      handleViewportChange();
+    },
+  );
 
   // AI : Initial check in case we're already zoomed in
   handleViewportChange();
@@ -242,7 +320,7 @@ export function initializeViewportCityLoading(): void {
 export function cleanupViewportCityLoading(): void {
   if (!map.value) return;
 
-  map.value.off("zoomend", debouncedHandleViewportChange);
+  map.value.off("zoomend", handleViewportChange);
   map.value.off("moveend", debouncedHandleViewportChange);
 
   // AI : Clear loaded cities

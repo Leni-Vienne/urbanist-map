@@ -1,6 +1,7 @@
 // AI : Overlay mode management - orchestrates edit/view mode switching using state machine
 import { ref, watch, toRef } from "vue";
 import type L from "leaflet";
+import { MAP_CONFIG } from "@/constants/mapConstants";
 import { map, currentZoomLevel } from "@/composables/core/useMap";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -44,7 +45,6 @@ import { updateOverlayEditingState } from "@/composables/overlay/useOverlay";
 import { getOverlayBounds } from "@/composables/overlay/useOverlayMarkers";
 import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
 import { storeToRefs } from "pinia";
-import { MAP_CONFIG } from "@/constants/mapConstants";
 import { mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
 import { clearChangeRequestPreview } from "@/composables/overlay/changeRequestPreviewState";
 import { useToast } from "@/composables/ui/useToast";
@@ -120,6 +120,12 @@ function performFullRender(newState: OverlayModeState, transition: StateTransiti
   const selectedCity = getSelectedCity();
 
   if (!selectedCity || !newState.selectedCityId) {
+    // AI : If no city is selected, check if we are in viewport mode (high zoom)
+    // AI : If so, viewport loading handles the content, so DON'T clear it
+    if (map.value && map.value.getZoom() >= MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD) {
+      return;
+    }
+
     clearAllRenderedContent();
     return;
   }
