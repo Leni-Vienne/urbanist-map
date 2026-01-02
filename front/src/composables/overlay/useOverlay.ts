@@ -545,6 +545,9 @@ function setupOverlayMovementTracking(
         // AI : Final marker position update
         updateMarkerPosition(overlayObject);
 
+        // AI : Save changes to history and edit cache so they persist through zoom changes
+        saveToHistory(overlayObject);
+
         // AI : Update only this overlay's marker color (optimization: avoid recalculating all overlays)
         updateOverlayMarkersColors(toRef(overlayStore, "overlays"), overlayObject.id);
       }
