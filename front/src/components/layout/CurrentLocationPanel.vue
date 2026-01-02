@@ -103,8 +103,9 @@ import { useMapStore } from '@/stores/pinia/mapStore'
 import { useOverlayStore } from '@/stores/pinia/overlayStore'
 import { useProjectStore } from '@/stores/pinia/projectStore'
 import { useOverlayClickHandler } from '@/composables/overlay/useOverlayClickHandler'
-import { isValidCountryCode } from '@/composables/map/useCountryMarkers'
-import { flyToCountry } from '@/composables/map/useMapNavigation'
+import { isValidCountryCode } from '@/composables/map/useCountryData'
+import { flyToCountry, mobileAwareFlyTo } from '@/composables/map/useMapNavigation'
+import { map } from '@/composables/core/useMap'
 import { useAccordionState } from '@/composables/layout/useAccordionState'
 import { useAddOverlay } from '@/composables/overlay/useAddOverlay'
 import { loadCityProjects, citiesWithProjects, type CityWithProjects } from '@/composables/map/useCityMarkers'
@@ -169,8 +170,6 @@ async function handleCityClick(city: { id: number; name: string; nameLocal: stri
   })
 
   // AI : Fly to the city (same behavior as city marker click)
-  const { map } = await import('@/composables/core/useMap')
-  const { mobileAwareFlyTo } = await import('@/composables/map/useMapNavigation')
   if (map.value && map.value.getZoom() < 14) {
     mobileAwareFlyTo([city.lat, city.lng], 14, {
       duration: 1.5,

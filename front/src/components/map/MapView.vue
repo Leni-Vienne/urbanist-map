@@ -51,8 +51,8 @@ import { removeOverlayFromMap } from '@/composables/overlay/useOverlayRemoval';
 import { useToast } from '@/composables/ui/useToast';
 import { useI18n } from 'vue-i18n';
 import { updateOverlayMarkersForFilters } from '@/composables/map/useCityOverlays';
-// AI : Load countries for breadcrumbs, but don't show country markers
-import { loadCountriesWithProjects } from '@/composables/map/useCountryMarkers';
+// AI : Load countries for breadcrumbs (no marker rendering)
+import { loadCountriesWithProjects } from '@/composables/map/useCountryData';
 import { initializeOverlayModes } from '@/composables/overlay/useOverlayModes';
 import { loadCityStandaloneProjects, loadAllCityMarkersGlobally, fetchCityDataForViewport } from '@/composables/map/useCityMarkers';
 import { initializeViewportCityLoading, setAllCityMarkers, cleanupViewportCityLoading } from '@/composables/map/useViewportCityLoading';
