@@ -1,21 +1,27 @@
 import { ref, watch } from "vue";
+import L from "leaflet";
 import { map } from "@/composables/core/useMap";
 import { debounce } from "@/utils/debounce";
 import type { CityWithProjects } from "@/composables/map/useCityMarkers";
 import { fetchCityDataForViewport } from "@/composables/map/useCityMarkers";
-import { removeOverlayMarkers } from "@/composables/map/useCityOverlays";
+import {
+  removeOverlayMarkers,
+  renderOverlayMarkersFromData,
+} from "@/composables/map/useCityOverlays";
 import { clearAllOverlays } from "@/composables/overlay/useOverlayLifecycle";
 import {
   clearAllStandaloneProjectMarkers,
   addStandaloneProjectMarkerForProject,
+  removeStandaloneProjectMarkerForProject,
+  getStandaloneProjectMarkerMap,
+  getStandaloneProjectMarkerByProjectId,
 } from "@/composables/map/useStandaloneProjectMarkers";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { renderViewModeOverlays } from "@/composables/overlay/useOverlay";
 import { useCompletionFilters } from "@/composables/overlay/useCompletionFilters";
-import type { OverlayData } from "@/types/index";
+import type { OverlayData, OverlayObject } from "@/types/index";
 import { MAP_CONFIG } from "@/constants/mapConstants";
-import { checkZoomAndHideOverlays } from "@/composables/map/useCityOverlays";
 
 // AI : Zoom threshold - only load projects when zoomed in past this level
 
@@ -66,34 +72,80 @@ function cityHasContentInViewport(cityId: number): boolean {
 
   const bounds = map.value.getBounds();
   const mapStore = useMapStore();
+  const overlayStore = useOverlayStore();
 
-  // AI : Check if any overlays from this city are in the cache
-  const overlays = mapStore.getCityOverlaysAndProjectsCache(cityId, useOverlayStore().mode);
-  if (overlays) {
-    // AI : Check if ANY corner of any overlay is within bounds
-    // AI : This is better than just checking centroid - works when zoomed very close
-    for (const overlay of overlays) {
-      if (overlay.corners) {
-        // AI : Check all 4 corners - if any is visible, keep the city loaded
-        for (const corner of overlay.corners) {
-          if (corner.lat && corner.lng && bounds.contains([corner.lat, corner.lng])) {
-            return true;
-          }
+  // Helper to check intersection for a set of corners
+  const checkIntersection = (corners: { lat: number; lng: number }[] | undefined | null) => {
+    if (corners && corners.length > 0) {
+      const overlayBounds = L.latLngBounds(corners.map((c) => [c.lat, c.lng] as [number, number]));
+      if (bounds.intersects(overlayBounds)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // 1. Check cached overlays (persistent content)
+  // We prefer live data (active overlay or edit cache) over stored backend data
+  const cachedOverlays = mapStore.getCityOverlaysAndProjectsCache(cityId, overlayStore.mode);
+  if (cachedOverlays) {
+    for (const cachedOverlay of cachedOverlays) {
+      // Check for active override
+      const activeOverlay = overlayStore.overlays[cachedOverlay.id];
+      let corners = cachedOverlay.corners; // Default from cache
+
+      if (activeOverlay?.overlay) {
+        // Active and rendered - use actual bounds
+        corners = activeOverlay.overlay.getCorners();
+      } else {
+        // Check edit cache for modifications
+        const editCache = overlayStore.getFromEditModeCache(cachedOverlay.id);
+        if (editCache?.corners) {
+          corners = editCache.corners;
         }
       }
+
+      if (checkIntersection(corners)) return true;
     }
   }
 
-  // AI : Check if any standalone projects from this city are in bounds
-  const projects = mapStore.getCityStandaloneProjectsCache(cityId, useOverlayStore().mode);
-  if (projects) {
-    for (const project of projects) {
-      // AI : lat/lng can be null for projects without coordinates
-      if (
-        project.lat !== null &&
-        project.lng !== null &&
-        bounds.contains([project.lat, project.lng])
-      ) {
+  // 2. Check active overlays (covering brand new items not in cache)
+  // iterate active active overlays to catch new ones
+  const activeOverlays = Object.values(overlayStore.overlays) as OverlayObject[];
+  for (const overlay of activeOverlays) {
+    if ((overlay as any).cityId === cityId) {
+      // We might have already checked this if it was in cache, but checking again is cheap enough
+      // and ensures we catch new local overlays
+      let corners = overlay.corners;
+      if (overlay.overlay) {
+        corners = overlay.overlay.getCorners();
+      } else {
+        const editCache = overlayStore.getFromEditModeCache(overlay.id);
+        if (editCache?.corners) corners = editCache.corners;
+      }
+
+      if (checkIntersection(corners)) return true;
+    }
+  }
+
+  // 3. Check standalone projects
+  const cachedProjects = mapStore.getCityStandaloneProjectsCache(cityId, overlayStore.mode);
+  if (cachedProjects) {
+    for (const project of cachedProjects) {
+      // Check for active marker override (if dragged/moved)
+      // Note: Standalone projects aren't typically draggable in the same way, but
+      // this ensures consistency if we add that feature or if markers are offset
+      const marker = getStandaloneProjectMarkerByProjectId(project.id);
+      let lat = project.lat;
+      let lng = project.lng;
+
+      if (marker) {
+        const markerLatLng = marker.getLatLng();
+        lat = markerLatLng.lat;
+        lng = markerLatLng.lng;
+      }
+
+      if (lat !== null && lng !== null && bounds.contains([lat, lng])) {
         return true;
       }
     }
@@ -211,11 +263,12 @@ async function handleViewportChange(): Promise<void> {
       return; // Exit early, keep everything as-is
     }
 
-    // AI : Cities or zoom changed - clear and reload everything
-    removeOverlayMarkers();
-    clearAllOverlays();
-    clearAllStandaloneProjectMarkers();
-    loadedCityIds.value.clear();
+    // AI : Cities or zoom changed - reload viewport content
+    // AI : NOTE: We defer clearing logic to AFTER loading to prevent visual flickering
+    // removeOverlayMarkers();
+    // clearAllOverlays();
+    // clearAllStandaloneProjectMarkers();
+    // loadedCityIds.value.clear();
 
     // AI : Load ALL cities that should be visible (marker in viewport OR content in viewport)
     if (citiesToKeep.size > 0) {
@@ -234,50 +287,96 @@ async function handleViewportChange(): Promise<void> {
         const filters = useCompletionFilters();
         const visibleOverlays = filters.filterByCompletionStatus(allOverlays) as OverlayData[];
 
-        // AI : Set view mode overlays in store
-        const overlayStore = useOverlayStore();
-        overlayStore.setViewModeOverlays(visibleOverlays);
-
-        // AI : Decide what to render based on current zoom (matches pattern from loadCityOverlays)
+        // AI : DECISION: What to render based on current zoom
         const currentZoom = map.value.getZoom();
         const shouldShowFullOverlays = currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
 
-        if (shouldShowFullOverlays) {
-          // AI : Zoom is high enough - render full overlay images
-          // AI : Remove overlay markers first (matches pattern from loadCityOverlays)
-          const { removeOverlayMarkers } = await import("@/composables/map/useCityOverlays");
-          removeOverlayMarkers();
+        // AI : 1. Sync Overlays (Full Images vs Markers)
+        syncOverlays(visibleOverlays, shouldShowFullOverlays, onlyModeChanged);
 
-          // AI : If only mode changed, don't force re-render (preserves existing overlays)
-          // AI : Otherwise force re-render to ensure fresh state
-          renderViewModeOverlays(visibleOverlays, true, !onlyModeChanged);
-        } else {
-          // AI : Zoom too low - render overlay markers only (no images)
-          const { renderOverlayMarkersFromData } =
-            await import("@/composables/map/useCityOverlays");
-          renderOverlayMarkersFromData(visibleOverlays);
-        }
+        // AI : 2. Sync Standalone Project Markers (for empty projects)
+        await syncStandaloneProjects(allProjects, allOverlays);
 
-        // AI : Only render standalone markers for projects WITHOUT overlays
-        const projectIdsWithOverlays = new Set(
-          allOverlays.map((o: any) => o.projectId).filter(Boolean),
-        );
-        const standaloneProjects = allProjects.filter(
-          (project: any) => !projectIdsWithOverlays.has(project.id),
-        );
-
-        // AI : Render standalone project markers
-        standaloneProjects.forEach((project: any) => {
-          addStandaloneProjectMarkerForProject(project);
-        });
-
-        // AI : Mark all cities as loaded
-        citiesToKeep.forEach((cityId) => loadedCityIds.value.add(cityId));
+        // AI : Update loadedCityIds finally (Replace the set instead of just adding)
+        loadedCityIds.value = new Set(citiesToKeep);
       } finally {
         isLoadingViewport.value = false;
       }
     }
   }
+}
+
+/**
+ * AI : Sync overlays based on zoom level (Full Images vs Markers)
+ * AI : Handles exact differential updates to avoid flickering
+ */
+function syncOverlays(
+  visibleOverlays: OverlayData[],
+  shouldShowFullOverlays: boolean,
+  onlyModeChanged: boolean,
+) {
+  const overlayStore = useOverlayStore();
+
+  if (shouldShowFullOverlays) {
+    // AI : Zoom is high enough - render full overlay images
+
+    // AI : 1. Render new view mode overlays (this updates existing ones and adds new ones)
+    // AI : We do this BEFORE removing old ones to ensure seamless transition
+    // AI : setViewModeOverlays updates the store, renderViewModeOverlays updates the map
+    overlayStore.setViewModeOverlays(visibleOverlays);
+    renderViewModeOverlays(visibleOverlays, true, !onlyModeChanged);
+
+    // AI : 2. Remove "dumb" overlay markers since we now show full overlays
+    removeOverlayMarkers();
+
+    // AI : 3. Remove overlays that are no longer visible (from unloaded cities or filtered out)
+    // AI : Identify specific overlays to remove instead of clearing all
+    const visibleOverlayIds = new Set(visibleOverlays.map((o) => o.id));
+    const currentOverlays = overlayStore.overlays;
+
+    Object.keys(currentOverlays).forEach((id) => {
+      if (!visibleOverlayIds.has(id)) {
+        overlayStore.removeOverlay(id);
+      }
+    });
+  } else {
+    // AI : Zoom too low - render overlay markers only (no images)
+
+    // AI : 1. Render overlay markers first
+    // AI : This handles both adding new markers and clearing the old marker layer internally
+    renderOverlayMarkersFromData(visibleOverlays);
+
+    // AI : 2. Clear full overlays as they are replaced by markers
+    clearAllOverlays();
+  }
+}
+
+/**
+ * AI : Sync standalone project markers (projects without overlays)
+ * AI : Handles differential updates to avoid flickering
+ */
+async function syncStandaloneProjects(allProjects: any[], allOverlays: any[]) {
+  // AI : Only render standalone markers for projects WITHOUT overlays
+  const projectIdsWithOverlays = new Set(allOverlays.map((o: any) => o.projectId).filter(Boolean));
+  const standaloneProjects = allProjects.filter(
+    (project: any) => !projectIdsWithOverlays.has(project.id),
+  );
+
+  // AI : SYNC logic: Remove old markers that aren't in the new list, add new ones
+  const currentMarkers = getStandaloneProjectMarkerMap();
+  const newProjectIds = new Set(standaloneProjects.map((p: any) => p.id));
+
+  // 1. Remove markers not in new list
+  currentMarkers.forEach((_, projectId) => {
+    if (!newProjectIds.has(projectId)) {
+      removeStandaloneProjectMarkerForProject(projectId);
+    }
+  });
+
+  // 2. Add new markers
+  standaloneProjects.forEach((project: any) => {
+    addStandaloneProjectMarkerForProject(project);
+  });
 }
 
 // AI : Debounced version of viewport change handler
