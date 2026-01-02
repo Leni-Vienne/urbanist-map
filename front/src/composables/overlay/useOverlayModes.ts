@@ -32,11 +32,7 @@ import {
   addCityMarkersForCountry,
   updateAllStandaloneProjectMarkerColors,
 } from "@/composables/map/useCityMarkers";
-import {
-  loadCountriesWithProjects,
-  loadCitiesForCountry,
-  addCountryMarkersToMap,
-} from "@/composables/map/useCountryMarkers";
+import { loadCountriesWithProjects, loadCitiesForCountry } from "@/composables/map/useCountryData";
 import { navigateToStandaloneProject } from "@/composables/navigation/useOverlayNavigation";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -304,17 +300,11 @@ export async function switchMode(
       // AI : Update standalone project marker colors immediately after mode switch
       updateAllStandaloneProjectMarkerColors();
 
-      // AI : Load countries first (required for reloadCitiesAndMarkers)
-      await loadCountriesWithProjects();
-
-      // AI : Then reload city markers if a country is selected
+      // AI : Reload city markers if a country is selected
       const countryCode = mapStore.selectedCountryCode;
       if (countryCode) {
         await reloadCitiesAndMarkers(countryCode);
       }
-
-      // AI : Add country markers after both requests complete
-      addCountryMarkersToMap();
 
       // AI : If project popup was open for a standalone project, auto-select first overlay from that project
       // AI : This provides continuity when switching from view mode (with project marker popup) to edit/moderation mode
