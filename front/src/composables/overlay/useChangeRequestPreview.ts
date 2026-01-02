@@ -12,7 +12,7 @@ import {
 } from "@/composables/overlay/useOverlayMarkers";
 import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
 import { loadCityProjects } from "@/composables/map/useCityMarkers";
-import { prepareCountryContext } from "@/composables/map/useCountryMarkers";
+import { loadCitiesForCountry, clearAllMapContent } from "@/composables/map/useCountryData";
 import { switchMode } from "@/composables/overlay/useOverlayModes";
 import { mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
 import { prepareCrossCountryFlight } from "@/composables/map/useTileLayers";
@@ -123,8 +123,11 @@ export function useChangeRequestPreview() {
     // AI : Step 2: Prepare for cross-country flight (switches to esri if needed)
     const switchToCountryLayer = prepareCrossCountryFlight(overlayForModeration.countryCode);
 
-    // AI : Step 3: Prepare country context (clear map, load cities, add markers)
-    await prepareCountryContext(overlayForModeration.countryCode);
+    // AI : Step 3: Clear map and load cities for the country
+    clearAllMapContent();
+    const mapStore = useMapStore();
+    mapStore.selectedCountryCode = overlayForModeration.countryCode;
+    await loadCitiesForCountry(overlayForModeration.countryCode);
 
     // AI : Step 4: Navigate to overlay position
     const targetBounds = L.latLngBounds(targetCorners);
