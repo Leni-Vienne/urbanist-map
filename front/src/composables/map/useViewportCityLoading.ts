@@ -257,10 +257,21 @@ async function handleViewportChange(): Promise<void> {
       modeChanged && !crossedViewportThreshold && !crossedImageThreshold && citiesAreSame; // Same cities = don't destroy overlays
 
     if (onlyModeChanged) {
-      // AI : CRITICAL: When only mode changes, don't reload anything
-      // AI : The existing overlays are fine - mode change just affects visibility/permissions
-      // AI : Reloading causes flicker and complexity with timing issues
-      return; // Exit early, keep everything as-is
+      // AI : CRITICAL: When only mode changes, pre-fetch and cache data for new mode
+      // AI : This populates the cache WITHOUT re-rendering (prevents flicker)
+      // AI : When user zooms later, data will already be cached
+      isLoadingViewport.value = true;
+      try {
+        // AI : Fetch data from all loaded cities in parallel (cache population only)
+        await Promise.all(
+          Array.from(citiesToKeep).map((cityId) => fetchCityDataForViewport(cityId)),
+        );
+        // AI : Data is now cached via fetchCityDataForViewport's internal caching
+        // AI : Don't re-render anything - existing overlays stay as-is
+      } finally {
+        isLoadingViewport.value = false;
+      }
+      return; // Exit early, keep visual state as-is
     }
 
     // AI : Cities or zoom changed - reload viewport content
