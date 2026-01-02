@@ -323,7 +323,13 @@ export function useUserContributions() {
     cityId?: number;
     includeCityProjects?: boolean;
   }) {
-    if (projectStore.userContributionsLoaded) {
+    // AI : Generate cache key from parameters
+    const cacheKey = `${options?.cityId ?? null}:${options?.includeCityProjects ?? false}`;
+
+    // AI : Check if we already have this data cached
+    if (projectStore.userContributionsCache.has(cacheKey)) {
+      // AI : Load from cache
+      projectStore.userContributions = projectStore.userContributionsCache.get(cacheKey) ?? [];
       return;
     }
 
@@ -340,7 +346,7 @@ export function useUserContributions() {
       );
 
       if (result) {
-        projectStore.setUserContributions(result.projects);
+        projectStore.setUserContributions(result.projects, cacheKey);
       }
     } finally {
       projectStore.setUserContributionsLoading(false);
