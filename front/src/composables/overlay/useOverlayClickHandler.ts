@@ -5,7 +5,6 @@ import {
 import { navigateToOverlay } from "@/composables/overlay/useOverlay";
 import { switchMode } from "@/composables/overlay/useOverlayModes";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
 import { useToast } from "@/composables/ui/useToast";
 import { trpc } from "@/client";
 import type { OverlayForModeration, LatestContribution } from "@/types/index";
@@ -35,7 +34,6 @@ export function useOverlayClickHandler() {
   ): Promise<void> {
     try {
       const overlayStore = useOverlayStore();
-      const mapStore = useMapStore();
 
       // AI : For rejected or replaced overlays, navigate to project coordinates instead
       if (overlay.status === "rejected" || overlay.status === "replaced") {

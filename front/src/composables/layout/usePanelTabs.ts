@@ -75,7 +75,7 @@ export function usePanelTabs() {
     // but explicit call here would be redundant if called from ModeControls which calls switchMode.
 
     // AI : Logic to determine which tab to switch to
-    let targetTab: PanelTab = "latest";
+    let targetTab: PanelTab;
 
     if (newMode === "view") {
       // AI : Smart switch for View Mode
