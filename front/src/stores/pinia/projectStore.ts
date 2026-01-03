@@ -48,10 +48,11 @@ export const useProjectStore = defineStore("project", () => {
   const nearbyProjectsError = ref<string | null>(null);
   const nearbyProjectsLastFetch = ref<{ lat: number; lng: number; timestamp: number } | null>(null);
 
-  // AI : User contributions cache - simple loaded flag
+  // AI : User contributions cache - Map-based cache for different parameter combinations
   const userContributions = ref<UserContribution[]>([]);
   const userContributionsLoading = ref(false);
-  const userContributionsLoaded = ref(false);
+  // AI : Cache key format: "cityId:includeCityProjects" (e.g., "null:false", "3029241:true")
+  const userContributionsCache = ref<Map<string, UserContribution[]>>(new Map());
 
   // AI : Cache original backend projects for change detection
   // AI : Stores snapshots of approved projects before local modifications
@@ -139,10 +140,20 @@ export const useProjectStore = defineStore("project", () => {
     },
   });
 
+  // AI : Helper to generate cache key from parameters (exported for use in composables)
+  const getUserContributionsCacheKey = (options?: {
+    cityId?: number;
+    includeCityProjects?: boolean;
+  }): string => {
+    const cityId = options?.cityId ?? null;
+    const includeCityProjects = options?.includeCityProjects ?? false;
+    return `${cityId}:${includeCityProjects}`;
+  };
+
   // AI : User contributions actions
-  function setUserContributions(contributions: UserContribution[]) {
+  function setUserContributions(contributions: UserContribution[], cacheKey: string) {
     userContributions.value = contributions;
-    userContributionsLoaded.value = true;
+    userContributionsCache.value.set(cacheKey, contributions);
 
     // AI : Cache original backend state for change detection (only if not already cached)
     contributions.forEach((contribution) => {
@@ -160,8 +171,15 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   // AI : Reset user contributions cache to force refresh on next load
-  function resetUserContributions() {
-    userContributionsLoaded.value = false;
+  function resetUserContributions(options?: { cityId?: number; includeCityProjects?: boolean }) {
+    if (options) {
+      // AI : Clear specific cache entry
+      const cacheKey = getUserContributionsCacheKey(options);
+      userContributionsCache.value.delete(cacheKey);
+    } else {
+      // AI : Clear all cached contributions
+      userContributionsCache.value.clear();
+    }
   }
 
   // AI : Optimistically add new overlay to user contributions without backend fetch
@@ -171,7 +189,7 @@ export const useProjectStore = defineStore("project", () => {
     filename: string,
     authorUsername: string | null,
   ) {
-    if (!userContributionsLoaded.value) {
+    if (userContributionsCache.value.size === 0) {
       // AI : If contributions not loaded yet, skip optimistic update
       return;
     }
@@ -244,7 +262,7 @@ export const useProjectStore = defineStore("project", () => {
 
   // AI : Optimistically add new project to user contributions without backend fetch
   function addProjectToUserContributions(project: Project) {
-    if (!userContributionsLoaded.value) {
+    if (userContributionsCache.value.size === 0) {
       // AI : If contributions not loaded yet, skip optimistic update
       return;
     }
@@ -287,7 +305,7 @@ export const useProjectStore = defineStore("project", () => {
     overlayId: string,
     updates: Partial<UserContributionOverlay>,
   ) {
-    if (!userContributionsLoaded.value) {
+    if (userContributionsCache.value.size === 0) {
       return;
     }
 
@@ -319,7 +337,7 @@ export const useProjectStore = defineStore("project", () => {
 
   // AI : Update pending project in user contributions (for field updates)
   function updateProjectInUserContributions(projectId: string, updates: Partial<UserContribution>) {
-    if (!userContributionsLoaded.value) {
+    if (userContributionsCache.value.size === 0) {
       return;
     }
 
@@ -337,7 +355,7 @@ export const useProjectStore = defineStore("project", () => {
   // AI : Remove overlay from user contributions (for deletion)
   // AI : currentUserId param avoids circular dependency with authStore
   function removeOverlayFromUserContributions(overlayId: string, currentUserId?: string) {
-    if (!userContributionsLoaded.value) {
+    if (userContributionsCache.value.size === 0) {
       return;
     }
 
@@ -373,7 +391,7 @@ export const useProjectStore = defineStore("project", () => {
 
   // AI : Remove project from user contributions (for deletion)
   function removeProjectFromUserContributions(projectId: string) {
-    if (!userContributionsLoaded.value) {
+    if (userContributionsCache.value.size === 0) {
       return;
     }
 
@@ -618,7 +636,7 @@ export const useProjectStore = defineStore("project", () => {
     // AI : Clear user contributions (user-specific)
     userContributions.value = [];
     userContributionsLoading.value = false;
-    userContributionsLoaded.value = false;
+    userContributionsCache.value.clear();
 
     // AI : Clear nearby projects (context-specific)
     clearNearbyProjects();
@@ -649,7 +667,7 @@ export const useProjectStore = defineStore("project", () => {
     nearbyProjectsError,
     userContributions,
     userContributionsLoading,
-    userContributionsLoaded,
+    userContributionsCache,
     originalBackendProjects,
     originalUserContributions,
     cityNamesCache,
@@ -670,6 +688,7 @@ export const useProjectStore = defineStore("project", () => {
     setUserContributions,
     setUserContributionsLoading,
     resetUserContributions,
+    getUserContributionsCacheKey,
     addOverlayToUserContributions,
     addProjectToUserContributions,
     updateOverlayInUserContributions,

@@ -5,7 +5,7 @@ import { ref, watch } from "vue";
 import { t } from "@/locales";
 import { map } from "@/composables/core/useMap";
 import { mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
-import { loadCityOverlays } from "@/composables/map/useCityOverlays";
+import { loadCityOverlays, fetchCityProjectsData } from "@/composables/map/useCityOverlays";
 import { useSelectedProject } from "@/composables/project/useProjectSelection";
 import { trpc, type RouterOutput } from "@/client";
 
@@ -142,16 +142,29 @@ export function updateStandaloneProjectMarkerColor(projectId: string, project: P
   marker.setIcon(markerIcon);
 }
 
-/**
- * AI : Update all standalone project marker colors based on current mode
- */
 export function updateAllStandaloneProjectMarkerColors(): void {
   const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
   const markerMap = getStandaloneProjectMarkerMap();
 
   markerMap.forEach((marker, projectId) => {
-    const project = projectStore.projects[projectId] ?? projectStore.allProjects[projectId];
+    // AI : Try to find project in multiple locations:
+    // 1. projectStore.projects (local/cached projects)
+    // 2. projectStore.allProjects (fetched projects)
+    // 3. MapStore's standalone projects cache (for current city)
+    let project: Project | undefined =
+      projectStore.projects[projectId] ?? projectStore.allProjects[projectId];
+
+    if (!project && mapStore.selectedCity) {
+      // AI : Fallback: check the cached standalone projects for this city
+      const cachedStandaloneProjects = mapStore.getCityStandaloneProjectsCache(
+        mapStore.selectedCity.id,
+        overlayStore.mode,
+      );
+      project = cachedStandaloneProjects?.find((p) => p.id === projectId) as Project | undefined;
+    }
+
     if (project) {
       const markerColor = getProjectMarkerColor(project, overlayStore.mode);
       const markerIcon = createStandaloneProjectIcon(markerColor);
@@ -365,6 +378,76 @@ export async function loadCityProjects(
 }
 
 /**
+ * AI : Fetch city overlay and project data WITHOUT rendering
+ * AI : Used by viewport loading to collect data from multiple cities before rendering
+ * AI : Returns the overlay data for batch rendering
+ */
+export async function fetchCityDataForViewport(
+  cityId: number,
+): Promise<{ overlays: any[]; projects: any[] }> {
+  try {
+    const mapStore = useMapStore();
+    const overlayStore = useOverlayStore();
+
+    // AI : Check cache first to avoid duplicate fetches
+    const cachedOverlays = mapStore.getCityOverlaysAndProjectsCache(cityId, overlayStore.mode);
+    const cachedProjects = mapStore.getCityStandaloneProjectsCache(cityId, overlayStore.mode);
+
+    // AI : If both are cached, return immediately
+    if (cachedOverlays && cachedProjects) {
+      return {
+        overlays: cachedOverlays,
+        projects: cachedProjects,
+      };
+    }
+
+    // AI : Fetch overlay data if not cached
+    let overlaysData = cachedOverlays;
+    if (!overlaysData) {
+      overlaysData = await fetchCityProjectsData(cityId);
+      mapStore.setCityProjectsCache(cityId, overlayStore.mode, overlaysData);
+    }
+
+    // AI : Fetch standalone projects if not cached
+    let projectsData = cachedProjects;
+    if (!projectsData) {
+      projectsData = await trpc.project.getCityProjects.query({ cityId });
+      mapStore.setCityStandaloneProjectsCache(cityId, overlayStore.mode, projectsData);
+    }
+
+    return {
+      overlays: overlaysData,
+      projects: projectsData,
+    };
+  } catch (error) {
+    console.error(`Error fetching viewport data for city ${cityId}:`, error);
+    return { overlays: [], projects: [] };
+  }
+}
+
+/**
+ * AI : Load projects for viewport (multiple cities at once)
+ * AI : Unlike loadCityProjects, this does NOT change the selected city
+ * AI : This allows multiple cities to be loaded simultaneously without conflicts
+ */
+export async function loadCityProjectsForViewport(
+  cityId: number,
+  cityName: string,
+  nameLocal: string | null,
+  cityCountryCode: string,
+): Promise<void> {
+  try {
+    // AI : Load overlay projects and standalone projects without changing selected city
+    // AI : Force full load to ensure overlays render properly (not just markers)
+    // AI : Pass isSwitchingCity=false to allow multiple cities to coexist
+    await loadCityOverlays(cityId, true, false);
+    await loadCityStandaloneProjects(cityId);
+  } catch (error) {
+    console.error(`Error loading viewport projects for city ${cityName}:`, error);
+  }
+}
+
+/**
  * AI : Clear unsaved city markers (called when switching countries)
  */
 export function clearUnsavedCityMarkers(): void {
@@ -501,6 +584,43 @@ export function addSingleCityMarker(
       lng: city.lng,
       countryCode: city.countryCode,
     });
+  }
+}
+
+/**
+ * AI : Load and display all city markers globally (for viewport-based loading)
+ * AI : Fetches all cities with projects worldwide and displays them on the map
+ */
+export async function loadAllCityMarkersGlobally(): Promise<CityWithProjects[]> {
+  if (!map.value) {
+    console.error("Map not initialized when trying to load global city markers");
+    return [];
+  }
+
+  try {
+    const overlayStore = useOverlayStore();
+    const authStore = useAuthStore();
+
+    // AI : For unauthenticated users, ensure we always use 'view' mode
+    const queryMode = authStore.isAuthenticated ? overlayStore.mode : "view";
+
+    // AI : Fetch all cities with projects globally (no countryCode filter)
+    const citiesData = await trpc.cities.getCitiesWithProjects.query({ mode: queryMode });
+
+    if (citiesData && citiesData.length > 0) {
+      // AI : Store in global ref for viewport detection
+      citiesWithProjects.value = citiesData;
+
+      // AI : Add all city markers to map (without country filter)
+      addCityMarkersToMapInternal(citiesData);
+
+      return citiesData;
+    }
+
+    return [];
+  } catch (error) {
+    console.error("Error loading global city markers:", error);
+    return [];
   }
 }
 

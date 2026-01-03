@@ -5,6 +5,7 @@ import type { Project } from "@/types/index";
 import { map } from "@/composables/core/useMap";
 import { createStandaloneProjectIcon } from "@/composables/map/useMarkers";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
@@ -211,6 +212,16 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
   if (!standaloneProjectsLayer) {
     standaloneProjectsLayer = L.layerGroup();
     standaloneProjectsLayer.addTo(map.value);
+  }
+
+  // AI : CRITICAL: Store project in projectStore so it can be found later for color updates
+  // AI : This is necessary for viewport-loaded markers where projects aren't loaded via loadCityStandaloneProjects
+  const projectStore = useProjectStore();
+  if (!projectStore.projects[project.id]) {
+    projectStore.projects = {
+      ...projectStore.projects,
+      [project.id]: project,
+    };
   }
 
   const overlayStore = useOverlayStore();

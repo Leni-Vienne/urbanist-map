@@ -2,8 +2,13 @@
 // AI : Centralized location for map-related magic numbers and thresholds
 
 export const MAP_CONFIG = {
+  // AI : Minimum zoom level to start loading city data and showing overlay markers
+  // AI : This is lower than MIN_ZOOM_FOR_OVERLAYS to show markers before full images
+  VIEWPORT_LOAD_THRESHOLD: 13,
+
   // AI : Minimum zoom level required to display actual overlay images (vs just markers)
-  MIN_ZOOM_FOR_OVERLAYS: 12,
+  // AI : This is higher than VIEWPORT_LOAD_THRESHOLD for progressive loading
+  MIN_ZOOM_FOR_OVERLAYS: 14,
 
   // AI : Cache duration in milliseconds for various data types
   CACHE_DURATION_MS: 5 * 60 * 1000, // 5 minutes

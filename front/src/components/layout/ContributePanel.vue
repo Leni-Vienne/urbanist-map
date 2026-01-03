@@ -246,14 +246,8 @@ const { pendingChangeRequests, refreshPendingChangeRequests, deleteChangeRequest
 // AI : - Otherwise: User's own contributions from anywhere
 watch(
   () => ({ cityId: mapStore.selectedCity?.id, mode: overlayStore.mode }),
-  ({ cityId, mode }, oldValue) => {
+  ({ cityId, mode }) => {
     const isEditMode = mode === 'edit'
-
-    // AI : Only reset cache if parameters actually changed (prevents duplicate calls on mount)
-    const hasChanged = oldValue && (oldValue.cityId !== cityId || oldValue.mode !== mode)
-    if (hasChanged) {
-      projectStore.userContributionsLoaded = false
-    }
 
     // AI : Fetch contributions with appropriate scope
     // AI : includeCityProjects=true returns ALL city projects (not just user's), allowing contributions to any project in the city
@@ -309,10 +303,8 @@ function handleMyContributionsClick() {
   // AI : Clear the selected city to exit city-scoped view
   mapStore.clearSelectedCity()
 
-  // AI : Reset the cache flag to force refetch without city filter
-  projectStore.userContributionsLoaded = false
-
   // AI : Fetch all user contributions (no city scoping)
+  // AI : The cache will prevent redundant calls if we've already fetched this
   fetchUserContributions()
 }
 
@@ -331,8 +323,8 @@ function handleCityClick() {
     overlayStore.setMode('edit')
   }
 
-  // AI : Reset cache and refetch with city filter
-  projectStore.userContributionsLoaded = false
+  // AI : Fetch with city filter
+  // AI : The cache will prevent redundant calls if we've already fetched this
   fetchUserContributions({
     cityId: lastSelectedCity.value.id,
     includeCityProjects: true

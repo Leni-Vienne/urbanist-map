@@ -1,6 +1,5 @@
 {
   "oxc.enable": true,
-  "oxc.fmt.experimental": false,
   "html.format.wrapAttributes": "force-expand-multiline",
   "[typescript]": {
     "editor.defaultFormatter": "oxc.oxc-vscode" // "oxc.oxc-vscode" to enable, but messes with chatbots
