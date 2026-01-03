@@ -50,9 +50,9 @@ function getCityMarkersFromDOM() {
 
 // AI : Show button after delay if no city is selected
 function showButtonWithDelay() {
-    visible.value = false
+    // AI : If timeout is already active, don't restart it (prevents flicker from repeated calls)
+    if (timeoutId) return
 
-    if (timeoutId) clearTimeout(timeoutId)
     timeoutId = globalThis.setTimeout(() => {
         if (!mapStore.selectedCity) {
             visible.value = true

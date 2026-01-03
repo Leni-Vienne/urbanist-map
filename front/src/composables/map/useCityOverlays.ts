@@ -105,9 +105,6 @@ export async function loadCityOverlays(
         removeOverlayMarkers();
       }
 
-      // AI : Clear view mode overlays state using store
-      overlayStore.clearViewModeOverlays();
-
       // AI : Get overlays data (cached or fresh)
       const overlaysData = await fetchCityProjectsData(cityId);
 
@@ -142,9 +139,7 @@ export async function loadCityOverlays(
  * AI : Common function to render overlay markers from overlay data
  */
 export function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void {
-  // AI : Clear view mode overlays state using store
   const overlayStore = useOverlayStore();
-  overlayStore.clearViewModeOverlays();
 
   // AI : Remove any existing overlay marker layer to prevent accumulation of orphaned layers
   removeOverlayMarkers();
@@ -263,10 +258,7 @@ function renderFullOverlaysFromCache(cityId: number, isSwitchingCity = true) {
         removeOverlayMarkers();
       }
 
-      // AI : Clear view mode overlays state using store
       const overlayStore = useOverlayStore();
-      overlayStore.clearViewModeOverlays();
-
       mapStore.currentCityOverlays = overlaysData;
 
       // AI : Filter overlays based on current completion status filters

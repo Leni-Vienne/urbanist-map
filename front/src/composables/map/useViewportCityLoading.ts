@@ -36,6 +36,11 @@ let wasAboveViewportThreshold = false;
 let wasAboveImageThreshold = false; // NEW: track image threshold separately
 let previousMode: "view" | "edit" | "moderation" = "view"; // Track mode changes
 
+// AI : Version counter to prevent race conditions with rapid mode changes
+// AI : Each viewport change operation gets a unique version number
+// AI : If version mismatches during async operations, the operation is stale and should abort
+let currentOperationVersion = 0;
+
 // AI : Loading state for viewport-based loading
 export const isLoadingViewport = ref(false);
 
@@ -110,7 +115,7 @@ function cityHasContentInViewport(cityId: number): boolean {
   }
 
   // 2. Check active overlays (covering brand new items not in cache)
-  // iterate active active overlays to catch new ones
+  // iterate active overlays to catch new ones
   const activeOverlays = Object.values(overlayStore.overlays) as OverlayObject[];
   for (const overlay of activeOverlays) {
     if ((overlay as any).cityId === cityId) {
@@ -159,6 +164,11 @@ function cityHasContentInViewport(cityId: number): boolean {
  */
 async function handleViewportChange(): Promise<void> {
   if (!map.value) return;
+
+  // AI : Increment version counter for this operation to detect stale operations
+  // AI : If mode changes rapidly, only the latest operation should complete
+  currentOperationVersion++;
+  const operationVersion = currentOperationVersion;
 
   const currentZoom = map.value.getZoom();
 
@@ -266,6 +276,12 @@ async function handleViewportChange(): Promise<void> {
         await Promise.all(
           Array.from(citiesToKeep).map((cityId) => fetchCityDataForViewport(cityId)),
         );
+
+        // AI : Check if this operation is stale (mode changed again during fetch)
+        if (operationVersion !== currentOperationVersion) {
+          return; // Abort stale operation, newer one is in progress
+        }
+
         // AI : Data is now cached via fetchCityDataForViewport's internal caching
         // AI : Don't re-render anything - existing overlays stay as-is
       } finally {
@@ -290,6 +306,11 @@ async function handleViewportChange(): Promise<void> {
           Array.from(citiesToKeep).map((cityId) => fetchCityDataForViewport(cityId)),
         );
 
+        // AI : Check if this operation is stale (viewport/mode changed during fetch)
+        if (operationVersion !== currentOperationVersion) {
+          return; // Abort stale operation, newer one is in progress
+        }
+
         // AI : Collect all overlays and projects
         const allOverlays = cityDataResults.flatMap((result) => result.overlays);
         const allProjects = cityDataResults.flatMap((result) => result.projects);
@@ -303,10 +324,15 @@ async function handleViewportChange(): Promise<void> {
         const shouldShowFullOverlays = currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
 
         // AI : 1. Sync Overlays (Full Images vs Markers)
-        syncOverlays(visibleOverlays, shouldShowFullOverlays, onlyModeChanged);
+        syncOverlays(visibleOverlays, shouldShowFullOverlays);
 
         // AI : 2. Sync Standalone Project Markers (for empty projects)
         await syncStandaloneProjects(allProjects, allOverlays);
+
+        // AI : Final check before updating state (in case mode changed during sync)
+        if (operationVersion !== currentOperationVersion) {
+          return; // Abort stale operation before updating state
+        }
 
         // AI : Update loadedCityIds finally (Replace the set instead of just adding)
         loadedCityIds.value = new Set(citiesToKeep);
@@ -320,12 +346,10 @@ async function handleViewportChange(): Promise<void> {
 /**
  * AI : Sync overlays based on zoom level (Full Images vs Markers)
  * AI : Handles exact differential updates to avoid flickering
+ * AI : NOTE: This is only called when viewport/cities/zoom changed (not for mode-only changes)
+ * AI : Mode-only changes are handled separately with early return to avoid re-rendering
  */
-function syncOverlays(
-  visibleOverlays: OverlayData[],
-  shouldShowFullOverlays: boolean,
-  onlyModeChanged: boolean,
-) {
+function syncOverlays(visibleOverlays: OverlayData[], shouldShowFullOverlays: boolean) {
   const overlayStore = useOverlayStore();
 
   if (shouldShowFullOverlays) {
@@ -334,8 +358,9 @@ function syncOverlays(
     // AI : 1. Render new view mode overlays (this updates existing ones and adds new ones)
     // AI : We do this BEFORE removing old ones to ensure seamless transition
     // AI : setViewModeOverlays updates the store, renderViewModeOverlays updates the map
+    // AI : Force re-render since viewport/cities/zoom changed (not a mode-only change)
     overlayStore.setViewModeOverlays(visibleOverlays);
-    renderViewModeOverlays(visibleOverlays, true, !onlyModeChanged);
+    renderViewModeOverlays(visibleOverlays, true, true);
 
     // AI : 2. Remove "dumb" overlay markers since we now show full overlays
     removeOverlayMarkers();
