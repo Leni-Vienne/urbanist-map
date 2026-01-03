@@ -51,9 +51,11 @@ import { removeOverlayFromMap } from '@/composables/overlay/useOverlayRemoval';
 import { useToast } from '@/composables/ui/useToast';
 import { useI18n } from 'vue-i18n';
 import { updateOverlayMarkersForFilters } from '@/composables/map/useCityOverlays';
-import { initializeCountryMarkers } from '@/composables/map/useCountryMarkers';
+// AI : Load countries for breadcrumbs (no marker rendering)
+import { loadCountriesWithProjects } from '@/composables/map/useCountryData';
 import { initializeOverlayModes } from '@/composables/overlay/useOverlayModes';
-import { loadCityStandaloneProjects } from '@/composables/map/useCityMarkers';
+import { loadCityStandaloneProjects, loadAllCityMarkersGlobally } from '@/composables/map/useCityMarkers';
+import { initializeViewportCityLoading, setAllCityMarkers, cleanupViewportCityLoading } from '@/composables/map/useViewportCityLoading';
 import { useMapStore } from '@/stores/pinia/mapStore';
 import { useOverlayStore } from '@/stores/pinia/overlayStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -137,10 +139,9 @@ async function filterOverlaysByCompletionStatus() {
 watch(
   () => [overlayStore.mode, Object.keys(overlayStore.overlays).length] as const,
   async ([newMode, overlayCount], [oldMode]) => {
-    if (newMode !== 'view' && oldMode === 'view') {
-      // AI : Entering edit or moderation mode from view mode - clear view mode tracking
-      overlayStore.clearViewModeOverlays();
-    } else if (newMode === 'view' && overlayCount > 0) {
+    // AI : Viewport loading now handles mode switches - it preserves overlays and refetches data
+    // AI : We only need to apply filters when entering view mode
+    if (newMode === 'view' && overlayCount > 0) {
       // AI : Apply filters when entering view mode or when overlays change in view mode
       // AI : Use nextTick instead of setTimeout for proper async sequencing
       await nextTick();
@@ -157,6 +158,8 @@ onMounted(async () => {
 onUnmounted(() => {
   // AI : Clean up event listeners
   globalThis.removeEventListener('keydown', handleKeyDown, true);
+  // AI : Clean up viewport loading
+  cleanupViewportCityLoading();
 });
 
 
@@ -173,13 +176,38 @@ function handleKeyDown(event: KeyboardEvent) {
 }
 
 
+
+
 // AI : Initialize map and overlays
 async function initializeMapAndOverlays() {
   try {
     initializeMap();
     addTileLayer(); // AI : Initialize tile layers after map is created
     initializeCameraBounds(); // AI : Initialize camera bounds tracking
-    await initializeCountryMarkers(); // AI : Initialize country markers by default
+
+    // AI : Load countries first (needed for breadcrumbs in Current Location panel)
+    await loadCountriesWithProjects();
+
+    // AI : Load all city markers globally instead of country markers
+    const cities = await loadAllCityMarkersGlobally();
+
+    // AI : Populate cities lookup map in mapStore for panel auto-switch
+    mapStore.citiesLookup.clear();
+    cities.forEach(city => {
+      mapStore.citiesLookup.set(city.id, {
+        id: city.id,
+        name: city.name,
+        nameLocal: city.nameLocal,
+        countryCode: city.countryCode,
+      });
+    });
+
+    // AI : Set cities for viewport detection
+    setAllCityMarkers(cities);
+
+    // AI : Initialize viewport-based city loading
+    initializeViewportCityLoading();
+
     initializeOverlayModes(); // AI : Initialize overlay mode system and zoom watcher
     setupMapClickToDeselect(); // AI : Setup click handler to deselect overlays when clicking map background
     globalThis.addEventListener('keydown', handleKeyDown, true);

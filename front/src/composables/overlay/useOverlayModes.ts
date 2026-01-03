@@ -1,6 +1,7 @@
 // AI : Overlay mode management - orchestrates edit/view mode switching using state machine
 import { ref, watch, toRef } from "vue";
 import type L from "leaflet";
+import { MAP_CONFIG } from "@/constants/mapConstants";
 import { map, currentZoomLevel } from "@/composables/core/useMap";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -31,11 +32,7 @@ import {
   addCityMarkersForCountry,
   updateAllStandaloneProjectMarkerColors,
 } from "@/composables/map/useCityMarkers";
-import {
-  loadCountriesWithProjects,
-  loadCitiesForCountry,
-  addCountryMarkersToMap,
-} from "@/composables/map/useCountryMarkers";
+import { loadCitiesForCountry } from "@/composables/map/useCountryData";
 import { navigateToStandaloneProject } from "@/composables/navigation/useOverlayNavigation";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -44,7 +41,6 @@ import { updateOverlayEditingState } from "@/composables/overlay/useOverlay";
 import { getOverlayBounds } from "@/composables/overlay/useOverlayMarkers";
 import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
 import { storeToRefs } from "pinia";
-import { MAP_CONFIG } from "@/constants/mapConstants";
 import { mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
 import { clearChangeRequestPreview } from "@/composables/overlay/changeRequestPreviewState";
 import { useToast } from "@/composables/ui/useToast";
@@ -120,6 +116,12 @@ function performFullRender(newState: OverlayModeState, transition: StateTransiti
   const selectedCity = getSelectedCity();
 
   if (!selectedCity || !newState.selectedCityId) {
+    // AI : If no city is selected, check if we are in viewport mode (high zoom)
+    // AI : If so, viewport loading handles the content, so DON'T clear it
+    if (map.value && map.value.getZoom() >= MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD) {
+      return;
+    }
+
     clearAllRenderedContent();
     return;
   }
@@ -298,17 +300,11 @@ export async function switchMode(
       // AI : Update standalone project marker colors immediately after mode switch
       updateAllStandaloneProjectMarkerColors();
 
-      // AI : Load countries first (required for reloadCitiesAndMarkers)
-      await loadCountriesWithProjects();
-
-      // AI : Then reload city markers if a country is selected
+      // AI : Reload city markers if a country is selected
       const countryCode = mapStore.selectedCountryCode;
       if (countryCode) {
         await reloadCitiesAndMarkers(countryCode);
       }
-
-      // AI : Add country markers after both requests complete
-      addCountryMarkersToMap();
 
       // AI : If project popup was open for a standalone project, auto-select first overlay from that project
       // AI : This provides continuity when switching from view mode (with project marker popup) to edit/moderation mode
@@ -457,21 +453,6 @@ async function autoSelectOverlayForProject(projectId: string): Promise<void> {
   }
 }
 
-/**
- * AI : Watch for zoom level changes and update state
- */
-function watchZoomLevel() {
-  watch(currentZoomLevel, async (newZoom) => {
-    const newState = getCurrentState();
-    newState.zoomLevel = getZoomLevel(newZoom);
-
-    // AI : Only transition if zoom level actually changed categories
-    if (newState.zoomLevel !== currentState.value.zoomLevel) {
-      await transitionToState(newState);
-    }
-  });
-}
-
 // AI : Initialize zoom watcher and set initial state
 // AI : This is called from MapView.vue after map initialization
 export function initializeOverlayModes() {
@@ -480,6 +461,7 @@ export function initializeOverlayModes() {
     return;
   }
 
-  watchZoomLevel();
+  // AI : DISABLED: zoom watcher conflicts with viewport loading
+  // watchZoomLevel();
   currentState.value = getCurrentState();
 }

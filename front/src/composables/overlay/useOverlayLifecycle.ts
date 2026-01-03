@@ -5,6 +5,7 @@ import type { OverlayObject } from "@/types/index";
 
 /**
  * AI : Clear all overlays from the map and reset collections
+ * AI : NOTE: Does NOT clear viewModeOverlays cache - that's managed by viewport loading
  */
 export function clearAllOverlays(): void {
   const overlayStore = useOverlayStore();
