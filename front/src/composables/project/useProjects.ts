@@ -57,9 +57,7 @@ export function addOverlayToProjectWithId(projectId: string, overlayId: string):
   const project = { ...updatedProjects[projectId] };
 
   // AI : Ensure overlayIds array exists (defensive programming)
-  if (!project.overlayIds) {
-    project.overlayIds = [];
-  }
+  project.overlayIds ??= [];
 
   // AI : Check if this is the first overlay being added to this project
   const isFirstOverlay = project.overlayIds.length === 0;
