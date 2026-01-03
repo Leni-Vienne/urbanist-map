@@ -291,7 +291,9 @@ export function updateExistingOverlays(strategy: RenderStrategy): void {
 }
 
 /**
- * AI : Clear all overlays and markers from the map
+ * AI : Clear all overlays, markers, AND the viewModeOverlays cache
+ * AI : Use this when truly clearing all content (e.g., switching countries, logout)
+ * AI : For visual cleanup during zoom/viewport changes, use clearAllOverlays() instead
  */
 export function clearAllRenderedContent(): void {
   clearAllOverlays();

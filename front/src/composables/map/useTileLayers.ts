@@ -64,7 +64,7 @@ const tileLayerConfigs = {
   USA: {
     label: "USA",
     flagUrl: "https://flagcdn.com/16x12/us.png",
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}.png",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     options: {
       minZoom: 0,
       maxZoom: 22,
@@ -78,7 +78,6 @@ const tileLayerConfigs = {
   CHE: {
     label: "Switzerland",
     flagUrl: "https://flagcdn.com/16x12/ch.png",
-    //url: 'https://wmts.geo.moderation.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg',
     url: "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage-product/default/2025/3857/{z}/{x}/{y}.png",
     options: {
       minZoom: 2,
