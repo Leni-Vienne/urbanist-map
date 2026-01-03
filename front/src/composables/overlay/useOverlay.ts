@@ -175,6 +175,7 @@ export function createLeafletOverlay(imageUrl: string, overlayObject?: OverlayOb
         ? corners.map((corner) => L.latLng(corner.lat, corner.lng))
         : undefined;
     const isEditMode = overlayStore.mode === "edit";
+
     const newOverlay = L.distortableImageOverlay(imageUrl, {
       editable: true,
       keyboard: false,
@@ -189,16 +190,17 @@ export function createLeafletOverlay(imageUrl: string, overlayObject?: OverlayOb
       //mode: 'resizeRotate' // doesn't work but should, it's an issue from the package
     });
 
-    // AI : Check if we should add overlay to map based on current zoom level
-    const MIN_ZOOM_FOR_OVERLAYS = 12;
-    const currentZoom = map.value.getZoom();
-    const shouldRenderOverlay = currentZoom >= MIN_ZOOM_FOR_OVERLAYS;
-
-    // IMPORTANT : this waits for any ongoing zoom animation to complete before adding overlay to prevent visual glitch
-    // This fixes the bug when zooming multiple levels past the render threshold at once
+    // AI : Always add overlay to map - visibility based on zoom is handled by useOverlayZoomHandler
+    // AI : This waits for any ongoing zoom animation to complete before adding to prevent visual glitches
     const addOverlayWhenReady = () => {
-      if (map.value && newOverlay && shouldRenderOverlay) {
-        newOverlay.addTo(map.value);
+      if (map.value && newOverlay) {
+        const currentZoom = map.value.getZoom();
+        const shouldShowImage = currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
+
+        // AI : Only add to map if zoom is appropriate (zoom handler will manage later changes)
+        if (shouldShowImage) {
+          newOverlay.addTo(map.value);
+        }
       }
     };
 
@@ -277,6 +279,11 @@ function onOverlayLoaded(overlayObject: OverlayObject): void {
   // AI : Setup hover events for project highlighting after element is available
   setupProjectHoverEvents(overlayObject.overlay, overlayObject);
 
+  // AI : CRITICAL: Setup movement tracking AFTER overlay is loaded and has a DOM element
+  // AI : This must be called here (not in setupOverlayEventHandlers) because overlay.getElement()
+  // AI : returns null until the overlay is added to the map and the image loads
+  setupOverlayMovementTracking(overlayObject.overlay, overlayObject);
+
   // AI : Ensure new overlays start with no outline unless they're selected
   if (overlayStore.idSelectedOverlay !== overlayObject.id) {
     const element = overlayObject.overlay.getElement();
@@ -329,8 +336,9 @@ function setupOverlayEventHandlers(
     saveToHistory(overlayObject);
   });
 
-  // AI : Set up comprehensive event handlers for overlay manipulation
-  setupOverlayMovementTracking(overlay, overlayObject);
+  // AI : NOTE: setupOverlayMovementTracking is called in onOverlayLoaded() instead of here
+  // AI : because the overlay element doesn't exist until after the overlay is added to the map
+  // AI : and the image finishes loading
 }
 
 /**
@@ -506,6 +514,7 @@ function setupOverlayMovementTracking(
 ): void {
   // AI : Set up DOM event listeners for continuous marker position updates during manipulation
   const element = overlay.getElement();
+
   if (element) {
     let isManipulating = false;
     let updateFrame: number | null = null;

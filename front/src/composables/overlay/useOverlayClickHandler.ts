@@ -63,13 +63,6 @@ export function useOverlayClickHandler() {
         return;
       }
 
-      // AI : Clear city cache when navigating to pending overlays
-      // AI : This ensures we reload with the correct mode to see pending items
-      if (shouldToggleEditMode && overlay.cityId) {
-        mapStore.clearCityProjectsCache(overlay.cityId);
-        mapStore.clearCityStandaloneProjectsCache(overlay.cityId);
-      }
-
       // AI : Only switch to edit mode if currently in view mode
       // AI : In moderation mode, pending overlays are already visible, so don't switch
       if (overlayStore.mode === "view" && shouldToggleEditMode) {

@@ -1,10 +1,11 @@
 import { loadCityProjects } from "@/composables/map/useCityMarkers";
-import { prepareCountryContext } from "@/composables/map/useCountryMarkers";
+import { loadCitiesForCountry, clearAllMapContent } from "@/composables/map/useCountryData";
 import { map } from "@/composables/core/useMap";
 import { mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
 import { prepareCrossCountryFlight } from "@/composables/map/useTileLayers";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import { t } from "@/locales";
 
 /**
@@ -40,9 +41,11 @@ export async function navigateToCity(
   // AI : Prepare for cross-country flight (switches to esri if needed)
   const switchToCountryLayer = prepareCrossCountryFlight(countryCode);
 
-  // AI : Prepare the country context FIRST (loads cities into store)
-  // AI : This ensures coordinates will be available when we look them up
-  await prepareCountryContext(countryCode);
+  // AI : Clear map and load cities for the country
+  clearAllMapContent();
+  const mapStore = useMapStore();
+  mapStore.selectedCountryCode = countryCode;
+  await loadCitiesForCountry(countryCode);
 
   // AI : Find the city coordinates (from store or provided coords)
   let lat: number | undefined = undefined;

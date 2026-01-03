@@ -4,7 +4,7 @@ import { useToast } from "@/composables/ui/useToast";
 
 /**
  * AI : Composable for handling "Add Overlay" button click
- * AI : Shared logic across CurrentCityPanel, ContributePanel, and LatestContributionsPanel
+ * AI : Shared logic across currentLocationPanel, ContributePanel, and LatestContributionsPanel
  */
 export function useAddOverlay() {
   const { t } = useI18n();

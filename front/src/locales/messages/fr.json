@@ -62,7 +62,7 @@
     "settings": "Paramètres",
     "profile": "Profil",
     "latestContributions": "Contributions Récentes",
-    "currentCity": "Ville Actuelle",
+    "currentLocation": "Emplacement Actuel",
     "contribute": "Contribuer",
     "moderation": "Modération",
     "unsavedOverlaysWarning": "Vous avez des images non enregistrées. La navigation les supprimera. Continuer ?",
@@ -213,13 +213,17 @@
     "beFirstToAdd": "Soyez le premier à ajouter une image ou un projet de bâtiment",
     "loadingContributions": "Chargement des contributions..."
   },
-  "currentCity": {
+  "currentLocation": {
     "title": "{cityName}",
-    "noCity": "Aucune Ville Sélectionnée",
-    "selectCityPrompt": "Sélectionnez une ville sur la carte pour parcourir ses projets",
+    "noLocationSelected": "Aucun Emplacement Sélectionné",
+    "selectLocationPrompt": "Sélectionnez un pays ou une ville sur la carte pour parcourir les projets",
     "noProjects": "Aucun projet dans cette ville",
     "noProjectsDetail": "Cette ville n'a pas encore de projets",
-    "clickToZoomCountry": "Cliquez pour zoomer sur le pays"
+    "clickToZoomCountry": "Cliquez pour zoomer sur le pays",
+    "citiesInCountry": "Villes en {country}",
+    "noCitiesInCountry": "Aucune ville dans ce pays",
+    "projectsCount": "{count} projet(s)",
+    "selectCityToExplore": "Sélectionnez une ville pour explorer ses projets"
   },
   "overlay": {
     "title": "Images",
@@ -416,7 +420,7 @@
     "closePanel": "Fermer le panneau"
   },
   "footer": {
-    "legalMentions": "Mentions légales",
+    "legal": "Mentions légales",
     "contact": "Contact"
   },
   "submission": {

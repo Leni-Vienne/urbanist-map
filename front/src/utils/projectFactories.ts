@@ -1,5 +1,5 @@
 // AI : Factory functions for creating project and overlay objects
-// AI : Eliminates massive code duplication across CurrentCityPanel, ContributePanel, and useAllContributions
+// AI : Eliminates massive code duplication across currentLocationPanel, ContributePanel, and useAllContributions
 
 import type { OverlayData, ProjectForModeration, OverlayForModeration } from "@/types/index";
 import type { RouterOutput } from "@/client";
@@ -21,7 +21,7 @@ interface CountryInfo {
 
 /**
  * AI : Create ProjectForModeration from overlay data
- * AI : Used by CurrentCityPanel to build projects from city overlay cache
+ * AI : Used by currentLocationPanel to build projects from city overlay cache
  */
 export function createProjectFromOverlayData(
   overlayData: OverlayData,
@@ -58,7 +58,7 @@ export function createProjectFromOverlayData(
 
 /**
  * AI : Create OverlayForModeration from overlay data
- * AI : Used by CurrentCityPanel
+ * AI : Used by currentLocationPanel
  */
 export function createOverlayForModeration(
   overlayData: OverlayData,

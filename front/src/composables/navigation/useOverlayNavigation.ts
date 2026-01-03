@@ -2,7 +2,7 @@ import L from "leaflet";
 import { loadCityProjects } from "@/composables/map/useCityMarkers";
 import { navigateToOverlay } from "@/composables/overlay/useOverlay";
 import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
-import { prepareCountryContext } from "@/composables/map/useCountryMarkers";
+import { loadCitiesForCountry, clearAllMapContent } from "@/composables/map/useCountryData";
 import { prepareCrossCountryFlight } from "@/composables/map/useTileLayers";
 import { map } from "@/composables/core/useMap";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
@@ -60,8 +60,11 @@ async function prepareNavigationToCity(
     // AI : Step 1: Prepare for cross-country flight (switches to esri if needed)
     switchToCountryLayer = prepareCrossCountryFlight(countryCode);
 
-    // AI : Step 2: Prepare country context (clear map, load cities, add markers)
-    await prepareCountryContext(countryCode);
+    // AI : Step 2: Clear map and load cities for the country
+    clearAllMapContent();
+    const mapStore = useMapStore();
+    mapStore.selectedCountryCode = countryCode;
+    await loadCitiesForCountry(countryCode);
   }
 
   // AI : Step 3: Simulate city marker click (this loads and renders all markers and overlays for the city)
