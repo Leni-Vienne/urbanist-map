@@ -279,6 +279,11 @@ function onOverlayLoaded(overlayObject: OverlayObject): void {
   // AI : Setup hover events for project highlighting after element is available
   setupProjectHoverEvents(overlayObject.overlay, overlayObject);
 
+  // AI : CRITICAL: Setup movement tracking AFTER overlay is loaded and has a DOM element
+  // AI : This must be called here (not in setupOverlayEventHandlers) because overlay.getElement()
+  // AI : returns null until the overlay is added to the map and the image loads
+  setupOverlayMovementTracking(overlayObject.overlay, overlayObject);
+
   // AI : Ensure new overlays start with no outline unless they're selected
   if (overlayStore.idSelectedOverlay !== overlayObject.id) {
     const element = overlayObject.overlay.getElement();
@@ -331,8 +336,9 @@ function setupOverlayEventHandlers(
     saveToHistory(overlayObject);
   });
 
-  // AI : Set up comprehensive event handlers for overlay manipulation
-  setupOverlayMovementTracking(overlay, overlayObject);
+  // AI : NOTE: setupOverlayMovementTracking is called in onOverlayLoaded() instead of here
+  // AI : because the overlay element doesn't exist until after the overlay is added to the map
+  // AI : and the image finishes loading
 }
 
 /**
@@ -508,6 +514,7 @@ function setupOverlayMovementTracking(
 ): void {
   // AI : Set up DOM event listeners for continuous marker position updates during manipulation
   const element = overlay.getElement();
+
   if (element) {
     let isManipulating = false;
     let updateFrame: number | null = null;
