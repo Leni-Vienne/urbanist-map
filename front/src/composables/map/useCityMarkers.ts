@@ -142,16 +142,29 @@ export function updateStandaloneProjectMarkerColor(projectId: string, project: P
   marker.setIcon(markerIcon);
 }
 
-/**
- * AI : Update all standalone project marker colors based on current mode
- */
 export function updateAllStandaloneProjectMarkerColors(): void {
   const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
   const markerMap = getStandaloneProjectMarkerMap();
 
   markerMap.forEach((marker, projectId) => {
-    const project = projectStore.projects[projectId] ?? projectStore.allProjects[projectId];
+    // AI : Try to find project in multiple locations:
+    // 1. projectStore.projects (local/cached projects)
+    // 2. projectStore.allProjects (fetched projects)
+    // 3. MapStore's standalone projects cache (for current city)
+    let project: Project | undefined =
+      projectStore.projects[projectId] ?? projectStore.allProjects[projectId];
+
+    if (!project && mapStore.selectedCity) {
+      // AI : Fallback: check the cached standalone projects for this city
+      const cachedStandaloneProjects = mapStore.getCityStandaloneProjectsCache(
+        mapStore.selectedCity.id,
+        overlayStore.mode,
+      );
+      project = cachedStandaloneProjects?.find((p) => p.id === projectId) as Project | undefined;
+    }
+
     if (project) {
       const markerColor = getProjectMarkerColor(project, overlayStore.mode);
       const markerIcon = createStandaloneProjectIcon(markerColor);
