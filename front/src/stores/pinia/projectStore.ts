@@ -140,15 +140,15 @@ export const useProjectStore = defineStore("project", () => {
     },
   });
 
-  // AI : Helper to generate cache key from parameters
-  function getUserContributionsCacheKey(options?: {
+  // AI : Helper to generate cache key from parameters (exported for use in composables)
+  const getUserContributionsCacheKey = (options?: {
     cityId?: number;
     includeCityProjects?: boolean;
-  }): string {
+  }): string => {
     const cityId = options?.cityId ?? null;
     const includeCityProjects = options?.includeCityProjects ?? false;
     return `${cityId}:${includeCityProjects}`;
-  }
+  };
 
   // AI : User contributions actions
   function setUserContributions(contributions: UserContribution[], cacheKey: string) {
@@ -688,6 +688,7 @@ export const useProjectStore = defineStore("project", () => {
     setUserContributions,
     setUserContributionsLoading,
     resetUserContributions,
+    getUserContributionsCacheKey,
     addOverlayToUserContributions,
     addProjectToUserContributions,
     updateOverlayInUserContributions,

@@ -323,8 +323,8 @@ export function useUserContributions() {
     cityId?: number;
     includeCityProjects?: boolean;
   }) {
-    // AI : Generate cache key from parameters
-    const cacheKey = `${options?.cityId ?? null}:${options?.includeCityProjects ?? false}`;
+    // AI : Use cache key helper from store to avoid duplication
+    const cacheKey = projectStore.getUserContributionsCacheKey(options);
 
     // AI : Check if we already have this data cached
     if (projectStore.userContributionsCache.has(cacheKey)) {
