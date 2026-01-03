@@ -54,9 +54,8 @@ import { updateOverlayMarkersForFilters } from '@/composables/map/useCityOverlay
 // AI : Load countries for breadcrumbs (no marker rendering)
 import { loadCountriesWithProjects } from '@/composables/map/useCountryData';
 import { initializeOverlayModes } from '@/composables/overlay/useOverlayModes';
-import { loadCityStandaloneProjects, loadAllCityMarkersGlobally, fetchCityDataForViewport } from '@/composables/map/useCityMarkers';
+import { loadCityStandaloneProjects, loadAllCityMarkersGlobally } from '@/composables/map/useCityMarkers';
 import { initializeViewportCityLoading, setAllCityMarkers, cleanupViewportCityLoading } from '@/composables/map/useViewportCityLoading';
-import { addStandaloneProjectMarkerForProject } from '@/composables/map/useStandaloneProjectMarkers';
 import { useMapStore } from '@/stores/pinia/mapStore';
 import { useOverlayStore } from '@/stores/pinia/overlayStore';
 import { useAuthStore } from '@/stores/authStore';

@@ -32,7 +32,7 @@ import {
   addCityMarkersForCountry,
   updateAllStandaloneProjectMarkerColors,
 } from "@/composables/map/useCityMarkers";
-import { loadCountriesWithProjects, loadCitiesForCountry } from "@/composables/map/useCountryData";
+import { loadCitiesForCountry } from "@/composables/map/useCountryData";
 import { navigateToStandaloneProject } from "@/composables/navigation/useOverlayNavigation";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useUiStore } from "@/stores/uiStore";
