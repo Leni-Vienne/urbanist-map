@@ -174,7 +174,7 @@ export function selectOverlay(overlayId: string | null): void {
       const city = mapStore.citiesLookup.get(foundCityId);
 
       if (city) {
-        // AI : Only set selectedCity if it's not already set or if switching cities
+        // AI : Set selectedCity when null/undefined OR when switching to a different city
         if (!mapStore.selectedCity || mapStore.selectedCity.id !== city.id) {
           mapStore.setSelectedCity(city);
         }

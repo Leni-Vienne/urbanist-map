@@ -1,9 +1,9 @@
 // AI : Country data loading composable (no marker rendering)
 // AI : Extracted from useCountryMarkers.ts to separate data loading from UI rendering
 import { ref } from "vue";
-import { addCityMarkersForCountry, removeCityMarkers } from "@/composables/map/useCityMarkers";
+import { removeCityMarkers } from "@/composables/map/useCityMarkers";
 import { removeOverlayMarkers } from "@/composables/map/useCityOverlays";
-import { clearAllOverlays } from "@/composables/overlay/useOverlayLifecycle";
+import { clearAllRenderedContent } from "@/composables/overlay/useOverlayRenderer";
 import { clearAllStandaloneProjectMarkers } from "@/composables/map/useStandaloneProjectMarkers";
 import { trpc } from "@/client";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -131,13 +131,14 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
 }
 
 /**
- * AI : Clear all map content (markers, overlays, and state)
+ * AI : Clear all map content (markers, overlays, cache, and state)
  * AI : This is called when switching between countries or logging out
+ * AI : Uses clearAllRenderedContent to ensure viewModeOverlays cache is also cleared
  */
 export function clearAllMapContent(): void {
   removeCityMarkers();
   removeOverlayMarkers();
-  clearAllOverlays();
+  clearAllRenderedContent();
   clearAllStandaloneProjectMarkers();
   const mapStore = useMapStore();
   mapStore.currentCityOverlays = [];
