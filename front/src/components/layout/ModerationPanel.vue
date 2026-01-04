@@ -153,7 +153,6 @@ import { useProjectStore } from '@/stores/pinia/projectStore'
 import type { OverlayForModeration } from '@/types/index'
 import { trpc } from '@/client'
 import { addCityMarkersForCountry } from '@/composables/map/useCityMarkers'
-import { setAllCityMarkers } from '@/composables/map/useViewportCityLoading'
 import { mobileAwareFlyTo } from '@/composables/map/useMapNavigation'
 import { map } from '@/composables/core/useMap'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
@@ -295,8 +294,7 @@ async function loadCountryData(countryCode: string | null) {
 
       // AI : Add city markers to the map
       addCityMarkersForCountry(cities, countryCode)
-      // AI : Update viewport tracking so zooming triggers data fetch
-      setAllCityMarkers(cities)
+      // AI : City markers loaded - viewport manager handles viewport-based loading
 
       // AI : Update mapStore to keep state in sync
       mapStore.selectedCountryCode = countryCode

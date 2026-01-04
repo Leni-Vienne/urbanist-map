@@ -3,7 +3,7 @@ import {
   navigateToStandaloneProject,
 } from "@/composables/navigation/useOverlayNavigation";
 import { navigateToOverlay } from "@/composables/overlay/useOverlay";
-import { switchMode } from "@/composables/overlay/useOverlayModes";
+import { switchMode } from "@/composables/overlay/useModeSwitching";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useToast } from "@/composables/ui/useToast";
 import { trpc } from "@/client";

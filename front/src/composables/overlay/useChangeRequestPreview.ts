@@ -13,7 +13,7 @@ import {
 import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
 import { loadCityProjects } from "@/composables/map/useCityMarkers";
 import { loadCitiesForCountry, clearAllMapContent } from "@/composables/map/useCountryData";
-import { switchMode } from "@/composables/overlay/useOverlayModes";
+import { switchMode } from "@/composables/overlay/useModeSwitching";
 import { mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
 import { prepareCrossCountryFlight } from "@/composables/map/useTileLayers";
 import type { OverlayForModeration, OverlayObject, PendingChangeRequest } from "@/types/index";

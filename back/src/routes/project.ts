@@ -10,6 +10,9 @@ import {
   buildPaginationConditions,
   buildPaginationResponse,
   isUserBlocked,
+  getUserOverlayChangeRequestIds,
+  buildProjectVisibilityCondition,
+  buildOverlayVisibilityCondition,
 } from "../db/helpers";
 import {
   checkPendingLimitForNewContribution,
@@ -662,6 +665,302 @@ export const projectRouter = router({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to fetch all projects",
+        });
+      }
+    }),
+
+  // AI : NEW: Get overlays within geographic bounds for viewport loading
+  getOverlaysInBounds: publicProcedure
+    .input(
+      z.object({
+        bounds: z.object({
+          north: z.number().min(-90).max(90),
+          south: z.number().min(-90).max(90),
+          east: z.number().min(-180).max(180),
+          west: z.number().min(-180).max(180),
+        }),
+        mode: z.enum(["view", "edit", "moderation"]).optional().default("view"),
+      }),
+    )
+    .query(async ({ input, ctx }) => {
+      try {
+        const { bounds, mode } = input;
+
+        // AI : SECURITY: Reject moderation mode for unauthenticated users
+        if (mode === "moderation" && !ctx.user) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Authentication required for moderation mode",
+          });
+        }
+
+        // AI : Fetch user's overlay change request IDs if in edit mode
+        const overlayChangeRequestIds =
+          ctx.user && mode === "edit"
+            ? await getUserOverlayChangeRequestIds(db, ctx.user.id)
+            : undefined;
+
+        // AI : Create PostGIS envelope from bounds
+        // AI : ST_MakeEnvelope(xmin, ymin, xmax, ymax, srid)
+        const envelope = sql`ST_MakeEnvelope(
+          ${bounds.west}, 
+          ${bounds.south}, 
+          ${bounds.east}, 
+          ${bounds.north}, 
+          4326
+        )`;
+
+        // AI : Build visibility conditions
+        const whereConditions = [
+          // AI : Spatial intersection - overlay centroid must be within bounds
+          sql`ST_Intersects(${overlays.centroid}, ${envelope})`,
+          buildProjectVisibilityCondition(ctx.user, mode, false),
+          buildOverlayVisibilityCondition(ctx.user, mode, overlayChangeRequestIds),
+        ];
+
+        // AI : Query overlays within bounds
+        const overlaysData = await db
+          .select({
+            overlayId: overlays.id,
+            overlayVersion: overlays.version,
+            overlayFilename: overlays.filename,
+            overlayCaption: overlays.caption,
+            overlayStatus: overlays.status,
+            overlayProjectId: overlays.projectId,
+            overlayAuthorId: overlays.authorId,
+            overlayReplacesOverlayId: overlays.replacesOverlayId,
+            overlayReplacedByOverlayId: overlays.replacedByOverlayId,
+            overlayCreatedAt: overlays.createdAt,
+            overlayUpdatedAt: overlays.updatedAt,
+            centroidLat: sql<number>`ST_Y(${overlays.centroid})`,
+            centroidLng: sql<number>`ST_X(${overlays.centroid})`,
+            corners: sql<{ lat: number; lng: number }[]>`(
+              SELECT json_agg(json_build_object('lat', ST_Y(geom), 'lng', ST_X(geom)) ORDER BY path[2])
+              FROM ST_DumpPoints(${overlays.corners}) AS dump(path, geom)
+              WHERE path[2] <= 4
+            )`,
+            project: projects,
+            city: cities,
+          })
+          .from(overlays)
+          .innerJoin(projects, eq(projects.id, overlays.projectId))
+          .innerJoin(cities, eq(cities.id, projects.cityId))
+          .where(and(...whereConditions))
+          .orderBy(overlays.createdAt);
+
+        // AI : Fetch change requests for overlays (same pattern as getCityOverlaysAndProjects)
+        let changeRequestsData: {
+          id: string;
+          entityType: string;
+          entityId: string;
+          fieldName: string;
+          newValue: unknown;
+          requestedBy: string | null;
+        }[] = [];
+
+        if (ctx.user) {
+          if (mode === "edit") {
+            changeRequestsData = await db
+              .select({
+                id: changeRequests.id,
+                entityType: changeRequests.entityType,
+                entityId: changeRequests.entityId,
+                fieldName: changeRequests.fieldName,
+                newValue: changeRequests.newValue,
+                requestedBy: changeRequests.requestedBy,
+              })
+              .from(changeRequests)
+              .where(
+                and(
+                  eq(changeRequests.requestedBy, ctx.user.id),
+                  eq(changeRequests.entityType, "overlay"),
+                  eq(changeRequests.status, "pending"),
+                ),
+              );
+          } else if (mode === "moderation") {
+            changeRequestsData = await db
+              .select({
+                id: changeRequests.id,
+                entityType: changeRequests.entityType,
+                entityId: changeRequests.entityId,
+                fieldName: changeRequests.fieldName,
+                newValue: changeRequests.newValue,
+                requestedBy: changeRequests.requestedBy,
+              })
+              .from(changeRequests)
+              .where(
+                and(eq(changeRequests.entityType, "overlay"), eq(changeRequests.status, "pending")),
+              );
+          }
+        }
+
+        // AI : Group change requests by overlay ID
+        const changeRequestsByOverlay = new Map<string, typeof changeRequestsData>();
+        for (const cr of changeRequestsData) {
+          const existing = changeRequestsByOverlay.get(cr.entityId) ?? [];
+          existing.push(cr);
+          changeRequestsByOverlay.set(cr.entityId, existing);
+        }
+
+        // AI : Transform to OverlayData format
+        return overlaysData.map((row) => {
+          const approvedCorners = row.corners ?? [];
+          const centroid = { lat: row.centroidLat, lng: row.centroidLng };
+
+          const overlayChangeRequests = changeRequestsByOverlay.get(row.overlayId) ?? [];
+          const cornersChangeRequest = overlayChangeRequests.find(
+            (cr) => cr.fieldName === "corners",
+          );
+          const hasPendingCorners = Boolean(cornersChangeRequest);
+          const suggestedCorners =
+            hasPendingCorners && cornersChangeRequest?.newValue
+              ? (cornersChangeRequest.newValue as { lat: number; lng: number }[])
+              : null;
+
+          const userHasPendingChanges =
+            mode === "edit" && overlayChangeRequests.some((cr) => cr.requestedBy === ctx.user?.id);
+
+          return {
+            id: row.overlayId,
+            version: row.overlayVersion,
+            filename: row.overlayFilename,
+            caption: row.overlayCaption,
+            status: row.overlayStatus,
+            projectId: row.overlayProjectId,
+            authorId: row.overlayAuthorId,
+            replacesOverlayId: row.overlayReplacesOverlayId,
+            replacedByOverlayId: row.overlayReplacedByOverlayId ?? null,
+            createdAt: row.overlayCreatedAt,
+            updatedAt: row.overlayUpdatedAt,
+            centroid,
+            corners: approvedCorners,
+            suggestedCorners: suggestedCorners ?? undefined,
+            distance: 0,
+            project: {
+              ...row.project,
+              city: row.city,
+            },
+            hasPendingChanges: mode === "moderation" ? hasPendingCorners : userHasPendingChanges,
+          };
+        });
+      } catch (error) {
+        console.error("Error fetching overlays in bounds:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch overlays in bounds",
+        });
+      }
+    }),
+
+  // AI : NEW: Get standalone projects within geographic bounds for viewport loading
+  getProjectsInBounds: publicProcedure
+    .input(
+      z.object({
+        bounds: z.object({
+          north: z.number().min(-90).max(90),
+          south: z.number().min(-90).max(90),
+          east: z.number().min(-180).max(180),
+          west: z.number().min(-180).max(180),
+        }),
+        mode: z.enum(["view", "edit", "moderation"]).optional().default("view"),
+      }),
+    )
+    .query(async ({ input, ctx }) => {
+      try {
+        const { bounds, mode } = input;
+
+        // AI : SECURITY: Reject moderation mode for unauthenticated users
+        if (mode === "moderation" && !ctx.user) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Authentication required for moderation mode",
+          });
+        }
+
+        // AI : Create PostGIS envelope from bounds
+        const envelope = sql`ST_MakeEnvelope(
+          ${bounds.west}, 
+          ${bounds.south}, 
+          ${bounds.east}, 
+          ${bounds.north}, 
+          4326
+        )`;
+
+        // AI : Build where conditions based on mode
+        const whereConditions = [
+          // AI : Spatial intersection - project center must be within bounds
+          sql`ST_Intersects(${projects.centerCoordinate}, ${envelope})`,
+        ];
+
+        if (mode === "edit" && ctx.user) {
+          whereConditions.push(
+            sql`(${projects.status} = 'approved' OR ${projects.ownerId} = ${ctx.user.id})`,
+          );
+        } else if (mode === "moderation" && ctx.user) {
+          whereConditions.push(
+            sql`(${projects.status} = 'approved' OR ${projects.status} = 'pending')`,
+          );
+        } else {
+          whereConditions.push(eq(projects.status, "approved"));
+        }
+
+        // AI : Query projects within bounds
+        const projectsInBounds = await db
+          .select({
+            id: projects.id,
+            name: projects.name,
+            description: projects.description,
+            status: projects.status,
+            ownerId: projects.ownerId,
+            cityId: projects.cityId,
+            lat: projects.lat,
+            lng: projects.lng,
+            proposalDate: projects.proposalDate,
+            startDate: projects.startDate,
+            endDate: projects.endDate,
+            sourceUrl: projects.sourceUrl,
+            latestUpdateOn: projects.latestUpdateOn,
+            createdAt: projects.createdAt,
+            updatedAt: projects.updatedAt,
+            overlayCount:
+              ctx.user && mode !== "view"
+                ? sql<number>`COUNT(CASE WHEN ${overlays.status} = 'approved' OR ${overlays.authorId} = ${ctx.user.id} THEN 1 END)::int`
+                : sql<number>`COUNT(CASE WHEN ${overlays.status} = 'approved' THEN 1 END)::int`,
+            city: cities,
+          })
+          .from(projects)
+          .innerJoin(cities, eq(projects.cityId, cities.id))
+          .leftJoin(overlays, eq(overlays.projectId, projects.id))
+          .where(and(...whereConditions))
+          .groupBy(
+            projects.id,
+            projects.name,
+            projects.description,
+            projects.status,
+            projects.ownerId,
+            projects.cityId,
+            projects.lat,
+            projects.lng,
+            projects.proposalDate,
+            projects.startDate,
+            projects.endDate,
+            projects.sourceUrl,
+            projects.latestUpdateOn,
+            projects.createdAt,
+            projects.updatedAt,
+            cities.id,
+            cities.name,
+            cities.countryCode,
+            cities.coordinates,
+          )
+          .orderBy(sql`${projects.createdAt} DESC`);
+
+        return projectsInBounds;
+      } catch (error) {
+        console.error("Error fetching projects in bounds:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch projects in bounds",
         });
       }
     }),
