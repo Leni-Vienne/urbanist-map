@@ -193,7 +193,8 @@ export const citiesRouter = router({
         // AI : Build visibility conditions using helper functions
         const whereConditions = [
           eq(projects.cityId, cityId),
-          buildProjectVisibilityCondition(ctx.user, mode),
+          // AI : In moderation mode, disable strict filtering to show approved projects (context)
+          buildProjectVisibilityCondition(ctx.user, mode, false),
           buildOverlayVisibilityCondition(ctx.user, mode, overlayChangeRequestIds),
         ];
 

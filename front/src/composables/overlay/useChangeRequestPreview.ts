@@ -44,7 +44,6 @@ function isCoordinate(value: unknown): value is { lat: number; lng: number } {
 export function useChangeRequestPreview() {
   const toast = useToast();
   const overlayStore = useOverlayStore();
-  const mapStore = useMapStore();
 
   // AI : State management (from usePositionPreview)
   const hasActivePreview = computed(() => previewState.value.type !== "none");

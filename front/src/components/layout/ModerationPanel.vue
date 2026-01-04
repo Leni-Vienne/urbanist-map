@@ -148,8 +148,14 @@ import { useChangeRequestPreview } from '@/composables/overlay/useChangeRequestP
 import { useToast } from '@/composables/ui/useToast'
 import { useAuthStore } from '@/stores/authStore'
 import { useModerationStore } from '@/stores/pinia/moderationStore'
+import { useMapStore } from '@/stores/pinia/mapStore'
+import { useProjectStore } from '@/stores/pinia/projectStore'
 import type { OverlayForModeration } from '@/types/index'
 import { trpc } from '@/client'
+import { addCityMarkersForCountry } from '@/composables/map/useCityMarkers'
+import { setAllCityMarkers } from '@/composables/map/useViewportCityLoading'
+import { mobileAwareFlyTo } from '@/composables/map/useMapNavigation'
+import { map } from '@/composables/core/useMap'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
 import ReplacementConflictsDialog, { type ReplacementConflicts } from '@/components/moderation/ReplacementConflictsDialog.vue'
 import ReportUserDialog from '@/components/moderation/ReportUserDialog.vue'
@@ -163,6 +169,8 @@ const { t } = useI18n()
 // AI : Auth and moderation stores for country filtering
 const authStore = useAuthStore()
 const moderationStore = useModerationStore()
+const mapStore = useMapStore()
+const projectStore = useProjectStore()
 
 // AI : Country selector state - use store's cached countries
 const countriesLoading = ref(false)
@@ -205,6 +213,18 @@ const availableCountries = computed(() => {
 // AI : Fetch all countries on mount only if not already cached, and auto-select if only one available
 onMounted(async () => {
   try {
+    // AI : Restore state from Store or Map logic BEFORE fetching countries
+    // AI : This ensures markers are loaded immediately if we are returning to the panel
+    const initialCode = mapStore.selectedCountryCode ?? moderationStore.selectedCountryCode
+    if (initialCode) {
+      const user = authStore.user
+      const canAccess = !user?.moderatedCountries || user.moderatedCountries.includes(initialCode)
+      if (canAccess) {
+        // AI : Restore markers. useModeration hook (running after this) will see the store value and fetch the list.
+        await loadCountryData(initialCode)
+      }
+    }
+
     // AI : Only fetch if not already loaded in store
     if (!moderationStore.countriesLoaded) {
       countriesLoading.value = true
@@ -215,12 +235,12 @@ onMounted(async () => {
     // AI : Auto-select country if non-admin moderator has exactly one assigned country
     const user = authStore.user
     const isAdmin = user?.role === 'admin'
-    if (!isAdmin && availableCountries.value.length === 1) {
+    // AI : Check if we DIDN'T restore a country already
+    if (!selectedCountryCode.value && !isAdmin && availableCountries.value.length === 1) {
       const singleCountryCode = availableCountries.value[0].code
-      selectedCountryCode.value = singleCountryCode
-      moderationStore.setSelectedCountryCode(selectedCountryCode.value)
-      // AI : Manually fetch pending submissions after auto-selecting country
-      // AI : This is necessary because useModeration's onMounted skips fetch when no country is selected yet
+      // AI : Use shared loader
+      await loadCountryData(singleCountryCode)
+      // AI : Explicitly fetch pending submissions because useModeration hook ran already (saw null)
       await fetchPendingSubmissions()
     }
 
@@ -248,10 +268,65 @@ onMounted(async () => {
 })
 
 // AI : Handle country selection change
-function handleCountryChange() {
-  moderationStore.setSelectedCountryCode(selectedCountryCode.value)
-  moderationStore.resetModerationLoaded()
-  fetchPendingSubmissions()
+// AI : Load data for a specific country (markers, pending submissions, etc.)
+async function loadCountryData(countryCode: string | null) {
+  // AI : Sync local ref if needed (e.g. when called from watcher/mounted)
+  if (selectedCountryCode.value !== countryCode) {
+    selectedCountryCode.value = countryCode
+  }
+
+  // AI : Update stores
+  // AI : Update stores
+  // AI : Optim: Only invalidate moderation data if country changed (allows cache reuse)
+  const isDifferentCountry = moderationStore.selectedCountryCode !== countryCode
+  moderationStore.setSelectedCountryCode(countryCode)
+
+  if (isDifferentCountry) {
+    moderationStore.resetModerationLoaded()
+  }
+
+  // AI : Load city markers for the selected country
+  if (countryCode) {
+    try {
+      // AI : Fetch cities for the selected country in moderation mode
+      const cities = await trpc.cities.getCitiesWithProjects.query({
+        countryCode,
+        mode: 'moderation'
+      })
+
+      // AI : Add city markers to the map
+      addCityMarkersForCountry(cities, countryCode)
+      // AI : Update viewport tracking so zooming triggers data fetch
+      setAllCityMarkers(cities)
+
+      // AI : Update mapStore to keep state in sync
+      mapStore.selectedCountryCode = countryCode
+
+      // AI : Fly to the country center if available
+      const country = projectStore.countries.find(c => c.code === countryCode)
+      if (country && map.value) {
+        // AI : PostGIS geometry uses x for longitude and y for latitude
+        mobileAwareFlyTo([country.centerCoordinates.y, country.centerCoordinates.x], 6, { duration: 1.5 })
+      }
+    } catch (error) {
+      console.error('Failed to load city markers for country:', error)
+      toast.add({
+        severity: 'error',
+        summary: t('common.error'),
+        detail: t('moderation.failedToLoadCityMarkers'),
+        life: 3000
+      })
+    }
+  }
+
+  // AI : fetchPendingSubmissions removed from here to avoid double fetch on mount
+  // AI : It must be called explicitly by callers (handler, watcher, or auto-select)
+}
+
+// AI : Handle country selection change
+async function handleCountryChange() {
+  await loadCountryData(selectedCountryCode.value)
+  await fetchPendingSubmissions()
 }
 
 // AI : Watch for external changes to moderationStore.selectedCountryCode (e.g., from country marker clicks)
@@ -262,7 +337,8 @@ watch(
     if (newCountryCode !== selectedCountryCode.value) {
       selectedCountryCode.value = newCountryCode
       if (newCountryCode) {
-        moderationStore.resetModerationLoaded()
+        // AI : Use shared loader to ensure city markers are loaded too
+        loadCountryData(newCountryCode)
         fetchPendingSubmissions()
       }
     }

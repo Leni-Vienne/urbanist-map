@@ -1,5 +1,8 @@
 {
   "oxc.enable": true,
+  "oxc.path.oxfmt": "node_modules/oxfmt/dist/cli.js",
+  "oxc.path.oxlint": "node_modules/oxlint/dist/cli.js",
+  "oxc.configPath": ".oxlintrc.json",
   "html.format.wrapAttributes": "force-expand-multiline",
   "[typescript]": {
     "editor.defaultFormatter": "oxc.oxc-vscode" // "oxc.oxc-vscode" to enable, but messes with chatbots

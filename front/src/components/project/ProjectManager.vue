@@ -60,7 +60,6 @@ import { useCityProjects } from '@/composables/project/useProjectSelection'
 import type { Project, NearbyProject } from '@/types/index'
 
 import MarkerPlacementBar from '@/components/map/MarkerPlacementBar.vue'
-import countryBboxes from '@/assets/country_bboxes.json'
 const CreateProjectDialog = defineAsyncComponent(() => import('@/components/project/CreateProjectDialog.vue'))
 const EditProjectForm = defineAsyncComponent(() => import('@/components/forms/EditProjectForm.vue'))
 

@@ -82,11 +82,17 @@ function resolveViewModePosition(overlayData: OverlayData): ResolvedPosition {
 function resolveEditModePosition(overlayId: string, overlayData: OverlayData): ResolvedPosition {
   const overlayStore = useOverlayStore();
 
-  // AI : Priority 1: Currently loaded overlay (user might be actively editing)
+  //  AI : Priority 1: Currently loaded overlay (user might be actively editing)
   const overlayObject = overlayStore.overlays[overlayId];
-  if (overlayObject?.corners?.length === 4) {
-    const result = calculatePositionFromCorners(overlayObject.corners, "runtime-overlay");
-    if (result) return result;
+  if (overlayObject?.overlay) {
+    // AI : CRITICAL: Use actual Leaflet overlay corners, not overlayObject.corners
+    // AI : overlayObject.corners contains original backend data, not moved positions
+    const actualCorners = overlayObject.overlay.getCorners();
+    if (actualCorners?.length === 4) {
+      const corners = actualCorners.map((c) => ({ lat: c.lat, lng: c.lng }));
+      const result = calculatePositionFromCorners(corners, "runtime-overlay");
+      if (result) return result;
+    }
   }
 
   // AI : Priority 2: Edit mode cache (persisted modifications from previous session)
