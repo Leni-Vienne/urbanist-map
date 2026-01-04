@@ -2,8 +2,7 @@ import { ref, watch } from "vue";
 import L from "leaflet";
 import { map } from "@/composables/core/useMap";
 import { debounce } from "@/utils/debounce";
-import type { CityWithProjects } from "@/composables/map/useCityMarkers";
-import { fetchCityDataForViewport } from "@/composables/map/useCityMarkers";
+import { fetchCityDataForViewport, type CityWithProjects } from "@/composables/map/useCityMarkers";
 import {
   removeOverlayMarkers,
   renderOverlayMarkersFromData,
@@ -22,6 +21,7 @@ import { renderViewModeOverlays } from "@/composables/overlay/useOverlay";
 import { useCompletionFilters } from "@/composables/overlay/useCompletionFilters";
 import type { OverlayData, OverlayObject } from "@/types/index";
 import { MAP_CONFIG } from "@/constants/mapConstants";
+import { resolveOverlayCorners } from "@/composables/overlay/useOverlayPositionResolver";
 
 // AI : Zoom threshold - only load projects when zoomed in past this level
 
@@ -90,56 +90,30 @@ function cityHasContentInViewport(cityId: number): boolean {
     return false;
   };
 
-  // 1. Check cached overlays (persistent content)
-  // We prefer live data (active overlay or edit cache) over stored backend data
+  // AI : 1. Check cached overlays using position resolver
+  // AI : Position resolver handles priority: Leaflet > Edit Cache > Mode Cache > Backend
   const cachedOverlays = mapStore.getCityOverlaysAndProjectsCache(cityId, overlayStore.mode);
   if (cachedOverlays) {
     for (const cachedOverlay of cachedOverlays) {
-      // Check for active override
-      const activeOverlay = overlayStore.overlays[cachedOverlay.id];
-      let corners = cachedOverlay.corners; // Default from cache
-
-      if (activeOverlay?.overlay) {
-        // Active and rendered - use actual bounds
-        corners = activeOverlay.overlay.getCorners();
-      } else {
-        // Check edit cache for modifications
-        const editCache = overlayStore.getFromEditModeCache(cachedOverlay.id);
-        if (editCache?.corners) {
-          corners = editCache.corners;
-        }
-      }
-
+      const corners = resolveOverlayCorners(cachedOverlay.id);
       if (checkIntersection(corners)) return true;
     }
   }
 
-  // 2. Check active overlays (covering brand new items not in cache)
-  // iterate active overlays to catch new ones
+  // AI : 2. Check active overlays (covering brand new items not in cache)
   const activeOverlays = Object.values(overlayStore.overlays) as OverlayObject[];
   for (const overlay of activeOverlays) {
     if ((overlay as any).cityId === cityId) {
-      // We might have already checked this if it was in cache, but checking again is cheap enough
-      // and ensures we catch new local overlays
-      let corners = overlay.corners;
-      if (overlay.overlay) {
-        corners = overlay.overlay.getCorners();
-      } else {
-        const editCache = overlayStore.getFromEditModeCache(overlay.id);
-        if (editCache?.corners) corners = editCache.corners;
-      }
-
+      const corners = resolveOverlayCorners(overlay.id);
       if (checkIntersection(corners)) return true;
     }
   }
 
-  // 3. Check standalone projects
+  // AI : 3. Check standalone projects
   const cachedProjects = mapStore.getCityStandaloneProjectsCache(cityId, overlayStore.mode);
   if (cachedProjects) {
     for (const project of cachedProjects) {
       // Check for active marker override (if dragged/moved)
-      // Note: Standalone projects aren't typically draggable in the same way, but
-      // this ensures consistency if we add that feature or if markers are offset
       const marker = getStandaloneProjectMarkerByProjectId(project.id);
       let lat = project.lat;
       let lng = project.lng;

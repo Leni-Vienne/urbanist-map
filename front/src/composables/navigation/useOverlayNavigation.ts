@@ -15,35 +15,7 @@ import {
 } from "@/composables/map/useStandaloneProjectMarkers";
 import { createProjectInfoTeleportTarget } from "@/composables/map/useProjectPopupTeleport";
 import { MAP_CONFIG } from "@/constants/mapConstants";
-import type { OverlayObject } from "@/types/index";
-
-/**
- * AI : Get the corners that should be used for navigation based on current display state
- * AI : Respects whether user is viewing suggested position or approved position
- * @param overlay - The overlay object
- * @returns Corners to navigate to (suggested or approved)
- */
-function getCurrentDisplayCorners(overlay: OverlayObject): { lat: number; lng: number }[] | null {
-  // AI : If overlay has Leaflet instance, get actual rendered corners (most accurate)
-  if (overlay.overlay) {
-    const actualCorners = overlay.overlay.getCorners();
-    if (actualCorners?.length === 4) {
-      return actualCorners.map((c) => ({ lat: c.lat, lng: c.lng }));
-    }
-  }
-
-  // AI : If user is viewing suggested position, use suggestedCorners
-  if (overlay.isViewingApprovedPosition === false && overlay.suggestedCorners?.length === 4) {
-    return overlay.suggestedCorners;
-  }
-
-  // AI : Default: use approved corners
-  if (overlay.corners?.length === 4) {
-    return overlay.corners;
-  }
-
-  return null;
-}
+import { resolveOverlayCorners } from "@/composables/overlay/useOverlayPositionResolver";
 
 /**
  * AI : Shared logic for navigating to a location by simulating country → city marker clicks
@@ -166,37 +138,13 @@ function zoomToOverlayAndSelect(
 }
 
 /**
- * AI : Get corners from either loaded overlay or mapStore data
- */
-function getOverlayCorners(
-  overlayId: string,
-  mapStore: ReturnType<typeof useMapStore>,
-  overlayStore: ReturnType<typeof useOverlayStore>,
-): { lat: number; lng: number }[] | null {
-  // AI : Try loaded overlay first (respects current display position)
-  const overlayObject = overlayStore.overlays[overlayId];
-  if (overlayObject != null) {
-    return getCurrentDisplayCorners(overlayObject);
-  }
-
-  // AI : Fallback to mapStore data
-  const overlayData = mapStore.currentCityOverlays.find((o) => o.id === overlayId);
-  return overlayData?.corners ?? null;
-}
-
-/**
  * AI : Handle navigation when clicking the same overlay again
+ * AI : Uses position resolver to get current corners
  */
-function handleSameOverlayNavigation(
-  overlayId: string,
-  overlayStore: ReturnType<typeof useOverlayStore>,
-): boolean {
-  const overlayObject = overlayStore.overlays[overlayId];
-  if (overlayObject != null) {
-    const corners = getCurrentDisplayCorners(overlayObject);
-    if (corners != null) {
-      zoomToOverlayAndSelect(overlayId, corners, null); // AI : Same overlay, no cross-country
-    }
+function handleSameOverlayNavigation(overlayId: string): boolean {
+  const corners = resolveOverlayCorners(overlayId);
+  if (corners != null) {
+    zoomToOverlayAndSelect(overlayId, corners, null); // AI : Same overlay, no cross-country
   }
   return true;
 }
@@ -223,7 +171,7 @@ export async function navigateToOverlayWithCity(
 
     // AI : Optimization 1: Check if clicking the same overlay again
     if (overlayStore.idSelectedOverlay === overlayId) {
-      return handleSameOverlayNavigation(overlayId, overlayStore);
+      return handleSameOverlayNavigation(overlayId);
     }
 
     // AI : Optimization 2: Check if overlay is from the currently selected city
@@ -231,7 +179,7 @@ export async function navigateToOverlayWithCity(
     const isSameCity = currentCity?.id === cityId;
 
     if (isSameCity) {
-      const corners = getOverlayCorners(overlayId, mapStore, overlayStore);
+      const corners = resolveOverlayCorners(overlayId);
       if (corners != null) {
         return zoomToOverlayAndSelect(overlayId, corners, null, autoSelect); // AI : Same city, pass autoSelect
       }
