@@ -31,6 +31,7 @@ import {
   removeCityMarkers,
   addCityMarkersForCountry,
   updateAllStandaloneProjectMarkerColors,
+  citiesWithProjects,
 } from "@/composables/map/useCityMarkers";
 import { loadCitiesForCountry } from "@/composables/map/useCountryData";
 import { navigateToStandaloneProject } from "@/composables/navigation/useOverlayNavigation";
@@ -123,6 +124,13 @@ function performFullRender(newState: OverlayModeState, transition: StateTransiti
     }
 
     clearAllRenderedContent();
+
+    // AI : If in low zoom (global view), restore global city markers
+    // AI : This ensures markers don't disappear when switching modes at global level
+    // AI : Need to check zoom level again to be safe, though performFullRender usually implies we know the state
+    if (map.value && map.value.getZoom() < MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
+      addCityMarkersForCountry(citiesWithProjects.value);
+    }
     return;
   }
 
@@ -255,6 +263,12 @@ export async function switchMode(
         });
       }
     }
+  }
+
+  // AI : Clear selected country when leaving moderation mode
+  // AI : This ensures we revert to global view instead of getting stuck in a country context
+  if (overlayStore.mode === "moderation" && targetMode !== "moderation") {
+    mapStore.selectedCountryCode = null;
   }
 
   // AI : Set new mode
