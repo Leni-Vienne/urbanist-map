@@ -14,6 +14,7 @@ import {
   updateStandaloneProjectMarkerOpacities,
 } from "@/composables/map/useStandaloneProjectMarkers";
 import { createProjectInfoTeleportTarget } from "@/composables/map/useProjectPopupTeleport";
+import { MAP_CONFIG } from "@/constants/mapConstants";
 import type { OverlayObject } from "@/types/index";
 
 /**
@@ -80,7 +81,9 @@ async function prepareNavigationToCity(
   }
 
   // AI : Step 3: Simulate city marker click (this loads and renders all markers and overlays for the city)
-  await loadCityProjects(cityId, cityName, null, false, countryCode);
+  // AI : Use forceFullLoad=true to ensure overlays render even if current zoom is low
+  // AI : This is necessary because we're about to fly to an overlay which requires the full overlay to exist
+  await loadCityProjects(cityId, cityName, null, true, countryCode);
 
   return switchToCountryLayer;
 }
@@ -110,6 +113,22 @@ function zoomToOverlayAndSelect(
     // AI : If cross-country flight, switch to country layer after arrival
     if (switchToCountryLayer) {
       switchToCountryLayer();
+    }
+
+    // AI : CRITICAL: After zoom completes, check if overlay needs to be rendered
+    // AI : This handles the case where overlays were loaded while zoomed out
+    // AI : The overlay might exist in overlayStore but not be rendered on the map
+    const overlayObj = overlayStore.overlays[overlayId];
+    if (overlayObj && !overlayObj.overlay) {
+      // AI : Overlay object exists but Leaflet overlay not created - this shouldn't happen
+      // AI : but if it does, we need to trigger a re-render
+      console.warn(`Overlay ${overlayId} exists in store but has no Leaflet overlay`);
+    } else if (overlayObj?.overlay && !map.value?.hasLayer(overlayObj.overlay)) {
+      //  AI : Overlay exists but not on map - add it now that zoom is correct
+      const currentZoom = map.value?.getZoom() ?? 0;
+      if (currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
+        overlayObj.overlay.addTo(map.value!);
+      }
     }
 
     // AI : Wait for element to exist, then wait for image to load before selecting
