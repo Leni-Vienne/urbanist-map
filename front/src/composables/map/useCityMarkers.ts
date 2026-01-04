@@ -5,7 +5,7 @@ import { ref, watch } from "vue";
 import { t } from "@/locales";
 import { map } from "@/composables/core/useMap";
 import { mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
-import { loadCityOverlays, fetchCityProjectsData } from "@/composables/map/useCityOverlays";
+import { loadCityOverlays } from "@/composables/map/useCityOverlays";
 import { useSelectedProject } from "@/composables/project/useProjectSelection";
 import { trpc, type RouterOutput } from "@/client";
 
@@ -66,21 +66,39 @@ function initializeModeWatcher() {
   if (modeWatcherInitialized) return;
 
   const overlayStore = useOverlayStore();
+  const authStore = useAuthStore();
+
   watch(
     () => overlayStore.mode,
-    () => {
+    async () => {
       updateAllStandaloneProjectMarkerColors();
 
-      // AI : Reload city markers to apply visibility filters (moderation mode)
-      const mapStore = useMapStore();
-      // AI : If we are viewing a country (no specific city selected), we need to refresh the country's city markers
-      // AI : We can do this by re-adding the current markers with the new filter
-      if (!mapStore.selectedCity && cityMarkersLayer) {
-        // AI : We need to trigger a refresh. The simplest way is to conceptually "refresh" the view.
-        // AI : However, useCityMarkers doesn't store the full list of cities permanently in a way that's easy to access here without passing it in.
-        // AI : A better approach might be to leverage the existing data flow or just simple reactivity if we make `addCityMarkersForCountry` reactive?
-        // AI : Actually, `citiesWithProjects` is exported and reactive!
-        addCityMarkersForCountry(citiesWithProjects.value);
+      // AI : Re-fetch city markers with the new mode filter
+      // AI : This ensures cities with ONLY pending content appear when switching to edit mode
+      const queryMode = authStore.isAuthenticated ? overlayStore.mode : "view";
+
+      try {
+        const citiesData = await trpc.cities.getCitiesWithProjects.query({ mode: queryMode });
+
+        if (citiesData && citiesData.length > 0) {
+          // AI : Update global ref
+          citiesWithProjects.value = citiesData;
+
+          // AI : Re-render city markers with new data
+          const mapStore = useMapStore();
+          if (mapStore.selectedCountryCode) {
+            // AI : If viewing a specific country, filter to that country
+            const countryCities = citiesData.filter(
+              (c) => c.countryCode === mapStore.selectedCountryCode,
+            );
+            addCityMarkersForCountry(countryCities, mapStore.selectedCountryCode);
+          } else {
+            // AI : Otherwise show all cities
+            addCityMarkersToMapInternal(citiesData);
+          }
+        }
+      } catch (error) {
+        console.error("Error reloading city markers on mode change:", error);
       }
     },
   );
@@ -454,14 +472,21 @@ function getCityMarkerConfig(): MarkerLayerConfig<CityWithProjects> {
         }
       }
 
+      // AI : Update selected city in store
+      mapStore.setSelectedCity({
+        id: city.id,
+        name: city.name,
+        nameLocal: city.nameLocal,
+        countryCode: city.countryCode,
+      });
+
       // AI : Zoom to the city marker position (same zoom level as MarkerHelpButton)
+      // AI : The viewport manager's moveend/zoomend listeners will handle data loading
       if (map.value && map.value.getZoom() < 14) {
         mobileAwareFlyTo([city.lat, city.lng], 14, {
           duration: 1.5,
         });
       }
-
-      await loadCityProjects(city.id, city.name, city.nameLocal, false, city.countryCode);
     },
   };
 }
@@ -543,6 +568,10 @@ export async function loadAllCityMarkersGlobally(): Promise<CityWithProjects[]> 
 
       // AI : Add all city markers to map (without country filter)
       addCityMarkersToMapInternal(citiesData);
+
+      // AI : CRITICAL: Initialize mode watcher so cities re-fetch when mode changes
+      // AI : This must be called AFTER initial load to ensure cities with only pending content appear in edit mode
+      initializeModeWatcher();
 
       return citiesData;
     }
