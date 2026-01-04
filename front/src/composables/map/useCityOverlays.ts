@@ -139,8 +139,6 @@ export async function loadCityOverlays(
  * AI : Common function to render overlay markers from overlay data
  */
 export function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void {
-  const overlayStore = useOverlayStore();
-
   // AI : Remove any existing overlay marker layer to prevent accumulation of orphaned layers
   removeOverlayMarkers();
 
