@@ -235,10 +235,9 @@ export function useModeration() {
 
     if (mapCountryCode && canAccessMapCountry) {
       moderationStore.setSelectedCountryCode(mapCountryCode);
-    } else {
-      // AI : If map country is invalid/restricted, clear moderation country
-      moderationStore.setSelectedCountryCode(null);
     }
+    // AI : If map country is null (global view), we preserve the existing moderation store selection
+    // AI : This allows users to return to their previous moderation context
 
     const isAdmin = user.role === "admin";
     const hasSelectedCountry = moderationStore.selectedCountryCode !== null;
