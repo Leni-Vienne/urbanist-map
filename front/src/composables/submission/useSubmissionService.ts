@@ -1,5 +1,6 @@
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { trpc } from "@/client";
 import { buildProjectPayload } from "@/composables/project/useProjectMutations";
 import {
@@ -7,7 +8,7 @@ import {
   updateStandaloneProjectMarkerColor,
 } from "@/composables/map/useCityMarkers";
 import { updateMarkerTooltip } from "@/composables/overlay/useOverlayMarkers";
-import type { Project, OverlayObject } from "@/types/index";
+import type { Project, OverlayObject, OverlayData } from "@/types/index";
 import {
   projectSchema,
   overlaySchema,
@@ -120,6 +121,7 @@ function getChangeType(entity: Project | OverlayObject): SubmissionChangeType {
 export function useSubmissionService() {
   const projectStore = useProjectStore();
   const mapStore = useMapStore();
+  const overlayStore = useOverlayStore();
   const { currentCityOverlays } = storeToRefs(mapStore);
   const { resetChangeRequestsLoaded, refreshPendingChangeRequests } = useChangeRequests();
 
@@ -210,9 +212,19 @@ export function useSubmissionService() {
         String(field),
       );
 
-      // AI : Normalize values based on field type
-      const normalizedOld = isDateField ? normalizeDate(oldValue) : normalizeEmptyValue(oldValue);
-      const normalizedNew = isDateField ? normalizeDate(newValue) : normalizeEmptyValue(newValue);
+      // AI : For change requests, preserve empty strings (database requires non-null new_value)
+      // AI : Only normalize dates; for other fields, use empty string instead of null
+      let normalizedOld: any;
+      let normalizedNew: any;
+
+      if (isDateField) {
+        normalizedOld = normalizeDate(oldValue);
+        normalizedNew = normalizeDate(newValue);
+      } else {
+        // AI : Convert null/undefined to empty string, preserve actual values
+        normalizedOld = oldValue ?? "";
+        normalizedNew = newValue ?? "";
+      }
 
       if (normalizedOld !== normalizedNew) {
         changes.push({
@@ -231,12 +243,19 @@ export function useSubmissionService() {
   function detectOverlayChanges(overlay: OverlayObject, customReason?: string): FieldChange[] {
     const changes: FieldChange[] = [];
 
-    // AI : Find original overlay data from backend
-    // AI : First try approved overlays, then try pending overlays from user contributions
-    let originalOverlay = currentCityOverlays.value.find((o) => o.id === overlay.id);
+    // AI : Find original overlay data from backend cache (must use cache to get corners!)
+    // AI : currentCityOverlays doesn't have corners, we need to fetch from the city cache
+    let originalOverlay: OverlayData | undefined;
+
+    // AI : Get cityId from the overlay's project
+    const cityId = overlay.project?.cityId;
+    if (cityId) {
+      const cachedOverlays = mapStore.getCityOverlaysAndProjectsCache(cityId, "view");
+      originalOverlay = cachedOverlays?.find((o) => o.id === overlay.id);
+    }
 
     if (!originalOverlay) {
-      // AI : For pending overlays, check user contributions cache
+      // AI : For pending overlays or if not found in cache, check user contributions
       const contribution = projectStore.userContributions.find((c) =>
         c.overlays?.some((o) => o.id === overlay.id),
       );
@@ -257,15 +276,15 @@ export function useSubmissionService() {
       return changes;
     }
 
-    // AI : Check caption change (normalize empty values to avoid false positives)
-    const normalizedOldCaption = normalizeEmptyValue(originalOverlay.caption);
-    const normalizedNewCaption = normalizeEmptyValue(overlay.caption);
+    // AI : Check caption change (don't normalize to null - database requires non-null new_value)
+    const oldCaption = originalOverlay.caption ?? "";
+    const newCaption = overlay.caption ?? "";
 
-    if (normalizedOldCaption !== normalizedNewCaption) {
+    if (oldCaption !== newCaption) {
       changes.push({
         fieldName: "caption",
-        oldValue: normalizedOldCaption,
-        newValue: normalizedNewCaption,
+        oldValue: oldCaption,
+        newValue: newCaption,
         changeReason: customReason ?? undefined,
       });
     }
@@ -555,6 +574,14 @@ export function useSubmissionService() {
         // AI : User is currently viewing the suggested position (the position they just modified)
         // AI : Set to false so marker shows yellow to indicate pending changes
         context.entity.isViewingApprovedPosition = false;
+      }
+
+      // AI : CRITICAL: Also update the overlay in overlayStore so preview buttons work
+      const overlayInStore = overlayStore.overlays[context.entity.id];
+      if (overlayInStore && cornersChange?.newValue) {
+        overlayInStore.suggestedCorners = cornersChange.newValue as { lat: number; lng: number }[];
+        overlayInStore.hasPendingChanges = true;
+        overlayInStore.isViewingApprovedPosition = false;
       }
 
       updateMarkerTooltip(context.entity);

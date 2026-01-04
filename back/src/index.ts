@@ -734,7 +734,11 @@ const loginSchema = z.object({
 });
 
 const filenameParamSchema = z.object({
-  filename: z.string().min(1, "Filename is required"),
+  filename: z
+    .string()
+    .min(1, "Filename is required")
+    .regex(/^[a-zA-Z0-9\-_.\/]+$/, "Invalid filename format")
+    .refine((name) => !name.includes(".."), "Path traversal not allowed"),
 });
 
 const imageFileSchema = z.object({
