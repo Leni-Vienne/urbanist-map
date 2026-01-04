@@ -57,14 +57,26 @@ async function prepareNavigationToCity(
   let switchToCountryLayer: (() => void) | null = null;
 
   if (countryCode) {
+    const mapStore = useMapStore();
+    // AI : Only clear when switching from one DEFINED country to a DIFFERENT country
+    // AI : Don't clear when selectedCountryCode is undefined (global city markers loaded)
+    const isDifferentCountry =
+      mapStore.selectedCountryCode != null && mapStore.selectedCountryCode !== countryCode;
+
     // AI : Step 1: Prepare for cross-country flight (switches to esri if needed)
     switchToCountryLayer = prepareCrossCountryFlight(countryCode);
 
-    // AI : Step 2: Clear map and load cities for the country
-    clearAllMapContent();
-    const mapStore = useMapStore();
-    mapStore.selectedCountryCode = countryCode;
-    await loadCitiesForCountry(countryCode);
+    // AI : Step 2: Only clear map and reload cities when switching countries
+    // AI : This prevents unnecessary removal of city markers when navigating within the same country
+    if (isDifferentCountry) {
+      clearAllMapContent();
+      mapStore.selectedCountryCode = countryCode;
+      await loadCitiesForCountry(countryCode);
+    } else if (!mapStore.selectedCountryCode) {
+      // AI : First time selecting a country - just set it without clearing
+      mapStore.selectedCountryCode = countryCode;
+      await loadCitiesForCountry(countryCode);
+    }
   }
 
   // AI : Step 3: Simulate city marker click (this loads and renders all markers and overlays for the city)
