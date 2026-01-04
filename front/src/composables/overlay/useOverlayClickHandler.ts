@@ -91,7 +91,7 @@ export function useOverlayClickHandler() {
         );
       } else {
         // AI : Fallback to direct navigation if no city info
-        await navigateToOverlay(overlay.id, true, true);
+        await navigateToOverlay(overlay.id, true, autoSelect);
       }
     } catch (error) {
       console.error("Failed to navigate to overlay:", error);

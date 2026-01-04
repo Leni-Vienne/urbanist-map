@@ -38,6 +38,7 @@
     "no-console": "off",
     "no-bitwise": "off",
     "number-literal-case": "off",
+    "no-explicit-any": "off", // temp maybe
     "max-statements": "off", // temp maybe
     "no-undefined": "off", // temp maybe
     "no-alert": "off", // temp
