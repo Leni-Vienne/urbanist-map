@@ -288,7 +288,7 @@ export function useViewportContentManager() {
       for (const project of allProjects) {
         if (!projectIdsWithOverlays.has(project.id) && project.overlayCount === 0) {
           addStandaloneProjectMarkerForProject(project as any);
-          standaloneCount++;
+          standaloneCount += 1;
         }
       }
     } catch (error) {
