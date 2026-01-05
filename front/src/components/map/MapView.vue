@@ -40,17 +40,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick, defineAsyncComponent } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent } from 'vue';
 
 import { initializeMap, disableLeafletKeyboardEvents, map } from '@/composables/core/useMap';
 import { addTileLayer } from '@/composables/map/useTileLayers';
 import { initializeCameraBounds } from '@/composables/map/useMapNavigation';
-import { renderViewModeOverlays, undo, redo } from '@/composables/overlay/useOverlay';
+import { undo, redo } from '@/composables/overlay/useOverlay';
 import { setupMapClickToDeselect } from '@/composables/overlay/useOverlaySelection';
-import { removeOverlayFromMap } from '@/composables/overlay/useOverlayRemoval';
 import { useToast } from '@/composables/ui/useToast';
 import { useI18n } from 'vue-i18n';
-import { updateOverlayMarkersForFilters } from '@/composables/map/useCityOverlays';
 // AI : Load countries for breadcrumbs (no marker rendering)
 import { loadCountriesWithProjects } from '@/composables/map/useCountryData';
 import { loadAllCityMarkersGlobally } from '@/composables/map/useCityMarkers';
@@ -58,7 +56,6 @@ import { useViewportContentManager } from '@/composables/viewport/useViewportCon
 import { useMapStore } from '@/stores/pinia/mapStore';
 import { useOverlayStore } from '@/stores/pinia/overlayStore';
 import { useAuthStore } from '@/stores/authStore';
-import type { OverlayData } from '@/types/index';
 import ModeControls from '@/components/map/ModeControls.vue';
 
 const MapControls = defineAsyncComponent(() => import('@/components/map/MapControls.vue'));
@@ -110,9 +107,6 @@ function handleKeyDown(event: KeyboardEvent) {
     redo();
   }
 }
-
-
-
 
 // AI : Initialize map and overlays
 async function initializeMapAndOverlays() {

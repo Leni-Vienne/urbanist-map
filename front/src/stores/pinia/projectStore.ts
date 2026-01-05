@@ -28,6 +28,16 @@ function getCitiesCacheKey(countryCode: string, mode: MapMode): string {
   return `${countryCode}:${mode}`;
 }
 
+// AI : Helper to generate cache key from parameters (exported for use in composables)
+function getUserContributionsCacheKey(options?: {
+  cityId?: number;
+  includeCityProjects?: boolean;
+}): string {
+  const cityId = options?.cityId ?? null;
+  const includeCityProjects = options?.includeCityProjects ?? false;
+  return `${cityId}:${includeCityProjects}`;
+}
+
 export const useProjectStore = defineStore("project", () => {
   // AI : Central store for project data to avoid circular dependencies
   const projects = ref<Record<string, Project>>({});
@@ -139,16 +149,6 @@ export const useProjectStore = defineStore("project", () => {
       selectedProjectId.value = value;
     },
   });
-
-  // AI : Helper to generate cache key from parameters (exported for use in composables)
-  const getUserContributionsCacheKey = (options?: {
-    cityId?: number;
-    includeCityProjects?: boolean;
-  }): string => {
-    const cityId = options?.cityId ?? null;
-    const includeCityProjects = options?.includeCityProjects ?? false;
-    return `${cityId}:${includeCityProjects}`;
-  };
 
   // AI : User contributions actions
   function setUserContributions(contributions: UserContribution[], cacheKey: string) {
@@ -657,6 +657,45 @@ export const useProjectStore = defineStore("project", () => {
     clearCountriesCache();
   }
 
+  // AI : Fetch standalone projects for a city (migrated from useCityMarkers)
+  async function fetchCityStandaloneProjects(
+    cityId: number | null,
+    mode: MapMode,
+  ): Promise<RouterOutput["project"]["getCityProjects"]> {
+    try {
+      // AI : Note: We don't access mapStore here to avoid circular dependencies if possible.
+      // AI : Ideally caching should be handled here or passed in.
+      // AI : For now, we return the raw data and let the caller handle map-specific caching.
+
+      if (cityId === null) {
+        return [];
+      }
+
+      const response = await trpc.project.getCityProjects.query({
+        cityId,
+        mode,
+      });
+
+      return response;
+    } catch (error) {
+      console.error("Error fetching city standalone projects:", error);
+      throw error;
+    }
+  }
+
+  // AI : Fetch global cities with projects (migrated from useCityMarkers)
+  async function fetchCitiesWithProjects(
+    mode: MapMode,
+  ): Promise<RouterOutput["cities"]["getCitiesWithProjects"]> {
+    try {
+      const response = await trpc.cities.getCitiesWithProjects.query({ mode });
+      return response;
+    } catch (error) {
+      console.error("Error fetching cities with projects:", error);
+      throw error;
+    }
+  }
+
   return {
     // State
     projects,
@@ -714,6 +753,10 @@ export const useProjectStore = defineStore("project", () => {
     setCachedCountries,
     hasCachedCountries,
     clearCountriesCache,
+
+    // New Data Fetching Actions
+    fetchCityStandaloneProjects,
+    fetchCitiesWithProjects,
 
     // Comprehensive cleanup
     clearAllState,

@@ -2,6 +2,7 @@ import L from "leaflet";
 import "leaflet-toolbar";
 import "leaflet-distortableimage";
 import { t } from "@/locales";
+import { usePopupState } from "@/composables/map/usePopupState";
 import { map, currentZoomLevel } from "@/composables/core/useMap";
 import { updateOverlayMarkersColors } from "@/composables/map/useMarkers";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
@@ -1238,6 +1239,10 @@ export const infoTool = L.Toolbar2.Action.extend({
         "#info-popup-teleport-target",
       );
       if (teleportTarget?.parentNode) {
+        // AI : Clear reactive state
+        const { setOverlayPopupTarget } = usePopupState();
+        setOverlayPopupTarget(null);
+
         const originalButton = document.createElement("a");
         originalButton.className = "leaflet-toolbar-icon more-info-popup";
         originalButton.href = "#";
@@ -1254,6 +1259,10 @@ export const infoTool = L.Toolbar2.Action.extend({
           "#info-popup-teleport-target",
         );
         if (staleTarget?.parentNode) {
+          // AI : Clear reactive state
+          const { setOverlayPopupTarget } = usePopupState();
+          setOverlayPopupTarget(null);
+
           const originalButton = document.createElement("a");
           originalButton.className = "leaflet-toolbar-icon more-info-popup";
           originalButton.href = "#";
@@ -1276,6 +1285,10 @@ export const infoTool = L.Toolbar2.Action.extend({
           "pointer-events: none; position: absolute; width: 0; height: 0; overflow: visible;";
 
         existingButton.parentNode?.replaceChild(teleportTarget, existingButton);
+
+        // AI : Set reactive state
+        const { setOverlayPopupTarget } = usePopupState();
+        setOverlayPopupTarget(teleportTarget);
 
         // AI : Show the info popup for the selected overlay
         if (overlayStore.idSelectedOverlay) {
