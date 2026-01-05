@@ -15,6 +15,7 @@ import {
   removeOverlayMarkers,
 } from "@/composables/map/useCityOverlays";
 import { citiesWithProjects } from "@/composables/map/useCityMarkers";
+import { addStandaloneProjectMarkerForProject } from "@/composables/map/useStandaloneProjectMarkers";
 import type { OverlayData } from "@/types/index";
 import type { MapMode } from "@shared/types";
 
@@ -120,6 +121,10 @@ export function useViewportContentManager() {
       // AI : CRITICAL: Always mark city as loaded, even if empty!
       loadedCityIds.value.add(cityId);
 
+      // AI : Add standalone project markers BEFORE checking if overlays exist
+      // AI : This ensures markers are created even for cities with ONLY standalone projects
+      await addStandaloneMarkersForCity(overlaysData ?? [], cityId, mode);
+
       if (!overlaysData || overlaysData.length === 0) {
         return;
       }
@@ -135,9 +140,6 @@ export function useViewportContentManager() {
 
       // AI : Update caches for Current Location Panel (already done above, but keeping for consistency)
       updateMapStoreCaches(overlaysData, [], mode);
-
-      // AI : Note: standalone projects are handled separately by useCityMarkers
-      // AI : This viewport manager only handles overlays
     } catch (error) {
       console.error(`Error loading city ${cityId}:`, error);
       // AI : Even on error, mark as loaded to prevent infinite retries
@@ -249,6 +251,49 @@ export function useViewportContentManager() {
     // AI : Update standalone cache
     for (const [cityId, data] of standaloneByCity.entries()) {
       mapStore.setCityStandaloneProjectsCache(cityId, mode, data);
+    }
+  }
+
+  async function addStandaloneMarkersForCity(
+    overlaysData: OverlayData[],
+    cityId: number,
+    mode: MapMode,
+  ) {
+    try {
+      console.log(`[STANDALONE] Fetching all projects for city ${cityId} in ${mode} mode`);
+
+      // AI : Fetch ALL projects for this city (not just ones with overlays)
+      const allProjects = await trpc.project.getCityProjects.query({
+        cityId,
+        mode,
+        limit: 100,
+      });
+
+      console.log(`[STANDALONE] Found ${allProjects.length} total projects`);
+
+      // AI : Get project IDs that have overlays
+      const projectIdsWithOverlays = new Set<string>();
+      for (const overlay of overlaysData) {
+        if (overlay.projectId) {
+          projectIdsWithOverlays.add(overlay.projectId);
+        }
+      }
+
+      console.log(`[STANDALONE] ${projectIdsWithOverlays.size} projects have overlays`);
+
+      // AI : Create standalone markers for projects without any visible overlays
+      let standaloneCount = 0;
+      for (const project of allProjects) {
+        if (!projectIdsWithOverlays.has(project.id) && project.overlayCount === 0) {
+          console.log(`[STANDALONE] Creating marker for project ${project.id}: ${project.name}`);
+          addStandaloneProjectMarkerForProject(project as any);
+          standaloneCount++;
+        }
+      }
+
+      console.log(`[STANDALONE] Created ${standaloneCount} standalone markers`);
+    } catch (error) {
+      console.error(`Error adding standalone markers for city ${cityId}:`, error);
     }
   }
 
