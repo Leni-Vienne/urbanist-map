@@ -157,8 +157,13 @@ export function updateOverlayEditingState(): void {
 
 /**
  * AI : Create a Leaflet overlay on the map
+ * AI : @param onAddedToMap - Optional callback invoked when overlay is successfully added to map
  */
-export function createLeafletOverlay(imageUrl: string, overlayObject?: OverlayObject) {
+export function createLeafletOverlay(
+  imageUrl: string,
+  overlayObject?: OverlayObject,
+  onAddedToMap?: () => void,
+) {
   const overlayStore = useOverlayStore();
 
   if (!map.value || !overlayObject) return null;
@@ -200,6 +205,11 @@ export function createLeafletOverlay(imageUrl: string, overlayObject?: OverlayOb
         // AI : Only add to map if zoom is appropriate (zoom handler will manage later changes)
         if (shouldShowImage) {
           newOverlay.addTo(map.value);
+          // AI : Store callback to be invoked AFTER image loads (in onOverlayLoaded)
+          // AI : This prevents errors when overlay is removed before image finishes loading
+          if (onAddedToMap && overlayObject) {
+            (overlayObject as any)._onAddedToMapCallback = onAddedToMap;
+          }
         }
       }
     };
@@ -247,13 +257,21 @@ function setupOverlayLoadHandler(
   }
 
   L.DomEvent.on(element, "load", () => {
+    // AI : Guard: Only proceed if overlay is still on map (prevents errors during rapid viewport changes)
+    if (!map.value || !map.value.hasLayer(overlay)) {
+      return;
+    }
+
     if (element.complete && element.naturalWidth > 0) {
       onOverlayLoaded(overlayObject);
     }
   });
 
   if (element.complete && element.naturalWidth > 0) {
-    onOverlayLoaded(overlayObject);
+    // AI : Guard: Only proceed if overlay is still on map
+    if (map.value && map.value.hasLayer(overlay)) {
+      onOverlayLoaded(overlayObject);
+    }
   }
 }
 
@@ -291,6 +309,14 @@ function onOverlayLoaded(overlayObject: OverlayObject): void {
       element.style.boxShadow = "";
       element.style.outline = "none";
     }
+  }
+
+  // AI : CRITICAL: Invoke onAddedToMap callback AFTER all initialization is complete
+  // AI : This ensures overlay is fully loaded before being added to store
+  if ((overlayObject as any)._onAddedToMapCallback) {
+    (overlayObject as any)._onAddedToMapCallback();
+    // AI : Clean up callback reference
+    delete (overlayObject as any)._onAddedToMapCallback;
   }
 }
 
@@ -475,24 +501,31 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   }
 
   const overlayObjectWithMethods = enrichOverlayWithProject(overlayObject);
+
+  // AI : CRITICAL FIX: Use callback to add to store ONLY after overlay is added to map
+  // AI : This prevents ghost overlays when clearAllOverlays() is called during async zoom animations
+  const onAddedToMap = () => {
+    overlayObjectWithMethods.marker = overlayStore.allMarkers[cdnOverlay.id];
+
+    // AI : Store overlay with proper reactivity - but ONLY after it's on the map
+    overlayStore.addOverlay(cdnOverlay.id, overlayObjectWithMethods);
+
+    // AI : Remove standalone project marker for this project since we now have an overlay visible
+    // AI : This handles the case where a project had only pending overlays (shown as a standalone project marker in view mode)
+    // AI : and the user switched to edit mode (pending overlays now visible, so standalone project marker should be removed)
+    if (cdnOverlay.projectId) {
+      removeStandaloneProjectMarkerForProject(cdnOverlay.projectId);
+    }
+  };
+
   const newOverlay = createLeafletOverlay(
     overlayObjectWithMethods.imageUrl,
     overlayObjectWithMethods,
+    onAddedToMap,
   );
   if (!newOverlay) return;
 
   overlayObjectWithMethods.overlay = newOverlay;
-  overlayObjectWithMethods.marker = overlayStore.allMarkers[cdnOverlay.id];
-
-  // AI : Store overlay with proper reactivity
-  overlayStore.addOverlay(cdnOverlay.id, overlayObjectWithMethods);
-
-  // AI : Remove standalone project marker for this project since we now have an overlay visible
-  // AI : This handles the case where a project had only pending overlays (shown as a standalone project marker in view mode)
-  // AI : and the user switched to edit mode (pending overlays now visible, so standalone project marker should be removed)
-  if (cdnOverlay.projectId) {
-    removeStandaloneProjectMarkerForProject(cdnOverlay.projectId);
-  }
 
   // AI : Hover events are now set up in onOverlayLoaded() after element is guaranteed to exist
 
