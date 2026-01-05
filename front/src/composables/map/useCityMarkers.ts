@@ -70,12 +70,16 @@ function initializeModeWatcher() {
 
   watch(
     () => overlayStore.mode,
-    async () => {
+    async (newMode, oldMode) => {
+      // AI : Guard: only reload if mode actually changed
+      if (newMode === oldMode) {
+        return;
+      }
       updateAllStandaloneProjectMarkerColors();
 
       // AI : Re-fetch city markers with the new mode filter
       // AI : This ensures cities with ONLY pending content appear when switching to edit mode
-      const queryMode = authStore.isAuthenticated ? overlayStore.mode : "view";
+      const queryMode = authStore.isAuthenticated ? newMode : "view";
 
       try {
         const citiesData = await trpc.cities.getCitiesWithProjects.query({ mode: queryMode });
@@ -480,12 +484,21 @@ function getCityMarkerConfig(): MarkerLayerConfig<CityWithProjects> {
         countryCode: city.countryCode,
       });
 
-      // AI : Zoom to the city marker position (same zoom level as MarkerHelpButton)
-      // AI : The viewport manager's moveend/zoomend listeners will handle data loading
+      // AI : Zoom to the city marker position
       if (map.value && map.value.getZoom() < 14) {
         mobileAwareFlyTo([city.lat, city.lng], 14, {
           duration: 1.5,
         });
+        // AI : moveend event will trigger viewport refresh automatically
+      } else {
+        // AI : Already at zoom 14+, no zoom will happen
+        // AI : Trigger a tiny pan to fire moveend event which will load content
+        // AI : This avoids circular dependency from importing useViewportContentManager
+        if (map.value) {
+          const center = map.value.getCenter();
+          // AI : Pan by 0.00001 degrees (imperceptible) to trigger moveend
+          map.value.panTo([center.lat + 0.00001, center.lng], { animate: false });
+        }
       }
     },
   };

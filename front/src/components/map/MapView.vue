@@ -140,11 +140,7 @@ async function initializeMapAndOverlays() {
 
     // AI : Setup viewport manager (replaces old viewport loading + mode system)
     viewportManager.setupEventListeners();
-
-    // AI : Watch for mode changes to trigger viewport refresh
-    watch(() => overlayStore.mode, () => {
-      viewportManager.refreshViewport();
-    });
+    viewportManager.setupModeWatcher(); // AI : Handles mode changes + cache clearing
     setupMapClickToDeselect(); // AI : Setup click handler to deselect overlays when clicking map background
     globalThis.addEventListener('keydown', handleKeyDown, true);
     disableLeafletKeyboardEvents();
