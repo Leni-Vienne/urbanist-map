@@ -5,7 +5,6 @@ import { ref, watch } from "vue";
 import { t } from "@/locales";
 import { map } from "@/composables/core/useMap";
 import { mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
-import { loadCityOverlays } from "@/composables/map/useCityOverlays";
 import { useSelectedProject } from "@/composables/project/useProjectSelection";
 import { trpc, type RouterOutput } from "@/client";
 
@@ -388,11 +387,18 @@ export async function loadCityProjects(
       // AI : This prevents race condition where standalone markers appear briefly for projects
       // AI : that have overlays (standalone loader checks overlayStore.overlays which must be populated first)
       // AI : Pass isSwitchingCity flag to avoid clearing overlays when navigating within same city
-      await loadCityOverlays(cityId, forceFullLoad, isSwitchingCity);
-      await loadCityStandaloneProjects(cityId);
+
+      // AI : REFACTOR: We no longer load data directly here.
+      // AI : The ViewportContentManager listens to 'moveend' (triggered by flyTo operations)
+      // AI : and automatically loads the data for the city we are navigating to.
+      // AI : This prevents duplicate backend calls.
+
+      // await loadCityOverlays(cityId, forceFullLoad, isSwitchingCity);
+      // await loadCityStandaloneProjects(cityId);
     } else {
       // AI : Just load local standalone projects when no city is selected
-      await loadCityStandaloneProjects(null);
+      // AI : REFACTOR: Viewport manager handles clearing/spatial loading
+      // await loadCityStandaloneProjects(null);
     }
   } catch (error) {
     console.error("Error loading city projects:", error);
