@@ -13,11 +13,13 @@ export function clearAllOverlays(): void {
   if (!map.value) return;
 
   Object.values(overlayStore.overlays).forEach((overlayObject: OverlayObject) => {
-    if (overlayObject.overlay) {
-      map.value?.removeLayer(overlayObject.overlay);
+    // AI : Only remove layers that are actually on the map to prevent errors
+    // AI : This fixes ghost overlay bug where overlay was added to store but not to map yet
+    if (overlayObject.overlay && map.value?.hasLayer(overlayObject.overlay)) {
+      map.value.removeLayer(overlayObject.overlay);
     }
-    if (overlayObject.marker) {
-      map.value?.removeLayer(overlayObject.marker);
+    if (overlayObject.marker && map.value?.hasLayer(overlayObject.marker)) {
+      map.value.removeLayer(overlayObject.marker);
     }
   });
 

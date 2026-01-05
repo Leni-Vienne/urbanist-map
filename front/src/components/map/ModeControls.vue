@@ -22,7 +22,7 @@
 import { useOverlayStore } from '@/stores/pinia/overlayStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useToast } from '@/composables/ui/useToast';
-import { switchMode } from '@/composables/overlay/useOverlayModes';
+import { switchMode } from '@/composables/overlay/useModeSwitching';
 import { useI18n } from 'vue-i18n';
 import type { MapMode } from '@shared/types';
 
