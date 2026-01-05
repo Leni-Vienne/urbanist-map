@@ -6,7 +6,7 @@ import { t } from "@/locales";
 import { map } from "@/composables/core/useMap";
 import { mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
 import { useSelectedProject } from "@/composables/project/useProjectSelection";
-import { trpc, type RouterOutput } from "@/client";
+import type { RouterOutput } from "@/client";
 
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -79,9 +79,10 @@ function initializeModeWatcher() {
       // AI : Re-fetch city markers with the new mode filter
       // AI : This ensures cities with ONLY pending content appear when switching to edit mode
       const queryMode = authStore.isAuthenticated ? newMode : "view";
+      const projectStore = useProjectStore(); // AI : Use projectStore
 
       try {
-        const citiesData = await trpc.cities.getCitiesWithProjects.query({ mode: queryMode });
+        const citiesData = await projectStore.fetchCitiesWithProjects(queryMode);
 
         if (citiesData && citiesData.length > 0) {
           // AI : Update global ref
@@ -209,6 +210,9 @@ export function closeProjectPopupAndResetMarkers() {
 /**
  * AI : Load projects without overlays (standalone project markers) for a specific city and display them on map
  */
+/**
+ * AI : Load projects without overlays (standalone project markers) for a specific city and display them on map
+ */
 export async function loadCityStandaloneProjects(cityId: number | null): Promise<void> {
   if (!map.value) return;
 
@@ -220,6 +224,7 @@ export async function loadCityStandaloneProjects(cityId: number | null): Promise
   try {
     const mapStore = useMapStore();
     const overlayStore = useOverlayStore();
+    const projectStore = useProjectStore(); // AI : Use projectStore
 
     let backendProjects: RouterOutput["project"]["getCityProjects"] = [];
     if (cityId) {
@@ -227,16 +232,14 @@ export async function loadCityStandaloneProjects(cityId: number | null): Promise
       if (cachedData) {
         backendProjects = cachedData;
       } else {
-        backendProjects = await trpc.project.getCityProjects.query({
-          cityId,
-          mode: overlayStore.mode,
-        });
+        // AI : Use projectStore action
+        backendProjects = await projectStore.fetchCityStandaloneProjects(cityId, overlayStore.mode);
         mapStore.setCityStandaloneProjectsCache(cityId, overlayStore.mode, backendProjects);
       }
     }
 
     // AI : Don't filter by overlayCount here - rejected overlays aren't rendered but still count
-    // AI : Instead, rely on the check below (lines 231-234) that skips projects with rendered overlays
+    // AI : Instead, rely on the check below that skips projects with rendered overlays
     const backendProjectsWithNoOverlays = backendProjects;
 
     const { projects: localProjects } = useProjects();
@@ -311,6 +314,9 @@ export async function loadCityStandaloneProjects(cityId: number | null): Promise
               });
 
         // AI : Add project to store so it can be edited
+        // AI : We invoke updateProject to ensure reactivity and consistency
+        // AI : But we can't accidentally overwrite existing data if we're not careful
+        // AI : For now, manually merging as before is safer
         const { projects: localProjects } = useProjects();
         if (!localProjects.value[project.id]) {
           localProjects.value = {
@@ -574,12 +580,13 @@ export async function loadAllCityMarkersGlobally(): Promise<CityWithProjects[]> 
   try {
     const overlayStore = useOverlayStore();
     const authStore = useAuthStore();
+    const projectStore = useProjectStore(); // AI : Use projectStore
 
     // AI : For unauthenticated users, ensure we always use 'view' mode
     const queryMode = authStore.isAuthenticated ? overlayStore.mode : "view";
 
     // AI : Fetch all cities with projects globally (no countryCode filter)
-    const citiesData = await trpc.cities.getCitiesWithProjects.query({ mode: queryMode });
+    const citiesData = await projectStore.fetchCitiesWithProjects(queryMode);
 
     if (citiesData && citiesData.length > 0) {
       // AI : Store in global ref for viewport detection
