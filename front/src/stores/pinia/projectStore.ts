@@ -49,6 +49,11 @@ export const useProjectStore = defineStore("project", () => {
     Map<string, (RouterOutput["cities"]["getCitiesWithProjects"][number] & { distance: number })[]>
   >(new Map());
 
+  // AI : Cache for global cities by mode (no country filter)
+  const globalCitiesCache = ref<Map<MapMode, RouterOutput["cities"]["getCitiesWithProjects"]>>(
+    new Map(),
+  );
+
   // AI : Cache countries separately per mode
   const countriesCache = ref<Map<MapMode, Country[]>>(new Map());
 
@@ -684,16 +689,30 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   // AI : Fetch global cities with projects (migrated from useCityMarkers)
+  // AI : Uses cache to avoid redundant API calls on mode switches
   async function fetchCitiesWithProjects(
     mode: MapMode,
   ): Promise<RouterOutput["cities"]["getCitiesWithProjects"]> {
+    // AI : Check cache first
+    const cached = globalCitiesCache.value.get(mode);
+    if (cached) {
+      return cached;
+    }
+
     try {
       const response = await trpc.cities.getCitiesWithProjects.query({ mode });
+      // AI : Store in cache
+      globalCitiesCache.value.set(mode, response);
       return response;
     } catch (error) {
       console.error("Error fetching cities with projects:", error);
       throw error;
     }
+  }
+
+  // AI : Clear global cities cache (call when city data changes, e.g., new project approved)
+  function clearGlobalCitiesCache() {
+    globalCitiesCache.value.clear();
   }
 
   return {
@@ -757,6 +776,7 @@ export const useProjectStore = defineStore("project", () => {
     // New Data Fetching Actions
     fetchCityStandaloneProjects,
     fetchCitiesWithProjects,
+    clearGlobalCitiesCache,
 
     // Comprehensive cleanup
     clearAllState,

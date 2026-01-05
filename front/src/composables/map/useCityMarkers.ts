@@ -13,6 +13,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useCityMarkersStore } from "@/stores/pinia/cityMarkersStore";
 import { useCompletionFilters } from "@/composables/overlay/useCompletionFilters";
 import { useProjects } from "@/composables/project/useProjects";
 import { createProjectObject } from "../../utils/typeFactories";
@@ -35,34 +36,16 @@ export type CityWithProjects = RouterOutput["cities"]["getCitiesWithProjects"][n
 // AI : Cities with projects data
 export const citiesWithProjects = ref<CityWithProjects[]>([]);
 
-// AI : Layer group for city markers
-let cityMarkersLayer: L.LayerGroup | null = null;
-
-// AI : Map to store city ID to marker references for easy lookup
-const cityMarkerMap = new Map<string, L.Marker>();
-
-// AI : Track city markers for unsaved projects (cityId  city data)
-// AI : These markers are preserved when rebuilding city marker layer from backend data
-const unsavedCityMarkers = new Map<
-  number,
-  {
-    name: string;
-    nameLocal: string | null;
-    lat: number;
-    lng: number;
-    countryCode: string;
-  }
->();
-
-// AI : Flag to ensure watcher is only set up once
-let modeWatcherInitialized = false;
+// AI : Module-level state moved to cityMarkersStore for HMR safety
+// AI : Access via useCityMarkersStore() instead of direct variables
 
 /**
  * AI : Initialize mode change watcher (called lazily on first use)
  * This handles both switchMode() and direct setMode() calls (like from side menu)
  */
 function initializeModeWatcher() {
-  if (modeWatcherInitialized) return;
+  const cityMarkersStore = useCityMarkersStore();
+  if (cityMarkersStore.isModeWatcherInitialized()) return;
 
   const overlayStore = useOverlayStore();
   const authStore = useAuthStore();
@@ -107,18 +90,16 @@ function initializeModeWatcher() {
     },
   );
 
-  modeWatcherInitialized = true;
+  cityMarkersStore.setModeWatcherInitialized(true);
 }
-
-// AI : Flag to ensure city marker watcher is only set up once
-let cityMarkerWatcherInitialized = false;
 
 /**
  * AI : Initialize selectedCity watcher to update city marker opacity
  * This makes the selected city marker opaque when navigating from panels
  */
 function initializeCityMarkerWatcher() {
-  if (cityMarkerWatcherInitialized) return;
+  const cityMarkersStore = useCityMarkersStore();
+  if (cityMarkersStore.isCityMarkerWatcherInitialized()) return;
 
   const mapStore = useMapStore();
   watch(
@@ -128,13 +109,15 @@ function initializeCityMarkerWatcher() {
     },
   );
 
-  cityMarkerWatcherInitialized = true;
+  cityMarkersStore.setCityMarkerWatcherInitialized(true);
 }
 
 /**
  * AI : Update city marker opacities based on selected city
  */
 export function updateCityMarkerOpacities(selectedCityId: number | null): void {
+  const cityMarkersStore = useCityMarkersStore();
+  const cityMarkersLayer = cityMarkersStore.getCityMarkersLayer();
   if (!cityMarkersLayer) return;
 
   cityMarkersLayer.eachLayer((layer) => {
@@ -415,7 +398,8 @@ export async function loadCityProjects(
  * AI : Clear unsaved city markers (called when switching countries)
  */
 export function clearUnsavedCityMarkers(): void {
-  unsavedCityMarkers.clear();
+  const cityMarkersStore = useCityMarkersStore();
+  cityMarkersStore.unsavedCityMarkers.clear();
 }
 
 /**
@@ -424,12 +408,15 @@ export function clearUnsavedCityMarkers(): void {
  * AI : Standalone project markers persist across city marker reloads and are only cleared when changing cities
  */
 export function removeCityMarkers(): void {
+  const cityMarkersStore = useCityMarkersStore();
+  const cityMarkersLayer = cityMarkersStore.getCityMarkersLayer();
+
   if (cityMarkersLayer && map.value != null && map.value.hasLayer(cityMarkersLayer)) {
     map.value.removeLayer(cityMarkersLayer);
-    cityMarkersLayer = null;
+    cityMarkersStore.setCityMarkersLayer(null);
   }
 
-  cityMarkerMap.clear();
+  cityMarkersStore.clearCityMarkerMap();
   // AI : Don't clear unsaved city markers - they should persist across country switches
   // AI : and will be filtered by country when displayed via addCityMarkersToMapInternal
 }
@@ -535,12 +522,16 @@ export function addSingleCityMarker(
     return;
   }
 
+  const cityMarkersStore = useCityMarkersStore();
+
   // AI : Don't add if marker already exists
-  if (cityMarkerMap.has(String(city.id))) return;
+  if (cityMarkersStore.getCityMarker(String(city.id))) return;
 
   // AI : Initialize layer if needed
+  let cityMarkersLayer = cityMarkersStore.getCityMarkersLayer();
   if (!cityMarkersLayer) {
     cityMarkersLayer = L.layerGroup().addTo(map.value);
+    cityMarkersStore.setCityMarkersLayer(cityMarkersLayer);
     initializeCityMarkerWatcher();
   }
 
@@ -552,12 +543,12 @@ export function addSingleCityMarker(
   // AI : Add marker to existing layer
   result.markers.forEach((marker, cityId) => {
     marker.addTo(cityMarkersLayer!);
-    cityMarkerMap.set(cityId, marker);
+    cityMarkersStore.setCityMarker(cityId, marker);
   });
 
   // AI : Track if this is an unsaved city marker
   if (isUnsaved) {
-    unsavedCityMarkers.set(city.id, {
+    cityMarkersStore.setUnsavedCityMarker(city.id, {
       name: city.name,
       nameLocal: city.nameLocal,
       lat: city.lat,
@@ -629,6 +620,9 @@ function addCityMarkersToMapInternal(
 ): void {
   if (!map.value) return;
 
+  const cityMarkersStore = useCityMarkersStore();
+  let cityMarkersLayer = cityMarkersStore.getCityMarkersLayer();
+
   // AI : Remove existing layer to prevent stacking
   if (cityMarkersLayer) {
     map.value.removeLayer(cityMarkersLayer);
@@ -638,7 +632,8 @@ function addCityMarkersToMapInternal(
   const countryCode = explicitCountryCode ?? (cities.length > 0 ? cities[0].countryCode : null);
 
   // AI : Merge backend cities with unsaved city markers for THIS country only
-  const unsavedCities: CityWithProjects[] = [...unsavedCityMarkers.entries()]
+  const unsavedCityMarkersMap = cityMarkersStore.getAllUnsavedCityMarkers();
+  const unsavedCities: CityWithProjects[] = [...unsavedCityMarkersMap.entries()]
     .filter(([cityId, cityData]) => {
       // AI : Only include unsaved markers for the current country
       if (countryCode && cityData.countryCode !== countryCode) return false;
@@ -669,11 +664,12 @@ function addCityMarkersToMapInternal(
 
   const result = createMarkerLayer(citiesToRender, config);
   cityMarkersLayer = result.layer;
+  cityMarkersStore.setCityMarkersLayer(cityMarkersLayer);
 
   // AI : Store markers for lookup
-  cityMarkerMap.clear();
+  cityMarkersStore.clearCityMarkerMap();
   result.markers.forEach((marker, cityId) => {
-    cityMarkerMap.set(cityId, marker);
+    cityMarkersStore.setCityMarker(cityId, marker);
   });
 
   // AI : Initialize watcher and add to map
