@@ -247,21 +247,18 @@ function handleOverlayUpdate(overlayId: string, caption?: string) {
   const overlay = overlays.value[overlayId];
   if (!overlay || caption === undefined) return;
 
-  // AI : Create a new overlay object to trigger reactivity (overlays is a shallowRef)
-  const updatedOverlay: OverlayObject = {
-    ...overlay,
+  // AI : Use store action for consistent state management (instead of direct mutation)
+  overlayStore.updateOverlay(overlayId, {
     caption,
     isModified: true
-  };
-
-  // AI : Update the overlays store with the new overlay object
-  overlays.value = {
-    ...overlays.value,
-    [overlayId]: updatedOverlay
-  };
+  });
 
   // AI : Update marker tooltip to reflect the new caption
-  updateMarkerTooltip(updatedOverlay);
+  // AI : Get the updated overlay from store after the update
+  const updatedOverlay = overlays.value[overlayId];
+  if (updatedOverlay) {
+    updateMarkerTooltip(updatedOverlay);
+  }
 }
 
 // AI : Close project info popup (project mode only)
