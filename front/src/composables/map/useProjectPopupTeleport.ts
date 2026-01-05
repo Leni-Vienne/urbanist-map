@@ -2,6 +2,7 @@
 import type L from "leaflet";
 import { map } from "@/composables/core/useMap";
 import { useUiStore } from "@/stores/uiStore";
+import { usePopupState } from "@/composables/map/usePopupState";
 
 let currentMarkerForPopup: L.Marker | L.CircleMarker | null = null;
 let mapClickHandler: (() => void) | null = null;
@@ -63,6 +64,10 @@ export function createProjectInfoTeleportTarget(marker: L.Marker | L.CircleMarke
   const mapContainer = map.value.getContainer();
   mapContainer.appendChild(teleportTarget);
 
+  // AI : Set reactive state for PopupContainer
+  const { setProjectPopupTarget } = usePopupState();
+  setProjectPopupTarget(teleportTarget);
+
   map.value.on("move", updateTeleportTargetPosition);
   map.value.on("zoom", updateTeleportTargetPosition);
   map.value.on("resize", updateTeleportTargetPosition);
@@ -96,6 +101,10 @@ export function cleanupProjectInfoTeleportTarget() {
   if (existingTarget) {
     existingTarget.remove();
   }
+
+  // AI : Clear reactive state
+  const { setProjectPopupTarget } = usePopupState();
+  setProjectPopupTarget(null);
 
   currentMarkerForPopup = null;
 }
