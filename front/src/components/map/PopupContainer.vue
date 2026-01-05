@@ -1,8 +1,8 @@
 <template>
   <!-- Unified Project Popup - for overlays -->
   <Teleport
-    to="#info-popup-teleport-target"
-    v-if="showOverlayPopup && overlayObject && activeProject && teleportTargetExists"
+    :to="overlayPopupTarget"
+    v-if="showOverlayPopup && overlayObject && activeProject && overlayPopupTarget"
   >
     <UnifiedProjectPopup
       :project="activeProject"
@@ -24,7 +24,7 @@
   </Teleport>
 
   <!-- Unified Project Popup - for projects without overlay -->
-  <Teleport to="#project-info-popup-teleport-target" v-if="showProjectPopup && activeProject">
+  <Teleport :to="projectPopupTarget" v-if="showProjectPopup && activeProject && projectPopupTarget">
     <UnifiedProjectPopup
       :project="activeProject"
       :viewMode="mode !== 'edit'"
@@ -60,19 +60,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
+import { computed, ref, defineAsyncComponent } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useOverlayStore } from '@/stores/pinia/overlayStore';
 import { useProjectStore } from '@/stores/pinia/projectStore';
 import { useMapStore } from '@/stores/pinia/mapStore';
 import { useUiStore } from '@/stores/uiStore';
-import { usePendingModificationsStore } from '@/stores/pinia/pendingModificationsStore';
+import { usePopupState } from '@/composables/map/usePopupState';
 
 import { navigateToOverlay } from '@/composables/overlay/useOverlay';
 import { updateMarkerTooltip } from '@/composables/overlay/useOverlayMarkers';
 import { useToast } from '@/composables/ui/useToast';
-import { useOverlayPublisher } from '@/composables/overlay/useOverlayPublisher';
 import { useSubmissionDialog } from '@/composables/submission/useSubmissionDialog';
 import { citiesWithProjects, closeProjectPopupAndResetMarkers } from '@/composables/map/useCityMarkers';
 import type { OverlayObject, Project } from '@/types/index';
@@ -94,9 +93,7 @@ const { currentCityOverlays } = storeToRefs(mapStore);
 const { projectInfoPopup } = storeToRefs(uiStore);
 const toast = useToast();
 const { t } = useI18n();
-const { publishOverlay } = useOverlayPublisher();
 const { handleDeleteOverlay: deleteOverlayWithMarker, handleDeleteProject: deleteProjectWithConfirm } = useProjectDeletion();
-const pendingModsStore = usePendingModificationsStore();
 
 // AI : Use shared submission dialog composable
 const {
@@ -110,11 +107,6 @@ const {
   handleRemoveChange,
 } = useSubmissionDialog();
 
-
-// AI : Track teleport target existence
-let targetObserver: MutationObserver | null = null;
-const teleportTargetExists = ref(false);
-
 // AI : Ref for overlay editor component
 const overlayEditorRef = ref<InstanceType<typeof OverlayEditor> | null>(null);
 
@@ -127,38 +119,15 @@ const availableCities = computed(() => {
   }));
 });
 
+// AI : Track teleport target existence using reactive state (no MutationObserver)
+const { overlayPopupTarget, projectPopupTarget } = usePopupState();
+
 // AI : Computed for overlay popup visibility
-const showOverlayPopup = computed(() => showInfoPopup.value);
+const showOverlayPopup = computed(() => showInfoPopup.value && overlayPopupTarget.value);
 
 // AI : Computed for project popup visibility
 const showProjectPopup = computed(() => {
-  return projectInfoPopup.value.visible && activeProject.value && teleportTargetExists.value;
-});
-
-// AI : Check if teleport targets exist (we need both for overlay and project popups)
-function checkTeleportTarget() {
-  const overlayTarget = document.getElementById('info-popup-teleport-target');
-  const projectTarget = document.getElementById('project-info-popup-teleport-target');
-  teleportTargetExists.value = Boolean(overlayTarget || projectTarget);
-};
-
-onMounted(() => {
-  checkTeleportTarget();
-
-  targetObserver = new MutationObserver(() => {
-    checkTeleportTarget();
-  });
-
-  targetObserver.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
-});
-
-onUnmounted(() => {
-  if (targetObserver) {
-    targetObserver.disconnect();
-  }
+  return projectInfoPopup.value.visible && activeProject.value && projectPopupTarget.value;
 });
 
 // AI : Get the overlay object for the info popup
@@ -278,21 +247,18 @@ function handleOverlayUpdate(overlayId: string, caption?: string) {
   const overlay = overlays.value[overlayId];
   if (!overlay || caption === undefined) return;
 
-  // AI : Create a new overlay object to trigger reactivity (overlays is a shallowRef)
-  const updatedOverlay: OverlayObject = {
-    ...overlay,
+  // AI : Use store action for consistent state management (instead of direct mutation)
+  overlayStore.updateOverlay(overlayId, {
     caption,
     isModified: true
-  };
-
-  // AI : Update the overlays store with the new overlay object
-  overlays.value = {
-    ...overlays.value,
-    [overlayId]: updatedOverlay
-  };
+  });
 
   // AI : Update marker tooltip to reflect the new caption
-  updateMarkerTooltip(updatedOverlay);
+  // AI : Get the updated overlay from store after the update
+  const updatedOverlay = overlays.value[overlayId];
+  if (updatedOverlay) {
+    updateMarkerTooltip(updatedOverlay);
+  }
 }
 
 // AI : Close project info popup (project mode only)

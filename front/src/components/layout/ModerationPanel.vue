@@ -77,8 +77,8 @@
     <!-- AI : Projects Section - pure approve/reject workflow for pending items -->
     <ProjectAccordionPanel
       v-else
-      :projects="projects"
-      :change-requests="changeRequests"
+      :projects="filteredProjects"
+      :change-requests="filteredChangeRequests"
       :is-loading="isLoading"
       title="Pending Projects"
       panel-class="moderation-panel"
@@ -150,10 +150,10 @@ import { useAuthStore } from '@/stores/authStore'
 import { useModerationStore } from '@/stores/pinia/moderationStore'
 import { useMapStore } from '@/stores/pinia/mapStore'
 import { useProjectStore } from '@/stores/pinia/projectStore'
+import { useOverlayStore } from '@/stores/pinia/overlayStore'
 import type { OverlayForModeration } from '@/types/index'
 import { trpc } from '@/client'
 import { addCityMarkersForCountry } from '@/composables/map/useCityMarkers'
-import { setAllCityMarkers } from '@/composables/map/useViewportCityLoading'
 import { mobileAwareFlyTo } from '@/composables/map/useMapNavigation'
 import { map } from '@/composables/core/useMap'
 import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
@@ -170,6 +170,7 @@ const { t } = useI18n()
 const authStore = useAuthStore()
 const moderationStore = useModerationStore()
 const mapStore = useMapStore()
+const overlayStore = useOverlayStore()
 const projectStore = useProjectStore()
 
 // AI : Country selector state - use store's cached countries
@@ -269,13 +270,12 @@ onMounted(async () => {
 
 // AI : Handle country selection change
 // AI : Load data for a specific country (markers, pending submissions, etc.)
-async function loadCountryData(countryCode: string | null) {
+async function loadCountryData(countryCode: string | null, shouldFly = true) {
   // AI : Sync local ref if needed (e.g. when called from watcher/mounted)
   if (selectedCountryCode.value !== countryCode) {
     selectedCountryCode.value = countryCode
   }
 
-  // AI : Update stores
   // AI : Update stores
   // AI : Optim: Only invalidate moderation data if country changed (allows cache reuse)
   const isDifferentCountry = moderationStore.selectedCountryCode !== countryCode
@@ -296,17 +296,18 @@ async function loadCountryData(countryCode: string | null) {
 
       // AI : Add city markers to the map
       addCityMarkersForCountry(cities, countryCode)
-      // AI : Update viewport tracking so zooming triggers data fetch
-      setAllCityMarkers(cities)
+      // AI : City markers loaded - viewport manager handles viewport-based loading
 
       // AI : Update mapStore to keep state in sync
       mapStore.selectedCountryCode = countryCode
 
-      // AI : Fly to the country center if available
-      const country = projectStore.countries.find(c => c.code === countryCode)
-      if (country && map.value) {
-        // AI : PostGIS geometry uses x for longitude and y for latitude
-        mobileAwareFlyTo([country.centerCoordinates.y, country.centerCoordinates.x], 6, { duration: 1.5 })
+      // AI : Fly to the country center if available AND requested
+      if (shouldFly) {
+        const country = projectStore.countries.find(c => c.code === countryCode)
+        if (country && map.value) {
+          // AI : PostGIS geometry uses x for longitude and y for latitude
+          mobileAwareFlyTo([country.centerCoordinates.y, country.centerCoordinates.x], 6, { duration: 1.5 })
+        }
       }
     } catch (error) {
       console.error('Failed to load city markers for country:', error)
@@ -364,6 +365,7 @@ async function refetchPendingCounts() {
 // AI : Use moderation composable
 const {
   projects,
+  overlays, // AI : Added overlays for filtering logic
   changeRequests,
   approveProject,
   rejectProject,
@@ -455,6 +457,69 @@ watch(
   },
   { deep: true }
 )
+
+// AI : Filter projects based on selected city
+const filteredProjects = computed(() => {
+  if (!mapStore.selectedCity) return projects.value
+  return projects.value.filter(p => p.cityId === mapStore.selectedCity?.id)
+})
+
+// AI : Filter change requests based on selected city
+// AI : Use mapStore cache to verify if entities belong to the selected city
+// AI : This works even for approved entities that aren't in the pending 'projects'/'overlays' lists
+const filteredChangeRequests = computed(() => {
+  const selectedCity = mapStore.selectedCity
+  if (!selectedCity) return changeRequests.value
+
+  const cityId = selectedCity.id
+
+  // AI : Get loaded data for this city in current mode
+  const currentMode = overlayStore.mode
+  const cityOverlays = mapStore.getCityOverlaysAndProjectsCache(cityId, currentMode) ?? []
+  const cityStandalone = mapStore.getCityStandaloneProjectsCache(cityId, currentMode) ?? []
+
+  // AI : Build lookups for valid entities in this city
+  const validProjectIds = new Set<string>()
+  const validOverlayIds = new Set<string>()
+
+  // AI : Add overlays and their projects
+  for (const overlay of cityOverlays) {
+    validOverlayIds.add(overlay.id)
+    if (overlay.projectId) {
+      validProjectIds.add(overlay.projectId)
+    }
+  }
+
+  // AI : Add standalone projects
+  for (const project of cityStandalone) {
+    validProjectIds.add(project.id)
+  }
+
+  // AI : Filter change requests that target entities in this city
+  return changeRequests.value.filter(cr => {
+    if (cr.entityType === 'project') return validProjectIds.has(cr.entityId)
+    if (cr.entityType === 'overlay') return validOverlayIds.has(cr.entityId)
+    return false
+  })
+})
+
+// AI : Watch for city selection to auto-switch country if needed
+watch(
+  () => mapStore.selectedCity,
+  async (city) => {
+    if (city && city.countryCode) {
+      // AI : Only switch if different (avoids reload loop)
+      if (selectedCountryCode.value !== city.countryCode) {
+        selectedCountryCode.value = city.countryCode
+        // AI : Handle the country change logic (fetch data)
+        // AI : Suppress fly because we are already centered on the city (or flying to it)
+        await loadCountryData(city.countryCode, false)
+        await fetchPendingSubmissions()
+      }
+    }
+  }
+)
+
 
 // AI : Clear pending rejection if report dialog is closed without reporting
 watch(showReportDialog, (isOpen) => {
