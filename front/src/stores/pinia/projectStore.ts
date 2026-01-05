@@ -28,6 +28,16 @@ function getCitiesCacheKey(countryCode: string, mode: MapMode): string {
   return `${countryCode}:${mode}`;
 }
 
+// AI : Helper to generate cache key from parameters (exported for use in composables)
+function getUserContributionsCacheKey(options?: {
+  cityId?: number;
+  includeCityProjects?: boolean;
+}): string {
+  const cityId = options?.cityId ?? null;
+  const includeCityProjects = options?.includeCityProjects ?? false;
+  return `${cityId}:${includeCityProjects}`;
+}
+
 export const useProjectStore = defineStore("project", () => {
   // AI : Central store for project data to avoid circular dependencies
   const projects = ref<Record<string, Project>>({});
@@ -38,6 +48,11 @@ export const useProjectStore = defineStore("project", () => {
   const citiesCache = ref<
     Map<string, (RouterOutput["cities"]["getCitiesWithProjects"][number] & { distance: number })[]>
   >(new Map());
+
+  // AI : Cache for global cities by mode (no country filter)
+  const globalCitiesCache = ref<Map<MapMode, RouterOutput["cities"]["getCitiesWithProjects"]>>(
+    new Map(),
+  );
 
   // AI : Cache countries separately per mode
   const countriesCache = ref<Map<MapMode, Country[]>>(new Map());
@@ -139,16 +154,6 @@ export const useProjectStore = defineStore("project", () => {
       selectedProjectId.value = value;
     },
   });
-
-  // AI : Helper to generate cache key from parameters (exported for use in composables)
-  const getUserContributionsCacheKey = (options?: {
-    cityId?: number;
-    includeCityProjects?: boolean;
-  }): string => {
-    const cityId = options?.cityId ?? null;
-    const includeCityProjects = options?.includeCityProjects ?? false;
-    return `${cityId}:${includeCityProjects}`;
-  };
 
   // AI : User contributions actions
   function setUserContributions(contributions: UserContribution[], cacheKey: string) {
@@ -657,6 +662,59 @@ export const useProjectStore = defineStore("project", () => {
     clearCountriesCache();
   }
 
+  // AI : Fetch standalone projects for a city (migrated from useCityMarkers)
+  async function fetchCityStandaloneProjects(
+    cityId: number | null,
+    mode: MapMode,
+  ): Promise<RouterOutput["project"]["getCityProjects"]> {
+    try {
+      // AI : Note: We don't access mapStore here to avoid circular dependencies if possible.
+      // AI : Ideally caching should be handled here or passed in.
+      // AI : For now, we return the raw data and let the caller handle map-specific caching.
+
+      if (cityId === null) {
+        return [];
+      }
+
+      const response = await trpc.project.getCityProjects.query({
+        cityId,
+        mode,
+      });
+
+      return response;
+    } catch (error) {
+      console.error("Error fetching city standalone projects:", error);
+      throw error;
+    }
+  }
+
+  // AI : Fetch global cities with projects (migrated from useCityMarkers)
+  // AI : Uses cache to avoid redundant API calls on mode switches
+  async function fetchCitiesWithProjects(
+    mode: MapMode,
+  ): Promise<RouterOutput["cities"]["getCitiesWithProjects"]> {
+    // AI : Check cache first
+    const cached = globalCitiesCache.value.get(mode);
+    if (cached) {
+      return cached;
+    }
+
+    try {
+      const response = await trpc.cities.getCitiesWithProjects.query({ mode });
+      // AI : Store in cache
+      globalCitiesCache.value.set(mode, response);
+      return response;
+    } catch (error) {
+      console.error("Error fetching cities with projects:", error);
+      throw error;
+    }
+  }
+
+  // AI : Clear global cities cache (call when city data changes, e.g., new project approved)
+  function clearGlobalCitiesCache() {
+    globalCitiesCache.value.clear();
+  }
+
   return {
     // State
     projects,
@@ -714,6 +772,11 @@ export const useProjectStore = defineStore("project", () => {
     setCachedCountries,
     hasCachedCountries,
     clearCountriesCache,
+
+    // New Data Fetching Actions
+    fetchCityStandaloneProjects,
+    fetchCitiesWithProjects,
+    clearGlobalCitiesCache,
 
     // Comprehensive cleanup
     clearAllState,

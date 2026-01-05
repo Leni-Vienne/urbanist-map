@@ -6,9 +6,9 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useAuthStore } from "@/stores/authStore";
 import { updateMarkerTooltip } from "@/composables/overlay/useOverlayMarkers";
-import { removeOverlayFromMap } from "@/composables/overlay/useOverlayRemoval";
 import { updateOverlayMarkersColors } from "@/composables/map/useMarkers";
 import { updateStandaloneProjectMarkerColor } from "@/composables/map/useCityMarkers";
+import { useEntityRemoval } from "@/composables/core/useEntityRemoval";
 import {
   getStandaloneProjectMarkerByProjectId,
   updateStandaloneProjectMarkerTooltip,
@@ -189,8 +189,11 @@ export function useModeration() {
 
       // AI : If this was a replacement overlay approval with conflict handling, remove the original and competing overlays from map
       if (status === "approved" && handleReplacementConflicts && replacesOverlayId) {
+        // AI : Use unified removal logic
+        const { removeOverlayFromMapAndStore } = useEntityRemoval();
+
         // AI : Remove the original overlay that was replaced
-        removeOverlayFromMap(replacesOverlayId);
+        removeOverlayFromMapAndStore(replacesOverlayId);
 
         // AI : Remove competing replacement overlays from the map
         // AI : Find all overlays that tried to replace the same original overlay
@@ -199,7 +202,7 @@ export function useModeration() {
         );
 
         for (const competing of competingReplacements) {
-          removeOverlayFromMap(competing.id);
+          removeOverlayFromMapAndStore(competing.id);
         }
       }
     }

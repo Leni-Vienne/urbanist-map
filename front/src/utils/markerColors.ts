@@ -2,62 +2,74 @@
 // AI : Used by both useCityMarkers and useStandaloneProjectMarkers
 
 import type { MarkerColor, Project } from "@/types/index";
+import type { ApprovalStatus, MapMode } from "@shared/types";
 
 /**
- * AI : Get project marker color based on status, timeline, and mode
- * Centralized logic to avoid duplication between city and standalone project markers
+ * AI : Shared helper for status-based marker colors
+ * AI : Used by both project and overlay marker color functions to eliminate duplication
+ * AI : Handles the common pending/approved/rejected status logic for edit and moderation modes
  */
-export function getProjectMarkerColor(
-  project: Project,
-  mode: "view" | "edit" | "moderation",
-): MarkerColor {
-  if (mode === "moderation") {
-    // AI : Moderation mode color logic - objective view for review (same as overlays)
-    const status = project.status;
+export function getApprovalStatusColor(
+  status: ApprovalStatus | null | undefined,
+  mode: MapMode,
+  options: {
+    isModified?: boolean;
+    isReplacement?: boolean;
+    isLocalUnsubmitted?: boolean;
+  } = {},
+): MarkerColor | null {
+  const { isModified = false, isReplacement = false, isLocalUnsubmitted = false } = options;
 
-    // AI : Pending brand new projects
+  if (mode === "moderation") {
+    // AI : Local replacement (shouldn't appear in moderation, but for consistency)
+    if (isReplacement && isLocalUnsubmitted) return "purple";
+
+    // AI : Submitted pending replacement
+    if (status === "pending" && isReplacement && !isLocalUnsubmitted) return "yellow";
+
+    // AI : Pending brand new items
     if (status === "pending") return "yellow";
 
-    // AI : Approved projects
+    // AI : Approved items
     if (status === "approved") return "green";
 
-    // AI : Rejected projects
+    // AI : Rejected items
     if (status === "rejected") return "red";
 
-    // AI : Default fallback (shouldn't happen)
+    // AI : Fallback
     return "grey";
   }
 
   if (mode === "edit") {
-    // AI : Edit mode uses approval status colors like overlay markers
-    const hasBeenModified = project.isModified ?? false;
-    const status = project.status;
+    // AI : Priority 1: Local modifications (shows user has unsaved work)
+    if (isModified) return "orange";
 
-    // AI : Priority 1: Local modifications (shows user they have unsaved work)
-    if (hasBeenModified) return "orange";
-
-    // AI : Priority 2: Pending approval (awaiting moderation)
+    // AI : Priority 2: Pending approval
     if (status === "pending") return "yellow";
 
-    // AI : Priority 3: Rejected projects
+    // AI : Priority 3: Rejected
     if (status === "rejected") return "red";
 
     // AI : Priority 4: Approved and unmodified
     if (status === "approved") return "green";
 
-    // AI : Default: New project not yet submitted (no status)
+    // AI : Default: New item not yet submitted (no status = red)
     return "red";
   }
 
-  // AI : View mode uses timeline-based colors
-  // AI : Pending projects always show as yellow (proposed/awaiting approval)
-  if (project.status === "pending") {
-    return "yellow"; // Pending approval
-  }
+  // AI : Return null for view mode - caller handles timeline-based colors
+  return null;
+}
 
-  // AI : Timeline-based colors for approved/rejected projects
-  const { proposalDate, startDate, endDate } = project;
-
+/**
+ * AI : Shared helper for timeline-based marker colors in view mode
+ * AI : Used by both project and overlay marker color functions to eliminate duplication
+ */
+export function getTimelineBasedColor(
+  proposalDate: Date | string | null | undefined,
+  startDate: Date | string | null | undefined,
+  endDate: Date | string | null | undefined,
+): MarkerColor {
   // AI : If only proposalDate is set (no start date), it's just a proposal
   if (proposalDate && !startDate) return "yellow"; // Proposed but not started (nor planned)
 
@@ -71,4 +83,30 @@ export function getProjectMarkerColor(
   if (start > now) return "green"; // Upcoming
   if (end && end <= now) return "grey"; // Completed
   return "orange"; // Ongoing
+}
+
+/**
+ * AI : Get project marker color based on status, timeline, and mode
+ * Centralized logic to avoid duplication between city and standalone project markers
+ */
+export function getProjectMarkerColor(
+  project: Project,
+  mode: "view" | "edit" | "moderation",
+): MarkerColor {
+  // AI : For edit and moderation modes, use shared status-based logic
+  if (mode === "moderation" || mode === "edit") {
+    const statusColor = getApprovalStatusColor(project.status, mode, {
+      isModified: project.isModified ?? false,
+    });
+    if (statusColor) return statusColor;
+  }
+
+  // AI : View mode uses timeline-based colors
+  // AI : Pending projects always show as yellow (proposed/awaiting approval)
+  if (project.status === "pending") {
+    return "yellow"; // Pending approval
+  }
+
+  // AI : Use shared timeline helper
+  return getTimelineBasedColor(project.proposalDate, project.startDate, project.endDate);
 }
