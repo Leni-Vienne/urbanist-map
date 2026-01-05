@@ -138,9 +138,20 @@ async function initializeMapAndOverlays() {
       });
     });
 
-    // AI : Setup viewport manager (replaces old viewport loading + mode system)
+    // AI : Setup viewport manager
     viewportManager.setupEventListeners();
-    viewportManager.setupModeWatcher(); // AI : Handles mode changes + cache clearing
+
+    // AI : Ensure map dimensions are calculated before checking bounds
+    await nextTick();
+    if (map.value) {
+      map.value.invalidateSize();
+      // AI : Small delay to ensure Leaflet updates bounds after invalidateSize
+      setTimeout(() => {
+        viewportManager.refreshViewport();
+      }, 100);
+    }
+
+    viewportManager.setupModeWatcher();
     setupMapClickToDeselect(); // AI : Setup click handler to deselect overlays when clicking map background
     globalThis.addEventListener('keydown', handleKeyDown, true);
     disableLeafletKeyboardEvents();

@@ -15,7 +15,10 @@ import {
   removeOverlayMarkers,
 } from "@/composables/map/useCityOverlays";
 import { citiesWithProjects } from "@/composables/map/useCityMarkers";
-import { addStandaloneProjectMarkerForProject } from "@/composables/map/useStandaloneProjectMarkers";
+import {
+  addStandaloneProjectMarkerForProject,
+  clearAllStandaloneProjectMarkers,
+} from "@/composables/map/useStandaloneProjectMarkers";
 import type { OverlayData } from "@/types/index";
 import type { MapMode } from "@shared/types";
 
@@ -153,8 +156,12 @@ export function useViewportContentManager() {
    */
   async function refreshViewport(force = false) {
     try {
-      if (isLoading.value) return;
-      if (!map.value) return;
+      if (isLoading.value) {
+        return;
+      }
+      if (!map.value) {
+        return;
+      }
 
       const zoom = map.value.getZoom();
 
@@ -162,6 +169,7 @@ export function useViewportContentManager() {
       if (zoom < MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD) {
         clearAllOverlays();
         removeOverlayMarkers();
+        clearAllStandaloneProjectMarkers();
         // AI : CRITICAL: Clear loaded cities cache so they reload when zooming back above threshold
         loadedCityIds.value.clear();
         lastZoomLevel.value = zoom;
@@ -181,7 +189,7 @@ export function useViewportContentManager() {
 
       if (crossedThreshold) {
         await reRenderLoadedCities();
-        return; // AI : Don't continue to avoid double-loading
+        // AI : Continue execution to load new cities if needed
       }
 
       // AI : Get cities visible in viewport
@@ -260,16 +268,12 @@ export function useViewportContentManager() {
     mode: MapMode,
   ) {
     try {
-      console.log(`[STANDALONE] Fetching all projects for city ${cityId} in ${mode} mode`);
-
       // AI : Fetch ALL projects for this city (not just ones with overlays)
       const allProjects = await trpc.project.getCityProjects.query({
         cityId,
         mode,
         limit: 100,
       });
-
-      console.log(`[STANDALONE] Found ${allProjects.length} total projects`);
 
       // AI : Get project IDs that have overlays
       const projectIdsWithOverlays = new Set<string>();
@@ -279,19 +283,14 @@ export function useViewportContentManager() {
         }
       }
 
-      console.log(`[STANDALONE] ${projectIdsWithOverlays.size} projects have overlays`);
-
       // AI : Create standalone markers for projects without any visible overlays
       let standaloneCount = 0;
       for (const project of allProjects) {
         if (!projectIdsWithOverlays.has(project.id) && project.overlayCount === 0) {
-          console.log(`[STANDALONE] Creating marker for project ${project.id}: ${project.name}`);
           addStandaloneProjectMarkerForProject(project as any);
           standaloneCount++;
         }
       }
-
-      console.log(`[STANDALONE] Created ${standaloneCount} standalone markers`);
     } catch (error) {
       console.error(`Error adding standalone markers for city ${cityId}:`, error);
     }
