@@ -5,7 +5,7 @@
       v-if="overlayStore.mode !== 'view'"
       :class="[
         'mode-border',
-        overlayStore.mode === 'edit' ? 'edit-mode-border' : 'moderation-mode-border'
+        overlayStore.mode === 'edit' ? 'edit-mode-border' : 'moderation-mode-border',
       ]"
     ></div>
 
@@ -13,7 +13,7 @@
       <div v-if="isLoading" class="loading-overlay">
         <div class="loading-content">
           <i class="pi pi-spin pi-spinner text-4xl"></i>
-          <p class="mt-2">{{ t('pages.home.loadingMapAndData') }}</p>
+          <p class="mt-2">{{ t("pages.home.loadingMapAndData") }}</p>
         </div>
       </div>
 
@@ -40,28 +40,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent } from "vue";
 
-import { initializeMap, disableLeafletKeyboardEvents, map } from '@/composables/core/useMap';
-import { addTileLayer } from '@/composables/map/useTileLayers';
-import { initializeCameraBounds } from '@/composables/map/useMapNavigation';
-import { undo, redo } from '@/composables/overlay/useOverlay';
-import { setupMapClickToDeselect } from '@/composables/overlay/useOverlaySelection';
-import { useToast } from '@/composables/ui/useToast';
-import { useI18n } from 'vue-i18n';
+import { initializeMap, disableLeafletKeyboardEvents, map } from "@/composables/core/useMap";
+import { addTileLayer } from "@/composables/map/useTileLayers";
+import { initializeCameraBounds } from "@/composables/map/useMapNavigation";
+import { undo, redo } from "@/composables/overlay/useOverlay";
+import { setupMapClickToDeselect } from "@/composables/overlay/useOverlaySelection";
+import { useToast } from "@/composables/ui/useToast";
+import { useI18n } from "vue-i18n";
 // AI : Load countries for breadcrumbs (no marker rendering)
-import { loadCountriesWithProjects } from '@/composables/map/useCountryData';
-import { loadAllCityMarkersGlobally } from '@/composables/map/useCityMarkers';
-import { useViewportContentManager } from '@/composables/viewport/useViewportContentManager';
-import { useMapStore } from '@/stores/pinia/mapStore';
-import { useOverlayStore } from '@/stores/pinia/overlayStore';
-import { useAuthStore } from '@/stores/authStore';
-import ModeControls from '@/components/map/ModeControls.vue';
+import { loadCountriesWithProjects } from "@/composables/map/useCountryData";
+import { loadAllCityMarkersGlobally } from "@/composables/map/useCityMarkers";
+import { useViewportContentManager } from "@/composables/viewport/useViewportContentManager";
+import { useMapStore } from "@/stores/pinia/mapStore";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useAuthStore } from "@/stores/authStore";
+import ModeControls from "@/components/map/ModeControls.vue";
 
-const MapControls = defineAsyncComponent(() => import('@/components/map/MapControls.vue'));
-const UserMenu = defineAsyncComponent(() => import('@/components/auth/UserMenu.vue'));
-const MarkerHelpButton = defineAsyncComponent(() => import('@/components/map/MarkerHelpButton.vue'));
-const CitySearch = defineAsyncComponent(() => import('@/components/map/CitySearch.vue'));
+const MapControls = defineAsyncComponent(() => import("@/components/map/MapControls.vue"));
+const UserMenu = defineAsyncComponent(() => import("@/components/auth/UserMenu.vue"));
+const MarkerHelpButton = defineAsyncComponent(
+  () => import("@/components/map/MarkerHelpButton.vue"),
+);
+const CitySearch = defineAsyncComponent(() => import("@/components/map/CitySearch.vue"));
 
 // AI: Get stores
 const mapStore = useMapStore();
@@ -90,20 +92,22 @@ onMounted(async () => {
 
 onUnmounted(() => {
   // AI : Clean up event listeners
-  globalThis.removeEventListener('keydown', handleKeyDown, true);
+  globalThis.removeEventListener("keydown", handleKeyDown, true);
   // AI : Clean up viewport manager
   viewportManager.cleanupEventListeners();
 });
 
-
 // AI : Keyboard shortcuts handler
 function handleKeyDown(event: KeyboardEvent) {
   // AI : Undo: Ctrl+Z (works on all keyboard layouts)
-  if (event.ctrlKey && !event.shiftKey && event.key.toLowerCase() === 'z') {
+  if (event.ctrlKey && !event.shiftKey && event.key.toLowerCase() === "z") {
     undo();
   }
   // AI : Redo: Ctrl+Y (AZERTY) or Ctrl+Shift+Z (QWERTY)
-  else if (event.ctrlKey && (event.key.toLowerCase() === 'y' || (event.shiftKey && event.key.toLowerCase() === 'z'))) {
+  else if (
+    event.ctrlKey &&
+    (event.key.toLowerCase() === "y" || (event.shiftKey && event.key.toLowerCase() === "z"))
+  ) {
     redo();
   }
 }
@@ -123,14 +127,14 @@ async function initializeMapAndOverlays() {
 
     // AI : Populate cities lookup map in mapStore for panel auto-switch
     mapStore.citiesLookup.clear();
-    cities.forEach(city => {
+    for (const city of cities) {
       mapStore.citiesLookup.set(city.id, {
         id: city.id,
         name: city.name,
         nameLocal: city.nameLocal,
         countryCode: city.countryCode,
       });
-    });
+    }
 
     // AI : Setup viewport manager
     viewportManager.setupEventListeners();
@@ -147,16 +151,15 @@ async function initializeMapAndOverlays() {
 
     viewportManager.setupModeWatcher();
     setupMapClickToDeselect(); // AI : Setup click handler to deselect overlays when clicking map background
-    globalThis.addEventListener('keydown', handleKeyDown, true);
+    globalThis.addEventListener("keydown", handleKeyDown, true);
     disableLeafletKeyboardEvents();
-
   } catch (error) {
-    console.error('Error initializing map and overlays:', error);
+    console.error("Error initializing map and overlays:", error);
     toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: t('pages.home.errors.initializationError'),
-      life: 5000
+      severity: "error",
+      summary: t("common.error"),
+      detail: t("pages.home.errors.initializationError"),
+      life: 5000,
     });
   }
 }
@@ -265,7 +268,6 @@ async function initializeMapAndOverlays() {
 
 /* AI : Move Leaflet attribution above mobile drawer handle */
 @media (max-width: 768px) {
-
   :deep(.leaflet-control-attribution) {
     bottom: 4.5rem !important;
     right: 0.5rem !important;

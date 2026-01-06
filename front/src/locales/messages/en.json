@@ -707,6 +707,8 @@
     "overlayRejected": "Overlay Rejected",
     "overlayRejectedDetail": "The overlay has been rejected",
     "switchedToEditMode": "Switched to Edit Mode",
+    "switchedToViewMode": "Switched to View Mode",
+    "switchedToModerationMode": "Switched to Moderation Mode",
     "clickAgainToAdd": "Click the button again to add an overlay",
     "modeSwitchError": "Mode Switch Error",
     "modeSwitchErrorDetail": "Failed to switch mode. Please try again.",

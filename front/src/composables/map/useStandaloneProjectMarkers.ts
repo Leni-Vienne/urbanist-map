@@ -83,7 +83,7 @@ export function removeStandaloneProjectMarkerForProject(projectId: string): void
  */
 export function clearAllStandaloneProjectMarkers(): void {
   // AI : Properly remove all markers and their event listeners
-  standaloneProjectMarkerMap.forEach((marker) => {
+  for (const marker of standaloneProjectMarkerMap.values()) {
     if (marker) {
       // AI : Remove all event listeners before removing from map
       marker.off();
@@ -92,7 +92,7 @@ export function clearAllStandaloneProjectMarkers(): void {
         standaloneProjectsLayer.removeLayer(marker);
       }
     }
-  });
+  }
 
   // AI : Now remove the layer from map
   if (standaloneProjectsLayer && map.value) {

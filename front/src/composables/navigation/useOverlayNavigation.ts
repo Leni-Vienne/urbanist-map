@@ -34,7 +34,7 @@ async function prepareNavigationToCity(
     // AI : Only clear when switching from one DEFINED country to a DIFFERENT country
     // AI : Don't clear when selectedCountryCode is undefined (global city markers loaded)
     const isDifferentCountry =
-      mapStore.selectedCountryCode != null && mapStore.selectedCountryCode !== countryCode;
+      mapStore.selectedCountryCode !== null && mapStore.selectedCountryCode !== countryCode;
 
     // AI : Step 1: Prepare for cross-country flight (switches to esri if needed)
     switchToCountryLayer = prepareCrossCountryFlight(countryCode);
@@ -95,11 +95,11 @@ function zoomToOverlayAndSelect(
       // AI : Overlay object exists but Leaflet overlay not created - this shouldn't happen
       // AI : but if it does, we need to trigger a re-render
       console.warn(`Overlay ${overlayId} exists in store but has no Leaflet overlay`);
-    } else if (overlayObj?.overlay && !map.value?.hasLayer(overlayObj.overlay)) {
+    } else if (overlayObj?.overlay && map.value?.hasLayer(overlayObj.overlay)) {
       //  AI : Overlay exists but not on map - add it now that zoom is correct
-      const currentZoom = map.value?.getZoom() ?? 0;
+      const currentZoom = map.value.getZoom();
       if (currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
-        overlayObj.overlay.addTo(map.value!);
+        overlayObj.overlay.addTo(map.value);
       }
     }
 
@@ -143,7 +143,7 @@ function zoomToOverlayAndSelect(
  */
 function handleSameOverlayNavigation(overlayId: string): boolean {
   const corners = resolveOverlayCorners(overlayId);
-  if (corners != null) {
+  if (corners !== null) {
     zoomToOverlayAndSelect(overlayId, corners, null); // AI : Same overlay, no cross-country
   }
   return true;
@@ -180,7 +180,7 @@ export async function navigateToOverlayWithCity(
 
     if (isSameCity) {
       const corners = resolveOverlayCorners(overlayId);
-      if (corners != null) {
+      if (corners !== null) {
         return zoomToOverlayAndSelect(overlayId, corners, null, autoSelect); // AI : Same city, pass autoSelect
       }
       // AI : If null, fall through to different city path
