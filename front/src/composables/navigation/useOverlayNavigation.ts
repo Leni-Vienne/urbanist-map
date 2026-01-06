@@ -1,7 +1,7 @@
 import L from "leaflet";
 import { loadCityProjects } from "@/composables/map/useCityMarkers";
-import { navigateToOverlay } from "@/composables/overlay/useOverlay";
 import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
+import { loadCityDataForNavigation } from "@/composables/viewport/useViewportContentManager";
 import { loadCitiesForCountry, clearAllMapContent } from "@/composables/map/useCountryData";
 import { prepareCrossCountryFlight } from "@/composables/map/useTileLayers";
 import { map } from "@/composables/core/useMap";
@@ -193,7 +193,14 @@ export async function navigateToOverlayWithCity(
       return false;
     }
 
-    const overlayData = mapStore.currentCityOverlays.find((o) => o.id === overlayId);
+    // AI : CRITICAL FIX: Use loadCityDataForNavigation to properly load city data
+    // AI : This uses the same rendering pipeline as viewport manager
+    // AI : forceFullOverlays=true because we're about to fly to high zoom
+    const overlaysData = await loadCityDataForNavigation(cityId, true);
+
+    // AI : Find the target overlay in the loaded data
+    const overlayData = overlaysData?.find((o) => o.id === overlayId);
+
     if (overlayData?.corners != null) {
       return zoomToOverlayAndSelect(
         overlayId,
@@ -203,8 +210,8 @@ export async function navigateToOverlayWithCity(
       );
     }
 
-    // AI : Fallback: if overlay not in current city overlays, use the old method
-    return navigateToOverlay(overlayId, true, false);
+    // AI : If overlay still not found, return false
+    return false;
   } catch (error) {
     console.error("Failed to navigate to overlay with city:", error);
     throw error;
