@@ -271,12 +271,26 @@ export function useViewportContentManager() {
     mode: MapMode,
   ) {
     try {
-      // AI : Fetch ALL projects for this city (not just ones with overlays)
-      const allProjects = await trpc.project.getCityProjects.query({
-        cityId,
-        mode,
-        limit: 100,
-      });
+      const mapStore = useMapStore();
+
+      // AI : OPTIMIZATION: Check cache first before querying backend
+      let allProjects = mapStore.getCityStandaloneProjectsCache(cityId, mode);
+
+      if (!allProjects) {
+        // AI : No cache - fetch ALL projects for this city (not just ones with overlays)
+        allProjects = await trpc.project.getCityProjects.query({
+          cityId,
+          mode,
+          limit: 100,
+        });
+
+        // AI : Cache the data for future use
+        if (allProjects) {
+          mapStore.setCityStandaloneProjectsCache(cityId, mode, allProjects);
+        }
+      }
+
+      if (!allProjects) return;
 
       // AI : Get project IDs that have overlays
       const projectIdsWithOverlays = new Set<string>();
@@ -287,11 +301,9 @@ export function useViewportContentManager() {
       }
 
       // AI : Create standalone markers for projects without any visible overlays
-      let standaloneCount = 0;
       for (const project of allProjects) {
         if (!projectIdsWithOverlays.has(project.id) && project.overlayCount === 0) {
           addStandaloneProjectMarkerForProject(project as any);
-          standaloneCount += 1;
         }
       }
     } catch (error) {
@@ -358,8 +370,9 @@ export function useViewportContentManager() {
 
   /**
    * AI : Debounced viewport change handler
+   * AI : 100ms is fast enough for good UX while still preventing duplicate calls during pan
    */
-  const debouncedRefreshViewport = debounce(refreshViewport, 300);
+  const debouncedRefreshViewport = debounce(refreshViewport, 100);
 
   function setupEventListeners() {
     if (!map.value) return;
