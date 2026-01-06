@@ -52,7 +52,7 @@ export class DrizzleSessionStore {
       let expiresAt = defaultExpiry;
       if (rawExpiry) {
         const parsed = new Date(rawExpiry);
-        if (!isNaN(parsed.getTime())) {
+        if (!Number.isNaN(parsed.getTime())) {
           expiresAt = parsed;
         }
       }
@@ -85,7 +85,7 @@ export class DrizzleSessionStore {
       let expiresAt = defaultExpiry;
       if (rawExpiry) {
         const parsed = new Date(rawExpiry);
-        if (!isNaN(parsed.getTime())) {
+        if (!Number.isNaN(parsed.getTime())) {
           expiresAt = parsed;
         }
       }

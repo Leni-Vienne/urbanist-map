@@ -158,7 +158,7 @@ export function updateAllStandaloneProjectMarkerColors(): void {
   const mapStore = useMapStore();
   const markerMap = getStandaloneProjectMarkerMap();
 
-  markerMap.forEach((marker, projectId) => {
+  for (const [projectId, marker] of markerMap) {
     // AI : Try to find project in multiple locations:
     // 1. projectStore.projects (local/cached projects)
     // 2. projectStore.allProjects (fetched projects)
@@ -183,7 +183,7 @@ export function updateAllStandaloneProjectMarkerColors(): void {
       // AI : Also update tooltip when mode changes
       updateStandaloneProjectMarkerTooltip(marker, project, overlayStore.mode);
     }
-  });
+  }
 }
 
 /**
@@ -246,7 +246,7 @@ export function removeCityMarkers(): void {
   const cityMarkersStore = useCityMarkersStore();
   const cityMarkersLayer = cityMarkersStore.getCityMarkersLayer();
 
-  if (cityMarkersLayer && map.value != null && map.value.hasLayer(cityMarkersLayer)) {
+  if (cityMarkersLayer && map.value !== null && map.value.hasLayer(cityMarkersLayer)) {
     map.value.removeLayer(cityMarkersLayer);
     cityMarkersStore.setCityMarkersLayer(null);
   }
@@ -331,7 +331,7 @@ function getCityMarkerConfig(): MarkerLayerConfig<CityWithProjects> {
 
         const center = map.value.getCenter();
         // AI : Pan by 0.00001 degrees (imperceptible) to trigger moveend
-        map.value.panTo([center.lat + 0.00001, center.lng], { animate: false });
+        map.value.panTo([center.lat + 0.000_01, center.lng], { animate: false });
       }
     },
   };
@@ -375,10 +375,10 @@ export function addSingleCityMarker(
   const result = createMarkerLayer([cityData], config);
 
   // AI : Add marker to existing layer
-  result.markers.forEach((marker, cityId) => {
+  for (const [cityId, marker] of result.markers) {
     marker.addTo(cityMarkersLayer!);
     cityMarkersStore.setCityMarker(cityId, marker);
-  });
+  }
 
   // AI : Track if this is an unsaved city marker
   if (isUnsaved) {
@@ -518,9 +518,10 @@ function addCityMarkersToMapInternal(
 
   // AI : Store markers for lookup
   cityMarkersStore.clearCityMarkerMap();
-  result.markers.forEach((marker, cityId) => {
+
+  for (const [cityId, marker] of result.markers) {
     cityMarkersStore.setCityMarker(cityId, marker);
-  });
+  }
 
   // AI : Initialize watcher and add to map
   initializeCityMarkerWatcher();

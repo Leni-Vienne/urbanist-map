@@ -140,9 +140,9 @@ export const useProjectStore = defineStore("project", () => {
     const combined = { ...projects.value };
 
     // AI : Add nearby projects that aren't already in local projects
-    nearbyProjects.value.forEach((nearbyProject: NearbyProject) => {
+    for (const nearbyProject of nearbyProjects.value) {
       combined[nearbyProject.id] ??= createProjectObjectFromAPI(nearbyProject);
-    });
+    }
 
     return combined;
   });
@@ -161,14 +161,14 @@ export const useProjectStore = defineStore("project", () => {
     userContributionsCache.value.set(cacheKey, contributions);
 
     // AI : Cache original backend state for change detection (only if not already cached)
-    contributions.forEach((contribution) => {
+    for (const contribution of contributions) {
       if (!originalUserContributions.value[contribution.id]) {
         originalUserContributions.value = {
           ...originalUserContributions.value,
           [contribution.id]: { ...contribution },
         };
       }
-    });
+    }
   }
 
   function setUserContributionsLoading(loading: boolean) {

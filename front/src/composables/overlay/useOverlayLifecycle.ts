@@ -1,7 +1,6 @@
 // AI : Overlay lifecycle management - extracted to break circular dependencies
 import { map } from "@/composables/core/useMap";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import type { OverlayObject } from "@/types/index";
 
 /**
  * AI : Clear all overlays from the map and reset collections
@@ -12,7 +11,7 @@ export function clearAllOverlays(): void {
 
   if (!map.value) return;
 
-  Object.values(overlayStore.overlays).forEach((overlayObject: OverlayObject) => {
+  for (const overlayObject of Object.values(overlayStore.overlays)) {
     // AI : Only remove layers that are actually on the map to prevent errors
     // AI : This fixes ghost overlay bug where overlay was added to store but not to map yet
     if (overlayObject.overlay && map.value?.hasLayer(overlayObject.overlay)) {
@@ -21,7 +20,7 @@ export function clearAllOverlays(): void {
     if (overlayObject.marker && map.value?.hasLayer(overlayObject.marker)) {
       map.value.removeLayer(overlayObject.marker);
     }
-  });
+  }
 
   overlayStore.overlays = {};
   overlayStore.allMarkers = {};

@@ -7,7 +7,7 @@
 
 import { defineStore } from "pinia";
 import { ref, shallowRef } from "vue";
-import L from "leaflet";
+import type * as L from "leaflet";
 
 // AI : Type for unsaved city marker data
 interface UnsavedCityData {

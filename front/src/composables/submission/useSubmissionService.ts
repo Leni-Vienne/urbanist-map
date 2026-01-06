@@ -120,14 +120,14 @@ export function useSubmissionService() {
     const cache: Record<string, string> = { ...projectStore.cityNamesCache };
 
     // AI : Extract city names from original backend projects (if not already in cache)
-    Object.values(projectStore.originalBackendProjects).forEach((project) => {
+    for (const project of Object.values(projectStore.originalBackendProjects)) {
       if (project.city && project.cityId && !cache[project.cityId]) {
         cache[project.cityId] = project.city.name;
       }
-    });
+    }
 
     // AI : Extract from all projects (in case we have more cities)
-    Object.values(projectStore.allProjects).forEach((project) => {
+    for (const project of Object.values(projectStore.allProjects)) {
       if (
         project.city &&
         project.cityId &&
@@ -136,7 +136,7 @@ export function useSubmissionService() {
       ) {
         cache[project.cityId] = project.city.name;
       }
-    });
+    }
 
     return cache;
   });
@@ -192,7 +192,7 @@ export function useSubmissionService() {
       "cityId",
     ];
 
-    fieldsToCheck.forEach((field) => {
+    for (const field of fieldsToCheck) {
       // AI : Cast to any as originalProject can be Project or UserContribution, both have these fields
       const oldValue = (originalProject as any)[field];
       const newValue = project[field];
@@ -224,7 +224,7 @@ export function useSubmissionService() {
           changeReason: customReason ?? undefined,
         });
       }
-    });
+    }
 
     return changes;
   }
@@ -407,9 +407,9 @@ export function useSubmissionService() {
 
       if (!result.success) {
         const zodErrors = getValidationErrorsMap(result.error);
-        Object.values(zodErrors).forEach((error) => {
+        for (const error of Object.values(zodErrors)) {
           errors.push(t(error.key, error.params ?? {}));
-        });
+        }
       }
     }
 
@@ -429,9 +429,9 @@ export function useSubmissionService() {
 
       if (!result.success) {
         const zodErrors = getValidationErrorsMap(result.error);
-        Object.values(zodErrors).forEach((error) => {
+        for (const error of Object.values(zodErrors)) {
           errors.push(t(error.key, error.params ?? {}));
-        });
+        }
       }
     }
 
@@ -590,11 +590,11 @@ export function useSubmissionService() {
       // AI : Direct update for pending overlays
       const overlayData: { id: string; caption?: string } = { id: context.entity.id };
 
-      changes.forEach((change) => {
+      for (const change of changes) {
         if (change.fieldName === "caption") {
           overlayData.caption = String(change.newValue ?? "");
         }
-      });
+      }
 
       await trpc.overlay.updateOverlay.mutate(overlayData);
 

@@ -251,13 +251,13 @@ export function useChangeRequests() {
   function groupChangeRequestsByEntity() {
     const grouped = new Map<string, ChangeRequest[]>();
 
-    pendingChangeRequests.value.forEach((request) => {
+    for (const request of pendingChangeRequests.value) {
       const key = `${request.entityType}:${request.entityId}`;
       if (!grouped.has(key)) {
         grouped.set(key, []);
       }
       grouped.get(key)!.push(request);
-    });
+    }
 
     return grouped;
   }
@@ -265,7 +265,7 @@ export function useChangeRequests() {
   function getConflictingChanges() {
     const conflicts = new Map<string, ChangeRequest[]>();
 
-    pendingChangeRequests.value.forEach((request) => {
+    for (const request of pendingChangeRequests.value) {
       if (request.status === "conflicted") {
         const key = `${request.entityType}:${request.entityId}:${request.fieldName}`;
         if (!conflicts.has(key)) {
@@ -273,7 +273,7 @@ export function useChangeRequests() {
         }
         conflicts.get(key)!.push(request);
       }
-    });
+    }
 
     return conflicts;
   }
