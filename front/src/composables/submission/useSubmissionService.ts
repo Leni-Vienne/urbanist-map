@@ -15,7 +15,6 @@ import {
   getValidationErrorsMap,
   type FieldChange,
 } from "@shared/validation/schemas";
-import { storeToRefs } from "pinia";
 import { computed } from "vue";
 import { t } from "@/locales";
 import { useChangeRequests } from "@/composables/changes/useChanges";
@@ -93,14 +92,6 @@ function normalizeDate(val: any): string | null {
   return null;
 }
 
-// AI : Normalize empty values for comparison (treat null, undefined, and "" as equivalent)
-function normalizeEmptyValue(val: any): any {
-  if (val === null || val === undefined || val === "") {
-    return null;
-  }
-  return val;
-}
-
 // AI : Determine submission change type based on entity status
 function getChangeType(entity: Project | OverlayObject): SubmissionChangeType {
   if (!entity.id || entity.id.startsWith("temp-")) {
@@ -122,7 +113,6 @@ export function useSubmissionService() {
   const projectStore = useProjectStore();
   const mapStore = useMapStore();
   const overlayStore = useOverlayStore();
-  const { currentCityOverlays } = storeToRefs(mapStore);
   const { resetChangeRequestsLoaded, refreshPendingChangeRequests } = useChangeRequests();
 
   // AI : Build a combined city name cache from store cache + projects we've seen
