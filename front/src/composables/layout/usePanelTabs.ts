@@ -3,7 +3,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
-import { switchMode } from "@/composables/overlay/useOverlayModes";
+import { switchMode } from "@/composables/overlay/useModeSwitching";
 import type { MapMode } from "@shared/types";
 import type { PanelTab } from "@/types";
 
@@ -13,7 +13,7 @@ import type { PanelTab } from "@/types";
 function tabToMode(tab: PanelTab): MapMode {
   switch (tab) {
     case "latest":
-    case "currentCity":
+    case "currentLocation":
       // AI : View tabs always show view mode (approved overlays only)
       return "view";
     case "uploads":
@@ -53,7 +53,7 @@ export function usePanelTabs() {
    * AI : Explicit action to change the active tab
    * AI : Syncs the appropriate map mode automatically
    */
-  async function setActiveTab(newTab: PanelTab) {
+  function setActiveTab(newTab: PanelTab) {
     // 1. Update UI state immediately
     uiStore.setActiveTab(newTab);
 
@@ -62,7 +62,7 @@ export function usePanelTabs() {
 
     // 3. Sync map mode if needed
     if (overlayStore.mode !== targetMode) {
-      await switchMode(targetMode);
+      switchMode(targetMode);
     }
   }
 
@@ -75,16 +75,17 @@ export function usePanelTabs() {
     // but explicit call here would be redundant if called from ModeControls which calls switchMode.
 
     // AI : Logic to determine which tab to switch to
-    let targetTab: PanelTab = "latest";
+    let targetTab: PanelTab;
 
     if (newMode === "view") {
       // AI : Smart switch for View Mode
-      if (uiStore.activeTab === "currentCity" || uiStore.activeTab === "latest") {
+      if (uiStore.activeTab === "currentLocation" || uiStore.activeTab === "latest") {
         // AI : Already in a view-compatible tab, don't change it!
         return;
       }
-      // AI : Default to Current City if a city is selected, otherwise Latest
-      targetTab = mapStore.selectedCity ? "currentCity" : "latest";
+      // AI : Prefer Current Location if a country OR city is selected, otherwise Latest
+      targetTab =
+        mapStore.selectedCity || mapStore.selectedCountryCode ? "currentLocation" : "latest";
     } else {
       // AI : For Edit/Moderation, use fixed mapping
       targetTab = modeToDefaultTab(newMode);
@@ -146,8 +147,8 @@ export function usePanelTabs() {
         // AI : Explicitly switch to Current City tab
         // AI : No need to call setActiveTab (which triggers switchMode) because we are already in view mode
         // AI : But for consistency we can use uiStore directly or our action
-        if (uiStore.activeTab !== "currentCity") {
-          uiStore.setActiveTab("currentCity");
+        if (uiStore.activeTab !== "currentLocation") {
+          uiStore.setActiveTab("currentLocation");
         }
       }
     },

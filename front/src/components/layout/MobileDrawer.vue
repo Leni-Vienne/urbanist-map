@@ -32,7 +32,7 @@
 
     <!-- AI : Footer with legal links -->
     <div class="drawer-footer">
-      <a href="/legal" class="footer-link">{{ $t("footer.legalMentions") }}</a>
+      <a href="/legal" class="footer-link">{{ $t("footer.legal") }}</a>
       <span class="footer-separator">•</span>
       <a href="/contact" class="footer-link">{{ $t("footer.contact") }}</a>
     </div>

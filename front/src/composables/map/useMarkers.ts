@@ -9,6 +9,7 @@ import type { MarkerColor, OverlayObject, OverlayData } from "@/types/index";
 import type { MapMode } from "@shared/types";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import type { ShallowRef } from "vue";
+import { getApprovalStatusColor, getTimelineBasedColor } from "@/utils/markerColors";
 
 // AI : ============================================================================
 // AI : ICON CREATION
@@ -265,100 +266,61 @@ export function getOverlayMarkerColor(
   overlayData: OverlayObject | OverlayData,
   mode: MapMode,
 ): MarkerColor {
-  if (mode === "moderation") {
-    // AI : Moderation mode color logic - objective view for review
-    const status = overlayData.status;
-    const isViewingApprovedPosition =
-      "isViewingApprovedPosition" in overlayData
-        ? overlayData.isViewingApprovedPosition
-        : undefined;
-    const isLocalUnsubmitted = "isModified" in overlayData && overlayData.isModified;
+  // AI : Extract overlay-specific properties (not present on all overlay types)
+  const hasBeenModified = "isModified" in overlayData ? overlayData.isModified : false;
+  const isTooBig = "isTooBig" in overlayData ? overlayData.isTooBig : false;
+  const hasPendingChanges =
+    "hasPendingChanges" in overlayData ? overlayData.hasPendingChanges : false;
+  const isViewingApprovedPosition =
+    "isViewingApprovedPosition" in overlayData ? overlayData.isViewingApprovedPosition : undefined;
+  const isReplacement = Boolean(overlayData.replacesOverlayId);
+  const status = overlayData.status;
 
-    // AI : Local replacement overlays (shouldn't appear in moderation, but for consistency) - show purple
-    if (overlayData.replacesOverlayId && isLocalUnsubmitted) return "purple";
+  // AI : ==================== OVERLAY-SPECIFIC PRIORITY RULES ====================
+  // AI : These rules are unique to overlays and don't apply to projects
 
-    // AI : Submitted pending replacement overlays - show yellow for better user feedback
-    if (status === "pending" && overlayData.replacesOverlayId && !isLocalUnsubmitted)
-      return "yellow";
+  // AI : Size validation error (only for local overlays - submitted ones passed backend validation)
+  if (mode === "edit" && isTooBig && hasBeenModified) return "red";
 
-    // AI : Pending brand new overlays
-    if (status === "pending") return "yellow";
+  // AI : Local replacement overlay (before submission) - show purple
+  if (isReplacement && hasBeenModified && status !== "approved") return "purple";
 
-    // AI : User is viewing suggested position of overlay with pending changes
-    // AI : Show yellow marker to indicate this is a proposed change under review
-    if (status === "approved" && isViewingApprovedPosition === false) return "yellow";
-
-    // AI : Approved overlays (with or without pending changes) - show green when viewing approved position
-    // AI : The yellow marker only appears when toggling to view the suggested position
-    if (status === "approved") return "green";
-
-    // AI : Rejected overlays (shouldn't appear in moderation but just in case)
-    return "grey";
+  // AI : Viewing suggested position of overlay with pending changes - show yellow
+  if (isViewingApprovedPosition === false && (hasPendingChanges || status === "approved")) {
+    return "yellow";
   }
 
-  if (mode === "edit") {
-    // AI : Edit mode color logic based on overlay modification state and status
-    const hasBeenModified = "isModified" in overlayData ? overlayData.isModified : false;
-    const isTooBig = "isTooBig" in overlayData ? overlayData.isTooBig : false;
-    const hasPendingChanges =
-      "hasPendingChanges" in overlayData ? overlayData.hasPendingChanges : false;
-    const isViewingApprovedPosition =
-      "isViewingApprovedPosition" in overlayData
-        ? overlayData.isViewingApprovedPosition
-        : undefined;
-    const status = overlayData.status;
-
-    // AI : Priority 1: Size validation error (only for local overlays - submitted ones passed backend validation)
-    if (isTooBig && hasBeenModified) return "red";
-
-    // AI : Priority 2: Local replacement overlay (before submission) - show purple
-    // AI : Note: Approved overlays should never have replacesOverlayId (cleared on approval)
-    if (overlayData.replacesOverlayId && hasBeenModified && status !== "approved") return "purple";
-
-    // AI : Priority 3: Submitted replacement overlay (pending) - show yellow
-    // AI : Note: Approved overlays should never have replacesOverlayId (cleared on approval)
-    if (status === "pending" && overlayData.replacesOverlayId && !hasBeenModified) return "yellow";
-
-    // AI : Priority 4: Other local modifications (shows user they have unsaved work)
-    if (hasBeenModified) return "orange";
-
-    // AI : Priority 5: Pending change requests - respect which position is being viewed
-    // AI : Show yellow when viewing suggested position (pending changes), green when viewing approved position
-    if (hasPendingChanges && status === "approved") {
-      // AI : If explicitly viewing suggested position, show yellow
-      if (isViewingApprovedPosition === false) return "yellow";
-      // AI : If viewing approved position (undefined or true), show green
-      return "green";
-    }
-
-    // AI : Priority 7: Pending approval (awaiting moderation)
-    if (status === "pending") return "yellow";
-
-    // AI : Priority 8: Rejected overlays
-    if (status === "rejected") return "red";
-
-    // AI : Priority 9: Approved and unmodified
-    if (status === "approved") return "green";
-
-    // AI : Default: New overlay not yet submitted
-    return "red";
+  // AI : Pending change requests with approved status - use green (viewing approved position)
+  // AI : CRITICAL: Only if not locally modified - isModified should take priority to show orange
+  if (
+    hasPendingChanges &&
+    status === "approved" &&
+    isViewingApprovedPosition !== false &&
+    !hasBeenModified
+  ) {
+    return "green";
   }
+
+  // AI : ==================== SHARED STATUS-BASED LOGIC ====================
+  // AI : Delegate to shared helper for common status/mode combinations
+
+  if (mode === "moderation" || mode === "edit") {
+    const statusColor = getApprovalStatusColor(status, mode, {
+      isModified: hasBeenModified ?? false,
+      isReplacement,
+      isLocalUnsubmitted: hasBeenModified ?? false,
+    });
+    if (statusColor) return statusColor;
+  }
+
+  // AI : ==================== VIEW MODE: TIMELINE-BASED COLORS ====================
+  // AI : Based on associated project's timeline dates
 
   const project = overlayData.project;
   if (!project) return "grey"; // No associated project
 
-  const { proposalDate, startDate, endDate } = project;
-
-  if (proposalDate && !startDate) return "yellow"; // Proposed but not started (nor planned)
-  if (!startDate) return "yellow"; // Not yet scheduled
-
-  const now = new Date();
-  const start = new Date(startDate);
-  const end = endDate ? new Date(endDate) : null;
-
-  if (start > now) return "green"; // Upcoming
-  if (end && end <= now) return "grey"; // Completed
-  return "orange"; // Ongoing
+  // AI : Use shared timeline helper
+  return getTimelineBasedColor(project.proposalDate, project.startDate, project.endDate);
 }
 
 // AI : ============================================================================

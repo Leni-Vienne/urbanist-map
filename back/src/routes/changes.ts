@@ -30,11 +30,18 @@ function convertCornersToGeometry(cornersValue: unknown) {
     });
   }
 
-  // AI : Build WKT polygon string (same format as overlay publish)
+  // AI : Build polygon using parameterized PostGIS functions to prevent SQL injection
+  // AI : SECURITY: Do NOT use sql.raw() with string concatenation - it bypasses parameterization
   const [topLeft, topRight, bottomRight, bottomLeft] = cornersArray;
-  const polygonWKT = `POLYGON((${topLeft.lng} ${topLeft.lat}, ${topRight.lng} ${topRight.lat}, ${bottomRight.lng} ${bottomRight.lat}, ${bottomLeft.lng} ${bottomLeft.lat}, ${topLeft.lng} ${topLeft.lat}))`;
-
-  return sql.raw(`ST_GeomFromText('${polygonWKT}', 4326)`);
+  return sql`ST_MakePolygon(
+    ST_MakeLine(ARRAY[
+      ST_SetSRID(ST_MakePoint(${topLeft.lng}, ${topLeft.lat}), 4326),
+      ST_SetSRID(ST_MakePoint(${topRight.lng}, ${topRight.lat}), 4326),
+      ST_SetSRID(ST_MakePoint(${bottomRight.lng}, ${bottomRight.lat}), 4326),
+      ST_SetSRID(ST_MakePoint(${bottomLeft.lng}, ${bottomLeft.lat}), 4326),
+      ST_SetSRID(ST_MakePoint(${topLeft.lng}, ${topLeft.lat}), 4326)
+    ])
+  )`;
 }
 
 // AI : Helper function to convert coordinate object to PostGIS point geometry
@@ -223,6 +230,12 @@ export const changesRouter = router({
         return { success: true };
       } catch (error) {
         console.error("Error submitting change request:", error);
+        // AI : Log detailed error information for debugging
+        if (error instanceof Error) {
+          console.error("Error message:", error.message);
+          console.error("Error stack:", error.stack);
+        }
+        console.error("Input data:", JSON.stringify(input, null, 2));
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to submit change request",

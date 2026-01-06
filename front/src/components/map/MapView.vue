@@ -40,25 +40,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick, defineAsyncComponent } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent } from 'vue';
 
 import { initializeMap, disableLeafletKeyboardEvents, map } from '@/composables/core/useMap';
 import { addTileLayer } from '@/composables/map/useTileLayers';
 import { initializeCameraBounds } from '@/composables/map/useMapNavigation';
-import { renderViewModeOverlays, undo, redo } from '@/composables/overlay/useOverlay';
+import { undo, redo } from '@/composables/overlay/useOverlay';
 import { setupMapClickToDeselect } from '@/composables/overlay/useOverlaySelection';
-import { removeOverlayFromMap } from '@/composables/overlay/useOverlayRemoval';
 import { useToast } from '@/composables/ui/useToast';
 import { useI18n } from 'vue-i18n';
-import { updateOverlayMarkersForFilters } from '@/composables/map/useCityOverlays';
-import { initializeCountryMarkers } from '@/composables/map/useCountryMarkers';
-import { initializeOverlayModes } from '@/composables/overlay/useOverlayModes';
-import { loadCityStandaloneProjects } from '@/composables/map/useCityMarkers';
+// AI : Load countries for breadcrumbs (no marker rendering)
+import { loadCountriesWithProjects } from '@/composables/map/useCountryData';
+import { loadAllCityMarkersGlobally } from '@/composables/map/useCityMarkers';
+import { useViewportContentManager } from '@/composables/viewport/useViewportContentManager';
 import { useMapStore } from '@/stores/pinia/mapStore';
 import { useOverlayStore } from '@/stores/pinia/overlayStore';
 import { useAuthStore } from '@/stores/authStore';
-import { useCompletionFilters } from '@/composables/overlay/useCompletionFilters';
-import type { OverlayData } from '@/types/index';
 import ModeControls from '@/components/map/ModeControls.vue';
 
 const MapControls = defineAsyncComponent(() => import('@/components/map/MapControls.vue'));
@@ -74,80 +71,17 @@ const toast = useToast();
 const { t } = useI18n();
 const isLoading = ref(true);
 
-// AI : Filter overlays based on completion status
+// AI : NEW: Viewport manager - single rendering path
+const viewportManager = useViewportContentManager();
+
+// AI : Filter overlays - now integrated with viewport manager
 async function filterOverlaysByCompletionStatus() {
-  const completionFilters = useCompletionFilters();
-
-  if (!map.value) return;
-
-  // AI : If we have overlay markers visible (when zoomed out), update them with filters
-  updateOverlayMarkersForFilters();
-
-  // AI : Get overlay data from cache instead of currentCityOverlays (which can be cleared)
-  const selectedCityId = mapStore.selectedCity?.id;
-  if (!selectedCityId) return;
-
-  // AI : Load from cache - this is more reliable than currentCityOverlays
-  const cachedData = mapStore.getCityOverlaysAndProjectsCache(selectedCityId, overlayStore.mode);
-
-  // AI : If cache is empty (null/undefined or empty array) but currentCityOverlays has data, use currentCityOverlays
-  if ((!cachedData || cachedData.length === 0) && mapStore.currentCityOverlays?.length) {
-    mapStore.setCityProjectsCache(selectedCityId, overlayStore.mode, mapStore.currentCityOverlays);
-  }
-
-  // AI : Use cached data only if it has items, otherwise fall back to currentCityOverlays
-  const cityOverlays = (cachedData?.length) ? cachedData : (mapStore.currentCityOverlays ?? []);
-
-  // AI : Always reload standalone projects first (even if no overlays for this city)
-  await loadCityStandaloneProjects(selectedCityId);
-
-  // AI : If no overlays, we're done (but standalone projects were reloaded above)
-  if (!cityOverlays.length) return;
-
-  // AI : Use the shared filtering utility
-  const visibleOverlays = completionFilters.filterByCompletionStatus(cityOverlays) as OverlayData[];
-  const visibleOverlayIds = new Set(visibleOverlays.map(o => o.id));
-
-  // AI : Remove overlays that should be hidden
-  const overlaysToHide = cityOverlays.filter(overlay => !visibleOverlayIds.has(overlay.id));
-  for (const overlay of overlaysToHide) {
-    removeOverlayFromMap(overlay.id);
-  }
-
-  // AI : Find overlays that should be visible but aren't currently rendered
-  const overlaysToRender = visibleOverlays.filter(cdnOverlay => {
-    const overlayObject = overlayStore.overlays[cdnOverlay.id];
-    const hasLayer = overlayObject?.overlay && map.value?.hasLayer(overlayObject.overlay);
-    return !overlayObject || !overlayObject.overlay || !hasLayer;
-  });
-
-  // AI : Recreate missing overlays from scratch
-  if (overlaysToRender.length > 0) {
-    renderViewModeOverlays(overlaysToRender, true, false);
-  }
-  overlayStore.setViewModeOverlays(visibleOverlays);
-
-  // AI : Update currentCityOverlays AND cache to ensure they're preserved
-  mapStore.currentCityOverlays = cityOverlays;
-  mapStore.setCityProjectsCache(selectedCityId, overlayStore.mode, cityOverlays);
+  // AI : Just trigger viewport refresh which handles filtering
+  await viewportManager.refreshViewport();
 }
 
-// AI : Watch for mode changes and overlay count to manage overlay state
-// AI : Consolidated from two separate watchers to avoid duplicate filtering
-watch(
-  () => [overlayStore.mode, Object.keys(overlayStore.overlays).length] as const,
-  async ([newMode, overlayCount], [oldMode]) => {
-    if (newMode !== 'view' && oldMode === 'view') {
-      // AI : Entering edit or moderation mode from view mode - clear view mode tracking
-      overlayStore.clearViewModeOverlays();
-    } else if (newMode === 'view' && overlayCount > 0) {
-      // AI : Apply filters when entering view mode or when overlays change in view mode
-      // AI : Use nextTick instead of setTimeout for proper async sequencing
-      await nextTick();
-      await filterOverlaysByCompletionStatus();
-    }
-  }
-);
+// AI : Mode changes now handled by viewport manager watch
+// AI : Filter watcher removed - viewport manager handles this
 
 onMounted(async () => {
   await initializeMapAndOverlays();
@@ -157,6 +91,8 @@ onMounted(async () => {
 onUnmounted(() => {
   // AI : Clean up event listeners
   globalThis.removeEventListener('keydown', handleKeyDown, true);
+  // AI : Clean up viewport manager
+  viewportManager.cleanupEventListeners();
 });
 
 
@@ -172,15 +108,44 @@ function handleKeyDown(event: KeyboardEvent) {
   }
 }
 
-
 // AI : Initialize map and overlays
 async function initializeMapAndOverlays() {
   try {
     initializeMap();
     addTileLayer(); // AI : Initialize tile layers after map is created
     initializeCameraBounds(); // AI : Initialize camera bounds tracking
-    await initializeCountryMarkers(); // AI : Initialize country markers by default
-    initializeOverlayModes(); // AI : Initialize overlay mode system and zoom watcher
+
+    // AI : Load countries first (needed for breadcrumbs in Current Location panel)
+    await loadCountriesWithProjects();
+
+    // AI : Load all city markers globally instead of country markers
+    const cities = await loadAllCityMarkersGlobally();
+
+    // AI : Populate cities lookup map in mapStore for panel auto-switch
+    mapStore.citiesLookup.clear();
+    cities.forEach(city => {
+      mapStore.citiesLookup.set(city.id, {
+        id: city.id,
+        name: city.name,
+        nameLocal: city.nameLocal,
+        countryCode: city.countryCode,
+      });
+    });
+
+    // AI : Setup viewport manager
+    viewportManager.setupEventListeners();
+
+    // AI : Ensure map dimensions are calculated before checking bounds
+    await nextTick();
+    if (map.value) {
+      map.value.invalidateSize();
+      // AI : Small delay to ensure Leaflet updates bounds after invalidateSize
+      setTimeout(() => {
+        viewportManager.refreshViewport();
+      }, 100);
+    }
+
+    viewportManager.setupModeWatcher();
     setupMapClickToDeselect(); // AI : Setup click handler to deselect overlays when clicking map background
     globalThis.addEventListener('keydown', handleKeyDown, true);
     disableLeafletKeyboardEvents();

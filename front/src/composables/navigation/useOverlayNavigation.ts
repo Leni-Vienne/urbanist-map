@@ -2,7 +2,7 @@ import L from "leaflet";
 import { loadCityProjects } from "@/composables/map/useCityMarkers";
 import { navigateToOverlay } from "@/composables/overlay/useOverlay";
 import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
-import { prepareCountryContext } from "@/composables/map/useCountryMarkers";
+import { loadCitiesForCountry, clearAllMapContent } from "@/composables/map/useCountryData";
 import { prepareCrossCountryFlight } from "@/composables/map/useTileLayers";
 import { map } from "@/composables/core/useMap";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
@@ -14,35 +14,8 @@ import {
   updateStandaloneProjectMarkerOpacities,
 } from "@/composables/map/useStandaloneProjectMarkers";
 import { createProjectInfoTeleportTarget } from "@/composables/map/useProjectPopupTeleport";
-import type { OverlayObject } from "@/types/index";
-
-/**
- * AI : Get the corners that should be used for navigation based on current display state
- * AI : Respects whether user is viewing suggested position or approved position
- * @param overlay - The overlay object
- * @returns Corners to navigate to (suggested or approved)
- */
-function getCurrentDisplayCorners(overlay: OverlayObject): { lat: number; lng: number }[] | null {
-  // AI : If overlay has Leaflet instance, get actual rendered corners (most accurate)
-  if (overlay.overlay) {
-    const actualCorners = overlay.overlay.getCorners();
-    if (actualCorners?.length === 4) {
-      return actualCorners.map((c) => ({ lat: c.lat, lng: c.lng }));
-    }
-  }
-
-  // AI : If user is viewing suggested position, use suggestedCorners
-  if (overlay.isViewingApprovedPosition === false && overlay.suggestedCorners?.length === 4) {
-    return overlay.suggestedCorners;
-  }
-
-  // AI : Default: use approved corners
-  if (overlay.corners?.length === 4) {
-    return overlay.corners;
-  }
-
-  return null;
-}
+import { MAP_CONFIG } from "@/constants/mapConstants";
+import { resolveOverlayCorners } from "@/composables/overlay/useOverlayPositionResolver";
 
 /**
  * AI : Shared logic for navigating to a location by simulating country → city marker clicks
@@ -57,15 +30,32 @@ async function prepareNavigationToCity(
   let switchToCountryLayer: (() => void) | null = null;
 
   if (countryCode) {
+    const mapStore = useMapStore();
+    // AI : Only clear when switching from one DEFINED country to a DIFFERENT country
+    // AI : Don't clear when selectedCountryCode is undefined (global city markers loaded)
+    const isDifferentCountry =
+      mapStore.selectedCountryCode != null && mapStore.selectedCountryCode !== countryCode;
+
     // AI : Step 1: Prepare for cross-country flight (switches to esri if needed)
     switchToCountryLayer = prepareCrossCountryFlight(countryCode);
 
-    // AI : Step 2: Prepare country context (clear map, load cities, add markers)
-    await prepareCountryContext(countryCode);
+    // AI : Step 2: Only clear map and reload cities when switching countries
+    // AI : This prevents unnecessary removal of city markers when navigating within the same country
+    if (isDifferentCountry) {
+      clearAllMapContent();
+      mapStore.selectedCountryCode = countryCode;
+      await loadCitiesForCountry(countryCode);
+    } else if (!mapStore.selectedCountryCode) {
+      // AI : First time selecting a country - just set it without clearing
+      mapStore.selectedCountryCode = countryCode;
+      await loadCitiesForCountry(countryCode);
+    }
   }
 
   // AI : Step 3: Simulate city marker click (this loads and renders all markers and overlays for the city)
-  await loadCityProjects(cityId, cityName, null, false, countryCode);
+  // AI : Use forceFullLoad=true to ensure overlays render even if current zoom is low
+  // AI : This is necessary because we're about to fly to an overlay which requires the full overlay to exist
+  await loadCityProjects(cityId, cityName, null, true, countryCode);
 
   return switchToCountryLayer;
 }
@@ -95,6 +85,22 @@ function zoomToOverlayAndSelect(
     // AI : If cross-country flight, switch to country layer after arrival
     if (switchToCountryLayer) {
       switchToCountryLayer();
+    }
+
+    // AI : CRITICAL: After zoom completes, check if overlay needs to be rendered
+    // AI : This handles the case where overlays were loaded while zoomed out
+    // AI : The overlay might exist in overlayStore but not be rendered on the map
+    const overlayObj = overlayStore.overlays[overlayId];
+    if (overlayObj && !overlayObj.overlay) {
+      // AI : Overlay object exists but Leaflet overlay not created - this shouldn't happen
+      // AI : but if it does, we need to trigger a re-render
+      console.warn(`Overlay ${overlayId} exists in store but has no Leaflet overlay`);
+    } else if (overlayObj?.overlay && !map.value?.hasLayer(overlayObj.overlay)) {
+      //  AI : Overlay exists but not on map - add it now that zoom is correct
+      const currentZoom = map.value?.getZoom() ?? 0;
+      if (currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
+        overlayObj.overlay.addTo(map.value!);
+      }
     }
 
     // AI : Wait for element to exist, then wait for image to load before selecting
@@ -132,37 +138,13 @@ function zoomToOverlayAndSelect(
 }
 
 /**
- * AI : Get corners from either loaded overlay or mapStore data
- */
-function getOverlayCorners(
-  overlayId: string,
-  mapStore: ReturnType<typeof useMapStore>,
-  overlayStore: ReturnType<typeof useOverlayStore>,
-): { lat: number; lng: number }[] | null {
-  // AI : Try loaded overlay first (respects current display position)
-  const overlayObject = overlayStore.overlays[overlayId];
-  if (overlayObject != null) {
-    return getCurrentDisplayCorners(overlayObject);
-  }
-
-  // AI : Fallback to mapStore data
-  const overlayData = mapStore.currentCityOverlays.find((o) => o.id === overlayId);
-  return overlayData?.corners ?? null;
-}
-
-/**
  * AI : Handle navigation when clicking the same overlay again
+ * AI : Uses position resolver to get current corners
  */
-function handleSameOverlayNavigation(
-  overlayId: string,
-  overlayStore: ReturnType<typeof useOverlayStore>,
-): boolean {
-  const overlayObject = overlayStore.overlays[overlayId];
-  if (overlayObject != null) {
-    const corners = getCurrentDisplayCorners(overlayObject);
-    if (corners != null) {
-      zoomToOverlayAndSelect(overlayId, corners, null); // AI : Same overlay, no cross-country
-    }
+function handleSameOverlayNavigation(overlayId: string): boolean {
+  const corners = resolveOverlayCorners(overlayId);
+  if (corners != null) {
+    zoomToOverlayAndSelect(overlayId, corners, null); // AI : Same overlay, no cross-country
   }
   return true;
 }
@@ -189,7 +171,7 @@ export async function navigateToOverlayWithCity(
 
     // AI : Optimization 1: Check if clicking the same overlay again
     if (overlayStore.idSelectedOverlay === overlayId) {
-      return handleSameOverlayNavigation(overlayId, overlayStore);
+      return handleSameOverlayNavigation(overlayId);
     }
 
     // AI : Optimization 2: Check if overlay is from the currently selected city
@@ -197,7 +179,7 @@ export async function navigateToOverlayWithCity(
     const isSameCity = currentCity?.id === cityId;
 
     if (isSameCity) {
-      const corners = getOverlayCorners(overlayId, mapStore, overlayStore);
+      const corners = resolveOverlayCorners(overlayId);
       if (corners != null) {
         return zoomToOverlayAndSelect(overlayId, corners, null, autoSelect); // AI : Same city, pass autoSelect
       }

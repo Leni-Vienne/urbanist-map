@@ -443,7 +443,11 @@ export async function getUserOverlayChangeRequestIds(
 }
 
 // AI : Build WHERE condition for project visibility based on user context and map mode
-export function buildProjectVisibilityCondition(user: UserContext, mode: MapMode): SQL {
+export function buildProjectVisibilityCondition(
+  user: UserContext,
+  mode: MapMode,
+  strictModeration = true,
+): SQL {
   if (mode === "view") {
     // AI : View mode: only show approved projects
     return eq(projects.status, "approved");
@@ -455,8 +459,36 @@ export function buildProjectVisibilityCondition(user: UserContext, mode: MapMode
   }
 
   if (mode === "moderation" && user) {
-    // AI : Moderation mode: show approved projects OR projects with pending overlays
-    return sql`(${projects.status} = 'approved' OR ${projects.status} = 'pending')`;
+    // AI : If strict moderation is disabled, show approved projects for context
+    // AI : This is useful for map views where moderators need to see surrounding approved content
+    if (!strictModeration) {
+      return sql`(${projects.status} = 'approved' OR ${projects.status} = 'pending')`;
+    }
+
+    // AI : Moderation mode (strict): only show projects that need moderation
+    // AI : This includes: pending projects OR projects with pending overlays OR projects with pending change requests
+    // AI : Excludes: approved projects with only approved content and no pending changes
+    return sql`(
+      ${projects.status} = 'pending'
+      OR EXISTS (
+        SELECT 1 FROM ${overlays}
+        WHERE ${overlays.projectId} = ${projects.id}
+        AND ${overlays.status} = 'pending'
+      )
+      OR EXISTS (
+        SELECT 1 FROM ${changeRequests}
+        WHERE ${changeRequests.entityType} = 'project'
+        AND ${changeRequests.entityId} = ${projects.id}
+        AND ${changeRequests.status} = 'pending'
+      )
+      OR EXISTS (
+        SELECT 1 FROM ${changeRequests}
+        INNER JOIN ${overlays} ON ${changeRequests.entityId} = ${overlays.id}
+        WHERE ${changeRequests.entityType} = 'overlay'
+        AND ${overlays.projectId} = ${projects.id}
+        AND ${changeRequests.status} = 'pending'
+      )
+    )`;
   }
 
   // AI : Default (anonymous or unrecognized mode): only show approved projects

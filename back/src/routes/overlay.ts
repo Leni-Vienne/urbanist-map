@@ -255,8 +255,19 @@ export const overlayRouter = router({
         });
       }
 
-      // AI : Build WKT string with corner coordinates concatenated as a string literal
-      const polygonWKT = `POLYGON((${topLeft.lng} ${topLeft.lat}, ${topRight.lng} ${topRight.lat}, ${bottomRight.lng} ${bottomRight.lat}, ${bottomLeft.lng} ${bottomLeft.lat}, ${topLeft.lng} ${topLeft.lat}))`;
+      // AI : Build polygon using parameterized PostGIS functions to prevent SQL injection
+      // AI : SECURITY: Do NOT use sql.raw() with string concatenation - it bypasses parameterization
+      // AI : ST_MakePolygon creates a polygon from a LineString (ring)
+      // AI : ST_MakeLine creates a LineString from individual points
+      const corners = sql`ST_MakePolygon(
+        ST_MakeLine(ARRAY[
+          ST_SetSRID(ST_MakePoint(${topLeft.lng}, ${topLeft.lat}), 4326),
+          ST_SetSRID(ST_MakePoint(${topRight.lng}, ${topRight.lat}), 4326),
+          ST_SetSRID(ST_MakePoint(${bottomRight.lng}, ${bottomRight.lat}), 4326),
+          ST_SetSRID(ST_MakePoint(${bottomLeft.lng}, ${bottomLeft.lat}), 4326),
+          ST_SetSRID(ST_MakePoint(${topLeft.lng}, ${topLeft.lat}), 4326)
+        ])
+      )`;
 
       // AI : Prepare overlay data for insert/update
       const overlayData = {
@@ -266,7 +277,7 @@ export const overlayRouter = router({
         projectId: input.projectId,
         authorId: ctx.user.id,
         replacesOverlayId: input.replacesOverlayId ?? null,
-        corners: sql.raw(`ST_GeomFromText('${polygonWKT}', 4326)`),
+        corners,
         centroid: sql`ST_SetSRID(ST_MakePoint(${centroid.lng}, ${centroid.lat}), 4326)`,
       };
 
