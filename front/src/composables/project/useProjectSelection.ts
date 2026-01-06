@@ -91,7 +91,7 @@ export function useCityProjects() {
       if (!groups.has(cityKey)) {
         groups.set(cityKey, []);
       }
-      groups.get(cityKey)!.push(project);
+      groups.get(cityKey)?.push(project);
     }
 
     return [...groups.entries()].map(([cityName, projects]) => ({
