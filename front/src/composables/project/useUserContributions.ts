@@ -24,11 +24,24 @@ export type UserContributionOverlay = UserContribution["overlays"][number] & {
  */
 // AI : Clean up helper functions removed - using useEntityRemoval composable instead
 
+// AI : Options for deleteOverlayDirect, allowing callers to customize behavior
+export interface DeleteOverlayOptions {
+  showToast?: boolean;
+  updateUserContributions?: boolean;
+  clearCityCaches?: boolean;
+}
+
 /**
  * AI : Non-composable overlay deletion function that can be called from anywhere
- * AI : Does not use Vue composables, safe to call from Leaflet toolbar handlers
+ * AI : Does not use Vue composables directly for toast, but accepts options to control behavior
+ * AI : Safe to call from Leaflet toolbar handlers
  */
-export async function deleteOverlayDirect(overlayId: string): Promise<boolean> {
+export async function deleteOverlayDirect(
+  overlayId: string,
+  options: DeleteOverlayOptions = {},
+): Promise<boolean> {
+  const { showToast = false, updateUserContributions = false, clearCityCaches = false } = options;
+
   const overlayStore = useOverlayStore();
   const overlayObject = overlayStore.overlays[overlayId];
 
@@ -48,18 +61,35 @@ export async function deleteOverlayDirect(overlayId: string): Promise<boolean> {
       const shouldCleanup = result?.success ?? !result;
 
       if (shouldCleanup) {
-        // AI : Use new unified removal composable
+        // AI : Use unified removal composable with caller-specified options
         const { removeOverlay } = useEntityRemoval();
-        removeOverlay(overlayId, { clearCityCaches: false });
+        removeOverlay(overlayId, { updateUserContributions, clearCityCaches });
+
+        if (showToast) {
+          const toast = useToast();
+          toast.add({
+            severity: "success",
+            summary: t("contribute.overlayDeleted"),
+            life: 3000,
+          });
+        }
         return true;
       }
 
       return false;
     } else {
       // AI : Brand new overlay, only exists locally - just clean up local state
-      // AI : Use new unified removal composable
       const { removeOverlay } = useEntityRemoval();
-      removeOverlay(overlayId, { clearCityCaches: false });
+      removeOverlay(overlayId, { updateUserContributions, clearCityCaches });
+
+      if (showToast) {
+        const toast = useToast();
+        toast.add({
+          severity: "success",
+          summary: t("contribute.overlayDeleted"),
+          life: 3000,
+        });
+      }
       return true;
     }
   } catch (error) {
@@ -247,61 +277,12 @@ export function useUserContributions() {
   }
 
   async function deleteOverlay(overlayId: string): Promise<boolean> {
-    const overlayStore = useOverlayStore();
-    const overlayObject = overlayStore.overlays[overlayId];
-
-    try {
-      // AI : Check if overlay exists in backend (has a status)
-      // AI : Brand new overlays (status === null or undefined) only exist locally
-      // AI : Using ?? to check for null/undefined - if status is null/undefined, existsInBackend = false
-      const existsInBackend = (overlayObject?.status ?? null) !== null;
-
-      if (existsInBackend) {
-        // AI : Overlay exists in backend, call API to delete it
-        const result = await withErrorHandling(
-          async () => trpc.overlay.deleteOverlay.mutate({ id: overlayId }),
-          { errorMessage: undefined },
-        );
-
-        // AI : Whether backend succeeded or failed, clean up local state
-        const shouldCleanup = result?.success ?? !result;
-
-        if (shouldCleanup) {
-          // AI : Use new unified removal composable
-          const { removeOverlay } = useEntityRemoval();
-          removeOverlay(overlayId, {
-            updateUserContributions: true,
-            clearCityCaches: true,
-          });
-
-          toast.add({
-            severity: "success",
-            summary: t("contribute.overlayDeleted"),
-            life: 3000,
-          });
-          return true;
-        }
-        return false;
-      } else {
-        // AI : Brand new overlay, only exists locally - just clean up local state
-        // AI : Use new unified removal composable
-        const { removeOverlay } = useEntityRemoval();
-        removeOverlay(overlayId, {
-          updateUserContributions: true,
-          clearCityCaches: true,
-        });
-
-        toast.add({
-          severity: "success",
-          summary: t("contribute.overlayDeleted"),
-          life: 3000,
-        });
-        return true;
-      }
-    } catch (error) {
-      console.error("Error deleting overlay:", error);
-      return false;
-    }
+    // AI : Delegate to deleteOverlayDirect with composable-appropriate options
+    return deleteOverlayDirect(overlayId, {
+      showToast: true,
+      updateUserContributions: true,
+      clearCityCaches: true,
+    });
   }
 
   async function deleteProject(projectId: string): Promise<boolean> {

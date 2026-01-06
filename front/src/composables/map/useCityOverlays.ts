@@ -5,7 +5,6 @@ import { map } from "@/composables/core/useMap";
 import { renderViewModeOverlays } from "@/composables/overlay/useOverlay";
 import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
 import { clearAllOverlays } from "@/composables/overlay/useOverlayLifecycle";
-import { hasCachedCityProjectsData, getSelectedCity } from "@/composables/map/useCityData";
 import { useCompletionFilters } from "@/composables/overlay/useCompletionFilters";
 import { trpc } from "@/client";
 import { getOverlayMarkerColor, createOverlayIcon } from "@/composables/map/useMarkers";
@@ -75,7 +74,7 @@ export async function loadCityOverlays(
 
       // AI : Check if we have cached data for current mode and decide what to show
       const overlayStore = useOverlayStore();
-      const hasCachedData = hasCachedCityProjectsData(cityId, overlayStore.mode);
+      const hasCachedData = mapStore.hasCityProjectsCache(cityId, overlayStore.mode);
       const shouldShowFullOverlays = currentZoom >= MIN_ZOOM_FOR_OVERLAYS || forceFullLoad;
 
       if (hasCachedData && shouldShowFullOverlays) {
@@ -344,7 +343,8 @@ function flyToOverlayMarker(overlayData: OverlayData) {
  * This function updates markers based on current filter state (works in both edit and view mode)
  */
 export function updateOverlayMarkersForFilters(): void {
-  const selectedCity = getSelectedCity();
+  const mapStore = useMapStore();
+  const selectedCity = mapStore.selectedCity;
   const overlayStore = useOverlayStore();
 
   // AI : Only update if we have overlay markers visible
@@ -353,7 +353,7 @@ export function updateOverlayMarkersForFilters(): void {
   }
 
   // AI : Get the current city data from cache for current mode
-  if (!selectedCity || !hasCachedCityProjectsData(selectedCity.id, overlayStore.mode)) {
+  if (!selectedCity || !mapStore.hasCityProjectsCache(selectedCity.id, overlayStore.mode)) {
     return;
   }
 

@@ -203,9 +203,6 @@ export function closeProjectPopupAndResetMarkers() {
 /**
  * AI : Load projects without overlays (standalone project markers) for a specific city and display them on map
  */
-/**
- * AI : Load projects without overlays (standalone project markers) for a specific city and display them on map
- */
 export async function loadCityStandaloneProjects(cityId: number | null): Promise<void> {
   if (!map.value) return;
 
