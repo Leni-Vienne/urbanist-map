@@ -226,7 +226,7 @@ export function createLeafletOverlay(
     };
 
     // Check if map is currently zooming, _animatingZoom isn't documented for some reason
-    if (map.value != null && map.value?._animatingZoom) {
+    if (map.value !== null && map.value?._animatingZoom) {
       // AI : Wait for zoom animation to complete
       map.value.once("zoomend", addOverlayWhenReady);
     } else {
@@ -994,16 +994,13 @@ function applyImageRatioFix(
     { x: halfWidth, y: halfHeight }, // SE
   ];
 
-  // AI : Apply rotation and translation to get global coordinates
-  const newCornerPoints = localCorners.map((local) => ({
-    x: centerPoint.x + (local.x * cos - local.y * sin),
-    y: centerPoint.y + (local.x * sin + local.y * cos),
-  }));
-
-  // AI : Convert back to geographical coordinates and apply
-  const newCorners = newCornerPoints.map((point) =>
-    map.value!.containerPointToLatLng([point.x, point.y]),
-  );
+  // AI : Apply rotation, translation, and convert to geographic coordinates
+  const newCorners: L.LatLng[] = [];
+  for (const local of localCorners) {
+    const x = centerPoint.x + (local.x * cos - local.y * sin);
+    const y = centerPoint.y + (local.x * sin + local.y * cos);
+    newCorners.push(map.value.containerPointToLatLng([x, y]));
+  }
 
   overlayObject.overlay.setCorners(newCorners);
 }

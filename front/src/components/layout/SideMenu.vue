@@ -4,8 +4,8 @@
     <div class="sidecolumn__header">
       <div class="header-top">
         <div class="title-container">
-          <h2 class="site-title">{{ $t('app.title') }}</h2>
-          <p class="site-subtitle">{{ $t('app.subtitle') }}</p>
+          <h2 class="site-title">{{ $t("app.title") }}</h2>
+          <p class="site-subtitle">{{ $t("app.subtitle") }}</p>
         </div>
 
         <div class="header-actions">
@@ -39,72 +39,78 @@
 </template>
 
 <script setup lang="ts">
-import { watch, computed } from 'vue'
-import PanelContent from './PanelContent.vue'
-import PanelTabs from './PanelTabs.vue'
-import { usePanelTabs } from '@/composables/layout/usePanelTabs'
-import { useMapStore } from '@/stores/pinia/mapStore'
-import { useUiStore } from '@/stores/uiStore'
-import { useAuthStore } from '@/stores/authStore'
-import type { PanelTab } from '@/types'
+import { watch, computed } from "vue";
+import PanelContent from "./PanelContent.vue";
+import PanelTabs from "./PanelTabs.vue";
+import { usePanelTabs } from "@/composables/layout/usePanelTabs";
+import { useMapStore } from "@/stores/pinia/mapStore";
+import { useUiStore } from "@/stores/uiStore";
+import { useAuthStore } from "@/stores/authStore";
+import type { PanelTab } from "@/types";
 
 defineProps<{
-  isOpen: boolean
-  isModerator?: boolean
-}>()
+  isOpen: boolean;
+  isModerator?: boolean;
+}>();
 
 defineEmits<{
-  close: []
-}>()
+  close: [];
+}>();
 
 // AI : Get stores
-const mapStore = useMapStore()
-const uiStore = useUiStore()
-const authStore = useAuthStore()
+const mapStore = useMapStore();
+const uiStore = useUiStore();
+const authStore = useAuthStore();
 
 // AI : Initialize shared tab logic (mode syncing, authentication watchers, overlay selection)
-const { setActiveTab } = usePanelTabs()
+const { setActiveTab } = usePanelTabs();
 
 // AI : Use uiStore.activeTab as single source of truth (shared with MobileDrawer)
 // AI : Computed with getter/setter for v-model compatibility
 const activeTab = computed<PanelTab>({
   get: () => uiStore.activeTab,
   // AI : Use the explicit action from usePanelTabs to handle mode syncing securely
-  set: (value) => setActiveTab(value)
-})
+  set: (value) => setActiveTab(value),
+});
 
 // AI : Watch for authentication changes and execute post-login callback
-watch(() => authStore.isAuthenticated, (isAuthenticated) => {
-  if (isAuthenticated && uiStore.postLoginCallback) {
-    // AI : User just logged in, execute the callback
-    uiStore.executePostLoginCallback()
-  }
-})
+watch(
+  () => authStore.isAuthenticated,
+  (isAuthenticated) => {
+    if (isAuthenticated && uiStore.postLoginCallback) {
+      // AI : User just logged in, execute the callback
+      uiStore.executePostLoginCallback();
+    }
+  },
+);
 
 // AI : Track previous city ID for detecting city changes
-let previousCityId = mapStore.selectedCity?.id
-watch(() => mapStore.selectedCity, (newCity) => {
-  // AI : Case 1: City was selected (either new or changed from another city)
-  // AI : Switch to Current Location tab only if coming from Latest tab
-  if (newCity && newCity.id !== previousCityId && uiStore.activeTab === 'latest') {
-    uiStore.setActiveTab('currentLocation')
-  }
-
-  // AI : Case 2: City was cleared (e.g., by clicking a country marker or breadcrumb)
-  // AI : Only switch away from Current Location tab if BOTH city AND country are cleared
-  // AI : If country is still selected, stay on Current Location to show city list
-  if (!newCity && previousCityId && uiStore.activeTab === 'currentLocation') {
-    // AI : Check if country is still selected - if so, keep showing Current Location panel
-    if (!mapStore.selectedCountryCode) {
-      uiStore.setActiveTab('latest')
+let previousCityId = mapStore.selectedCity?.id;
+watch(
+  () => mapStore.selectedCity,
+  (newCity) => {
+    // AI : Case 1: City was selected (either new or changed from another city)
+    // AI : Switch to Current Location tab only if coming from Latest tab
+    if (newCity && newCity.id !== previousCityId && uiStore.activeTab === "latest") {
+      uiStore.setActiveTab("currentLocation");
     }
-  }
 
-  previousCityId = newCity?.id
-})
+    // AI : Case 2: City was cleared (e.g., by clicking a country marker or breadcrumb)
+    // AI : Only switch away from Current Location tab if BOTH city AND country are cleared
+    // AI : If country is still selected, stay on Current Location to show city list
+    if (!newCity && previousCityId && uiStore.activeTab === "currentLocation") {
+      // AI : Check if country is still selected - if so, keep showing Current Location panel
+      if (!mapStore.selectedCountryCode) {
+        uiStore.setActiveTab("latest");
+      }
+    }
+
+    previousCityId = newCity?.id;
+  },
+);
 
 // AI : Initialize panel tabs synchronization (mode/tab/auth watchers)
-usePanelTabs()
+usePanelTabs();
 </script>
 
 <style scoped>
@@ -120,13 +126,14 @@ usePanelTabs()
   max-height: 100vh;
   background-color: var(--p-surface-0);
   border-right: 1px solid var(--p-surface-200);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -4px rgba(0, 0, 0, 0.1);
   transition: all 300ms ease-in-out;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
-
 
 .sidecolumn--collapsed {
   width: 0;
@@ -149,7 +156,6 @@ usePanelTabs()
   align-items: center;
   justify-content: space-between;
 }
-
 
 .site-title {
   margin: 0;
@@ -191,10 +197,8 @@ usePanelTabs()
   scrollbar-gutter: stable;
 }
 
-
 /* AI : Mobile responsive styles */
 @media (max-width: 768px) {
-
   .close-button {
     display: flex;
   }
