@@ -25,7 +25,8 @@ const tileLayerConfigs = {
     url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     options: {
       minZoom: 0,
-      maxZoom: 19,
+      maxZoom: 22,
+      maxNativeZoom: 19,
       tileSize: 256,
       attribution: "© OpenStreetMap contributors",
       noWrap: true,

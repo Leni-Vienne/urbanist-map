@@ -27,18 +27,18 @@ import type { MapMode } from "@shared/types";
 
 const isLoading = ref(false);
 
+// AI : Module-level state shared across composable instances and standalone functions
+// AI : Track which cities we've already loaded (per mode)
+const loadedCityIds = ref<Set<number>>(new Set());
+// AI : Track last zoom level to detect marker ↔ overlay transitions
+const lastZoomLevel = ref<number | null>(null);
+
 /**
  * AI : Main viewport content manager
  * AI : Handles all overlay and project rendering based on viewport bounds
  */
 export function useViewportContentManager() {
   const overlayStore = useOverlayStore();
-
-  // AI : Track which cities we've already loaded (per mode)
-  const loadedCityIds = ref<Set<number>>(new Set());
-
-  // AI : Track last zoom level to detect marker ↔ overlay transitions
-  const lastZoomLevel = ref<number | null>(null);
 
   /**
    * AI : Update overlay marker colors when mode changes
@@ -429,4 +429,81 @@ export function useViewportContentManager() {
     setupModeWatcher,
     isLoading,
   };
+}
+
+/**
+ * AI : Standalone function for navigation to load city data
+ * AI : Uses the same rendering pipeline as viewport manager but callable from anywhere
+ * AI : Returns the overlay data for navigation purposes
+ * @param forceFullOverlays - If true, render full overlays regardless of current zoom level
+ *                            Used for navigation which will fly to high zoom after loading
+ */
+export async function loadCityDataForNavigation(
+  cityId: number,
+  forceFullOverlays = false,
+): Promise<OverlayData[] | null> {
+  const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
+  const mode = overlayStore.mode;
+
+  try {
+    // AI : OPTIMIZATION: Check MapStore cache first before querying backend
+    let overlaysData = mapStore.getCityOverlaysAndProjectsCache(cityId, mode);
+
+    if (!overlaysData) {
+      // AI : No cache - fetch from backend
+      overlaysData = await trpc.cities.getCityOverlaysAndProjects.query({
+        cityId,
+        mode,
+      });
+
+      // AI : Cache the data for future use
+      if (overlaysData) {
+        mapStore.setCityProjectsCache(cityId, mode, overlaysData);
+      }
+    }
+
+    // AI : CRITICAL: Mark city as loaded so viewport manager knows about it
+    // AI : This prevents reRenderLoadedCities from missing this city after fly animation
+    loadedCityIds.value.add(cityId);
+
+    if (!overlaysData || overlaysData.length === 0) {
+      return null;
+    }
+
+    const zoom = map.value?.getZoom() ?? 0;
+    const shouldRenderFullOverlays = forceFullOverlays || zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
+
+    // AI : Remove low-zoom markers first to prevent duplicates
+    removeOverlayMarkers();
+
+    // AI : Update store and mapStore for panels
+    overlayStore.setViewModeOverlays(overlaysData);
+    mapStore.currentCityOverlays = overlaysData;
+
+    // AI : RENDER based on zoom level or force flag
+    if (shouldRenderFullOverlays) {
+      // AI : Render full overlays
+      const existingIds = new Set(Object.keys(overlayStore.overlays));
+
+      if (existingIds.size === 0) {
+        renderViewModeOverlays(overlaysData, true, false);
+      } else {
+        // AI : Add new overlays only
+        const newOverlays = overlaysData.filter((o) => !existingIds.has(o.id));
+        if (newOverlays.length > 0) {
+          renderViewModeOverlays(newOverlays, true, false);
+        }
+      }
+    } else {
+      // AI : Render markers only for low zoom
+      clearAllOverlays();
+      renderOverlayMarkersFromData(overlaysData);
+    }
+
+    return overlaysData;
+  } catch (error) {
+    console.error(`Error loading city ${cityId} for navigation:`, error);
+    return null;
+  }
 }

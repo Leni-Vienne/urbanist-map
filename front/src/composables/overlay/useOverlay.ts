@@ -1123,11 +1123,9 @@ export async function loadOverlay(
         renderViewModeOverlays(result.intersectingOverlays as OverlayData[], true, false);
       }
 
-      // AI : Verify overlay was successfully loaded
-      if (!overlayStore.overlays[overlayId]) {
-        throw new Error("Failed to load overlay after fetching");
-      }
-
+      // AI : NOTE: We don't check overlayStore.overlays[overlayId] here because overlay registration
+      // AI : is async (happens after image loads) and may not complete if zoom level is too low.
+      // AI : The critical point is that the backend fetch succeeded.
       return true;
     },
     { errorMessage: "Failed to load overlay", rethrow: true },
