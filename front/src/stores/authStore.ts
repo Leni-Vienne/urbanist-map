@@ -278,7 +278,7 @@ export const useAuthStore = defineStore("auth", () => {
           clearTimeout(timeout);
         }
 
-        globalThis.google!.accounts.id.initialize({
+        globalThis.google?.accounts.id.initialize({
           client_id: clientId,
           callback: createGoogleCallbackHandler(rememberMe, user, resolve, clearTimeoutFn),
           auto_select: false,
@@ -287,7 +287,7 @@ export const useAuthStore = defineStore("auth", () => {
 
         // AI : Prompt the user to sign in
         // @ts-ignore - Google Identity Services types may be incomplete
-        globalThis.google!.accounts.id.prompt((notification: any) => {
+        globalThis.google?.accounts.id.prompt((notification: any) => {
           if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.()) {
             clearTimeoutFn();
             resolve({

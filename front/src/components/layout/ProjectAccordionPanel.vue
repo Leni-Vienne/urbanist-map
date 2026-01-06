@@ -19,7 +19,12 @@
             >
               <div class="country-header-content">
                 <i
-                  :class="['pi', isCountryExpanded(countryGroup.countryCode) ? 'pi-chevron-down' : 'pi-chevron-right']"
+                  :class="[
+                    'pi',
+                    isCountryExpanded(countryGroup.countryCode)
+                      ? 'pi-chevron-down'
+                      : 'pi-chevron-right',
+                  ]"
                 ></i>
                 <h3 class="country-group-title">
                   {{ countryGroup.countryName }}
@@ -41,7 +46,10 @@
                 >
                   <div class="city-header-content">
                     <i
-                      :class="['pi', isCityExpanded(cityGroup.key) ? 'pi-chevron-down' : 'pi-chevron-right']"
+                      :class="[
+                        'pi',
+                        isCityExpanded(cityGroup.key) ? 'pi-chevron-down' : 'pi-chevron-right',
+                      ]"
                     ></i>
                     <h4 class="city-group-title">
                       {{ cityGroup.cityName }}
@@ -96,7 +104,9 @@
                                     :contributor-username="project.ownerUsername"
                                     :report-count="project.ownerReportCount ?? 0"
                                     :clickable="showUserStatsLink && !!project.ownerId"
-                                    @click-contributor="handleProjectContributorClick(project, $event)"
+                                    @click-contributor="
+                                      handleProjectContributorClick(project, $event)
+                                    "
                                   />
                                 </div>
                                 <div
@@ -114,19 +124,27 @@
                                 <div class="metadata-item">
                                   <i class="pi pi-images"></i>
                                   <span
-                                    >{{ project.overlayCount || (project.overlays ? project.overlays.length : 0) }}
-                                    {{ $t('overlay.overlayImages') }}</span
+                                    >{{
+                                      project.overlayCount ||
+                                      (project.overlays ? project.overlays.length : 0)
+                                    }}
+                                    {{ $t("overlay.overlayImages") }}</span
                                   >
                                 </div>
                                 <div
                                   class="metadata-item"
-                                  v-if="project.startDate || project.endDate || project.proposalDate"
+                                  v-if="
+                                    project.startDate || project.endDate || project.proposalDate
+                                  "
                                 >
                                   <i class="pi pi-calendar"></i>
-                                  <span
-                                    >{{ formatProjectDateRange(project.startDate, project.endDate,
-                                    project.proposalDate) }}</span
-                                  >
+                                  <span>{{
+                                    formatProjectDateRange(
+                                      project.startDate,
+                                      project.endDate,
+                                      project.proposalDate,
+                                    )
+                                  }}</span>
                                 </div>
                                 <div class="metadata-item" v-if="project.sourceUrl">
                                   <i class="pi pi-link"></i>
@@ -181,7 +199,11 @@
 
                       <!-- AI : Project overlays with borderless design -->
                       <div
-                        v-if="shouldShowOverlays(project) && project.overlays && project.overlays.length > 0"
+                        v-if="
+                          shouldShowOverlays(project) &&
+                          project.overlays &&
+                          project.overlays.length > 0
+                        "
                         class="flex flex-col mt-4"
                       >
                         <div
@@ -189,7 +211,10 @@
                           :key="overlay.id"
                           :data-overlay-id="overlay.id"
                           class="overlay-card-wrapper"
-                          :class="{ 'has-changes': getOverlayChangeRequestsForOverlay(overlay.id).length > 0 }"
+                          :class="{
+                            'has-changes':
+                              getOverlayChangeRequestsForOverlay(overlay.id).length > 0,
+                          }"
                         >
                           <div
                             class="overlay-card"
@@ -203,10 +228,20 @@
                             >
                               <img
                                 v-if="shouldShowOverlays(project) && !imageErrors[overlay.id]"
-                                :src="overlay.imageUrl || getOverlayImageUrl(overlay.filename, overlay.status)"
+                                :src="
+                                  overlay.imageUrl ||
+                                  getOverlayImageUrl(overlay.filename, overlay.status)
+                                "
                                 :alt="overlay.name"
                                 class="w-full h-full object-cover"
-                                :crossorigin="imageRequiresCredentials(overlay.imageUrl || getOverlayImageUrl(overlay.filename, overlay.status)) ? 'use-credentials' : undefined"
+                                :crossorigin="
+                                  imageRequiresCredentials(
+                                    overlay.imageUrl ||
+                                      getOverlayImageUrl(overlay.filename, overlay.status),
+                                  )
+                                    ? 'use-credentials'
+                                    : undefined
+                                "
                                 @error="(event) => handleImageError(event, overlay.id)"
                                 @load="(event) => handleImageLoad(event, overlay.id)"
                               />
@@ -220,7 +255,7 @@
                             <div class="flex-1 min-w-0">
                               <div class="flex items-center gap-2 mb-1">
                                 <p class="overlay-name">
-                                  {{ overlay.name || $t('overlay.untitled') }}
+                                  {{ overlay.name || $t("overlay.untitled") }}
                                 </p>
                               </div>
                               <div class="flex items-center gap-1.5 text-surface-600 text-xs mb-1">
@@ -232,10 +267,9 @@
                                   class="w-4 h-3 rounded-sm"
                                   @error="hideFlagOnError"
                                 />
-                                <span
-                                  class="truncate"
-                                  >{{ getOverlayLocationDisplay(overlay) }}</span
-                                >
+                                <span class="truncate">{{
+                                  getOverlayLocationDisplay(overlay)
+                                }}</span>
                               </div>
                               <div class="text-xs text-surface-500 mb-2">
                                 <ContributorInfo
@@ -244,7 +278,9 @@
                                   :contributor-username="overlay.authorUsername"
                                   :report-count="overlay.authorReportCount ?? 0"
                                   :clickable="showUserStatsLink && !!overlay.authorId"
-                                  @click-contributor="handleOverlayContributorClick(overlay, $event)"
+                                  @click-contributor="
+                                    handleOverlayContributorClick(overlay, $event)
+                                  "
                                 />
                               </div>
                               <div class="flex items-center gap-2 flex-wrap">
@@ -262,7 +298,7 @@
                                   v-tooltip.top="$t('overlay.viewOriginalOverlay')"
                                 >
                                   <i class="pi pi-arrow-up-left"></i>
-                                  {{ $t('overlay.replaces') }}
+                                  {{ $t("overlay.replaces") }}
                                 </button>
                               </div>
                             </div>
@@ -340,49 +376,56 @@
         class="flex flex-col items-center justify-center p-12 text-center text-surface-600"
       >
         <i class="pi pi-spin pi-spinner text-2xl mb-4"></i>
-        <p>{{ $t('overlay.loadingProjects') }}</p>
+        <p>{{ $t("overlay.loadingProjects") }}</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, watch, nextTick } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { buildThumbnailUrl, imageRequiresCredentials } from '@/utils/imageUrl'
-import { formatDate } from '@/utils/dateFormat'
-import { formatSourceUrl } from '@/utils/urlFormat'
-import { getFlagUrl, hideFlagOnError, useImageErrors } from '@/utils/imageHelpers'
-import { navigateToStandaloneProject } from '@/composables/navigation/useOverlayNavigation'
-import { useOverlayClickHandler } from '@/composables/overlay/useOverlayClickHandler'
-import { highlightOverlayById, removeOverlayHighlight } from '@/composables/overlay/useOverlaySelection'
-import { useToast } from '@/composables/ui/useToast'
-import { useOverlayStore } from '@/stores/pinia/overlayStore'
-import { useMapStore } from '@/stores/pinia/mapStore'
-import { useUiStore } from '@/stores/uiStore'
-import { useAccordionState } from '@/composables/layout/useAccordionState'
-import type { ProjectForModeration, OverlayForModeration, PendingChangeRequest } from '@/types/index'
-import ChangeRequestSection from './ChangeRequestSection.vue'
-import ClickableLocation from '@/components/common/ClickableLocation.vue'
-import ContributorInfo from '@/components/common/ContributorInfo.vue'
-import PanelEmptyState from '@/components/common/PanelEmptyState.vue'
+import { computed, watch, nextTick } from "vue";
+import { useI18n } from "vue-i18n";
+import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
+import { formatDate } from "@/utils/dateFormat";
+import { formatSourceUrl } from "@/utils/urlFormat";
+import { getFlagUrl, hideFlagOnError, useImageErrors } from "@/utils/imageHelpers";
+import { navigateToStandaloneProject } from "@/composables/navigation/useOverlayNavigation";
+import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
+import {
+  highlightOverlayById,
+  removeOverlayHighlight,
+} from "@/composables/overlay/useOverlaySelection";
+import { useToast } from "@/composables/ui/useToast";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
+import { useUiStore } from "@/stores/uiStore";
+import { useAccordionState } from "@/composables/layout/useAccordionState";
+import type {
+  ProjectForModeration,
+  OverlayForModeration,
+  PendingChangeRequest,
+} from "@/types/index";
+import ChangeRequestSection from "./ChangeRequestSection.vue";
+import ClickableLocation from "@/components/common/ClickableLocation.vue";
+import ContributorInfo from "@/components/common/ContributorInfo.vue";
+import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
 
 // AI : Props interface
 interface Props {
-  projects: ProjectForModeration[]
-  isLoading: boolean
-  title: string
-  panelClass: string
-  emptyMessage?: string
-  emptySubMessage?: string
-  changeRequests?: PendingChangeRequest[]
-  onOverlayClick?: (overlay: OverlayForModeration, shouldFitBounds: boolean) => Promise<void>
-  showUserStatsLink?: boolean
-  hideStatusBadges?: boolean
-  disableAutoModeSwitch?: boolean
-  disableGrouping?: boolean
-  showEditButtons?: boolean
-  shouldSwitchToEditMode?: boolean
+  projects: ProjectForModeration[];
+  isLoading: boolean;
+  title: string;
+  panelClass: string;
+  emptyMessage?: string;
+  emptySubMessage?: string;
+  changeRequests?: PendingChangeRequest[];
+  onOverlayClick?: (overlay: OverlayForModeration, shouldFitBounds: boolean) => Promise<void>;
+  showUserStatsLink?: boolean;
+  hideStatusBadges?: boolean;
+  disableAutoModeSwitch?: boolean;
+  disableGrouping?: boolean;
+  showEditButtons?: boolean;
+  shouldSwitchToEditMode?: boolean;
 }
 interface CityGroup {
   key: string;
@@ -399,27 +442,35 @@ interface CountryGroup {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  emptyMessage: '',
-  emptySubMessage: '',
+  emptyMessage: "",
+  emptySubMessage: "",
   changeRequests: () => [],
   showUserStatsLink: false,
   hideStatusBadges: false,
   disableAutoModeSwitch: false,
   disableGrouping: false,
   showEditButtons: false,
-  shouldSwitchToEditMode: false
-})
+  shouldSwitchToEditMode: false,
+});
 
 const emit = defineEmits<{
-  'show-user-stats': [data: { userId: string; username?: string | null; approvedCount?: number | null; rejectedCount?: number | null; reportCount?: number }]
-}>()
+  "show-user-stats": [
+    data: {
+      userId: string;
+      username?: string | null;
+      approvedCount?: number | null;
+      rejectedCount?: number | null;
+      reportCount?: number;
+    },
+  ];
+}>();
 
 // AI : Use i18n for translations
-const { t } = useI18n()
-const toast = useToast()
-const overlayStore = useOverlayStore()
-const mapStore = useMapStore()
-const uiStore = useUiStore()
+const { t } = useI18n();
+const toast = useToast();
+const overlayStore = useOverlayStore();
+const mapStore = useMapStore();
+const uiStore = useUiStore();
 
 // AI : Use shared accordion state (persists across My Contributions and Moderation panels)
 const {
@@ -429,34 +480,33 @@ const {
   toggleCityExpanded,
   isCityExpanded,
   expandAccordionForOverlay,
-  expandAccordionForProject
-} = useAccordionState()
+  expandAccordionForProject,
+} = useAccordionState();
 
 // AI : Use shared image error handling
-const { imageErrors, handleImageError, handleImageLoad } = useImageErrors()
+const { imageErrors, handleImageError, handleImageLoad } = useImageErrors();
 
 // AI : Use overlay click handler composable for shared navigation logic
-const { handleOverlayClickNavigation } = useOverlayClickHandler()
+const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
+const expandedPanels = computed(() => new Set(activeAccordionPanels.value));
 
-const expandedPanels = computed(() => new Set(activeAccordionPanels.value))
-
-const isContributePanel = computed(() => props.panelClass === 'my-contributions-panel')
+const isContributePanel = computed(() => props.panelClass === "my-contributions-panel");
 
 const groupedByCountry = computed(() => {
   const countryMap = new Map<string, CountryGroup>();
 
   for (const project of props.projects) {
-    const countryName = project.countryName ?? 'Unknown Country';
-    const cityName = project.cityName ?? 'Unknown City';
-    const countryCode = project.countryCode ?? 'unknown';
+    const countryName = project.countryName ?? "Unknown Country";
+    const cityName = project.cityName ?? "Unknown City";
+    const countryCode = project.countryCode ?? "unknown";
 
     if (!countryMap.has(countryCode)) {
       countryMap.set(countryCode, {
         countryCode,
         countryName,
         totalProjects: 0,
-        cities: []
+        cities: [],
       });
     }
 
@@ -465,7 +515,7 @@ const groupedByCountry = computed(() => {
 
     country.totalProjects += 1;
 
-    let cityGroup = country.cities.find(c => c.cityName === cityName);
+    let cityGroup = country.cities.find((c) => c.cityName === cityName);
     if (!cityGroup) {
       // AI : Extract cityNameLocal from project.city if available
       const cityNameLocal = project.city?.nameLocal ?? null;
@@ -473,7 +523,7 @@ const groupedByCountry = computed(() => {
         key: `${countryCode}-${cityName}`,
         cityName,
         cityNameLocal,
-        projects: []
+        projects: [],
       };
       country.cities.push(cityGroup);
     }
@@ -482,7 +532,7 @@ const groupedByCountry = computed(() => {
   }
 
   const sorted = [...countryMap.values()].toSorted((a, b) =>
-    a.countryName.localeCompare(b.countryName)
+    a.countryName.localeCompare(b.countryName),
   );
 
   // AI : Sort each country's cities by name
@@ -491,118 +541,119 @@ const groupedByCountry = computed(() => {
   }
 
   return sorted;
-})
+});
 
 // AI : Wrapper to pass country group data to the shared state function
 function handleToggleCountryExpanded(countryCode: string) {
-  const country = groupedByCountry.value.find(c => c.countryCode === countryCode)
-  toggleCountryExpanded(countryCode, country)
+  const country = groupedByCountry.value.find((c) => c.countryCode === countryCode);
+  toggleCountryExpanded(countryCode, country);
 }
 
 // AI : Computed helper for country content visibility
 function shouldShowCountryContent(countryCode: string): boolean {
-  return props.disableGrouping || isCountryExpanded(countryCode)
+  return props.disableGrouping || isCountryExpanded(countryCode);
 }
 
 // AI : Computed helper for city content visibility
 function shouldShowCityContent(cityKey: string): boolean {
-  return props.disableGrouping || isCityExpanded(cityKey)
+  return props.disableGrouping || isCityExpanded(cityKey);
 }
 
 // AI : Watch for overlay selection and mode changes to auto-expand accordions
 // AI : Watch only project IDs instead of deep watching entire project objects for performance
 watch(
-  () => [
-    overlayStore.idSelectedOverlay,
-    overlayStore.mode,
-    props.projects.map(p => p.id).join(',')
-  ] as const,
+  () =>
+    [
+      overlayStore.idSelectedOverlay,
+      overlayStore.mode,
+      props.projects.map((p) => p.id).join(","),
+    ] as const,
   async ([selectedOverlayId]) => {
     if (selectedOverlayId && props.projects.length > 0) {
       // AI : Wait for Vue to finish rendering the updated projects
-      await nextTick()
+      await nextTick();
 
       // AI : Try to expand the accordion hierarchy
-      const expanded = expandAccordionForOverlay(selectedOverlayId, props.projects)
+      const expanded = expandAccordionForOverlay(selectedOverlayId, props.projects);
 
       if (expanded) {
         // AI : Wait for DOM to update with expanded accordion
-        await nextTick()
+        await nextTick();
 
         // AI : Wait for accordion animation to complete, then scroll
-        await waitForAccordionAnimation(selectedOverlayId)
+        await waitForAccordionAnimation(selectedOverlayId);
       }
     }
-  }
-)
+  },
+  { immediate: true },
+);
 
 // AI : Watch for project info popup (standalone/standalone projects) to auto-expand and scroll
 // AI : Watch only project IDs instead of deep watching entire project objects for performance
 watch(
-  () => [
-    uiStore.projectInfoPopup.visible,
-    uiStore.projectInfoPopup.projectId,
-    props.projects.map(p => p.id).join(',')
-  ] as const,
+  () =>
+    [
+      uiStore.projectInfoPopup.visible,
+      uiStore.projectInfoPopup.projectId,
+      props.projects.map((p) => p.id).join(","),
+    ] as const,
   async ([visible, projectId]) => {
     if (visible && projectId && props.projects.length > 0) {
       // AI : Wait for Vue to finish rendering the updated projects
-      await nextTick()
+      await nextTick();
 
       // AI : Try to expand the accordion hierarchy for the project
-      const expanded = expandAccordionForProject(projectId, props.projects)
+      const expanded = expandAccordionForProject(projectId, props.projects);
 
       if (expanded) {
         // AI : Wait for DOM to update with expanded accordion
-        await nextTick()
+        await nextTick();
 
         // AI : Wait for accordion animation to complete, then scroll
-        await waitForProjectAccordionAnimation(projectId)
+        await waitForProjectAccordionAnimation(projectId);
       }
     }
-  }
-)
+  },
+  { immediate: true },
+);
 
 // AI : Watch for selected city changes to auto-scroll to city in panel (moderation/edit modes)
 // AI : Watch only project IDs instead of deep watching entire project objects for performance
 watch(
-  () => [
-    mapStore.selectedCity,
-    props.projects.map(p => p.id).join(',')
-  ] as const,
+  () => [mapStore.selectedCity, props.projects.map((p) => p.id).join(",")] as const,
   async ([selectedCity]) => {
     if (selectedCity && props.projects.length > 0 && !props.disableGrouping) {
       // AI : Wait for Vue to finish rendering the updated projects
-      await nextTick()
+      await nextTick();
 
       // AI : Build city key using same format as groupedByCountry
-      const cityKey = `${selectedCity.countryCode ?? 'unknown'}-${selectedCity.name}`
+      const cityKey = `${selectedCity.countryCode ?? "unknown"}-${selectedCity.name}`;
 
       // AI : Find the country and city in grouped data
-      const country = groupedByCountry.value.find(c =>
-        c.cities.some(city => city.key === cityKey)
-      )
+      const country = groupedByCountry.value.find((c) =>
+        c.cities.some((city) => city.key === cityKey),
+      );
 
       if (country) {
         // AI : Auto-expand country if collapsed
         if (!isCountryExpanded(country.countryCode)) {
-          toggleCountryExpanded(country.countryCode, country)
+          toggleCountryExpanded(country.countryCode, country);
         }
 
         // AI : Auto-expand city if collapsed
         if (!isCityExpanded(cityKey)) {
-          toggleCityExpanded(cityKey)
+          toggleCityExpanded(cityKey);
         }
 
         // AI : Wait for DOM to update with expanded accordions
-        await nextTick()
+        await nextTick();
 
         // AI : Wait for accordion animation to complete, then scroll
-        await waitForCityAccordionAnimation(cityKey)
+        await waitForCityAccordionAnimation(cityKey);
       }
     }
-  }
-)
+  },
+);
 
 /**
  * AI : Wait for accordion expansion animation to complete, then scroll to overlay
@@ -615,22 +666,22 @@ watch(
  */
 async function waitForAccordionAnimation(overlayId: string): Promise<void> {
   // AI : Find the overlay element to check if it exists and is visible
-  const overlayElement = document.querySelector(`[data-overlay-id="${overlayId}"]`)
+  const overlayElement = document.querySelector(`[data-overlay-id="${overlayId}"]`);
 
   if (!overlayElement) {
     // AI : Element not found, wait a frame and try again (max 3 attempts)
     for (let i = 0; i < 3; i += 1) {
-      await new Promise(resolve => requestAnimationFrame(resolve))
-      const element = document.querySelector(`[data-overlay-id="${overlayId}"]`)
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const element = document.querySelector(`[data-overlay-id="${overlayId}"]`);
       if (element) {
-        await scrollToOverlayWhenReady(element)
-        return
+        await scrollToOverlayWhenReady(element);
+        return;
       }
     }
-    return
+    return;
   }
 
-  await scrollToOverlayWhenReady(overlayElement)
+  await scrollToOverlayWhenReady(overlayElement);
 }
 
 /**
@@ -639,15 +690,15 @@ async function waitForAccordionAnimation(overlayId: string): Promise<void> {
 async function scrollToOverlayWhenReady(element: Element): Promise<void> {
   // AI : Wait for the element to be fully rendered and positioned
   // AI : Use requestAnimationFrame to sync with browser paint cycle
-  await new Promise(resolve => requestAnimationFrame(resolve))
-  await new Promise(resolve => requestAnimationFrame(resolve))
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+  await new Promise((resolve) => requestAnimationFrame(resolve));
 
   // AI : Scroll with smooth behavior
   element.scrollIntoView({
-    behavior: 'smooth',
-    block: 'center',
-    inline: 'nearest'
-  })
+    behavior: "smooth",
+    block: "center",
+    inline: "nearest",
+  });
 }
 
 /**
@@ -657,22 +708,22 @@ async function scrollToOverlayWhenReady(element: Element): Promise<void> {
  */
 async function waitForProjectAccordionAnimation(projectId: string): Promise<void> {
   // AI : Find the project element to check if it exists and is visible
-  const projectElement = document.querySelector(`[data-project-id="${projectId}"]`)
+  const projectElement = document.querySelector(`[data-project-id="${projectId}"]`);
 
   if (!projectElement) {
     // AI : Element not found, wait a frame and try again (max 3 attempts)
     for (let i = 0; i < 3; i += 1) {
-      await new Promise(resolve => requestAnimationFrame(resolve))
-      const element = document.querySelector(`[data-project-id="${projectId}"]`)
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const element = document.querySelector(`[data-project-id="${projectId}"]`);
       if (element) {
-        await scrollToOverlayWhenReady(element)
-        return
+        await scrollToOverlayWhenReady(element);
+        return;
       }
     }
-    return
+    return;
   }
 
-  await scrollToOverlayWhenReady(projectElement)
+  await scrollToOverlayWhenReady(projectElement);
 }
 
 /**
@@ -680,33 +731,32 @@ async function waitForProjectAccordionAnimation(projectId: string): Promise<void
  */
 async function waitForCityAccordionAnimation(cityKey: string): Promise<void> {
   // AI : Find the city element to check if it exists and is visible
-  const cityElement = document.querySelector(`[data-city-key="${cityKey}"]`)
+  const cityElement = document.querySelector(`[data-city-key="${cityKey}"]`);
 
   if (!cityElement) {
     // AI : Element not found, wait a frame and try again (max 3 attempts)
     for (let i = 0; i < 3; i += 1) {
-      await new Promise(resolve => requestAnimationFrame(resolve))
-      const element = document.querySelector(`[data-city-key="${cityKey}"]`)
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const element = document.querySelector(`[data-city-key="${cityKey}"]`);
       if (element) {
-        await scrollToOverlayWhenReady(element)
-        return
+        await scrollToOverlayWhenReady(element);
+        return;
       }
     }
-    return
+    return;
   }
 
-  await scrollToOverlayWhenReady(cityElement)
+  await scrollToOverlayWhenReady(cityElement);
 }
-
 
 // AI : Wrapper to navigate to overlay by ID
 async function navigateToOverlayById(overlayId: string) {
   for (const project of props.projects) {
     if (project.overlays) {
-      const overlay = project.overlays.find(o => o.id === overlayId)
+      const overlay = project.overlays.find((o) => o.id === overlayId);
       if (overlay) {
-        await handleOverlayClickNavigation(overlay, true)
-        return
+        await handleOverlayClickNavigation(overlay, true);
+        return;
       }
     }
   }
@@ -714,52 +764,51 @@ async function navigateToOverlayById(overlayId: string) {
 
 // AI : Helper functions to filter change requests
 function getProjectChangeRequestsForProject(projectId: string): PendingChangeRequest[] {
-  const project = props.projects.find(p => p.id === projectId)
-  if (!project || project.status === 'pending') {
-    return []
+  const project = props.projects.find((p) => p.id === projectId);
+  if (!project || project.status === "pending") {
+    return [];
   }
   return props.changeRequests.filter(
-    request => request.entityType === 'project' && request.entityId === projectId
-  )
+    (request) => request.entityType === "project" && request.entityId === projectId,
+  );
 }
 
 function getOverlayChangeRequestsForOverlay(overlayId: string): PendingChangeRequest[] {
-  let overlay: OverlayForModeration | null = null
+  let overlay: OverlayForModeration | null = null;
   for (const project of props.projects) {
     if (project.overlays) {
-      overlay = project.overlays.find((o: OverlayForModeration) => o.id === overlayId) ?? null
-      if (overlay) break
+      overlay = project.overlays.find((o: OverlayForModeration) => o.id === overlayId) ?? null;
+      if (overlay) break;
     }
   }
-  if (!overlay || overlay.status === 'pending') {
-    return []
+  if (!overlay || overlay.status === "pending") {
+    return [];
   }
   return props.changeRequests.filter(
-    request => request.entityType === 'overlay' && request.entityId === overlayId
-  )
+    (request) => request.entityType === "overlay" && request.entityId === overlayId,
+  );
 }
-
 
 // AI : Get badge severity based on status
 function getStatusSeverity(status: string | null): string {
   switch (status) {
-    case 'approved': {
-      return 'success'
+    case "approved": {
+      return "success";
     }
-    case 'rejected': {
-      return 'danger'
+    case "rejected": {
+      return "danger";
     }
-    case 'pending': {
-      return 'warn'
+    case "pending": {
+      return "warn";
     }
-    case 'replaced': {
-      return 'secondary'
+    case "replaced": {
+      return "secondary";
     }
     case null: {
-      return 'info'
+      return "info";
     } // AI : Unsubmitted local projects
     default: {
-      return 'info'
+      return "info";
     }
   }
 }
@@ -769,72 +818,76 @@ function getStatusSeverity(status: string | null): string {
 // For pending overlays, always use backend URL (not migrated to R2 yet)
 function getOverlayImageUrl(filename: string, status?: string | null): string {
   // AI : null status means local overlay - also force backend URL for pending
-  const forceBackendUrl = status === 'pending' || status === null;
-  return buildThumbnailUrl(filename, forceBackendUrl)
+  const forceBackendUrl = status === "pending" || status === null;
+  return buildThumbnailUrl(filename, forceBackendUrl);
 }
 
 // AI : Get overlay location display (city, country) - avoid duplication
 function getOverlayLocationDisplay(overlay: OverlayForModeration): string {
-  const cityName = overlay.cityName
-  const countryName = overlay.countryName
+  const cityName = overlay.cityName;
+  const countryName = overlay.countryName;
 
   if (cityName && countryName) {
     // AI : Avoid duplication if city name already contains country
     if (cityName.includes(countryName)) {
-      return cityName
+      return cityName;
     }
-    return `${cityName}, ${countryName}`
+    return `${cityName}, ${countryName}`;
   } else if (cityName) {
-    return cityName
+    return cityName;
   } else if (countryName) {
-    return countryName
+    return countryName;
   }
-  return 'Unknown Location'
+  return "Unknown Location";
 }
 
 // AI : Format project dates as dd/mm/yyyy
 function formatProjectDate(date: Date | null): string {
-  if (!date) return ''
-  return formatDate(date)
+  if (!date) return "";
+  return formatDate(date);
 }
 
 // AI : Format project date range including proposal date support with i18n
-function formatProjectDateRange(startDate: Date | null, endDate: Date | null, proposalDate?: Date | null): string {
+function formatProjectDateRange(
+  startDate: Date | null,
+  endDate: Date | null,
+  proposalDate?: Date | null,
+): string {
   // AI : If it's a proposed project, show "Proposed on {date}"
   if (proposalDate) {
-    return `${t('project.proposed')} ${formatProjectDate(proposalDate)}`
+    return `${t("project.proposed")} ${formatProjectDate(proposalDate)}`;
   }
 
-  const start = startDate ? formatProjectDate(startDate) : null
-  const end = endDate ? formatProjectDate(endDate) : null
+  const start = startDate ? formatProjectDate(startDate) : null;
+  const end = endDate ? formatProjectDate(endDate) : null;
 
   if (start && end) {
-    return `${start} - ${end}`
+    return `${start} - ${end}`;
   } else if (start) {
-    return `${t('project.starts')} ${start}`
+    return `${t("project.starts")} ${start}`;
   } else if (end) {
-    return `${t('project.ends')} ${end}`
+    return `${t("project.ends")} ${end}`;
   }
-  return ''
+  return "";
 }
 
 // AI : Check if overlays should be shown (only for expanded panels)
 function shouldShowOverlays(project: ProjectForModeration): boolean {
-  return expandedPanels.value.has(project.id)
+  return expandedPanels.value.has(project.id);
 }
 
 // AI : Handle card click - navigate to project location and open popup
 function handleCardClick(project: ProjectForModeration) {
   // AI : Check if project has overlays - if so, navigate to first overlay instead of standalone marker
   // AI : (standalone project markers disappear when overlays exist)
-  const hasOverlays = project.overlays && project.overlays.length > 0
+  const hasOverlays = project.overlays && project.overlays.length > 0;
 
   if (hasOverlays) {
     // AI : Navigate to first overlay (overlays replace the standalone marker)
-    handleOverlayCardClick(project.overlays[0], true)
+    handleOverlayCardClick(project.overlays[0], true);
   } else {
     // AI : Navigate to standalone project marker
-    handleStandaloneProjectClick(project)
+    handleStandaloneProjectClick(project);
   }
 }
 
@@ -843,29 +896,29 @@ async function handleStandaloneProjectClick(project: ProjectForModeration) {
   try {
     if (!project.lat || !project.lng) {
       toast.add({
-        severity: 'warn',
-        summary: t('project.noLocation'),
-        detail: t('project.noLocation'),
-        life: 3000
-      })
-      return
+        severity: "warn",
+        summary: t("project.noLocation"),
+        detail: t("project.noLocation"),
+        life: 3000,
+      });
+      return;
     }
 
     if (!project.cityId || !project.cityName) {
       toast.add({
-        severity: 'warn',
-        summary: t('project.missingCityInfo'),
-        detail: t('project.cannotNavigateWithoutCity'),
-        life: 3000
-      })
-      return
+        severity: "warn",
+        summary: t("project.missingCityInfo"),
+        detail: t("project.cannotNavigateWithoutCity"),
+        life: 3000,
+      });
+      return;
     }
 
     // AI : Ensure edit mode is enabled before navigating (required to see markers)
     // AI : Skip mode switch if disableAutoModeSwitch prop is true (e.g., in Current City panel)
-    const overlayStore = useOverlayStore()
-    if (!props.disableAutoModeSwitch && overlayStore.mode !== 'edit') {
-      overlayStore.setMode('edit')
+    const overlayStore = useOverlayStore();
+    if (!props.disableAutoModeSwitch && overlayStore.mode !== "edit") {
+      overlayStore.setMode("edit");
     }
 
     await navigateToStandaloneProject(
@@ -874,16 +927,16 @@ async function handleStandaloneProjectClick(project: ProjectForModeration) {
       project.cityId,
       project.cityName,
       project.countryCode ?? undefined,
-      project.id
-    )
+      project.id,
+    );
   } catch (error) {
-    console.error('Failed to navigate to project:', error)
+    console.error("Failed to navigate to project:", error);
     toast.add({
-      severity: 'error',
-      summary: t('overlay.navigationFailed'),
-      detail: error instanceof Error ? error.message : t('overlay.failedToNavigate'),
-      life: 3000
-    })
+      severity: "error",
+      summary: t("overlay.navigationFailed"),
+      detail: error instanceof Error ? error.message : t("overlay.failedToNavigate"),
+      life: 3000,
+    });
   }
 }
 
@@ -891,10 +944,10 @@ async function handleStandaloneProjectClick(project: ProjectForModeration) {
 async function handleOverlayCardClick(overlay: OverlayForModeration, shouldFitBounds: boolean) {
   if (props.onOverlayClick) {
     // AI : Use custom handler (for moderation panel to mark as viewed)
-    await props.onOverlayClick(overlay, shouldFitBounds)
+    await props.onOverlayClick(overlay, shouldFitBounds);
   } else {
     // AI : Use default handler
-    await handleOverlayClickNavigation(overlay, shouldFitBounds)
+    await handleOverlayClickNavigation(overlay, shouldFitBounds);
   }
 }
 
@@ -902,31 +955,31 @@ async function handleOverlayCardClick(overlay: OverlayForModeration, shouldFitBo
 function handleContributorClick(
   data: { userId: string; username: string | null; reportCount: number },
   approvedCount: number | null | undefined,
-  rejectedCount: number | null | undefined
+  rejectedCount: number | null | undefined,
 ) {
-  emit('show-user-stats', {
+  emit("show-user-stats", {
     userId: data.userId,
     username: data.username,
     approvedCount: approvedCount ?? null,
     rejectedCount: rejectedCount ?? null,
-    reportCount: data.reportCount
-  })
+    reportCount: data.reportCount,
+  });
 }
 
 // AI : Handle project contributor click from ContributorInfo component
 function handleProjectContributorClick(
   project: ProjectForModeration,
-  data: { userId: string; username: string | null; reportCount: number }
+  data: { userId: string; username: string | null; reportCount: number },
 ) {
-  handleContributorClick(data, project.ownerApprovedCount, project.ownerRejectedCount)
+  handleContributorClick(data, project.ownerApprovedCount, project.ownerRejectedCount);
 }
 
 // AI : Handle overlay contributor click from ContributorInfo component
 function handleOverlayContributorClick(
   overlay: OverlayForModeration,
-  data: { userId: string; username: string | null; reportCount: number }
+  data: { userId: string; username: string | null; reportCount: number },
 ) {
-  handleContributorClick(data, overlay.authorApprovedCount, overlay.authorRejectedCount)
+  handleContributorClick(data, overlay.authorApprovedCount, overlay.authorRejectedCount);
 }
 </script>
 
@@ -997,7 +1050,6 @@ function handleOverlayContributorClick(
   min-width: 28px;
   text-align: center;
 }
-
 
 .city-group-header {
   display: flex;
@@ -1135,7 +1187,7 @@ function handleOverlayContributorClick(
 }
 
 /* AI : Override any flex row styles from child components */
-.project-actions-column>* {
+.project-actions-column > * {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -1215,9 +1267,7 @@ function handleOverlayContributorClick(
   flex-shrink: 0;
 }
 
-
 @keyframes pulse {
-
   0%,
   100% {
     opacity: 1;

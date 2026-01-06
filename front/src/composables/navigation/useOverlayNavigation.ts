@@ -201,7 +201,7 @@ export async function navigateToOverlayWithCity(
     // AI : Find the target overlay in the loaded data
     const overlayData = overlaysData?.find((o) => o.id === overlayId);
 
-    if (overlayData?.corners != null) {
+    if (overlayData !== undefined && overlayData.corners !== null) {
       return zoomToOverlayAndSelect(
         overlayId,
         overlayData.corners,

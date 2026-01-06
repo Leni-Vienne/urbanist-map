@@ -256,7 +256,7 @@ export function useChangeRequests() {
       if (!grouped.has(key)) {
         grouped.set(key, []);
       }
-      grouped.get(key)!.push(request);
+      grouped.get(key)?.push(request);
     }
 
     return grouped;
@@ -271,7 +271,7 @@ export function useChangeRequests() {
         if (!conflicts.has(key)) {
           conflicts.set(key, []);
         }
-        conflicts.get(key)!.push(request);
+        conflicts.get(key)?.push(request);
       }
     }
 
