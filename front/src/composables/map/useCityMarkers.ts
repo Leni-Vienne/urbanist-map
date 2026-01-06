@@ -14,19 +14,14 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useCityMarkersStore } from "@/stores/pinia/cityMarkersStore";
-import { useCompletionFilters } from "@/composables/overlay/useCompletionFilters";
-import { useProjects } from "@/composables/project/useProjects";
-import { createProjectObject } from "../../utils/typeFactories";
 import { getProjectMarkerColor } from "../../utils/markerColors";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
 import { createMarkerLayer, type MarkerLayerConfig } from "@/composables/map/useMarkerLayer";
 import {
-  addStandaloneProjectMarkerForProject,
   getStandaloneProjectMarkerByProjectId,
   getStandaloneProjectMarkerMap,
   updateStandaloneProjectMarkerOpacities,
   updateStandaloneProjectMarkerTooltip,
-  clearAllStandaloneProjectMarkers,
 } from "@/composables/map/useStandaloneProjectMarkers";
 import { cleanupProjectInfoTeleportTarget } from "@/composables/map/useProjectPopupTeleport";
 
@@ -201,148 +196,6 @@ export function closeProjectPopupAndResetMarkers() {
 }
 
 /**
- * AI : Load projects without overlays (standalone project markers) for a specific city and display them on map
- */
-export async function loadCityStandaloneProjects(cityId: number | null): Promise<void> {
-  if (!map.value) return;
-
-  initializeModeWatcher();
-
-  // AI : Clear all existing standalone project markers to prevent accumulation across cities
-  clearAllStandaloneProjectMarkers();
-
-  try {
-    const mapStore = useMapStore();
-    const overlayStore = useOverlayStore();
-    const projectStore = useProjectStore(); // AI : Use projectStore
-
-    let backendProjects: RouterOutput["project"]["getCityProjects"] = [];
-    if (cityId) {
-      const cachedData = mapStore.getCityStandaloneProjectsCache(cityId, overlayStore.mode);
-      if (cachedData) {
-        backendProjects = cachedData;
-      } else {
-        // AI : Use projectStore action
-        backendProjects = await projectStore.fetchCityStandaloneProjects(cityId, overlayStore.mode);
-        mapStore.setCityStandaloneProjectsCache(cityId, overlayStore.mode, backendProjects);
-      }
-    }
-
-    // AI : Don't filter by overlayCount here - rejected overlays aren't rendered but still count
-    // AI : Instead, rely on the check below that skips projects with rendered overlays
-    const backendProjectsWithNoOverlays = backendProjects;
-
-    const { projects: localProjects } = useProjects();
-    const allLocalProjects = Object.values(localProjects.value);
-    const authStore = useAuthStore();
-
-    const localProjectsWithNoOverlays = allLocalProjects.filter((project) => {
-      const overlayCount = project.overlayIds?.length ?? 0;
-      const matchesCity =
-        project.cityId === cityId ||
-        (cityId === null && (project.cityId === null || project.cityId === undefined));
-
-      // AI : Filter by mode and status (same logic as backend)
-      let matchesVisibilityFilter = false;
-      if (overlayStore.mode === "view") {
-        // AI : View mode: only show approved projects
-        matchesVisibilityFilter = project.status === "approved";
-      } else if (overlayStore.mode === "edit" && authStore.user) {
-        // AI : Edit mode: show approved projects OR user's own projects
-        matchesVisibilityFilter =
-          project.status === "approved" || project.ownerId === authStore.user.id;
-      } else if (overlayStore.mode === "moderation") {
-        // AI : Moderation mode: show approved OR pending projects
-        matchesVisibilityFilter = project.status === "approved" || project.status === "pending";
-      } else {
-        // AI : Default: only show approved
-        matchesVisibilityFilter = project.status === "approved";
-      }
-
-      return overlayCount === 0 && matchesCity && matchesVisibilityFilter;
-    });
-
-    const allProjectsWithNoOverlays = [
-      ...backendProjectsWithNoOverlays,
-      ...localProjectsWithNoOverlays.filter(
-        (local) => !backendProjectsWithNoOverlays.some((backend) => backend.id === local.id),
-      ),
-    ];
-
-    // AI : Get set of project IDs that have overlays (either rendered in store OR in city overlay data)
-    // AI : This prevents showing standalone project markers for projects that have overlays
-    // AI : We check BOTH sources because:
-    // AI : - overlayStore.overlays: contains rendered overlays (high zoom)
-    // AI : - mapStore.currentCityOverlays: contains overlay data even when only showing markers (low zoom)
-    const projectIdsFromRenderedOverlays = Object.values(overlayStore.overlays)
-      .map((overlay) => overlay.projectId)
-      .filter((id): id is string => id !== null && id !== undefined);
-
-    const projectIdsFromCityOverlays = mapStore.currentCityOverlays
-      .map((overlay) => overlay.projectId)
-      .filter((id): id is string => id !== null && id !== undefined);
-
-    const projectIdsWithOverlays = new Set([
-      ...projectIdsFromRenderedOverlays,
-      ...projectIdsFromCityOverlays,
-    ]);
-
-    allProjectsWithNoOverlays.forEach((project) => {
-      // AI : Skip if project has overlays (rendered or in city data)
-      if (projectIdsWithOverlays.has(project.id)) {
-        return;
-      }
-
-      if (project.lat && project.lng) {
-        const projectData =
-          "overlayIds" in project
-            ? project
-            : createProjectObject({
-                ...project,
-                city: project.city,
-                status: "status" in project ? project.status : "approved",
-              });
-
-        // AI : Add project to store so it can be edited
-        // AI : We invoke updateProject to ensure reactivity and consistency
-        // AI : But we can't accidentally overwrite existing data if we're not careful
-        // AI : For now, manually merging as before is safer
-        const { projects: localProjects } = useProjects();
-        if (!localProjects.value[project.id]) {
-          localProjects.value = {
-            ...localProjects.value,
-            [project.id]: projectData,
-          };
-        }
-
-        // AI : Apply completion filters (timeline filters in view mode)
-        // AI : In edit/moderation modes, timeline filters don't apply
-        if (overlayStore.mode === "view") {
-          const completionFilters = useCompletionFilters();
-          const projectColor = getProjectMarkerColor(projectData, overlayStore.mode);
-
-          // AI : Check if this color is in the completion filters (some colors like 'gold', 'black' may not be)
-          const colorKey =
-            projectColor as keyof typeof completionFilters.visibleCompletionStates.value;
-          const isVisibleByCompletionFilter =
-            colorKey in completionFilters.visibleCompletionStates.value
-              ? completionFilters.visibleCompletionStates.value[colorKey]
-              : true; // AI : If color not in filters, show by default
-
-          if (!isVisibleByCompletionFilter) {
-            return;
-          }
-        }
-
-        addStandaloneProjectMarkerForProject(projectData);
-      }
-    });
-  } catch (error) {
-    console.error("Error loading standalone projects:", error);
-  }
-}
-
-/**
  * AI : Load projects for a specific city and display overlays on map
  */
 export async function loadCityProjects(
@@ -399,14 +252,6 @@ export async function loadCityProjects(
   } catch (error) {
     console.error("Error loading city projects:", error);
   }
-}
-
-/**
- * AI : Clear unsaved city markers (called when switching countries)
- */
-export function clearUnsavedCityMarkers(): void {
-  const cityMarkersStore = useCityMarkersStore();
-  cityMarkersStore.unsavedCityMarkers.clear();
 }
 
 /**

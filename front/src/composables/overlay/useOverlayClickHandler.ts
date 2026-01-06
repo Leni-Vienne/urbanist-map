@@ -64,7 +64,7 @@ export function useOverlayClickHandler() {
       // AI : Only switch to edit mode if currently in view mode
       // AI : In moderation mode, pending overlays are already visible, so don't switch
       if (overlayStore.mode === "view" && shouldToggleEditMode) {
-        await switchMode("edit");
+        switchMode("edit");
 
         // AI : Only show toast for pending overlays (for approved ones it's less critical)
         if (overlay.status === "pending") {

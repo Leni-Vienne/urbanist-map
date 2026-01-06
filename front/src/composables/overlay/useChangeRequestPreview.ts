@@ -115,7 +115,7 @@ export function useChangeRequestPreview() {
     // AI : Step 1: Switch to edit mode if needed (pending overlays only visible in edit mode)
     const needsEditMode = overlayStore.mode === "view" && overlayForModeration.status === "pending";
     if (needsEditMode) {
-      await switchMode("edit");
+      switchMode("edit");
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
