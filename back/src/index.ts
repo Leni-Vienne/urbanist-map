@@ -213,23 +213,7 @@ app.post("/api/login", async (c) => {
     }
 
     // AI : Set session with full user data
-    const session = c.get("session");
-
-    // AI : Calculate session expiry based on Remember Me preference
-    const sessionDuration = rememberMe ? SESSION_DURATION_LONG : SESSION_DURATION_SHORT;
-    const expiresAt = new Date(Date.now() + sessionDuration * 1000);
-
-    session.set("user", {
-      id: user.id,
-      email: user.email,
-      username: user.username,
-      role: user.role,
-      moderatedCountries: user.moderatedCountries,
-      emailVerified: user.emailVerified,
-    });
-
-    // AI : Set custom session expiry
-    session.set("expiresAt", expiresAt.toISOString());
+    setUserSession(c, user, rememberMe);
 
     // AI : Constant time mitigation: Ensure request takes at least MIN_EXEC_TIME ms
     // AI : This masks the difference between DB lookup times (found vs not found)
