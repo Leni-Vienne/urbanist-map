@@ -79,7 +79,7 @@ async function onLayerChange() {
     switchTileLayer(selectedLayer.value);
 
     // AI : Fly to the country bounds based on the selected tile layer
-    if (selectedLayer.value === 'esri') {
+    if (selectedLayer.value === 'osm' || selectedLayer.value === 'esri') {
       // AI : World view - zoom out to show the whole world
       mobileAwareFlyTo([20, 0], 2, { duration: 1.5 });
     } else {

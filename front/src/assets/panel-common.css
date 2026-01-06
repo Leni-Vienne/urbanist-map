@@ -1,6 +1,6 @@
 /* AI : Shared CSS styles for side panel components */
 
-/* AI : Header actions container - used by CurrentCityPanel, ContributePanel, etc. */
+/* AI : Header actions container - used by currentLocationPanel, ContributePanel, etc. */
 .header-actions-container {
   display: flex;
   gap: 1rem;

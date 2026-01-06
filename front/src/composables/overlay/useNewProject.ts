@@ -1,7 +1,7 @@
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { switchMode } from "@/composables/overlay/useOverlayModes";
+import { switchMode } from "@/composables/overlay/useModeSwitching";
 import { storeToRefs } from "pinia";
 
 // AI : Composable for handling new project button click logic (opens marker placement bar)
@@ -24,7 +24,7 @@ export function useNewProject() {
     // AI : Always switch to edit mode when contributing
     if (mode.value !== "edit") {
       try {
-        await switchMode("edit");
+        switchMode("edit");
         uiStore.openMarkerPlacementBar();
         return { success: true, action: "edit_mode_and_dialog_opened" };
       } catch (error) {

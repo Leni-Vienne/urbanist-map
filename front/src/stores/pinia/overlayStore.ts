@@ -114,6 +114,23 @@ export const useOverlayStore = defineStore("overlay", () => {
     };
   }
 
+  // AI : Remove overlay from store with proper reactivity
+  function removeOverlay(overlayId: string) {
+    const overlaysCopy = { ...overlays.value };
+    if (overlaysCopy[overlayId]) {
+      // AI : Cleanup Leaflet objects before removal
+      if (overlaysCopy[overlayId].overlay) {
+        overlaysCopy[overlayId].overlay.remove();
+      }
+      if (overlaysCopy[overlayId].marker) {
+        overlaysCopy[overlayId].marker.remove();
+      }
+      delete overlaysCopy[overlayId];
+      // AI : Trigger reactivity with shallowRef assignment
+      overlays.value = overlaysCopy;
+    }
+  }
+
   // AI : Update overlay in store with proper reactivity for shallowRef
   function updateOverlay(overlayId: string, updates: Partial<OverlayObject>) {
     const current = overlays.value[overlayId];
@@ -261,6 +278,7 @@ export const useOverlayStore = defineStore("overlay", () => {
     removeFromEditModeCache,
     addOverlay,
     updateOverlay,
+    removeOverlay,
     handleFileSelected,
     clearPendingFile,
     requestOverlayReplacement,

@@ -50,7 +50,7 @@ import { map } from '@/composables/core/useMap'
 import { loadCityProjects, updateStandaloneProjectMarkerColor, addSingleCityMarker, addCityMarkersForCountry } from '@/composables/map/useCityMarkers'
 import { createProjectInfoTeleportTarget } from '@/composables/map/useProjectPopupTeleport'
 import { getStandaloneProjectMarkerByProjectId } from '@/composables/map/useStandaloneProjectMarkers'
-import { loadCitiesForCountry, prepareCountryContext, addUnsavedCountryMarker } from '@/composables/map/useCountryMarkers'
+import { loadCitiesForCountry, clearAllMapContent } from '@/composables/map/useCountryData'
 import { useMapStore } from '@/stores/pinia/mapStore'
 import { createStandaloneProjectIcon } from '@/composables/map/useMarkers'
 import { addOverlay } from '@/composables/overlay/useOverlay'
@@ -60,7 +60,6 @@ import { useCityProjects } from '@/composables/project/useProjectSelection'
 import type { Project, NearbyProject } from '@/types/index'
 
 import MarkerPlacementBar from '@/components/map/MarkerPlacementBar.vue'
-import countryBboxes from '@/assets/country_bboxes.json'
 const CreateProjectDialog = defineAsyncComponent(() => import('@/components/project/CreateProjectDialog.vue'))
 const EditProjectForm = defineAsyncComponent(() => import('@/components/forms/EditProjectForm.vue'))
 
@@ -90,8 +89,10 @@ async function ensureCityMarkersForProject(
   const isCountrySwitch = mapStore.selectedCountryCode !== countryCode;
 
   if (isCountrySwitch) {
-    // AI : Use prepareCountryContext to properly clear old country markers and load new country
-    await prepareCountryContext(countryCode);
+    // AI : Clear old map content and load new country
+    clearAllMapContent();
+    mapStore.selectedCountryCode = countryCode;
+    await loadCitiesForCountry(countryCode);
   }
 
   // AI : Set selectedCity if not already set (or if forced) to prevent overlay disappearance on zoom
@@ -140,32 +141,6 @@ async function ensureCityMarkersForProject(
         countryCode: countryCode
       }, true);
     }
-  }
-
-  // AI : Add unsaved country marker if country doesn't exist in backend
-  const country = projectStore.countries.find((c) => c.code === countryCode);
-  if (!country) {
-    // AI : Get country center coordinates from bbox to avoid overlapping with city marker
-    const bbox = (countryBboxes as Record<string, number[]>)[countryCode];
-    let countryLat = city.coordinates.y;
-    let countryLng = city.coordinates.x;
-
-    if (bbox && bbox.length === 4) {
-      // AI : bbox format is [minLng, minLat, maxLng, maxLat]
-      const [minLng, minLat, maxLng, maxLat] = bbox;
-      countryLat = (minLat + maxLat) / 2; // AI : Calculate center latitude
-      countryLng = (minLng + maxLng) / 2; // AI : Calculate center longitude
-    }
-
-    // AI : Create temporary country marker to allow navigation back to unsaved projects
-    const countryName = city.countryCode; // AI : Fallback to code if name not available
-    addUnsavedCountryMarker({
-      code: countryCode,
-      code2: '', // AI : Will be populated when backend data loads
-      name: countryName,
-      lat: countryLat,
-      lng: countryLng
-    });
   }
 }
 
