@@ -6,7 +6,7 @@
       class="mode-indicator"
       :class="{
         'edit-mode': overlayStore.mode === 'edit',
-        'moderation-mode': overlayStore.mode === 'moderation'
+        'moderation-mode': overlayStore.mode === 'moderation',
       }"
       @click="handleModeSwitch"
       :aria-label="$t('map.switchMode')"
@@ -19,15 +19,15 @@
 </template>
 
 <script setup lang="ts">
-import { useOverlayStore } from '@/stores/pinia/overlayStore';
-import { useAuthStore } from '@/stores/authStore';
-import { useToast } from '@/composables/ui/useToast';
-import { switchMode } from '@/composables/overlay/useModeSwitching';
-import { useI18n } from 'vue-i18n';
-import type { MapMode } from '@shared/types';
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useAuthStore } from "@/stores/authStore";
+import { useToast } from "@/composables/ui/useToast";
+import { switchMode } from "@/composables/overlay/useModeSwitching";
+import { useI18n } from "vue-i18n";
+import type { MapMode } from "@shared/types";
 
 defineProps<{
-  isMobile?: boolean
+  isMobile?: boolean;
 }>();
 
 const overlayStore = useOverlayStore();
@@ -45,34 +45,46 @@ let isSwitchingMode = false;
 // AI : Get mode display info
 function getModeIcon(): string {
   switch (overlayStore.mode) {
-    case 'view': return 'pi-eye';
-    case 'edit': return 'pi-pencil';
-    case 'moderation': return 'pi-shield';
-    default: return 'pi-eye';
+    case "view":
+      return "pi-eye";
+    case "edit":
+      return "pi-pencil";
+    case "moderation":
+      return "pi-shield";
+    default:
+      return "pi-eye";
   }
 }
 
 function getModeLabel(): string {
   switch (overlayStore.mode) {
-    case 'view': return t('map.viewMode');
-    case 'edit': return t('map.editMode');
-    case 'moderation': return t('moderation.title');
-    default: return t('map.viewMode');
+    case "view":
+      return t("map.viewMode");
+    case "edit":
+      return t("map.editMode");
+    case "moderation":
+      return t("moderation.title");
+    default:
+      return t("map.viewMode");
   }
 }
 
 function getModeTooltip(): string {
   switch (overlayStore.mode) {
-    case 'view': return t('map.viewModeTooltip');
-    case 'edit': return t('map.editModeTooltip');
-    case 'moderation': return t('moderation.description');
-    default: return t('map.viewModeTooltip');
+    case "view":
+      return t("map.viewModeTooltip");
+    case "edit":
+      return t("map.editModeTooltip");
+    case "moderation":
+      return t("moderation.description");
+    default:
+      return t("map.viewModeTooltip");
   }
 }
 
 // AI : Cycle through modes (view -> edit -> moderation -> view) for moderators
 // AI : For regular users, just toggle between view and edit
-async function handleModeSwitch() {
+function handleModeSwitch() {
   // AI : Prevent recursive calls
   if (isSwitchingMode) {
     return;
@@ -87,21 +99,21 @@ async function handleModeSwitch() {
     if (authStore.isModerator) {
       // AI : Moderators cycle through all 3 modes
       switch (currentMode) {
-        case 'view':
-          newMode = 'edit';
+        case "view":
+          newMode = "edit";
           break;
-        case 'edit':
-          newMode = 'moderation';
+        case "edit":
+          newMode = "moderation";
           break;
-        case 'moderation':
-          newMode = 'view';
+        case "moderation":
+          newMode = "view";
           break;
         default:
-          newMode = 'view';
+          newMode = "view";
       }
     } else {
       // AI : Regular users toggle between view and edit only
-      newMode = currentMode === 'edit' ? 'view' : 'edit';
+      newMode = currentMode === "edit" ? "view" : "edit";
     }
 
     // AI : Don't do anything if mode hasn't changed
@@ -112,27 +124,34 @@ async function handleModeSwitch() {
 
     // AI : Use unified switchMode for all mode transitions (view/edit/moderation)
     // AI : This ensures consistent behavior and proper data reloading
-    await switchMode(newMode);
+    switchMode(newMode);
 
     // AI : Only show toast if enough time has passed since last one
     const now = Date.now();
     if (now - lastToastTime >= TOAST_THROTTLE_MS) {
       lastToastTime = now;
 
+      // AI : Get the correct i18n key based on which mode we switched to
+      const modeSummaryKeys: Record<MapMode, string> = {
+        view: "moderation.switchedToViewMode",
+        edit: "moderation.switchedToEditMode",
+        moderation: "moderation.switchedToModerationMode",
+      };
+
       toast.add({
-        severity: 'info',
-        summary: t('moderation.switchedToEditMode'),
+        severity: "info",
+        summary: t(modeSummaryKeys[newMode]),
         detail: getModeTooltip(),
         life: 3000,
       });
     }
   } catch (error) {
-    console.error('Error toggling mode:', error);
+    console.error("Error toggling mode:", error);
     toast.add({
-      severity: 'error',
-      summary: t('moderation.modeSwitchError'),
-      detail: t('moderation.modeSwitchErrorDetail'),
-      life: 3000
+      severity: "error",
+      summary: t("moderation.modeSwitchError"),
+      detail: t("moderation.modeSwitchErrorDetail"),
+      life: 3000,
     });
   } finally {
     isSwitchingMode = false;

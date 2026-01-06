@@ -31,7 +31,7 @@ export function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void 
   overlayMarkersLayer = L.layerGroup();
 
   // AI : Add simple markers for each visible overlay location
-  visibleOverlays.forEach((overlay) => {
+  for (const overlay of visibleOverlays) {
     // AI : Use unified position resolver
     const overlayStore = useOverlayStore();
     const resolved = resolveOverlayPosition(overlay.id, overlay, overlayStore.mode);
@@ -70,10 +70,10 @@ export function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void 
     });
 
     overlayMarkersLayer!.addLayer(marker);
-  });
+  }
 
   // AI : Add overlay markers to map
-  if (map.value != null) {
+  if (map.value !== null) {
     overlayMarkersLayer.addTo(map.value);
   }
 }

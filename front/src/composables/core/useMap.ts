@@ -60,7 +60,7 @@ export function initializeMap() {
 
   // AI : Listen for zoom changes to update reactive zoom level
   map.value.on("zoomend", () => {
-    if (map.value != null) {
+    if (map.value !== null) {
       currentZoomLevel.value = map.value.getZoom();
     }
   });
@@ -73,7 +73,7 @@ export function initializeMap() {
 
   L.control.scale().addTo(map.value);
   // AI : Ensure the map initialization is complete
-  if (map.value != null) {
+  if (map.value !== null) {
     map.value.invalidateSize();
     debouncedUpdateMapSize();
   }
@@ -93,7 +93,7 @@ export function disableLeafletKeyboardEvents() {
 
   // To prevent keystrokes from InfoPopup to be intercepted by Leaflet
   // Unfortunately, it prevnts the user of the arrow keys to move the map (but there is prob a way around it)
-  ["keydown", "keyup", "keypress"].forEach((eventType) => {
+  for (const eventType of ["keydown", "keyup", "keypress"]) {
     mapContainer.addEventListener(
       eventType,
       (e: Event) => {
@@ -101,5 +101,5 @@ export function disableLeafletKeyboardEvents() {
       },
       true,
     );
-  });
+  }
 }

@@ -372,6 +372,7 @@ async function insertCityBatch(batch: CityData[]): Promise<void> {
  * AI : Update city local names from alternateNamesV2.txt
  * AI : Logic inspired by alternateName.py - prioritizes native language names
  */
+// eslint-disable-next-line @eslint/complexity
 async function updateCityLocalNames(): Promise<void> {
   console.log("\n🌐 Processing local names from alternateNamesV2.txt... (may take a minute)");
   const filePath = path.join(GEONAMES_DIR, "alternateNamesV2.txt");

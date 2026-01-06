@@ -402,7 +402,7 @@ export function useViewportContentManager() {
   function setupModeWatcher() {
     watch(
       () => overlayStore.mode,
-      (newMode, oldMode) => {
+      async (newMode, oldMode) => {
         // AI : Guard: only reload if mode actually changed
         if (newMode === oldMode) {
           return;
@@ -429,7 +429,7 @@ export function useViewportContentManager() {
           // AI : Don't clear overlays immediately - let them stay visible while loading
           // AI : Only clear the city tracking so we re-fetch with new mode
           loadedCityIds.value.clear();
-          refreshViewport(true);
+          await refreshViewport(true);
         }
       },
     );
