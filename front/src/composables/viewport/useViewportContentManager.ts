@@ -7,7 +7,10 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { trpc } from "@/client";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
-import { renderViewModeOverlays } from "@/composables/overlay/useOverlay";
+import {
+  renderViewModeOverlays,
+  updateOverlayEditingState,
+} from "@/composables/overlay/useOverlay";
 import { clearAllOverlays } from "@/composables/overlay/useOverlayLifecycle";
 import { updateOverlayMarkersColors } from "@/composables/map/useMarkers";
 import {
@@ -395,14 +398,26 @@ export function useViewportContentManager() {
         // AI : Update existing overlay marker colors (Timeline vs Approval status)
         updateMarkerColorsForMode();
 
-        // AI : Clear ALL overlays to force re-render with correct toolbar actions
-        // AI : This fixes the bug where overlays created in view mode don't have edit toolbar
-        clearAllOverlays();
+        // AI : Update existing overlays in-place with new toolbar actions and positions
+        // AI : This preserves edit mode cache and updates marker colors after modifications
+        updateOverlayEditingState();
 
-        // AI : Clear cache - cities need to be reloaded with new mode
-        loadedCityIds.value.clear();
-        // AI : Trigger reload of visible cities with correct mode
-        refreshViewport(true);
+        // AI : CRITICAL: Different modes return different data from backend
+        // AI : - View mode: Only approved content
+        // AI : - Edit mode: Approved + user's own pending
+        // AI : - Moderation mode: Approved + all users' pending
+        // AI : So we need to reload when switching between ANY modes to get correct data
+        const isModerationTransition = oldMode === "moderation" || newMode === "moderation";
+        const hasLoadedOverlays = Object.keys(overlayStore.overlays).length > 0;
+
+        // AI : Always reload when involving moderation mode or when we have overlays
+        // AI : (to refresh with correct permissions), but skip if no overlays loaded yet
+        if (isModerationTransition || hasLoadedOverlays) {
+          // AI : Don't clear overlays immediately - let them stay visible while loading
+          // AI : Only clear the city tracking so we re-fetch with new mode
+          loadedCityIds.value.clear();
+          refreshViewport(true);
+        }
       },
     );
   }

@@ -53,7 +53,7 @@ export function usePanelTabs() {
    * AI : Explicit action to change the active tab
    * AI : Syncs the appropriate map mode automatically
    */
-  async function setActiveTab(newTab: PanelTab) {
+  function setActiveTab(newTab: PanelTab) {
     // 1. Update UI state immediately
     uiStore.setActiveTab(newTab);
 
@@ -62,7 +62,7 @@ export function usePanelTabs() {
 
     // 3. Sync map mode if needed
     if (overlayStore.mode !== targetMode) {
-      await switchMode(targetMode);
+      switchMode(targetMode);
     }
   }
 

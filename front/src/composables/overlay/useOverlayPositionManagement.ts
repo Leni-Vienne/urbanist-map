@@ -5,11 +5,9 @@
 // AI : Single source of truth for all position-related operations
 // AI : ============================================================================
 
-import L from "leaflet";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { map } from "@/composables/core/useMap";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
-import type { OverlayData, OverlayObject } from "@/types/index";
+import type { OverlayData } from "@/types/index";
 import type { MapMode } from "@shared/types";
 
 // AI : ============================================================================
@@ -200,15 +198,6 @@ export function getFromEditModeOverlayCache(
 // AI : ============================================================================
 
 /**
- * AI : Get cached position for an overlay
- */
-export function getCachedPosition(overlayId: string): CachedPosition | null {
-  const overlayStore = useOverlayStore();
-  const cached = overlayStore.getFromEditModeCache(overlayId);
-  return cached ?? null;
-}
-
-/**
  * AI : Save overlay position to cache
  */
 export function saveCachedPosition(
@@ -224,61 +213,4 @@ export function saveCachedPosition(
   };
 
   overlayStore.saveToEditModeCache(overlayId, cacheData);
-}
-
-/**
- * AI : Save current position of an overlay object to cache
- */
-export function cacheCurrentPosition(overlayObject: OverlayObject): void {
-  if (!overlayObject.overlay) return;
-
-  const corners = overlayObject.overlay.getCorners();
-  saveCachedPosition(overlayObject.id, corners, overlayObject.isModified ?? false);
-}
-
-/**
- * AI : Apply cached or backend position to a single overlay
- * @param overlayObject - The overlay to update
- * @param useCache - If true, use cached position; if false, use backend position
- */
-export function applyPositionToOverlay(overlayObject: OverlayObject, useCache: boolean): void {
-  if (!overlayObject.overlay) {
-    return;
-  }
-
-  // AI : Check if overlay is actually on the map before manipulating it
-  // AI : This prevents "Cannot read properties of null (reading 'getPane')" errors
-  if (!map.value || !map.value.hasLayer(overlayObject.overlay)) {
-    console.warn(
-      "[applyPositionToOverlay] Overlay not on map yet, skipping position update for",
-      overlayObject.id,
-    );
-    return;
-  }
-
-  if (useCache) {
-    // AI : Try to restore from cache first
-    const cached = getCachedPosition(overlayObject.id);
-    if (cached?.corners && cached.corners.length === 4) {
-      const corners = cached.corners.map((c) => L.latLng(c.lat, c.lng));
-      overlayObject.overlay.setCorners(corners);
-      overlayObject.isModified = cached.isModified;
-      return;
-    }
-  }
-
-  // AI : Fall back to backend positions (or if useCache is false)
-  if (overlayObject.corners && overlayObject.corners.length === 4) {
-    overlayObject.overlay.setCorners(overlayObject.corners);
-    overlayObject.isModified = false;
-  }
-}
-
-/**
- * AI : Apply positions to multiple overlays (batch operation)
- */
-export function applyPositionsToOverlays(overlays: OverlayObject[], useCache: boolean): void {
-  overlays.forEach((overlay) => {
-    applyPositionToOverlay(overlay, useCache);
-  });
 }

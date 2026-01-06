@@ -3,7 +3,7 @@
 import { ref } from "vue";
 import { removeCityMarkers } from "@/composables/map/useCityMarkers";
 import { removeOverlayMarkers } from "@/composables/map/useCityOverlays";
-import { clearAllRenderedContent } from "@/composables/overlay/useOverlayRenderer";
+import { clearAllOverlays } from "@/composables/overlay/useOverlayLifecycle";
 import { clearAllStandaloneProjectMarkers } from "@/composables/map/useStandaloneProjectMarkers";
 import { trpc } from "@/client";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -138,7 +138,9 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
 export function clearAllMapContent(): void {
   removeCityMarkers();
   removeOverlayMarkers();
-  clearAllRenderedContent();
+  clearAllOverlays();
+  const overlayStore = useOverlayStore();
+  overlayStore.clearViewModeOverlays();
   clearAllStandaloneProjectMarkers();
   const mapStore = useMapStore();
   mapStore.currentCityOverlays = [];
