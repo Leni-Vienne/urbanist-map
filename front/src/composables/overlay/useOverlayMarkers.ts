@@ -198,9 +198,18 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
   if (!map.value || overlayStore.allMarkers[savedOverlay.id]) return;
 
   // AI : Calculate centroid from corners using shared utility to match backend calculation
-  if (!savedOverlay.corners || savedOverlay.corners.length !== 4) return;
+  // AI : Check edit cache first to prevent flicker when zooming back in on modified overlays
+  let corners = savedOverlay.corners;
+  if (overlayStore.mode === "edit") {
+    const cached = getFromEditModeOverlayCache(savedOverlay.id);
+    if (cached?.corners?.length === 4) {
+      corners = cached.corners;
+    }
+  }
 
-  const centroid = calculateCentroidFromCorners(savedOverlay.corners);
+  if (!corners || corners.length !== 4) return;
+
+  const centroid = calculateCentroidFromCorners(corners);
   if (!centroid) return;
   const center = L.latLng(centroid.lat, centroid.lng);
 

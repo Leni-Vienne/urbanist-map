@@ -8,6 +8,7 @@
 import type L from "leaflet";
 import { map } from "@/composables/core/useMap";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { OVERLAY_OUTLINE_COLOR } from "@/composables/map/useMarkers";
 import { syncPreviewStateOnNavigation } from "@/composables/overlay/changeRequestPreviewState";
@@ -149,6 +150,36 @@ export function selectOverlay(overlayId: string | null): void {
     // AI : Apply selection to new overlay
     const newlySelected = overlayStore.overlays[overlayId];
     if (!newlySelected) return;
+
+    // AI : Set selectedCity to enable panel auto-switch from Latest to Current Location
+    // AI : This ensures clicking an overlay on the map switches panel to show context
+    // AI : Search through cityProjectsCache to find which city this overlay belongs to
+    const mapStore = useMapStore();
+    let foundCityId: number | null = null;
+
+    // AI : Iterate through all cached cities to find which one contains this overlay
+    for (const [cityId, modeCache] of mapStore.cityProjectsCache.entries()) {
+      for (const [mode, overlays] of modeCache.entries()) {
+        const overlay = overlays.find((o) => o.id === overlayId);
+        if (overlay) {
+          foundCityId = cityId;
+          break;
+        }
+      }
+      if (foundCityId) break;
+    }
+
+    if (foundCityId) {
+      // AI : Look up city info from citiesLookup map (no circular dependency)
+      const city = mapStore.citiesLookup.get(foundCityId);
+
+      if (city) {
+        // AI : Set selectedCity when null/undefined OR when switching to a different city
+        if (!mapStore.selectedCity || mapStore.selectedCity.id !== city.id) {
+          mapStore.setSelectedCity(city);
+        }
+      }
+    }
 
     setupNewSelection(newlySelected, overlayId);
   } finally {

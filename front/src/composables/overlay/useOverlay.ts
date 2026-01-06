@@ -2,6 +2,7 @@ import L from "leaflet";
 import "leaflet-toolbar";
 import "leaflet-distortableimage";
 import { t } from "@/locales";
+import { usePopupState } from "@/composables/map/usePopupState";
 import { map, currentZoomLevel } from "@/composables/core/useMap";
 import { updateOverlayMarkersColors } from "@/composables/map/useMarkers";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
@@ -20,7 +21,10 @@ import { toRef } from "vue";
 import { useProjects, addOverlayToProjectWithId } from "@/composables/project/useProjects";
 import { trpc } from "@/client";
 import { removeStandaloneProjectMarkerForProject } from "@/composables/map/useStandaloneProjectMarkers";
-import { getFromEditModeOverlayCache } from "@/composables/overlay/useOverlayPositionManagement";
+import {
+  getFromEditModeOverlayCache,
+  saveCachedPosition,
+} from "@/composables/overlay/useOverlayPositionManagement";
 import { withErrorHandling } from "@/composables/core/useErrorHandling";
 import { validateOverlaySize, leafletCornersToCorners } from "@shared/overlayValidation";
 import { useToast } from "@/composables/ui/useToast";
@@ -46,7 +50,8 @@ import { MAP_CONFIG } from "@/constants/mapConstants";
 
 /**
  * AI : Update overlay editing state based on current mode
- * AI : This function recreates overlays to update toolbar actions properly
+ * AI : This function updates existing overlays in-place with new toolbar actions
+ * AI : and restores/resets positions based on whether we're entering or leaving edit mode
  */
 export function updateOverlayEditingState(): void {
   const overlayStore = useOverlayStore();
@@ -70,7 +75,7 @@ export function updateOverlayEditingState(): void {
     // AI : where overlays might be created but waiting for zoom animation to finish before being added
     if (!map.value || !map.value.hasLayer(overlayObject.overlay)) return;
 
-    // AI : Update overlay options using the new setOptions method
+    // AI : Update overlay options using the setOptions method
     const isEditMode = overlayStore.mode === "edit";
     overlayObject.overlay.setOptions({
       actions: [...(isEditMode ? getEditToolsForOverlay(overlayObject) : viewTools)],
@@ -97,16 +102,30 @@ export function updateOverlayEditingState(): void {
         updateMarkerPosition(overlayObject);
       }
 
-      // AI : When leaving edit mode (entering view/moderation mode), reset to backend positions
-    } else if (overlayObject.corners && overlayObject.corners.length === 4) {
-      const leafletCorners = overlayObject.corners.map((corner) =>
-        L.latLng(corner.lat, corner.lng),
-      );
-      overlayObject.overlay.setCorners(leafletCorners);
-      overlayObject.isModified = false;
+      // AI : When leaving edit mode (entering view/moderation mode), FIRST save to cache, THEN reset
+    } else {
+      // AI : CRITICAL: Save current position to cache BEFORE resetting to backend
+      // AI : This fixes the bug where edit→moderation→edit loses the modified position
+      if (overlayObject.overlay && (overlayObject.isModified || overlayObject.history.length > 1)) {
+        const currentCorners = overlayObject.overlay.getCorners();
+        if (currentCorners?.length === 4) {
+          // AI : getCorners() returns L.LatLng[], convert to plain objects
+          const corners = currentCorners.map((c) => ({ lat: c.lat, lng: c.lng }));
+          saveCachedPosition(overlayObject.id, corners, overlayObject.isModified ?? false);
+        }
+      }
 
-      // AI : Update marker position to match backend corners
-      updateMarkerPosition(overlayObject);
+      // AI : Now reset to backend positions for display
+      if (overlayObject.corners && overlayObject.corners.length === 4) {
+        const leafletCorners = overlayObject.corners.map((corner) =>
+          L.latLng(corner.lat, corner.lng),
+        );
+        overlayObject.overlay.setCorners(leafletCorners);
+        overlayObject.isModified = false;
+
+        // AI : Update marker position to match backend corners
+        updateMarkerPosition(overlayObject);
+      }
     }
 
     // AI : Update marker color and tooltip
@@ -114,14 +133,10 @@ export function updateOverlayEditingState(): void {
   });
 
   // AI : Restore selection state after toolbar rebuild
-  // AI : With the fixed Leaflet Distortable library, setOptions() no longer causes errors
-  // AI : but it may still deselect the overlay, so we restore the visual selection
   if (wasSelected && selectedOverlayId) {
     requestAnimationFrame(() => {
       const overlay = overlayStore.overlays[selectedOverlayId];
       if (overlay?.overlay) {
-        // AI : Restore visual selection outline (this doesn't trigger Leaflet events)
-        // AI : If setOptions() cleared the store selection, this also restores it
         selectOverlay(selectedOverlayId);
       }
     });
@@ -129,7 +144,6 @@ export function updateOverlayEditingState(): void {
 
   // AI : Reopen popup after toolbar is rebuilt with new actions
   if (wasPopupOpen && selectedOverlayId) {
-    // AI : Wait for next frame to ensure toolbar DOM is ready
     requestAnimationFrame(() => {
       const overlay = overlayStore.overlays[selectedOverlayId];
       if (overlay?.overlay) {
@@ -140,7 +154,6 @@ export function updateOverlayEditingState(): void {
         ) as HTMLElement;
 
         if (!infoButton) {
-          // AI : Fallback to document-wide search if not found in parent
           const allInfoButtons = document.querySelectorAll(".leaflet-toolbar-icon.pi-ellipsis-v");
           infoButton = allInfoButtons[0] as HTMLElement;
         }
@@ -153,12 +166,15 @@ export function updateOverlayEditingState(): void {
   }
 }
 
-// AI : enrichOverlayWithProject moved to useOverlayMarkers.ts
-
 /**
  * AI : Create a Leaflet overlay on the map
+ * AI : @param onAddedToMap - Optional callback invoked when overlay is successfully added to map
  */
-export function createLeafletOverlay(imageUrl: string, overlayObject?: OverlayObject) {
+export function createLeafletOverlay(
+  imageUrl: string,
+  overlayObject?: OverlayObject,
+  onAddedToMap?: () => void,
+) {
   const overlayStore = useOverlayStore();
 
   if (!map.value || !overlayObject) return null;
@@ -175,6 +191,7 @@ export function createLeafletOverlay(imageUrl: string, overlayObject?: OverlayOb
         ? corners.map((corner) => L.latLng(corner.lat, corner.lng))
         : undefined;
     const isEditMode = overlayStore.mode === "edit";
+
     const newOverlay = L.distortableImageOverlay(imageUrl, {
       editable: true,
       keyboard: false,
@@ -189,16 +206,22 @@ export function createLeafletOverlay(imageUrl: string, overlayObject?: OverlayOb
       //mode: 'resizeRotate' // doesn't work but should, it's an issue from the package
     });
 
-    // AI : Check if we should add overlay to map based on current zoom level
-    const MIN_ZOOM_FOR_OVERLAYS = 12;
-    const currentZoom = map.value.getZoom();
-    const shouldRenderOverlay = currentZoom >= MIN_ZOOM_FOR_OVERLAYS;
-
-    // IMPORTANT : this waits for any ongoing zoom animation to complete before adding overlay to prevent visual glitch
-    // This fixes the bug when zooming multiple levels past the render threshold at once
+    // AI : Always add overlay to map - visibility based on zoom is handled by useOverlayZoomHandler
+    // AI : This waits for any ongoing zoom animation to complete before adding to prevent visual glitches
     const addOverlayWhenReady = () => {
-      if (map.value && newOverlay && shouldRenderOverlay) {
-        newOverlay.addTo(map.value);
+      if (map.value && newOverlay) {
+        const currentZoom = map.value.getZoom();
+        const shouldShowImage = currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
+
+        // AI : Only add to map if zoom is appropriate (zoom handler will manage later changes)
+        if (shouldShowImage) {
+          newOverlay.addTo(map.value);
+          // AI : Store callback to be invoked AFTER image loads (in onOverlayLoaded)
+          // AI : This prevents errors when overlay is removed before image finishes loading
+          if (onAddedToMap && overlayObject) {
+            (overlayObject as any)._onAddedToMapCallback = onAddedToMap;
+          }
+        }
       }
     };
 
@@ -245,13 +268,21 @@ function setupOverlayLoadHandler(
   }
 
   L.DomEvent.on(element, "load", () => {
+    // AI : Guard: Only proceed if overlay is still on map (prevents errors during rapid viewport changes)
+    if (!map.value || !map.value.hasLayer(overlay)) {
+      return;
+    }
+
     if (element.complete && element.naturalWidth > 0) {
       onOverlayLoaded(overlayObject);
     }
   });
 
   if (element.complete && element.naturalWidth > 0) {
-    onOverlayLoaded(overlayObject);
+    // AI : Guard: Only proceed if overlay is still on map
+    if (map.value && map.value.hasLayer(overlay)) {
+      onOverlayLoaded(overlayObject);
+    }
   }
 }
 
@@ -277,6 +308,11 @@ function onOverlayLoaded(overlayObject: OverlayObject): void {
   // AI : Setup hover events for project highlighting after element is available
   setupProjectHoverEvents(overlayObject.overlay, overlayObject);
 
+  // AI : CRITICAL: Setup movement tracking AFTER overlay is loaded and has a DOM element
+  // AI : This must be called here (not in setupOverlayEventHandlers) because overlay.getElement()
+  // AI : returns null until the overlay is added to the map and the image loads
+  setupOverlayMovementTracking(overlayObject.overlay, overlayObject);
+
   // AI : Ensure new overlays start with no outline unless they're selected
   if (overlayStore.idSelectedOverlay !== overlayObject.id) {
     const element = overlayObject.overlay.getElement();
@@ -284,6 +320,14 @@ function onOverlayLoaded(overlayObject: OverlayObject): void {
       element.style.boxShadow = "";
       element.style.outline = "none";
     }
+  }
+
+  // AI : CRITICAL: Invoke onAddedToMap callback AFTER all initialization is complete
+  // AI : This ensures overlay is fully loaded before being added to store
+  if ((overlayObject as any)._onAddedToMapCallback) {
+    (overlayObject as any)._onAddedToMapCallback();
+    // AI : Clean up callback reference
+    delete (overlayObject as any)._onAddedToMapCallback;
   }
 }
 
@@ -329,8 +373,9 @@ function setupOverlayEventHandlers(
     saveToHistory(overlayObject);
   });
 
-  // AI : Set up comprehensive event handlers for overlay manipulation
-  setupOverlayMovementTracking(overlay, overlayObject);
+  // AI : NOTE: setupOverlayMovementTracking is called in onOverlayLoaded() instead of here
+  // AI : because the overlay element doesn't exist until after the overlay is added to the map
+  // AI : and the image finishes loading
 }
 
 /**
@@ -467,24 +512,31 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   }
 
   const overlayObjectWithMethods = enrichOverlayWithProject(overlayObject);
+
+  // AI : CRITICAL FIX: Use callback to add to store ONLY after overlay is added to map
+  // AI : This prevents ghost overlays when clearAllOverlays() is called during async zoom animations
+  const onAddedToMap = () => {
+    overlayObjectWithMethods.marker = overlayStore.allMarkers[cdnOverlay.id];
+
+    // AI : Store overlay with proper reactivity - but ONLY after it's on the map
+    overlayStore.addOverlay(cdnOverlay.id, overlayObjectWithMethods);
+
+    // AI : Remove standalone project marker for this project since we now have an overlay visible
+    // AI : This handles the case where a project had only pending overlays (shown as a standalone project marker in view mode)
+    // AI : and the user switched to edit mode (pending overlays now visible, so standalone project marker should be removed)
+    if (cdnOverlay.projectId) {
+      removeStandaloneProjectMarkerForProject(cdnOverlay.projectId);
+    }
+  };
+
   const newOverlay = createLeafletOverlay(
     overlayObjectWithMethods.imageUrl,
     overlayObjectWithMethods,
+    onAddedToMap,
   );
   if (!newOverlay) return;
 
   overlayObjectWithMethods.overlay = newOverlay;
-  overlayObjectWithMethods.marker = overlayStore.allMarkers[cdnOverlay.id];
-
-  // AI : Store overlay with proper reactivity
-  overlayStore.addOverlay(cdnOverlay.id, overlayObjectWithMethods);
-
-  // AI : Remove standalone project marker for this project since we now have an overlay visible
-  // AI : This handles the case where a project had only pending overlays (shown as a standalone project marker in view mode)
-  // AI : and the user switched to edit mode (pending overlays now visible, so standalone project marker should be removed)
-  if (cdnOverlay.projectId) {
-    removeStandaloneProjectMarkerForProject(cdnOverlay.projectId);
-  }
 
   // AI : Hover events are now set up in onOverlayLoaded() after element is guaranteed to exist
 
@@ -506,6 +558,7 @@ function setupOverlayMovementTracking(
 ): void {
   // AI : Set up DOM event listeners for continuous marker position updates during manipulation
   const element = overlay.getElement();
+
   if (element) {
     let isManipulating = false;
     let updateFrame: number | null = null;
@@ -1196,6 +1249,10 @@ export const infoTool = L.Toolbar2.Action.extend({
         "#info-popup-teleport-target",
       );
       if (teleportTarget?.parentNode) {
+        // AI : Clear reactive state
+        const { setOverlayPopupTarget } = usePopupState();
+        setOverlayPopupTarget(null);
+
         const originalButton = document.createElement("a");
         originalButton.className = "leaflet-toolbar-icon more-info-popup";
         originalButton.href = "#";
@@ -1212,6 +1269,10 @@ export const infoTool = L.Toolbar2.Action.extend({
           "#info-popup-teleport-target",
         );
         if (staleTarget?.parentNode) {
+          // AI : Clear reactive state
+          const { setOverlayPopupTarget } = usePopupState();
+          setOverlayPopupTarget(null);
+
           const originalButton = document.createElement("a");
           originalButton.className = "leaflet-toolbar-icon more-info-popup";
           originalButton.href = "#";
@@ -1234,6 +1295,10 @@ export const infoTool = L.Toolbar2.Action.extend({
           "pointer-events: none; position: absolute; width: 0; height: 0; overflow: visible;";
 
         existingButton.parentNode?.replaceChild(teleportTarget, existingButton);
+
+        // AI : Set reactive state
+        const { setOverlayPopupTarget } = usePopupState();
+        setOverlayPopupTarget(teleportTarget);
 
         // AI : Show the info popup for the selected overlay
         if (overlayStore.idSelectedOverlay) {

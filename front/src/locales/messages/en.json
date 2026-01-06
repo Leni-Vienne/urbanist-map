@@ -62,7 +62,7 @@
     "settings": "Settings",
     "profile": "Profile",
     "latestContributions": "Latest Contributions",
-    "currentCity": "Current City",
+    "currentLocation": "Current Location",
     "contribute": "Contribute",
     "moderation": "Moderation",
     "unsavedOverlaysWarning": "You have unsaved overlays. Navigating will discard them. Continue?",
@@ -213,13 +213,17 @@
     "beFirstToAdd": "Be the first to add a construction overlay or standalone project",
     "loadingContributions": "Loading contributions..."
   },
-  "currentCity": {
+  "currentLocation": {
     "title": "{cityName}",
-    "noCity": "No City Selected",
-    "selectCityPrompt": "Select a city on the map to browse its projects",
+    "noLocationSelected": "No Location Selected",
+    "selectLocationPrompt": "Select a country or city on the map to browse projects",
     "noProjects": "No projects in this city",
     "noProjectsDetail": "This city doesn't have any projects yet",
-    "clickToZoomCountry": "Click to zoom to country view"
+    "clickToZoomCountry": "Click to zoom to country view",
+    "citiesInCountry": "Cities in {country}",
+    "noCitiesInCountry": "No cities in this country",
+    "projectsCount": "{count} project(s)",
+    "selectCityToExplore": "Select a city to explore its projects"
   },
   "overlay": {
     "title": "Images",
@@ -416,7 +420,7 @@
     "closePanel": "Close panel"
   },
   "footer": {
-    "legalMentions": "Legal Mentions",
+    "legal": "Legal",
     "contact": "Contact"
   },
   "submission": {

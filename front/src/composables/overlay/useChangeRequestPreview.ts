@@ -12,8 +12,8 @@ import {
 } from "@/composables/overlay/useOverlayMarkers";
 import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
 import { loadCityProjects } from "@/composables/map/useCityMarkers";
-import { prepareCountryContext } from "@/composables/map/useCountryMarkers";
-import { switchMode } from "@/composables/overlay/useOverlayModes";
+import { loadCitiesForCountry, clearAllMapContent } from "@/composables/map/useCountryData";
+import { switchMode } from "@/composables/overlay/useModeSwitching";
 import { mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
 import { prepareCrossCountryFlight } from "@/composables/map/useTileLayers";
 import type { OverlayForModeration, OverlayObject, PendingChangeRequest } from "@/types/index";
@@ -44,7 +44,6 @@ function isCoordinate(value: unknown): value is { lat: number; lng: number } {
 export function useChangeRequestPreview() {
   const toast = useToast();
   const overlayStore = useOverlayStore();
-  const mapStore = useMapStore();
 
   // AI : State management (from usePositionPreview)
   const hasActivePreview = computed(() => previewState.value.type !== "none");
@@ -116,15 +115,18 @@ export function useChangeRequestPreview() {
     // AI : Step 1: Switch to edit mode if needed (pending overlays only visible in edit mode)
     const needsEditMode = overlayStore.mode === "view" && overlayForModeration.status === "pending";
     if (needsEditMode) {
-      await switchMode("edit");
+      switchMode("edit");
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
     // AI : Step 2: Prepare for cross-country flight (switches to esri if needed)
     const switchToCountryLayer = prepareCrossCountryFlight(overlayForModeration.countryCode);
 
-    // AI : Step 3: Prepare country context (clear map, load cities, add markers)
-    await prepareCountryContext(overlayForModeration.countryCode);
+    // AI : Step 3: Clear map and load cities for the country
+    clearAllMapContent();
+    const mapStore = useMapStore();
+    mapStore.selectedCountryCode = overlayForModeration.countryCode;
+    await loadCitiesForCountry(overlayForModeration.countryCode);
 
     // AI : Step 4: Navigate to overlay position
     const targetBounds = L.latLngBounds(targetCorners);

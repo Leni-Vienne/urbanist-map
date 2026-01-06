@@ -3,9 +3,8 @@ import {
   navigateToStandaloneProject,
 } from "@/composables/navigation/useOverlayNavigation";
 import { navigateToOverlay } from "@/composables/overlay/useOverlay";
-import { switchMode } from "@/composables/overlay/useOverlayModes";
+import { switchMode } from "@/composables/overlay/useModeSwitching";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
 import { useToast } from "@/composables/ui/useToast";
 import { trpc } from "@/client";
 import type { OverlayForModeration, LatestContribution } from "@/types/index";
@@ -35,7 +34,6 @@ export function useOverlayClickHandler() {
   ): Promise<void> {
     try {
       const overlayStore = useOverlayStore();
-      const mapStore = useMapStore();
 
       // AI : For rejected or replaced overlays, navigate to project coordinates instead
       if (overlay.status === "rejected" || overlay.status === "replaced") {
@@ -63,17 +61,10 @@ export function useOverlayClickHandler() {
         return;
       }
 
-      // AI : Clear city cache when navigating to pending overlays
-      // AI : This ensures we reload with the correct mode to see pending items
-      if (shouldToggleEditMode && overlay.cityId) {
-        mapStore.clearCityProjectsCache(overlay.cityId);
-        mapStore.clearCityStandaloneProjectsCache(overlay.cityId);
-      }
-
       // AI : Only switch to edit mode if currently in view mode
       // AI : In moderation mode, pending overlays are already visible, so don't switch
       if (overlayStore.mode === "view" && shouldToggleEditMode) {
-        await switchMode("edit");
+        switchMode("edit");
 
         // AI : Only show toast for pending overlays (for approved ones it's less critical)
         if (overlay.status === "pending") {
@@ -100,7 +91,7 @@ export function useOverlayClickHandler() {
         );
       } else {
         // AI : Fallback to direct navigation if no city info
-        await navigateToOverlay(overlay.id, true, true);
+        await navigateToOverlay(overlay.id, true, autoSelect);
       }
     } catch (error) {
       console.error("Failed to navigate to overlay:", error);
