@@ -291,7 +291,13 @@ export function getOverlayMarkerColor(
   }
 
   // AI : Pending change requests with approved status - use green (viewing approved position)
-  if (hasPendingChanges && status === "approved" && isViewingApprovedPosition !== false) {
+  // AI : CRITICAL: Only if not locally modified - isModified should take priority to show orange
+  if (
+    hasPendingChanges &&
+    status === "approved" &&
+    isViewingApprovedPosition !== false &&
+    !hasBeenModified
+  ) {
     return "green";
   }
 

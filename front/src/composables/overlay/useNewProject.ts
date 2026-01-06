@@ -24,7 +24,7 @@ export function useNewProject() {
     // AI : Always switch to edit mode when contributing
     if (mode.value !== "edit") {
       try {
-        await switchMode("edit");
+        switchMode("edit");
         uiStore.openMarkerPlacementBar();
         return { success: true, action: "edit_mode_and_dialog_opened" };
       } catch (error) {

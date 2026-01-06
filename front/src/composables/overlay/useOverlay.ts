@@ -21,7 +21,10 @@ import { toRef } from "vue";
 import { useProjects, addOverlayToProjectWithId } from "@/composables/project/useProjects";
 import { trpc } from "@/client";
 import { removeStandaloneProjectMarkerForProject } from "@/composables/map/useStandaloneProjectMarkers";
-import { getFromEditModeOverlayCache } from "@/composables/overlay/useOverlayPositionManagement";
+import {
+  getFromEditModeOverlayCache,
+  saveCachedPosition,
+} from "@/composables/overlay/useOverlayPositionManagement";
 import { withErrorHandling } from "@/composables/core/useErrorHandling";
 import { validateOverlaySize, leafletCornersToCorners } from "@shared/overlayValidation";
 import { useToast } from "@/composables/ui/useToast";
@@ -47,7 +50,8 @@ import { MAP_CONFIG } from "@/constants/mapConstants";
 
 /**
  * AI : Update overlay editing state based on current mode
- * AI : This function recreates overlays to update toolbar actions properly
+ * AI : This function updates existing overlays in-place with new toolbar actions
+ * AI : and restores/resets positions based on whether we're entering or leaving edit mode
  */
 export function updateOverlayEditingState(): void {
   const overlayStore = useOverlayStore();
@@ -71,7 +75,7 @@ export function updateOverlayEditingState(): void {
     // AI : where overlays might be created but waiting for zoom animation to finish before being added
     if (!map.value || !map.value.hasLayer(overlayObject.overlay)) return;
 
-    // AI : Update overlay options using the new setOptions method
+    // AI : Update overlay options using the setOptions method
     const isEditMode = overlayStore.mode === "edit";
     overlayObject.overlay.setOptions({
       actions: [...(isEditMode ? getEditToolsForOverlay(overlayObject) : viewTools)],
@@ -98,16 +102,30 @@ export function updateOverlayEditingState(): void {
         updateMarkerPosition(overlayObject);
       }
 
-      // AI : When leaving edit mode (entering view/moderation mode), reset to backend positions
-    } else if (overlayObject.corners && overlayObject.corners.length === 4) {
-      const leafletCorners = overlayObject.corners.map((corner) =>
-        L.latLng(corner.lat, corner.lng),
-      );
-      overlayObject.overlay.setCorners(leafletCorners);
-      overlayObject.isModified = false;
+      // AI : When leaving edit mode (entering view/moderation mode), FIRST save to cache, THEN reset
+    } else {
+      // AI : CRITICAL: Save current position to cache BEFORE resetting to backend
+      // AI : This fixes the bug where edit→moderation→edit loses the modified position
+      if (overlayObject.overlay && (overlayObject.isModified || overlayObject.history.length > 1)) {
+        const currentCorners = overlayObject.overlay.getCorners();
+        if (currentCorners?.length === 4) {
+          // AI : getCorners() returns L.LatLng[], convert to plain objects
+          const corners = currentCorners.map((c) => ({ lat: c.lat, lng: c.lng }));
+          saveCachedPosition(overlayObject.id, corners, overlayObject.isModified ?? false);
+        }
+      }
 
-      // AI : Update marker position to match backend corners
-      updateMarkerPosition(overlayObject);
+      // AI : Now reset to backend positions for display
+      if (overlayObject.corners && overlayObject.corners.length === 4) {
+        const leafletCorners = overlayObject.corners.map((corner) =>
+          L.latLng(corner.lat, corner.lng),
+        );
+        overlayObject.overlay.setCorners(leafletCorners);
+        overlayObject.isModified = false;
+
+        // AI : Update marker position to match backend corners
+        updateMarkerPosition(overlayObject);
+      }
     }
 
     // AI : Update marker color and tooltip
@@ -115,14 +133,10 @@ export function updateOverlayEditingState(): void {
   });
 
   // AI : Restore selection state after toolbar rebuild
-  // AI : With the fixed Leaflet Distortable library, setOptions() no longer causes errors
-  // AI : but it may still deselect the overlay, so we restore the visual selection
   if (wasSelected && selectedOverlayId) {
     requestAnimationFrame(() => {
       const overlay = overlayStore.overlays[selectedOverlayId];
       if (overlay?.overlay) {
-        // AI : Restore visual selection outline (this doesn't trigger Leaflet events)
-        // AI : If setOptions() cleared the store selection, this also restores it
         selectOverlay(selectedOverlayId);
       }
     });
@@ -130,7 +144,6 @@ export function updateOverlayEditingState(): void {
 
   // AI : Reopen popup after toolbar is rebuilt with new actions
   if (wasPopupOpen && selectedOverlayId) {
-    // AI : Wait for next frame to ensure toolbar DOM is ready
     requestAnimationFrame(() => {
       const overlay = overlayStore.overlays[selectedOverlayId];
       if (overlay?.overlay) {
@@ -141,7 +154,6 @@ export function updateOverlayEditingState(): void {
         ) as HTMLElement;
 
         if (!infoButton) {
-          // AI : Fallback to document-wide search if not found in parent
           const allInfoButtons = document.querySelectorAll(".leaflet-toolbar-icon.pi-ellipsis-v");
           infoButton = allInfoButtons[0] as HTMLElement;
         }
@@ -153,8 +165,6 @@ export function updateOverlayEditingState(): void {
     });
   }
 }
-
-// AI : enrichOverlayWithProject moved to useOverlayMarkers.ts
 
 /**
  * AI : Create a Leaflet overlay on the map
