@@ -59,30 +59,40 @@ function initializeModeWatcher() {
       }
       updateAllStandaloneProjectMarkerColors();
 
-      // AI : Re-fetch city markers with the new mode filter
-      // AI : This ensures cities with ONLY pending content appear when switching to edit mode
-      const queryMode = authStore.isAuthenticated ? newMode : "view";
-      const projectStore = useProjectStore(); // AI : Use projectStore
+      // AI : City marker visibility rules:
+      // AI : - View mode: cities with approved content
+      // AI : - Edit mode: view + cities with user's pending contributions
+      // AI : - Moderation mode: view + cities with anyone's pending contributions
+      // AI : Each mode is ADDITIVE - we need to merge view mode (base) with mode-specific cities
+
+      const projectStore = useProjectStore();
 
       try {
-        const citiesData = await projectStore.fetchCitiesWithProjects(queryMode);
+        // AI : Always start with view mode cities as the base (approved content)
+        const viewCities = await projectStore.fetchCitiesWithProjects("view");
 
-        if (citiesData && citiesData.length > 0) {
-          // AI : Update global ref
-          citiesWithProjects.value = citiesData;
+        if (newMode === "view" || !authStore.isAuthenticated) {
+          // AI : View mode: just use view cities
+          citiesWithProjects.value = viewCities;
+        } else {
+          // AI : Edit or Moderation mode: merge view cities with mode-specific cities
+          const modeCities = await projectStore.fetchCitiesWithProjects(newMode);
 
-          // AI : Re-render city markers with new data
-          const mapStore = useMapStore();
-          if (mapStore.selectedCountryCode) {
-            // AI : If viewing a specific country, filter to that country
-            const countryCities = citiesData.filter(
-              (c) => c.countryCode === mapStore.selectedCountryCode,
-            );
-            addCityMarkersForCountry(countryCities, mapStore.selectedCountryCode);
-          } else {
-            // AI : Otherwise show all cities
-            addCityMarkersToMapInternal(citiesData);
-          }
+          // AI : Merge: start with view cities, add any mode-specific cities not already included
+          const viewCityIds = new Set(viewCities.map((c) => c.id));
+          const additionalCities = modeCities.filter((c) => !viewCityIds.has(c.id));
+          citiesWithProjects.value = [...viewCities, ...additionalCities];
+        }
+
+        // AI : Re-render all city markers with merged data
+        const mapStore = useMapStore();
+        if (mapStore.selectedCountryCode) {
+          const countryCities = citiesWithProjects.value.filter(
+            (c) => c.countryCode === mapStore.selectedCountryCode,
+          );
+          addCityMarkersForCountry(countryCities, mapStore.selectedCountryCode);
+        } else {
+          addCityMarkersToMapInternal(citiesWithProjects.value);
         }
       } catch (error) {
         console.error("Error reloading city markers on mode change:", error);
@@ -571,13 +581,29 @@ export async function loadAllCityMarkersGlobally(): Promise<CityWithProjects[]> 
   try {
     const overlayStore = useOverlayStore();
     const authStore = useAuthStore();
-    const projectStore = useProjectStore(); // AI : Use projectStore
+    const projectStore = useProjectStore();
 
-    // AI : For unauthenticated users, ensure we always use 'view' mode
-    const queryMode = authStore.isAuthenticated ? overlayStore.mode : "view";
+    // AI : City marker visibility rules:
+    // AI : - View mode: cities with approved content
+    // AI : - Edit mode: view + cities with user's pending contributions
+    // AI : - Moderation mode: view + cities with anyone's pending contributions
+    // AI : Each mode is ADDITIVE - we need to merge view mode (base) with mode-specific cities
 
-    // AI : Fetch all cities with projects globally (no countryCode filter)
-    const citiesData = await projectStore.fetchCitiesWithProjects(queryMode);
+    // AI : Always start with view mode cities as the base (approved content)
+    const viewCities = await projectStore.fetchCitiesWithProjects("view");
+
+    const currentMode = authStore.isAuthenticated ? overlayStore.mode : "view";
+    let citiesData = viewCities;
+
+    if (currentMode !== "view" && authStore.isAuthenticated) {
+      // AI : Edit or Moderation mode: merge view cities with mode-specific cities
+      const modeCities = await projectStore.fetchCitiesWithProjects(currentMode);
+
+      // AI : Merge: start with view cities, add any mode-specific cities not already included
+      const viewCityIds = new Set(viewCities.map((c) => c.id));
+      const additionalCities = modeCities.filter((c) => !viewCityIds.has(c.id));
+      citiesData = [...viewCities, ...additionalCities];
+    }
 
     if (citiesData && citiesData.length > 0) {
       // AI : Store in global ref for viewport detection
