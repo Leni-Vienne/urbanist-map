@@ -251,13 +251,15 @@ export function useChangeRequests() {
   function groupChangeRequestsByEntity() {
     const grouped = new Map<string, ChangeRequest[]>();
 
-    pendingChangeRequests.value.forEach((request) => {
+    for (const request of pendingChangeRequests.value) {
       const key = `${request.entityType}:${request.entityId}`;
-      if (!grouped.has(key)) {
-        grouped.set(key, []);
+      let list = grouped.get(key);
+      if (!list) {
+        list = [];
+        grouped.set(key, list);
       }
-      grouped.get(key)!.push(request);
-    });
+      list.push(request);
+    }
 
     return grouped;
   }
@@ -265,15 +267,17 @@ export function useChangeRequests() {
   function getConflictingChanges() {
     const conflicts = new Map<string, ChangeRequest[]>();
 
-    pendingChangeRequests.value.forEach((request) => {
+    for (const request of pendingChangeRequests.value) {
       if (request.status === "conflicted") {
         const key = `${request.entityType}:${request.entityId}:${request.fieldName}`;
-        if (!conflicts.has(key)) {
-          conflicts.set(key, []);
+        let list = conflicts.get(key);
+        if (!list) {
+          list = [];
+          conflicts.set(key, list);
         }
-        conflicts.get(key)!.push(request);
+        list.push(request);
       }
-    });
+    }
 
     return conflicts;
   }

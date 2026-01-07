@@ -135,7 +135,7 @@ export async function deleteLocalImages(
 
     // AI : Log failed deletions for manual cleanup (fallback strategy)
     if (failedFiles.length > 0) {
-      const fs = await import("fs/promises");
+      const fs = await import("node:fs/promises");
       const logEntry = `${new Date().toISOString()} - Failed to delete: ${failedFiles.join(", ")}\n`;
       await fs.appendFile("./orphaned_files.txt", logEntry).catch((error) => {
         console.error("Failed to write to orphaned files log:", error);
@@ -188,7 +188,7 @@ export async function deleteImages(
 
     // AI : Log failed deletions for manual cleanup
     if (failedFiles.length > 0 && !isProduction) {
-      const fs = await import("fs/promises");
+      const fs = await import("node:fs/promises");
       const logEntry = `${new Date().toISOString()} - Failed to delete: ${failedFiles.join(", ")}\n`;
       await fs.appendFile("./orphaned_files.txt", logEntry).catch((error) => {
         console.error("Failed to write to orphaned files log:", error);

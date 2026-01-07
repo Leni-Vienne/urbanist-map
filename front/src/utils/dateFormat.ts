@@ -12,7 +12,7 @@ export function formatDate(date: Date | string | null | undefined): string {
   if (!date) return "";
 
   const d = typeof date === "string" ? new Date(date) : date;
-  if (!(d instanceof Date) || isNaN(d.getTime())) return "";
+  if (!(d instanceof Date) || Number.isNaN(d.getTime())) return "";
 
   const day = String(d.getDate()).padStart(2, "0");
   const month = String(d.getMonth() + 1).padStart(2, "0");
@@ -38,7 +38,7 @@ export function formatRelativeTime(
   const now = new Date();
   const targetDate = typeof date === "string" ? new Date(date) : date;
 
-  if (isNaN(targetDate.getTime())) {
+  if (Number.isNaN(targetDate.getTime())) {
     return t("common.unknown");
   }
 

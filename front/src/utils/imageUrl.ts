@@ -39,6 +39,11 @@ export function imageRequiresCredentials(imageUrl: string): boolean {
     return false; // R2 URLs don't need credentials
   }
 
+  // AI : Data URLs and Blob URLs don't need credentials
+  if (imageUrl.startsWith("data:") || imageUrl.startsWith("blob:")) {
+    return false;
+  }
+
   // AI : All other URLs (local backend) require credentials for authorization
   return true;
 }

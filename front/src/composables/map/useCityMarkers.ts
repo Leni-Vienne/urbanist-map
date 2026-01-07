@@ -158,7 +158,7 @@ export function updateAllStandaloneProjectMarkerColors(): void {
   const mapStore = useMapStore();
   const markerMap = getStandaloneProjectMarkerMap();
 
-  markerMap.forEach((marker, projectId) => {
+  for (const [projectId, marker] of markerMap) {
     // AI : Try to find project in multiple locations:
     // 1. projectStore.projects (local/cached projects)
     // 2. projectStore.allProjects (fetched projects)
@@ -183,7 +183,7 @@ export function updateAllStandaloneProjectMarkerColors(): void {
       // AI : Also update tooltip when mode changes
       updateStandaloneProjectMarkerTooltip(marker, project, overlayStore.mode);
     }
-  });
+  }
 }
 
 /**
@@ -207,47 +207,30 @@ export async function loadCityProjects(
 ): Promise<void> {
   try {
     // AI : Update selected city in store (only if cityId is not null)
-    if (cityId) {
-      const mapStore = useMapStore();
-      const uiStore = useUiStore();
+    if (!cityId) return;
 
-      // AI : Check if we're switching to a different city
-      const previousCityId = mapStore.selectedCity?.id;
-      const isSwitchingCity = previousCityId !== cityId;
+    const mapStore = useMapStore();
+    const uiStore = useUiStore();
 
-      mapStore.setSelectedCity({
-        id: cityId,
-        name: cityName,
-        nameLocal,
-        countryCode: cityCountryCode,
-      });
+    // AI : Check if we're switching to a different city
+    const previousCityId = mapStore.selectedCity?.id;
+    const isSwitchingCity = previousCityId !== cityId;
 
-      // AI : Only clear state when actually switching cities, not when refreshing
-      if (isSwitchingCity) {
-        // AI : Clear selected project when switching cities
-        const { selectedProjectId } = useSelectedProject();
-        selectedProjectId.value = null;
+    mapStore.setSelectedCity({
+      id: cityId,
+      name: cityName,
+      nameLocal,
+      countryCode: cityCountryCode,
+    });
 
-        // AI : Close project info popup when switching cities
-        uiStore.closeProjectInfoPopup();
-      }
+    // AI : Only clear state when actually switching cities, not when refreshing
+    if (isSwitchingCity) {
+      // AI : Clear selected project when switching cities
+      const { selectedProjectId } = useSelectedProject();
+      selectedProjectId.value = null;
 
-      // AI : Load overlay projects FIRST, then standalone projects SEQUENTIALLY
-      // AI : This prevents race condition where standalone markers appear briefly for projects
-      // AI : that have overlays (standalone loader checks overlayStore.overlays which must be populated first)
-      // AI : Pass isSwitchingCity flag to avoid clearing overlays when navigating within same city
-
-      // AI : REFACTOR: We no longer load data directly here.
-      // AI : The ViewportContentManager listens to 'moveend' (triggered by flyTo operations)
-      // AI : and automatically loads the data for the city we are navigating to.
-      // AI : This prevents duplicate backend calls.
-
-      // await loadCityOverlays(cityId, forceFullLoad, isSwitchingCity);
-      // await loadCityStandaloneProjects(cityId);
-    } else {
-      // AI : Just load local standalone projects when no city is selected
-      // AI : REFACTOR: Viewport manager handles clearing/spatial loading
-      // await loadCityStandaloneProjects(null);
+      // AI : Close project info popup when switching cities
+      uiStore.closeProjectInfoPopup();
     }
   } catch (error) {
     console.error("Error loading city projects:", error);
@@ -263,7 +246,7 @@ export function removeCityMarkers(): void {
   const cityMarkersStore = useCityMarkersStore();
   const cityMarkersLayer = cityMarkersStore.getCityMarkersLayer();
 
-  if (cityMarkersLayer && map.value != null && map.value.hasLayer(cityMarkersLayer)) {
+  if (cityMarkersLayer && map.value !== null && map.value.hasLayer(cityMarkersLayer)) {
     map.value.removeLayer(cityMarkersLayer);
     cityMarkersStore.setCityMarkersLayer(null);
   }
@@ -341,15 +324,14 @@ function getCityMarkerConfig(): MarkerLayerConfig<CityWithProjects> {
           duration: 1.5,
         });
         // AI : moveend event will trigger viewport refresh automatically
-      } else {
+      } else if (map.value) {
         // AI : Already at zoom 14+, no zoom will happen
         // AI : Trigger a tiny pan to fire moveend event which will load content
         // AI : This avoids circular dependency from importing useViewportContentManager
-        if (map.value) {
-          const center = map.value.getCenter();
-          // AI : Pan by 0.00001 degrees (imperceptible) to trigger moveend
-          map.value.panTo([center.lat + 0.00001, center.lng], { animate: false });
-        }
+
+        const center = map.value.getCenter();
+        // AI : Pan by 0.00001 degrees (imperceptible) to trigger moveend
+        map.value.panTo([center.lat + 0.000_01, center.lng], { animate: false });
       }
     },
   };
@@ -393,10 +375,10 @@ export function addSingleCityMarker(
   const result = createMarkerLayer([cityData], config);
 
   // AI : Add marker to existing layer
-  result.markers.forEach((marker, cityId) => {
+  for (const [cityId, marker] of result.markers) {
     marker.addTo(cityMarkersLayer!);
     cityMarkersStore.setCityMarker(cityId, marker);
-  });
+  }
 
   // AI : Track if this is an unsaved city marker
   if (isUnsaved) {
@@ -536,9 +518,10 @@ function addCityMarkersToMapInternal(
 
   // AI : Store markers for lookup
   cityMarkersStore.clearCityMarkerMap();
-  result.markers.forEach((marker, cityId) => {
+
+  for (const [cityId, marker] of result.markers) {
     cityMarkersStore.setCityMarker(cityId, marker);
-  });
+  }
 
   // AI : Initialize watcher and add to map
   initializeCityMarkerWatcher();

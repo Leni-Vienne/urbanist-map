@@ -1,7 +1,7 @@
 // AI : Frontend composable for Zod validation with i18n error mapping
 import { ref, computed } from "vue";
 import { t } from "@/locales";
-import { type z } from "zod";
+import type { z } from "zod";
 import {
   getValidationError,
   getValidationErrorsMap,
