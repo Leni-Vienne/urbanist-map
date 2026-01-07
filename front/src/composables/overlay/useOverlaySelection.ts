@@ -277,7 +277,7 @@ export function removeProjectOutlines(projectId: string, force = false): void {
   }
 
   // AI : Remove all outlines from overlays in this project
-  Object.values(overlayStore.overlays).forEach((overlayObject: OverlayObject) => {
+  for (const overlayObject of Object.values(overlayStore.overlays)) {
     if (overlayObject.projectId === projectId && overlayObject.overlay) {
       const element = overlayObject.overlay.getElement();
       if (element) {
@@ -285,7 +285,7 @@ export function removeProjectOutlines(projectId: string, force = false): void {
         element.style.outline = "none";
       }
     }
-  });
+  }
 }
 
 /**
@@ -296,7 +296,7 @@ export function highlightProjectOverlaysOnHover(projectId: string): void {
 
   if (!projectId) return;
 
-  Object.values(overlayStore.overlays).forEach((overlayObject: OverlayObject) => {
+  for (const overlayObject of Object.values(overlayStore.overlays)) {
     if (overlayObject.projectId === projectId && overlayObject.overlay) {
       const element = overlayObject.overlay.getElement();
       if (element) {
@@ -308,7 +308,7 @@ export function highlightProjectOverlaysOnHover(projectId: string): void {
         element.style.outline = "none";
       }
     }
-  });
+  }
 }
 
 /**

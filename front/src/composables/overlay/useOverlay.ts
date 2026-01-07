@@ -219,14 +219,29 @@ export function createLeafletOverlay(
           // AI : Store callback to be invoked AFTER image loads (in onOverlayLoaded)
           // AI : This prevents errors when overlay is removed before image finishes loading
           if (onAddedToMap && overlayObject) {
-            (overlayObject as any)._onAddedToMapCallback = onAddedToMap;
+            (overlayObject as any)._onAddedToMapCallback = () => {
+              // AI : CRITICAL: Check for race condition
+              // If the mode changed while image was loading, and this overlay shouldn't be visible in the new mode,
+              // we must abort and clean up.
+              const overlayStore = useOverlayStore();
+              const isLocal = overlayObject.status === null || overlayObject.status === undefined;
+              const shouldBeVisible = overlayStore.mode === "edit" || !isLocal;
+
+              if (!shouldBeVisible) {
+                newOverlay.remove();
+                // Do not update store
+                return;
+              }
+
+              onAddedToMap();
+            };
           }
         }
       }
     };
 
     // Check if map is currently zooming, _animatingZoom isn't documented for some reason
-    if (map.value != null && map.value?._animatingZoom) {
+    if (map.value !== null && map.value?._animatingZoom) {
       // AI : Wait for zoom animation to complete
       map.value.once("zoomend", addOverlayWhenReady);
     } else {
@@ -275,6 +290,17 @@ function setupOverlayLoadHandler(
 
     if (element.complete && element.naturalWidth > 0) {
       onOverlayLoaded(overlayObject);
+    }
+  });
+
+  // AI : Handle load errors to ensure system consistency
+  L.DomEvent.on(element, "error", () => {
+    console.warn("Overlay image failed to load:", overlayObject.id);
+    // AI : Execute callback even on error so the overlay is registered in the store
+    // AI : This prevents it from being stuck in a "rendering" state without a store entry
+    if ((overlayObject as any)._onAddedToMapCallback) {
+      (overlayObject as any)._onAddedToMapCallback();
+      delete (overlayObject as any)._onAddedToMapCallback;
     }
   });
 
@@ -484,11 +510,14 @@ export function renderViewModeOverlays(
     // AI : Force re-render all overlays (for city switching)
     overlaysToRender = viewModeOverlays;
   } else {
-    // AI : Only render overlays that aren't already rendered
-    const currentOverlayIds = new Set(Object.keys(overlayStore.overlays));
-    overlaysToRender = viewModeOverlays.filter(
-      (cdnOverlay) => !currentOverlayIds.has(cdnOverlay.id),
-    );
+    // AI : Render overlays that either:
+    // AI : 1. Don't exist in the store yet (new overlays)
+    // AI : 2. Exist but have null Leaflet layer (need re-rendering after zoom out)
+    overlaysToRender = viewModeOverlays.filter((cdnOverlay) => {
+      const existing = overlayStore.overlays[cdnOverlay.id];
+      if (!existing) return true; // New overlay
+      return existing.overlay === null; // Needs re-rendering
+    });
   }
 
   for (const cdnOverlay of overlaysToRender) {
@@ -502,7 +531,12 @@ export function renderViewModeOverlays(
 function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   const overlayStore = useOverlayStore();
 
-  if (!map.value || overlayStore.overlays[cdnOverlay.id]) return;
+  // AI : Check if overlay exists in store WITH a valid Leaflet layer
+  // AI : If overlay exists but has null layer (preserved after zoom out), we need to re-render it
+  const existingOverlay = overlayStore.overlays[cdnOverlay.id];
+  const hasValidLayer = existingOverlay && existingOverlay.overlay !== null;
+
+  if (!map.value || hasValidLayer) return;
 
   // AI : Always use backend data to create overlay object (cached positions applied later via applyPositionToOverlay)
   const overlayObject = createOverlayFromCDN(cdnOverlay);
@@ -994,16 +1028,13 @@ function applyImageRatioFix(
     { x: halfWidth, y: halfHeight }, // SE
   ];
 
-  // AI : Apply rotation and translation to get global coordinates
-  const newCornerPoints = localCorners.map((local) => ({
-    x: centerPoint.x + (local.x * cos - local.y * sin),
-    y: centerPoint.y + (local.x * sin + local.y * cos),
-  }));
-
-  // AI : Convert back to geographical coordinates and apply
-  const newCorners = newCornerPoints.map((point) =>
-    map.value!.containerPointToLatLng([point.x, point.y]),
-  );
+  // AI : Apply rotation, translation, and convert to geographic coordinates
+  const newCorners: L.LatLng[] = [];
+  for (const local of localCorners) {
+    const x = centerPoint.x + (local.x * cos - local.y * sin);
+    const y = centerPoint.y + (local.x * sin + local.y * cos);
+    newCorners.push(map.value.containerPointToLatLng([x, y]));
+  }
 
   overlayObject.overlay.setCorners(newCorners);
 }
@@ -1123,11 +1154,9 @@ export async function loadOverlay(
         renderViewModeOverlays(result.intersectingOverlays as OverlayData[], true, false);
       }
 
-      // AI : Verify overlay was successfully loaded
-      if (!overlayStore.overlays[overlayId]) {
-        throw new Error("Failed to load overlay after fetching");
-      }
-
+      // AI : NOTE: We don't check overlayStore.overlays[overlayId] here because overlay registration
+      // AI : is async (happens after image loads) and may not complete if zoom level is too low.
+      // AI : The critical point is that the backend fetch succeeded.
       return true;
     },
     { errorMessage: "Failed to load overlay", rethrow: true },
