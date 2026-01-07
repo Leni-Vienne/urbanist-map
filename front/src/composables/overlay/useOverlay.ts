@@ -219,7 +219,22 @@ export function createLeafletOverlay(
           // AI : Store callback to be invoked AFTER image loads (in onOverlayLoaded)
           // AI : This prevents errors when overlay is removed before image finishes loading
           if (onAddedToMap && overlayObject) {
-            (overlayObject as any)._onAddedToMapCallback = onAddedToMap;
+            (overlayObject as any)._onAddedToMapCallback = () => {
+              // AI : CRITICAL: Check for race condition
+              // If the mode changed while image was loading, and this overlay shouldn't be visible in the new mode,
+              // we must abort and clean up.
+              const overlayStore = useOverlayStore();
+              const isLocal = overlayObject.status === null || overlayObject.status === undefined;
+              const shouldBeVisible = overlayStore.mode === "edit" || !isLocal;
+
+              if (!shouldBeVisible) {
+                newOverlay.remove();
+                // Do not update store
+                return;
+              }
+
+              onAddedToMap();
+            };
           }
         }
       }
@@ -275,6 +290,17 @@ function setupOverlayLoadHandler(
 
     if (element.complete && element.naturalWidth > 0) {
       onOverlayLoaded(overlayObject);
+    }
+  });
+
+  // AI : Handle load errors to ensure system consistency
+  L.DomEvent.on(element, "error", () => {
+    console.warn("Overlay image failed to load:", overlayObject.id);
+    // AI : Execute callback even on error so the overlay is registered in the store
+    // AI : This prevents it from being stuck in a "rendering" state without a store entry
+    if ((overlayObject as any)._onAddedToMapCallback) {
+      (overlayObject as any)._onAddedToMapCallback();
+      delete (overlayObject as any)._onAddedToMapCallback;
     }
   });
 
