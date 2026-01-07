@@ -170,7 +170,9 @@ export function useViewportContentManager() {
 
       // AI : CRITICAL: Don't load data until zoomed in past threshold
       if (zoom < MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD) {
-        clearAllOverlays();
+        // AI : In edit mode, preserve overlay store data so local overlays survive zoom out
+        const isEditMode = overlayStore.mode === "edit";
+        clearAllOverlays(isEditMode);
         removeOverlayMarkers();
         clearAllStandaloneProjectMarkers();
         // AI : CRITICAL: Clear loaded cities cache so they reload when zooming back above threshold
@@ -327,32 +329,63 @@ export function useViewportContentManager() {
     mapStore.currentCityOverlays = overlaysData;
 
     // AI : Render overlays
-    const existingIds = new Set(Object.keys(overlayStore.overlays));
+    const existingOverlays = overlayStore.overlays;
+    const existingIds = new Set(Object.keys(existingOverlays));
     const hasExisting = existingIds.size > 0;
 
     if (!hasExisting) {
       // AI : Initial render
       renderViewModeOverlays(overlaysData, true, false);
     } else {
-      // AI : Update existing overlays
-      const newDataMap = new Map(overlaysData.map((o) => [o.id, o]));
+      // AI : Update/add overlays without removing existing ones
+      // AI : Don't remove overlays not in overlaysData - they may be from other cities
+      // AI : Overlays are only removed via clearAllOverlays on mode switch/zoom out
+      const isEditMode = overlayStore.mode === "edit";
 
-      // AI : Remove overlays no longer in bounds
-      const toRemove: string[] = [];
-      for (const id of existingIds) {
-        if (!newDataMap.has(id)) {
-          toRemove.push(id);
+      // AI : Find overlays that need rendering:
+      // AI : 1. New overlays not in store
+      // AI : 2. Existing overlays in overlaysData with null Leaflet layer
+      const overlayDataIds = new Set(overlaysData.map((o) => o.id));
+      const overlaysToRender = overlaysData.filter((o) => {
+        if (!existingIds.has(o.id)) return true; // New overlay
+        const existing = existingOverlays[o.id];
+        return existing && existing.overlay === null; // Needs re-rendering
+      });
+
+      // AI : CRITICAL: Also re-render existing overlays with null layers that are NOT in overlaysData
+      // AI : This handles overlays from other cities that were preserved during zoom out
+      // AI : In edit mode, also include local overlays (status === null)
+      for (const [id, existing] of Object.entries(existingOverlays)) {
+        if (existing.overlay === null && !overlayDataIds.has(id)) {
+          // AI : Skip if already in overlaysToRender
+          if (overlaysToRender.some((o) => o.id === id)) continue;
+
+          // AI : In view mode, skip local-only overlays (status === null)
+          if (!isEditMode && existing.status === null) continue;
+
+          // AI : Convert existing overlay to OverlayData format for rendering
+          // AI : Use filename (not imageUrl) - imageUrl has the full URL path that gets duplicated by createOverlayFromCDN
+          overlaysToRender.push({
+            id: existing.id,
+            version: existing.version,
+            filename: existing.filename,
+            caption: existing.caption,
+            status: existing.status,
+            projectId: existing.projectId,
+            authorId: existing.authorId,
+            replacesOverlayId: existing.replacesOverlayId,
+            replacedByOverlayId: existing.replacedByOverlayId,
+            createdAt: existing.createdAt,
+            updatedAt: existing.updatedAt,
+            centroid: existing.centroid,
+            corners: existing.corners,
+            isModified: existing.isModified,
+          });
         }
       }
 
-      for (const id of toRemove) {
-        overlayStore.removeOverlay(id);
-      }
-
-      // AI : Add new overlays
-      const newOverlays = overlaysData.filter((o) => !existingIds.has(o.id));
-      if (newOverlays.length > 0) {
-        renderViewModeOverlays(newOverlays, true, false);
+      if (overlaysToRender.length > 0) {
+        renderViewModeOverlays(overlaysToRender, true, false);
       }
     }
   }
@@ -361,11 +394,44 @@ export function useViewportContentManager() {
    * AI : Render overlay markers only (low zoom)
    */
   function renderMarkersOnly(overlaysData: OverlayData[]) {
-    // AI : Clear full overlays
-    clearAllOverlays();
+    // AI : In edit mode, preserve overlay store data so local overlays can be restored when zooming back in
+    // AI : In view mode, clear everything since local overlays shouldn't be visible anyway
+    const isEditMode = overlayStore.mode === "edit";
+    clearAllOverlays(isEditMode);
+
+    // AI : Collect all overlays to render as markers
+    let allOverlaysForMarkers = [...overlaysData];
+
+    // AI : In edit mode, also include preserved overlays from the store that aren't in overlaysData
+    // AI : This includes local-only overlays AND backend overlays from other cities that were preserved
+    if (isEditMode) {
+      const overlayDataIds = new Set(overlaysData.map((o) => o.id));
+      for (const [id, existing] of Object.entries(overlayStore.overlays)) {
+        // AI : Skip if already in backend data
+        if (overlayDataIds.has(id)) continue;
+
+        // AI : In view mode we'd skip local overlays, but we're already in isEditMode check
+        allOverlaysForMarkers.push({
+          id: existing.id,
+          version: existing.version,
+          filename: existing.filename,
+          caption: existing.caption,
+          status: existing.status,
+          projectId: existing.projectId,
+          authorId: existing.authorId,
+          replacesOverlayId: existing.replacesOverlayId,
+          replacedByOverlayId: existing.replacedByOverlayId,
+          createdAt: existing.createdAt,
+          updatedAt: existing.updatedAt,
+          centroid: existing.centroid,
+          corners: existing.corners,
+          isModified: existing.isModified,
+        });
+      }
+    }
 
     // AI : Render markers
-    renderOverlayMarkersFromData(overlaysData);
+    renderOverlayMarkersFromData(allOverlaysForMarkers);
   }
 
   /**
@@ -422,6 +488,16 @@ export function useViewportContentManager() {
         // AI : So we need to reload when switching between ANY modes to get correct data
         const isModerationTransition = oldMode === "moderation" || newMode === "moderation";
         const hasLoadedOverlays = Object.keys(overlayStore.overlays).length > 0;
+
+        // AI : CRITICAL: When switching TO view mode, remove local-only overlays first
+        // AI : Local-only overlays (status === null) should NOT be visible in view mode
+        if (newMode === "view" && hasLoadedOverlays) {
+          for (const [id, overlay] of Object.entries(overlayStore.overlays)) {
+            if (overlay.status === null) {
+              overlayStore.removeOverlay(id);
+            }
+          }
+        }
 
         // AI : Always reload when involving moderation mode or when we have overlays
         // AI : (to refresh with correct permissions), but skip if no overlays loaded yet
