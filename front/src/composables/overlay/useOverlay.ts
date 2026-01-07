@@ -484,11 +484,14 @@ export function renderViewModeOverlays(
     // AI : Force re-render all overlays (for city switching)
     overlaysToRender = viewModeOverlays;
   } else {
-    // AI : Only render overlays that aren't already rendered
-    const currentOverlayIds = new Set(Object.keys(overlayStore.overlays));
-    overlaysToRender = viewModeOverlays.filter(
-      (cdnOverlay) => !currentOverlayIds.has(cdnOverlay.id),
-    );
+    // AI : Render overlays that either:
+    // AI : 1. Don't exist in the store yet (new overlays)
+    // AI : 2. Exist but have null Leaflet layer (need re-rendering after zoom out)
+    overlaysToRender = viewModeOverlays.filter((cdnOverlay) => {
+      const existing = overlayStore.overlays[cdnOverlay.id];
+      if (!existing) return true; // New overlay
+      return existing.overlay === null; // Needs re-rendering
+    });
   }
 
   for (const cdnOverlay of overlaysToRender) {
@@ -502,7 +505,12 @@ export function renderViewModeOverlays(
 function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   const overlayStore = useOverlayStore();
 
-  if (!map.value || overlayStore.overlays[cdnOverlay.id]) return;
+  // AI : Check if overlay exists in store WITH a valid Leaflet layer
+  // AI : If overlay exists but has null layer (preserved after zoom out), we need to re-render it
+  const existingOverlay = overlayStore.overlays[cdnOverlay.id];
+  const hasValidLayer = existingOverlay && existingOverlay.overlay !== null;
+
+  if (!map.value || hasValidLayer) return;
 
   // AI : Always use backend data to create overlay object (cached positions applied later via applyPositionToOverlay)
   const overlayObject = createOverlayFromCDN(cdnOverlay);
