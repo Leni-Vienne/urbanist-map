@@ -5,62 +5,62 @@
       :class="[tabButtonClass, { active: activeTab === 'latest' }]"
       @click="$emit('update:activeTab', 'latest')"
     >
-      {{ $t('navigation.latestContributions') }}
+      {{ $t("navigation.latestContributions") }}
     </button>
     <button
       v-if="mapStore.selectedCity || mapStore.selectedCountryCode"
       :class="[tabButtonClass, { active: activeTab === 'currentLocation' }]"
       @click="$emit('update:activeTab', 'currentLocation')"
     >
-      {{ $t('navigation.currentLocation') }}
+      {{ $t("navigation.currentLocation") }}
     </button>
     <button
-      :class="[tabButtonClass, { active: activeTab === 'uploads' }]"
+      :class="[tabButtonClass, { active: activeTab === 'contribute' }]"
       @click="handleUploadsTabClick"
     >
-      {{ $t('navigation.contribute') }}
+      {{ $t("navigation.contribute") }}
     </button>
     <button
       v-if="authStore.isModerator"
       :class="[tabButtonClass, { active: activeTab === 'moderation' }]"
       @click="$emit('update:activeTab', 'moderation')"
     >
-      {{ $t('navigation.moderation') }}
+      {{ $t("navigation.moderation") }}
     </button>
   </div>
 </template>
 
 <script setup lang="ts">
-import type { PanelTab } from '@/types'
-import { useAuthStore } from '@/stores/authStore'
-import { useMapStore } from '@/stores/pinia/mapStore'
-import { useUiStore } from '@/stores/uiStore'
+import type { PanelTab } from "@/types";
+import { useAuthStore } from "@/stores/authStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
+import { useUiStore } from "@/stores/uiStore";
 
-const authStore = useAuthStore()
-const mapStore = useMapStore()
-const uiStore = useUiStore()
+const authStore = useAuthStore();
+const mapStore = useMapStore();
+const uiStore = useUiStore();
 
 defineProps<{
-  activeTab: PanelTab
-  tabContainerClass: string
-  tabButtonClass: string
-}>()
+  activeTab: PanelTab;
+  tabContainerClass: string;
+  tabButtonClass: string;
+}>();
 
 const emit = defineEmits<{
-  'update:activeTab': [tab: PanelTab]
-}>()
+  "update:activeTab": [tab: PanelTab];
+}>();
 
 // AI : Handle uploads tab click - show auth dialog if not authenticated
 function handleUploadsTabClick() {
   if (!authStore.isAuthenticated) {
     // AI : Store intent to switch to uploads tab after login
     uiStore.setPostLoginCallback(() => {
-      emit('update:activeTab', 'uploads')
-    })
+      emit("update:activeTab", "contribute");
+    });
     // AI : Open auth dialog
-    uiStore.openAuthModal()
+    uiStore.openAuthModal();
   } else {
-    emit('update:activeTab', 'uploads')
+    emit("update:activeTab", "contribute");
   }
 }
 </script>

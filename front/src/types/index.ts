@@ -176,7 +176,7 @@ export interface OverlayObject extends OverlayData {
   isViewingApprovedPosition?: boolean; // AI : True when user is viewing approved position of overlay with pending changes
 }
 
-export type PanelTab = "latest" | "currentLocation" | "uploads" | "moderation";
+export type PanelTab = "latest" | "currentLocation" | "contribute" | "moderation";
 
 export type OverlayForModeration = Pick<
   OverlayObject,
