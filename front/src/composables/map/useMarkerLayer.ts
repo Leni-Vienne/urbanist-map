@@ -117,9 +117,9 @@ export function createMarkerLayer<T extends { id?: string | number }>(
         // AI : Add custom data attributes if provided
         if (config.getDataAttributes) {
           const attributes = config.getDataAttributes(item);
-          Object.entries(attributes).forEach(([key, value]) => {
+          for (const [key, value] of Object.entries(attributes)) {
             markerElement.setAttribute(key, value);
-          });
+          }
         }
       }
     });

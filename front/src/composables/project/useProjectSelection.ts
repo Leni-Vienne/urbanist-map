@@ -29,12 +29,12 @@ export function useCityProjects() {
     const projectMap = new Map<string, Project>();
 
     // AI : 1. Include local projects first (highest priority - may have unsaved changes)
-    Object.values(projectStore.projects).forEach((project) => {
+    for (const project of Object.values(projectStore.projects)) {
       projectMap.set(project.id, project);
-    });
+    }
 
     // AI : 2. Extract projects from current city overlays (only if not in local store)
-    mapStore.currentCityOverlays.forEach((overlay) => {
+    for (const overlay of mapStore.currentCityOverlays) {
       if (overlay.project?.id && !projectMap.has(overlay.project.id)) {
         const frontendProject = createProjectObject({
           ...overlay.project,
@@ -43,15 +43,15 @@ export function useCityProjects() {
         });
         projectMap.set(overlay.project.id, frontendProject);
       }
-    });
+    }
 
     // AI : 3. Include nearby projects from other cities (only if not already added)
-    projectStore.nearbyProjects.forEach((nearbyProject) => {
+    for (const nearbyProject of projectStore.nearbyProjects) {
       if (!projectMap.has(nearbyProject.id)) {
         const frontendProject = createProjectObjectFromAPI(nearbyProject);
         projectMap.set(nearbyProject.id, frontendProject);
       }
-    });
+    }
 
     return [...projectMap.values()];
   });
@@ -83,16 +83,18 @@ export function useCityProjects() {
   const projectsByCity = computed(() => {
     const groups = new Map<string, Project[]>();
 
-    projects.value.forEach((project) => {
+    for (const project of projects.value) {
       const cityKey = project.city
         ? `${project.city.name}, ${project.city.countryCode}`
         : "Unknown Location";
 
-      if (!groups.has(cityKey)) {
-        groups.set(cityKey, []);
+      let list = groups.get(cityKey);
+      if (!list) {
+        list = [];
+        groups.set(cityKey, list);
       }
-      groups.get(cityKey)!.push(project);
-    });
+      list.push(project);
+    }
 
     return [...groups.entries()].map(([cityName, projects]) => ({
       label: cityName,

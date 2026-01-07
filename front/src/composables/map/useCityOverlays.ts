@@ -31,7 +31,7 @@ export function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void 
   overlayMarkersLayer = L.layerGroup();
 
   // AI : Add simple markers for each visible overlay location
-  visibleOverlays.forEach((overlay) => {
+  for (const overlay of visibleOverlays) {
     // AI : Use unified position resolver
     const overlayStore = useOverlayStore();
     const resolved = resolveOverlayPosition(overlay.id, overlay, overlayStore.mode);
@@ -40,10 +40,11 @@ export function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void 
     const cachedModifications =
       overlayStore.mode === "edit" ? overlayStore.getFromEditModeCache(overlay.id) : undefined;
 
-    // AI : Create temporary overlay object with isModified flag from cache
+    // AI : Create temporary overlay object with isModified flag
+    // AI : Priority: 1) overlay's own isModified, 2) cached isModified, 3) false
     const overlayWithModFlag = {
       ...overlay,
-      isModified: cachedModifications?.isModified ?? false,
+      isModified: overlay.isModified ?? cachedModifications?.isModified ?? false,
     };
 
     const markerColor = getOverlayMarkerColor(overlayWithModFlag, overlayStore.mode);
@@ -69,11 +70,11 @@ export function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void 
       }
     });
 
-    overlayMarkersLayer!.addLayer(marker);
-  });
+    overlayMarkersLayer?.addLayer(marker);
+  }
 
   // AI : Add overlay markers to map
-  if (map.value != null) {
+  if (map.value !== null) {
     overlayMarkersLayer.addTo(map.value);
   }
 }
