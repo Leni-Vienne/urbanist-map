@@ -34,20 +34,24 @@
             {{ layer.label }}
           </label>
         </div>
-        <a
-          href="/contact"
-          class="contact-link text-sm text-muted-color text-center"
-          >{{ $t('layerControl.submitTileLayer') }}</a
-        >
+        <a href="/contact" class="contact-link text-sm text-muted-color text-center">{{
+          $t("layerControl.submitTileLayer")
+        }}</a>
       </div>
     </Panel>
   </Popover>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import { currentTileLayer, switchTileLayer, getTileLayerOptions, type TileLayerType } from '@/composables/map/useTileLayers';
-import { flyToCountry, mobileAwareFlyTo } from '@/composables/map/useMapNavigation';
+import { ref, watch } from "vue";
+import {
+  currentTileLayer,
+  switchTileLayer,
+  getTileLayerOptions,
+  type TileLayerType,
+} from "@/composables/map/useTileLayers";
+import { flyToCountry } from "@/composables/map/useMapNavigation";
+import { useMapStore } from "@/stores/pinia/mapStore";
 
 // AI : Panel visibility state
 const showLayerPanel = ref(false);
@@ -60,6 +64,9 @@ const layerOptions = getTileLayerOptions();
 
 // AI : Local reactive reference for the selected layer
 const selectedLayer = ref<TileLayerType>(currentTileLayer.value);
+
+// AI : Access map store to check currently viewed country
+const mapStore = useMapStore();
 
 // AI : Watch for external changes to current tile layer
 watch(currentTileLayer, (newLayer) => {
@@ -78,36 +85,41 @@ async function onLayerChange() {
     // AI : Switch the tile layer first
     switchTileLayer(selectedLayer.value);
 
-    // AI : Fly to the country bounds based on the selected tile layer
-    if (selectedLayer.value === 'osm' || selectedLayer.value === 'esri') {
-      // AI : World view - zoom out to show the whole world
-      mobileAwareFlyTo([20, 0], 2, { duration: 1.5 });
-    } else {
-      // AI : Country-specific tile layer (FRA, USA, CHE) - fly to country bounds
-      // AI : Note: flyToCountry expects the 3-letter country code
-      flyToCountry(selectedLayer.value, undefined, undefined, 6, 1.5);
+    // AI : Only fly to country bounds for country-specific tile layers
+    // AI : OSM/esri (world layers) should not move the camera
+    // AI : Also skip flying if user is already viewing that country
+    if (selectedLayer.value !== "osm" && selectedLayer.value !== "esri") {
+      const isAlreadyViewingCountry = mapStore.selectedCountryCode === selectedLayer.value;
+      if (!isAlreadyViewingCountry) {
+        // AI : Country-specific tile layer (FRA, USA, CHE) - fly to country bounds
+        // AI : Note: flyToCountry expects the 3-letter country code
+        flyToCountry(selectedLayer.value, undefined, undefined, 6, 1.5);
+      }
     }
   } catch (error) {
-    console.error('Failed to switch layer:', error);
+    console.error("Failed to switch layer:", error);
     // AI : Reset to previous value on error
     selectedLayer.value = currentTileLayer.value;
   }
 }
 
 // AI : Watch for popover visibility changes
-watch(() => layerPanel.value?.visible, (visible) => {
-  showLayerPanel.value = visible ?? false;
-});
+watch(
+  () => layerPanel.value?.visible,
+  (visible) => {
+    showLayerPanel.value = visible ?? false;
+  },
+);
 
 // AI : Hide flag on error
 function hideFlagOnError(event: Event) {
   const target = event.target as HTMLImageElement;
-  target.style.display = 'none';
+  target.style.display = "none";
 }
 
 // AI : Expose the layer panel ref so parent can close it when needed
 defineExpose({
-  layerPanel
+  layerPanel,
 });
 </script>
 
