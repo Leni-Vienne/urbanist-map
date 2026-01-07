@@ -40,10 +40,11 @@ export function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void 
     const cachedModifications =
       overlayStore.mode === "edit" ? overlayStore.getFromEditModeCache(overlay.id) : undefined;
 
-    // AI : Create temporary overlay object with isModified flag from cache
+    // AI : Create temporary overlay object with isModified flag
+    // AI : Priority: 1) overlay's own isModified, 2) cached isModified, 3) false
     const overlayWithModFlag = {
       ...overlay,
-      isModified: cachedModifications?.isModified ?? false,
+      isModified: overlay.isModified ?? cachedModifications?.isModified ?? false,
     };
 
     const markerColor = getOverlayMarkerColor(overlayWithModFlag, overlayStore.mode);

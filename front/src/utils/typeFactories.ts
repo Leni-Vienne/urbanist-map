@@ -77,9 +77,12 @@ export function createProjectObjectFromAPI(nearbyProject: NearbyProject): Projec
  */
 export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayObject {
   const id = data.id ?? uuidv4();
-  const status = data.status ?? "pending";
+  // AI : Preserve null status for local overlays (not yet submitted to backend)
+  // AI : Only default to "pending" if status is undefined, NOT if it's null
+  const status = data.status === undefined ? "pending" : data.status;
   // AI : Pending overlays are stored locally, not in R2 - force backend URL for them
-  const isPending = status === "pending";
+  // AI : Local overlays (status === null) also use local storage
+  const isPending = status === "pending" || status === null;
 
   return {
     id,
