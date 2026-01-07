@@ -160,7 +160,7 @@ export function useViewportContentManager() {
    */
   async function refreshViewport(force = false) {
     try {
-      if (isLoading.value) {
+      if (isLoading.value && !force) {
         return;
       }
       if (!map.value) {
@@ -301,7 +301,7 @@ export function useViewportContentManager() {
       if (mode === "edit") {
         const projectStore = useProjectStore();
         const localProjects = Object.values(projectStore.projects).filter(
-          (p) => p.city?.id === cityId && p.status === null,
+          (p) => p.city?.id === cityId && (p.status === null || p.status === undefined),
         );
 
         for (const localP of localProjects) {
@@ -385,8 +385,10 @@ export function useViewportContentManager() {
           // AI : Skip if already in overlaysToRender
           if (overlaysToRender.some((o) => o.id === id)) continue;
 
-          // AI : In view mode, skip local-only overlays (status === null)
-          if (!isEditMode && existing.status === null) continue;
+          // AI : In view mode, skip local-only overlays (status === null or undefined)
+          if (!isEditMode && (existing.status === null || existing.status === undefined)) {
+            continue;
+          }
 
           // AI : Convert existing overlay to OverlayData format for rendering
           // AI : Use filename (not imageUrl) - imageUrl has the full URL path that gets duplicated by createOverlayFromCDN
@@ -519,12 +521,17 @@ export function useViewportContentManager() {
         const hasLoadedOverlays = Object.keys(overlayStore.overlays).length > 0;
         const hasLoadedContent = loadedCityIds.value.size > 0;
 
-        // AI : CRITICAL: When switching TO view mode, remove local-only overlays first
-        // AI : Local-only overlays (status === null) should NOT be visible in view mode
-        if (newMode === "view" && hasLoadedOverlays) {
+        // AI : CRITICAL: When switching TO view or moderation mode, hide local-only overlays
+        // AI : We unmount them (remove from map) but keep in store so they reappear in edit mode
+        if ((newMode === "view" || newMode === "moderation") && hasLoadedOverlays) {
           for (const [id, overlay] of Object.entries(overlayStore.overlays)) {
-            if (overlay.status === null) {
-              overlayStore.removeOverlay(id);
+            // AI : Hide local overlays (status null OR undefined)
+            if (overlay.status === null || overlay.status === undefined) {
+              if (overlay.overlay) overlay.overlay.remove();
+              if (overlay.marker) overlay.marker.remove();
+              overlayStore.updateOverlay(id, { overlay: null, marker: null });
+              // AI : CRITICAL: Clear from allMarkers cache so it can be recreated when switching back to edit mode
+              delete overlayStore.allMarkers[id];
             }
           }
         }
@@ -532,8 +539,12 @@ export function useViewportContentManager() {
         // AI : Always reload when involving moderation mode or when we have content loaded
         if (isModerationTransition || hasLoadedOverlays || hasLoadedContent) {
           // AI : Don't clear overlays immediately - let them stay visible while loading
-          // AI : Only clear the city tracking so we re-fetch with new mode
-          loadedCityIds.value.clear();
+          // AI : CRITICAL: Do NOT clear loadedCityIds here. Instead, reload all currently loaded cities.
+          // AI : This ensures that cities whose center is off-screen (but whose overlays are visible) are correctly updated.
+          // AI : If we just cleared cache and relied on refreshViewport, it would only load cities with visible centers.
+          const currentCityIds = Array.from(loadedCityIds.value);
+          await Promise.all(currentCityIds.map((id) => loadCityData(id, "reload", null, "reload")));
+
           await refreshViewport(true);
         }
       },
