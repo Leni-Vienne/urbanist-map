@@ -592,6 +592,42 @@ export async function loadCityDataForNavigation(
       }
     }
 
+    // AI : CRITICAL FIX: Also load standalone projects cache for CurrentLocationPanel
+    // AI : This was missing, causing standalone projects to not appear in the panel
+    let standaloneProjects = mapStore.getCityStandaloneProjectsCache(cityId, mode);
+    if (!standaloneProjects) {
+      standaloneProjects = await trpc.project.getCityProjects.query({
+        cityId,
+        mode,
+        limit: 100,
+      });
+      if (standaloneProjects) {
+        mapStore.setCityStandaloneProjectsCache(cityId, mode, standaloneProjects);
+      }
+    }
+
+    // AI : CRITICAL FIX: Create standalone project markers for projects without overlays
+    // AI : This was missing, causing standalone project markers to not appear on navigation
+    if (standaloneProjects && standaloneProjects.length > 0) {
+      // AI : Get project IDs that have overlays
+      const projectIdsWithOverlays = new Set<string>();
+      if (overlaysData) {
+        for (const overlay of overlaysData) {
+          if (overlay.projectId) {
+            projectIdsWithOverlays.add(overlay.projectId);
+          }
+        }
+      }
+
+      // AI : Create markers for standalone projects (those without overlays)
+      for (const project of standaloneProjects) {
+        const overlayCount = (project as any).overlayCount ?? 0;
+        if (!projectIdsWithOverlays.has(project.id) && overlayCount === 0) {
+          addStandaloneProjectMarkerForProject(project as any);
+        }
+      }
+    }
+
     // AI : CRITICAL: Mark city as loaded so viewport manager knows about it
     // AI : This prevents reRenderLoadedCities from missing this city after fly animation
     loadedCityIds.value.add(cityId);

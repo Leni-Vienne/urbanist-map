@@ -95,23 +95,38 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
 
   const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
+  const authStore = useAuthStore();
+  const queryMode = authStore.isAuthenticated ? overlayStore.mode : "view";
 
-  // AI : Check cache first for this country + mode combination
-  if (projectStore.hasCachedCities(countryCode, overlayStore.mode)) {
-    const cachedCities = projectStore.getCachedCities(countryCode, overlayStore.mode);
+  // AI : Check per-country cache first
+  if (projectStore.hasCachedCities(countryCode, queryMode)) {
+    const cachedCities = projectStore.getCachedCities(countryCode, queryMode);
     if (cachedCities) {
       country.cities = cachedCities;
       return;
     }
   }
 
+  // AI : OPTIMIZATION: Check global cities cache before making API call
+  // AI : This prevents duplicate getCitiesWithProjects calls when global cities are already loaded
+  const globalCities = await projectStore.fetchCitiesWithProjects(queryMode);
+  if (globalCities && globalCities.length > 0) {
+    const countryCities = globalCities
+      .filter((city: any) => city.countryCode === countryCode)
+      .map((city: any) => Object.assign({}, city, { distance: 0 }));
+
+    if (countryCities.length > 0) {
+      country.cities = countryCities;
+      // AI : Cache the filtered cities for this country + mode
+      projectStore.setCachedCities(countryCode, queryMode, countryCities);
+      return;
+    }
+  }
+
+  // AI : Fallback: If no cities found in global cache, make country-specific API call
+  // AI : This handles edge cases where global cache might be incomplete
   isLoadingCountryProjects.value = true;
   try {
-    // AI : For unauthenticated users, ensure we always use 'view' mode
-    const authStore = useAuthStore();
-    const queryMode = authStore.isAuthenticated ? overlayStore.mode : "view";
-
-    // AI : Pass mode to show appropriate content based on viewing mode
     const citiesData = await withErrorHandling(
       async () => trpc.cities.getCitiesWithProjects.query({ countryCode, mode: queryMode }),
       { errorMessage: "Failed to load cities. Please try again." },
@@ -123,7 +138,7 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
       });
       country.cities = cities;
       // AI : Cache the cities for this country + mode
-      projectStore.setCachedCities(countryCode, overlayStore.mode, cities);
+      projectStore.setCachedCities(countryCode, queryMode, cities);
     }
   } finally {
     isLoadingCountryProjects.value = false;

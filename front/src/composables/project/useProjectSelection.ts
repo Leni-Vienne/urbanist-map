@@ -88,10 +88,12 @@ export function useCityProjects() {
         ? `${project.city.name}, ${project.city.countryCode}`
         : "Unknown Location";
 
-      if (!groups.has(cityKey)) {
-        groups.set(cityKey, []);
+      let list = groups.get(cityKey);
+      if (!list) {
+        list = [];
+        groups.set(cityKey, list);
       }
-      groups.get(cityKey)?.push(project);
+      list.push(project);
     }
 
     return [...groups.entries()].map(([cityName, projects]) => ({
