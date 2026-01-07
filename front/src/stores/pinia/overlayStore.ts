@@ -131,6 +131,20 @@ export const useOverlayStore = defineStore("overlay", () => {
     }
   }
 
+  /**
+   * AI : Clear markers from allMarkers cache by IDs
+   * AI : Used when preserving overlay store data but needing to allow marker recreation
+   */
+  function clearMarkersFromCache(markerIds: string[]) {
+    if (markerIds.length === 0) return;
+
+    const markersCopy = { ...allMarkers.value };
+    for (const id of markerIds) {
+      delete markersCopy[id];
+    }
+    allMarkers.value = markersCopy;
+  }
+
   // AI : Update overlay in store with proper reactivity for shallowRef
   function updateOverlay(overlayId: string, updates: Partial<OverlayObject>) {
     const current = overlays.value[overlayId];
@@ -279,6 +293,7 @@ export const useOverlayStore = defineStore("overlay", () => {
     addOverlay,
     updateOverlay,
     removeOverlay,
+    clearMarkersFromCache,
     handleFileSelected,
     clearPendingFile,
     requestOverlayReplacement,

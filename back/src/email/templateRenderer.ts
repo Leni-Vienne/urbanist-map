@@ -1,4 +1,4 @@
-import { join } from "path";
+import { join } from "node:path";
 import enTranslations from "./i18n/en.json";
 import frTranslations from "./i18n/fr.json";
 

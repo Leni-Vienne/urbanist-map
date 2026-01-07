@@ -134,9 +134,9 @@ export function useEntityRemoval() {
 
     // AI : 2. Remove all associated overlays
     if (project?.overlayIds) {
-      project.overlayIds.forEach((overlayId) => {
+      for (const overlayId of project.overlayIds) {
         removeOverlayFromMapAndStore(overlayId);
-      });
+      }
     }
 
     // AI : 3. Remove project from store
