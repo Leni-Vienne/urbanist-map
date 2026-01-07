@@ -16,7 +16,7 @@ function tabToMode(tab: PanelTab): MapMode {
     case "currentLocation":
       // AI : View tabs always show view mode (approved overlays only)
       return "view";
-    case "uploads":
+    case "contribute":
       return "edit";
     case "moderation":
       return "moderation";
@@ -32,7 +32,7 @@ function modeToDefaultTab(mode: MapMode): PanelTab {
     case "view":
       return "latest";
     case "edit":
-      return "uploads";
+      return "contribute";
     case "moderation":
       return "moderation";
   }
@@ -118,7 +118,7 @@ export function usePanelTabs() {
     (isAuthenticated) => {
       if (
         !isAuthenticated &&
-        (uiStore.activeTab === "uploads" || uiStore.activeTab === "moderation")
+        (uiStore.activeTab === "contribute" || uiStore.activeTab === "moderation")
       ) {
         setActiveTab("latest");
       }
