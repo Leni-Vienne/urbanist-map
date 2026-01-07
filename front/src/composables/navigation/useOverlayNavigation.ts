@@ -95,7 +95,7 @@ function zoomToOverlayAndSelect(
       // AI : Overlay object exists but Leaflet overlay not created - this shouldn't happen
       // AI : but if it does, we need to trigger a re-render
       console.warn(`Overlay ${overlayId} exists in store but has no Leaflet overlay`);
-    } else if (overlayObj?.overlay && map.value?.hasLayer(overlayObj.overlay)) {
+    } else if (overlayObj?.overlay && map.value && !map.value.hasLayer(overlayObj.overlay)) {
       //  AI : Overlay exists but not on map - add it now that zoom is correct
       const currentZoom = map.value.getZoom();
       if (currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
@@ -239,6 +239,11 @@ export async function navigateToStandaloneProject(
   try {
     // AI : Prepare navigation with cross-country flight support
     const switchToCountryLayer = await prepareNavigationToCity(cityId, cityName, countryCode);
+
+    // AI : CRITICAL FIX: Load city data to populate mapStore cache
+    // AI : This is needed for CurrentLocationPanel to display projects
+    // AI : Previously only overlays called this, causing standalone projects to not populate the panel
+    await loadCityDataForNavigation(cityId, true);
 
     // AI : Wait a bit for markers to be added to the map
     await new Promise((resolve) => setTimeout(resolve, 200));
