@@ -81,8 +81,9 @@
       >
         <i class="pi pi-pencil"></i>
       </button>
+      <!-- AI : Show delete for drafts (null/undefined), pending, or rejected overlays -->
       <button
-        v-if="overlay.status === 'pending' || overlay.status === 'rejected'"
+        v-if="!overlay.status || overlay.status === 'pending' || overlay.status === 'rejected'"
         class="action-btn delete-btn"
         @click.stop="handleDeleteOverlayClick(overlay)"
         v-tooltip.top="$t('contribute.deleteOverlay')"
