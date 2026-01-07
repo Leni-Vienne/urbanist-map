@@ -154,6 +154,27 @@ export function usePanelTabs() {
     },
   );
 
+  /**
+   * AI : Watch for city selection and auto-switch to Current Location tab (only in view mode)
+   * AI : This handles standalone project navigation from Latest Contributions panel
+   * AI : Previously only overlays triggered tab switch via idSelectedOverlay watcher
+   */
+  watch(
+    () => mapStore.selectedCity,
+    (selectedCity, previousCity) => {
+      // AI : Only switch tab if a new city is selected (not on clear)
+      // AI : and we're in view mode on a tab that should switch (latest)
+      if (
+        selectedCity &&
+        overlayStore.mode === "view" &&
+        uiStore.activeTab === "latest" &&
+        selectedCity.id !== previousCity?.id
+      ) {
+        uiStore.setActiveTab("currentLocation");
+      }
+    },
+  );
+
   return {
     authStore,
     setActiveTab,

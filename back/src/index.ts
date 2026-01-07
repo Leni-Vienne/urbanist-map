@@ -324,7 +324,7 @@ async function generateUniqueUsername(baseUsername: string) {
       .limit(1);
     if (existingUsername.length === 0) break;
     finalUsername = `${baseUsername}${counter}`;
-    counter++;
+    counter += 1;
   }
 
   return finalUsername;
@@ -721,7 +721,7 @@ const filenameParamSchema = z.object({
   filename: z
     .string()
     .min(1, "Filename is required")
-    .regex(/^[a-zA-Z0-9\-_.\/]+$/, "Invalid filename format")
+    .regex(/^[a-zA-Z0-9\-_./]+$/, "Invalid filename format")
     .refine((name) => !name.includes(".."), "Path traversal not allowed"),
 });
 

@@ -709,6 +709,8 @@
     "overlayRejected": "Image rejetée",
     "overlayRejectedDetail": "L'image a été rejetée",
     "switchedToEditMode": "Mode édition activé",
+    "switchedToViewMode": "Mode consultation activé",
+    "switchedToModerationMode": "Mode modération activé",
     "clickAgainToAdd": "Cliquez à nouveau sur le bouton pour ajouter une image",
     "modeSwitchError": "Erreur de changement de mode",
     "modeSwitchErrorDetail": "Échec du changement de mode. Veuillez réessayer.",
