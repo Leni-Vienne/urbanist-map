@@ -6,6 +6,8 @@ import { map } from "@/composables/core/useMap";
 import { createStandaloneProjectIcon } from "@/composables/map/useMarkers";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
+import { trpc } from "@/client";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
@@ -83,7 +85,7 @@ export function removeStandaloneProjectMarkerForProject(projectId: string): void
  */
 export function clearAllStandaloneProjectMarkers(): void {
   // AI : Properly remove all markers and their event listeners
-  standaloneProjectMarkerMap.forEach((marker) => {
+  for (const marker of standaloneProjectMarkerMap.values()) {
     if (marker) {
       // AI : Remove all event listeners before removing from map
       marker.off();
@@ -92,7 +94,7 @@ export function clearAllStandaloneProjectMarkers(): void {
         standaloneProjectsLayer.removeLayer(marker);
       }
     }
-  });
+  }
 
   // AI : Now remove the layer from map
   if (standaloneProjectsLayer && map.value) {
@@ -268,6 +270,67 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
       return;
     }
 
+    // AI : Open or update project info popup first to ensure state is set (prevents race conditions with SideMenu watcher)
+    uiStore.openProjectInfoPopup(project.id, project);
+
+    // AI : Force switch to Current Location tab if user is exploring Latest tab
+    // AI : limits disruption if user is in other modes, but ensures context availability for the project
+    if (uiStore.activeTab === "latest") {
+      // AI : CRITICAL: Ensure city is selected before switching tab, otherwise panel shows "No location selected"
+      if (project.city) {
+        // AI : Manually set selected city (without side effects of loadCityProjects)
+        const mapStore = useMapStore();
+        mapStore.setSelectedCity({
+          id: project.city.id,
+          name: project.city.name,
+          nameLocal: project.city.nameLocal,
+          countryCode: project.city.countryCode,
+        });
+
+        // AI : Ensure data is loaded for the panel to work (overlays AND standalone projects)
+        // AI : We duplicate the fetch logic here to avoid:
+        // AI : 1. Circular dependencies with useViewportContentManager
+        // AI : 2. Side effects of loadCityProjects (closing popup)
+        // AI : 3. Incompleteness of loadCityDataForNavigation (misses standalone projects)
+        const mode = overlayStore.mode;
+
+        // AI : Fetch concurrently for performance
+        const promises = [];
+
+        if (!mapStore.hasCityProjectsCache(project.city.id, mode)) {
+          promises.push(
+            trpc.cities.getCityOverlaysAndProjects
+              .query({
+                cityId: project.city.id,
+                mode,
+              })
+              .then((data: any) => {
+                if (data) mapStore.setCityProjectsCache(project.city.id, mode, data);
+              }),
+          );
+        }
+
+        if (!mapStore.hasCityStandaloneProjectsCache(project.city.id, mode)) {
+          promises.push(
+            trpc.project.getCityProjects
+              .query({
+                cityId: project.city.id,
+                mode,
+                limit: 100,
+              })
+              .then((data: any) => {
+                if (data) mapStore.setCityStandaloneProjectsCache(project.city.id, mode, data);
+              }),
+          );
+        }
+
+        // AI : Wait for data to be ready so panel populates correctly
+        // AI : This is fast (cached or concurrent fetch) and ensures the accordion logic finds the project
+        Promise.all(promises).catch(console.error);
+      }
+      uiStore.setActiveTab("currentLocation");
+    }
+
     // AI : Close overlay popup if it's open (only one popup at a time)
     if (overlayStore.showInfoPopup) {
       overlayStore.hideInfoPopup();
@@ -283,9 +346,6 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
 
     // AI : Update marker opacities (make this one fully opaque)
     updateStandaloneProjectMarkerOpacities(marker);
-
-    // AI : Open or update project info popup (openProjectInfoPopup handles both cases)
-    uiStore.openProjectInfoPopup(project.id, project);
   });
 
   // AI : Store marker in map for easy lookup

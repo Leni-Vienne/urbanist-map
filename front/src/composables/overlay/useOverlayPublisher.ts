@@ -154,12 +154,16 @@ export function useOverlayPublisher() {
     status?: string;
     authorId?: string | null;
   }> {
+    if (!overlay.projectId) {
+      throw new Error("Cannot publish overlay: projectId is required");
+    }
+
     const corners = getCornersFromOverlay(overlay);
     const payload = {
       id: overlay.id,
       filename: filename,
       caption: overlay.caption ?? undefined,
-      projectId: overlay.projectId!,
+      projectId: overlay.projectId,
       replacesOverlayId: overlay.replacesOverlayId ?? undefined,
       corners: corners.map((c) => ({ lat: c.lat, lng: c.lng })),
     };

@@ -1,7 +1,7 @@
 import L from "leaflet";
 import { loadCityProjects } from "@/composables/map/useCityMarkers";
-import { navigateToOverlay } from "@/composables/overlay/useOverlay";
 import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
+import { loadCityDataForNavigation } from "@/composables/viewport/useViewportContentManager";
 import { loadCitiesForCountry, clearAllMapContent } from "@/composables/map/useCountryData";
 import { prepareCrossCountryFlight } from "@/composables/map/useTileLayers";
 import { map } from "@/composables/core/useMap";
@@ -34,7 +34,7 @@ async function prepareNavigationToCity(
     // AI : Only clear when switching from one DEFINED country to a DIFFERENT country
     // AI : Don't clear when selectedCountryCode is undefined (global city markers loaded)
     const isDifferentCountry =
-      mapStore.selectedCountryCode != null && mapStore.selectedCountryCode !== countryCode;
+      mapStore.selectedCountryCode !== null && mapStore.selectedCountryCode !== countryCode;
 
     // AI : Step 1: Prepare for cross-country flight (switches to esri if needed)
     switchToCountryLayer = prepareCrossCountryFlight(countryCode);
@@ -95,11 +95,11 @@ function zoomToOverlayAndSelect(
       // AI : Overlay object exists but Leaflet overlay not created - this shouldn't happen
       // AI : but if it does, we need to trigger a re-render
       console.warn(`Overlay ${overlayId} exists in store but has no Leaflet overlay`);
-    } else if (overlayObj?.overlay && !map.value?.hasLayer(overlayObj.overlay)) {
+    } else if (overlayObj?.overlay && map.value && !map.value.hasLayer(overlayObj.overlay)) {
       //  AI : Overlay exists but not on map - add it now that zoom is correct
-      const currentZoom = map.value?.getZoom() ?? 0;
+      const currentZoom = map.value.getZoom();
       if (currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
-        overlayObj.overlay.addTo(map.value!);
+        overlayObj.overlay.addTo(map.value);
       }
     }
 
@@ -143,7 +143,7 @@ function zoomToOverlayAndSelect(
  */
 function handleSameOverlayNavigation(overlayId: string): boolean {
   const corners = resolveOverlayCorners(overlayId);
-  if (corners != null) {
+  if (corners !== null) {
     zoomToOverlayAndSelect(overlayId, corners, null); // AI : Same overlay, no cross-country
   }
   return true;
@@ -180,7 +180,7 @@ export async function navigateToOverlayWithCity(
 
     if (isSameCity) {
       const corners = resolveOverlayCorners(overlayId);
-      if (corners != null) {
+      if (corners !== null) {
         return zoomToOverlayAndSelect(overlayId, corners, null, autoSelect); // AI : Same city, pass autoSelect
       }
       // AI : If null, fall through to different city path
@@ -193,8 +193,15 @@ export async function navigateToOverlayWithCity(
       return false;
     }
 
-    const overlayData = mapStore.currentCityOverlays.find((o) => o.id === overlayId);
-    if (overlayData?.corners != null) {
+    // AI : CRITICAL FIX: Use loadCityDataForNavigation to properly load city data
+    // AI : This uses the same rendering pipeline as viewport manager
+    // AI : forceFullOverlays=true because we're about to fly to high zoom
+    const overlaysData = await loadCityDataForNavigation(cityId, true);
+
+    // AI : Find the target overlay in the loaded data
+    const overlayData = overlaysData?.find((o) => o.id === overlayId);
+
+    if (overlayData !== undefined && overlayData.corners !== null) {
       return zoomToOverlayAndSelect(
         overlayId,
         overlayData.corners,
@@ -203,8 +210,8 @@ export async function navigateToOverlayWithCity(
       );
     }
 
-    // AI : Fallback: if overlay not in current city overlays, use the old method
-    return navigateToOverlay(overlayId, true, false);
+    // AI : If overlay still not found, return false
+    return false;
   } catch (error) {
     console.error("Failed to navigate to overlay with city:", error);
     throw error;
@@ -232,6 +239,11 @@ export async function navigateToStandaloneProject(
   try {
     // AI : Prepare navigation with cross-country flight support
     const switchToCountryLayer = await prepareNavigationToCity(cityId, cityName, countryCode);
+
+    // AI : CRITICAL FIX: Load city data to populate mapStore cache
+    // AI : This is needed for CurrentLocationPanel to display projects
+    // AI : Previously only overlays called this, causing standalone projects to not populate the panel
+    await loadCityDataForNavigation(cityId, true);
 
     // AI : Wait a bit for markers to be added to the map
     await new Promise((resolve) => setTimeout(resolve, 200));

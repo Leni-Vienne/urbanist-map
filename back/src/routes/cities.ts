@@ -285,18 +285,18 @@ export const citiesRouter = router({
 
         // AI : Group change requests by overlay ID for easy lookup
         const changeRequestsByOverlay = new Map<string, typeof changeRequestsData>();
-        changeRequestsData.forEach((cr) => {
+        for (const cr of changeRequestsData) {
           const existing = changeRequestsByOverlay.get(cr.entityId) ?? [];
           existing.push(cr);
           changeRequestsByOverlay.set(cr.entityId, existing);
-        });
+        }
 
         // AI : In moderation mode, count change requests per overlay
         let allChangeRequestCounts = new Map<string, number>();
         if (mode === "moderation") {
-          changeRequestsByOverlay.forEach((requests, overlayId) => {
+          for (const [overlayId, requests] of changeRequestsByOverlay) {
             allChangeRequestCounts.set(overlayId, requests.length);
-          });
+          }
         }
 
         const result: OverlayData[] = overlaysData.map((row) => {

@@ -69,7 +69,7 @@ export function useEditableFormBase<TFormData extends Record<string, any>>(
   function getChangesToSubmit(): FieldChange[] {
     const changes: FieldChange[] = [];
 
-    Object.keys(formData).forEach((key) => {
+    for (const key of Object.keys(formData)) {
       const fieldName = key as keyof TFormData;
       if (hasChanged(fieldName)) {
         changes.push({
@@ -79,7 +79,7 @@ export function useEditableFormBase<TFormData extends Record<string, any>>(
           changeReason: changeReason.value ?? undefined,
         });
       }
-    });
+    }
 
     return changes;
   }
