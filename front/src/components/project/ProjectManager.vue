@@ -21,7 +21,7 @@
   >
     <EditProjectForm
       v-if="projectEditForm.data"
-      :project="(projectEditForm.data as Project)"
+      :project="projectEditForm.data as Project"
       @close="uiStore.closeProjectEditForm"
       @submitted="uiStore.closeProjectEditForm"
     />
@@ -38,48 +38,66 @@
 </template>
 
 <script setup lang="ts">
-import { ref, defineAsyncComponent } from 'vue'
-import { storeToRefs } from 'pinia'
-import { useI18n } from 'vue-i18n'
-import L from 'leaflet'
-import { useOverlayStore } from '@/stores/pinia/overlayStore'
-import { useProjectStore } from '@/stores/pinia/projectStore'
-import { useUiStore } from '@/stores/uiStore'
-import { useToast } from '@/composables/ui/useToast'
-import { map } from '@/composables/core/useMap'
-import { loadCityProjects, updateStandaloneProjectMarkerColor, addSingleCityMarker, addCityMarkersForCountry } from '@/composables/map/useCityMarkers'
-import { createProjectInfoTeleportTarget } from '@/composables/map/useProjectPopupTeleport'
-import { getStandaloneProjectMarkerByProjectId } from '@/composables/map/useStandaloneProjectMarkers'
-import { loadCitiesForCountry, clearAllMapContent } from '@/composables/map/useCountryData'
-import { useMapStore } from '@/stores/pinia/mapStore'
-import { createStandaloneProjectIcon } from '@/composables/map/useMarkers'
-import { addOverlay } from '@/composables/overlay/useOverlay'
-import { createProject } from '@/composables/project/useProjects'
-import { createProjectObjectFromAPI, createProjectObject } from '../../utils/typeFactories'
-import { useCityProjects } from '@/composables/project/useProjectSelection'
-import type { Project, NearbyProject } from '@/types/index'
+import { ref, defineAsyncComponent } from "vue";
+import { storeToRefs } from "pinia";
+import { useI18n } from "vue-i18n";
+import L from "leaflet";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useUiStore } from "@/stores/uiStore";
+import { useToast } from "@/composables/ui/useToast";
+import { map } from "@/composables/core/useMap";
+import {
+  loadCityProjects,
+  updateStandaloneProjectMarkerColor,
+  addSingleCityMarker,
+  addCityMarkersForCountry,
+} from "@/composables/map/useCityMarkers";
+import { createProjectInfoTeleportTarget } from "@/composables/map/useProjectPopupTeleport";
+import {
+  getStandaloneProjectMarkerByProjectId,
+  addStandaloneProjectMarkerForProject,
+} from "@/composables/map/useStandaloneProjectMarkers";
+import { loadCitiesForCountry, clearAllMapContent } from "@/composables/map/useCountryData";
+import { useMapStore } from "@/stores/pinia/mapStore";
+import { createStandaloneProjectIcon } from "@/composables/map/useMarkers";
+import { addOverlay } from "@/composables/overlay/useOverlay";
+import { createProject } from "@/composables/project/useProjects";
+import { createProjectObjectFromAPI, createProjectObject } from "../../utils/typeFactories";
+import { useCityProjects } from "@/composables/project/useProjectSelection";
+import type { Project, NearbyProject } from "@/types/index";
 
-import MarkerPlacementBar from '@/components/map/MarkerPlacementBar.vue'
-const CreateProjectDialog = defineAsyncComponent(() => import('@/components/project/CreateProjectDialog.vue'))
-const EditProjectForm = defineAsyncComponent(() => import('@/components/forms/EditProjectForm.vue'))
+import MarkerPlacementBar from "@/components/map/MarkerPlacementBar.vue";
+const CreateProjectDialog = defineAsyncComponent(
+  () => import("@/components/project/CreateProjectDialog.vue"),
+);
+const EditProjectForm = defineAsyncComponent(
+  () => import("@/components/forms/EditProjectForm.vue"),
+);
 
-const overlayStore = useOverlayStore()
-const projectStore = useProjectStore()
-const mapStore = useMapStore()
-const uiStore = useUiStore()
-const toast = useToast()
-const { t: $t } = useI18n()
-const markerPlacementBar = ref()
-const tempMarker = ref<L.Marker | null>(null)
+const overlayStore = useOverlayStore();
+const projectStore = useProjectStore();
+const mapStore = useMapStore();
+const uiStore = useUiStore();
+const toast = useToast();
+const { t: $t } = useI18n();
+const markerPlacementBar = ref();
+const tempMarker = ref<L.Marker | null>(null);
 
-const { projects } = storeToRefs(projectStore)
-const { pendingImageFile, replacementOverlayId } = storeToRefs(overlayStore)
-const { projectEditForm } = storeToRefs(uiStore)
+const { projects } = storeToRefs(projectStore);
+const { pendingImageFile, replacementOverlayId } = storeToRefs(overlayStore);
+const { projectEditForm } = storeToRefs(uiStore);
 
 // AI : Helper to ensure city markers are properly set up for a project's city
 async function ensureCityMarkersForProject(
-  city: { id: number; name: string; nameLocal: string | null; countryCode: string; coordinates: { x: number; y: number } },
-  forceSetSelectedCity = false
+  city: {
+    id: number;
+    name: string;
+    nameLocal: string | null;
+    countryCode: string;
+    coordinates: { x: number; y: number };
+  },
+  forceSetSelectedCity = false,
 ): Promise<void> {
   const countryCode = city.countryCode;
 
@@ -89,8 +107,11 @@ async function ensureCityMarkersForProject(
   const isCountrySwitch = mapStore.selectedCountryCode !== countryCode;
 
   if (isCountrySwitch) {
-    // AI : Clear old map content and load new country
-    clearAllMapContent();
+    // AI : Clear old map content only if we are actually switching from another country
+    // AI : If selectedCountryCode is null (neutral state), don't wipe potentially visible viewport content
+    if (mapStore.selectedCountryCode) {
+      clearAllMapContent();
+    }
     mapStore.selectedCountryCode = countryCode;
     await loadCitiesForCountry(countryCode);
   }
@@ -101,7 +122,7 @@ async function ensureCityMarkersForProject(
       id: city.id,
       name: city.name,
       nameLocal: city.nameLocal,
-      countryCode: countryCode
+      countryCode: countryCode,
     });
   }
 
@@ -111,14 +132,17 @@ async function ensureCityMarkersForProject(
   // AI : (prepareCountryContext already adds markers, so only do this if we didn't switch countries)
   if (!isCountrySwitch) {
     // AI : First add single marker immediately (fast feedback) - mark as unsaved
-    addSingleCityMarker({
-      id: city.id,
-      name: city.name,
-      nameLocal: city.nameLocal,
-      lat: city.coordinates.y,
-      lng: city.coordinates.x,
-      countryCode: countryCode
-    }, true);
+    addSingleCityMarker(
+      {
+        id: city.id,
+        name: city.name,
+        nameLocal: city.nameLocal,
+        lat: city.coordinates.y,
+        lng: city.coordinates.x,
+        countryCode: countryCode,
+      },
+      true,
+    );
 
     // AI : Then load all cities for the country (unsaved marker will be preserved)
     await loadCitiesForCountry(countryCode);
@@ -132,14 +156,17 @@ async function ensureCityMarkersForProject(
     const country = projectStore.countries.find((c) => c.code === countryCode);
     const cityExistsInBackend = country?.cities.some((c) => c.id === city.id);
     if (!cityExistsInBackend) {
-      addSingleCityMarker({
-        id: city.id,
-        name: city.name,
-        nameLocal: city.nameLocal,
-        lat: city.coordinates.y,
-        lng: city.coordinates.x,
-        countryCode: countryCode
-      }, true);
+      addSingleCityMarker(
+        {
+          id: city.id,
+          name: city.name,
+          nameLocal: city.nameLocal,
+          lat: city.coordinates.y,
+          lng: city.coordinates.x,
+          countryCode: countryCode,
+        },
+        true,
+      );
     }
   }
 }
@@ -153,7 +180,7 @@ function findProjectFromReplacementOverlay(projectId: string): Project | null {
     return createProjectObject({
       ...originalOverlay.project,
       description: originalOverlay.project.description ?? null,
-      overlayIds: []
+      overlayIds: [],
     });
   }
 
@@ -171,7 +198,7 @@ function findProjectFromCityProjects(projectId: string): Project | null {
 async function findProjectFromNearbyProjects(projectId: string): Promise<Project | null> {
   if (!map.value) return null;
 
-  console.log('Fetching nearby projects to find project ID:', projectId);
+  console.log("Fetching nearby projects to find project ID:", projectId);
   const center = map.value.getCenter();
   const nearbyProjects = await projectStore.fetchNearbyProjects(center.lat, center.lng);
   const nearbyProject = nearbyProjects.find((p: NearbyProject) => p.id === projectId);
@@ -190,7 +217,7 @@ function addProjectToStore(projectId: string, project: Project): void {
 // AI : Process image after project selection
 async function onProjectSelected(projectId: string) {
   if (!projectId) {
-    console.warn('No project ID available for overlay');
+    console.warn("No project ID available for overlay");
     return;
   }
 
@@ -198,76 +225,81 @@ async function onProjectSelected(projectId: string) {
   if (!projects.value[projectId]) {
     try {
       // AI : Try multiple sources in order of preference
-      let projectToAdd = findProjectFromReplacementOverlay(projectId)
-        ?? findProjectFromCityProjects(projectId)
-        ?? await findProjectFromNearbyProjects(projectId);
+      let projectToAdd =
+        findProjectFromReplacementOverlay(projectId) ??
+        findProjectFromCityProjects(projectId) ??
+        (await findProjectFromNearbyProjects(projectId));
 
       if (projectToAdd) {
         addProjectToStore(projectId, projectToAdd);
       } else {
-        console.warn('Project not found in any source, overlay creation may not work properly');
+        console.warn("Project not found in any source, overlay creation may not work properly");
       }
     } catch (error) {
-      console.error('Error getting project for overlay:', error);
+      console.error("Error getting project for overlay:", error);
     }
   }
 
-  await handleFileUpload(projectId, Boolean(replacementOverlayId.value))
+  await handleFileUpload(projectId, Boolean(replacementOverlayId.value));
 }
 
 // AI : Handle file upload by user
 async function handleFileUpload(projectId: string, isReplacement = false) {
   if (!pendingImageFile.value) {
-    console.warn('No image file to upload')
+    console.warn("No image file to upload");
     toast.add({
-      severity: 'warn',
-      summary: $t('upload.noFileSelected'),
-      detail: $t('upload.selectImageFile'),
-      life: 3000
-    })
-    return
+      severity: "warn",
+      summary: $t("upload.noFileSelected"),
+      detail: $t("upload.selectImageFile"),
+      life: 3000,
+    });
+    return;
   }
 
-  const reader = new FileReader()
-  reader.addEventListener('load', async () => {
+  const reader = new FileReader();
+  reader.addEventListener("load", async () => {
     try {
       if (isReplacement && replacementOverlayId.value) {
         // AI : Create replacement overlay using the standard overlay creation process
-        const overlayId = addOverlay(reader.result as string, projectId, replacementOverlayId.value)
+        const overlayId = addOverlay(
+          reader.result as string,
+          projectId,
+          replacementOverlayId.value,
+        );
 
         if (overlayId) {
           toast.add({
-            severity: 'success',
-            summary: $t('toasts.replacementOverlayCreated'),
-            detail: $t('toasts.replacementOverlayDetail'),
-            life: 3000
-          })
+            severity: "success",
+            summary: $t("toasts.replacementOverlayCreated"),
+            detail: $t("toasts.replacementOverlayDetail"),
+            life: 3000,
+          });
         }
       } else {
         // AI : Regular overlay addition
-        addOverlay(reader.result as string, projectId)
+        addOverlay(reader.result as string, projectId);
         // AI : Don't show toast here - addOverlayToProjectWithId will show a more specific toast
       }
 
       // AI : Ensure city markers exist for this overlay's city
-      const project = projectStore.projects[projectId]
+      const project = projectStore.projects[projectId];
       if (project?.city) {
-        await ensureCityMarkersForProject(project.city)
+        await ensureCityMarkersForProject(project.city);
       }
     } catch (error) {
-      console.error('Error handling file upload:', error)
+      console.error("Error handling file upload:", error);
       toast.add({
-        severity: 'error',
-        summary: $t('replacementOverlay.uploadFailed'),
-        detail: $t('replacementOverlay.uploadFailedDetail'),
-        life: 3000
-      })
+        severity: "error",
+        summary: $t("replacementOverlay.uploadFailed"),
+        detail: $t("replacementOverlay.uploadFailedDetail"),
+        life: 3000,
+      });
     } finally {
       // AI : Reset state
-      overlayStore.resetReplacement()
+      overlayStore.resetReplacement();
     }
-  })
-  reader.readAsDataURL(pendingImageFile.value)
+  });
+  reader.readAsDataURL(pendingImageFile.value);
 }
 
 // AI : Handle marker coordinates selection from dialog
@@ -281,10 +313,9 @@ function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: number }) 
   // AI : All projects now have center coordinates (no isStandalone field)
   uiStore.openProjectDialog({
     lat: coordinates.lat,
-    lng: coordinates.lng
+    lng: coordinates.lng,
   });
 }
-
 
 // AI : Handle marker mode enabled - setup map click listener
 function onMarkerModeEnabled() {
@@ -301,7 +332,7 @@ function onMarkerModeEnabled() {
     }
 
     // AI : Create temporary marker using StandaloneProjectMarkerSVG in orange for visual feedback
-    const markerIcon = createStandaloneProjectIcon('orange');
+    const markerIcon = createStandaloneProjectIcon("orange");
     const mapValue = map.value;
     if (!mapValue) return;
 
@@ -316,9 +347,9 @@ function onMarkerModeEnabled() {
     }
 
     // AI : Keep listener active to allow repositioning - will be removed when dialog closes
-  };
+  }
 
-  map.value.on('click', handleMapClick);
+  map.value.on("click", handleMapClick);
 
   // AI : Store handler reference for cleanup
   (map.value as any)._tempMarkerClickHandler = handleMapClick;
@@ -335,18 +366,37 @@ function onDialogVisibilityChange(visible: boolean) {
 
     // AI : Remove click listener
     if (map.value && (map.value as any)._tempMarkerClickHandler) {
-      map.value.off('click', (map.value as any)._tempMarkerClickHandler);
+      map.value.off("click", (map.value as any)._tempMarkerClickHandler);
       (map.value as any)._tempMarkerClickHandler = null;
     }
   }
 }
 
 // AI : Display project marker on map and open its info popup
-async function displayProjectMarkerAndPopup(projectId: string, city: { id: number; name: string; nameLocal: string | null; countryCode: string; coordinates: { x: number; y: number } }) {
+async function displayProjectMarkerAndPopup(
+  projectId: string,
+  city: {
+    id: number;
+    name: string;
+    nameLocal: string | null;
+    countryCode: string;
+    coordinates: { x: number; y: number };
+  },
+) {
   await ensureCityMarkersForProject(city, true);
   await loadCityProjects(city.id, city.name, city.nameLocal, true, city.countryCode);
 
-  const actualMarker = getStandaloneProjectMarkerByProjectId(projectId);
+  let actualMarker = getStandaloneProjectMarkerByProjectId(projectId);
+
+  if (!actualMarker) {
+    // AI : Fallback: If marker wasn't created by viewport refresh (e.g. no camera move), create it manually
+    const project = projectStore.projects[projectId];
+    if (project) {
+      addStandaloneProjectMarkerForProject(project);
+      actualMarker = getStandaloneProjectMarkerByProjectId(projectId);
+    }
+  }
+
   if (actualMarker) {
     createProjectInfoTeleportTarget(actualMarker);
     if (overlayStore.showInfoPopup) {
@@ -361,53 +411,54 @@ async function handleNewProjectCreation(project: Partial<Project>): Promise<stri
   const projectId = createProject({
     ...project,
     isModified: true,
-  })
-  uiStore.setLastCreatedProject(projectId)
+  });
+  uiStore.setLastCreatedProject(projectId);
 
-  const hasNoOverlays = !project.overlayIds || project.overlayIds.length === 0
+  const hasNoOverlays = !project.overlayIds || project.overlayIds.length === 0;
   if (hasNoOverlays && project.lat && project.lng && project.city) {
     await displayProjectMarkerAndPopup(projectId, project.city);
     toast.add({
-      severity: 'success',
-      summary: $t('common.success'),
-      detail: $t('toasts.standaloneProjectSuccess'),
-      life: 3000
+      severity: "success",
+      summary: $t("common.success"),
+      detail: $t("toasts.standaloneProjectSuccess"),
+      life: 3000,
     });
   }
 
-  return projectId
+  return projectId;
 }
 
 // AI : Handle existing project update
 function handleProjectUpdate(project: Partial<Project>): string {
   const projectId = project.id;
   if (!projectId) {
-    console.warn('Project ID is undefined in handleProjectUpdate');
-    return '';
+    console.warn("Project ID is undefined in handleProjectUpdate");
+    return "";
   }
 
   if (projects.value[projectId]) {
     projectStore.updateProject(projectId, {
       ...project,
       overlayIds: projects.value[projectId].overlayIds || [],
-      isModified: true
+      isModified: true,
     });
 
-    const hasNoOverlays = !projects.value[projectId].overlayIds || projects.value[projectId].overlayIds.length === 0
+    const hasNoOverlays =
+      !projects.value[projectId].overlayIds || projects.value[projectId].overlayIds.length === 0;
     if (hasNoOverlays) {
       updateStandaloneProjectMarkerColor(projectId, projects.value[projectId]);
     }
 
     toast.add({
-      severity: 'success',
-      summary: $t('toasts.projectUpdateSuccess'),
-      detail: $t('toasts.projectUpdateDetail'),
-      life: 3000
+      severity: "success",
+      summary: $t("toasts.projectUpdateSuccess"),
+      detail: $t("toasts.projectUpdateDetail"),
+      life: 3000,
     });
   }
 
   uiStore.setLastCreatedProject(projectId);
-  return projectId
+  return projectId;
 }
 
 // AI : Handle project creation/update from dialog
@@ -415,7 +466,7 @@ async function handleProjectSubmitted(project: Partial<Project>) {
   if (!project) return;
 
   try {
-    uiStore.closeProjectDialog()
+    uiStore.closeProjectDialog();
 
     const projectId = project.id
       ? handleProjectUpdate(project)
@@ -425,14 +476,14 @@ async function handleProjectSubmitted(project: Partial<Project>) {
       await onProjectSelected(projectId);
     }
   } catch (error) {
-    console.error('Error with project:', error);
+    console.error("Error with project:", error);
     toast.add({
-      severity: 'error',
-      summary: project.id ? $t('toasts.projectUpdateFailed') : $t('toasts.projectCreationFailed'),
+      severity: "error",
+      summary: project.id ? $t("toasts.projectUpdateFailed") : $t("toasts.projectCreationFailed"),
       detail: project.id
-        ? $t('toasts.projectUpdateFailedDetail')
-        : $t('toasts.projectCreationFailedDetail'),
-      life: 3000
+        ? $t("toasts.projectUpdateFailedDetail")
+        : $t("toasts.projectCreationFailedDetail"),
+      life: 3000,
     });
   }
 }

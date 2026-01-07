@@ -4,6 +4,7 @@ import { ref, watch } from "vue";
 import { map } from "@/composables/core/useMap";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
+import { useProjectStore } from "@/stores/pinia/projectStore";
 import { trpc } from "@/client";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
@@ -292,7 +293,27 @@ export function useViewportContentManager() {
         }
       }
 
-      if (!allProjects) return;
+      // AI : Create a working copy to avoid mutating cache
+      const projectsToRender = allProjects ? [...allProjects] : [];
+
+      // AI : In edit mode, include local pending projects from store
+      // AI : In edit mode, include local pending projects from store
+      if (mode === "edit") {
+        const projectStore = useProjectStore();
+        const localProjects = Object.values(projectStore.projects).filter(
+          (p) => p.city?.id === cityId && p.status === null,
+        );
+
+        for (const localP of localProjects) {
+          // AI : Check if project is already explicitly in the list
+          if (!projectsToRender.find((p) => p.id === localP.id)) {
+            // AI : Cast to any to bypass strict backend/frontend type mismatch if any
+            projectsToRender.push(localP as any);
+          }
+        }
+      }
+
+      if (projectsToRender.length === 0) return;
 
       // AI : Get project IDs that have overlays
       const projectIdsWithOverlays = new Set<string>();
@@ -303,8 +324,12 @@ export function useViewportContentManager() {
       }
 
       // AI : Create standalone markers for projects without any visible overlays
-      for (const project of allProjects) {
-        if (!projectIdsWithOverlays.has(project.id) && project.overlayCount === 0) {
+      for (const project of projectsToRender) {
+        // AI : Check overlay count safely (backend uses overlayCount, frontend uses overlayIds.length)
+        const overlayCount =
+          (project as any).overlayCount ?? (project as any).overlayIds?.length ?? 0;
+
+        if (!projectIdsWithOverlays.has(project.id) && overlayCount === 0) {
           addStandaloneProjectMarkerForProject(project as any);
         }
       }
@@ -474,6 +499,10 @@ export function useViewportContentManager() {
           return;
         }
 
+        // AI : Clear all standalone project markers on mode switch
+        // AI : They might be invalid in the new mode (e.g., local projects in view mode) as they are not store-managed
+        clearAllStandaloneProjectMarkers();
+
         // AI : Update existing overlay marker colors (Timeline vs Approval status)
         updateMarkerColorsForMode();
 
@@ -488,6 +517,7 @@ export function useViewportContentManager() {
         // AI : So we need to reload when switching between ANY modes to get correct data
         const isModerationTransition = oldMode === "moderation" || newMode === "moderation";
         const hasLoadedOverlays = Object.keys(overlayStore.overlays).length > 0;
+        const hasLoadedContent = loadedCityIds.value.size > 0;
 
         // AI : CRITICAL: When switching TO view mode, remove local-only overlays first
         // AI : Local-only overlays (status === null) should NOT be visible in view mode
@@ -499,9 +529,8 @@ export function useViewportContentManager() {
           }
         }
 
-        // AI : Always reload when involving moderation mode or when we have overlays
-        // AI : (to refresh with correct permissions), but skip if no overlays loaded yet
-        if (isModerationTransition || hasLoadedOverlays) {
+        // AI : Always reload when involving moderation mode or when we have content loaded
+        if (isModerationTransition || hasLoadedOverlays || hasLoadedContent) {
           // AI : Don't clear overlays immediately - let them stay visible while loading
           // AI : Only clear the city tracking so we re-fetch with new mode
           loadedCityIds.value.clear();
