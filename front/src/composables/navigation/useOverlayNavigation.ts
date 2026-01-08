@@ -179,11 +179,19 @@ export async function navigateToOverlayWithCity(
     const isSameCity = currentCity?.id === cityId;
 
     if (isSameCity) {
-      const corners = resolveOverlayCorners(overlayId);
-      if (corners !== null) {
-        return zoomToOverlayAndSelect(overlayId, corners, null, autoSelect); // AI : Same city, pass autoSelect
+      // AI : Additional check: verify overlay is actually rendered, not just cached
+      // AI : City data is cleared when zooming out below threshold, so we need to check
+      // AI : if the Leaflet overlay exists before using the quick path
+      const overlayObj = overlayStore.overlays[overlayId];
+      const isOverlayRendered = overlayObj?.overlay !== null && overlayObj?.overlay !== undefined;
+
+      if (isOverlayRendered) {
+        const corners = resolveOverlayCorners(overlayId);
+        if (corners !== null) {
+          return zoomToOverlayAndSelect(overlayId, corners, null, autoSelect); // AI : Same city, pass autoSelect
+        }
       }
-      // AI : If null, fall through to different city path
+      // AI : Overlay not rendered (cleared on unzoom), fall through to reload city data
     }
 
     // AI : Different city - load everything with cross-country flight support
