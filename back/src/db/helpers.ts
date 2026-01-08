@@ -1,6 +1,6 @@
 import { sql, eq, and, inArray, type SQL } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import { db } from "../database";
 import {
   projects,
@@ -141,7 +141,7 @@ export const overlaySelectFields = {
  * AI : Build overlay query with full location joins (overlay -> project -> city -> country)
  * AI : Returns chainable query that can be extended with .where(), .orderBy(), .limit()
  */
-export function buildOverlayQuery(db: PostgresJsDatabase<typeof schema>) {
+export function buildOverlayQuery(db: BunSQLDatabase<typeof schema>) {
   return db
     .select(overlaySelectFields)
     .from(overlays)
@@ -154,7 +154,7 @@ export function buildOverlayQuery(db: PostgresJsDatabase<typeof schema>) {
  * AI : Build project query with city and country location data
  * AI : Returns chainable query that can be extended with .where(), .orderBy(), .limit()
  */
-export function buildProjectWithLocationQuery(db: PostgresJsDatabase<typeof schema>) {
+export function buildProjectWithLocationQuery(db: BunSQLDatabase<typeof schema>) {
   return db
     .select({
       id: projects.id,
@@ -187,7 +187,7 @@ export function buildProjectWithLocationQuery(db: PostgresJsDatabase<typeof sche
  * AI : Build overlay query with minimal fields for moderation lists
  * AI : Includes location data but not full geometry extraction
  */
-export function buildOverlayModerationQuery(db: PostgresJsDatabase<typeof schema>) {
+export function buildOverlayModerationQuery(db: BunSQLDatabase<typeof schema>) {
   return db
     .select({
       id: overlays.id,
@@ -218,7 +218,7 @@ export function buildOverlayModerationQuery(db: PostgresJsDatabase<typeof schema
 /**
  * AI : Build project query with minimal fields for moderation lists
  */
-export function buildProjectModerationQuery(db: PostgresJsDatabase<typeof schema>) {
+export function buildProjectModerationQuery(db: BunSQLDatabase<typeof schema>) {
   return db
     .select({
       id: projects.id,
@@ -431,7 +431,7 @@ export type UserContext =
 
 // AI : Fetch overlay IDs where user has pending change requests
 export async function getUserOverlayChangeRequestIds(
-  db: PostgresJsDatabase<typeof schema>,
+  db: BunSQLDatabase<typeof schema>,
   userId: string,
 ): Promise<string[]> {
   const changeRequestResults = await db

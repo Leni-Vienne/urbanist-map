@@ -50,6 +50,8 @@ services:
       R2_BUCKET_NAME: ${R2_BUCKET_NAME}
       ALERT_EMAIL: ${ALERT_EMAIL}
       TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY}
+      # AI : Project name for environment identification in error alerts
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}
     volumes:
       - ./server.bundle.js:/app/server.bundle.js:ro
       - ./back/src/email:/app/email:ro

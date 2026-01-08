@@ -605,7 +605,8 @@
   "upload": {
     "noFileSelected": "No file selected",
     "selectImageFile": "Please select an image file to upload",
-    "pdfConversion": "If you want to upload an image that comes from a PDF, please use programs like TokenTool for the best possible quality."
+    "pdfConversion": "If you want to upload an image that comes from a PDF, please use programs like TokenTool for the best possible quality.",
+    "fileTooLarge": "File is too large. Maximum size is {maxSize}MB."
   },
   "imageUpload": {
     "dialogTitle": "Add Image to Project",
