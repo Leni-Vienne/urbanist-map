@@ -1,11 +1,11 @@
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
+import { drizzle } from "drizzle-orm/bun-sql";
+import { SQL } from "bun";
 import { config } from "./config";
 import * as schema from "./db/schema";
 
 // AI : Connection pool configuration for production
 // AI : postgres-js handles pooling automatically, but we configure limits
-const client = postgres(config.DATABASE_URL, {
+const client = new SQL(config.DATABASE_URL, {
   // AI : Maximum number of connections in pool (default: 10)
   // AI : For VPS with 2-4 CPU cores, 10-20 is optimal
   // AI : Formula: (CPU cores * 2) + effective_spindle_count
@@ -19,13 +19,7 @@ const client = postgres(config.DATABASE_URL, {
 
   // AI : Use prepared statements for better performance (cache query plans)
   prepare: true,
-
-  // AI : Send keep-alive packet every 60 seconds to prevent connection drops
-  keep_alive: 60_000,
-
-  // AI : Log connection pool size in development
-  onnotice: process.env.NODE_ENV === "development" ? console.log : undefined,
 });
 
-export const db = drizzle(client, { schema });
+export const db = drizzle({ client, schema });
 export type Database = typeof db;

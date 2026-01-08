@@ -42,6 +42,66 @@ export async function generateThumbnail(buffer: ArrayBuffer): Promise<ArrayBuffe
   return thumbnailBuffer.buffer as ArrayBuffer;
 }
 
+// AI : Smart image compression result type
+export interface CompressionResult {
+  buffer: ArrayBuffer;
+  extension: string;
+  wasCompressed: boolean;
+  originalSize: number;
+  finalSize: number;
+}
+
+// AI : Smart image compression function
+// AI : Converts to WebP at quality 90 to minimize generation loss on already-compressed images
+// AI : If WebP result is larger than original (e.g., well-optimized JPEG), keeps original
+// AI : This prevents double-compression artifacts while still capturing easy wins on unoptimized uploads
+// AI : Also compresses WebP files since lossless WebP can be quite large
+export async function compressImage(
+  buffer: ArrayBuffer,
+  originalExtension: string,
+): Promise<CompressionResult> {
+  const originalSize = buffer.byteLength;
+  const ext = originalExtension.toLowerCase();
+
+  try {
+    // AI : Convert to lossy WebP at quality 90 (high quality to minimize artifacts from re-encoding)
+    // AI : This also handles lossless WebP → lossy WebP conversion for size savings
+    const webpBuffer = await sharp(Buffer.from(buffer)).webp({ quality: 90 }).toBuffer();
+
+    const webpSize = webpBuffer.byteLength;
+
+    // AI : Only use WebP if it's actually smaller (prevents quality loss with no size benefit)
+    if (webpSize < originalSize) {
+      return {
+        buffer: webpBuffer.buffer as ArrayBuffer,
+        extension: "webp",
+        wasCompressed: true,
+        originalSize,
+        finalSize: webpSize,
+      };
+    }
+
+    // AI : Compressed version was larger - keep original format
+    return {
+      buffer,
+      extension: ext,
+      wasCompressed: false,
+      originalSize,
+      finalSize: originalSize,
+    };
+  } catch (error) {
+    // AI : If compression fails, return original unchanged
+    console.error("Image compression failed, keeping original:", error);
+    return {
+      buffer,
+      extension: ext,
+      wasCompressed: false,
+      originalSize,
+      finalSize: originalSize,
+    };
+  }
+}
+
 // AI : Local filesystem storage implementation for development
 export class LocalFileStorage implements StorageInterface {
   async put(

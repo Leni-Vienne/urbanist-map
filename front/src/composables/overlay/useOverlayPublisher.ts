@@ -114,6 +114,13 @@ export function useOverlayPublisher() {
       const response = await fetch(overlay.imageUrl);
       const blob = await response.blob();
 
+      // AI : Validate file size before upload (10MB limit matches backend)
+      const MAX_FILE_SIZE_MB = 10;
+      const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+      if (blob.size > MAX_FILE_SIZE_BYTES) {
+        throw new Error(t("upload.fileTooLarge", { maxSize: MAX_FILE_SIZE_MB }));
+      }
+
       // AI : Create a File object with proper name and type
       const file = new File([blob], "overlay-image.webp", { type: blob.type || "image/webp" });
 
