@@ -605,7 +605,8 @@
   "upload": {
     "noFileSelected": "Aucun fichier sélectionné",
     "selectImageFile": "Veuillez sélectionner un fichier image à télécharger",
-    "pdfConversion": "Si vous souhaitez télécharger une image provenant d'un PDF, veuillez utiliser des programmes comme TokenTool pour la meilleure qualité possible."
+    "pdfConversion": "Si vous souhaitez télécharger une image provenant d'un PDF, veuillez utiliser des programmes comme TokenTool pour la meilleure qualité possible.",
+    "fileTooLarge": "Le fichier est trop volumineux. La taille maximale est de {maxSize} Mo."
   },
   "imageUpload": {
     "dialogTitle": "Ajouter une image au projet",

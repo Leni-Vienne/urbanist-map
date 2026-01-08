@@ -6,7 +6,7 @@ import { sessionMiddleware, type Session } from "hono-sessions";
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod'
 import { secureHeaders } from "hono/secure-headers";
 import { appRouter } from "./routes";
-import { LocalFileStorage, getThumbnailFilename } from "./lib/storage";
+import { LocalFileStorage, getThumbnailFilename, compressImage } from "./lib/storage";
 import type { FileUploadResult, FileUploadError } from "./lib/types";
 import { config } from "./config";
 import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
@@ -541,6 +541,7 @@ app.post("/api/upload-image", async (c) => {
     const file = body.get("image");
 
     if (!(file instanceof File)) {
+      logger.warn({ fileType: typeof file }, "Upload failed: No file provided");
       return c.json({ error: "No file provided" } as FileUploadError, 400);
     }
 
@@ -553,6 +554,10 @@ app.post("/api/upload-image", async (c) => {
 
     if (!validationResult.success) {
       const errorMessage = validationResult.error.issues.map((err) => err.message).join(", ");
+      logger.warn(
+        { fileName: file.name, fileType: file.type, fileSize: file.size, errors: errorMessage },
+        "Upload failed: Zod validation error",
+      );
       return c.json({ error: errorMessage } as FileUploadError, 400);
     }
 
@@ -565,17 +570,47 @@ app.post("/api/upload-image", async (c) => {
 
     // AI : Ensure we have a valid extension (this should not fail due to Zod validation)
     if (!fileExtension) {
+      logger.warn({ fileName: file.name }, "Upload failed: Invalid file extension");
       return c.json({ error: "Invalid file extension" } as FileUploadError, 400);
     }
 
+    const originalBuffer = await file.arrayBuffer();
+
+    // AI : Smart compression: convert to WebP at quality 90, but keep original if it's smaller
+    // AI : This prevents double-compression artifacts on already-optimized images
+    const compressionResult = await compressImage(originalBuffer, fileExtension);
+
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(2, 15);
-    const filename = `${timestamp}-${randomString}.${fileExtension}`;
+    const filename = `${timestamp}-${randomString}.${compressionResult.extension}`;
 
-    const buffer = await file.arrayBuffer();
+    // AI : Log compression results for monitoring (structured logging for Grafana)
+    const savings = compressionResult.originalSize - compressionResult.finalSize;
+    const savingsPercent =
+      compressionResult.originalSize > 0
+        ? ((savings / compressionResult.originalSize) * 100).toFixed(1)
+        : "0";
+
+    logger.info(
+      {
+        event: "image_compression",
+        originalName: file.name,
+        originalFormat: fileExtension,
+        finalFormat: compressionResult.extension,
+        originalSize: compressionResult.originalSize,
+        finalSize: compressionResult.finalSize,
+        savedBytes: savings,
+        savingsPercent: Number.parseFloat(savingsPercent),
+        wasCompressed: compressionResult.wasCompressed,
+      },
+      compressionResult.wasCompressed
+        ? `Image compressed: ${file.name} (${fileExtension}) → WebP, saved ${(savings / 1024).toFixed(1)}KB (${savingsPercent}%)`
+        : `Image kept original: ${file.name} (${compressionResult.extension}), compressed version was not smaller`,
+    );
+
     // AI : Save to local storage - images are not uploaded to R2 until moderator approval
     // AI : LocalFileStorage.put also automatically generates 120x120 thumbnail
-    await storage.put(filename, buffer);
+    await storage.put(filename, compressionResult.buffer);
 
     // AI : Always return local URL - images stay in local storage until approved
     const imageUrl = `/uploads/${filename}`;
