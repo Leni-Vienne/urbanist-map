@@ -2,6 +2,15 @@ import type { Context, Next } from "hono";
 import { logger } from "../services/logger";
 import { errorAlerter } from "../services/errorAlerter";
 
+// AI : Only alert on errors from routes that the app actually serves
+// AI : This is a proper allowlist approach - anything not matching is a bot probe
+const ALERTABLE_PATH_PREFIXES = ["/api/", "/trpc/", "/uploads/"];
+
+// AI : Check if a path is from a route we actually serve (and thus worth alerting on)
+function shouldAlertOnPath(path: string): boolean {
+  return ALERTABLE_PATH_PREFIXES.some((prefix) => path.startsWith(prefix));
+}
+
 // AI : Extract Cloudflare headers from request
 function getCloudflareHeaders(c: Context) {
   return {
@@ -73,8 +82,8 @@ export async function requestLogger(c: Context, next: Next) {
       userId,
     });
 
-    // AI : Track errors for alerting (4xx and 5xx)
-    if (status >= 400) {
+    // AI : Track errors for alerting (4xx and 5xx), but only for routes we serve
+    if (status >= 400 && shouldAlertOnPath(path)) {
       errorAlerter.addError({
         timestamp: Date.now(),
         method,
@@ -100,15 +109,17 @@ export async function requestLogger(c: Context, next: Next) {
       error: error instanceof Error ? error.message : String(error),
     });
 
-    // AI : Track error for alerting
-    errorAlerter.addError({
-      timestamp: Date.now(),
-      method,
-      path,
-      status,
-      message: error instanceof Error ? error.message : String(error),
-      ip,
-    });
+    // AI : Track error for alerting, but only for routes we serve
+    if (shouldAlertOnPath(path)) {
+      errorAlerter.addError({
+        timestamp: Date.now(),
+        method,
+        path,
+        status,
+        message: error instanceof Error ? error.message : String(error),
+        ip,
+      });
+    }
 
     throw error;
   }

@@ -4,7 +4,7 @@ import { overlays, projects, cities, countries, type ApprovalStatus } from "../d
 import type * as schema from "../db/schema";
 import { sql, eq, and } from "drizzle-orm";
 import { db } from "../database";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import { buildOverlayQuery, buildOverlayVisibilityCondition, isUserBlocked } from "../db/helpers";
 import type { MapMode } from "@shared/types";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
@@ -44,7 +44,7 @@ const updateOverlaySchema = z.object({
 
 // AI : Find overlays that intersect with a given overlay using PostGIS spatial queries
 async function findIntersectingOverlays(
-  db: PostgresJsDatabase<typeof schema>,
+  db: BunSQLDatabase<typeof schema>,
   excludeId: string,
   targetOverlay: { corners: { lat: number; lng: number }[] },
 ) {

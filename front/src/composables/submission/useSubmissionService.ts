@@ -8,6 +8,7 @@ import {
   updateStandaloneProjectMarkerColor,
 } from "@/composables/map/useCityMarkers";
 import { updateMarkerTooltip } from "@/composables/overlay/useOverlayMarkers";
+import { getFromEditModeOverlayCache } from "@/composables/overlay/useOverlayPositionManagement";
 import type { Project, OverlayObject, OverlayData } from "@/types/index";
 import {
   projectSchema,
@@ -230,17 +231,24 @@ export function useSubmissionService() {
   }
 
   // AI : Detect all changes for an overlay entity
-  function detectOverlayChanges(overlay: OverlayObject, customReason?: string): FieldChange[] {
-    const changes: FieldChange[] = [];
-
+  function findOriginalOverlay(overlay: OverlayObject): OverlayData | undefined {
     // AI : Find original overlay data from backend cache (must use cache to get corners!)
     // AI : currentCityOverlays doesn't have corners, we need to fetch from the city cache
     let originalOverlay: OverlayData | undefined;
 
     // AI : Get cityId from the overlay's project
     const cityId = overlay.project?.cityId;
+
     if (cityId) {
-      const cachedOverlays = mapStore.getCityOverlaysAndProjectsCache(cityId, "view");
+      // AI : Try view mode cache first (contains original backend data)
+      let cachedOverlays = mapStore.getCityOverlaysAndProjectsCache(cityId, "view");
+
+      // AI : If view cache is empty, try edit mode cache (also contains backend data)
+      // AI : This handles the case where user clicked city marker directly instead of zooming
+      if (!cachedOverlays || cachedOverlays.length === 0) {
+        cachedOverlays = mapStore.getCityOverlaysAndProjectsCache(cityId, "edit");
+      }
+
       originalOverlay = cachedOverlays?.find((o) => o.id === overlay.id);
     }
 
@@ -254,12 +262,24 @@ export function useSubmissionService() {
       if (overlayFromContributions) {
         // AI : Convert to the format we need for comparison
         // AI : Don't set corners - will use fallback in comparison logic below
+        // AI : IMPORTANT: overlayFromContributions.name may be "Unnamed" if caption was null
+        // AI : which is just a display value, not an actual caption
+        const captionFromContributions = overlayFromContributions.name;
         originalOverlay = {
           id: overlayFromContributions.id,
-          caption: overlayFromContributions.name,
+          // AI : Treat "Unnamed" as empty caption since it's a display placeholder
+          caption: captionFromContributions === "Unnamed" ? null : captionFromContributions,
         } as any; // AI : Minimal overlay type for comparison
       }
     }
+
+    return originalOverlay;
+  }
+
+  function detectOverlayChanges(overlay: OverlayObject, customReason?: string): FieldChange[] {
+    const changes: FieldChange[] = [];
+
+    const originalOverlay = findOriginalOverlay(overlay);
 
     if (!originalOverlay) {
       // AI : If no original found, this is a new overlay or we can't detect changes
@@ -267,6 +287,7 @@ export function useSubmissionService() {
     }
 
     // AI : Check caption change (don't normalize to null - database requires non-null new_value)
+    // AI : Normalize: treat null, undefined, empty string, and "Unnamed" display value as equivalent
     const oldCaption = originalOverlay.caption ?? "";
     const newCaption = overlay.caption ?? "";
 
@@ -279,10 +300,26 @@ export function useSubmissionService() {
       });
     }
 
-    // AI : Check corner positions (use current Leaflet corners if available)
-    const currentCorners = overlay.overlay
-      ? overlay.overlay.getCorners().map((c) => ({ lat: c.lat, lng: c.lng }))
-      : overlay.corners;
+    // AI : Check corner positions - CRITICAL: Prioritize edit mode cache for current corners
+    // AI : Priority order for current corners:
+    // AI : 1. Edit mode cache (contains user's most recent position, even if zoomed out)
+    // AI : 2. Leaflet overlay (if actively loaded in the map)
+    // AI : 3. overlay.corners (fallback, but may be stale/original)
+    let currentCorners: { lat: number; lng: number }[];
+
+    const editModeCache = getFromEditModeOverlayCache(overlay.id);
+
+    if (editModeCache?.corners?.length === 4) {
+      // AI : Use cached corners (user's most recent position in edit mode)
+      // AI : No need to check isModified - the comparison will determine if changed
+      currentCorners = editModeCache.corners;
+    } else if (overlay.overlay) {
+      // AI : Use Leaflet overlay corners if currently loaded
+      currentCorners = overlay.overlay.getCorners().map((c) => ({ lat: c.lat, lng: c.lng }));
+    } else {
+      // AI : Fallback to stored corners
+      currentCorners = overlay.corners;
+    }
 
     const normalizedCurrentCorners = currentCorners.map((c) => ({ lat: c.lat, lng: c.lng }));
 

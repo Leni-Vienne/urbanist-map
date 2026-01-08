@@ -1513,7 +1513,10 @@ export const customDeleteTool = L.Toolbar2.Action.extend({
 
     await withErrorHandling(
       async () => {
-        const success = await deleteOverlayDirect(overlayId);
+        const success = await deleteOverlayDirect(overlayId, {
+          updateUserContributions: true,
+          clearCityCaches: true,
+        });
 
         if (success) {
           overlayStore.idSelectedOverlay = null;

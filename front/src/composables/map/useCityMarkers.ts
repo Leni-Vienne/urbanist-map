@@ -80,15 +80,10 @@ function initializeModeWatcher() {
         }
 
         // AI : Re-render all city markers with merged data
-        const mapStore = useMapStore();
-        if (mapStore.selectedCountryCode) {
-          const countryCities = citiesWithProjects.value.filter(
-            (c) => c.countryCode === mapStore.selectedCountryCode,
-          );
-          addCityMarkersForCountry(countryCities, mapStore.selectedCountryCode);
-        } else {
-          addCityMarkersToMapInternal(citiesWithProjects.value);
-        }
+        // AI : CRITICAL FIX: Mode watcher should ALWAYS render all cities, not filter by selectedCountryCode
+        // AI : Country filtering should only happen when explicitly navigating to a country (via addCityMarkersForCountry)
+        // AI : The mode watcher's job is to refresh city data for the new mode, not to apply country filters
+        addCityMarkersToMapInternal(citiesWithProjects.value);
       } catch (error) {
         console.error("Error reloading city markers on mode change:", error);
       }

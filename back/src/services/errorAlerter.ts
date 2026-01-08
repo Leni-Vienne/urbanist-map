@@ -51,6 +51,10 @@ class ErrorAlerter {
         return;
       }
 
+      // AI : Get environment name for identification in alerts
+      // AI : Uses COMPOSE_PROJECT_NAME which is already set per-environment (e.g., construction-map-prod, construction-map-preview)
+      const envName = process.env.COMPOSE_PROJECT_NAME ?? process.env.NODE_ENV ?? "unknown";
+
       // AI : Group errors by path for summary
       const errorsByPath: Record<string, number> = {};
       for (const error of recentErrors) {
@@ -87,11 +91,12 @@ class ErrorAlerter {
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
   <div style="background-color: #f44336; color: white; padding: 20px; border-radius: 5px;">
-    <h1 style="margin: 0;">⚠️ Error Alert</h1>
+    <h1 style="margin: 0;">⚠️ Error Alert - ${envName.toUpperCase()}</h1>
   </div>
   
   <div style="background-color: #f9f9f9; padding: 20px; margin-top: 20px; border-radius: 5px;">
     <h2 style="color: #f44336; margin-top: 0;">Error Threshold Exceeded</h2>
+    <p><strong>Environment:</strong> ${envName}</p>
     <p><strong>${recentErrors.length} errors</strong> detected in the last <strong>5 minutes</strong>.</p>
     
     <h3>Errors by Endpoint:</h3>
@@ -122,7 +127,7 @@ class ErrorAlerter {
   
   <div style="margin-top: 20px; padding: 20px; background-color: #f0f0f0; border-radius: 5px;">
     <p style="margin: 0; font-size: 12px; color: #666;">
-      This is an automated alert from Construction Map. To stop receiving these alerts, update the ALERT_EMAIL environment variable.
+      This is an automated alert from Construction Map (${envName}). To stop receiving these alerts, update the ALERT_EMAIL environment variable.
     </p>
   </div>
 </body>
@@ -132,7 +137,7 @@ class ErrorAlerter {
       const emailService = getEmailService();
       await emailService.sendEmail(
         alertEmail,
-        `[Construction Map] Error Alert - ${recentErrors.length} errors detected`,
+        `[Construction Map] [${envName.toUpperCase()}] Error Alert - ${recentErrors.length} errors detected`,
         html,
       );
 
