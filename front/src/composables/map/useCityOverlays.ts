@@ -32,6 +32,8 @@ export function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void 
 
   // AI : Add simple markers for each visible overlay location
   for (const overlay of visibleOverlays) {
+    // AI : Skip replaced overlays - they would overlap with their replacement at the same location
+    if (overlay.status === "replaced") continue;
     // AI : Use unified position resolver
     const overlayStore = useOverlayStore();
     const resolved = resolveOverlayPosition(overlay.id, overlay, overlayStore.mode);
