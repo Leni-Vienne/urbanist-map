@@ -188,13 +188,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       // AI : Add to projects store (updateProject handles creating new entries)
       projectStore.updateProject(options.entityId, projectFromContribution);
     }
-
-    toast.add({
-      severity: "info",
-      summary: t("submission.changesSaved"),
-      detail: t("actions.saveChangesLocally"),
-      life: 4000,
-    });
   }
 
   // AI : Handle pending project updates

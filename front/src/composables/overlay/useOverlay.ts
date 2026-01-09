@@ -1552,12 +1552,20 @@ export const replaceOverlayTool = L.Toolbar2.Action.extend({
       return;
     }
 
+    // AI : Get the selected overlay to find its project
+    const selectedOverlay = overlayStore.overlays[overlayStore.idSelectedOverlay];
+    if (!selectedOverlay?.projectId) {
+      console.warn("Cannot replace overlay: no project ID found");
+      return;
+    }
+
     // AI : Set replacement overlay ID in overlayStore
     overlayStore.requestOverlayReplacement(overlayStore.idSelectedOverlay);
 
-    // AI : Open the marker placement bar via uiStore
+    // AI : Open image upload dialog directly with the overlay's project
+    // AI : The ImageUploadDialog will check for replacementOverlayId and handle accordingly
     const uiStore = useUiStore();
-    uiStore.openMarkerPlacementBar();
+    uiStore.openImageUploadDialog(selectedOverlay.projectId);
   },
 });
 

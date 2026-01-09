@@ -26,7 +26,7 @@
               class="w-full p-3"
               autocomplete="off"
             />
-            <label for="overlay-name-input" class="text-gray-600">{{ $t('common.name') }}</label>
+            <label for="overlay-name-input" class="text-gray-600">{{ $t("common.name") }}</label>
           </FloatLabel>
         </div>
       </div>
@@ -49,14 +49,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import { useToast } from '@/composables/ui/useToast';
-import { useI18n } from 'vue-i18n';
-import { updateOverlayInfo } from '@/composables/overlay/useOverlay';
-import { useUiStore } from '@/stores/uiStore';
-import { useOverlayStore } from '@/stores/pinia/overlayStore';
-import { usePendingModificationsStore } from '@/stores/pinia/pendingModificationsStore';
-import type { OverlayObject } from '@/types/index';
+import { ref, computed, watch } from "vue";
+import { useToast } from "@/composables/ui/useToast";
+import { useI18n } from "vue-i18n";
+import { updateOverlayInfo } from "@/composables/overlay/useOverlay";
+import { useUiStore } from "@/stores/uiStore";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
+import type { OverlayObject } from "@/types/index";
 
 // AI : Define document.body as a variable to avoid TypeScript errors
 const bodyElement = document.body;
@@ -67,7 +67,7 @@ const props = defineProps<{
 }>();
 
 // AI : Define emits for the component
-const emit = defineEmits<(e: 'update', overlayId: string, caption?: string) => void>();
+const emit = defineEmits<(e: "update", overlayId: string, caption?: string) => void>();
 
 const toast = useToast();
 const { t } = useI18n();
@@ -97,7 +97,7 @@ const dialogVisible = computed({
     } else {
       localDialogVisible.value = value;
     }
-  }
+  },
 });
 
 // AI : Get current overlay from store or props
@@ -107,27 +107,31 @@ const currentOverlay = computed(() => {
 
 // AI : Local state for editing overlay information
 const editingInfo = ref({
-  caption: ''
+  caption: "",
 });
 
 // AI : Initialize editing state when overlay changes (from store)
-watch(() => uiStore.overlayEditDialog.overlay, (overlay) => {
-  if (overlay) {
-    editingInfo.value = {
-      caption: overlay.caption ?? ''
-    };
-  }
-}, { immediate: true });
+watch(
+  () => uiStore.overlayEditDialog.overlay,
+  (overlay) => {
+    if (overlay) {
+      editingInfo.value = {
+        caption: overlay.caption ?? "",
+      };
+    }
+  },
+  { immediate: true },
+);
 
 // AI : Open the dialog for editing overlay information (legacy method for PopupContainer)
 function openDialog() {
   if (!props.overlayObject) {
-    console.warn('Cannot open overlay editor without overlayObject prop');
+    console.warn("Cannot open overlay editor without overlayObject prop");
     return;
   }
   // AI : Reset form with current values from the prop overlay
   editingInfo.value = {
-    caption: props.overlayObject.caption ?? ''
+    caption: props.overlayObject.caption ?? "",
   };
   localDialogVisible.value = true;
 }
@@ -153,7 +157,7 @@ const isStoreModeActive = computed(() => Boolean(uiStore.overlayEditDialog.overl
 const hasChanges = computed(() => {
   const overlay = currentOverlay.value;
   if (!overlay) return false;
-  return editingInfo.value.caption !== (overlay.caption ?? '');
+  return editingInfo.value.caption !== (overlay.caption ?? "");
 });
 
 // AI : Save changes to the overlay
@@ -162,16 +166,16 @@ const hasChanges = computed(() => {
 function saveChanges() {
   const overlay = currentOverlay.value;
   if (!overlay) {
-    console.error('No overlay to save');
+    console.error("No overlay to save");
     return;
   }
 
   if (!hasChanges.value) {
     toast.add({
-      severity: 'info',
-      summary: t('common.info'),
-      detail: t('overlay.noChangesToSave'),
-      life: 3000
+      severity: "info",
+      summary: t("common.info"),
+      detail: t("overlay.noChangesToSave"),
+      life: 3000,
     });
     closeDialog();
     return;
@@ -179,46 +183,37 @@ function saveChanges() {
 
   try {
     // AI : Save to unified pendingModificationsStore - works for BOTH popup and side panel
-    const overlayStatus = (overlay.status ?? 'pending') as 'pending' | 'approved' | 'rejected';
+    const overlayStatus = (overlay.status ?? "pending") as "pending" | "approved" | "rejected";
     pendingModsStore.saveCaptionChange(
       overlay.id,
       overlay.projectId ?? null,
       editingInfo.value.caption,
       overlay.caption ?? null,
-      overlayStatus
+      overlayStatus,
     );
 
     // AI : Also update the in-memory overlay object for immediate UI feedback
     updateOverlayInfo(overlay.id, {
-      caption: editingInfo.value.caption ?? undefined
+      caption: editingInfo.value.caption ?? undefined,
     });
 
     // AI : Emit update event for PopupContainer to update marker tooltip
-    emit('update', overlay.id, editingInfo.value.caption);
-
-    // AI : Show success message
-    toast.add({
-      severity: 'info',
-      summary: t('common.success'),
-      detail: t('actions.saveChangesLocally'),
-      life: 3000
-    });
+    emit("update", overlay.id, editingInfo.value.caption);
 
     closeDialog();
   } catch (error) {
-    console.error('Error updating overlay:', error);
+    console.error("Error updating overlay:", error);
     toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: error instanceof Error ? error.message : t('overlay.publishFailedDetail'),
-      life: 3000
+      severity: "error",
+      summary: t("common.error"),
+      detail: error instanceof Error ? error.message : t("overlay.publishFailedDetail"),
+      life: 3000,
     });
   }
 }
 
-
 // AI : Expose the openDialog function to parent components (for PopupContainer compatibility)
 defineExpose({
-  openDialog
+  openDialog,
 });
 </script>

@@ -640,7 +640,6 @@
   },
   "actions": {
     "undo": "Annuler",
-    "saveChangesLocally": "Modifications du projet enregistrées localement. Cliquez sur \"Soumettre les modifications\" dans la popup d'info pour publier.",
     "noActionsToUndo": "Aucune action à annuler"
   },
   "validation": {

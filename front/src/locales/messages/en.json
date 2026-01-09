@@ -640,7 +640,6 @@
   },
   "actions": {
     "undo": "Undo",
-    "saveChangesLocally": "Project changes saved locally. Click \"Submit Changes\" in the info popup to publish.",
     "noActionsToUndo": "No actions to undo"
   },
   "validation": {
