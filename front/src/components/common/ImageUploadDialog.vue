@@ -103,11 +103,13 @@
 import { ref, computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useUiStore } from "@/stores/uiStore";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useToast } from "@/composables/ui/useToast";
 import { addOverlay } from "@/composables/overlay/useOverlay";
 
 const { t } = useI18n();
 const uiStore = useUiStore();
+const overlayStore = useOverlayStore();
 const toast = useToast();
 
 const fileInputRef = ref<HTMLInputElement>();
@@ -242,16 +244,30 @@ function handleConfirm() {
   }
 
   try {
-    // AI : Create overlay for this project
-    addOverlay(imageDataUrl.value, projectId);
+    // AI : Check if this is a replacement overlay
+    const replacementId = overlayStore.replacementOverlayId;
 
-    // AI : Show success toast
-    toast.add({
-      severity: "success",
-      summary: t("overlay.overlayCreated"),
-      detail: t("overlay.positionOverlayOnMap"),
-      life: 3000,
-    });
+    // AI : Create overlay for this project (with or without replacement)
+    addOverlay(imageDataUrl.value, projectId, replacementId ?? undefined);
+
+    // AI : Show appropriate success toast
+    if (replacementId) {
+      toast.add({
+        severity: "success",
+        summary: t("toasts.replacementOverlayCreated"),
+        detail: t("toasts.replacementOverlayDetail"),
+        life: 3000,
+      });
+      // AI : Reset replacement state after creating the overlay
+      overlayStore.resetReplacement();
+    } else {
+      toast.add({
+        severity: "success",
+        summary: t("overlay.overlayCreated"),
+        detail: t("overlay.positionOverlayOnMap"),
+        life: 3000,
+      });
+    }
 
     // AI : Close dialog
     uiStore.closeImageUploadDialog();

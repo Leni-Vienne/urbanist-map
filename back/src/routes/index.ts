@@ -6,6 +6,7 @@ import { countriesRouter } from "./countries";
 import { moderationRouter } from "./moderation";
 import { changesRouter } from "./changes";
 import { authRouter } from "./auth";
+import { adminRouter } from "./admin";
 
 // AI : Main router that combines all sub-routers
 export const appRouter = router({
@@ -16,6 +17,7 @@ export const appRouter = router({
   country: countriesRouter,
   overlay: overlayRouter,
   changes: changesRouter,
+  admin: adminRouter,
 });
 
 // AI : Export types

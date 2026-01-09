@@ -531,6 +531,9 @@ export function renderViewModeOverlays(
 function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   const overlayStore = useOverlayStore();
 
+  // AI : Skip replaced overlays - their images are deleted and would cause 404 errors
+  if (cdnOverlay.status === "replaced") return;
+
   // AI : Check if overlay exists in store WITH a valid Leaflet layer
   // AI : If overlay exists but has null layer (preserved after zoom out), we need to re-render it
   const existingOverlay = overlayStore.overlays[cdnOverlay.id];
@@ -1552,12 +1555,20 @@ export const replaceOverlayTool = L.Toolbar2.Action.extend({
       return;
     }
 
+    // AI : Get the selected overlay to find its project
+    const selectedOverlay = overlayStore.overlays[overlayStore.idSelectedOverlay];
+    if (!selectedOverlay?.projectId) {
+      console.warn("Cannot replace overlay: no project ID found");
+      return;
+    }
+
     // AI : Set replacement overlay ID in overlayStore
     overlayStore.requestOverlayReplacement(overlayStore.idSelectedOverlay);
 
-    // AI : Open the marker placement bar via uiStore
+    // AI : Open image upload dialog directly with the overlay's project
+    // AI : The ImageUploadDialog will check for replacementOverlayId and handle accordingly
     const uiStore = useUiStore();
-    uiStore.openMarkerPlacementBar();
+    uiStore.openImageUploadDialog(selectedOverlay.projectId);
   },
 });
 
