@@ -10,64 +10,69 @@
       <div class="submitter-header">
         <i class="pi pi-user submitter-icon"></i>
         <div class="submitter-info">
-          <div class="submitter-label">{{ $t('moderation.userStats.submittedBy') }}</div>
-          <div class="submitter-name">{{ username || $t('moderation.unknownUser') }}</div>
+          <div class="submitter-label">{{ $t("moderation.userStats.submittedBy") }}</div>
+          <div class="submitter-name">{{ username || $t("moderation.unknownUser") }}</div>
         </div>
       </div>
 
       <div class="stats-divider"></div>
 
       <div class="stat-row">
-        <span class="stat-label">{{ $t('moderation.userStats.approved') }}:</span>
+        <span class="stat-label">{{ $t("moderation.userStats.approved") }}:</span>
         <span class="stat-value stat-approved">{{ approvedCount }}</span>
       </div>
 
       <div class="stat-row">
-        <span class="stat-label">{{ $t('moderation.userStats.rejected') }}:</span>
+        <span class="stat-label">{{ $t("moderation.userStats.rejected") }}:</span>
         <span class="stat-value stat-rejected">{{ rejectedCount }}</span>
       </div>
 
       <div v-if="reportCount > 0" class="stat-row report-row">
         <span class="stat-label">
           <i class="pi pi-exclamation-triangle"></i>
-          {{ $t('moderation.userStats.reports') }}:
+          {{ $t("moderation.userStats.reports") }}:
         </span>
         <span class="stat-value stat-warning">{{ reportCount }}</span>
       </div>
 
       <div v-if="hasHighRejectionRate" class="warning-message">
         <i class="pi pi-exclamation-triangle"></i>
-        {{ $t('moderation.userStats.highRejectionRate') }}
+        {{ $t("moderation.userStats.highRejectionRate") }}
       </div>
     </div>
 
     <template #footer>
+      <Button
+        v-if="isAdmin && userId"
+        :label="$t('admin.userContributions.manageContributions')"
+        icon="pi pi-folder-open"
+        severity="info"
+        @click="goToContributions"
+      />
       <Button
         :label="$t('moderation.reportUser.report')"
         icon="pi pi-flag"
         severity="warning"
         @click="handleReport"
       />
-      <Button
-        :label="$t('common.close')"
-        severity="secondary"
-        @click="handleClose"
-      />
+      <Button :label="$t('common.close')" severity="secondary" @click="handleClose" />
     </template>
   </Dialog>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
+import { useRouter } from "vue-router";
+import { useAuthStore } from "@/stores/authStore";
 
 interface Props {
-  visible: boolean
-  userId?: string | null
-  username?: string | null
-  approvedCount?: number | null
-  rejectedCount?: number | null
-  reportCount?: number
+  visible: boolean;
+  userId?: string | null;
+  username?: string | null;
+  approvedCount?: number | null;
+  rejectedCount?: number | null;
+  reportCount?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -76,37 +81,50 @@ const props = withDefaults(defineProps<Props>(), {
   username: null,
   approvedCount: 0,
   rejectedCount: 0,
-  reportCount: 0
-})
+  reportCount: 0,
+});
 
 const emit = defineEmits<{
-  'update:visible': [value: boolean]
-  'report': [userId: string]
-}>()
+  "update:visible": [value: boolean];
+  report: [userId: string];
+}>();
 
-const { t } = useI18n()
+const { t } = useI18n();
+const router = useRouter();
+const authStore = useAuthStore();
 
 const isVisible = computed({
   get: () => props.visible,
-  set: (value) => emit('update:visible', value)
-})
+  set: (value) => emit("update:visible", value),
+});
+
+// AI : Check if current user is admin
+const isAdmin = computed(() => authStore.user?.role === "admin");
 
 const hasHighRejectionRate = computed(() => {
-  const approved = props.approvedCount ?? 0
-  const rejected = props.rejectedCount ?? 0
-  const total = approved + rejected
-  if (total < 3) return false
-  return rejected >= 3 && (approved / total) < 0.3
-})
+  const approved = props.approvedCount ?? 0;
+  const rejected = props.rejectedCount ?? 0;
+  const total = approved + rejected;
+  if (total < 3) return false;
+  return rejected >= 3 && approved / total < 0.3;
+});
 
 function handleClose() {
-  emit('update:visible', false)
+  emit("update:visible", false);
 }
 
 function handleReport() {
   if (props.userId) {
-    emit('report', props.userId)
-    handleClose()
+    emit("report", props.userId);
+    handleClose();
+  }
+}
+
+// AI : Navigate to admin contributions page
+function goToContributions() {
+  if (props.userId) {
+    handleClose();
+    router.push(`/admin/user/${props.userId}`);
   }
 }
 </script>
