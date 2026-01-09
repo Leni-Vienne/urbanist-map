@@ -27,14 +27,14 @@ async function runCleanup() {
     // AI : Delete sessions where expires_at < NOW
     const deletedSessions = await db.delete(sessions).where(lt(sessions.expiresAt, new Date()));
 
-    // 2. Clean up unverified users older than 30 days
-    // AI : These are likely spam or abandoned registrations
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    // 2. Clean up unverified users older than 24 hours
+    // AI : Short window to prevent email squatting - users can re-register if they miss it
+    const oneDayAgo = new Date();
+    oneDayAgo.setHours(oneDayAgo.getHours() - 24);
 
     const deletedUsers = await db
       .delete(users)
-      .where(and(eq(users.emailVerified, false), lt(users.createdAt, thirtyDaysAgo)));
+      .where(and(eq(users.emailVerified, false), lt(users.createdAt, oneDayAgo)));
 
     // 3. Clean up rejected projects older than 90 days
     // AI : Keep recent rejections in case user wants to appeal/resubmit
