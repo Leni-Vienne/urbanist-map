@@ -640,7 +640,6 @@
   },
   "actions": {
     "undo": "Undo",
-    "saveChangesLocally": "Project changes saved locally. Click \"Submit Changes\" in the info popup to publish.",
     "noActionsToUndo": "No actions to undo"
   },
   "validation": {
@@ -926,6 +925,44 @@
         "banSuccess": "User Banned",
         "banSuccessDetail": "{username} has been permanently banned",
         "banError": "Failed to ban user"
+      }
+    },
+    "userContributions": {
+      "title": "User Contributions",
+      "manageContributions": "Manage Contributions",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "banned": "Banned",
+      "projects": "projects",
+      "overlays": "overlays",
+      "projectsSection": "Projects",
+      "overlaysSection": "Overlays",
+      "noCaption": "(No caption)",
+      "noOverlays": "No overlays for this project",
+      "columns": {
+        "name": "Name",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "deleteProjectDialog": {
+        "title": "Delete Project",
+        "message": "Are you sure you want to delete project \"{name}\"? This will also delete all associated overlays. This action cannot be undone."
+      },
+      "deleteOverlayDialog": {
+        "title": "Delete Overlay",
+        "message": "Are you sure you want to delete this overlay? This action cannot be undone."
+      },
+      "deleteDialog": {
+        "reason": "Reason (optional)",
+        "reasonPlaceholder": "Enter reason for deletion...",
+        "confirm": "Delete"
+      },
+      "messages": {
+        "loadError": "Failed to load user contributions",
+        "noContributions": "This user has no contributions",
+        "projectDeleted": "Project deleted successfully",
+        "overlayDeleted": "Overlay deleted successfully",
+        "deleteError": "Failed to delete"
       }
     }
   }
