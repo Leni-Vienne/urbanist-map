@@ -584,8 +584,14 @@ export function useSubmissionDialog() {
     if (overlayObj.status !== "approved") {
       // AI : Pending overlay - publish directly
       const overlayToPublish = applyModificationsToOverlay(overlayObj, mod);
-      const project = projectId ? projectStore.projects[projectId] : null;
-      await publishOverlay(overlayToPublish, project ?? null);
+      // AI : Try multiple store locations for project lookup - approved projects may be in allProjects
+      const project = projectId
+        ? (projectStore.projects[projectId] ??
+          projectStore.allProjects[projectId] ??
+          projectStore.nearbyProjects.find((p) => p.id === projectId) ??
+          null)
+        : null;
+      await publishOverlay(overlayToPublish, project);
     } else {
       // AI : Approved overlay - submit change request
       const overlayWithChanges = applyModificationsToOverlay(overlayObj, mod);
@@ -668,7 +674,15 @@ export function useSubmissionDialog() {
     extCtx: SubmissionContextExtended,
     reason: string,
   ): Promise<void> {
-    const project = extCtx.projectId ? projectStore.projects[extCtx.projectId] : null;
+    // AI : Try multiple store locations for project lookup - approved projects may be in allProjects
+    let project: Project | null = null;
+    if (extCtx.projectId) {
+      project =
+        projectStore.projects[extCtx.projectId] ??
+        projectStore.allProjects[extCtx.projectId] ??
+        projectStore.nearbyProjects.find((p) => p.id === extCtx.projectId) ??
+        null;
+    }
 
     // AI : Submit all overlay modifications (position/caption changes)
     await submitAllOverlayModifications(extCtx, project, reason);
