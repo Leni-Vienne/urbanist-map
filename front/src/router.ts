@@ -34,6 +34,12 @@ const routes = [
     component: async () => import("@/pages/AdminReportsPage.vue"), // Lazy load
     meta: { requiresAuth: true, requiresAdmin: true },
   },
+  {
+    path: "/admin/user/:userId",
+    name: "AdminUserContributions",
+    component: async () => import("@/pages/AdminUserContributionsPage.vue"), // Lazy load
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
 ];
 
 export const router = createRouter({
