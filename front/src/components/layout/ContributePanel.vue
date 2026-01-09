@@ -73,8 +73,9 @@
     </template>
 
     <template #overlay-actions="{ overlay }">
-      <!-- AI : Edit button - opens overlay editor for individual overlay editing -->
+      <!-- AI : Edit button - hide for replaced overlays (can't be edited) -->
       <button
+        v-if="overlay.status !== 'replaced'"
         class="action-btn edit-btn"
         @click.stop="handleEditOverlayClick(overlay)"
         v-tooltip.top="$t('tooltips.editOverlay')"

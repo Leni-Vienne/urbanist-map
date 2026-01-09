@@ -80,6 +80,7 @@ export function createOverlayForModeration(
     countryCode: overlayData.project?.city?.countryCode ?? selectedCity.countryCode ?? null,
     countryName: null,
     replacesOverlayId: overlayData.replacesOverlayId,
+    replacedByOverlayId: overlayData.replacedByOverlayId,
   };
 }
 

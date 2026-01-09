@@ -531,6 +531,9 @@ export function renderViewModeOverlays(
 function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   const overlayStore = useOverlayStore();
 
+  // AI : Skip replaced overlays - their images are deleted and would cause 404 errors
+  if (cdnOverlay.status === "replaced") return;
+
   // AI : Check if overlay exists in store WITH a valid Leaflet layer
   // AI : If overlay exists but has null layer (preserved after zoom out), we need to re-render it
   const existingOverlay = overlayStore.overlays[cdnOverlay.id];

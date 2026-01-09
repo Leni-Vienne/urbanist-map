@@ -195,6 +195,9 @@ export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayOb
 export function createSingleMarker(savedOverlay: OverlayObject): void {
   const overlayStore = useOverlayStore();
 
+  // AI : Skip replaced overlays - the replacement is at the same location, marker would be confusing
+  if (savedOverlay.status === "replaced") return;
+
   if (!map.value || overlayStore.allMarkers[savedOverlay.id]) return;
 
   // AI : Calculate centroid from corners using shared utility to match backend calculation
