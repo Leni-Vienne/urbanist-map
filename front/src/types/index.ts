@@ -180,7 +180,14 @@ export type PanelTab = "latest" | "currentLocation" | "contribute" | "moderation
 
 export type OverlayForModeration = Pick<
   OverlayObject,
-  "id" | "filename" | "status" | "version" | "projectId" | "updatedAt" | "replacesOverlayId"
+  | "id"
+  | "filename"
+  | "status"
+  | "version"
+  | "projectId"
+  | "updatedAt"
+  | "replacesOverlayId"
+  | "replacedByOverlayId"
 > & {
   name: string; // AI : Display name
   authorId: string | null; // AI : For spam prevention reporting

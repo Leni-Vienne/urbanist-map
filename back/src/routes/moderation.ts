@@ -1237,6 +1237,70 @@ export const moderationRouter = router({
         });
       }
     }),
+
+  // AI : Admin-only endpoint to permanently delete an overlay (including approved ones)
+  // AI : This removes the database record AND cleans up images from R2/local storage
+  adminDeleteOverlay: adminProcedure
+    .input(
+      z.object({
+        id: z.uuid(),
+        reason: z.string().max(500).optional(), // AI : Optional reason for audit purposes
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      try {
+        // AI : Get overlay data before deletion for cleanup
+        const overlayData = await db
+          .select({
+            id: overlays.id,
+            filename: overlays.filename,
+            status: overlays.status,
+            authorId: overlays.authorId,
+            projectId: overlays.projectId,
+          })
+          .from(overlays)
+          .where(eq(overlays.id, input.id))
+          .limit(1);
+
+        if (overlayData.length === 0) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Overlay not found" });
+        }
+
+        const overlay = overlayData[0];
+
+        // AI : Delete overlay from database
+        await db.delete(overlays).where(eq(overlays.id, input.id));
+
+        // AI : Log deletion for audit trail
+        console.log(
+          `Admin ${ctx.user.id} deleted overlay ${input.id} (status: ${overlay.status})${input.reason ? ` - Reason: ${input.reason}` : ""}`,
+        );
+
+        // AI : Clean up images
+        // AI : Approved overlays have images in R2, pending/rejected in local storage
+        // AI : The deleteImages function handles both based on environment
+        try {
+          await deleteImages(overlay.filename, "both");
+          console.log(`Deleted images for overlay ${input.id}: ${overlay.filename}`);
+        } catch (imageError) {
+          console.error(`Failed to delete images for overlay ${input.id}:`, imageError);
+          // AI : Don't fail the request if image cleanup fails - database is already updated
+        }
+
+        return {
+          success: true,
+          deletedOverlayId: input.id,
+          deletedFilename: overlay.filename,
+        };
+      } catch (error) {
+        console.error("Error deleting overlay:", error);
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to delete overlay",
+        });
+      }
+    }),
 });
 
 // AI : Helper functions for getPendingSubmissions refactoring

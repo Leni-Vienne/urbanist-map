@@ -2,6 +2,7 @@ import {
   navigateToOverlayWithCity,
   navigateToStandaloneProject,
 } from "@/composables/navigation/useOverlayNavigation";
+import { mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
 import { navigateToOverlay } from "@/composables/overlay/useOverlay";
 import { switchMode } from "@/composables/overlay/useModeSwitching";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -35,29 +36,10 @@ export function useOverlayClickHandler() {
     try {
       const overlayStore = useOverlayStore();
 
-      // AI : For rejected or replaced overlays, navigate to project coordinates instead
+      // AI : For rejected or replaced overlays, navigate to overlay's centroid if available
+      // AI : Otherwise fall back to project center
       if (overlay.status === "rejected" || overlay.status === "replaced") {
-        // AI : Check if overlay is OverlayForModeration with project coordinates
-        if ("projectId" in overlay && overlay.projectId) {
-          // AI : Get project from userContributions to get coordinates
-          try {
-            const contributions = await trpc.project.getUsersContributions.query({ limit: 100 });
-            const project = contributions.projects.find((p) => p.id === overlay.projectId);
-
-            if (project && project.lat && project.lng && project.cityId && project.cityName) {
-              await navigateToStandaloneProject(
-                project.lat,
-                project.lng,
-                project.cityId,
-                project.cityName,
-                project.countryCode ?? undefined,
-                project.id,
-              );
-            }
-          } catch (error) {
-            console.error("Failed to navigate to project:", error);
-          }
-        }
+        await navigateToReplacedOrRejectedOverlay(overlay, overlayStore);
         return;
       }
 
@@ -107,4 +89,53 @@ export function useOverlayClickHandler() {
   return {
     handleOverlayClickNavigation,
   };
+}
+
+/**
+ * AI : Handle navigation for replaced or rejected overlays
+ * AI : Tries to use overlay centroid from store, falls back to project center
+ */
+async function navigateToReplacedOrRejectedOverlay(
+  overlay: NavigableOverlay,
+  overlayStore: ReturnType<typeof useOverlayStore>,
+): Promise<void> {
+  if (!("projectId" in overlay) || !overlay.projectId) {
+    return;
+  }
+
+  // AI : First try to get centroid from overlay store (has full overlay data)
+  const overlayFromStore = overlayStore.overlays[overlay.id];
+  if (overlayFromStore?.corners && overlayFromStore.corners.length >= 4) {
+    // AI : Calculate centroid from corners
+    const centroidLat =
+      overlayFromStore.corners.reduce((sum, c) => sum + c.lat, 0) / overlayFromStore.corners.length;
+    const centroidLng =
+      overlayFromStore.corners.reduce((sum, c) => sum + c.lng, 0) / overlayFromStore.corners.length;
+
+    // AI : Use mobileAwareFlyTo for proper navigation
+    mobileAwareFlyTo([centroidLat, centroidLng], 18, {
+      duration: 1.5,
+      easeLinearity: 0.25,
+    });
+    return;
+  }
+
+  // AI : Fallback: navigate to project coordinates
+  try {
+    const contributions = await trpc.project.getUsersContributions.query({ limit: 100 });
+    const project = contributions.projects.find((p) => p.id === overlay.projectId);
+
+    if (project && project.lat && project.lng && project.cityId && project.cityName) {
+      await navigateToStandaloneProject(
+        project.lat,
+        project.lng,
+        project.cityId,
+        project.cityName,
+        project.countryCode ?? undefined,
+        project.id,
+      );
+    }
+  } catch (error) {
+    console.error("Failed to navigate to project:", error);
+  }
 }

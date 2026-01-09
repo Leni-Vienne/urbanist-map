@@ -640,7 +640,6 @@
   },
   "actions": {
     "undo": "Annuler",
-    "saveChangesLocally": "Modifications du projet enregistrées localement. Cliquez sur \"Soumettre les modifications\" dans la popup d'info pour publier.",
     "noActionsToUndo": "Aucune action à annuler"
   },
   "validation": {
@@ -928,6 +927,44 @@
         "banSuccess": "Utilisateur banni",
         "banSuccessDetail": "{username} a été banni définitivement",
         "banError": "Échec du bannissement"
+      }
+    },
+    "userContributions": {
+      "title": "Contributions de l'utilisateur",
+      "manageContributions": "Gérer les contributions",
+      "approved": "Approuvé",
+      "rejected": "Rejeté",
+      "banned": "Banni",
+      "projects": "projets",
+      "overlays": "images",
+      "projectsSection": "Projets",
+      "overlaysSection": "Images",
+      "noCaption": "(Sans légende)",
+      "noOverlays": "Aucune image pour ce projet",
+      "columns": {
+        "name": "Nom",
+        "status": "Statut",
+        "actions": "Actions"
+      },
+      "deleteProjectDialog": {
+        "title": "Supprimer le projet",
+        "message": "Êtes-vous sûr de vouloir supprimer le projet \"{name}\" ? Cela supprimera également toutes les images associées. Cette action est irréversible."
+      },
+      "deleteOverlayDialog": {
+        "title": "Supprimer l'image",
+        "message": "Êtes-vous sûr de vouloir supprimer cette image ? Cette action est irréversible."
+      },
+      "deleteDialog": {
+        "reason": "Raison (optionnel)",
+        "reasonPlaceholder": "Entrez la raison de la suppression...",
+        "confirm": "Supprimer"
+      },
+      "messages": {
+        "loadError": "Échec du chargement des contributions",
+        "noContributions": "Cet utilisateur n'a pas de contributions",
+        "projectDeleted": "Projet supprimé avec succès",
+        "overlayDeleted": "Image supprimée avec succès",
+        "deleteError": "Échec de la suppression"
       }
     }
   }
