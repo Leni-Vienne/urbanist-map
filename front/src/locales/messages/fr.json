@@ -253,11 +253,11 @@
     "signedOutMessage": "Vous vous êtes déconnecté avec succès.",
     "resetPassword": "Réinitialiser le mot de passe",
     "forgotPasswordTitle": "Mot de passe oublié ?",
-    "forgotPasswordMessage": "Entrez votre email et nous vous enverrons un lien pour réinitialiser votre mot de passe.",
+    "forgotPasswordMessage": "Entrez votre email et un lien vous sera envoyé pour réinitialiser votre mot de passe.",
     "sendResetLink": "Envoyer le lien de réinitialisation",
     "backToSignIn": "Retour à la connexion",
     "checkYourEmail": "Vérifiez votre email",
-    "resetLinkSent": "Si un compte existe avec cet email, nous avons envoyé un lien de réinitialisation.",
+    "resetLinkSent": "Si un compte existe avec cet email, un lien vous sera envoyé pour réinitialiser votre mot de passe.",
     "resetPasswordTitle": "Créer un nouveau mot de passe",
     "newPassword": "Nouveau mot de passe",
     "confirmPassword": "Confirmer le mot de passe",
@@ -355,9 +355,9 @@
       },
       "dataCollection": {
         "title": "Collecte de données",
-        "content": "Nous collectons un minimum d'informations pour fournir notre service :",
+        "content": "Je collecte un minimum d'informations :",
         "username": "Nom d'utilisateur (nom public affiché)",
-        "email": "Adresse email (pour récupération du compte et notifications)",
+        "email": "Adresse email (pour la récupération du compte et les notifications)",
         "password": "Mot de passe (stocké chiffré)",
         "ipAddresses": "Adresses IP (dans les journaux serveur pour la sécurité et la prévention du spam, conservées 90 jours)",
         "oauthData": "Identifiants de fournisseur OAuth (si vous utilisez Google Sign-In)",
@@ -370,13 +370,13 @@
         "rectification": "Droit de rectification : mettre à jour votre nom d'utilisateur et email dans les paramètres de votre compte",
         "deletion": "Droit à l'effacement : supprimer votre compte et toutes vos données personnelles (envoyez un email à {email} pour demander la suppression)",
         "portability": "Droit à la portabilité : exporter vos données au format JSON (envoyez un email à {email})",
-        "howTo": "Pour exercer ces droits, contactez-nous à {email}. Nous répondrons sous 30 jours.",
+        "howTo": "Pour exercer ces droits, contactez-moi à {email}. Je répondrai sous 30 jours.",
         "note": "Note : Lorsque vous supprimez votre compte, vos informations personnelles (email, nom d'utilisateur) sont supprimées, mais vos contributions (projets, images) sont anonymisées et peuvent rester publiquement visibles."
       },
       "thirdParty": {
         "title": "Services tiers",
-        "content": "Nous utilisons les services externes suivants :",
-        "google": "Méthode de connexion optionnelle. Partage votre email et nom avec nous.",
+        "content": "J'utilise les services externes suivants :",
+        "google": "Méthode de connexion optionnelle. Partage votre email et nom avec moi.",
         "googleLink": "Politique de confidentialité Google",
         "cloudflare": "Hébergement et CDN. Peut traiter les adresses IP.",
         "cloudflareLink": "Politique de confidentialité Cloudflare",
@@ -385,7 +385,7 @@
       },
       "retention": {
         "title": "Conservation des données",
-        "content": "Nous conservons vos données comme suit :",
+        "content": "J'entrepose vos données comme suit :",
         "account": "Données de compte (email, nom d'utilisateur, mot de passe) : Jusqu'à la suppression de votre compte",
         "logs": "Journaux serveur (adresses IP) : Supprimés automatiquement après 90 jours",
         "sessions": "Cookies de session : Expirent après 30 jours d'inactivité",
@@ -394,22 +394,25 @@
       },
       "cookies": {
         "title": "Cookies",
-        "content": "Nous utilisons uniquement des cookies essentiels :",
+        "content": "J'utilise uniquement des cookies essentiels :",
         "sessionCookie": "Cookie de session : Maintient votre connexion (expire après 30 jours d'inactivité)",
         "purpose": "Ce cookie est strictement nécessaire pour l'authentification et ne requiert pas de consentement.",
-        "noTracking": "Nous n'utilisons aucun cookie de suivi, d'analyse ou publicitaire."
+        "noTracking": "J'utilise aucun cookie de suivi, d'analyse ou publicitaire."
       },
       "userContent": {
         "title": "Contenu utilisateur & Conditions d'utilisation",
         "content": "En téléchargeant du contenu sur ce site :",
         "ownership": "Vous conservez la propriété de votre contenu",
-        "license": "Vous nous accordez une licence non exclusive pour afficher et distribuer votre contenu sur cette plateforme",
-        "moderation": "Nous pouvons supprimer le contenu qui enfreint nos règles sans préavis",
+        "license": "Vous me donnez une licence non exclusive pour afficher et distribuer votre contenu sur cette plateforme",
+        "moderation": "Je peux supprimer le contenu qui enfreint nos règles sans préavis",
         "forbidden": "Interdit : contenu illégal, spam, matériel protégé par le droit d'auteur sans autorisation, contenu offensant"
       }
     },
     "contact": {
-      "description": "Pour vos questions, suggestions, ou problèmes, contactez-nous par email :"
+      "description": "Pour vos questions, suggestions, ou problèmes, contactez-moi par email :",
+      "basemapTitle": "Soumettre un fond de carte",
+      "basemapDescription": "Pour que j'ajoute votre fond de carte (tile layer), j'ai besoin d'un lien de ce genre ou d'un lien vers le site web de votre fond de carte.",
+      "basemapExample": "Exemple : "
     }
   },
   "controls": {
@@ -679,7 +682,7 @@
     "suggestChanges": "Suggérer des modifications"
   },
   "layerControl": {
-    "baseMaps": "Cartes de base",
+    "baseMaps": "Fonds de carte",
     "submitTileLayer": "Soumettre une nouvelle carte"
   },
   "toasts": {
