@@ -169,13 +169,7 @@ export const changesRouter = router({
     .input(submitChangeRequestSchema)
     .mutation(async ({ input, ctx }) => {
       try {
-        const userId = ctx.user?.id;
-        if (!userId) {
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: "Must be logged in to submit changes",
-          });
-        }
+        const userId = ctx.user.id;
 
         // AI : Spam prevention - block banned or heavily reported users
         if (await isUserBlocked(userId)) {
@@ -247,13 +241,7 @@ export const changesRouter = router({
     .input(z.object({ id: z.uuid() }))
     .mutation(async ({ input, ctx }) => {
       try {
-        const userId = ctx.user?.id;
-        if (!userId) {
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: "Must be logged in to delete change request",
-          });
-        }
+        const userId = ctx.user.id;
 
         // AI : Get change request to check permissions and status
         const changeRequest = await db
@@ -302,13 +290,7 @@ export const changesRouter = router({
 
   getMyChangeRequests: loggedInProcedure.query(async ({ ctx }) => {
     try {
-      const userId = ctx.user?.id;
-      if (!userId) {
-        throw new TRPCError({
-          code: "UNAUTHORIZED",
-          message: "Must be logged in to view change requests",
-        });
-      }
+      const userId = ctx.user.id;
 
       // AI : Only show pending/conflicted change requests (not approved/rejected)
       const myChanges = await db

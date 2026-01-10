@@ -33,7 +33,7 @@
     <div class="sidecolumn__footer">
       <a href="/legal" class="footer-link">{{ $t("footer.legal") }}</a>
       <span class="footer-separator">•</span>
-      <a href="/contact" class="footer-link">{{ $t("footer.contact") }}</a>
+      <a href="/contact" class="footer-link">{{ $t("common.contact") }}</a>
     </div>
   </div>
 </template>

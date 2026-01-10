@@ -10,6 +10,7 @@ import { map } from "@/composables/core/useMap";
 import { getOverlayMarkerColor, createOverlayIcon } from "@/composables/map/useMarkers";
 import { mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import type { OverlayObject, MarkerColor } from "@/types/index";
 import {
@@ -88,7 +89,7 @@ export function updateMarkerTooltip(
       modifierText = t("markerTooltip.modifiers.modified");
     }
   } else if (isApproved) {
-    statusText = t("markerTooltip.status.approved");
+    statusText = t("common.approved");
     if (hasPendingChanges && isViewingApprovedPosition === false) {
       // AI : When explicitly viewing suggested position
       modifierText = t("markerTooltip.modifiers.viewingSuggested");
@@ -249,6 +250,22 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
       });
     }
 
+    // AI : In moderation mode, clicking a contribution should load the city context (like clicking a city marker)
+    if (overlayStore.mode === "moderation" && overlayObject.project?.city) {
+      const mapStore = useMapStore();
+      const city = overlayObject.project.city;
+
+      // AI : Only update if we're not already on this city to avoid unnecessary updates
+      if (mapStore.selectedCity?.id !== city.id) {
+        mapStore.setSelectedCity({
+          id: city.id,
+          name: city.name,
+          nameLocal: city.nameLocal,
+          countryCode: city.countryCode,
+        });
+      }
+    }
+
     // AI : Toggle selection - selectOverlay handles overlay.select() internally
     if (overlayStore.idSelectedOverlay === savedOverlay.id) {
       selectOverlay(null);
@@ -258,13 +275,15 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
   });
 
   // AI : Add hover handlers to highlight overlay on marker hover
-  if (savedOverlay.projectId) {
+  // AI : Capture projectId to avoid non-null assertion inside callbacks
+  const projectId = savedOverlay.projectId;
+  if (projectId) {
     marker.on("mouseover", () => {
-      highlightProjectOverlaysOnHover(savedOverlay.projectId!);
+      highlightProjectOverlaysOnHover(projectId);
     });
 
     marker.on("mouseout", () => {
-      removeProjectOutlines(savedOverlay.projectId!);
+      removeProjectOutlines(projectId);
     });
   }
 

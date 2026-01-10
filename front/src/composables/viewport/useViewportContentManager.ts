@@ -23,8 +23,13 @@ import {
   addStandaloneProjectMarkerForProject,
   clearAllStandaloneProjectMarkers,
 } from "@/composables/map/useStandaloneProjectMarkers";
-import type { OverlayData } from "@/types/index";
+import type { OverlayData, Project } from "@/types/index";
 import type { MapMode } from "@shared/types";
+import type { RouterOutput } from "@/client";
+
+// AI : Type definition for project data returned by the backend
+type CityProject = RouterOutput["project"]["getCityProjects"][number];
+type StandaloneProject = CityProject | Project;
 
 const isLoading = ref(false);
 
@@ -543,7 +548,9 @@ export function useViewportContentManager() {
           // AI : This ensures that cities whose center is off-screen (but whose overlays are visible) are correctly updated.
           // AI : If we just cleared cache and relied on refreshViewport, it would only load cities with visible centers.
           const currentCityIds = Array.from(loadedCityIds.value);
-          await Promise.all(currentCityIds.map((id) => loadCityData(id, "reload", null, "reload")));
+          await Promise.all(
+            currentCityIds.map(async (id) => loadCityData(id, "reload", null, "reload")),
+          );
 
           await refreshViewport(true);
         }
@@ -561,110 +568,140 @@ export function useViewportContentManager() {
 }
 
 /**
+ * AI : Helper to fetch city overlays from cache or backend
+ */
+async function fetchCityOverlaysOrCache(
+  cityId: number,
+  mode: MapMode,
+): Promise<OverlayData[] | null> {
+  const mapStore = useMapStore();
+  let overlaysData = mapStore.getCityOverlaysAndProjectsCache(cityId, mode);
+
+  if (!overlaysData) {
+    overlaysData = await trpc.cities.getCityOverlaysAndProjects.query({
+      cityId,
+      mode,
+    });
+    if (overlaysData) {
+      mapStore.setCityProjectsCache(cityId, mode, overlaysData);
+    }
+  }
+  return overlaysData;
+}
+
+/**
+ * AI : Helper to fetch standalone projects from cache or backend
+ */
+async function fetchCityStandaloneProjectsOrCache(
+  cityId: number,
+  mode: MapMode,
+): Promise<CityProject[] | null> {
+  const mapStore = useMapStore();
+  let standaloneProjects = mapStore.getCityStandaloneProjectsCache(cityId, mode);
+
+  if (!standaloneProjects) {
+    standaloneProjects = await trpc.project.getCityProjects.query({
+      cityId,
+      mode,
+      limit: 100,
+    });
+    if (standaloneProjects) {
+      mapStore.setCityStandaloneProjectsCache(cityId, mode, standaloneProjects);
+    }
+  }
+  return standaloneProjects;
+}
+
+/**
+ * AI : Add markers for standalone projects (those without overlays)
+ */
+function processStandaloneMarkers(
+  standaloneProjects: StandaloneProject[],
+  overlaysData: OverlayData[] | null,
+) {
+  if (!standaloneProjects || standaloneProjects.length === 0) return;
+
+  const projectIdsWithOverlays = new Set<string>();
+  if (overlaysData) {
+    for (const overlay of overlaysData) {
+      // AI : Check safely if projectId exists
+      if (overlay.projectId) {
+        projectIdsWithOverlays.add(overlay.projectId);
+      }
+    }
+  }
+
+  for (const project of standaloneProjects) {
+    // AI : Safe access to overlay count/ids using type narrowing
+    let overlayCount = 0;
+    if ("overlayCount" in project) {
+      overlayCount = project.overlayCount;
+    } else if ("overlayIds" in project && Array.isArray(project.overlayIds)) {
+      overlayCount = project.overlayIds.length;
+    }
+
+    if (!projectIdsWithOverlays.has(project.id) && overlayCount === 0) {
+      // AI : Cast to Project to satisfy function signature - strictly validation would require more fields
+      // AI : but for marker creation, the subset in CityProject is sufficient
+      addStandaloneProjectMarkerForProject(project as Project);
+    }
+  }
+}
+
+/**
+ * AI : Render Logic for Navigation
+ */
+function renderCityOverlaysForNavigation(overlaysData: OverlayData[], forceFullOverlays: boolean) {
+  const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
+
+  const zoom = map.value?.getZoom() ?? 0;
+  const shouldRenderFullOverlays = forceFullOverlays || zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
+
+  removeOverlayMarkers();
+  overlayStore.setViewModeOverlays(overlaysData);
+  mapStore.currentCityOverlays = overlaysData;
+
+  if (shouldRenderFullOverlays) {
+    const existingIds = new Set(Object.keys(overlayStore.overlays));
+    if (existingIds.size === 0) {
+      renderViewModeOverlays(overlaysData, true, false);
+    } else {
+      const newOverlays = overlaysData.filter((o) => !existingIds.has(o.id));
+      if (newOverlays.length > 0) {
+        renderViewModeOverlays(newOverlays, true, false);
+      }
+    }
+  } else {
+    clearAllOverlays();
+    renderOverlayMarkersFromData(overlaysData);
+  }
+}
+
+/**
  * AI : Standalone function for navigation to load city data
- * AI : Uses the same rendering pipeline as viewport manager but callable from anywhere
- * AI : Returns the overlay data for navigation purposes
- * @param forceFullOverlays - If true, render full overlays regardless of current zoom level
- *                            Used for navigation which will fly to high zoom after loading
+ * AI : Uses helpers to orchestration loading and rendering
  */
 export async function loadCityDataForNavigation(
   cityId: number,
   forceFullOverlays = false,
 ): Promise<OverlayData[] | null> {
   const overlayStore = useOverlayStore();
-  const mapStore = useMapStore();
   const mode = overlayStore.mode;
 
   try {
-    // AI : OPTIMIZATION: Check MapStore cache first before querying backend
-    let overlaysData = mapStore.getCityOverlaysAndProjectsCache(cityId, mode);
+    const overlaysData = await fetchCityOverlaysOrCache(cityId, mode);
+    const standaloneProjects = await fetchCityStandaloneProjectsOrCache(cityId, mode);
 
-    if (!overlaysData) {
-      // AI : No cache - fetch from backend
-      overlaysData = await trpc.cities.getCityOverlaysAndProjects.query({
-        cityId,
-        mode,
-      });
+    processStandaloneMarkers(standaloneProjects ?? [], overlaysData);
 
-      // AI : Cache the data for future use
-      if (overlaysData) {
-        mapStore.setCityProjectsCache(cityId, mode, overlaysData);
-      }
-    }
-
-    // AI : CRITICAL FIX: Also load standalone projects cache for CurrentLocationPanel
-    // AI : This was missing, causing standalone projects to not appear in the panel
-    let standaloneProjects = mapStore.getCityStandaloneProjectsCache(cityId, mode);
-    if (!standaloneProjects) {
-      standaloneProjects = await trpc.project.getCityProjects.query({
-        cityId,
-        mode,
-        limit: 100,
-      });
-      if (standaloneProjects) {
-        mapStore.setCityStandaloneProjectsCache(cityId, mode, standaloneProjects);
-      }
-    }
-
-    // AI : CRITICAL FIX: Create standalone project markers for projects without overlays
-    // AI : This was missing, causing standalone project markers to not appear on navigation
-    if (standaloneProjects && standaloneProjects.length > 0) {
-      // AI : Get project IDs that have overlays
-      const projectIdsWithOverlays = new Set<string>();
-      if (overlaysData) {
-        for (const overlay of overlaysData) {
-          if (overlay.projectId) {
-            projectIdsWithOverlays.add(overlay.projectId);
-          }
-        }
-      }
-
-      // AI : Create markers for standalone projects (those without overlays)
-      for (const project of standaloneProjects) {
-        const overlayCount = (project as any).overlayCount ?? 0;
-        if (!projectIdsWithOverlays.has(project.id) && overlayCount === 0) {
-          addStandaloneProjectMarkerForProject(project as any);
-        }
-      }
-    }
-
-    // AI : CRITICAL: Mark city as loaded so viewport manager knows about it
-    // AI : This prevents reRenderLoadedCities from missing this city after fly animation
     loadedCityIds.value.add(cityId);
 
     if (!overlaysData || overlaysData.length === 0) {
       return null;
     }
 
-    const zoom = map.value?.getZoom() ?? 0;
-    const shouldRenderFullOverlays = forceFullOverlays || zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
-
-    // AI : Remove low-zoom markers first to prevent duplicates
-    removeOverlayMarkers();
-
-    // AI : Update store and mapStore for panels
-    overlayStore.setViewModeOverlays(overlaysData);
-    mapStore.currentCityOverlays = overlaysData;
-
-    // AI : RENDER based on zoom level or force flag
-    if (shouldRenderFullOverlays) {
-      // AI : Render full overlays
-      const existingIds = new Set(Object.keys(overlayStore.overlays));
-
-      if (existingIds.size === 0) {
-        renderViewModeOverlays(overlaysData, true, false);
-      } else {
-        // AI : Add new overlays only
-        const newOverlays = overlaysData.filter((o) => !existingIds.has(o.id));
-        if (newOverlays.length > 0) {
-          renderViewModeOverlays(newOverlays, true, false);
-        }
-      }
-    } else {
-      // AI : Render markers only for low zoom
-      clearAllOverlays();
-      renderOverlayMarkersFromData(overlaysData);
-    }
+    renderCityOverlaysForNavigation(overlaysData, forceFullOverlays);
 
     return overlaysData;
   } catch (error) {

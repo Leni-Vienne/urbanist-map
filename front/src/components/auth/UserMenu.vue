@@ -1,18 +1,17 @@
 <template>
   <div class="user-menu-container">
-    <!-- AI : Language switcher always visible -->
-    <LanguageSwitcherMenu />
-
     <!-- AI : Sign In Button for unauthenticated users -->
-    <Button
-      v-if="!authStore.isAuthenticated"
-      :label="$t('auth.signIn')"
-      size="small"
-      raised
-      data-testid="sign-in-button"
-      @dblclick.stop
-      @click="uiStore.openAuthModal()"
-    />
+    <template v-if="!authStore.isAuthenticated">
+      <LanguageSwitcherMenu />
+      <Button
+        :label="$t('auth.signIn')"
+        size="small"
+        raised
+        data-testid="sign-in-button"
+        @dblclick.stop
+        @click="uiStore.openAuthModal()"
+      />
+    </template>
 
     <!-- AI : User Menu for authenticated users -->
     <button
@@ -24,27 +23,46 @@
       @dblclick.stop
       ref="userMenuRef"
     >
-      <span class="user-avatar">
+      <span class="user-avatar relative">
         <i class="pi pi-user"></i>
+        <!-- AI : Red dot on avatar if there are unread notifications -->
+        <span v-if="hasUnacknowledgedItems" class="notification-dot-avatar"></span>
       </span>
       <span class="username">{{ authStore.user?.username }}</span>
-      <i class="pi pi-chevron-down" :class="{ 'rotated': isMenuOpen }"></i>
+      <i class="pi pi-chevron-down" :class="{ rotated: isMenuOpen }"></i>
     </button>
 
     <!-- AI : User menu popover -->
     <Popover ref="userPopover">
       <div class="flex flex-col w-48">
-        <div class="px-3 py-2 bg-surface-50 border-round">
-          <div class="font-medium text-sm">{{ authStore.user?.email }}</div>
+        <div class="px-2 py-1.5 bg-surface-50 border-round mb-1">
+          <div class="font-medium text-sm text-ellipsis overflow-hidden">
+            {{ authStore.user?.email }}
+          </div>
         </div>
+
+        <!-- AI : Language Switcher as list item -->
+        <LanguageSwitcherMenu display-mode="list-item" />
+
+        <!-- AI : Moderation Results as list item -->
+        <button type="button" class="menu-item-btn" @click="openModerationResults">
+          <div class="flex items-center gap-2">
+            <i class="pi pi-bell"></i>
+            <span>{{ $t("moderation.moderatedContributions.viewResults") }}</span>
+          </div>
+          <Badge v-if="hasUnacknowledgedItems" severity="danger" class="ml-auto" value="!" />
+        </button>
+
+        <div class="separator my-1"></div>
+
         <button
           type="button"
-          class="sign-out-btn flex items-center gap-2 px-3 py-2 hover:bg-surface-100 cursor-pointer border-round w-full"
+          class="menu-item-btn"
           data-testid="sign-out-button"
           @click="handleSignOut"
         >
           <i class="pi pi-sign-out"></i>
-          <span>{{ $t('auth.logout') }}</span>
+          <span>{{ $t("auth.logout") }}</span>
         </button>
       </div>
     </Popover>
@@ -55,75 +73,103 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import { useUnsavedChanges } from '@/composables/core/useUnsavedChanges'
-import { useAuthStore } from '@/stores/authStore'
-import { useUiStore } from '@/stores/uiStore'
-import { useToast } from '@/composables/ui/useToast'
-import { useI18n } from 'vue-i18n'
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { useUnsavedChanges } from "@/composables/core/useUnsavedChanges";
+import { useAuthStore } from "@/stores/authStore";
+import { useUiStore } from "@/stores/uiStore";
+import { useToast } from "@/composables/ui/useToast";
+import { useI18n } from "vue-i18n";
+import { useModeratedContributions } from "@/composables/moderation/useModeratedContributions";
 
-import AuthModal from './AuthModal.vue'
-import LanguageSwitcherMenu from '../map/LanguageSwitcherMenu.vue'
+import AuthModal from "./AuthModal.vue";
+import LanguageSwitcherMenu from "../map/LanguageSwitcherMenu.vue";
 
-const authStore = useAuthStore()
-const uiStore = useUiStore()
-const toast = useToast()
-const { t } = useI18n()
-const isMenuOpen = ref(false)
-const userPopover = ref()
+const authStore = useAuthStore();
+const uiStore = useUiStore();
+const toast = useToast();
+const { t } = useI18n();
+const isMenuOpen = ref(false);
+const userPopover = ref();
+const { hasUnacknowledgedItems } = useModeratedContributions();
 
 // AI : Use store state directly for auth modal
 const authModalVisible = computed({
   get: () => uiStore.authModalVisible,
   set: (value) => {
     if (value) {
-      uiStore.openAuthModal()
+      uiStore.openAuthModal();
     } else {
-      uiStore.closeAuthModal()
+      uiStore.closeAuthModal();
     }
-  }
-})
+  },
+});
 
 // AI : Toggle menu visibility using Popover
 function toggleMenu(event: Event) {
-  userPopover.value.toggle(event)
-  isMenuOpen.value = !isMenuOpen.value
+  userPopover.value.toggle(event);
+  isMenuOpen.value = !isMenuOpen.value;
 }
 
-const { hasUnsavedChanges } = useUnsavedChanges()
+const { hasUnsavedChanges } = useUnsavedChanges();
 
 // AI : Handle sign out
 async function handleSignOut() {
   if (hasUnsavedChanges()) {
     // AI : Use a generic warning about unsaved data (reusing existing key)
-    if (!confirm(t('navigation.unsavedOverlaysWarning'))) {
-      userPopover.value.hide()
-      isMenuOpen.value = false
-      return
+    if (!confirm(t("navigation.unsavedOverlaysWarning"))) {
+      userPopover.value.hide();
+      isMenuOpen.value = false;
+      return;
     }
   }
 
   try {
-    const result = await authStore.signOut()
+    const result = await authStore.signOut();
     if (result.success) {
       toast.add({
-        severity: 'success',
-        summary: t('auth.signedOut'),
-        detail: t('auth.signedOutMessage'),
-        life: 3000
-      })
+        severity: "success",
+        summary: t("auth.signedOut"),
+        detail: t("auth.signedOutMessage"),
+        life: 3000,
+      });
     }
   } catch (error) {
-    console.error('Error signing out:', error)
+    console.error("Error signing out:", error);
   }
-  userPopover.value.hide()
-  isMenuOpen.value = false
+  userPopover.value.hide();
+  isMenuOpen.value = false;
+}
+
+// AI : Handle opening moderation results (closes menu)
+function openModerationResults() {
+  uiStore.openModeratedContributionsDialog();
+  userPopover.value.hide();
+  isMenuOpen.value = false;
 }
 
 // AI : Watch for popover visibility changes
-watch(() => userPopover.value?.visible, (visible) => {
-  isMenuOpen.value = visible ?? false
-})
+watch(
+  () => userPopover.value?.visible,
+  (visible) => {
+    isMenuOpen.value = visible ?? false;
+  },
+);
+
+// AI : Close menu on window resize to prevent positioning issues
+function handleResize() {
+  if (isMenuOpen.value && userPopover.value) {
+    userPopover.value.hide();
+    isMenuOpen.value = false;
+  }
+}
+
+onMounted(() => {
+  window.addEventListener("resize", handleResize);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("resize", handleResize);
+});
 </script>
 
 <style scoped>
@@ -139,6 +185,46 @@ watch(() => userPopover.value?.visible, (visible) => {
   isolation: isolate;
 }
 
+.menu-item-btn {
+  appearance: none;
+  font-family: inherit;
+  background: transparent;
+  border: none;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.5rem;
+  width: 100%;
+  cursor: pointer;
+  border-radius: var(--p-border-radius);
+  color: var(--p-surface-700);
+  transition: background-color 0.2s;
+  font-size: 0.9rem;
+}
+
+.menu-item-btn:hover {
+  background-color: var(--p-surface-100);
+}
+
+.separator {
+  height: 1px;
+  background-color: var(--p-surface-200);
+  margin: 0.25rem 0;
+}
+
+/* AI : Initial notification dot on avatar */
+.notification-dot-avatar {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 10px;
+  height: 10px;
+  background-color: var(--p-red-500);
+  border-radius: 50%;
+  border: 2px solid white;
+}
+
 .user-menu {
   /* AI : Reset button defaults */
   appearance: none;
@@ -146,15 +232,15 @@ watch(() => userPopover.value?.visible, (visible) => {
   /* AI : Layout and styling */
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
+  gap: 0.35rem;
+  padding: 0.4rem 0.6rem;
   background: white;
   border: 1px solid var(--p-surface-300);
   border-radius: 0.375rem;
   cursor: pointer;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
-  min-width: 120px;
+  min-width: 110px;
 }
 
 /* AI : Reset button defaults for sign out button */

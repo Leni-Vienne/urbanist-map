@@ -166,13 +166,7 @@ export const projectRouter = router({
     .input(z.object({ id: z.uuid() }))
     .mutation(async ({ input, ctx }) => {
       try {
-        const userId = ctx.user?.id;
-        if (!userId) {
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: "Must be logged in to delete project",
-          });
-        }
+        const userId = ctx.user.id;
 
         // AI : Use transaction to ensure atomic deletion of project and overlays
         // AI : This prevents partial deletes and race conditions

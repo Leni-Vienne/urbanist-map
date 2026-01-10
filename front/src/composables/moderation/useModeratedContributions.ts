@@ -46,18 +46,18 @@ export function useModeratedContributions() {
    * AI : Acknowledge and clear specific moderated items
    * AI : Deletes thumbnails and DB records immediately (instead of waiting 15 days)
    */
-  async function acknowledgeContributions(overlayIds: string[]) {
-    if (overlayIds.length === 0) return { success: false };
+  async function acknowledgeContributions(contributionIds: string[]) {
+    if (contributionIds.length === 0) return { success: false };
 
     const result = await withErrorHandling(
-      async () => trpc.overlay.acknowledgeModeratedContributions.mutate({ overlayIds }),
+      async () => trpc.overlay.acknowledgeModeratedContributions.mutate({ contributionIds }),
       { errorMessage: "Failed to acknowledge contributions" },
     );
 
     if (result?.success) {
       // AI : Remove acknowledged items from local cache
       moderatedContributions.value = moderatedContributions.value.filter(
-        (item) => !overlayIds.includes(item.id),
+        (item) => !contributionIds.includes(item.id),
       );
     }
 

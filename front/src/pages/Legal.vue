@@ -9,138 +9,129 @@
         @click="goHome"
       />
 
-      <h1>{{ t('pages.legal.title') }}</h1>
+      <h1>{{ t("pages.legal.title") }}</h1>
 
       <!-- AI : Publisher identity - required by French law -->
       <section>
-        <h2>{{ t('pages.legal.publisher.title') }}</h2>
-        <p>{{ t('pages.legal.publisher.content') }}</p>
+        <h2>{{ t("pages.legal.publisher.title") }}</h2>
+        <p>{{ t("pages.legal.publisher.content") }}</p>
         <ul>
           <li>
-            <strong>{{ t('pages.legal.publisher.name') }}:</strong> Léni Vienne
+            <strong>{{ t("common.name") }}:</strong> Léni Vienne
           </li>
           <li>
-            <strong>{{ t('pages.legal.publisher.email') }}:</strong> {{ email }}
+            <strong>{{ t("common.email") }}:</strong> {{ email }}
           </li>
         </ul>
       </section>
 
       <!-- AI : Data collection -->
       <section>
-        <h2>{{ t('pages.legal.dataCollection.title') }}</h2>
-        <p>{{ t('pages.legal.dataCollection.content') }}</p>
+        <h2>{{ t("pages.legal.dataCollection.title") }}</h2>
+        <p>{{ t("pages.legal.dataCollection.content") }}</p>
         <ul>
-          <li>{{ t('pages.legal.dataCollection.username') }}</li>
-          <li>{{ t('pages.legal.dataCollection.email') }}</li>
-          <li>{{ t('pages.legal.dataCollection.password') }}</li>
-          <li>{{ t('pages.legal.dataCollection.ipAddresses') }}</li>
-          <li>{{ t('pages.legal.dataCollection.oauthData') }}</li>
+          <li>{{ t("pages.legal.dataCollection.username") }}</li>
+          <li>{{ t("pages.legal.dataCollection.email") }}</li>
+          <li>{{ t("pages.legal.dataCollection.password") }}</li>
+          <li>{{ t("pages.legal.dataCollection.ipAddresses") }}</li>
+          <li>{{ t("pages.legal.dataCollection.oauthData") }}</li>
         </ul>
-        <p class="legal-basis">{{ t('pages.legal.dataCollection.legalBasis') }}</p>
+        <p class="legal-basis">{{ t("pages.legal.dataCollection.legalBasis") }}</p>
       </section>
 
       <!-- AI : GDPR user rights -->
       <section>
-        <h2>{{ t('pages.legal.rights.title') }}</h2>
-        <p>{{ t('pages.legal.rights.content') }}</p>
+        <h2>{{ t("pages.legal.rights.title") }}</h2>
+        <p>{{ t("pages.legal.rights.content") }}</p>
         <ul>
-          <li>{{ t('pages.legal.rights.access', { email }) }}</li>
-          <li>{{ t('pages.legal.rights.rectification') }}</li>
-          <li>{{ t('pages.legal.rights.deletion', { email }) }}</li>
-          <li>{{ t('pages.legal.rights.portability', { email }) }}</li>
+          <li>{{ t("pages.legal.rights.access", { email }) }}</li>
+          <li>{{ t("pages.legal.rights.rectification") }}</li>
+          <li>{{ t("pages.legal.rights.deletion", { email }) }}</li>
+          <li>{{ t("pages.legal.rights.portability", { email }) }}</li>
         </ul>
-        <p>{{ t('pages.legal.rights.howTo', { email }) }}</p>
+        <p>{{ t("pages.legal.rights.howTo", { email }) }}</p>
         <p class="legal-basis">
-          <strong>{{ t('pages.legal.rights.note') }}</strong>
+          <strong>{{ t("pages.legal.rights.note") }}</strong>
         </p>
       </section>
 
       <!-- AI : Third-party services -->
       <section>
-        <h2>{{ t('pages.legal.thirdParty.title') }}</h2>
-        <p>{{ t('pages.legal.thirdParty.content') }}</p>
+        <h2>{{ t("pages.legal.thirdParty.title") }}</h2>
+        <p>{{ t("pages.legal.thirdParty.content") }}</p>
         <ul>
           <li>
-            <strong>Google OAuth:</strong> {{ t('pages.legal.thirdParty.google') }}
-            <a
-              href="https://policies.google.com/privacy"
-              target="_blank"
-              rel="noopener"
-              >{{ t('pages.legal.thirdParty.googleLink') }}</a
-            >
+            <strong>Google OAuth:</strong> {{ t("pages.legal.thirdParty.google") }}
+            <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">{{
+              t("pages.legal.thirdParty.googleLink")
+            }}</a>
           </li>
           <li>
-            <strong>Cloudflare:</strong> {{ t('pages.legal.thirdParty.cloudflare') }}
-            <a
-              href="https://www.cloudflare.com/privacypolicy/"
-              target="_blank"
-              rel="noopener"
-              >{{ t('pages.legal.thirdParty.cloudflareLink') }}</a
-            >
+            <strong>Cloudflare:</strong> {{ t("pages.legal.thirdParty.cloudflare") }}
+            <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">{{
+              t("pages.legal.thirdParty.cloudflareLink")
+            }}</a>
           </li>
           <li>
-            <strong>AWS:</strong> {{ t('pages.legal.thirdParty.aws') }}
-            <a
-              href="https://aws.amazon.com/privacy/"
-              target="_blank"
-              rel="noopener"
-              >{{ t('pages.legal.thirdParty.awsLink') }}</a
-            >
+            <strong>AWS:</strong> {{ t("pages.legal.thirdParty.aws") }}
+            <a href="https://aws.amazon.com/privacy/" target="_blank" rel="noopener">{{
+              t("pages.legal.thirdParty.awsLink")
+            }}</a>
           </li>
         </ul>
       </section>
 
       <!-- AI : Data retention -->
       <section>
-        <h2>{{ t('pages.legal.retention.title') }}</h2>
-        <p>{{ t('pages.legal.retention.content') }}</p>
+        <h2>{{ t("pages.legal.retention.title") }}</h2>
+        <p>{{ t("pages.legal.retention.content") }}</p>
         <ul>
-          <li>{{ t('pages.legal.retention.account') }}</li>
-          <li>{{ t('pages.legal.retention.logs') }}</li>
-          <li>{{ t('pages.legal.retention.sessions') }}</li>
-          <li>{{ t('pages.legal.retention.contributions') }}</li>
+          <li>{{ t("pages.legal.retention.account") }}</li>
+          <li>{{ t("pages.legal.retention.logs") }}</li>
+          <li>{{ t("pages.legal.retention.sessions") }}</li>
+          <li>{{ t("pages.legal.retention.contributions") }}</li>
         </ul>
-        <p class="legal-basis">{{ t('pages.legal.retention.deletion') }}</p>
+        <p class="legal-basis">{{ t("pages.legal.retention.deletion") }}</p>
       </section>
 
       <!-- AI : Cookies -->
       <section>
-        <h2>{{ t('pages.legal.cookies.title') }}</h2>
-        <p>{{ t('pages.legal.cookies.content') }}</p>
+        <h2>{{ t("pages.legal.cookies.title") }}</h2>
+        <p>{{ t("pages.legal.cookies.content") }}</p>
         <ul>
-          <li>{{ t('pages.legal.cookies.sessionCookie') }}</li>
-          <li>{{ t('pages.legal.cookies.purpose') }}</li>
+          <li>{{ t("pages.legal.cookies.sessionCookie") }}</li>
+          <li>{{ t("pages.legal.cookies.purpose") }}</li>
         </ul>
-        <p>{{ t('pages.legal.cookies.noTracking') }}</p>
+        <p>{{ t("pages.legal.cookies.noTracking") }}</p>
       </section>
 
       <!-- AI : User content / Terms -->
       <section>
-        <h2>{{ t('pages.legal.userContent.title') }}</h2>
-        <p>{{ t('pages.legal.userContent.content') }}</p>
+        <h2>{{ t("pages.legal.userContent.title") }}</h2>
+        <p>{{ t("pages.legal.userContent.content") }}</p>
         <ul>
-          <li>{{ t('pages.legal.userContent.ownership') }}</li>
-          <li>{{ t('pages.legal.userContent.license') }}</li>
-          <li>{{ t('pages.legal.userContent.moderation') }}</li>
-          <li>{{ t('pages.legal.userContent.forbidden') }}</li>
+          <li>{{ t("pages.legal.userContent.ownership") }}</li>
+          <li>{{ t("pages.legal.userContent.license") }}</li>
+          <li>{{ t("pages.legal.userContent.moderation") }}</li>
+          <li>{{ t("pages.legal.userContent.forbidden") }}</li>
         </ul>
       </section>
 
-      <p class="last-updated">{{ t('pages.legal.lastUpdated') }}: 22/11/2025</p>
+      <p class="last-updated">{{ t("pages.legal.lastUpdated") }}: 22/11/2025</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
+import { useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 
-const router = useRouter()
-const { t } = useI18n()
-const email = 'contact@constructionmap.org'
+const router = useRouter();
+const { t } = useI18n();
+const email = "contact@constructionmap.org";
 
 function goHome() {
-  router.push('/')
+  router.push("/");
 }
 </script>
 

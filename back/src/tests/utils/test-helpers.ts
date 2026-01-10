@@ -234,6 +234,7 @@ export class TestHelpers {
         bannedBy: null,
         createdAt: new Date(),
         updatedAt: new Date(),
+        lastApprovalAcknowledgementAt: null,
       },
       hono: {} as Context,
     };
