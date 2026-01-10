@@ -621,8 +621,20 @@ watch(
 // AI : Watch only project IDs instead of deep watching entire project objects for performance
 watch(
   () => [mapStore.selectedCity, props.projects.map((p) => p.id).join(",")] as const,
-  async ([selectedCity]) => {
-    if (selectedCity && props.projects.length > 0 && !props.disableGrouping) {
+  async ([selectedCity, projectIds], [oldSelectedCity, oldProjectIds]) => {
+    // AI : Check if city changed (compare IDs to handle object reference changes)
+    const cityChanged = selectedCity?.id !== oldSelectedCity?.id;
+
+    // AI : Check if projects were just loaded (went from empty to populated)
+    const projectsLoaded = (!oldProjectIds || oldProjectIds === "") && projectIds !== "";
+
+    // AI : Only scroll if we have a reason to (city changed or initial load)
+    if (
+      (cityChanged || projectsLoaded) &&
+      selectedCity &&
+      props.projects.length > 0 &&
+      !props.disableGrouping
+    ) {
       // AI : Wait for Vue to finish rendering the updated projects
       await nextTick();
 

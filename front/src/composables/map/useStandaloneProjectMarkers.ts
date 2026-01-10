@@ -118,11 +118,11 @@ export function updateStandaloneProjectMarkerTooltip(
   project: Project,
   mode: "view" | "edit" | "moderation",
 ): void {
-  // AI : Remove any existing tooltip
-  marker.unbindTooltip();
-
   // AI : Only show tooltips in edit and moderation modes (view mode doesn't need them)
   if (mode === "view") {
+    if (marker.getTooltip()) {
+      marker.unbindTooltip();
+    }
     return;
   }
 
@@ -171,11 +171,16 @@ export function updateStandaloneProjectMarkerTooltip(
   // AI : Assemble final tooltip text with modifier in parentheses if present
   const finalTooltipText = modifierText ? `${tooltipText} (${modifierText})` : tooltipText;
 
-  marker.bindTooltip(finalTooltipText, {
-    permanent: false,
-    direction: "top",
-    offset: [0, -10],
-  });
+  // AI : Update tooltip content if it exists, otherwise bind new one
+  if (marker.getTooltip()) {
+    marker.setTooltipContent(finalTooltipText);
+  } else {
+    marker.bindTooltip(finalTooltipText, {
+      permanent: false,
+      direction: "top",
+      offset: [0, -10],
+    });
+  }
 }
 
 /**
