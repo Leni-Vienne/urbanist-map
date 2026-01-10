@@ -72,11 +72,6 @@ function getFilesRecursively(dir: string): string[] {
   return files;
 }
 
-// AI: Check if a key should be ignored based on IGNORED_PREFIXES
-function shouldIgnoreKey(key: string): boolean {
-  return IGNORED_PREFIXES.some((prefix) => key.startsWith(prefix));
-}
-
 // AI: Find dynamic key prefixes used in the codebase
 function findDynamicPrefixes(fileContents: Map<string, string>): Set<string> {
   const dynamicPrefixes = new Set<string>();
