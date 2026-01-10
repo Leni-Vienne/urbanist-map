@@ -136,7 +136,7 @@ export function updateStandaloneProjectMarkerTooltip(
         tooltipText = t("markerTooltip.project.pendingApproval");
         break;
       case "approved":
-        tooltipText = t("markerTooltip.project.approved");
+        tooltipText = t("common.approved");
         break;
       case "rejected":
         tooltipText = t("markerTooltip.project.rejected");
@@ -155,7 +155,7 @@ export function updateStandaloneProjectMarkerTooltip(
         modifierText = t("markerTooltip.project.modified");
       }
     } else if (status === "approved") {
-      tooltipText = t("markerTooltip.project.approved");
+      tooltipText = t("common.approved");
       if (hasBeenModified) {
         modifierText = t("markerTooltip.project.modified");
       }
@@ -262,6 +262,19 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
   marker.on("click", (e) => {
     L.DomEvent.stopPropagation(e);
     const uiStore = useUiStore();
+
+    // AI : In moderation mode, clicking a contribution should load the city context
+    if (overlayStore.mode === "moderation" && project.city) {
+      const mapStore = useMapStore();
+      if (mapStore.selectedCity?.id !== project.city.id) {
+        mapStore.setSelectedCity({
+          id: project.city.id,
+          name: project.city.name,
+          nameLocal: project.city.nameLocal,
+          countryCode: project.city.countryCode,
+        });
+      }
+    }
 
     // AI : Check if popup is already open for this project - toggle behavior
     if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {

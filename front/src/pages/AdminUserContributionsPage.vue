@@ -33,7 +33,7 @@
         </div>
         <div class="user-stats">
           <Badge :value="data.user.approvedCount" severity="success" />
-          <span>{{ t("admin.userContributions.approved") }}</span>
+          <span>{{ t("common.approved") }}</span>
           <Badge :value="data.user.rejectedCount" severity="danger" />
           <span>{{ t("admin.userContributions.rejected") }}</span>
         </div>
