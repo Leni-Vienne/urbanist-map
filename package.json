@@ -17,6 +17,7 @@
     "migrate:r2-thumbnails": "cd back && bun --env-file=../.env run src/scripts/generate-r2-thumbnails.ts",
     "cleanup:images": "cd back && bun --env-file=../.env run src/scripts/cleanup-images.ts",
     "unused-export": "python scripts/find-truly-unused.py",
+    "unused-translations": "bun run scripts/find-unused-translations.ts",
     "typecheck": "bunx vue-tsc --noEmit",
     "jscpd": "bunx jscpd .",
     "oxfmt": "bunx oxfmt",

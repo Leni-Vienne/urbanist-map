@@ -15,13 +15,13 @@
     <!-- AI : Empty state -->
     <div v-else-if="moderatedContributions.length === 0" class="text-center py-8">
       <i class="pi pi-check-circle text-6xl text-green-500 mb-4"></i>
-      <p class="text-lg">{{ $t('moderation.moderatedContributions.noItems') }}</p>
+      <p class="text-lg">{{ $t("moderation.moderatedContributions.noItems") }}</p>
     </div>
 
     <!-- AI : List of moderated contributions -->
     <div v-else class="space-y-4">
       <p class="text-sm text-surface-600 mb-4">
-        {{ $t('moderation.moderatedContributions.description') }}
+        {{ $t("moderation.moderatedContributions.description") }}
       </p>
 
       <div v-for="item in moderatedContributions" :key="item.id" class="moderated-item">
@@ -45,13 +45,18 @@
         <!-- AI : Content -->
         <div class="item-content">
           <div class="item-header">
-            <span
-              class="item-title"
-              >{{ item.caption || item.projectName || $t('overlay.untitled') }}</span
-            >
+            <span class="item-title">{{
+              item.caption || item.projectName || $t("overlay.untitled")
+            }}</span>
             <Tag
               :value="$t(`status.${item.status}`)"
-              :severity="item.status === 'rejected' ? 'danger' : 'secondary'"
+              :severity="
+                item.status === 'rejected'
+                  ? 'danger'
+                  : item.status === 'approved'
+                    ? 'success'
+                    : 'secondary'
+              "
               rounded
             />
           </div>
@@ -59,12 +64,12 @@
           <!-- AI : Show location for all items -->
           <p v-if="item.cityName" class="item-location">
             <i class="pi pi-map-marker"></i>
-            {{ item.cityName }}{{ item.countryCode ? `, ${item.countryCode}` : '' }}
+            {{ item.cityName }}{{ item.countryCode ? `, ${item.countryCode}` : "" }}
           </p>
 
           <p v-if="item.status === 'replaced' && item.replacedByOverlayId" class="item-info">
             <i class="pi pi-info-circle"></i>
-            {{ $t('moderation.moderatedContributions.replacedInfo') }}
+            {{ $t("moderation.moderatedContributions.replacedInfo") }}
           </p>
 
           <!-- AI : Display rejection reason if item was rejected -->
@@ -73,7 +78,7 @@
             class="item-rejection-reason"
           >
             <i class="pi pi-ban"></i>
-            <strong>{{ $t('moderation.rejectionReason.label') }}:</strong>
+            <strong>{{ $t("moderation.rejectionReason.label") }}:</strong>
             {{ $t(`moderation.rejectionReason.${item.rejectionReason}`) }}
           </p>
 
@@ -98,78 +103,77 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch } from "vue";
 
-import ProgressSpinner from 'primevue/progressspinner'
-import { useModeratedContributions } from '@/composables/moderation/useModeratedContributions'
-import { useToast } from '@/composables/ui/useToast'
-import { buildThumbnailUrl } from '@/utils/imageUrl'
-import { formatRelativeTime } from '@/utils/dateFormat'
-import { useI18n } from 'vue-i18n'
+import ProgressSpinner from "primevue/progressspinner";
+import { useModeratedContributions } from "@/composables/moderation/useModeratedContributions";
+import { useToast } from "@/composables/ui/useToast";
+import { buildThumbnailUrl } from "@/utils/imageUrl";
+import { formatRelativeTime } from "@/utils/dateFormat";
+import { useI18n } from "vue-i18n";
 
 interface Props {
-  visible: boolean
+  visible: boolean;
 }
 
 interface Emits {
-  (e: 'update:visible', value: boolean): void
-  (e: 'close'): void
+  (e: "update:visible", value: boolean): void;
+  (e: "close"): void;
 }
 
-const props = defineProps<Props>()
-const emit = defineEmits<Emits>()
-const { t } = useI18n()
-const toast = useToast()
+const props = defineProps<Props>();
+const emit = defineEmits<Emits>();
+const { t } = useI18n();
+const toast = useToast();
 
-const {
-  moderatedContributions,
-  isLoading,
-  fetchModeratedContributions,
-  acknowledgeAll
-} = useModeratedContributions()
+const { moderatedContributions, isLoading, fetchModeratedContributions, acknowledgeAll } =
+  useModeratedContributions();
 
-const isVisible = ref(props.visible)
-const isAcknowledging = ref(false)
+const isVisible = ref(props.visible);
+const isAcknowledging = ref(false);
 
 // AI : Sync visibility with prop
-watch(() => props.visible, (newVal) => {
-  isVisible.value = newVal
-  if (newVal) {
-    fetchModeratedContributions()
-  }
-})
+watch(
+  () => props.visible,
+  (newVal) => {
+    isVisible.value = newVal;
+    if (newVal) {
+      fetchModeratedContributions();
+    }
+  },
+);
 
 // AI : Update parent when visibility changes
 watch(isVisible, (newVal) => {
-  emit('update:visible', newVal)
+  emit("update:visible", newVal);
   if (!newVal) {
-    emit('close')
+    emit("close");
   }
-})
+});
 
 // AI : Handle acknowledge all button
 async function handleAcknowledgeAll() {
-  isAcknowledging.value = true
+  isAcknowledging.value = true;
   try {
-    const result = await acknowledgeAll()
+    const result = await acknowledgeAll();
     if (result.success) {
       toast.add({
-        severity: 'success',
-        summary: t('moderation.moderatedContributions.acknowledgeSuccess'),
-        detail: t('moderation.moderatedContributions.acknowledgeSuccessDetail'),
-        life: 3000
-      })
-      emit('close')
+        severity: "success",
+        summary: t("moderation.moderatedContributions.acknowledgeSuccess"),
+        detail: t("moderation.moderatedContributions.acknowledgeSuccessDetail"),
+        life: 3000,
+      });
+      emit("close");
     }
   } finally {
-    isAcknowledging.value = false
+    isAcknowledging.value = false;
   }
 }
 
 // AI : Handle image load error
 function handleImageError(event: Event) {
-  const target = event.target as HTMLImageElement
-  target.style.display = 'none'
+  const target = event.target as HTMLImageElement;
+  target.style.display = "none";
 }
 </script>
 
