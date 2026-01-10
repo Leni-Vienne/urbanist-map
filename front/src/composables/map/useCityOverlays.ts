@@ -8,6 +8,7 @@ import { getOverlayMarkerColor, createOverlayIcon } from "@/composables/map/useM
 import { resolveOverlayPosition } from "@/composables/overlay/useOverlayPositionManagement";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import type { OverlayData } from "@/types/index";
 
 // AI : Layer group for overlay markers (markers without images)
@@ -99,6 +100,21 @@ function flyToOverlayMarker(overlayData: OverlayData) {
 
   const overlayStore = useOverlayStore();
   const resolved = resolveOverlayPosition(overlayData.id, overlayData, overlayStore.mode);
+
+  // AI : In moderation mode, clicking a contribution should load the city context
+  if (overlayStore.mode === "moderation" && overlayData.project?.city) {
+    const mapStore = useMapStore();
+    const city = overlayData.project.city;
+
+    if (mapStore.selectedCity?.id !== city.id) {
+      mapStore.setSelectedCity({
+        id: city.id,
+        name: city.name,
+        nameLocal: city.nameLocal,
+        countryCode: city.countryCode,
+      });
+    }
+  }
 
   if (resolved.corners?.length !== 4) return;
 

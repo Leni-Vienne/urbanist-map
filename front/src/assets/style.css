@@ -85,3 +85,8 @@ body {
 .leaflet-toolbar-icon:hover::after {
   transition-delay: 0.2s !important;
 }
+
+/* Fix toast width on mobile, otherwise it's too wide */
+.p-toast {
+  max-width: calc(100vw - 40px);
+}

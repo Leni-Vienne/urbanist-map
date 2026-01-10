@@ -9,9 +9,9 @@
         @click="goHome"
       />
 
-      <h1>{{ t('pages.contact.title') }}</h1>
+      <h1>{{ t("common.contact") }}</h1>
 
-      <p>{{ t('pages.contact.description') }}</p>
+      <p>{{ t("pages.contact.description") }}</p>
 
       <div class="contact-info">
         <a href="mailto:contact@constructionmap.org" class="contact-link">
@@ -19,19 +19,32 @@
           contact@constructionmap.org
         </a>
       </div>
+
+      <Divider />
+
+      <div class="basemap-submission">
+        <h2>{{ t("pages.contact.basemapTitle") }}</h2>
+        <p>{{ t("pages.contact.basemapDescription") }}</p>
+        <div class="example-box">
+          <span class="example-label">{{ t("pages.contact.basemapExample") }}</span>
+          <code
+            >https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage-product/default/2025/3857/{z}/{x}/{y}.png</code
+          >
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
+import { useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 
-const router = useRouter()
-const { t } = useI18n()
+const router = useRouter();
+const { t } = useI18n();
 
 function goHome() {
-  router.push('/')
+  router.push("/");
 }
 </script>
 
@@ -87,5 +100,58 @@ p {
 
 .contact-link:hover {
   background: var(--p-primary-100);
+}
+
+.basemap-submission {
+  margin-top: 2rem;
+  text-align: left;
+}
+
+h2 {
+  font-size: 1.25rem;
+  margin-bottom: 0.75rem;
+  color: var(--p-text-color);
+}
+
+.example-box {
+  margin-top: 1rem;
+  padding: 1.25rem;
+  background: var(--p-surface-900);
+  border-radius: 8px;
+  border: 1px solid var(--p-surface-700);
+  word-break: break-all;
+  position: relative;
+  overflow: hidden;
+}
+
+.example-box::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--p-primary-500);
+}
+
+.example-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--p-surface-0);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+code {
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.8rem;
+  color: var(--p-primary-300);
+  background: rgba(var(--p-primary-500-rgb), 0.1);
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  line-height: 1.5;
+  display: block;
 }
 </style>
