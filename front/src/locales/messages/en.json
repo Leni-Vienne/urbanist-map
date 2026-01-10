@@ -253,11 +253,11 @@
     "signedOutMessage": "You have successfully signed out.",
     "resetPassword": "Reset Password",
     "forgotPasswordTitle": "Forgot your password?",
-    "forgotPasswordMessage": "Enter your email and we'll send you a link to reset your password.",
+    "forgotPasswordMessage": "Enter your email and a link will be sent to reset your password.",
     "sendResetLink": "Send Reset Link",
     "backToSignIn": "Back to Sign In",
     "checkYourEmail": "Check Your Email",
-    "resetLinkSent": "If an account exists with this email, we've sent a password reset link.",
+    "resetLinkSent": "If an account exists with this email, a password reset link will be sent.",
     "resetPasswordTitle": "Create New Password",
     "newPassword": "New Password",
     "confirmPassword": "Confirm Password",
@@ -355,7 +355,7 @@
       },
       "dataCollection": {
         "title": "Data Collection",
-        "content": "We collect minimal information to provide our service:",
+        "content": "I collect minimal information to provide our service:",
         "username": "Username (public display name)",
         "email": "Email address (for account recovery and notifications)",
         "password": "Password (stored encrypted)",
@@ -370,12 +370,12 @@
         "rectification": "Right to rectification: update your username and email in your account settings",
         "deletion": "Right to erasure: delete your account and all personal data (email {email} to request account deletion)",
         "portability": "Right to portability: export your data in JSON format (email {email})",
-        "howTo": "To exercise these rights, contact us at {email}. We will respond within 30 days.",
+        "howTo": "To exercise these rights, contact me at {email}. I will respond within 30 days.",
         "note": "Note: When you delete your account, your personal information (email, username) is removed, but your contributions (projects, overlays) are anonymized and may remain publicly visible."
       },
       "thirdParty": {
         "title": "Third-Party Services",
-        "content": "We use the following external services:",
+        "content": "I use the following external services:",
         "google": "Optional sign-in method. Shares your email and name with us.",
         "googleLink": "Google Privacy Policy",
         "cloudflare": "Hosting and CDN. May process IP addresses.",
@@ -385,7 +385,7 @@
       },
       "retention": {
         "title": "Data Retention",
-        "content": "We retain your data as follows:",
+        "content": "I retain your data as follows:",
         "account": "Account data (email, username, password): Until you delete your account",
         "logs": "Server logs (IP addresses): Automatically deleted after 90 days",
         "sessions": "Session cookies: Expire after 30 days of inactivity",
@@ -394,22 +394,25 @@
       },
       "cookies": {
         "title": "Cookies",
-        "content": "We only use essential cookies:",
+        "content": "I only use essential cookies:",
         "sessionCookie": "Session cookie: Keeps you logged in (expires after 30 days of inactivity)",
         "purpose": "This cookie is strictly necessary for authentication and does not require consent.",
-        "noTracking": "We do not use any tracking, analytics, or advertising cookies."
+        "noTracking": "I do not use any tracking, analytics, or advertising cookies."
       },
       "userContent": {
         "title": "User Content & Terms of Use",
         "content": "By uploading content to this website:",
         "ownership": "You retain ownership of your content",
-        "license": "You grant us a non-exclusive license to display and distribute your content on this platform",
-        "moderation": "We may remove content that violates our guidelines without notice",
+        "license": "You grant me a non-exclusive license to display and distribute your content on this platform",
+        "moderation": "I may remove content that violates our guidelines without notice",
         "forbidden": "Prohibited: illegal content, spam, copyrighted material without permission, offensive content"
       }
     },
     "contact": {
-      "description": "For your questions, feedback, or issues, reach out via email:"
+      "description": "For your questions, feedback, or issues, reach out via email:",
+      "basemapTitle": "Submit a Basemap",
+      "basemapDescription": "If you want me to add a new base map (tile layer), I need a URL like the following or a link to the tile layer website.",
+      "basemapExample": "Example: "
     }
   },
   "controls": {
