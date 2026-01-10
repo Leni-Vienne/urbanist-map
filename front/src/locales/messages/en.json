@@ -19,7 +19,12 @@
     "new": "New",
     "unknown": "Unknown",
     "noValue": "(no value)",
-    "info": "Info"
+    "info": "Info",
+    "description": "Description",
+    "contact": "Contact",
+    "email": "Email",
+    "actions": "Actions",
+    "approved": "Approved"
   },
   "relativeTime": {
     "justNow": "just now",
@@ -37,8 +42,6 @@
     "yearsAgo": "{count} years ago"
   },
   "fields": {
-    "name": "Name",
-    "description": "Description",
     "cityId": "City",
     "projectId": "Project",
     "corners": "Corner Positions",
@@ -48,8 +51,7 @@
     "endDate": "End Date",
     "sourceUrl": "Source URL",
     "lat": "Latitude",
-    "lng": "Longitude",
-    "caption": "Name"
+    "lng": "Longitude"
   },
   "navigation": {
     "latestContributions": "Latest Contributions",
@@ -69,7 +71,6 @@
   "project": {
     "create": "Create Project",
     "name": "Project Name",
-    "description": "Description",
     "location": "Location",
     "noLocation": "No Location",
     "missingCityInfo": "Missing City Info",
@@ -104,7 +105,6 @@
     "addImages": "Add Images"
   },
   "status": {
-    "approved": "Approved",
     "draft": "Draft",
     "pending": "Pending",
     "rejected": "Rejected",
@@ -300,8 +300,7 @@
     "closePanel": "Close panel"
   },
   "footer": {
-    "legal": "Legal",
-    "contact": "Contact"
+    "legal": "Legal"
   },
   "submission": {
     "confirmTitle": "Confirm Submission",
@@ -352,9 +351,7 @@
       "lastUpdated": "Last updated",
       "publisher": {
         "title": "Publisher",
-        "content": "This website is published by:",
-        "name": "Name",
-        "email": "Email"
+        "content": "This website is published by:"
       },
       "dataCollection": {
         "title": "Data Collection",
@@ -412,7 +409,6 @@
       }
     },
     "contact": {
-      "title": "Contact",
       "description": "For your questions, feedback, or issues, reach out via email:"
     }
   },
@@ -446,7 +442,6 @@
     "status": {
       "replacementOverlay": "Replacement overlay",
       "pendingApproval": "Pending approval",
-      "approved": "Approved",
       "rejected": "Rejected overlay",
       "localOverlay": "Local overlay",
       "newOverlay": "New overlay"
@@ -458,7 +453,6 @@
     },
     "project": {
       "pendingApproval": "Pending approval",
-      "approved": "Approved",
       "rejected": "Rejected project",
       "localProject": "Local project",
       "newProject": "New project",
@@ -702,12 +696,10 @@
       "title": "Reported Users",
       "columns": {
         "username": "Username",
-        "email": "Email",
         "reportCount": "Reports",
         "pendingItems": "Pending Items",
         "rejectedItems": "Rejected Items",
-        "status": "Status",
-        "actions": "Actions"
+        "status": "Status"
       },
       "status": {
         "blocked": "Blocked",
@@ -720,7 +712,6 @@
       "details": {
         "reporters": "Moderators Who Reported This User",
         "reporterUsername": "Moderator",
-        "reporterEmail": "Email",
         "reason": "Reason",
         "noReason": "No reason provided",
         "reportedAt": "Reported At",
@@ -751,7 +742,6 @@
     "userContributions": {
       "title": "User Contributions",
       "manageContributions": "Manage Contributions",
-      "approved": "Approved",
       "rejected": "Rejected",
       "banned": "Banned",
       "projects": "projects",
