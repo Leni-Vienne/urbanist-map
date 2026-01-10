@@ -105,6 +105,7 @@
     "addImages": "Ajouter"
   },
   "status": {
+    "approved": "Approuvé",
     "draft": "Brouillon",
     "pending": "En attente",
     "rejected": "Rejeté",

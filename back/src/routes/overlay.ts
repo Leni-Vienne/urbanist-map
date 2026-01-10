@@ -533,7 +533,6 @@ export const overlayRouter = router({
         const userId = ctx.user.id;
 
         const ids = input.contributionIds;
-        const idSet = new Set(ids);
 
         // AI : Fetch overlays explicitly to separate approved vs rejected/replaced
         const overlaysToCheck = await db
