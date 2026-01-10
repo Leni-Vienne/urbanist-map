@@ -450,17 +450,6 @@ function isOverlayModified(overlayId: string): boolean {
   return overlayObject.isModified ?? false;
 }
 
-// AI : Get save button tooltip based on overlay status and modification state
-function getOverlaySaveTooltip(overlay: OverlayForModeration): string {
-  if (!isOverlayModified(overlay.id)) {
-    return t("overlay.noChangesToSave");
-  }
-  if (overlay.status === "approved") {
-    return t("project.submitChangeRequest");
-  }
-  return t("overlay.publishOverlay");
-}
-
 // AI : Handle edit overlay click - opens the shared OverlayEditor dialog via store
 // AI : This uses the SAME dialog component that PopupContainer uses
 function handleEditOverlayClick(overlay: OverlayForModeration) {
