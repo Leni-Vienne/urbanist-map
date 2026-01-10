@@ -12,7 +12,8 @@ import { mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
-import type { OverlayObject, MarkerColor } from "@/types/index";
+import { useModerationStore } from "@/stores/pinia/moderationStore";
+import type { OverlayObject, MarkerColor, Project } from "@/types/index";
 import {
   selectOverlay,
   highlightProjectOverlaysOnHover,
@@ -56,65 +57,72 @@ export function updateMarkerTooltip(
 
   if (!overlayObject.marker) return;
 
-  overlayObject.marker.unbindTooltip();
-
   const markerColor = cachedMarkerColor ?? getOverlayMarkerColor(overlayObject, overlayStore.mode);
   const colorIcon = createOverlayIcon(markerColor);
   overlayObject.marker.setIcon(colorIcon);
 
-  if (overlayStore.mode !== "edit") {
+  // AI : View mode: ensure no tooltip is bound
+  // AI : Edit & Moderation modes: show tooltips
+  if (overlayStore.mode === "view") {
+    if (overlayObject.marker.getTooltip()) {
+      overlayObject.marker.unbindTooltip();
+    }
     return;
   }
-  // AI : Generate tooltip text based on overlay state with granular conditions
-  const hasBeenModified = overlayObject.isModified;
-  const hasPendingChanges = overlayObject.hasPendingChanges ?? false;
-  const isReplacement = overlayObject.replacesOverlayId !== null;
-  const isApproved = overlayObject.status === "approved";
-  const isPending = overlayObject.status === "pending";
-  const isRejected = overlayObject.status === "rejected";
-  // AI : Treat undefined as "viewing approved" (default state)
-  const isViewingApprovedPosition = overlayObject.isViewingApprovedPosition;
+  /**
+   * AI : Helper to generate tooltip text based on overlay state
+   */
+  function getTooltipTextForOverlay(overlayObject: OverlayObject): string {
+    const hasBeenModified = overlayObject.isModified;
+    const hasPendingChanges = overlayObject.hasPendingChanges ?? false;
+    const isReplacement = overlayObject.replacesOverlayId !== null;
+    const isApproved = overlayObject.status === "approved";
+    const isPending = overlayObject.status === "pending";
+    const isRejected = overlayObject.status === "rejected";
+    const isViewingApprovedPosition = overlayObject.isViewingApprovedPosition;
 
-  // AI : Determine base status text
-  let statusText = "";
-  let modifierText = "";
+    let statusText = "";
+    let modifierText = "";
 
-  // AI : Only show "Replacement overlay" for pending/rejected overlays with replacesOverlayId
-  // AI : Approved overlays should have replacesOverlayId cleared, but defensive check prevents bugs
-  if (isReplacement && !isApproved) {
-    statusText = t("markerTooltip.status.replacementOverlay");
-  } else if (isPending) {
-    statusText = t("markerTooltip.status.pendingApproval");
-    if (hasBeenModified) {
-      modifierText = t("markerTooltip.modifiers.modified");
-    }
-  } else if (isApproved) {
-    statusText = t("common.approved");
-    if (hasPendingChanges && isViewingApprovedPosition === false) {
-      // AI : When explicitly viewing suggested position
-      modifierText = t("markerTooltip.modifiers.viewingSuggested");
-    } else if (hasPendingChanges && isViewingApprovedPosition !== false) {
-      // AI : When viewing approved position (undefined or true), show that there are pending changes
-      modifierText = t("markerTooltip.modifiers.hasPendingChanges");
+    if (isReplacement && !isApproved) {
+      statusText = t("markerTooltip.status.replacementOverlay");
+    } else if (isPending) {
+      statusText = t("markerTooltip.status.pendingApproval");
+      if (hasBeenModified) {
+        modifierText = t("markerTooltip.modifiers.modified");
+      }
+    } else if (isApproved) {
+      statusText = t("common.approved");
+      if (hasPendingChanges && isViewingApprovedPosition === false) {
+        modifierText = t("markerTooltip.modifiers.viewingSuggested");
+      } else if (hasPendingChanges && isViewingApprovedPosition !== false) {
+        modifierText = t("markerTooltip.modifiers.hasPendingChanges");
+      } else if (hasBeenModified) {
+        modifierText = t("markerTooltip.modifiers.modified");
+      }
+    } else if (isRejected) {
+      statusText = t("markerTooltip.status.rejected");
     } else if (hasBeenModified) {
-      modifierText = t("markerTooltip.modifiers.modified");
+      statusText = t("markerTooltip.status.localOverlay");
+    } else {
+      statusText = t("markerTooltip.status.newOverlay");
     }
-  } else if (isRejected) {
-    statusText = t("markerTooltip.status.rejected");
-  } else if (hasBeenModified) {
-    statusText = t("markerTooltip.status.localOverlay");
-  } else {
-    statusText = t("markerTooltip.status.newOverlay");
+
+    return modifierText ? `${statusText} (${modifierText})` : statusText;
   }
 
-  // AI : Assemble final tooltip text with modifier in parentheses if present
-  const tooltipText = modifierText ? `${statusText} (${modifierText})` : statusText;
+  const tooltipText = getTooltipTextForOverlay(overlayObject);
 
-  overlayObject.marker.bindTooltip(tooltipText, {
-    permanent: false,
-    direction: "top",
-    offset: [0, -10],
-  });
+  // AI : Update tooltip content if it exists, otherwise bind new one
+  if (overlayObject.marker.getTooltip()) {
+    overlayObject.marker.setTooltipContent(tooltipText);
+  } else {
+    overlayObject.marker.bindTooltip(tooltipText, {
+      permanent: false,
+      direction: "top",
+      offset: [0, -10],
+    });
+  }
 }
 
 /**
@@ -168,11 +176,23 @@ export function getOverlayBounds(overlay: OverlayObject): L.LatLngBounds | null 
 export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayObject {
   const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
+  const moderationStore = useModerationStore();
 
-  // AI : Prefer the project data already on the overlay object, fallback to projects store
-  const project =
-    savedOverlay.project ??
-    (savedOverlay.projectId ? projectStore.projects[savedOverlay.projectId] : null);
+  let project = savedOverlay.project;
+
+  if (!project && savedOverlay.projectId) {
+    // AI : First check normal project store
+    project = projectStore.projects[savedOverlay.projectId];
+
+    // AI : If not found and in moderation mode, check moderation store
+    if (!project && overlayStore.mode === "moderation") {
+      const modProject = moderationStore.projects.find((p) => p.id === savedOverlay.projectId);
+      if (modProject) {
+        // AI : Cast moderation project to Project type (compatible enough for our needs)
+        project = modProject as unknown as Project;
+      }
+    }
+  }
 
   // AI : Check edit mode cache to determine if overlay has been modified locally
   const cachedModifications =
@@ -227,7 +247,10 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
   }).addTo(map.value);
 
   // AI : Add click handler to select/deselect overlay when marker is clicked
-  marker.on("click", () => {
+  marker.on("click", (e) => {
+    // AI : Stop propagation to prevent map click handler (deselection) from firing
+    L.DomEvent.stopPropagation(e);
+
     const overlayObject = overlayStore.overlays[savedOverlay.id];
     if (!overlayObject) return;
 
@@ -251,6 +274,7 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
     }
 
     // AI : In moderation mode, clicking a contribution should load the city context (like clicking a city marker)
+    // AI : Check for overlayObject.project which should now be populated by enrichOverlayWithProject
     if (overlayStore.mode === "moderation" && overlayObject.project?.city) {
       const mapStore = useMapStore();
       const city = overlayObject.project.city;
