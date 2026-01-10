@@ -8,6 +8,17 @@ const activeAccordionPanels = ref<string[]>([]);
 const expandedCountries = ref<Set<string>>(new Set());
 const expandedCities = ref<Set<string>>(new Set());
 
+// AI : Define scroll request type
+export type ScrollRequestType = "city" | "project" | "overlay";
+
+interface ScrollRequest {
+  type: ScrollRequestType;
+  id: string | number;
+}
+
+// AI : Singleton state for scroll requests
+const pendingScrollRequest = ref<ScrollRequest | null>(null);
+
 export function useAccordionState() {
   function toggleCountryExpanded(
     countryCode: string,
@@ -112,6 +123,23 @@ export function useAccordionState() {
     return true;
   }
 
+  /**
+   * AI : Request scrolling to a specific element in the panel
+   * AI : This sets a pending request that the panel will consume when ready
+   */
+  function requestScrollTo(type: ScrollRequestType, id: string | number) {
+    pendingScrollRequest.value = { type, id };
+  }
+
+  /**
+   * AI : Consume the current scroll request (retrieve and clear it)
+   */
+  function consumeScrollRequest(): ScrollRequest | null {
+    const request = pendingScrollRequest.value;
+    pendingScrollRequest.value = null;
+    return request;
+  }
+
   return {
     // State
     activeAccordionPanels,
@@ -134,5 +162,9 @@ export function useAccordionState() {
     // Auto-expand
     expandAccordionForOverlay,
     expandAccordionForProject,
+
+    // Scroll requests
+    requestScrollTo,
+    consumeScrollRequest,
   };
 }

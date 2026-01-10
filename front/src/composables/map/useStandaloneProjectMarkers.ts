@@ -12,6 +12,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
 import { createProjectInfoTeleportTarget } from "@/composables/map/useProjectPopupTeleport";
+import { useAccordionState } from "@/composables/layout/useAccordionState";
 import { getProjectMarkerColor } from "../../utils/markerColors";
 // AI : useI18n() uses Vue's inject() mechanism which is only available synchronously during the setup() phase of a component.
 import { t } from "@/locales";
@@ -279,6 +280,10 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
           countryCode: project.city.countryCode,
         });
       }
+
+      // AI : Request scroll to project in moderation panel
+      const { requestScrollTo } = useAccordionState();
+      requestScrollTo("project", project.id);
     }
 
     // AI : Check if popup is already open for this project - toggle behavior
