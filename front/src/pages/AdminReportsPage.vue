@@ -1,7 +1,7 @@
 <template>
   <div class="admin-reports-page">
     <div class="page-header">
-      <h1>{{ t('admin.reports.title') }}</h1>
+      <h1>{{ t("admin.reports.title") }}</h1>
       <Badge
         v-if="reportedUsers && reportedUsers.length > 0"
         :value="reportedUsers.length"
@@ -15,13 +15,13 @@
 
     <div v-else-if="error" class="error-container">
       <Message severity="error" :closable="false">
-        {{ t('admin.reports.messages.loadError') }}
+        {{ t("admin.reports.messages.loadError") }}
       </Message>
     </div>
 
     <div v-else-if="!reportedUsers || reportedUsers.length === 0" class="empty-container">
       <Message severity="info" :closable="false">
-        {{ t('admin.reports.messages.noReports') }}
+        {{ t("admin.reports.messages.noReports") }}
       </Message>
     </div>
 
@@ -39,11 +39,11 @@
 
       <Column field="username" :header="t('admin.reports.columns.username')" sortable>
         <template #body="slotProps">
-          <span class="font-semibold">{{ slotProps.data.username || 'N/A' }}</span>
+          <span class="font-semibold">{{ slotProps.data.username || "N/A" }}</span>
         </template>
       </Column>
 
-      <Column field="email" :header="t('admin.reports.columns.email')" sortable />
+      <Column field="email" :header="t('common.email')" sortable />
 
       <Column field="reportCount" :header="t('admin.reports.columns.reportCount')" sortable>
         <template #body="slotProps">
@@ -74,7 +74,7 @@
         </template>
       </Column>
 
-      <Column :header="t('admin.reports.columns.actions')">
+      <Column :header="t('common.actions')">
         <template #body="slotProps">
           <div class="action-buttons">
             <Button
@@ -101,16 +101,16 @@
 
       <template #expansion="slotProps">
         <div class="expansion-content">
-          <h3>{{ t('admin.reports.details.reporters') }}</h3>
+          <h3>{{ t("admin.reports.details.reporters") }}</h3>
           <DataTable :value="slotProps.data.reports" class="reporters-table">
             <Column
               field="reporterUsername"
               :header="t('admin.reports.details.reporterUsername')"
             />
-            <Column field="reporterEmail" :header="t('admin.reports.details.reporterEmail')" />
+            <Column field="reporterEmail" :header="t('common.email')" />
             <Column field="reason" :header="t('admin.reports.details.reason')">
               <template #body="reportSlot">
-                {{ reportSlot.data.reason || t('admin.reports.details.noReason') }}
+                {{ reportSlot.data.reason || t("admin.reports.details.noReason") }}
               </template>
             </Column>
             <Column field="createdAt" :header="t('admin.reports.details.reportedAt')">
@@ -121,15 +121,13 @@
           </DataTable>
 
           <div v-if="slotProps.data.banned" class="ban-info">
-            <h3>{{ t('admin.reports.details.banInfo') }}</h3>
+            <h3>{{ t("admin.reports.details.banInfo") }}</h3>
             <p>
-              <strong>{{ t('admin.reports.details.bannedAt') }}:</strong>
-              {{ new
-                Date(slotProps.data.bannedAt).toLocaleString()
-              }}
+              <strong>{{ t("admin.reports.details.bannedAt") }}:</strong>
+              {{ new Date(slotProps.data.bannedAt).toLocaleString() }}
             </p>
             <p>
-              <strong>{{ t('admin.reports.details.banReason') }}:</strong>
+              <strong>{{ t("admin.reports.details.banReason") }}:</strong>
               {{ slotProps.data.banReason }}
             </p>
           </div>
@@ -148,11 +146,11 @@
     >
       <div class="ban-dialog-content">
         <p class="mb-4">
-          {{ t('admin.reports.banDialog.confirmMessage', { username: selectedUser?.username }) }}
+          {{ t("admin.reports.banDialog.confirmMessage", { username: selectedUser?.username }) }}
         </p>
 
         <div class="field">
-          <label for="banReason">{{ t('admin.reports.banDialog.reason') }}</label>
+          <label for="banReason">{{ t("admin.reports.banDialog.reason") }}</label>
           <Textarea
             id="banReason"
             v-model="banReason"
@@ -167,7 +165,7 @@
 
         <div class="field-checkbox mt-4">
           <Checkbox id="deleteContent" v-model="deleteContent" :binary="true" />
-          <label for="deleteContent">{{ t('admin.reports.banDialog.deleteContent') }}</label>
+          <label for="deleteContent">{{ t("admin.reports.banDialog.deleteContent") }}</label>
         </div>
       </div>
 
@@ -192,13 +190,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useToast } from 'primevue/usetoast';
-import { trpc, type RouterOutput } from '@/client';
+import { ref, onMounted } from "vue";
+import { useI18n } from "vue-i18n";
+import { useToast } from "primevue/usetoast";
+import { trpc, type RouterOutput } from "@/client";
 
 // AI : Use tRPC types from RouterOutput
-type ReportedUser = RouterOutput['moderation']['getReportedUsers'][number];
+type ReportedUser = RouterOutput["moderation"]["getReportedUsers"][number];
 
 const { t } = useI18n();
 const toast = useToast();
@@ -209,7 +207,7 @@ const isLoading = ref(true);
 const error = ref(false);
 const showBanDialog = ref(false);
 const selectedUser = ref<ReportedUser | null>(null);
-const banReason = ref('');
+const banReason = ref("");
 const deleteContent = ref(false);
 const isBanning = ref(false);
 
@@ -220,10 +218,10 @@ async function loadReportedUsers() {
     error.value = false;
     reportedUsers.value = await trpc.moderation.getReportedUsers.query();
   } catch (error) {
-    console.error('Error loading reported users:', error);
+    console.error("Error loading reported users:", error);
     toast.add({
-      severity: 'error',
-      summary: t('admin.reports.messages.loadError'),
+      severity: "error",
+      summary: t("admin.reports.messages.loadError"),
       life: 5000,
     });
   } finally {
@@ -236,18 +234,18 @@ async function clearReports(user: ReportedUser) {
   try {
     await trpc.moderation.clearUserReports.mutate({ userId: user.userId });
     toast.add({
-      severity: 'success',
-      summary: t('admin.reports.messages.clearSuccess'),
-      detail: t('admin.reports.messages.clearSuccessDetail', { username: user.username }),
+      severity: "success",
+      summary: t("admin.reports.messages.clearSuccess"),
+      detail: t("admin.reports.messages.clearSuccessDetail", { username: user.username }),
       life: 5000,
     });
     // AI : Reload the list
     await loadReportedUsers();
   } catch (error) {
-    console.error('Error clearing reports:', error);
+    console.error("Error clearing reports:", error);
     toast.add({
-      severity: 'error',
-      summary: t('admin.reports.messages.clearError'),
+      severity: "error",
+      summary: t("admin.reports.messages.clearError"),
       life: 5000,
     });
   }
@@ -256,7 +254,7 @@ async function clearReports(user: ReportedUser) {
 // AI : Open ban dialog
 function openBanDialog(user: ReportedUser) {
   selectedUser.value = user;
-  banReason.value = '';
+  banReason.value = "";
   deleteContent.value = false;
   showBanDialog.value = true;
 }
@@ -265,7 +263,7 @@ function openBanDialog(user: ReportedUser) {
 function closeBanDialog() {
   showBanDialog.value = false;
   selectedUser.value = null;
-  banReason.value = '';
+  banReason.value = "";
   deleteContent.value = false;
 }
 
@@ -282,19 +280,21 @@ async function confirmBan() {
     });
 
     toast.add({
-      severity: 'success',
-      summary: t('admin.reports.messages.banSuccess'),
-      detail: t('admin.reports.messages.banSuccessDetail', { username: selectedUser.value.username }),
+      severity: "success",
+      summary: t("admin.reports.messages.banSuccess"),
+      detail: t("admin.reports.messages.banSuccessDetail", {
+        username: selectedUser.value.username,
+      }),
       life: 5000,
     });
 
     closeBanDialog();
     await loadReportedUsers();
   } catch (error) {
-    console.error('Error banning user:', error);
+    console.error("Error banning user:", error);
     toast.add({
-      severity: 'error',
-      summary: t('admin.reports.messages.banError'),
+      severity: "error",
+      summary: t("admin.reports.messages.banError"),
       life: 5000,
     });
   } finally {

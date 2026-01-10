@@ -78,6 +78,7 @@ export default defineConfig({
       "primevue/accordionpanel",
       "primevue/card",
       "primevue/tag",
+      "primevue/divider",
     ],
   },
   // AI : External leaflet to prevent bundling

@@ -33,7 +33,7 @@
         </div>
         <div class="user-stats">
           <Badge :value="data.user.approvedCount" severity="success" />
-          <span>{{ t("admin.userContributions.approved") }}</span>
+          <span>{{ t("common.approved") }}</span>
           <Badge :value="data.user.rejectedCount" severity="danger" />
           <span>{{ t("admin.userContributions.rejected") }}</span>
         </div>
@@ -344,12 +344,22 @@ async function deleteProject() {
       reason: deleteReason.value || undefined,
     });
 
-    // AI : Remove project and its overlays from all city details
+    // AI : Remove project and its overlays from all city details and update counts
     for (const cityId of Object.keys(cityDetails)) {
       const details = cityDetails[Number(cityId)];
       if (details) {
+        // AI : Count overlays being deleted for this project
+        const overlaysDeleted = details.overlays.filter((o) => o.projectId === projectId).length;
+
         details.projects = details.projects.filter((p) => p.id !== projectId);
         details.overlays = details.overlays.filter((o) => o.projectId !== projectId);
+
+        // AI : Update city summary counts in the accordion header
+        const city = data.value?.cities.find((c) => c.cityId === Number(cityId));
+        if (city) {
+          city.projectCount -= 1;
+          city.overlayCount -= overlaysDeleted;
+        }
       }
     }
 
@@ -385,11 +395,20 @@ async function deleteOverlay() {
       reason: deleteReason.value || undefined,
     });
 
-    // AI : Remove overlay from all city details
+    // AI : Remove overlay from all city details and update counts
     for (const cityId of Object.keys(cityDetails)) {
       const details = cityDetails[Number(cityId)];
       if (details) {
+        const hadOverlay = details.overlays.some((o) => o.id === overlayId);
         details.overlays = details.overlays.filter((o) => o.id !== overlayId);
+
+        // AI : Update city summary count in the accordion header
+        if (hadOverlay) {
+          const city = data.value?.cities.find((c) => c.cityId === Number(cityId));
+          if (city) {
+            city.overlayCount -= 1;
+          }
+        }
       }
     }
 

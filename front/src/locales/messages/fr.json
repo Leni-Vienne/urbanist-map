@@ -4,7 +4,6 @@
     "back": "Retour",
     "save": "Enregistrer",
     "cancel": "Annuler",
-    "delete": "Supprimer",
     "edit": "Modifier",
     "add": "Nouveau",
     "loading": "Chargement...",
@@ -14,16 +13,18 @@
     "close": "Fermer",
     "continue": "Continuer",
     "reset": "Réinitialiser",
-    "status": "Statut",
     "reasonForChanges": "Raison des modifications",
     "explainChanges": "Expliquez brièvement pourquoi vous apportez ces modifications",
-    "before": "Avant",
-    "after": "Après",
     "current": "Actuel",
     "new": "Nouveau",
     "unknown": "Inconnu",
     "noValue": "(aucune valeur)",
-    "info": "Info"
+    "info": "Info",
+    "description": "Description",
+    "contact": "Contact",
+    "email": "Email",
+    "actions": "Actions",
+    "approved": "Approuvé"
   },
   "relativeTime": {
     "justNow": "à l'instant",
@@ -41,8 +42,6 @@
     "yearsAgo": "il y a {count} ans"
   },
   "fields": {
-    "name": "Nom",
-    "description": "Description",
     "cityId": "Ville",
     "projectId": "Projet",
     "corners": "Positions des coins",
@@ -52,21 +51,14 @@
     "endDate": "Date de fin",
     "sourceUrl": "URL source",
     "lat": "Latitude",
-    "lng": "Longitude",
-    "caption": "Nom"
+    "lng": "Longitude"
   },
   "navigation": {
-    "home": "Accueil",
-    "projects": "Projets",
-    "map": "Carte",
-    "settings": "Paramètres",
-    "profile": "Profil",
     "latestContributions": "Contributions Récentes",
     "currentLocation": "Emplacement Actuel",
     "contribute": "Contribuer",
     "moderation": "Modération",
     "unsavedOverlaysWarning": "Vous avez des images non enregistrées. La navigation les supprimera. Continuer ?",
-    "unsavedOverlaysSwitchCountry": "Vous avez des images non enregistrées. Changer de pays les supprimera. Continuer ?",
     "unsavedOverlaysSwitchCity": "Vous avez des images non enregistrées. Changer de ville les supprimera. Continuer ?",
     "unsavedOverlaysReloadCity": "Vous avez des images non enregistrées. Recharger cette ville les supprimera. Continuer ?"
   },
@@ -77,23 +69,12 @@
     "createNewProject": "Créer un nouveau projet"
   },
   "project": {
-    "title": "Projets",
     "create": "Créer un projet",
     "name": "Nom du projet",
-    "description": "Description",
     "location": "Localisation",
-    "created": "Créé",
-    "updated": "Mis à jour",
-    "updatedAgo": "{time}",
-    "noProjects": "Aucun projet trouvé",
-    "createFirstProject": "Créez votre premier projet de construction !",
     "noLocation": "Aucun emplacement",
     "missingCityInfo": "Informations de ville manquantes",
     "cannotNavigateWithoutCity": "Impossible de naviguer sans informations de ville",
-    "noCitySelected": "Aucune ville sélectionnée",
-    "selectCityBeforePlacingMarker": "Veuillez sélectionner une ville sur la carte avant de placer un marqueur de bâtiment",
-    "navigated": "Navigation effectuée",
-    "viewing": "Affichage de {name}",
     "timelineStatus": "Statut chronologique",
     "proposed": "Proposé",
     "proposedDescription": "Projet non confirmé, dates non fixées",
@@ -108,52 +89,22 @@
     "latestUpdateOn": "Dernière actualité média",
     "latestUpdateOnHelp": "Dernière mention de ce projet dans l'actualité ou les médias",
     "sourceUrl": "URL source",
-    "requiredField": "Champ requis",
     "optionalField": "Optionnel",
     "validationError": "Erreur de validation",
-    "nameRequired": "Le nom du projet est requis",
-    "nameTooShort": "Le nom du projet doit contenir au moins 8 caractères",
     "locationRequired": "La localisation est requise",
-    "proposalDateRequired": "La date de proposition est requise pour les projets proposés",
-    "datesRequired": "Les dates de début et de fin sont requises pour les projets prévus",
     "timelineChangedFromProposedToPlanned": "Statut chronologique changé de Proposé ({proposalDate}) à Prévu",
     "timelineChangedFromPlannedToProposed": "Statut chronologique changé de Prévu ({startDate} à {endDate}) à Proposé",
-    "chooseProjectType": "Choisir le type de projet",
-    "whatTypeOfProject": "Quel type de projet voulez-vous créer ?",
-    "chooseProjectTypeDescription": "Sélectionnez le type de projet qui correspond le mieux à ce que vous voulez documenter.",
-    "overlayProject": "Projet de plan de rue",
-    "overlayProjectDescription": "Importez une image montrant un plan de rue, plan de construction ou vues aériennes",
-    "standaloneProject": "Marqueur de bâtiment",
-    "addStandaloneProject": "Ajouter un marqueur de bâtiment",
-    "placeMarkerOnMap": "Placer le marqueur sur la carte",
-    "clickOnMapToPlace": "Cliquez n'importe où sur la carte pour placer votre marqueur de bâtiment",
-    "markerPlacedAt": "Marqueur placé à",
-    "startPlacement": "Commencer le placement",
     "clickMapToPlace": "Cliquez sur la carte pour placer le projet",
-    "markerPlacementInstruction": "Cliquez n'importe où sur la carte pour placer le marqueur de votre projet",
-    "waitingForClick": "En attente du clic sur la carte...",
     "information": "Informations du projet",
     "edit": "Modifier le projet",
     "publish": "Publier le projet",
     "submitChangeRequest": "Publier",
-    "coordinates": "Coordonnées",
     "period": "Période",
     "source": "Source",
-    "assignTo": "Assigner à",
     "latestUpdate": "Dernière mise à jour",
-    "publishSuccess": "Projet publié",
-    "publishSuccessDetail": "Le projet de bâtiment a été enregistré avec succès",
-    "publishFailed": "Échec de la publication",
-    "publishFailedDetail": "Échec de l'enregistrement du projet de bâtiment",
-    "addImages": "Ajouter",
-    "placementMode": "Mode de placement de marqueur",
-    "addContribution": "Ajouter une contribution",
-    "whatWouldYouLikeToAdd": "Que souhaitez-vous ajouter ?",
-    "createProjectMarker": "Créer un marqueur de projet",
-    "createProjectMarkerDescription": "Placer un marqueur pour un nouveau projet de construction"
+    "addImages": "Ajouter"
   },
   "status": {
-    "approved": "Approuvé",
     "draft": "Brouillon",
     "pending": "En attente",
     "rejected": "Rejeté",
@@ -174,7 +125,6 @@
       "filters": "Filtres de statut de projet (proposé, prévu, en cours, terminé)"
     },
     "modes": {
-      "modeIndicator": "Mode Édition",
       "description": "Bouton pour basculer entre le Mode Visualisation (projets approuvés uniquement) et le Mode Édition (modifier vos propres projets)"
     },
     "filters": {
@@ -183,7 +133,6 @@
     }
   },
   "contribute": {
-    "title": "Contribuer",
     "myContributions": "Mes contributions",
     "viewAllContributions": "Cliquez pour voir toutes vos contributions",
     "viewCityProjects": "Cliquez pour voir les projets de cette ville",
@@ -197,101 +146,50 @@
     "confirmDeleteOverlay": "Êtes-vous sûr de vouloir supprimer \"{name}\" ? Cette action est irréversible.",
     "confirmDeleteProject": "Êtes-vous sûr de vouloir supprimer \"{name}\" ? Cette action est irréversible.",
     "confirmDeleteProjectWithOverlays": "Êtes-vous sûr de vouloir supprimer \"{name}\" et ses {count} image(s) ? Cette action est irréversible.",
-    "confirmDeleteLastOverlay": "ATTENTION : \"{overlayName}\" est la seule image du projet \"{projectName}\". La supprimer supprimera également l'ensemble du projet. Cette action est irréversible. Continuer ?",
     "confirmDeleteChangeRequest": "Êtes-vous sûr de vouloir supprimer votre suggestion pour \"{field}\" ? Cette action est irréversible.",
     "overlayDeleted": "Image supprimée avec succès",
     "projectDeleted": "Projet supprimé avec succès",
-    "projectAlsoDeleted": "Projet également supprimé",
-    "projectHadNoRemainingOverlays": "Le projet n'avait plus d'images",
     "changeRequestDeleted": "Suggestion supprimée avec succès",
-    "deleteOverlayError": "Échec de la suppression de l'image. Veuillez réessayer.",
     "deleteProjectError": "Échec de la suppression du projet. Veuillez réessayer."
   },
-  "contributions": {},
   "contribution": {
     "noContributionsFound": "Aucune contribution trouvée.",
     "beFirstToAdd": "Soyez le premier à ajouter une image ou un projet de bâtiment",
     "loadingContributions": "Chargement des contributions..."
   },
   "currentLocation": {
-    "title": "{cityName}",
     "noLocationSelected": "Aucun Emplacement Sélectionné",
     "selectLocationPrompt": "Sélectionnez un pays ou une ville sur la carte pour parcourir les projets",
     "noProjects": "Aucun projet dans cette ville",
     "noProjectsDetail": "Cette ville n'a pas encore de projets",
     "clickToZoomCountry": "Cliquez pour zoomer sur le pays",
-    "citiesInCountry": "Villes en {country}",
     "noCitiesInCountry": "Aucune ville dans ce pays",
     "projectsCount": "{count} projet(s)",
     "selectCityToExplore": "Sélectionnez une ville pour explorer ses projets"
   },
   "overlay": {
-    "title": "Images",
     "overlayImages": "images",
-    "add": "Ajouter une image",
-    "addImageOverlay": "Ajouter une image",
     "overlayInformation": "Informations sur l'image",
-    "upload": "Télécharger une image",
-    "position": "Positionner sur la carte",
-    "opacity": "Opacité",
-    "rotate": "Rotation",
-    "scale": "Échelle",
-    "whatKindOfImages": "Quels types d'images sont acceptés ?",
-    "imageDescription": "Ce site Web concerne les infrastructures et les bâtiments à venir, qu'il s'agisse de nouvelles lignes de tramway, de pistes cyclables, de redéveloppement et plus encore.",
-    "goodToKnow": "Bon à savoir",
-    "chooseImageFile": "Choisir un fichier image",
-    "clickOrDragDrop": "Cliquez ici ou glissez-déposez",
-    "overlayNameCaption": "Nom/Légende de l'image",
-    "enterOverlayName": "Entrez le nom ou la légende de l'image",
     "notSet": "Non défini",
     "changedFrom": "Modifié depuis",
     "untitled": "Sans titre",
     "unknownLocation": "Lieu inconnu",
-    "noOverlaysFound": "Aucune image trouvée.",
-    "beFirstToAdd": "Soyez le premier à ajouter une image de plan construction",
-    "loadingOverlays": "Chargement des images...",
     "loadingProjects": "Chargement des projets...",
-    "zoomTo": "Zoomer sur",
     "navigationFailed": "Échec de la navigation",
     "failedToNavigate": "Échec de la navigation vers l'image",
-    "publishSuccess": "Image publiée",
-    "publishSuccessDetail": "L'image a été enregistrée avec succès",
-    "publishFailed": "Échec de la publication",
     "publishFailedDetail": "Échec de l'enregistrement de l'image",
-    "moderationNotice": "Modération requise",
-    "moderationNewContent": "Votre contribution sera examinée par un modérateur avant d'apparaître publiquement sur la carte.",
-    "moderationEditSuggestion": "Vos modifications suggérées seront examinées par un modérateur avant d'être appliquées. Le contenu original restera visible jusqu'à l'approbation de vos modifications.",
-    "proceedWithPublish": "Procéder à la publication",
     "publishOverlay": "Publier l'image",
-    "submitChangeRequest": "Soumettre une demande de modification",
-    "switchedToEditMode": "Mode édition activé",
-    "pendingOverlaysEditModeOnly": "Les images en attente ne sont visibles qu'en mode édition",
     "viewCurrentPosition": "Voir la position actuelle",
     "viewSuggestedPosition": "Voir la position suggérée",
-    "viewOnMap": "Voir sur la carte",
-    "currentPosition": "Position actuelle",
     "overlayTooLarge": "Image trop grande (max 1km × 1km)",
-    "overlayTooLargeTooltip": "Cette image dépasse la taille maximale de 1km × 1km. Veuillez réduire sa taille avant publication.",
-    "suggestedPosition": "Position suggérée",
-    "viewingCurrentCoordinates": "Affichage des coordonnées actuelles",
-    "viewingSuggestedCoordinates": "Affichage des coordonnées suggérées",
     "invalidCoordinates": "Coordonnées invalides",
     "couldNotParseCoordinates": "Impossible d'analyser les coordonnées géométriques",
     "previewFailed": "Échec de l'aperçu",
     "couldNotPreviewCoordinates": "Impossible d'afficher un aperçu des coordonnées sur la carte",
     "coordinatesViewOnMap": "Coordonnées (voir sur la carte)",
-    "replacementOverlay": "Image de remplacement",
     "replaces": "Remplace",
     "viewOriginalOverlay": "Voir l'image d'origine",
     "viewPositionRequired": "Voir la position d'abord (requis pour les images de remplacement)",
-    "viewPosition": "Voir la position",
-    "unavailable": {
-      "title": "Image indisponible",
-      "rejected": "Cette image a été rejetée et n'est plus disponible",
-      "replaced": "Cette image a été remplacée par une version plus récente et n'est plus disponible"
-    },
-    "uploadOverlayImage": "Télécharger une image",
-    "uploadOverlayDescription": "Ajouter une nouvelle image à un projet existant",
     "overlayCreated": "Image créée",
     "positionOverlayOnMap": "Positionnez maintenant l'image sur la carte",
     "uploadFailed": "Échec du téléchargement",
@@ -300,28 +198,16 @@
     "projectNowShowsAsMarker": "Le projet apparaît maintenant comme un marqueur sur la carte",
     "confirmDelete": "Êtes-vous sûr de vouloir supprimer {name} ?",
     "noChangesToSave": "Aucune modification à enregistrer",
-    "navigateToSave": "Naviguer vers l'image",
-    "navigateToSaveDetail": "Cliquez sur la carte d'image pour naviguer et enregistrer les modifications",
-    "navigateToEdit": "Naviguer vers l'image",
-    "navigateToEditDetail": "Cliquez sur la carte d'image pour naviguer et la modifier sur la carte",
     "zoomingToProject": "Zoom vers le projet",
     "zoomInToSeeOverlay": "Le niveau de zoom était trop faible, zoom automatique pour afficher l'image téléchargée",
     "onlyOneOverlayInProject": "Ce projet n'a qu'une seule image"
   },
   "map": {
-    "zoom": "Zoom",
-    "center": "Centrer la carte",
-    "layers": "Couches",
-    "satellite": "Satellite",
-    "terrain": "Terrain",
-    "street": "Plan de rue",
-    "clickCountryMarker": "Cliquez sur un pays",
     "clickCityMarker": "Cliquez sur une ville",
     "viewMode": "Mode Consultation",
     "editMode": "Mode Édition",
     "viewModeTooltip": "Consulter les contributions sur la carte",
     "editModeTooltip": "Vous pouvez ajouter et modifier des contributions sur la carte",
-    "switch": "Changer",
     "switchMode": "Changer de mode",
     "controls": {
       "filterProjects": "Filtrer les projets par statut",
@@ -338,18 +224,13 @@
   },
   "search": {
     "cities": "Rechercher une ville...",
-    "noResults": "Aucune ville trouvée",
-    "minCharacters": "Tapez au moins {count} caractères",
     "noCityContributions": "Aucune contribution pour le moment",
     "noCityContributionsDetail": "{cityName} n'a pas encore de contributions. Ajoutez en une !"
   },
   "auth": {
-    "login": "Connexion",
     "logout": "Déconnexion",
-    "register": "S'inscrire",
     "signIn": "Se connecter",
     "signUp": "S'inscrire",
-    "email": "Email",
     "emailAddress": "Adresse e-mail",
     "password": "Mot de passe",
     "username": "Nom d'utilisateur",
@@ -362,7 +243,6 @@
     "alreadyHaveAccount": "Vous avez déjà un compte ?",
     "forgotPassword": "Mot de passe oublié ?",
     "continueWithGoogle": "Continuer avec Google",
-    "continueWithGitHub": "Continuer avec GitHub",
     "orContinueWithEmail": "ou continuer avec l'email",
     "enterEmailAddress": "Entrez votre adresse e-mail",
     "authenticationRequired": "Authentification requise",
@@ -373,11 +253,11 @@
     "signedOutMessage": "Vous vous êtes déconnecté avec succès.",
     "resetPassword": "Réinitialiser le mot de passe",
     "forgotPasswordTitle": "Mot de passe oublié ?",
-    "forgotPasswordMessage": "Entrez votre email et nous vous enverrons un lien pour réinitialiser votre mot de passe.",
+    "forgotPasswordMessage": "Entrez votre email et un lien vous sera envoyé pour réinitialiser votre mot de passe.",
     "sendResetLink": "Envoyer le lien de réinitialisation",
     "backToSignIn": "Retour à la connexion",
     "checkYourEmail": "Vérifiez votre email",
-    "resetLinkSent": "Si un compte existe avec cet email, nous avons envoyé un lien de réinitialisation.",
+    "resetLinkSent": "Si un compte existe avec cet email, un lien vous sera envoyé pour réinitialiser votre mot de passe.",
     "resetPasswordTitle": "Créer un nouveau mot de passe",
     "newPassword": "Nouveau mot de passe",
     "confirmPassword": "Confirmer le mot de passe",
@@ -420,23 +300,16 @@
     "closePanel": "Fermer le panneau"
   },
   "footer": {
-    "legal": "Mentions légales",
-    "contact": "Contact"
+    "legal": "Mentions légales"
   },
   "submission": {
     "confirmTitle": "Confirmer l'enregistrement",
     "requiresModeration": "Requiert modération",
     "immediateUpdate": "Mise à jour immédiate",
-    "moderationNotice": "Votre contribution sera examinée par un modérateur avant d'apparaître publiquement.",
-    "changesToSubmit": "Modifications à soumettre",
     "confirmSubmit": "Confirmer et soumettre",
-    "moderationFooter": "Un modérateur examinera votre contribution et l'approuvera ou la rejettera.",
-    "immediateFooter": "Vos modifications seront appliquées immédiatement à votre contribution en attente.",
     "changeRequestSubmitted": "Demande de modification soumise avec succès",
     "changesSaved": "Modifications enregistrées avec succès",
     "submissionSuccessful": "Enregistrement réussi",
-    "pendingLimitReached": "Limite de contributions en attente atteinte",
-    "pendingLimitMessage": "Vous avez atteint le nombre maximum de contributions en attente. Veuillez attendre que vos contributions existantes soient examinées avant d'en soumettre d'autres.",
     "overlayCaption": "Légende de l'image",
     "overlayPosition": "Position de l'image",
     "previousPosition": "(Position actuelle)",
@@ -478,15 +351,13 @@
       "lastUpdated": "Dernière mise à jour",
       "publisher": {
         "title": "Éditeur",
-        "content": "Ce site est édité par :",
-        "name": "Nom",
-        "email": "Email"
+        "content": "Ce site est édité par :"
       },
       "dataCollection": {
         "title": "Collecte de données",
-        "content": "Nous collectons un minimum d'informations pour fournir notre service :",
+        "content": "Je collecte un minimum d'informations :",
         "username": "Nom d'utilisateur (nom public affiché)",
-        "email": "Adresse email (pour récupération du compte et notifications)",
+        "email": "Adresse email (pour la récupération du compte et les notifications)",
         "password": "Mot de passe (stocké chiffré)",
         "ipAddresses": "Adresses IP (dans les journaux serveur pour la sécurité et la prévention du spam, conservées 90 jours)",
         "oauthData": "Identifiants de fournisseur OAuth (si vous utilisez Google Sign-In)",
@@ -499,13 +370,13 @@
         "rectification": "Droit de rectification : mettre à jour votre nom d'utilisateur et email dans les paramètres de votre compte",
         "deletion": "Droit à l'effacement : supprimer votre compte et toutes vos données personnelles (envoyez un email à {email} pour demander la suppression)",
         "portability": "Droit à la portabilité : exporter vos données au format JSON (envoyez un email à {email})",
-        "howTo": "Pour exercer ces droits, contactez-nous à {email}. Nous répondrons sous 30 jours.",
+        "howTo": "Pour exercer ces droits, contactez-moi à {email}. Je répondrai sous 30 jours.",
         "note": "Note : Lorsque vous supprimez votre compte, vos informations personnelles (email, nom d'utilisateur) sont supprimées, mais vos contributions (projets, images) sont anonymisées et peuvent rester publiquement visibles."
       },
       "thirdParty": {
         "title": "Services tiers",
-        "content": "Nous utilisons les services externes suivants :",
-        "google": "Méthode de connexion optionnelle. Partage votre email et nom avec nous.",
+        "content": "J'utilise les services externes suivants :",
+        "google": "Méthode de connexion optionnelle. Partage votre email et nom avec moi.",
         "googleLink": "Politique de confidentialité Google",
         "cloudflare": "Hébergement et CDN. Peut traiter les adresses IP.",
         "cloudflareLink": "Politique de confidentialité Cloudflare",
@@ -514,7 +385,7 @@
       },
       "retention": {
         "title": "Conservation des données",
-        "content": "Nous conservons vos données comme suit :",
+        "content": "J'entrepose vos données comme suit :",
         "account": "Données de compte (email, nom d'utilisateur, mot de passe) : Jusqu'à la suppression de votre compte",
         "logs": "Journaux serveur (adresses IP) : Supprimés automatiquement après 90 jours",
         "sessions": "Cookies de session : Expirent après 30 jours d'inactivité",
@@ -523,23 +394,25 @@
       },
       "cookies": {
         "title": "Cookies",
-        "content": "Nous utilisons uniquement des cookies essentiels :",
+        "content": "J'utilise uniquement des cookies essentiels :",
         "sessionCookie": "Cookie de session : Maintient votre connexion (expire après 30 jours d'inactivité)",
         "purpose": "Ce cookie est strictement nécessaire pour l'authentification et ne requiert pas de consentement.",
-        "noTracking": "Nous n'utilisons aucun cookie de suivi, d'analyse ou publicitaire."
+        "noTracking": "J'utilise aucun cookie de suivi, d'analyse ou publicitaire."
       },
       "userContent": {
         "title": "Contenu utilisateur & Conditions d'utilisation",
         "content": "En téléchargeant du contenu sur ce site :",
         "ownership": "Vous conservez la propriété de votre contenu",
-        "license": "Vous nous accordez une licence non exclusive pour afficher et distribuer votre contenu sur cette plateforme",
-        "moderation": "Nous pouvons supprimer le contenu qui enfreint nos règles sans préavis",
+        "license": "Vous me donnez une licence non exclusive pour afficher et distribuer votre contenu sur cette plateforme",
+        "moderation": "Je peux supprimer le contenu qui enfreint nos règles sans préavis",
         "forbidden": "Interdit : contenu illégal, spam, matériel protégé par le droit d'auteur sans autorisation, contenu offensant"
       }
     },
     "contact": {
-      "title": "Contact",
-      "description": "Pour vos questions, suggestions, ou problèmes, contactez-nous par email :"
+      "description": "Pour vos questions, suggestions, ou problèmes, contactez-moi par email :",
+      "basemapTitle": "Soumettre un fond de carte",
+      "basemapDescription": "Pour que j'ajoute votre fond de carte (tile layer), j'ai besoin d'un lien de ce genre ou d'un lien vers le site web de votre fond de carte.",
+      "basemapExample": "Exemple : "
     }
   },
   "controls": {
@@ -549,15 +422,14 @@
     },
     "help": "Aide",
     "filters": "Basculer les filtres de projets",
-    "layers": "Couches de carte",
-    "language": "Sélecteur de langue"
+    "layers": "Fonds de carte",
+    "language": "Langue"
   },
   "tooltips": {
     "editProject": "Modifier le projet",
     "suggestChanges": "Suggérer des modifications",
     "editOverlay": "Modifier l'image",
-    "approveProjectFirst": "Approuvez d'abord le projet pour modérer ses images",
-    "undo": "Annuler la dernière action"
+    "approveProjectFirst": "Approuvez d'abord le projet pour modérer ses images"
   },
   "toolbar": {
     "info": "Infos",
@@ -573,7 +445,6 @@
     "status": {
       "replacementOverlay": "Image de remplacement",
       "pendingApproval": "En attente d'approbation",
-      "approved": "Approuvé",
       "rejected": "Image rejetée",
       "localOverlay": "Image locale",
       "newOverlay": "Nouvelle image"
@@ -585,7 +456,6 @@
     },
     "project": {
       "pendingApproval": "En attente d'approbation",
-      "approved": "Approuvé",
       "rejected": "Projet rejeté",
       "localProject": "Projet local",
       "newProject": "Nouveau projet",
@@ -593,54 +463,32 @@
     }
   },
   "forms": {
-    "saveChanges": "Enregistrer les modifications",
-    "submitLabel": {
-      "saveChanges": "Enregistrer les modifications"
-    }
+    "saveChanges": "Enregistrer les modifications"
   },
   "dialog": {
-    "createNewProject": "Créer un nouveau projet",
-    "editProject": "Modifier le projet"
+    "createNewProject": "Créer un nouveau projet"
   },
   "upload": {
     "noFileSelected": "Aucun fichier sélectionné",
     "selectImageFile": "Veuillez sélectionner un fichier image à télécharger",
-    "pdfConversion": "Si vous souhaitez télécharger une image provenant d'un PDF, veuillez utiliser des programmes comme TokenTool pour la meilleure qualité possible.",
     "fileTooLarge": "Le fichier est trop volumineux. La taille maximale est de {maxSize} Mo."
   },
   "imageUpload": {
     "dialogTitle": "Ajouter une image au projet",
-    "instructions": "Télécharger une image de construction",
     "uploadDescription": "Ajouter une image d'un plan de rue, d'un plan de construction ou d'une vue aérienne. Le but est d'aligner l'image avec la carte pour mieux faire connaître le projet. Les images avec un angle de vue non vertical ne sont pas acceptées. Jetez un œil aux dernières contributions pour voir comment elles devraient se présenter.",
     "pdfExtraction": "Extraction depuis des PDFs",
-    "pdfExtractionDescription": "Si votre image provient d'un fichier PDF, utilisez {toolLink} pour obtenir la meilleure qualité possible.",
     "tokenToolLink": "TokenTool",
     "dragDrop": "Glissez et déposez votre image ici",
     "orClick": "ou cliquez pour parcourir les fichiers",
     "supportedFormats": "Formats supportés : PNG, JPEG, JPG, WebP",
-    "fileSelected": "Image sélectionnée",
-    "fileSelectedDetail": "Image prête pour le téléchargement",
-    "readyToPosition": "Prête à être positionnée sur la carte",
-    "positionImageNext": "Fermez cette fenêtre pour positionner l'image sur la carte",
-    "selectedFile": "Fichier sélectionné",
-    "filename": "Nom du fichier",
-    "fileSize": "Taille",
-    "resolution": "Résolution",
     "changeImage": "Changer l'image"
   },
   "metadata": {
-    "notSpecified": "Non spécifié",
-    "notAvailable": "—"
+    "notSpecified": "Non spécifié"
   },
   "toast": {
     "validationError": "Erreur de validation",
-    "error": "Erreur",
-    "success": "Succès",
     "submissionFailed": "Échec de l'enregistrement"
-  },
-  "actions": {
-    "undo": "Annuler",
-    "noActionsToUndo": "Aucune action à annuler"
   },
   "validation": {
     "nameTooShort": "Le nom doit contenir au moins {min} caractères",
@@ -670,26 +518,7 @@
   },
   "errors": {
     "projectNotFound": "Projet introuvable",
-    "overlayNotFound": "Image introuvable",
-    "cityRequired": "Ville requise",
-    "mapNotInitialized": "La carte n'est pas initialisée",
-    "mapElementNotFound": "Aucun élément de carte trouvé",
-    "mapContainerNotFound": "Conteneur de carte introuvable !",
     "projectRequired": "Projet requis : un projet doit être sélectionné pour ajouter une image",
-    "overlayElementNotFound": "Élément d'image introuvable",
-    "noImageSelected": "Aucune image sélectionnée : veuillez d'abord sélectionner une image",
-    "mapNotAvailable": "Carte non disponible : impossible de naviguer entre les images",
-    "noProjects": "Aucun projet : veuillez d'abord créer un projet",
-    "failedToLoadOverlay": "Échec du chargement de l'image après récupération",
-    "cannotPublishNoProject": "Impossible de publier : l'image doit être assignée à un projet",
-    "cannotPublishNoPosition": "Impossible de publier : l'image doit avoir une position valide (4 coins)",
-    "failedToPublishProject": "Échec de la publication du projet sur le serveur",
-    "failedToUploadImage": "Échec du téléchargement de l'image sur le serveur",
-    "publishFailed": "Échec de la publication : échec de l'enregistrement sur le serveur. Veuillez réessayer.",
-    "backendPublishFailed": "Échec de la publication backend",
-    "noChangesDetected": "Aucune modification détectée pour l'image approuvée",
-    "newOverlayUsePublisher": "La création de nouvelle image doit utiliser useOverlayPublisher directement",
-    "noChangesToSubmit": "Aucune modification à soumettre",
     "checkConflictsFailed": "Échec de la vérification des conflits"
   },
   "moderation": {
@@ -788,7 +617,7 @@
     },
     "moderatedContributions": {
       "title": "Résultats de modération",
-      "description": "Voici ce qui est arrivé à vos contributions lors de la modération :",
+      "description": "Ces contributions ont été modérées :",
       "noItems": "Toutes vos contributions sont à jour !",
       "acknowledgeAll": "Tout effacer",
       "acknowledgeSuccess": "Acquitté",
@@ -839,32 +668,21 @@
     "rejectAllOverlays": "Rejeter également {count} image(s) en attente"
   },
   "location": {
-    "unknownLocation": "Lieu inconnu",
     "navigateToCity": "Aller à {city}",
     "missingCityInfo": "Informations de ville manquantes",
     "cannotNavigateToCity": "Impossible de naviguer vers cette ville",
-    "missingCountryInfo": "Informations de pays manquantes",
     "navigationFailed": "Échec de la navigation",
     "failedToNavigate": "Impossible de naviguer vers cet emplacement"
   },
   "replacementOverlay": {
-    "created": "Image de remplacement créée",
-    "createdDetail": "Votre image de remplacement a été créée et est prête à être modifiée",
     "uploadFailed": "Échec du téléchargement",
     "uploadFailedDetail": "Échec du traitement de l'image"
   },
-  "standaloneProject": {
-    "createSuccess": "Projet de bâtiment créé avec succès",
-    "createFailed": "Échec de la création du projet de bâtiment",
-    "projectUpdated": "Projet mis à jour",
-    "projectUpdatedDetail": "Modifications du projet enregistrées localement"
-  },
   "projectSelector": {
-    "header": "Sélectionner un projet à proximité pour la nouvelle image",
     "suggestChanges": "Suggérer des modifications"
   },
   "layerControl": {
-    "baseMaps": "Cartes de base",
+    "baseMaps": "Fonds de carte",
     "submitTileLayer": "Soumettre une nouvelle carte"
   },
   "toasts": {
@@ -883,12 +701,10 @@
       "title": "Utilisateurs signalés",
       "columns": {
         "username": "Nom d'utilisateur",
-        "email": "Email",
         "reportCount": "Signalements",
         "pendingItems": "Éléments en attente",
         "rejectedItems": "Éléments rejetés",
-        "status": "Statut",
-        "actions": "Actions"
+        "status": "Statut"
       },
       "status": {
         "blocked": "Bloqué",
@@ -901,7 +717,6 @@
       "details": {
         "reporters": "Modérateurs ayant signalé cet utilisateur",
         "reporterUsername": "Modérateur",
-        "reporterEmail": "Email",
         "reason": "Raison",
         "noReason": "Aucune raison fournie",
         "reportedAt": "Signalé le",
@@ -932,20 +747,12 @@
     "userContributions": {
       "title": "Contributions de l'utilisateur",
       "manageContributions": "Gérer les contributions",
-      "approved": "Approuvé",
       "rejected": "Rejeté",
       "banned": "Banni",
       "projects": "projets",
       "overlays": "images",
-      "projectsSection": "Projets",
-      "overlaysSection": "Images",
       "noCaption": "(Sans légende)",
       "noOverlays": "Aucune image pour ce projet",
-      "columns": {
-        "name": "Nom",
-        "status": "Statut",
-        "actions": "Actions"
-      },
       "deleteProjectDialog": {
         "title": "Supprimer le projet",
         "message": "Êtes-vous sûr de vouloir supprimer le projet \"{name}\" ? Cela supprimera également toutes les images associées. Cette action est irréversible."
