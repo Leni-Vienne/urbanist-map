@@ -52,6 +52,9 @@ import {
 } from "@/composables/map/useTileLayers";
 import { flyToCountry } from "@/composables/map/useMapNavigation";
 import { useMapStore } from "@/stores/pinia/mapStore";
+import { map } from "@/composables/core/useMap";
+import countryBboxes from "@/assets/country_bboxes.json";
+import L from "leaflet";
 
 // AI : Panel visibility state
 const showLayerPanel = ref(false);
@@ -87,13 +90,32 @@ async function onLayerChange() {
 
     // AI : Only fly to country bounds for country-specific tile layers
     // AI : OSM/esri (world layers) should not move the camera
-    // AI : Also skip flying if user is already viewing that country
+    // AI : Also skip flying if user is already viewing that country or is positioned over it
     if (selectedLayer.value !== "osm" && selectedLayer.value !== "esri") {
       const isAlreadyViewingCountry = mapStore.selectedCountryCode === selectedLayer.value;
-      if (!isAlreadyViewingCountry) {
+
+      // AI : Check if current map center is within the country's bounding box
+      let isOverCountry = false;
+      const bbox = countryBboxes[selectedLayer.value as keyof typeof countryBboxes];
+      if (bbox && map.value) {
+        const center = map.value.getCenter();
+        const latLngBounds = L.latLngBounds(
+          [bbox[1], bbox[0]], // AI : southwest corner [lat, lng]
+          [bbox[3], bbox[2]], // AI : northeast corner [lat, lng]
+        );
+        isOverCountry = latLngBounds.contains(center);
+      }
+
+      if (!isAlreadyViewingCountry && !isOverCountry) {
         // AI : Country-specific tile layer (FRA, USA, CHE) - fly to country bounds
         // AI : Note: flyToCountry expects the 3-letter country code
-        flyToCountry(selectedLayer.value, undefined, undefined, 6, 1.5);
+        flyToCountry(
+          selectedLayer.value as keyof typeof countryBboxes,
+          undefined,
+          undefined,
+          6,
+          1.5,
+        );
       }
     }
   } catch (error) {
