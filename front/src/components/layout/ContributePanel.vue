@@ -132,20 +132,6 @@
           <!-- AI : Buttons on the right -->
           <div style="display: flex; gap: 0.5rem">
             <Button
-              v-if="hasUnacknowledgedItems"
-              @click="uiStore.openModeratedContributionsDialog()"
-              :label="$t('moderation.moderatedContributions.viewResults')"
-              severity="secondary"
-              size="small"
-              outlined
-            >
-              <template #icon>
-                <Badge :value="moderatedContributionsCount" severity="danger" class="mr-2" />
-                <i class="pi pi-bell"></i>
-              </template>
-            </Button>
-
-            <Button
               @click="handleAddOverlayClick"
               severity="primary"
               size="small"
@@ -232,14 +218,13 @@ const {
   handleDeleteProject: deleteProjectWithConfirm,
 } = useProjectDeletion();
 
-const { moderatedContributions, hasUnacknowledgedItems } = useModeratedContributions();
+const { moderatedContributions } = useModeratedContributions();
 const uiStore = useUiStore();
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
 const mapStore = useMapStore();
 const authStore = useAuthStore();
 const pendingModsStore = usePendingModificationsStore();
-const moderatedContributionsCount = computed(() => moderatedContributions.value.length);
 
 // AI : Use submission dialog composable for all submission-related state and handlers
 const {

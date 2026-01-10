@@ -246,6 +246,13 @@
       "when": 1766247461956,
       "tag": "0034_yielding_maria_hill",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1768044229956,
+      "tag": "0035_panoramic_klaw",
+      "breakpoints": true
     }
   ]
 }

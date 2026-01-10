@@ -7,7 +7,7 @@
     @click.stop="toggleLayerPanel"
     @dblclick.stop
     aria-label="Layer Control"
-    v-tooltip.right="'Map Layers'"
+    v-tooltip.right="$t('controls.layers')"
     :severity="showLayerPanel ? undefined : 'secondary'"
   />
 
