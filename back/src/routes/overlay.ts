@@ -1,8 +1,8 @@
 import { publicProcedure, loggedInProcedure, router, TRPCError } from "../trpc";
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
-import { overlays, projects, cities, countries, type ApprovalStatus } from "../db/schema";
+import { overlays, projects, cities, countries, users, type ApprovalStatus } from "../db/schema";
 import type * as schema from "../db/schema";
-import { sql, eq, and } from "drizzle-orm";
+import { sql, eq, and, or, inArray } from "drizzle-orm";
 import { db } from "../database";
 import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import { buildOverlayQuery, buildOverlayVisibilityCondition, isUserBlocked } from "../db/helpers";
@@ -330,13 +330,7 @@ export const overlayRouter = router({
   }), // AI : Update overlay fields directly (for pending overlays)
   updateOverlay: loggedInProcedure.input(updateOverlaySchema).mutation(async ({ input, ctx }) => {
     try {
-      const userId = ctx.user?.id;
-      if (!userId) {
-        throw new TRPCError({
-          code: "UNAUTHORIZED",
-          message: "Must be logged in to update overlay",
-        });
-      }
+      const userId = ctx.user.id;
 
       // AI : Only allow owners to update their own overlays
       const existingOverlay = await db
@@ -379,13 +373,7 @@ export const overlayRouter = router({
     .input(z.object({ id: z.uuid() }))
     .mutation(async ({ input, ctx }) => {
       try {
-        const userId = ctx.user?.id;
-        if (!userId) {
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: "Must be logged in to delete overlay",
-          });
-        }
+        const userId = ctx.user.id;
 
         // AI : Get overlay to check permissions and status
         const overlay = await db
@@ -443,12 +431,18 @@ export const overlayRouter = router({
   // AI : Get moderated contributions (rejected/replaced overlays AND standalone projects) for the current user
   getModeratedContributions: loggedInProcedure.query(async ({ ctx }) => {
     try {
-      const userId = ctx.user?.id;
-      if (!userId) {
-        throw new TRPCError({ code: "UNAUTHORIZED", message: "Must be logged in" });
-      }
+      const userId = ctx.user.id;
 
-      // AI : Get rejected and replaced overlays for this user with project/city info
+      // AI : Get user's last acknowledgement time
+      const currentUser = await db
+        .select({ lastApprovalAcknowledgementAt: users.lastApprovalAcknowledgementAt })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      const lastAck = currentUser[0]?.lastApprovalAcknowledgementAt ?? new Date(0);
+
+      // AI : Get rejected/replaced overlays OR new approved overlays
       const moderatedOverlays = await db
         .select({
           id: overlays.id,
@@ -470,10 +464,16 @@ export const overlayRouter = router({
         .from(overlays)
         .leftJoin(projects, eq(overlays.projectId, projects.id))
         .where(
-          and(eq(overlays.authorId, userId), sql`${overlays.status} IN ('rejected', 'replaced')`),
+          and(
+            eq(overlays.authorId, userId),
+            or(
+              sql`${overlays.status} IN ('rejected', 'replaced')`,
+              and(eq(overlays.status, "approved"), sql`${overlays.updatedAt} > ${lastAck}`),
+            ),
+          ),
         );
 
-      // AI : Get rejected and replaced standalone projects (projects without overlays)
+      // AI : Get rejected/replaced standalone projects OR new approved projects
       const moderatedProjects = await db
         .select({
           id: projects.id,
@@ -495,7 +495,13 @@ export const overlayRouter = router({
         .from(projects)
         .leftJoin(cities, eq(projects.cityId, cities.id))
         .where(
-          and(eq(projects.ownerId, userId), sql`${projects.status} IN ('rejected', 'replaced')`),
+          and(
+            eq(projects.ownerId, userId),
+            or(
+              sql`${projects.status} IN ('rejected', 'replaced')`,
+              and(eq(projects.status, "approved"), sql`${projects.updatedAt} > ${lastAck}`),
+            ),
+          ),
         );
 
       // AI : Combine and sort by updatedAt
@@ -513,22 +519,24 @@ export const overlayRouter = router({
     }
   }),
 
-  // AI : Acknowledge/clear moderated contributions (immediate cleanup)
+  // AI : Acknowledge/clear moderated contributions
+  // AI : For rejected/replaced items: deletes them
+  // AI : For approved items: updates user's lastApprovalAcknowledgementAt timestamp
   acknowledgeModeratedContributions: loggedInProcedure
     .input(
       z.object({
-        overlayIds: z.array(z.uuid()).min(1).max(50), // AI : Limit to 50 items at once
+        contributionIds: z.array(z.uuid()).min(1).max(50),
       }),
     )
     .mutation(async ({ input, ctx }) => {
       try {
-        const userId = ctx.user?.id;
-        if (!userId) {
-          throw new TRPCError({ code: "UNAUTHORIZED", message: "Must be logged in" });
-        }
+        const userId = ctx.user.id;
 
-        // AI : Verify all overlays belong to user and are rejected/replaced
-        const overlaysToDelete = await db
+        const ids = input.contributionIds;
+        const idSet = new Set(ids);
+
+        // AI : Fetch overlays explicitly to separate approved vs rejected/replaced
+        const overlaysToCheck = await db
           .select({
             id: overlays.id,
             filename: overlays.filename,
@@ -538,46 +546,96 @@ export const overlayRouter = router({
           .from(overlays)
           .where(
             sql`${overlays.id} IN (${sql.join(
-              input.overlayIds.map((id) => sql`${id}`),
+              ids.map((id) => sql`${id}`),
               sql`, `,
             )})`,
           );
 
-        // AI : Validate ownership and status
-        for (const overlay of overlaysToDelete) {
-          if (overlay.authorId !== userId) {
-            throw new TRPCError({
-              code: "FORBIDDEN",
-              message: "Not authorized to delete these overlays",
-            });
-          }
-          if (overlay.status !== "rejected" && overlay.status !== "replaced") {
-            throw new TRPCError({
-              code: "BAD_REQUEST",
-              message: "Can only acknowledge rejected/replaced overlays",
-            });
+        // AI : Fetch projects explicitly
+        const projectsToCheck = await db
+          .select({
+            id: projects.id,
+            status: projects.status,
+            ownerId: projects.ownerId,
+          })
+          .from(projects)
+          .where(
+            sql`${projects.id} IN (${sql.join(
+              ids.map((id) => sql`${id}`),
+              sql`, `,
+            )})`,
+          );
+
+        let hasApprovedItems = false;
+        const overlaysToDelete: typeof overlaysToCheck = [];
+        const projectsToDelete: typeof projectsToCheck = [];
+
+        // AI : Process overlays
+        for (const overlay of overlaysToCheck) {
+          if (overlay.authorId !== userId) continue; // Skip if not owner (or throw)
+
+          if (overlay.status === "approved") {
+            hasApprovedItems = true;
+          } else if (overlay.status === "rejected" || overlay.status === "replaced") {
+            overlaysToDelete.push(overlay);
           }
         }
 
-        // AI : Delete images immediately (thumbnails only, fullsize already deleted)
-        for (const overlay of overlaysToDelete) {
-          try {
-            await deleteLocalImages(overlay.filename, "thumbnail");
-          } catch (error) {
-            console.error(`Failed to delete thumbnail for overlay ${overlay.id}:`, error);
-            // AI : Continue with DB deletion even if image deletion fails
+        // AI : Process projects
+        for (const project of projectsToCheck) {
+          if (project.ownerId !== userId) continue;
+
+          if (project.status === "approved") {
+            hasApprovedItems = true;
+          } else if (project.status === "rejected") {
+            projectsToDelete.push(project);
           }
         }
 
-        // AI : Delete from database
-        await db.delete(overlays).where(
-          sql`${overlays.id} IN (${sql.join(
-            input.overlayIds.map((id) => sql`${id}`),
-            sql`, `,
-          )})`,
-        );
+        // AI : If any approved items matched, update user's last check time
+        // AI : We acknowledge ALL approved items by updating the timestamp, which is simpler and expected
+        if (hasApprovedItems) {
+          await db
+            .update(users)
+            .set({ lastApprovalAcknowledgementAt: new Date() })
+            .where(eq(users.id, userId));
+        }
 
-        return { success: true, deletedCount: overlaysToDelete.length };
+        // AI : Delete rejected/replaced overlays
+        if (overlaysToDelete.length > 0) {
+          // AI : Delete images first
+          for (const overlay of overlaysToDelete) {
+            try {
+              await deleteLocalImages(overlay.filename, "thumbnail");
+            } catch (error) {
+              console.error(`Failed to delete thumbnail for overlay ${overlay.id}:`, error);
+            }
+          }
+
+          // AI : Delete DB records
+          await db.delete(overlays).where(
+            inArray(
+              overlays.id,
+              overlaysToDelete.map((o) => o.id),
+            ),
+          );
+        }
+
+        // AI : Delete rejected projects
+        if (projectsToDelete.length > 0) {
+          await db.delete(projects).where(
+            inArray(
+              projects.id,
+              projectsToDelete.map((p) => p.id),
+            ),
+          );
+        }
+
+        return {
+          success: true,
+          deletedCount: overlaysToDelete.length + projectsToDelete.length,
+          acknowledgedApproved: hasApprovedItems,
+        };
       } catch (error) {
         console.error("Error acknowledging moderated contributions:", error);
         if (error instanceof TRPCError) throw error;

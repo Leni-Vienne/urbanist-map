@@ -56,6 +56,11 @@ export const users = pgTable(
     bannedAt: timestamp("banned_at", { withTimezone: true }),
     bannedBy: uuid("banned_by").references((): AnyPgColumn => users.id, { onDelete: "set null" }),
     banReason: text("ban_reason"),
+    // AI : Track when user last acknowledged approved contributions
+    // AI : Used to highlight new approvals in the UI without modifying content tables
+    lastApprovalAcknowledgementAt: timestamp("last_approval_acknowledgement_at", {
+      withTimezone: true,
+    }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
