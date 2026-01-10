@@ -9,9 +9,9 @@
         @click="goHome"
       />
 
-      <h1>{{ t('pages.contact.title') }}</h1>
+      <h1>{{ t("common.contact") }}</h1>
 
-      <p>{{ t('pages.contact.description') }}</p>
+      <p>{{ t("pages.contact.description") }}</p>
 
       <div class="contact-info">
         <a href="mailto:contact@constructionmap.org" class="contact-link">
@@ -24,14 +24,14 @@
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
+import { useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 
-const router = useRouter()
-const { t } = useI18n()
+const router = useRouter();
+const { t } = useI18n();
 
 function goHome() {
-  router.push('/')
+  router.push("/");
 }
 </script>
 

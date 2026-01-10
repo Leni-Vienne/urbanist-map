@@ -366,6 +366,22 @@ function setupOverlayEventHandlers(
   const overlayStore = useOverlayStore();
 
   overlay.on("select", () => {
+    // AI : In moderation mode, clicking a contribution should load the city context
+    // AI : This ensures clicking the image itself (not just the marker) loads the city
+    if (overlayStore.mode === "moderation" && overlayObject.project?.city) {
+      const mapStore = useMapStore();
+      const city = overlayObject.project.city;
+
+      if (mapStore.selectedCity?.id !== city.id) {
+        mapStore.setSelectedCity({
+          id: city.id,
+          name: city.name,
+          nameLocal: city.nameLocal,
+          countryCode: city.countryCode,
+        });
+      }
+    }
+
     // AI : Use centralized selection function for consistent behavior
     selectOverlay(overlayObject.id);
   });

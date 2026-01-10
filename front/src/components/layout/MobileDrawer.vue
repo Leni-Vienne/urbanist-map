@@ -14,8 +14,8 @@
     <template #header>
       <div class="drawer-header-content">
         <div class="title-container">
-          <h3 class="drawer-title">{{ $t('app.title') }}</h3>
-          <p class="drawer-subtitle">{{ $t('app.subtitle') }}</p>
+          <h3 class="drawer-title">{{ $t("app.title") }}</h3>
+          <p class="drawer-subtitle">{{ $t("app.subtitle") }}</p>
         </div>
 
         <!-- AI : Tab navigation inside fixed header -->
@@ -34,7 +34,7 @@
     <div class="drawer-footer">
       <a href="/legal" class="footer-link">{{ $t("footer.legal") }}</a>
       <span class="footer-separator">•</span>
-      <a href="/contact" class="footer-link">{{ $t("footer.contact") }}</a>
+      <a href="/contact" class="footer-link">{{ $t("common.contact") }}</a>
     </div>
   </DraggableDrawer>
 </template>
