@@ -239,3 +239,27 @@ export type ProjectForModeration = Pick<
 };
 
 // AI : PendingOverlay is defined in types/api.ts - import from there if needed
+
+// AI : Centralized UserContribution types handling local (nullable status) and backend data
+type BackendUserContribution = RouterOutput["project"]["getUsersContributions"]["projects"][number];
+
+export type UserContributionOverlay = Omit<
+  BackendUserContribution["overlays"][number],
+  "status"
+> & {
+  status: ApprovalStatus | null;
+  // AI : Frontend-specific fields added by factories
+  imageUrl?: string;
+  authorUsername?: string | null;
+  authorApprovedCount?: number | null;
+  authorRejectedCount?: number | null;
+};
+
+export type UserContribution = Omit<BackendUserContribution, "status" | "overlays"> & {
+  status: ApprovalStatus | null;
+  overlays: UserContributionOverlay[];
+  // AI : Frontend-specific fields added by factories
+  ownerUsername?: string | null;
+  ownerApprovedCount?: number | null;
+  ownerRejectedCount?: number | null;
+};

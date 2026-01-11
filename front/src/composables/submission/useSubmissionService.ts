@@ -195,7 +195,7 @@ export function useSubmissionService() {
 
     for (const field of fieldsToCheck) {
       // AI : Cast to any as originalProject can be Project or UserContribution, both have these fields
-      const oldValue = (originalProject as any)[field];
+      const oldValue = (originalProject as unknown as Record<string, unknown>)[field];
       const newValue = project[field];
 
       // AI : Special handling for date fields

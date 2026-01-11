@@ -13,7 +13,7 @@ export class DrizzleSessionStore {
     this.startCleanupInterval();
   }
 
-  async getSessionById(sessionId: string): Promise<any> {
+  async getSessionById(sessionId: string): Promise<Record<string, any> | null> {
     try {
       const [session] = await db.select().from(sessions).where(eq(sessions.id, sessionId)).limit(1);
 
@@ -28,17 +28,20 @@ export class DrizzleSessionStore {
         return null;
       }
 
-      return session.data;
+      return session.data as Record<string, any>;
     } catch (error) {
       console.error("Failed to get session:", error);
       return null;
     }
   }
 
-  async createSession(sessionId: string, initialData: any): Promise<void> {
+  async createSession(sessionId: string, initialData: Record<string, any>): Promise<void> {
     try {
       // AI : hono-sessions stores user data in _data property
-      const userData = initialData?._data?.user;
+      const data = initialData as {
+        _data?: { user?: unknown; expiresAt?: string | number | Date };
+      };
+      const userData = data?._data?.user;
 
       // AI : Skip persisting empty sessions (anonymous visitors)
       // AI : Only logged-in users need database-backed sessions
@@ -47,7 +50,7 @@ export class DrizzleSessionStore {
       }
 
       // AI : Safely parse expiry date, fallback to 30 days if invalid
-      const rawExpiry = initialData._data?.expiresAt;
+      const rawExpiry = data?._data?.expiresAt;
       const defaultExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       let expiresAt = defaultExpiry;
       if (rawExpiry) {
@@ -68,10 +71,13 @@ export class DrizzleSessionStore {
     }
   }
 
-  async persistSessionData(sessionId: string, sessionData: any): Promise<void> {
+  async persistSessionData(sessionId: string, sessionData: Record<string, any>): Promise<void> {
     try {
       // AI : hono-sessions stores user data in _data property
-      const userData = sessionData?._data?.user;
+      const data = sessionData as {
+        _data?: { user?: unknown; expiresAt?: string | number | Date };
+      };
+      const userData = data?._data?.user;
 
       // AI : Skip persisting empty sessions (anonymous visitors)
       // AI : CRITICAL: Only persist authenticated user sessions to prevent session explosion
@@ -80,7 +86,7 @@ export class DrizzleSessionStore {
       }
 
       // AI : Safely parse expiry date, fallback to 30 days if invalid
-      const rawExpiry = sessionData._data?.expiresAt;
+      const rawExpiry = data?._data?.expiresAt;
       const defaultExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       let expiresAt = defaultExpiry;
       if (rawExpiry) {

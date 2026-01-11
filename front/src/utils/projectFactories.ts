@@ -1,12 +1,15 @@
 // AI : Factory functions for creating project and overlay objects
 // AI : Eliminates massive code duplication across currentLocationPanel, ContributePanel, and useAllContributions
 
-import type { OverlayData, ProjectForModeration, OverlayForModeration } from "@/types/index";
-import type { RouterOutput } from "@/client";
-import type { ApprovalStatus } from "@shared/types";
+import type {
+  OverlayData,
+  ProjectForModeration,
+  OverlayForModeration,
+  UserContribution,
+  UserContributionOverlay,
+} from "@/types/index";
 
-type UserContribution = RouterOutput["project"]["getUsersContributions"]["projects"][number];
-type UserContributionOverlay = UserContribution["overlays"][number];
+import type { ApprovalStatus } from "@shared/types";
 
 interface SelectedCity {
   id: number;
@@ -122,7 +125,7 @@ export function createLocalOverlayContribution(
     id: overlay.id,
     name: overlay.caption ?? "Untitled",
     filename: overlay.filename,
-    status: null as unknown as ApprovalStatus,
+    status: null,
     version: 1,
     projectId: overlay.projectId ?? "",
     authorId: overlay.authorId ?? null,
@@ -137,7 +140,7 @@ export function createLocalOverlayContribution(
     countryCode: parentProject.countryCode,
     countryName: parentProject.countryName,
     imageUrl: overlay.imageUrl, // AI : Preserve local image URL for thumbnail display
-  } as unknown as UserContributionOverlay;
+  };
 }
 
 /**
@@ -186,7 +189,7 @@ export function createLocalProjectContribution(
     id: localProject.id,
     name: localProject.name,
     description: localProject.description ?? null,
-    status: null as unknown as ApprovalStatus,
+    status: null,
     version: 1,
     ownerId: localProject.ownerId ?? "",
     ownerUsername: username,
@@ -198,6 +201,16 @@ export function createLocalProjectContribution(
     countryName: null,
     lat: localProject.lat,
     lng: localProject.lng,
+    city: {
+      id: localProject.cityId,
+      name: localProject.city.name,
+      countryCode: localProject.city.countryCode,
+      nameLocal: null, // AI : Default for local project
+      coordinates: { x: 0, y: 0 },
+      approvedProjectCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
     proposalDate: localProject.proposalDate,
     startDate: localProject.startDate,
     endDate: localProject.endDate,
@@ -207,5 +220,5 @@ export function createLocalProjectContribution(
     updatedAt: new Date(),
     overlays: [overlayData],
     overlayCount: 1,
-  } as unknown as UserContribution;
+  };
 }
