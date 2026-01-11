@@ -37,6 +37,8 @@ export const useMapStore = defineStore("map", () => {
 
   // AI : Set the currently selected city
   function setSelectedCity(city: SelectedCity | null) {
+    // AI : Prevent redundant updates (prevents infinite loops in watchers)
+    if (selectedCity.value?.id === city?.id) return;
     selectedCity.value = city;
   }
 

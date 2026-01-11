@@ -473,6 +473,7 @@ const mapStore = useMapStore();
 const uiStore = useUiStore();
 
 // AI : Use shared accordion state (persists across My Contributions and Moderation panels)
+// AI : Use shared accordion state (persists across My Contributions and Moderation panels)
 const {
   activeAccordionPanels,
   toggleCountryExpanded,
@@ -481,6 +482,7 @@ const {
   isCityExpanded,
   expandAccordionForOverlay,
   expandAccordionForProject,
+  consumeScrollRequest,
 } = useAccordionState();
 
 // AI : Use shared image error handling
@@ -559,100 +561,75 @@ function shouldShowCityContent(cityKey: string): boolean {
   return props.disableGrouping || isCityExpanded(cityKey);
 }
 
-// AI : Watch for overlay selection and mode changes to auto-expand accordions
-// AI : Watch only project IDs instead of deep watching entire project objects for performance
-watch(
-  () =>
-    [
-      overlayStore.idSelectedOverlay,
-      overlayStore.mode,
-      props.projects.map((p) => p.id).join(","),
-    ] as const,
-  async ([selectedOverlayId]) => {
-    if (selectedOverlayId && props.projects.length > 0) {
-      // AI : Wait for Vue to finish rendering the updated projects
+// AI : Handle scroll requests from the shared state
+async function handleScrollRequest() {
+  const request = consumeScrollRequest();
+  if (!request) return;
+
+  // AI : Wait for data to be potentially ready (if called after data load)
+  await nextTick();
+
+  if (request.type === "overlay") {
+    const overlayId = String(request.id);
+    const expanded = expandAccordionForOverlay(overlayId, props.projects);
+    if (expanded) {
       await nextTick();
+      await waitForAccordionAnimation(overlayId);
+    }
+  } else if (request.type === "project") {
+    const projectId = String(request.id);
+    const expanded = expandAccordionForProject(projectId, props.projects);
+    if (expanded) {
+      await nextTick();
+      await waitForProjectAccordionAnimation(projectId);
+    }
+  } else if (request.type === "city") {
+    const cityId = Number(request.id);
+    // AI : Find city group for this ID
+    // AI : We need to find the city in projects to get the code-name key
+    let cityKey: string | null = null;
+    let countryCode: string | null = null;
 
-      // AI : Try to expand the accordion hierarchy
-      const expanded = expandAccordionForOverlay(selectedOverlayId, props.projects);
-
-      if (expanded) {
-        // AI : Wait for DOM to update with expanded accordion
-        await nextTick();
-
-        // AI : Wait for accordion animation to complete, then scroll
-        await waitForAccordionAnimation(selectedOverlayId);
+    for (const project of props.projects) {
+      if (project.cityId === cityId) {
+        countryCode = project.countryCode ?? "unknown";
+        cityKey = `${countryCode}-${project.cityName}`;
+        break;
       }
     }
-  },
-  { immediate: true },
-);
 
-// AI : Watch for project info popup (standalone/standalone projects) to auto-expand and scroll
-// AI : Watch only project IDs instead of deep watching entire project objects for performance
-watch(
-  () =>
-    [
-      uiStore.projectInfoPopup.visible,
-      uiStore.projectInfoPopup.projectId,
-      props.projects.map((p) => p.id).join(","),
-    ] as const,
-  async ([visible, projectId]) => {
-    if (visible && projectId && props.projects.length > 0) {
-      // AI : Wait for Vue to finish rendering the updated projects
-      await nextTick();
-
-      // AI : Try to expand the accordion hierarchy for the project
-      const expanded = expandAccordionForProject(projectId, props.projects);
-
-      if (expanded) {
-        // AI : Wait for DOM to update with expanded accordion
-        await nextTick();
-
-        // AI : Wait for accordion animation to complete, then scroll
-        await waitForProjectAccordionAnimation(projectId);
-      }
-    }
-  },
-  { immediate: true },
-);
-
-// AI : Watch for selected city changes to auto-scroll to city in panel (moderation/edit modes)
-// AI : Watch only project IDs instead of deep watching entire project objects for performance
-watch(
-  () => [mapStore.selectedCity, props.projects.map((p) => p.id).join(",")] as const,
-  async ([selectedCity]) => {
-    if (selectedCity && props.projects.length > 0 && !props.disableGrouping) {
-      // AI : Wait for Vue to finish rendering the updated projects
-      await nextTick();
-
-      // AI : Build city key using same format as groupedByCountry
-      const cityKey = `${selectedCity.countryCode ?? "unknown"}-${selectedCity.name}`;
-
-      // AI : Find the country and city in grouped data
-      const country = groupedByCountry.value.find((c) =>
-        c.cities.some((city) => city.key === cityKey),
-      );
-
-      if (country) {
-        // AI : Auto-expand country if collapsed
-        if (!isCountryExpanded(country.countryCode)) {
-          toggleCountryExpanded(country.countryCode, country);
+    if (cityKey && countryCode) {
+      // AI : Expand country if needed
+      if (!isCountryExpanded(countryCode)) {
+        // AI : Find country group to get reference
+        const country = groupedByCountry.value.find((c) => c.countryCode === countryCode);
+        if (country) {
+          toggleCountryExpanded(countryCode, country);
         }
-
-        // AI : Auto-expand city if collapsed
-        if (!isCityExpanded(cityKey)) {
-          toggleCityExpanded(cityKey);
-        }
-
-        // AI : Wait for DOM to update with expanded accordions
-        await nextTick();
-
-        // AI : Wait for accordion animation to complete, then scroll
-        await waitForCityAccordionAnimation(cityKey);
       }
+
+      // AI : Expand city if needed
+      if (!isCityExpanded(cityKey)) {
+        toggleCityExpanded(cityKey);
+      }
+
+      await nextTick();
+      await waitForCityAccordionAnimation(cityKey);
+    }
+  }
+}
+
+// AI : Watch for project data updates
+// AI : This handles the "deferred" case where a scroll request was made BEFORE projects were loaded
+watch(
+  () => props.projects,
+  async (newProjects) => {
+    if (newProjects.length > 0) {
+      // AI : Projects loaded or updated, check if we have a pending scroll request
+      await handleScrollRequest();
     }
   },
+  { deep: true, immediate: true }, // AI : Immediate trigger handles initial mount if data is already there
 );
 
 /**
