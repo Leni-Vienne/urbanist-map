@@ -36,10 +36,9 @@ export function clearAllOverlays(preserveStoreData = false): void {
     }
   }
 
-  // AI : Only clear store data if not preserving
   if (!preserveStoreData) {
     overlayStore.overlays = {};
-    overlayStore.allMarkers = {};
+    // AI : allMarkers is cleared at the end after removing layers
 
     if (overlayStore.idSelectedOverlay) {
       overlayStore.idSelectedOverlay = null;
@@ -47,5 +46,18 @@ export function clearAllOverlays(preserveStoreData = false): void {
   } else {
     // AI : Clear markers from allMarkers cache so they can be recreated
     overlayStore.clearMarkersFromCache(markerIdsToClear);
+  }
+
+  // AI : CRITICAL FIX: Explicitly remove all markers from map
+  // AI : iterating overlayStore.overlays is not enough because some markers
+  // AI : might be created (and in allMarkers) but not yet linked to an overlayObject in the store
+  // AI : (e.g. during the async loading phase)
+  if (!preserveStoreData) {
+    for (const marker of Object.values(overlayStore.allMarkers)) {
+      if (marker && map.value?.hasLayer(marker)) {
+        marker.remove();
+      }
+    }
+    overlayStore.allMarkers = {};
   }
 }
