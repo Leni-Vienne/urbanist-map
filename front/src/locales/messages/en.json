@@ -95,7 +95,7 @@
     "locationRequired": "Location is required",
     "timelineChangedFromProposedToPlanned": "Timeline status changed from Proposed ({proposalDate}) to Planned",
     "timelineChangedFromPlannedToProposed": "Timeline status changed from Planned ({startDate} to {endDate}) to Proposed",
-    "clickMapToPlace": "Click on the map to place place your project",
+    "clickMapToPlace": "Click on the map to place your project",
     "information": "Project Information",
     "edit": "Edit Project",
     "publish": "Publish Project",
@@ -119,7 +119,7 @@
   "help": {
     "title": "Welcome",
     "intro": "ConstructionMap.org is a crowdsourced map of construction projects worldwide. Browse projects, view their progress, and contribute by adding your own content.",
-    "paragraph": "As it's often hard to find these infomration on the internet, I hope this site will be useful and pique your interest. Don't hesitate to contribute, whether by adding an official project or an idea of your own.",
+    "paragraph": "As it's often hard to find these information on the internet, I hope this site will be useful and pique your interest. Don't hesitate to contribute, whether by adding an official project or an idea of your own.",
     "gotIt": "Got it!",
     "dontShowAgain": "Don't show this window again",
     "buttons": {
@@ -252,7 +252,7 @@
     "authenticationRequired": "Authentication Required",
     "moderationAccessRequired": "Moderation Access Required",
     "signInMessage": "Please sign in using the button in the top-right corner to access this section.",
-    "moderationMessage": "You need moderationistrator privileges to access this section.",
+    "moderationMessage": "You need moderator privileges to access this section.",
     "signedOut": "Signed Out",
     "signedOutMessage": "You have successfully signed out.",
     "resetPassword": "Reset Password",
@@ -480,7 +480,7 @@
   "imageUpload": {
     "pdfExtractionDescription": "If your images are sourced from a PDF, it is recommended to use tools like {toolLink} to extract the images in the best possible quality.",
     "dialogTitle": "Add Image to Project",
-    "uploadDescription": "Upload images showing street layouts, construction plans or aerial views. The goal is to align the image with the map to give a better understanding of the project. Images with a non-vertical view angle are not accepted since they can't be aligned with the map. Have a look at the latest contributions to see how it should look like.",
+    "uploadDescription": "Upload images showing street layouts, construction plans or aerial views. The goal is to align the image with the map to give a better understanding of the project. Images with a non-vertical view angle are not accepted since they can't be aligned with the map. Have a look at the latest contributions to see what it should look like.",
     "pdfExtraction": "Extracting from PDFs",
     "tokenToolLink": "TokenTool",
     "dragDrop": "Drag and drop your image here",
