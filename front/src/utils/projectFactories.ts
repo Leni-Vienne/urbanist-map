@@ -26,6 +26,7 @@ interface CountryInfo {
  * AI : Create ProjectForModeration from overlay data
  * AI : Used by currentLocationPanel to build projects from city overlay cache
  */
+// eslint-disable-next-line complexity
 export function createProjectFromOverlayData(
   overlayData: OverlayData,
   selectedCity: SelectedCity,

@@ -11,11 +11,12 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
-import type { OverlayObject, OverlayData } from "@/types/index";
+import type { OverlayObject, OverlayData, Project } from "@/types/index";
 import {
   createOverlayObject,
   createOverlayFromCDN,
   convertOverlayToData,
+  createProjectObject,
 } from "@/utils/typeFactories";
 import { toRef } from "vue";
 import { useProjects, addOverlayToProjectWithId } from "@/composables/project/useProjects";
@@ -348,10 +349,10 @@ function onOverlayLoaded(overlayObject: OverlayObject): void {
 
   // AI : CRITICAL: Invoke onAddedToMap callback AFTER all initialization is complete
   // AI : This ensures overlay is fully loaded before being added to store
-  if ((overlayObject as any)._onAddedToMapCallback) {
-    (overlayObject as any)._onAddedToMapCallback();
+  if (overlayObject._onAddedToMapCallback) {
+    overlayObject._onAddedToMapCallback();
     // AI : Clean up callback reference
-    delete (overlayObject as any)._onAddedToMapCallback;
+    delete overlayObject._onAddedToMapCallback;
   }
 }
 
@@ -769,7 +770,8 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
     const userContribution = projectStore.userContributions.find((p) => p.id === projectId);
     if (userContribution) {
       // AI : User contributions have lat/lng, use them directly
-      project = userContribution as any; // Type compatible enough for our needs (has lat/lng)
+      // AI : Convert using factory to ensure proper Project type (handling extra fields via safe cast)
+      project = createProjectObject(userContribution as unknown as Partial<Project>);
     }
   }
 
