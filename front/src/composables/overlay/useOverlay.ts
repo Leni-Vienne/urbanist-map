@@ -205,28 +205,6 @@ export function createLeafletOverlay(
       //mode: 'resizeRotate' // doesn't work but should, it's an issue from the package
     });
 
-    // AI : Always add overlay to map - visibility based on zoom is handled by useOverlayZoomHandler
-    // AI : This waits for any ongoing zoom animation to complete before adding to prevent visual glitches
-    const addOverlayWhenReady = () => {
-      if (map.value && newOverlay) {
-        const currentZoom = map.value.getZoom();
-        const shouldShowImage = currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
-
-        // AI : Only add to map if zoom is appropriate (zoom handler will manage later changes)
-        if (shouldShowImage) {
-          newOverlay.addTo(map.value);
-        }
-      }
-    };
-
-    // Check if map is currently zooming, _animatingZoom isn't documented for some reason
-    if (map.value !== null && map.value?._animatingZoom) {
-      // AI : Wait for zoom animation to complete
-      map.value.once("zoomend", addOverlayWhenReady);
-    } else {
-      // AI : No animation - add immediately if zoom is appropriate
-      addOverlayWhenReady();
-    }
     overlayObject.overlay = newOverlay;
 
     setupOverlayEventHandlers(newOverlay, overlayObject);
@@ -256,6 +234,29 @@ export function createLeafletOverlay(
       : undefined;
 
     setupOverlayLoadHandler(newOverlay, overlayObject, wrappedOnAddedToMap);
+
+    // AI : Always add overlay to map - visibility based on zoom is handled by useOverlayZoomHandler
+    // AI : This waits for any ongoing zoom animation to complete before adding to prevent visual glitches
+    const addOverlayWhenReady = () => {
+      if (map.value && newOverlay) {
+        const currentZoom = map.value.getZoom();
+        const shouldShowImage = currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
+
+        // AI : Only add to map if zoom is appropriate (zoom handler will manage later changes)
+        if (shouldShowImage) {
+          newOverlay.addTo(map.value);
+        }
+      }
+    };
+
+    // Check if map is currently zooming, _animatingZoom isn't documented for some reason
+    if (map.value !== null && map.value?._animatingZoom) {
+      // AI : Wait for zoom animation to complete
+      map.value.once("zoomend", addOverlayWhenReady);
+    } else {
+      // AI : No animation - add immediately if zoom is appropriate
+      addOverlayWhenReady();
+    }
 
     return newOverlay;
   } catch (error) {
@@ -287,16 +288,34 @@ function setupOverlayLoadHandler(
     return;
   }
 
-  L.DomEvent.on(element, "load", () => {
+  let isInitialized = false;
+
+  const tryInit = () => {
+    if (isInitialized) return;
+
     // AI : Guard: Only proceed if overlay is still on map (prevents errors during rapid viewport changes)
     if (!map.value || !map.value.hasLayer(overlay)) {
       return;
     }
 
     if (element.complete && element.naturalWidth > 0) {
+      isInitialized = true;
+
+      // AI : Cleanup listeners to prevent redundant calls
+      L.DomEvent.off(element, "load", tryInit);
+      overlay.off("add", tryInit);
+
       onOverlayLoaded(overlayObject, onReady);
     }
-  });
+  };
+
+  L.DomEvent.on(element, "load", tryInit);
+
+  // AI : CRITICAL FIX: Also check when added to map
+  // AI : This handles the case where the image loads while waiting for zoom animation (flyTo)
+  // AI : In that case, the 'load' event fires while hasLayer() is false, so we missed it.
+  // AI : When 'add' fires later, we check again.
+  overlay.on("add", tryInit);
 
   // AI : Handle load errors to ensure system consistency
   L.DomEvent.on(element, "error", () => {
@@ -308,12 +327,8 @@ function setupOverlayLoadHandler(
     }
   });
 
-  if (element.complete && element.naturalWidth > 0) {
-    // AI : Guard: Only proceed if overlay is still on map
-    if (map.value && map.value.hasLayer(overlay)) {
-      onOverlayLoaded(overlayObject, onReady);
-    }
-  }
+  // AI : Check immediately in case it's already loaded and on map
+  tryInit();
 }
 
 /**
