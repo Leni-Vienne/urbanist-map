@@ -17,13 +17,13 @@
         </div>
       </div>
 
-      <!-- AI : City search in top-left corner -->
-      <div class="city-search-container">
-        <CitySearch />
+      <!-- AI : Top controls container (Search + User Menu) -->
+      <div class="top-controls-container">
+        <div class="city-search-container">
+          <CitySearch />
+        </div>
+        <UserMenu class="flex-shrink-0" />
       </div>
-
-      <!-- AI : User Menu in top-right corner -->
-      <UserMenu />
 
       <!-- AI : Map Controls Component -->
       <MapControls @filter-overlays="filterOverlaysByCompletionStatus" />
@@ -248,21 +248,32 @@ async function initializeMapAndOverlays() {
   text-align: center;
 }
 
-/* AI : City search positioned in top-left corner */
-.city-search-container {
+/* AI : Top controls container */
+.top-controls-container {
   position: absolute;
   top: 16px;
   left: 16px;
+  right: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
   z-index: 1000;
+  pointer-events: none;
+}
+
+.city-search-container {
   pointer-events: auto;
+  flex: 0 1 280px;
+  /* Grow to max 280px, but allow shrinking */
+  min-width: 0;
+  /* Allow shrinking below content size */
 }
 
 @media (max-width: 768px) {
   .city-search-container {
-    left: 16px;
-    right: 16px;
-    max-width: calc(100% - 80px);
-    /* AI : Leave space for language/user menu */
+    flex-basis: 100%;
+    /* Try to take full width available */
   }
 }
 
