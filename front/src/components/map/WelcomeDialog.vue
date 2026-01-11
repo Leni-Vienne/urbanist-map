@@ -3,75 +3,54 @@
     v-model:visible="visible"
     modal
     :header="$t('help.title')"
-    :style="{ width: '90vw', maxWidth: '500px' }"
+    :style="{ width: '90vw', maxWidth: '600px' }"
     :dismissableMask="true"
     :closeOnEscape="true"
     data-testid="map-help-modal"
   >
     <div class="help-content">
+      <p class="help-intro">{{ $t("help.intro") }}</p>
+      <p class="help-intro">{{ $t("help.paragraph") }}</p>
       <div class="help-sections">
         <!-- AI : Map Controls Buttons -->
         <div class="help-section">
-          <h4 class="help-section-title">{{ $t('help.buttons.title') }}</h4>
+          <h4 class="help-section-title">{{ $t("help.buttons.title") }}</h4>
           <div class="help-item">
             <div class="help-icon">
-              <Button
-                icon="pi pi-question-circle"
-                size="small"
-                severity="help"
-                disabled
-              />
+              <Button icon="pi pi-question-circle" size="small" severity="help" disabled />
             </div>
-            <div class="help-text">{{ $t('help.buttons.help') }}</div>
+            <div class="help-text">{{ $t("help.buttons.help") }}</div>
           </div>
           <div class="help-item">
             <div class="help-icon">
-              <Button
-                icon="pi pi-map"
-                size="small"
-                severity="secondary"
-                disabled
-              />
+              <Button icon="pi pi-map" size="small" severity="secondary" disabled />
             </div>
-            <div class="help-text">{{ $t('help.buttons.layers') }}</div>
+            <div class="help-text">{{ $t("help.buttons.layers") }}</div>
           </div>
           <div class="help-item">
             <div class="help-icon">
-              <Button
-                icon="pi pi-filter"
-                size="small"
-                severity="secondary"
-                disabled
-              />
+              <Button icon="pi pi-filter" size="small" severity="secondary" disabled />
             </div>
-            <div class="help-text">{{ $t('help.buttons.filters') }}</div>
+            <div class="help-text">{{ $t("help.buttons.filters") }}</div>
           </div>
 
           <template v-if="authStore.isAuthenticated">
             <div class="mode-controls-demo">
               <div class="mode-indicator-demo">
                 <i class="pi pi-pencil"></i>
-                <span>{{ $t('map.editMode') }}</span>
+                <span>{{ $t("map.editMode") }}</span>
                 <i class="pi pi-refresh switch-icon-demo"></i>
               </div>
             </div>
-            <div class="help-text centered-help-text">{{ $t('help.modes.description') }}</div>
+            <div class="help-text centered-help-text">{{ $t("help.modes.description") }}</div>
           </template>
         </div>
       </div>
 
-
       <div class="help-footer">
-        <Checkbox
-          v-model="dontShowAgain"
-          inputId="dontShowAgain"
-          :binary="true"
-        />
-        <label
-          for="dontShowAgain"
-          class="help-checkbox-label"
-        >
-          {{ $t('help.dontShowAgain') }}
+        <Checkbox v-model="dontShowAgain" inputId="dontShowAgain" :binary="true" />
+        <label for="dontShowAgain" class="help-checkbox-label">
+          &nbsp;{{ $t("help.dontShowAgain") }}
         </label>
       </div>
     </div>
@@ -90,14 +69,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
-import { useAuthStore } from '@/stores/authStore';
+import { ref, onMounted, watch } from "vue";
+import { useAuthStore } from "@/stores/authStore";
 
 interface Props {
   modelValue: boolean;
 }
 
-type Emits = (e: 'update:modelValue', value: boolean) => void;
+type Emits = (e: "update:modelValue", value: boolean) => void;
 
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
@@ -107,21 +86,24 @@ const dontShowAgain = ref(false);
 const visible = ref(props.modelValue);
 
 // AI : Watch for prop changes
-watch(() => props.modelValue, (newValue) => {
-  visible.value = newValue;
-});
+watch(
+  () => props.modelValue,
+  (newValue) => {
+    visible.value = newValue;
+  },
+);
 
 // AI : Watch for internal visibility changes
 watch(visible, (newValue) => {
-  emit('update:modelValue', newValue);
+  emit("update:modelValue", newValue);
 });
 
-const HELP_MODAL_STORAGE_KEY = 'construction-map-help-modal-seen';
+const HELP_MODAL_STORAGE_KEY = "construction-map-help-modal-seen";
 
 // AI : Close modal and handle "don't show again" preference
 function closeModal() {
   if (dontShowAgain.value) {
-    localStorage.setItem(HELP_MODAL_STORAGE_KEY, 'true');
+    localStorage.setItem(HELP_MODAL_STORAGE_KEY, "true");
   }
   visible.value = false;
 }
@@ -146,7 +128,7 @@ onMounted(() => {
 // AI : Expose function for parent component
 defineExpose({
   showModal,
-  shouldShowOnFirstVisit
+  shouldShowOnFirstVisit,
 });
 </script>
 
@@ -154,6 +136,12 @@ defineExpose({
 .help-content {
   font-size: 0.95rem;
   line-height: 1.5;
+}
+
+.help-intro {
+  margin: 0 0 1.5rem 0;
+  color: var(--text-color);
+  font-size: 1rem;
 }
 
 .help-sections {
@@ -208,12 +196,10 @@ defineExpose({
 }
 
 .help-footer {
-  margin-top: 1.5rem;
   padding-top: 1rem;
   border-top: 1px solid var(--surface-border);
   display: flex;
   align-items: center;
-  gap: 0.5rem;
 }
 
 .help-checkbox-label {
