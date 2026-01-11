@@ -119,7 +119,7 @@
   "help": {
     "title": "Bienvenue",
     "intro": "Constructionmap.org est une carte participative des projets de construction dans le monde.",
-    "paragraph": "Etant souvent difficile de trouver ces informations sur internet, j'espère que le site vous sera utile et éveillera votre curiosité. N'hésitez pas à contribuer, que ce soit en ajoutant un projet officiel ou une idée que vous avez pour votre ville.",
+    "paragraph": "Étant souvent difficile de trouver ces informations sur internet, j'espère que le site vous sera utile et éveillera votre curiosité. N'hésitez pas à contribuer, que ce soit en ajoutant un projet officiel ou une idée que vous avez pour votre ville.",
     "gotIt": "J'ai compris !",
     "dontShowAgain": "Ne plus afficher cette fenêtre",
     "buttons": {
@@ -250,9 +250,9 @@
     "orContinueWithEmail": "ou continuer avec l'email",
     "enterEmailAddress": "Entrez votre adresse e-mail",
     "authenticationRequired": "Authentification requise",
-    "moderationAccessRequired": "Accès moderationistrateur requis",
+    "moderationAccessRequired": "Accès modérateur requis",
     "signInMessage": "Veuillez vous connecter en utilisant le bouton dans le coin supérieur droit pour accéder à cette section.",
-    "moderationMessage": "Vous avez besoin de privilèges d'moderationistrateur pour accéder à cette section.",
+    "moderationMessage": "Vous avez besoin de privilèges de modérateur pour accéder à cette section.",
     "signedOut": "Déconnecté",
     "signedOutMessage": "Vous vous êtes déconnecté avec succès.",
     "resetPassword": "Réinitialiser le mot de passe",
