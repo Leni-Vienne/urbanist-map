@@ -5,10 +5,10 @@
   //"plugins": ["unicorn", "typescript", "oxc"],
   "categories": {
     "suspicious": "error", // mostly type assertion stuff that I don't see how to fix
-    "correctness": "off",
-    "perf": "off",
-    "nursery": "off",
-    "style": "off",
+    "correctness": "warn",
+    "perf": "warn",
+    "nursery": "warn",
+    "style": "warn",
     "restriction": "warn",
     "pedantic": "off"
   },

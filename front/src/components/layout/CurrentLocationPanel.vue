@@ -17,7 +17,7 @@
         {{ selectedCountryName }}
       </h3>
       <p class="header-subtitle">
-        {{ $t('currentLocation.selectCityToExplore') }}
+        {{ $t("currentLocation.selectCityToExplore") }}
       </p>
     </div>
 
@@ -43,7 +43,7 @@
           </span>
         </div>
         <span class="project-count">
-          {{ $t('currentLocation.projectsCount', { count: (city as any).projectCount ?? 0 }) }}
+          {{ $t("currentLocation.projectsCount", { count: city.projectCount ?? 0 }) }}
         </span>
       </button>
     </div>
@@ -98,157 +98,167 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, onMounted } from 'vue'
-import { useMapStore } from '@/stores/pinia/mapStore'
-import { useOverlayStore } from '@/stores/pinia/overlayStore'
-import { useProjectStore } from '@/stores/pinia/projectStore'
-import { useOverlayClickHandler } from '@/composables/overlay/useOverlayClickHandler'
-import { isValidCountryCode } from '@/composables/map/useCountryData'
-import { flyToCountry, mobileAwareFlyTo } from '@/composables/map/useMapNavigation'
-import { map } from '@/composables/core/useMap'
-import { useAccordionState } from '@/composables/layout/useAccordionState'
-import { useAddOverlay } from '@/composables/overlay/useAddOverlay'
-import { loadCityProjects, citiesWithProjects, type CityWithProjects } from '@/composables/map/useCityMarkers'
-import { createProjectFromOverlayData, createOverlayForModeration } from '@/utils/projectFactories'
-import ProjectAccordionPanel from './ProjectAccordionPanel.vue'
-import PanelEmptyState from '@/components/common/PanelEmptyState.vue'
-import type { ProjectForModeration, OverlayForModeration } from '@/types/index'
+import { computed, watch, onMounted } from "vue";
+import { useMapStore } from "@/stores/pinia/mapStore";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
+import { isValidCountryCode } from "@/composables/map/useCountryData";
+import { flyToCountry, mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
+import { map } from "@/composables/core/useMap";
+import { useAccordionState } from "@/composables/layout/useAccordionState";
+import { useAddOverlay } from "@/composables/overlay/useAddOverlay";
+import {
+  loadCityProjects,
+  citiesWithProjects,
+  type CityWithProjects,
+} from "@/composables/map/useCityMarkers";
+import { createProjectFromOverlayData, createOverlayForModeration } from "@/utils/projectFactories";
+import ProjectAccordionPanel from "./ProjectAccordionPanel.vue";
+import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
+import type { ProjectForModeration, OverlayForModeration } from "@/types/index";
 
 // AI : Stores
-const mapStore = useMapStore()
-const overlayStore = useOverlayStore()
-const projectStore = useProjectStore()
+const mapStore = useMapStore();
+const overlayStore = useOverlayStore();
+const projectStore = useProjectStore();
 
 // AI : Get accordion state to manually expand when needed
-const { expandAccordionForOverlay } = useAccordionState()
+const { expandAccordionForOverlay } = useAccordionState();
 
 // AI : Use shared composable for add overlay button
-const { handleAddOverlayClick } = useAddOverlay()
+const { handleAddOverlayClick } = useAddOverlay();
 
 // AI : Compute header showing "Country > City"
 const cityHeader = computed(() => {
-  if (!mapStore.selectedCity) return null
+  if (!mapStore.selectedCity) return null;
 
-  const { countryCode, name: cityName } = mapStore.selectedCity
-  if (!countryCode) return null
+  const { countryCode, name: cityName } = mapStore.selectedCity;
+  if (!countryCode) return null;
 
   // AI : Find country name from countries list
-  const country = projectStore.countries.find(c => c.code === countryCode)
-  if (!country) return null
+  const country = projectStore.countries.find((c) => c.code === countryCode);
+  if (!country) return null;
 
   return {
     countryName: country.name,
     countryCode,
     cityName,
     lat: country.lat,
-    lng: country.lng
-  }
-})
+    lng: country.lng,
+  };
+});
 
 // AI : Compute selected country name for city list header
 const selectedCountryName = computed(() => {
-  if (!mapStore.selectedCountryCode) return ''
-  const country = projectStore.countries.find(c => c.code === mapStore.selectedCountryCode)
-  return country?.name ?? mapStore.selectedCountryCode
-})
+  if (!mapStore.selectedCountryCode) return "";
+  const country = projectStore.countries.find((c) => c.code === mapStore.selectedCountryCode);
+  return country?.name ?? mapStore.selectedCountryCode;
+});
 
 // AI : Get cities in selected country from global city list (viewport loading loads cities globally)
 const citiesInCountry = computed(() => {
-  if (!mapStore.selectedCountryCode) return []
+  if (!mapStore.selectedCountryCode) return [];
   // AI : Use globally loaded cities ref and filter by country code
-  return citiesWithProjects.value.filter((city: CityWithProjects) => city.countryCode === mapStore.selectedCountryCode)
-})
+  return citiesWithProjects.value.filter(
+    (city: CityWithProjects) => city.countryCode === mapStore.selectedCountryCode,
+  );
+});
 
 // AI : Handle city selection from list
-async function handleCityClick(city: { id: number; name: string; nameLocal: string | null; countryCode: string; lat: number; lng: number }) {
+async function handleCityClick(city: {
+  id: number;
+  name: string;
+  nameLocal: string | null;
+  countryCode: string;
+  lat: number;
+  lng: number;
+}) {
   // AI : Set the selected city first
   mapStore.setSelectedCity({
     id: city.id,
     name: city.name,
     nameLocal: city.nameLocal,
-    countryCode: city.countryCode
-  })
+    countryCode: city.countryCode,
+  });
 
   // AI : Fly to the city (same behavior as city marker click)
   if (map.value && map.value.getZoom() < 14) {
     mobileAwareFlyTo([city.lat, city.lng], 14, {
       duration: 1.5,
-    })
+    });
   }
 
   // AI : Load city projects and navigate to city
-  await loadCityProjects(city.id, city.name, city.nameLocal, true, city.countryCode)
+  await loadCityProjects(city.id, city.name, city.nameLocal, true, city.countryCode);
 }
 
 // AI : Handle country click - zoom to country view AND clear selected city to show city list
 async function handleCountryClick() {
-  const header = cityHeader.value
-  if (!header) return
+  const header = cityHeader.value;
+  if (!header) return;
 
-  if (!isValidCountryCode(header.countryCode)) return
+  if (!isValidCountryCode(header.countryCode)) return;
 
   // AI : Fly to the country using its centroid
-  flyToCountry(header.countryCode, header.lat, header.lng)
+  flyToCountry(header.countryCode, header.lat, header.lng);
 
   // AI : Set the selected country code (for tile layer management)
-  mapStore.selectedCountryCode = header.countryCode
+  mapStore.selectedCountryCode = header.countryCode;
 
   // AI : Clear the selected city to show the city list panel
-  mapStore.clearSelectedCity()
+  mapStore.clearSelectedCity();
 }
 
-
 // AI : Custom overlay click handler that doesn't switch to edit mode (like Latest Contributions)
-const { handleOverlayClickNavigation } = useOverlayClickHandler()
+const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
 async function handleOverlayClick(overlay: OverlayForModeration): Promise<void> {
   // AI : Pass false for shouldToggleEditMode to prevent unwanted mode switching
   // AI : This matches the behavior of Latest Contributions panel
-  await handleOverlayClickNavigation(overlay, false)
+  await handleOverlayClickNavigation(overlay, false);
 }
 
 // AI : Build projects with overlays from mode-aware cache
 const projectsWithOverlays = computed(() => {
   if (!mapStore.selectedCity) {
-    return []
+    return [];
   }
 
   // AI : Get overlays from mode-aware cache (same pattern as standalone projects)
   // AI : This ensures view mode only shows approved overlays, edit mode shows approved + user's own
-  const overlaysForMode = mapStore.getCityOverlaysAndProjectsCache(
-    mapStore.selectedCity.id,
-    overlayStore.mode
-  ) ?? []
+  const overlaysForMode =
+    mapStore.getCityOverlaysAndProjectsCache(mapStore.selectedCity.id, overlayStore.mode) ?? [];
 
   // AI : Group overlays by project
-  const projectsMap = new Map<string, ProjectForModeration>()
+  const projectsMap = new Map<string, ProjectForModeration>();
 
   for (const overlayData of overlaysForMode) {
-    const projectId = overlayData.projectId
-    if (!projectId) continue
+    const projectId = overlayData.projectId;
+    if (!projectId) continue;
 
     if (!projectsMap.has(projectId)) {
       // AI : Use factory to create project from overlay data
-      projectsMap.set(projectId, createProjectFromOverlayData(
-        overlayData,
-        mapStore.selectedCity,
-        projectStore.countries
-      ))
+      projectsMap.set(
+        projectId,
+        createProjectFromOverlayData(overlayData, mapStore.selectedCity, projectStore.countries),
+      );
     }
 
     const project = projectsMap.get(projectId);
     if (!project) continue;
 
     // AI : Use factory to create overlay
-    const overlay = createOverlayForModeration(overlayData, mapStore.selectedCity)
+    const overlay = createOverlayForModeration(overlayData, mapStore.selectedCity);
 
-    project.overlays = project.overlays || []
-    project.overlays.push(overlay)
+    project.overlays = project.overlays || [];
+    project.overlays.push(overlay);
   }
 
   // AI : Add standalone projects from cache (projects without overlays)
-  const standaloneProjects = mapStore.cityStandaloneProjectsCache
-    .get(mapStore.selectedCity.id)?.get(overlayStore.mode) ?? []
+  const standaloneProjects =
+    mapStore.cityStandaloneProjectsCache.get(mapStore.selectedCity.id)?.get(overlayStore.mode) ??
+    [];
 
   for (const standaloneSummary of standaloneProjects) {
     // AI : Only add if not already in map (from overlays) and if it truly has no overlays
@@ -270,26 +280,28 @@ const projectsWithOverlays = computed(() => {
         updatedAt: standaloneSummary.updatedAt,
         version: 0, // Not in summary
         countryCode: standaloneSummary.city.countryCode ?? null,
-        countryName: projectStore.countries.find(c => c.code === standaloneSummary.city.countryCode)?.name ?? null,
+        countryName:
+          projectStore.countries.find((c) => c.code === standaloneSummary.city.countryCode)?.name ??
+          null,
         cityName: standaloneSummary.city.name,
-        overlays: []
-      })
+        overlays: [],
+      });
     }
   }
 
   // AI : Convert to array and sort by name
-  return [...projectsMap.values()].toSorted((a, b) => a.name.localeCompare(b.name))
-})
+  return [...projectsMap.values()].toSorted((a, b) => a.name.localeCompare(b.name));
+});
 
 // AI : When component mounts, check if an overlay is already selected
 // AI : This handles the case where the tab switches to currentCity after overlay is selected
 onMounted(async () => {
-  const selectedOverlayId = overlayStore.idSelectedOverlay
-  const projects = projectsWithOverlays.value
+  const selectedOverlayId = overlayStore.idSelectedOverlay;
+  const projects = projectsWithOverlays.value;
   if (selectedOverlayId && projects.length > 0) {
-    expandAccordionForOverlay(selectedOverlayId, projects)
+    expandAccordionForOverlay(selectedOverlayId, projects);
   }
-})
+});
 
 // AI : Watch for overlay selection to manually trigger accordion expansion
 // AI : This ensures the accordion expands even if the default watcher in ProjectAccordionPanel
@@ -300,20 +312,20 @@ watch(
     overlayId: overlayStore.idSelectedOverlay,
     projectCount: projectsWithOverlays.value.length,
     // AI : Include project IDs to detect when projects actually change (not just re-render)
-    projectIds: projectsWithOverlays.value.map(p => p.id).join(',')
+    projectIds: projectsWithOverlays.value.map((p) => p.id).join(","),
   }),
   async ({ overlayId, projectCount }) => {
     if (overlayId && projectCount > 0) {
       // AI : Wait for DOM updates before expanding accordion
-      expandAccordionForOverlay(overlayId, projectsWithOverlays.value)
+      expandAccordionForOverlay(overlayId, projectsWithOverlays.value);
     }
-  }
-)
+  },
+);
 </script>
 
 <style scoped>
 /* AI : Import shared panel CSS */
-@import '../../assets/panel-common.css';
+@import "../../assets/panel-common.css";
 
 /* AI : Empty state when no city is selected */
 .empty-state {

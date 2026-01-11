@@ -13,7 +13,7 @@ export class DrizzleSessionStore {
     this.startCleanupInterval();
   }
 
-  async getSessionById(sessionId: string): Promise<any> {
+  async getSessionById(sessionId: string): Promise<any | null> {
     try {
       const [session] = await db.select().from(sessions).where(eq(sessions.id, sessionId)).limit(1);
 
@@ -37,24 +37,10 @@ export class DrizzleSessionStore {
 
   async createSession(sessionId: string, initialData: any): Promise<void> {
     try {
-      // AI : hono-sessions stores user data in _data property
-      const userData = initialData?._data?.user;
+      const { shouldPersist, expiresAt } = this.prepareSessionForPersistence(initialData);
 
-      // AI : Skip persisting empty sessions (anonymous visitors)
-      // AI : Only logged-in users need database-backed sessions
-      if (!userData) {
+      if (!shouldPersist) {
         return;
-      }
-
-      // AI : Safely parse expiry date, fallback to 30 days if invalid
-      const rawExpiry = initialData._data?.expiresAt;
-      const defaultExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-      let expiresAt = defaultExpiry;
-      if (rawExpiry) {
-        const parsed = new Date(rawExpiry);
-        if (!Number.isNaN(parsed.getTime())) {
-          expiresAt = parsed;
-        }
       }
 
       await db.insert(sessions).values({
@@ -68,26 +54,12 @@ export class DrizzleSessionStore {
     }
   }
 
-  async persistSessionData(sessionId: string, sessionData: any): Promise<void> {
+  async persistSessionData(sessionId: string, sessionData: Record<string, any>): Promise<void> {
     try {
-      // AI : hono-sessions stores user data in _data property
-      const userData = sessionData?._data?.user;
+      const { shouldPersist, expiresAt } = this.prepareSessionForPersistence(sessionData);
 
-      // AI : Skip persisting empty sessions (anonymous visitors)
-      // AI : CRITICAL: Only persist authenticated user sessions to prevent session explosion
-      if (!userData) {
+      if (!shouldPersist) {
         return;
-      }
-
-      // AI : Safely parse expiry date, fallback to 30 days if invalid
-      const rawExpiry = sessionData._data?.expiresAt;
-      const defaultExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-      let expiresAt = defaultExpiry;
-      if (rawExpiry) {
-        const parsed = new Date(rawExpiry);
-        if (!Number.isNaN(parsed.getTime())) {
-          expiresAt = parsed;
-        }
       }
 
       // AI : CRITICAL FIX: Use UPSERT to handle both create and update cases
@@ -121,6 +93,34 @@ export class DrizzleSessionStore {
     } catch (error) {
       console.error("Failed to delete session:", error);
     }
+  }
+
+  private prepareSessionForPersistence(data: any): { shouldPersist: boolean; expiresAt: Date } {
+    // AI : hono-sessions stores user data in _data property
+    const typedData = data as {
+      _data?: { user?: unknown; expiresAt?: string | number | Date };
+    };
+    const userData = typedData?._data?.user;
+
+    // AI : Skip persisting empty sessions (anonymous visitors)
+    // AI : Only logged-in users need database-backed sessions
+    if (!userData) {
+      return { shouldPersist: false, expiresAt: new Date() };
+    }
+
+    // AI : Safely parse expiry date, fallback to 30 days if invalid
+    const rawExpiry = typedData?._data?.expiresAt;
+    const defaultExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    let expiresAt = defaultExpiry;
+
+    if (rawExpiry) {
+      const parsed = new Date(rawExpiry);
+      if (!Number.isNaN(parsed.getTime())) {
+        expiresAt = parsed;
+      }
+    }
+
+    return { shouldPersist: true, expiresAt };
   }
 
   // AI : Clean up expired sessions periodically

@@ -2,7 +2,7 @@ import { computed } from "vue";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
-import { trpc, type RouterOutput } from "@/client";
+import { trpc } from "@/client";
 import { withErrorHandling } from "@/composables/core/useErrorHandling";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
@@ -12,12 +12,7 @@ import {
 } from "@/utils/projectFactories";
 import { useEntityRemoval } from "@/composables/core/useEntityRemoval";
 
-// AI : Type for user contributions from backend
-export type UserContribution = RouterOutput["project"]["getUsersContributions"]["projects"][number];
-// AI : Extended to include imageUrl for local overlays that aren't yet uploaded
-export type UserContributionOverlay = UserContribution["overlays"][number] & {
-  imageUrl?: string;
-};
+import type { UserContribution } from "@/types/index";
 
 /**
  * AI : Shared function to clean up overlay from stores and map

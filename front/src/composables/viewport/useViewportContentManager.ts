@@ -5,7 +5,7 @@ import { map } from "@/composables/core/useMap";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
-import { trpc } from "@/client";
+import { trpc, type RouterOutput } from "@/client";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
 import {
@@ -24,12 +24,63 @@ import {
   clearAllStandaloneProjectMarkers,
 } from "@/composables/map/useStandaloneProjectMarkers";
 import type { OverlayData, Project } from "@/types/index";
+import { createProjectObject } from "@/utils/typeFactories";
 import type { MapMode } from "@shared/types";
-import type { RouterOutput } from "@/client";
 
 // AI : Type definition for project data returned by the backend
 type CityProject = RouterOutput["project"]["getCityProjects"][number];
 type StandaloneProject = CityProject | Project;
+
+/**
+ * AI : Helper to safely convert StandaloneProject to Partial<Project>
+ * AI : Maps fields common to both CityProject (backend) and Project (frontend)
+ */
+function toProjectPartial(project: StandaloneProject): Partial<Project> {
+  const partial: Partial<Project> = {
+    id: project.id,
+    name: project.name,
+    description: project.description,
+    status: project.status, // Both types share ApprovalStatus
+    ownerId: project.ownerId,
+    cityId: project.cityId,
+
+    // AI : Map backend specific date naming if needed, or common fields
+    updatedAt: project.updatedAt,
+    createdAt: project.createdAt,
+
+    // AI : Map spatial fields which are present in DBProject and Project
+    lat: project.lat,
+    lng: project.lng,
+
+    // AI : safe access for optional/nullable fields
+    sourceUrl: project.sourceUrl ?? null,
+    proposalDate: project.proposalDate ?? null,
+    startDate: project.startDate ?? null,
+    endDate: project.endDate ?? null,
+    latestUpdateOn: project.latestUpdateOn ?? null,
+  };
+
+  // AI : Check for optional fields that might not exist on all project types (e.g. CityProject vs Project)
+  if ("centerCoordinate" in project) {
+    partial.centerCoordinate = project.centerCoordinate;
+  }
+
+  if ("version" in project) {
+    partial.version = project.version;
+  }
+
+  // AI : Check for optional fields that might not exist on all project types (e.g. CityProject vs Project)
+  if ("rejectionReason" in project) {
+    partial.rejectionReason = project.rejectionReason;
+  }
+
+  // AI : Check if 'city' object is present (it is in Project, but dependent on relation in CityProject)
+  if ("city" in project) {
+    partial.city = project.city;
+  }
+
+  return partial;
+}
 
 const isLoading = ref(false);
 
@@ -299,7 +350,7 @@ export function useViewportContentManager() {
       }
 
       // AI : Create a working copy to avoid mutating cache
-      const projectsToRender = allProjects ? [...allProjects] : [];
+      const projectsToRender: StandaloneProject[] = allProjects ? [...allProjects] : [];
 
       // AI : In edit mode, include local pending projects from store
       // AI : In edit mode, include local pending projects from store
@@ -312,8 +363,8 @@ export function useViewportContentManager() {
         for (const localP of localProjects) {
           // AI : Check if project is already explicitly in the list
           if (!projectsToRender.find((p) => p.id === localP.id)) {
-            // AI : Cast to any to bypass strict backend/frontend type mismatch if any
-            projectsToRender.push(localP as any);
+            // AI : Type-safe push thanks to StandaloneProject union type
+            projectsToRender.push(localP);
           }
         }
       }
@@ -330,12 +381,18 @@ export function useViewportContentManager() {
 
       // AI : Create standalone markers for projects without any visible overlays
       for (const project of projectsToRender) {
-        // AI : Check overlay count safely (backend uses overlayCount, frontend uses overlayIds.length)
-        const overlayCount =
-          (project as any).overlayCount ?? (project as any).overlayIds?.length ?? 0;
+        // AI : Type narrowing for different overlay count properties
+        let overlayCount = 0;
+        if ("overlayCount" in project) {
+          overlayCount = project.overlayCount;
+        } else if ("overlayIds" in project && Array.isArray(project.overlayIds)) {
+          overlayCount = project.overlayIds.length;
+        } else if ("overlays" in project && Array.isArray(project.overlays)) {
+          overlayCount = project.overlays.length;
+        }
 
         if (!projectIdsWithOverlays.has(project.id) && overlayCount === 0) {
-          addStandaloneProjectMarkerForProject(project as any);
+          addStandaloneProjectMarkerForProject(createProjectObject(toProjectPartial(project)));
         }
       }
     } catch (error) {
@@ -547,7 +604,7 @@ export function useViewportContentManager() {
           // AI : CRITICAL: Do NOT clear loadedCityIds here. Instead, reload all currently loaded cities.
           // AI : This ensures that cities whose center is off-screen (but whose overlays are visible) are correctly updated.
           // AI : If we just cleared cache and relied on refreshViewport, it would only load cities with visible centers.
-          const currentCityIds = Array.from(loadedCityIds.value);
+          const currentCityIds = [...loadedCityIds.value];
           await Promise.all(
             currentCityIds.map(async (id) => loadCityData(id, "reload", null, "reload")),
           );
@@ -643,7 +700,7 @@ function processStandaloneMarkers(
     if (!projectIdsWithOverlays.has(project.id) && overlayCount === 0) {
       // AI : Cast to Project to satisfy function signature - strictly validation would require more fields
       // AI : but for marker creation, the subset in CityProject is sufficient
-      addStandaloneProjectMarkerForProject(project as Project);
+      addStandaloneProjectMarkerForProject(createProjectObject(toProjectPartial(project)));
     }
   }
 }

@@ -40,7 +40,7 @@ export function resolveOverlayCorners(overlayId: string): { lat: number; lng: nu
   // AI : Priority 3: Mode-aware cache (backend data for current mode)
   // AI : Need to search through all cached cities to find this overlay
   const currentMode = overlayStore.mode;
-  for (const [_cityId, modeCache] of mapStore.cityProjectsCache.entries()) {
+  for (const modeCache of mapStore.cityProjectsCache.values()) {
     const cachedData = modeCache.get(currentMode);
     if (cachedData) {
       const cachedOverlay = cachedData.find((o) => o.id === overlayId);
