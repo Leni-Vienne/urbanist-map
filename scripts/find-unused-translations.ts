@@ -11,7 +11,7 @@ import { join, extname } from "node:path";
 
 const LOCALES_DIR = join(import.meta.dir, "../front/src/locales/messages");
 const SEARCH_DIRS = [join(import.meta.dir, "../front/src")];
-const SEARCH_EXTENSIONS = [".vue", ".ts", ".tsx", ".js", ".jsx"];
+const SEARCH_EXTENSIONS = new Set([".vue", ".ts", ".tsx", ".js", ".jsx"]);
 
 // AI: Keys that are dynamically built and should be ignored
 // Add prefixes here for keys that are used via patterns like t(`status.${value}`)
@@ -61,7 +61,7 @@ function getFilesRecursively(dir: string): string[] {
         if (entry !== "node_modules" && entry !== "locales") {
           files.push(...getFilesRecursively(fullPath));
         }
-      } else if (SEARCH_EXTENSIONS.includes(extname(entry))) {
+      } else if (SEARCH_EXTENSIONS.has(extname(entry))) {
         files.push(fullPath);
       }
     }
@@ -84,11 +84,11 @@ function findDynamicPrefixes(fileContents: Map<string, string>): Set<string> {
     let match;
 
     while ((match = templateLiteralRegex.exec(content)) !== null) {
-      dynamicPrefixes.add(match[1] + ".");
+      dynamicPrefixes.add(`${match[1]}.`);
     }
 
     while ((match = concatRegex.exec(content)) !== null) {
-      dynamicPrefixes.add(match[1] + ".");
+      dynamicPrefixes.add(`${match[1]}.`);
     }
   }
 
@@ -174,7 +174,7 @@ async function main() {
   const fileContents = new Map<string, string>();
   for (const file of sourceFiles) {
     try {
-      fileContents.set(file, readFileSync(file, "utf-8"));
+      fileContents.set(file, readFileSync(file, "utf8"));
     } catch (error) {
       console.error(`Error reading file ${file}:`, error);
     }
@@ -201,7 +201,7 @@ async function main() {
     console.log(`\n📄 Processing ${localeFile}...`);
 
     try {
-      const content = readFileSync(localePath, "utf-8");
+      const content = readFileSync(localePath, "utf8");
       const translations = JSON.parse(content) as Record<string, unknown>;
       const allKeys = extractKeys(translations);
 
@@ -243,7 +243,7 @@ async function main() {
 
           cleanEmptyObjects(translations);
 
-          writeFileSync(localePath, JSON.stringify(translations, null, 2) + "\n");
+          writeFileSync(localePath, `${JSON.stringify(translations, null, 2)}\n`);
           console.log(`   ✅ Updated ${localeFile}`);
         }
       }
