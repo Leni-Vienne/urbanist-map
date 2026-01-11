@@ -41,8 +41,8 @@ async function main() {
     const enPath = join(LOCALES_DIR, "en.json");
     const frPath = join(LOCALES_DIR, "fr.json");
 
-    const enContent = readFileSync(enPath, "utf-8");
-    const frContent = readFileSync(frPath, "utf-8");
+    const enContent = readFileSync(enPath, "utf8");
+    const frContent = readFileSync(frPath, "utf8");
 
     const enMap = flattenObject(JSON.parse(enContent));
     const frMap = flattenObject(JSON.parse(frContent));
@@ -82,14 +82,11 @@ async function main() {
       return;
     }
 
-    let duplicateGroupsCount = 0;
-
     // Only show top 20 to avoid spamming
     const topGroups = sortedGroups.slice(0, 20);
 
     for (const [signatureJson, keys] of topGroups) {
       const { en, fr } = JSON.parse(signatureJson);
-      duplicateGroupsCount += 1;
 
       const enDisplay = en ? `"${en.substring(0, 30)}${en.length > 30 ? "..." : ""}"` : "(missing)";
       const frDisplay = fr ? `"${fr.substring(0, 30)}${fr.length > 30 ? "..." : ""}"` : "(missing)";

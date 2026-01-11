@@ -1,6 +1,7 @@
 import L from "leaflet";
 import { createStandaloneProjectIcon } from "@/composables/map/useMarkers";
 import type { Project } from "@/types/index";
+import { createProjectObject } from "@/utils/typeFactories";
 import { ref, watch } from "vue";
 import { t } from "@/locales";
 import { map } from "@/composables/core/useMap";
@@ -168,7 +169,10 @@ export function updateAllStandaloneProjectMarkerColors(): void {
         mapStore.selectedCity.id,
         overlayStore.mode,
       );
-      project = cachedStandaloneProjects?.find((p) => p.id === projectId) as Project | undefined;
+      const found = cachedStandaloneProjects?.find((p) => p.id === projectId);
+      if (found) {
+        project = createProjectObject(found);
+      }
     }
 
     if (project) {

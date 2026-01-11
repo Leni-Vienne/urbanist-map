@@ -149,7 +149,9 @@ async function ensureCityMarkersForProject(
     const country = projectStore.countries.find((c) => c.code === countryCode);
 
     if (country?.cities) {
-      addCityMarkersForCountry(country.cities.map((c) => ({ ...c, projectCount: 0 })));
+      addCityMarkersForCountry(
+        country.cities.map((c) => Object.assign({}, c, { projectCount: 0 })),
+      );
     }
   } else {
     // AI : After country switch, add the unsaved city marker if it's not in the backend
