@@ -15,7 +15,7 @@
       <ProgressSpinner />
     </div>
 
-    <div v-else-if="error" class="error-container">
+    <div v-else-if="errorRef" class="error-container">
       <Message severity="error" :closable="false">
         {{ t("admin.userContributions.messages.loadError") }}
       </Message>
@@ -240,7 +240,7 @@ const userId = route.params.userId as string;
 
 const data = ref<UserContributions | null>(null);
 const isLoading = ref(true);
-const error = ref(false);
+const errorRef = ref(false);
 const loadingCity = ref<number | null>(null);
 const cityDetails = reactive<Record<number, { projects: ProjectType[]; overlays: OverlayType[] }>>(
   {},
@@ -257,11 +257,11 @@ const isDeleting = ref(false);
 async function loadUserContributions() {
   try {
     isLoading.value = true;
-    error.value = false;
+    errorRef.value = false;
     data.value = await trpc.admin.adminGetUserContributions.query({ userId });
-  } catch (err) {
-    console.error("Error loading user contributions:", err);
-    error.value = true;
+  } catch (error) {
+    console.error("Error loading user contributions:", error);
+    errorRef.value = true;
   } finally {
     isLoading.value = false;
   }
@@ -278,8 +278,8 @@ async function loadCityDetails(cityId: number) {
     if (result.cityDetails) {
       cityDetails[cityId] = result.cityDetails;
     }
-  } catch (err) {
-    console.error("Error loading city details:", err);
+  } catch (error) {
+    console.error("Error loading city details:", error);
     toast.add({
       severity: "error",
       summary: t("admin.userContributions.messages.loadError"),
@@ -370,8 +370,8 @@ async function deleteProject() {
     });
 
     showDeleteProjectDialog.value = false;
-  } catch (err) {
-    console.error("Error deleting project:", err);
+  } catch (error) {
+    console.error("Error deleting project:", error);
     toast.add({
       severity: "error",
       summary: t("admin.userContributions.messages.deleteError"),
@@ -419,8 +419,8 @@ async function deleteOverlay() {
     });
 
     showDeleteOverlayDialog.value = false;
-  } catch (err) {
-    console.error("Error deleting overlay:", err);
+  } catch (error) {
+    console.error("Error deleting overlay:", error);
     toast.add({
       severity: "error",
       summary: t("admin.userContributions.messages.deleteError"),

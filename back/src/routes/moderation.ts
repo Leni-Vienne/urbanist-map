@@ -1282,8 +1282,8 @@ export const moderationRouter = router({
         try {
           await deleteImages(overlay.filename, "both");
           console.log(`Deleted images for overlay ${input.id}: ${overlay.filename}`);
-        } catch (imageError) {
-          console.error(`Failed to delete images for overlay ${input.id}:`, imageError);
+        } catch (error) {
+          console.error(`Failed to delete images for overlay ${input.id}:`, error);
           // AI : Don't fail the request if image cleanup fails - database is already updated
         }
 
