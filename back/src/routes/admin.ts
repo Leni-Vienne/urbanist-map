@@ -186,8 +186,8 @@ export const adminRouter = router({
         for (const overlay of projectOverlays) {
           try {
             await deleteImages(overlay.filename, "both");
-          } catch (imageError) {
-            console.error(`Failed to delete images for overlay ${overlay.id}:`, imageError);
+          } catch (error) {
+            console.error(`Failed to delete images for overlay ${overlay.id}:`, error);
             // AI : Continue - don't fail if image cleanup fails
           }
         }

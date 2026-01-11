@@ -366,8 +366,6 @@ function setupOverlayEventHandlers(
   overlay.on("select", () => {
     // AI : In moderation mode, clicking a contribution should load the city context
     // AI : This ensures clicking the image itself (not just the marker) loads the city
-    // AI : In moderation mode, clicking a contribution should load the city context
-    // AI : This ensures clicking the image itself (not just the marker) loads the city
     if (overlayStore.mode === "moderation" && overlayObject.project?.city) {
       const mapStore = useMapStore();
       const city = overlayObject.project.city;

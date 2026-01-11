@@ -184,7 +184,7 @@ function findCityIdForOverlay(overlayId: string, mode: string): number | null {
 
   // AI : Iterate through all cached cities to find which one contains this overlay
   for (const [cityId, modeCache] of mapStore.cityProjectsCache.entries()) {
-    for (const [cacheMode, overlays] of modeCache.entries()) {
+    for (const overlays of modeCache.values()) {
       const overlay = overlays.find((o) => o.id === overlayId);
       if (overlay) {
         foundCityId = cityId;

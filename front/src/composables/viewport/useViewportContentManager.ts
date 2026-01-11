@@ -5,7 +5,7 @@ import { map } from "@/composables/core/useMap";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
-import { trpc } from "@/client";
+import { trpc, type RouterOutput } from "@/client";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
 import {
@@ -25,7 +25,6 @@ import {
 } from "@/composables/map/useStandaloneProjectMarkers";
 import type { OverlayData, Project } from "@/types/index";
 import type { MapMode } from "@shared/types";
-import type { RouterOutput } from "@/client";
 
 // AI : Type definition for project data returned by the backend
 type CityProject = RouterOutput["project"]["getCityProjects"][number];
