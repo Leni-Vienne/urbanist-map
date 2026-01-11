@@ -43,9 +43,15 @@ function toProjectPartial(project: StandaloneProject): Partial<Project> {
     status: project.status, // Both types share ApprovalStatus
     ownerId: project.ownerId,
     cityId: project.cityId,
+
     // AI : Map backend specific date naming if needed, or common fields
     updatedAt: project.updatedAt,
     createdAt: project.createdAt,
+
+    // AI : Map spatial fields which are present in DBProject and Project
+    lat: project.lat,
+    lng: project.lng,
+
     // AI : safe access for optional/nullable fields
     sourceUrl: project.sourceUrl ?? null,
     proposalDate: project.proposalDate ?? null,
@@ -53,6 +59,26 @@ function toProjectPartial(project: StandaloneProject): Partial<Project> {
     endDate: project.endDate ?? null,
     latestUpdateOn: project.latestUpdateOn ?? null,
   };
+
+  // AI : Check for optional fields that might not exist on all project types (e.g. CityProject vs Project)
+  if ("centerCoordinate" in project) {
+    partial.centerCoordinate = project.centerCoordinate;
+  }
+
+  if ("version" in project) {
+    partial.version = project.version;
+  }
+
+  // AI : Check for optional fields that might not exist on all project types (e.g. CityProject vs Project)
+  if ("rejectionReason" in project) {
+    partial.rejectionReason = project.rejectionReason;
+  }
+
+  // AI : Check if 'city' object is present (it is in Project, but dependent on relation in CityProject)
+  if ("city" in project) {
+    partial.city = project.city;
+  }
+
   return partial;
 }
 
@@ -578,7 +604,7 @@ export function useViewportContentManager() {
           // AI : CRITICAL: Do NOT clear loadedCityIds here. Instead, reload all currently loaded cities.
           // AI : This ensures that cities whose center is off-screen (but whose overlays are visible) are correctly updated.
           // AI : If we just cleared cache and relied on refreshViewport, it would only load cities with visible centers.
-          const currentCityIds = Array.from(loadedCityIds.value);
+          const currentCityIds = [...loadedCityIds.value];
           await Promise.all(
             currentCityIds.map(async (id) => loadCityData(id, "reload", null, "reload")),
           );
