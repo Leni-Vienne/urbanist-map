@@ -476,6 +476,7 @@
     "fileTooLarge": "Le fichier est trop volumineux. La taille maximale est de {maxSize} Mo."
   },
   "imageUpload": {
+    "pdfExtractionDescription": "Si vos images proviennent d'un PDF, il est recommandé d'utiliser des outils comme {toolLink} pour les extraire dans la meilleure qualité possible.",
     "dialogTitle": "Ajouter une image au projet",
     "uploadDescription": "Ajouter une image d'un plan de rue, d'un plan de construction ou d'une vue aérienne. Le but est d'aligner l'image avec la carte pour mieux faire connaître le projet. Les images avec un angle de vue non vertical ne sont pas acceptées. Jetez un œil aux dernières contributions pour voir comment elles devraient se présenter.",
     "pdfExtraction": "Extraction depuis des PDFs",

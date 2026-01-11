@@ -476,6 +476,7 @@
     "fileTooLarge": "File is too large. Maximum size is {maxSize}MB."
   },
   "imageUpload": {
+    "pdfExtractionDescription": "If your images are sourced from a PDF, it is recommended to use tools like {toolLink} to extract the images in the best possible quality.",
     "dialogTitle": "Add Image to Project",
     "uploadDescription": "Upload images showing street layouts, construction plans or aerial views. The goal is to align the image with the map to give a better understanding of the project. Images with a non-vertical view angle are not accepted since they can't be aligned with the map. Have a look at the latest contributions to see how it should look like.",
     "pdfExtraction": "Extracting from PDFs",

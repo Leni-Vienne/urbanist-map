@@ -473,7 +473,6 @@ const mapStore = useMapStore();
 const uiStore = useUiStore();
 
 // AI : Use shared accordion state (persists across My Contributions and Moderation panels)
-// AI : Use shared accordion state (persists across My Contributions and Moderation panels)
 const {
   activeAccordionPanels,
   toggleCountryExpanded,

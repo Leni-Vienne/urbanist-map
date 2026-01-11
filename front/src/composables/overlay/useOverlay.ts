@@ -11,11 +11,12 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
-import type { OverlayObject, OverlayData } from "@/types/index";
+import type { OverlayObject, OverlayData, Project } from "@/types/index";
 import {
   createOverlayObject,
   createOverlayFromCDN,
   convertOverlayToData,
+  createProjectObject,
 } from "@/utils/typeFactories";
 import { toRef } from "vue";
 import { useProjects, addOverlayToProjectWithId } from "@/composables/project/useProjects";
@@ -214,26 +215,6 @@ export function createLeafletOverlay(
         // AI : Only add to map if zoom is appropriate (zoom handler will manage later changes)
         if (shouldShowImage) {
           newOverlay.addTo(map.value);
-          // AI : Store callback to be invoked AFTER image loads (in onOverlayLoaded)
-          // AI : This prevents errors when overlay is removed before image finishes loading
-          if (onAddedToMap && overlayObject) {
-            (overlayObject as any)._onAddedToMapCallback = () => {
-              // AI : CRITICAL: Check for race condition
-              // If the mode changed while image was loading, and this overlay shouldn't be visible in the new mode,
-              // we must abort and clean up.
-              const overlayStore = useOverlayStore();
-              const isLocal = overlayObject.status === null || overlayObject.status === undefined;
-              const shouldBeVisible = overlayStore.mode === "edit" || !isLocal;
-
-              if (!shouldBeVisible) {
-                newOverlay.remove();
-                // Do not update store
-                return;
-              }
-
-              onAddedToMap();
-            };
-          }
         }
       }
     };
@@ -249,7 +230,32 @@ export function createLeafletOverlay(
     overlayObject.overlay = newOverlay;
 
     setupOverlayEventHandlers(newOverlay, overlayObject);
-    setupOverlayLoadHandler(newOverlay, overlayObject);
+
+    // AI : Store callback to be invoked AFTER image loads (in onOverlayLoaded)
+    const wrappedOnAddedToMap = onAddedToMap
+      ? () => {
+          // AI : CRITICAL: Check for race condition
+          // If the mode changed while image was loading, and this overlay shouldn't be visible in the new mode,
+          // we must abort and clean up.
+          const overlayStore = useOverlayStore();
+          const isLocal = overlayObject.status === null || overlayObject.status === undefined;
+          const shouldBeVisible = overlayStore.mode === "edit" || !isLocal;
+
+          const currentZoom = map.value?.getZoom() ?? 0;
+          const isZoomAppropriate = currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
+
+          // AI : CRITICAL: Abort if zoomed out too far (race condition where user zoomed out while image was loading)
+          if (!shouldBeVisible || !isZoomAppropriate) {
+            newOverlay.remove();
+            // Do not update store
+            return;
+          }
+
+          onAddedToMap();
+        }
+      : undefined;
+
+    setupOverlayLoadHandler(newOverlay, overlayObject, wrappedOnAddedToMap);
 
     return newOverlay;
   } catch (error) {
@@ -270,12 +276,13 @@ export function createLeafletOverlay(
 function setupOverlayLoadHandler(
   overlay: L.DistortableImageOverlay,
   overlayObject: OverlayObject,
+  onReady?: () => void,
 ): void {
   const element = overlay.getElement();
   if (!element) {
     // AI : Element should be available immediately after addTo(), but add minimal fallback
     requestAnimationFrame(() => {
-      setupOverlayLoadHandler(overlay, overlayObject);
+      setupOverlayLoadHandler(overlay, overlayObject, onReady);
     });
     return;
   }
@@ -287,7 +294,7 @@ function setupOverlayLoadHandler(
     }
 
     if (element.complete && element.naturalWidth > 0) {
-      onOverlayLoaded(overlayObject);
+      onOverlayLoaded(overlayObject, onReady);
     }
   });
 
@@ -296,16 +303,15 @@ function setupOverlayLoadHandler(
     console.warn("Overlay image failed to load:", overlayObject.id);
     // AI : Execute callback even on error so the overlay is registered in the store
     // AI : This prevents it from being stuck in a "rendering" state without a store entry
-    if ((overlayObject as any)._onAddedToMapCallback) {
-      (overlayObject as any)._onAddedToMapCallback();
-      delete (overlayObject as any)._onAddedToMapCallback;
+    if (onReady) {
+      onReady();
     }
   });
 
   if (element.complete && element.naturalWidth > 0) {
     // AI : Guard: Only proceed if overlay is still on map
     if (map.value && map.value.hasLayer(overlay)) {
-      onOverlayLoaded(overlayObject);
+      onOverlayLoaded(overlayObject, onReady);
     }
   }
 }
@@ -313,7 +319,7 @@ function setupOverlayLoadHandler(
 /**
  * AI : Handle all logic when overlay finishes loading
  */
-function onOverlayLoaded(overlayObject: OverlayObject): void {
+function onOverlayLoaded(overlayObject: OverlayObject, onReady?: () => void): void {
   const overlayStore = useOverlayStore();
 
   if (!overlayObject.overlay) return;
@@ -348,10 +354,9 @@ function onOverlayLoaded(overlayObject: OverlayObject): void {
 
   // AI : CRITICAL: Invoke onAddedToMap callback AFTER all initialization is complete
   // AI : This ensures overlay is fully loaded before being added to store
-  if ((overlayObject as any)._onAddedToMapCallback) {
-    (overlayObject as any)._onAddedToMapCallback();
-    // AI : Clean up callback reference
-    delete (overlayObject as any)._onAddedToMapCallback;
+  // AI : CRITICAL: Invoke explicit callback AFTER all initialization is complete
+  if (onReady) {
+    onReady();
   }
 }
 
@@ -364,8 +369,6 @@ function setupOverlayEventHandlers(
   const overlayStore = useOverlayStore();
 
   overlay.on("select", () => {
-    // AI : In moderation mode, clicking a contribution should load the city context
-    // AI : This ensures clicking the image itself (not just the marker) loads the city
     // AI : In moderation mode, clicking a contribution should load the city context
     // AI : This ensures clicking the image itself (not just the marker) loads the city
     if (overlayStore.mode === "moderation" && overlayObject.project?.city) {
@@ -771,7 +774,8 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
     const userContribution = projectStore.userContributions.find((p) => p.id === projectId);
     if (userContribution) {
       // AI : User contributions have lat/lng, use them directly
-      project = userContribution as any; // Type compatible enough for our needs (has lat/lng)
+      // AI : Convert using factory to ensure proper Project type (handling extra fields via safe cast)
+      project = createProjectObject(userContribution as unknown as Partial<Project>);
     }
   }
 
@@ -1167,11 +1171,11 @@ export async function loadOverlay(
       }
 
       // AI : Render the main overlay
-      renderViewModeOverlays([result.overlay as OverlayData], true, false);
+      renderViewModeOverlays([result.overlay], true, false);
 
       // AI : Render intersecting overlays if they exist
       if (includeIntersecting && result.intersectingOverlays.length > 0) {
-        renderViewModeOverlays(result.intersectingOverlays as OverlayData[], true, false);
+        renderViewModeOverlays(result.intersectingOverlays, true, false);
       }
 
       // AI : NOTE: We don't check overlayStore.overlays[overlayId] here because overlay registration
