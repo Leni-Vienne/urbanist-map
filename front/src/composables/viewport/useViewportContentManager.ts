@@ -24,6 +24,7 @@ import {
   clearAllStandaloneProjectMarkers,
 } from "@/composables/map/useStandaloneProjectMarkers";
 import type { OverlayData, Project } from "@/types/index";
+import { createProjectObject } from "@/utils/typeFactories";
 import type { MapMode } from "@shared/types";
 
 // AI : Type definition for project data returned by the backend
@@ -330,11 +331,12 @@ export function useViewportContentManager() {
       // AI : Create standalone markers for projects without any visible overlays
       for (const project of projectsToRender) {
         // AI : Check overlay count safely (backend uses overlayCount, frontend uses overlayIds.length)
-        const overlayCount =
-          (project as any).overlayCount ?? (project as any).overlayIds?.length ?? 0;
+        const overlayCount = project.overlayCount ?? (project as any).overlayIds?.length ?? 0;
 
         if (!projectIdsWithOverlays.has(project.id) && overlayCount === 0) {
-          addStandaloneProjectMarkerForProject(project as any);
+          addStandaloneProjectMarkerForProject(
+            createProjectObject(project as unknown as Partial<Project>),
+          );
         }
       }
     } catch (error) {
@@ -642,7 +644,9 @@ function processStandaloneMarkers(
     if (!projectIdsWithOverlays.has(project.id) && overlayCount === 0) {
       // AI : Cast to Project to satisfy function signature - strictly validation would require more fields
       // AI : but for marker creation, the subset in CityProject is sufficient
-      addStandaloneProjectMarkerForProject(project as Project);
+      addStandaloneProjectMarkerForProject(
+        createProjectObject(project as unknown as Partial<Project>),
+      );
     }
   }
 }

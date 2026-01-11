@@ -1165,11 +1165,11 @@ export async function loadOverlay(
       }
 
       // AI : Render the main overlay
-      renderViewModeOverlays([result.overlay as OverlayData], true, false);
+      renderViewModeOverlays([result.overlay], true, false);
 
       // AI : Render intersecting overlays if they exist
       if (includeIntersecting && result.intersectingOverlays.length > 0) {
-        renderViewModeOverlays(result.intersectingOverlays as OverlayData[], true, false);
+        renderViewModeOverlays(result.intersectingOverlays, true, false);
       }
 
       // AI : NOTE: We don't check overlayStore.overlays[overlayId] here because overlay registration

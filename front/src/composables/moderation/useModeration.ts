@@ -15,6 +15,7 @@ import {
 } from "@/composables/map/useStandaloneProjectMarkers";
 import { t } from "@/locales";
 import type { Project } from "@/types/index";
+import { createProjectObject } from "@/utils/typeFactories";
 
 // AI : Result types for approval operations
 type ApprovalResult = {
@@ -276,7 +277,10 @@ export function useModeration() {
     if (result.success && projectBeforeApproval) {
       // AI : Update marker color to reflect new status (pending -> approved/rejected)
       // AI : Use unknown as intermediate type since moderation project may not have all Project fields
-      const projectWithNewStatus = { ...projectBeforeApproval, status } as unknown as Project;
+      const projectWithNewStatus = createProjectObject({
+        ...projectBeforeApproval,
+        status,
+      } as unknown as Partial<Project>);
       updateStandaloneProjectMarkerColor(id, projectWithNewStatus);
 
       // AI : Update marker tooltip to reflect new status
