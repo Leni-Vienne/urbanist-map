@@ -117,9 +117,11 @@
     "completed": "Completed"
   },
   "help": {
-    "title": "Controls Guide",
+    "title": "Welcome",
+    "intro": "ConstructionMap.org is a collaborative map of construction projects worldwide. Browse projects, view their progress, and contribute by adding your own content.",
+    "paragraph": "As it's often hard to find these infomration on the internet, I hope this site will be useful and pique your interest. Don't hesitate to contribute, whether by adding an official project or an idea of your own.",
     "gotIt": "Got it!",
-    "dontShowAgain": "Don't show this help again",
+    "dontShowAgain": "Don't show this window again",
     "buttons": {
       "title": "Map Controls",
       "help": "Show this help guide",
