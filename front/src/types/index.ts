@@ -174,6 +174,7 @@ export interface OverlayObject extends OverlayData {
   redoStack: { lat: number; lng: number }[][];
   isTooBig?: boolean; // AI : Flag for real-time size validation warning
   isViewingApprovedPosition?: boolean; // AI : True when user is viewing approved position of overlay with pending changes
+  _onAddedToMapCallback?: () => void;
 }
 
 export type PanelTab = "latest" | "currentLocation" | "contribute" | "moderation";

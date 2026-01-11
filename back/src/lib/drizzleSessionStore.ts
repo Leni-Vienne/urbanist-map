@@ -13,7 +13,7 @@ export class DrizzleSessionStore {
     this.startCleanupInterval();
   }
 
-  async getSessionById(sessionId: string): Promise<Record<string, any> | null> {
+  async getSessionById(sessionId: string): Promise<any | null> {
     try {
       const [session] = await db.select().from(sessions).where(eq(sessions.id, sessionId)).limit(1);
 
@@ -28,14 +28,14 @@ export class DrizzleSessionStore {
         return null;
       }
 
-      return session.data as Record<string, any>;
+      return session.data;
     } catch (error) {
       console.error("Failed to get session:", error);
       return null;
     }
   }
 
-  async createSession(sessionId: string, initialData: Record<string, any>): Promise<void> {
+  async createSession(sessionId: string, initialData: any): Promise<void> {
     try {
       // AI : hono-sessions stores user data in _data property
       const data = initialData as {
