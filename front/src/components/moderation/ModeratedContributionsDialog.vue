@@ -30,7 +30,7 @@
           <!-- AI : Overlay thumbnail -->
           <img
             v-if="item.type === 'overlay' && item.filename"
-            :src="buildThumbnailUrl(item.filename, true)"
+            :src="buildThumbnailUrl(item.filename, item.status === 'pending')"
             :alt="item.caption || 'Overlay'"
             class="thumbnail"
             @error="handleImageError"

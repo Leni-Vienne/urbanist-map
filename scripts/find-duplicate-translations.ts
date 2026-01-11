@@ -5,7 +5,7 @@
  *   bun run scripts/find-duplicate-translations.ts
  */
 
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const LOCALES_DIR = join(import.meta.dir, "../front/src/locales/messages");
