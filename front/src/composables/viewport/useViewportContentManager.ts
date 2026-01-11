@@ -31,6 +31,31 @@ import type { MapMode } from "@shared/types";
 type CityProject = RouterOutput["project"]["getCityProjects"][number];
 type StandaloneProject = CityProject | Project;
 
+/**
+ * AI : Helper to safely convert StandaloneProject to Partial<Project>
+ * AI : Maps fields common to both CityProject (backend) and Project (frontend)
+ */
+function toProjectPartial(project: StandaloneProject): Partial<Project> {
+  const partial: Partial<Project> = {
+    id: project.id,
+    name: project.name,
+    description: project.description,
+    status: project.status, // Both types share ApprovalStatus
+    ownerId: project.ownerId,
+    cityId: project.cityId,
+    // AI : Map backend specific date naming if needed, or common fields
+    updatedAt: project.updatedAt,
+    createdAt: project.createdAt,
+    // AI : safe access for optional/nullable fields
+    sourceUrl: project.sourceUrl ?? null,
+    proposalDate: project.proposalDate ?? null,
+    startDate: project.startDate ?? null,
+    endDate: project.endDate ?? null,
+    latestUpdateOn: project.latestUpdateOn ?? null,
+  };
+  return partial;
+}
+
 const isLoading = ref(false);
 
 // AI : Module-level state shared across composable instances and standalone functions
@@ -299,7 +324,7 @@ export function useViewportContentManager() {
       }
 
       // AI : Create a working copy to avoid mutating cache
-      const projectsToRender = allProjects ? [...allProjects] : [];
+      const projectsToRender: StandaloneProject[] = allProjects ? [...allProjects] : [];
 
       // AI : In edit mode, include local pending projects from store
       // AI : In edit mode, include local pending projects from store
@@ -312,8 +337,8 @@ export function useViewportContentManager() {
         for (const localP of localProjects) {
           // AI : Check if project is already explicitly in the list
           if (!projectsToRender.find((p) => p.id === localP.id)) {
-            // AI : Cast to any to bypass strict backend/frontend type mismatch if any
-            projectsToRender.push(localP as any);
+            // AI : Type-safe push thanks to StandaloneProject union type
+            projectsToRender.push(localP);
           }
         }
       }
@@ -330,14 +355,18 @@ export function useViewportContentManager() {
 
       // AI : Create standalone markers for projects without any visible overlays
       for (const project of projectsToRender) {
-        // AI : Check overlay count safely (backend uses overlayCount, frontend uses overlayIds.length)
-        const p = project as { overlayCount?: number; overlays?: any[]; overlayIds?: string[] };
-        const overlayCount = p.overlayCount ?? p.overlays?.length ?? p.overlayIds?.length ?? 0;
+        // AI : Type narrowing for different overlay count properties
+        let overlayCount = 0;
+        if ("overlayCount" in project) {
+          overlayCount = project.overlayCount;
+        } else if ("overlayIds" in project && Array.isArray(project.overlayIds)) {
+          overlayCount = project.overlayIds.length;
+        } else if ("overlays" in project && Array.isArray(project.overlays)) {
+          overlayCount = project.overlays.length;
+        }
 
         if (!projectIdsWithOverlays.has(project.id) && overlayCount === 0) {
-          addStandaloneProjectMarkerForProject(
-            createProjectObject(project as unknown as Partial<Project>),
-          );
+          addStandaloneProjectMarkerForProject(createProjectObject(toProjectPartial(project)));
         }
       }
     } catch (error) {
@@ -645,9 +674,7 @@ function processStandaloneMarkers(
     if (!projectIdsWithOverlays.has(project.id) && overlayCount === 0) {
       // AI : Cast to Project to satisfy function signature - strictly validation would require more fields
       // AI : but for marker creation, the subset in CityProject is sufficient
-      addStandaloneProjectMarkerForProject(
-        createProjectObject(project as unknown as Partial<Project>),
-      );
+      addStandaloneProjectMarkerForProject(createProjectObject(toProjectPartial(project)));
     }
   }
 }
