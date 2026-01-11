@@ -175,11 +175,8 @@ import { useI18n } from "vue-i18n";
 import { useAddOverlay } from "@/composables/overlay/useAddOverlay";
 import { useToast } from "@/composables/ui/useToast";
 import { useChangeRequests } from "@/composables/changes/useChanges";
-import {
-  useUserContributions,
-  type UserContribution,
-  type UserContributionOverlay,
-} from "@/composables/project/useUserContributions";
+import { useUserContributions } from "@/composables/project/useUserContributions";
+
 import { useModeratedContributions } from "@/composables/moderation/useModeratedContributions";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -193,8 +190,9 @@ import type { RouterOutput } from "@/client";
 import type {
   ProjectForModeration,
   OverlayForModeration,
-  OverlayObject,
   Project,
+  UserContribution,
+  UserContributionOverlay,
 } from "@/types/index";
 import { createOverlayObject } from "@/utils/typeFactories";
 

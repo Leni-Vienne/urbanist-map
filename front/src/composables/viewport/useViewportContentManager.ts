@@ -331,7 +331,8 @@ export function useViewportContentManager() {
       // AI : Create standalone markers for projects without any visible overlays
       for (const project of projectsToRender) {
         // AI : Check overlay count safely (backend uses overlayCount, frontend uses overlayIds.length)
-        const overlayCount = project.overlayCount ?? (project as any).overlayIds?.length ?? 0;
+        const p = project as { overlayCount?: number; overlays?: any[]; overlayIds?: string[] };
+        const overlayCount = p.overlayCount ?? p.overlays?.length ?? p.overlayIds?.length ?? 0;
 
         if (!projectIdsWithOverlays.has(project.id) && overlayCount === 0) {
           addStandaloneProjectMarkerForProject(
