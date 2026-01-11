@@ -9,6 +9,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useToast } from "@/composables/ui/useToast";
 import { trpc } from "@/client";
 import type { OverlayForModeration, LatestContribution } from "@/types/index";
+import { useAccordionState } from "@/composables/layout/useAccordionState";
 
 // AI : Union type to accept overlays from moderation and contributions panels
 type NavigableOverlay = OverlayForModeration | LatestContribution;
@@ -75,6 +76,10 @@ export function useOverlayClickHandler() {
         // AI : Fallback to direct navigation if no city info
         await navigateToOverlay(overlay.id, true, autoSelect);
       }
+
+      // AI : Request scroll to overlay in adjacent panels
+      const { requestScrollTo } = useAccordionState();
+      requestScrollTo("overlay", overlay.id);
     } catch (error) {
       console.error("Failed to navigate to overlay:", error);
       toast.add({

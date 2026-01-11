@@ -24,6 +24,7 @@ import {
   updateStandaloneProjectMarkerTooltip,
 } from "@/composables/map/useStandaloneProjectMarkers";
 import { cleanupProjectInfoTeleportTarget } from "@/composables/map/useProjectPopupTeleport";
+import { useAccordionState } from "@/composables/layout/useAccordionState";
 
 // AI : Type aliases using RouterOutput from tRPC
 export type CityWithProjects = RouterOutput["cities"]["getCitiesWithProjects"][number];
@@ -313,6 +314,10 @@ function getCityMarkerConfig(): MarkerLayerConfig<CityWithProjects> {
         countryCode: city.countryCode,
       });
 
+      // AI : Request scroll to city in adjacent panels (Moderation / My Contributions)
+      const { requestScrollTo } = useAccordionState();
+      requestScrollTo("city", city.id);
+
       // AI : Zoom to the city marker position
       if (map.value && map.value.getZoom() < 14) {
         mobileAwareFlyTo([city.lat, city.lng], 14, {
@@ -371,7 +376,7 @@ export function addSingleCityMarker(
 
   // AI : Add marker to existing layer
   for (const [cityId, marker] of result.markers) {
-    marker.addTo(cityMarkersLayer!);
+    cityMarkersLayer?.addLayer(marker);
     cityMarkersStore.setCityMarker(cityId, marker);
   }
 

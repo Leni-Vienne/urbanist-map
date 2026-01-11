@@ -50,6 +50,7 @@
     "startDate": "Start Date",
     "endDate": "End Date",
     "sourceUrl": "Source URL",
+    "caption": "Name",
     "lat": "Latitude",
     "lng": "Longitude"
   },
@@ -105,6 +106,7 @@
     "addImages": "Add Images"
   },
   "status": {
+    "approved": "Approved",
     "draft": "Draft",
     "pending": "Pending",
     "rejected": "Rejected",
