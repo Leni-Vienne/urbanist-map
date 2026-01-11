@@ -14,12 +14,32 @@ const translations: Record<Locale, Translations> = {
 
 /**
  * AI : Simple template renderer that replaces {{placeholder}} with values
+ * AI : SECURITY: Ensures values are HTML-escaped to prevent injection attacks
+ * @param template HTML template string with {{placeholder}} markers
+ * @param data Key-value pairs to replace in the template
+ * @returns Rendered HTML string
+ */
+const escapeHtml = (unsafe: string) => {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+};
+
+/**
+ * AI : Simple template renderer that replaces {{placeholder}} with values
+ * AI : SECURITY: Ensures values are HTML-escaped to prevent injection attacks
  * @param template HTML template string with {{placeholder}} markers
  * @param data Key-value pairs to replace in the template
  * @returns Rendered HTML string
  */
 function renderTemplate(template: string, data: Record<string, string>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => data[key] ?? "");
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => {
+    const value = data[key] ?? "";
+    return escapeHtml(value);
+  });
 }
 
 /**
