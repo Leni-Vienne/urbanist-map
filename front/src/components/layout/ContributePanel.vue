@@ -196,6 +196,7 @@ import type {
   OverlayObject,
   Project,
 } from "@/types/index";
+import { createOverlayObject } from "@/utils/typeFactories";
 
 import ProjectAccordionPanel from "./ProjectAccordionPanel.vue";
 
@@ -455,20 +456,17 @@ function isOverlayModified(overlayId: string): boolean {
 function handleEditOverlayClick(overlay: OverlayForModeration) {
   // AI : Convert OverlayForModeration to OverlayObject for the editor
   // AI : The editor only needs id and caption for editing
-  const overlayForEditor = {
+  const overlayForEditor = createOverlayObject({
     id: overlay.id,
     caption: overlay.name ?? "",
-    // AI : Include other required fields from the overlay
-    filename: overlay.name ?? "",
+    filename: overlay.filename ?? "",
     projectId: overlay.projectId ?? null,
-    corners: [],
     status: overlay.status,
-    isModified: false,
-  };
+    // AI : Factory handles defaults for other fields (corners, history, etc.)
+  });
 
   // AI : Open the shared overlay edit dialog
-  // AI : Use unknown as intermediate type since OverlayForModeration doesn't have all OverlayObject fields
-  uiStore.openOverlayEditDialog(overlayForEditor as unknown as OverlayObject);
+  uiStore.openOverlayEditDialog(overlayForEditor);
 }
 
 // AI : Handle add image to project - open dialog for image upload instructions

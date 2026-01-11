@@ -1,13 +1,16 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import type { Project, Country, OverlayObject, NearbyProject } from "@/types/index";
+import type {
+  Project,
+  Country,
+  OverlayObject,
+  NearbyProject,
+  UserContribution,
+  UserContributionOverlay,
+} from "@/types/index";
 import type { MapMode } from "@shared/types";
 import { trpc, type RouterOutput } from "@/client";
-import { createProjectObjectFromAPI } from "../../utils/typeFactories";
-
-// AI : Type for user contributions from backend
-type UserContribution = RouterOutput["project"]["getUsersContributions"]["projects"][number];
-type UserContributionOverlay = UserContribution["overlays"][number];
+import { createProjectObjectFromAPI, createProjectObject } from "../../utils/typeFactories";
 
 // AI : Helper function to replace an item in an array immutably at a given index
 function replaceAtIndex<T>(arr: T[], index: number, newItem: T): T[] {
@@ -433,7 +436,7 @@ export const useProjectStore = defineStore("project", () => {
     // AI : If current is undefined, we're creating a new project - use updates as the base
     projects.value = {
       ...projects.value,
-      [projectId]: current ? { ...current, ...updates } : (updates as Project),
+      [projectId]: current ? { ...current, ...updates } : createProjectObject(updates),
     };
   }
 
@@ -468,7 +471,7 @@ export const useProjectStore = defineStore("project", () => {
     }
 
     // AI : Get the original value to reset to
-    const originalValue = (original as any)[fieldName];
+    const originalValue = (original as Record<string, unknown>)[fieldName];
 
     let didReset = false;
 
