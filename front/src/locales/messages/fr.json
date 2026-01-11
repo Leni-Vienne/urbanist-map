@@ -118,7 +118,7 @@
   },
   "help": {
     "title": "Bienvenue",
-    "intro": "Constructionmap.org est une carte collaborative des projets de construction dans le monde.",
+    "intro": "Constructionmap.org est une carte participative des projets de construction dans le monde.",
     "paragraph": "Etant souvent difficile de trouver ces informations sur internet, j'espère que le site vous sera utile et éveillera votre curiosité. N'hésitez pas à contribuer, que ce soit en ajoutant un projet officiel ou une idée que vous avez pour votre ville.",
     "gotIt": "J'ai compris !",
     "dontShowAgain": "Ne plus afficher cette fenêtre",
@@ -300,7 +300,7 @@
   },
   "app": {
     "title": "Constructionmap.org",
-    "subtitle": "Une carte collaborative des projets de construction dans le monde",
+    "subtitle": "Une carte participative des projets de construction dans le monde",
     "closePanel": "Fermer le panneau"
   },
   "footer": {
