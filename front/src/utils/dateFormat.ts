@@ -3,6 +3,8 @@
  * No localization needed - uses plain numeric format
  */
 
+import { t } from "@/locales";
+
 /**
  * AI : Format a date as dd/mm/yyyy
  * @param date - Date object, string, or null/undefined
@@ -19,6 +21,33 @@ export function formatDate(date: Date | string | null | undefined): string {
   const year = d.getFullYear();
 
   return `${day}/${month}/${year}`;
+}
+
+/**
+ * AI : Format project date range including proposal date support with i18n
+ * Uses the global translation function
+ */
+export function formatProjectDateRange(
+  startDate: Date | null,
+  endDate: Date | null,
+  proposalDate?: Date | null,
+): string {
+  // AI : If it's a proposed project, show "Proposed on {date}"
+  if (proposalDate) {
+    return `${t("project.proposed")} ${formatDate(proposalDate)}`;
+  }
+
+  const start = startDate ? formatDate(startDate) : null;
+  const end = endDate ? formatDate(endDate) : null;
+
+  if (start && end) {
+    return `${start} - ${end}`;
+  } else if (start) {
+    return `${t("project.starts")} ${start}`;
+  } else if (end) {
+    return `${t("project.ends")} ${end}`;
+  }
+  return "";
 }
 
 /**

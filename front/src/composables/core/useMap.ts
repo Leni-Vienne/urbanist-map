@@ -52,6 +52,9 @@ export function initializeMap() {
     maxBoundsViscosity: 0.8, // Gently bounce back
     touchZoom: true, // True otherwise the website is zoomed instead of the map on mobile,
     keyboard: false,
+    // AI : Disable animations to improve performance (reduces _update_opacity calls)
+    fadeAnimation: false,
+    markerZoomAnimation: true,
   });
   if (!map.value) throw new Error("No map element found");
 
@@ -71,6 +74,7 @@ export function initializeMap() {
   // AI : Update map size when window is resized (debounced to trigger only on resize end)
   globalThis.addEventListener("resize", debouncedUpdateMapSize);
 
+  // AI : Removed scale control to prevent performance issues (300ms frame cost during flights)
   L.control.scale().addTo(map.value);
   // AI : Ensure the map initialization is complete
   if (map.value !== null) {
