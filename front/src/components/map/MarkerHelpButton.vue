@@ -8,20 +8,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, onUnmounted, watch } from "vue";
 import { map } from "@/composables/core/useMap";
 import { mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useI18n } from "vue-i18n";
+import { citiesWithProjects } from "@/composables/map/useCityMarkers";
 
 const { t } = useI18n();
 const visible = ref(false);
 const mapStore = useMapStore();
 const uiStore = useUiStore();
 let timeoutId: ReturnType<typeof setTimeout> | null = null;
-let observer: MutationObserver | null = null;
-let checkMarkersDebounceId: ReturnType<typeof setTimeout> | null = null;
 
 // AI : Computed visibility - hide when marker placement bar is visible
 const actuallyVisible = computed(() => {
@@ -32,32 +31,13 @@ const buttonText = computed(() => {
   return t("map.clickCityMarker");
 });
 
-// AI : Hide button when user selects a city
-watch(
-  () => mapStore.selectedCity,
-  (city) => {
-    if (city) {
-      visible.value = false;
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-        timeoutId = null;
-      }
-    }
-  },
-);
-
-// AI : Query DOM for city markers
-function getCityMarkersFromDOM() {
-  return document.querySelectorAll("[data-city-id]");
-}
-
-// AI : Show button after delay if no city is selected
+// AI : Show button after delay if no city is selected and cities are available
 function showButtonWithDelay() {
-  // AI : If timeout is already active, don't restart it (prevents flicker from repeated calls)
+  // AI : If timeout is already active, don't restart it
   if (timeoutId) return;
 
   timeoutId = globalThis.setTimeout(() => {
-    if (!mapStore.selectedCity) {
+    if (!mapStore.selectedCity && citiesWithProjects.value.length > 0) {
       visible.value = true;
     }
   }, 3000);
@@ -72,98 +52,79 @@ function hideButton() {
   }
 }
 
-// AI : Check if city markers exist and update button visibility (debounced)
-function checkMarkers() {
-  const cityMarkers = getCityMarkersFromDOM();
-
-  if (cityMarkers.length > 0 && !mapStore.selectedCity) {
-    // AI : City markers exist - show button after delay
+// AI : Check visibility rules based on state
+function checkVisibility() {
+  if (citiesWithProjects.value.length > 0 && !mapStore.selectedCity) {
     showButtonWithDelay();
   } else {
-    // AI : No city markers
     hideButton();
   }
 }
 
-// AI : Debounced version to prevent excessive calls during map interactions
-function debouncedCheckMarkers() {
-  if (checkMarkersDebounceId) {
-    clearTimeout(checkMarkersDebounceId);
-  }
-  checkMarkersDebounceId = globalThis.setTimeout(() => {
-    checkMarkers();
-  }, 100); // AI : 100ms debounce
-}
+// AI : Watch for changes in cities or selected city
+watch(
+  [() => mapStore.selectedCity, () => citiesWithProjects.value.length],
+  () => {
+    checkVisibility();
+  },
+  { immediate: true },
+);
 
 // AI : Handle button click - find nearest city marker and fly to it
 function handleClick() {
   if (!map.value) return;
 
-  const markers = [...getCityMarkersFromDOM()];
+  // AI : Use reactive data instead of scanning DOM
+  const availableCities = citiesWithProjects.value;
 
-  if (markers.length === 0) return;
+  if (availableCities.length === 0) return;
 
-  // AI : Find nearest marker
+  // AI : Find nearest city
   const center = map.value.getCenter();
-  let nearestMarker: HTMLElement | null = null;
+  let nearestCity: (typeof availableCities)[0] | null = null;
   let minDistance = Infinity;
 
-  // AI : Find nearest marker by distance
-  for (const markerElement of markers) {
-    const element = markerElement as HTMLElement;
-    const lat = Number.parseFloat(element.getAttribute("data-lat") ?? "0");
-    const lng = Number.parseFloat(element.getAttribute("data-lng") ?? "0");
-
-    const distance = Math.sqrt((center.lat - lat) ** 2 + (center.lng - lng) ** 2);
+  // AI : Find nearest city by distance
+  for (const city of availableCities) {
+    // AI : Simple Euclidean distance is enough for this
+    const distance = Math.sqrt((center.lat - city.lat) ** 2 + (center.lng - city.lng) ** 2);
 
     if (distance < minDistance) {
       minDistance = distance;
-      nearestMarker = element;
+      nearestCity = city;
     }
   }
 
-  if (nearestMarker) {
-    const markerToClick: HTMLElement = nearestMarker;
-    const lat = Number.parseFloat(markerToClick.getAttribute("data-lat") ?? "0");
-    const lng = Number.parseFloat(markerToClick.getAttribute("data-lng") ?? "0");
+  if (nearestCity) {
+    // AI : Store reference to avoid closure issues
+    const targetCity = nearestCity;
 
-    mobileAwareFlyTo([lat, lng], 14, {
+    mobileAwareFlyTo([targetCity.lat, targetCity.lng], 14, {
       duration: 1.5,
     });
 
+    // AI : Try to find the DOM element just for the click interaction simulation
+    // AI : We do this lazily only on click, not constantly
     setTimeout(() => {
-      markerToClick.click();
+      const markerSelector = `[data-city-id="${targetCity.id}"]`;
+      const markerElement = document.querySelector(markerSelector) as HTMLElement;
+
+      if (markerElement) {
+        markerElement.click();
+      } else {
+        // AI : Fallback if marker not found in DOM (should ideally not happen if synced)
+        // AI : We can try to simulate what the click does directly if needed,
+        // AI : but for now let's hope the marker is rendered.
+        console.warn("Marker element not found for click simulation");
+      }
       visible.value = false;
     }, 1600);
   }
 }
 
-onMounted(() => {
-  // AI : Set up MutationObserver to watch for marker changes
-  observer = new MutationObserver(() => {
-    debouncedCheckMarkers();
-  });
-
-  const mapContainer = document.getElementById("mapDiv");
-  if (mapContainer) {
-    observer.observe(mapContainer, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ["data-city-id"],
-    });
-  }
-});
-
 onUnmounted(() => {
-  if (observer) {
-    observer.disconnect();
-  }
   if (timeoutId) {
     clearTimeout(timeoutId);
-  }
-  if (checkMarkersDebounceId) {
-    clearTimeout(checkMarkersDebounceId);
   }
 });
 </script>
