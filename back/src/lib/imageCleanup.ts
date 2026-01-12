@@ -85,10 +85,10 @@ export async function executePendingDeletions(): Promise<{ deleted: number; fail
 
         // AI : Remove from scheduled_deletions table after processing
         await db.delete(scheduledDeletions).where(eq(scheduledDeletions.id, item.id));
-        deleted++;
+        deleted += 1;
       } catch (error) {
         console.error(`Failed to process deletion for ${item.filename}:`, error);
-        failed++;
+        failed += 1;
       }
     }
 

@@ -38,7 +38,7 @@ export function addOverlayToProjectWithId(projectId: string, overlayId: string):
 
   // AI : If project is not in memory store (e.g., came from backend user contributions),
   // AI : just update the overlay's projectId and skip the in-memory project update
-  if (projects.value[projectId] == null) {
+  if (projects.value[projectId] === null) {
     // AI : Still update the overlay's projectId reference
     const overlayObject = overlays.value[overlayId];
     if (overlayObject) {
@@ -47,7 +47,7 @@ export function addOverlayToProjectWithId(projectId: string, overlayId: string):
     return false; // AI : Return false - we can't determine if it was first overlay
   }
 
-  if (overlays.value[overlayId] == null) {
+  if (overlays.value[overlayId] === null) {
     console.error("Overlay not found in memory store:", overlayId);
     throw new Error("Overlay not found");
   }
