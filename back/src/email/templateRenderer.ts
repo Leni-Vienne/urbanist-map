@@ -19,14 +19,14 @@ const translations: Record<Locale, Translations> = {
  * @param data Key-value pairs to replace in the template
  * @returns Rendered HTML string
  */
-const escapeHtml = (unsafe: string) => {
+function escapeHtml(unsafe: string) {
   return unsafe
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
-};
+}
 
 /**
  * AI : Simple template renderer that replaces {{placeholder}} with values
