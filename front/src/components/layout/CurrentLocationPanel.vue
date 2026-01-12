@@ -185,7 +185,7 @@ async function handleCityClick(city: {
   // AI : Fly to the city (same behavior as city marker click)
   if (map.value && map.value.getZoom() < 14) {
     mobileAwareFlyTo([city.lat, city.lng], 14, {
-      duration: 1.5,
+      duration: 3,
     });
   }
 
