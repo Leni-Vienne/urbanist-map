@@ -209,31 +209,7 @@ export function createLeafletOverlay(
 
     setupOverlayEventHandlers(newOverlay, overlayObject);
 
-    // AI : Store callback to be invoked AFTER image loads (in onOverlayLoaded)
-    const wrappedOnAddedToMap = onAddedToMap
-      ? () => {
-          // AI : CRITICAL: Check for race condition
-          // If the mode changed while image was loading, and this overlay shouldn't be visible in the new mode,
-          // we must abort and clean up.
-          const overlayStore = useOverlayStore();
-          const isLocal = overlayObject.status === null || overlayObject.status === undefined;
-          const shouldBeVisible = overlayStore.mode === "edit" || !isLocal;
-
-          const currentZoom = map.value?.getZoom() ?? 0;
-          const isZoomAppropriate = currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
-
-          // AI : CRITICAL: Abort if zoomed out too far (race condition where user zoomed out while image was loading)
-          if (!shouldBeVisible || !isZoomAppropriate) {
-            newOverlay.remove();
-            // Do not update store
-            return;
-          }
-
-          onAddedToMap();
-        }
-      : undefined;
-
-    setupOverlayLoadHandler(newOverlay, overlayObject, wrappedOnAddedToMap);
+    setupOverlayLoadHandler(newOverlay, overlayObject, onAddedToMap);
 
     // AI : Always add overlay to map - visibility based on zoom is handled by useOverlayZoomHandler
     // AI : This waits for any ongoing zoom animation to complete before adding to prevent visual glitches

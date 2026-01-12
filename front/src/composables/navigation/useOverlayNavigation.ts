@@ -1,5 +1,5 @@
 import L from "leaflet";
-import { loadCityProjects } from "@/composables/map/useCityMarkers";
+import { loadCityProjects, loadAllCityMarkersGlobally } from "@/composables/map/useCityMarkers";
 import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
 import { loadCityDataForNavigation } from "@/composables/viewport/useViewportContentManager";
 import { loadCitiesForCountry, clearAllMapContent } from "@/composables/map/useCountryData";
@@ -36,19 +36,29 @@ async function prepareNavigationToCity(
     const isDifferentCountry =
       mapStore.selectedCountryCode !== null && mapStore.selectedCountryCode !== countryCode;
 
+    // AI : Check if we need to update the country context (new selection or initial selection)
+    const isNewCountryContext = isDifferentCountry || !mapStore.selectedCountryCode;
+
     // AI : Step 1: Prepare for cross-country flight (switches to esri if needed)
     switchToCountryLayer = prepareCrossCountryFlight(countryCode);
 
-    // AI : Step 2: Only clear map and reload cities when switching countries
-    // AI : This prevents unnecessary removal of city markers when navigating within the same country
-    if (isDifferentCountry) {
-      clearAllMapContent();
+    if (isNewCountryContext) {
+      // AI : Step 2: Only clear map content when acting switching countries
+      // AI : This prevents unnecessary removal of city markers when navigating within the same country
+      if (isDifferentCountry) {
+        clearAllMapContent();
+      }
+
       mapStore.selectedCountryCode = countryCode;
-      await loadCitiesForCountry(countryCode);
-    } else if (!mapStore.selectedCountryCode) {
-      // AI : First time selecting a country - just set it without clearing
-      mapStore.selectedCountryCode = countryCode;
-      await loadCitiesForCountry(countryCode);
+
+      // AI : Load country data for context and ensure global markers are visible
+      // AI : Parallel execution for better performance
+      await Promise.all([
+        loadCitiesForCountry(countryCode),
+        // AI : Always reload ALL global city markers to maintain global context
+        // AI : This fixes city markers appearing only for the current country or disappearing
+        loadAllCityMarkersGlobally(),
+      ]);
     }
   }
 

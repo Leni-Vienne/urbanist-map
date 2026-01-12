@@ -73,7 +73,7 @@
     "@types/nodemailer": "^7.0.5",
     "@types/uuid": "^11.0.0",
     "@vitejs/plugin-vue": "^6.0.3",
-    "@vitest/coverage-v8": "^4.0.16",
+    "@vitest/coverage-v8": "^4.0.17",
     "@vue/test-utils": "^2.4.6",
     "dotenv": "^17.2.3",
     "drizzle-kit": "^0.31.8",
@@ -83,12 +83,12 @@
     "lint-staged": "^16.2.7",
     "madge": "^8.0.0",
     "oxfmt": "^0.23.0",
-    "oxlint": "^1.38.0",
+    "oxlint": "^1.39.0",
     "rollup-plugin-visualizer": "^6.0.5",
     "ts-prune": "^0.10.3",
     "unplugin-vue-components": "^30.0.0",
     "vite-plugin-vue-devtools": "^8.0.5",
-    "vitest": "^4.0.16"
+    "vitest": "^4.0.17"
   },
   "lint-staged": {
     "*": "bunx oxfmt --no-error-on-unmatched-pattern"
