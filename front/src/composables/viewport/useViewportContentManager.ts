@@ -231,7 +231,10 @@ export function useViewportContentManager() {
         const isEditMode = overlayStore.mode === "edit";
         clearAllOverlays(isEditMode);
         removeOverlayMarkers();
-        clearAllStandaloneProjectMarkers();
+
+        if (!isEditMode) {
+          clearAllStandaloneProjectMarkers();
+        }
         // AI : CRITICAL: Clear loaded cities cache so they reload when zooming back above threshold
         loadedCityIds.value.clear();
         lastZoomLevel.value = zoom;
@@ -618,15 +621,6 @@ export function useViewportContentManager() {
         // AI : CRITICAL: When switching modes, hide overlays that shouldn't be visible in the new mode
         // AI : We unmount them (remove from map) but keep in store so they can reappear when switching modes
         if (hasLoadedOverlays) {
-          console.log(
-            "[DEBUG MODE SWITCH]",
-            oldMode,
-            "→",
-            newMode,
-            "| Overlays:",
-            Object.keys(overlayStore.overlays).length,
-          );
-
           for (const [id, overlay] of Object.entries(overlayStore.overlays)) {
             let shouldHide = false;
 
