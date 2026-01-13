@@ -40,6 +40,12 @@ export default defineConfig({
       "@/tables": path.resolve(__dirname, "./back/src/db/schema"),
       "@": "/src",
       "@shared": path.resolve(__dirname, "../shared"),
+
+      // AI : Temporary alias for debugging local library changes
+      /*"leaflet-distortableimage": path.resolve(
+        __dirname,
+        "../../Leaflet.DistortableImage",
+      ),*/
     },
   },
   // To prevent annoying automatic reloads in devmode

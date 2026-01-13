@@ -8,215 +8,180 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { map } from '@/composables/core/useMap'
-import { mobileAwareFlyTo } from '@/composables/map/useMapNavigation'
-import { useMapStore } from '@/stores/pinia/mapStore'
-import { useUiStore } from '@/stores/uiStore'
-import { useI18n } from 'vue-i18n'
+import { ref, computed, onUnmounted, watch } from "vue";
+import { map } from "@/composables/core/useMap";
+import { mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
+import { useMapStore } from "@/stores/pinia/mapStore";
+import { useUiStore } from "@/stores/uiStore";
+import { useI18n } from "vue-i18n";
+import { citiesWithProjects } from "@/composables/map/useCityMarkers";
 
-const { t } = useI18n()
-const visible = ref(false)
-const mapStore = useMapStore()
-const uiStore = useUiStore()
-let timeoutId: ReturnType<typeof setTimeout> | null = null
-let observer: MutationObserver | null = null
-let checkMarkersDebounceId: ReturnType<typeof setTimeout> | null = null
+const { t } = useI18n();
+const visible = ref(false);
+const mapStore = useMapStore();
+const uiStore = useUiStore();
+let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
 // AI : Computed visibility - hide when marker placement bar is visible
 const actuallyVisible = computed(() => {
-    return visible.value && !uiStore.markerPlacementBarVisible
-})
+  return visible.value && !uiStore.markerPlacementBarVisible;
+});
 
 const buttonText = computed(() => {
-    return t('map.clickCityMarker')
-})
+  return t("map.clickCityMarker");
+});
 
-// AI : Hide button when user selects a city
-watch(() => mapStore.selectedCity, (city) => {
-    if (city) {
-        visible.value = false
-        if (timeoutId) {
-            clearTimeout(timeoutId)
-            timeoutId = null
-        }
-    }
-})
-
-// AI : Query DOM for city markers
-function getCityMarkersFromDOM() {
-    return document.querySelectorAll('[data-city-id]')
-}
-
-// AI : Show button after delay if no city is selected
+// AI : Show button after delay if no city is selected and cities are available
 function showButtonWithDelay() {
-    // AI : If timeout is already active, don't restart it (prevents flicker from repeated calls)
-    if (timeoutId) return
+  // AI : If timeout is already active, don't restart it
+  if (timeoutId) return;
 
-    timeoutId = globalThis.setTimeout(() => {
-        if (!mapStore.selectedCity) {
-            visible.value = true
-        }
-    }, 3000)
+  timeoutId = globalThis.setTimeout(() => {
+    if (!mapStore.selectedCity && citiesWithProjects.value.length > 0) {
+      visible.value = true;
+    }
+  }, 3000);
 }
 
 // AI : Hide button and reset state
 function hideButton() {
-    visible.value = false
-    if (timeoutId) {
-        clearTimeout(timeoutId)
-        timeoutId = null
-    }
+  visible.value = false;
+  if (timeoutId) {
+    clearTimeout(timeoutId);
+    timeoutId = null;
+  }
 }
 
-// AI : Check if city markers exist and update button visibility (debounced)
-function checkMarkers() {
-    const cityMarkers = getCityMarkersFromDOM()
-
-    if (cityMarkers.length > 0 && !mapStore.selectedCity) {
-        // AI : City markers exist - show button after delay
-        showButtonWithDelay()
-    } else {
-        // AI : No city markers
-        hideButton()
-    }
+// AI : Check visibility rules based on state
+function checkVisibility() {
+  if (citiesWithProjects.value.length > 0 && !mapStore.selectedCity) {
+    showButtonWithDelay();
+  } else {
+    hideButton();
+  }
 }
 
-// AI : Debounced version to prevent excessive calls during map interactions
-function debouncedCheckMarkers() {
-    if (checkMarkersDebounceId) {
-        clearTimeout(checkMarkersDebounceId)
-    }
-    checkMarkersDebounceId = globalThis.setTimeout(() => {
-        checkMarkers()
-    }, 100) // AI : 100ms debounce
-}
+// AI : Watch for changes in cities or selected city
+watch(
+  [() => mapStore.selectedCity, () => citiesWithProjects.value.length],
+  () => {
+    checkVisibility();
+  },
+  { immediate: true },
+);
 
 // AI : Handle button click - find nearest city marker and fly to it
 function handleClick() {
-    if (!map.value) return
+  if (!map.value) return;
 
-    const markers = [...getCityMarkersFromDOM()]
+  // AI : Use reactive data instead of scanning DOM
+  const availableCities = citiesWithProjects.value;
 
-    if (markers.length === 0) return
+  if (availableCities.length === 0) return;
 
-    // AI : Find nearest marker
-    const center = map.value.getCenter()
-    let nearestMarker: HTMLElement | null = null
-    let minDistance = Infinity
+  // AI : Find nearest city
+  const center = map.value.getCenter();
+  let nearestCity: (typeof availableCities)[0] | null = null;
+  let minDistance = Infinity;
 
-    // AI : Find nearest marker by distance
-    for (const markerElement of markers) {
-        const element = markerElement as HTMLElement
-        const lat = Number.parseFloat(element.getAttribute('data-lat') ?? '0')
-        const lng = Number.parseFloat(element.getAttribute('data-lng') ?? '0')
+  // AI : Find nearest city by distance
+  for (const city of availableCities) {
+    // AI : Simple Euclidean distance is enough for this
+    const distance = Math.sqrt((center.lat - city.lat) ** 2 + (center.lng - city.lng) ** 2);
 
-        const distance = Math.sqrt(
-            (center.lat - lat) ** 2 + (center.lng - lng) ** 2
-        )
-
-        if (distance < minDistance) {
-            minDistance = distance
-            nearestMarker = element
-        }
+    if (distance < minDistance) {
+      minDistance = distance;
+      nearestCity = city;
     }
+  }
 
-    if (nearestMarker) {
-        const markerToClick: HTMLElement = nearestMarker
-        const lat = Number.parseFloat(markerToClick.getAttribute('data-lat') ?? '0')
-        const lng = Number.parseFloat(markerToClick.getAttribute('data-lng') ?? '0')
+  if (nearestCity) {
+    // AI : Store reference to avoid closure issues
+    const targetCity = nearestCity;
 
-        mobileAwareFlyTo([lat, lng], 14, {
-            duration: 1.5
-        })
+    mobileAwareFlyTo([targetCity.lat, targetCity.lng], 14, {
+      duration: 1.5,
+    });
 
-        setTimeout(() => {
-            markerToClick.click()
-            visible.value = false
-        }, 1600)
-    }
+    // AI : Try to find the DOM element just for the click interaction simulation
+    // AI : We do this lazily only on click, not constantly
+    setTimeout(() => {
+      const markerSelector = `[data-city-id="${targetCity.id}"]`;
+      const markerElement = document.querySelector(markerSelector) as HTMLElement;
+
+      if (markerElement) {
+        markerElement.click();
+      } else {
+        // AI : Fallback if marker not found in DOM (should ideally not happen if synced)
+        // AI : We can try to simulate what the click does directly if needed,
+        // AI : but for now let's hope the marker is rendered.
+        console.warn("Marker element not found for click simulation");
+      }
+      visible.value = false;
+    }, 1600);
+  }
 }
 
-onMounted(() => {
-    // AI : Set up MutationObserver to watch for marker changes
-    observer = new MutationObserver(() => {
-        debouncedCheckMarkers()
-    })
-
-    const mapContainer = document.getElementById('mapDiv')
-    if (mapContainer) {
-        observer.observe(mapContainer, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            attributeFilter: ['data-city-id']
-        })
-    }
-})
-
 onUnmounted(() => {
-    if (observer) {
-        observer.disconnect()
-    }
-    if (timeoutId) {
-        clearTimeout(timeoutId)
-    }
-    if (checkMarkersDebounceId) {
-        clearTimeout(checkMarkersDebounceId)
-    }
-})
+  if (timeoutId) {
+    clearTimeout(timeoutId);
+  }
+});
 </script>
 
 <style scoped>
 .help-button {
-    /* AI : Reset button defaults */
-    appearance: none;
-    font-family: inherit;
-    /* AI : Layout and styling */
-    position: absolute;
-    top: 10px;
-    /* AI : Desktop - plenty of space above */
-    left: 50%;
-    transform: translateX(-50%);
+  /* AI : Reset button defaults */
+  appearance: none;
+  font-family: inherit;
+  /* AI : Layout and styling */
+  position: absolute;
+  top: 10px;
+  /* AI : Desktop - plenty of space above */
+  left: 50%;
+  transform: translateX(-50%);
 
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
 
-    background: var(--p-surface-0);
-    color: var(--p-surface-700);
-    border: 2px solid var(--p-surface-300);
-    border-radius: 9999px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.5);
+  background: var(--p-surface-0);
+  color: var(--p-surface-700);
+  border: 2px solid var(--p-surface-300);
+  border-radius: 9999px;
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.5);
 
-    font-size: 14px;
-    font-weight: 600;
+  font-size: 14px;
+  font-weight: 600;
 
-    cursor: pointer;
-    z-index: 1000;
+  cursor: pointer;
+  z-index: 1000;
+  white-space: nowrap;
 }
 
 .help-button:hover {
-    color: var(--p-surface-700);
-    background: var(--p-surface-200);
-    border-color: var(--p-surface-300);
+  color: var(--p-surface-700);
+  background: var(--p-surface-200);
+  border-color: var(--p-surface-300);
 }
 
 .help-button:active {
-    transform: translateX(-50%) scale(0.98);
+  transform: translateX(-50%) scale(0.98);
 }
 
 .help-button i {
-    font-size: 0.875rem;
-    color: var(--p-primary-500);
+  font-size: 0.875rem;
+  color: var(--p-primary-500);
 }
 
 /* AI : Lower help button on mobile to avoid overlap with search/controls */
 @media (max-width: 768px) {
-    .help-button {
-        top: 80px;
-        /* AI : Account for search bar + controls on mobile */
-    }
+  .help-button {
+    top: 80px;
+    /* AI : Account for search bar + controls on mobile */
+  }
 }
 </style>

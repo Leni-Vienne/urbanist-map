@@ -2,7 +2,7 @@
   <div class="user-menu-container">
     <!-- AI : Sign In Button for unauthenticated users -->
     <template v-if="!authStore.isAuthenticated">
-      <LanguageSwitcherMenu />
+      <LanguageSwitcherMenu display-mode="icon" />
       <Button
         :label="$t('auth.signIn')"
         size="small"
@@ -174,15 +174,13 @@ onUnmounted(() => {
 
 <style scoped>
 .user-menu-container {
-  position: absolute;
-  top: 16px;
-  right: 16px;
   display: flex;
   align-items: center;
   gap: 0.5rem;
   z-index: 1000;
   /* important on mobile */
   isolation: isolate;
+  pointer-events: auto;
 }
 
 .menu-item-btn {
@@ -269,6 +267,12 @@ onUnmounted(() => {
 }
 
 @media (max-width: 768px) {
+  .user-menu-container {
+    flex-direction: column-reverse;
+    align-items: flex-end;
+    gap: 0.5rem;
+  }
+
   .user-menu {
     min-width: auto;
     padding: 0;

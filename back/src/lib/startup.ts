@@ -36,7 +36,7 @@ export async function generateMissingThumbnails(): Promise<void> {
         const exists = await thumbFile.exists();
 
         if (exists) {
-          skippedCount++;
+          skippedCount += 1;
           continue;
         }
       } catch {
@@ -54,7 +54,7 @@ export async function generateMissingThumbnails(): Promise<void> {
         await Bun.write(thumbnailPath, thumbnailBuffer);
 
         console.log(`Generated thumbnail for ${imageFile}`);
-        generatedCount++;
+        generatedCount += 1;
       } catch (error) {
         console.error(`Failed to generate thumbnail for ${imageFile}:`, error);
       }

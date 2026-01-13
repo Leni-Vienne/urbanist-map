@@ -18,7 +18,7 @@ import {
   convertOverlayToData,
   createProjectObject,
 } from "@/utils/typeFactories";
-import { toRef } from "vue";
+import { toRef, markRaw } from "vue";
 import { useProjects, addOverlayToProjectWithId } from "@/composables/project/useProjects";
 import { trpc } from "@/client";
 import { removeStandaloneProjectMarkerForProject } from "@/composables/map/useStandaloneProjectMarkers";
@@ -205,6 +205,12 @@ export function createLeafletOverlay(
       //mode: 'resizeRotate' // doesn't work but should, it's an issue from the package
     });
 
+    overlayObject.overlay = markRaw(newOverlay);
+
+    setupOverlayEventHandlers(newOverlay, overlayObject);
+
+    setupOverlayLoadHandler(newOverlay, overlayObject, onAddedToMap);
+
     // AI : Always add overlay to map - visibility based on zoom is handled by useOverlayZoomHandler
     // AI : This waits for any ongoing zoom animation to complete before adding to prevent visual glitches
     const addOverlayWhenReady = () => {
@@ -214,7 +220,22 @@ export function createLeafletOverlay(
 
         // AI : Only add to map if zoom is appropriate (zoom handler will manage later changes)
         if (shouldShowImage) {
+          // AI : CRITICAL: Check if already on map to prevent duplicates
+          // AI : This can happen when renderFullOverlays is called multiple times before onAddedToMap callback completes
+          if (map.value.hasLayer(newOverlay)) {
+            return;
+          }
+
           newOverlay.addTo(map.value);
+        } else {
+          // AI : Zoom is too low - overlay won't be added to map
+          // AI : Remove from in-progress tracking since onAddedToMap will never fire
+          overlaysBeingCreated.delete(overlayObject.id);
+          console.log(
+            "[DEBUG] NOT adding overlay to map (zoom too low):",
+            overlayObject.id,
+            "- removed from in-progress set",
+          );
         }
       }
     };
@@ -227,35 +248,6 @@ export function createLeafletOverlay(
       // AI : No animation - add immediately if zoom is appropriate
       addOverlayWhenReady();
     }
-    overlayObject.overlay = newOverlay;
-
-    setupOverlayEventHandlers(newOverlay, overlayObject);
-
-    // AI : Store callback to be invoked AFTER image loads (in onOverlayLoaded)
-    const wrappedOnAddedToMap = onAddedToMap
-      ? () => {
-          // AI : CRITICAL: Check for race condition
-          // If the mode changed while image was loading, and this overlay shouldn't be visible in the new mode,
-          // we must abort and clean up.
-          const overlayStore = useOverlayStore();
-          const isLocal = overlayObject.status === null || overlayObject.status === undefined;
-          const shouldBeVisible = overlayStore.mode === "edit" || !isLocal;
-
-          const currentZoom = map.value?.getZoom() ?? 0;
-          const isZoomAppropriate = currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
-
-          // AI : CRITICAL: Abort if zoomed out too far (race condition where user zoomed out while image was loading)
-          if (!shouldBeVisible || !isZoomAppropriate) {
-            newOverlay.remove();
-            // Do not update store
-            return;
-          }
-
-          onAddedToMap();
-        }
-      : undefined;
-
-    setupOverlayLoadHandler(newOverlay, overlayObject, wrappedOnAddedToMap);
 
     return newOverlay;
   } catch (error) {
@@ -287,16 +279,34 @@ function setupOverlayLoadHandler(
     return;
   }
 
-  L.DomEvent.on(element, "load", () => {
+  let isInitialized = false;
+
+  const tryInit = () => {
+    if (isInitialized) return;
+
     // AI : Guard: Only proceed if overlay is still on map (prevents errors during rapid viewport changes)
     if (!map.value || !map.value.hasLayer(overlay)) {
       return;
     }
 
     if (element.complete && element.naturalWidth > 0) {
+      isInitialized = true;
+
+      // AI : Cleanup listeners to prevent redundant calls
+      L.DomEvent.off(element, "load", tryInit);
+      overlay.off("add", tryInit);
+
       onOverlayLoaded(overlayObject, onReady);
     }
-  });
+  };
+
+  L.DomEvent.on(element, "load", tryInit);
+
+  // AI : CRITICAL FIX: Also check when added to map
+  // AI : This handles the case where the image loads while waiting for zoom animation (flyTo)
+  // AI : In that case, the 'load' event fires while hasLayer() is false, so we missed it.
+  // AI : When 'add' fires later, we check again.
+  overlay.on("add", tryInit);
 
   // AI : Handle load errors to ensure system consistency
   L.DomEvent.on(element, "error", () => {
@@ -308,12 +318,8 @@ function setupOverlayLoadHandler(
     }
   });
 
-  if (element.complete && element.naturalWidth > 0) {
-    // AI : Guard: Only proceed if overlay is still on map
-    if (map.value && map.value.hasLayer(overlay)) {
-      onOverlayLoaded(overlayObject, onReady);
-    }
-  }
+  // AI : Check immediately in case it's already loaded and on map
+  tryInit();
 }
 
 /**
@@ -546,6 +552,21 @@ export function renderViewModeOverlays(
 }
 
 /**
+ * AI : Track overlays currently being created to prevent duplicates
+ * AI : When renderSingleOverlay is called multiple times before onAddedToMap callback fires,
+ * AI : this prevents creating multiple Leaflet objects for the same overlay ID
+ */
+const overlaysBeingCreated = new Set<string>();
+
+/**
+ * AI : Clear the in-progress tracking set
+ * AI : Called by clearAllOverlays to prevent stale entries when overlays are removed from map
+ */
+export function clearOverlaysBeingCreated(): void {
+  overlaysBeingCreated.clear();
+}
+
+/**
  * AI : Render a single CDN overlay as read-only distortable overlay on the map
  */
 function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
@@ -559,7 +580,18 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   const existingOverlay = overlayStore.overlays[cdnOverlay.id];
   const hasValidLayer = existingOverlay && existingOverlay.overlay !== null;
 
-  if (!map.value || hasValidLayer) return;
+  // AI : CRITICAL: Also check if this overlay is currently being created
+  // AI : This prevents duplicates when renderFullOverlays is called multiple times rapidly
+  const isBeingCreated = overlaysBeingCreated.has(cdnOverlay.id);
+
+  if (!map.value || hasValidLayer || isBeingCreated) {
+    if (isBeingCreated) {
+      return;
+    }
+  }
+
+  // AI : Mark this overlay as being created
+  overlaysBeingCreated.add(cdnOverlay.id);
 
   // AI : Always use backend data to create overlay object (cached positions applied later via applyPositionToOverlay)
   const overlayObject = createOverlayFromCDN(cdnOverlay);
@@ -578,6 +610,9 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
     // AI : Store overlay with proper reactivity - but ONLY after it's on the map
     overlayStore.addOverlay(cdnOverlay.id, overlayObjectWithMethods);
 
+    // AI : Remove from in-progress tracking now that it's in the store
+    overlaysBeingCreated.delete(cdnOverlay.id);
+
     // AI : Remove standalone project marker for this project since we now have an overlay visible
     // AI : This handles the case where a project had only pending overlays (shown as a standalone project marker in view mode)
     // AI : and the user switched to edit mode (pending overlays now visible, so standalone project marker should be removed)
@@ -591,9 +626,14 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
     overlayObjectWithMethods,
     onAddedToMap,
   );
-  if (!newOverlay) return;
 
-  overlayObjectWithMethods.overlay = newOverlay;
+  if (!newOverlay) {
+    // AI : Creation failed - remove from in-progress tracking
+    overlaysBeingCreated.delete(cdnOverlay.id);
+    return;
+  }
+
+  overlayObjectWithMethods.overlay = markRaw(newOverlay);
 
   // AI : Hover events are now set up in onOverlayLoaded() after element is guaranteed to exist
 
@@ -796,7 +836,7 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
 
       L.DomEvent.on(element, "load", () => {
         if (element.complete && element.naturalWidth > 0) {
-          overlayObject.overlay = newOverlay;
+          overlayObject.overlay = markRaw(newOverlay);
           overlayObject.corners = newOverlay.getCorners() ?? [];
 
           // AI : Store reference and initialize with proper reactivity

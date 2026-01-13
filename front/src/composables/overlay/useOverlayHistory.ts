@@ -123,7 +123,7 @@ export function saveOverlayModificationsToCache(overlayObject: OverlayObject): v
   });
 
   // AI : Save to new unified store
-  const overlayStatus = (overlayObject.status ?? "pending") as "pending" | "approved" | "rejected";
+  const overlayStatus = overlayObject.status ?? "pending";
   pendingModsStore.saveCornersChange(
     overlayObject.id,
     overlayObject.projectId ?? null,
