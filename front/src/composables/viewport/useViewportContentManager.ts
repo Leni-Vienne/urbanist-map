@@ -5,6 +5,7 @@ import { map } from "@/composables/core/useMap";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useAuthStore } from "@/stores/authStore";
 import { trpc, type RouterOutput } from "@/client";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
@@ -232,9 +233,9 @@ export function useViewportContentManager() {
         clearAllOverlays(isEditMode);
         removeOverlayMarkers();
 
-        if (!isEditMode) {
-          clearAllStandaloneProjectMarkers();
-        }
+        // AI : Always clear standalone markers on zoom out for consistency with zoom-to-load behavior
+        clearAllStandaloneProjectMarkers();
+
         // AI : CRITICAL: Clear loaded cities cache so they reload when zooming back above threshold
         loadedCityIds.value.clear();
         lastZoomLevel.value = zoom;
@@ -660,11 +661,37 @@ export function useViewportContentManager() {
           // AI : This ensures that cities whose center is off-screen (but whose overlays are visible) are correctly updated.
           // AI : If we just cleared cache and relied on refreshViewport, it would only load cities with visible centers.
           const currentCityIds = [...loadedCityIds.value];
+
           await Promise.all(
             currentCityIds.map(async (id) => loadCityData(id, "reload", null, "reload")),
           );
 
           await refreshViewport(true);
+
+          // AI : CRITICAL FIX: After reloading, explicitly create standalone markers for local projects
+          // AI : This ensures markers appear immediately without requiring user to click city or zoom
+          if (newMode === "edit") {
+            const projectStore = useProjectStore();
+            const authStore = useAuthStore();
+
+            // AI : Include both local (unsaved) and user's pending projects
+            const userProjects = Object.values(projectStore.projects).filter((p) => {
+              if (!p.lat || !p.lng) return false;
+
+              // AI : Local projects (not yet submitted)
+              if (p.status === null || p.status === undefined) return true;
+
+              // AI : User's own pending projects (submitted but not approved)
+              if (p.status === "pending" && authStore.user && p.ownerId === authStore.user.id)
+                return true;
+
+              return false;
+            });
+
+            for (const project of userProjects) {
+              addStandaloneProjectMarkerForProject(project);
+            }
+          }
         }
       },
     );

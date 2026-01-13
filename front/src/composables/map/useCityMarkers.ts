@@ -37,6 +37,62 @@ export const citiesWithProjects = ref<CityWithProjects[]>([]);
 // AI : Access via useCityMarkersStore() instead of direct variables
 
 /**
+ * AI : Helper function to augment city list with cities from locally created projects
+ * AI : This ensures cities with only local/pending projects appear in city markers
+ */
+function augmentCitiesWithLocalProjects(cities: CityWithProjects[]): CityWithProjects[] {
+  const projectStore = useProjectStore();
+  const authStore = useAuthStore();
+
+  // AI : Include both local (unsaved) and user's pending projects
+  const userProjectsToInclude = Object.values(projectStore.projects).filter((p) => {
+    // AI : Local projects (not yet submitted)
+    if (p.status === null || p.status === undefined) return true;
+
+    // AI : User's own pending projects (submitted but not approved)
+    if (p.status === "pending" && authStore.user && p.ownerId === authStore.user.id) return true;
+
+    return false;
+  });
+
+  if (userProjectsToInclude.length === 0) {
+    return cities;
+  }
+
+  // AI : Build a map of city IDs from user projects
+  const localProjectCitiesMap = new Map<number, CityWithProjects>();
+
+  for (const project of userProjectsToInclude) {
+    if (project.city && project.cityId) {
+      // AI : Only add to map if not already present
+      if (!localProjectCitiesMap.has(project.cityId)) {
+        localProjectCitiesMap.set(project.cityId, {
+          id: project.cityId,
+          name: project.city.name,
+          nameLocal: project.city.nameLocal ?? null,
+          lat: project.city.coordinates.y,
+          lng: project.city.coordinates.x,
+          countryCode: project.city.countryCode,
+          projectCount: 0, // AI : Local projects, count doesn't matter for display
+        });
+      }
+    }
+  }
+
+  // AI : Add cities from local projects that aren't already in the city list
+  const existingCityIds = new Set(cities.map((c) => c.id));
+  const additionalCities: CityWithProjects[] = [];
+
+  for (const [cityId, cityData] of localProjectCitiesMap) {
+    if (!existingCityIds.has(cityId)) {
+      additionalCities.push(cityData);
+    }
+  }
+
+  return additionalCities.length > 0 ? [...cities, ...additionalCities] : cities;
+}
+
+/**
  * AI : Initialize mode change watcher (called lazily on first use)
  * This handles both switchMode() and direct setMode() calls (like from side menu)
  */
@@ -78,7 +134,14 @@ function initializeModeWatcher() {
           // AI : Merge: start with view cities, add any mode-specific cities not already included
           const viewCityIds = new Set(viewCities.map((c) => c.id));
           const additionalCities = modeCities.filter((c) => !viewCityIds.has(c.id));
-          citiesWithProjects.value = [...viewCities, ...additionalCities];
+          let mergedCities = [...viewCities, ...additionalCities];
+
+          // AI : In edit mode, also include cities from locally created projects
+          if (newMode === "edit") {
+            mergedCities = augmentCitiesWithLocalProjects(mergedCities);
+          }
+
+          citiesWithProjects.value = mergedCities;
         }
 
         // AI : Re-render all city markers with merged data
@@ -430,7 +493,14 @@ export async function loadAllCityMarkersGlobally(): Promise<CityWithProjects[]> 
       // AI : Merge: start with view cities, add any mode-specific cities not already included
       const viewCityIds = new Set(viewCities.map((c) => c.id));
       const additionalCities = modeCities.filter((c) => !viewCityIds.has(c.id));
-      citiesData = [...viewCities, ...additionalCities];
+      let mergedCities = [...viewCities, ...additionalCities];
+
+      // AI : In edit mode, also include cities from locally created projects
+      if (currentMode === "edit") {
+        mergedCities = augmentCitiesWithLocalProjects(mergedCities);
+      }
+
+      citiesData = mergedCities;
     }
 
     if (citiesData && citiesData.length > 0) {
