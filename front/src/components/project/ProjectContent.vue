@@ -139,13 +139,7 @@
             </div>
             <div class="flex items-center gap-1.5 text-surface-600 text-xs mb-1">
               <i class="pi pi-map-marker text-surface-500"></i>
-              <img
-                v-if="overlay.countryCode"
-                :src="getFlagUrl(overlay.countryCode)"
-                :alt="overlay.countryCode"
-                class="w-4 h-3 rounded-sm"
-                @error="hideFlagOnError"
-              />
+
               <span class="truncate">{{ getOverlayLocationDisplay(overlay) }}</span>
             </div>
             <div class="text-xs text-surface-500 mb-2">
@@ -229,7 +223,7 @@ import ChangeRequestSection from "../layout/ChangeRequestSection.vue"; // Correc
 import { formatProjectDateRange } from "@/utils/dateFormat";
 import { formatSourceUrl } from "@/utils/urlFormat";
 import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
-import { getFlagUrl, hideFlagOnError, useImageErrors } from "@/utils/imageHelpers";
+import { useImageErrors } from "@/utils/imageHelpers";
 import type {
   ProjectForModeration,
   OverlayForModeration,

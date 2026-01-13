@@ -18,7 +18,11 @@
               :src="getContributionImageUrl(contribution.filename)"
               :alt="contribution.name"
               class="w-full h-full object-cover"
-              :crossorigin="imageRequiresCredentials(getContributionImageUrl(contribution.filename)) ? 'use-credentials' : undefined"
+              :crossorigin="
+                imageRequiresCredentials(getContributionImageUrl(contribution.filename))
+                  ? 'use-credentials'
+                  : undefined
+              "
               @error="(event) => handleImageError(event, contribution.id)"
               @load="(event) => handleImageLoad(event, contribution.id)"
             />
@@ -40,13 +44,7 @@
             <div class="contribution-time">{{ formatRelativeTime(contribution.updatedAt, t) }}</div>
             <div class="contribution-location">
               <i class="pi pi-map-marker"></i>
-              <img
-                v-if="contribution.countryCode"
-                :src="getFlagUrl(contribution.countryCode)"
-                :alt="contribution.countryCode"
-                class="country-flag"
-                @error="hideFlagOnError"
-              />
+
               <span>{{ getLocationDisplay(contribution) }}</span>
             </div>
           </div>
@@ -61,8 +59,8 @@
         class="flex flex-col items-center justify-center p-12 text-center text-surface-600"
       >
         <i class="pi pi-image text-5xl text-surface-400 mb-4"></i>
-        <p class="text-base mb-2">{{ t('contribution.noContributionsFound') }}</p>
-        <p class="text-sm">{{ t('contribution.beFirstToAdd') }}</p>
+        <p class="text-base mb-2">{{ t("contribution.noContributionsFound") }}</p>
+        <p class="text-sm">{{ t("contribution.beFirstToAdd") }}</p>
       </div>
 
       <div
@@ -70,95 +68,98 @@
         class="flex flex-col items-center justify-center p-12 text-center text-surface-600"
       >
         <i class="pi pi-spin pi-spinner text-2xl mb-4"></i>
-        <p>{{ t('contribution.loadingContributions') }}</p>
+        <p>{{ t("contribution.loadingContributions") }}</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useLatestContributions } from '@/composables/overlay/useLatestContributions'
-import { useOverlayClickHandler } from '@/composables/overlay/useOverlayClickHandler'
-import { highlightOverlayById, removeOverlayHighlight } from '@/composables/overlay/useOverlaySelection'
-import { navigateToStandaloneProject } from '@/composables/navigation/useOverlayNavigation'
-import { buildThumbnailUrl, imageRequiresCredentials } from '@/utils/imageUrl'
-import { formatRelativeTime } from '@/utils/dateFormat'
-import { getFlagUrl, hideFlagOnError, useImageErrors } from '@/utils/imageHelpers'
-import type { LatestContribution } from '@/types/index'
+import { onMounted } from "vue";
+import { useI18n } from "vue-i18n";
+import { useLatestContributions } from "@/composables/overlay/useLatestContributions";
+import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
+import {
+  highlightOverlayById,
+  removeOverlayHighlight,
+} from "@/composables/overlay/useOverlaySelection";
+import { navigateToStandaloneProject } from "@/composables/navigation/useOverlayNavigation";
+import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
+import { formatRelativeTime } from "@/utils/dateFormat";
+import { useImageErrors } from "@/utils/imageHelpers";
+import type { LatestContribution } from "@/types/index";
 
-const { t } = useI18n()
+const { t } = useI18n();
 
 // AI : Use cached composable for latest contributions
-const { contributions, isLoading, fetchLatestContributions } = useLatestContributions()
+const { contributions, isLoading, fetchLatestContributions } = useLatestContributions();
 
 // AI : Use shared overlay click handler for overlay navigation
-const { handleOverlayClickNavigation } = useOverlayClickHandler()
+const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
 // AI : Use shared image error handling
-const { imageErrors, handleImageError, handleImageLoad } = useImageErrors()
+const { imageErrors, handleImageError, handleImageLoad } = useImageErrors();
 
 // AI : Get contribution thumbnail URL using the utility function
 function getContributionImageUrl(filename: string): string {
-  return buildThumbnailUrl(filename)
+  return buildThumbnailUrl(filename);
 }
 
 // AI : Get location display (city, country)
 function getLocationDisplay(contribution: LatestContribution): string {
   if (contribution.cityName && contribution.countryName) {
-    return `${contribution.cityName}, ${contribution.countryName}`
+    return `${contribution.cityName}, ${contribution.countryName}`;
   } else if (contribution.cityName) {
-    return contribution.cityName
+    return contribution.cityName;
   } else if (contribution.countryName) {
-    return contribution.countryName
+    return contribution.countryName;
   }
-  return t('overlay.unknownLocation')
+  return t("overlay.unknownLocation");
 }
 
 // AI : Handle contribution hover - highlight overlay on map if loaded
 function handleContributionHover(contribution: LatestContribution) {
-  if (contribution.type === 'overlay') {
-    highlightOverlayById(contribution.id)
+  if (contribution.type === "overlay") {
+    highlightOverlayById(contribution.id);
   }
 }
 
 // AI : Handle contribution leave - remove overlay highlight
 function handleContributionLeave(contribution: LatestContribution) {
-  if (contribution.type === 'overlay') {
-    removeOverlayHighlight(contribution.id)
+  if (contribution.type === "overlay") {
+    removeOverlayHighlight(contribution.id);
   }
 }
 
 // AI : Handle contribution click - navigate to overlay or standalone project
 async function handleContributionClick(contribution: LatestContribution) {
-  if (contribution.type === 'overlay') {
+  if (contribution.type === "overlay") {
     // AI : Use existing overlay navigation with auto-select so accordion expands
-    await handleOverlayClickNavigation(contribution, false, true)
-  } else if (contribution.type === 'standalone') {
+    await handleOverlayClickNavigation(contribution, false, true);
+  } else if (contribution.type === "standalone") {
     // AI : Navigate to standalone project using full navigation flow (tile layer, city load, etc.)
     if (contribution.cityId && contribution.lat && contribution.lng) {
       await navigateToStandaloneProject(
         contribution.lat,
         contribution.lng,
         contribution.cityId,
-        contribution.cityName ?? '',
+        contribution.cityName ?? "",
         contribution.countryCode ?? undefined,
-        contribution.id
-      )
+        contribution.id,
+      );
     }
   }
 }
 
 // AI : Load initial data
 onMounted(() => {
-  fetchLatestContributions()
-})
+  fetchLatestContributions();
+});
 </script>
 
 <style scoped>
 /* AI : Import shared panel CSS */
-@import '../../assets/panel-common.css';
+@import "../../assets/panel-common.css";
 
 /* AI : Latest contributions panel with prototype-inspired design */
 .latest-contributions-panel {
@@ -248,13 +249,6 @@ onMounted(() => {
   font-size: 0.625rem;
 }
 
-.country-flag {
-  width: 16px;
-  height: 12px;
-  border-radius: 0.125rem;
-  flex-shrink: 0;
-}
-
 .contribution-card:hover .tap-indicator {
   color: var(--p-surface-600);
 }
@@ -265,10 +259,8 @@ onMounted(() => {
   transform: scale(0.98);
 }
 
-
 /* AI : Mobile responsive adjustments */
 @media (max-width: 768px) {
-
   .contribution-card {
     padding: 0.625rem;
     gap: 0.625rem;
