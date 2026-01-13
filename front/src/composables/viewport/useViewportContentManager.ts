@@ -427,7 +427,6 @@ export function useViewportContentManager() {
       // AI : Update/add overlays without removing existing ones
       // AI : Don't remove overlays not in overlaysData - they may be from other cities
       // AI : Overlays are only removed via clearAllOverlays on mode switch/zoom out
-      const isEditMode = overlayStore.mode === "edit";
 
       // AI : Find overlays that need rendering:
       // AI : 1. New overlays not in store
@@ -447,8 +446,25 @@ export function useViewportContentManager() {
           // AI : Skip if already in overlaysToRender
           if (overlaysToRender.some((o) => o.id === id)) continue;
 
-          // AI : In view mode, skip local-only overlays (status === null or undefined)
-          if (!isEditMode && (existing.status === null || existing.status === undefined)) {
+          // AI : Skip overlays that shouldn't be visible in current mode
+          const mode = overlayStore.mode;
+          let shouldSkip = false;
+
+          if (mode === "view") {
+            // AI : View mode: Only render approved overlays
+            shouldSkip = existing.status !== "approved";
+          } else if (mode === "moderation") {
+            // AI : Moderation mode: Render approved + pending, skip local-only and rejected
+            shouldSkip =
+              existing.status === null ||
+              existing.status === undefined ||
+              existing.status === "rejected";
+          } else if (mode === "edit") {
+            // AI : Edit mode: Skip rejected (backend handles filtering for user's own pending)
+            shouldSkip = existing.status === "rejected";
+          }
+
+          if (shouldSkip) {
             continue;
           }
 
@@ -583,16 +599,45 @@ export function useViewportContentManager() {
         const hasLoadedOverlays = Object.keys(overlayStore.overlays).length > 0;
         const hasLoadedContent = loadedCityIds.value.size > 0;
 
-        // AI : CRITICAL: When switching TO view or moderation mode, hide local-only overlays
-        // AI : We unmount them (remove from map) but keep in store so they reappear in edit mode
-        if ((newMode === "view" || newMode === "moderation") && hasLoadedOverlays) {
+        // AI : CRITICAL: When switching modes, hide overlays that shouldn't be visible in the new mode
+        // AI : We unmount them (remove from map) but keep in store so they can reappear when switching modes
+        if (hasLoadedOverlays) {
+          console.log(
+            "[DEBUG MODE SWITCH]",
+            oldMode,
+            "→",
+            newMode,
+            "| Overlays:",
+            Object.keys(overlayStore.overlays).length,
+          );
+
           for (const [id, overlay] of Object.entries(overlayStore.overlays)) {
-            // AI : Hide local overlays (status null OR undefined)
-            if (overlay.status === null || overlay.status === undefined) {
+            let shouldHide = false;
+
+            // AI : Determine if overlay should be hidden based on new mode
+            if (newMode === "view") {
+              // AI : View mode: Only show approved overlays
+              // AI : Hide: local-only (null/undefined), pending, rejected
+              shouldHide = overlay.status !== "approved";
+            } else if (newMode === "moderation") {
+              // AI : Moderation mode: Show approved + pending from all users
+              // AI : Hide: local-only (null/undefined), rejected
+              shouldHide =
+                overlay.status === null ||
+                overlay.status === undefined ||
+                overlay.status === "rejected";
+            } else if (newMode === "edit") {
+              // AI : Edit mode: Show approved + user's own pending
+              // AI : Hide: rejected, other users' pending (backend reload will handle this correctly)
+              // AI : For now, hide rejected overlays. Backend reload will provide correct data.
+              shouldHide = overlay.status === "rejected";
+            }
+
+            if (shouldHide) {
               if (overlay.overlay) overlay.overlay.remove();
               if (overlay.marker) overlay.marker.remove();
               overlayStore.updateOverlay(id, { overlay: null, marker: null });
-              // AI : CRITICAL: Clear from allMarkers cache so it can be recreated when switching back to edit mode
+              // AI : CRITICAL: Clear from allMarkers cache so it can be recreated when switching back
               delete overlayStore.allMarkers[id];
             }
           }

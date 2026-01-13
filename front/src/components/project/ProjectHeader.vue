@@ -25,29 +25,8 @@ interface Props {
 
 const props = defineProps<Props>();
 
-// AI : Get badge severity based on status
-function getStatusSeverity(status: string | null): string {
-  switch (status) {
-    case "approved": {
-      return "success";
-    }
-    case "rejected": {
-      return "danger";
-    }
-    case "pending": {
-      return "warn";
-    }
-    case "replaced": {
-      return "secondary";
-    }
-    case null: {
-      return "info";
-    } // AI : Unsubmitted local projects
-    default: {
-      return "info";
-    }
-  }
-}
+// AI : Import shared utility
+import { getStatusSeverity } from "@/utils/statusHelpers";
 </script>
 
 <style scoped>
