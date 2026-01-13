@@ -2,7 +2,7 @@ import L from "leaflet";
 import { createStandaloneProjectIcon } from "@/composables/map/useMarkers";
 import type { Project } from "@/types/index";
 import { createProjectObject } from "@/utils/typeFactories";
-import { ref, watch } from "vue";
+import { ref, watch, markRaw } from "vue";
 import { t } from "@/locales";
 import { map } from "@/composables/core/useMap";
 import { mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
@@ -368,7 +368,7 @@ export function addSingleCityMarker(
   // AI : Initialize layer if needed
   let cityMarkersLayer = cityMarkersStore.getCityMarkersLayer();
   if (!cityMarkersLayer) {
-    cityMarkersLayer = L.layerGroup().addTo(map.value);
+    cityMarkersLayer = markRaw(L.layerGroup()).addTo(map.value);
     cityMarkersStore.setCityMarkersLayer(cityMarkersLayer);
     initializeCityMarkerWatcher();
   }
@@ -477,11 +477,6 @@ function addCityMarkersToMapInternal(
   const cityMarkersStore = useCityMarkersStore();
   let cityMarkersLayer = cityMarkersStore.getCityMarkersLayer();
 
-  // AI : Remove existing layer to prevent stacking
-  if (cityMarkersLayer) {
-    map.value.removeLayer(cityMarkersLayer);
-  }
-
   // AI : Determine country code from explicit parameter or derive from cities
   const countryCode = explicitCountryCode ?? (cities.length > 0 ? cities[0].countryCode : null);
 
@@ -498,9 +493,6 @@ function addCityMarkersToMapInternal(
 
   const allCities = [...cities, ...unsavedCities];
 
-  // AI : Use shared config to create markers
-  const config = getCityMarkerConfig();
-
   // AI : Filter cities for moderation mode if user is restricted
   const overlayStore = useOverlayStore();
   const authStore = useAuthStore();
@@ -516,6 +508,30 @@ function addCityMarkersToMapInternal(
     citiesToRender = citiesToRender.filter((city) => moderatedCountries.includes(city.countryCode));
   }
 
+  // AI : OPTIMIZATION: Check if we really need to update markers
+  // AI : Compare currently rendered city IDs with new city IDs
+  const currentMarkerMap = cityMarkersStore.getAllCityMarkers();
+  const currentCityIds = new Set(currentMarkerMap.keys());
+  const newCityIds = new Set(citiesToRender.map((c) => String(c.id)));
+
+  // AI : Check for sets equality (same size, same content)
+  const needsUpdate =
+    currentCityIds.size !== newCityIds.size ||
+    ![...newCityIds].every((id) => currentCityIds.has(id));
+
+  // AI : Also check if the layer exists
+  if (!needsUpdate && cityMarkersLayer && map.value.hasLayer(cityMarkersLayer)) {
+    // AI : No update needed, return early
+    return;
+  }
+
+  // AI : Remove existing layer to prevent stacking
+  if (cityMarkersLayer) {
+    map.value.removeLayer(cityMarkersLayer);
+  }
+
+  // AI : Use shared config to create markers
+  const config = getCityMarkerConfig();
   const result = createMarkerLayer(citiesToRender, config);
   cityMarkersLayer = result.layer;
   cityMarkersStore.setCityMarkersLayer(cityMarkersLayer);

@@ -241,7 +241,7 @@ async function initializeMapAndOverlays() {
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: black;
+  background-color: rgb(221, 221, 221);
 }
 
 .loading-content {
