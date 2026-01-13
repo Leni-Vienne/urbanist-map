@@ -36,48 +36,20 @@ export const markerColors: Record<MarkerColor, string> = {
 };
 
 // AI : Simple functions to generate variants from base color
-function lightenColor(color: string, amount: number): string {
-  const hex = color.slice(1);
-  const num = Number.parseInt(hex, 16);
-  let r = (num >> 16) + amount;
-  let g = ((num >> 8) & 0x00_ff) + amount;
-  let b = (num & 0x00_00_ff) + amount;
-  r = Math.max(0, Math.min(255, r));
-  g = Math.max(0, Math.min(255, g));
-  b = Math.max(0, Math.min(255, b));
-  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
-}
-
-function darkenColor(color: string, amount: number): string {
-  return lightenColor(color, -amount);
-}
+// AI : NOTE: Global SVGs in MapSvgDefs.vue use these colors but compute them locally.
+// AI : We keep markerColors export for consistency/reuse.
 
 // AI : Simple marker creation - one base color, generate everything else
 // AI : Used for city markers, country markers (generic map markers)
+// AI : Simple marker creation - references global defs in MapSvgDefs.vue
 function createMarkerSVG(color: MarkerColor): string {
-  const baseColor = markerColors[color];
-  const lightColor = lightenColor(baseColor, 40);
-  const darkColor = darkenColor(baseColor, 40);
   const width = markerSize;
   const height = Math.round(markerSize * 1.6);
 
+  // AI : References globally defined gradients in MapSvgDefs.vue
+  // AI : IDs format: g-[color] and shadow-grad-[color]
   return `
     <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 50 82" role="img" aria-label="Map pin">
-      <defs>
-        <!-- Simple gradient for marker body -->
-        <linearGradient id="g-${color}" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stop-color="${lightColor}"/>
-          <stop offset="55%" stop-color="${baseColor}"/>
-          <stop offset="100%" stop-color="${darkColor}"/>
-        </linearGradient>
-
-        <!-- Shadow gradient -->
-        <linearGradient id="shadow-grad-${color}" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stop-color="black" stop-opacity="0.35"/>
-          <stop offset="100%" stop-color="black" stop-opacity="0"/>
-        </linearGradient>
-      </defs>
-
       <!-- Cast shadow (skewed ellipse to the right) -->
       <ellipse cx="38" cy="80" rx="18" ry="6"
                fill="url(#shadow-grad-${color})" transform="rotate(-8 38 80)"/>
@@ -98,29 +70,11 @@ function createMarkerSVG(color: MarkerColor): string {
 
 // AI : Overlay marker with picture frame icon to indicate images/overlays
 function createOverlayMarkerSVG(color: MarkerColor): string {
-  const baseColor = markerColors[color];
-  const lightColor = lightenColor(baseColor, 40);
-  const darkColor = darkenColor(baseColor, 40);
   const width = 32;
   const height = 40;
 
   return `
         <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 50 82" role="img" aria-label="Map pin">
-      <defs>
-        <!-- Simple gradient for marker body -->
-        <linearGradient id="g-${color}" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stop-color="${lightColor}"/>
-          <stop offset="55%" stop-color="${baseColor}"/>
-          <stop offset="100%" stop-color="${darkColor}"/>
-        </linearGradient>
-        
-        <!-- Shadow gradient -->
-        <linearGradient id="shadow-grad-${color}" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stop-color="black" stop-opacity="0.35"/>
-          <stop offset="100%" stop-color="black" stop-opacity="0"/>
-        </linearGradient>
-      </defs>
-
       <!-- Cast shadow (skewed ellipse to the right) -->
       <ellipse cx="38" cy="80" rx="18" ry="6"
                fill="url(#shadow-grad-${color})" transform="rotate(-8 38 80)"/>
@@ -149,29 +103,11 @@ function createOverlayMarkerSVG(color: MarkerColor): string {
 
 // AI : Simple standalone project marker - standard look for projects without overlays
 function createStandaloneProjectMarkerSVG(color: MarkerColor): string {
-  const baseColor = markerColors[color];
-  const lightColor = lightenColor(baseColor, 40);
-  const darkColor = darkenColor(baseColor, 40);
   const width = markerSize;
   const height = Math.round(markerSize * 1.6);
 
   return `
     <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 50 82" role="img" aria-label="Project marker">
-      <defs>
-        <!-- Simple gradient for marker body -->
-        <linearGradient id="g-${color}-standalone" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stop-color="${lightColor}"/>
-          <stop offset="55%" stop-color="${baseColor}"/>
-          <stop offset="100%" stop-color="${darkColor}"/>
-        </linearGradient>
-
-        <!-- Shadow gradient -->
-        <linearGradient id="shadow-grad-${color}-standalone" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stop-color="black" stop-opacity="0.35"/>
-          <stop offset="100%" stop-color="black" stop-opacity="0"/>
-        </linearGradient>
-      </defs>
-
       <!-- Cast shadow (skewed ellipse to the right) -->
       <ellipse cx="38" cy="80" rx="18" ry="6"
                fill="url(#shadow-grad-${color}-standalone)" transform="rotate(-8 38 80)"/>

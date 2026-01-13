@@ -40,7 +40,7 @@ async function populateInitialCounts() {
           .update(cities)
           .set({ approvedProjectCount: Number(projectCount) })
           .where(eq(cities.id, cityId));
-        updatedCount++;
+        updatedCount += 1;
       }
     }
 

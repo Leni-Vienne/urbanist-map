@@ -1,5 +1,5 @@
 import L from "leaflet";
-import { ref, shallowRef } from "vue";
+import { ref, shallowRef, markRaw } from "vue";
 import { debounce } from "@/utils/debounce";
 
 // ShallowRef is used to avoid reactivity issues with Leaflet, see https://stackoverflow.com/a/73588115/12498040
@@ -42,18 +42,24 @@ function calculateMinZoom(): number {
 }
 
 export function initializeMap() {
-  map.value = L.map("mapDiv", {
-    center: [22, 10], // Initializing with center and zoom to avoid setView call
-    zoom: calculateMinZoom(),
-    minZoom: calculateMinZoom(),
-    maxZoom: 22,
-    zoomControl: false, // Because we have our own zoom control
-    maxBounds: L.latLngBounds([-85, -180], [85, 180]),
-    maxBoundsViscosity: 0.8, // Gently bounce back
-    touchZoom: true, // True otherwise the website is zoomed instead of the map on mobile,
-    keyboard: false,
-  });
+  map.value = markRaw(
+    L.map("mapDiv", {
+      center: [22, 10], // Initializing with center and zoom to avoid setView call
+      zoom: calculateMinZoom(),
+      minZoom: calculateMinZoom(),
+      maxZoom: 22,
+      zoomControl: false, // Because we have our own zoom control
+      maxBounds: L.latLngBounds([-85, -180], [85, 180]),
+      maxBoundsViscosity: 0.8, // Gently bounce back
+      touchZoom: true, // True otherwise the website is zoomed instead of the map on mobile,
+      keyboard: false,
+      fadeAnimation: true,
+      markerZoomAnimation: true,
+    }),
+  );
   if (!map.value) throw new Error("No map element found");
+
+  L.control.scale().addTo(map.value);
 
   // AI : Initialize reactive zoom level with Leaflet's default
   currentZoomLevel.value = map.value.getZoom();
@@ -71,7 +77,6 @@ export function initializeMap() {
   // AI : Update map size when window is resized (debounced to trigger only on resize end)
   globalThis.addEventListener("resize", debouncedUpdateMapSize);
 
-  L.control.scale().addTo(map.value);
   // AI : Ensure the map initialization is complete
   if (map.value !== null) {
     map.value.invalidateSize();
