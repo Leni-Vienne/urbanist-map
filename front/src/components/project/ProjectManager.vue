@@ -52,6 +52,7 @@ import {
   updateStandaloneProjectMarkerColor,
   addSingleCityMarker,
   addCityMarkersForCountry,
+  citiesWithProjects,
 } from "@/composables/map/useCityMarkers";
 import { createProjectInfoTeleportTarget } from "@/composables/map/useProjectPopupTeleport";
 import {
@@ -405,6 +406,18 @@ async function displayProjectMarkerAndPopup(
       overlayStore.hideInfoPopup();
     }
     uiStore.openProjectInfoPopup(projectId, projectStore.projects[projectId]);
+
+    // AI : Zoom to the marker position to show the newly created project
+    const project = projectStore.projects[projectId];
+    if (project?.lat && project?.lng && map.value) {
+      const currentZoom = map.value.getZoom();
+      // AI : Zoom to 16 if current zoom is less, otherwise keep current zoom
+      const targetZoom = Math.max(currentZoom, 16);
+      map.value.setView([project.lat, project.lng], targetZoom, {
+        animate: true,
+        duration: 1.0,
+      });
+    }
   }
 }
 
@@ -415,6 +428,27 @@ async function handleNewProjectCreation(project: Partial<Project>): Promise<stri
     isModified: true,
   });
   uiStore.setLastCreatedProject(projectId);
+
+  // AI : CRITICAL FIX: Add city to citiesWithProjects so viewport manager knows to load it
+  // AI : This ensures standalone markers reappear after zoom out/in cycle
+  if (project.city && project.cityId) {
+    const cityExists = citiesWithProjects.value.some((c) => c.id === project.cityId);
+
+    if (!cityExists) {
+      citiesWithProjects.value = [
+        ...citiesWithProjects.value,
+        {
+          id: project.cityId,
+          name: project.city.name,
+          nameLocal: project.city.nameLocal ?? null,
+          lat: project.city.coordinates.y,
+          lng: project.city.coordinates.x,
+          countryCode: project.city.countryCode,
+          projectCount: 0,
+        },
+      ];
+    }
+  }
 
   const hasNoOverlays = !project.overlayIds || project.overlayIds.length === 0;
   if (hasNoOverlays && project.lat && project.lng && project.city) {
