@@ -1,6 +1,6 @@
 // AI : Standalone project marker management - extracted to avoid circular dependencies
 import L from "leaflet";
-import { watch } from "vue";
+import { watch, markRaw } from "vue";
 import type { Project } from "@/types/index";
 import { map } from "@/composables/core/useMap";
 import { createStandaloneProjectIcon } from "@/composables/map/useMarkers";
@@ -218,7 +218,7 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
 
   // AI : Ensure standalone project layer exists
   if (!standaloneProjectsLayer) {
-    standaloneProjectsLayer = L.layerGroup();
+    standaloneProjectsLayer = markRaw(L.layerGroup());
     standaloneProjectsLayer.addTo(map.value);
   }
 
@@ -237,10 +237,12 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
   const markerIcon = createStandaloneProjectIcon(markerColor);
 
   // AI : Create marker with default opacity
-  const marker = L.marker([project.lat, project.lng], {
-    icon: markerIcon,
-    opacity: MARKER_OPACITY.standalone.default,
-  });
+  const marker = markRaw(
+    L.marker([project.lat, project.lng], {
+      icon: markerIcon,
+      opacity: MARKER_OPACITY.standalone.default,
+    }),
+  );
 
   // AI : Prevent double-click zoom on markers
   marker.on("dblclick", (e) => {
