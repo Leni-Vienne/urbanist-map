@@ -34,12 +34,13 @@
 
 <script setup lang="ts">
 import { defineAsyncComponent } from "vue";
-import LatestContributionsPanel from "./LatestContributionsPanel.vue";
 import type { PanelTab } from "@/types";
 import { useAuthStore } from "@/stores/authStore";
 
+import LatestContributionsPanel from "./LatestContributionsPanel.vue";
+import CurrentLocationPanel from "./CurrentLocationPanel.vue";
+
 // AI : Lazy load panels to reduce initial bundle size
-const CurrentLocationPanel = defineAsyncComponent(() => import("./CurrentLocationPanel.vue"));
 const ModerationPanel = defineAsyncComponent(() => import("./ModerationPanel.vue"));
 const ContributePanel = defineAsyncComponent(() => import("./ContributePanel.vue"));
 
