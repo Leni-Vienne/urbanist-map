@@ -7,6 +7,7 @@ import { t } from "@/locales";
 import { map } from "@/composables/core/useMap";
 import { mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
 import { useSelectedProject } from "@/composables/project/useProjectSelection";
+import { loadCityDataForNavigation } from "@/composables/navigation/useCityDataLoader";
 import type { RouterOutput } from "@/client";
 
 import { useAuthStore } from "@/stores/authStore";
@@ -385,20 +386,23 @@ function getCityMarkerConfig(): MarkerLayerConfig<CityWithProjects> {
       const { requestScrollTo } = useAccordionState();
       requestScrollTo("city", city.id);
 
+      // AI : CRITICAL FIX: Load city data immediately BEFORE the flight animation
+      // AI : This ensures data loads even if the user interrupts the flight
+      // AI : forceFullOverlays=true because we may already be at high zoom
+      await loadCityDataForNavigation(city.id, true);
+
       // AI : Zoom to the city marker position
       if (map.value && map.value.getZoom() < 14) {
         mobileAwareFlyTo([city.lat, city.lng], 14, {
           duration: 1.5,
         });
-        // AI : moveend event will trigger viewport refresh automatically
+        // AI : moveend event will trigger viewport refresh, but data is already cached
       } else if (map.value) {
-        // AI : Already at zoom 14+, no zoom will happen
-        // AI : Trigger a tiny pan to fire moveend event which will load content
-        // AI : This avoids circular dependency from importing useViewportContentManager
-
-        const center = map.value.getCenter();
-        // AI : Pan by 0.00001 degrees (imperceptible) to trigger moveend
-        map.value.panTo([center.lat + 0.000_01, center.lng], { animate: false });
+        // AI : Already at zoom 14+, data is already loaded above
+        // AI : Just pan slightly to center on the city marker
+        mobileAwareFlyTo([city.lat, city.lng], map.value.getZoom(), {
+          duration: 0.5,
+        });
       }
     },
   };
