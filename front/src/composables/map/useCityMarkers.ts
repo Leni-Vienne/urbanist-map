@@ -2,7 +2,7 @@ import L from "leaflet";
 import { createStandaloneProjectIcon } from "@/composables/map/useMarkers";
 import type { Project } from "@/types/index";
 import { createProjectObject } from "@/utils/typeFactories";
-import { ref, watch, markRaw } from "vue";
+import { ref, watch } from "vue";
 import { t } from "@/locales";
 import { map } from "@/composables/core/useMap";
 import { mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
@@ -368,7 +368,7 @@ export function addSingleCityMarker(
   // AI : Initialize layer if needed
   let cityMarkersLayer = cityMarkersStore.getCityMarkersLayer();
   if (!cityMarkersLayer) {
-    cityMarkersLayer = markRaw(L.layerGroup()).addTo(map.value);
+    cityMarkersLayer = L.layerGroup().addTo(map.value);
     cityMarkersStore.setCityMarkersLayer(cityMarkersLayer);
     initializeCityMarkerWatcher();
   }

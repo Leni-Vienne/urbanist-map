@@ -5,8 +5,6 @@
 // AI : These functions handle creating, positioning, and styling overlay markers
 // AI : ============================================================================
 
-import { markRaw } from "vue";
-
 import L from "leaflet";
 import { map } from "@/composables/core/useMap";
 import { getOverlayMarkerColor, createOverlayIcon } from "@/composables/map/useMarkers";
@@ -313,8 +311,8 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
     });
   }
 
-  overlayStore.allMarkers[savedOverlay.id] = markRaw(marker);
-  tempOverlayObject.marker = markRaw(marker);
+  overlayStore.allMarkers[savedOverlay.id] = marker;
+  tempOverlayObject.marker = marker;
   // AI : Pass pre-calculated markerColor to avoid redundant getOverlayMarkerColor call
   updateMarkerTooltip(tempOverlayObject, markerColor);
 }
@@ -356,8 +354,8 @@ export function createMarker(overlayObject: OverlayObject): void {
   });
 
   // AI : Store marker reference
-  overlayObject.marker = markRaw(marker);
-  overlayStore.allMarkers[overlayObject.id] = markRaw(marker);
+  overlayObject.marker = marker;
+  overlayStore.allMarkers[overlayObject.id] = marker;
 
   // AI : Update marker tooltip with proper styling
   updateMarkerTooltip(overlayObject);

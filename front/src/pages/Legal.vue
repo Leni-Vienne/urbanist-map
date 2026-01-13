@@ -11,20 +11,6 @@
 
       <h1>{{ t("pages.legal.title") }}</h1>
 
-      <!-- AI : Publisher identity - required by French law -->
-      <section>
-        <h2>{{ t("pages.legal.publisher.title") }}</h2>
-        <p>{{ t("pages.legal.publisher.content") }}</p>
-        <ul>
-          <li>
-            <strong>{{ t("common.name") }}:</strong> Léni Vienne
-          </li>
-          <li>
-            <strong>{{ t("common.email") }}:</strong> {{ email }}
-          </li>
-        </ul>
-      </section>
-
       <!-- AI : Data collection -->
       <section>
         <h2>{{ t("pages.legal.dataCollection.title") }}</h2>
