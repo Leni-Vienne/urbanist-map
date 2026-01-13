@@ -48,7 +48,6 @@ import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { map } from "@/composables/core/useMap";
 import {
-  loadCityProjects,
   updateStandaloneProjectMarkerColor,
   addSingleCityMarker,
   addCityMarkersForCountry,
@@ -64,6 +63,7 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { createStandaloneProjectIcon } from "@/composables/map/useMarkers";
 import { addOverlay } from "@/composables/overlay/useOverlay";
 import { createProject } from "@/composables/project/useProjects";
+import { loadCityDataForNavigation } from "@/composables/navigation/useCityDataLoader";
 import { createProjectObjectFromAPI, createProjectObject } from "../../utils/typeFactories";
 import { useCityProjects } from "@/composables/project/useProjectSelection";
 import type { Project, NearbyProject } from "@/types/index";
@@ -387,7 +387,10 @@ async function displayProjectMarkerAndPopup(
   },
 ) {
   await ensureCityMarkersForProject(city, true);
-  await loadCityProjects(city.id, city.name, city.nameLocal, true, city.countryCode);
+
+  // AI : Load city data to mark it as active in loadedCityIds
+  // AI : This ensures the city's content persists when zooming out (active city preservation)
+  await loadCityDataForNavigation(city.id, true);
 
   let actualMarker = getStandaloneProjectMarkerByProjectId(projectId);
 
