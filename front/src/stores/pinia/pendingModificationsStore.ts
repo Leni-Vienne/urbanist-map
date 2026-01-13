@@ -2,6 +2,7 @@
 // AI : Single source of truth for all overlay changes (position, caption) from any UI surface
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
+import type { ApprovalStatus } from "@shared/types";
 
 // AI : Types for tracking modifications
 export type CornersChange = {
@@ -17,7 +18,7 @@ export type CaptionChange = {
 export type PendingOverlayModification = {
   overlayId: string;
   projectId: string | null;
-  overlayStatus: "pending" | "approved" | "rejected";
+  overlayStatus: ApprovalStatus;
   corners?: CornersChange;
   caption?: CaptionChange;
 };
@@ -32,7 +33,7 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
     projectId: string | null,
     currentCorners: { lat: number; lng: number }[],
     originalCorners: { lat: number; lng: number }[],
-    overlayStatus: "pending" | "approved" | "rejected",
+    overlayStatus: ApprovalStatus,
   ): void {
     const existing = modifications.value.get(overlayId);
 
@@ -56,7 +57,7 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
     projectId: string | null,
     currentCaption: string,
     originalCaption: string | null,
-    overlayStatus: "pending" | "approved" | "rejected",
+    overlayStatus: ApprovalStatus,
   ): void {
     const existing = modifications.value.get(overlayId);
 

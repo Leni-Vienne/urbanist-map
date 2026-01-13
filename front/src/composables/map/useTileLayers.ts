@@ -196,27 +196,13 @@ export function isTileLayerType(value: string): value is TileLayerType {
 export function prepareCrossCountryFlight(targetCountryCode: string | null): (() => void) | null {
   // AI : Check if this is a cross-country navigation
   const isCrossCountry = currentCountryCode !== targetCountryCode;
-
   if (isCrossCountry) {
-    // AI : Switch to OSM immediately for global coverage during flight
-    if (currentTileLayer.value !== "osm") {
-      switchTileLayer("osm");
-    }
-
-    // AI : Update current country
+    // AI : Update current country but DO NOT switch layers automatically
+    // AI : User preference for layer (e.g. Satellite) should persist
     currentCountryCode = targetCountryCode;
-
-    // AI : Return callback to switch to target country layer after flight
-    return () => {
-      const targetLayer =
-        targetCountryCode && isTileLayerType(targetCountryCode) ? targetCountryCode : "osm";
-
-      if (currentTileLayer.value !== targetLayer) {
-        switchTileLayer(targetLayer);
-      }
-    };
+    // AI : Return null callback as no post-flight switching is needed anymore
+    return null;
   }
-
   // AI : Same country navigation - no tile layer changes needed
   return null;
 }

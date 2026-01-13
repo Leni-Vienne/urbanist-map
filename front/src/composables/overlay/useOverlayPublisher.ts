@@ -150,46 +150,6 @@ export function useOverlayPublisher() {
     }
   }
 
-  // AI : Publish overlay metadata to server
-  async function publishOverlayToServer(
-    overlay: OverlayObject,
-    filename: string,
-  ): Promise<{
-    success: boolean;
-    exists: boolean;
-    id?: string;
-    status?: string;
-    authorId?: string | null;
-  }> {
-    if (!overlay.projectId) {
-      throw new Error("Cannot publish overlay: projectId is required");
-    }
-
-    const corners = getCornersFromOverlay(overlay);
-    const payload = {
-      id: overlay.id,
-      filename: filename,
-      caption: overlay.caption ?? undefined,
-      projectId: overlay.projectId,
-      replacesOverlayId: overlay.replacesOverlayId ?? undefined,
-      corners: corners.map((c) => ({ lat: c.lat, lng: c.lng })),
-    };
-
-    const overlayResult = await trpc.overlay.publishOverlay.mutate(payload);
-
-    if (overlayResult.success) {
-      return {
-        success: true,
-        exists: overlayResult.exists,
-        id: overlayResult.id,
-        status: overlayResult.status,
-        authorId: overlayResult.authorId,
-      };
-    }
-
-    return { success: false, exists: false };
-  }
-
   // AI : Synchronize overlay ID change across all stores and references
   function synchronizeOverlayIdChange(
     overlay: OverlayObject,
@@ -297,7 +257,21 @@ export function useOverlayPublisher() {
       const filename = await prepareImageForServer(overlay);
 
       // AI : Step 3 - Publish overlay metadata
-      const publishResult = await publishOverlayToServer(overlay, filename);
+      if (!overlay.projectId) {
+        throw new Error("Cannot publish overlay: projectId is required");
+      }
+
+      const corners = getCornersFromOverlay(overlay);
+      const payload = {
+        id: overlay.id,
+        filename: filename,
+        caption: overlay.caption ?? undefined,
+        projectId: overlay.projectId,
+        replacesOverlayId: overlay.replacesOverlayId ?? undefined,
+        corners: corners.map((c) => ({ lat: c.lat, lng: c.lng })),
+      };
+
+      const publishResult = await trpc.overlay.publishOverlay.mutate(payload);
 
       // AI : Step 4 - Handle successful publish result
       if (publishResult.success && publishResult.id) {
@@ -306,7 +280,7 @@ export function useOverlayPublisher() {
 
         // AI : Update overlay properties with server response
         overlay.id = newId;
-        overlay.status = publishResult.status as ApprovalStatus;
+        overlay.status = publishResult.status;
         overlay.authorId = publishResult.authorId ?? null;
         overlay.isModified = false;
 
