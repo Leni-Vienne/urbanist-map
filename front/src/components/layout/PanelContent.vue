@@ -2,33 +2,38 @@
   <!-- AI : Panel content -->
   <div :class="contentContainerClass">
     <!-- AI : Show content based on active tab -->
-    <LatestContributionsPanel v-if="activeTab === 'latest'" />
-    <CurrentLocationPanel v-else-if="activeTab === 'currentLocation'" />
-    <ContributePanel v-else-if="activeTab === 'contribute' && authStore.isAuthenticated" />
-    <ModerationPanel v-else-if="activeTab === 'moderation' && authStore.isModerator" />
+    <!-- AI : KeepAlive preserves component state (scroll, data) when switching tabs -->
+    <KeepAlive>
+      <LatestContributionsPanel v-if="activeTab === 'latest'" />
+      <CurrentLocationPanel v-else-if="activeTab === 'currentLocation'" />
+      <ContributePanel v-else-if="activeTab === 'contribute' && authStore.isAuthenticated" />
+      <ModerationPanel v-else-if="activeTab === 'moderation' && authStore.isModerator" />
 
-    <!-- AI : Show sign-in prompt for uploads and moderation tabs when not authenticated/authorized -->
-    <div
-      v-else-if="
-        (activeTab === 'contribute' && !authStore.isAuthenticated) ||
-        (activeTab === 'moderation' && !authStore.isModerator)
-      "
-      class="signin-prompt"
-    >
-      <div class="signin-content">
-        <i class="pi pi-user text-4xl text-muted-color mb-4"></i>
-        <h3 class="text-lg font-semibold mb-2">
-          {{
-            authStore.isAuthenticated
-              ? $t("auth.moderationAccessRequired")
-              : $t("auth.authenticationRequired")
-          }}
-        </h3>
-        <p class="text-muted-color text-sm mb-4 text-center">
-          {{ authStore.isAuthenticated ? $t("auth.moderationMessage") : $t("auth.signInMessage") }}
-        </p>
+      <!-- AI : Show sign-in prompt for uploads and moderation tabs when not authenticated/authorized -->
+      <div
+        v-else-if="
+          (activeTab === 'contribute' && !authStore.isAuthenticated) ||
+          (activeTab === 'moderation' && !authStore.isModerator)
+        "
+        class="signin-prompt"
+      >
+        <div class="signin-content">
+          <i class="pi pi-user text-4xl text-muted-color mb-4"></i>
+          <h3 class="text-lg font-semibold mb-2">
+            {{
+              authStore.isAuthenticated
+                ? $t("auth.moderationAccessRequired")
+                : $t("auth.authenticationRequired")
+            }}
+          </h3>
+          <p class="text-muted-color text-sm mb-4 text-center">
+            {{
+              authStore.isAuthenticated ? $t("auth.moderationMessage") : $t("auth.signInMessage")
+            }}
+          </p>
+        </div>
       </div>
-    </div>
+    </KeepAlive>
   </div>
 </template>
 

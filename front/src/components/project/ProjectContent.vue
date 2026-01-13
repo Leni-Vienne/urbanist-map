@@ -309,6 +309,8 @@ function handleOverlayContributorClick(
 import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
 const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
+import { getStatusSeverity } from "@/utils/statusHelpers";
+
 async function handleOverlayCardClick(overlay: OverlayForModeration, shouldFitBounds: boolean) {
   if (props.onOverlayClick) {
     await props.onOverlayClick(overlay, shouldFitBounds);
@@ -338,24 +340,6 @@ function getOverlayChangeRequestsForOverlay(overlayId: string): PendingChangeReq
   return props.allChangeRequests.filter(
     (request) => request.entityType === "overlay" && request.entityId === overlayId,
   );
-}
-
-function getStatusSeverity(status: string | null): string {
-  // Copied from parent/header - ideally shared but small enough duplication
-  switch (status) {
-    case "approved":
-      return "success";
-    case "rejected":
-      return "danger";
-    case "pending":
-      return "warn";
-    case "replaced":
-      return "secondary";
-    case null:
-      return "info";
-    default:
-      return "info";
-  }
 }
 
 function getOverlayImageUrl(filename: string, status?: string | null): string {
