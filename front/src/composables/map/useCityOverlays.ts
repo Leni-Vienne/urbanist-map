@@ -1,5 +1,5 @@
 // AI : City-specific overlay management - handles loading and displaying overlays for cities
-import { ref } from "vue";
+import { ref, markRaw } from "vue";
 import L from "leaflet";
 import { map } from "@/composables/core/useMap";
 import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
@@ -29,7 +29,7 @@ export function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void 
   const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData);
 
   // AI : Create new layer group for overlay markers
-  overlayMarkersLayer = L.layerGroup();
+  overlayMarkersLayer = markRaw(L.layerGroup());
 
   // AI : Add simple markers for each visible overlay location
   for (const overlay of visibleOverlays) {
@@ -53,7 +53,9 @@ export function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void 
     const markerColor = getOverlayMarkerColor(overlayWithModFlag, overlayStore.mode);
 
     const markerIcon = createOverlayIcon(markerColor);
-    const marker = L.marker([resolved.position.lat, resolved.position.lng], { icon: markerIcon });
+    const marker = markRaw(
+      L.marker([resolved.position.lat, resolved.position.lng], { icon: markerIcon }),
+    );
 
     // AI : Add click handler to fly to overlay position and open toolbar
     marker.on("click", (e) => {
