@@ -220,7 +220,22 @@ export function createLeafletOverlay(
 
         // AI : Only add to map if zoom is appropriate (zoom handler will manage later changes)
         if (shouldShowImage) {
+          // AI : CRITICAL: Check if already on map to prevent duplicates
+          // AI : This can happen when renderFullOverlays is called multiple times before onAddedToMap callback completes
+          if (map.value.hasLayer(newOverlay)) {
+            return;
+          }
+
           newOverlay.addTo(map.value);
+        } else {
+          // AI : Zoom is too low - overlay won't be added to map
+          // AI : Remove from in-progress tracking since onAddedToMap will never fire
+          overlaysBeingCreated.delete(overlayObject.id);
+          console.log(
+            "[DEBUG] NOT adding overlay to map (zoom too low):",
+            overlayObject.id,
+            "- removed from in-progress set",
+          );
         }
       }
     };
@@ -537,6 +552,21 @@ export function renderViewModeOverlays(
 }
 
 /**
+ * AI : Track overlays currently being created to prevent duplicates
+ * AI : When renderSingleOverlay is called multiple times before onAddedToMap callback fires,
+ * AI : this prevents creating multiple Leaflet objects for the same overlay ID
+ */
+const overlaysBeingCreated = new Set<string>();
+
+/**
+ * AI : Clear the in-progress tracking set
+ * AI : Called by clearAllOverlays to prevent stale entries when overlays are removed from map
+ */
+export function clearOverlaysBeingCreated(): void {
+  overlaysBeingCreated.clear();
+}
+
+/**
  * AI : Render a single CDN overlay as read-only distortable overlay on the map
  */
 function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
@@ -550,7 +580,18 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   const existingOverlay = overlayStore.overlays[cdnOverlay.id];
   const hasValidLayer = existingOverlay && existingOverlay.overlay !== null;
 
-  if (!map.value || hasValidLayer) return;
+  // AI : CRITICAL: Also check if this overlay is currently being created
+  // AI : This prevents duplicates when renderFullOverlays is called multiple times rapidly
+  const isBeingCreated = overlaysBeingCreated.has(cdnOverlay.id);
+
+  if (!map.value || hasValidLayer || isBeingCreated) {
+    if (isBeingCreated) {
+      return;
+    }
+  }
+
+  // AI : Mark this overlay as being created
+  overlaysBeingCreated.add(cdnOverlay.id);
 
   // AI : Always use backend data to create overlay object (cached positions applied later via applyPositionToOverlay)
   const overlayObject = createOverlayFromCDN(cdnOverlay);
@@ -569,6 +610,9 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
     // AI : Store overlay with proper reactivity - but ONLY after it's on the map
     overlayStore.addOverlay(cdnOverlay.id, overlayObjectWithMethods);
 
+    // AI : Remove from in-progress tracking now that it's in the store
+    overlaysBeingCreated.delete(cdnOverlay.id);
+
     // AI : Remove standalone project marker for this project since we now have an overlay visible
     // AI : This handles the case where a project had only pending overlays (shown as a standalone project marker in view mode)
     // AI : and the user switched to edit mode (pending overlays now visible, so standalone project marker should be removed)
@@ -582,7 +626,12 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
     overlayObjectWithMethods,
     onAddedToMap,
   );
-  if (!newOverlay) return;
+
+  if (!newOverlay) {
+    // AI : Creation failed - remove from in-progress tracking
+    overlaysBeingCreated.delete(cdnOverlay.id);
+    return;
+  }
 
   overlayObjectWithMethods.overlay = markRaw(newOverlay);
 

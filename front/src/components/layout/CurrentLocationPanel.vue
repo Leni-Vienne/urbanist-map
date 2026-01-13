@@ -29,7 +29,7 @@
     />
 
     <!-- AI : City list -->
-    <div v-else class="city-list">
+    <div v-else ref="cityListRef" class="city-list">
       <button
         v-for="city in citiesInCountry"
         :key="city.id"
@@ -52,6 +52,7 @@
   <!-- AI : City selected - show project list -->
   <ProjectAccordionPanel
     v-else
+    ref="projectPanelRef"
     :projects="projectsWithOverlays"
     :is-loading="false"
     :on-overlay-click="handleOverlayClick"
@@ -98,7 +99,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, onMounted } from "vue";
+import { computed, watch, onMounted, ref, onActivated, onDeactivated, nextTick } from "vue";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -128,6 +129,39 @@ const { expandAccordionForOverlay } = useAccordionState();
 
 // AI : Use shared composable for add overlay button
 const { handleAddOverlayClick } = useAddOverlay();
+
+// AI : Scroll state preservation
+const cityListRef = ref<HTMLElement | null>(null);
+const projectPanelRef = ref<any | null>(null); // AI : Type as any to access $el
+const savedScrollTop = ref(0);
+const savedScrollTarget = ref<"city" | "project" | null>(null);
+
+// AI : Helper to find the actual scrolling element
+function findScrollableElement(startElement: HTMLElement | null): HTMLElement | null {
+  if (!startElement) return null;
+
+  if (
+    startElement.scrollHeight > startElement.clientHeight &&
+    (getComputedStyle(startElement).overflowY === "auto" ||
+      getComputedStyle(startElement).overflowY === "scroll")
+  ) {
+    return startElement;
+  }
+
+  // AI : Check children up to a reasonable depth
+  const children = startElement.querySelectorAll("*");
+  for (const child of children) {
+    if (
+      child.scrollHeight > child.clientHeight &&
+      (getComputedStyle(child).overflowY === "auto" ||
+        getComputedStyle(child).overflowY === "scroll")
+    ) {
+      return child as HTMLElement;
+    }
+  }
+
+  return null;
+}
 
 // AI : Compute header showing "Country > City"
 const cityHeader = computed(() => {
@@ -185,7 +219,7 @@ async function handleCityClick(city: {
   // AI : Fly to the city (same behavior as city marker click)
   if (map.value && map.value.getZoom() < 14) {
     mobileAwareFlyTo([city.lat, city.lng], 14, {
-      duration: 3,
+      duration: 1.5,
     });
   }
 
@@ -321,6 +355,36 @@ watch(
     }
   },
 );
+
+// AI : Save scroll position when deactivating (tab switch)
+onDeactivated(() => {
+  if (cityListRef.value) {
+    savedScrollTop.value = cityListRef.value.scrollTop;
+    savedScrollTarget.value = "city";
+  } else if (projectPanelRef.value?.$el) {
+    const el = findScrollableElement(projectPanelRef.value.$el);
+    if (el) {
+      savedScrollTop.value = el.scrollTop;
+      savedScrollTarget.value = "project";
+    }
+  } else {
+    savedScrollTarget.value = null;
+  }
+});
+
+// AI : Restore scroll position when activating
+onActivated(() => {
+  nextTick(() => {
+    if (savedScrollTarget.value === "city" && cityListRef.value) {
+      cityListRef.value.scrollTop = savedScrollTop.value;
+    } else if (savedScrollTarget.value === "project" && projectPanelRef.value?.$el) {
+      const el = findScrollableElement(projectPanelRef.value.$el);
+      if (el) {
+        el.scrollTop = savedScrollTop.value;
+      }
+    }
+  });
+});
 </script>
 
 <style scoped>
