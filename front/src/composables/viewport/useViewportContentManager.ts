@@ -415,6 +415,22 @@ export function useViewportContentManager() {
     const mapStore = useMapStore();
     mapStore.currentCityOverlays = overlaysData;
 
+    // AI : Update existing overlay objects with fresh backend data
+    // AI : This is critical for mode switches (e.g., view → moderation) where overlays
+    // AI : are already loaded but need updated data like suggestedCorners for change requests
+    for (const overlayData of overlaysData) {
+      const existing = overlayStore.overlays[overlayData.id];
+      if (existing) {
+        overlayStore.updateOverlay(overlayData.id, {
+          hasPendingChanges: overlayData.hasPendingChanges,
+          suggestedCorners: overlayData.suggestedCorners,
+          pendingChangeRequestsCount: overlayData.pendingChangeRequestsCount,
+          // AI : Don't update corners/centroid as those are the approved positions
+          // AI : and shouldn't change when switching modes
+        });
+      }
+    }
+
     // AI : Render overlays
     const existingOverlays = overlayStore.overlays;
     const existingIds = new Set(Object.keys(existingOverlays));
