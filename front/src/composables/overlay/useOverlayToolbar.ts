@@ -68,81 +68,66 @@ function canDeleteOverlay(overlayObject: OverlayObject): boolean {
 
 /**
  * AI : Info tool - Opens overlay info popup
+ * AI : Lazy initialization to avoid module load timing issues
  */
-const infoTool = L.Toolbar2.Action.extend({
-  options: {
-    toolbarIcon: {
-      className: "pi pi-ellipsis-v",
-      tooltip: "", // AI : Will be set in initialize
-    },
-    subToolbar: new L.Toolbar2({
-      actions: [
-        L.EditAction.extend({
-          options: {
-            toolbarIcon: {
-              tooltip: "", // AI : Will be set in initialize
-              className: "more-info-popup",
+let _infoTool: any = null;
+const getInfoTool = () => {
+  if (_infoTool) return _infoTool;
+
+  _infoTool = L.Toolbar2.Action.extend({
+    options: {
+      toolbarIcon: {
+        className: "pi pi-ellipsis-v",
+        tooltip: "", // AI : Will be set in initialize
+      },
+      subToolbar: new L.Toolbar2({
+        actions: [
+          L.Toolbar2.Action.extend({
+            options: {
+              toolbarIcon: {
+                tooltip: "", // AI : Will be set in initialize
+                className: "more-info-popup",
+              },
             },
-          },
-          initialize: function () {
-            // AI : Set tooltip dynamically after i18n is ready
-            this.options.toolbarIcon.tooltip = t("toolbar.info");
-            L.EditAction.prototype.initialize?.apply(this, Array.from(arguments));
-          },
-        }),
-      ],
-    }),
-  },
-  initialize: function () {
-    // AI : Set tooltip dynamically after i18n is ready
-    this.options.toolbarIcon.tooltip = t("toolbar.info");
-    L.Toolbar2.Action.prototype.initialize?.apply(this, Array.from(arguments));
-  },
-  // very fragile code but necessary to plug into the leaflet toolbar. If you have a better idea, please contribute!
-  addHooks() {
-    const overlayStore = useOverlayStore();
-    const uiStore = useUiStore();
+            initialize: function () {
+              // AI : Set tooltip dynamically after i18n is ready
+              this.options.toolbarIcon.tooltip = t("toolbar.info");
+              L.Toolbar2.Action.prototype.initialize?.apply(this, Array.from(arguments));
+            },
+          }),
+        ],
+      }),
+    },
+    initialize: function () {
+      // AI : Set tooltip dynamically after i18n is ready
+      this.options.toolbarIcon.tooltip = t("toolbar.info");
+      L.Toolbar2.Action.prototype.initialize?.apply(this, Array.from(arguments));
+    },
+    // very fragile code but necessary to plug into the leaflet toolbar. If you have a better idea, please contribute!
+    addHooks() {
+      const overlayStore = useOverlayStore();
+      const uiStore = useUiStore();
 
-    if (!overlayStore.idSelectedOverlay) {
-      return;
-    }
+      if (!overlayStore.idSelectedOverlay) {
+        return;
+      }
 
-    // AI : Check if currently open using store state and DOM state
-    const teleportTargetExists = !!this.options.subToolbar._container?.querySelector(
-      "#info-popup-teleport-target",
-    );
-    const isCurrentlyOpen = overlayStore.showInfoPopup && teleportTargetExists;
-
-    // IMPORTANT : This if/else is need to toggle open/close the info popup and be able to open it again
-    if (isCurrentlyOpen) {
-      // AI : Close - but don't call _hide() as it breaks parent toolbar event handlers (MAYBE)
-      overlayStore.hideInfoPopup();
-
-      // AI : Remove the teleport target and restore original button
-      const teleportTarget = this.options.subToolbar._container?.querySelector(
+      // AI : Check if currently open using store state and DOM state
+      const teleportTargetExists = !!this.options.subToolbar._container?.querySelector(
         "#info-popup-teleport-target",
       );
-      if (teleportTarget?.parentNode) {
-        // AI : Clear reactive state
-        const { setOverlayPopupTarget } = usePopupState();
-        setOverlayPopupTarget(null);
+      const isCurrentlyOpen = overlayStore.showInfoPopup && teleportTargetExists;
 
-        const originalButton = document.createElement("a");
-        originalButton.className = "leaflet-toolbar-icon more-info-popup";
-        originalButton.href = "#";
-        originalButton.title = "Info";
-        originalButton.setAttribute("role", "button");
+      // IMPORTANT : This if/else is need to toggle open/close the info popup and be able to open it again
+      if (isCurrentlyOpen) {
+        // AI : Close - but don't call _hide() as it breaks parent toolbar event handlers (MAYBE)
+        overlayStore.hideInfoPopup();
 
-        teleportTarget.parentNode.replaceChild(originalButton, teleportTarget);
-      }
-    } else {
-      // AI : Open - but first clean up any stale teleport target
-      if (teleportTargetExists && !overlayStore.showInfoPopup) {
-        // AI : Store thinks popup is closed but DOM has teleport target - clean it up
-        const staleTarget = this.options.subToolbar._container?.querySelector(
+        // AI : Remove the teleport target and restore original button
+        const teleportTarget = this.options.subToolbar._container?.querySelector(
           "#info-popup-teleport-target",
         );
-        if (staleTarget?.parentNode) {
+        if (teleportTarget?.parentNode) {
           // AI : Clear reactive state
           const { setOverlayPopupTarget } = usePopupState();
           setOverlayPopupTarget(null);
@@ -150,42 +135,66 @@ const infoTool = L.Toolbar2.Action.extend({
           const originalButton = document.createElement("a");
           originalButton.className = "leaflet-toolbar-icon more-info-popup";
           originalButton.href = "#";
-          originalButton.title = t("toolbar.info");
+          originalButton.title = "Info";
           originalButton.setAttribute("role", "button");
-          staleTarget.parentNode.replaceChild(originalButton, staleTarget);
+
+          teleportTarget.parentNode.replaceChild(originalButton, teleportTarget);
         }
-      }
+      } else {
+        // AI : Open - but first clean up any stale teleport target
+        if (teleportTargetExists && !overlayStore.showInfoPopup) {
+          // AI : Store thinks popup is closed but DOM has teleport target - clean it up
+          const staleTarget = this.options.subToolbar._container?.querySelector(
+            "#info-popup-teleport-target",
+          );
+          if (staleTarget?.parentNode) {
+            // AI : Clear reactive state
+            const { setOverlayPopupTarget } = usePopupState();
+            setOverlayPopupTarget(null);
 
-      this.options.subToolbar._show();
-
-      // AI : Wait for subtoolbar to be shown before manipulating it
-      const existingButton = this.options.subToolbar._container?.querySelector(".more-info-popup");
-
-      if (existingButton?.tagName === "A") {
-        const teleportTarget = document.createElement("div");
-        teleportTarget.id = "info-popup-teleport-target";
-        // AI : Ensure teleport target doesn't interfere with map interactions
-        teleportTarget.style.cssText =
-          "pointer-events: none; position: absolute; width: 0; height: 0; overflow: visible;";
-
-        existingButton.parentNode?.replaceChild(teleportTarget, existingButton);
-
-        // AI : Set reactive state
-        const { setOverlayPopupTarget } = usePopupState();
-        setOverlayPopupTarget(teleportTarget);
-
-        // AI : Show the info popup for the selected overlay
-        if (overlayStore.idSelectedOverlay) {
-          // AI : Close project popup if it's open (only one popup at a time)
-          if (uiStore.projectInfoPopup.visible) {
-            uiStore.closeProjectInfoPopup();
+            const originalButton = document.createElement("a");
+            originalButton.className = "leaflet-toolbar-icon more-info-popup";
+            originalButton.href = "#";
+            originalButton.title = t("toolbar.info");
+            originalButton.setAttribute("role", "button");
+            staleTarget.parentNode.replaceChild(originalButton, staleTarget);
           }
-          overlayStore.showInfoPopupForOverlay(overlayStore.idSelectedOverlay);
+        }
+
+        this.options.subToolbar._show();
+
+        // AI : Wait for subtoolbar to be shown before manipulating it
+        const existingButton =
+          this.options.subToolbar._container?.querySelector(".more-info-popup");
+
+        if (existingButton?.tagName === "A") {
+          const teleportTarget = document.createElement("div");
+          teleportTarget.id = "info-popup-teleport-target";
+          // AI : Ensure teleport target doesn't interfere with map interactions
+          teleportTarget.style.cssText =
+            "pointer-events: none; position: absolute; width: 0; height: 0; overflow: visible;";
+
+          existingButton.parentNode?.replaceChild(teleportTarget, existingButton);
+
+          // AI : Set reactive state
+          const { setOverlayPopupTarget } = usePopupState();
+          setOverlayPopupTarget(teleportTarget);
+
+          // AI : Show the info popup for the selected overlay
+          if (overlayStore.idSelectedOverlay) {
+            // AI : Close project popup if it's open (only one popup at a time)
+            if (uiStore.projectInfoPopup.visible) {
+              uiStore.closeProjectInfoPopup();
+            }
+            overlayStore.showInfoPopupForOverlay(overlayStore.idSelectedOverlay);
+          }
         }
       }
-    }
-  },
-});
+    },
+  });
+
+  return _infoTool;
+};
 
 /**
  * AI : Previous overlay tool - Navigate to previous overlay in project
@@ -381,15 +390,18 @@ const replaceOverlayTool = L.Toolbar2.Action.extend({
 
 /**
  * AI : View mode tools - Tools available when not in edit mode
+ * AI : Lazy initialization to avoid module load timing issues
  */
-const viewTools = [
-  infoTool,
-  L.OpacityAction,
-  L.OpacitiesAction,
-  previousOverlayTool,
-  nextOverlayTool,
-  L.StackAction,
-];
+export function getViewTools() {
+  return [
+    getInfoTool(),
+    L.OpacityAction,
+    L.OpacitiesAction,
+    previousOverlayTool,
+    nextOverlayTool,
+    L.StackAction,
+  ];
+}
 
 /**
  * AI : Get edit tools for an overlay based on user permissions
@@ -397,7 +409,7 @@ const viewTools = [
  */
 export function getEditToolsForOverlay(overlayObject: OverlayObject) {
   const baseTools = [
-    infoTool,
+    getInfoTool(),
     undoTool,
     redoTool,
     L.ResizeRotateAction,
@@ -416,12 +428,6 @@ export function getEditToolsForOverlay(overlayObject: OverlayObject) {
     baseTools.push(customDeleteTool);
   }
 
-  return baseTools;
-}
-
-/**
- * AI : Get view mode tools
- */
-export function getViewTools() {
-  return viewTools;
+  // AI : Filter out any undefined tools to prevent toolbar errors
+  return baseTools.filter((tool) => tool !== undefined);
 }

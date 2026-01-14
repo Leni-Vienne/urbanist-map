@@ -10,7 +10,7 @@ import { trpc } from "@/client";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
 import { renderViewModeOverlays } from "@/composables/overlay/useOverlayRendering";
-import { updateOverlayEditingState } from "@/composables/overlay/useOverlay";
+import { updateOverlayEditingState } from "@/composables/overlay/useOverlayEditing";
 import { clearAllOverlays } from "@/composables/overlay/useOverlayLifecycle";
 import { updateOverlayMarkersColors } from "@/composables/map/useMarkers";
 import {

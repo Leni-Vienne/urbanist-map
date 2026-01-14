@@ -45,7 +45,7 @@ import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent } from "vue
 import { initializeMap, disableLeafletKeyboardEvents, map } from "@/composables/core/useMap";
 import { addTileLayer } from "@/composables/map/useTileLayers";
 import { initializeCameraBounds } from "@/composables/map/useMapNavigation";
-import { undo, redo } from "@/composables/overlay/useOverlay";
+import { undo, redo } from "@/composables/overlay/useOverlayEditing";
 import { setupMapClickToDeselect } from "@/composables/overlay/useOverlaySelection";
 import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
