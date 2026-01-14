@@ -70,7 +70,7 @@ export function loadAndSetLocale(locale: Locale): boolean {
 }
 
 // AI : Get browser locale or fallback to English
-export function getBrowserLocale(): Locale {
+function getBrowserLocale(): Locale {
   const browserLocale = navigator.language.split("-")[0];
   const isSupported = availableLocales.some((l) => l.code === browserLocale);
   return isSupported ? (browserLocale as Locale) : "en";
@@ -89,7 +89,7 @@ export function getStoredLocale(): Locale {
 }
 
 // AI : Check if browser's language is supported by our app
-export function isBrowserLanguageSupported(): boolean {
+function isBrowserLanguageSupported(): boolean {
   const browserLocale = navigator.language.split("-")[0];
   return availableLocales.some((l) => l.code === browserLocale);
 }

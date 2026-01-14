@@ -120,14 +120,7 @@ export function useSubmissionService() {
   const cityNamesCache = computed(() => {
     const cache: Record<string, string> = { ...projectStore.cityNamesCache };
 
-    // AI : Extract city names from original backend projects (if not already in cache)
-    for (const project of Object.values(projectStore.originalBackendProjects)) {
-      if (project.city && project.cityId && !cache[project.cityId]) {
-        cache[project.cityId] = project.city.name;
-      }
-    }
-
-    // AI : Extract from all projects (in case we have more cities)
+    // AI : Extract from all projects (includes both loaded and original cached projects)
     for (const project of Object.values(projectStore.allProjects)) {
       if (
         project.city &&

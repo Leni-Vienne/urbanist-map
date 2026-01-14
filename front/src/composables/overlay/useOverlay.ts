@@ -169,7 +169,7 @@ export function updateOverlayEditingState(): void {
  * AI : Create a Leaflet overlay on the map
  * AI : @param onAddedToMap - Optional callback invoked when overlay is successfully added to map
  */
-export function createLeafletOverlay(
+function createLeafletOverlay(
   imageUrl: string,
   overlayObject?: OverlayObject,
   onAddedToMap?: () => void,
@@ -1186,7 +1186,7 @@ function selectFirstOrLastOverlayInAnyProject(direction: "next" | "previous") {
  * @param includeIntersecting - Whether to fetch intersecting overlays (defaults to true for backward compatibility)
  * @returns true if overlay was loaded successfully
  */
-export async function loadOverlay(
+async function loadOverlay(
   overlayId: string,
   includeIntersecting: boolean = true,
 ): Promise<boolean | null> {
@@ -1288,7 +1288,7 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
   updateMarkerTooltip(overlayObject);
 }
 
-export const infoTool = L.Toolbar2.Action.extend({
+const infoTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       className: "pi pi-ellipsis-v",
@@ -1406,7 +1406,7 @@ export const infoTool = L.Toolbar2.Action.extend({
   },
 });
 
-export const previousOverlayTool = L.Toolbar2.Action.extend({
+const previousOverlayTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       className: "pi pi-arrow-left",
@@ -1423,7 +1423,7 @@ export const previousOverlayTool = L.Toolbar2.Action.extend({
   },
 });
 
-export const nextOverlayTool = L.Toolbar2.Action.extend({
+const nextOverlayTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       className: "pi pi-arrow-right",
@@ -1440,7 +1440,7 @@ export const nextOverlayTool = L.Toolbar2.Action.extend({
   },
 });
 
-export const undoTool = L.Toolbar2.Action.extend({
+const undoTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       className: "pi pi-undo",
@@ -1457,7 +1457,7 @@ export const undoTool = L.Toolbar2.Action.extend({
   },
 });
 
-export const redoTool = L.Toolbar2.Action.extend({
+const redoTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       className: "pi pi-refresh",
@@ -1474,7 +1474,7 @@ export const redoTool = L.Toolbar2.Action.extend({
   },
 });
 
-export const resetRatioTool = L.Toolbar2.Action.extend({
+const resetRatioTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       html: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0078a8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-move-diagonal-icon lucide-move-diagonal"><path d="M11 19H5v-6"/><path d="M13 5h6v6"/><path d="M19 5 5 19"/></svg>',
@@ -1547,7 +1547,7 @@ function getEditToolsForOverlay(overlayObject: OverlayObject) {
   return baseTools;
 }
 
-export const customDeleteTool = L.Toolbar2.Action.extend({
+const customDeleteTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       className: "pi pi-trash",
@@ -1598,7 +1598,7 @@ export const customDeleteTool = L.Toolbar2.Action.extend({
   },
 });
 
-export const replaceOverlayTool = L.Toolbar2.Action.extend({
+const replaceOverlayTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
       className: "pi pi-image",
@@ -1633,7 +1633,7 @@ export const replaceOverlayTool = L.Toolbar2.Action.extend({
   },
 });
 
-export const viewTools = [
+const viewTools = [
   infoTool,
   L.OpacityAction,
   L.OpacitiesAction,

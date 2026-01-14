@@ -62,8 +62,6 @@ export const useProjectStore = defineStore("project", () => {
 
   // AI : Centralized nearby projects data management
   const nearbyProjects = ref<NearbyProject[]>([]);
-  const nearbyProjectsLoading = ref(false);
-  const nearbyProjectsError = ref<string | null>(null);
   const nearbyProjectsLastFetch = ref<{ lat: number; lng: number; timestamp: number } | null>(null);
 
   // AI : User contributions cache - Map-based cache for different parameter combinations
@@ -72,13 +70,9 @@ export const useProjectStore = defineStore("project", () => {
   // AI : Cache key format: "cityId:includeCityProjects" (e.g., "null:false", "3029241:true")
   const userContributionsCache = ref<Map<string, UserContribution[]>>(new Map());
 
-  // AI : Cache original backend projects for change detection
-  // AI : Stores snapshots of approved projects before local modifications
-  const originalBackendProjects = ref<Record<string, Project>>({});
-
-  // AI : Cache original user contributions for change detection (from ContributePanel)
-  // AI : Stores snapshots of contribution projects before local modifications
-  const originalUserContributions = ref<Record<string, UserContribution>>({});
+  // AI : Cache original projects for change detection
+  // AI : Stores snapshots of projects (from map or contributions) before local modifications
+  const originalProjects = ref<Record<string, Project | UserContribution>>({});
 
   // AI : Simple cache for city names (cityId -> city name)
   // AI : Populated when cities are used in forms or loaded from backend
@@ -93,11 +87,8 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   // AI : Helper to get original project state for change detection
-  // AI : Checks both originalBackendProjects (from map) and originalUserContributions (from ContributePanel)
   function getOriginalProject(projectId: string): Project | UserContribution | null {
-    return (
-      originalBackendProjects.value[projectId] ?? originalUserContributions.value[projectId] ?? null
-    );
+    return originalProjects.value[projectId] ?? null;
   }
 
   // AI : Helper function to extract city metadata from project for user contributions
@@ -163,11 +154,11 @@ export const useProjectStore = defineStore("project", () => {
     userContributions.value = contributions;
     userContributionsCache.value.set(cacheKey, contributions);
 
-    // AI : Cache original backend state for change detection (only if not already cached)
+    // AI : Cache original state for change detection (only if not already cached)
     for (const contribution of contributions) {
-      if (!originalUserContributions.value[contribution.id]) {
-        originalUserContributions.value = {
-          ...originalUserContributions.value,
+      if (!originalProjects.value[contribution.id]) {
+        originalProjects.value = {
+          ...originalProjects.value,
           [contribution.id]: { ...contribution },
         };
       }
@@ -235,9 +226,9 @@ export const useProjectStore = defineStore("project", () => {
 
       // AI : Cache the original project state with overlay for change detection
       // AI : Only cache if this is a new overlay (not replacing an existing one)
-      if (existingOverlayIndex === -1 && !originalUserContributions.value[project.id]) {
-        originalUserContributions.value = {
-          ...originalUserContributions.value,
+      if (existingOverlayIndex === -1 && !originalProjects.value[project.id]) {
+        originalProjects.value = {
+          ...originalProjects.value,
           [project.id]: { ...updatedProject } as UserContribution,
         };
       }
@@ -259,9 +250,9 @@ export const useProjectStore = defineStore("project", () => {
       userContributions.value = [newProject, ...userContributions.value];
 
       // AI : Cache the original project state for change detection
-      if (!originalUserContributions.value[project.id]) {
-        originalUserContributions.value = {
-          ...originalUserContributions.value,
+      if (!originalProjects.value[project.id]) {
+        originalProjects.value = {
+          ...originalProjects.value,
           [project.id]: { ...newProject } as UserContribution,
         };
       }
@@ -300,9 +291,9 @@ export const useProjectStore = defineStore("project", () => {
     userContributions.value = [newContrib, ...userContributions.value];
 
     // AI : Cache the original for change detection/reset functionality
-    if (!originalUserContributions.value[project.id]) {
-      originalUserContributions.value = {
-        ...originalUserContributions.value,
+    if (!originalProjects.value[project.id]) {
+      originalProjects.value = {
+        ...originalProjects.value,
         [project.id]: { ...newContrib } as UserContribution,
       };
     }
@@ -417,17 +408,17 @@ export const useProjectStore = defineStore("project", () => {
       current = allProjectsData[projectId];
     }
 
-    // AI : Save original backend version before first modification (for change detection)
+    // AI : Save original version before first modification (for change detection)
     // AI : This applies to all backend projects (approved, pending, or rejected)
     // AI : Cache original before first modification for reset functionality
     if (
       current &&
-      !originalBackendProjects.value[projectId] &&
+      !originalProjects.value[projectId] &&
       current.status !== null && // AI : Has a backend status (not local-only)
       !current.isModified
     ) {
-      originalBackendProjects.value = {
-        ...originalBackendProjects.value,
+      originalProjects.value = {
+        ...originalProjects.value,
         [projectId]: { ...current },
       };
     }
@@ -447,9 +438,9 @@ export const useProjectStore = defineStore("project", () => {
     let project = projects.value[projectId];
     project ??= allProjects.value[projectId];
 
-    if (project && !originalBackendProjects.value[projectId]) {
-      originalBackendProjects.value = {
-        ...originalBackendProjects.value,
+    if (project && !originalProjects.value[projectId]) {
+      originalProjects.value = {
+        ...originalProjects.value,
         [projectId]: { ...project },
       };
     }
@@ -529,9 +520,6 @@ export const useProjectStore = defineStore("project", () => {
         }
       }
 
-      nearbyProjectsLoading.value = true;
-      nearbyProjectsError.value = null;
-
       // AI : Call the TRPC endpoint to fetch nearby projects
       const response = await trpc.project.getProjectsNearLocation.query({
         lat,
@@ -548,31 +536,17 @@ export const useProjectStore = defineStore("project", () => {
       return response.projects;
     } catch (error) {
       console.error("Error fetching nearby projects:", error);
-      nearbyProjectsError.value =
-        error instanceof Error ? error.message : "Failed to fetch nearby projects";
       return [];
-    } finally {
-      nearbyProjectsLoading.value = false;
     }
   }
 
   function setNearbyProjects(projectsData: NearbyProject[]) {
     nearbyProjects.value = projectsData;
-    nearbyProjectsError.value = null;
   }
 
   function clearNearbyProjects(): void {
     nearbyProjects.value = [];
-    nearbyProjectsError.value = null;
     nearbyProjectsLastFetch.value = null;
-  }
-
-  function setNearbyProjectsLoading(loading: boolean): void {
-    nearbyProjectsLoading.value = loading;
-  }
-
-  function setNearbyProjectsError(error: string | null): void {
-    nearbyProjectsError.value = error;
   }
 
   /**
@@ -649,9 +623,8 @@ export const useProjectStore = defineStore("project", () => {
     // AI : Clear nearby projects (context-specific)
     clearNearbyProjects();
 
-    // AI : Clear original backend state caches (user-specific)
-    originalBackendProjects.value = {};
-    originalUserContributions.value = {};
+    // AI : Clear original state cache (user-specific)
+    originalProjects.value = {};
 
     // AI : Clear city names cache (can be rebuilt)
     cityNamesCache.value = {};
@@ -724,13 +697,10 @@ export const useProjectStore = defineStore("project", () => {
     selectedProjectId,
     countries,
     nearbyProjects,
-    nearbyProjectsLoading,
-    nearbyProjectsError,
     userContributions,
     userContributionsLoading,
     userContributionsCache,
-    originalBackendProjects,
-    originalUserContributions,
+    originalProjects,
     cityNamesCache,
 
     // Computed properties
@@ -761,8 +731,6 @@ export const useProjectStore = defineStore("project", () => {
     fetchNearbyProjects,
     setNearbyProjects,
     clearNearbyProjects,
-    setNearbyProjectsLoading,
-    setNearbyProjectsError,
 
     // Cities cache actions
     getCachedCities,
