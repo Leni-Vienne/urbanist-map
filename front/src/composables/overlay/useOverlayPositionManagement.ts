@@ -17,7 +17,7 @@ import type { MapMode } from "@shared/types";
 /**
  * AI : Position source priority for different contexts
  */
-export type PositionSource =
+type PositionSource =
   | "runtime-overlay" // Currently loaded overlay in memory
   | "edit-mode-cache" // Cached modifications from edit mode
   | "backend-centroid" // Original database centroid

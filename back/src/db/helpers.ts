@@ -108,7 +108,7 @@ export function buildPaginationResponse<T extends { id: string }>(
  * AI : Select fields for overlay queries with full location hierarchy
  * AI : Extracts PostGIS geometry as JSON for corners and centroid
  */
-export const overlaySelectFields = {
+const overlaySelectFields = {
   id: overlays.id,
   version: overlays.version,
   filename: overlays.filename,

@@ -4,7 +4,7 @@ import type { PendingChangeRequest } from "@/types/index";
 // AI : State machine for position preview
 // AI : Extracted to separate file to avoid circular dependency between
 // AI : useChangeRequestPreview.ts <-> useOverlayModes.ts
-export type PreviewState =
+type PreviewState =
   | { type: "none" }
   | { type: "current"; changeId: string; overlayId: string }
   | {
