@@ -9,10 +9,8 @@ import { useAuthStore } from "@/stores/authStore";
 import { trpc } from "@/client";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
-import {
-  renderViewModeOverlays,
-  updateOverlayEditingState,
-} from "@/composables/overlay/useOverlay";
+import { renderViewModeOverlays } from "@/composables/overlay/useOverlayRendering";
+import { updateOverlayEditingState } from "@/composables/overlay/useOverlay";
 import { clearAllOverlays } from "@/composables/overlay/useOverlayLifecycle";
 import { updateOverlayMarkersColors } from "@/composables/map/useMarkers";
 import {
