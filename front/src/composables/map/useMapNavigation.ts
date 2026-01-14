@@ -104,7 +104,7 @@ function shouldApplyMobileOffset(): boolean {
 export function mobileAwareFlyTo(
   latlng: L.LatLngExpression,
   zoom?: number,
-  options?: ZoomPanOptions,
+  options: ZoomPanOptions = { duration: 1.5 },
 ): void {
   if (!map.value) return;
 

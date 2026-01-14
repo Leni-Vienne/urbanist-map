@@ -53,8 +53,8 @@ export function getApprovalStatusColor(
     // AI : Priority 4: Approved and unmodified
     if (status === "approved") return "green";
 
-    // AI : Default: New item not yet submitted (no status = red)
-    return "red";
+    // AI : Default: New item not yet submitted (no status = orange for local/unsaved)
+    return "orange";
   }
 
   // AI : Return null for view mode - caller handles timeline-based colors
