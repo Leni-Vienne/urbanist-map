@@ -18,7 +18,7 @@ import {
   convertOverlayToData,
   createProjectObject,
 } from "@/utils/typeFactories";
-import { toRef, markRaw } from "vue";
+import { toRef } from "vue";
 import { useProjects, addOverlayToProjectWithId } from "@/composables/project/useProjects";
 import { trpc } from "@/client";
 import { removeStandaloneProjectMarkerForProject } from "@/composables/map/useStandaloneProjectMarkers";
@@ -205,7 +205,7 @@ export function createLeafletOverlay(
       //mode: 'resizeRotate' // doesn't work but should, it's an issue from the package
     });
 
-    overlayObject.overlay = markRaw(newOverlay);
+    overlayObject.overlay = newOverlay;
 
     setupOverlayEventHandlers(newOverlay, overlayObject);
 
@@ -633,7 +633,7 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
     return;
   }
 
-  overlayObjectWithMethods.overlay = markRaw(newOverlay);
+  overlayObjectWithMethods.overlay = newOverlay;
 
   // AI : Hover events are now set up in onOverlayLoaded() after element is guaranteed to exist
 
@@ -836,7 +836,7 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
 
       L.DomEvent.on(element, "load", () => {
         if (element.complete && element.naturalWidth > 0) {
-          overlayObject.overlay = markRaw(newOverlay);
+          overlayObject.overlay = newOverlay;
           overlayObject.corners = newOverlay.getCorners() ?? [];
 
           // AI : Store reference and initialize with proper reactivity
