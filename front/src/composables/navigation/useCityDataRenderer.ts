@@ -5,7 +5,7 @@ import { map } from "@/composables/core/useMap";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { MAP_CONFIG } from "@/constants/mapConstants";
-import { renderViewModeOverlays } from "@/composables/overlay/useOverlay";
+import { renderViewModeOverlays } from "@/composables/overlay/useOverlayRendering";
 import { clearAllOverlays } from "@/composables/overlay/useOverlayLifecycle";
 import {
   renderOverlayMarkersFromData,

@@ -10,7 +10,7 @@ import type {
 } from "@/types/index";
 import type { MapMode } from "@shared/types";
 import { trpc, type RouterOutput } from "@/client";
-import { createProjectObjectFromAPI, createProjectObject } from "../../utils/typeFactories";
+import { createProjectObjectFromAPI, createProjectObject } from "@/utils/typeFactories";
 
 // AI : Helper function to replace an item in an array immutably at a given index
 function replaceAtIndex<T>(arr: T[], index: number, newItem: T): T[] {
