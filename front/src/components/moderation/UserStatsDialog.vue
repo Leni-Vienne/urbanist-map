@@ -53,7 +53,7 @@
         :label="$t('moderation.reportUser.report')"
         icon="pi pi-flag"
         severity="warning"
-        @click="handleReport"
+        @click="openReportDialog"
       />
       <Button :label="$t('common.close')" severity="secondary" @click="handleClose" />
     </template>
@@ -113,7 +113,8 @@ function handleClose() {
   emit("update:visible", false);
 }
 
-function handleReport() {
+// AI : Open report dialog for this user
+function openReportDialog() {
   if (props.userId) {
     emit("report", props.userId);
     handleClose();

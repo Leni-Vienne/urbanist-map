@@ -142,7 +142,7 @@ function renderCityOverlaysForNavigation(overlaysData: OverlayData[], forceFullO
 
 /**
  * AI : Standalone function for navigation to load city data
- * AI : Uses helpers to orchestration loading and rendering
+ * AI : Uses helpers to orchestrate loading and rendering
  * AI : Extracted to separate file to break circular dependency between useCityMarkers and useViewportContentManager
  */
 export async function loadCityDataForNavigation(
