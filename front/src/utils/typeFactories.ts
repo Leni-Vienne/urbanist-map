@@ -1,8 +1,64 @@
 // AI : Factory functions for creating type instances to reduce duplication
 import type { Project, OverlayObject, OverlayData, NearbyProject } from "@/types/index";
+import type { RouterOutput } from "@/client";
 import { v4 as uuidv4 } from "uuid";
 import { buildImageUrl } from "@/utils/imageUrl";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
+
+// AI : Type definition for project data returned by the backend
+export type CityProject = RouterOutput["project"]["getCityProjects"][number];
+export type StandaloneProject = CityProject | Project;
+
+/**
+ * AI : Helper to safely convert StandaloneProject to Partial<Project>
+ * AI : Maps fields common to both CityProject (backend) and Project (frontend)
+ */
+export function toProjectPartial(project: StandaloneProject): Partial<Project> {
+  const partial: Partial<Project> = {
+    id: project.id,
+    name: project.name,
+    description: project.description,
+    status: project.status, // Both types share ApprovalStatus
+    ownerId: project.ownerId,
+    cityId: project.cityId,
+
+    // AI : Map backend specific date naming if needed, or common fields
+    updatedAt: project.updatedAt,
+    createdAt: project.createdAt,
+
+    // AI : Map spatial fields which are present in DBProject and Project
+    lat: project.lat,
+    lng: project.lng,
+
+    // AI : safe access for optional/nullable fields
+    sourceUrl: project.sourceUrl ?? null,
+    proposalDate: project.proposalDate ?? null,
+    startDate: project.startDate ?? null,
+    endDate: project.endDate ?? null,
+    latestUpdateOn: project.latestUpdateOn ?? null,
+  };
+
+  // AI : Check for optional fields that might not exist on all project types (e.g. CityProject vs Project)
+  if ("centerCoordinate" in project) {
+    partial.centerCoordinate = project.centerCoordinate;
+  }
+
+  if ("version" in project) {
+    partial.version = project.version;
+  }
+
+  // AI : Check for optional fields that might not exist on all project types (e.g. CityProject vs Project)
+  if ("rejectionReason" in project) {
+    partial.rejectionReason = project.rejectionReason;
+  }
+
+  // AI : Check if 'city' object is present (it is in Project, but dependent on relation in CityProject)
+  if ("city" in project) {
+    partial.city = project.city;
+  }
+
+  return partial;
+}
 
 /**
  * AI : Create a new Project instance with defaults

@@ -1,7 +1,7 @@
 import L from "leaflet";
 import { loadCityProjects, loadAllCityMarkersGlobally } from "@/composables/map/useCityMarkers";
 import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
-import { loadCityDataForNavigation } from "@/composables/viewport/useViewportContentManager";
+import { loadCityDataForNavigation } from "@/composables/navigation/useCityDataLoader";
 import { loadCitiesForCountry, clearAllMapContent } from "@/composables/map/useCountryData";
 import { prepareCrossCountryFlight } from "@/composables/map/useTileLayers";
 import { map } from "@/composables/core/useMap";

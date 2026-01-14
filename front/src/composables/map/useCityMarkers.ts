@@ -2,11 +2,12 @@ import L from "leaflet";
 import { createStandaloneProjectIcon } from "@/composables/map/useMarkers";
 import type { Project } from "@/types/index";
 import { createProjectObject } from "@/utils/typeFactories";
-import { ref, watch, markRaw } from "vue";
+import { ref, watch } from "vue";
 import { t } from "@/locales";
 import { map } from "@/composables/core/useMap";
 import { mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
 import { useSelectedProject } from "@/composables/project/useProjectSelection";
+import { loadCityDataForNavigation } from "@/composables/navigation/useCityDataLoader";
 import type { RouterOutput } from "@/client";
 
 import { useAuthStore } from "@/stores/authStore";
@@ -35,6 +36,62 @@ export const citiesWithProjects = ref<CityWithProjects[]>([]);
 
 // AI : Module-level state moved to cityMarkersStore for HMR safety
 // AI : Access via useCityMarkersStore() instead of direct variables
+
+/**
+ * AI : Helper function to augment city list with cities from locally created projects
+ * AI : This ensures cities with only local/pending projects appear in city markers
+ */
+function augmentCitiesWithLocalProjects(cities: CityWithProjects[]): CityWithProjects[] {
+  const projectStore = useProjectStore();
+  const authStore = useAuthStore();
+
+  // AI : Include both local (unsaved) and user's pending projects
+  const userProjectsToInclude = Object.values(projectStore.projects).filter((p) => {
+    // AI : Local projects (not yet submitted)
+    if (p.status === null || p.status === undefined) return true;
+
+    // AI : User's own pending projects (submitted but not approved)
+    if (p.status === "pending" && authStore.user && p.ownerId === authStore.user.id) return true;
+
+    return false;
+  });
+
+  if (userProjectsToInclude.length === 0) {
+    return cities;
+  }
+
+  // AI : Build a map of city IDs from user projects
+  const localProjectCitiesMap = new Map<number, CityWithProjects>();
+
+  for (const project of userProjectsToInclude) {
+    if (project.city && project.cityId) {
+      // AI : Only add to map if not already present
+      if (!localProjectCitiesMap.has(project.cityId)) {
+        localProjectCitiesMap.set(project.cityId, {
+          id: project.cityId,
+          name: project.city.name,
+          nameLocal: project.city.nameLocal ?? null,
+          lat: project.city.coordinates.y,
+          lng: project.city.coordinates.x,
+          countryCode: project.city.countryCode,
+          projectCount: 0, // AI : Local projects, count doesn't matter for display
+        });
+      }
+    }
+  }
+
+  // AI : Add cities from local projects that aren't already in the city list
+  const existingCityIds = new Set(cities.map((c) => c.id));
+  const additionalCities: CityWithProjects[] = [];
+
+  for (const [cityId, cityData] of localProjectCitiesMap) {
+    if (!existingCityIds.has(cityId)) {
+      additionalCities.push(cityData);
+    }
+  }
+
+  return additionalCities.length > 0 ? [...cities, ...additionalCities] : cities;
+}
 
 /**
  * AI : Initialize mode change watcher (called lazily on first use)
@@ -78,7 +135,14 @@ function initializeModeWatcher() {
           // AI : Merge: start with view cities, add any mode-specific cities not already included
           const viewCityIds = new Set(viewCities.map((c) => c.id));
           const additionalCities = modeCities.filter((c) => !viewCityIds.has(c.id));
-          citiesWithProjects.value = [...viewCities, ...additionalCities];
+          let mergedCities = [...viewCities, ...additionalCities];
+
+          // AI : In edit mode, also include cities from locally created projects
+          if (newMode === "edit") {
+            mergedCities = augmentCitiesWithLocalProjects(mergedCities);
+          }
+
+          citiesWithProjects.value = mergedCities;
         }
 
         // AI : Re-render all city markers with merged data
@@ -322,20 +386,23 @@ function getCityMarkerConfig(): MarkerLayerConfig<CityWithProjects> {
       const { requestScrollTo } = useAccordionState();
       requestScrollTo("city", city.id);
 
+      // AI : CRITICAL FIX: Load city data immediately BEFORE the flight animation
+      // AI : This ensures data loads even if the user interrupts the flight
+      // AI : forceFullOverlays=true because we may already be at high zoom
+      await loadCityDataForNavigation(city.id, true);
+
       // AI : Zoom to the city marker position
       if (map.value && map.value.getZoom() < 14) {
         mobileAwareFlyTo([city.lat, city.lng], 14, {
           duration: 1.5,
         });
-        // AI : moveend event will trigger viewport refresh automatically
+        // AI : moveend event will trigger viewport refresh, but data is already cached
       } else if (map.value) {
-        // AI : Already at zoom 14+, no zoom will happen
-        // AI : Trigger a tiny pan to fire moveend event which will load content
-        // AI : This avoids circular dependency from importing useViewportContentManager
-
-        const center = map.value.getCenter();
-        // AI : Pan by 0.00001 degrees (imperceptible) to trigger moveend
-        map.value.panTo([center.lat + 0.000_01, center.lng], { animate: false });
+        // AI : Already at zoom 14+, data is already loaded above
+        // AI : Just pan slightly to center on the city marker
+        mobileAwareFlyTo([city.lat, city.lng], map.value.getZoom(), {
+          duration: 0.5,
+        });
       }
     },
   };
@@ -368,7 +435,7 @@ export function addSingleCityMarker(
   // AI : Initialize layer if needed
   let cityMarkersLayer = cityMarkersStore.getCityMarkersLayer();
   if (!cityMarkersLayer) {
-    cityMarkersLayer = markRaw(L.layerGroup()).addTo(map.value);
+    cityMarkersLayer = L.layerGroup().addTo(map.value);
     cityMarkersStore.setCityMarkersLayer(cityMarkersLayer);
     initializeCityMarkerWatcher();
   }
@@ -430,7 +497,14 @@ export async function loadAllCityMarkersGlobally(): Promise<CityWithProjects[]> 
       // AI : Merge: start with view cities, add any mode-specific cities not already included
       const viewCityIds = new Set(viewCities.map((c) => c.id));
       const additionalCities = modeCities.filter((c) => !viewCityIds.has(c.id));
-      citiesData = [...viewCities, ...additionalCities];
+      let mergedCities = [...viewCities, ...additionalCities];
+
+      // AI : In edit mode, also include cities from locally created projects
+      if (currentMode === "edit") {
+        mergedCities = augmentCitiesWithLocalProjects(mergedCities);
+      }
+
+      citiesData = mergedCities;
     }
 
     if (citiesData && citiesData.length > 0) {
