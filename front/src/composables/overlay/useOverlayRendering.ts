@@ -130,11 +130,6 @@ export function createLeafletOverlay(
           // AI : Zoom is too low - overlay won't be added to map
           // AI : Remove from in-progress tracking since onAddedToMap will never fire
           overlaysBeingCreated.delete(overlayObject.id);
-          console.log(
-            "[DEBUG] NOT adding overlay to map (zoom too low):",
-            overlayObject.id,
-            "- removed from in-progress set",
-          );
         }
       }
     };

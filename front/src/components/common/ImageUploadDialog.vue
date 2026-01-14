@@ -105,7 +105,7 @@ import { useI18n } from "vue-i18n";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useToast } from "@/composables/ui/useToast";
-import { addOverlay } from "@/composables/overlay/useOverlay";
+import { addOverlay } from "@/composables/overlay/useOverlayEditing";
 
 const { t } = useI18n();
 const uiStore = useUiStore();
