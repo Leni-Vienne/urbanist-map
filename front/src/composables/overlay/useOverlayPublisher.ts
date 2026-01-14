@@ -11,7 +11,6 @@ import { buildProjectPayload } from "@/composables/project/useProjectMutations";
 import type { OverlayObject, Project } from "@/types/index";
 import { validateOverlaySize, leafletCornersToCorners } from "@shared/overlayValidation";
 import { t } from "@/locales";
-import type { ApprovalStatus } from "@shared/types";
 import { useAuthStore } from "@/stores/authStore";
 
 // AI : Extract corners from overlay object, falling back to stored corners if needed

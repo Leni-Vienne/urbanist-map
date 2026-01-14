@@ -216,11 +216,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { AccordionContent, Card, Tag } from "primevue";
-import { useI18n } from "vue-i18n";
-import ContributorInfo from "@/components/common/ContributorInfo.vue";
-import ClickableLocation from "@/components/common/ClickableLocation.vue";
-import ChangeRequestSection from "../layout/ChangeRequestSection.vue"; // Corrected path
-import { formatProjectDateRange } from "@/utils/dateFormat";
 import { formatSourceUrl } from "@/utils/urlFormat";
 import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { useImageErrors } from "@/utils/imageHelpers";
@@ -229,6 +224,13 @@ import type {
   OverlayForModeration,
   PendingChangeRequest,
 } from "@/types/index";
+import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
+import { getStatusSeverity } from "@/utils/statusHelpers";
+
+import ContributorInfo from "@/components/common/ContributorInfo.vue";
+import ClickableLocation from "@/components/common/ClickableLocation.vue";
+import ChangeRequestSection from "../layout/ChangeRequestSection.vue"; // Corrected path
+import { formatProjectDateRange } from "@/utils/dateFormat";
 
 interface Props {
   project: ProjectForModeration;
@@ -263,8 +265,8 @@ const emit = defineEmits<{
   "remove-highlight": [overlayId: string];
 }>();
 
-const { t } = useI18n();
 const { imageErrors, handleImageError, handleImageLoad } = useImageErrors();
+const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
 const shouldShowOverlays = computed(() => {
   return props.project.overlays && props.project.overlays.length > 0;
@@ -304,12 +306,6 @@ function handleOverlayContributorClick(
 ) {
   handleContributorClick(data, overlay.authorApprovedCount, overlay.authorRejectedCount);
 }
-
-// AI : Handle overlay card click
-import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
-const { handleOverlayClickNavigation } = useOverlayClickHandler();
-
-import { getStatusSeverity } from "@/utils/statusHelpers";
 
 async function handleOverlayCardClick(overlay: OverlayForModeration, shouldFitBounds: boolean) {
   if (props.onOverlayClick) {
