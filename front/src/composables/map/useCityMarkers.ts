@@ -181,7 +181,7 @@ function initializeCityMarkerWatcher() {
 /**
  * AI : Update city marker opacities based on selected city
  */
-export function updateCityMarkerOpacities(selectedCityId: number | null): void {
+function updateCityMarkerOpacities(selectedCityId: number | null): void {
   const cityMarkersStore = useCityMarkersStore();
   const cityMarkersLayer = cityMarkersStore.getCityMarkersLayer();
   if (!cityMarkersLayer) return;
@@ -213,7 +213,7 @@ export function updateStandaloneProjectMarkerColor(projectId: string, project: P
   marker.setIcon(markerIcon);
 }
 
-export function updateAllStandaloneProjectMarkerColors(): void {
+function updateAllStandaloneProjectMarkerColors(): void {
   const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();

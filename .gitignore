@@ -10,6 +10,7 @@ lerna-debug.log*
 .claude
 CLAUDE.md
 .mcp.json
+.agent
 *instructions.md
 .github/instructions
 .serena

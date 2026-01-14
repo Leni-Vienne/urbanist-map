@@ -37,7 +37,7 @@ export function initializeOverlayHistory(overlayObject: OverlayObject): void {
 /**
  * AI : Get corners for overlay based on priority: history > coordinates > default
  */
-export function getCornersForOverlay(overlayObject: OverlayObject) {
+function getCornersForOverlay(overlayObject: OverlayObject) {
   // AI : Priority 1: Use history if available (for undo/redo)
   if (overlayObject.history?.length > 0) {
     const lastCorners = overlayObject.history.at(-1);

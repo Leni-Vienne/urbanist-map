@@ -144,3 +144,251 @@ This document outlines the granular functional test scenarios required to ensure
       - **Side Panel** switches to "Current Location" (Context switch).
       - **Side Panel** project list is updated.
       - **Side Panel** the clicked project is selected (accordion opens).
+
+## 7. Active City Content Persistence (Recent Fix - Jan 13)
+
+### 7.1. City Content Remains Loaded When Zooming Out
+
+- **Scenario**: User selects a city and zooms out to view a distant project.
+- **Steps**:
+  1.  Click a **City Marker** to load its overlays and standalone project markers.
+  2.  Zoom out beyond `VIEWPORT_LOAD_THRESHOLD`.
+  3.  **Check**:
+      - Active city's overlay markers and standalone markers remain visible on the map.
+      - City marker for the active city remains visible even at high zoom levels.
+  4.  **Regression**: Pan to a different area.
+  5.  **Check**: Active city content is still loaded and visible (doesn't unload during panning).
+  6.  Click a different city marker that is significantly far from the active city.
+  7.  **Check**: Previous active city content is properly unloaded from the map, new city content loads.
+
+### 7.2. Mode Switch Preserves Active City
+
+- **Scenario**: User switches modes while a city is active.
+- **Steps**:
+  1.  Click a **City Marker** in View Mode.
+  2.  Switch to **Edit Mode**.
+  3.  **Check**: Active city content remains loaded and visible.
+  4.  Switch to **Moderation Mode**.
+  5.  **Check**: Active city content remains loaded with appropriate visibility filtering.
+
+## 8. Standalone Project Marker Persistence (Recent Fix - Jan 13)
+
+### 8.1. Markers Persist After Zoom Operations
+
+- **Scenario**: New standalone project marker should persist after zoom in Edit Mode.
+- **Steps**:
+  1.  Enter **Edit Mode**.
+  2.  Add a new standalone project or view existing ones.
+  3.  Zoom out beyond `VIEWPORT_LOAD_THRESHOLD`.
+  4.  **Check**: Standalone markers remain visible (not removed).
+  5.  Zoom back in.
+  6.  **Check**: Standalone markers are still visible and correctly positioned.
+
+### 8.2. City Marker Click Restores Markers
+
+- **Scenario**: Standalone markers reappear when clicking city marker.
+- **Steps**:
+  1.  Enter **Edit Mode**.
+  2.  Load a city with standalone projects.
+  3.  Zoom out and back in.
+  4.  Click the **City Marker** again.
+  5.  **Check**: Standalone markers are correctly restored (no duplicates).
+  6.  **Regression**: Verify marker click handlers still work after restoration.
+
+## 9. Map Zoom Animation Stability (Recent Fix - Jan 13)
+
+### 9.1. Markers Remain Stable During Zoom
+
+- **Scenario**: Markers remain properly attached to the map during rapid zoom operations.
+- **Steps**:
+  1.  Add a new project in Edit Mode.
+  2.  Immediately zoom in or out using scroll wheel.
+  3.  **Check**: No crash occurs during zoom animation.
+  4.  **Regression**: Repeat zoom operations multiple times rapidly.
+  5.  **Check**: Markers remain stable, no console errors.
+
+### 9.2. Marker Animation During Flight
+
+- **Scenario**: Markers animate correctly during map.flyTo operations.
+- **Steps**:
+  1.  Navigate to an overlay using "Latest Contributions" panel.
+  2.  Watch the map flight animation.
+  3.  **Check**: Markers animate smoothly during flight (no null reference errors).
+  4.  **Check**: Markers are correctly positioned at flight destination.
+
+## 10. Moderation Position Buttons (Recent Fix - Jan 13)
+
+### 10.1. View Suggested Position Works From City Load
+
+- **Scenario**: Position navigation buttons work correctly when city is loaded via city marker click.
+- **Steps**:
+  1.  Enter **Moderation Mode**.
+  2.  Click a **City Marker** to load its overlays.
+  3.  Select an overlay with pending changes to its position from the side panel.
+  4.  Click **"View Suggested Position"** button.
+  5.  **Check**: Overlay moves to suggested position on map.
+  6.  **Check**: Overlay marker updates to show suggested location.
+  7.  **Check**: Overlay marker turns from green to yellow.
+
+### 10.2. View Approved Position Works From City Load
+
+- **Scenario**: View approved position after viewing suggested.
+- **Steps**:
+  1.  Follow steps from 10.1 to view suggested position.
+  2.  Click **"View Approved Position"** button.
+  3.  **Check**: Overlay moves to approved position on map.
+  4.  **Check**: Overlay marker updates to show approved location
+  5.  **Check**: Overlay marker turns from yellow to green.
+  6.  **Regression**: Test with overlays loaded via side menu (original working case).
+
+## 11. Overlay Visibility Mode Switching (Recent Fix - Jan 13)
+
+### 11.1. Pending Overlays Hide in View Mode
+
+- **Scenario**: Pending overlays are properly hidden when switching from Moderation to View mode.
+- **Steps**:
+  1.  Enter **Moderation Mode**.
+  2.  Click a city marker to load pending overlays.
+  3.  Verify pending overlays are visible on map.
+  4.  Switch to **View Mode**.
+  5.  **Check**: All pending overlays are removed from map.
+  6.  **Check**: Only approved overlays remain visible.
+
+### 11.2. Pending Overlays Remain Hidden During Zoom
+
+- **Scenario**: Pending overlays stay hidden during zoom operations in View Mode.
+- **Steps**:
+  1.  Load a city in **Moderation Mode**.
+  2.  Switch to **View Mode**.
+  3.  Zoom out and then zoom in.
+  4.  **Check**: Pending overlays do NOT reappear.
+  5.  **Regression**: Pan around the city area.
+  6.  **Check**: Pending overlays remain hidden.
+
+## 12. Panel State Preservation (Recent Fix - Jan 13)
+
+### 12.1. KeepAlive Preserves Scroll Position
+
+- **Scenario**: Panel scroll position is preserved when switching between panels.
+- **Steps**:
+  1.  Open **"Latest Contributions"** panel.
+  2.  Scroll down halfway through the list.
+  3.  Switch to **"Current Location"** panel.
+  4.  Switch back to **"Latest Contributions"** panel.
+  5.  **Check**: Scroll position is preserved (still at halfway point).
+
+### 12.2. Panel State Preserved Across Mode Switches
+
+- **Scenario**: Panel accordion states and computed data are preserved when changing modes.
+- **Steps**:
+  1.  Open a project accordion in **View Mode**.
+  2.  Switch to **Edit Mode**.
+  3.  **Check**: Previously opened accordion remains open.
+  4.  **Check**: Computed data (change requests, etc.) doesn't re-initialize unnecessarily.
+
+## 13. Off-Screen Content Cleanup (Recent Fix - Jan 13)
+
+### 13.1. Far Off-Screen Cities Are Unloaded
+
+- **Scenario**: Map maintains good performance by unloading cities that are far outside the viewport.
+- **Steps**:
+  1.  Click multiple city markers to load their content.
+  2.  Pan significantly far away (outside padded viewport bounds).
+  3.  **Check**: Off-screen city overlays and markers are removed from map.
+  4.  **Check**: `loadedCityIds` set is updated (city removed).
+  5.  Pan back to the original city area.
+  6.  **Check**: City content is re-loaded (fresh API call if needed).
+
+### 13.2. Nearby Cities Remain Loaded
+
+- **Scenario**: Cities within padded viewport bounds remain loaded during minor pans.
+- **Steps**:
+  1.  Load a city's content.
+  2.  Pan slightly (still within padded bounds).
+  3.  **Check**: City content remains loaded (no unnecessary reload).
+  4.  **Regression**: Verify no performance issues from repeated bounds checks.
+
+## 14. Performance Optimizations (Recent Fixes - Jan 12)
+
+### 14.1. Change Request Map Lookups
+
+- **Scenario**: Change requests are efficiently retrieved using optimized map lookups.
+- **Steps**:
+  1.  Load **Moderation Mode** with multiple change requests.
+  2.  Expand project accordions that have change requests.
+  3.  **Check**: Change request badges appear instantly (O(1) map lookup vs O(N) array find).
+  4.  **Regression**: Verify correct change requests are associated with each project/overlay.
+
+## 15. Map Navigation Performance (Recent Fix - Jan 12)
+
+### 15.1. FlyTo Defers Overlay Rendering
+
+- **Scenario**: Map flight animations remain smooth by deferring overlay rendering until completion.
+- **Steps**:
+  1.  Navigate to an overlay using "Latest Overlays" panel.
+  2.  Watch the map flight closely.
+  3.  **Check**: Flight animation is smooth (60fps or close).
+  4.  **Check**: Overlay images only appear AFTER flight completes.
+  5.  **Regression**: Verify overlays do eventually render after arrival.
+
+### 15.2. Tile Layer Persistence
+
+- **Scenario**: Selected tile layer persists during map navigation operations.
+- **Steps**:
+  1.  Set a specific tile layer (e.g., satellite view).
+  2.  Navigate to a city marker or contribution.
+  3.  **Check**: Tile layer remains the same (doesn't auto-switch).
+  4.  **Regression**: Manual tile layer switching still works correctly.
+
+## 16. Overlay Fetching Timing (Recent Fix - Jan 12)
+
+### 16.1. Deferred Overlay Fetching During Flight
+
+- **Scenario**: Overlay images are fetched only after map flight animation completes.
+- **Steps**:
+  1.  From a high zoom level, navigate to a different city at high zoom.
+  2.  Monitor network tab during flight animation.
+  3.  **Check**: Overlay image requests only start AFTER flight completes.
+  4.  **Check**: Overlays within viewport are fetched after arrival.
+
+### 16.2. Viewport Bounds Check
+
+- **Scenario**: Only overlays within the viewport bounds are fetched and rendered.
+- **Steps**:
+  1.  Load a city at high zoom.
+  2.  Position map so some overlays are outside viewport.
+  3.  **Check**: Only overlays within viewport bounds are added to map.
+  4.  **Check**: Off-screen overlays don't trigger image fetch.
+  5.  Pan to reveal off-screen overlays.
+  6.  **Check**: Newly visible overlays fetch and render correctly.
+
+## 17. Overlay Image Loading Race Conditions (Recent Fix - Jan 12)
+
+### 17.1. Reliable First Load Rendering
+
+- **Scenario**: Overlays render correctly on first load even with cache disabled and slow network.
+- **Steps**:
+  1.  Clear browser cache.
+  2.  Disable cache in DevTools.
+  3.  Enable network throttling (Slow 3G).
+  4.  Load a city with overlays at high zoom.
+  5.  **Check**: All overlays render correctly on first load.
+  6.  **Regression**: Repeat test 5-10 times to verify reliability.
+
+### 17.2. Fast Cached Image Loading
+
+- **Scenario**: Overlays render correctly when images load quickly from browser cache.
+- **Steps**:
+  1.  Load overlays to warm cache.
+  2.  Refresh and load same city/overlays.
+  3.  **Check**: Overlays render correctly with cached images.
+  4.  **Check**: No console errors about image load handlers.
+
+### 17.3. Graceful Cleanup During Load
+
+- **Scenario**: Overlays are cleanly removed when map interactions occur before image loading completes.
+- **Steps**:
+  1.  Navigate to load overlays.
+  2.  Immediately zoom out or switch mode before images finish loading.
+  3.  **Check**: No crashes or console errors.
+  4.  **Check**: Image load events are properly cleaned up.

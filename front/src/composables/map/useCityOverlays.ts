@@ -1,5 +1,4 @@
 // AI : City-specific overlay management - handles loading and displaying overlays for cities
-import { ref } from "vue";
 import L from "leaflet";
 import { map } from "@/composables/core/useMap";
 import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
@@ -13,9 +12,6 @@ import type { OverlayData } from "@/types/index";
 
 // AI : Layer group for overlay markers (markers without images)
 let overlayMarkersLayer: L.LayerGroup | null = null;
-
-// AI : Loading states
-const isLoadingCityProjects = ref(false);
 
 /**
  * AI : Common function to render overlay markers from overlay data
@@ -131,6 +127,3 @@ function flyToOverlayMarker(overlayData: OverlayData) {
     selectOverlay(overlayData.id);
   });
 }
-
-// AI : Export loading state for external use
-export { isLoadingCityProjects };
