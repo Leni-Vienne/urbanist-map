@@ -61,7 +61,7 @@ import {
 import { loadCitiesForCountry, clearAllMapContent } from "@/composables/map/useCountryData";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { createStandaloneProjectIcon } from "@/composables/map/useMarkers";
-import { addOverlay } from "@/composables/overlay/useOverlay";
+import { addOverlay } from "@/composables/overlay/useOverlayEditing";
 import { createProject } from "@/composables/project/useProjects";
 import { loadAndRenderCityData } from "@/composables/navigation/useCityDataRenderer";
 import { createProjectObjectFromAPI, createProjectObject } from "@/utils/typeFactories";
