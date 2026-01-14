@@ -1,0 +1,69 @@
+﻿­ƒöì Scanning for PROBLEMATIC duplicate function names in: D:\Documents\Perso\prog\cmorg\construction-map
+
+Ô£à Scanned 207 files
+
+ÔÜá´©Å  Found 13 PROBLEMATIC function name duplicates:
+
+
+­ƒôª Function "main" (5 different files, 5 total occurrences):
+   back\src\scripts\cleanup-images.ts:7 [standalone]
+   back\src\scripts\import-geonames.ts:588 [standalone]
+   check-duplicate-functions.ts:216 [store]
+   scripts\find-duplicate-translations.ts:36 [standalone]
+   scripts\find-unused-translations.ts:160 [standalone]
+
+­ƒôª Function "handleVisibilityChange" (4 different files, 4 total occurrences):
+   front\src\components\moderation\RejectionDialog.vue:61 [standalone]
+   front\src\components\moderation\ReplacementConflictsDialog.vue:62 [standalone]
+   front\src\components\project\CreateProjectDialog.vue:20 [standalone]
+   front\src\components\submission\SubmissionConfirmationDialog.vue:40 [standalone]
+
+­ƒôª Function "clearAllState" (4 different files, 4 total occurrences):
+   front\src\stores\pinia\cityMarkersStore.ts:104 [store]
+   front\src\stores\pinia\moderationStore.ts:71 [store]
+   front\src\stores\pinia\overlayStore.ts:212 [store]
+   front\src\stores\pinia\projectStore.ts:634 [store]
+
+­ƒôª Function "handleCityClick" (3 different files, 3 total occurrences):
+   front\src\components\common\ClickableLocation.vue:20 [standalone]
+   front\src\components\layout\ContributePanel.vue:154 [standalone]
+   front\src\components\layout\CurrentLocationPanel.vue:103 [standalone]
+
+­ƒôª Function "formatValue" (3 different files, 3 total occurrences):
+   front\src\components\layout\ChangeValueDisplay.vue:33 [standalone]
+   front\src\components\moderation\ReplacementConflictsDialog.vue:78 [standalone]
+   front\src\composables\forms\useEditableFormBase.ts:88 [standalone]
+
+­ƒôª Function "getCityName" (2 different files, 2 total occurrences):
+   front\src\components\forms\CitySelect.vue:145 [standalone]
+   front\src\components\forms\ProjectFormFields.vue:285 [standalone]
+
+­ƒôª Function "previewGeometry" (2 different files, 2 total occurrences):
+   front\src\components\layout\ChangeRequestSection.vue:132 [standalone]
+   front\src\composables\overlay\useChangeRequestPreview.ts:292 [standalone]
+
+­ƒôª Function "openReportDialog" (2 different files, 2 total occurrences):
+   front\src\components\layout\ModerationPanel.vue:529 [standalone]
+   front\src\components\moderation\UserStatsDialog.vue:55 [standalone]
+
+­ƒôª Function "handleCardClick" (2 different files, 2 total occurrences):
+   front\src\components\layout\ProjectAccordionPanel.vue:333 [standalone]
+   front\src\components\project\ProjectContent.vue:61 [standalone]
+
+­ƒôª Function "handleOverlayCardClick" (2 different files, 2 total occurrences):
+   front\src\components\layout\ProjectAccordionPanel.vue:347 [standalone]
+   front\src\components\project\ProjectContent.vue:95 [standalone]
+
+­ƒôª Function "goHome" (2 different files, 2 total occurrences):
+   front\src\pages\Contact.vue:8 [standalone]
+   front\src\pages\Legal.vue:9 [standalone]
+
+­ƒôª Function "goToApp" (2 different files, 2 total occurrences):
+   front\src\pages\EmailVerification.vue:43 [standalone]
+   front\src\pages\PasswordReset.vue:96 [standalone]
+
+­ƒôª Function "handleImageError" (2 different files, 2 total occurrences):
+   front\src\utils\imageErrorHandler.ts:2 [standalone]
+   front\src\utils\imageHelpers.ts:10 [standalone]
+
+­ƒôè Summary: 35 total problematic duplicate function declarations
