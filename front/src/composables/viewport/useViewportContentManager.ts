@@ -25,7 +25,10 @@ import {
   clearAllStandaloneProjectMarkers,
   getStandaloneProjectMarkerMap,
 } from "@/composables/map/useStandaloneProjectMarkers";
-import { loadedCityIds } from "@/composables/navigation/useCityDataLoader";
+import {
+  loadedCityIds,
+  fetchCityStandaloneProjectsOrCache,
+} from "@/composables/navigation/useCityDataLoader";
 import type { OverlayData } from "@/types/index";
 import {
   createProjectObject,
@@ -334,24 +337,9 @@ export function useViewportContentManager() {
     mode: MapMode,
   ) {
     try {
-      const mapStore = useMapStore();
-
       // AI : OPTIMIZATION: Check cache first before querying backend
-      let allProjects = mapStore.getCityStandaloneProjectsCache(cityId, mode);
-
-      if (!allProjects) {
-        // AI : No cache - fetch ALL projects for this city (not just ones with overlays)
-        allProjects = await trpc.project.getCityProjects.query({
-          cityId,
-          mode,
-          limit: 100,
-        });
-
-        // AI : Cache the data for future use
-        if (allProjects) {
-          mapStore.setCityStandaloneProjectsCache(cityId, mode, allProjects);
-        }
-      }
+      // AI : Use shared function to avoid code duplication
+      const allProjects = await fetchCityStandaloneProjectsOrCache(cityId, mode);
 
       // AI : Create a working copy to avoid mutating cache
       const projectsToRender: StandaloneProject[] = allProjects ? [...allProjects] : [];

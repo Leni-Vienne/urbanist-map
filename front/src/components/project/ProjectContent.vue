@@ -229,7 +229,7 @@ import { getStatusSeverity } from "@/utils/statusHelpers";
 
 import ContributorInfo from "@/components/common/ContributorInfo.vue";
 import ClickableLocation from "@/components/common/ClickableLocation.vue";
-import ChangeRequestSection from "../layout/ChangeRequestSection.vue"; // Corrected path
+import ChangeRequestSection from "@/components/layout/ChangeRequestSection.vue";
 import { formatProjectDateRange } from "@/utils/dateFormat";
 
 interface Props {
