@@ -7,7 +7,7 @@ import { t } from "@/locales";
 import { map } from "@/composables/core/useMap";
 import { mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
 import { useSelectedProject } from "@/composables/project/useProjectSelection";
-import { loadCityDataForNavigation } from "@/composables/navigation/useCityDataLoader";
+import { loadAndRenderCityData } from "@/composables/navigation/useCityDataRenderer";
 import type { RouterOutput } from "@/client";
 
 import { useAuthStore } from "@/stores/authStore";
@@ -16,7 +16,7 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useCityMarkersStore } from "@/stores/pinia/cityMarkersStore";
-import { getProjectMarkerColor } from "../../utils/markerColors";
+import { getProjectMarkerColor } from "@/utils/markerColors";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
 import { createMarkerLayer, type MarkerLayerConfig } from "@/composables/map/useMarkerLayer";
 import {
@@ -389,7 +389,7 @@ function getCityMarkerConfig(): MarkerLayerConfig<CityWithProjects> {
       // AI : CRITICAL FIX: Load city data immediately BEFORE the flight animation
       // AI : This ensures data loads even if the user interrupts the flight
       // AI : forceFullOverlays=true because we may already be at high zoom
-      await loadCityDataForNavigation(city.id, true);
+      await loadAndRenderCityData(city.id, true);
 
       // AI : Zoom to the city marker position
       if (map.value && map.value.getZoom() < 14) {
