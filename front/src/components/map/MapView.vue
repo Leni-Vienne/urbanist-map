@@ -42,16 +42,16 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent } from "vue";
 
-import { initializeMap, disableLeafletKeyboardEvents, map } from "@/composables/core/useMap";
-import { addTileLayer } from "@/composables/map/useTileLayers";
-import { initializeCameraBounds } from "@/composables/map/useMapNavigation";
-import { undo, redo } from "@/composables/overlay/useOverlay";
-import { setupMapClickToDeselect } from "@/composables/overlay/useOverlaySelection";
+import { initializeMap, disableLeafletKeyboardEvents, map } from "@/services/core/map";
+import { addTileLayer } from "@/services/map/tileLayers";
+import { initializeCameraBounds } from "@/services/map/mapNavigation";
+import { undo, redo } from "@/services/overlay/overlayEditing";
+import { setupMapClickToDeselect } from "@/services/overlay/overlaySelection";
 import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
 // AI : Load countries for breadcrumbs (no marker rendering)
-import { loadCountriesWithProjects } from "@/composables/map/useCountryData";
-import { loadAllCityMarkersGlobally } from "@/composables/map/useCityMarkers";
+import { loadCountriesWithProjects } from "@/services/map/countryData";
+import { loadAllCityMarkersGlobally } from "@/services/map/cityMarkers";
 import { useViewportContentManager } from "@/composables/viewport/useViewportContentManager";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";

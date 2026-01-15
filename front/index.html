@@ -7,11 +7,9 @@
     <meta name="description" content="A crowdsourced map of construction projects worldwide" />
     <title>Construction Map</title>
 
-    <!-- AI : Preconnect to unpkg.com to reduce Leaflet loading time -->
     <link rel="dns-prefetch" href="https://unpkg.com" />
     <link rel="preconnect" href="https://unpkg.com" crossorigin />
 
-    <!-- AI : Leaflet CSS from CDN -->
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -19,7 +17,6 @@
       crossorigin=""
     />
 
-    <!-- AI : Load Leaflet JS early to avoid critical request chaining -->
     <script
       src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
@@ -27,7 +24,6 @@
       defer
     ></script>
 
-    <!-- AI : Import map to redirect only core leaflet imports to CDN shim -->
     <script type="importmap">
       {
         "imports": {
@@ -36,7 +32,6 @@
       }
     </script>
 
-    <!-- AI : Cloudflare Turnstile (CAPTCHA) -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
   </head>
 

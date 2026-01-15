@@ -9,12 +9,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onUnmounted, watch } from "vue";
-import { map } from "@/composables/core/useMap";
-import { mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
+import { map } from "@/services/core/map";
+import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useI18n } from "vue-i18n";
-import { citiesWithProjects } from "@/composables/map/useCityMarkers";
+import { citiesWithProjects } from "@/services/map/cityMarkers";
 
 const { t } = useI18n();
 const visible = ref(false);

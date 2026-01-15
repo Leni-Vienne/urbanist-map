@@ -10,7 +10,7 @@ import type {
 } from "@/types/index";
 import type { MapMode } from "@shared/types";
 import { trpc, type RouterOutput } from "@/client";
-import { createProjectObjectFromAPI, createProjectObject } from "../../utils/typeFactories";
+import { createProjectObjectFromAPI, createProjectObject } from "@/utils/typeFactories";
 
 // AI : Helper function to replace an item in an array immutably at a given index
 function replaceAtIndex<T>(arr: T[], index: number, newItem: T): T[] {
@@ -691,6 +691,64 @@ export const useProjectStore = defineStore("project", () => {
     globalCitiesCache.value.clear();
   }
 
+  // AI : Helper to merge backend cities with cities from local/pending projects
+  // AI : extracted from cityMarkers.ts to centralize data logic
+  function getMergedCities(
+    backendCities: RouterOutput["cities"]["getCitiesWithProjects"],
+    currentUserId: string | null,
+  ): RouterOutput["cities"]["getCitiesWithProjects"] {
+    // AI : Include both local (unsaved) and user's pending projects
+    const userProjectsToInclude = Object.values(projects.value).filter((p) => {
+      // AI : Local projects (not yet submitted)
+      if (p.status === null || p.status === undefined) return true;
+
+      // AI : User's own pending projects (submitted but not approved)
+      if (p.status === "pending" && currentUserId && p.ownerId === currentUserId) return true;
+
+      return false;
+    });
+
+    if (userProjectsToInclude.length === 0) {
+      return backendCities;
+    }
+
+    // AI : Build a map of city IDs from user projects
+    // AI : Explicitly type as Map<number, CityWithProjects>
+    const localProjectCitiesMap = new Map<
+      number,
+      RouterOutput["cities"]["getCitiesWithProjects"][number]
+    >();
+
+    for (const project of userProjectsToInclude) {
+      if (project.city && project.cityId) {
+        // AI : Only add to map if not already present
+        if (!localProjectCitiesMap.has(project.cityId)) {
+          localProjectCitiesMap.set(project.cityId, {
+            id: project.cityId,
+            name: project.city.name,
+            nameLocal: project.city.nameLocal ?? null,
+            lat: project.city.coordinates.y,
+            lng: project.city.coordinates.x,
+            countryCode: project.city.countryCode,
+            projectCount: 0, // AI : Local projects, count doesn't matter for display
+          });
+        }
+      }
+    }
+
+    // AI : Add cities from local projects that aren't already in the city list
+    const existingCityIds = new Set(backendCities.map((c) => c.id));
+    const additionalCities: RouterOutput["cities"]["getCitiesWithProjects"] = [];
+
+    for (const [cityId, cityData] of localProjectCitiesMap) {
+      if (!existingCityIds.has(cityId)) {
+        additionalCities.push(cityData);
+      }
+    }
+
+    return additionalCities.length > 0 ? [...backendCities, ...additionalCities] : backendCities;
+  }
+
   return {
     // State
     projects,
@@ -748,6 +806,7 @@ export const useProjectStore = defineStore("project", () => {
     fetchCityStandaloneProjects,
     fetchCitiesWithProjects,
     clearGlobalCitiesCache,
+    getMergedCities,
 
     // Comprehensive cleanup
     clearAllState,

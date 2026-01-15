@@ -19,6 +19,7 @@ export const useUiStore = defineStore("ui", () => {
   const authModalVisible = ref(false);
   const markerPlacementBarVisible = ref(false);
   const moderatedContributionsDialogVisible = ref(false);
+  const welcomeDialogVisible = ref(false);
 
   // AI : Project dialog state
   const projectDialog = ref<ProjectDialogState>({
@@ -169,6 +170,15 @@ export const useUiStore = defineStore("ui", () => {
     moderatedContributionsDialogVisible.value = false;
   }
 
+  // AI : Welcome dialog actions
+  function openWelcomeDialog() {
+    welcomeDialogVisible.value = true;
+  }
+
+  function closeWelcomeDialog() {
+    welcomeDialogVisible.value = false;
+  }
+
   // AI : Image upload dialog actions
   function openImageUploadDialog(projectId: string) {
     imageUploadDialog.value = {
@@ -215,6 +225,7 @@ export const useUiStore = defineStore("ui", () => {
     projectInfoPopup.value.visible = false;
     moderatedContributionsDialogVisible.value = false;
     imageUploadDialog.value.visible = false;
+    welcomeDialogVisible.value = false;
   }
 
   return {
@@ -222,6 +233,7 @@ export const useUiStore = defineStore("ui", () => {
     authModalVisible,
     markerPlacementBarVisible,
     moderatedContributionsDialogVisible,
+    welcomeDialogVisible,
     projectDialog,
     projectEditForm,
     overlayEditDialog,
@@ -251,6 +263,8 @@ export const useUiStore = defineStore("ui", () => {
     closeProjectInfoPopup,
     openModeratedContributionsDialog,
     closeModeratedContributionsDialog,
+    openWelcomeDialog,
+    closeWelcomeDialog,
     openImageUploadDialog,
     closeImageUploadDialog,
     setLastCreatedProject,
