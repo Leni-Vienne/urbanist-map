@@ -1,7 +1,7 @@
 import { ref } from "vue";
 import { getOverlayMarkerColor } from "@/services/map/markers";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import type { OverlayData, OverlayObject, viewModeMarkerColor } from "@/types/index";
+import { AppMode } from "@shared/types";
 
 // AI : ============================================================================
 // AI : COMPLETION FILTERS SERVICE - Global completion status filter state
@@ -25,10 +25,9 @@ export const visibleCompletionStates = ref({
  */
 export function filterByCompletionStatus<T extends OverlayObject | OverlayData>(
   overlays: T[],
+  mode: AppMode,
 ): T[] {
-  const overlayStore = useOverlayStore();
-
-  return overlays.filter(shouldShowOverlay);
+  return overlays.filter((overlay) => shouldShowOverlay(overlay, mode));
 }
 
 /**
@@ -42,15 +41,13 @@ export function toggleFilter(color: viewModeMarkerColor) {
  * AI : Check if a specific overlay should be visible based on current filters
  * AI : In view mode only, also checks that overlay is not pending
  */
-function shouldShowOverlay(overlay: OverlayObject | OverlayData) {
-  const overlayStore = useOverlayStore();
-
+function shouldShowOverlay(overlay: OverlayObject | OverlayData, mode: AppMode) {
   // AI : In view mode only, hide pending overlays (they are visible in edit and moderation modes)
-  if (overlayStore.mode === "view" && overlay.status === "pending") {
+  if (mode === "view" && overlay.status === "pending") {
     return false;
   }
 
-  const completionColor = getOverlayMarkerColor(overlay, overlayStore.mode);
+  const completionColor = getOverlayMarkerColor(overlay, mode);
   return visibleCompletionStates.value[
     completionColor as keyof typeof visibleCompletionStates.value
   ];

@@ -10,7 +10,7 @@ import L from "leaflet";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import type { OverlayData } from "@/types/index";
-import type { MapMode } from "@shared/types";
+import type { AppMode } from "@shared/types";
 
 // AI : ============================================================================
 // AI : POSITION RESOLUTION
@@ -134,7 +134,7 @@ function resolveEditModePosition(overlayId: string, overlayData: OverlayData): R
 export function resolveOverlayPosition(
   overlayId: string,
   overlayData: OverlayData,
-  mode: MapMode,
+  mode: AppMode,
   preview?: { type: "current" | "suggested"; corners: { lat: number; lng: number }[] },
 ): ResolvedPosition {
   // AI : Override for change request preview (highest priority)

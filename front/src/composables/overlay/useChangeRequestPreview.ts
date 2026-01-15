@@ -12,7 +12,6 @@ import { loadCityProjects } from "@/services/navigation/locationNavigation";
 import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
 import { switchMode } from "@/services/overlay/modeSwitching";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
-import { prepareCrossCountryFlight } from "@/services/map/tileLayers";
 import type { OverlayForModeration, OverlayObject, PendingChangeRequest } from "@/types/index";
 import {
   previewState,
@@ -119,9 +118,6 @@ export function useChangeRequestPreview() {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
-    // AI : Step 2: Prepare for cross-country flight (switches to esri if needed)
-    const switchToCountryLayer = prepareCrossCountryFlight(overlayForModeration.countryCode);
-
     // AI : Step 3: Clear map and load cities for the country
     clearAllMapContent();
     const mapStore = useMapStore();
@@ -134,20 +130,6 @@ export function useChangeRequestPreview() {
       padding: [50, 50] as [number, number],
       duration: 1.5,
       easeLinearity: 0.25,
-    });
-
-    // AI : Wait for navigation to complete and switch tile layer if cross-country
-    await new Promise<void>((resolve) => {
-      if (map.value !== null) {
-        map.value.once("moveend", () => {
-          if (switchToCountryLayer) {
-            switchToCountryLayer();
-          }
-          setTimeout(resolve, 100);
-        });
-      } else {
-        resolve();
-      }
     });
 
     // AI : Step 5: Load city projects (this renders overlays)

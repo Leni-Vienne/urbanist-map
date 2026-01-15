@@ -4,13 +4,13 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { switchMode } from "@/services/overlay/modeSwitching";
-import type { MapMode } from "@shared/types";
+import type { AppMode } from "@shared/types";
 import type { PanelTab } from "@/types";
 
 /**
  * AI : Map tab to overlay mode
  */
-function tabToMode(tab: PanelTab): MapMode {
+function tabToMode(tab: PanelTab): AppMode {
   switch (tab) {
     case "latest":
     case "currentLocation":
@@ -27,7 +27,7 @@ function tabToMode(tab: PanelTab): MapMode {
  * AI : Map overlay mode to tab
  * AI : Returns the default tab for a given mode
  */
-function modeToDefaultTab(mode: MapMode): PanelTab {
+function modeToDefaultTab(mode: AppMode): PanelTab {
   switch (mode) {
     case "view":
       return "latest";
@@ -70,7 +70,7 @@ export function usePanelTabs() {
    * AI : Explicit action to change the map mode
    * AI : Syncs the appropriate tab automatically
    */
-  function setMapMode(newMode: MapMode) {
+  function setAppMode(newMode: AppMode) {
     // 1. Sync map mode is handled by component calling this (usually via switchMode direct call)
     // but explicit call here would be redundant if called from ModeControls which calls switchMode.
 
@@ -105,8 +105,8 @@ export function usePanelTabs() {
     () => overlayStore.mode,
     (newMode) => {
       // AI : We still need to react to external mode changes,
-      // but we use the smart logic in setMapMode to avoid overwriting "Current City"
-      setMapMode(newMode);
+      // but we use the smart logic in setAppMode to avoid overwriting "Current City"
+      setAppMode(newMode);
     },
   );
 

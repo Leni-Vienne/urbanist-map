@@ -3,7 +3,7 @@ import type { DBProject, DBCity, ApprovalStatus } from "../back/src/db/schema";
 export type { ApprovalStatus } from "../back/src/db/schema";
 
 // AI : Type for map viewing modes (used by both frontend and backend)
-export type MapMode = "view" | "edit" | "moderation";
+export type AppMode = "view" | "edit" | "moderation";
 
 export interface OverlayData {
   id: string;

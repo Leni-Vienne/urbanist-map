@@ -8,7 +8,7 @@ import type {
   UserContribution,
   UserContributionOverlay,
 } from "@/types/index";
-import type { MapMode } from "@shared/types";
+import type { AppMode } from "@shared/types";
 import { trpc, type RouterOutput } from "@/client";
 import { createProjectObjectFromAPI, createProjectObject } from "@/utils/typeFactories";
 
@@ -27,7 +27,7 @@ function removeAtIndex<T>(arr: T[], index: number): T[] {
 // AI : Helper functions moved inside store to access state
 
 // AI : Cities cache management (separate cache per mode)
-function getCitiesCacheKey(countryCode: string, mode: MapMode): string {
+function getCitiesCacheKey(countryCode: string, mode: AppMode): string {
   return `${countryCode}:${mode}`;
 }
 
@@ -53,12 +53,12 @@ export const useProjectStore = defineStore("project", () => {
   >(new Map());
 
   // AI : Cache for global cities by mode (no country filter)
-  const globalCitiesCache = ref<Map<MapMode, RouterOutput["cities"]["getCitiesWithProjects"]>>(
+  const globalCitiesCache = ref<Map<AppMode, RouterOutput["cities"]["getCitiesWithProjects"]>>(
     new Map(),
   );
 
   // AI : Cache countries separately per mode
-  const countriesCache = ref<Map<MapMode, Country[]>>(new Map());
+  const countriesCache = ref<Map<AppMode, Country[]>>(new Map());
 
   // AI : Centralized nearby projects data management
   const nearbyProjects = ref<NearbyProject[]>([]);
@@ -564,19 +564,19 @@ export const useProjectStore = defineStore("project", () => {
     }
   }
 
-  function getCachedCities(countryCode: string, mode: MapMode) {
+  function getCachedCities(countryCode: string, mode: AppMode) {
     return citiesCache.value.get(getCitiesCacheKey(countryCode, mode)) ?? null;
   }
 
   function setCachedCities(
     countryCode: string,
-    mode: MapMode,
+    mode: AppMode,
     cities: (RouterOutput["cities"]["getCitiesWithProjects"][number] & { distance: number })[],
   ): void {
     citiesCache.value.set(getCitiesCacheKey(countryCode, mode), cities);
   }
 
-  function hasCachedCities(countryCode: string, mode: MapMode): boolean {
+  function hasCachedCities(countryCode: string, mode: AppMode): boolean {
     return citiesCache.value.has(getCitiesCacheKey(countryCode, mode));
   }
 
@@ -585,15 +585,15 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   // AI : Countries cache management - store and retrieve countries per mode
-  function getCachedCountries(mode: MapMode): Country[] | null {
+  function getCachedCountries(mode: AppMode): Country[] | null {
     return countriesCache.value.get(mode) ?? null;
   }
 
-  function setCachedCountries(mode: MapMode, countriesData: Country[]): void {
+  function setCachedCountries(mode: AppMode, countriesData: Country[]): void {
     countriesCache.value.set(mode, countriesData);
   }
 
-  function hasCachedCountries(mode: MapMode): boolean {
+  function hasCachedCountries(mode: AppMode): boolean {
     return countriesCache.value.has(mode);
   }
 
@@ -641,7 +641,7 @@ export const useProjectStore = defineStore("project", () => {
   // AI : Fetch standalone projects for a city (migrated from useCityMarkers)
   async function fetchCityStandaloneProjects(
     cityId: number | null,
-    mode: MapMode,
+    mode: AppMode,
   ): Promise<RouterOutput["project"]["getCityProjects"]> {
     try {
       // AI : Note: We don't access mapStore here to avoid circular dependencies if possible.
@@ -667,7 +667,7 @@ export const useProjectStore = defineStore("project", () => {
   // AI : Fetch global cities with projects (migrated from useCityMarkers)
   // AI : Uses cache to avoid redundant API calls on mode switches
   async function fetchCitiesWithProjects(
-    mode: MapMode,
+    mode: AppMode,
   ): Promise<RouterOutput["cities"]["getCitiesWithProjects"]> {
     // AI : Check cache first
     const cached = globalCitiesCache.value.get(mode);
