@@ -167,15 +167,21 @@ import type {
 } from "@/types/index";
 
 // Composables
-import { useAccordionState } from "@/composables/layout/useAccordionState";
-import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
 import {
-  highlightOverlayById,
-  removeOverlayHighlight,
-} from "@/composables/overlay/useOverlaySelection";
+  activeAccordionPanels,
+  toggleCountryExpanded,
+  isCountryExpanded,
+  toggleCityExpanded,
+  isCityExpanded,
+  expandAccordionForOverlay,
+  expandAccordionForProject,
+  consumeScrollRequest,
+} from "@/services/layout/accordionState";
+import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
+import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/overlaySelection";
 import { useToast } from "@/composables/ui/useToast";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { navigateToStandaloneProject } from "@/composables/navigation/useOverlayNavigation";
+import { navigateToStandaloneProject } from "@/services/navigation/overlayNavigation";
 
 // AI : Props interface
 interface Props {
@@ -235,17 +241,6 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const toast = useToast();
-
-const {
-  activeAccordionPanels,
-  toggleCountryExpanded,
-  isCountryExpanded,
-  toggleCityExpanded,
-  isCityExpanded,
-  expandAccordionForOverlay,
-  expandAccordionForProject,
-  consumeScrollRequest,
-} = useAccordionState();
 
 const { handleOverlayClickNavigation } = useOverlayClickHandler();
 

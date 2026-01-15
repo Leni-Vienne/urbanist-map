@@ -2,22 +2,22 @@ import L, { type LatLng } from "leaflet";
 import { computed } from "vue";
 import { t } from "@/locales";
 import { useToast } from "@/composables/ui/useToast";
-import { map } from "@/composables/core/useMap";
+import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import {
-  updateMarkerPosition,
-  updateMarkerTooltip,
-  getOverlayBounds,
-} from "@/composables/overlay/useOverlayMarkers";
-import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
-import { loadCityProjects } from "@/composables/map/useCityMarkers";
-import { loadCitiesForCountry, clearAllMapContent } from "@/composables/map/useCountryData";
-import { switchMode } from "@/composables/overlay/useModeSwitching";
-import { mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
-import { prepareCrossCountryFlight } from "@/composables/map/useTileLayers";
+import { updateMarkerPosition, updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
+import { getOverlayBounds } from "@/services/overlay/overlayPositionManagement";
+import { selectOverlay } from "@/services/overlay/overlaySelection";
+import { loadCityProjects } from "@/services/navigation/locationNavigation";
+import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
+import { switchMode } from "@/services/overlay/modeSwitching";
+import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
+import { prepareCrossCountryFlight } from "@/services/map/tileLayers";
 import type { OverlayForModeration, OverlayObject, PendingChangeRequest } from "@/types/index";
-import { previewState, clearChangeRequestPreview } from "./changeRequestPreviewState";
+import {
+  previewState,
+  clearChangeRequestPreview,
+} from "@/services/overlay/changeRequestPreviewState";
 
 // AI : Composable to handle change request position preview
 // AI : Combines state management + navigation logic for previewing change request positions

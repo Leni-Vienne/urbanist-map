@@ -33,7 +33,7 @@
 </template>
 
 <script setup lang="ts">
-import { markerColors } from "@/composables/map/useMarkers";
+import { markerColors } from "@/services/map/markers";
 
 function getBaseColor(colorKey: string): string {
   return markerColors[colorKey as keyof typeof markerColors];
