@@ -15,7 +15,10 @@ import {
   renderViewModeOverlays,
   registerRenderingCallbacks,
 } from "@/services/overlay/overlayRendering";
-import { checkOverlaySizeAndWarn } from "@/services/overlay/overlayEditing";
+import {
+  checkOverlaySizeAndWarn,
+  registerNavigationCallback,
+} from "@/services/overlay/overlayEditing";
 
 // AI : updateOverlayEditingState moved to useOverlayEditing.ts
 
@@ -88,7 +91,7 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
  * @returns boolean indicating whether navigation was successful
  */
 
-function focusCameraToOverlay(direction: "next" | "previous") {
+function navigateOverlaySequence(direction: "next" | "previous") {
   const overlayStore = useOverlayStore();
   const projectStore = useProjectStore();
 
@@ -271,12 +274,9 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
 // AI : Import getEditToolsForOverlay and getViewTools from there
 
 // AI : Register toolbar callbacks to avoid circular dependencies
-// AI : Register navigation callback with useOverlayEditing.ts
-import { registerNavigationCallback } from "@/services/overlay/overlayEditing";
-
 // AI : Defer registration until after module initialization to avoid temporal dead zone
 queueMicrotask(() => {
-  registerNavigationCallback(focusCameraToOverlay);
+  registerNavigationCallback(navigateOverlaySequence);
 });
 
 // AI : Register rendering callbacks to avoid circular dependencies

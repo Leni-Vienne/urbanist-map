@@ -218,7 +218,7 @@ import { computed } from "vue";
 import { AccordionContent, Card, Tag } from "primevue";
 import { formatSourceUrl } from "@/utils/urlFormat";
 import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
-import { useImageErrors } from "@/utils/imageHelpers";
+import { useImageErrors } from "@/composables/ui/useImageErrors";
 import type {
   ProjectForModeration,
   OverlayForModeration,

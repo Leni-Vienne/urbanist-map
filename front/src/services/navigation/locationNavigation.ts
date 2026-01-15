@@ -1,12 +1,66 @@
-import { loadCityProjects } from "@/services/map/cityMarkers";
+// AI : Refactored to contain city navigation logic locally
 import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
+import { getSelectedProjectId } from "@/services/project/projectSelection";
 import { map } from "@/services/core/map";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { prepareCrossCountryFlight } from "@/services/map/tileLayers";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
+import { useUiStore } from "@/stores/uiStore";
 import { t } from "@/locales";
+
+/**
+ * AI : Navigate to a city on the map
+ * AI : This simulates clicking on a country marker then a city marker
+ * @param cityId - The city ID to navigate to
+ * @param cityName - The city name (for display)
+ * @param countryCode - The country code where the city is located
+ * @param cityCoords - Optional city coordinates (used when city not yet loaded in store)
+ * @returns Promise that resolves when navigation is complete
+ */
+/**
+ * AI : Load projects for a specific city and display overlays on map
+ * AI : Moved here from cityMarkers.ts to separate navigation from marker rendering
+ */
+export async function loadCityProjects(
+  cityId: number | null,
+  cityName: string,
+  nameLocal: string | null,
+  forceFullLoad = false,
+  cityCountryCode?: string,
+): Promise<void> {
+  try {
+    // AI : Update selected city in store (only if cityId is not null)
+    if (!cityId) return;
+
+    const mapStore = useMapStore();
+    const uiStore = useUiStore();
+
+    // AI : Check if we're switching to a different city
+    const previousCityId = mapStore.selectedCity?.id;
+    const isSwitchingCity = previousCityId !== cityId;
+
+    mapStore.setSelectedCity({
+      id: cityId,
+      name: cityName,
+      nameLocal,
+      countryCode: cityCountryCode,
+    });
+
+    // AI : Only clear state when actually switching cities, not when refreshing
+    if (isSwitchingCity) {
+      // AI : Clear selected project when switching cities
+      const selectedProjectId = getSelectedProjectId();
+      selectedProjectId.value = null;
+
+      // AI : Close project info popup when switching cities
+      uiStore.closeProjectInfoPopup();
+    }
+  } catch (error) {
+    console.error("Error loading city projects:", error);
+  }
+}
 
 /**
  * AI : Navigate to a city on the map

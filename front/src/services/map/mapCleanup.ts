@@ -12,7 +12,7 @@ import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProje
  * AI : Reset map state to view mode after logout
  * AI : This will trigger existing watchers/reactive logic to reload
  * AI : public content while hiding auth-only items
- * AI : Called directly from authStore.signOut()
+ * AI : Called from App.vue watcher on logout
  */
 export function clearMapOnLogout() {
   // AI : Clear standalone project markers (which exist outside Pinia)
