@@ -1,7 +1,7 @@
 import L from "leaflet";
 import { loadCityProjects, loadAllCityMarkersGlobally } from "@/composables/map/useCityMarkers";
 import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
-import { loadCityDataForNavigation } from "@/composables/navigation/useCityDataLoader";
+import { loadAndRenderCityData } from "@/composables/navigation/useCityDataRenderer";
 import { loadCitiesForCountry, clearAllMapContent } from "@/composables/map/useCountryData";
 import { prepareCrossCountryFlight } from "@/composables/map/useTileLayers";
 import { map } from "@/composables/core/useMap";
@@ -16,6 +16,7 @@ import {
 import { createProjectInfoTeleportTarget } from "@/composables/map/useProjectPopupTeleport";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import { resolveOverlayCorners } from "@/composables/overlay/useOverlayPositionResolver";
+import type { OverlayData } from "@/types/index";
 
 /**
  * AI : Shared logic for navigating to a location by simulating country → city marker clicks
@@ -211,21 +212,66 @@ export async function navigateToOverlayWithCity(
       return false;
     }
 
-    // AI : CRITICAL FIX: Use loadCityDataForNavigation to properly load city data
-    // AI : This uses the same rendering pipeline as viewport manager
-    // AI : forceFullOverlays=true because we're about to fly to high zoom
-    const overlaysData = await loadCityDataForNavigation(cityId, true);
+    // AI : CRITICAL FIX: Use loadAndRenderCityData to properly load city data
+    // AI : This must happen BEFORE the flight animation to ensure the data is loaded
+    // AI : even if the user interrupts the animation
+    const overlaysData = await loadAndRenderCityData(cityId, true);
 
-    // AI : Find the target overlay in the loaded data
-    const overlayData = overlaysData?.find((o) => o.id === overlayId);
+    if (!overlaysData) {
+      // AI : No overlays to navigate to in this city
+      // AI : Still fly to the coordinates though since project marker might exist
+    }
 
-    if (overlayData !== undefined && overlayData.corners !== null) {
-      return zoomToOverlayAndSelect(
-        overlayId,
-        overlayData.corners,
-        switchToCountryLayer,
-        autoSelect,
+    // AI : Find the overlay in the fetched data
+    let matchingOverlay: OverlayData | undefined = undefined;
+    if (overlaysData) {
+      matchingOverlay = overlaysData.find((o: OverlayData) => o.id === overlayId);
+    }
+
+    // AI : Check if the overlay exists and belongs to the correct city
+    if (!matchingOverlay || matchingOverlay.project?.cityId !== cityId) {
+      console.warn(
+        `Overlay ${overlayId} not found in city ${cityId} or doesn't belong to this city`,
       );
+      // AI : Still fly to coordinates to show the general area
+    }
+
+    // AI : Determine zoom level before flight
+    const currentZoom = map.value?.getZoom() ?? 0;
+    const shouldShowFullOverlays = currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
+
+    if (shouldShowFullOverlays) {
+      // AI : Already at high zoom - overlays are already rendered, just select
+      const selectedOverlay = overlayStore.overlays[overlayId];
+      if (selectedOverlay?.overlay) {
+        selectOverlay(overlayId);
+      }
+      // AI : If cross-country flight, switch to country layer immediately
+      if (switchToCountryLayer) {
+        switchToCountryLayer();
+      }
+    } else {
+      // AI : Low zoom - need to zoom in, marker selection happens in moveend handler below
+      // AI : Create lat/lng and zoom to use in flight params
+      const { lat, lng } =
+        matchingOverlay?.corners && matchingOverlay.corners.length === 4
+          ? L.latLngBounds(matchingOverlay.corners.map((c) => L.latLng(c.lat, c.lng))).getCenter()
+          : L.latLng(0, 0); // Fallback if no overlay or corners
+
+      await mobileAwareFlyTo([lat, lng], 16, {
+        duration: 1.5,
+      });
+
+      // AI : CRITICAL FIX: moveend event may have deleted the overlay object during the flight
+      // AI : We need to re-select it after the flight completes
+      // AI : Use timeout to ensure moveend handlers complete first
+      setTimeout(() => {
+        // AI : If cross-country flight, switch to country layer after arrival
+        if (switchToCountryLayer) {
+          switchToCountryLayer();
+        }
+        selectOverlay(overlayId);
+      }, 100);
     }
 
     // AI : If overlay still not found, return false
@@ -261,7 +307,7 @@ export async function navigateToStandaloneProject(
     // AI : CRITICAL FIX: Load city data to populate mapStore cache
     // AI : This is needed for CurrentLocationPanel to display projects
     // AI : Previously only overlays called this, causing standalone projects to not populate the panel
-    await loadCityDataForNavigation(cityId, true);
+    await loadAndRenderCityData(cityId, true);
 
     // AI : Wait a bit for markers to be added to the map
     await new Promise((resolve) => setTimeout(resolve, 200));

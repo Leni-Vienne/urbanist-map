@@ -18,7 +18,9 @@
             icon="pi pi-pencil"
             :class="['p-button-sm', 'p-button-text']"
             @click="emit('edit-project', project)"
-            v-tooltip.top="project.ownerId === user.id ? $t('project.edit') : $t('tooltips.suggestChanges')"
+            v-tooltip.top="
+              project.ownerId === user.id ? $t('project.edit') : $t('tooltips.suggestChanges')
+            "
           />
           <!-- AI : Delete button (for unsubmitted projects or pending projects owned by user) -->
           <Button
@@ -50,11 +52,17 @@
               icon="pi pi-pencil"
               :class="['p-button-sm', 'p-button-text']"
               @click="emit('edit-overlay', overlay)"
-              v-tooltip.top="overlay.authorId === user.id ? $t('tooltips.editOverlay') : $t('tooltips.suggestChanges')"
+              v-tooltip.top="
+                overlay.authorId === user.id
+                  ? $t('tooltips.editOverlay')
+                  : $t('tooltips.suggestChanges')
+              "
             />
             <!-- AI : Delete button (only for pending overlays owned by user) -->
             <Button
-              v-if="!viewMode && user && overlay.status === 'pending' && overlay.authorId === user.id"
+              v-if="
+                !viewMode && user && overlay.status === 'pending' && overlay.authorId === user.id
+              "
               icon="pi pi-trash"
               :class="['p-button-sm', 'p-button-text', 'p-button-danger']"
               @click="emit('delete-overlay', overlay)"
@@ -66,7 +74,7 @@
         <div class="info-card">
           <div class="info-row">
             <span class="info-label">{{ $t("common.name") }}:</span>
-            <span class="info-value">{{ overlay.caption ?? '—' }}</span>
+            <span class="info-value">{{ overlay.caption ?? "—" }}</span>
           </div>
           <!-- AI : Show view original button for pending replacements -->
           <div
@@ -78,7 +86,7 @@
               @click.stop="emit('view-original-overlay', overlay.replacesOverlayId)"
             >
               <i class="pi pi-arrow-left"></i>
-              {{ $t('overlay.viewOriginalOverlay') }}
+              {{ $t("overlay.viewOriginalOverlay") }}
             </button>
           </div>
         </div>
@@ -89,7 +97,13 @@
     <div v-if="!viewMode" class="actions-section">
       <Button
         v-if="hasChanges"
-        :label="isPublishedToBackend ? $t('project.submitChangeRequest') : (overlay ? $t('overlay.publishOverlay') : $t('project.publish'))"
+        :label="
+          isPublishedToBackend
+            ? $t('project.submitChangeRequest')
+            : overlay
+              ? $t('overlay.publishOverlay')
+              : $t('project.publish')
+        "
         :icon="isPublishedToBackend ? 'pi pi-send' : 'pi pi-cloud-upload'"
         :severity="isPublishedToBackend ? 'info' : 'success'"
         :class="{ 'flex-1': hasChanges }"
@@ -128,24 +142,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { storeToRefs } from 'pinia'
-import { useAuthStore } from '@/stores/authStore'
-import { useI18n } from 'vue-i18n'
-import type { OverlayObject, Project } from '@/types/index'
-import ProjectMetadataCard from './ProjectMetadataCard.vue'
+import { computed } from "vue";
+import { storeToRefs } from "pinia";
+import { useAuthStore } from "@/stores/authStore";
+import { useI18n } from "vue-i18n";
+import type { OverlayObject, Project } from "@/types/index";
+import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue";
 
-const { t: $t } = useI18n()
+const { t: $t } = useI18n();
 
 interface Props {
-  project: Project
-  overlay?: OverlayObject | null
-  viewMode?: boolean
-  publishLoading?: boolean
-  loading?: boolean
-  availableCities?: { id: number; name: string; countryCode: string; }[]
+  project: Project;
+  overlay?: OverlayObject | null;
+  viewMode?: boolean;
+  publishLoading?: boolean;
+  loading?: boolean;
+  availableCities?: { id: number; name: string; countryCode: string }[];
   // AI : Source determines popup positioning - overlay toolbar vs project marker
-  source?: 'overlay' | 'marker'
+  source?: "overlay" | "marker";
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -154,73 +168,76 @@ const props = withDefaults(defineProps<Props>(), {
   publishLoading: false,
   loading: false,
   availableCities: () => [],
-  source: 'overlay'
-})
+  source: "overlay",
+});
 
 const emit = defineEmits<{
-  'edit-project': [project: Project]
-  'edit-overlay': [overlay: OverlayObject]
-  'publish-overlay': []
-  'publish-project': []
-  'close-popup': []
-  'add-images': []
-  'view-original-overlay': [overlayId: string]
-  'delete-project': [project: Project]
-  'delete-overlay': [overlay: OverlayObject]
-}>()
+  "edit-project": [project: Project];
+  "edit-overlay": [overlay: OverlayObject];
+  "publish-overlay": [];
+  "publish-project": [];
+  "close-popup": [];
+  "add-images": [];
+  "view-original-overlay": [overlayId: string];
+  "delete-project": [project: Project];
+  "delete-overlay": [overlay: OverlayObject];
+}>();
 
-const authStore = useAuthStore()
-const { user } = storeToRefs(authStore)
+const authStore = useAuthStore();
+const { user } = storeToRefs(authStore);
 
 // AI : Import pending modifications store for unified change detection
-import { usePendingModificationsStore } from '@/stores/pinia/pendingModificationsStore'
-const pendingModsStore = usePendingModificationsStore()
+import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
+const pendingModsStore = usePendingModificationsStore();
 
 // AI : Check if project/overlay is published to backend (null status means not yet submitted)
 const isPublishedToBackend = computed(() => {
   if (props.overlay) {
-    return props.overlay.status === 'approved' || props.overlay.status === 'pending'
+    return props.overlay.status === "approved" || props.overlay.status === "pending";
   }
-  return props.project?.status !== null && (props.project?.status === 'approved' || props.project?.status === 'pending')
-})
+  return (
+    props.project?.status !== null &&
+    (props.project?.status === "approved" || props.project?.status === "pending")
+  );
+});
 
 // AI : Check if overlay or project has changes that need to be published
 // AI : Unified check: uses BOTH prop-based isModified AND pendingModificationsStore
 const hasChanges = computed(() => {
   // AI : Check new unified store first (for caption/position changes)
   if (props.overlay && pendingModsStore.hasPendingModifications(props.overlay.id)) {
-    return true
+    return true;
   }
   // AI : Check project's overlays in pending mods store
   if (props.project && pendingModsStore.getModificationCountForProject(props.project.id) > 0) {
-    return true
+    return true;
   }
   // AI : Fallback to old prop-based isModified flags
-  const overlayModified = props.overlay?.isModified ?? false
-  const projectModified = props.project?.isModified ?? false
-  return overlayModified || projectModified || !isPublishedToBackend.value
-})
+  const overlayModified = props.overlay?.isModified ?? false;
+  const projectModified = props.project?.isModified ?? false;
+  return overlayModified || projectModified || !isPublishedToBackend.value;
+});
 
 // AI : Handle publish button click
 function handlePublishClick() {
   if (props.overlay) {
-    emit('publish-overlay')
+    emit("publish-overlay");
   } else {
-    emit('publish-project')
+    emit("publish-project");
   }
 }
 
 // AI : Computed property for delete button visibility
 const canDeleteProject = computed(() => {
-  if (!props.project || !user.value || props.viewMode) return false
-  const isDeletable = props.project.status === null || props.project.status === 'pending'
-  const isOwner = props.project.ownerId === user.value.id
-  return isDeletable && isOwner
-})
+  if (!props.project || !user.value || props.viewMode) return false;
+  const isDeletable = props.project.status === null || props.project.status === "pending";
+  const isOwner = props.project.ownerId === user.value.id;
+  return isDeletable && isOwner;
+});
 </script>
 
 <style scoped>
-@import '../../../assets/info-card-shared.css';
+@import "../../../assets/info-card-shared.css";
 
 .unified-popup {
   padding: 1rem;
@@ -240,7 +257,7 @@ const canDeleteProject = computed(() => {
 
 /* AI : Triangle arrow pointing to the triggering element */
 .unified-popup::before {
-  content: '';
+  content: "";
   position: absolute;
   top: -8px;
   width: 0;

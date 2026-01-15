@@ -49,10 +49,7 @@ export interface MarkerLayerResult {
 /**
  * AI : Reset all markers in a layer group to default opacity
  */
-export function resetLayerMarkersOpacity(
-  layerGroup: L.LayerGroup | null,
-  defaultOpacity: number,
-): void {
+function resetLayerMarkersOpacity(layerGroup: L.LayerGroup | null, defaultOpacity: number): void {
   if (!layerGroup) return;
 
   layerGroup.eachLayer((layer) => {

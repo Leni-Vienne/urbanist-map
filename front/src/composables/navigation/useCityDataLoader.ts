@@ -1,25 +1,11 @@
-// AI : City data loading for navigation - extracted to break circular dependency
-// AI : Used by both useCityMarkers.ts and useViewportContentManager.ts
+// AI : City data loading for navigation - pure data fetching only (no rendering)
+// AI : Rendering is handled by callers to avoid circular dependencies
 import { ref } from "vue";
-import { map } from "@/composables/core/useMap";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { trpc } from "@/client";
-import { MAP_CONFIG } from "@/constants/mapConstants";
-import { renderViewModeOverlays } from "@/composables/overlay/useOverlay";
-import { clearAllOverlays } from "@/composables/overlay/useOverlayLifecycle";
-import {
-  renderOverlayMarkersFromData,
-  removeOverlayMarkers,
-} from "@/composables/map/useCityOverlays";
-import { addStandaloneProjectMarkerForProject } from "@/composables/map/useStandaloneProjectMarkers";
 import type { OverlayData } from "@/types/index";
-import {
-  createProjectObject,
-  toProjectPartial,
-  type CityProject,
-  type StandaloneProject,
-} from "@/utils/typeFactories";
+import type { CityProject } from "@/utils/typeFactories";
 import type { MapMode } from "@shared/types";
 
 /**
@@ -53,8 +39,9 @@ async function fetchCityOverlaysOrCache(
 
 /**
  * AI : Helper to fetch standalone projects from cache or backend
+ * AI : Exported for reuse across viewport manager and marker composables
  */
-async function fetchCityStandaloneProjectsOrCache(
+export async function fetchCityStandaloneProjectsOrCache(
   cityId: number,
   mode: MapMode,
 ): Promise<CityProject[] | null> {
@@ -75,138 +62,29 @@ async function fetchCityStandaloneProjectsOrCache(
 }
 
 /**
- * AI : Add markers for standalone projects (those without overlays)
+ * AI : Load city data (overlays + standalone projects) without rendering
+ * AI : Callers are responsible for rendering the data
+ * AI : Returns both overlays and standalone projects for the city
  */
-function processStandaloneMarkers(
-  standaloneProjects: StandaloneProject[],
-  overlaysData: OverlayData[] | null,
-) {
-  if (!standaloneProjects || standaloneProjects.length === 0) return;
-
-  const projectIdsWithOverlays = new Set<string>();
-  if (overlaysData) {
-    for (const overlay of overlaysData) {
-      // AI : Check safely if projectId exists
-      if (overlay.projectId) {
-        projectIdsWithOverlays.add(overlay.projectId);
-      }
-    }
-  }
-
-  for (const project of standaloneProjects) {
-    // AI : Safe access to overlay count/ids using type narrowing
-    let overlayCount = 0;
-    if ("overlayCount" in project) {
-      overlayCount = project.overlayCount;
-    } else if ("overlayIds" in project && Array.isArray(project.overlayIds)) {
-      overlayCount = project.overlayIds.length;
-    }
-
-    if (!projectIdsWithOverlays.has(project.id) && overlayCount === 0) {
-      // AI : Cast to Project to satisfy function signature - strictly validation would require more fields
-      // AI : but for marker creation, the subset in CityProject is sufficient
-      addStandaloneProjectMarkerForProject(createProjectObject(toProjectPartial(project)));
-    }
-  }
-}
-
-/**
- * AI : Render Logic for Navigation
- */
-function renderCityOverlaysForNavigation(overlaysData: OverlayData[], forceFullOverlays: boolean) {
-  const overlayStore = useOverlayStore();
-  const mapStore = useMapStore();
-
-  const zoom = map.value?.getZoom() ?? 0;
-  const shouldRenderFullOverlays = forceFullOverlays || zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
-
-  removeOverlayMarkers();
-  overlayStore.setViewModeOverlays(overlaysData);
-  mapStore.currentCityOverlays = overlaysData;
-
-  if (shouldRenderFullOverlays) {
-    const existingIds = new Set(Object.keys(overlayStore.overlays));
-    if (existingIds.size === 0) {
-      renderViewModeOverlays(overlaysData, true, false);
-    } else {
-      const newOverlays = overlaysData.filter((o) => !existingIds.has(o.id));
-      if (newOverlays.length > 0) {
-        renderViewModeOverlays(newOverlays, true, false);
-      }
-    }
-  } else {
-    clearAllOverlays();
-    renderOverlayMarkersFromData(overlaysData);
-  }
-}
-
-/**
- * AI : Standalone function for navigation to load city data
- * AI : Uses helpers to orchestration loading and rendering
- * AI : Extracted to separate file to break circular dependency between useCityMarkers and useViewportContentManager
- */
-export async function loadCityDataForNavigation(
+export async function loadCityData(
   cityId: number,
-  forceFullOverlays = false,
-): Promise<OverlayData[] | null> {
+  mode?: MapMode,
+): Promise<{ overlays: OverlayData[] | null; projects: CityProject[] | null } | null> {
   const overlayStore = useOverlayStore();
-  const mode = overlayStore.mode;
+  const actualMode = mode ?? overlayStore.mode;
 
   try {
-    const overlaysData = await fetchCityOverlaysOrCache(cityId, mode);
-    let standaloneProjects: StandaloneProject[] | null = await fetchCityStandaloneProjectsOrCache(
-      cityId,
-      mode,
-    );
+    const [overlays, projects] = await Promise.all([
+      fetchCityOverlaysOrCache(cityId, actualMode),
+      fetchCityStandaloneProjectsOrCache(cityId, actualMode),
+    ]);
 
-    // AI : CRITICAL FIX: In edit mode, include local projects from projectStore
-    // AI : This ensures newly created project markers persist when zooming out and back in
-    if (mode === "edit" && standaloneProjects) {
-      const { useProjectStore } = await import("@/stores/pinia/projectStore");
-      const { useAuthStore } = await import("@/stores/authStore");
-      const projectStore = useProjectStore();
-      const authStore = useAuthStore();
-
-      // AI : Filter for local and user's pending projects for this specific city
-      const localProjects = Object.values(projectStore.projects).filter((p) => {
-        if (p.cityId !== cityId) return false;
-        if (!p.lat || !p.lng) return false;
-
-        // AI : Local projects (not yet submitted)
-        if (p.status === null || p.status === undefined) return true;
-
-        // AI : User's own pending projects (submitted but not approved)
-        if (p.status === "pending" && authStore.user && p.ownerId === authStore.user.id)
-          return true;
-
-        return false;
-      });
-
-      // AI : Merge local projects with backend projects (avoid duplicates)
-      const existingIds = new Set(standaloneProjects.map((p) => p.id));
-      const mergedProjects: StandaloneProject[] = [...standaloneProjects];
-      for (const localProject of localProjects) {
-        if (!existingIds.has(localProject.id)) {
-          // AI : Cast as StandaloneProject (Project is compatible with the union type)
-          mergedProjects.push(localProject as StandaloneProject);
-        }
-      }
-      standaloneProjects = mergedProjects;
-    }
-
-    processStandaloneMarkers(standaloneProjects ?? [], overlaysData);
-
+    // AI : Mark city as loaded
     loadedCityIds.value.add(cityId);
 
-    if (!overlaysData || overlaysData.length === 0) {
-      return null;
-    }
-
-    renderCityOverlaysForNavigation(overlaysData, forceFullOverlays);
-
-    return overlaysData;
+    return { overlays, projects };
   } catch (error) {
-    console.error(`Error loading city ${cityId} for navigation:`, error);
+    console.error(`Error loading city ${cityId}:`, error);
     return null;
   }
 }

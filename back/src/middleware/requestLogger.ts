@@ -1,6 +1,7 @@
 import type { Context, Next } from "hono";
 import { logger } from "../services/logger";
 import { errorAlerter } from "../services/errorAlerter";
+import { getClientIp } from "../utils/ip";
 
 // AI : Only alert on errors from routes that the app actually serves
 // AI : This is a proper allowlist approach - anything not matching is a bot probe
@@ -18,15 +19,6 @@ function getCloudflareHeaders(c: Context) {
     cfCountry: c.req.header("CF-IPCountry"),
     cfRay: c.req.header("CF-Ray"),
   };
-}
-
-// AI : Extract client IP (prioritize Cloudflare header)
-function getClientIp(c: Context): string | undefined {
-  return (
-    c.req.header("CF-Connecting-IP") ??
-    c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ??
-    c.req.header("X-Real-IP")
-  );
 }
 
 // AI : Get user ID from session if available

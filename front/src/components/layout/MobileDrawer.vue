@@ -48,7 +48,7 @@ import type { PanelTab } from "@/types";
 import DraggableDrawer from "./DraggableDrawer.vue";
 import PanelContent from "./PanelContent.vue";
 import PanelTabs from "./PanelTabs.vue";
-import ModeControls from "../map/ModeControls.vue";
+import ModeControls from "@/components/map/ModeControls.vue";
 
 // AI : Get store
 const uiStore = useUiStore();
