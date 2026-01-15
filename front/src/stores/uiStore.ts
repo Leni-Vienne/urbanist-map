@@ -4,12 +4,12 @@ import type { Project, OverlayObject } from "@/types/index";
 import type { PanelTab } from "@/types";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 
-export interface ProjectDialogState {
+interface ProjectDialogState {
   visible: boolean;
   project?: Partial<Project>;
 }
 
-export interface EditFormState {
+interface EditFormState {
   visible: boolean;
   data?: Project | OverlayObject;
 }

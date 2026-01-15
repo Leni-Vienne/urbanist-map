@@ -374,7 +374,7 @@ export function setupMapClickToDeselect(): void {
  * AI : Calculate appropriate outline size based on overlay dimensions and aspect ratio
  * This ensures consistent visual outline regardless of overlay shape & resolution
  */
-export function calculateOutlineSize(overlayElement: HTMLElement, baseSize: number): number {
+function calculateOutlineSize(overlayElement: HTMLElement, baseSize: number): number {
   if (!overlayElement) return baseSize;
 
   try {
