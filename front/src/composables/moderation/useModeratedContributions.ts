@@ -1,6 +1,6 @@
 import { ref, computed } from "vue";
 import { trpc, type RouterOutput } from "@/client";
-import { withErrorHandling } from "@/composables/core/useErrorHandling";
+import { withErrorHandling } from "@/services/core/errorHandling";
 
 const moderatedContributions = ref<RouterOutput["overlay"]["getModeratedContributions"]>([]);
 const isLoading = ref(false);

@@ -1,6 +1,6 @@
 // AI : Shared teleport target management for project info popups
 import type L from "leaflet";
-import { map } from "@/composables/core/useMap";
+import { map } from "@/services/core/map";
 import { useUiStore } from "@/stores/uiStore";
 import { usePopupState } from "@/composables/map/usePopupState";
 

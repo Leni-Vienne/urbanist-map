@@ -2,11 +2,11 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { trpc } from "@/client";
-import { buildProjectPayload } from "@/composables/project/useProjectMutations";
-import { loadCityProjects } from "@/composables/map/useCityMarkers";
-import { updateStandaloneProjectMarkerColor } from "@/composables/map/useStandaloneProjectMarkers";
-import { updateMarkerTooltip } from "@/composables/overlay/useOverlayMarkers";
-import { getFromEditModeOverlayCache } from "@/composables/overlay/useOverlayPositionManagement";
+import { buildProjectPayload } from "@/services/project/projectMutations";
+import { loadCityProjects } from "@/services/map/cityMarkers";
+import { updateStandaloneProjectMarkerColor } from "@/services/map/standaloneProjectMarkers";
+import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
+import { getFromEditModeOverlayCache } from "@/services/overlay/overlayPositionManagement";
 import type { Project, OverlayObject, OverlayData } from "@/types/index";
 import {
   projectSchema,

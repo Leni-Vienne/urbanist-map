@@ -46,19 +46,19 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
-import { map } from "@/composables/core/useMap";
-import { createProjectInfoTeleportTarget } from "@/composables/map/useProjectPopupTeleport";
+import { map } from "@/services/core/map";
+import { createProjectInfoTeleportTarget } from "@/services/map/projectPopupTeleport";
 import {
   getStandaloneProjectMarkerByProjectId,
   addStandaloneProjectMarkerForProject,
   updateStandaloneProjectMarkerColor,
-} from "@/composables/map/useStandaloneProjectMarkers";
-import { loadCitiesForCountry, clearAllMapContent } from "@/composables/map/useCountryData";
+} from "@/services/map/standaloneProjectMarkers";
+import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { createStandaloneProjectIcon } from "@/composables/map/useMarkers";
-import { addOverlay } from "@/composables/overlay/useOverlayEditing";
-import { createProject } from "@/composables/project/useProjects";
-import { loadAndRenderCityData } from "@/composables/navigation/useCityDataRenderer";
+import { createStandaloneProjectIcon } from "@/services/map/markers";
+import { addOverlay } from "@/services/overlay/overlayEditing";
+import { createProject } from "@/services/project/projects";
+import { loadAndRenderCityData } from "@/services/navigation/cityDataRenderer";
 import { createProjectObjectFromAPI, createProjectObject } from "@/utils/typeFactories";
 import { useCityProjects } from "@/composables/project/useProjectSelection";
 import type { Project, NearbyProject } from "@/types/index";
@@ -66,7 +66,7 @@ import {
   addSingleCityMarker,
   addCityMarkersForCountry,
   citiesWithProjects,
-} from "@/composables/map/useCityMarkers";
+} from "@/services/map/cityMarkers";
 
 import MarkerPlacementBar from "@/components/map/MarkerPlacementBar.vue";
 const CreateProjectDialog = defineAsyncComponent(

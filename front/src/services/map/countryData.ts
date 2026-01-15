@@ -1,16 +1,16 @@
 // AI : Country data loading composable (no marker rendering)
 // AI : Extracted from useCountryMarkers.ts to separate data loading from UI rendering
 import { ref } from "vue";
-import { removeCityMarkers } from "@/composables/map/useCityMarkers";
-import { removeOverlayMarkers } from "@/composables/map/useCityOverlays";
-import { clearAllOverlays } from "@/composables/overlay/useOverlayLifecycle";
-import { clearAllStandaloneProjectMarkers } from "@/composables/map/useStandaloneProjectMarkers";
+import { removeCityMarkers } from "@/services/map/cityMarkers";
+import { removeOverlayMarkers } from "@/services/map/cityOverlays";
+import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";
+import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProjectMarkers";
 import { trpc } from "@/client";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
-import { withErrorHandling } from "@/composables/core/useErrorHandling";
+import { withErrorHandling } from "@/services/core/errorHandling";
 import type { Country } from "@/types/index";
 import countryBboxes from "@/assets/country_bboxes.json";
 

@@ -1,6 +1,6 @@
 import L from "leaflet";
 import { ref } from "vue";
-import { map } from "@/composables/core/useMap";
+import { map } from "@/services/core/map";
 
 // AI : Available tile layer types
 export type TileLayerType = "FRA" | "esri" | "CHE" | "USA" | "osm";

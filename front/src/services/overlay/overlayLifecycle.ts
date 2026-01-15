@@ -1,7 +1,7 @@
 // AI : Overlay lifecycle management - extracted to break circular dependencies
-import { map } from "@/composables/core/useMap";
+import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { clearOverlaysBeingCreated } from "@/composables/overlay/useOverlayRendering";
+import { clearOverlaysBeingCreated } from "@/services/overlay/overlayRendering";
 
 /**
  * AI : Clear all overlays from the map and reset collections

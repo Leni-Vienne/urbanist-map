@@ -161,9 +161,9 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import type { OverlayForModeration } from "@/types/index";
 import { trpc } from "@/client";
-import { addCityMarkersForCountry } from "@/composables/map/useCityMarkers";
-import { mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
-import { map } from "@/composables/core/useMap";
+import { addCityMarkersForCountry } from "@/services/map/cityMarkers";
+import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
+import { map } from "@/services/core/map";
 import ProjectAccordionPanel from "./ProjectAccordionPanel.vue";
 import ReplacementConflictsDialog, {
   type ReplacementConflicts,

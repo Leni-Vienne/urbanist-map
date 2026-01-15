@@ -53,7 +53,7 @@ import { defineAsyncComponent, ref, watch } from "vue";
 import L from "leaflet";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
-import { map } from "@/composables/core/useMap";
+import { map } from "@/services/core/map";
 import type { viewModeMarkerColor } from "@/types/index";
 
 const LayerControl = defineAsyncComponent(() => import("@/components/map/LayerControl.vue"));

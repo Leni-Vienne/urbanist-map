@@ -3,39 +3,36 @@
 
 import L from "leaflet";
 import { t } from "@/locales";
-import { map, currentZoomLevel } from "@/composables/core/useMap";
-import { mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
+import { map, currentZoomLevel } from "@/services/core/map";
+import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useAuthStore } from "@/stores/authStore";
 import type { OverlayObject, Project } from "@/types/index";
 import { createOverlayObject, createProjectObject } from "@/utils/typeFactories";
-import { addOverlayToProjectWithId } from "@/composables/project/useProjects";
-import { removeStandaloneProjectMarkerForProject } from "@/composables/map/useStandaloneProjectMarkers";
+import { addOverlayToProjectWithId } from "@/services/project/projects";
+import { removeStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
 import {
   getFromEditModeOverlayCache,
   saveCachedPosition,
-} from "@/composables/overlay/useOverlayPositionManagement";
+} from "@/services/overlay/overlayPositionManagement";
 import { validateOverlaySize, leafletCornersToCorners } from "@shared/overlayValidation";
 import { useToast } from "@/composables/ui/useToast";
-import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
-import {
-  saveOverlayModificationsToCache,
-  saveToHistory,
-} from "@/composables/overlay/useOverlayHistory";
+import { selectOverlay } from "@/services/overlay/overlaySelection";
+import { saveOverlayModificationsToCache, saveToHistory } from "@/services/overlay/overlayHistory";
 import {
   updateMarkerPosition,
   updateMarkerTooltip,
   createMarker,
-} from "@/composables/overlay/useOverlayMarkers";
+} from "@/services/overlay/overlayMarkers";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import {
   getEditToolsForOverlay,
   getViewTools,
   registerToolbarCallbacks,
-} from "@/composables/overlay/useOverlayToolbar";
-import { createLeafletOverlay } from "@/composables/overlay/useOverlayRendering";
-import { addNewOverlayToCityCache } from "@/composables/overlay/useOverlayCityCache";
+} from "@/services/overlay/overlayToolbar";
+import { createLeafletOverlay } from "@/services/overlay/overlayRendering";
+import { addNewOverlayToCityCache } from "@/services/overlay/overlayCityCache";
 
 // AI : Navigation function callback - will be registered by useOverlay.ts
 // AI : Declared at module level to avoid temporal dead zone issues

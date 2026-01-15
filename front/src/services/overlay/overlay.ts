@@ -1,21 +1,21 @@
 import "leaflet-toolbar";
 import "leaflet-distortableimage";
 import { t } from "@/locales";
-import { map } from "@/composables/core/useMap";
-import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
+import { map } from "@/services/core/map";
+import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import type { OverlayObject } from "@/types/index";
 import { trpc } from "@/client";
-import { withErrorHandling } from "@/composables/core/useErrorHandling";
+import { withErrorHandling } from "@/services/core/errorHandling";
 import { useToast } from "@/composables/ui/useToast";
-import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
-import { updateMarkerTooltip, getOverlayBounds } from "@/composables/overlay/useOverlayMarkers";
+import { selectOverlay } from "@/services/overlay/overlaySelection";
+import { updateMarkerTooltip, getOverlayBounds } from "@/services/overlay/overlayMarkers";
 import {
   renderViewModeOverlays,
   registerRenderingCallbacks,
-} from "@/composables/overlay/useOverlayRendering";
-import { checkOverlaySizeAndWarn } from "@/composables/overlay/useOverlayEditing";
+} from "@/services/overlay/overlayRendering";
+import { checkOverlaySizeAndWarn } from "@/services/overlay/overlayEditing";
 
 // AI : updateOverlayEditingState moved to useOverlayEditing.ts
 
@@ -33,7 +33,7 @@ import { checkOverlaySizeAndWarn } from "@/composables/overlay/useOverlayEditing
  * AI : Add new overlay to city cache so it persists across zoom changes
  */
 // AI : addNewOverlayToCityCache moved to useOverlayCityCache.ts to break circular dependency
-export { addNewOverlayToCityCache } from "@/composables/overlay/useOverlayCityCache";
+export { addNewOverlayToCityCache } from "@/services/overlay/overlayCityCache";
 
 // AI : Selection functions moved to useOverlaySelection.ts
 
@@ -272,7 +272,7 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
 
 // AI : Register toolbar callbacks to avoid circular dependencies
 // AI : Register navigation callback with useOverlayEditing.ts
-import { registerNavigationCallback } from "@/composables/overlay/useOverlayEditing";
+import { registerNavigationCallback } from "@/services/overlay/overlayEditing";
 
 // AI : Defer registration until after module initialization to avoid temporal dead zone
 queueMicrotask(() => {
