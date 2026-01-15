@@ -10,7 +10,7 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useAuthStore } from "@/stores/authStore";
 import type { OverlayObject, Project } from "@/types/index";
 import { createOverlayObject, createProjectObject } from "@/utils/typeFactories";
-import { useProjects, addOverlayToProjectWithId } from "@/composables/project/useProjects";
+import { addOverlayToProjectWithId } from "@/composables/project/useProjects";
 import { removeStandaloneProjectMarkerForProject } from "@/composables/map/useStandaloneProjectMarkers";
 import {
   getFromEditModeOverlayCache,

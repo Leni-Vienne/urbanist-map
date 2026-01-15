@@ -10,7 +10,6 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
-import { storeToRefs } from "pinia";
 import { withErrorHandling } from "@/composables/core/useErrorHandling";
 import type { Country } from "@/types/index";
 import countryBboxes from "@/assets/country_bboxes.json";
@@ -18,13 +17,6 @@ import countryBboxes from "@/assets/country_bboxes.json";
 // AI : Type guard to validate country code against countryBboxes keys
 export function isValidCountryCode(code: string): code is keyof typeof countryBboxes {
   return code in countryBboxes;
-}
-
-// AI : Function to get countries when needed
-function getCountries() {
-  const projectStore = useProjectStore();
-  const { countries } = storeToRefs(projectStore);
-  return countries;
 }
 
 const isLoadingCountries = ref(false);
@@ -43,8 +35,7 @@ export async function loadCountriesWithProjects(force = false): Promise<void> {
     // AI : Use cached countries and update the active countries ref
     const cachedCountries = projectStore.getCachedCountries(overlayStore.mode);
     if (cachedCountries) {
-      const countries = getCountries();
-      countries.value = cachedCountries;
+      projectStore.countries = cachedCountries;
       return;
     }
   }
@@ -75,8 +66,7 @@ export async function loadCountriesWithProjects(force = false): Promise<void> {
       );
 
       // AI : Update both the active countries ref and cache
-      const countries = getCountries();
-      countries.value = mappedCountries;
+      projectStore.countries = mappedCountries;
       projectStore.setCachedCountries(overlayStore.mode, mappedCountries);
     }
   } finally {
@@ -88,12 +78,11 @@ export async function loadCountriesWithProjects(force = false): Promise<void> {
  * AI : Load cities for a specific country
  */
 export async function loadCitiesForCountry(countryCode: string): Promise<void> {
-  const countries = getCountries();
-  const country = countries.value.find((c: Country) => c.code === countryCode);
+  const projectStore = useProjectStore();
+  const country = projectStore.countries.find((c: Country) => c.code === countryCode);
 
   if (!country) return;
 
-  const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
   const authStore = useAuthStore();
   const queryMode = authStore.isAuthenticated ? overlayStore.mode : "view";
