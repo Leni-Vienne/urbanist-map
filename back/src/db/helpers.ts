@@ -13,7 +13,7 @@ import {
   type ApprovalStatus,
 } from "./schema";
 import type * as schema from "./schema";
-import type { MapMode } from "@shared/types";
+import type { AppMode } from "@shared/types";
 
 // AI : ============================================================================
 // AI : DATABASE HELPERS - Unified utilities for pagination, queries, and visibility
@@ -445,7 +445,7 @@ export async function getUserOverlayChangeRequestIds(
 // AI : Build WHERE condition for project visibility based on user context and map mode
 export function buildProjectVisibilityCondition(
   user: UserContext,
-  mode: MapMode,
+  mode: AppMode,
   strictModeration = true,
 ): SQL {
   if (mode === "view") {
@@ -499,7 +499,7 @@ export function buildProjectVisibilityCondition(
 // AI : Can also handle admin includeStatus filter (takes precedence over mode logic)
 export function buildOverlayVisibilityCondition(
   user: UserContext,
-  mode: MapMode,
+  mode: AppMode,
   overlayChangeRequestIds?: string[],
   adminIncludeStatus?: ApprovalStatus[],
 ): SQL {
@@ -542,7 +542,7 @@ export function buildOverlayVisibilityCondition(
 // AI : In edit mode, also show user's own projects even if they don't have overlays yet
 export function buildProjectHasVisibleContentCondition(
   user: UserContext,
-  mode: MapMode,
+  mode: AppMode,
   overlayChangeRequestIds?: string[],
 ): SQL {
   if (mode === "view") {

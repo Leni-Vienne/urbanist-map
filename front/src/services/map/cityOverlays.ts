@@ -17,11 +17,13 @@ let overlayMarkersLayer: L.LayerGroup | null = null;
  * AI : Common function to render overlay markers from overlay data
  */
 export function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void {
+  const overlayStore = useOverlayStore();
+
   // AI : Remove any existing overlay marker layer to prevent accumulation of orphaned layers
   removeOverlayMarkers();
 
   // AI : Filter overlays based on current completion status filters
-  const visibleOverlays = filterByCompletionStatus(overlaysData);
+  const visibleOverlays = filterByCompletionStatus(overlaysData, overlayStore.mode);
 
   // AI : Create new layer group for overlay markers
   overlayMarkersLayer = L.layerGroup();

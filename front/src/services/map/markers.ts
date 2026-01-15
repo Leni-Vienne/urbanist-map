@@ -6,7 +6,7 @@
 
 import L from "leaflet";
 import type { MarkerColor, OverlayObject, OverlayData } from "@/types/index";
-import type { MapMode } from "@shared/types";
+import type { AppMode } from "@shared/types";
 import type { ShallowRef } from "vue";
 import { getApprovalStatusColor, getTimelineBasedColor } from "@/utils/markerColors";
 
@@ -199,7 +199,7 @@ export function createButtonSVG(color: MarkerColor): string {
  */
 export function getOverlayMarkerColor(
   overlayData: OverlayObject | OverlayData,
-  mode: MapMode,
+  mode: AppMode,
 ): MarkerColor {
   // AI : Extract overlay-specific properties (not present on all overlay types)
   const hasBeenModified = "isModified" in overlayData ? overlayData.isModified : false;
@@ -271,7 +271,7 @@ export function getOverlayMarkerColor(
  */
 export function updateOverlayMarkersColors(
   overlays: ShallowRef<Record<string, OverlayObject>>,
-  mode: MapMode,
+  mode: AppMode,
   specificOverlayId?: string,
 ): void {
   if (overlays?.value === null) return;

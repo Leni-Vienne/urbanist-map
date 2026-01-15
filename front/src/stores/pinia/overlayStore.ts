@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { ref, shallowRef } from "vue";
 import type L from "leaflet";
 import type { OverlayObject, OverlayData, LatestContribution } from "@/types/index";
-import type { MapMode } from "@shared/types";
+import type { AppMode } from "@shared/types";
 
 export const useOverlayStore = defineStore("overlay", () => {
   // AI : Central store for overlay data
@@ -13,7 +13,7 @@ export const useOverlayStore = defineStore("overlay", () => {
   const allMarkers = shallowRef<Record<string, L.Marker>>({});
 
   // AI : Map mode state (view, edit, or moderation)
-  const mode = ref<MapMode>("view");
+  const mode = ref<AppMode>("view");
 
   // AI : Edit mode overlay cache - stores overlay modifications for persistence across zoom changes
   type EditModeCache = { corners: { lat: number; lng: number }[]; isModified: boolean };
@@ -53,7 +53,7 @@ export const useOverlayStore = defineStore("overlay", () => {
     latestContributionsLoading.value = loading;
   }
 
-  function setMode(newMode: MapMode) {
+  function setMode(newMode: AppMode) {
     mode.value = newMode;
   }
 

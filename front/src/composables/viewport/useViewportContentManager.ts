@@ -30,7 +30,7 @@ import {
   toProjectPartial,
   type StandaloneProject,
 } from "@/utils/typeFactories";
-import type { MapMode } from "@shared/types";
+import type { AppMode } from "@shared/types";
 
 const isLoading = ref(false);
 
@@ -289,7 +289,7 @@ export function useViewportContentManager() {
    * AI : Update MapStore caches for panels
    * AI : Groups flat viewport data by city so panels can query by city ID
    */
-  function updateMapStoreCaches(overlays: OverlayData[], standaloneProjects: any[], mode: MapMode) {
+  function updateMapStoreCaches(overlays: OverlayData[], standaloneProjects: any[], mode: AppMode) {
     const mapStore = useMapStore();
 
     // AI : Group overlays by city
@@ -329,7 +329,7 @@ export function useViewportContentManager() {
   async function addStandaloneMarkersForCity(
     overlaysData: OverlayData[],
     cityId: number,
-    mode: MapMode,
+    mode: AppMode,
   ) {
     try {
       // AI : OPTIMIZATION: Check cache first before querying backend

@@ -3,7 +3,6 @@ import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/country
 import { getSelectedProjectId } from "@/services/project/projectSelection";
 import { map } from "@/services/core/map";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
-import { prepareCrossCountryFlight } from "@/services/map/tileLayers";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -92,9 +91,6 @@ export async function navigateToCity(
     }
   }
 
-  // AI : Prepare for cross-country flight (switches to esri if needed)
-  const switchToCountryLayer = prepareCrossCountryFlight(countryCode);
-
   // AI : Clear map and load cities for the country
   clearAllMapContent();
   const mapStore = useMapStore();
@@ -124,11 +120,6 @@ export async function navigateToCity(
     mobileAwareFlyTo([lat, lng], 14, {
       duration: 1.5,
     });
-
-    // AI : If cross-country flight, switch to country layer after arrival
-    if (switchToCountryLayer) {
-      map.value.once("moveend", switchToCountryLayer);
-    }
 
     // AI : Wait for the fly animation to complete before loading city data
     await new Promise<void>((resolve) => {
