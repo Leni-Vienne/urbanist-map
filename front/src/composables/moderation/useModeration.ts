@@ -7,11 +7,11 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useAuthStore } from "@/stores/authStore";
 import { updateMarkerTooltip } from "@/composables/overlay/useOverlayMarkers";
 import { updateOverlayMarkersColors } from "@/composables/map/useMarkers";
-import { updateStandaloneProjectMarkerColor } from "@/composables/map/useCityMarkers";
 import { useEntityRemoval } from "@/composables/core/useEntityRemoval";
 import {
   getStandaloneProjectMarkerByProjectId,
   updateStandaloneProjectMarkerTooltip,
+  updateStandaloneProjectMarkerColor,
 } from "@/composables/map/useStandaloneProjectMarkers";
 import { t } from "@/locales";
 import type { Project } from "@/types/index";
