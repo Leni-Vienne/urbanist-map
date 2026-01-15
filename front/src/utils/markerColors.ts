@@ -2,7 +2,7 @@
 // AI : Used by both useCityMarkers and useStandaloneProjectMarkers
 
 import type { MarkerColor, Project } from "@/types/index";
-import type { ApprovalStatus, MapMode } from "@shared/types";
+import type { ApprovalStatus, AppMode } from "@shared/types";
 
 /**
  * AI : Shared helper for status-based marker colors
@@ -11,7 +11,7 @@ import type { ApprovalStatus, MapMode } from "@shared/types";
  */
 export function getApprovalStatusColor(
   status: ApprovalStatus | null | undefined,
-  mode: MapMode,
+  mode: AppMode,
   options: {
     isModified?: boolean;
     isReplacement?: boolean;

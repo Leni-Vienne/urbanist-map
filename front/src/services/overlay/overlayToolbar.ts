@@ -419,7 +419,7 @@ function resetImageRatio() {
       originalRatio: _originalRatio,
       newDimensions,
       cornersInfo,
-    } = calculateRatioFixParameters(element!.naturalWidth / element!.naturalHeight, leafletCorners);
+    } = calculateRatioFixParameters(element.naturalWidth / element.naturalHeight, leafletCorners);
 
     if (!cornersInfo) return;
 

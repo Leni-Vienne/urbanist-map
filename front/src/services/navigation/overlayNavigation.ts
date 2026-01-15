@@ -4,7 +4,6 @@ import { loadCityProjects } from "@/services/navigation/locationNavigation";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { loadAndRenderCityData } from "@/services/navigation/cityDataRenderer";
 import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
-import { prepareCrossCountryFlight } from "@/services/map/tileLayers";
 import { map } from "@/services/core/map";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -28,9 +27,7 @@ async function prepareNavigationToCity(
   cityId: number,
   cityName: string,
   countryCode?: string,
-): Promise<(() => void) | null> {
-  let switchToCountryLayer: (() => void) | null = null;
-
+): Promise<void> {
   if (countryCode) {
     const mapStore = useMapStore();
     // AI : Only clear when switching from one DEFINED country to a DIFFERENT country
@@ -42,7 +39,7 @@ async function prepareNavigationToCity(
     const isNewCountryContext = isDifferentCountry || !mapStore.selectedCountryCode;
 
     // AI : Step 1: Prepare for cross-country flight (switches to esri if needed)
-    switchToCountryLayer = prepareCrossCountryFlight(countryCode);
+    // prepareCrossCountryFlight(countryCode); // AI : Removed as part of cleanup
 
     if (isNewCountryContext) {
       // AI : Step 2: Only clear map content when acting switching countries
@@ -68,8 +65,6 @@ async function prepareNavigationToCity(
   // AI : Use forceFullLoad=true to ensure overlays render even if current zoom is low
   // AI : This is necessary because we're about to fly to an overlay which requires the full overlay to exist
   await loadCityProjects(cityId, cityName, null, true, countryCode);
-
-  return switchToCountryLayer;
 }
 
 /**
@@ -79,7 +74,6 @@ async function prepareNavigationToCity(
 function zoomToOverlayAndSelect(
   overlayId: string,
   corners: { lat: number; lng: number }[],
-  switchToCountryLayer: (() => void) | null,
   autoSelect = true,
 ): boolean {
   if (!map.value || corners.length !== 4) return false;
@@ -94,11 +88,6 @@ function zoomToOverlayAndSelect(
   const overlayStore = useOverlayStore();
 
   map.value.once("moveend", () => {
-    // AI : If cross-country flight, switch to country layer after arrival
-    if (switchToCountryLayer) {
-      switchToCountryLayer();
-    }
-
     // AI : CRITICAL: After zoom completes, check if overlay needs to be rendered
     // AI : This handles the case where overlays were loaded while zoomed out
     // AI : The overlay might exist in overlayStore but not be rendered on the map
@@ -153,10 +142,10 @@ function zoomToOverlayAndSelect(
  * AI : Handle navigation when clicking the same overlay again
  * AI : Uses position resolver to get current corners
  */
-function handleSameOverlayNavigation(overlayId: string): boolean {
+function handleSameOverlayNavigation(overlayId: string, autoSelect: boolean): boolean {
   const corners = resolveOverlayCorners(overlayId);
   if (corners !== null) {
-    zoomToOverlayAndSelect(overlayId, corners, null); // AI : Same overlay, no cross-country
+    zoomToOverlayAndSelect(overlayId, corners, autoSelect); // AI : Same overlay, no cross-country
   }
   return true;
 }
@@ -183,7 +172,7 @@ export async function navigateToOverlayWithCity(
 
     // AI : Optimization 1: Check if clicking the same overlay again
     if (overlayStore.idSelectedOverlay === overlayId) {
-      return handleSameOverlayNavigation(overlayId);
+      return handleSameOverlayNavigation(overlayId, autoSelect);
     }
 
     // AI : Optimization 2: Check if overlay is from the currently selected city
@@ -200,14 +189,14 @@ export async function navigateToOverlayWithCity(
       if (isOverlayRendered) {
         const corners = resolveOverlayCorners(overlayId);
         if (corners !== null) {
-          return zoomToOverlayAndSelect(overlayId, corners, null, autoSelect); // AI : Same city, pass autoSelect
+          return zoomToOverlayAndSelect(overlayId, corners, autoSelect); // AI : Same city, pass autoSelect
         }
       }
       // AI : Overlay not rendered (cleared on unzoom), fall through to reload city data
     }
 
     // AI : Different city - load everything with cross-country flight support
-    const switchToCountryLayer = await prepareNavigationToCity(cityId, cityName, countryCode);
+    await prepareNavigationToCity(cityId, cityName, countryCode);
 
     if (!map.value) {
       return false;
@@ -247,10 +236,6 @@ export async function navigateToOverlayWithCity(
       if (selectedOverlay?.overlay) {
         selectOverlay(overlayId);
       }
-      // AI : If cross-country flight, switch to country layer immediately
-      if (switchToCountryLayer) {
-        switchToCountryLayer();
-      }
     } else {
       // AI : Low zoom - need to zoom in, marker selection happens in moveend handler below
       // AI : Create lat/lng and zoom to use in flight params
@@ -259,7 +244,7 @@ export async function navigateToOverlayWithCity(
           ? L.latLngBounds(matchingOverlay.corners.map((c) => L.latLng(c.lat, c.lng))).getCenter()
           : L.latLng(0, 0); // Fallback if no overlay or corners
 
-      await mobileAwareFlyTo([lat, lng], 16, {
+      mobileAwareFlyTo([lat, lng], 16, {
         duration: 1.5,
       });
 
@@ -267,10 +252,6 @@ export async function navigateToOverlayWithCity(
       // AI : We need to re-select it after the flight completes
       // AI : Use timeout to ensure moveend handlers complete first
       setTimeout(() => {
-        // AI : If cross-country flight, switch to country layer after arrival
-        if (switchToCountryLayer) {
-          switchToCountryLayer();
-        }
         selectOverlay(overlayId);
       }, 100);
     }
@@ -303,7 +284,7 @@ export async function navigateToStandaloneProject(
 ): Promise<void> {
   try {
     // AI : Prepare navigation with cross-country flight support
-    const switchToCountryLayer = await prepareNavigationToCity(cityId, cityName, countryCode);
+    await prepareNavigationToCity(cityId, cityName, countryCode);
 
     // AI : CRITICAL FIX: Load city data to populate mapStore cache
     // AI : This is needed for CurrentLocationPanel to display projects
@@ -325,11 +306,6 @@ export async function navigateToStandaloneProject(
 
     // AI : Handle post-flight actions
     map.value.once("moveend", () => {
-      // AI : If cross-country flight, switch to country layer after arrival
-      if (switchToCountryLayer) {
-        switchToCountryLayer();
-      }
-
       // AI : If projectId provided, open the project info popup
       if (projectId) {
         const overlayStore = useOverlayStore();

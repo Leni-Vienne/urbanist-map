@@ -6,7 +6,7 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { trpc } from "@/client";
 import type { OverlayData } from "@/types/index";
 import type { CityProject } from "@/utils/typeFactories";
-import type { MapMode } from "@shared/types";
+import type { AppMode } from "@shared/types";
 
 /**
  * AI : Module-level ref to track loaded cities across both viewport manager and direct navigation
@@ -20,7 +20,7 @@ export const loadedCityIds = ref<Set<number>>(new Set());
  */
 async function fetchCityOverlaysOrCache(
   cityId: number,
-  mode: MapMode,
+  mode: AppMode,
 ): Promise<OverlayData[] | null> {
   const mapStore = useMapStore();
   let overlaysData = mapStore.getCityOverlaysAndProjectsCache(cityId, mode);
@@ -43,7 +43,7 @@ async function fetchCityOverlaysOrCache(
  */
 export async function fetchCityStandaloneProjectsOrCache(
   cityId: number,
-  mode: MapMode,
+  mode: AppMode,
 ): Promise<CityProject[] | null> {
   const mapStore = useMapStore();
   let standaloneProjects = mapStore.getCityStandaloneProjectsCache(cityId, mode);
@@ -68,7 +68,7 @@ export async function fetchCityStandaloneProjectsOrCache(
  */
 export async function loadCityData(
   cityId: number,
-  mode?: MapMode,
+  mode?: AppMode,
 ): Promise<{ overlays: OverlayData[] | null; projects: CityProject[] | null } | null> {
   const overlayStore = useOverlayStore();
   const actualMode = mode ?? overlayStore.mode;

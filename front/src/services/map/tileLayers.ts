@@ -11,9 +11,6 @@ export const currentTileLayer = ref<TileLayerType>("osm");
 // AI : Reference to the currently active tile layer instance
 let activeTileLayer: L.TileLayer | L.GridLayer | null = null;
 
-// AI : Current country code for cross-country flight detection
-let currentCountryCode: string | null = null;
-
 // To prevent requesting the tileLayer server for tiles outside the valid range
 const tileLayerBounds = L.latLngBounds([-85, -180], [85, 180]);
 
@@ -95,6 +92,7 @@ const tileLayerConfigs = {
 /**
  * AI : Add tile layers and layer control to the map
  */
+
 export function addTileLayer(): void {
   if (!map.value) {
     console.error("Map not initialized when trying to add tile layers");
@@ -184,25 +182,4 @@ export function getTileLayerOptions(): { label: string; value: TileLayerType; fl
 
 export function isTileLayerType(value: string): value is TileLayerType {
   return ["FRA", "esri", "USA", "CHE", "osm"].includes(value);
-}
-
-/**
- * AI : Prepare for cross-country flight navigation
- * AI : Switches to esri immediately if navigating to a different country
- * AI : Returns a callback to switch to target country layer after flight
- * @param targetCountryCode - The country code being navigated to
- * @returns Callback to execute after flight completes, or null if same country
- */
-export function prepareCrossCountryFlight(targetCountryCode: string | null): (() => void) | null {
-  // AI : Check if this is a cross-country navigation
-  const isCrossCountry = currentCountryCode !== targetCountryCode;
-  if (isCrossCountry) {
-    // AI : Update current country but DO NOT switch layers automatically
-    // AI : User preference for layer (e.g. Satellite) should persist
-    currentCountryCode = targetCountryCode;
-    // AI : Return null callback as no post-flight switching is needed anymore
-    return null;
-  }
-  // AI : Same country navigation - no tile layer changes needed
-  return null;
 }
