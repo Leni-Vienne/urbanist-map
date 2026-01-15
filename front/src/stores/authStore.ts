@@ -5,7 +5,6 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
-import { clearMapOnLogout } from "@/services/map/mapCleanup";
 
 // AI : User type for our custom authentication
 interface User {
@@ -335,7 +334,8 @@ export const useAuthStore = defineStore("auth", () => {
       moderationStore.clearAllState();
 
       // AI : Clear visual map elements directly (no watcher needed)
-      clearMapOnLogout();
+      // AI : MOVED TO APP.VUE WATCHER TO AVOID CIRCULAR DEPENDENCY
+      // clearMapOnLogout();
 
       if (response.ok) {
         return { success: true, error: null };
