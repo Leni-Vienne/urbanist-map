@@ -1,5 +1,6 @@
 import L from "leaflet";
-import { loadCityProjects, loadAllCityMarkersGlobally } from "@/services/map/cityMarkers";
+import { loadAllCityMarkersGlobally } from "@/services/map/cityMarkers";
+import { loadCityProjects } from "@/services/navigation/locationNavigation";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { loadAndRenderCityData } from "@/services/navigation/cityDataRenderer";
 import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";

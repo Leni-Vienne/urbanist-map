@@ -11,7 +11,7 @@ import {
   getOverlayBounds,
 } from "@/services/overlay/overlayMarkers";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
-import { loadCityProjects } from "@/services/map/cityMarkers";
+import { loadCityProjects } from "@/services/navigation/locationNavigation";
 import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
 import { switchMode } from "@/services/overlay/modeSwitching";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";

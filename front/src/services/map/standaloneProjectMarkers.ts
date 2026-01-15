@@ -11,7 +11,10 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
-import { createProjectInfoTeleportTarget } from "@/services/map/projectPopupTeleport";
+import {
+  createProjectInfoTeleportTarget,
+  cleanupProjectInfoTeleportTarget,
+} from "@/services/map/projectPopupTeleport";
 import { requestScrollTo } from "@/services/layout/accordionState";
 import { getProjectMarkerColor } from "@/utils/markerColors";
 import { fetchCityStandaloneProjectsOrCache } from "@/services/navigation/cityDataLoader";
@@ -425,8 +428,16 @@ export function updateAllStandaloneProjectMarkerColors(): void {
       const markerIcon = createStandaloneProjectIcon(markerColor);
       marker.setIcon(markerIcon);
 
-      // AI : Also update tooltip when mode changes
       updateStandaloneProjectMarkerTooltip(marker, project, overlayStore.mode);
     }
   }
+}
+
+/**
+ * AI : Close project popup and reset standalone project marker opacities
+ * This extends the base cleanup with marker opacity reset specific to standalone markers
+ */
+export function closeProjectPopupAndResetMarkers() {
+  cleanupProjectInfoTeleportTarget();
+  updateStandaloneProjectMarkerOpacities(null); // AI : Reset marker opacities when popup closes
 }
