@@ -1,7 +1,4 @@
 import L from "leaflet";
-import { createStandaloneProjectIcon } from "@/composables/map/useMarkers";
-import type { Project } from "@/types/index";
-import { createProjectObject } from "@/utils/typeFactories";
 import { ref, watch } from "vue";
 import { t } from "@/locales";
 import { map } from "@/composables/core/useMap";
@@ -16,14 +13,11 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useCityMarkersStore } from "@/stores/pinia/cityMarkersStore";
-import { getProjectMarkerColor } from "@/utils/markerColors";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
 import { createMarkerLayer, type MarkerLayerConfig } from "@/composables/map/useMarkerLayer";
 import {
-  getStandaloneProjectMarkerByProjectId,
-  getStandaloneProjectMarkerMap,
   updateStandaloneProjectMarkerOpacities,
-  updateStandaloneProjectMarkerTooltip,
+  updateAllStandaloneProjectMarkerColors,
 } from "@/composables/map/useStandaloneProjectMarkers";
 import { cleanupProjectInfoTeleportTarget } from "@/composables/map/useProjectPopupTeleport";
 import { useAccordionState } from "@/composables/layout/useAccordionState";
@@ -198,56 +192,6 @@ function updateCityMarkerOpacities(selectedCityId: number | null): void {
       }
     }
   });
-}
-
-/**
- * AI : Update standalone project marker color for a specific project
- */
-export function updateStandaloneProjectMarkerColor(projectId: string, project: Project): void {
-  const marker = getStandaloneProjectMarkerByProjectId(projectId);
-  if (!marker) return;
-
-  const overlayStore = useOverlayStore();
-  const markerColor = getProjectMarkerColor(project, overlayStore.mode);
-  const markerIcon = createStandaloneProjectIcon(markerColor);
-  marker.setIcon(markerIcon);
-}
-
-function updateAllStandaloneProjectMarkerColors(): void {
-  const projectStore = useProjectStore();
-  const overlayStore = useOverlayStore();
-  const mapStore = useMapStore();
-  const markerMap = getStandaloneProjectMarkerMap();
-
-  for (const [projectId, marker] of markerMap) {
-    // AI : Try to find project in multiple locations:
-    // 1. projectStore.projects (local/cached projects)
-    // 2. projectStore.allProjects (fetched projects)
-    // 3. MapStore's standalone projects cache (for current city)
-    let project: Project | undefined =
-      projectStore.projects[projectId] ?? projectStore.allProjects[projectId];
-
-    if (!project && mapStore.selectedCity) {
-      // AI : Fallback: check the cached standalone projects for this city
-      const cachedStandaloneProjects = mapStore.getCityStandaloneProjectsCache(
-        mapStore.selectedCity.id,
-        overlayStore.mode,
-      );
-      const found = cachedStandaloneProjects?.find((p) => p.id === projectId);
-      if (found) {
-        project = createProjectObject(found);
-      }
-    }
-
-    if (project) {
-      const markerColor = getProjectMarkerColor(project, overlayStore.mode);
-      const markerIcon = createStandaloneProjectIcon(markerColor);
-      marker.setIcon(markerIcon);
-
-      // AI : Also update tooltip when mode changes
-      updateStandaloneProjectMarkerTooltip(marker, project, overlayStore.mode);
-    }
-  }
 }
 
 /**
