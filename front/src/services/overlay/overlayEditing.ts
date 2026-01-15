@@ -19,7 +19,7 @@ import {
 import { validateOverlaySize, leafletCornersToCorners } from "@shared/overlayValidation";
 import { useToast } from "@/composables/ui/useToast";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
-import { saveOverlayModificationsToCache, saveToHistory } from "@/services/overlay/overlayHistory";
+import { saveOverlayModificationsToCache } from "@/services/overlay/overlayHistory";
 import {
   updateMarkerPosition,
   updateMarkerTooltip,
@@ -423,155 +423,10 @@ function applyHistoryAction(action: "undo" | "redo") {
   }
 }
 
-export function resetImageRatio() {
-  const overlayStore = useOverlayStore();
-
-  if (!overlayStore.idSelectedOverlay) {
-    throw new Error("No image selected: Please select an image first");
-  }
-
-  const overlayObject = overlayStore.overlays[overlayStore.idSelectedOverlay];
-  if (overlayObject?.overlay == null) return;
-
-  const element = overlayObject.overlay.getElement();
-  if (!(element instanceof HTMLImageElement)) return;
-
-  // AI : Use existing image element instead of creating a new one to avoid CDN fetch
-  const processRatio = () => {
-    if (!overlayObject.overlay || !map.value) return;
-
-    const currentCorners = overlayObject.overlay.getCorners();
-    if (!currentCorners?.length || currentCorners.length !== 4) return;
-
-    // AI : Convert corners to Leaflet LatLng objects for type compatibility
-    const leafletCorners = currentCorners.map((corner) => L.latLng(corner.lat, corner.lng));
-
-    const {
-      originalRatio: _originalRatio,
-      newDimensions,
-      cornersInfo,
-    } = calculateRatioFixParameters(element.naturalWidth / element.naturalHeight, leafletCorners);
-
-    if (!cornersInfo) return;
-
-    applyImageRatioFix(overlayObject, cornersInfo, newDimensions);
-
-    // AI : Save to history after applying ratio fix to ensure changes are detected and overlay is marked as modified
-    saveToHistory(overlayObject);
-
-    updateMarkerPosition(overlayObject);
-  };
-
-  // AI : If image is already loaded, process immediately; otherwise wait for load
-  if (element.complete && element.naturalWidth > 0) {
-    processRatio();
-  } else {
-    element.addEventListener("load", processRatio, { once: true });
-  }
-}
-
-interface CornersInfo {
-  centerPoint: L.Point;
-  angleRad: number;
-}
-
-interface Dimensions {
-  width: number;
-  height: number;
-}
-
-function calculateRatioFixParameters(
-  originalRatio: number,
-  currentCorners: { lat: number; lng: number }[],
-) {
-  if (!map.value)
-    return {
-      originalRatio,
-      newDimensions: { width: 0, height: 0 },
-      cornersInfo: { centerPoint: L.point(0, 0), angleRad: 0 },
-    };
-
-  // AI : Convert corners to screen coordinates
-  const nw = map.value.latLngToContainerPoint(currentCorners[0]);
-  const ne = map.value.latLngToContainerPoint(currentCorners[1]);
-  const sw = map.value.latLngToContainerPoint(currentCorners[2]);
-  const se = map.value.latLngToContainerPoint(currentCorners[3]);
-
-  // AI : Calculate current dimensions by averaging opposite edges
-  const topEdge = nw.distanceTo(ne);
-  const rightEdge = ne.distanceTo(se);
-  const bottomEdge = sw.distanceTo(se);
-  const leftEdge = nw.distanceTo(sw);
-
-  const currentWidth = (topEdge + bottomEdge) / 2;
-  const currentHeight = (leftEdge + rightEdge) / 2;
-
-  // AI : Calculate new dimensions that maintain original ratio
-  let newWidth, newHeight;
-  if (currentWidth / currentHeight > originalRatio) {
-    newHeight = currentHeight;
-    newWidth = currentHeight * originalRatio;
-  } else {
-    newWidth = currentWidth;
-    newHeight = currentWidth / originalRatio;
-  }
-
-  // AI : Get rotation angle from top edge and center point
-  const bounds = L.latLngBounds(currentCorners);
-  const center = bounds.getCenter();
-  const centerPoint = map.value.latLngToContainerPoint(center);
-
-  const topVector = { x: ne.x - nw.x, y: ne.y - nw.y };
-  const angleRad = Math.atan2(topVector.y, topVector.x);
-
-  return {
-    originalRatio,
-    newDimensions: { width: newWidth, height: newHeight },
-    cornersInfo: { centerPoint, angleRad },
-  };
-}
-
-function applyImageRatioFix(
-  overlayObject: OverlayObject,
-  cornersInfo: CornersInfo,
-  dimensions: Dimensions,
-) {
-  if (!map.value || !overlayObject.overlay) return;
-
-  const { centerPoint, angleRad } = cornersInfo;
-  const { width, height } = dimensions;
-  const halfWidth = width / 2;
-  const halfHeight = height / 2;
-
-  // AI : Calculate the four corners of a rectangle centered at centerPoint, rotated by angleRad
-  // AI : Using standard rotation matrix to ensure correct orientation
-  const cos = Math.cos(angleRad);
-  const sin = Math.sin(angleRad);
-
-  // AI : Define corners in local coordinate system (before rotation)
-  const localCorners = [
-    { x: -halfWidth, y: -halfHeight }, // NW
-    { x: halfWidth, y: -halfHeight }, // NE
-    { x: -halfWidth, y: halfHeight }, // SW
-    { x: halfWidth, y: halfHeight }, // SE
-  ];
-
-  // AI : Apply rotation, translation, and convert to geographic coordinates
-  const newCorners: L.LatLng[] = [];
-  for (const local of localCorners) {
-    const x = centerPoint.x + (local.x * cos - local.y * sin);
-    const y = centerPoint.y + (local.x * sin + local.y * cos);
-    newCorners.push(map.value.containerPointToLatLng([x, y]));
-  }
-
-  overlayObject.overlay.setCorners(newCorners);
-}
-
 // AI : Register toolbar callbacks to avoid circular dependencies
 // AI : This must be done here (not in useOverlay.ts) because these functions are defined in this file
 registerToolbarCallbacks({
   focusCameraToOverlay,
   undo,
   redo,
-  resetImageRatio,
 });

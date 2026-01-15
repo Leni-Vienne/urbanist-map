@@ -12,7 +12,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
 import { createProjectInfoTeleportTarget } from "@/services/map/projectPopupTeleport";
-import { useAccordionState } from "@/composables/layout/useAccordionState";
+import { requestScrollTo } from "@/services/layout/accordionState";
 import { getProjectMarkerColor } from "@/utils/markerColors";
 import { fetchCityStandaloneProjectsOrCache } from "@/services/navigation/cityDataLoader";
 import { createProjectObject } from "@/utils/typeFactories";
@@ -284,7 +284,6 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
       }
 
       // AI : Request scroll to project in moderation panel
-      const { requestScrollTo } = useAccordionState();
       requestScrollTo("project", project.id);
     }
 

@@ -67,7 +67,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
-import { usePopupState } from "@/composables/map/usePopupState";
+import { overlayPopupTarget, projectPopupTarget } from "@/services/map/popupState";
 
 import { navigateToOverlay } from "@/services/overlay/overlay";
 import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
@@ -127,7 +127,6 @@ const availableCities = computed(() => {
 });
 
 // AI : Track teleport target existence using reactive state (no MutationObserver)
-const { overlayPopupTarget, projectPopupTarget } = usePopupState();
 
 // AI : Computed for overlay popup visibility
 const showOverlayPopup = computed(() => showInfoPopup.value && overlayPopupTarget.value);
