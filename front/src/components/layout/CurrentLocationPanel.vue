@@ -107,7 +107,7 @@ import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHan
 import { isValidCountryCode } from "@/services/map/countryData";
 import { flyToCountry, mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { map } from "@/services/core/map";
-import { useAccordionState } from "@/composables/layout/useAccordionState";
+import { expandAccordionForOverlay } from "@/services/layout/accordionState";
 import { useAddOverlay } from "@/composables/overlay/useAddOverlay";
 import {
   loadCityProjects,
@@ -123,9 +123,6 @@ import type { ProjectForModeration, OverlayForModeration } from "@/types/index";
 const mapStore = useMapStore();
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
-
-// AI : Get accordion state to manually expand when needed
-const { expandAccordionForOverlay } = useAccordionState();
 
 // AI : Use shared composable for add overlay button
 const { handleAddOverlayClick } = useAddOverlay();

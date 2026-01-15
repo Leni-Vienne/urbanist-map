@@ -3,7 +3,7 @@ import { ref, watch } from "vue";
 import { t } from "@/locales";
 import { map } from "@/services/core/map";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
-import { useSelectedProject } from "@/composables/project/useProjectSelection";
+import { getSelectedProjectId } from "@/services/project/projectSelection";
 import { loadAndRenderCityData } from "@/services/navigation/cityDataRenderer";
 import type { RouterOutput } from "@/client";
 
@@ -20,7 +20,7 @@ import {
   updateAllStandaloneProjectMarkerColors,
 } from "@/services/map/standaloneProjectMarkers";
 import { cleanupProjectInfoTeleportTarget } from "@/services/map/projectPopupTeleport";
-import { useAccordionState } from "@/composables/layout/useAccordionState";
+import { requestScrollTo } from "@/services/layout/accordionState";
 
 // AI : Type aliases using RouterOutput from tRPC
 export type CityWithProjects = RouterOutput["cities"]["getCitiesWithProjects"][number];
@@ -234,7 +234,7 @@ export async function loadCityProjects(
     // AI : Only clear state when actually switching cities, not when refreshing
     if (isSwitchingCity) {
       // AI : Clear selected project when switching cities
-      const { selectedProjectId } = useSelectedProject();
+      const selectedProjectId = getSelectedProjectId();
       selectedProjectId.value = null;
 
       // AI : Close project info popup when switching cities
@@ -364,7 +364,6 @@ function createCitiesMarkerLayer(cities: CityWithProjects[]): {
       });
 
       // AI : Request scroll to city in adjacent panels
-      const { requestScrollTo } = useAccordionState();
       requestScrollTo("city", city.id);
 
       // AI : Load city data before flight animation
