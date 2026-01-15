@@ -1,7 +1,7 @@
 import { t } from "@/locales";
 import { useToast } from "@/composables/ui/useToast";
 import { useUserContributions } from "@/composables/project/useUserContributions";
-import { addStandaloneProjectMarkerForProject } from "@/composables/map/useStandaloneProjectMarkers";
+import { addStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 

@@ -69,14 +69,11 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { usePopupState } from "@/composables/map/usePopupState";
 
-import { navigateToOverlay } from "@/composables/overlay/useOverlay";
-import { updateMarkerTooltip } from "@/composables/overlay/useOverlayMarkers";
+import { navigateToOverlay } from "@/services/overlay/overlay";
+import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
 import { useToast } from "@/composables/ui/useToast";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
-import {
-  citiesWithProjects,
-  closeProjectPopupAndResetMarkers,
-} from "@/composables/map/useCityMarkers";
+import { citiesWithProjects, closeProjectPopupAndResetMarkers } from "@/services/map/cityMarkers";
 import type { OverlayObject, Project } from "@/types/index";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 import type { DBProject, DBCity } from "../../../../back/src/db/schema";

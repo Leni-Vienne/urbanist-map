@@ -17,7 +17,7 @@
 
 <script setup lang="ts">
 import { ref, watch, reactive } from "vue";
-import { switchTileLayer, isTileLayerType } from "@/composables/map/useTileLayers";
+import { switchTileLayer, isTileLayerType } from "@/services/map/tileLayers";
 import { useProjectFormValidation } from "@/composables/forms/useProjectFormValidation";
 import type ProjectFormFields from "@/components/forms/ProjectFormFields.vue";
 import type { ProjectFormData } from "@/components/forms/ProjectFormFields.vue";

@@ -6,13 +6,13 @@
 // AI : ============================================================================
 
 import type L from "leaflet";
-import { map } from "@/composables/core/useMap";
+import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
-import { OVERLAY_OUTLINE_COLOR } from "@/composables/map/useMarkers";
-import { syncPreviewStateOnNavigation } from "@/composables/overlay/changeRequestPreviewState";
+import { OVERLAY_OUTLINE_COLOR } from "@/services/map/markers";
+import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
 import type { OverlayObject } from "@/types/index";
 
 // AI : Guard to prevent recursive selectOverlay calls when library fires select event

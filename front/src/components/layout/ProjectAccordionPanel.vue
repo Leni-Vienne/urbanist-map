@@ -169,13 +169,10 @@ import type {
 // Composables
 import { useAccordionState } from "@/composables/layout/useAccordionState";
 import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
-import {
-  highlightOverlayById,
-  removeOverlayHighlight,
-} from "@/composables/overlay/useOverlaySelection";
+import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/overlaySelection";
 import { useToast } from "@/composables/ui/useToast";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { navigateToStandaloneProject } from "@/composables/navigation/useOverlayNavigation";
+import { navigateToStandaloneProject } from "@/services/navigation/overlayNavigation";
 
 // AI : Props interface
 interface Props {

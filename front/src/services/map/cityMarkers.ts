@@ -1,10 +1,10 @@
 import L from "leaflet";
 import { ref, watch } from "vue";
 import { t } from "@/locales";
-import { map } from "@/composables/core/useMap";
-import { mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
+import { map } from "@/services/core/map";
+import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { useSelectedProject } from "@/composables/project/useProjectSelection";
-import { loadAndRenderCityData } from "@/composables/navigation/useCityDataRenderer";
+import { loadAndRenderCityData } from "@/services/navigation/cityDataRenderer";
 import type { RouterOutput } from "@/client";
 
 import { useAuthStore } from "@/stores/authStore";
@@ -14,12 +14,12 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useCityMarkersStore } from "@/stores/pinia/cityMarkersStore";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
-import { createColorIcon } from "@/composables/map/useMarkers";
+import { createColorIcon } from "@/services/map/markers";
 import {
   updateStandaloneProjectMarkerOpacities,
   updateAllStandaloneProjectMarkerColors,
-} from "@/composables/map/useStandaloneProjectMarkers";
-import { cleanupProjectInfoTeleportTarget } from "@/composables/map/useProjectPopupTeleport";
+} from "@/services/map/standaloneProjectMarkers";
+import { cleanupProjectInfoTeleportTarget } from "@/services/map/projectPopupTeleport";
 import { useAccordionState } from "@/composables/layout/useAccordionState";
 
 // AI : Type aliases using RouterOutput from tRPC

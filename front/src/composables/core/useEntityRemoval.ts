@@ -2,11 +2,11 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
-import { map } from "@/composables/core/useMap";
+import { map } from "@/services/core/map";
 import {
   getStandaloneProjectMarkerByProjectId,
   addStandaloneProjectMarkerForProject,
-} from "@/composables/map/useStandaloneProjectMarkers";
+} from "@/services/map/standaloneProjectMarkers";
 
 /**
  * AI : Unified entity removal composable

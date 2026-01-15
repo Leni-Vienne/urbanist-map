@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { trpc } from "@/client";
-import { withErrorHandling } from "@/composables/core/useErrorHandling";
+import { withErrorHandling } from "@/services/core/errorHandling";
 
 export function useLatestContributions() {
   const overlayStore = useOverlayStore();

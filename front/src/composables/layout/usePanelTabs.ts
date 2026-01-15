@@ -3,7 +3,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
-import { switchMode } from "@/composables/overlay/useModeSwitching";
+import { switchMode } from "@/services/overlay/modeSwitching";
 import type { MapMode } from "@shared/types";
 import type { PanelTab } from "@/types";
 

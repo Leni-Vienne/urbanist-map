@@ -1,6 +1,6 @@
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { clearAllStandaloneProjectMarkers } from "@/composables/map/useStandaloneProjectMarkers";
+import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProjectMarkers";
 
 /**
  * AI : Composable for handling map state during logout
