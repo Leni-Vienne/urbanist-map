@@ -10,7 +10,8 @@ import { trpc } from "@/client";
 import { withErrorHandling } from "@/services/core/errorHandling";
 import { useToast } from "@/composables/ui/useToast";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
-import { updateMarkerTooltip, getOverlayBounds } from "@/services/overlay/overlayMarkers";
+import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
+import { getOverlayBounds } from "@/services/overlay/overlayPositionManagement";
 import {
   renderViewModeOverlays,
   registerRenderingCallbacks,
@@ -19,45 +20,6 @@ import {
   checkOverlaySizeAndWarn,
   registerNavigationCallback,
 } from "@/services/overlay/overlayEditing";
-
-// AI : updateOverlayEditingState moved to useOverlayEditing.ts
-
-// AI : checkOverlaySizeAndWarn moved to useOverlayEditing.ts
-
-// AI : getCornersForOverlay, getCornersForOverlayWithCache, isValidCorners moved to useOverlayHistory.ts
-
-// AI : createMarkerTitle, updateMarkerPosition moved to useOverlayMarkers.ts
-
-// AI : saveToHistory moved to useOverlayHistory.ts
-
-// AI : saveOverlayModificationsToCache moved to useOverlayHistory.ts
-
-/**
- * AI : Add new overlay to city cache so it persists across zoom changes
- */
-// AI : addNewOverlayToCityCache moved to useOverlayCityCache.ts to break circular dependency
-export { addNewOverlayToCityCache } from "@/services/overlay/overlayCityCache";
-
-// AI : Selection functions moved to useOverlaySelection.ts
-
-// AI : renderViewModeOverlays moved to useOverlayRendering.ts
-
-// AI : overlaysBeingCreated moved to useOverlayRendering.ts
-
-// AI : renderSingleOverlay moved to useOverlayRendering.ts
-
-// AI : updateMarkerTooltip moved to useOverlayMarkers.ts
-
-// AI : createSingleMarker moved to useOverlayMarkers.ts
-
-// AI : setupOverlayMovementTracking moved to useOverlayRendering.ts
-
-// AI : Overlay Action Functions (moved from useOverlayActions.ts to break circular dependency)
-
-// AI : Helper function to transform backend overlay to CDN format
-// AI : Use factory function from typeFactories.ts - removed local implementation
-
-// AI : createNewOverlayObject moved to useOverlayEditing.ts
 
 // AI : Helper function to zoom to overlay bounds with proper error handling
 function zoomToOverlayBounds(overlay: OverlayObject): boolean {

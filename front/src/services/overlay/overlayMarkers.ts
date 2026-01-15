@@ -11,9 +11,7 @@ import { getOverlayMarkerColor, createOverlayIcon } from "@/services/map/markers
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useModerationStore } from "@/stores/pinia/moderationStore";
-import type { OverlayObject, MarkerColor, Project } from "@/types/index";
+import type { OverlayObject, MarkerColor } from "@/types/index";
 import {
   selectOverlay,
   highlightProjectOverlaysOnHover,
@@ -21,8 +19,11 @@ import {
 } from "@/services/overlay/overlaySelection";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
-import { getFromEditModeOverlayCache } from "@/services/overlay/overlayPositionManagement";
-import { createOverlayObject } from "@/utils/typeFactories";
+import {
+  getFromEditModeOverlayCache,
+  getOverlayBounds,
+} from "@/services/overlay/overlayPositionManagement";
+import { enrichOverlayWithProject } from "@/services/overlay/overlayData";
 // AI : useI18n() uses Vue's inject() mechanism which is only available synchronously during the setup() phase of a component.
 import { t } from "@/locales";
 
@@ -125,90 +126,9 @@ export function updateMarkerTooltip(
   }
 }
 
-/**
- * AI : Get bounds for an overlay (for camera navigation)
- */
-export function getOverlayBounds(overlay: OverlayObject): L.LatLngBounds | null {
-  const overlayStore = useOverlayStore();
+// AI : getOverlayBounds moved to overlayPositionManagement.ts
 
-  // AI : Priority 0: If overlay is rendered, use actual Leaflet overlay position (most accurate)
-  if (overlay.overlay) {
-    const actualCorners = overlay.overlay.getCorners();
-    if (actualCorners?.length === 4) {
-      return L.latLngBounds(actualCorners);
-    }
-  }
-
-  // AI : Priority 1: Check edit mode cache if in edit mode for the most current position
-  if (overlayStore.mode === "edit") {
-    const cachedModifications = getFromEditModeOverlayCache(overlay.id);
-    if (cachedModifications?.corners?.length === 4) {
-      const corners = cachedModifications.corners.map((corner) => L.latLng(corner.lat, corner.lng));
-      return L.latLngBounds(corners);
-    }
-  }
-
-  // AI : Priority 2: Use overlay corners from overlayObject (pending position if hasPendingChanges, approved otherwise)
-  if (overlay.corners?.length === 4) {
-    const corners = overlay.corners.map((corner) => L.latLng(corner.lat, corner.lng));
-    return L.latLngBounds(corners);
-  }
-
-  // AI : Priority 3: Validate all corner coordinates exist and are valid numbers
-  if (!overlay.corners || overlay.corners.length !== 4) {
-    return null;
-  }
-
-  const corners = overlay.corners.map((c) => L.latLng(c.lat, c.lng));
-
-  // AI : Check if all corners are valid
-  if (corners.some((c) => !c.lat || !c.lng)) {
-    return null;
-  }
-
-  return L.latLngBounds(corners);
-}
-
-/**
- * AI : Enrich overlay with project data for proper marker color calculation
- * AI : Pure function - only uses stores and factory utilities
- */
-export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayObject {
-  const projectStore = useProjectStore();
-  const overlayStore = useOverlayStore();
-  const moderationStore = useModerationStore();
-
-  let project = savedOverlay.project;
-
-  if (!project && savedOverlay.projectId) {
-    // AI : First check normal project store
-    project = projectStore.projects[savedOverlay.projectId];
-
-    // AI : If not found and in moderation mode, check moderation store
-    if (!project && overlayStore.mode === "moderation") {
-      const modProject = moderationStore.projects.find((p) => p.id === savedOverlay.projectId);
-      if (modProject) {
-        // AI : Cast moderation project to Project type (compatible enough for our needs)
-        project = modProject as unknown as Project;
-      }
-    }
-  }
-
-  // AI : Check edit mode cache to determine if overlay has been modified locally
-  const cachedModifications =
-    overlayStore.mode === "edit" ? overlayStore.getFromEditModeCache(savedOverlay.id) : undefined;
-
-  // AI : Use factory function but preserve existing data
-  return createOverlayObject({
-    ...savedOverlay,
-    project: project ? { ...project, city: project.city ?? null } : null,
-    overlay: null,
-    marker: null,
-    corners: savedOverlay.corners,
-    // AI : Set isModified flag based on edit mode cache for proper marker color
-    isModified: cachedModifications?.isModified ?? savedOverlay.isModified,
-  });
-}
+// AI : enrichOverlayWithProject moved to services/overlay/overlayData.ts
 
 /**
  * AI : Create a single marker for an overlay (for view mode overlays)

@@ -3,7 +3,7 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
-import { addNewOverlayToCityCache } from "@/services/overlay/overlay";
+import { addNewOverlayToCityCache } from "@/services/overlay/overlayCityCache";
 import { map } from "@/services/core/map";
 import { trpc, getApiUrl } from "@/client";
 import { buildProjectPayload } from "@/services/project/projectMutations";

@@ -1,9 +1,11 @@
 // AI : ============================================================================
 // AI : OVERLAY POSITION MANAGEMENT - Unified position resolution, caching, and application
 // AI : ============================================================================
-// AI : Combines position resolution logic, edit mode caching, and Leaflet overlay updates
+// AI : Combines position resolution logic, edit mode caching, and bounds calculation
 // AI : Single source of truth for all position-related operations
 // AI : ============================================================================
+
+import L from "leaflet";
 
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
@@ -213,4 +215,40 @@ export function saveCachedPosition(
   };
 
   overlayStore.saveToEditModeCache(overlayId, cacheData);
+}
+
+/**
+ * AI : Get bounds for an overlay (for camera navigation)
+ * AI : Moved from overlayMarkers.ts to centralize position logic
+ */
+export function getOverlayBounds(overlay: OverlayData): L.LatLngBounds | null {
+  const overlayStore = useOverlayStore();
+
+  // AI : Priority 0: If overlay is rendered, use actual Leaflet overlay position (most accurate)
+  // AI : Type guard to check if overlay property exists on the object
+  // AI : Cast to any to access Leaflet methods if type definition is incomplete
+  if ("overlay" in overlay && overlay.overlay) {
+    const actualCorners = (overlay.overlay as any).getCorners();
+    if (actualCorners?.length === 4) {
+      return L.latLngBounds(actualCorners);
+    }
+  }
+
+  // AI : Priority 1: Check edit mode cache if in edit mode for the most current position
+  if (overlayStore.mode === "edit") {
+    const cachedModifications = getFromEditModeOverlayCache(overlay.id);
+    if (cachedModifications?.corners?.length === 4) {
+      const corners = cachedModifications.corners.map((corner) => L.latLng(corner.lat, corner.lng));
+      return L.latLngBounds(corners);
+    }
+  }
+
+  // AI : Priority 2: Use overlay corners from overlayData
+  // AI : (OverlayData always has corners, typically approved position)
+  if (overlay.corners?.length === 4) {
+    const corners = overlay.corners.map((corner) => L.latLng(corner.lat, corner.lng));
+    return L.latLngBounds(corners);
+  }
+
+  return null;
 }
