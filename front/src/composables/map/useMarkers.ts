@@ -7,7 +7,6 @@
 import L from "leaflet";
 import type { MarkerColor, OverlayObject, OverlayData } from "@/types/index";
 import type { MapMode } from "@shared/types";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import type { ShallowRef } from "vue";
 import { getApprovalStatusColor, getTimelineBasedColor } from "@/utils/markerColors";
 
@@ -267,21 +266,21 @@ export function getOverlayMarkerColor(
 /**
  * AI : Update overlay markers colors for existing markers based on current mode
  * @param overlays - Reference to overlays object
+ * @param mode - Current map mode (passed as parameter for testability and performance)
  * @param specificOverlayId - Optional overlay ID to update only one overlay (optimization)
  */
 export function updateOverlayMarkersColors(
   overlays: ShallowRef<Record<string, OverlayObject>>,
+  mode: MapMode,
   specificOverlayId?: string,
 ): void {
   if (overlays?.value === null) return;
-
-  const overlayStore = useOverlayStore();
 
   // AI : If specific overlay ID provided, only update that one
   if (specificOverlayId) {
     const overlayObject = overlays.value[specificOverlayId];
     if (overlayObject && overlayObject.marker) {
-      const markerColor = getOverlayMarkerColor(overlayObject, overlayStore.mode);
+      const markerColor = getOverlayMarkerColor(overlayObject, mode);
       const colorIcon = createOverlayIcon(markerColor);
       overlayObject.marker.setIcon(colorIcon);
     }
@@ -289,11 +288,10 @@ export function updateOverlayMarkersColors(
   }
 
   // AI : Otherwise, iterate through all overlay objects that have markers
-  // AI : Otherwise, iterate through all overlay objects that have markers
   for (const overlayObject of Object.values(overlays.value)) {
     if (overlayObject && overlayObject.marker) {
       // AI : Update marker color based on current mode and overlay state
-      const markerColor = getOverlayMarkerColor(overlayObject, overlayStore.mode);
+      const markerColor = getOverlayMarkerColor(overlayObject, mode);
       const colorIcon = createOverlayIcon(markerColor);
       overlayObject.marker.setIcon(colorIcon);
     }

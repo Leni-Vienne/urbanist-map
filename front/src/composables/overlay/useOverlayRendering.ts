@@ -375,7 +375,11 @@ function setupOverlayMovementTracking(
         updateMarkerPosition(overlayObject);
 
         // AI : Update only this overlay's marker color (optimization: avoid recalculating all overlays)
-        updateOverlayMarkersColors(toRef(overlayStore, "overlays"), overlayObject.id);
+        updateOverlayMarkersColors(
+          toRef(overlayStore, "overlays"),
+          overlayStore.mode,
+          overlayObject.id,
+        );
       }
     };
 

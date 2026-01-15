@@ -1,14 +1,11 @@
-import L from "leaflet";
 import "leaflet-toolbar";
 import "leaflet-distortableimage";
 import { t } from "@/locales";
 import { map } from "@/composables/core/useMap";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
+import { useProjectStore } from "@/stores/pinia/projectStore";
 import type { OverlayObject } from "@/types/index";
-import { convertOverlayToData } from "@/utils/typeFactories";
-import { useProjects } from "@/composables/project/useProjects";
 import { trpc } from "@/client";
 import { withErrorHandling } from "@/composables/core/useErrorHandling";
 import { useToast } from "@/composables/ui/useToast";
@@ -18,14 +15,7 @@ import {
   renderViewModeOverlays,
   registerRenderingCallbacks,
 } from "@/composables/overlay/useOverlayRendering";
-import {
-  updateOverlayEditingState,
-  checkOverlaySizeAndWarn,
-  addOverlay,
-  undo,
-  redo,
-  resetImageRatio,
-} from "@/composables/overlay/useOverlayEditing";
+import { checkOverlaySizeAndWarn } from "@/composables/overlay/useOverlayEditing";
 
 // AI : updateOverlayEditingState moved to useOverlayEditing.ts
 
@@ -100,7 +90,7 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
 
 function focusCameraToOverlay(direction: "next" | "previous") {
   const overlayStore = useOverlayStore();
-  const { projects } = useProjects();
+  const projectStore = useProjectStore();
 
   if (!map.value) {
     throw new Error("Map not available: Cannot navigate between overlays");
@@ -117,7 +107,7 @@ function focusCameraToOverlay(direction: "next" | "previous") {
     return false;
   }
 
-  let project = projects.value[currentOverlay.projectId];
+  let project = projectStore.projects[currentOverlay.projectId];
   let projectOverlayIds: string[];
 
   // AI : If project is not in memory, just find overlays with same projectId
@@ -145,14 +135,14 @@ function focusCameraToOverlay(direction: "next" | "previous") {
 }
 
 function selectFirstOrLastOverlayInAnyProject(direction: "next" | "previous") {
-  const { projects } = useProjects();
-  const projectIds = Object.keys(projects.value);
+  const projectStore = useProjectStore();
+  const projectIds = Object.keys(projectStore.projects);
   if (!projectIds.length) {
     throw new Error("No projects: Please create a project first");
   }
 
   for (const projectId of projectIds) {
-    const project = projects.value[projectId];
+    const project = projectStore.projects[projectId];
     if (project.overlayIds.length > 0) {
       // Select first overlay for 'next', last overlay for 'previous'
       const index = direction === "next" ? 0 : project.overlayIds.length - 1;

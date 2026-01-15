@@ -54,7 +54,7 @@ export function useViewportContentManager() {
    * AI : Changes from Timeline Status (view) to Approval Status (edit)
    */
   function updateMarkerColorsForMode() {
-    updateOverlayMarkersColors(ref(overlayStore.overlays));
+    updateOverlayMarkersColors(ref(overlayStore.overlays), overlayStore.mode);
   }
 
   /**
