@@ -185,7 +185,7 @@ export function useModeration() {
         updateMarkerTooltip(overlayObject);
 
         // AI : Update all marker colors to reflect status changes
-        updateOverlayMarkersColors(toRef(overlayStore, "overlays"));
+        updateOverlayMarkersColors(toRef(overlayStore, "overlays"), overlayStore.mode);
       }
 
       // AI : If this was a replacement overlay approval with conflict handling, remove the original and competing overlays from map

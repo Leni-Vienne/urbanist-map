@@ -14,7 +14,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useCityMarkersStore } from "@/stores/pinia/cityMarkersStore";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
-import { createMarkerLayer, type MarkerLayerConfig } from "@/composables/map/useMarkerLayer";
+import { createColorIcon } from "@/composables/map/useMarkers";
 import {
   updateStandaloneProjectMarkerOpacities,
   updateAllStandaloneProjectMarkerColors,
@@ -265,43 +265,78 @@ export function removeCityMarkers(): void {
 }
 
 /**
- * AI : Shared city marker configuration to avoid code duplication
+ * AI : Create a layer group with city markers
+ * AI : Handles all city-specific marker creation, event handling, and state management
  */
-function getCityMarkerConfig(): MarkerLayerConfig<CityWithProjects> {
-  return {
-    getOpacity: (hover) => (hover ? MARKER_OPACITY.city.hover : MARKER_OPACITY.city.default),
-    getColor: () => "blue",
-    getLatLng: (city) => ({ lat: city.lat, lng: city.lng }),
-    getTooltip: (city) => (city.nameLocal ? `${city.name} (${city.nameLocal})` : city.name),
-    getTestId: (city) => `city-marker-${city.id}`,
-    getDataAttributes: (city) => ({
-      "data-city-id": String(city.id),
-      "data-city-name": city.name,
-      "data-city-name-local": city.nameLocal ?? "",
-      "data-country-code": city.countryCode,
-      "data-lat": city.lat.toString(),
-      "data-lng": city.lng.toString(),
-    }),
-    onMarkerHover: (marker, city, isHovering) => {
-      // AI : Custom hover handler that respects selected city state
+function createCitiesMarkerLayer(cities: CityWithProjects[]): {
+  layer: L.LayerGroup;
+  markers: Map<string, L.Marker>;
+} {
+  const layer = L.layerGroup();
+  const markers = new Map<string, L.Marker>();
+
+  const defaultOpacity = MARKER_OPACITY.city.default;
+  const hoverOpacity = MARKER_OPACITY.city.hover;
+
+  // AI : Helper to reset all markers to default opacity
+  function resetAllMarkerOpacities() {
+    layer.eachLayer((l) => {
+      if (l instanceof L.Marker) {
+        l.setOpacity(defaultOpacity);
+      }
+    });
+  }
+
+  for (const city of cities) {
+    // AI : Create marker with blue icon
+    const marker = L.marker([city.lat, city.lng], {
+      icon: createColorIcon("blue"),
+      opacity: defaultOpacity,
+    });
+
+    // AI : Bind tooltip
+    const tooltipText = city.nameLocal ? `${city.name} (${city.nameLocal})` : city.name;
+    marker.bindTooltip(tooltipText, { permanent: false });
+
+    // AI : Set up data attributes after marker is added to DOM
+    marker.on("add", () => {
+      const markerElement = marker.getElement();
+      if (markerElement) {
+        markerElement.setAttribute("data-testid", `city-marker-${city.id}`);
+        markerElement.setAttribute("data-city-id", String(city.id));
+        markerElement.setAttribute("data-city-name", city.name);
+        markerElement.setAttribute("data-city-name-local", city.nameLocal ?? "");
+        markerElement.setAttribute("data-country-code", city.countryCode);
+        markerElement.setAttribute("data-lat", city.lat.toString());
+        markerElement.setAttribute("data-lng", city.lng.toString());
+      }
+    });
+
+    // AI : Prevent double-click zoom on markers
+    marker.on("dblclick", (e) => {
+      L.DomEvent.stopPropagation(e);
+    });
+
+    // AI : Hover event - increase opacity (respects selected state)
+    marker.on("mouseover", () => {
+      marker.setOpacity(hoverOpacity);
+    });
+
+    // AI : Mouse out event - reset opacity if not selected
+    marker.on("mouseout", () => {
       const mapStore = useMapStore();
       const isSelectedCity = mapStore.selectedCity?.id === city.id;
+      marker.setOpacity(isSelectedCity ? hoverOpacity : defaultOpacity);
+    });
 
-      if (isHovering) {
-        // AI : Always increase opacity on hover
-        marker.setOpacity(MARKER_OPACITY.city.hover);
-      } else if (isSelectedCity) {
-        // AI : On mouse out, keep opacity high if this is the selected city
-        marker.setOpacity(MARKER_OPACITY.city.hover);
-      } else {
-        marker.setOpacity(MARKER_OPACITY.city.default);
-      }
-    },
-    onMarkerClick: async (_marker, city) => {
+    // AI : Click event - load city data
+    marker.on("click", async (e) => {
+      L.DomEvent.stopPropagation(e);
+
       const mapStore = useMapStore();
       const overlayStore = useOverlayStore();
 
-      // AI : Check for unsaved overlays before loading city (same city or different)
+      // AI : Check for unsaved overlays before loading city
       const hasUnsavedOverlays = Object.values(overlayStore.overlays).some(
         (overlay) => overlay.isModified === true,
       );
@@ -313,10 +348,12 @@ function getCityMarkerConfig(): MarkerLayerConfig<CityWithProjects> {
           : t("navigation.unsavedOverlaysReloadCity");
 
         const confirmed = confirm(message);
-        if (!confirmed) {
-          return; // AI : User cancelled
-        }
+        if (!confirmed) return;
       }
+
+      // AI : Reset all markers and highlight this one
+      resetAllMarkerOpacities();
+      marker.setOpacity(hoverOpacity);
 
       // AI : Update selected city in store
       mapStore.setSelectedCity({
@@ -326,30 +363,27 @@ function getCityMarkerConfig(): MarkerLayerConfig<CityWithProjects> {
         countryCode: city.countryCode,
       });
 
-      // AI : Request scroll to city in adjacent panels (Moderation / My Contributions)
+      // AI : Request scroll to city in adjacent panels
       const { requestScrollTo } = useAccordionState();
       requestScrollTo("city", city.id);
 
-      // AI : CRITICAL FIX: Load city data immediately BEFORE the flight animation
-      // AI : This ensures data loads even if the user interrupts the flight
-      // AI : forceFullOverlays=true because we may already be at high zoom
+      // AI : Load city data before flight animation
       await loadAndRenderCityData(city.id, true);
 
-      // AI : Zoom to the city marker position
+      // AI : Zoom to city marker
       if (map.value && map.value.getZoom() < 14) {
-        mobileAwareFlyTo([city.lat, city.lng], 14, {
-          duration: 1.5,
-        });
-        // AI : moveend event will trigger viewport refresh, but data is already cached
+        mobileAwareFlyTo([city.lat, city.lng], 14, { duration: 1.5 });
       } else if (map.value) {
-        // AI : Already at zoom 14+, data is already loaded above
-        // AI : Just pan slightly to center on the city marker
-        mobileAwareFlyTo([city.lat, city.lng], map.value.getZoom(), {
-          duration: 0.5,
-        });
+        mobileAwareFlyTo([city.lat, city.lng], map.value.getZoom(), { duration: 0.5 });
       }
-    },
-  };
+    });
+
+    // AI : Store marker and add to layer
+    markers.set(String(city.id), marker);
+    marker.addTo(layer);
+  }
+
+  return { layer, markers };
 }
 
 /**
@@ -384,10 +418,9 @@ export function addSingleCityMarker(
     initializeCityMarkerWatcher();
   }
 
-  // AI : Use shared config to create marker
-  const config = getCityMarkerConfig();
+  // AI : Create marker using createCitiesMarkerLayer
   const cityData: CityWithProjects = { ...city, projectCount: 0 };
-  const result = createMarkerLayer([cityData], config);
+  const result = createCitiesMarkerLayer([cityData]);
 
   // AI : Add marker to existing layer
   for (const [cityId, marker] of result.markers) {
@@ -548,9 +581,8 @@ function addCityMarkersToMapInternal(
     map.value.removeLayer(cityMarkersLayer);
   }
 
-  // AI : Use shared config to create markers
-  const config = getCityMarkerConfig();
-  const result = createMarkerLayer(citiesToRender, config);
+  // AI : Create markers using createCitiesMarkerLayer
+  const result = createCitiesMarkerLayer(citiesToRender);
   cityMarkersLayer = result.layer;
   cityMarkersStore.setCityMarkersLayer(cityMarkersLayer);
 
