@@ -104,16 +104,16 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
-import { isValidCountryCode } from "@/composables/map/useCountryData";
-import { flyToCountry, mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
-import { map } from "@/composables/core/useMap";
+import { isValidCountryCode } from "@/services/map/countryData";
+import { flyToCountry, mobileAwareFlyTo } from "@/services/map/mapNavigation";
+import { map } from "@/services/core/map";
 import { useAccordionState } from "@/composables/layout/useAccordionState";
 import { useAddOverlay } from "@/composables/overlay/useAddOverlay";
 import {
   loadCityProjects,
   citiesWithProjects,
   type CityWithProjects,
-} from "@/composables/map/useCityMarkers";
+} from "@/services/map/cityMarkers";
 import { createProjectFromOverlayData, createOverlayForModeration } from "@/utils/projectFactories";
 import ProjectAccordionPanel from "./ProjectAccordionPanel.vue";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";

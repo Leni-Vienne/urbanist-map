@@ -6,9 +6,9 @@
 // AI : ============================================================================
 
 import L from "leaflet";
-import { map } from "@/composables/core/useMap";
-import { getOverlayMarkerColor, createOverlayIcon } from "@/composables/map/useMarkers";
-import { mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
+import { map } from "@/services/core/map";
+import { getOverlayMarkerColor, createOverlayIcon } from "@/services/map/markers";
+import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -18,10 +18,10 @@ import {
   selectOverlay,
   highlightProjectOverlaysOnHover,
   removeProjectOutlines,
-} from "@/composables/overlay/useOverlaySelection";
-import { syncPreviewStateOnNavigation } from "@/composables/overlay/changeRequestPreviewState";
+} from "@/services/overlay/overlaySelection";
+import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
-import { getFromEditModeOverlayCache } from "@/composables/overlay/useOverlayPositionManagement";
+import { getFromEditModeOverlayCache } from "@/services/overlay/overlayPositionManagement";
 import { createOverlayObject } from "@/utils/typeFactories";
 // AI : useI18n() uses Vue's inject() mechanism which is only available synchronously during the setup() phase of a component.
 import { t } from "@/locales";

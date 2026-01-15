@@ -2,19 +2,19 @@
 import L from "leaflet";
 import { watch } from "vue";
 import type { Project } from "@/types/index";
-import { map } from "@/composables/core/useMap";
-import { createStandaloneProjectIcon } from "@/composables/map/useMarkers";
+import { map } from "@/services/core/map";
+import { createStandaloneProjectIcon } from "@/services/map/markers";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { trpc } from "@/client";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
-import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
+import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
-import { createProjectInfoTeleportTarget } from "@/composables/map/useProjectPopupTeleport";
+import { createProjectInfoTeleportTarget } from "@/services/map/projectPopupTeleport";
 import { useAccordionState } from "@/composables/layout/useAccordionState";
 import { getProjectMarkerColor } from "@/utils/markerColors";
-import { fetchCityStandaloneProjectsOrCache } from "@/composables/navigation/useCityDataLoader";
+import { fetchCityStandaloneProjectsOrCache } from "@/services/navigation/cityDataLoader";
 import { createProjectObject } from "@/utils/typeFactories";
 // AI : useI18n() uses Vue's inject() mechanism which is only available synchronously during the setup() phase of a component.
 import { t } from "@/locales";

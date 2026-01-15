@@ -1,5 +1,5 @@
 import { ref } from "vue";
-import { getOverlayMarkerColor } from "@/composables/map/useMarkers";
+import { getOverlayMarkerColor } from "@/services/map/markers";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import type { OverlayData, OverlayObject, viewModeMarkerColor } from "@/types/index";
 

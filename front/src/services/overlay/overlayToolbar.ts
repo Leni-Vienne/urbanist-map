@@ -9,7 +9,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { usePopupState } from "@/composables/map/usePopupState";
-import { withErrorHandling } from "@/composables/core/useErrorHandling";
+import { withErrorHandling } from "@/services/core/errorHandling";
 import { deleteOverlayDirect } from "@/composables/project/useUserContributions";
 import type { OverlayObject } from "@/types/index";
 

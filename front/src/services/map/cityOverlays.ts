@@ -1,12 +1,12 @@
 // AI : City-specific overlay management - handles loading and displaying overlays for cities
 import L from "leaflet";
-import { map } from "@/composables/core/useMap";
-import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
+import { map } from "@/services/core/map";
+import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { useCompletionFilters } from "@/composables/overlay/useCompletionFilters";
-import { getOverlayMarkerColor, createOverlayIcon } from "@/composables/map/useMarkers";
-import { resolveOverlayPosition } from "@/composables/overlay/useOverlayPositionManagement";
+import { getOverlayMarkerColor, createOverlayIcon } from "@/services/map/markers";
+import { resolveOverlayPosition } from "@/services/overlay/overlayPositionManagement";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
+import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import type { OverlayData } from "@/types/index";
 

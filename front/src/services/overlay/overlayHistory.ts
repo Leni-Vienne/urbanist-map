@@ -12,8 +12,8 @@ import { usePendingModificationsStore } from "@/stores/pinia/pendingModification
 import {
   getFromEditModeOverlayCache,
   saveToEditModeOverlayCache,
-} from "@/composables/overlay/useOverlayPositionManagement";
-import { updateMarkerTooltip } from "@/composables/overlay/useOverlayMarkers";
+} from "@/services/overlay/overlayPositionManagement";
+import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
 
 /**
  * AI : Initialize history for overlay if not already set

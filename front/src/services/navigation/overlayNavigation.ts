@@ -1,21 +1,21 @@
 import L from "leaflet";
-import { loadCityProjects, loadAllCityMarkersGlobally } from "@/composables/map/useCityMarkers";
-import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
-import { loadAndRenderCityData } from "@/composables/navigation/useCityDataRenderer";
-import { loadCitiesForCountry, clearAllMapContent } from "@/composables/map/useCountryData";
-import { prepareCrossCountryFlight } from "@/composables/map/useTileLayers";
-import { map } from "@/composables/core/useMap";
-import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
+import { loadCityProjects, loadAllCityMarkersGlobally } from "@/services/map/cityMarkers";
+import { selectOverlay } from "@/services/overlay/overlaySelection";
+import { loadAndRenderCityData } from "@/services/navigation/cityDataRenderer";
+import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
+import { prepareCrossCountryFlight } from "@/services/map/tileLayers";
+import { map } from "@/services/core/map";
+import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
 import {
   getStandaloneProjectMarkerByProjectId,
   updateStandaloneProjectMarkerOpacities,
-} from "@/composables/map/useStandaloneProjectMarkers";
-import { createProjectInfoTeleportTarget } from "@/composables/map/useProjectPopupTeleport";
+} from "@/services/map/standaloneProjectMarkers";
+import { createProjectInfoTeleportTarget } from "@/services/map/projectPopupTeleport";
 import { MAP_CONFIG } from "@/constants/mapConstants";
-import { resolveOverlayCorners } from "@/composables/overlay/useOverlayPositionResolver";
+import { resolveOverlayCorners } from "@/services/overlay/overlayPositionResolver";
 import type { OverlayData } from "@/types/index";
 
 /**

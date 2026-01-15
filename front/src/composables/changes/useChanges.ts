@@ -9,10 +9,10 @@ import { trpc, type RouterOutput, type RouterInput } from "@/client";
 import type { FieldChange } from "@shared/validation/schemas";
 import { useAuthStore } from "@/stores/authStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
-import { withErrorHandling, withErrorToast } from "@/composables/core/useErrorHandling";
+import { withErrorHandling, withErrorToast } from "@/services/core/errorHandling";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
-import { updateMarkerPosition, updateMarkerTooltip } from "@/composables/overlay/useOverlayMarkers";
+import { updateMarkerPosition, updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
 import L from "leaflet";
 
 // AI : ============================================================================

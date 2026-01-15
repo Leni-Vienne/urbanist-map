@@ -49,10 +49,10 @@ import {
   switchTileLayer,
   getTileLayerOptions,
   type TileLayerType,
-} from "@/composables/map/useTileLayers";
-import { flyToCountry } from "@/composables/map/useMapNavigation";
+} from "@/services/map/tileLayers";
+import { flyToCountry } from "@/services/map/mapNavigation";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { map } from "@/composables/core/useMap";
+import { map } from "@/services/core/map";
 import countryBboxes from "@/assets/country_bboxes.json";
 import L from "leaflet";
 

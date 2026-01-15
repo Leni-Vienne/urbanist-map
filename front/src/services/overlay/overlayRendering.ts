@@ -5,29 +5,29 @@
 import L from "leaflet";
 import "leaflet-distortableimage";
 import { toRef } from "vue";
-import { map } from "@/composables/core/useMap";
+import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { updateOverlayMarkersColors } from "@/composables/map/useMarkers";
-import { withErrorHandling } from "@/composables/core/useErrorHandling";
+import { updateOverlayMarkersColors } from "@/services/map/markers";
+import { withErrorHandling } from "@/services/core/errorHandling";
 import { imageRequiresCredentials } from "@/utils/imageUrl";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import { createOverlayFromCDN } from "@/utils/typeFactories";
-import { removeStandaloneProjectMarkerForProject } from "@/composables/map/useStandaloneProjectMarkers";
-import { selectOverlay, setupProjectHoverEvents } from "@/composables/overlay/useOverlaySelection";
+import { removeStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
+import { selectOverlay, setupProjectHoverEvents } from "@/services/overlay/overlaySelection";
 import {
   initializeOverlayHistory,
   getCornersForOverlayWithCache,
   isValidCorners,
   saveToHistory,
-} from "@/composables/overlay/useOverlayHistory";
+} from "@/services/overlay/overlayHistory";
 import {
   updateMarkerPosition,
   updateMarkerTooltip,
   enrichOverlayWithProject,
   createSingleMarker,
-} from "@/composables/overlay/useOverlayMarkers";
-import { getEditToolsForOverlay, getViewTools } from "@/composables/overlay/useOverlayToolbar";
+} from "@/services/overlay/overlayMarkers";
+import { getEditToolsForOverlay, getViewTools } from "@/services/overlay/overlayToolbar";
 import type { OverlayObject, OverlayData } from "@/types/index";
 
 // AI : Callback type for checkOverlaySizeAndWarn - will be registered by useOverlay.ts

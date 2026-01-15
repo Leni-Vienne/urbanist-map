@@ -52,7 +52,7 @@
 import { ref, computed, watch } from "vue";
 import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
-import { updateOverlayInfo } from "@/composables/overlay/useOverlay";
+import { updateOverlayInfo } from "@/services/overlay/overlay";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";

@@ -1,8 +1,8 @@
-import { loadCityProjects } from "@/composables/map/useCityMarkers";
-import { loadCitiesForCountry, clearAllMapContent } from "@/composables/map/useCountryData";
-import { map } from "@/composables/core/useMap";
-import { mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
-import { prepareCrossCountryFlight } from "@/composables/map/useTileLayers";
+import { loadCityProjects } from "@/services/map/cityMarkers";
+import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
+import { map } from "@/services/core/map";
+import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
+import { prepareCrossCountryFlight } from "@/services/map/tileLayers";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";

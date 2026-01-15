@@ -1,18 +1,18 @@
 import { computed, onMounted, toRef } from "vue";
 import { trpc } from "@/client";
-import { withErrorHandling } from "@/composables/core/useErrorHandling";
+import { withErrorHandling } from "@/services/core/errorHandling";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useAuthStore } from "@/stores/authStore";
-import { updateMarkerTooltip } from "@/composables/overlay/useOverlayMarkers";
-import { updateOverlayMarkersColors } from "@/composables/map/useMarkers";
+import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
+import { updateOverlayMarkersColors } from "@/services/map/markers";
 import { useEntityRemoval } from "@/composables/core/useEntityRemoval";
 import {
   getStandaloneProjectMarkerByProjectId,
   updateStandaloneProjectMarkerTooltip,
   updateStandaloneProjectMarkerColor,
-} from "@/composables/map/useStandaloneProjectMarkers";
+} from "@/services/map/standaloneProjectMarkers";
 import { t } from "@/locales";
 import type { Project } from "@/types/index";
 import { createProjectObject } from "@/utils/typeFactories";

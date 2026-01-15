@@ -1,24 +1,21 @@
 // AI : City data rendering helpers for navigation
 // AI : Separated from data loading to avoid circular dependencies
 
-import { map } from "@/composables/core/useMap";
+import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { MAP_CONFIG } from "@/constants/mapConstants";
-import { renderViewModeOverlays } from "@/composables/overlay/useOverlayRendering";
-import { clearAllOverlays } from "@/composables/overlay/useOverlayLifecycle";
-import {
-  renderOverlayMarkersFromData,
-  removeOverlayMarkers,
-} from "@/composables/map/useCityOverlays";
-import { addStandaloneProjectMarkerForProject } from "@/composables/map/useStandaloneProjectMarkers";
+import { renderViewModeOverlays } from "@/services/overlay/overlayRendering";
+import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";
+import { renderOverlayMarkersFromData, removeOverlayMarkers } from "@/services/map/cityOverlays";
+import { addStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
 import type { OverlayData } from "@/types/index";
 import {
   createProjectObject,
   toProjectPartial,
   type StandaloneProject,
 } from "@/utils/typeFactories";
-import { loadCityData } from "@/composables/navigation/useCityDataLoader";
+import { loadCityData } from "@/services/navigation/cityDataLoader";
 
 /**
  * AI : Add markers for standalone projects (those without overlays)

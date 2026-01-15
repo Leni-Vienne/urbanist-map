@@ -7,7 +7,7 @@
 
 import { ref } from "vue";
 import L, { type FitBoundsOptions, type ZoomPanOptions } from "leaflet";
-import { map } from "@/composables/core/useMap";
+import { map } from "@/services/core/map";
 import { useUiStore } from "@/stores/uiStore";
 import type { CameraBounds } from "@/types/index";
 import countryBboxes from "@/assets/country_bboxes.json";
