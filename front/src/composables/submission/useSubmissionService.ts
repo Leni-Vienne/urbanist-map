@@ -3,7 +3,7 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { trpc } from "@/client";
 import { buildProjectPayload } from "@/services/project/projectMutations";
-import { loadCityProjects } from "@/services/map/cityMarkers";
+import { loadCityProjects } from "@/services/navigation/locationNavigation";
 import { updateStandaloneProjectMarkerColor } from "@/services/map/standaloneProjectMarkers";
 import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
 import { getFromEditModeOverlayCache } from "@/services/overlay/overlayPositionManagement";

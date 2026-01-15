@@ -109,11 +109,8 @@ import { flyToCountry, mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { map } from "@/services/core/map";
 import { expandAccordionForOverlay } from "@/services/layout/accordionState";
 import { useAddOverlay } from "@/composables/overlay/useAddOverlay";
-import {
-  loadCityProjects,
-  citiesWithProjects,
-  type CityWithProjects,
-} from "@/services/map/cityMarkers";
+import { citiesWithProjects, type CityWithProjects } from "@/services/map/cityMarkers";
+import { loadCityProjects } from "@/services/navigation/locationNavigation";
 import { createProjectFromOverlayData, createOverlayForModeration } from "@/utils/projectFactories";
 import ProjectAccordionPanel from "./ProjectAccordionPanel.vue";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";

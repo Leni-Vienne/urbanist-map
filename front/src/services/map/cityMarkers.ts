@@ -3,23 +3,17 @@ import { ref, watch } from "vue";
 import { t } from "@/locales";
 import { map } from "@/services/core/map";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
-import { getSelectedProjectId } from "@/services/project/projectSelection";
 import { loadAndRenderCityData } from "@/services/navigation/cityDataRenderer";
 import type { RouterOutput } from "@/client";
 
 import { useAuthStore } from "@/stores/authStore";
-import { useUiStore } from "@/stores/uiStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useCityMarkersStore } from "@/stores/pinia/cityMarkersStore";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
 import { createColorIcon } from "@/services/map/markers";
-import {
-  updateStandaloneProjectMarkerOpacities,
-  updateAllStandaloneProjectMarkerColors,
-} from "@/services/map/standaloneProjectMarkers";
-import { cleanupProjectInfoTeleportTarget } from "@/services/map/projectPopupTeleport";
+
 import { requestScrollTo } from "@/services/layout/accordionState";
 
 // AI : Type aliases using RouterOutput from tRPC
@@ -35,57 +29,8 @@ export const citiesWithProjects = ref<CityWithProjects[]>([]);
  * AI : Helper function to augment city list with cities from locally created projects
  * AI : This ensures cities with only local/pending projects appear in city markers
  */
-function augmentCitiesWithLocalProjects(cities: CityWithProjects[]): CityWithProjects[] {
-  const projectStore = useProjectStore();
-  const authStore = useAuthStore();
-
-  // AI : Include both local (unsaved) and user's pending projects
-  const userProjectsToInclude = Object.values(projectStore.projects).filter((p) => {
-    // AI : Local projects (not yet submitted)
-    if (p.status === null || p.status === undefined) return true;
-
-    // AI : User's own pending projects (submitted but not approved)
-    if (p.status === "pending" && authStore.user && p.ownerId === authStore.user.id) return true;
-
-    return false;
-  });
-
-  if (userProjectsToInclude.length === 0) {
-    return cities;
-  }
-
-  // AI : Build a map of city IDs from user projects
-  const localProjectCitiesMap = new Map<number, CityWithProjects>();
-
-  for (const project of userProjectsToInclude) {
-    if (project.city && project.cityId) {
-      // AI : Only add to map if not already present
-      if (!localProjectCitiesMap.has(project.cityId)) {
-        localProjectCitiesMap.set(project.cityId, {
-          id: project.cityId,
-          name: project.city.name,
-          nameLocal: project.city.nameLocal ?? null,
-          lat: project.city.coordinates.y,
-          lng: project.city.coordinates.x,
-          countryCode: project.city.countryCode,
-          projectCount: 0, // AI : Local projects, count doesn't matter for display
-        });
-      }
-    }
-  }
-
-  // AI : Add cities from local projects that aren't already in the city list
-  const existingCityIds = new Set(cities.map((c) => c.id));
-  const additionalCities: CityWithProjects[] = [];
-
-  for (const [cityId, cityData] of localProjectCitiesMap) {
-    if (!existingCityIds.has(cityId)) {
-      additionalCities.push(cityData);
-    }
-  }
-
-  return additionalCities.length > 0 ? [...cities, ...additionalCities] : cities;
-}
+// AI : Module-level state moved to cityMarkersStore for HMR safety
+// AI : Access via useCityMarkersStore() instead of direct variables
 
 /**
  * AI : Initialize mode change watcher (called lazily on first use)
@@ -105,7 +50,6 @@ function initializeModeWatcher() {
       if (newMode === oldMode) {
         return;
       }
-      updateAllStandaloneProjectMarkerColors();
 
       // AI : City marker visibility rules:
       // AI : - View mode: cities with approved content
@@ -133,7 +77,10 @@ function initializeModeWatcher() {
 
           // AI : In edit mode, also include cities from locally created projects
           if (newMode === "edit") {
-            mergedCities = augmentCitiesWithLocalProjects(mergedCities);
+            // AI : In edit mode, also include cities from locally created projects
+            if (newMode === "edit") {
+              mergedCities = projectStore.getMergedCities(mergedCities, authStore.user?.id ?? null);
+            }
           }
 
           citiesWithProjects.value = mergedCities;
@@ -195,55 +142,8 @@ function updateCityMarkerOpacities(selectedCityId: number | null): void {
 }
 
 /**
- * AI : Close project popup and reset standalone project marker opacities
- * This extends the base cleanup with marker opacity reset specific to city markers
- */
-export function closeProjectPopupAndResetMarkers() {
-  cleanupProjectInfoTeleportTarget();
-  updateStandaloneProjectMarkerOpacities(null); // AI : Reset marker opacities when popup closes
-}
-
-/**
  * AI : Load projects for a specific city and display overlays on map
  */
-export async function loadCityProjects(
-  cityId: number | null,
-  cityName: string,
-  nameLocal: string | null,
-  forceFullLoad = false,
-  cityCountryCode?: string,
-): Promise<void> {
-  try {
-    // AI : Update selected city in store (only if cityId is not null)
-    if (!cityId) return;
-
-    const mapStore = useMapStore();
-    const uiStore = useUiStore();
-
-    // AI : Check if we're switching to a different city
-    const previousCityId = mapStore.selectedCity?.id;
-    const isSwitchingCity = previousCityId !== cityId;
-
-    mapStore.setSelectedCity({
-      id: cityId,
-      name: cityName,
-      nameLocal,
-      countryCode: cityCountryCode,
-    });
-
-    // AI : Only clear state when actually switching cities, not when refreshing
-    if (isSwitchingCity) {
-      // AI : Clear selected project when switching cities
-      const selectedProjectId = getSelectedProjectId();
-      selectedProjectId.value = null;
-
-      // AI : Close project info popup when switching cities
-      uiStore.closeProjectInfoPopup();
-    }
-  } catch (error) {
-    console.error("Error loading city projects:", error);
-  }
-}
 
 /**
  * AI : Remove city markers from the map
@@ -477,7 +377,7 @@ export async function loadAllCityMarkersGlobally(): Promise<CityWithProjects[]> 
 
       // AI : In edit mode, also include cities from locally created projects
       if (currentMode === "edit") {
-        mergedCities = augmentCitiesWithLocalProjects(mergedCities);
+        mergedCities = projectStore.getMergedCities(mergedCities, authStore.user?.id ?? null);
       }
 
       citiesData = mergedCities;

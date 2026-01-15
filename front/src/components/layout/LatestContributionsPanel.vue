@@ -83,7 +83,7 @@ import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay
 import { navigateToStandaloneProject } from "@/services/navigation/overlayNavigation";
 import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { formatRelativeTime } from "@/utils/dateFormat";
-import { useImageErrors } from "@/utils/imageHelpers";
+import { useImageErrors } from "@/composables/ui/useImageErrors";
 import type { LatestContribution } from "@/types/index";
 
 const { t } = useI18n();
