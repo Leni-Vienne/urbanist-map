@@ -47,16 +47,11 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { map } from "@/composables/core/useMap";
-import {
-  updateStandaloneProjectMarkerColor,
-  addSingleCityMarker,
-  addCityMarkersForCountry,
-  citiesWithProjects,
-} from "@/composables/map/useCityMarkers";
 import { createProjectInfoTeleportTarget } from "@/composables/map/useProjectPopupTeleport";
 import {
   getStandaloneProjectMarkerByProjectId,
   addStandaloneProjectMarkerForProject,
+  updateStandaloneProjectMarkerColor,
 } from "@/composables/map/useStandaloneProjectMarkers";
 import { loadCitiesForCountry, clearAllMapContent } from "@/composables/map/useCountryData";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -67,6 +62,11 @@ import { loadAndRenderCityData } from "@/composables/navigation/useCityDataRende
 import { createProjectObjectFromAPI, createProjectObject } from "@/utils/typeFactories";
 import { useCityProjects } from "@/composables/project/useProjectSelection";
 import type { Project, NearbyProject } from "@/types/index";
+import {
+  addSingleCityMarker,
+  addCityMarkersForCountry,
+  citiesWithProjects,
+} from "@/composables/map/useCityMarkers";
 
 import MarkerPlacementBar from "@/components/map/MarkerPlacementBar.vue";
 const CreateProjectDialog = defineAsyncComponent(

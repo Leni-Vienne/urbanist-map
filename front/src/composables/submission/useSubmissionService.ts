@@ -3,10 +3,8 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { trpc } from "@/client";
 import { buildProjectPayload } from "@/composables/project/useProjectMutations";
-import {
-  loadCityProjects,
-  updateStandaloneProjectMarkerColor,
-} from "@/composables/map/useCityMarkers";
+import { loadCityProjects } from "@/composables/map/useCityMarkers";
+import { updateStandaloneProjectMarkerColor } from "@/composables/map/useStandaloneProjectMarkers";
 import { updateMarkerTooltip } from "@/composables/overlay/useOverlayMarkers";
 import { getFromEditModeOverlayCache } from "@/composables/overlay/useOverlayPositionManagement";
 import type { Project, OverlayObject, OverlayData } from "@/types/index";

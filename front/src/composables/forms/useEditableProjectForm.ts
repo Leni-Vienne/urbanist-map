@@ -1,6 +1,6 @@
 import { buildProjectPayload } from "@/composables/project/useProjectMutations";
 import { useProjectStore } from "@/stores/pinia/projectStore";
-import { updateStandaloneProjectMarkerColor } from "@/composables/map/useCityMarkers";
+import { updateStandaloneProjectMarkerColor } from "@/composables/map/useStandaloneProjectMarkers";
 import { trpc } from "@/client";
 import { useEditableFormBase } from "./useEditableFormBase";
 import { useToast } from "@/composables/ui/useToast";

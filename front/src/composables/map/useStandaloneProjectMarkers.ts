@@ -15,6 +15,7 @@ import { createProjectInfoTeleportTarget } from "@/composables/map/useProjectPop
 import { useAccordionState } from "@/composables/layout/useAccordionState";
 import { getProjectMarkerColor } from "@/utils/markerColors";
 import { fetchCityStandaloneProjectsOrCache } from "@/composables/navigation/useCityDataLoader";
+import { createProjectObject } from "@/utils/typeFactories";
 // AI : useI18n() uses Vue's inject() mechanism which is only available synchronously during the setup() phase of a component.
 import { t } from "@/locales";
 
@@ -376,4 +377,57 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
  */
 export function getStandaloneProjectMarkerMap(): Map<string, L.Marker> {
   return standaloneProjectMarkerMap;
+}
+
+/**
+ * AI : Update standalone project marker color for a specific project
+ */
+export function updateStandaloneProjectMarkerColor(projectId: string, project: Project): void {
+  const marker = getStandaloneProjectMarkerByProjectId(projectId);
+  if (!marker) return;
+
+  const overlayStore = useOverlayStore();
+  const markerColor = getProjectMarkerColor(project, overlayStore.mode);
+  const markerIcon = createStandaloneProjectIcon(markerColor);
+  marker.setIcon(markerIcon);
+}
+
+/**
+ * AI : Update all standalone project marker colors (e.g., when mode changes)
+ */
+export function updateAllStandaloneProjectMarkerColors(): void {
+  const projectStore = useProjectStore();
+  const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
+  const markerMap = getStandaloneProjectMarkerMap();
+
+  for (const [projectId, marker] of markerMap) {
+    // AI : Try to find project in multiple locations:
+    // 1. projectStore.projects (local/cached projects)
+    // 2. projectStore.allProjects (fetched projects)
+    // 3. MapStore's standalone projects cache (for current city)
+    let project: Project | undefined =
+      projectStore.projects[projectId] ?? projectStore.allProjects[projectId];
+
+    if (!project && mapStore.selectedCity) {
+      // AI : Fallback: check the cached standalone projects for this city
+      const cachedStandaloneProjects = mapStore.getCityStandaloneProjectsCache(
+        mapStore.selectedCity.id,
+        overlayStore.mode,
+      );
+      const found = cachedStandaloneProjects?.find((p) => p.id === projectId);
+      if (found) {
+        project = createProjectObject(found);
+      }
+    }
+
+    if (project) {
+      const markerColor = getProjectMarkerColor(project, overlayStore.mode);
+      const markerIcon = createStandaloneProjectIcon(markerColor);
+      marker.setIcon(markerIcon);
+
+      // AI : Also update tooltip when mode changes
+      updateStandaloneProjectMarkerTooltip(marker, project, overlayStore.mode);
+    }
+  }
 }
