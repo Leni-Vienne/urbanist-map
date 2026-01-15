@@ -10,7 +10,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { setOverlayPopupTarget } from "@/services/map/popupState";
 import { withErrorHandling } from "@/services/core/errorHandling";
-import { deleteOverlayDirect } from "@/composables/project/useUserContributions";
+import { deleteOverlayDirect } from "@/services/core/entityRemoval";
 import type { OverlayObject } from "@/types/index";
 import { map } from "@/services/core/map";
 import { saveToHistory } from "@/services/overlay/overlayHistory";
