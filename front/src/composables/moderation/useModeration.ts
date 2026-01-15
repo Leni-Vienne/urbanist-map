@@ -7,7 +7,7 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useAuthStore } from "@/stores/authStore";
 import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
 import { updateOverlayMarkersColors } from "@/services/map/markers";
-import { useEntityRemoval } from "@/composables/core/useEntityRemoval";
+import { removeOverlayFromMapAndStore } from "@/services/core/entityRemoval";
 import {
   getStandaloneProjectMarkerByProjectId,
   updateStandaloneProjectMarkerTooltip,
@@ -190,9 +190,6 @@ export function useModeration() {
 
       // AI : If this was a replacement overlay approval with conflict handling, remove the original and competing overlays from map
       if (status === "approved" && handleReplacementConflicts && replacesOverlayId) {
-        // AI : Use unified removal logic
-        const { removeOverlayFromMapAndStore } = useEntityRemoval();
-
         // AI : Remove the original overlay that was replaced
         removeOverlayFromMapAndStore(replacesOverlayId);
 
