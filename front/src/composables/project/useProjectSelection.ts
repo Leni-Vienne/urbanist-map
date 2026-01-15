@@ -9,7 +9,7 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { map } from "@/composables/core/useMap";
 import type { Project } from "@/types/index";
-import { createProjectObject, createProjectObjectFromAPI } from "../../utils/typeFactories";
+import { createProjectObject, createProjectObjectFromAPI } from "@/utils/typeFactories";
 
 // AI : ============================================================================
 // AI : CITY PROJECTS

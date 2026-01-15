@@ -4,10 +4,14 @@ import { eq, and, sql, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
 // AI : Maximum number of pending contributions (projects + overlays) per user
-export const MAX_PENDING_CONTRIBUTIONS = 50;
+const MAX_PENDING_CONTRIBUTIONS = 50;
+
+// AI : Lifetime limit: 2000 total approved/pending contributions (projects + overlays) per user
+// AI : This prevents database bloat and storage abuse (approx 10-20GB max per user)
+const MAX_TOTAL_CONTRIBUTIONS = 2000;
 
 // AI : Count total pending contributions for a user
-export async function countPendingContributions(userId: string): Promise<number> {
+async function countPendingContributions(userId: string): Promise<number> {
   try {
     // AI : Count pending projects authored by user
     const [pendingProjects] = await db
@@ -30,7 +34,7 @@ export async function countPendingContributions(userId: string): Promise<number>
 }
 
 // AI : Check if user has reached the pending contribution limit
-export async function hasReachedPendingLimit(userId: string): Promise<boolean> {
+async function hasReachedPendingLimit(userId: string): Promise<boolean> {
   const count = await countPendingContributions(userId);
   return count >= MAX_PENDING_CONTRIBUTIONS;
 }
@@ -78,10 +82,6 @@ export async function checkPendingLimitForNewContribution(
     });
   }
 }
-
-// AI : Lifetime limit: 2000 total approved/pending contributions (projects + overlays) per user
-// AI : This prevents database bloat and storage abuse (approx 10-20GB max per user)
-export const MAX_TOTAL_CONTRIBUTIONS = 2000;
 
 export async function checkTotalContributionLimit(userId: string): Promise<void> {
   // AI : Count all contributions (approved + pending)
