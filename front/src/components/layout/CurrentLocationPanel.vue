@@ -104,16 +104,13 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
-import { isValidCountryCode } from "@/composables/map/useCountryData";
-import { flyToCountry, mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
-import { map } from "@/composables/core/useMap";
-import { useAccordionState } from "@/composables/layout/useAccordionState";
+import { isValidCountryCode } from "@/services/map/countryData";
+import { flyToCountry, mobileAwareFlyTo } from "@/services/map/mapNavigation";
+import { map } from "@/services/core/map";
+import { expandAccordionForOverlay } from "@/services/layout/accordionState";
 import { useAddOverlay } from "@/composables/overlay/useAddOverlay";
-import {
-  loadCityProjects,
-  citiesWithProjects,
-  type CityWithProjects,
-} from "@/composables/map/useCityMarkers";
+import { citiesWithProjects, type CityWithProjects } from "@/services/map/cityMarkers";
+import { loadCityProjects } from "@/services/navigation/locationNavigation";
 import { createProjectFromOverlayData, createOverlayForModeration } from "@/utils/projectFactories";
 import ProjectAccordionPanel from "./ProjectAccordionPanel.vue";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
@@ -123,9 +120,6 @@ import type { ProjectForModeration, OverlayForModeration } from "@/types/index";
 const mapStore = useMapStore();
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
-
-// AI : Get accordion state to manually expand when needed
-const { expandAccordionForOverlay } = useAccordionState();
 
 // AI : Use shared composable for add overlay button
 const { handleAddOverlayClick } = useAddOverlay();

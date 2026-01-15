@@ -93,7 +93,7 @@ import { computed, watchEffect } from "vue";
 import { useI18n } from "vue-i18n";
 import { useToast } from "@/composables/ui/useToast";
 import { useChangeRequestPreview } from "@/composables/overlay/useChangeRequestPreview";
-import { setChangeRequestsForPreview } from "@/composables/overlay/changeRequestPreviewState";
+import { setChangeRequestsForPreview } from "@/services/overlay/changeRequestPreviewState";
 import type {
   ProjectForModeration,
   OverlayForModeration,

@@ -1,7 +1,7 @@
 // AI : Viewport-based content manager - replaces city-based loading with spatial queries
 // AI : Single rendering path for all triggers (pan, zoom, mode switch, navigation)
 import { ref, watch } from "vue";
-import { map } from "@/composables/core/useMap";
+import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -9,26 +9,21 @@ import { useAuthStore } from "@/stores/authStore";
 import { trpc } from "@/client";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
-import {
-  renderViewModeOverlays,
-  updateOverlayEditingState,
-} from "@/composables/overlay/useOverlay";
-import { clearAllOverlays } from "@/composables/overlay/useOverlayLifecycle";
-import { updateOverlayMarkersColors } from "@/composables/map/useMarkers";
-import {
-  renderOverlayMarkersFromData,
-  removeOverlayMarkers,
-} from "@/composables/map/useCityOverlays";
-import { citiesWithProjects } from "@/composables/map/useCityMarkers";
+import { renderViewModeOverlays } from "@/services/overlay/overlayRendering";
+import { updateOverlayEditingState } from "@/services/overlay/overlayEditing";
+import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";
+import { updateOverlayMarkersColors } from "@/services/map/markers";
+import { renderOverlayMarkersFromData, removeOverlayMarkers } from "@/services/map/cityOverlays";
+import { citiesWithProjects } from "@/services/map/cityMarkers";
 import {
   addStandaloneProjectMarkerForProject,
   clearAllStandaloneProjectMarkers,
   getStandaloneProjectMarkerMap,
-} from "@/composables/map/useStandaloneProjectMarkers";
+} from "@/services/map/standaloneProjectMarkers";
 import {
   loadedCityIds,
   fetchCityStandaloneProjectsOrCache,
-} from "@/composables/navigation/useCityDataLoader";
+} from "@/services/navigation/cityDataLoader";
 import type { OverlayData } from "@/types/index";
 import {
   createProjectObject,
@@ -56,7 +51,7 @@ export function useViewportContentManager() {
    * AI : Changes from Timeline Status (view) to Approval Status (edit)
    */
   function updateMarkerColorsForMode() {
-    updateOverlayMarkersColors(ref(overlayStore.overlays));
+    updateOverlayMarkersColors(ref(overlayStore.overlays), overlayStore.mode);
   }
 
   /**

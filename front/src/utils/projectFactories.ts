@@ -11,15 +11,12 @@ import type {
 
 import type { ApprovalStatus } from "@shared/types";
 
+import { getCountryName, type CountryInfo } from "@/services/map/countryData";
+
 interface SelectedCity {
   id: number;
   name: string;
   countryCode?: string;
-}
-
-interface CountryInfo {
-  code: string;
-  name: string;
 }
 
 /**
@@ -86,18 +83,6 @@ export function createOverlayForModeration(
     replacesOverlayId: overlayData.replacesOverlayId,
     replacedByOverlayId: overlayData.replacedByOverlayId,
   };
-}
-
-/**
- * AI : Helper to get country name from country code
- */
-function getCountryName(
-  countryCode: string | null | undefined,
-  countries: CountryInfo[],
-): string | null {
-  if (!countryCode) return null;
-  const country = countries.find((c) => c.code === countryCode);
-  return country?.name ?? null;
 }
 
 /**
