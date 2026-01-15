@@ -2,7 +2,7 @@
 import L from "leaflet";
 import { map } from "@/services/core/map";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
-import { useCompletionFilters } from "@/composables/overlay/useCompletionFilters";
+import { filterByCompletionStatus } from "@/services/overlay/completionFilters";
 import { getOverlayMarkerColor, createOverlayIcon } from "@/services/map/markers";
 import { resolveOverlayPosition } from "@/services/overlay/overlayPositionManagement";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -21,8 +21,7 @@ export function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void 
   removeOverlayMarkers();
 
   // AI : Filter overlays based on current completion status filters
-  const completionFilters = useCompletionFilters();
-  const visibleOverlays = completionFilters.filterByCompletionStatus(overlaysData);
+  const visibleOverlays = filterByCompletionStatus(overlaysData);
 
   // AI : Create new layer group for overlay markers
   overlayMarkersLayer = L.layerGroup();

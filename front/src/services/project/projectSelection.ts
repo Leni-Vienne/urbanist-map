@@ -1,5 +1,5 @@
 // AI : ============================================================================
-// AI : PROJECT SELECTION - Unified project list and selection management
+// AI : PROJECT SELECTION SERVICE - Unified project list and selection management
 // AI : ============================================================================
 // AI : Combines city projects retrieval and selected project state management
 // AI : ============================================================================
@@ -16,12 +16,12 @@ import { createProjectObject, createProjectObjectFromAPI } from "@/utils/typeFac
 // AI : ============================================================================
 
 /**
- * AI : Composable to get all accessible projects including:
+ * AI : Get all accessible projects including:
  * - Projects from current city overlays
  * - Nearby projects from other cities (lazy loaded)
  * - Local unsaved projects
  */
-export function useCityProjects() {
+export function getCityProjects() {
   const mapStore = useMapStore();
   const projectStore = useProjectStore();
 
@@ -126,21 +126,17 @@ export function useCityProjects() {
 // AI : ============================================================================
 
 /**
- * AI : Composable for managing the globally selected project ID
+ * AI : Computed ref for managing the globally selected project ID
  * This provides a centralized way to access and modify the selected project
  * across all components, preventing state inconsistencies.
  */
-export function useSelectedProject() {
+export function getSelectedProjectId() {
   const projectStore = useProjectStore();
 
-  const selectedProjectId = computed({
+  return computed({
     get: () => projectStore.selectedProjectId,
     set: (value: string | null) => {
       projectStore.selectedProjectId = value;
     },
   });
-
-  return {
-    selectedProjectId,
-  };
 }

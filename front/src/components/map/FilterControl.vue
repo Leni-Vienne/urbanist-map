@@ -94,7 +94,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { useCompletionFilters } from "@/composables/overlay/useCompletionFilters";
+import { visibleCompletionStates, toggleFilter } from "@/services/overlay/completionFilters";
 import { createButtonSVG } from "@/services/map/markers";
 import type { viewModeMarkerColor } from "@/types/index";
 
@@ -105,7 +105,6 @@ const showFilterPanel = ref(false);
 const filterPanel = ref();
 
 // AI : Completion filters composable
-const { visibleCompletionStates, toggleFilter } = useCompletionFilters();
 
 // AI : Emit events to parent for complex operations
 const emit = defineEmits<{

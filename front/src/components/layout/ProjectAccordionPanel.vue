@@ -167,7 +167,16 @@ import type {
 } from "@/types/index";
 
 // Composables
-import { useAccordionState } from "@/composables/layout/useAccordionState";
+import {
+  activeAccordionPanels,
+  toggleCountryExpanded,
+  isCountryExpanded,
+  toggleCityExpanded,
+  isCityExpanded,
+  expandAccordionForOverlay,
+  expandAccordionForProject,
+  consumeScrollRequest,
+} from "@/services/layout/accordionState";
 import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/overlaySelection";
 import { useToast } from "@/composables/ui/useToast";
@@ -232,17 +241,6 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const toast = useToast();
-
-const {
-  activeAccordionPanels,
-  toggleCountryExpanded,
-  isCountryExpanded,
-  toggleCityExpanded,
-  isCityExpanded,
-  expandAccordionForOverlay,
-  expandAccordionForProject,
-  consumeScrollRequest,
-} = useAccordionState();
 
 const { handleOverlayClickNavigation } = useOverlayClickHandler();
 

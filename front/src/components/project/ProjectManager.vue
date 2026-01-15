@@ -60,7 +60,7 @@ import { addOverlay } from "@/services/overlay/overlayEditing";
 import { createProject } from "@/services/project/projects";
 import { loadAndRenderCityData } from "@/services/navigation/cityDataRenderer";
 import { createProjectObjectFromAPI, createProjectObject } from "@/utils/typeFactories";
-import { useCityProjects } from "@/composables/project/useProjectSelection";
+import { getCityProjects } from "@/services/project/projectSelection";
 import type { Project, NearbyProject } from "@/types/index";
 import {
   addSingleCityMarker,
@@ -192,7 +192,7 @@ function findProjectFromReplacementOverlay(projectId: string): Project | null {
 
 // AI : Try to find project from city projects list
 function findProjectFromCityProjects(projectId: string): Project | null {
-  const { projects: cityProjectsList } = useCityProjects();
+  const { projects: cityProjectsList } = getCityProjects();
   const cityProject = cityProjectsList.value.find((p: Project) => p.id === projectId);
   return cityProject ?? null;
 }
