@@ -21,10 +21,10 @@ import {
   isValidCorners,
   saveToHistory,
 } from "@/services/overlay/overlayHistory";
+import { enrichOverlayWithProject } from "@/services/overlay/overlayData";
 import {
   updateMarkerPosition,
   updateMarkerTooltip,
-  enrichOverlayWithProject,
   createSingleMarker,
 } from "@/services/overlay/overlayMarkers";
 import { getEditToolsForOverlay, getViewTools } from "@/services/overlay/overlayToolbar";
