@@ -47,8 +47,14 @@ function cleanupPreviousSelection(
 function setupNewSelection(newlySelected: OverlayObject, overlayId: string): void {
   // AI : Set position state for dynamic button feedback when selecting overlay
   // AI : If no explicit position state, default to showing approved position
-
-  newlySelected.isViewingApprovedPosition ??= true;
+  // AI : UNLESS there are pending changes, in which case default to showing the suggested position (yellow marker)
+  if (newlySelected.isViewingApprovedPosition === undefined) {
+    if (newlySelected.hasPendingChanges) {
+      newlySelected.isViewingApprovedPosition = false;
+    } else {
+      newlySelected.isViewingApprovedPosition = true;
+    }
+  }
 
   // AI : Sync preview state for reactive button highlighting in change request UI
   syncPreviewStateOnNavigation(overlayId, newlySelected.isViewingApprovedPosition ?? true);

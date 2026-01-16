@@ -2,6 +2,7 @@
 // AI : Separated from data loading to avoid circular dependencies
 
 import { map } from "@/services/core/map";
+import { ref } from "vue";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { MAP_CONFIG } from "@/constants/mapConstants";
@@ -15,6 +16,7 @@ import {
   toProjectPartial,
   type StandaloneProject,
 } from "@/utils/typeFactories";
+import { updateOverlayMarkersColors } from "@/services/map/markers";
 import { loadCityData } from "@/services/navigation/cityDataLoader";
 
 /**
@@ -62,7 +64,27 @@ function renderCityOverlaysForNavigation(overlaysData: OverlayData[], forceFullO
 
   removeOverlayMarkers();
   overlayStore.setViewModeOverlays(overlaysData);
+
   mapStore.currentCityOverlays = overlaysData;
+
+  // AI : Update existing overlay objects with fresh backend data (e.g. hasPendingChanges)
+  // AI : This is critical when switching from View -> Edit mode where overlays already exist
+  // AI : but need to be updated with edit-mode specific data
+  for (const overlayData of overlaysData) {
+    const existing = overlayStore.overlays[overlayData.id];
+    if (existing) {
+      overlayStore.updateOverlay(overlayData.id, {
+        hasPendingChanges: overlayData.hasPendingChanges,
+        suggestedCorners: overlayData.suggestedCorners,
+        pendingChangeRequestsCount: overlayData.pendingChangeRequestsCount,
+      });
+    }
+  }
+
+  // AI : Explicitly update marker colors after data refresh to ensure they reflect new state
+  // AI : (e.g. turning yellow if hasPendingChanges is now true)
+  // AI : We do this BEFORE rendering new overlays to ensure consistent state
+  updateOverlayMarkersColors(ref(overlayStore.overlays), overlayStore.mode);
 
   if (shouldRenderFullOverlays) {
     const existingIds = new Set(Object.keys(overlayStore.overlays));

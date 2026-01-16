@@ -651,6 +651,11 @@ export function useViewportContentManager() {
 
           await refreshViewport(true);
 
+          // AI : CRITICAL: Re-apply marker colors after data reload
+          // AI : The initial call at start of watcher used old data (view mode) which lacked hasPendingChanges
+          // AI : Now that store has fresh data, we must update colors again to show yellow status
+          updateMarkerColorsForMode();
+
           // AI : CRITICAL FIX: After reloading, explicitly create standalone markers for local projects
           // AI : This ensures markers appear immediately without requiring user to click city or zoom
           if (newMode === "edit") {

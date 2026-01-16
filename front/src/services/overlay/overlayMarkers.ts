@@ -176,8 +176,13 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
 
     // AI : Set position state for dynamic button feedback
     // AI : If no explicit position state, default to showing approved position
+    // AI : UNLESS there are pending changes, in which case default to showing the suggested position (yellow marker)
     if (overlayObject.isViewingApprovedPosition === undefined) {
-      overlayObject.isViewingApprovedPosition = true;
+      if (overlayObject.hasPendingChanges) {
+        overlayObject.isViewingApprovedPosition = false;
+      } else {
+        overlayObject.isViewingApprovedPosition = true;
+      }
     }
 
     // AI : Sync preview state for reactive button highlighting in change request UI
