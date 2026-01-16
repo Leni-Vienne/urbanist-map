@@ -41,7 +41,15 @@
               >
                 <i class="pi pi-calendar"></i>
                 <span>{{
-                  formatProjectDateRange(project.startDate, project.endDate, project.proposalDate)
+                  formatProjectDateRange(
+                    project.startDate,
+                    project.endDate,
+                    project.proposalDate,
+                    project.startDatePrecision,
+                    project.endDatePrecision,
+                    project.proposalDatePrecision,
+                    $t,
+                  )
                 }}</span>
               </div>
               <div class="metadata-item" v-if="project.sourceUrl">

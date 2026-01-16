@@ -61,6 +61,7 @@
         :label="$t('project.proposalDate')"
         :max-date="new Date()"
         required
+        unique-id="proposal-date"
         :error="getFieldError('proposalDate') ?? undefined"
         @update:modelValue="handleProposalDateChange"
         @blur="handleProposalDateChange"
@@ -89,6 +90,7 @@
             v-model="flexibleStartDate"
             :label="$t('project.startDate')"
             required
+            unique-id="start-date"
             :error="startDateError ?? undefined"
             @update:modelValue="handleDateChange"
             @blur="handleDateChange"
@@ -107,6 +109,7 @@
           v-model="flexibleEndDate"
           :label="$t('project.endDate')"
           required
+          unique-id="end-date"
           :error="endDateError ?? undefined"
           @update:modelValue="handleDateChange"
           @blur="handleDateChange"

@@ -91,8 +91,11 @@ function handleSubmit() {
     latestUpdateOn: formData.latestUpdateOn,
     cityId: formData.cityId === null ? undefined : formData.cityId,
     proposalDate: isProposed.value ? formData.proposalDate : null,
+    proposalDatePrecision: isProposed.value ? formData.proposalDatePrecision : null,
     startDate: isProposed.value ? null : formData.startDate,
+    startDatePrecision: isProposed.value ? null : formData.startDatePrecision,
     endDate: isProposed.value ? null : formData.endDate,
+    endDatePrecision: isProposed.value ? null : formData.endDatePrecision,
   };
 
   // AI : Include city object if available
