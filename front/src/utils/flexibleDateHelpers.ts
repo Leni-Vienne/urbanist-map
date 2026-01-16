@@ -37,15 +37,16 @@ export function flexibleDateToDb(input: FlexibleDateInput | null | undefined): D
 }
 
 /**
- * AI : Format a flexible date for display
+ * AI : Format a flexible date for display with localization
  */
 export function formatFlexibleDate(
   input: FlexibleDateInput | null | undefined,
-  locale = "en-US", // AI : Using browser default or i18n locale
+  locale?: string, // AI : Optional locale override, otherwise uses navigator.language
 ): string {
   if (!input) return "";
 
   const { year, month, day, precision } = input;
+  const userLocale = locale || navigator.language || "en-US";
 
   // AI : Create a date object for formatting
   // AI : Use noon to avoid timezone rollover issues with basic dates
@@ -56,10 +57,10 @@ export function formatFlexibleDate(
   }
 
   if (precision === "month") {
-    return new Intl.DateTimeFormat(locale, { year: "numeric", month: "long" }).format(date);
+    return new Intl.DateTimeFormat(userLocale, { year: "numeric", month: "long" }).format(date);
   }
 
-  return new Intl.DateTimeFormat(locale, {
+  return new Intl.DateTimeFormat(userLocale, {
     year: "numeric",
     month: "long",
     day: "numeric",

@@ -17,8 +17,11 @@ export function buildProjectPayload(project: Partial<Project>): PublishProjectIn
     lat: project.lat!,
     lng: project.lng!,
     proposalDate: project.proposalDate ?? null,
+    proposalDatePrecision: project.proposalDatePrecision ?? null,
     startDate: project.startDate ?? null,
+    startDatePrecision: project.startDatePrecision ?? null,
     endDate: project.endDate ?? null,
+    endDatePrecision: project.endDatePrecision ?? null,
     sourceUrl: project.sourceUrl ?? undefined,
     latestUpdateOn: project.latestUpdateOn ?? null,
   };
