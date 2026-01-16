@@ -5,36 +5,36 @@
       <div class="flex items-center gap-2">
         <RadioButton
           v-model="internalPrecision"
-          inputId="precision-year"
+          :inputId="'precision-year-' + uniqueId"
           value="year"
           :name="groupName"
           @change="handlePrecisionChange"
         />
-        <label for="precision-year" class="cursor-pointer text-sm mb-0">{{
+        <label :for="'precision-year-' + uniqueId" class="cursor-pointer text-sm mb-0">{{
           $t("project.yearOnly")
         }}</label>
       </div>
       <div class="flex items-center gap-2">
         <RadioButton
           v-model="internalPrecision"
-          inputId="precision-month"
+          :inputId="'precision-month-' + uniqueId"
           value="month"
           :name="groupName"
           @change="handlePrecisionChange"
         />
-        <label for="precision-month" class="cursor-pointer text-sm mb-0">{{
+        <label :for="'precision-month-' + uniqueId" class="cursor-pointer text-sm mb-0">{{
           $t("project.monthYear")
         }}</label>
       </div>
       <div class="flex items-center gap-2">
         <RadioButton
           v-model="internalPrecision"
-          inputId="precision-day"
+          :inputId="'precision-day-' + uniqueId"
           value="day"
           :name="groupName"
           @change="handlePrecisionChange"
         />
-        <label for="precision-day" class="cursor-pointer text-sm mb-0">{{
+        <label :for="'precision-day-' + uniqueId" class="cursor-pointer text-sm mb-0">{{
           $t("project.fullDate")
         }}</label>
       </div>
@@ -55,9 +55,9 @@
             :minDate="minDate"
             showIcon
             @update:modelValue="handleYearDateChange"
-            id="year-input"
+            :id="'year-input-' + uniqueId"
           />
-          <label for="year-input">{{ label }} {{ required ? "*" : "" }}</label>
+          <label :for="'year-input-' + uniqueId">{{ label }} {{ required ? "*" : "" }}</label>
         </FloatLabel>
       </div>
 
@@ -75,9 +75,9 @@
               :minDate="minDate"
               @update:modelValue="handleMonthDateChange"
               showIcon
-              id="month-input"
+              :id="'month-input-' + uniqueId"
             />
-            <label for="month-input">{{ label }} {{ required ? "*" : "" }}</label>
+            <label :for="'month-input-' + uniqueId">{{ label }} {{ required ? "*" : "" }}</label>
           </FloatLabel>
         </div>
       </div>
@@ -85,6 +85,8 @@
       <!-- AI : Full Date Mode -->
       <div v-else class="w-full">
         <FloatLabel class="w-full" variant="in">
+          <label for="date-input">{{ label }} {{ required ? "*" : "" }}</label>
+
           <DatePicker
             v-model="fullDateValue"
             dateFormat="dd/mm/yy"

@@ -41,8 +41,11 @@ export function createProjectFromOverlayData(
     lat: projectInfo?.lat ?? overlayData.centroid.lat,
     lng: projectInfo?.lng ?? overlayData.centroid.lng,
     proposalDate: projectInfo?.proposalDate ?? null,
+    proposalDatePrecision: projectInfo?.proposalDatePrecision ?? null,
     startDate: projectInfo?.startDate ?? null,
+    startDatePrecision: projectInfo?.startDatePrecision ?? null,
     endDate: projectInfo?.endDate ?? null,
+    endDatePrecision: projectInfo?.endDatePrecision ?? null,
     sourceUrl: projectInfo?.sourceUrl ?? null,
     createdAt: projectInfo?.createdAt ?? overlayData.createdAt,
     updatedAt: projectInfo?.updatedAt ?? overlayData.updatedAt,
@@ -144,8 +147,11 @@ export function createLocalProjectContribution(
     lat: number | null;
     lng: number | null;
     proposalDate: Date | null;
+    proposalDatePrecision?: "year" | "month" | "day" | null;
     startDate: Date | null;
+    startDatePrecision?: "year" | "month" | "day" | null;
     endDate: Date | null;
+    endDatePrecision?: "year" | "month" | "day" | null;
     sourceUrl: string | null;
     latestUpdateOn: Date | null;
   },
@@ -198,8 +204,11 @@ export function createLocalProjectContribution(
       updatedAt: new Date(),
     },
     proposalDate: localProject.proposalDate,
+    proposalDatePrecision: localProject.proposalDatePrecision ?? null,
     startDate: localProject.startDate,
+    startDatePrecision: localProject.startDatePrecision ?? null,
     endDate: localProject.endDate,
+    endDatePrecision: localProject.endDatePrecision ?? null,
     sourceUrl: localProject.sourceUrl ?? null,
     latestUpdateOn: localProject.latestUpdateOn ?? null,
     createdAt: new Date(),

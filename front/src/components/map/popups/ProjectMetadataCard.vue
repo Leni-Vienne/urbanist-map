@@ -22,15 +22,17 @@
       <div class="info-row">
         <span class="info-label">{{ $t("project.period") }}:</span>
         <span class="info-value info-small">
-          <span v-if="project.startDate && project.endDate">
-            {{ formatDate(project.startDate) || "—" }} - {{ formatDate(project.endDate) || "—" }}
-          </span>
-          <span v-else-if="project.proposalDate">
-            {{ $t("project.proposed") }} {{ formatDate(project.proposalDate) || "—" }}</span
-          >
-          <span v-else>
-            {{ $t("metadata.notSpecified") }}
-          </span>
+          {{
+            formatProjectDateRange(
+              project.startDate,
+              project.endDate,
+              project.proposalDate,
+              project.startDatePrecision,
+              project.endDatePrecision,
+              project.proposalDatePrecision,
+              $t,
+            ) || $t("metadata.notSpecified")
+          }}
         </span>
       </div>
       <div v-if="project.sourceUrl" class="info-row">
@@ -50,8 +52,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Project } from "@/types/index";
-import { formatDate } from "@/utils/dateFormat";
+import { formatDate, formatProjectDateRange } from "@/utils/dateFormat";
 import { formatSourceUrl } from "@/utils/urlFormat";
+import { useI18n } from "vue-i18n";
+
+const { t: $t } = useI18n();
 
 interface Props {
   project: Project | null;

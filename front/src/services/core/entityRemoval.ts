@@ -26,7 +26,7 @@ export interface DeleteOverlayOptions {
 /**
  * AI : Remove overlay from map layers and overlay store
  */
-function removeOverlayFromMapAndStore(overlayId: string) {
+export function removeOverlayFromMapAndStore(overlayId: string) {
   const overlayStore = useOverlayStore();
   const overlayObject = overlayStore.overlays[overlayId];
   if (!overlayObject) return;
