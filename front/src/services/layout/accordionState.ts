@@ -27,7 +27,7 @@ interface ScrollRequest {
   id: string | number;
 }
 
-const pendingScrollRequest = ref<ScrollRequest | null>(null);
+export const pendingScrollRequest = ref<ScrollRequest | null>(null);
 
 /**
  * AI : Request scrolling to a specific element in the panel

@@ -269,8 +269,7 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
   // AI : Add tooltip to show project status in edit/moderation modes
   updateStandaloneProjectMarkerTooltip(marker, project, overlayStore.mode);
 
-  // AI : Add click handler for projects without overlays - show info popup
-  marker.on("click", (e) => {
+  marker.on("click", async (e) => {
     L.DomEvent.stopPropagation(e);
     const uiStore = useUiStore();
 
@@ -285,9 +284,6 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
           countryCode: project.city.countryCode,
         });
       }
-
-      // AI : Request scroll to project in moderation panel
-      requestScrollTo("project", project.id);
     }
 
     // AI : Check if popup is already open for this project - toggle behavior
@@ -299,55 +295,53 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
 
     // AI : Open or update project info popup first to ensure state is set (prevents race conditions with SideMenu watcher)
     uiStore.openProjectInfoPopup(project.id, project);
+    // AI : Ensure city context and data are loaded for the panel
+    if (project.city) {
+      const mapStore = useMapStore();
+      const mode = overlayStore.mode;
 
-    // AI : Force switch to Current Location tab if user is exploring Latest tab
-    // AI : limits disruption if user is in other modes, but ensures context availability for the project
-    if (uiStore.activeTab === "latest") {
-      // AI : CRITICAL: Ensure city is selected before switching tab, otherwise panel shows "No location selected"
-      if (project.city) {
-        // AI : Manually set selected city (without side effects of loadCityProjects)
-        const mapStore = useMapStore();
+      // AI : Set city if not already selected (required for currentLocation panel to show data)
+      if (mapStore.selectedCity?.id !== project.city.id) {
         mapStore.setSelectedCity({
           id: project.city.id,
           name: project.city.name,
           nameLocal: project.city.nameLocal,
           countryCode: project.city.countryCode,
         });
-
-        // AI : Ensure data is loaded for the panel to work (overlays AND standalone projects)
-        // AI : We duplicate the fetch logic here to avoid:
-        // AI : 1. Circular dependencies with useViewportContentManager
-        // AI : 2. Side effects of loadCityProjects (closing popup)
-        // AI : 3. Incompleteness of loadCityDataForNavigation (misses standalone projects)
-        const mode = overlayStore.mode;
-
-        // AI : Fetch concurrently for performance
-        const promises = [];
-
-        if (!mapStore.hasCityProjectsCache(project.city.id, mode)) {
-          promises.push(
-            trpc.cities.getCityOverlaysAndProjects
-              .query({
-                cityId: project.city.id,
-                mode,
-              })
-              .then((data: any) => {
-                if (data) mapStore.setCityProjectsCache(project.city.id, mode, data);
-              }),
-          );
-        }
-
-        if (!mapStore.hasCityStandaloneProjectsCache(project.city.id, mode)) {
-          promises.push(
-            fetchCityStandaloneProjectsOrCache(project.city.id, mode).catch(console.error),
-          );
-        }
-
-        // AI : Wait for data to be ready so panel populates correctly
-        // AI : This is fast (cached or concurrent fetch) and ensures the accordion logic finds the project
-        Promise.all(promises).catch(console.error);
       }
-      uiStore.setActiveTab("currentLocation");
+
+      // AI : Ensure data is loaded for the panel to work (overlays AND standalone projects)
+      const promises = [];
+
+      if (!mapStore.hasCityProjectsCache(project.city.id, mode)) {
+        promises.push(
+          trpc.cities.getCityOverlaysAndProjects
+            .query({
+              cityId: project.city.id,
+              mode,
+            })
+            .then((data) => {
+              if (data) mapStore.setCityProjectsCache(project.city.id, mode, data);
+            }),
+        );
+      }
+
+      if (!mapStore.hasCityStandaloneProjectsCache(project.city.id, mode)) {
+        promises.push(
+          fetchCityStandaloneProjectsOrCache(project.city.id, mode).catch(console.error),
+        );
+      }
+
+      // AI : Wait for data to be ready
+      await Promise.all(promises).catch(console.error);
+
+      // AI : Force switch to Current Location tab if user is exploring Latest tab
+      if (uiStore.activeTab === "latest") {
+        uiStore.setActiveTab("currentLocation");
+      }
+
+      // AI : Request scroll to project after data is loaded and tab is switched
+      requestScrollTo("project", project.id);
     }
 
     // AI : Close overlay popup if it's open (only one popup at a time)
