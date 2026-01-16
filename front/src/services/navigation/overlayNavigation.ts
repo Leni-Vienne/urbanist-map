@@ -16,6 +16,7 @@ import {
 import { createProjectInfoTeleportTarget } from "@/services/map/projectPopupTeleport";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import { resolveOverlayCorners } from "@/services/overlay/overlayPositionResolver";
+import { requestScrollTo } from "@/services/layout/accordionState";
 import type { OverlayData } from "@/types/index";
 
 /**
@@ -293,6 +294,12 @@ export async function navigateToStandaloneProject(
 
     // AI : Wait a bit for markers to be added to the map
     await new Promise((resolve) => setTimeout(resolve, 200));
+
+    // AI : Request scroll to project in adjacent panels IMMEDIATELY after data is loaded
+    // AI : This ensures the accordion opens while the flight is happening, providing instant feedback
+    if (projectId) {
+      requestScrollTo("project", projectId);
+    }
 
     // AI : Fly to marker project coordinates
     if (!map.value) {
