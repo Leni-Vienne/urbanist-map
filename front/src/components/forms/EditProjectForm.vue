@@ -91,8 +91,11 @@ const projectData = computed(() => ({
   description: originalProject.value.description || "",
   sourceUrl: originalProject.value.sourceUrl || "",
   proposalDate: toDateObject(originalProject.value.proposalDate),
+  proposalDatePrecision: originalProject.value.proposalDatePrecision ?? null,
   startDate: toDateObject(originalProject.value.startDate),
+  startDatePrecision: originalProject.value.startDatePrecision ?? null,
   endDate: toDateObject(originalProject.value.endDate),
+  endDatePrecision: originalProject.value.endDatePrecision ?? null,
   latestUpdateOn: toDateObject(originalProject.value.latestUpdateOn),
   cityId: originalProject.value.cityId,
 }));
@@ -103,8 +106,11 @@ const currentProjectData = computed(() => ({
   description: props.project.description || "",
   sourceUrl: props.project.sourceUrl || "",
   proposalDate: toDateObject(props.project.proposalDate),
+  proposalDatePrecision: props.project.proposalDatePrecision ?? null,
   startDate: toDateObject(props.project.startDate),
+  startDatePrecision: props.project.startDatePrecision ?? null,
   endDate: toDateObject(props.project.endDate),
+  endDatePrecision: props.project.endDatePrecision ?? null,
   latestUpdateOn: toDateObject(props.project.latestUpdateOn),
   cityId: props.project.cityId,
 }));
@@ -114,7 +120,7 @@ const form = useEditableProjectForm({
   initialData: projectData.value, // AI : Original backend values for comparison
   currentData: currentProjectData.value, // AI : Current values to display in form
   entityStatus: props.project.status,
-  localOnly: true,
+  localOnly: true, // AI : Save changes locally only, submit via dedicated "Submit Change Request" buttons
   getAvailableCities: () => formFieldsRef.value?.cities ?? [],
   onSubmitted: () => emit("submitted"),
   onClose: () => emit("close"),

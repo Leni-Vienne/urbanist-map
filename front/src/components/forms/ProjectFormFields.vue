@@ -56,76 +56,64 @@
 
     <!-- AI : Proposal date field (shown when project is proposed) -->
     <div class="form-group" v-if="localIsProposed">
-      <FloatLabel class="w-full" variant="in">
-        <DatePicker
-          id="proposal-date-input"
-          v-model="localFormData.proposalDate"
-          :class="[{ 'w-full': true }, fieldClasses?.('proposalDate')]"
-          dateFormat="dd/mm/yy"
-          :updateModelType="'date'"
-          showIcon
-          required
-          :maxDate="new Date()"
-          @update:model-value="handleProposalDateChange"
-        />
-        <label for="proposal-date-input" class="text-gray-600"
-          >{{ $t("project.proposalDate") }} *</label
-        >
-      </FloatLabel>
+      <FlexibleDatePicker
+        v-model="flexibleProposalDate"
+        :label="$t('project.proposalDate')"
+        :max-date="new Date()"
+        required
+        :error="getFieldError('proposalDate') ?? undefined"
+        @update:modelValue="handleProposalDateChange"
+        @blur="handleProposalDateChange"
+      />
       <small class="text-gray-500 block mt-1">{{ $t("project.proposalDateHelp") }}</small>
       <small v-if="showProposalDateChangeIndicator" class="change-indicator">
         {{ $t("overlay.changedFrom") }}: "{{
-          formatDate(originalData?.proposalDate) || $t("overlay.notSet")
+          formatFlexibleDateFromProp(originalData?.proposalDate) || $t("overlay.notSet")
         }}"
       </small>
     </div>
 
     <!-- AI : Start and end date fields (shown when project is planned) -->
-    <div class="flex gap-3" v-if="!localIsProposed">
-      <div class="flex-1 form-group">
-        <FloatLabel class="w-full" variant="in">
-          <DatePicker
-            id="start-date-input"
-            v-model="localFormData.startDate"
-            :class="getInputClass('startDate')"
-            dateFormat="dd/mm/yy"
-            :updateModelType="'date'"
-            showIcon
+    <div class="flex flex-col gap-4" v-if="!localIsProposed">
+      <!-- AI : Start Date (Optional with checkbox) -->
+      <div class="form-group">
+        <div class="flex items-center gap-2 mb-2">
+          <Checkbox v-model="projectAlreadyStarted" binary inputId="project-started-checkbox" />
+          <label for="project-started-checkbox" class="cursor-pointer">{{
+            $t("project.alreadyStarted")
+          }}</label>
+        </div>
+
+        <div v-if="!projectAlreadyStarted">
+          <FlexibleDatePicker
+            v-model="flexibleStartDate"
+            :label="$t('project.startDate')"
             required
-            @update:model-value="handleDateChange"
+            :error="startDateError ?? undefined"
+            @update:modelValue="handleDateChange"
+            @blur="handleDateChange"
           />
-          <label for="start-date-input" class="text-gray-600"
-            >{{ $t("project.startDate") }} *</label
-          >
-        </FloatLabel>
-        <small v-if="startDateError" class="validation-error">{{ startDateError }}</small>
-        <small v-else class="text-gray-500 block mt-1">{{ $t("project.startDateHelp") }}</small>
-        <small v-if="showStartDateChangeIndicator" class="change-indicator">
-          {{ $t("overlay.changedFrom") }}: "{{
-            formatDate(originalData?.startDate) || $t("overlay.notSet")
-          }}"
-        </small>
+          <small v-if="showStartDateChangeIndicator" class="change-indicator">
+            {{ $t("overlay.changedFrom") }}: "{{
+              formatFlexibleDateFromProp(originalData?.startDate) || $t("overlay.notSet")
+            }}"
+          </small>
+        </div>
       </div>
 
-      <div class="flex-1 form-group">
-        <FloatLabel class="w-full" variant="in">
-          <DatePicker
-            id="end-date-input"
-            v-model="localFormData.endDate"
-            :class="getInputClass('endDate')"
-            dateFormat="dd/mm/yy"
-            :updateModelType="'date'"
-            showIcon
-            required
-            @update:model-value="handleDateChange"
-          />
-          <label for="end-date-input" class="text-gray-600">{{ $t("project.endDate") }} *</label>
-        </FloatLabel>
-        <small v-if="endDateError" class="validation-error">{{ endDateError }}</small>
-        <small v-else class="text-gray-500 block mt-1">{{ $t("project.endDateHelp") }}</small>
+      <!-- AI : End Date -->
+      <div class="form-group">
+        <FlexibleDatePicker
+          v-model="flexibleEndDate"
+          :label="$t('project.endDate')"
+          required
+          :error="endDateError ?? undefined"
+          @update:modelValue="handleDateChange"
+          @blur="handleDateChange"
+        />
         <small v-if="showEndDateChangeIndicator" class="change-indicator">
           {{ $t("overlay.changedFrom") }}: "{{
-            formatDate(originalData?.endDate) || $t("overlay.notSet")
+            formatFlexibleDateFromProp(originalData?.endDate) || $t("overlay.notSet")
           }}"
         </small>
       </div>
@@ -204,9 +192,20 @@ import { ref, computed, watch, toRaw } from "vue";
 import { useI18n } from "vue-i18n";
 import FloatLabel from "primevue/floatlabel";
 import TimelineStatusSelector from "./TimelineStatusSelector.vue";
+import FlexibleDatePicker from "./FlexibleDatePicker.vue";
+import Checkbox from "primevue/checkbox";
 import type CitySelect from "./CitySelect.vue";
+import InputText from "primevue/inputtext";
+import Textarea from "primevue/textarea";
+import DatePicker from "primevue/datepicker";
 import type { Project, ProjectFormData } from "@/types/index";
 import { formatDate } from "@/utils/dateFormat";
+import {
+  dbToFlexibleDate,
+  flexibleDateToDb,
+  formatFlexibleDate,
+} from "@/utils/flexibleDateHelpers";
+import type { FlexibleDateInput } from "@shared/types/flexibleDate";
 import { useFieldValidation } from "@/composables/forms/useFieldValidation";
 import { projectSchema } from "@shared/validation/schemas";
 import { prepareProjectValidationData } from "@/utils/validationHelpers";
@@ -247,7 +246,7 @@ const props = withDefaults(defineProps<Props>(), {
   showChangeIndicators: false,
   showLatestUpdateField: false,
   idPrefix: "project",
-  isProposed: true,
+  isProposed: false,
   prefilledCity: undefined,
   markerCoordinates: null,
 });
@@ -268,16 +267,96 @@ const { getFieldError, hasFieldError, validateField, isFieldTouched } =
 const localIsProposed = ref(props.isProposed);
 
 // AI : Local copy of formData to avoid mutating props
-const localFormData = ref<ProjectFormData>({ ...props.formData });
+// AI : Explicitly initialize precision fields to null if undefined (for old projects without precision)
+const localFormData = ref<ProjectFormData>({
+  ...props.formData,
+  proposalDatePrecision: props.formData.proposalDatePrecision ?? null,
+  startDatePrecision: props.formData.startDatePrecision ?? null,
+  endDatePrecision: props.formData.endDatePrecision ?? null,
+});
 
-// AI : Watch for external formData changes and sync local copy
+// AI : Local state for flexible dates
+// AI : We maintain these separately and sync them to localFormData (which uses plain Dates)
+const flexibleProposalDate = ref<FlexibleDateInput | null>(
+  dbToFlexibleDate(props.formData.proposalDate, props.formData.proposalDatePrecision),
+);
+const flexibleStartDate = ref<FlexibleDateInput | null>(
+  dbToFlexibleDate(props.formData.startDate, props.formData.startDatePrecision),
+);
+const flexibleEndDate = ref<FlexibleDateInput | null>(
+  dbToFlexibleDate(props.formData.endDate, props.formData.endDatePrecision),
+);
+
+// AI : "Already Started" state
+// AI : If active, startDate is cleared and disabled
+const projectAlreadyStarted = ref(false);
+
+// AI : Initialize "Already Started" if we have an endDate but no startDate in a planned project
+// AI : This assumes "Already Started" means we don't know the startDate
+if (!props.formData.startDate && props.formData.endDate && !props.isProposed) {
+  projectAlreadyStarted.value = true;
+}
+
+// AI : Watch for external formData changes and sync local copy AND flexible states
 watch(
   () => props.formData,
   (newFormData) => {
     localFormData.value = { ...newFormData };
+
+    // AI : Only update flexible inputs if the timestamp is different (simple check)
+    // AI : We use timestamps to avoid unnecessary re-parsing
+    const currentProposalTs = flexibleDateToDb(flexibleProposalDate.value)?.getTime();
+    if (newFormData.proposalDate?.getTime() !== currentProposalTs) {
+      flexibleProposalDate.value = dbToFlexibleDate(
+        newFormData.proposalDate,
+        newFormData.proposalDatePrecision,
+      );
+    }
+
+    const currentStartTs = flexibleDateToDb(flexibleStartDate.value)?.getTime();
+    if (newFormData.startDate?.getTime() !== currentStartTs) {
+      if (newFormData.startDate) {
+        projectAlreadyStarted.value = false;
+      }
+      flexibleStartDate.value = dbToFlexibleDate(
+        newFormData.startDate,
+        newFormData.startDatePrecision,
+      );
+    }
+
+    const currentEndTs = flexibleDateToDb(flexibleEndDate.value)?.getTime();
+    if (newFormData.endDate?.getTime() !== currentEndTs) {
+      flexibleEndDate.value = dbToFlexibleDate(newFormData.endDate, newFormData.endDatePrecision);
+    }
   },
   { deep: true },
 );
+
+// AI : Sync flexible dates to formData
+function syncDatesToFormData() {
+  localFormData.value.proposalDate = localIsProposed.value
+    ? flexibleDateToDb(flexibleProposalDate.value)
+    : null;
+  localFormData.value.proposalDatePrecision = localIsProposed.value
+    ? (flexibleProposalDate.value?.precision ?? null)
+    : null;
+
+  if (localIsProposed.value) {
+    localFormData.value.startDate = null;
+    localFormData.value.startDatePrecision = null;
+    localFormData.value.endDate = null;
+    localFormData.value.endDatePrecision = null;
+  } else {
+    localFormData.value.startDate = projectAlreadyStarted.value
+      ? null
+      : flexibleDateToDb(flexibleStartDate.value);
+    localFormData.value.startDatePrecision = projectAlreadyStarted.value
+      ? null
+      : (flexibleStartDate.value?.precision ?? null);
+    localFormData.value.endDate = flexibleDateToDb(flexibleEndDate.value);
+    localFormData.value.endDatePrecision = flexibleEndDate.value?.precision ?? null;
+  }
+}
 
 // AI : Watch local formData changes and emit to parent
 watch(
@@ -287,6 +366,15 @@ watch(
   },
   { deep: true },
 );
+
+// AI : Watch projectAlreadyStarted to clear start date if checked
+watch(projectAlreadyStarted, (newValue) => {
+  if (newValue) {
+    flexibleStartDate.value = null; // Clear the input
+  }
+  syncDatesToFormData();
+  handleDateChange(); // Re-validate
+});
 
 // AI : Convert null to undefined for CitySelect compatibility
 const cityIdForSelect = computed(() => localFormData.value.cityId ?? undefined);
@@ -375,6 +463,7 @@ const cityIdError = computed(() => getFieldError("cityId"));
 
 // AI : Date change handler - validates dates whenever they change
 function handleDateChange() {
+  syncDatesToFormData();
   // AI : Validate both date fields when either changes (they depend on each other)
   validateFieldHelper("startDate");
   validateFieldHelper("endDate");
@@ -382,6 +471,7 @@ function handleDateChange() {
 
 // AI : Proposal date change handler
 function handleProposalDateChange() {
+  syncDatesToFormData();
   validateFieldHelper("proposalDate");
 }
 
@@ -446,19 +536,29 @@ function handleTimelineStatusChange(newIsProposed: boolean) {
   // AI : Update local form data based on timeline status
   if (newIsProposed) {
     // AI : Switching to proposed - clear planned dates
-    localFormData.value.startDate = null;
-    localFormData.value.endDate = null;
+    flexibleStartDate.value = null;
+    flexibleEndDate.value = null;
+    projectAlreadyStarted.value = false;
   } else {
     // AI : Switching to planned - clear proposal date
-    localFormData.value.proposalDate = null;
+    flexibleProposalDate.value = null;
+
     // AI : Restore original dates if available
-    if (props.originalData?.startDate && !localFormData.value.startDate) {
-      localFormData.value.startDate = props.originalData.startDate;
+    if (props.originalData?.startDate) {
+      flexibleStartDate.value = dbToFlexibleDate(props.originalData.startDate);
+      projectAlreadyStarted.value = false;
+    } else {
+      // AI : If no original start date (and we are switching to planned), maybe it was already started?
+      flexibleStartDate.value = null;
     }
-    if (props.originalData?.endDate && !localFormData.value.endDate) {
-      localFormData.value.endDate = props.originalData.endDate;
+
+    if (props.originalData?.endDate) {
+      flexibleEndDate.value = dbToFlexibleDate(props.originalData.endDate);
+    } else {
+      flexibleEndDate.value = null;
     }
   }
+  syncDatesToFormData();
 }
 
 // AI : Watch for city changes in local form data
@@ -467,11 +567,20 @@ watch(
   (newCityId) => {
     emit("cityChange", newCityId);
   },
+  {
+    // immediate: true
+    // AI : Actually, we don't need immediate because we init cityIdForSelect computed
+  },
 );
 
 // AI : Safe getter for city name that handles null/undefined conversion
 function getCityNameSafe(cityId: number | null | undefined): string {
   return citySelectRef.value?.getCityName(cityId ?? undefined) ?? "Not set";
+}
+
+// AI : Helper to format date from prop (Date) using flexible helper
+function formatFlexibleDateFromProp(date: Date | null | undefined): string {
+  return formatFlexibleDate(dbToFlexibleDate(date));
 }
 
 // AI : Expose cities data and methods to parent
