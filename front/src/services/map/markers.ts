@@ -221,19 +221,18 @@ export function getOverlayMarkerColor(
   if (isReplacement && hasBeenModified && status !== "approved") return "purple";
 
   // AI : Viewing suggested position of overlay with pending changes - show yellow
-  if (isViewingApprovedPosition === false && (hasPendingChanges || status === "approved")) {
+  // AI : Default to yellow if pending changes exist and we haven't explicitly selected the approved view
+  if (
+    (hasPendingChanges || status === "approved") &&
+    (isViewingApprovedPosition === false ||
+      (isViewingApprovedPosition === undefined && hasPendingChanges))
+  ) {
     return "yellow";
   }
 
   // AI : Pending change requests with approved status - use green (viewing approved position)
-  // AI : When explicitly viewing approved (isViewingApprovedPosition === true), always show green
-  // AI : When position state is undefined, check hasBeenModified to determine if user has made local changes
-  if (
-    hasPendingChanges &&
-    status === "approved" &&
-    isViewingApprovedPosition !== false &&
-    (isViewingApprovedPosition === true || !hasBeenModified)
-  ) {
+  // AI : ONLY when explicitly viewing approved (isViewingApprovedPosition === true)
+  if (hasPendingChanges && status === "approved" && isViewingApprovedPosition === true) {
     return "green";
   }
 

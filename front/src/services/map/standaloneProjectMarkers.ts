@@ -18,7 +18,6 @@ import {
 import { requestScrollTo } from "@/services/layout/accordionState";
 import { getProjectMarkerColor } from "@/utils/markerColors";
 import { fetchCityStandaloneProjectsOrCache } from "@/services/navigation/cityDataLoader";
-import { createProjectObject } from "@/utils/typeFactories";
 // AI : useI18n() uses Vue's inject() mechanism which is only available synchronously during the setup() phase of a component.
 import { t } from "@/locales";
 
@@ -386,45 +385,6 @@ export function updateStandaloneProjectMarkerColor(projectId: string, project: P
   const markerColor = getProjectMarkerColor(project, overlayStore.mode);
   const markerIcon = createStandaloneProjectIcon(markerColor);
   marker.setIcon(markerIcon);
-}
-
-/**
- * AI : Update all standalone project marker colors (e.g., when mode changes)
- */
-export function updateAllStandaloneProjectMarkerColors(): void {
-  const projectStore = useProjectStore();
-  const overlayStore = useOverlayStore();
-  const mapStore = useMapStore();
-  const markerMap = getStandaloneProjectMarkerMap();
-
-  for (const [projectId, marker] of markerMap) {
-    // AI : Try to find project in multiple locations:
-    // 1. projectStore.projects (local/cached projects)
-    // 2. projectStore.allProjects (fetched projects)
-    // 3. MapStore's standalone projects cache (for current city)
-    let project: Project | undefined =
-      projectStore.projects[projectId] ?? projectStore.allProjects[projectId];
-
-    if (!project && mapStore.selectedCity) {
-      // AI : Fallback: check the cached standalone projects for this city
-      const cachedStandaloneProjects = mapStore.getCityStandaloneProjectsCache(
-        mapStore.selectedCity.id,
-        overlayStore.mode,
-      );
-      const found = cachedStandaloneProjects?.find((p) => p.id === projectId);
-      if (found) {
-        project = createProjectObject(found);
-      }
-    }
-
-    if (project) {
-      const markerColor = getProjectMarkerColor(project, overlayStore.mode);
-      const markerIcon = createStandaloneProjectIcon(markerColor);
-      marker.setIcon(markerIcon);
-
-      updateStandaloneProjectMarkerTooltip(marker, project, overlayStore.mode);
-    }
-  }
 }
 
 /**
