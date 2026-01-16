@@ -469,6 +469,11 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   // AI : Always use backend data to create overlay object (cached positions applied later via applyPositionToOverlay)
   const overlayObject = createOverlayFromCDN(cdnOverlay);
 
+  // AI : Preserve UI state (like view choice) from existing store object if re-rendering
+  if (existingOverlay) {
+    overlayObject.isViewingApprovedPosition = existingOverlay.isViewingApprovedPosition;
+  }
+
   if (createMarkers) {
     createSingleMarker(overlayObject);
   }
@@ -482,6 +487,14 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
 
     // AI : Store overlay with proper reactivity - but ONLY after it's on the map
     overlayStore.addOverlay(cdnOverlay.id, overlayObjectWithMethods);
+
+    // AI : CRITICAL FIX: Re-evaluate marker color now that the overlay is fully loaded and managed
+    // AI : The mode might have changed during the async loading process (e.g. View -> Edit switch during navigation)
+    // AI : or the initial render might have used stale mode data.
+    // AI : We explicitly update the marker icon to match the CURRENT store mode.
+    if (overlayObjectWithMethods.marker) {
+      updateMarkerTooltip(overlayObjectWithMethods);
+    }
 
     // AI : Remove from in-progress tracking now that it's in the store
     overlaysBeingCreated.delete(cdnOverlay.id);

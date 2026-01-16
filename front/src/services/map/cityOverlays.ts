@@ -40,11 +40,16 @@ export function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void 
     const cachedModifications =
       overlayStore.mode === "edit" ? overlayStore.getFromEditModeCache(overlay.id) : undefined;
 
+    // AI : Preserve isViewingApprovedPosition from store if it exists
+    // AI : This ensures that if user switched to "Approved" view, it persists across zoom levels
+    const existingInStore = overlayStore.overlays[overlay.id];
+
     // AI : Create temporary overlay object with isModified flag
     // AI : Priority: 1) overlay's own isModified, 2) cached isModified, 3) false
     const overlayWithModFlag = {
       ...overlay,
       isModified: overlay.isModified ?? cachedModifications?.isModified ?? false,
+      isViewingApprovedPosition: existingInStore?.isViewingApprovedPosition,
     };
 
     const markerColor = getOverlayMarkerColor(overlayWithModFlag, overlayStore.mode);
