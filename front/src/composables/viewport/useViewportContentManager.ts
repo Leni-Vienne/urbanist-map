@@ -10,9 +10,11 @@ import { trpc } from "@/client";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
 import { renderViewModeOverlays } from "@/services/overlay/overlayRendering";
-import { updateOverlayEditingState } from "@/services/overlay/overlayEditing";
+import {
+  updateOverlayEditingState,
+  saveAllOverlaysToCache,
+} from "@/services/overlay/overlayEditing";
 import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";
-import { updateOverlayMarkersColors } from "@/services/map/markers";
 import { renderOverlayMarkersFromData, removeOverlayMarkers } from "@/services/map/cityOverlays";
 import { citiesWithProjects } from "@/services/map/cityMarkers";
 import {
@@ -45,14 +47,6 @@ const lastZoomLevel = ref<number | null>(null);
  */
 export function useViewportContentManager() {
   const overlayStore = useOverlayStore();
-
-  /**
-   * AI : Update overlay marker colors when mode changes
-   * AI : Changes from Timeline Status (view) to Approval Status (edit)
-   */
-  function updateMarkerColorsForMode() {
-    updateOverlayMarkersColors(ref(overlayStore.overlays), overlayStore.mode);
-  }
 
   /**
    * AI : Clear content for non-active cities while preserving active city markers
@@ -586,12 +580,12 @@ export function useViewportContentManager() {
         // AI : They might be invalid in the new mode (e.g., local projects in view mode) as they are not store-managed
         clearAllStandaloneProjectMarkers();
 
-        // AI : Update existing overlay marker colors (Timeline vs Approval status)
-        updateMarkerColorsForMode();
-
-        // AI : Update existing overlays in-place with new toolbar actions and positions
-        // AI : This preserves edit mode cache and updates marker colors after modifications
-        updateOverlayEditingState();
+        // AI : CRITICAL: Save any modified overlays before we potentially hide them
+        // AI : If we are leaving edit mode, we must save the current state to cache
+        // AI : This prevents data loss for user's pending overlays that disappear in View mode
+        if (oldMode === "edit") {
+          saveAllOverlaysToCache();
+        }
 
         // AI : CRITICAL: Different modes return different data from backend
         // AI : - View mode: Only approved content
@@ -649,12 +643,10 @@ export function useViewportContentManager() {
             currentCityIds.map(async (id) => loadCityData(id, "reload", null, "reload")),
           );
 
-          await refreshViewport(true);
-
-          // AI : CRITICAL: Re-apply marker colors after data reload
-          // AI : The initial call at start of watcher used old data (view mode) which lacked hasPendingChanges
-          // AI : Now that store has fresh data, we must update colors again to show yellow status
-          updateMarkerColorsForMode();
+          // AI : Update existing overlays in-place with new toolbar actions and positions
+          // AI : MOVED HERE (after reload) to ensure we operate on fresh data
+          // AI : This preserves edit mode cache and updates marker colors after modifications
+          updateOverlayEditingState();
 
           // AI : CRITICAL FIX: After reloading, explicitly create standalone markers for local projects
           // AI : This ensures markers appear immediately without requiring user to click city or zoom

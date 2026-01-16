@@ -12,10 +12,7 @@ import type { OverlayObject, Project } from "@/types/index";
 import { createOverlayObject, createProjectObject } from "@/utils/typeFactories";
 import { addOverlayToProjectWithId } from "@/services/project/projects";
 import { removeStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
-import {
-  getFromEditModeOverlayCache,
-  saveCachedPosition,
-} from "@/services/overlay/overlayPositionManagement";
+import { getFromEditModeOverlayCache } from "@/services/overlay/overlayPositionManagement";
 import { validateOverlaySize, leafletCornersToCorners } from "@shared/overlayValidation";
 import { useToast } from "@/composables/ui/useToast";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
@@ -105,13 +102,9 @@ export function updateOverlayEditingState(): void {
     } else {
       // AI : CRITICAL: Save current position to cache BEFORE resetting to backend
       // AI : This fixes the bug where edit→moderation→edit loses the modified position
+      // AI : Logic extracted to saveAllOverlaysToCache for usage in mode watcher
       if (overlayObject.overlay && (overlayObject.isModified || overlayObject.history.length > 1)) {
-        const currentCorners = overlayObject.overlay.getCorners();
-        if (currentCorners?.length === 4) {
-          // AI : getCorners() returns L.LatLng[], convert to plain objects
-          const corners = currentCorners.map((c) => ({ lat: c.lat, lng: c.lng }));
-          saveCachedPosition(overlayObject.id, corners, overlayObject.isModified ?? false);
-        }
+        saveOverlayModificationsToCache(overlayObject);
       }
 
       // AI : Now reset to backend positions for display
@@ -163,6 +156,19 @@ export function updateOverlayEditingState(): void {
       }
     });
   }
+}
+
+/**
+ * AI : Save all modified overlays to edit mode cache
+ * AI : Used before mode switches or bulk updates to prevent data loss
+ */
+export function saveAllOverlaysToCache() {
+  const overlayStore = useOverlayStore();
+  Object.values(overlayStore.overlays).forEach((overlayObject) => {
+    if (overlayObject.isModified || overlayObject.history.length > 1) {
+      saveOverlayModificationsToCache(overlayObject);
+    }
+  });
 }
 
 /**
