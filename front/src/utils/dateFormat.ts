@@ -60,9 +60,13 @@ export function formatProjectDateRange(
   if (start && end) {
     return `${start} - ${end}`;
   } else if (start) {
-    return `${t("project.starts")} ${start}`;
+    // AI : Use "Starts in" for year/month precision, "Starts on" for day precision
+    const startsKey = startDatePrecision === "day" ? "project.startsOn" : "project.startsIn";
+    return `${t(startsKey)} ${start}`;
   } else if (end) {
-    return `${t("project.ends")} ${end}`;
+    // AI : Use "Ends in" for year/month precision, "Ends on" for day precision
+    const endsKey = endDatePrecision === "day" ? "project.endsOn" : "project.endsIn";
+    return `${t(endsKey)} ${end}`;
   }
   return "";
 }
