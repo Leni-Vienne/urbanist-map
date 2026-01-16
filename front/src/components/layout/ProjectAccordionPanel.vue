@@ -176,6 +176,7 @@ import {
   expandAccordionForOverlay,
   expandAccordionForProject,
   consumeScrollRequest,
+  pendingScrollRequest,
 } from "@/services/layout/accordionState";
 import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/overlaySelection";
@@ -243,6 +244,17 @@ const { t } = useI18n();
 const toast = useToast();
 
 const { handleOverlayClickNavigation } = useOverlayClickHandler();
+
+// AI : Watch for new scroll requests (handled reactively)
+// AI : This ensures requests are handled even if projects data matches and doesn't trigger the above watcher
+watch(
+  () => pendingScrollRequest.value,
+  async (newRequest) => {
+    if (newRequest && props.projects.length > 0) {
+      await handleScrollRequest();
+    }
+  },
+);
 
 const isContributePanel = computed(() => props.panelClass === "my-contributions-panel");
 
