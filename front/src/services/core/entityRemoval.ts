@@ -26,7 +26,7 @@ export interface DeleteOverlayOptions {
 /**
  * AI : Remove overlay from map layers and overlay store
  */
-export function removeOverlayFromMapAndStore(overlayId: string) {
+function removeOverlayFromMapAndStore(overlayId: string) {
   const overlayStore = useOverlayStore();
   const overlayObject = overlayStore.overlays[overlayId];
   if (!overlayObject) return;
@@ -74,7 +74,7 @@ function removeProjectMarkerFromMap(projectId: string) {
  * AI : Comprehensive overlay removal
  * AI : Handles Store, Map, Cache, Project Association, and Standalone Marker restoration
  */
-export function removeOverlay(
+function removeOverlay(
   overlayId: string,
   options: {
     updateUserContributions?: boolean;

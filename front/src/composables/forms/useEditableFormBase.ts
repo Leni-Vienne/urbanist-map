@@ -24,6 +24,18 @@ export type FieldComparator<TFormData> = (
   current: any,
 ) => boolean;
 
+// AI : Helper to serialize values for JSONB storage
+// AI : Dates must be converted to ISO strings to prevent double-serialization
+function serializeValue(value: any): any {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (value === null || value === undefined) {
+    return null;
+  }
+  return value;
+}
+
 // AI : Base composable for editable form state and common operations
 export function useEditableFormBase<TFormData extends Record<string, any>>(
   options: EditableFormBaseOptions<TFormData>,
@@ -71,11 +83,13 @@ export function useEditableFormBase<TFormData extends Record<string, any>>(
 
     for (const key of Object.keys(formData)) {
       const fieldName = key as keyof TFormData;
-      if (hasChanged(fieldName)) {
+      const isChanged = hasChanged(fieldName);
+
+      if (isChanged) {
         changes.push({
           fieldName: String(fieldName),
-          oldValue: originalData[fieldName],
-          newValue: formData[fieldName],
+          oldValue: serializeValue(originalData[fieldName]),
+          newValue: serializeValue(formData[fieldName]),
           changeReason: changeReason.value ?? undefined,
         });
       }

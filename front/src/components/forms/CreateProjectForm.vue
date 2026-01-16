@@ -27,37 +27,32 @@ const props = defineProps<{
   project: Partial<Project>;
 }>();
 
-const emit = defineEmits<{ cancel: []; submit: [project: Partial<Project>] }>();
-
-const { validateProjectForm } = useProjectFormValidation();
 const formFieldsRef = ref<InstanceType<typeof ProjectFormFields> | null>(null);
 
 const formData = reactive<ProjectFormData>({
   name: props.project.name ?? "",
   description: props.project.description ?? null,
   proposalDate: props.project.proposalDate ?? null,
+  proposalDatePrecision: props.project.proposalDatePrecision ?? null,
   startDate: props.project.startDate ?? null,
+  startDatePrecision: props.project.startDatePrecision ?? null,
   endDate: props.project.endDate ?? null,
+  endDatePrecision: props.project.endDatePrecision ?? null,
   latestUpdateOn: props.project.latestUpdateOn ?? null,
   cityId: props.project.cityId ?? null,
   sourceUrl: props.project.sourceUrl ?? null,
 });
 
-const isProposed = ref(true);
+const isProposed = ref(false);
+
+const emit = defineEmits<{ cancel: []; submit: [project: Partial<Project>] }>();
+
+const { validateProjectForm } = useProjectFormValidation();
 
 const markerCoordinates =
   props.project.lat && props.project.lng
     ? { lat: props.project.lat, lng: props.project.lng }
     : null;
-
-function handleCityChange(newCityId: number | null) {
-  if (!newCityId) return;
-  const cities = formFieldsRef.value?.cities ?? [];
-  const selectedCity = cities.find((c) => c.id === newCityId);
-  if (selectedCity) {
-    switchTileLayer(isTileLayerType(selectedCity.countryCode) ? selectedCity.countryCode : "esri");
-  }
-}
 
 watch(
   () => props.project,
@@ -73,6 +68,14 @@ watch(
   },
   { deep: true },
 );
+function handleCityChange(newCityId: number | null) {
+  if (!newCityId) return;
+  const cities = formFieldsRef.value?.cities ?? [];
+  const selectedCity = cities.find((c) => c.id === newCityId);
+  if (selectedCity) {
+    switchTileLayer(isTileLayerType(selectedCity.countryCode) ? selectedCity.countryCode : "esri");
+  }
+}
 
 function handleSubmit() {
   const cities = formFieldsRef.value?.cities ?? [];

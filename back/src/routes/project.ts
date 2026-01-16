@@ -52,14 +52,17 @@ export const projectRouter = router({
       // AI : Check pending contribution limit for new projects
       await checkPendingLimitForNewContribution(ctx.user.id, input.id);
 
-      // AI : Build data object with proper null handling for dates
+      // AI : Build data object with proper null handling for dates and precision
       const data = {
         ...input,
         ownerId: ctx.user.id,
         cityId: input.cityId,
         proposalDate: input.proposalDate ?? null,
+        proposalDatePrecision: input.proposalDatePrecision ?? null,
         startDate: input.startDate ?? null,
+        startDatePrecision: input.startDatePrecision ?? null,
         endDate: input.endDate ?? null,
+        endDatePrecision: input.endDatePrecision ?? null,
         sourceUrl: input.sourceUrl,
         latestUpdateOn: input.latestUpdateOn ? new Date(input.latestUpdateOn) : null,
         // AI : Set center coordinate for all projects using PostGIS
@@ -114,8 +117,11 @@ export const projectRouter = router({
               lng: data.lng,
               centerCoordinate: data.centerCoordinate,
               proposalDate: data.proposalDate,
+              proposalDatePrecision: data.proposalDatePrecision,
               startDate: data.startDate,
+              startDatePrecision: data.startDatePrecision,
               endDate: data.endDate,
+              endDatePrecision: data.endDatePrecision,
               sourceUrl: data.sourceUrl,
               latestUpdateOn: data.latestUpdateOn,
               version: sql`${projects.version} + 1`,
