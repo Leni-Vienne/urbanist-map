@@ -296,8 +296,8 @@ async function checkEsriMaxZoom() {
 
 function applyEsriMaxZoom(zoomLevel: number) {
   const esriConfig = tileLayerConfigs.esri;
+
   if (esriConfig.options.maxNativeZoom !== zoomLevel) {
-    // AI : Update config
     esriConfig.options.maxNativeZoom = zoomLevel;
 
     if (activeTileLayer && map.value) {
@@ -365,8 +365,10 @@ async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number | null
     if (attributes.MaxMapLevel) {
       const maxLevel = Number.parseInt(attributes.MaxMapLevel, 10);
       if (!Number.isNaN(maxLevel)) {
-        // AI : Cap at 22, ensure minimum reasonable high-res
-        return Math.min(Math.max(maxLevel, BASELINE_ESRI_MAX_ZOOM), 22);
+        // AI : Respect explicit max level from metadata, even if lower than baseline
+        // This fixes issues where metadata says 17 but we forced 18, leading to gray tiles
+        // Cap at 22.
+        return Math.min(maxLevel, 22);
       }
     }
   }
