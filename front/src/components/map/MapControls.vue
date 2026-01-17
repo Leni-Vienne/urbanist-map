@@ -32,14 +32,12 @@
     </div>
 
     <div class="buttons-stacked">
-      <LayerControl ref="layerControlRef" />
-
       <!-- AI : Filter Control (View Mode Only) -->
-      <FilterControl
+      <!--<FilterControl
         v-if="mode !== 'edit'"
         ref="filterControlRef"
         @filter-overlays="handleFilterOverlays"
-      />
+      />-->
     </div>
   </div>
 
@@ -60,8 +58,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { map } from "@/services/core/map";
 import type { viewModeMarkerColor } from "@/types/index";
 
-const LayerControl = defineAsyncComponent(() => import("@/components/map/LayerControl.vue"));
-const FilterControl = defineAsyncComponent(() => import("@/components/map/FilterControl.vue"));
+//const FilterControl = defineAsyncComponent(() => import("@/components/map/FilterControl.vue"));
 const WelcomeDialog = defineAsyncComponent(() => import("@/components/map/WelcomeDialog.vue"));
 
 const overlayStore = useOverlayStore();

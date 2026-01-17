@@ -5,11 +5,30 @@
     v-model:height-percent="drawerHeight"
     @height-changed="handleHeightChanged"
   >
-    <!-- AI : Mode controls above drawer on mobile -->
-    <template #above>
+    <!-- AI : Mode controls above drawer on mobile, with individual floor clamping -->
+    <template #above="{ drawerHeightPx }">
       <div class="mobile-controls-wrapper">
-        <SatellitePreview :in-drawer="true" />
-        <ModeControls v-if="authStore.isAuthenticated" :is-mobile="true" />
+        <!-- AI : Satellite Preview: Minimum floor 80px. Positioned Left. -->
+        <div
+          class="control-wrapper"
+          :style="{
+            marginBottom: `${Math.max(0, 30 - Math.max(drawerHeightPx || 0, 65))}px`,
+            zIndex: isSatelliteMenuOpen ? 30 : 10,
+          }"
+        >
+          <SatellitePreview :in-drawer="true" @menu-change="handleSatelliteMenuChange" />
+        </div>
+
+        <!-- AI : Mode Controls: Minimum floor 110px. Centered. -->
+        <div
+          class="control-wrapper mode-layout"
+          :style="{
+            marginBottom: `${Math.max(0, 110 - Math.max(drawerHeightPx || 0, 65))}px`,
+            zIndex: 20,
+          }"
+        >
+          <ModeControls v-if="authStore.isAuthenticated" :is-mobile="true" />
+        </div>
       </div>
     </template>
 
@@ -43,7 +62,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useUiStore } from "@/stores/uiStore";
 import { usePanelTabs } from "@/composables/layout/usePanelTabs";
 import type { PanelTab } from "@/types";
@@ -58,6 +77,11 @@ import SatellitePreview from "@/components/map/SatellitePreview.vue";
 const uiStore = useUiStore();
 
 const isVisible = defineModel<boolean>("visible", { default: false });
+const isSatelliteMenuOpen = ref(false);
+
+function handleSatelliteMenuChange(isOpen: boolean) {
+  isSatelliteMenuOpen.value = isOpen;
+}
 
 // AI : Drawer height management
 const drawerHeight = computed({
@@ -152,15 +176,26 @@ const { authStore, setActiveTab } = usePanelTabs();
 .mobile-controls-wrapper {
   position: relative;
   width: 100%;
+  height: 0;
+  /* Wrapper itself has no height, just anchors */
+  pointer-events: none;
+}
+
+.control-wrapper {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  pointer-events: none;
+}
+
+.mode-layout {
   display: flex;
   justify-content: center;
-  align-items: flex-end;
-  pointer-events: none;
-  /* AI : Ensure wrapper has height so absolute children position correctly? */
-  /* Actually, if ModeControls defines the height, SatellitePreview (absolute) will position relative to it? */
-  /* No, relative positioning works on the box. */
-  /* ModeControls usually has some height. */
-  min-height: 40px;
-  /* Approximate height of ModeControls */
+}
+
+/* AI : Enable interactions for children */
+:deep(.control-wrapper > *) {
+  pointer-events: auto;
 }
 </style>

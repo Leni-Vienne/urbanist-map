@@ -1,9 +1,13 @@
 import L from "leaflet";
 import { ref } from "vue";
 import { map } from "@/services/core/map";
+import { useAuthStore } from "@/stores/authStore";
+
+// AI : Default max native zoom for Esri layer (safe baseline)
+const BASELINE_ESRI_MAX_ZOOM = 18;
 
 // AI : Available tile layer types
-export type TileLayerType = "FRA" | "esri" | "CHE" | "USA" | "osm";
+export type TileLayerType = "FRA" | "esri" | "CHE" | "osm";
 
 // AI : Current active tile layer (OSM as default for built-in labels)
 export const currentTileLayer = ref<TileLayerType>("osm");
@@ -15,7 +19,7 @@ let activeTileLayer: L.TileLayer | L.GridLayer | null = null;
 const tileLayerBounds = L.latLngBounds([-85, -180], [85, 180]);
 
 // AI : Tile layer configurations with UI labels
-export const tileLayerConfigs = {
+const tileLayerConfigs = {
   osm: {
     label: "Plan",
     flagUrl: "https://flagcdn.com/16x12/un.png", // UN flag for world map
@@ -38,7 +42,7 @@ export const tileLayerConfigs = {
     options: {
       minZoom: 0,
       maxZoom: 22,
-      maxNativeZoom: 19,
+      maxNativeZoom: BASELINE_ESRI_MAX_ZOOM,
       tileSize: 256,
       attribution: "Esri, Maxar, Earthstar Geographics, GIS User Community",
       noWrap: true,
@@ -55,20 +59,6 @@ export const tileLayerConfigs = {
       maxNativeZoom: 19,
       tileSize: 256,
       attribution: "IGN-F/Géoportail",
-      noWrap: true,
-      bounds: tileLayerBounds,
-    },
-  },
-  USA: {
-    label: "USA",
-    flagUrl: "https://flagcdn.com/16x12/us.png",
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    options: {
-      minZoom: 0,
-      maxZoom: 22,
-      maxNativeZoom: 20,
-      tileSize: 256,
-      attribution: "Esri, Maxar, Earthstar Geographics, GIS User Community",
       noWrap: true,
       bounds: tileLayerBounds,
     },
@@ -103,6 +93,8 @@ export function addTileLayer(): void {
   if (!activeTileLayer) {
     addTileLayersToMap();
   }
+
+  initEsriMetadataListener(); // AI : Start listening for potential high-res availability
 }
 
 /**
@@ -139,30 +131,71 @@ function createTileLayer(layerType: TileLayerType): L.TileLayer | L.GridLayer {
 /**
  * AI : Switch to a different tile layer (for custom layer control)
  */
+// AI : Timer for fallback removal of old layers
+let fallbackRemovalTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * AI : Switch to a different tile layer (for custom layer control)
+ */
 export function switchTileLayer(layerType: TileLayerType) {
   if (!map.value || currentTileLayer.value === layerType) {
     return;
   }
 
-  // AI : Remove current tile layer
-  if (activeTileLayer) {
-    map.value.removeLayer(activeTileLayer);
+  // AI : Clear any pending fallback removal from previous switches
+  if (fallbackRemovalTimer) {
+    clearTimeout(fallbackRemovalTimer);
+    fallbackRemovalTimer = null;
   }
+
+  // AI : Keep reference to old layer to remove it AFTER new one loads
+  const oldLayer = activeTileLayer;
 
   try {
     // AI : Add new tile layer
-    activeTileLayer = createTileLayer(layerType);
-    activeTileLayer.addTo(map.value);
+    const newLayer = createTileLayer(layerType);
+    newLayer.addTo(map.value);
+    activeTileLayer = newLayer;
+
+    // AI : Smooth transition: wait for new layer to load before removing old one
+    const removeOldLayer = () => {
+      if (oldLayer && map.value?.hasLayer(oldLayer)) {
+        map.value.removeLayer(oldLayer);
+      }
+      // AI : Clear timer if it exists (load event happened before timeout)
+      if (fallbackRemovalTimer) {
+        clearTimeout(fallbackRemovalTimer);
+        fallbackRemovalTimer = null;
+      }
+    };
+
+    // AI : Remove on load or after timeout (fallback)
+    newLayer.once("load", removeOldLayer);
+
+    // AI : Safety fallback in case load event doesn't fire (e.g. cached or fast network)
+    fallbackRemovalTimer = setTimeout(removeOldLayer, 2000);
 
     // AI : Update current layer reference
     currentTileLayer.value = layerType;
+
+    // AI : Check max zoom immediately if switching to Esri
+    if (layerType === "esri") {
+      checkEsriMaxZoom();
+    }
   } catch (error) {
     console.error("Failed to switch tile layer:", error);
     // AI : Fallback to OSM on error
     if (layerType !== "osm") {
-      activeTileLayer = createTileLayer("osm");
-      activeTileLayer.addTo(map.value);
+      // AI : If failed, try to add OSM immediately
+      const fallbackLayer = createTileLayer("osm");
+      fallbackLayer.addTo(map.value);
+      activeTileLayer = fallbackLayer;
       currentTileLayer.value = "osm";
+
+      // AI : Clean up old layer immediately in error case
+      if (oldLayer && map.value.hasLayer(oldLayer)) {
+        map.value.removeLayer(oldLayer);
+      }
     }
   }
 }
@@ -171,8 +204,16 @@ export function switchTileLayer(layerType: TileLayerType) {
  * AI : Get available tile layer options for UI
  */
 export function getTileLayerOptions(): { label: string; value: TileLayerType; flagUrl: string }[] {
+  const authStore = useAuthStore();
+  const isAuthenticated = authStore.isAuthenticated;
+
   return Object.entries(tileLayerConfigs)
-    .filter(([value]) => isTileLayerType(value))
+    .filter(([value]) => {
+      // AI : Always allow OSM and Esri
+      if (value === "osm" || value === "esri") return true;
+      // AI : Only allow country specific layers if logged in
+      return isAuthenticated;
+    })
     .map(([value, config]) => ({
       label: config.label,
       value: value as TileLayerType,
@@ -181,7 +222,7 @@ export function getTileLayerOptions(): { label: string; value: TileLayerType; fl
 }
 
 export function isTileLayerType(value: string): value is TileLayerType {
-  return ["FRA", "esri", "USA", "CHE", "osm"].includes(value);
+  return ["FRA", "esri", "CHE", "osm"].includes(value);
 }
 
 /**
@@ -192,7 +233,15 @@ export function checkAndSwitchSatelliteLayer(countryCode: string | undefined) {
   // AI : Do nothing if in Plan mode (OSM)
   if (currentTileLayer.value === "osm") return;
 
-  if (countryCode && isTileLayerType(countryCode) && currentTileLayer.value !== countryCode) {
+  const authStore = useAuthStore();
+
+  // AI : Only allow switching to country layers if authenticated
+  if (
+    countryCode &&
+    isTileLayerType(countryCode) &&
+    authStore.isAuthenticated &&
+    currentTileLayer.value !== countryCode
+  ) {
     // AI : New context has a specific layer available
     switchTileLayer(countryCode as TileLayerType);
   } else if (currentTileLayer.value !== "esri") {
@@ -200,4 +249,134 @@ export function checkAndSwitchSatelliteLayer(countryCode: string | undefined) {
     // AI : If we are currently in a specific country layer, fallback to generic Esri
     switchTileLayer("esri");
   }
+}
+
+// AI : Debounce timer for metadata queries
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+// AI : Cache for max zoom at locations to prevent repeated queries
+// Key: "lat,lng" rounded to ~100m, Value: maxZoom
+const maxZoomCache = new Map<string, number>();
+
+/**
+ * AI : Query Esri Metadata to look for high-resolution imagery availability
+ * and dynamically adjust the maxNativeZoom.
+ */
+async function checkEsriMaxZoom() {
+  if (currentTileLayer.value !== "esri" || !map.value) return;
+
+  const center = map.value.getCenter();
+  const zoom = map.value.getZoom();
+
+  // AI : Only check if we are already quite zoomed in (optimization)
+  if (zoom < 16) return;
+
+  // AI : Round coordinates to cache key (approx 100m precision)
+  const cacheKey = `${center.lat.toFixed(3)},${center.lng.toFixed(3)}`;
+  if (maxZoomCache.has(cacheKey)) {
+    applyEsriMaxZoom(maxZoomCache.get(cacheKey)!);
+    return;
+  }
+
+  // AI : Debounce the API call
+  if (debounceTimer) clearTimeout(debounceTimer);
+
+  debounceTimer = setTimeout(async () => {
+    try {
+      const maxZoom = await fetchEsriMaxZoom(center.lat, center.lng);
+      if (maxZoom) {
+        maxZoomCache.set(cacheKey, maxZoom);
+        applyEsriMaxZoom(maxZoom);
+      }
+    } catch (error) {
+      console.warn("AI : Failed to fetch Esri metadata", error);
+    }
+  }, 500);
+}
+
+function applyEsriMaxZoom(zoomLevel: number) {
+  const esriConfig = tileLayerConfigs.esri;
+  if (esriConfig.options.maxNativeZoom !== zoomLevel) {
+    // AI : Update config
+    esriConfig.options.maxNativeZoom = zoomLevel;
+
+    if (activeTileLayer && map.value) {
+      (activeTileLayer as any).options.maxNativeZoom = zoomLevel;
+
+      // AI : Force a redraw of the layer to fetch potential high-res tiles?
+      // Only if we are currently at a zoom > oldMaxNativeZoom
+      if (map.value.getZoom() > BASELINE_ESRI_MAX_ZOOM) {
+        activeTileLayer.redraw();
+      }
+    }
+  }
+}
+
+// AI : Interface for Esri Identify Response
+interface EsriIdentifyResponse {
+  results?: {
+    attributes: {
+      MaxMapLevel?: string;
+      [key: string]: any;
+    };
+  }[];
+}
+
+/**
+ * ESRI has diffent max native zoom depending on the location
+ */
+async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number | null> {
+  if (!map.value) return null;
+
+  // AI : Construct Identity Query
+  const bounds = map.value.getBounds();
+  const extent = {
+    xmin: bounds.getWest(),
+    ymin: bounds.getSouth(),
+    xmax: bounds.getEast(),
+    ymax: bounds.getNorth(),
+    spatialReference: { wkid: 4326 },
+  };
+
+  // AI : Esri World Imagery MapServer Identify Endpoint
+  const url = new URL(
+    "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/identify",
+  );
+  url.searchParams.append("f", "json");
+  url.searchParams.append("geometry", `${lng},${lat}`);
+  url.searchParams.append("geometryType", "esriGeometryPoint");
+  url.searchParams.append("sr", "4326");
+  url.searchParams.append("layers", "top"); // Query visible layers
+  url.searchParams.append("tolerance", "2");
+  url.searchParams.append(
+    "mapExtent",
+    `${extent.xmin},${extent.ymin},${extent.xmax},${extent.ymax}`,
+  );
+  url.searchParams.append("imageDisplay", "600,400,96");
+  url.searchParams.append("returnGeometry", "false");
+
+  const response = await fetch(url.toString());
+  const data = (await response.json()) as EsriIdentifyResponse;
+
+  if (data?.results && data.results.length > 0) {
+    const attributes = data.results[0].attributes;
+
+    // AI : Use explicit MaxMapLevel from metadata
+    if (attributes.MaxMapLevel) {
+      const maxLevel = Number.parseInt(attributes.MaxMapLevel, 10);
+      if (!Number.isNaN(maxLevel)) {
+        // AI : Cap at 22, ensure minimum reasonable high-res
+        return Math.min(Math.max(maxLevel, BASELINE_ESRI_MAX_ZOOM), 22);
+      }
+    }
+  }
+
+  // AI : Fallback if metadata missing or invalid
+  return BASELINE_ESRI_MAX_ZOOM;
+}
+
+// AI : Hook up the listener init
+function initEsriMetadataListener() {
+  if (!map.value) return;
+  map.value.on("moveend", checkEsriMaxZoom);
 }

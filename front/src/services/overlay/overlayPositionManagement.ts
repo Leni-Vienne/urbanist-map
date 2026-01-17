@@ -162,12 +162,6 @@ export function resolveOverlayPosition(
 // AI : EDIT MODE CACHE
 // AI : ============================================================================
 
-// AI : Cache entry structure (matches what's in overlayStore)
-export interface CachedPosition {
-  corners: { lat: number; lng: number }[];
-  isModified: boolean;
-}
-
 /**
  * AI : Save overlay modifications to edit mode cache
  *
@@ -198,24 +192,6 @@ export function getFromEditModeOverlayCache(
 // AI : ============================================================================
 // AI : LEAFLET POSITION APPLICATION
 // AI : ============================================================================
-
-/**
- * AI : Save overlay position to cache
- */
-export function saveCachedPosition(
-  overlayId: string,
-  corners: { lat: number; lng: number }[],
-  isModified: boolean,
-): void {
-  const overlayStore = useOverlayStore();
-
-  const cacheData: CachedPosition = {
-    corners: corners.map((corner) => ({ lat: corner.lat, lng: corner.lng })),
-    isModified,
-  };
-
-  overlayStore.saveToEditModeCache(overlayId, cacheData);
-}
 
 /**
  * AI : Get bounds for an overlay (for camera navigation)
