@@ -169,6 +169,12 @@ function handleModeSwitch() {
   pointer-events: none;
 }
 
+.mode-controls-wrapper-mobile {
+  position: relative;
+  z-index: 20;
+  /* AI : Ensure it sits coverage SatellitePreview (z-index 10) if they overlap */
+}
+
 /* AI : Clickable mode indicator pill with integrated switch icon */
 .mode-indicator {
   /* AI : Reset button defaults */

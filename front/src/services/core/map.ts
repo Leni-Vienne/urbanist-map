@@ -57,8 +57,6 @@ export function initializeMap() {
   });
   if (!map.value) throw new Error("No map element found");
 
-  L.control.scale().addTo(map.value);
-
   // AI : Initialize reactive zoom level with Leaflet's default
   currentZoomLevel.value = map.value.getZoom();
 
