@@ -227,34 +227,12 @@ export async function navigateToOverlayWithCity(
       // AI : Still fly to coordinates to show the general area
     }
 
-    // AI : Determine zoom level before flight
-    const currentZoom = map.value?.getZoom() ?? 0;
-    const shouldShowFullOverlays = currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
-
-    if (shouldShowFullOverlays) {
-      // AI : Already at high zoom - overlays are already rendered, just select
-      const selectedOverlay = overlayStore.overlays[overlayId];
-      if (selectedOverlay?.overlay) {
-        selectOverlay(overlayId);
-      }
+    // AI : Always fly to the overlay when navigating between cities
+    // AI : We know we are far away (different city), so we don't check current zoom level
+    if (matchingOverlay?.corners && matchingOverlay.corners.length === 4) {
+      zoomToOverlayAndSelect(overlayId, matchingOverlay.corners, autoSelect);
     } else {
-      // AI : Low zoom - need to zoom in, marker selection happens in moveend handler below
-      // AI : Create lat/lng and zoom to use in flight params
-      const { lat, lng } =
-        matchingOverlay?.corners && matchingOverlay.corners.length === 4
-          ? L.latLngBounds(matchingOverlay.corners.map((c) => L.latLng(c.lat, c.lng))).getCenter()
-          : L.latLng(0, 0); // Fallback if no overlay or corners
-
-      mobileAwareFlyTo([lat, lng], 16, {
-        duration: 1.5,
-      });
-
-      // AI : CRITICAL FIX: moveend event may have deleted the overlay object during the flight
-      // AI : We need to re-select it after the flight completes
-      // AI : Use timeout to ensure moveend handlers complete first
-      setTimeout(() => {
-        selectOverlay(overlayId);
-      }, 100);
+      console.warn(`Cannot navigate to overlay ${overlayId} - missing corners`);
     }
 
     // AI : If overlay still not found, return false
