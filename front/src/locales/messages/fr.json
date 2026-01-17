@@ -706,7 +706,9 @@
   },
   "layerControl": {
     "baseMaps": "Fonds de carte",
-    "submitTileLayer": "Soumettre une nouvelle carte"
+    "submitTileLayer": "Soumettre une nouvelle carte",
+    "plan": "Plan",
+    "satellite": "Satellite"
   },
   "toasts": {
     "replacementOverlayCreated": "Image de remplacement créée",

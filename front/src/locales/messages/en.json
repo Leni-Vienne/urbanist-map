@@ -704,7 +704,9 @@
   },
   "layerControl": {
     "baseMaps": "Base Maps",
-    "submitTileLayer": "Submit a new tile layer"
+    "submitTileLayer": "Submit a new tile layer",
+    "plan": "Plan",
+    "satellite": "Satellite"
   },
   "toasts": {
     "replacementOverlayCreated": "Replacement Overlay Created",

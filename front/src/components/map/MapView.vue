@@ -35,6 +35,9 @@
       <div v-if="authStore.isAuthenticated" class="mode-controls-desktop">
         <ModeControls />
       </div>
+
+      <!-- AI : Satellite Preview Button -->
+      <SatellitePreview />
     </div>
   </div>
 </template>
@@ -57,6 +60,7 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import ModeControls from "@/components/map/ModeControls.vue";
+import SatellitePreview from "@/components/map/SatellitePreview.vue"; // no extra bundle "cost"
 
 const MapControls = defineAsyncComponent(() => import("@/components/map/MapControls.vue"));
 const UserMenu = defineAsyncComponent(() => import("@/components/auth/UserMenu.vue"));
@@ -299,19 +303,6 @@ async function initializeMapAndOverlays() {
     /* AI : Allow text wrapping */
     word-break: break-word !important;
     /* AI : Break long words if needed */
-  }
-
-  :deep(.leaflet-control-scale) {
-    bottom: 4.5rem !important;
-    /* AI : Same level as attribution */
-    left: 0.5rem !important;
-    backdrop-filter: blur(4px) !important;
-    border-radius: 0.5rem !important;
-    padding: 0.25rem !important;
-    margin: 0 !important;
-    position: fixed !important;
-    display: block !important;
-    visibility: visible !important;
   }
 }
 

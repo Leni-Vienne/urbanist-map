@@ -15,7 +15,7 @@ let activeTileLayer: L.TileLayer | L.GridLayer | null = null;
 const tileLayerBounds = L.latLngBounds([-85, -180], [85, 180]);
 
 // AI : Tile layer configurations with UI labels
-const tileLayerConfigs = {
+export const tileLayerConfigs = {
   osm: {
     label: "Plan",
     flagUrl: "https://flagcdn.com/16x12/un.png", // UN flag for world map
@@ -182,4 +182,22 @@ export function getTileLayerOptions(): { label: string; value: TileLayerType; fl
 
 export function isTileLayerType(value: string): value is TileLayerType {
   return ["FRA", "esri", "USA", "CHE", "osm"].includes(value);
+}
+
+/**
+ * AI : Check if satellite layer needs to be switched based on new context (country)
+ * AI : If in satellite mode, ensures we use the best layer for the country (or fallback to Esri)
+ */
+export function checkAndSwitchSatelliteLayer(countryCode: string | undefined) {
+  // AI : Do nothing if in Plan mode (OSM)
+  if (currentTileLayer.value === "osm") return;
+
+  if (countryCode && isTileLayerType(countryCode) && currentTileLayer.value !== countryCode) {
+    // AI : New context has a specific layer available
+    switchTileLayer(countryCode as TileLayerType);
+  } else if (currentTileLayer.value !== "esri") {
+    // AI : New context has no specific layer (or unknown)
+    // AI : If we are currently in a specific country layer, fallback to generic Esri
+    switchTileLayer("esri");
+  }
 }

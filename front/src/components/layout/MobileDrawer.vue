@@ -7,7 +7,10 @@
   >
     <!-- AI : Mode controls above drawer on mobile -->
     <template #above>
-      <ModeControls v-if="authStore.isAuthenticated" :is-mobile="true" />
+      <div class="mobile-controls-wrapper">
+        <SatellitePreview :in-drawer="true" />
+        <ModeControls v-if="authStore.isAuthenticated" :is-mobile="true" />
+      </div>
     </template>
 
     <!-- AI : Custom header with title and tab navigation -->
@@ -49,6 +52,7 @@ import DraggableDrawer from "./DraggableDrawer.vue";
 import PanelContent from "./PanelContent.vue";
 import PanelTabs from "./PanelTabs.vue";
 import ModeControls from "@/components/map/ModeControls.vue";
+import SatellitePreview from "@/components/map/SatellitePreview.vue";
 
 // AI : Get store
 const uiStore = useUiStore();
@@ -143,5 +147,20 @@ const { authStore, setActiveTab } = usePanelTabs();
 .footer-separator {
   color: var(--p-surface-400);
   font-size: 0.65rem;
+}
+
+.mobile-controls-wrapper {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  pointer-events: none;
+  /* AI : Ensure wrapper has height so absolute children position correctly? */
+  /* Actually, if ModeControls defines the height, SatellitePreview (absolute) will position relative to it? */
+  /* No, relative positioning works on the box. */
+  /* ModeControls usually has some height. */
+  min-height: 40px;
+  /* Approximate height of ModeControls */
 }
 </style>
