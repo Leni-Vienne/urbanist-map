@@ -1,5 +1,4 @@
 import L from "leaflet";
-import { watch } from "vue";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useCityMarkersStore } from "@/stores/pinia/cityMarkersStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -7,12 +6,6 @@ import { map } from "@/services/core/map";
 import { renderViewModeOverlays, createLeafletOverlay } from "@/services/overlay/overlayRendering";
 
 import { MAP_CONFIG } from "@/constants/mapConstants";
-
-// AI : Throttle delay for pruning operations to prevent performance trashing
-const PRUNE_THROTTLE_MS = 200;
-
-let pruningTimeout: ReturnType<typeof setTimeout> | null = null;
-let isPruningWatcherInitialized = false;
 
 /**
  * AI : Main pruning function - determines what should be on the map based on bounds
@@ -172,7 +165,6 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
       if (!hasLayer) {
         // AI : Recreate overlay if it was destroyed (e.g. valid local/pending overlay coming back into view)
         // AI : This handles the case where we switched modes (hiding pending) and switched back (needing restoration)
-        console.log(`[Pruning] Restoring missing layer for overlay ${id} (Loop 2)`);
         const newOverlay = createLeafletOverlay(overlay.imageUrl, overlay);
         if (newOverlay) {
           overlay.overlay = newOverlay;
@@ -225,47 +217,4 @@ function pruneCityMarkers(mapInstance: L.Map, bounds: L.LatLngBounds, _zoom: num
       }
     }
   }
-}
-
-/**
- * AI : Initialize listeners for map movement to trigger pruning
- */
-/**
- * AI : Initialize listeners for map movement to trigger pruning
- * AI : Uses watch to handle map initialization async
- */
-export function startPruningWatcher() {
-  if (isPruningWatcherInitialized) return;
-
-  const startWatcher = (mapInstance: L.Map) => {
-    const schedulePrune = () => {
-      if (pruningTimeout) clearTimeout(pruningTimeout);
-      pruningTimeout = setTimeout(() => {
-        pruneMapEntities();
-      }, PRUNE_THROTTLE_MS);
-    };
-
-    // AI : Prune triggers
-    mapInstance.on("moveend", schedulePrune);
-    mapInstance.on("zoomend", schedulePrune);
-
-    // AI : Initial prune
-    pruneMapEntities();
-  };
-
-  if (map.value) {
-    startWatcher(map.value);
-  } else {
-    watch(
-      () => map.value,
-      (newMap: L.Map | null) => {
-        if (newMap) {
-          startWatcher(newMap);
-        }
-      },
-      { once: true }, // AI : Only need to initialize once
-    );
-  }
-
-  isPruningWatcherInitialized = true;
 }

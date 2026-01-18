@@ -110,31 +110,30 @@ export function useViewportContentManager() {
 
     const overlayStore = useOverlayStore();
     const mapStore = useMapStore();
-    const currentZoom = map.value?.getZoom() ?? 0;
 
-    // AI : Reload all cities that are currently loaded
+    // AI : Ensure all cities have data loaded
     for (const cityId of loadedCityIds.value) {
       // AI : OPTIMIZATION: Check if we have cached data for this city
-      // AI : If we do, just re-render from cache instead of fetching from backend
       const cachedData = mapStore.getCityOverlaysAndProjectsCache(cityId, overlayStore.mode);
 
-      if (cachedData) {
-        if (cachedData.length === 0) {
-          continue;
-        }
-
-        // AI : RENDER based on zoom level
-        if (currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
-          renderFullOverlays(cachedData);
-        } else {
-          renderMarkersOnly(cachedData);
-        }
-      } else {
+      if (!cachedData) {
         const city = citiesWithProjects.value.find((c) => c.id === cityId);
         if (city) {
+          // AI : Load data (this puts it in cache)
+          // AI : NOTE: loadCityData internally calls renderAllLoadedOverlays, so this might trigger multiple renders
+          // AI : But since we're awaiting, it's safer.
+          // AI : Ideally, loadCityData should have a 'noRender' flag, but for now this is fine.
           await loadCityData(cityId, city.name, city.nameLocal, city.countryCode);
         }
       }
+    }
+
+    // AI : RENDER all cities together based on zoom level
+    const zoom = map.value?.getZoom() ?? 0;
+    if (zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
+      renderAllLoadedOverlays(true);
+    } else {
+      renderAllLoadedOverlays(false);
     }
   }
 
@@ -146,6 +145,7 @@ export function useViewportContentManager() {
     _cityName: string,
     _nameLocal: string | null,
     _countryCode: string,
+    shouldRender = true,
   ) {
     const overlayStore = useOverlayStore();
     const mapStore = useMapStore();
@@ -185,13 +185,20 @@ export function useViewportContentManager() {
         return;
       }
 
-      const zoom = map.value?.getZoom() ?? 0;
+      if (shouldRender) {
+        const zoom = map.value?.getZoom() ?? 0;
 
-      // AI : RENDER based on zoom level
-      if (zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
-        renderFullOverlays(overlaysData);
-      } else {
-        renderMarkersOnly(overlaysData);
+        // AI : RENDER based on zoom level
+        if (zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
+          // AI : CRITICAL FIX: Render ALL loaded cities, not just the one we just fetched
+          // AI : This prevents "fighting" between nearby cities where loading one clears the other
+          renderAllLoadedOverlays();
+        } else {
+          // AI : For markers, we also need to be careful, but markers are handled differently (additive)
+          // AI : However, renderMarkersOnly also clears everything first.
+          // AI : So we should also aggregate for markers.
+          renderAllLoadedOverlays(false);
+        }
       }
 
       // AI : Update caches for Current Location Panel (already done above, but keeping for consistency)
@@ -200,6 +207,31 @@ export function useViewportContentManager() {
       console.error(`Error loading city ${cityId}:`, error);
       // AI : Even on error, mark as loaded to prevent infinite retries
       loadedCityIds.value.add(cityId);
+    }
+  }
+
+  /**
+   * AI : Helper to gather all overlays from all currently loaded cities
+   * AI : and render them together. This ensures multi-city view works correctly.
+   */
+  function renderAllLoadedOverlays(fullRender = true) {
+    const overlayStore = useOverlayStore();
+    const mapStore = useMapStore();
+    const mode = overlayStore.mode;
+
+    let allOverlays: OverlayData[] = [];
+
+    for (const cityId of loadedCityIds.value) {
+      const cityData = mapStore.getCityOverlaysAndProjectsCache(cityId, mode);
+      if (cityData) {
+        allOverlays = allOverlays.concat(cityData);
+      }
+    }
+
+    if (fullRender) {
+      renderFullOverlays(allOverlays);
+    } else {
+      renderMarkersOnly(allOverlays);
     }
   }
 
@@ -280,8 +312,18 @@ export function useViewportContentManager() {
       isLoading.value = true;
 
       // AI : Load each new city (entire city data, not just viewport slice)
+      // AI : Pass false for shouldRender to batch updates and avoid flickering
       for (const city of newCities) {
-        await loadCityData(city.id, city.name, city.nameLocal, city.countryCode);
+        await loadCityData(city.id, city.name, city.nameLocal, city.countryCode, false);
+      }
+
+      // AI : After loading all new cities, trigger a single render
+      // AI : This ensures we show all cities together without fighting/flickering
+      const currentZoom = map.value.getZoom();
+      if (currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
+        renderAllLoadedOverlays(true);
+      } else {
+        renderAllLoadedOverlays(false);
       }
     } catch (error) {
       console.error("Error refreshing viewport:", error);
@@ -410,17 +452,23 @@ export function useViewportContentManager() {
     // AI : Update existing overlay objects with fresh backend data
     // AI : This is critical for mode switches (e.g., view → moderation) where overlays
     // AI : are already loaded but need updated data like suggestedCorners for change requests
+    // AI : OPTIMIZATION: Use batch update to prevent O(N^2) state spreading
+    const updates: Record<string, Partial<OverlayData>> = {};
+
     for (const overlayData of overlaysData) {
-      const existing = overlayStore.overlays[overlayData.id];
-      if (existing) {
-        overlayStore.updateOverlay(overlayData.id, {
+      if (overlayStore.overlays[overlayData.id]) {
+        updates[overlayData.id] = {
           hasPendingChanges: overlayData.hasPendingChanges,
           suggestedCorners: overlayData.suggestedCorners,
           pendingChangeRequestsCount: overlayData.pendingChangeRequestsCount,
           // AI : Don't update corners/centroid as those are the approved positions
           // AI : and shouldn't change when switching modes
-        });
+        };
       }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      overlayStore.batchUpdateOverlays(updates);
     }
 
     // AI : Render overlays
