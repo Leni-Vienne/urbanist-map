@@ -197,7 +197,9 @@ export function convertOverlayToData(overlayObject: OverlayObject): OverlayData 
   return {
     id: overlayObject.id,
     version: overlayObject.version,
-    filename: overlayObject.imageUrl,
+    filename: overlayObject.imageUrl.startsWith("data:")
+      ? overlayObject.imageUrl
+      : overlayObject.filename,
     caption: overlayObject.caption,
     status: overlayObject.status,
     projectId: overlayObject.projectId,

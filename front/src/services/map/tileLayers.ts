@@ -138,7 +138,6 @@ let fallbackRemovalTimer: ReturnType<typeof setTimeout> | null = null;
  * AI : Switch to a different tile layer (for custom layer control)
  */
 export function switchTileLayer(layerType: TileLayerType) {
-  console.trace("Switching to tile layer:", layerType);
   if (!map.value || currentTileLayer.value === layerType) {
     return;
   }

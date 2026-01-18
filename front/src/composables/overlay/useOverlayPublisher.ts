@@ -282,7 +282,9 @@ export function useOverlayPublisher() {
 
         // AI : CRITICAL: Update imageUrl to server URL to prevent re-upload on next save
         // AI : Build the server URL from the filename
-        overlay.imageUrl = `${getApiUrl()}/api/images/${filename}`;
+        // AI : Use /uploads/ path as that's where the backend serves files (there is no /api/images endpoint)
+        overlay.imageUrl = `${getApiUrl()}/uploads/${filename}`;
+        overlay.filename = filename; // AI : Update filename to the clean one returned by server
 
         // AI : Synchronize ID change across all stores if ID changed
         if (oldId !== newId) {

@@ -71,7 +71,9 @@ export function createOverlayForModeration(
   return {
     id: overlayData.id,
     name: overlayData.caption ?? "",
-    filename: overlayData.filename,
+    filename: overlayData.filename.startsWith("data:")
+      ? `pending-${overlayData.id}.webp`
+      : overlayData.filename,
     status: overlayData.status,
     version: overlayData.version,
     projectId: overlayData.projectId,
@@ -85,6 +87,7 @@ export function createOverlayForModeration(
     countryName: null,
     replacesOverlayId: overlayData.replacesOverlayId,
     replacedByOverlayId: overlayData.replacedByOverlayId,
+    imageUrl: overlayData.filename.startsWith("data:") ? overlayData.filename : undefined,
   };
 }
 
