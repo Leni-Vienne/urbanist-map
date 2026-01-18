@@ -340,24 +340,15 @@ function setupOverlayMovementTracking(
   if (element) {
     let isManipulating = false;
     let updateFrame: number | null = null;
-    let hasActuallyMoved = false; // AI : Track if overlay actually moved (not just clicked)
+    let hasActuallyMoved = false;
 
-    const startTracking = () => {
-      if (isManipulating) return;
-      isManipulating = true;
-      hasActuallyMoved = false; // AI : Reset on each interaction
+    // AI : Refs for cleanup
+    let onMouseUp: (e: MouseEvent) => void;
+    let onMouseMove: (e: MouseEvent) => void;
+    let onTouchEnd: (e: TouchEvent) => void;
+    let onTouchMove: (e: TouchEvent) => void;
 
-      // to make the marker follow the overlay being moved
-      const continuousUpdate = () => {
-        if (isManipulating) {
-          updateMarkerPosition(overlayObject);
-          hasActuallyMoved = true; // AI : Mark as moved during drag
-          updateFrame = requestAnimationFrame(continuousUpdate);
-        }
-      };
-      continuousUpdate();
-    };
-
+    // AI : Stop tracking handler - behaves like 'mouseup'/'touchend'
     const stopTracking = () => {
       const overlayStore = useOverlayStore();
 
@@ -369,12 +360,15 @@ function setupOverlayMovementTracking(
         updateFrame = null;
       }
 
-      // AI : Only update if overlay actually moved (not just clicked)
-      if (hasActuallyMoved) {
-        // AI : Final marker position update
-        updateMarkerPosition(overlayObject);
+      // AI : Clean up document listeners immediately when drag ends
+      // AI : This prevents memory leaks and piling up listeners
+      document.removeEventListener("mouseup", onMouseUp);
+      document.removeEventListener("touchend", onTouchEnd);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("touchmove", onTouchMove);
 
-        // AI : Update only this overlay's marker color (optimization: avoid recalculating all overlays)
+      if (hasActuallyMoved) {
+        updateMarkerPosition(overlayObject);
         updateOverlayMarkersColors(
           toRef(overlayStore, "overlays"),
           overlayStore.mode,
@@ -383,26 +377,50 @@ function setupOverlayMovementTracking(
       }
     };
 
-    // AI : Track mouse and touch events for real-time updates
-    element.addEventListener("mousedown", startTracking);
-    element.addEventListener("touchstart", startTracking, { passive: true });
-
-    document.addEventListener("mouseup", stopTracking);
-    document.addEventListener("touchend", stopTracking);
-    document.addEventListener("mousemove", () => {
+    // AI : Update loop for smooth animation
+    const performUpdate = () => {
       if (isManipulating) {
         updateMarkerPosition(overlayObject);
+        hasActuallyMoved = true;
+        updateFrame = requestAnimationFrame(performUpdate);
       }
-    });
-    document.addEventListener(
-      "touchmove",
-      () => {
-        if (isManipulating) {
-          updateMarkerPosition(overlayObject);
-        }
-      },
-      { passive: true },
-    );
+    };
+
+    // AI : Define handlers that reference each other (hoisted-like behavior via let)
+    onMouseUp = stopTracking;
+    onTouchEnd = stopTracking;
+
+    onMouseMove = () => {
+      if (isManipulating && !hasActuallyMoved) {
+        performUpdate();
+      }
+    };
+
+    onTouchMove = () => {
+      if (isManipulating && !hasActuallyMoved) {
+        performUpdate();
+      }
+    };
+
+    // AI : Start tracking handler - behaves like 'mousedown'/'touchstart'
+    const startTracking = () => {
+      if (isManipulating) return;
+      isManipulating = true;
+      hasActuallyMoved = false;
+
+      // AI : Add document listeners ONLY when tracking starts
+      document.addEventListener("mouseup", onMouseUp);
+      document.addEventListener("touchend", onTouchEnd);
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("touchmove", onTouchMove, { passive: true });
+
+      // AI : We don't start the loop here immediately; we wait for the first move event
+      // AI : This avoids running the loop just for a click
+    };
+
+    // AI : Track mouse and touch events on the element itself to start the process
+    element.addEventListener("mousedown", startTracking);
+    element.addEventListener("touchstart", startTracking, { passive: true });
   }
 }
 
