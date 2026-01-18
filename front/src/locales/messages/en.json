@@ -322,6 +322,7 @@
     "legal": "Legal"
   },
   "submission": {
+    "updateProject": "Update Project",
     "confirmTitle": "Confirm Submission",
     "requiresModeration": "Requires Moderation",
     "immediateUpdate": "Immediate Update",

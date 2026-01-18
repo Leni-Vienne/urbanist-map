@@ -322,6 +322,7 @@
     "legal": "Mentions légales"
   },
   "submission": {
+    "updateProject": "Mettre à jour le projet",
     "confirmTitle": "Confirmer l'enregistrement",
     "requiresModeration": "Requiert modération",
     "immediateUpdate": "Mise à jour immédiate",

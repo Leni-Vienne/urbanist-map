@@ -6,7 +6,6 @@ import { ref } from "vue";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { MAP_CONFIG } from "@/constants/mapConstants";
-import { renderViewModeOverlays } from "@/services/overlay/overlayRendering";
 import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";
 import { renderOverlayMarkersFromData, removeOverlayMarkers } from "@/services/map/cityOverlays";
 import { addStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
@@ -18,6 +17,7 @@ import {
 } from "@/utils/typeFactories";
 import { updateOverlayMarkersColors } from "@/services/map/markers";
 import { loadCityData } from "@/services/navigation/cityDataLoader";
+import { pruneMapEntities } from "@/services/map/viewportPruning";
 
 /**
  * AI : Add markers for standalone projects (those without overlays)
@@ -87,16 +87,17 @@ function renderCityOverlaysForNavigation(overlaysData: OverlayData[], forceFullO
   updateOverlayMarkersColors(ref(overlayStore.overlays), overlayStore.mode);
 
   if (shouldRenderFullOverlays) {
-    const existingIds = new Set(Object.keys(overlayStore.overlays));
-    if (existingIds.size === 0) {
-      renderViewModeOverlays(overlaysData, true, false);
-    } else {
-      const newOverlays = overlaysData.filter((o) => !existingIds.has(o.id));
-      if (newOverlays.length > 0) {
-        renderViewModeOverlays(newOverlays, true, false);
-      }
-    }
+    // AI : Do NOT render all overlays immediately (prevents GPU crash)
+    // AI : Just ensure they are in the store (done above by setViewModeOverlays)
+    // AI : allowing the ViewportPruning to pick them up
+
+    // AI : Import dynamically to avoid circular dependencies (cityDataRenderer -> overlayRendering -> viewportPruning? no wait)
+    // AI : viewportPruning imports overlayRendering.
+    // AI : So we can import viewportPruning here.
+    pruneMapEntities();
   } else {
+    // AI : For low zoom, we show Markers.
+    // AI : Clear overlays? (removed by viewport logic if we don't call it? No, explicit clear is safer)
     clearAllOverlays();
     renderOverlayMarkersFromData(overlaysData);
   }

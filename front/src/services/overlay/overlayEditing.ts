@@ -225,7 +225,11 @@ export function checkOverlaySizeAndWarn(
 
 // AI : Helper function to create new overlay with proper Drizzle schema structure
 function createNewOverlayObject(id: string, imageUrl: string, projectId: string): OverlayObject {
-  const filename = imageUrl.split("/").pop() ?? "";
+  // AI : Detect Data URI (local upload) vs Backend URL
+  const isDataUri = imageUrl.startsWith("data:");
+  // AI : For Data URIs, use a temporary safe filename to prevent 431 errors in thumbnail generation
+  // AI : For backend URLs, extract the actual filename
+  const filename = isDataUri ? `pending-${id}.webp` : (imageUrl.split("/").pop() ?? "");
   const authStore = useAuthStore();
 
   // AI : Use factory function for consistent object creation

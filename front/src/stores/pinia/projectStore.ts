@@ -125,6 +125,7 @@ export const useProjectStore = defineStore("project", () => {
       replacedByOverlayId: null,
       updatedAt: new Date(),
       cityId: project.cityId,
+      imageUrl: overlay.imageUrl, // AI : Pass the full image URL (Data URI or backend URL)
       ...extractCityMetadata(project),
     };
   }
