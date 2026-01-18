@@ -105,6 +105,24 @@ export const useOverlayStore = defineStore("overlay", () => {
     };
   }
 
+  // AI : Batch update multiple overlays at once to avoid performance issues with shallowRef
+  function batchUpdateOverlays(updates: Record<string, Partial<OverlayObject>>) {
+    const newOverlays = { ...overlays.value };
+    let hasChanges = false;
+
+    for (const [id, update] of Object.entries(updates)) {
+      const current = newOverlays[id];
+      if (current) {
+        newOverlays[id] = { ...current, ...update };
+        hasChanges = true;
+      }
+    }
+
+    if (hasChanges) {
+      overlays.value = newOverlays;
+    }
+  }
+
   function clearPendingFile() {
     pendingImageFile.value = null;
   }
@@ -213,6 +231,7 @@ export const useOverlayStore = defineStore("overlay", () => {
     removeFromEditModeCache,
     addOverlay,
     updateOverlay,
+    batchUpdateOverlays,
     clearMarkersFromCache,
     requestOverlayReplacement,
     resetReplacement,
