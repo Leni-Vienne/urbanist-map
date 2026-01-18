@@ -85,7 +85,7 @@
     "oxfmt": "^0.23.0",
     "oxlint": "^1.39.0",
     "rollup-plugin-visualizer": "^6.0.5",
-    "unplugin-vue-components": "^30.0.0",
+    "unplugin-vue-components": "^31.0.0",
     "vite-plugin-vue-devtools": "^8.0.5",
     "vitest": "^4.0.17"
   },

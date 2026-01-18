@@ -138,6 +138,7 @@ let fallbackRemovalTimer: ReturnType<typeof setTimeout> | null = null;
  * AI : Switch to a different tile layer (for custom layer control)
  */
 export function switchTileLayer(layerType: TileLayerType) {
+  console.trace("Switching to tile layer:", layerType);
   if (!map.value || currentTileLayer.value === layerType) {
     return;
   }
@@ -235,19 +236,15 @@ export function checkAndSwitchSatelliteLayer(countryCode: string | undefined) {
 
   const authStore = useAuthStore();
 
-  // AI : Only allow switching to country layers if authenticated
-  if (
-    countryCode &&
-    isTileLayerType(countryCode) &&
-    authStore.isAuthenticated &&
-    currentTileLayer.value !== countryCode
-  ) {
-    // AI : New context has a specific layer available
-    switchTileLayer(countryCode as TileLayerType);
-  } else if (currentTileLayer.value !== "esri") {
-    // AI : New context has no specific layer (or unknown)
-    // AI : If we are currently in a specific country layer, fallback to generic Esri
-    switchTileLayer("esri");
+  // AI : Determine the target layer based on country support and auth
+  const targetLayer: TileLayerType =
+    countryCode && isTileLayerType(countryCode) && authStore.isAuthenticated
+      ? (countryCode as TileLayerType)
+      : "esri";
+
+  // AI : Switch if needed
+  if (currentTileLayer.value !== targetLayer) {
+    switchTileLayer(targetLayer);
   }
 }
 
