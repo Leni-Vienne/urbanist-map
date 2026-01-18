@@ -14,6 +14,7 @@ import { useCityMarkersStore } from "@/stores/pinia/cityMarkersStore";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
 import { createColorIcon } from "@/services/map/markers";
 import { checkAndSwitchSatelliteLayer } from "@/services/map/tileLayers";
+import { pruneMapEntities } from "@/services/map/viewportPruning";
 
 import { requestScrollTo } from "@/services/layout/accordionState";
 
@@ -153,11 +154,13 @@ function updateCityMarkerOpacities(selectedCityId: number | null): void {
  */
 export function removeCityMarkers(): void {
   const cityMarkersStore = useCityMarkersStore();
-  const cityMarkersLayer = cityMarkersStore.getCityMarkersLayer();
 
-  if (cityMarkersLayer && map.value !== null && map.value.hasLayer(cityMarkersLayer)) {
-    map.value.removeLayer(cityMarkersLayer);
-    cityMarkersStore.setCityMarkersLayer(null);
+  // AI : Explicitly remove all markers from map
+  const allMarkers = cityMarkersStore.getAllCityMarkers();
+  for (const marker of allMarkers.values()) {
+    if (map.value && map.value.hasLayer(marker)) {
+      marker.remove();
+    }
   }
 
   cityMarkersStore.clearCityMarkerMap();
@@ -422,14 +425,16 @@ export function addCityMarkersForCountry(cities: CityWithProjects[], countryCode
 /**
  * AI : Internal function to add city markers to map
  */
+/**
+ * AI : Internal function to add city markers to map
+ */
 function addCityMarkersToMapInternal(
   cities: CityWithProjects[],
   explicitCountryCode?: string,
 ): void {
-  if (!map.value) return;
+  // if (!map.value) return; // AI : Map not needed for store updates, only for pruning
 
   const cityMarkersStore = useCityMarkersStore();
-  let cityMarkersLayer = cityMarkersStore.getCityMarkersLayer();
 
   // AI : Determine country code from explicit parameter or derive from cities
   const countryCode = explicitCountryCode ?? (cities.length > 0 ? cities[0].countryCode : null);
@@ -462,43 +467,27 @@ function addCityMarkersToMapInternal(
     citiesToRender = citiesToRender.filter((city) => moderatedCountries.includes(city.countryCode));
   }
 
-  // AI : OPTIMIZATION: Check if we really need to update markers
-  // AI : Compare currently rendered city IDs with new city IDs
-  const currentMarkerMap = cityMarkersStore.getAllCityMarkers();
-  const currentCityIds = new Set(currentMarkerMap.keys());
-  const newCityIds = new Set(citiesToRender.map((c) => String(c.id)));
-
-  // AI : Check for sets equality (same size, same content)
-  const needsUpdate =
-    currentCityIds.size !== newCityIds.size ||
-    ![...newCityIds].every((id) => currentCityIds.has(id));
-
-  // AI : Also check if the layer exists
-  if (!needsUpdate && cityMarkersLayer && map.value.hasLayer(cityMarkersLayer)) {
-    // AI : No update needed, return early
-    return;
-  }
-
-  // AI : Remove existing layer to prevent stacking
-  if (cityMarkersLayer) {
-    map.value.removeLayer(cityMarkersLayer);
-  }
-
-  // AI : Create markers using createCitiesMarkerLayer
+  // AI : Generate markers using existing logic (but not putting them in a group)
+  // AI : createCitiesMarkerLayer returns a LayerGroup we can discard, and a Map of markers we keep
   const result = createCitiesMarkerLayer(citiesToRender);
-  cityMarkersLayer = result.layer;
-  cityMarkersStore.setCityMarkersLayer(cityMarkersLayer);
-
-  // AI : Store markers for lookup
+  // AI : Clear store first to remove stale cities (that might have been deleted/filtered out)
+  // AI : CRITICAL: We need to remove them from the map if they were there!
+  const currentMarkers = cityMarkersStore.getAllCityMarkers();
+  for (const marker of currentMarkers.values()) {
+    if (map.value && map.value.hasLayer(marker)) {
+      marker.remove();
+    }
+  }
   cityMarkersStore.clearCityMarkerMap();
 
   for (const [cityId, marker] of result.markers) {
     cityMarkersStore.setCityMarker(cityId, marker);
   }
 
-  // AI : Initialize watcher and add to map
+  // AI : Initialize watcher
   initializeCityMarkerWatcher();
-  cityMarkersLayer.addTo(map.value);
+
+  pruneMapEntities();
 
   // AI : Update opacities for selected city
   const mapStore = useMapStore();

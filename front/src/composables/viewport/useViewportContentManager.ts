@@ -9,11 +9,11 @@ import { useAuthStore } from "@/stores/authStore";
 import { trpc } from "@/client";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
-import { renderViewModeOverlays } from "@/services/overlay/overlayRendering";
 import {
   updateOverlayEditingState,
   saveAllOverlaysToCache,
 } from "@/services/overlay/overlayEditing";
+import { pruneMapEntities } from "@/services/map/viewportPruning";
 import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";
 import { renderOverlayMarkersFromData, removeOverlayMarkers } from "@/services/map/cityOverlays";
 import { citiesWithProjects } from "@/services/map/cityMarkers";
@@ -179,6 +179,12 @@ export function useViewportContentManager() {
         return;
       }
 
+      // AI : Guard against race condition: if mode changed while fetching, don't render stale data.
+      // AI : The new mode's fetch (triggered by watcher) will handle rendering.
+      if (overlayStore.mode !== mode) {
+        return;
+      }
+
       const zoom = map.value?.getZoom() ?? 0;
 
       // AI : RENDER based on zoom level
@@ -211,6 +217,11 @@ export function useViewportContentManager() {
       }
 
       const zoom = map.value.getZoom();
+
+      // AI : Always prune entities based on new viewport
+      // AI : This ensures city markers (which are visible at low zoom) are correctly added/removed
+      // AI : and that overlays re-appear when zooming out and back in
+      pruneMapEntities();
 
       // AI : CRITICAL: Don't load data until zoomed in past threshold
       if (zoom < MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD) {
@@ -413,83 +424,11 @@ export function useViewportContentManager() {
     }
 
     // AI : Render overlays
-    const existingOverlays = overlayStore.overlays;
-    const existingIds = new Set(Object.keys(existingOverlays));
-    const hasExisting = existingIds.size > 0;
-
-    if (!hasExisting) {
-      // AI : Initial render
-      renderViewModeOverlays(overlaysData, true, false);
-    } else {
-      // AI : Update/add overlays without removing existing ones
-      // AI : Don't remove overlays not in overlaysData - they may be from other cities
-      // AI : Overlays are only removed via clearAllOverlays on mode switch/zoom out
-
-      // AI : Find overlays that need rendering:
-      // AI : 1. New overlays not in store
-      // AI : 2. Existing overlays in overlaysData with null Leaflet layer
-      const overlayDataIds = new Set(overlaysData.map((o) => o.id));
-      const overlaysToRender = overlaysData.filter((o) => {
-        if (!existingIds.has(o.id)) return true; // New overlay
-        const existing = existingOverlays[o.id];
-        return existing && existing.overlay === null; // Needs re-rendering
-      });
-
-      // AI : CRITICAL: Also re-render existing overlays with null layers that are NOT in overlaysData
-      // AI : This handles overlays from other cities that were preserved during zoom out
-      // AI : In edit mode, also include local overlays (status === null)
-      for (const [id, existing] of Object.entries(existingOverlays)) {
-        if (existing.overlay === null && !overlayDataIds.has(id)) {
-          // AI : Skip if already in overlaysToRender
-          if (overlaysToRender.some((o) => o.id === id)) continue;
-
-          // AI : Skip overlays that shouldn't be visible in current mode
-          const mode = overlayStore.mode;
-          let shouldSkip = false;
-
-          if (mode === "view") {
-            // AI : View mode: Only render approved overlays
-            shouldSkip = existing.status !== "approved";
-          } else if (mode === "moderation") {
-            // AI : Moderation mode: Render approved + pending, skip local-only and rejected
-            shouldSkip =
-              existing.status === null ||
-              existing.status === undefined ||
-              existing.status === "rejected";
-          } else if (mode === "edit") {
-            // AI : Edit mode: Skip rejected (backend handles filtering for user's own pending)
-            shouldSkip = existing.status === "rejected";
-          }
-
-          if (shouldSkip) {
-            continue;
-          }
-
-          // AI : Convert existing overlay to OverlayData format for rendering
-          // AI : Use filename (not imageUrl) - imageUrl has the full URL path that gets duplicated by createOverlayFromCDN
-          overlaysToRender.push({
-            id: existing.id,
-            version: existing.version,
-            filename: existing.filename,
-            caption: existing.caption,
-            status: existing.status,
-            projectId: existing.projectId,
-            authorId: existing.authorId,
-            replacesOverlayId: existing.replacesOverlayId,
-            replacedByOverlayId: existing.replacedByOverlayId,
-            createdAt: existing.createdAt,
-            updatedAt: existing.updatedAt,
-            centroid: existing.centroid,
-            corners: existing.corners,
-            isModified: existing.isModified,
-          });
-        }
-      }
-
-      if (overlaysToRender.length > 0) {
-        renderViewModeOverlays(overlaysToRender, true, false);
-      }
-    }
+    // AI : DELEGATE TO PRUNING SERVICE
+    // AI : Instead of rendering loop here (which renders everything),
+    // AI : defer to pruneMapEntities which checks visibility bounds first.
+    // AI : This prevents network requests for off-screen images.
+    pruneMapEntities();
   }
 
   /**
@@ -617,8 +556,12 @@ export function useViewportContentManager() {
             } else if (newMode === "edit") {
               // AI : Edit mode: Show approved + user's own pending
               // AI : Hide: rejected, other users' pending (backend reload will handle this correctly)
-              // AI : For now, hide rejected overlays. Backend reload will provide correct data.
-              shouldHide = overlay.status === "rejected";
+              const authStore = useAuthStore();
+              const currentUserId = authStore.user?.id;
+
+              shouldHide =
+                overlay.status === "rejected" ||
+                (overlay.status === "pending" && overlay.authorId !== currentUserId);
             }
 
             if (shouldHide) {
