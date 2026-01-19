@@ -432,8 +432,6 @@ function addCityMarkersToMapInternal(
   cities: CityWithProjects[],
   explicitCountryCode?: string,
 ): void {
-  // if (!map.value) return; // AI : Map not needed for store updates, only for pruning
-
   const cityMarkersStore = useCityMarkersStore();
 
   // AI : Determine country code from explicit parameter or derive from cities
