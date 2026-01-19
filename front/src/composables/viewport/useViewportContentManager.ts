@@ -13,6 +13,7 @@ import {
   updateOverlayEditingState,
   saveAllOverlaysToCache,
 } from "@/services/overlay/overlayEditing";
+import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import { pruneMapEntities } from "@/services/map/viewportPruning";
 import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";
 import { renderOverlayMarkersFromData, removeOverlayMarkers } from "@/services/map/cityOverlays";
@@ -587,30 +588,10 @@ export function useViewportContentManager() {
         // AI : We unmount them (remove from map) but keep in store so they can reappear when switching modes
         if (hasLoadedOverlays) {
           for (const [id, overlay] of Object.entries(overlayStore.overlays)) {
-            let shouldHide = false;
-
-            // AI : Determine if overlay should be hidden based on new mode
-            if (newMode === "view") {
-              // AI : View mode: Only show approved overlays
-              // AI : Hide: local-only (null/undefined), pending, rejected
-              shouldHide = overlay.status !== "approved";
-            } else if (newMode === "moderation") {
-              // AI : Moderation mode: Show approved + pending from all users
-              // AI : Hide: local-only (null/undefined), rejected
-              shouldHide =
-                overlay.status === null ||
-                overlay.status === undefined ||
-                overlay.status === "rejected";
-            } else if (newMode === "edit") {
-              // AI : Edit mode: Show approved + user's own pending
-              // AI : Hide: rejected, other users' pending (backend reload will handle this correctly)
-              const authStore = useAuthStore();
-              const currentUserId = authStore.user?.id;
-
-              shouldHide =
-                overlay.status === "rejected" ||
-                (overlay.status === "pending" && overlay.authorId !== currentUserId);
-            }
+            // AI : Determine if overlay should be hidden based on new mode //
+            const authStore = useAuthStore();
+            const currentUserId = authStore.user?.id;
+            const shouldHide = !isOverlayVisible(overlay, newMode, currentUserId);
 
             if (shouldHide) {
               if (overlay.overlay) overlay.overlay.remove();

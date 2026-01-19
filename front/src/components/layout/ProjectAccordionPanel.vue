@@ -153,7 +153,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, nextTick } from "vue";
+import { computed, watch, nextTick, onMounted, onActivated, onDeactivated, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { Accordion, AccordionPanel } from "primevue";
 import ProjectHeader from "@/components/project/ProjectHeader.vue";
@@ -306,6 +306,21 @@ const groupedByCountry = computed(() => {
   return sorted;
 });
 
+// AI : Track if panel is active (visible) to prevent inactive panels from consuming scroll requests
+const isPanelActive = ref(false);
+
+onMounted(() => {
+  isPanelActive.value = true;
+});
+
+onActivated(() => {
+  isPanelActive.value = true;
+});
+
+onDeactivated(() => {
+  isPanelActive.value = false;
+});
+
 function handleToggleCountryExpanded(countryCode: string) {
   const country = groupedByCountry.value.find((c) => c.countryCode === countryCode);
   toggleCountryExpanded(countryCode, country);
@@ -321,8 +336,35 @@ function shouldShowCityContent(cityKey: string): boolean {
 
 // AI : Handle scroll requests
 async function handleScrollRequest() {
-  const request = consumeScrollRequest();
+  // AI : Only active panels should consume requests
+  if (!isPanelActive.value) return;
+
+  // AI : Peek at request without consuming it yet
+  const request = pendingScrollRequest.value;
   if (!request) return;
+
+  // AI : Check if this panel can handle the request (contains the target)
+  // AI : This prevents the panel from consuming requests for items it doesn't have
+  let canHandle = false;
+
+  if (request.type === "overlay") {
+    const overlayId = String(request.id);
+    // AI : Efficient nested check using props.projects
+    canHandle = props.projects.some(
+      (p) => p.overlays && p.overlays.some((o) => o.id === overlayId),
+    );
+  } else if (request.type === "project") {
+    const projectId = String(request.id);
+    canHandle = props.projects.some((p) => p.id === projectId);
+  } else if (request.type === "city") {
+    const cityId = Number(request.id);
+    canHandle = props.projects.some((p) => p.cityId === cityId);
+  }
+
+  if (!canHandle) return;
+
+  // AI : Now consume the request since we confirmed we can handle it
+  consumeScrollRequest();
 
   await nextTick();
 

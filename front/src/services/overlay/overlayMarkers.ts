@@ -10,7 +10,9 @@ import { map } from "@/services/core/map";
 import { getOverlayMarkerColor, createOverlayIcon } from "@/services/map/markers";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
+import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import type { OverlayObject, MarkerColor } from "@/types/index";
 import {
   selectOverlay,
@@ -141,6 +143,13 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
 
   if (!map.value || overlayStore.allMarkers[savedOverlay.id]) return;
 
+  // AI : CRITICAL: Safety check for visibility
+  // AI : This prevents markers from being created for filtered-out overlays during race conditions
+  const authStore = useAuthStore();
+  if (!isOverlayVisible(savedOverlay, overlayStore.mode, authStore.user?.id)) {
+    return;
+  }
+
   // AI : Calculate centroid from corners using shared utility to match backend calculation
   // AI : Check edit cache first to prevent flicker when zooming back in on modified overlays
   let corners = savedOverlay.corners;
@@ -249,6 +258,12 @@ export function createMarker(overlayObject: OverlayObject): void {
   const overlayStore = useOverlayStore();
 
   if (!map.value) return;
+
+  // AI : CRITICAL: Safety check for visibility
+  const authStore = useAuthStore();
+  if (!isOverlayVisible(overlayObject, overlayStore.mode, authStore.user?.id)) {
+    return;
+  }
 
   // AI : Use current map center as initial marker position
   const center = map.value.getCenter();
