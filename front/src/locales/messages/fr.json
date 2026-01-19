@@ -491,6 +491,8 @@
   "upload": {
     "noFileSelected": "Aucun fichier sélectionné",
     "selectImageFile": "Veuillez sélectionner un fichier image à télécharger",
+    "overlayTooLarge": "L'image est trop grande",
+    "maximumSizeOnMap": "La taille maximale est de 1km × 1km",
     "fileTooLarge": "Le fichier est trop volumineux. La taille maximale est de {maxSize} Mo."
   },
   "imageUpload": {
