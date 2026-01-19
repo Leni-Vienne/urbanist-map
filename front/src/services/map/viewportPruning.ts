@@ -98,16 +98,14 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
           existingInstance.marker.addTo(mapInstance);
         }
       }
-    } else {
+    } else if (existingInstance) {
       // AI : Not visible -> Cleanup
-      if (existingInstance) {
-        if (existingInstance.overlay) {
-          existingInstance.overlay.remove();
-          existingInstance.overlay = null; // AI : Destroy to force fresh reload
-        }
-        if (existingInstance.marker) {
-          existingInstance.marker.remove();
-        }
+      if (existingInstance.overlay) {
+        existingInstance.overlay.remove();
+        existingInstance.overlay = null; // AI : Destroy to force fresh reload
+      }
+      if (existingInstance.marker) {
+        existingInstance.marker.remove();
       }
     }
   }
@@ -204,14 +202,10 @@ function pruneCityMarkers(mapInstance: L.Map, bounds: L.LatLngBounds, _zoom: num
     const isVisible = bounds.contains(latLng);
     const isOnMap = mapInstance.hasLayer(marker);
 
-    if (isVisible) {
-      if (!isOnMap) {
-        marker.addTo(mapInstance);
-      }
-    } else {
-      if (isOnMap) {
-        marker.remove();
-      }
+    if (isVisible && !isOnMap) {
+      marker.addTo(mapInstance);
+    } else if (!isVisible && isOnMap) {
+      marker.remove();
     }
   }
 }
