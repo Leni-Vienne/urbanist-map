@@ -8,6 +8,8 @@ import { toRef } from "vue";
 import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
+import { useAuthStore } from "@/stores/authStore";
+import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import { updateOverlayMarkersColors } from "@/services/map/markers";
 import { withErrorHandling } from "@/services/core/errorHandling";
 import { imageRequiresCredentials } from "@/utils/imageUrl";
@@ -119,6 +121,16 @@ export function createLeafletOverlay(
 
         // AI : Only add to map if zoom is appropriate (zoom handler will manage later changes)
         if (shouldShowImage) {
+          // AI : CRITICAL FIX: Re-verify visibility before adding (async race condition protection)
+          // AI : The mode might have changed while waiting for zoom animation (View -> Edit -> View)
+          const overlayStore = useOverlayStore();
+          const authStore = useAuthStore();
+          if (!isOverlayVisible(overlayObject, overlayStore.mode, authStore.user?.id)) {
+            // AI : Abort adding if no longer visible
+            overlaysBeingCreated.delete(overlayObject.id);
+            return;
+          }
+
           // AI : CRITICAL: Check if already on map to prevent duplicates
           // AI : This can happen when renderFullOverlays is called multiple times before onAddedToMap callback completes
           if (map.value.hasLayer(newOverlay)) {

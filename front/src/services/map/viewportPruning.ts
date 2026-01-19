@@ -4,6 +4,7 @@ import { useCityMarkersStore } from "@/stores/pinia/cityMarkersStore";
 import { useAuthStore } from "@/stores/authStore";
 import { map } from "@/services/core/map";
 import { renderViewModeOverlays, createLeafletOverlay } from "@/services/overlay/overlayRendering";
+import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 
 import { MAP_CONFIG } from "@/constants/mapConstants";
 
@@ -141,18 +142,14 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
       if (c.lng > maxLng) maxLng = c.lng;
     }
 
-    // AI : Filter out foreign pending overlays (from previous moderation session)
-    // AI : Loop 2 handles "local" overlays, but we must ensure we don't accidentally show
-    // AI : orphan overlays belonging to other users that were loaded in moderation mode.
+    // AI : Filter using centralized visibility logic
+    // AI : This handles permissions for view/edit/moderation modes
     const authStore = useAuthStore();
-    const currentUserId = authStore.user?.id;
-    const isForeignPending = overlay.status === "pending" && overlay.authorId !== currentUserId;
+    const isAllowedByMode = isOverlayVisible(overlay, overlayStore.mode, authStore.user?.id);
 
-    // AI : Only show local orphan overlays in edit mode
-    // AI : If we are in view/moderation mode, force isVisible to false to trigger cleanup
+    // AI : Only show if allowed by mode AND within bounds
     const isVisible =
-      overlayStore.mode === "edit" &&
-      !isForeignPending &&
+      isAllowedByMode &&
       minLat < boundsNorth &&
       maxLat > boundsSouth &&
       minLng < boundsEast &&
