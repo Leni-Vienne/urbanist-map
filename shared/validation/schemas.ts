@@ -23,9 +23,13 @@ export const projectSchema = z
       .min(-180, "validation.invalidLongitude")
       .max(180, "validation.invalidLongitude"),
     proposalDate: z.date({ message: "validation.invalidDate" }).nullable().optional(),
+    proposalDatePrecision: z.enum(["year", "month", "day"]).nullable().optional(),
     startDate: z.date({ message: "validation.invalidDate" }).nullable().optional(),
+    startDatePrecision: z.enum(["year", "month", "day"]).nullable().optional(),
     endDate: z.date({ message: "validation.invalidDate" }).nullable().optional(),
+    endDatePrecision: z.enum(["year", "month", "day"]).nullable().optional(),
     sourceUrl: z
+      .string()
       .url("validation.invalidUrl")
       .or(z.literal(""))
       .transform((val) => (val === "" ? undefined : val))
@@ -42,13 +46,10 @@ export const projectSchema = z
       });
     }
 
-    // AI : Validate project has either proposalDate OR both startDate and endDate
-    const hasProposalDate = data.proposalDate !== null && data.proposalDate !== undefined;
+    // AI : Validate project has either proposalDate OR (startDate AND endDate) OR (endDate ONLY for already started)
+    const hasProposalDate = data.proposalDate !== null;
     const hasPlannedDates =
-      data.startDate !== null &&
-      data.startDate !== undefined &&
-      data.endDate !== null &&
-      data.endDate !== undefined;
+      (data.startDate !== null && data.endDate !== null) || data.endDate !== null; // AI : Allow EndDate only (implies already started)
 
     if (!hasProposalDate && !hasPlannedDates) {
       ctx.addIssue({

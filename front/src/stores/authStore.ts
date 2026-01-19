@@ -1,11 +1,10 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import { trpc } from "../client";
+import { trpc } from "@/client";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
-import { useMapCleanup } from "@/composables/map/useMapCleanup";
 
 // AI : User type for our custom authentication
 interface User {
@@ -335,8 +334,8 @@ export const useAuthStore = defineStore("auth", () => {
       moderationStore.clearAllState();
 
       // AI : Clear visual map elements directly (no watcher needed)
-      const { clearMapOnLogout } = useMapCleanup();
-      clearMapOnLogout();
+      // AI : MOVED TO APP.VUE WATCHER TO AVOID CIRCULAR DEPENDENCY
+      // clearMapOnLogout();
 
       if (response.ok) {
         return { success: true, error: null };

@@ -5,9 +5,31 @@
     v-model:height-percent="drawerHeight"
     @height-changed="handleHeightChanged"
   >
-    <!-- AI : Mode controls above drawer on mobile -->
-    <template #above>
-      <ModeControls v-if="authStore.isAuthenticated" :is-mobile="true" />
+    <!-- AI : Mode controls above drawer on mobile, with individual floor clamping -->
+    <template #above="{ drawerHeightPx }">
+      <div class="mobile-controls-wrapper">
+        <!-- AI : Satellite Preview: Minimum floor 80px. Positioned Left. -->
+        <div
+          class="control-wrapper"
+          :style="{
+            marginBottom: `${Math.max(0, 30 - Math.max(drawerHeightPx || 0, 65))}px`,
+            zIndex: isSatelliteMenuOpen ? 30 : 10,
+          }"
+        >
+          <SatellitePreview :in-drawer="true" @menu-change="handleSatelliteMenuChange" />
+        </div>
+
+        <!-- AI : Mode Controls: Minimum floor 110px. Centered. -->
+        <div
+          class="control-wrapper mode-layout"
+          :style="{
+            marginBottom: `${Math.max(0, 110 - Math.max(drawerHeightPx || 0, 65))}px`,
+            zIndex: 20,
+          }"
+        >
+          <ModeControls v-if="authStore.isAuthenticated" :is-mobile="true" />
+        </div>
+      </div>
     </template>
 
     <!-- AI : Custom header with title and tab navigation -->
@@ -40,7 +62,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useUiStore } from "@/stores/uiStore";
 import { usePanelTabs } from "@/composables/layout/usePanelTabs";
 import type { PanelTab } from "@/types";
@@ -48,12 +70,18 @@ import type { PanelTab } from "@/types";
 import DraggableDrawer from "./DraggableDrawer.vue";
 import PanelContent from "./PanelContent.vue";
 import PanelTabs from "./PanelTabs.vue";
-import ModeControls from "../map/ModeControls.vue";
+import ModeControls from "@/components/map/ModeControls.vue";
+import SatellitePreview from "@/components/map/SatellitePreview.vue";
 
 // AI : Get store
 const uiStore = useUiStore();
 
 const isVisible = defineModel<boolean>("visible", { default: false });
+const isSatelliteMenuOpen = ref(false);
+
+function handleSatelliteMenuChange(isOpen: boolean) {
+  isSatelliteMenuOpen.value = isOpen;
+}
 
 // AI : Drawer height management
 const drawerHeight = computed({
@@ -143,5 +171,31 @@ const { authStore, setActiveTab } = usePanelTabs();
 .footer-separator {
   color: var(--p-surface-400);
   font-size: 0.65rem;
+}
+
+.mobile-controls-wrapper {
+  position: relative;
+  width: 100%;
+  height: 0;
+  /* Wrapper itself has no height, just anchors */
+  pointer-events: none;
+}
+
+.control-wrapper {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  pointer-events: none;
+}
+
+.mode-layout {
+  display: flex;
+  justify-content: center;
+}
+
+/* AI : Enable interactions for children */
+:deep(.control-wrapper > *) {
+  pointer-events: auto;
 }
 </style>

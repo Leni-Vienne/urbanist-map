@@ -42,13 +42,19 @@
     "yearsAgo": "{count} years ago"
   },
   "fields": {
+    "name": "Name",
+    "description": "Description",
     "cityId": "City",
     "projectId": "Project",
     "corners": "Corner Positions",
     "centroid": "Center Position",
     "coordinates": "Coordinates",
+    "proposalDate": "Proposal Date",
+    "proposalDatePrecision": "Proposal Date Precision",
     "startDate": "Start Date",
+    "startDatePrecision": "Start Date Precision",
     "endDate": "End Date",
+    "endDatePrecision": "End Date Precision",
     "sourceUrl": "Source URL",
     "caption": "Name",
     "lat": "Latitude",
@@ -77,20 +83,29 @@
     "missingCityInfo": "Missing City Info",
     "cannotNavigateWithoutCity": "Cannot navigate without city information",
     "timelineStatus": "Timeline Status",
-    "proposed": "Proposed",
+    "proposedStatus": "Proposed",
     "proposedDescription": "Unconfirmed project, dates not yet set",
     "plannedStatus": "Planned",
     "plannedDescription": "Confirmed project with scheduled dates",
     "proposalDate": "Proposal Date",
     "proposalDateHelp": "When was this project first proposed or announced?",
     "startDate": "Construction Start Date",
-    "startDateHelp": "When will construction begin?",
     "endDate": "Construction End Date",
-    "endDateHelp": "When is construction expected to finish?",
     "latestUpdateOn": "Latest Media Update",
     "latestUpdateOnHelp": "Last time this project was mentioned in news or media",
     "sourceUrl": "Source URL",
     "optionalField": "Optional",
+    "yearOnly": "Year only",
+    "monthYear": "Month & Year",
+    "fullDate": "Full date",
+    "year": "Year",
+    "alreadyStarted": "Already started, start date unknown",
+    "proposed": "Proposed",
+    "startsIn": "Starts in",
+    "startsOn": "Starts on",
+    "endsIn": "Ends in",
+    "endsOn": "Ends on",
+    "startDateOptional": "Start date is optional if the project has already started",
     "validationError": "Validation Error",
     "locationRequired": "Location is required",
     "timelineChangedFromProposedToPlanned": "Timeline status changed from Proposed ({proposalDate}) to Planned",
@@ -307,6 +322,7 @@
     "legal": "Legal"
   },
   "submission": {
+    "updateProject": "Update Project",
     "confirmTitle": "Confirm Submission",
     "requiresModeration": "Requires Moderation",
     "immediateUpdate": "Immediate Update",
@@ -475,6 +491,8 @@
   "upload": {
     "noFileSelected": "No file selected",
     "selectImageFile": "Please select an image file to upload",
+    "overlayTooLarge": "Overlay is too large",
+    "maximumSizeOnMap": "Maximum size is 1km × 1km",
     "fileTooLarge": "File is too large. Maximum size is {maxSize}MB."
   },
   "imageUpload": {
@@ -519,6 +537,9 @@
     "fieldNameRequired": "Field name is required",
     "changesRequired": "At least one change is required",
     "invalidDate": "Invalid date",
+    "dayPrecisionRequiresFullDate": "Full date precision requires month and day",
+    "monthPrecisionRequiresMonth": "Month precision requires a month",
+    "invalidDayForMonth": "Invalid day for the selected month",
     "genericError": "Invalid input"
   },
   "errors": {
@@ -686,7 +707,9 @@
   },
   "layerControl": {
     "baseMaps": "Base Maps",
-    "submitTileLayer": "Submit a new tile layer"
+    "submitTileLayer": "Submit a new tile layer",
+    "plan": "Plan",
+    "satellite": "Satellite"
   },
   "toasts": {
     "replacementOverlayCreated": "Replacement Overlay Created",

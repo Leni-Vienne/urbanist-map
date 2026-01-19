@@ -1,11 +1,8 @@
 import { ref, computed } from "vue";
 import { trpc, type RouterOutput } from "@/client";
-import { withErrorHandling } from "@/composables/core/useErrorHandling";
+import { withErrorHandling } from "@/services/core/errorHandling";
 
-// AI : Type inferred from tRPC backend - automatically includes all fields from getModeratedContributions
-export type ModeratedContribution = RouterOutput["overlay"]["getModeratedContributions"][number];
-
-const moderatedContributions = ref<ModeratedContribution[]>([]);
+const moderatedContributions = ref<RouterOutput["overlay"]["getModeratedContributions"]>([]);
 const isLoading = ref(false);
 const hasBeenFetched = ref(false);
 

@@ -46,27 +46,27 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
-import { map } from "@/composables/core/useMap";
-import {
-  updateStandaloneProjectMarkerColor,
-  addSingleCityMarker,
-  addCityMarkersForCountry,
-  citiesWithProjects,
-} from "@/composables/map/useCityMarkers";
-import { createProjectInfoTeleportTarget } from "@/composables/map/useProjectPopupTeleport";
+import { map } from "@/services/core/map";
+import { createProjectInfoTeleportTarget } from "@/services/map/projectPopupTeleport";
 import {
   getStandaloneProjectMarkerByProjectId,
   addStandaloneProjectMarkerForProject,
-} from "@/composables/map/useStandaloneProjectMarkers";
-import { loadCitiesForCountry, clearAllMapContent } from "@/composables/map/useCountryData";
+  updateStandaloneProjectMarkerColor,
+} from "@/services/map/standaloneProjectMarkers";
+import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { createStandaloneProjectIcon } from "@/composables/map/useMarkers";
-import { addOverlay } from "@/composables/overlay/useOverlay";
-import { createProject } from "@/composables/project/useProjects";
-import { loadCityDataForNavigation } from "@/composables/navigation/useCityDataLoader";
-import { createProjectObjectFromAPI, createProjectObject } from "../../utils/typeFactories";
-import { useCityProjects } from "@/composables/project/useProjectSelection";
+import { createStandaloneProjectIcon } from "@/services/map/markers";
+import { addOverlay } from "@/services/overlay/overlayEditing";
+import { createProject } from "@/services/project/projects";
+import { loadAndRenderCityData } from "@/services/navigation/cityDataRenderer";
+import { createProjectObjectFromAPI, createProjectObject } from "@/utils/typeFactories";
+import { getCityProjects } from "@/services/project/projectSelection";
 import type { Project, NearbyProject } from "@/types/index";
+import {
+  addSingleCityMarker,
+  addCityMarkersForCountry,
+  citiesWithProjects,
+} from "@/services/map/cityMarkers";
 
 import MarkerPlacementBar from "@/components/map/MarkerPlacementBar.vue";
 const CreateProjectDialog = defineAsyncComponent(
@@ -192,7 +192,7 @@ function findProjectFromReplacementOverlay(projectId: string): Project | null {
 
 // AI : Try to find project from city projects list
 function findProjectFromCityProjects(projectId: string): Project | null {
-  const { projects: cityProjectsList } = useCityProjects();
+  const { projects: cityProjectsList } = getCityProjects();
   const cityProject = cityProjectsList.value.find((p: Project) => p.id === projectId);
   return cityProject ?? null;
 }
@@ -390,7 +390,7 @@ async function displayProjectMarkerAndPopup(
 
   // AI : Load city data to mark it as active in loadedCityIds
   // AI : This ensures the city's content persists when zooming out (active city preservation)
-  await loadCityDataForNavigation(city.id, true);
+  await loadAndRenderCityData(city.id, true);
 
   let actualMarker = getStandaloneProjectMarkerByProjectId(projectId);
 

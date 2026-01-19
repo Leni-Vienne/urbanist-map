@@ -1,18 +1,18 @@
 import { computed, onMounted, toRef } from "vue";
 import { trpc } from "@/client";
-import { withErrorHandling } from "@/composables/core/useErrorHandling";
+import { withErrorHandling } from "@/services/core/errorHandling";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useAuthStore } from "@/stores/authStore";
-import { updateMarkerTooltip } from "@/composables/overlay/useOverlayMarkers";
-import { updateOverlayMarkersColors } from "@/composables/map/useMarkers";
-import { updateStandaloneProjectMarkerColor } from "@/composables/map/useCityMarkers";
-import { useEntityRemoval } from "@/composables/core/useEntityRemoval";
+import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
+import { updateOverlayMarkersColors } from "@/services/map/markers";
+import { removeOverlayFromMapAndStore } from "@/services/core/entityRemoval";
 import {
   getStandaloneProjectMarkerByProjectId,
   updateStandaloneProjectMarkerTooltip,
-} from "@/composables/map/useStandaloneProjectMarkers";
+  updateStandaloneProjectMarkerColor,
+} from "@/services/map/standaloneProjectMarkers";
 import { t } from "@/locales";
 import type { Project } from "@/types/index";
 import { createProjectObject } from "@/utils/typeFactories";
@@ -185,14 +185,11 @@ export function useModeration() {
         updateMarkerTooltip(overlayObject);
 
         // AI : Update all marker colors to reflect status changes
-        updateOverlayMarkersColors(toRef(overlayStore, "overlays"));
+        updateOverlayMarkersColors(toRef(overlayStore, "overlays"), overlayStore.mode);
       }
 
       // AI : If this was a replacement overlay approval with conflict handling, remove the original and competing overlays from map
       if (status === "approved" && handleReplacementConflicts && replacesOverlayId) {
-        // AI : Use unified removal logic
-        const { removeOverlayFromMapAndStore } = useEntityRemoval();
-
         // AI : Remove the original overlay that was replaced
         removeOverlayFromMapAndStore(replacesOverlayId);
 

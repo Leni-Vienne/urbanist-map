@@ -2,22 +2,21 @@ import L, { type LatLng } from "leaflet";
 import { computed } from "vue";
 import { t } from "@/locales";
 import { useToast } from "@/composables/ui/useToast";
-import { map } from "@/composables/core/useMap";
+import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import {
-  updateMarkerPosition,
-  updateMarkerTooltip,
-  getOverlayBounds,
-} from "@/composables/overlay/useOverlayMarkers";
-import { selectOverlay } from "@/composables/overlay/useOverlaySelection";
-import { loadCityProjects } from "@/composables/map/useCityMarkers";
-import { loadCitiesForCountry, clearAllMapContent } from "@/composables/map/useCountryData";
-import { switchMode } from "@/composables/overlay/useModeSwitching";
-import { mobileAwareFlyToBounds } from "@/composables/map/useMapNavigation";
-import { prepareCrossCountryFlight } from "@/composables/map/useTileLayers";
+import { updateMarkerPosition, updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
+import { getOverlayBounds } from "@/services/overlay/overlayPositionManagement";
+import { selectOverlay } from "@/services/overlay/overlaySelection";
+import { loadCityProjects } from "@/services/navigation/locationNavigation";
+import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
+import { switchMode } from "@/services/overlay/modeSwitching";
+import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import type { OverlayForModeration, OverlayObject, PendingChangeRequest } from "@/types/index";
-import { previewState, clearChangeRequestPreview } from "./changeRequestPreviewState";
+import {
+  previewState,
+  clearChangeRequestPreview,
+} from "@/services/overlay/changeRequestPreviewState";
 
 // AI : Composable to handle change request position preview
 // AI : Combines state management + navigation logic for previewing change request positions
@@ -119,9 +118,6 @@ export function useChangeRequestPreview() {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
-    // AI : Step 2: Prepare for cross-country flight (switches to esri if needed)
-    const switchToCountryLayer = prepareCrossCountryFlight(overlayForModeration.countryCode);
-
     // AI : Step 3: Clear map and load cities for the country
     clearAllMapContent();
     const mapStore = useMapStore();
@@ -134,20 +130,6 @@ export function useChangeRequestPreview() {
       padding: [50, 50] as [number, number],
       duration: 1.5,
       easeLinearity: 0.25,
-    });
-
-    // AI : Wait for navigation to complete and switch tile layer if cross-country
-    await new Promise<void>((resolve) => {
-      if (map.value !== null) {
-        map.value.once("moveend", () => {
-          if (switchToCountryLayer) {
-            switchToCountryLayer();
-          }
-          setTimeout(resolve, 100);
-        });
-      } else {
-        resolve();
-      }
     });
 
     // AI : Step 5: Load city projects (this renders overlays)

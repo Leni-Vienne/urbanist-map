@@ -11,15 +11,12 @@ import type {
 
 import type { ApprovalStatus } from "@shared/types";
 
+import { getCountryName, type CountryInfo } from "@/services/map/countryData";
+
 interface SelectedCity {
   id: number;
   name: string;
   countryCode?: string;
-}
-
-interface CountryInfo {
-  code: string;
-  name: string;
 }
 
 /**
@@ -44,8 +41,11 @@ export function createProjectFromOverlayData(
     lat: projectInfo?.lat ?? overlayData.centroid.lat,
     lng: projectInfo?.lng ?? overlayData.centroid.lng,
     proposalDate: projectInfo?.proposalDate ?? null,
+    proposalDatePrecision: projectInfo?.proposalDatePrecision ?? null,
     startDate: projectInfo?.startDate ?? null,
+    startDatePrecision: projectInfo?.startDatePrecision ?? null,
     endDate: projectInfo?.endDate ?? null,
+    endDatePrecision: projectInfo?.endDatePrecision ?? null,
     sourceUrl: projectInfo?.sourceUrl ?? null,
     createdAt: projectInfo?.createdAt ?? overlayData.createdAt,
     updatedAt: projectInfo?.updatedAt ?? overlayData.updatedAt,
@@ -71,7 +71,9 @@ export function createOverlayForModeration(
   return {
     id: overlayData.id,
     name: overlayData.caption ?? "",
-    filename: overlayData.filename,
+    filename: overlayData.filename.startsWith("data:")
+      ? `pending-${overlayData.id}.webp`
+      : overlayData.filename,
     status: overlayData.status,
     version: overlayData.version,
     projectId: overlayData.projectId,
@@ -85,19 +87,8 @@ export function createOverlayForModeration(
     countryName: null,
     replacesOverlayId: overlayData.replacesOverlayId,
     replacedByOverlayId: overlayData.replacedByOverlayId,
+    imageUrl: overlayData.filename.startsWith("data:") ? overlayData.filename : undefined,
   };
-}
-
-/**
- * AI : Helper to get country name from country code
- */
-function getCountryName(
-  countryCode: string | null | undefined,
-  countries: CountryInfo[],
-): string | null {
-  if (!countryCode) return null;
-  const country = countries.find((c) => c.code === countryCode);
-  return country?.name ?? null;
 }
 
 /**
@@ -159,8 +150,11 @@ export function createLocalProjectContribution(
     lat: number | null;
     lng: number | null;
     proposalDate: Date | null;
+    proposalDatePrecision?: "year" | "month" | "day" | null;
     startDate: Date | null;
+    startDatePrecision?: "year" | "month" | "day" | null;
     endDate: Date | null;
+    endDatePrecision?: "year" | "month" | "day" | null;
     sourceUrl: string | null;
     latestUpdateOn: Date | null;
   },
@@ -213,8 +207,11 @@ export function createLocalProjectContribution(
       updatedAt: new Date(),
     },
     proposalDate: localProject.proposalDate,
+    proposalDatePrecision: localProject.proposalDatePrecision ?? null,
     startDate: localProject.startDate,
+    startDatePrecision: localProject.startDatePrecision ?? null,
     endDate: localProject.endDate,
+    endDatePrecision: localProject.endDatePrecision ?? null,
     sourceUrl: localProject.sourceUrl ?? null,
     latestUpdateOn: localProject.latestUpdateOn ?? null,
     createdAt: new Date(),

@@ -13,7 +13,7 @@ import {
   type ApprovalStatus,
 } from "./schema";
 import type * as schema from "./schema";
-import type { MapMode } from "@shared/types";
+import type { AppMode } from "@shared/types";
 
 // AI : ============================================================================
 // AI : DATABASE HELPERS - Unified utilities for pagination, queries, and visibility
@@ -108,7 +108,7 @@ export function buildPaginationResponse<T extends { id: string }>(
  * AI : Select fields for overlay queries with full location hierarchy
  * AI : Extracts PostGIS geometry as JSON for corners and centroid
  */
-export const overlaySelectFields = {
+const overlaySelectFields = {
   id: overlays.id,
   version: overlays.version,
   filename: overlays.filename,
@@ -167,8 +167,11 @@ export function buildProjectWithLocationQuery(db: BunSQLDatabase<typeof schema>)
       lat: projects.lat,
       lng: projects.lng,
       proposalDate: projects.proposalDate,
+      proposalDatePrecision: projects.proposalDatePrecision,
       startDate: projects.startDate,
+      startDatePrecision: projects.startDatePrecision,
       endDate: projects.endDate,
+      endDatePrecision: projects.endDatePrecision,
       sourceUrl: projects.sourceUrl,
       latestUpdateOn: projects.latestUpdateOn,
       createdAt: projects.createdAt,
@@ -229,8 +232,11 @@ export function buildProjectModerationQuery(db: BunSQLDatabase<typeof schema>) {
       createdAt: projects.createdAt,
       updatedAt: projects.updatedAt,
       startDate: projects.startDate,
+      startDatePrecision: projects.startDatePrecision,
       endDate: projects.endDate,
+      endDatePrecision: projects.endDatePrecision,
       proposalDate: projects.proposalDate,
+      proposalDatePrecision: projects.proposalDatePrecision,
       sourceUrl: projects.sourceUrl,
       lat: projects.lat,
       lng: projects.lng,
@@ -445,7 +451,7 @@ export async function getUserOverlayChangeRequestIds(
 // AI : Build WHERE condition for project visibility based on user context and map mode
 export function buildProjectVisibilityCondition(
   user: UserContext,
-  mode: MapMode,
+  mode: AppMode,
   strictModeration = true,
 ): SQL {
   if (mode === "view") {
@@ -499,7 +505,7 @@ export function buildProjectVisibilityCondition(
 // AI : Can also handle admin includeStatus filter (takes precedence over mode logic)
 export function buildOverlayVisibilityCondition(
   user: UserContext,
-  mode: MapMode,
+  mode: AppMode,
   overlayChangeRequestIds?: string[],
   adminIncludeStatus?: ApprovalStatus[],
 ): SQL {
@@ -542,7 +548,7 @@ export function buildOverlayVisibilityCondition(
 // AI : In edit mode, also show user's own projects even if they don't have overlays yet
 export function buildProjectHasVisibleContentCondition(
   user: UserContext,
-  mode: MapMode,
+  mode: AppMode,
   overlayChangeRequestIds?: string[],
 ): SQL {
   if (mode === "view") {

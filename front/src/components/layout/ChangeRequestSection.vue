@@ -4,17 +4,20 @@
       <div v-if="isOverlayChanges" class="change-indicator">
         <i class="pi pi-exclamation-triangle text-orange-500"></i>
         <span class="change-header-text">
-          {{ isMyContributions
-            ? $t('moderation.yourPendingChanges')
-            : $t('moderation.pendingChangesFor', { name: entityName })
+          {{
+            isMyContributions
+              ? $t("moderation.yourPendingChanges")
+              : $t("moderation.pendingChangesFor", { name: entityName })
           }}
         </span>
       </div>
       <h3 v-else class="change-requests-title">
-        {{ isMyContributions ? $t('moderation.yourPendingChanges') : $t('moderation.pendingChanges') }}
+        {{
+          isMyContributions ? $t("moderation.yourPendingChanges") : $t("moderation.pendingChanges")
+        }}
       </h3>
       <p v-if="isMyContributions" class="change-requests-subtitle">
-        {{ $t('moderation.moderatorReviewRequired') }}
+        {{ $t("moderation.moderatorReviewRequired") }}
       </p>
     </div>
 
@@ -22,7 +25,11 @@
       <!-- AI : Iterate over grouped changes -->
       <template
         v-for="group in groupedChanges"
-        :key="group.type === 'single' ? group.change.id : `conflict-${group.entityId}-${group.fieldName}`"
+        :key="
+          group.type === 'single'
+            ? group.change.id
+            : `conflict-${group.entityId}-${group.fieldName}`
+        "
       >
         <!-- AI : Single non-conflicting change -->
         <div v-if="group.type === 'single'" class="change-item">
@@ -53,7 +60,7 @@
               class="pi pi-info-circle conflict-info-icon"
               v-tooltip.top="$t('moderation.resolveConflictsTooltip')"
             ></i>
-            <span>{{ $t('moderation.conflictDetected') }}</span>
+            <span>{{ $t("moderation.conflictDetected") }}</span>
           </div>
 
           <!-- AI : List all competing changes -->
@@ -82,13 +89,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watchEffect } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useToast } from '@/composables/ui/useToast';
-import { useChangeRequestPreview } from '@/composables/overlay/useChangeRequestPreview';
-import { setChangeRequestsForPreview } from '@/composables/overlay/changeRequestPreviewState';
-import type { ProjectForModeration, OverlayForModeration, PendingChangeRequest } from '@/types/index';
-import ChangeValueDisplay from './ChangeValueDisplay.vue';
+import { computed, watchEffect } from "vue";
+import { useI18n } from "vue-i18n";
+import { useToast } from "@/composables/ui/useToast";
+import { useChangeRequestPreview } from "@/composables/overlay/useChangeRequestPreview";
+import { setChangeRequestsForPreview } from "@/services/overlay/changeRequestPreviewState";
+import type {
+  ProjectForModeration,
+  OverlayForModeration,
+  PendingChangeRequest,
+} from "@/types/index";
+import ChangeValueDisplay from "@/components/layout/ChangeValueDisplay.vue";
 
 interface Props {
   changes: PendingChangeRequest[];
@@ -106,14 +117,22 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   isMyContributions: false,
   isOverlayChanges: false,
-  entityName: '',
+  entityName: "",
   showHeader: true,
-  containerClass: '',
-  showUserStatsLink: false
+  containerClass: "",
+  showUserStatsLink: false,
 });
 
 const emit = defineEmits<{
-  'show-user-stats': [data: { userId: string; username?: string | null; approvedCount?: number | null; rejectedCount?: number | null; reportCount?: number }]
+  "show-user-stats": [
+    data: {
+      userId: string;
+      username?: string | null;
+      approvedCount?: number | null;
+      rejectedCount?: number | null;
+      reportCount?: number;
+    },
+  ];
 }>();
 
 const { t } = useI18n();
@@ -121,7 +140,7 @@ const toast = useToast();
 const {
   isPreviewingChange,
   getPreviewType,
-  previewGeometry: previewGeometryComposable
+  previewGeometry: previewGeometryComposable,
 } = useChangeRequestPreview();
 
 // AI : Sync change requests for preview state tracking when navigating via markers
@@ -132,24 +151,29 @@ watchEffect(() => {
 // AI : Computed property to check if a specific preview is active
 // AI : Preview state is now synced automatically when navigating to overlays via markers/selection
 const isPreviewActive = computed(() => {
-  return (changeId: string, type: 'old' | 'new') => {
+  return (changeId: string, type: "old" | "new") => {
     if (!isPreviewingChange(changeId)) return false;
     const previewType = getPreviewType(changeId);
-    return (type === 'old' && previewType === 'current') || (type === 'new' && previewType === 'suggested');
+    return (
+      (type === "old" && previewType === "current") ||
+      (type === "new" && previewType === "suggested")
+    );
   };
 });
 
 // AI : Group changes - separate conflicting changes from non-conflicting ones
-type ChangeGroup = {
-  type: 'single';
-  change: PendingChangeRequest;
-} | {
-  type: 'conflict';
-  fieldName: string;
-  entityType: string;
-  entityId: string;
-  changes: PendingChangeRequest[];
-};
+type ChangeGroup =
+  | {
+      type: "single";
+      change: PendingChangeRequest;
+    }
+  | {
+      type: "conflict";
+      fieldName: string;
+      entityType: string;
+      entityId: string;
+      changes: PendingChangeRequest[];
+    };
 
 const groupedChanges = computed<ChangeGroup[]>(() => {
   const groups: ChangeGroup[] = [];
@@ -160,10 +184,11 @@ const groupedChanges = computed<ChangeGroup[]>(() => {
 
     if (change.hasConflict) {
       // AI : Find all conflicting changes for the same field
-      const conflictingChanges = props.changes.filter(c =>
-        c.entityType === change.entityType &&
-        c.entityId === change.entityId &&
-        c.fieldName === change.fieldName
+      const conflictingChanges = props.changes.filter(
+        (c) =>
+          c.entityType === change.entityType &&
+          c.entityId === change.entityId &&
+          c.fieldName === change.fieldName,
       );
 
       // AI : Mark all as processed
@@ -173,18 +198,18 @@ const groupedChanges = computed<ChangeGroup[]>(() => {
 
       // AI : Add as conflict group
       groups.push({
-        type: 'conflict',
+        type: "conflict",
         fieldName: change.fieldName,
         entityType: change.entityType,
         entityId: change.entityId,
-        changes: conflictingChanges
+        changes: conflictingChanges,
       });
     } else {
       // AI : Single non-conflicting change
       processedIds.add(change.id);
       groups.push({
-        type: 'single',
-        change
+        type: "single",
+        change,
       });
     }
   }
@@ -193,13 +218,17 @@ const groupedChanges = computed<ChangeGroup[]>(() => {
 });
 
 // AI : Handle contributor click from ContributorInfo component
-function handleClickContributor(data: { userId: string; username: string | null; reportCount: number }) {
-  emit('show-user-stats', {
+function handleClickContributor(data: {
+  userId: string;
+  username: string | null;
+  reportCount: number;
+}) {
+  emit("show-user-stats", {
     userId: data.userId,
     username: data.username,
     approvedCount: 0, // Not available in change requests
     rejectedCount: 0, // Not available in change requests
-    reportCount: data.reportCount
+    reportCount: data.reportCount,
   });
 }
 
@@ -212,21 +241,21 @@ function formatFieldName(fieldName: string): string {
 }
 
 // AI : Wrapper function to handle preview with proper error handling
-async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', changeId: string) {
+async function previewGeometry(geometryValue: unknown, type: "old" | "new", changeId: string) {
   // AI : Find the change request
-  const change = props.allChangeRequests.find(c => c.id === changeId);
+  const change = props.allChangeRequests.find((c) => c.id === changeId);
   if (!change) {
     toast.add({
-      severity: 'error',
-      summary: t('overlay.changeNotFound'),
-      detail: t('overlay.couldNotFindChange'),
-      life: 3000
+      severity: "error",
+      summary: t("overlay.changeNotFound"),
+      detail: t("overlay.couldNotFindChange"),
+      life: 3000,
     });
     return;
   }
 
   // AI : Only handle overlay changes
-  if (change.entityType !== 'overlay') {
+  if (change.entityType !== "overlay") {
     return;
   }
 
@@ -234,17 +263,18 @@ async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', chan
   let overlayForModeration: OverlayForModeration | null = null;
   for (const project of props.projects) {
     if (project.overlays) {
-      overlayForModeration = project.overlays.find((o: OverlayForModeration) => o.id === change.entityId) ?? null;
+      overlayForModeration =
+        project.overlays.find((o: OverlayForModeration) => o.id === change.entityId) ?? null;
       if (overlayForModeration) break;
     }
   }
 
   if (!overlayForModeration) {
     toast.add({
-      severity: 'error',
-      summary: t('overlay.overlayNotFound'),
-      detail: t('overlay.couldNotFindOverlay'),
-      life: 3000
+      severity: "error",
+      summary: t("overlay.overlayNotFound"),
+      detail: t("overlay.couldNotFindOverlay"),
+      life: 3000,
     });
     return;
   }
@@ -254,7 +284,7 @@ async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', chan
     change,
     overlayForModeration,
     geometryValue,
-    type
+    type,
   });
 }
 </script>
@@ -345,7 +375,6 @@ async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', chan
 }
 
 @keyframes pulse {
-
   0%,
   100% {
     opacity: 1;
@@ -403,7 +432,7 @@ async function previewGeometry(geometryValue: unknown, type: 'old' | 'new', chan
 }
 
 /* AI : Adjust conflict banner for grouped display */
-.change-item.conflicted>.conflict-banner {
+.change-item.conflicted > .conflict-banner {
   margin: 0;
   border-radius: 4px 4px 0 0;
 }

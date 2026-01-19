@@ -1,6 +1,6 @@
-import { buildProjectPayload } from "@/composables/project/useProjectMutations";
+import { buildProjectPayload } from "@/services/project/projectMutations";
 import { useProjectStore } from "@/stores/pinia/projectStore";
-import { updateStandaloneProjectMarkerColor } from "@/composables/map/useCityMarkers";
+import { updateStandaloneProjectMarkerColor } from "@/services/map/standaloneProjectMarkers";
 import { trpc } from "@/client";
 import { useEditableFormBase } from "./useEditableFormBase";
 import { useToast } from "@/composables/ui/useToast";
@@ -115,8 +115,11 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       name: base.formData.name,
       description: base.formData.description ?? null,
       proposalDate: base.formData.proposalDate ?? null,
+      proposalDatePrecision: base.formData.proposalDatePrecision ?? null,
       startDate: base.formData.startDate ?? null,
+      startDatePrecision: base.formData.startDatePrecision ?? null,
       endDate: base.formData.endDate ?? null,
+      endDatePrecision: base.formData.endDatePrecision ?? null,
       sourceUrl: base.formData.sourceUrl ?? null,
       latestUpdateOn: base.formData.latestUpdateOn ?? null,
     });
@@ -130,8 +133,11 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
         name: base.formData.name,
         description: base.formData.description,
         proposalDate: base.formData.proposalDate,
+        proposalDatePrecision: base.formData.proposalDatePrecision,
         startDate: base.formData.startDate,
+        startDatePrecision: base.formData.startDatePrecision,
         endDate: base.formData.endDate,
+        endDatePrecision: base.formData.endDatePrecision,
         sourceUrl: base.formData.sourceUrl,
         latestUpdateOn: base.formData.latestUpdateOn,
         cityId: base.formData.cityId ?? undefined,
@@ -154,8 +160,11 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
         name: base.formData.name,
         description: base.formData.description ?? null,
         proposalDate: base.formData.proposalDate ?? null,
+        proposalDatePrecision: base.formData.proposalDatePrecision ?? null,
         startDate: base.formData.startDate ?? null,
+        startDatePrecision: base.formData.startDatePrecision ?? null,
         endDate: base.formData.endDate ?? null,
+        endDatePrecision: base.formData.endDatePrecision ?? null,
         sourceUrl: base.formData.sourceUrl ?? null,
         latestUpdateOn: base.formData.latestUpdateOn ?? null,
         lat: userContributionProject.lat,

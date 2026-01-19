@@ -8,11 +8,9 @@
       <div class="placement-content">
         <i class="pi pi-map-marker placement-icon"></i>
         <div class="placement-text">
-          <span
-            v-if="!markerCoordinates"
-            class="instruction"
-            >{{ $t('project.clickMapToPlace') }}</span
-          >
+          <span v-if="!markerCoordinates" class="instruction">{{
+            $t("project.clickMapToPlace")
+          }}</span>
           <span v-else class="coordinates-text"
             >{{ markerCoordinates.lat.toFixed(5) }}, {{ markerCoordinates.lng.toFixed(5) }}</span
           >
@@ -39,10 +37,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, onUnmounted } from 'vue';
-import { useOverlayStore } from '@/stores/pinia/overlayStore';
-import { map } from '@/composables/core/useMap';
-import { getMarkerSvg } from '@/composables/map/useMarkers';
+import { ref, watch, computed, onUnmounted } from "vue";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { map } from "@/services/core/map";
+import { getMarkerSvg } from "@/services/map/markers";
 
 // AI : Component props and emits
 interface Props {
@@ -50,9 +48,9 @@ interface Props {
 }
 
 interface Emits {
-  (e: 'update:visible', value: boolean): void;
-  (e: 'marker-coordinates', coordinates: { lat: number; lng: number }): void;
-  (e: 'marker-mode-enabled'): void;
+  (e: "update:visible", value: boolean): void;
+  (e: "marker-coordinates", coordinates: { lat: number; lng: number }): void;
+  (e: "marker-mode-enabled"): void;
 }
 
 const props = defineProps<Props>();
@@ -62,7 +60,7 @@ const emit = defineEmits<Emits>();
 const markerCoordinates = ref<{ lat: number; lng: number } | null>(null);
 const markerPlacementMode = ref(false);
 const cursorPosition = ref({ x: 0, y: 0 });
-const cursorMarkerSvg = getMarkerSvg('orange');
+const cursorMarkerSvg = getMarkerSvg("orange");
 
 // AI : Track mouse position over map for cursor-following marker
 function onMouseMove(e: MouseEvent) {
@@ -71,38 +69,46 @@ function onMouseMove(e: MouseEvent) {
   const rect = mapContainer.getBoundingClientRect();
   cursorPosition.value = {
     x: e.clientX - rect.left,
-    y: e.clientY - rect.top
+    y: e.clientY - rect.top,
   };
 }
 
 // AI : Setup/cleanup mouse move listener
-watch(() => props.visible, (newVisible) => {
-  if (newVisible) {
-    document.addEventListener('mousemove', onMouseMove);
-  } else {
-    document.removeEventListener('mousemove', onMouseMove);
-  }
-}, { immediate: true });
+watch(
+  () => props.visible,
+  (newVisible) => {
+    if (newVisible) {
+      document.addEventListener("mousemove", onMouseMove);
+    } else {
+      document.removeEventListener("mousemove", onMouseMove);
+    }
+  },
+  { immediate: true },
+);
 
 onUnmounted(() => {
-  document.removeEventListener('mousemove', onMouseMove);
+  document.removeEventListener("mousemove", onMouseMove);
 });
 
 // AI : Handle visibility changes
 const visible = computed({
   get: () => props.visible,
-  set: (value) => emit('update:visible', value)
+  set: (value) => emit("update:visible", value),
 });
 
 // AI : Auto-enable marker placement when dialog opens
-watch(() => props.visible, (newVisible) => {
-  if (newVisible) {
-    markerPlacementMode.value = true;
-    emit('marker-mode-enabled');
-  } else {
-    resetState();
-  }
-}, { immediate: true });
+watch(
+  () => props.visible,
+  (newVisible) => {
+    if (newVisible) {
+      markerPlacementMode.value = true;
+      emit("marker-mode-enabled");
+    } else {
+      resetState();
+    }
+  },
+  { immediate: true },
+);
 
 // AI : Handle marker coordinates from map click
 function setMarkerCoordinates(coordinates: { lat: number; lng: number }) {
@@ -111,16 +117,16 @@ function setMarkerCoordinates(coordinates: { lat: number; lng: number }) {
 
 // AI : Cancel marker placement
 function onCancel() {
-  emit('update:visible', false);
+  emit("update:visible", false);
 }
 
 // AI : Continue with marker coordinates
 function onContinue() {
   if (markerCoordinates.value) {
-    emit('marker-coordinates', markerCoordinates.value);
+    emit("marker-coordinates", markerCoordinates.value);
   }
   resetState();
-  emit('update:visible', false);
+  emit("update:visible", false);
 }
 
 // AI : Reset all state
@@ -131,15 +137,18 @@ function resetState() {
 
 // AI : Close dialog when map mode changes (prevents mixed mode states)
 const overlayStore = useOverlayStore();
-watch(() => overlayStore.mode, () => {
-  if (markerPlacementMode.value) {
-    onCancel();
-  }
-});
+watch(
+  () => overlayStore.mode,
+  () => {
+    if (markerPlacementMode.value) {
+      onCancel();
+    }
+  },
+);
 
 // AI : Expose functions to parent component
 defineExpose({
-  setMarkerCoordinates
+  setMarkerCoordinates,
 });
 </script>
 

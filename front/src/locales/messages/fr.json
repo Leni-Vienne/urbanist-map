@@ -42,13 +42,19 @@
     "yearsAgo": "il y a {count} ans"
   },
   "fields": {
+    "name": "Nom",
+    "description": "Description",
     "cityId": "Ville",
     "projectId": "Projet",
     "corners": "Positions des coins",
     "centroid": "Position centrale",
     "coordinates": "Coordonnées",
+    "proposalDate": "Date de proposition",
+    "proposalDatePrecision": "Précision de la date de proposition",
     "startDate": "Date de début",
+    "startDatePrecision": "Précision de la date de début",
     "endDate": "Date de fin",
+    "endDatePrecision": "Précision de la date de fin",
     "sourceUrl": "URL source",
     "caption": "Nom",
     "lat": "Latitude",
@@ -77,20 +83,29 @@
     "missingCityInfo": "Informations de ville manquantes",
     "cannotNavigateWithoutCity": "Impossible de naviguer sans informations de ville",
     "timelineStatus": "Statut chronologique",
-    "proposed": "Proposé",
+    "proposedStatus": "Proposé",
     "proposedDescription": "Projet non confirmé, dates non fixées",
     "plannedStatus": "Prévu",
     "plannedDescription": "Projet confirmé avec dates programmées",
     "proposalDate": "Date de proposition",
     "proposalDateHelp": "Quand ce projet a-t-il été proposé ou annoncé ?",
     "startDate": "Date de début des travaux",
-    "startDateHelp": "Quand les travaux commenceront-ils ?",
     "endDate": "Date de fin des travaux",
-    "endDateHelp": "Quand les travaux devraient-ils se terminer ?",
     "latestUpdateOn": "Dernière actualité média",
     "latestUpdateOnHelp": "Dernière mention de ce projet dans l'actualité ou les médias",
     "sourceUrl": "URL source",
     "optionalField": "Optionnel",
+    "yearOnly": "Année uniquement",
+    "monthYear": "Mois & Année",
+    "fullDate": "Date complète",
+    "year": "Année",
+    "alreadyStarted": "Déjà commencé, date de début inconnue",
+    "proposed": "Proposé",
+    "startsIn": "Commence en",
+    "startsOn": "Commence le",
+    "endsIn": "Se termine en",
+    "endsOn": "Se termine le",
+    "startDateOptional": "La date de début est facultative si le projet a déjà commencé",
     "validationError": "Erreur de validation",
     "locationRequired": "La localisation est requise",
     "timelineChangedFromProposedToPlanned": "Statut chronologique changé de Proposé ({proposalDate}) à Prévu",
@@ -299,7 +314,7 @@
     }
   },
   "app": {
-    "title": "Constructionmap.org",
+    "title": "constructionmap.org",
     "subtitle": "Une carte participative des projets de construction dans le monde",
     "closePanel": "Fermer le panneau"
   },
@@ -307,6 +322,7 @@
     "legal": "Mentions légales"
   },
   "submission": {
+    "updateProject": "Mettre à jour le projet",
     "confirmTitle": "Confirmer l'enregistrement",
     "requiresModeration": "Requiert modération",
     "immediateUpdate": "Mise à jour immédiate",
@@ -475,6 +491,8 @@
   "upload": {
     "noFileSelected": "Aucun fichier sélectionné",
     "selectImageFile": "Veuillez sélectionner un fichier image à télécharger",
+    "overlayTooLarge": "L'image est trop grande",
+    "maximumSizeOnMap": "La taille maximale est de 1km × 1km",
     "fileTooLarge": "Le fichier est trop volumineux. La taille maximale est de {maxSize} Mo."
   },
   "imageUpload": {
@@ -519,6 +537,9 @@
     "fieldNameRequired": "Le nom du champ est requis",
     "changesRequired": "Au moins une modification est requise",
     "invalidDate": "Date invalide",
+    "dayPrecisionRequiresFullDate": "La précision 'Date complète' nécessite le mois et le jour",
+    "monthPrecisionRequiresMonth": "La précision 'Mois' nécessite un mois",
+    "invalidDayForMonth": "Jour invalide pour le mois sélectionné",
     "genericError": "Entrée invalide"
   },
   "errors": {
@@ -688,7 +709,9 @@
   },
   "layerControl": {
     "baseMaps": "Fonds de carte",
-    "submitTileLayer": "Soumettre une nouvelle carte"
+    "submitTileLayer": "Soumettre une nouvelle carte",
+    "plan": "Plan",
+    "satellite": "Satellite"
   },
   "toasts": {
     "replacementOverlayCreated": "Image de remplacement créée",

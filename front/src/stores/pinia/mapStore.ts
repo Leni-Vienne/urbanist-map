@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import type { OverlayData } from "@/types/index";
-import type { MapMode } from "@shared/types";
+import type { AppMode } from "@shared/types";
 import type { RouterOutput } from "@/client";
 
 // AI : Type for selected city data (compatible with previous latestClickedCity interface)
@@ -28,11 +28,11 @@ export const useMapStore = defineStore("map", () => {
 
   // AI : City projects cache - mode-aware for smart caching (cityId → mode → data)
   // AI : This allows fast mode switching without backend calls while maintaining data correctness
-  const cityProjectsCache = ref<Map<number, Map<MapMode, OverlayData[]>>>(new Map());
+  const cityProjectsCache = ref<Map<number, Map<AppMode, OverlayData[]>>>(new Map());
 
   // AI : City standalone projects cache - mode-aware (cityId → mode → data)
   const cityStandaloneProjectsCache = ref<
-    Map<number, Map<MapMode, RouterOutput["project"]["getCityProjects"]>>
+    Map<number, Map<AppMode, RouterOutput["project"]["getCityProjects"]>>
   >(new Map());
 
   // AI : Set the currently selected city
@@ -53,18 +53,18 @@ export const useMapStore = defineStore("map", () => {
   }
 
   // AI : City cache management - mode-aware
-  function getCityOverlaysAndProjectsCache(cityId: number, mode: MapMode): OverlayData[] | null {
+  function getCityOverlaysAndProjectsCache(cityId: number, mode: AppMode): OverlayData[] | null {
     const cityCache = cityProjectsCache.value.get(cityId);
     if (!cityCache) return null;
     return cityCache.get(mode) ?? null;
   }
 
-  function hasCityProjectsCache(cityId: number, mode: MapMode): boolean {
+  function hasCityProjectsCache(cityId: number, mode: AppMode): boolean {
     const cityCache = cityProjectsCache.value.get(cityId);
     return cityCache?.has(mode) ?? false;
   }
 
-  function setCityProjectsCache(cityId: number, mode: MapMode, data: OverlayData[]) {
+  function setCityProjectsCache(cityId: number, mode: AppMode, data: OverlayData[]) {
     let cityCache = cityProjectsCache.value.get(cityId);
     if (!cityCache) {
       cityCache = new Map();
@@ -73,7 +73,7 @@ export const useMapStore = defineStore("map", () => {
     cityCache.set(mode, data);
   }
 
-  function clearCityProjectsCache(cityId?: number, mode?: MapMode) {
+  function clearCityProjectsCache(cityId?: number, mode?: AppMode) {
     if (cityId && mode) {
       // AI : Clear specific mode cache for a city
       const cityCache = cityProjectsCache.value.get(cityId);
@@ -92,21 +92,21 @@ export const useMapStore = defineStore("map", () => {
   // AI : Standalone projects cache management - mode-aware
   function getCityStandaloneProjectsCache(
     cityId: number,
-    mode: MapMode,
+    mode: AppMode,
   ): RouterOutput["project"]["getCityProjects"] | null {
     const cityCache = cityStandaloneProjectsCache.value.get(cityId);
     if (!cityCache) return null;
     return cityCache.get(mode) ?? null;
   }
 
-  function hasCityStandaloneProjectsCache(cityId: number, mode: MapMode): boolean {
+  function hasCityStandaloneProjectsCache(cityId: number, mode: AppMode): boolean {
     const cityCache = cityStandaloneProjectsCache.value.get(cityId);
     return cityCache?.has(mode) ?? false;
   }
 
   function setCityStandaloneProjectsCache(
     cityId: number,
-    mode: MapMode,
+    mode: AppMode,
     data: RouterOutput["project"]["getCityProjects"],
   ) {
     let cityCache = cityStandaloneProjectsCache.value.get(cityId);
@@ -117,7 +117,7 @@ export const useMapStore = defineStore("map", () => {
     cityCache.set(mode, data);
   }
 
-  function clearCityStandaloneProjectsCache(cityId?: number, mode?: MapMode) {
+  function clearCityStandaloneProjectsCache(cityId?: number, mode?: AppMode) {
     if (cityId && mode) {
       // AI : Clear specific mode cache for a city
       const cityCache = cityStandaloneProjectsCache.value.get(cityId);

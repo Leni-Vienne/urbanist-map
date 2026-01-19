@@ -79,14 +79,11 @@ import { onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { useLatestContributions } from "@/composables/overlay/useLatestContributions";
 import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
-import {
-  highlightOverlayById,
-  removeOverlayHighlight,
-} from "@/composables/overlay/useOverlaySelection";
-import { navigateToStandaloneProject } from "@/composables/navigation/useOverlayNavigation";
+import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/overlaySelection";
+import { navigateToStandaloneProject } from "@/services/navigation/overlayNavigation";
 import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { formatRelativeTime } from "@/utils/dateFormat";
-import { useImageErrors } from "@/utils/imageHelpers";
+import { useImageErrors } from "@/composables/ui/useImageErrors";
 import type { LatestContribution } from "@/types/index";
 
 const { t } = useI18n();

@@ -14,7 +14,7 @@
         >
           <!-- AI : Slot for content above drawer (e.g., mode controls) -->
           <div class="drawer-above-content" :style="{ bottom: aboveContentBottom }">
-            <slot name="above"></slot>
+            <slot name="above" :drawer-height-px="currentDrawerHeightPx"></slot>
           </div>
 
           <!-- AI : Drag handle at the top -->
@@ -42,189 +42,192 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 
 interface Props {
-  visible: boolean
-  header?: string
-  heightPercent?: number
+  visible: boolean;
+  header?: string;
+  heightPercent?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  header: '',
-  heightPercent: 40
-})
+  header: "",
+  heightPercent: 40,
+});
 
 // AI : Internal configuration (not exposed as props)
-const MIN_HEIGHT_PX = 65
-const MAX_HEIGHT_PERCENT = 90
+const MIN_HEIGHT_PX = 65;
+const MAX_HEIGHT_PERCENT = 90;
 
 const emit = defineEmits<{
-  'update:visible': [value: boolean]
-  'update:heightPercent': [value: number]
-  'heightChanged': [value: number]
-}>()
+  "update:visible": [value: boolean];
+  "update:heightPercent": [value: number];
+  heightChanged: [value: number];
+}>();
 
-const drawerRef = ref<HTMLElement | null>(null)
-const isDragging = ref(false)
-const startY = ref(0)
-const startHeight = ref(0)
-const currentHeight = ref(props.heightPercent)
-const viewportHeight = ref(0)
+const drawerRef = ref<HTMLElement | null>(null);
+const isDragging = ref(false);
+const startY = ref(0);
+const startHeight = ref(0);
+const currentHeight = ref(props.heightPercent);
+const viewportHeight = ref(0);
 
 // AI : Convert minimum height from pixels to viewport percentage
 const minHeightPercent = computed(() => {
-  return (MIN_HEIGHT_PX / viewportHeight.value) * 100
-})
+  return (MIN_HEIGHT_PX / viewportHeight.value) * 100;
+});
 
-// AI : Calculate safe bottom position for above-content (min 110px from viewport bottom)
+// AI : Calculate current drawer height in pixels for slot consumers
+const currentDrawerHeightPx = computed(() => {
+  return (currentHeight.value / 100) * viewportHeight.value;
+});
+
+// AI : Position above-content exactly at the top of the drawer (100%)
+// AI : Clamping logic is now delegated to the slot consumer via drawerHeightPx
 const aboveContentBottom = computed(() => {
-  const drawerHeightPx = (currentHeight.value / 100) * viewportHeight.value
-  const MIN_FROM_BOTTOM = 110 // AI : Minimum pixels from viewport bottom
-
-  // AI : If drawer is below 100px, clamp above-content to stay at 110px from bottom
-  if (drawerHeightPx < MIN_FROM_BOTTOM) {
-    return `${MIN_FROM_BOTTOM}px`
-  }
-
-  // AI : Otherwise, position normally above drawer
-  return '100%'
-})
+  return "100%";
+});
 
 // AI : Calculate drawer style with smooth transitions
 const drawerStyle = computed(() => {
-  const height = Math.min(MAX_HEIGHT_PERCENT, currentHeight.value)
+  const height = Math.min(MAX_HEIGHT_PERCENT, currentHeight.value);
   return {
     height: `${height}vh`,
-    transition: isDragging.value ? 'none' : 'height 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-  }
-})
+    transition: isDragging.value ? "none" : "height 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+  };
+});
 
 // AI : Check if drawer is in compact mode
 const isCompact = computed(() => {
-  return currentHeight.value <= minHeightPercent.value
-})
+  return currentHeight.value <= minHeightPercent.value;
+});
 
 // AI : Update current height when prop changes
-watch(() => props.heightPercent, (newHeight) => {
-  if (!isDragging.value) {
-    currentHeight.value = newHeight
-  }
-})
+watch(
+  () => props.heightPercent,
+  (newHeight) => {
+    if (!isDragging.value) {
+      currentHeight.value = newHeight;
+    }
+  },
+);
 
 // AI : Keep drawer at minimum height when viewport resizes
-watch(() => minHeightPercent.value, (newMinPercent, oldMinPercent) => {
-  if (!isDragging.value && oldMinPercent > 0) {
-    const wasAtMinimum = Math.abs(currentHeight.value - oldMinPercent) < 0.5
-    if (wasAtMinimum) {
-      currentHeight.value = newMinPercent
-      emit('update:heightPercent', newMinPercent)
-      emit('heightChanged', newMinPercent)
+watch(
+  () => minHeightPercent.value,
+  (newMinPercent, oldMinPercent) => {
+    if (!isDragging.value && oldMinPercent > 0) {
+      const wasAtMinimum = Math.abs(currentHeight.value - oldMinPercent) < 0.5;
+      if (wasAtMinimum) {
+        currentHeight.value = newMinPercent;
+        emit("update:heightPercent", newMinPercent);
+        emit("heightChanged", newMinPercent);
+      }
     }
-  }
-})
+  },
+);
 
 function handleBackdropClick() {
   // AI : Backdrop clicks disabled for mobile drawer
 }
 
 function handleTouchStart(e: TouchEvent) {
-  const target = e.target as HTMLElement
-  if (!target.closest('.drawer-handle') && !target.closest('.drawer-header')) {
-    return
+  const target = e.target as HTMLElement;
+  if (!target.closest(".drawer-handle") && !target.closest(".drawer-header")) {
+    return;
   }
 
-  isDragging.value = true
-  startY.value = e.touches[0].clientY
-  startHeight.value = currentHeight.value
-  viewportHeight.value = globalThis.innerHeight
+  isDragging.value = true;
+  startY.value = e.touches[0].clientY;
+  startHeight.value = currentHeight.value;
+  viewportHeight.value = globalThis.innerHeight;
 }
 
 function handleTouchMove(e: TouchEvent) {
-  if (!isDragging.value) return
-  e.preventDefault()
+  if (!isDragging.value) return;
+  e.preventDefault();
 
-  const deltaY = startY.value - e.touches[0].clientY
-  const deltaPercent = (deltaY / viewportHeight.value) * 100
+  const deltaY = startY.value - e.touches[0].clientY;
+  const deltaPercent = (deltaY / viewportHeight.value) * 100;
 
-  const newHeight = Math.min(MAX_HEIGHT_PERCENT, startHeight.value + deltaPercent)
-  currentHeight.value = newHeight
+  const newHeight = Math.min(MAX_HEIGHT_PERCENT, startHeight.value + deltaPercent);
+  currentHeight.value = newHeight;
 
   // AI : Emit updates during drag for continuous reactivity
-  emit('update:heightPercent', newHeight)
-  emit('heightChanged', newHeight)
+  emit("update:heightPercent", newHeight);
+  emit("heightChanged", newHeight);
 }
 
 function handleTouchEnd() {
-  if (!isDragging.value) return
+  if (!isDragging.value) return;
 
-  isDragging.value = false
-  finalizePosition()
+  isDragging.value = false;
+  finalizePosition();
 }
 
 function handleMouseDown(e: MouseEvent) {
-  const target = e.target as HTMLElement
-  if (!target.closest('.drawer-handle') && !target.closest('.drawer-header')) {
-    return
+  const target = e.target as HTMLElement;
+  if (!target.closest(".drawer-handle") && !target.closest(".drawer-header")) {
+    return;
   }
 
-  isDragging.value = true
-  startY.value = e.clientY
-  startHeight.value = currentHeight.value
-  viewportHeight.value = globalThis.innerHeight
+  isDragging.value = true;
+  startY.value = e.clientY;
+  startHeight.value = currentHeight.value;
+  viewportHeight.value = globalThis.innerHeight;
 
   function handleMouseMove(moveEvent: MouseEvent) {
-    if (!isDragging.value) return
+    if (!isDragging.value) return;
 
-    const deltaY = startY.value - moveEvent.clientY
-    const deltaPercent = (deltaY / viewportHeight.value) * 100
+    const deltaY = startY.value - moveEvent.clientY;
+    const deltaPercent = (deltaY / viewportHeight.value) * 100;
 
-    const newHeight = Math.min(MAX_HEIGHT_PERCENT, startHeight.value + deltaPercent)
-    currentHeight.value = newHeight
+    const newHeight = Math.min(MAX_HEIGHT_PERCENT, startHeight.value + deltaPercent);
+    currentHeight.value = newHeight;
 
     // AI : Emit updates during drag for continuous reactivity
-    emit('update:heightPercent', newHeight)
-    emit('heightChanged', newHeight)
+    emit("update:heightPercent", newHeight);
+    emit("heightChanged", newHeight);
   }
 
   function handleMouseUp() {
-    if (!isDragging.value) return
+    if (!isDragging.value) return;
 
-    isDragging.value = false
-    finalizePosition()
+    isDragging.value = false;
+    finalizePosition();
 
-    document.removeEventListener('mousemove', handleMouseMove)
-    document.removeEventListener('mouseup', handleMouseUp)
+    document.removeEventListener("mousemove", handleMouseMove);
+    document.removeEventListener("mouseup", handleMouseUp);
   }
 
-  document.addEventListener('mousemove', handleMouseMove)
-  document.addEventListener('mouseup', handleMouseUp)
+  document.addEventListener("mousemove", handleMouseMove);
+  document.addEventListener("mouseup", handleMouseUp);
 }
 
 function finalizePosition() {
   if (currentHeight.value < minHeightPercent.value) {
-    currentHeight.value = minHeightPercent.value
+    currentHeight.value = minHeightPercent.value;
   }
 
-  emit('update:heightPercent', currentHeight.value)
-  emit('heightChanged', currentHeight.value)
+  emit("update:heightPercent", currentHeight.value);
+  emit("heightChanged", currentHeight.value);
 }
 
 // AI : Initialize height on mount
 onMounted(() => {
-  currentHeight.value = props.heightPercent
-  viewportHeight.value = globalThis.innerHeight
+  currentHeight.value = props.heightPercent;
+  viewportHeight.value = globalThis.innerHeight;
 
   function handleResize() {
-    viewportHeight.value = globalThis.innerHeight
+    viewportHeight.value = globalThis.innerHeight;
   }
 
-  globalThis.addEventListener('resize', handleResize)
+  globalThis.addEventListener("resize", handleResize);
 
   onUnmounted(() => {
-    globalThis.removeEventListener('resize', handleResize)
-  })
-})
+    globalThis.removeEventListener("resize", handleResize);
+  });
+});
 </script>
 
 <style scoped>
@@ -254,7 +257,6 @@ onMounted(() => {
   touch-action: none;
   pointer-events: auto;
 }
-
 
 /* No idea why but those 4 classes below are needed, otherwise the dragrabble drawer disappears on mobile */
 .drawer-fade-enter-from .draggable-drawer,

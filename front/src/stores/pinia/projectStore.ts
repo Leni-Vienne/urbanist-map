@@ -8,9 +8,9 @@ import type {
   UserContribution,
   UserContributionOverlay,
 } from "@/types/index";
-import type { MapMode } from "@shared/types";
+import type { AppMode } from "@shared/types";
 import { trpc, type RouterOutput } from "@/client";
-import { createProjectObjectFromAPI, createProjectObject } from "../../utils/typeFactories";
+import { createProjectObjectFromAPI, createProjectObject } from "@/utils/typeFactories";
 
 // AI : Helper function to replace an item in an array immutably at a given index
 function replaceAtIndex<T>(arr: T[], index: number, newItem: T): T[] {
@@ -27,7 +27,7 @@ function removeAtIndex<T>(arr: T[], index: number): T[] {
 // AI : Helper functions moved inside store to access state
 
 // AI : Cities cache management (separate cache per mode)
-function getCitiesCacheKey(countryCode: string, mode: MapMode): string {
+function getCitiesCacheKey(countryCode: string, mode: AppMode): string {
   return `${countryCode}:${mode}`;
 }
 
@@ -53,17 +53,15 @@ export const useProjectStore = defineStore("project", () => {
   >(new Map());
 
   // AI : Cache for global cities by mode (no country filter)
-  const globalCitiesCache = ref<Map<MapMode, RouterOutput["cities"]["getCitiesWithProjects"]>>(
+  const globalCitiesCache = ref<Map<AppMode, RouterOutput["cities"]["getCitiesWithProjects"]>>(
     new Map(),
   );
 
   // AI : Cache countries separately per mode
-  const countriesCache = ref<Map<MapMode, Country[]>>(new Map());
+  const countriesCache = ref<Map<AppMode, Country[]>>(new Map());
 
   // AI : Centralized nearby projects data management
   const nearbyProjects = ref<NearbyProject[]>([]);
-  const nearbyProjectsLoading = ref(false);
-  const nearbyProjectsError = ref<string | null>(null);
   const nearbyProjectsLastFetch = ref<{ lat: number; lng: number; timestamp: number } | null>(null);
 
   // AI : User contributions cache - Map-based cache for different parameter combinations
@@ -72,13 +70,9 @@ export const useProjectStore = defineStore("project", () => {
   // AI : Cache key format: "cityId:includeCityProjects" (e.g., "null:false", "3029241:true")
   const userContributionsCache = ref<Map<string, UserContribution[]>>(new Map());
 
-  // AI : Cache original backend projects for change detection
-  // AI : Stores snapshots of approved projects before local modifications
-  const originalBackendProjects = ref<Record<string, Project>>({});
-
-  // AI : Cache original user contributions for change detection (from ContributePanel)
-  // AI : Stores snapshots of contribution projects before local modifications
-  const originalUserContributions = ref<Record<string, UserContribution>>({});
+  // AI : Cache original projects for change detection
+  // AI : Stores snapshots of projects (from map or contributions) before local modifications
+  const originalProjects = ref<Record<string, Project | UserContribution>>({});
 
   // AI : Simple cache for city names (cityId -> city name)
   // AI : Populated when cities are used in forms or loaded from backend
@@ -93,11 +87,8 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   // AI : Helper to get original project state for change detection
-  // AI : Checks both originalBackendProjects (from map) and originalUserContributions (from ContributePanel)
   function getOriginalProject(projectId: string): Project | UserContribution | null {
-    return (
-      originalBackendProjects.value[projectId] ?? originalUserContributions.value[projectId] ?? null
-    );
+    return originalProjects.value[projectId] ?? null;
   }
 
   // AI : Helper function to extract city metadata from project for user contributions
@@ -134,6 +125,7 @@ export const useProjectStore = defineStore("project", () => {
       replacedByOverlayId: null,
       updatedAt: new Date(),
       cityId: project.cityId,
+      imageUrl: overlay.imageUrl, // AI : Pass the full image URL (Data URI or backend URL)
       ...extractCityMetadata(project),
     };
   }
@@ -163,11 +155,11 @@ export const useProjectStore = defineStore("project", () => {
     userContributions.value = contributions;
     userContributionsCache.value.set(cacheKey, contributions);
 
-    // AI : Cache original backend state for change detection (only if not already cached)
+    // AI : Cache original state for change detection (only if not already cached)
     for (const contribution of contributions) {
-      if (!originalUserContributions.value[contribution.id]) {
-        originalUserContributions.value = {
-          ...originalUserContributions.value,
+      if (!originalProjects.value[contribution.id]) {
+        originalProjects.value = {
+          ...originalProjects.value,
           [contribution.id]: { ...contribution },
         };
       }
@@ -235,9 +227,9 @@ export const useProjectStore = defineStore("project", () => {
 
       // AI : Cache the original project state with overlay for change detection
       // AI : Only cache if this is a new overlay (not replacing an existing one)
-      if (existingOverlayIndex === -1 && !originalUserContributions.value[project.id]) {
-        originalUserContributions.value = {
-          ...originalUserContributions.value,
+      if (existingOverlayIndex === -1 && !originalProjects.value[project.id]) {
+        originalProjects.value = {
+          ...originalProjects.value,
           [project.id]: { ...updatedProject } as UserContribution,
         };
       }
@@ -259,9 +251,9 @@ export const useProjectStore = defineStore("project", () => {
       userContributions.value = [newProject, ...userContributions.value];
 
       // AI : Cache the original project state for change detection
-      if (!originalUserContributions.value[project.id]) {
-        originalUserContributions.value = {
-          ...originalUserContributions.value,
+      if (!originalProjects.value[project.id]) {
+        originalProjects.value = {
+          ...originalProjects.value,
           [project.id]: { ...newProject } as UserContribution,
         };
       }
@@ -300,9 +292,9 @@ export const useProjectStore = defineStore("project", () => {
     userContributions.value = [newContrib, ...userContributions.value];
 
     // AI : Cache the original for change detection/reset functionality
-    if (!originalUserContributions.value[project.id]) {
-      originalUserContributions.value = {
-        ...originalUserContributions.value,
+    if (!originalProjects.value[project.id]) {
+      originalProjects.value = {
+        ...originalProjects.value,
         [project.id]: { ...newContrib } as UserContribution,
       };
     }
@@ -417,17 +409,17 @@ export const useProjectStore = defineStore("project", () => {
       current = allProjectsData[projectId];
     }
 
-    // AI : Save original backend version before first modification (for change detection)
+    // AI : Save original version before first modification (for change detection)
     // AI : This applies to all backend projects (approved, pending, or rejected)
     // AI : Cache original before first modification for reset functionality
     if (
       current &&
-      !originalBackendProjects.value[projectId] &&
+      !originalProjects.value[projectId] &&
       current.status !== null && // AI : Has a backend status (not local-only)
       !current.isModified
     ) {
-      originalBackendProjects.value = {
-        ...originalBackendProjects.value,
+      originalProjects.value = {
+        ...originalProjects.value,
         [projectId]: { ...current },
       };
     }
@@ -447,9 +439,9 @@ export const useProjectStore = defineStore("project", () => {
     let project = projects.value[projectId];
     project ??= allProjects.value[projectId];
 
-    if (project && !originalBackendProjects.value[projectId]) {
-      originalBackendProjects.value = {
-        ...originalBackendProjects.value,
+    if (project && !originalProjects.value[projectId]) {
+      originalProjects.value = {
+        ...originalProjects.value,
         [projectId]: { ...project },
       };
     }
@@ -529,9 +521,6 @@ export const useProjectStore = defineStore("project", () => {
         }
       }
 
-      nearbyProjectsLoading.value = true;
-      nearbyProjectsError.value = null;
-
       // AI : Call the TRPC endpoint to fetch nearby projects
       const response = await trpc.project.getProjectsNearLocation.query({
         lat,
@@ -548,31 +537,17 @@ export const useProjectStore = defineStore("project", () => {
       return response.projects;
     } catch (error) {
       console.error("Error fetching nearby projects:", error);
-      nearbyProjectsError.value =
-        error instanceof Error ? error.message : "Failed to fetch nearby projects";
       return [];
-    } finally {
-      nearbyProjectsLoading.value = false;
     }
   }
 
   function setNearbyProjects(projectsData: NearbyProject[]) {
     nearbyProjects.value = projectsData;
-    nearbyProjectsError.value = null;
   }
 
   function clearNearbyProjects(): void {
     nearbyProjects.value = [];
-    nearbyProjectsError.value = null;
     nearbyProjectsLastFetch.value = null;
-  }
-
-  function setNearbyProjectsLoading(loading: boolean): void {
-    nearbyProjectsLoading.value = loading;
-  }
-
-  function setNearbyProjectsError(error: string | null): void {
-    nearbyProjectsError.value = error;
   }
 
   /**
@@ -590,19 +565,19 @@ export const useProjectStore = defineStore("project", () => {
     }
   }
 
-  function getCachedCities(countryCode: string, mode: MapMode) {
+  function getCachedCities(countryCode: string, mode: AppMode) {
     return citiesCache.value.get(getCitiesCacheKey(countryCode, mode)) ?? null;
   }
 
   function setCachedCities(
     countryCode: string,
-    mode: MapMode,
+    mode: AppMode,
     cities: (RouterOutput["cities"]["getCitiesWithProjects"][number] & { distance: number })[],
   ): void {
     citiesCache.value.set(getCitiesCacheKey(countryCode, mode), cities);
   }
 
-  function hasCachedCities(countryCode: string, mode: MapMode): boolean {
+  function hasCachedCities(countryCode: string, mode: AppMode): boolean {
     return citiesCache.value.has(getCitiesCacheKey(countryCode, mode));
   }
 
@@ -611,15 +586,15 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   // AI : Countries cache management - store and retrieve countries per mode
-  function getCachedCountries(mode: MapMode): Country[] | null {
+  function getCachedCountries(mode: AppMode): Country[] | null {
     return countriesCache.value.get(mode) ?? null;
   }
 
-  function setCachedCountries(mode: MapMode, countriesData: Country[]): void {
+  function setCachedCountries(mode: AppMode, countriesData: Country[]): void {
     countriesCache.value.set(mode, countriesData);
   }
 
-  function hasCachedCountries(mode: MapMode): boolean {
+  function hasCachedCountries(mode: AppMode): boolean {
     return countriesCache.value.has(mode);
   }
 
@@ -649,9 +624,8 @@ export const useProjectStore = defineStore("project", () => {
     // AI : Clear nearby projects (context-specific)
     clearNearbyProjects();
 
-    // AI : Clear original backend state caches (user-specific)
-    originalBackendProjects.value = {};
-    originalUserContributions.value = {};
+    // AI : Clear original state cache (user-specific)
+    originalProjects.value = {};
 
     // AI : Clear city names cache (can be rebuilt)
     cityNamesCache.value = {};
@@ -668,7 +642,7 @@ export const useProjectStore = defineStore("project", () => {
   // AI : Fetch standalone projects for a city (migrated from useCityMarkers)
   async function fetchCityStandaloneProjects(
     cityId: number | null,
-    mode: MapMode,
+    mode: AppMode,
   ): Promise<RouterOutput["project"]["getCityProjects"]> {
     try {
       // AI : Note: We don't access mapStore here to avoid circular dependencies if possible.
@@ -694,7 +668,7 @@ export const useProjectStore = defineStore("project", () => {
   // AI : Fetch global cities with projects (migrated from useCityMarkers)
   // AI : Uses cache to avoid redundant API calls on mode switches
   async function fetchCitiesWithProjects(
-    mode: MapMode,
+    mode: AppMode,
   ): Promise<RouterOutput["cities"]["getCitiesWithProjects"]> {
     // AI : Check cache first
     const cached = globalCitiesCache.value.get(mode);
@@ -718,19 +692,74 @@ export const useProjectStore = defineStore("project", () => {
     globalCitiesCache.value.clear();
   }
 
+  // AI : Helper to merge backend cities with cities from local/pending projects
+  // AI : extracted from cityMarkers.ts to centralize data logic
+  function getMergedCities(
+    backendCities: RouterOutput["cities"]["getCitiesWithProjects"],
+    currentUserId: string | null,
+  ): RouterOutput["cities"]["getCitiesWithProjects"] {
+    // AI : Include both local (unsaved) and user's pending projects
+    const userProjectsToInclude = Object.values(projects.value).filter((p) => {
+      // AI : Local projects (not yet submitted)
+      if (p.status === null || p.status === undefined) return true;
+
+      // AI : User's own pending projects (submitted but not approved)
+      if (p.status === "pending" && currentUserId && p.ownerId === currentUserId) return true;
+
+      return false;
+    });
+
+    if (userProjectsToInclude.length === 0) {
+      return backendCities;
+    }
+
+    // AI : Build a map of city IDs from user projects
+    // AI : Explicitly type as Map<number, CityWithProjects>
+    const localProjectCitiesMap = new Map<
+      number,
+      RouterOutput["cities"]["getCitiesWithProjects"][number]
+    >();
+
+    for (const project of userProjectsToInclude) {
+      if (project.city && project.cityId) {
+        // AI : Only add to map if not already present
+        if (!localProjectCitiesMap.has(project.cityId)) {
+          localProjectCitiesMap.set(project.cityId, {
+            id: project.cityId,
+            name: project.city.name,
+            nameLocal: project.city.nameLocal ?? null,
+            lat: project.city.coordinates.y,
+            lng: project.city.coordinates.x,
+            countryCode: project.city.countryCode,
+            projectCount: 0, // AI : Local projects, count doesn't matter for display
+          });
+        }
+      }
+    }
+
+    // AI : Add cities from local projects that aren't already in the city list
+    const existingCityIds = new Set(backendCities.map((c) => c.id));
+    const additionalCities: RouterOutput["cities"]["getCitiesWithProjects"] = [];
+
+    for (const [cityId, cityData] of localProjectCitiesMap) {
+      if (!existingCityIds.has(cityId)) {
+        additionalCities.push(cityData);
+      }
+    }
+
+    return additionalCities.length > 0 ? [...backendCities, ...additionalCities] : backendCities;
+  }
+
   return {
     // State
     projects,
     selectedProjectId,
     countries,
     nearbyProjects,
-    nearbyProjectsLoading,
-    nearbyProjectsError,
     userContributions,
     userContributionsLoading,
     userContributionsCache,
-    originalBackendProjects,
-    originalUserContributions,
+    originalProjects,
     cityNamesCache,
 
     // Computed properties
@@ -761,8 +790,6 @@ export const useProjectStore = defineStore("project", () => {
     fetchNearbyProjects,
     setNearbyProjects,
     clearNearbyProjects,
-    setNearbyProjectsLoading,
-    setNearbyProjectsError,
 
     // Cities cache actions
     getCachedCities,
@@ -780,6 +807,7 @@ export const useProjectStore = defineStore("project", () => {
     fetchCityStandaloneProjects,
     fetchCitiesWithProjects,
     clearGlobalCitiesCache,
+    getMergedCities,
 
     // Comprehensive cleanup
     clearAllState,

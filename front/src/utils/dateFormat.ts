@@ -3,7 +3,7 @@
  * No localization needed - uses plain numeric format
  */
 
-import { t } from "@/locales";
+import { dbToFlexibleDate, formatFlexibleDate } from "./flexibleDateHelpers";
 
 /**
  * AI : Format a date as dd/mm/yyyy
@@ -24,28 +24,49 @@ export function formatDate(date: Date | string | null | undefined): string {
 }
 
 /**
- * AI : Format project date range including proposal date support with i18n
- * Uses the global translation function
+ * AI : Format a project date range based on timeline status
+ * AI : Now supports flexible date precision
+ * @param startDate - The start date of the project
+ * @param endDate - The end date of the project
+ * @param proposalDate - The proposal date (if project is proposed)
+ * @param startDatePrecision - Precision level for start date (year, month, day)
+ * @param endDatePrecision - Precision level for end date (year, month, day)
+ * @param proposalDatePrecision - Precision level for proposal date (year, month, day)
+ * @param t - The vue-i18n translation function
+ * @returns A formatted date range string
  */
 export function formatProjectDateRange(
-  startDate: Date | null,
-  endDate: Date | null,
-  proposalDate?: Date | null,
+  startDate: Date | null | undefined,
+  endDate: Date | null | undefined,
+  proposalDate: Date | null | undefined,
+  startDatePrecision?: "year" | "month" | "day" | null,
+  endDatePrecision?: "year" | "month" | "day" | null,
+  proposalDatePrecision?: "year" | "month" | "day" | null,
+  t = (key: string) => key,
 ): string {
   // AI : If it's a proposed project, show "Proposed on {date}"
   if (proposalDate) {
-    return `${t("project.proposed")} ${formatDate(proposalDate)}`;
+    const proposalDateStr = formatFlexibleDate(
+      dbToFlexibleDate(proposalDate, proposalDatePrecision),
+    );
+    return `${t("project.proposed")} ${proposalDateStr}`;
   }
 
-  const start = startDate ? formatDate(startDate) : null;
-  const end = endDate ? formatDate(endDate) : null;
+  const start = startDate
+    ? formatFlexibleDate(dbToFlexibleDate(startDate, startDatePrecision))
+    : null;
+  const end = endDate ? formatFlexibleDate(dbToFlexibleDate(endDate, endDatePrecision)) : null;
 
   if (start && end) {
     return `${start} - ${end}`;
   } else if (start) {
-    return `${t("project.starts")} ${start}`;
+    // AI : Use "Starts in" for year/month precision, "Starts on" for day precision
+    const startsKey = startDatePrecision === "day" ? "project.startsOn" : "project.startsIn";
+    return `${t(startsKey)} ${start}`;
   } else if (end) {
-    return `${t("project.ends")} ${end}`;
+    // AI : Use "Ends in" for year/month precision, "Ends on" for day precision
+    const endsKey = endDatePrecision === "day" ? "project.endsOn" : "project.endsIn";
+    return `${t(endsKey)} ${end}`;
   }
   return "";
 }

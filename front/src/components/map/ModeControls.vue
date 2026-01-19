@@ -22,9 +22,9 @@
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useToast } from "@/composables/ui/useToast";
-import { switchMode } from "@/composables/overlay/useModeSwitching";
+import { switchMode } from "@/services/overlay/modeSwitching";
 import { useI18n } from "vue-i18n";
-import type { MapMode } from "@shared/types";
+import type { AppMode } from "@shared/types";
 
 defineProps<{
   isMobile?: boolean;
@@ -94,7 +94,7 @@ function handleModeSwitch() {
     isSwitchingMode = true;
     const currentMode = overlayStore.mode;
 
-    let newMode: MapMode;
+    let newMode: AppMode;
 
     if (authStore.isModerator) {
       // AI : Moderators cycle through all 3 modes
@@ -132,7 +132,7 @@ function handleModeSwitch() {
       lastToastTime = now;
 
       // AI : Get the correct i18n key based on which mode we switched to
-      const modeSummaryKeys: Record<MapMode, string> = {
+      const modeSummaryKeys: Record<AppMode, string> = {
         view: "moderation.switchedToViewMode",
         edit: "moderation.switchedToEditMode",
         moderation: "moderation.switchedToModerationMode",
@@ -167,6 +167,12 @@ function handleModeSwitch() {
   justify-content: center;
   align-items: center;
   pointer-events: none;
+}
+
+.mode-controls-wrapper-mobile {
+  position: relative;
+  z-index: 20;
+  /* AI : Ensure it sits coverage SatellitePreview (z-index 10) if they overlap */
 }
 
 /* AI : Clickable mode indicator pill with integrated switch icon */

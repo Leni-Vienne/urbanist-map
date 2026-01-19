@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 import * as fs from "node:fs";
 import * as readline from "node:readline";
 import * as path from "node:path";
+import { parseCSVLine } from "../utils/csv-parser";
 
 /**
  * AI : Import countries and cities from GeoNames data with local name support
@@ -93,31 +94,6 @@ async function loadCountryCoordinates(): Promise<void> {
   }
 
   console.log(`  ✓ Loaded coordinates for ${countryCoordinates.size} countries`);
-}
-
-/**
- * AI : Parse a CSV line handling quoted fields properly
- */
-function parseCSVLine(line: string): string[] {
-  const fields: string[] = [];
-  let currentField = "";
-  let inQuotes = false;
-
-  for (const char of line) {
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === "," && !inQuotes) {
-      fields.push(currentField);
-      currentField = "";
-    } else {
-      currentField += char;
-    }
-  }
-
-  // AI : Push the last field
-  fields.push(currentField);
-
-  return fields;
 }
 
 /**
