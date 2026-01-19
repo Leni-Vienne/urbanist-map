@@ -27,7 +27,7 @@ import {
   loadedCityIds,
   fetchCityStandaloneProjectsOrCache,
 } from "@/services/navigation/cityDataLoader";
-import type { OverlayData } from "@/types/index";
+import type { OverlayData, OverlayObject } from "@/types/index";
 import {
   createProjectObject,
   toProjectPartial,
@@ -587,19 +587,35 @@ export function useViewportContentManager() {
         // AI : CRITICAL: When switching modes, hide overlays that shouldn't be visible in the new mode
         // AI : We unmount them (remove from map) but keep in store so they can reappear when switching modes
         if (hasLoadedOverlays) {
+          const updates: Record<string, Partial<OverlayObject>> = {};
+          const markersToRemove: string[] = [];
+          const authStore = useAuthStore();
+          const currentUserId = authStore.user?.id;
+
           for (const [id, overlay] of Object.entries(overlayStore.overlays)) {
             // AI : Determine if overlay should be hidden based on new mode //
-            const authStore = useAuthStore();
-            const currentUserId = authStore.user?.id;
             const shouldHide = !isOverlayVisible(overlay, newMode, currentUserId);
 
             if (shouldHide) {
               if (overlay.overlay) overlay.overlay.remove();
               if (overlay.marker) overlay.marker.remove();
-              overlayStore.updateOverlay(id, { overlay: null, marker: null });
+
+              // AI : Queue update instead of triggering reactivity immediately
+              updates[id] = { overlay: null, marker: null };
+
               // AI : CRITICAL: Clear from allMarkers cache so it can be recreated when switching back
-              delete overlayStore.allMarkers[id];
+              markersToRemove.push(id);
             }
+          }
+
+          // AI : Execute batch updates (O(1) reactivity trigger)
+          if (Object.keys(updates).length > 0) {
+            overlayStore.batchUpdateOverlays(updates);
+          }
+
+          // AI : Batch clear markers
+          if (markersToRemove.length > 0) {
+            overlayStore.clearMarkersFromCache(markersToRemove);
           }
         }
 

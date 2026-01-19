@@ -30,6 +30,60 @@ export function pruneMapEntities() {
 }
 
 /**
+ * AI : Queue for progressive overlay destruction to prevent main thread blocking (UI Freeze)
+ * AI : Used when hiding many overlays at once (e.g. Edit -> View mode switch)
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const destructionQueue = new Set<string>();
+let isDestructionQueueRunning = false;
+
+function processDestructionQueue() {
+  if (destructionQueue.size === 0) {
+    isDestructionQueueRunning = false;
+    return;
+  }
+
+  isDestructionQueueRunning = true;
+
+  // AI : Process up to 10 overlays per frame
+  // AI : Destruction is cheaper than creation, so we can process more
+  let processedCount = 0;
+  const BATCH_SIZE = 10;
+  const overlayStore = useOverlayStore();
+
+  const iterator = destructionQueue.values();
+  let result = iterator.next();
+
+  while (!result.done && processedCount < BATCH_SIZE) {
+    const id = result.value;
+    const overlay = overlayStore.overlays[id];
+
+    if (overlay) {
+      // AI : Check if overlay is still hidden before removing (user might have switched back)
+      // AI : We don't have visibility logic here, but pruneOverlays manages the queue membership.
+      // AI : If it's in the queue, it means it SHOULD be removed.
+      if (overlay.overlay) {
+        overlay.overlay.remove();
+        overlay.overlay = null; // AI : Destroy to force fresh reload
+      }
+      if (overlay.marker) {
+        overlay.marker.remove();
+      }
+    }
+
+    destructionQueue.delete(id);
+    processedCount++;
+    result = iterator.next();
+  }
+
+  if (destructionQueue.size > 0) {
+    requestAnimationFrame(processDestructionQueue);
+  } else {
+    isDestructionQueueRunning = false;
+  }
+}
+
+/**
  * AI : Manage overlay visibility
  */
 function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number) {
@@ -78,6 +132,11 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
       minLat < boundsNorth && maxLat > boundsSouth && minLng < boundsEast && maxLng > boundsWest;
 
     if (isVisible) {
+      if (destructionQueue.has(data.id)) {
+        // AI : If timed for destruction but now visible, SAVE IT
+        destructionQueue.delete(data.id);
+      }
+
       if (!existingInstance) {
         // AI : Visible but not instantiated -> Create it
         renderViewModeOverlays([data], true, false);
@@ -99,13 +158,12 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
         }
       }
     } else if (existingInstance) {
-      // AI : Not visible -> Cleanup
-      if (existingInstance.overlay) {
-        existingInstance.overlay.remove();
-        existingInstance.overlay = null; // AI : Destroy to force fresh reload
-      }
-      if (existingInstance.marker) {
-        existingInstance.marker.remove();
+      // AI : Not visible -> Queue for Cleanup
+      if (existingInstance.overlay || existingInstance.marker) {
+        destructionQueue.add(data.id);
+        if (!isDestructionQueueRunning) {
+          processDestructionQueue();
+        }
       }
     }
   }
@@ -157,6 +215,11 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
     const isOnMap = hasLayer && mapInstance.hasLayer(overlay.overlay!);
 
     if (isVisible) {
+      if (destructionQueue.has(id)) {
+        // AI : If timed for destruction but now visible, SAVE IT
+        destructionQueue.delete(id);
+      }
+
       if (!hasLayer) {
         // AI : Recreate overlay if it was destroyed (e.g. valid local/pending overlay coming back into view)
         // AI : This handles the case where we switched modes (hiding pending) and switched back (needing restoration)
@@ -177,13 +240,12 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
         overlay.marker.addTo(mapInstance);
       }
     } else {
-      if (overlay.overlay) {
-        overlay.overlay.remove();
-        // AI : Do NOT destroy overlay object for local edits/new uploads, keep it in memory
-        // AI : Just remove from map
-      }
-      if (overlay.marker) {
-        overlay.marker.remove();
+      // AI : Not visible or not allowed -> Queue for Cleanup
+      if (overlay.overlay || overlay.marker) {
+        destructionQueue.add(id);
+        if (!isDestructionQueueRunning) {
+          processDestructionQueue();
+        }
       }
     }
   }

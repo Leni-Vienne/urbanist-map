@@ -428,7 +428,7 @@ onMounted(() => {
   padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
-  min-height: 100vh;
+  height: 100vh;
   overflow-y: auto;
 }
 
