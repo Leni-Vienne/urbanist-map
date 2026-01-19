@@ -48,7 +48,7 @@ const t = initTRPC.context<Context>().create({
 export const router = t.router;
 export const publicProcedure = t.procedure;
 
-export const isAuthed = t.middleware(async ({ ctx, next }) => {
+const isAuthed = t.middleware(async ({ ctx, next }) => {
   if (!ctx.user) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Not authenticated" });
   }
@@ -75,7 +75,7 @@ export const isAdmin = t.middleware(async ({ ctx, next }) => {
 });
 
 // AI : Middleware to check if user is admin or moderator (has moderatedCountries)
-export const isModeratorOrAdmin = t.middleware(async ({ ctx, next }) => {
+const isModeratorOrAdmin = t.middleware(async ({ ctx, next }) => {
   if (!ctx.user) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Not authenticated" });
   }

@@ -175,7 +175,7 @@
           severity="danger"
           icon="pi pi-trash"
           :loading="isDeleting"
-          @click="deleteProject"
+          @click="adminDeleteProject"
         />
       </template>
     </Dialog>
@@ -212,7 +212,7 @@
           severity="danger"
           icon="pi pi-trash"
           :loading="isDeleting"
-          @click="deleteOverlay"
+          @click="adminDeleteOverlay"
         />
       </template>
     </Dialog>
@@ -226,6 +226,7 @@ import { useI18n } from "vue-i18n";
 import { useToast } from "primevue/usetoast";
 import { trpc, type RouterOutput } from "@/client";
 import { buildThumbnailUrl } from "@/utils/imageUrl";
+import { getStatusSeverity } from "@/utils/statusHelpers";
 
 type UserContributions = RouterOutput["admin"]["adminGetUserContributions"];
 type CityDetails = NonNullable<UserContributions["cityDetails"]>;
@@ -303,20 +304,6 @@ function getThumbnailUrl(filename: string): string {
   return buildThumbnailUrl(filename, true);
 }
 
-// AI : Get severity for status badges
-function getStatusSeverity(status: string): "success" | "warning" | "danger" | "secondary" {
-  switch (status) {
-    case "approved":
-      return "success";
-    case "pending":
-      return "warning";
-    case "rejected":
-      return "danger";
-    default:
-      return "secondary";
-  }
-}
-
 // AI : Delete project confirmation
 function confirmDeleteProject(project: ProjectType) {
   projectToDelete.value = project;
@@ -331,8 +318,8 @@ function confirmDeleteOverlay(overlay: OverlayType) {
   showDeleteOverlayDialog.value = true;
 }
 
-// AI : Execute project deletion and remove from UI
-async function deleteProject() {
+// AI : Execute project deletion and remove from UI (admin-specific)
+async function adminDeleteProject() {
   if (!projectToDelete.value) return;
 
   const projectId = projectToDelete.value.id;
@@ -382,8 +369,8 @@ async function deleteProject() {
   }
 }
 
-// AI : Execute overlay deletion and remove from UI
-async function deleteOverlay() {
+// AI : Execute overlay deletion and remove from UI (admin-specific)
+async function adminDeleteOverlay() {
   if (!overlayToDelete.value) return;
 
   const overlayId = overlayToDelete.value.id;
@@ -441,7 +428,7 @@ onMounted(() => {
   padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
-  min-height: 100vh;
+  height: 100vh;
   overflow-y: auto;
 }
 

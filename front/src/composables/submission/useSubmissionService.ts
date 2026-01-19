@@ -2,13 +2,11 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { trpc } from "@/client";
-import { buildProjectPayload } from "@/composables/project/useProjectMutations";
-import {
-  loadCityProjects,
-  updateStandaloneProjectMarkerColor,
-} from "@/composables/map/useCityMarkers";
-import { updateMarkerTooltip } from "@/composables/overlay/useOverlayMarkers";
-import { getFromEditModeOverlayCache } from "@/composables/overlay/useOverlayPositionManagement";
+import { buildProjectPayload } from "@/services/project/projectMutations";
+import { loadCityProjects } from "@/services/navigation/locationNavigation";
+import { updateStandaloneProjectMarkerColor } from "@/services/map/standaloneProjectMarkers";
+import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
+import { getFromEditModeOverlayCache } from "@/services/overlay/overlayPositionManagement";
 import type { Project, OverlayObject, OverlayData } from "@/types/index";
 import {
   projectSchema,
@@ -120,14 +118,7 @@ export function useSubmissionService() {
   const cityNamesCache = computed(() => {
     const cache: Record<string, string> = { ...projectStore.cityNamesCache };
 
-    // AI : Extract city names from original backend projects (if not already in cache)
-    for (const project of Object.values(projectStore.originalBackendProjects)) {
-      if (project.city && project.cityId && !cache[project.cityId]) {
-        cache[project.cityId] = project.city.name;
-      }
-    }
-
-    // AI : Extract from all projects (in case we have more cities)
+    // AI : Extract from all projects (includes both loaded and original cached projects)
     for (const project of Object.values(projectStore.allProjects)) {
       if (
         project.city &&

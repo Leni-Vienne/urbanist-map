@@ -149,8 +149,11 @@ export interface ProjectFormData {
   name: string;
   description: string | null;
   proposalDate: Date | null;
+  proposalDatePrecision: "year" | "month" | "day" | null;
   startDate: Date | null;
+  startDatePrecision: "year" | "month" | "day" | null;
   endDate: Date | null;
+  endDatePrecision: "year" | "month" | "day" | null;
   latestUpdateOn?: Date | null;
   cityId: number | null;
   sourceUrl: string | null;
@@ -212,8 +215,11 @@ export type ProjectForModeration = Pick<
   | "createdAt"
   | "updatedAt"
   | "startDate"
+  | "startDatePrecision"
   | "endDate"
+  | "endDatePrecision"
   | "proposalDate"
+  | "proposalDatePrecision"
   | "sourceUrl"
   | "lat"
   | "lng"
@@ -258,6 +264,10 @@ export type UserContributionOverlay = Omit<
 export type UserContribution = Omit<BackendUserContribution, "status" | "overlays"> & {
   status: ApprovalStatus | null;
   overlays: UserContributionOverlay[];
+  // AI : Date precision fields
+  proposalDatePrecision?: "year" | "month" | "day" | null;
+  startDatePrecision?: "year" | "month" | "day" | null;
+  endDatePrecision?: "year" | "month" | "day" | null;
   // AI : Frontend-specific fields added by factories
   ownerUsername?: string | null;
   ownerApprovedCount?: number | null;

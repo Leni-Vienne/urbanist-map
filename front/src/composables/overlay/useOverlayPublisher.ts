@@ -2,16 +2,14 @@ import { ref } from "vue";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { updateMarkerTooltip } from "@/composables/overlay/useOverlayMarkers";
-import { addNewOverlayToCityCache } from "@/composables/overlay/useOverlay";
-import { map } from "@/composables/core/useMap";
+import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
+import { addNewOverlayToCityCache } from "@/services/overlay/overlayCityCache";
+import { map } from "@/services/core/map";
 import { trpc, getApiUrl } from "@/client";
-import { storeToRefs } from "pinia";
-import { buildProjectPayload } from "@/composables/project/useProjectMutations";
+import { buildProjectPayload } from "@/services/project/projectMutations";
 import type { OverlayObject, Project } from "@/types/index";
 import { validateOverlaySize, leafletCornersToCorners } from "@shared/overlayValidation";
 import { t } from "@/locales";
-import type { ApprovalStatus } from "@shared/types";
 import { useAuthStore } from "@/stores/authStore";
 
 // AI : Extract corners from overlay object, falling back to stored corners if needed
@@ -28,8 +26,6 @@ export function useOverlayPublisher() {
   const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
-  const { projects } = storeToRefs(projectStore);
-  const { overlays, idSelectedOverlay } = storeToRefs(overlayStore);
 
   // AI : Validate if overlay can be published
   function validateOverlayForPublishing(overlay: OverlayObject, project: Project | null): boolean {
@@ -80,10 +76,10 @@ export function useOverlayPublisher() {
           project.id = projectResult.id;
 
           // AI : Update project ID in the projects store
-          const updatedProjects = { ...projects.value };
+          const updatedProjects = { ...projectStore.projects };
           delete updatedProjects[oldProjectId];
           updatedProjects[projectResult.id] = project;
-          projects.value = updatedProjects;
+          projectStore.projects = updatedProjects;
 
           return true; // AI : Indicates project ID changed
         }
@@ -160,10 +156,10 @@ export function useOverlayPublisher() {
     console.log(`AI: Publishing changed overlay ID from ${oldId} to ${newId}`);
 
     // AI : Update overlays store with new key
-    const updatedOverlays = { ...overlays.value };
+    const updatedOverlays = { ...overlayStore.overlays };
     delete updatedOverlays[oldId];
     updatedOverlays[newId] = overlay;
-    overlays.value = updatedOverlays;
+    overlayStore.overlays = updatedOverlays;
 
     // AI : Update marker in allMarkers if it exists
     if (overlayStore.allMarkers[oldId]) {
@@ -175,7 +171,7 @@ export function useOverlayPublisher() {
 
     // AI : Update project's overlayIds array to use new ID
     if (project?.id) {
-      const updatedProjects = { ...projects.value };
+      const updatedProjects = { ...projectStore.projects };
       const projectToUpdate = { ...updatedProjects[project.id] };
       const overlayIndex = projectToUpdate.overlayIds.indexOf(oldId);
 
@@ -183,13 +179,13 @@ export function useOverlayPublisher() {
         projectToUpdate.overlayIds = [...projectToUpdate.overlayIds];
         projectToUpdate.overlayIds[overlayIndex] = newId;
         updatedProjects[project.id] = projectToUpdate;
-        projects.value = updatedProjects;
+        projectStore.projects = updatedProjects;
       }
     }
 
     // AI : Update selected overlay ID if this was the selected one
-    if (idSelectedOverlay.value === oldId) {
-      idSelectedOverlay.value = newId;
+    if (overlayStore.idSelectedOverlay === oldId) {
+      overlayStore.idSelectedOverlay = newId;
     }
   }
 
@@ -286,7 +282,9 @@ export function useOverlayPublisher() {
 
         // AI : CRITICAL: Update imageUrl to server URL to prevent re-upload on next save
         // AI : Build the server URL from the filename
-        overlay.imageUrl = `${getApiUrl()}/api/images/${filename}`;
+        // AI : Use /uploads/ path as that's where the backend serves files (there is no /api/images endpoint)
+        overlay.imageUrl = `${getApiUrl()}/uploads/${filename}`;
+        overlay.filename = filename; // AI : Update filename to the clean one returned by server
 
         // AI : Synchronize ID change across all stores if ID changed
         if (oldId !== newId) {

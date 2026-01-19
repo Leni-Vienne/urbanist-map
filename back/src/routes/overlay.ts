@@ -6,7 +6,7 @@ import { sql, eq, and, or, inArray } from "drizzle-orm";
 import { db } from "../database";
 import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import { buildOverlayQuery, buildOverlayVisibilityCondition, isUserBlocked } from "../db/helpers";
-import type { MapMode } from "@shared/types";
+import type { AppMode } from "@shared/types";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { deleteLocalImages } from "../lib/imageCleanup";
 import {
@@ -170,7 +170,7 @@ export const overlayRouter = router({
   getOverlay: publicProcedure.input(getOverlaySchema).query(async ({ input, ctx }) => {
     try {
       // AI : Determine mode based on context - edit mode if logged in, view mode otherwise
-      const mode: MapMode = ctx.user ? "edit" : "view";
+      const mode: AppMode = ctx.user ? "edit" : "view";
       const whereConditions = [
         eq(overlays.id, input.id),
         buildOverlayVisibilityCondition(

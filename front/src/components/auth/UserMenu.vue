@@ -82,7 +82,7 @@ import { useI18n } from "vue-i18n";
 import { useModeratedContributions } from "@/composables/moderation/useModeratedContributions";
 
 import AuthModal from "./AuthModal.vue";
-import LanguageSwitcherMenu from "../map/LanguageSwitcherMenu.vue";
+import LanguageSwitcherMenu from "@/components/map/LanguageSwitcherMenu.vue";
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();

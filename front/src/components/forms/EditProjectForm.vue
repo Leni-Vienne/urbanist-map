@@ -10,7 +10,9 @@
         :is-proposed="isProposed"
         :prefilled-city="project.city"
         :marker-coordinates="markerCoordinates"
-        :field-classes="(fieldName: string) => form.getFieldClasses(fieldName as keyof ProjectFormData)"
+        :field-classes="
+          (fieldName: string) => form.getFieldClasses(fieldName as keyof ProjectFormData)
+        "
         :has-changed="(fieldName: string) => form.hasChanged(fieldName as keyof ProjectFormData)"
         id-prefix="edit"
         @update:is-proposed="isProposed = $event"
@@ -48,72 +50,81 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useEditableProjectForm } from '@/composables/forms/useEditableProjectForm'
-import { useProjectStore } from '@/stores/pinia/projectStore'
-import type ProjectFormFields from './ProjectFormFields.vue'
-import type { Project, ProjectFormData } from '@/types/index'
+import { computed, ref } from "vue";
+import { useEditableProjectForm } from "@/composables/forms/useEditableProjectForm";
+import { useProjectStore } from "@/stores/pinia/projectStore";
+import type ProjectFormFields from "@/components/forms/ProjectFormFields.vue";
+import type { Project, ProjectFormData } from "@/types/index";
 
-const props = defineProps<{ project: Project }>()
-const emit = defineEmits<{ close: [], submitted: [] }>()
+const props = defineProps<{ project: Project }>();
+const emit = defineEmits<{ close: []; submitted: [] }>();
 
-const projectStore = useProjectStore()
-const formFieldsRef = ref<InstanceType<typeof ProjectFormFields> | null>(null)
+const projectStore = useProjectStore();
+const formFieldsRef = ref<InstanceType<typeof ProjectFormFields> | null>(null);
 
-const markerCoordinates = props.project.lat && props.project.lng
-  ? { lat: props.project.lat, lng: props.project.lng }
-  : null
+const markerCoordinates =
+  props.project.lat && props.project.lng
+    ? { lat: props.project.lat, lng: props.project.lng }
+    : null;
 
-const isProposed = ref(Boolean(props.project.proposalDate && !props.project.startDate && !props.project.endDate))
+const isProposed = ref(
+  Boolean(props.project.proposalDate && !props.project.startDate && !props.project.endDate),
+);
 
 // AI : Helper to ensure dates are Date objects
 function toDateObject(value: Date | string | null | undefined): Date | null {
-  if (!value) return null
-  if (value instanceof Date) return value
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? null : date
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 // AI : Get original backend project if available (for comparison baseline)
 // AI : Uses centralized helper that checks both originalBackendProjects and originalUserContributions
 const originalProject = computed(() => {
-  return projectStore.getOriginalProject(props.project.id) ?? props.project
-})
+  return projectStore.getOriginalProject(props.project.id) ?? props.project;
+});
 
 // AI : Use original backend values as the comparison baseline for "modified from X" indicators
 const projectData = computed(() => ({
   name: originalProject.value.name,
-  description: originalProject.value.description || '',
-  sourceUrl: originalProject.value.sourceUrl || '',
+  description: originalProject.value.description || "",
+  sourceUrl: originalProject.value.sourceUrl || "",
   proposalDate: toDateObject(originalProject.value.proposalDate),
+  proposalDatePrecision: originalProject.value.proposalDatePrecision ?? null,
   startDate: toDateObject(originalProject.value.startDate),
+  startDatePrecision: originalProject.value.startDatePrecision ?? null,
   endDate: toDateObject(originalProject.value.endDate),
+  endDatePrecision: originalProject.value.endDatePrecision ?? null,
   latestUpdateOn: toDateObject(originalProject.value.latestUpdateOn),
   cityId: originalProject.value.cityId,
-}))
+}));
 
 // AI : Use current project values for the form's initial state (what user will see and edit)
 const currentProjectData = computed(() => ({
   name: props.project.name,
-  description: props.project.description || '',
-  sourceUrl: props.project.sourceUrl || '',
+  description: props.project.description || "",
+  sourceUrl: props.project.sourceUrl || "",
   proposalDate: toDateObject(props.project.proposalDate),
+  proposalDatePrecision: props.project.proposalDatePrecision ?? null,
   startDate: toDateObject(props.project.startDate),
+  startDatePrecision: props.project.startDatePrecision ?? null,
   endDate: toDateObject(props.project.endDate),
+  endDatePrecision: props.project.endDatePrecision ?? null,
   latestUpdateOn: toDateObject(props.project.latestUpdateOn),
   cityId: props.project.cityId,
-}))
+}));
 
 const form = useEditableProjectForm({
   entityId: props.project.id,
   initialData: projectData.value, // AI : Original backend values for comparison
   currentData: currentProjectData.value, // AI : Current values to display in form
   entityStatus: props.project.status,
-  localOnly: true,
+  localOnly: true, // AI : Save changes locally only, submit via dedicated "Submit Change Request" buttons
   getAvailableCities: () => formFieldsRef.value?.cities ?? [],
-  onSubmitted: () => emit('submitted'),
-  onClose: () => emit('close')
-})
+  onSubmitted: () => emit("submitted"),
+  onClose: () => emit("close"),
+});
 </script>
 
 <style scoped>

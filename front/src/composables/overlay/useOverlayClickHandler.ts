@@ -1,15 +1,15 @@
 import {
   navigateToOverlayWithCity,
   navigateToStandaloneProject,
-} from "@/composables/navigation/useOverlayNavigation";
-import { mobileAwareFlyTo } from "@/composables/map/useMapNavigation";
-import { navigateToOverlay } from "@/composables/overlay/useOverlay";
-import { switchMode } from "@/composables/overlay/useModeSwitching";
+} from "@/services/navigation/overlayNavigation";
+import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
+import { navigateToOverlay } from "@/services/overlay/overlay";
+import { switchMode } from "@/services/overlay/modeSwitching";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useToast } from "@/composables/ui/useToast";
 import { trpc } from "@/client";
 import type { OverlayForModeration, LatestContribution } from "@/types/index";
-import { useAccordionState } from "@/composables/layout/useAccordionState";
+import { requestScrollTo } from "@/services/layout/accordionState";
 
 // AI : Union type to accept overlays from moderation and contributions panels
 type NavigableOverlay = OverlayForModeration | LatestContribution;
@@ -78,7 +78,6 @@ export function useOverlayClickHandler() {
       }
 
       // AI : Request scroll to overlay in adjacent panels
-      const { requestScrollTo } = useAccordionState();
       requestScrollTo("overlay", overlay.id);
     } catch (error) {
       console.error("Failed to navigate to overlay:", error);

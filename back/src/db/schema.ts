@@ -32,6 +32,11 @@ export const changeRequestStatusEnum = pgEnum("change_request_status", [
 
 export type ChangeRequestStatus = (typeof changeRequestStatusEnum.enumValues)[number];
 
+// AI : Date precision values - used for flexible date display
+// AI : Using const array + text column (not enum) for easier modification
+export const DATE_PRECISION_VALUES = ["year", "month", "day"] as const;
+export type DatePrecision = (typeof DATE_PRECISION_VALUES)[number];
+
 // AI : Users table for custom authentication
 export const users = pgTable(
   "users",
@@ -114,8 +119,11 @@ export const projects = pgTable(
       .notNull(), // AI : Reference to the city where the project is located
     sourceUrl: text("source_url"),
     proposalDate: timestamp("proposal_date", { withTimezone: true }),
+    proposalDatePrecision: text("proposal_date_precision").$type<DatePrecision | null>(),
     startDate: timestamp("start_date", { withTimezone: true }),
+    startDatePrecision: text("start_date_precision").$type<DatePrecision | null>(),
     endDate: timestamp("end_date", { withTimezone: true }),
+    endDatePrecision: text("end_date_precision").$type<DatePrecision | null>(),
     latestUpdateOn: timestamp("latest_update_on", { withTimezone: true }),
     // AI : Center coordinate for all projects - used as marker position when no images exist
     lat: doublePrecision("lat"),

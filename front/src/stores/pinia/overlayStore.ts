@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { ref, shallowRef } from "vue";
 import type L from "leaflet";
 import type { OverlayObject, OverlayData, LatestContribution } from "@/types/index";
-import type { MapMode } from "@shared/types";
+import type { AppMode } from "@shared/types";
 
 export const useOverlayStore = defineStore("overlay", () => {
   // AI : Central store for overlay data
@@ -13,8 +13,7 @@ export const useOverlayStore = defineStore("overlay", () => {
   const allMarkers = shallowRef<Record<string, L.Marker>>({});
 
   // AI : Map mode state (view, edit, or moderation)
-  const mode = ref<MapMode>("view");
-  const isTogglingMode = ref(false);
+  const mode = ref<AppMode>("view");
 
   // AI : Edit mode overlay cache - stores overlay modifications for persistence across zoom changes
   type EditModeCache = { corners: { lat: number; lng: number }[]; isModified: boolean };
@@ -23,8 +22,6 @@ export const useOverlayStore = defineStore("overlay", () => {
   // AI : Overlay data for different modes
   const viewModeOverlays = ref<OverlayData[]>([]);
   const loadedEditOverlays = ref<Set<string>>(new Set());
-  const overlaysLoading = ref(false);
-  const overlaysError = ref<string | null>(null);
 
   // AI : Latest contributions cache (overlays + standalone projects) - simple loaded flag
   const latestContributions = ref<LatestContribution[]>([]);
@@ -40,20 +37,10 @@ export const useOverlayStore = defineStore("overlay", () => {
   // AI : Basic actions
   function setViewModeOverlays(overlayData: OverlayData[]) {
     viewModeOverlays.value = overlayData;
-    overlaysError.value = null;
   }
 
   function clearViewModeOverlays() {
     viewModeOverlays.value = [];
-    overlaysError.value = null;
-  }
-
-  function setOverlaysLoading(loading: boolean) {
-    overlaysLoading.value = loading;
-  }
-
-  function setOverlaysError(error: string | null) {
-    overlaysError.value = error;
   }
 
   // AI : Latest contributions actions
@@ -66,25 +53,7 @@ export const useOverlayStore = defineStore("overlay", () => {
     latestContributionsLoading.value = loading;
   }
 
-  // AI : Reset latest contributions cache to force refresh on next load
-  function resetLatestContributions() {
-    latestContributionsLoaded.value = false;
-  }
-
-  function addEditModeOverlay(overlayId: string) {
-    loadedEditOverlays.value.add(overlayId);
-  }
-
-  function removeEditModeOverlay(overlayId: string) {
-    loadedEditOverlays.value.delete(overlayId);
-  }
-
-  function clearEditModeMarkersAndState() {
-    // AI : Clear state
-    loadedEditOverlays.value.clear();
-  }
-
-  function setMode(newMode: MapMode) {
+  function setMode(newMode: AppMode) {
     mode.value = newMode;
   }
 
@@ -95,10 +64,6 @@ export const useOverlayStore = defineStore("overlay", () => {
 
   function getFromEditModeCache(overlayId: string): EditModeCache | undefined {
     return editModeOverlayCache.value.get(overlayId);
-  }
-
-  function clearEditModeCache() {
-    editModeOverlayCache.value.clear();
   }
 
   function removeFromEditModeCache(overlayId: string) {
@@ -112,23 +77,6 @@ export const useOverlayStore = defineStore("overlay", () => {
       ...overlays.value,
       [overlayId]: overlay,
     };
-  }
-
-  // AI : Remove overlay from store with proper reactivity
-  function removeOverlay(overlayId: string) {
-    const overlaysCopy = { ...overlays.value };
-    if (overlaysCopy[overlayId]) {
-      // AI : Cleanup Leaflet objects before removal
-      if (overlaysCopy[overlayId].overlay) {
-        overlaysCopy[overlayId].overlay.remove();
-      }
-      if (overlaysCopy[overlayId].marker) {
-        overlaysCopy[overlayId].marker.remove();
-      }
-      delete overlaysCopy[overlayId];
-      // AI : Trigger reactivity with shallowRef assignment
-      overlays.value = overlaysCopy;
-    }
   }
 
   /**
@@ -157,8 +105,22 @@ export const useOverlayStore = defineStore("overlay", () => {
     };
   }
 
-  function handleFileSelected(file: File) {
-    pendingImageFile.value = file;
+  // AI : Batch update multiple overlays at once to avoid performance issues with shallowRef
+  function batchUpdateOverlays(updates: Record<string, Partial<OverlayObject>>) {
+    const newOverlays = { ...overlays.value };
+    let hasChanges = false;
+
+    for (const [id, update] of Object.entries(updates)) {
+      const current = newOverlays[id];
+      if (current) {
+        newOverlays[id] = { ...current, ...update };
+        hasChanges = true;
+      }
+    }
+
+    if (hasChanges) {
+      overlays.value = newOverlays;
+    }
   }
 
   function clearPendingFile() {
@@ -182,14 +144,6 @@ export const useOverlayStore = defineStore("overlay", () => {
   function hideInfoPopup() {
     showInfoPopup.value = false;
     infoPopupOverlayId.value = null;
-  }
-
-  function toggleInfoPopup() {
-    if (showInfoPopup.value) {
-      hideInfoPopup();
-    } else if (idSelectedOverlay.value !== null) {
-      showInfoPopupForOverlay(idSelectedOverlay.value);
-    }
   }
 
   function resetAllUIStates() {
@@ -236,9 +190,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     loadedEditOverlays.value.clear();
 
     // AI : KEEP viewModeOverlays - these are approved overlays for current city
-    // viewModeOverlays.value = [];
-    overlaysLoading.value = false;
-    overlaysError.value = null;
 
     // AI : KEEP latestContributions - these are public approved content
     // AI : Only reset the loaded flag to allow refresh if needed
@@ -248,7 +199,6 @@ export const useOverlayStore = defineStore("overlay", () => {
 
     // AI : Reset mode to view
     mode.value = "view";
-    isTogglingMode.value = false;
 
     // AI : Clear all UI state
     resetAllUIStates();
@@ -260,12 +210,8 @@ export const useOverlayStore = defineStore("overlay", () => {
     idSelectedOverlay,
     allMarkers,
     mode,
-    isTogglingMode,
-    editModeOverlayCache,
     viewModeOverlays,
     loadedEditOverlays,
-    overlaysLoading,
-    overlaysError,
     latestContributions,
     latestContributionsLoading,
     latestContributionsLoaded,
@@ -277,31 +223,20 @@ export const useOverlayStore = defineStore("overlay", () => {
     // Actions
     setViewModeOverlays,
     clearViewModeOverlays,
-    setOverlaysLoading,
-    setOverlaysError,
     setLatestContributions,
     setLatestContributionsLoading,
-    resetLatestContributions,
-    addEditModeOverlay,
-    removeEditModeOverlay,
-    clearEditModeMarkersAndState,
     setMode,
     saveToEditModeCache,
     getFromEditModeCache,
-    clearEditModeCache,
     removeFromEditModeCache,
     addOverlay,
     updateOverlay,
-    removeOverlay,
+    batchUpdateOverlays,
     clearMarkersFromCache,
-    handleFileSelected,
-    clearPendingFile,
     requestOverlayReplacement,
     resetReplacement,
     showInfoPopupForOverlay,
     hideInfoPopup,
-    toggleInfoPopup,
-    resetAllUIStates,
     closeAllUIElements,
     clearAllState,
   };

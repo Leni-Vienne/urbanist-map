@@ -1,7 +1,7 @@
 // AI : Viewport-based content manager - replaces city-based loading with spatial queries
 // AI : Single rendering path for all triggers (pan, zoom, mode switch, navigation)
 import { ref, watch } from "vue";
-import { map } from "@/composables/core/useMap";
+import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -10,29 +10,30 @@ import { trpc } from "@/client";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
 import {
-  renderViewModeOverlays,
   updateOverlayEditingState,
-} from "@/composables/overlay/useOverlay";
-import { clearAllOverlays } from "@/composables/overlay/useOverlayLifecycle";
-import { updateOverlayMarkersColors } from "@/composables/map/useMarkers";
-import {
-  renderOverlayMarkersFromData,
-  removeOverlayMarkers,
-} from "@/composables/map/useCityOverlays";
-import { citiesWithProjects } from "@/composables/map/useCityMarkers";
+  saveAllOverlaysToCache,
+} from "@/services/overlay/overlayEditing";
+import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
+import { pruneMapEntities } from "@/services/map/viewportPruning";
+import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";
+import { renderOverlayMarkersFromData, removeOverlayMarkers } from "@/services/map/cityOverlays";
+import { citiesWithProjects } from "@/services/map/cityMarkers";
 import {
   addStandaloneProjectMarkerForProject,
   clearAllStandaloneProjectMarkers,
   getStandaloneProjectMarkerMap,
-} from "@/composables/map/useStandaloneProjectMarkers";
-import { loadedCityIds } from "@/composables/navigation/useCityDataLoader";
-import type { OverlayData } from "@/types/index";
+} from "@/services/map/standaloneProjectMarkers";
+import {
+  loadedCityIds,
+  fetchCityStandaloneProjectsOrCache,
+} from "@/services/navigation/cityDataLoader";
+import type { OverlayData, OverlayObject } from "@/types/index";
 import {
   createProjectObject,
   toProjectPartial,
   type StandaloneProject,
 } from "@/utils/typeFactories";
-import type { MapMode } from "@shared/types";
+import type { AppMode } from "@shared/types";
 
 const isLoading = ref(false);
 
@@ -47,14 +48,6 @@ const lastZoomLevel = ref<number | null>(null);
  */
 export function useViewportContentManager() {
   const overlayStore = useOverlayStore();
-
-  /**
-   * AI : Update overlay marker colors when mode changes
-   * AI : Changes from Timeline Status (view) to Approval Status (edit)
-   */
-  function updateMarkerColorsForMode() {
-    updateOverlayMarkersColors(ref(overlayStore.overlays));
-  }
 
   /**
    * AI : Clear content for non-active cities while preserving active city markers
@@ -118,31 +111,30 @@ export function useViewportContentManager() {
 
     const overlayStore = useOverlayStore();
     const mapStore = useMapStore();
-    const currentZoom = map.value?.getZoom() ?? 0;
 
-    // AI : Reload all cities that are currently loaded
+    // AI : Ensure all cities have data loaded
     for (const cityId of loadedCityIds.value) {
       // AI : OPTIMIZATION: Check if we have cached data for this city
-      // AI : If we do, just re-render from cache instead of fetching from backend
       const cachedData = mapStore.getCityOverlaysAndProjectsCache(cityId, overlayStore.mode);
 
-      if (cachedData) {
-        if (cachedData.length === 0) {
-          continue;
-        }
-
-        // AI : RENDER based on zoom level
-        if (currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
-          renderFullOverlays(cachedData);
-        } else {
-          renderMarkersOnly(cachedData);
-        }
-      } else {
+      if (!cachedData) {
         const city = citiesWithProjects.value.find((c) => c.id === cityId);
         if (city) {
+          // AI : Load data (this puts it in cache)
+          // AI : NOTE: loadCityData internally calls renderAllLoadedOverlays, so this might trigger multiple renders
+          // AI : But since we're awaiting, it's safer.
+          // AI : Ideally, loadCityData should have a 'noRender' flag, but for now this is fine.
           await loadCityData(cityId, city.name, city.nameLocal, city.countryCode);
         }
       }
+    }
+
+    // AI : RENDER all cities together based on zoom level
+    const zoom = map.value?.getZoom() ?? 0;
+    if (zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
+      renderAllLoadedOverlays(true);
+    } else {
+      renderAllLoadedOverlays(false);
     }
   }
 
@@ -154,6 +146,7 @@ export function useViewportContentManager() {
     _cityName: string,
     _nameLocal: string | null,
     _countryCode: string,
+    shouldRender = true,
   ) {
     const overlayStore = useOverlayStore();
     const mapStore = useMapStore();
@@ -187,13 +180,26 @@ export function useViewportContentManager() {
         return;
       }
 
-      const zoom = map.value?.getZoom() ?? 0;
+      // AI : Guard against race condition: if mode changed while fetching, don't render stale data.
+      // AI : The new mode's fetch (triggered by watcher) will handle rendering.
+      if (overlayStore.mode !== mode) {
+        return;
+      }
 
-      // AI : RENDER based on zoom level
-      if (zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
-        renderFullOverlays(overlaysData);
-      } else {
-        renderMarkersOnly(overlaysData);
+      if (shouldRender) {
+        const zoom = map.value?.getZoom() ?? 0;
+
+        // AI : RENDER based on zoom level
+        if (zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
+          // AI : CRITICAL FIX: Render ALL loaded cities, not just the one we just fetched
+          // AI : This prevents "fighting" between nearby cities where loading one clears the other
+          renderAllLoadedOverlays();
+        } else {
+          // AI : For markers, we also need to be careful, but markers are handled differently (additive)
+          // AI : However, renderMarkersOnly also clears everything first.
+          // AI : So we should also aggregate for markers.
+          renderAllLoadedOverlays(false);
+        }
       }
 
       // AI : Update caches for Current Location Panel (already done above, but keeping for consistency)
@@ -202,6 +208,31 @@ export function useViewportContentManager() {
       console.error(`Error loading city ${cityId}:`, error);
       // AI : Even on error, mark as loaded to prevent infinite retries
       loadedCityIds.value.add(cityId);
+    }
+  }
+
+  /**
+   * AI : Helper to gather all overlays from all currently loaded cities
+   * AI : and render them together. This ensures multi-city view works correctly.
+   */
+  function renderAllLoadedOverlays(fullRender = true) {
+    const overlayStore = useOverlayStore();
+    const mapStore = useMapStore();
+    const mode = overlayStore.mode;
+
+    let allOverlays: OverlayData[] = [];
+
+    for (const cityId of loadedCityIds.value) {
+      const cityData = mapStore.getCityOverlaysAndProjectsCache(cityId, mode);
+      if (cityData) {
+        allOverlays = allOverlays.concat(cityData);
+      }
+    }
+
+    if (fullRender) {
+      renderFullOverlays(allOverlays);
+    } else {
+      renderMarkersOnly(allOverlays);
     }
   }
 
@@ -219,6 +250,11 @@ export function useViewportContentManager() {
       }
 
       const zoom = map.value.getZoom();
+
+      // AI : Always prune entities based on new viewport
+      // AI : This ensures city markers (which are visible at low zoom) are correctly added/removed
+      // AI : and that overlays re-appear when zooming out and back in
+      pruneMapEntities();
 
       // AI : CRITICAL: Don't load data until zoomed in past threshold
       if (zoom < MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD) {
@@ -277,8 +313,18 @@ export function useViewportContentManager() {
       isLoading.value = true;
 
       // AI : Load each new city (entire city data, not just viewport slice)
+      // AI : Pass false for shouldRender to batch updates and avoid flickering
       for (const city of newCities) {
-        await loadCityData(city.id, city.name, city.nameLocal, city.countryCode);
+        await loadCityData(city.id, city.name, city.nameLocal, city.countryCode, false);
+      }
+
+      // AI : After loading all new cities, trigger a single render
+      // AI : This ensures we show all cities together without fighting/flickering
+      const currentZoom = map.value.getZoom();
+      if (currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
+        renderAllLoadedOverlays(true);
+      } else {
+        renderAllLoadedOverlays(false);
       }
     } catch (error) {
       console.error("Error refreshing viewport:", error);
@@ -291,7 +337,7 @@ export function useViewportContentManager() {
    * AI : Update MapStore caches for panels
    * AI : Groups flat viewport data by city so panels can query by city ID
    */
-  function updateMapStoreCaches(overlays: OverlayData[], standaloneProjects: any[], mode: MapMode) {
+  function updateMapStoreCaches(overlays: OverlayData[], standaloneProjects: any[], mode: AppMode) {
     const mapStore = useMapStore();
 
     // AI : Group overlays by city
@@ -331,27 +377,12 @@ export function useViewportContentManager() {
   async function addStandaloneMarkersForCity(
     overlaysData: OverlayData[],
     cityId: number,
-    mode: MapMode,
+    mode: AppMode,
   ) {
     try {
-      const mapStore = useMapStore();
-
       // AI : OPTIMIZATION: Check cache first before querying backend
-      let allProjects = mapStore.getCityStandaloneProjectsCache(cityId, mode);
-
-      if (!allProjects) {
-        // AI : No cache - fetch ALL projects for this city (not just ones with overlays)
-        allProjects = await trpc.project.getCityProjects.query({
-          cityId,
-          mode,
-          limit: 100,
-        });
-
-        // AI : Cache the data for future use
-        if (allProjects) {
-          mapStore.setCityStandaloneProjectsCache(cityId, mode, allProjects);
-        }
-      }
+      // AI : Use shared function to avoid code duplication
+      const allProjects = await fetchCityStandaloneProjectsOrCache(cityId, mode);
 
       // AI : Create a working copy to avoid mutating cache
       const projectsToRender: StandaloneProject[] = allProjects ? [...allProjects] : [];
@@ -422,97 +453,31 @@ export function useViewportContentManager() {
     // AI : Update existing overlay objects with fresh backend data
     // AI : This is critical for mode switches (e.g., view → moderation) where overlays
     // AI : are already loaded but need updated data like suggestedCorners for change requests
+    // AI : OPTIMIZATION: Use batch update to prevent O(N^2) state spreading
+    const updates: Record<string, Partial<OverlayData>> = {};
+
     for (const overlayData of overlaysData) {
-      const existing = overlayStore.overlays[overlayData.id];
-      if (existing) {
-        overlayStore.updateOverlay(overlayData.id, {
+      if (overlayStore.overlays[overlayData.id]) {
+        updates[overlayData.id] = {
           hasPendingChanges: overlayData.hasPendingChanges,
           suggestedCorners: overlayData.suggestedCorners,
           pendingChangeRequestsCount: overlayData.pendingChangeRequestsCount,
           // AI : Don't update corners/centroid as those are the approved positions
           // AI : and shouldn't change when switching modes
-        });
+        };
       }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      overlayStore.batchUpdateOverlays(updates);
     }
 
     // AI : Render overlays
-    const existingOverlays = overlayStore.overlays;
-    const existingIds = new Set(Object.keys(existingOverlays));
-    const hasExisting = existingIds.size > 0;
-
-    if (!hasExisting) {
-      // AI : Initial render
-      renderViewModeOverlays(overlaysData, true, false);
-    } else {
-      // AI : Update/add overlays without removing existing ones
-      // AI : Don't remove overlays not in overlaysData - they may be from other cities
-      // AI : Overlays are only removed via clearAllOverlays on mode switch/zoom out
-
-      // AI : Find overlays that need rendering:
-      // AI : 1. New overlays not in store
-      // AI : 2. Existing overlays in overlaysData with null Leaflet layer
-      const overlayDataIds = new Set(overlaysData.map((o) => o.id));
-      const overlaysToRender = overlaysData.filter((o) => {
-        if (!existingIds.has(o.id)) return true; // New overlay
-        const existing = existingOverlays[o.id];
-        return existing && existing.overlay === null; // Needs re-rendering
-      });
-
-      // AI : CRITICAL: Also re-render existing overlays with null layers that are NOT in overlaysData
-      // AI : This handles overlays from other cities that were preserved during zoom out
-      // AI : In edit mode, also include local overlays (status === null)
-      for (const [id, existing] of Object.entries(existingOverlays)) {
-        if (existing.overlay === null && !overlayDataIds.has(id)) {
-          // AI : Skip if already in overlaysToRender
-          if (overlaysToRender.some((o) => o.id === id)) continue;
-
-          // AI : Skip overlays that shouldn't be visible in current mode
-          const mode = overlayStore.mode;
-          let shouldSkip = false;
-
-          if (mode === "view") {
-            // AI : View mode: Only render approved overlays
-            shouldSkip = existing.status !== "approved";
-          } else if (mode === "moderation") {
-            // AI : Moderation mode: Render approved + pending, skip local-only and rejected
-            shouldSkip =
-              existing.status === null ||
-              existing.status === undefined ||
-              existing.status === "rejected";
-          } else if (mode === "edit") {
-            // AI : Edit mode: Skip rejected (backend handles filtering for user's own pending)
-            shouldSkip = existing.status === "rejected";
-          }
-
-          if (shouldSkip) {
-            continue;
-          }
-
-          // AI : Convert existing overlay to OverlayData format for rendering
-          // AI : Use filename (not imageUrl) - imageUrl has the full URL path that gets duplicated by createOverlayFromCDN
-          overlaysToRender.push({
-            id: existing.id,
-            version: existing.version,
-            filename: existing.filename,
-            caption: existing.caption,
-            status: existing.status,
-            projectId: existing.projectId,
-            authorId: existing.authorId,
-            replacesOverlayId: existing.replacesOverlayId,
-            replacedByOverlayId: existing.replacedByOverlayId,
-            createdAt: existing.createdAt,
-            updatedAt: existing.updatedAt,
-            centroid: existing.centroid,
-            corners: existing.corners,
-            isModified: existing.isModified,
-          });
-        }
-      }
-
-      if (overlaysToRender.length > 0) {
-        renderViewModeOverlays(overlaysToRender, true, false);
-      }
-    }
+    // AI : DELEGATE TO PRUNING SERVICE
+    // AI : Instead of rendering loop here (which renders everything),
+    // AI : defer to pruneMapEntities which checks visibility bounds first.
+    // AI : This prevents network requests for off-screen images.
+    pruneMapEntities();
   }
 
   /**
@@ -603,12 +568,12 @@ export function useViewportContentManager() {
         // AI : They might be invalid in the new mode (e.g., local projects in view mode) as they are not store-managed
         clearAllStandaloneProjectMarkers();
 
-        // AI : Update existing overlay marker colors (Timeline vs Approval status)
-        updateMarkerColorsForMode();
-
-        // AI : Update existing overlays in-place with new toolbar actions and positions
-        // AI : This preserves edit mode cache and updates marker colors after modifications
-        updateOverlayEditingState();
+        // AI : CRITICAL: Save any modified overlays before we potentially hide them
+        // AI : If we are leaving edit mode, we must save the current state to cache
+        // AI : This prevents data loss for user's pending overlays that disappear in View mode
+        if (oldMode === "edit") {
+          saveAllOverlaysToCache();
+        }
 
         // AI : CRITICAL: Different modes return different data from backend
         // AI : - View mode: Only approved content
@@ -622,35 +587,35 @@ export function useViewportContentManager() {
         // AI : CRITICAL: When switching modes, hide overlays that shouldn't be visible in the new mode
         // AI : We unmount them (remove from map) but keep in store so they can reappear when switching modes
         if (hasLoadedOverlays) {
-          for (const [id, overlay] of Object.entries(overlayStore.overlays)) {
-            let shouldHide = false;
+          const updates: Record<string, Partial<OverlayObject>> = {};
+          const markersToRemove: string[] = [];
+          const authStore = useAuthStore();
+          const currentUserId = authStore.user?.id;
 
-            // AI : Determine if overlay should be hidden based on new mode
-            if (newMode === "view") {
-              // AI : View mode: Only show approved overlays
-              // AI : Hide: local-only (null/undefined), pending, rejected
-              shouldHide = overlay.status !== "approved";
-            } else if (newMode === "moderation") {
-              // AI : Moderation mode: Show approved + pending from all users
-              // AI : Hide: local-only (null/undefined), rejected
-              shouldHide =
-                overlay.status === null ||
-                overlay.status === undefined ||
-                overlay.status === "rejected";
-            } else if (newMode === "edit") {
-              // AI : Edit mode: Show approved + user's own pending
-              // AI : Hide: rejected, other users' pending (backend reload will handle this correctly)
-              // AI : For now, hide rejected overlays. Backend reload will provide correct data.
-              shouldHide = overlay.status === "rejected";
-            }
+          for (const [id, overlay] of Object.entries(overlayStore.overlays)) {
+            // AI : Determine if overlay should be hidden based on new mode //
+            const shouldHide = !isOverlayVisible(overlay, newMode, currentUserId);
 
             if (shouldHide) {
               if (overlay.overlay) overlay.overlay.remove();
               if (overlay.marker) overlay.marker.remove();
-              overlayStore.updateOverlay(id, { overlay: null, marker: null });
+
+              // AI : Queue update instead of triggering reactivity immediately
+              updates[id] = { overlay: null, marker: null };
+
               // AI : CRITICAL: Clear from allMarkers cache so it can be recreated when switching back
-              delete overlayStore.allMarkers[id];
+              markersToRemove.push(id);
             }
+          }
+
+          // AI : Execute batch updates (O(1) reactivity trigger)
+          if (Object.keys(updates).length > 0) {
+            overlayStore.batchUpdateOverlays(updates);
+          }
+
+          // AI : Batch clear markers
+          if (markersToRemove.length > 0) {
+            overlayStore.clearMarkersFromCache(markersToRemove);
           }
         }
 
@@ -666,7 +631,10 @@ export function useViewportContentManager() {
             currentCityIds.map(async (id) => loadCityData(id, "reload", null, "reload")),
           );
 
-          await refreshViewport(true);
+          // AI : Update existing overlays in-place with new toolbar actions and positions
+          // AI : MOVED HERE (after reload) to ensure we operate on fresh data
+          // AI : This preserves edit mode cache and updates marker colors after modifications
+          updateOverlayEditingState();
 
           // AI : CRITICAL FIX: After reloading, explicitly create standalone markers for local projects
           // AI : This ensures markers appear immediately without requiring user to click city or zoom

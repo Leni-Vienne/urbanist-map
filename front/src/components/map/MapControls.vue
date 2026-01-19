@@ -32,19 +32,21 @@
     </div>
 
     <div class="buttons-stacked">
-      <LayerControl ref="layerControlRef" />
-
       <!-- AI : Filter Control (View Mode Only) -->
-      <FilterControl
+      <!--<FilterControl
         v-if="mode !== 'edit'"
         ref="filterControlRef"
         @filter-overlays="handleFilterOverlays"
-      />
+      />-->
     </div>
   </div>
 
   <!-- AI : Welcome Dialog -->
-  <WelcomeDialog v-model="showHelp" />
+  <!-- AI : Welcome Dialog managed by UI Store -->
+  <WelcomeDialog
+    :modelValue="uiStore.welcomeDialogVisible"
+    @update:modelValue="(val) => (val ? uiStore.openWelcomeDialog() : uiStore.closeWelcomeDialog())"
+  />
 </template>
 
 <script setup lang="ts">
@@ -53,17 +55,15 @@ import { defineAsyncComponent, ref, watch } from "vue";
 import L from "leaflet";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
-import { map } from "@/composables/core/useMap";
+import { map } from "@/services/core/map";
 import type { viewModeMarkerColor } from "@/types/index";
 
-const LayerControl = defineAsyncComponent(() => import("@/components/map/LayerControl.vue"));
-const FilterControl = defineAsyncComponent(() => import("@/components/map/FilterControl.vue"));
+//const FilterControl = defineAsyncComponent(() => import("@/components/map/FilterControl.vue"));
 const WelcomeDialog = defineAsyncComponent(() => import("@/components/map/WelcomeDialog.vue"));
 
 const overlayStore = useOverlayStore();
 
-// AI : Help modal state
-const showHelp = ref(false);
+const uiStore = useUiStore();
 
 // AI : Refs for popovers
 const layerControlRef = ref();
@@ -150,7 +150,7 @@ function handleZoomOut() {
 
 // AI : Show help modal
 function showHelpModal() {
-  showHelp.value = true;
+  uiStore.openWelcomeDialog();
 }
 </script>
 

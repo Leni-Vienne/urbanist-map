@@ -111,6 +111,7 @@ import { useToast } from "@/composables/ui/useToast";
 import { buildThumbnailUrl } from "@/utils/imageUrl";
 import { formatRelativeTime } from "@/utils/dateFormat";
 import { useI18n } from "vue-i18n";
+import { handleImageError } from "@/utils/imageErrorHandler";
 
 interface Props {
   visible: boolean;
@@ -168,12 +169,6 @@ async function handleAcknowledgeAll() {
   } finally {
     isAcknowledging.value = false;
   }
-}
-
-// AI : Handle image load error
-function handleImageError(event: Event) {
-  const target = event.target as HTMLImageElement;
-  target.style.display = "none";
 }
 </script>
 

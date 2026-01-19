@@ -118,6 +118,7 @@ jobs:
         env:
           REMOTE_USER: ${{ secrets.REMOTE_USER }}
           REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
+          REMOTE_PORT: ${{ secrets.REMOTE_PORT || '22' }}
           REMOTE_PASSWORD: ${{ secrets.REMOTE_PASSWORD }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
@@ -170,19 +171,19 @@ jobs:
           ls -la back/src/email
 
           # AI : Transfer files to remote server using password
-          sshpass -p "$REMOTE_PASSWORD" scp ./server.bundle.js "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
-          sshpass -p "$REMOTE_PASSWORD" scp ./docker-compose.yml "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
-          sshpass -p "$REMOTE_PASSWORD" scp ./Dockerfile.bun-sharp "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
-          sshpass -p "$REMOTE_PASSWORD" scp ./alloy-config.alloy "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
-          sshpass -p "$REMOTE_PASSWORD" scp -r ./back/src/email "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
+          sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" ./server.bundle.js "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
+          sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" ./docker-compose.yml "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
+          sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" ./Dockerfile.bun-sharp "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
+          sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" ./alloy-config.alloy "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
+          sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" -r ./back/src/email "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
 
           # AI : Conditionally transfer Caddyfile if reverse proxy deployment is enabled
           if [ "${{ vars.INCLUDE_REVERSE_PROXY }}" = "true" ]; then
-            sshpass -p "$REMOTE_PASSWORD" scp ./Caddyfile.host "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
+            sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" ./Caddyfile.host "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
           fi
 
           # AI : Deploy with docker compose on remote server
-          sshpass -p "$REMOTE_PASSWORD" ssh "${REMOTE_USER}@${REMOTE_HOST}" <<EOF
+          sshpass -p "$REMOTE_PASSWORD" ssh -p "$REMOTE_PORT" "${REMOTE_USER}@${REMOTE_HOST}" <<EOF
             # AI : Conditionally install and configure Caddy if reverse proxy is enabled
             if [ "${{ vars.INCLUDE_REVERSE_PROXY }}" = "true" ]; then
               if ! command -v caddy &> /dev/null; then

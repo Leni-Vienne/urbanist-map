@@ -19,7 +19,7 @@ import {
   type SubmissionChangeType,
 } from "./useSubmissionService";
 import { useOverlayPublisher } from "@/composables/overlay/useOverlayPublisher";
-import { updateMarkerTooltip, updateMarkerPosition } from "@/composables/overlay/useOverlayMarkers";
+import { updateMarkerTooltip, updateMarkerPosition } from "@/services/overlay/overlayMarkers";
 import { buildThumbnailUrl } from "@/utils/imageUrl";
 import { trpc } from "@/client";
 import type {

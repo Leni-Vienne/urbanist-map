@@ -60,28 +60,33 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, defineAsyncComponent } from 'vue';
-import { storeToRefs } from 'pinia';
-import { useI18n } from 'vue-i18n';
-import { useOverlayStore } from '@/stores/pinia/overlayStore';
-import { useProjectStore } from '@/stores/pinia/projectStore';
-import { useMapStore } from '@/stores/pinia/mapStore';
-import { useUiStore } from '@/stores/uiStore';
-import { usePopupState } from '@/composables/map/usePopupState';
+import { computed, ref, defineAsyncComponent } from "vue";
+import { storeToRefs } from "pinia";
+import { useI18n } from "vue-i18n";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
+import { useUiStore } from "@/stores/uiStore";
+import { overlayPopupTarget, projectPopupTarget } from "@/services/map/popupState";
 
-import { navigateToOverlay } from '@/composables/overlay/useOverlay';
-import { updateMarkerTooltip } from '@/composables/overlay/useOverlayMarkers';
-import { useToast } from '@/composables/ui/useToast';
-import { useSubmissionDialog } from '@/composables/submission/useSubmissionDialog';
-import { citiesWithProjects, closeProjectPopupAndResetMarkers } from '@/composables/map/useCityMarkers';
-import type { OverlayObject, Project } from '@/types/index';
-import { useProjectDeletion } from '@/composables/project/useProjectDeletion';
-import type { DBProject, DBCity } from '../../../../back/src/db/schema';
-import type { ApprovalStatus } from '@shared/types';
+import { navigateToOverlay } from "@/services/overlay/overlay";
+import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
+import { useToast } from "@/composables/ui/useToast";
+import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
+import { citiesWithProjects } from "@/services/map/cityMarkers";
+import { closeProjectPopupAndResetMarkers } from "@/services/map/standaloneProjectMarkers";
+import type { OverlayObject, Project } from "@/types/index";
+import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
+import type { DBProject, DBCity } from "../../../../back/src/db/schema";
+import type { ApprovalStatus } from "@shared/types";
 
-const UnifiedProjectPopup = defineAsyncComponent(() => import('./popups/UnifiedProjectPopup.vue'));
-const OverlayEditor = defineAsyncComponent(() => import('./OverlayEditor.vue'));
-const SubmissionConfirmationDialog = defineAsyncComponent(() => import('@/components/submission/SubmissionConfirmationDialog.vue'));
+const UnifiedProjectPopup = defineAsyncComponent(
+  () => import("@/components/map/popups/UnifiedProjectPopup.vue"),
+);
+const OverlayEditor = defineAsyncComponent(() => import("@/components/map/OverlayEditor.vue"));
+const SubmissionConfirmationDialog = defineAsyncComponent(
+  () => import("@/components/submission/SubmissionConfirmationDialog.vue"),
+);
 
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
@@ -93,7 +98,10 @@ const { currentCityOverlays } = storeToRefs(mapStore);
 const { projectInfoPopup } = storeToRefs(uiStore);
 const toast = useToast();
 const { t } = useI18n();
-const { handleDeleteOverlay: deleteOverlayWithMarker, handleDeleteProject: deleteProjectWithConfirm } = useProjectDeletion();
+const {
+  handleDeleteOverlay: deleteOverlayWithMarker,
+  handleDeleteProject: deleteProjectWithConfirm,
+} = useProjectDeletion();
 
 // AI : Use shared submission dialog composable
 const {
@@ -112,15 +120,14 @@ const overlayEditorRef = ref<InstanceType<typeof OverlayEditor> | null>(null);
 
 // AI : Computed for available cities
 const availableCities = computed(() => {
-  return citiesWithProjects.value.map(city => ({
+  return citiesWithProjects.value.map((city) => ({
     id: city.id,
     name: city.name,
-    countryCode: city.countryCode
+    countryCode: city.countryCode,
   }));
 });
 
 // AI : Track teleport target existence using reactive state (no MutationObserver)
-const { overlayPopupTarget, projectPopupTarget } = usePopupState();
 
 // AI : Computed for overlay popup visibility
 const showOverlayPopup = computed(() => showInfoPopup.value && overlayPopupTarget.value);
@@ -139,34 +146,35 @@ const overlayObject = computed(() => {
 });
 
 // AI : Helper to convert backend project data and add to store
-function convertAndCacheBackendProject(backendProject: Omit<DBProject, 'status'> & { status: ApprovalStatus | null; city: DBCity }): Project {
+function convertAndCacheBackendProject(
+  backendProject: Omit<DBProject, "status"> & { status: ApprovalStatus | null; city: DBCity },
+): Project {
   // AI : CRITICAL: If project already exists, just return it to preserve overlayIds
   // AI : This fixes bug where opening info popup clears overlayIds, breaking arrow navigation
   const existingProject = projects.value[backendProject.id];
   if (existingProject) {
-    return existingProject;  // AI : Don't create new project, return existing one!
+    return existingProject; // AI : Don't create new project, return existing one!
   }
-
 
   // AI : Project doesn't exist yet, create new one
   // AI : CRITICAL: Populate overlayIds from currently loaded overlays for this project
   // AI : Otherwise arrow navigation breaks (thinks there are 0 overlays)
   const overlaysForProject = Object.values(overlays.value)
-    .filter(o => o.projectId === backendProject.id)
-    .map(o => o.id);
+    .filter((o) => o.projectId === backendProject.id)
+    .map((o) => o.id);
 
   const convertedProject: Project = {
     ...backendProject,
     name: backendProject.name,
     city: backendProject.city,
-    overlayIds: overlaysForProject  // AI : Use actual loaded overlays, not empty array!
+    overlayIds: overlaysForProject, // AI : Use actual loaded overlays, not empty array!
   };
 
   // AI : Add to store for future use (or update if already exists)
   if (!projects.value[backendProject.id]) {
     projects.value = {
       ...projects.value,
-      [backendProject.id]: convertedProject
+      [backendProject.id]: convertedProject,
     };
 
     // AI : Cache original for reset functionality (critical for map popup edits)
@@ -193,9 +201,12 @@ const activeProject = computed((): Project | null => {
     if (allProjectsData[overlay.projectId]) return allProjectsData[overlay.projectId];
 
     // AI : Try to find backend project data from overlay or city overlays
-    const backendProject = overlay.project?.id === overlay.projectId
-      ? overlay.project
-      : currentCityOverlays.value.find(cityOverlay => cityOverlay.project?.id === overlay.projectId)?.project;
+    const backendProject =
+      overlay.project?.id === overlay.projectId
+        ? overlay.project
+        : currentCityOverlays.value.find(
+            (cityOverlay) => cityOverlay.project?.id === overlay.projectId,
+          )?.project;
 
     if (backendProject) return convertAndCacheBackendProject(backendProject);
   }
@@ -250,7 +261,7 @@ function handleOverlayUpdate(overlayId: string, caption?: string) {
   // AI : Use store action for consistent state management (instead of direct mutation)
   overlayStore.updateOverlay(overlayId, {
     caption,
-    isModified: true
+    isModified: true,
   });
 
   // AI : Update marker tooltip to reflect the new caption
@@ -276,19 +287,19 @@ async function handleViewOriginalOverlay(originalOverlayId: string) {
 
     if (!success) {
       toast.add({
-        severity: 'error',
-        summary: t('overlay.navigationFailed'),
-        detail: t('overlay.failedToNavigate'),
-        life: 3000
+        severity: "error",
+        summary: t("overlay.navigationFailed"),
+        detail: t("overlay.failedToNavigate"),
+        life: 3000,
       });
     }
   } catch (error) {
-    console.error('Failed to navigate to original overlay:', error);
+    console.error("Failed to navigate to original overlay:", error);
     toast.add({
-      severity: 'error',
-      summary: t('overlay.navigationFailed'),
-      detail: error instanceof Error ? error.message : t('overlay.failedToNavigate'),
-      life: 3000
+      severity: "error",
+      summary: t("overlay.navigationFailed"),
+      detail: error instanceof Error ? error.message : t("overlay.failedToNavigate"),
+      life: 3000,
     });
   }
 }
@@ -303,8 +314,6 @@ function handleAddImages() {
   uiStore.openImageUploadDialog(project.id);
 }
 
-
-
 // AI : Handle overlay deletion and show standalone project marker if last overlay
 async function handleDeleteOverlay(overlay: OverlayObject) {
   const project = activeProject.value;
@@ -312,7 +321,7 @@ async function handleDeleteOverlay(overlay: OverlayObject) {
 
   // AI : Count overlays in the overlayStore that belong to this project
   const overlaysForProject = projectId
-    ? Object.values(overlays.value).filter(o => o.projectId === projectId)
+    ? Object.values(overlays.value).filter((o) => o.projectId === projectId)
     : [];
   const overlayCount = overlaysForProject.length;
 

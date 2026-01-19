@@ -12,7 +12,11 @@
         <strong>{{ summary.entityName }}</strong>
         <Tag
           :severity="summary.requiresModeration ? 'warn' : 'success'"
-          :value="summary.requiresModeration ? $t('submission.requiresModeration') : $t('submission.immediateUpdate')"
+          :value="
+            summary.requiresModeration
+              ? $t('submission.requiresModeration')
+              : $t('submission.immediateUpdate')
+          "
         />
       </div>
 
@@ -56,13 +60,8 @@
       <!-- AI : Reason for changes input (optional) -->
       <div v-if="summary?.requiresModeration" class="reason-section">
         <label for="changeReason"
-          >{{ $t('common.reasonForChanges') }}
-          <span class="optional-label"
-            >({{
-          $t('project.optionalField')
-
-            }})</span
-          ></label
+          >{{ $t("common.reasonForChanges") }}
+          <span class="optional-label">({{ $t("project.optionalField") }})</span></label
         >
         <Textarea
           id="changeReason"
@@ -89,14 +88,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
-import type { SubmissionSummary } from '@/composables/submission/useSubmissionService';
+import { ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
+import type { SubmissionSummary } from "@/composables/submission/useSubmissionService";
+import { handleImageError } from "@/utils/imageErrorHandler";
 
 const { t: $t } = useI18n();
 
 // AI : Change reason input
-const changeReason = ref('');
+const changeReason = ref("");
 
 // AI : Props
 interface Props {
@@ -106,52 +106,49 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  isSubmitting: false
+  isSubmitting: false,
 });
 
 // AI : Emits
 const emit = defineEmits<{
-  'update:visible': [value: boolean];
-  'confirm': [reason: string];
-  'cancel': [];
-  'remove-change': [index: number, field: string, overlayId?: string];
+  "update:visible": [value: boolean];
+  confirm: [reason: string];
+  cancel: [];
+  "remove-change": [index: number, field: string, overlayId?: string];
 }>();
 
 // AI : Local visibility state
 const isVisible = ref(props.visible);
 
 // AI : Watch for external visibility changes
-watch(() => props.visible, (newValue) => {
-  isVisible.value = newValue;
-});
+watch(
+  () => props.visible,
+  (newValue) => {
+    isVisible.value = newValue;
+  },
+);
 
 // AI : Handle visibility change from dialog
 function handleVisibilityChange(value: boolean) {
-  emit('update:visible', value);
+  emit("update:visible", value);
 }
 
 // AI : Handle cancel button
 function handleCancel() {
-  changeReason.value = '';
-  emit('cancel');
-  emit('update:visible', false);
+  changeReason.value = "";
+  emit("cancel");
+  emit("update:visible", false);
 }
 
 // AI : Handle confirm button
 function handleConfirm() {
-  emit('confirm', changeReason.value);
-  changeReason.value = '';
+  emit("confirm", changeReason.value);
+  changeReason.value = "";
 }
 
 // AI : Handle remove change button click
 function handleRemoveChange(index: number, field: string, overlayId?: string) {
-  emit('remove-change', index, field, overlayId);
-}
-
-// AI : Handle image load error - replace with fallback icon
-function handleImageError(event: Event) {
-  const img = event.target as HTMLImageElement;
-  img.style.display = 'none';
+  emit("remove-change", index, field, overlayId);
 }
 </script>
 

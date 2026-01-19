@@ -35,6 +35,9 @@
       <div v-if="authStore.isAuthenticated" class="mode-controls-desktop">
         <ModeControls />
       </div>
+
+      <!-- AI : Satellite Preview Button -->
+      <SatellitePreview />
     </div>
   </div>
 </template>
@@ -42,21 +45,22 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent } from "vue";
 
-import { initializeMap, disableLeafletKeyboardEvents, map } from "@/composables/core/useMap";
-import { addTileLayer } from "@/composables/map/useTileLayers";
-import { initializeCameraBounds } from "@/composables/map/useMapNavigation";
-import { undo, redo } from "@/composables/overlay/useOverlay";
-import { setupMapClickToDeselect } from "@/composables/overlay/useOverlaySelection";
+import { initializeMap, disableLeafletKeyboardEvents, map } from "@/services/core/map";
+import { addTileLayer } from "@/services/map/tileLayers";
+import { initializeCameraBounds } from "@/services/map/mapNavigation";
+import { undo, redo } from "@/services/overlay/overlayEditing";
+import { setupMapClickToDeselect } from "@/services/overlay/overlaySelection";
 import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
 // AI : Load countries for breadcrumbs (no marker rendering)
-import { loadCountriesWithProjects } from "@/composables/map/useCountryData";
-import { loadAllCityMarkersGlobally } from "@/composables/map/useCityMarkers";
+import { loadCountriesWithProjects } from "@/services/map/countryData";
+import { loadAllCityMarkersGlobally } from "@/services/map/cityMarkers";
 import { useViewportContentManager } from "@/composables/viewport/useViewportContentManager";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import ModeControls from "@/components/map/ModeControls.vue";
+import SatellitePreview from "@/components/map/SatellitePreview.vue"; // no extra bundle "cost"
 
 const MapControls = defineAsyncComponent(() => import("@/components/map/MapControls.vue"));
 const UserMenu = defineAsyncComponent(() => import("@/components/auth/UserMenu.vue"));
@@ -299,19 +303,6 @@ async function initializeMapAndOverlays() {
     /* AI : Allow text wrapping */
     word-break: break-word !important;
     /* AI : Break long words if needed */
-  }
-
-  :deep(.leaflet-control-scale) {
-    bottom: 4.5rem !important;
-    /* AI : Same level as attribution */
-    left: 0.5rem !important;
-    backdrop-filter: blur(4px) !important;
-    border-radius: 0.5rem !important;
-    padding: 0.25rem !important;
-    margin: 0 !important;
-    position: fixed !important;
-    display: block !important;
-    visibility: visible !important;
   }
 }
 
