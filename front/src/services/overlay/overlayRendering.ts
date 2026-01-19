@@ -169,6 +169,57 @@ export function createLeafletOverlay(
 }
 
 /**
+ * AI : Queue for progressive overlay initialization to prevent main thread blocking
+ * AI : Maps OverlayID -> Initialization Callback
+ * Loads them 2 by 2 basically
+ */
+const initQueue = new Map<string, () => void>();
+let isInitQueueRunning = false;
+
+function processInitQueue() {
+  if (initQueue.size === 0) {
+    isInitQueueRunning = false;
+    return;
+  }
+
+  isInitQueueRunning = true;
+
+  // AI : Process up to 2 overlays per frame
+  // AI : This prevents "Animation frame fired" blocks in performance profile
+  // AI : caused by simultaneous completion of multiple image loads (cache burst)
+  let processedCount = 0;
+  const BATCH_SIZE = 2;
+
+  for (const [id, initFn] of initQueue) {
+    if (processedCount >= BATCH_SIZE) break;
+
+    // AI : Execute initialization
+    initFn();
+
+    // AI : Remove from queue
+    initQueue.delete(id);
+    processedCount++;
+  }
+
+  // AI : Continue in next frame
+  if (initQueue.size > 0) {
+    requestAnimationFrame(processInitQueue);
+  } else {
+    isInitQueueRunning = false;
+  }
+}
+
+function scheduleInitialization(id: string, initFn: () => void) {
+  if (initQueue.has(id)) return;
+
+  initQueue.set(id, initFn);
+
+  if (!isInitQueueRunning) {
+    processInitQueue();
+  }
+}
+
+/**
  * AI : Handle overlay load event with all initialization logic
  */
 function setupOverlayLoadHandler(
@@ -202,7 +253,14 @@ function setupOverlayLoadHandler(
       L.DomEvent.off(element, "load", tryInit);
       overlay.off("add", tryInit);
 
-      onOverlayLoaded(overlayObject, onReady);
+      // AI : CRITICAL OPTIMIZATION: Schedule initialization instead of running synchronously
+      // AI : This fixes the "lag spike" when multiple cached images load simultaneously
+      scheduleInitialization(overlayObject.id, () => {
+        // AI : Re-check existence before running (user might have panned away)
+        if (map.value && map.value.hasLayer(overlay)) {
+          onOverlayLoaded(overlayObject, onReady);
+        }
+      });
     }
   };
 
@@ -217,6 +275,7 @@ function setupOverlayLoadHandler(
   // AI : Handle load errors to ensure system consistency
   L.DomEvent.on(element, "error", () => {
     console.warn("Overlay image failed to load:", overlayObject.id);
+    initQueue.delete(overlayObject.id); // Cancel pending init if error
     // AI : Execute callback even on error so the overlay is registered in the store
     // AI : This prevents it from being stuck in a "rendering" state without a store entry
     if (onReady) {
