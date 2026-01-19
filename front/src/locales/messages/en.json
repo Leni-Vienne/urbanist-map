@@ -491,6 +491,8 @@
   "upload": {
     "noFileSelected": "No file selected",
     "selectImageFile": "Please select an image file to upload",
+    "overlayTooLarge": "Overlay is too large",
+    "maximumSizeOnMap": "Maximum size is 1km × 1km",
     "fileTooLarge": "File is too large. Maximum size is {maxSize}MB."
   },
   "imageUpload": {
