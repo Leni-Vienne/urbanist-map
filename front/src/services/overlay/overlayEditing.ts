@@ -206,8 +206,8 @@ export function checkOverlaySizeAndWarn(
     const toast = useToast();
     toast.add({
       severity: "warn",
-      summary: "Overlay too large",
-      detail: "Maximum size is 1km × 1km",
+      summary: t("upload.overlayTooLarge"),
+      detail: t("upload.maximumSizeOnMap"),
       life: 3000,
     });
   } else {
