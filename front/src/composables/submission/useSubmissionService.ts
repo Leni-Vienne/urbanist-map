@@ -81,6 +81,9 @@ const FIELD_DISPLAY_NAMES: Record<string, string> = {
   caption: "Overlay Caption",
   corners: "Position",
   cityId: "City",
+  proposalDatePrecision: "Proposal Date Precision",
+  startDatePrecision: "Start Date Precision",
+  endDatePrecision: "End Date Precision",
 };
 
 // AI : Normalize dates for comparison (handle Date objects vs yyyy-MM-dd strings)
@@ -180,8 +183,11 @@ export function useSubmissionService() {
       "proposalDate",
       "startDate",
       "endDate",
+      "endDatePrecision",
       "latestUpdateOn",
       "cityId",
+      "proposalDatePrecision",
+      "startDatePrecision",
     ];
 
     for (const field of fieldsToCheck) {
