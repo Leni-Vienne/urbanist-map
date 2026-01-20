@@ -10,6 +10,13 @@ body {
   padding: 0;
   width: 100%;
   height: 100%;
+  height: 100svh;
+}
+
+.app-container {
+  width: 100vw;
+  height: 100svh;
+  overflow: hidden;
 }
 
 /* Override Tailwind's display: block for Leaflet toolbar icons */
