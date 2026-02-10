@@ -1,4 +1,4 @@
-# Construction Map Deployment Guide
+# Urbanist Map Deployment Guide
 
 ## Infrastructure Overview
 
@@ -8,12 +8,12 @@ The application uses a **dual-stack deployment** architecture supporting both **
 
 ```
 Cloudflare DNS
-├── api.constructionmap.org → REDACTED:80/443
-└── preview-api.constructionmap.org → REDACTED:80/443
+├── api.urbanistmap.org → REDACTED:80/443
+└── preview-api.urbanistmap.org → REDACTED:80/443
                     ↓
             Host-level Caddy (port 80/443)
-                    ├── api.constructionmap.org → localhost:3000
-                    └── preview-api.constructionmap.org → localhost:3001
+                    ├── api.urbanistmap.org → localhost:3000
+                    └── preview-api.urbanistmap.org → localhost:3001
                                     ↓
                     Docker Containers
                     ├── Production Stack (/opt/construction-map-prod/)

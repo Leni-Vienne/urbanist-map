@@ -6,7 +6,7 @@ import { existsSync } from "node:fs";
 dotenv.config({ path: ".env" });
 
 /**
- * AI : Playwright configuration for Construction Map testing
+ * AI : Playwright configuration for Urbanist Map testing
  * @see https://playwright.dev/docs/test-configuration
  */
 export default defineConfig({

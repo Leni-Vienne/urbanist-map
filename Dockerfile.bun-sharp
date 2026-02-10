@@ -24,4 +24,4 @@ ENV BUN_INSTALL_CACHE_DIR=/home/bun/.bun/install/cache
 RUN bun add sharp
 
 LABEL description="Bun 1.3 Alpine with libvips and baked-in Sharp"
-LABEL maintainer="constructionmap.org"
+LABEL maintainer="urbanistmap.org"

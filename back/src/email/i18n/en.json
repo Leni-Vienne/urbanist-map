@@ -1,8 +1,8 @@
 {
     "verification": {
         "lang": "en",
-        "subject": "Verify your email address - Construction Map",
-        "title": "Welcome to Construction Map!",
+        "subject": "Verify your email address - Urbanist Map",
+        "title": "Welcome to Urbanist Map!",
         "message": "Thank you for signing up. To activate your account, please click the link below:",
         "buttonText": "Verify my email",
         "alternativeText": "If the button doesn't work, copy and paste this link in your browser:",
@@ -10,7 +10,7 @@
     },
     "passwordReset": {
         "lang": "en",
-        "subject": "Reset your password - Construction Map",
+        "subject": "Reset your password - Urbanist Map",
         "title": "Password Reset",
         "message": "You requested a password reset. Click the link below to create a new password:",
         "buttonText": "Reset my password",

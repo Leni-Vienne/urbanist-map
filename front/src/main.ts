@@ -14,8 +14,8 @@ import {
   setI18nInstance,
 } from "./locales";
 
-// AI : Custom PrimeVue preset for Construction Map
-const ConstructionMapPreset = definePreset(Aura, {
+// AI : Custom PrimeVue preset for Urbanist Map
+const UrbanistMapPreset = definePreset(Aura, {
   semantic: {
     primary: {
       50: "{indigo.50}",
@@ -76,7 +76,7 @@ app.use(PrimeVue, {
   ripple: true,
   inputVariant: "filled",
   theme: {
-    preset: ConstructionMapPreset,
+    preset: UrbanistMapPreset,
     options: {
       prefix: "p",
       darkModeSelector: "light",

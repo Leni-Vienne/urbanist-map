@@ -133,7 +133,7 @@
   },
   "help": {
     "title": "Welcome",
-    "intro": "ConstructionMap.org is a crowdsourced map of construction projects worldwide. Browse projects, view their progress, and contribute by adding your own content.",
+    "intro": "UrbanistMap.org is a crowdsourced map of urban projects worldwide. Browse projects, view their progress, and contribute by adding your own content.",
     "paragraph": "As it's often hard to find these information on the internet, I hope this site will be useful and pique your interest. Don't hesitate to contribute, whether by adding an official project or an idea of your own.",
     "gotIt": "Got it!",
     "dontShowAgain": "Don't show this window again",
@@ -314,8 +314,8 @@
     }
   },
   "app": {
-    "title": "ConstructionMap.org",
-    "subtitle": "A crowdsourced map of construction projects worldwide",
+    "title": "Urbanist Map",
+    "subtitle": "A crowdsourced map of urban projects worldwide",
     "closePanel": "Close panel"
   },
   "footer": {
@@ -356,7 +356,7 @@
     "emailVerification": {
       "verifying": "Verifying your email...",
       "verified": "Email Verified!",
-      "verifiedMessage": "Your email has been successfully verified. You can now use all features of Construction Map.",
+      "verifiedMessage": "Your email has been successfully verified. You can now use all features of Urbanist Map.",
       "continueToApp": "Continue to App",
       "verificationFailed": "Verification Failed",
       "backToApp": "Back to App",
