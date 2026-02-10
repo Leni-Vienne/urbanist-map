@@ -127,7 +127,7 @@ class ErrorAlerter {
   
   <div style="margin-top: 20px; padding: 20px; background-color: #f0f0f0; border-radius: 5px;">
     <p style="margin: 0; font-size: 12px; color: #666;">
-      This is an automated alert from Construction Map (${envName}). To stop receiving these alerts, update the ALERT_EMAIL environment variable.
+      This is an automated alert from Urbanist Map (${envName}). To stop receiving these alerts, update the ALERT_EMAIL environment variable.
     </p>
   </div>
 </body>
@@ -137,7 +137,7 @@ class ErrorAlerter {
       const emailService = getEmailService();
       await emailService.sendEmail(
         alertEmail,
-        `[Construction Map] [${envName.toUpperCase()}] Error Alert - ${recentErrors.length} errors detected`,
+        `[Urbanist Map] [${envName.toUpperCase()}] Error Alert - ${recentErrors.length} errors detected`,
         html,
       );
 
