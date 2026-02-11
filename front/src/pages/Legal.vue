@@ -48,19 +48,31 @@
         <ul>
           <li>
             <strong>Google OAuth:</strong> {{ t("pages.legal.thirdParty.google") }}
-            <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">{{
+            <a
+              href="https://policies.google.com/privacy"
+              target="_blank"
+              rel="noopener"
+            >{{
               t("pages.legal.thirdParty.googleLink")
             }}</a>
           </li>
           <li>
             <strong>Cloudflare:</strong> {{ t("pages.legal.thirdParty.cloudflare") }}
-            <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">{{
+            <a
+              href="https://www.cloudflare.com/privacypolicy/"
+              target="_blank"
+              rel="noopener"
+            >{{
               t("pages.legal.thirdParty.cloudflareLink")
             }}</a>
           </li>
           <li>
             <strong>AWS:</strong> {{ t("pages.legal.thirdParty.aws") }}
-            <a href="https://aws.amazon.com/privacy/" target="_blank" rel="noopener">{{
+            <a
+              href="https://aws.amazon.com/privacy/"
+              target="_blank"
+              rel="noopener"
+            >{{
               t("pages.legal.thirdParty.awsLink")
             }}</a>
           </li>
@@ -114,7 +126,7 @@ import { useI18n } from "vue-i18n";
 
 const router = useRouter();
 const { t } = useI18n();
-const email = "contact@constructionmap.org";
+const email = "contact@urbanistmap.org";
 
 function goHome() {
   router.push("/");

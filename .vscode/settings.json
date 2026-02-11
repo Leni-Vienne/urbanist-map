@@ -4,6 +4,7 @@
   "oxc.path.oxlint": "node_modules/oxlint/dist/cli.js",
   "oxc.configPath": ".oxlintrc.json",
   "html.format.wrapAttributes": "force-expand-multiline",
+  "terminal.integrated.suggest.enabled": true,
   "[typescript]": {
     "editor.defaultFormatter": "oxc.oxc-vscode" // "oxc.oxc-vscode" to enable, but messes with chatbots
   },

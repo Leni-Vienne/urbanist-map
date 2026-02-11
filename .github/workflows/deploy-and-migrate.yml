@@ -78,7 +78,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           accountId: ${{ secrets.CF_ACCOUNT_ID }}
-          command: pages deploy front/dist --project-name=${{ env.WRANGLER_ENV == '' && 'construction-map' || 'construction-map-preview' }} --branch=${{ github.ref_name }} --commit-dirty=true
+          command: pages deploy front/dist --project-name=${{ env.WRANGLER_ENV == '' && 'construction-map' || 'construction-map-preview' }} --branch=production --commit-dirty=true
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract frontend URL
