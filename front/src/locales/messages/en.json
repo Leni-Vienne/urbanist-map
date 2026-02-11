@@ -133,7 +133,7 @@
   },
   "help": {
     "title": "Welcome",
-    "intro": "UrbanistMap.org is a crowdsourced map of urban projects worldwide. Browse projects, view their progress, and contribute by adding your own content.",
+    "intro": "Urbanistmap.org is a crowdsourced map of urban projects worldwide. Browse projects, view their progress, and contribute by adding your own content.",
     "paragraph": "As it's often hard to find these information on the internet, I hope this site will be useful and pique your interest. Don't hesitate to contribute, whether by adding an official project or an idea of your own.",
     "gotIt": "Got it!",
     "dontShowAgain": "Don't show this window again",
@@ -179,8 +179,8 @@
   "currentLocation": {
     "noLocationSelected": "No Location Selected",
     "selectLocationPrompt": "Select a country or city on the map to browse projects",
-    "noProjects": "No projects in this city",
-    "noProjectsDetail": "This city doesn't have any projects yet",
+    "noProjects": "No projects for this city",
+    "noProjectsDetail": "Feel free to add one!",
     "clickToZoomCountry": "Click to zoom to country view",
     "noCitiesInCountry": "No cities in this country",
     "projectsCount": "{count} project(s)",
@@ -316,7 +316,7 @@
     "verifyEmailMessage": "A verification email has been sent to your address. Please check your inbox and spam folder."
   },
   "app": {
-    "title": "Urbanist Map",
+    "title": "Urbanistmap.org",
     "subtitle": "A crowdsourced map of urban projects worldwide",
     "closePanel": "Close panel"
   },

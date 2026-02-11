@@ -156,8 +156,10 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
  * AI : This is called when switching between countries or logging out
  * AI : Uses clearAllRenderedContent to ensure viewModeOverlays cache is also cleared
  */
-export function clearAllMapContent(): void {
-  removeCityMarkers();
+export function clearAllMapContent(preserveCityMarkers = false): void {
+  if (!preserveCityMarkers) {
+    removeCityMarkers();
+  }
   removeOverlayMarkers();
   clearAllOverlays();
   const overlayStore = useOverlayStore();
