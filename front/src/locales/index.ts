@@ -78,12 +78,12 @@ function getBrowserLocale(): Locale {
 
 // AI : Store locale in localStorage
 export function saveLocale(locale: Locale): void {
-  localStorage.setItem("construction-map-locale", locale);
+  localStorage.setItem("urbanist-map-locale", locale);
 }
 
 // AI : Get stored locale or browser locale
 export function getStoredLocale(): Locale {
-  const stored = localStorage.getItem("construction-map-locale");
+  const stored = localStorage.getItem("urbanist-map-locale");
   const isSupported = availableLocales.some((l) => l.code === stored);
   return isSupported ? (stored as Locale) : getBrowserLocale();
 }

@@ -14,9 +14,12 @@
       <p>{{ t("pages.contact.description") }}</p>
 
       <div class="contact-info">
-        <a href="mailto:contact@constructionmap.org" class="contact-link">
+        <a
+          href="mailto:contact@urbanistmap.org"
+          class="contact-link"
+        >
           <i class="pi pi-envelope"></i>
-          contact@constructionmap.org
+          contact@urbanistmap.org
         </a>
       </div>
 
@@ -27,9 +30,7 @@
         <p>{{ t("pages.contact.basemapDescription") }}</p>
         <div class="example-box">
           <span class="example-label">{{ t("pages.contact.basemapExample") }}</span>
-          <code
-            >https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage-product/default/2025/3857/{z}/{x}/{y}.png</code
-          >
+          <code>https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage-product/default/2025/3857/{z}/{x}/{y}.png</code>
         </div>
       </div>
     </div>
