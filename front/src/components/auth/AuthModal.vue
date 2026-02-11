@@ -2,22 +2,26 @@
   <Dialog
     v-model:visible="visible"
     modal
-    :header="isForgotPasswordMode ? $t('auth.forgotPasswordTitle') : (isLoginMode ? $t('auth.signIn') : $t('auth.signUp'))"
+    :header="
+      isForgotPasswordMode
+        ? $t('auth.forgotPasswordTitle')
+        : isLoginMode
+          ? $t('auth.signIn')
+          : $t('auth.signUp')
+    "
     :style="{ width: '450px' }"
     class="p-fluid auth-modal-overflow"
     data-testid="auth-modal"
   >
     <!-- AI : Forgot Password Mode -->
     <div v-if="isForgotPasswordMode">
-      <p class="text-muted-color mb-4">{{ $t('auth.forgotPasswordMessage') }}</p>
+      <p class="text-muted-color mb-4">{{ $t("auth.forgotPasswordMessage") }}</p>
 
       <form @submit.prevent="handleForgotPassword" class="flex flex-col gap-4" autocomplete="on">
         <div class="field">
-          <label
-            for="forgot-email"
-            class="block text-sm font-medium mb-2"
-            >{{ $t('auth.emailAddress') }}</label
-          >
+          <label for="forgot-email" class="block text-sm font-medium mb-2">{{
+            $t("auth.emailAddress")
+          }}</label>
           <InputText
             id="forgot-email"
             v-model="forgotPasswordEmail"
@@ -43,7 +47,7 @@
           class="p-info flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded"
         >
           <i class="pi pi-info-circle"></i>
-          {{ $t('auth.resetLinkSent') }}
+          {{ $t("auth.resetLinkSent") }}
         </div>
 
         <div class="flex flex-col gap-3 mt-2">
@@ -89,28 +93,30 @@
             <span
               v-if="lastLoginMethod === 'google' && isLoginMode"
               class="absolute top-0 -right-1 translate-y-[-33%] text-xs px-3 py-1.5 rounded-full font-semibold z-50"
-              style="background-color: var(--p-primary-color); color: var(--p-primary-contrast-color); box-shadow: var(--p-button-shadow);"
+              style="
+                background-color: var(--p-primary-color);
+                color: var(--p-primary-contrast-color);
+                box-shadow: var(--p-button-shadow);
+              "
               :title="$t('auth.lastUsedGoogle')"
             >
-              {{ $t('auth.lastUsed') }}
+              {{ $t("auth.lastUsed") }}
             </span>
           </div>
         </div>
 
         <div class="flex items-center my-4">
           <div class="flex-1 border-t border-surface-300"></div>
-          <span class="px-3 text-sm text-muted-color">{{ $t('auth.orContinueWithEmail') }}</span>
+          <span class="px-3 text-sm text-muted-color">{{ $t("auth.orContinueWithEmail") }}</span>
           <div class="flex-1 border-t border-surface-300"></div>
         </div>
       </div>
 
       <form @submit.prevent="handleSubmit" class="flex flex-col gap-4" autocomplete="on">
         <div class="field relative">
-          <label
-            for="auth-email"
-            class="block text-sm font-medium mb-2"
-            >{{ $t('auth.emailAddress') }}</label
-          >
+          <label for="auth-email" class="block text-sm font-medium mb-2">{{
+            $t("auth.emailAddress")
+          }}</label>
           <InputText
             id="auth-email"
             v-model="form.email"
@@ -127,21 +133,23 @@
           <span
             v-if="lastLoginMethod === 'email' && isLoginMode && form.email"
             class="absolute top-[1.875rem] -right-1 translate-y-[-33%] text-xs px-3 py-1.5 rounded-full font-semibold z-50"
-            style="background-color: var(--p-primary-color); color: var(--p-primary-contrast-color); box-shadow: var(--p-button-shadow);"
+            style="
+              background-color: var(--p-primary-color);
+              color: var(--p-primary-contrast-color);
+              box-shadow: var(--p-button-shadow);
+            "
             :title="$t('auth.lastUsedEmail')"
           >
-            {{ $t('auth.lastUsed') }}
+            {{ $t("auth.lastUsed") }}
           </span>
           <small v-if="emailError" class="p-error">{{ emailError }}</small>
         </div>
 
         <div class="field">
           <div class="flex justify-between items-center mb-2">
-            <label
-              for="auth-password"
-              class="block text-sm font-medium"
-              >{{ $t('auth.password') }}</label
-            >
+            <label for="auth-password" class="block text-sm font-medium">{{
+              $t("auth.password")
+            }}</label>
             <Button
               v-if="isLoginMode"
               type="button"
@@ -169,7 +177,7 @@
 
         <div v-if="!isLoginMode" class="field">
           <label for="auth-username" class="block text-sm font-medium mb-2">
-            {{ $t('auth.username') }}
+            {{ $t("auth.username") }}
           </label>
           <InputText
             id="auth-username"
@@ -180,7 +188,7 @@
             required
             data-testid="auth-username-input"
           />
-          <small class="text-muted-color text-xs">{{ $t('auth.displayName') }}</small>
+          <small class="text-muted-color text-xs">{{ $t("auth.displayName") }}</small>
         </div>
 
         <!-- AI : Remember Me Checkbox (only in login mode) -->
@@ -192,8 +200,8 @@
             data-testid="auth-remember-me"
           />
           <label for="auth-remember-me" class="text-sm cursor-pointer select-none">
-            {{ $t('auth.rememberMe') }}
-            <span class="text-muted-color text-xs ml-1">({{ $t('auth.rememberMeHint') }})</span>
+            {{ $t("auth.rememberMe") }}
+            <span class="text-muted-color text-xs ml-1">({{ $t("auth.rememberMeHint") }})</span>
           </label>
         </div>
 
@@ -210,6 +218,20 @@
           {{ errorMessage }}
         </div>
 
+        <!-- AI : Registration success message -->
+        <div
+          v-if="registrationSuccess && !isLoginMode"
+          class="flex flex-col gap-2 p-3 bg-blue-50 border border-blue-200 rounded"
+        >
+          <div class="flex items-center gap-2 font-semibold text-blue-700">
+            <i class="pi pi-info-circle"></i>
+            {{ $t("auth.verifyEmailTitle") }}
+          </div>
+          <p class="text-sm text-blue-600 m-0">
+            {{ $t("auth.verifyEmailMessage") }}
+          </p>
+        </div>
+
         <div class="flex flex-col gap-3 mt-2">
           <Button
             type="submit"
@@ -222,7 +244,7 @@
 
           <div class="text-center pt-3 border-t border-surface-300">
             <span class="text-sm text-muted-color">
-              {{ isLoginMode ? $t('auth.dontHaveAccount') : $t('auth.alreadyHaveAccount') }}
+              {{ isLoginMode ? $t("auth.dontHaveAccount") : $t("auth.alreadyHaveAccount") }}
             </span>
             <Button
               type="button"
@@ -241,256 +263,285 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, nextTick } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useAuthStore } from '@/stores/authStore'
-import { useToast } from '@/composables/ui/useToast'
+import { ref, reactive, computed, watch, nextTick } from "vue";
+import { useI18n } from "vue-i18n";
+import { useAuthStore } from "@/stores/authStore";
+import { useToast } from "@/composables/ui/useToast";
 
 const props = defineProps<{
-  visible: boolean
-}>()
+  visible: boolean;
+}>();
 
 const emit = defineEmits<{
-  'update:visible': [visible: boolean]
-}>()
+  "update:visible": [visible: boolean];
+}>();
 
-const { t: $t } = useI18n()
-const authStore = useAuthStore()
-const toast = useToast()
+const { t: $t } = useI18n();
+const authStore = useAuthStore();
+const toast = useToast();
 
-const isLoginMode = ref(true)
-const isForgotPasswordMode = ref(false)
-const loading = ref(false)
-const oauthLoading = ref(false)
-const errorMessage = ref('')
-const emailError = ref('')
-const passwordError = ref('')
-const forgotPasswordEmail = ref('')
-const resetLinkSent = ref(false)
-const captchaToken = ref('')
-const turnstileWidgetId = ref<string | null>(null)
+const isLoginMode = ref(true);
+const isForgotPasswordMode = ref(false);
+const loading = ref(false);
+const oauthLoading = ref(false);
+const errorMessage = ref("");
+const emailError = ref("");
+const passwordError = ref("");
+const forgotPasswordEmail = ref("");
+const resetLinkSent = ref(false);
+const registrationSuccess = ref(false);
+const captchaToken = ref("");
+const turnstileWidgetId = ref<string | null>(null);
 
 // AI : Track last login method hint
-const lastLoginMethod = ref<'email' | 'google' | null>(null)
+const lastLoginMethod = ref<"email" | "google" | null>(null);
 
 const visible = computed({
   get: () => props.visible,
-  set: (value: boolean) => emit('update:visible', value)
-})
+  set: (value: boolean) => emit("update:visible", value),
+});
 
 const form = reactive({
-  email: '',
-  password: '',
-  username: '',
-  rememberMe: false
-})
+  email: "",
+  password: "",
+  username: "",
+  rememberMe: false,
+});
 
 // AI : Watch email field to show last login hint
-watch(() => form.email, (email) => {
-  if (email && isLoginMode.value && !isForgotPasswordMode.value) {
-    lastLoginMethod.value = authStore.getLastLoginMethod(email)
-  } else {
-    lastLoginMethod.value = null
-  }
-})
+watch(
+  () => form.email,
+  (email) => {
+    if (email && isLoginMode.value && !isForgotPasswordMode.value) {
+      lastLoginMethod.value = authStore.getLastLoginMethod(email);
+    } else {
+      lastLoginMethod.value = null;
+    }
+  },
+);
 
 // AI : Reset loading states and errors when modal opens/closes
-watch(() => props.visible, (isVisible) => {
-  if (isVisible) {
-    // AI : Reset all state when modal opens
-    oauthLoading.value = false
-    loading.value = false
-    errorMessage.value = ''
-  } else {
-    // AI : Clean up when modal closes
-    oauthLoading.value = false
-    loading.value = false
-  }
+watch(
+  () => props.visible,
+  (isVisible) => {
+    if (isVisible) {
+      // AI : Reset all state when modal opens
+      oauthLoading.value = false;
+      loading.value = false;
+      errorMessage.value = "";
+    } else {
+      // AI : Clean up when modal closes
+      oauthLoading.value = false;
+      loading.value = false;
+    }
 
-  // AI : Handle Turnstile rendering when modal opens or mode changes
-  if (isVisible && !isLoginMode.value) {
-    nextTick(() => renderTurnstile())
-  }
-})
+    // AI : Handle Turnstile rendering when modal opens or mode changes
+    if (isVisible && !isLoginMode.value) {
+      nextTick(() => renderTurnstile());
+    }
+  },
+);
 
 // AI : Watch mode switch to render/reset Turnstile
 watch(isLoginMode, (isLogin) => {
   if (!isLogin && props.visible) {
-    nextTick(() => renderTurnstile())
+    nextTick(() => renderTurnstile());
   } else {
-    resetTurnstile()
+    resetTurnstile();
   }
-})
+});
 
 // AI : Cloudflare Turnstile Integration
 function renderTurnstile() {
   // AI : Check if globalThis.turnstile is available (loaded from index.html)
-  if (globalThis.turnstile && document.getElementById('turnstile-widget')) {
+  if (globalThis.turnstile && document.getElementById("turnstile-widget")) {
     // AI : Reset if already rendered to avoid duplicates
     if (turnstileWidgetId.value) {
-      globalThis.turnstile.remove(turnstileWidgetId.value)
+      globalThis.turnstile.remove(turnstileWidgetId.value);
     }
 
     // AI : Get site key from env (Vite exposes env vars via import.meta.env)
-    const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY
+    const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
     if (!siteKey) {
-      console.warn('AI: Missing VITE_TURNSTILE_SITE_KEY, CAPTCHA will be skipped in dev')
-      return // Skip rendering if no key (dev mode)
+      console.warn("AI: Missing VITE_TURNSTILE_SITE_KEY, CAPTCHA will be skipped in dev");
+      return; // Skip rendering if no key (dev mode)
     }
 
-    turnstileWidgetId.value = globalThis.turnstile.render('#turnstile-widget', {
+    turnstileWidgetId.value = globalThis.turnstile.render("#turnstile-widget", {
       sitekey: siteKey,
       callback: (token: string) => {
-        captchaToken.value = token
+        captchaToken.value = token;
       },
-      'expired-callback': () => {
-        captchaToken.value = ''
+      "expired-callback": () => {
+        captchaToken.value = "";
       },
-      theme: 'auto'
-    })
+      theme: "auto",
+    });
   }
 }
 
 function resetTurnstile() {
   if (globalThis.turnstile && turnstileWidgetId.value) {
-    globalThis.turnstile.remove(turnstileWidgetId.value)
-    turnstileWidgetId.value = null
+    globalThis.turnstile.remove(turnstileWidgetId.value);
+    turnstileWidgetId.value = null;
   }
-  captchaToken.value = ''
+  captchaToken.value = "";
 }
 
 // AI : Helper to translate error messages (handles both i18n keys and plain text)
 function translateError(errorMessage: string | null | undefined): string {
-  if (!errorMessage) return ''
+  if (!errorMessage) return "";
 
   // AI : Check if it looks like an i18n key (contains dots and starts with 'auth.')
-  if (errorMessage.startsWith('auth.')) {
+  if (errorMessage.startsWith("auth.")) {
     // AI : Try to translate, fallback to original if key doesn't exist
-    const translated = $t(errorMessage)
-    return translated !== errorMessage ? translated : errorMessage
+    const translated = $t(errorMessage);
+    return translated !== errorMessage ? translated : errorMessage;
   }
 
   // AI : Return as-is for non-i18n error messages
-  return errorMessage
+  return errorMessage;
 }
 
 function resetForm() {
-  form.email = ''
-  form.password = ''
-  form.username = ''
-  form.rememberMe = false
-  errorMessage.value = ''
-  emailError.value = ''
-  passwordError.value = ''
-  forgotPasswordEmail.value = ''
-  resetLinkSent.value = false
-  resetTurnstile()
+  form.email = "";
+  form.password = "";
+  form.username = "";
+  form.rememberMe = false;
+  errorMessage.value = "";
+  emailError.value = "";
+  passwordError.value = "";
+  forgotPasswordEmail.value = "";
+  resetLinkSent.value = false;
+  registrationSuccess.value = false;
+  resetTurnstile();
 }
 
 function toggleMode() {
-  isLoginMode.value = !isLoginMode.value
-  errorMessage.value = ''
-  emailError.value = ''
-  passwordError.value = ''
+  isLoginMode.value = !isLoginMode.value;
+  errorMessage.value = "";
+  emailError.value = "";
+  passwordError.value = "";
+  registrationSuccess.value = false;
 }
 
 function showForgotPassword() {
-  isForgotPasswordMode.value = true
-  errorMessage.value = ''
-  resetLinkSent.value = false
-  forgotPasswordEmail.value = form.email
+  isForgotPasswordMode.value = true;
+  errorMessage.value = "";
+  resetLinkSent.value = false;
+  forgotPasswordEmail.value = form.email;
 }
 
 async function handleSubmit() {
-  loading.value = true
-  errorMessage.value = ''
-  emailError.value = ''
-  passwordError.value = ''
+  loading.value = true;
+  errorMessage.value = "";
+  emailError.value = "";
+  passwordError.value = "";
 
   try {
     if (isLoginMode.value) {
-      const result = await authStore.signIn(form.email, form.password, form.rememberMe)
+      const result = await authStore.signIn(form.email, form.password, form.rememberMe);
       if (result.success) {
-        toast.add({ severity: 'success', summary: $t('common.success'), detail: $t('auth.success.loggedIn'), life: 3000 })
-        visible.value = false
-        resetForm()
+        toast.add({
+          severity: "success",
+          summary: $t("common.success"),
+          detail: $t("auth.success.loggedIn"),
+          life: 3000,
+        });
+        visible.value = false;
+        resetForm();
       } else {
-        errorMessage.value = translateError(result.error) || $t('auth.error.loginFailed')
+        errorMessage.value = translateError(result.error) || $t("auth.error.loginFailed");
       }
     } else {
       // AI : Pass captcha token
-      const result = await authStore.signUp(form.email, form.password, form.username, captchaToken.value)
+      const result = await authStore.signUp(
+        form.email,
+        form.password,
+        form.username,
+        captchaToken.value,
+      );
       if (result.success) {
-        toast.add({ severity: 'success', summary: $t('common.success'), detail: $t('auth.success.registered'), life: 3000 })
-        visible.value = false
-        resetForm()
+        // AI : Show success message but keep modal open
+        registrationSuccess.value = true;
+        errorMessage.value = "";
+        toast.add({
+          severity: "success",
+          summary: $t("common.success"),
+          detail: $t("auth.success.registered"),
+          life: 3000,
+        });
+        // AI : Do not close modal or reset form to show verification message
       } else {
-        errorMessage.value = translateError(result.error) || $t('auth.error.registrationFailed')
+        errorMessage.value = translateError(result.error) || $t("auth.error.registrationFailed");
         // AI : Reset captcha on failure
         if (globalThis.turnstile && turnstileWidgetId.value) {
-          globalThis.turnstile.reset(turnstileWidgetId.value)
-          captchaToken.value = ''
+          globalThis.turnstile.reset(turnstileWidgetId.value);
+          captchaToken.value = "";
         }
       }
     }
   } catch (error) {
-    errorMessage.value = translateError(error instanceof Error ? error.message : null) || $t('common.error')
+    errorMessage.value =
+      translateError(error instanceof Error ? error.message : null) || $t("common.error");
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 // AI : Handle OAuth sign in
-async function handleOAuthSignIn(provider: 'google') {
-  oauthLoading.value = true
-  errorMessage.value = ''
+async function handleOAuthSignIn(provider: "google") {
+  oauthLoading.value = true;
+  errorMessage.value = "";
 
   try {
-    const result = await authStore.signInWithOAuth(provider, form.rememberMe)
+    const result = await authStore.signInWithOAuth(provider, form.rememberMe);
     if (result.success) {
       toast.add({
-        severity: 'success',
-        summary: $t('common.success'),
-        detail: $t('auth.success.googleAuthSuccess'),
-        life: 3000
-      })
-      visible.value = false
-      resetForm()
+        severity: "success",
+        summary: $t("common.success"),
+        detail: $t("auth.success.googleAuthSuccess"),
+        life: 3000,
+      });
+      visible.value = false;
+      resetForm();
     } else {
-      errorMessage.value = translateError(result.error) || $t('auth.error.googleAuthFailed')
+      errorMessage.value = translateError(result.error) || $t("auth.error.googleAuthFailed");
     }
   } catch (error) {
-    console.error('AI: OAuth sign in error:', error)
-    errorMessage.value = translateError(error instanceof Error ? error.message : null) || $t('common.error')
+    console.error("AI: OAuth sign in error:", error);
+    errorMessage.value =
+      translateError(error instanceof Error ? error.message : null) || $t("common.error");
   } finally {
     // AI : Always reset loading state to prevent modal from being stuck in disabled state
-    oauthLoading.value = false
+    oauthLoading.value = false;
   }
 }
 
 // AI : Handle forgot password request
 async function handleForgotPassword() {
-  loading.value = true
-  errorMessage.value = ''
-  resetLinkSent.value = false
+  loading.value = true;
+  errorMessage.value = "";
+  resetLinkSent.value = false;
 
   try {
-    const result = await authStore.requestPasswordReset(forgotPasswordEmail.value)
+    const result = await authStore.requestPasswordReset(forgotPasswordEmail.value);
     if (result.success) {
-      resetLinkSent.value = true
+      resetLinkSent.value = true;
       toast.add({
-        severity: 'info',
-        summary: $t('auth.checkYourEmail'),
-        detail: $t('auth.resetLinkSent'),
-        life: 5000
-      })
+        severity: "info",
+        summary: $t("auth.checkYourEmail"),
+        detail: $t("auth.resetLinkSent"),
+        life: 5000,
+      });
     } else {
-      errorMessage.value = translateError(result.error) || $t('common.error')
+      errorMessage.value = translateError(result.error) || $t("common.error");
     }
   } catch (error) {
-    errorMessage.value = translateError(error instanceof Error ? error.message : null) || $t('common.error')
+    errorMessage.value =
+      translateError(error instanceof Error ? error.message : null) || $t("common.error");
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 </script>

@@ -238,9 +238,34 @@ export const authRouter = router({
           })
           .where(eq(users.id, matchedUser.id));
 
+        // AI : Create session for auto-login (30-day duration)
+        const session = ctx.hono.get("session");
+        const sessionDuration = 30 * 24 * 60 * 60; // 30 days in seconds
+        const expiresAt = new Date(Date.now() + sessionDuration * 1000);
+
+        session.set("user", {
+          id: matchedUser.id,
+          email: matchedUser.email,
+          username: matchedUser.username,
+          role: matchedUser.role,
+          moderatedCountries: matchedUser.moderatedCountries,
+          emailVerified: true,
+        });
+
+        session.set("expiresAt", expiresAt.toISOString());
+
+        // AI : Return user data for frontend to update state
         return {
           success: true,
           message: "Email verified successfully",
+          user: {
+            id: matchedUser.id,
+            email: matchedUser.email,
+            username: matchedUser.username,
+            role: matchedUser.role,
+            moderatedCountries: matchedUser.moderatedCountries,
+            emailVerified: true,
+          },
         };
       } catch (error) {
         console.error("Email verification error:", error);

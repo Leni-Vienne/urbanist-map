@@ -357,12 +357,14 @@ export const useAuthStore = defineStore("auth", () => {
       const result = await trpc.auth.verifyEmail.mutate({ token });
       return {
         success: result.success,
+        user: result.user ?? null,
         error: result.success ? null : result.message,
       };
     } catch (error: unknown) {
       console.error("Email verification error:", error);
       return {
         success: false,
+        user: null,
         error: error instanceof Error ? error.message : "Email verification failed",
       };
     }
