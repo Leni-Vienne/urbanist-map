@@ -311,7 +311,9 @@
       "registered": "Account created successfully! Please check your email to verify your account.",
       "loggedIn": "Signed in successfully!",
       "googleAuthSuccess": "Google authentication successful!"
-    }
+    },
+    "verifyEmailTitle": "Verify Your Email",
+    "verifyEmailMessage": "A verification email has been sent to your address. Please check your inbox and spam folder."
   },
   "app": {
     "title": "Urbanist Map",
@@ -357,6 +359,7 @@
       "verifying": "Verifying your email...",
       "verified": "Email Verified!",
       "verifiedMessage": "Your email has been successfully verified. You can now use all features of Urbanist Map.",
+      "signingIn": "Signing you in...",
       "continueToApp": "Continue to App",
       "verificationFailed": "Verification Failed",
       "backToApp": "Back to App",

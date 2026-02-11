@@ -392,3 +392,51 @@ This document outlines the granular functional test scenarios required to ensure
   2.  Immediately zoom out or switch mode before images finish loading.
   3.  **Check**: No crashes or console errors.
   4.  **Check**: Image load events are properly cleaned up.
+
+## 18. Email Verification Auto-Login (Recent Feature - Feb 11)
+
+### 18.1. Successful Verification Auto-Login
+
+- **Scenario**: User clicks verification link and is automatically logged in.
+- **Steps**:
+  1.  Register a new account (get verification link from console in dev mode).
+  2.  Open verification link in new incognito window (no existing session).
+  3.  **Check**: "Email Verified!" success message appears.
+  4.  **Check**: "Signing you in..." message appears with spinner.
+  5.  **Check**: Automatically redirected to home page after ~1.5 seconds.
+  6.  **Check**: User menu/avatar shows user is logged in.
+  7.  **Check**: Can access authenticated features (e.g., add project, view contributions).
+
+### 18.2. Session Creation on Verification
+
+- **Scenario**: Backend creates session cookie during email verification.
+- **Steps**:
+  1.  Complete steps from 18.1.
+  2.  Check browser DevTools Application → Cookies.
+  3.  **Check**: Session cookie is present after verification.
+  4.  Refresh the page.
+  5.  **Check**: User remains logged in (session persists).
+  6.  **Check**: Session has 30-day expiration.
+
+### 18.3. Already-Used Verification Token
+
+- **Scenario**: Verification token can only be used once.
+- **Steps**:
+  1.  Use a verification link to verify email and auto-login.
+  2.  Log out.
+  3.  Try to use the same verification link again.
+  4.  **Check**: "Invalid verification token" error appears.
+  5.  **Check**: User is NOT logged in.
+  6.  **Check**: "Back to App" button appears (not auto-redirect).
+
+### 18.4. Registration Modal Flow
+
+- **Scenario**: Modal stays open after registration with verification reminder.
+- **Steps**:
+  1.  Open auth modal and register new account.
+  2.  **Check**: Modal remains open (doesn't close).
+  3.  **Check**: Blue info box appears with "Verify Your Email" title.
+  4.  **Check**: Message includes reminder to check spam folder.
+  5.  **Check**: Toast notification also appears with success message.
+  6.  Close modal manually.
+  7.  **Regression**: Switch to login mode and verify form is reset correctly.
