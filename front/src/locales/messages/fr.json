@@ -133,7 +133,7 @@
   },
   "help": {
     "title": "Bienvenue",
-    "intro": "UrbanistMap.org est une carte participative des projets d'aménagement urbain dans le monde.",
+    "intro": "Urbanistmap.org est une carte participative des projets d'aménagement urbain dans le monde.",
     "paragraph": "Étant souvent difficile de trouver ces informations sur internet, j'espère que le site vous sera utile et éveillera votre curiosité. N'hésitez pas à contribuer, que ce soit en ajoutant un projet officiel ou une idée que vous avez pour votre ville.",
     "gotIt": "J'ai compris !",
     "dontShowAgain": "Ne plus afficher cette fenêtre",
@@ -179,8 +179,8 @@
   "currentLocation": {
     "noLocationSelected": "Aucun Emplacement Sélectionné",
     "selectLocationPrompt": "Sélectionnez un pays ou une ville sur la carte pour parcourir les projets",
-    "noProjects": "Aucun projet dans cette ville",
-    "noProjectsDetail": "Cette ville n'a pas encore de projets",
+    "noProjects": "Aucun projet pour cette ville",
+    "noProjectsDetail": "N'hésitez pas à en ajouter un !",
     "clickToZoomCountry": "Cliquez pour zoomer sur le pays",
     "noCitiesInCountry": "Aucune ville dans ce pays",
     "projectsCount": "{count} projet(s)",
@@ -316,7 +316,7 @@
     "verifyEmailMessage": "Un email de vérification a été envoyé à votre adresse. Veuillez vérifier votre boîte de réception et vos spams."
   },
   "app": {
-    "title": "Urbanist Map",
+    "title": "Urbanistmap.org",
     "subtitle": "Une carte participative des projets d'aménagement urbain dans le monde",
     "closePanel": "Fermer le panneau"
   },
