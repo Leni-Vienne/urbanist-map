@@ -3,16 +3,7 @@ import type { RouterOutput } from "@/client";
 import type { DBCountry, DBProject, DBCity, ApprovalStatus } from "../../../back/src/db/schema";
 
 // AI : Type for marker colors used throughout the application
-export type MarkerColor =
-  | "blue"
-  | "green"
-  | "orange"
-  | "red"
-  | "gold"
-  | "yellow"
-  | "purple"
-  | "grey"
-  | "black";
+export type MarkerColor = "blue" | "green" | "orange" | "red" | "yellow" | "purple" | "grey";
 export type viewModeMarkerColor = "yellow" | "orange" | "grey" | "green";
 
 // AI : Interface for camera bounds used in view mode

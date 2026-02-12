@@ -1,9 +1,9 @@
-// AI : Standalone project marker management - extracted to avoid circular dependencies
 import L from "leaflet";
 import { watch } from "vue";
 import type { Project } from "@/types/index";
 import { map } from "@/services/core/map";
 import { createStandaloneProjectIcon } from "@/services/map/markers";
+import { visibleCompletionStates } from "@/services/overlay/completionFilters";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { trpc } from "@/client";
@@ -34,7 +34,7 @@ let selectedStandaloneProjectMarker: L.Marker | null = null;
 let isWatcherInitialized = false;
 
 /**
- * AI : Initialize watcher for project info popup closing (lazy initialization)
+ * AI : Initialize watchers for standalone markers (lazy initialization)
  * Called once when first marker is added to avoid Pinia initialization issues
  */
 function initializePopupWatcher() {
@@ -49,6 +49,15 @@ function initializePopupWatcher() {
         updateStandaloneProjectMarkerOpacities(null);
       }
     },
+  );
+
+  // AI : Watch completion filter changes and refresh all standalone markers
+  watch(
+    () => visibleCompletionStates.value,
+    () => {
+      refreshAllStandaloneMarkers();
+    },
+    { deep: true },
   );
 
   isWatcherInitialized = true;
@@ -109,6 +118,42 @@ export function clearAllStandaloneProjectMarkers(): void {
 
   standaloneProjectMarkerMap.clear();
   selectedStandaloneProjectMarker = null;
+}
+
+/**
+ * AI : Refresh all standalone markers visibility based on current completion filters
+ * This is called when completion filters change
+ */
+function refreshAllStandaloneMarkers(): void {
+  if (!standaloneProjectsLayer) return;
+
+  const overlayStore = useOverlayStore();
+  const projectStore = useProjectStore();
+
+  // AI : Iterate through all existing markers
+  for (const [projectId, marker] of standaloneProjectMarkerMap.entries()) {
+    const project = projectStore.projects[projectId];
+    if (!project) continue;
+
+    // AI : Get marker color for this project
+    const markerColor = getProjectMarkerColor(project, overlayStore.mode);
+
+    // AI : Check if this marker should be visible
+    const shouldBeVisible = visibleCompletionStates.value[markerColor];
+
+    // AI : Show or hide the marker based on filter
+    if (shouldBeVisible) {
+      // AI : Add to layer if not already there
+      if (!standaloneProjectsLayer.hasLayer(marker)) {
+        standaloneProjectsLayer.addLayer(marker);
+      }
+    } else {
+      // AI : Remove from layer if it's there
+      if (standaloneProjectsLayer.hasLayer(marker)) {
+        standaloneProjectsLayer.removeLayer(marker);
+      }
+    }
+  }
 }
 
 /**
@@ -220,6 +265,11 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
   // AI : Initialize popup watcher on first marker addition (lazy initialization)
   initializePopupWatcher();
 
+  // AI : Get marker color and check if it should be visible based on current filter
+  const overlayStore = useOverlayStore();
+  const markerColor = getProjectMarkerColor(project, overlayStore.mode);
+  const shouldBeVisible = visibleCompletionStates.value[markerColor];
+
   // AI : Ensure standalone project layer exists
   if (!standaloneProjectsLayer) {
     standaloneProjectsLayer = L.layerGroup();
@@ -236,8 +286,6 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
     };
   }
 
-  const overlayStore = useOverlayStore();
-  const markerColor = getProjectMarkerColor(project, overlayStore.mode);
   const markerIcon = createStandaloneProjectIcon(markerColor);
 
   // AI : Create marker
@@ -245,6 +293,14 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
     icon: markerIcon,
     opacity: MARKER_OPACITY.standalone.default,
   });
+
+  // AI : Store marker in map BEFORE adding to layer (so refresh function can find it)
+  standaloneProjectMarkerMap.set(project.id, marker);
+
+  // AI : Only add to layer if it passes the completion filter
+  if (shouldBeVisible) {
+    standaloneProjectsLayer.addLayer(marker);
+  }
 
   // AI : Prevent double-click zoom on markers
   marker.on("dblclick", (e) => {

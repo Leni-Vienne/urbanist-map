@@ -1,7 +1,7 @@
 import { ref } from "vue";
 import { getOverlayMarkerColor } from "@/services/map/markers";
 import type { OverlayData, OverlayObject, viewModeMarkerColor } from "@/types/index";
-import { AppMode } from "@shared/types";
+import type { AppMode } from "@shared/types";
 
 // AI : ============================================================================
 // AI : COMPLETION FILTERS SERVICE - Global completion status filter state
