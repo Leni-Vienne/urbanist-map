@@ -751,3 +751,35 @@ This document outlines the granular functional test scenarios required to ensure
   7.  **Check**: Only the approved item UI updates (removed from pending list).
   8.  **Regression**: Approve multiple items in sequence.
   9.  **Check**: No scrolling occurs between approvals.
+
+## 28. Completion Status Filtering (Recent Fix - Feb 11)
+
+### 28.1. FilterControl Works at All Zoom Levels
+
+- **Scenario**: Completion status filters apply to both markers (low zoom) and full overlay images (high zoom).
+- **Steps**:
+  1.  Navigate to a city with multiple overlays in **View Mode**.
+  2.  Ensure map shows a mix of proposed, planned, in-progress, and completed overlays.
+  3.  Zoom to **marker level** (zoom < MIN_ZOOM_FOR_OVERLAYS).
+  4.  Click **Filter button** (pi-filter icon).
+  5.  Uncheck **"Proposed"** (yellow) status.
+  6.  **Check**: Yellow markers disappear from map.
+  7.  **Check**: Other status markers remain visible.
+  8.  Zoom to **overlay level** (zoom >= MIN_ZOOM_FOR_OVERLAYS).
+  9.  **Check**: Full overlay images with "proposed" status are hidden.
+  10. **Check**: Only overlays matching checked statuses are visible.
+  11. **Regression**: Toggle filters on and off multiple times.
+  12. **Check**: Overlays correctly appear/disappear at both zoom levels.
+
+### 28.2. Filter State Persists Across Zoom
+
+- **Scenario**: Filter selections persist when zooming in and out.
+- **Steps**:
+  1.  Set filters to hide **"In Progress"** and **"Completed"** statuses.
+  2.  Verify filtered markers at low zoom.
+  3.  Zoom in to overlay level.
+  4.  **Check**: Filter state is preserved (same overlays hidden).
+  5.  Zoom out and back in.
+  6.  **Check**: Filters remain applied consistently.
+  7.  Reset filters (check all statuses).
+  8.  **Check**: All overlays/markers become visible again.

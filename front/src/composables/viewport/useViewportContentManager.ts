@@ -442,7 +442,8 @@ export function useViewportContentManager() {
     // AI : Remove low-zoom markers
     removeOverlayMarkers();
 
-    // AI : Update store
+    // AI : Store UNFILTERED data - filtering happens in pruneOverlays at render time
+    // AI : This ensures overlays can be recreated when filters are toggled back on
     overlayStore.setViewModeOverlays(overlaysData);
 
     // AI : CRITICAL: Update mapStore for panels
@@ -667,6 +668,7 @@ export function useViewportContentManager() {
 
   return {
     refreshViewport,
+    reRenderLoadedCities,
     setupEventListeners,
     cleanupEventListeners,
     setupModeWatcher,

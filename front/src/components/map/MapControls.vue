@@ -33,11 +33,11 @@
 
     <div class="buttons-stacked">
       <!-- AI : Filter Control (View Mode Only) -->
-      <!--<FilterControl
+      <FilterControl
         v-if="mode !== 'edit'"
         ref="filterControlRef"
         @filter-overlays="handleFilterOverlays"
-      />-->
+      />
     </div>
   </div>
 
