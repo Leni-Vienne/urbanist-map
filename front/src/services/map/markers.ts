@@ -27,11 +27,9 @@ export const markerColors: Record<MarkerColor, string> = {
   green: "#32CD32",
   orange: "#FF8C00",
   red: "#DC143C",
-  gold: "#FFD700",
   yellow: "#FFEA00",
   purple: "#9932CC",
   grey: "#A0A0A0",
-  black: "#2F2F2F",
 };
 
 // AI : Simple functions to generate variants from base color

@@ -73,7 +73,7 @@ function processDestructionQueue() {
     }
 
     destructionQueue.delete(id);
-    processedCount++;
+    processedCount += 1;
     result = iterator.next();
   }
 
