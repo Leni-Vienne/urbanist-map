@@ -101,6 +101,7 @@
     "year": "Year",
     "alreadyStarted": "Already started, start date unknown",
     "proposed": "Proposed",
+    "proposedOn": "Proposed on",
     "startsIn": "Starts in",
     "startsOn": "Starts on",
     "endsIn": "Ends in",
