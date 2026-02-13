@@ -2,7 +2,11 @@ import L from "leaflet";
 import { ref, watch } from "vue";
 import { t } from "@/locales";
 import { map } from "@/services/core/map";
-import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
+import {
+  mobileAwareFlyTo,
+  mobileAwareFlyToBounds,
+  calculateBoundsFromLocations,
+} from "@/services/map/mapNavigation";
 import { loadAndRenderCityData } from "@/services/navigation/cityDataRenderer";
 import type { RouterOutput } from "@/client";
 
@@ -23,16 +27,6 @@ export type CityWithProjects = RouterOutput["cities"]["getCitiesWithProjects"][n
 
 // AI : Cities with projects data
 export const citiesWithProjects = ref<CityWithProjects[]>([]);
-
-// AI : Module-level state moved to cityMarkersStore for HMR safety
-// AI : Access via useCityMarkersStore() instead of direct variables
-
-/**
- * AI : Helper function to augment city list with cities from locally created projects
- * AI : This ensures cities with only local/pending projects appear in city markers
- */
-// AI : Module-level state moved to cityMarkersStore for HMR safety
-// AI : Access via useCityMarkersStore() instead of direct variables
 
 /**
  * AI : Initialize mode change watcher (called lazily on first use)
@@ -144,10 +138,6 @@ function updateCityMarkerOpacities(selectedCityId: number | null): void {
 }
 
 /**
- * AI : Load projects for a specific city and display overlays on map
- */
-
-/**
  * AI : Remove city markers from the map
  * AI : NOTE: This does NOT remove standalone project markers - they are managed separately
  * AI : Standalone project markers persist across city marker reloads and are only cleared when changing cities
@@ -169,6 +159,120 @@ export function removeCityMarkers(): void {
 }
 
 /**
+ * AI : Smart zoom logic: Fit bounds of all content (center + projects + overlays)
+ */
+function smartZoomToCity(
+  city: { lat: number; lng: number },
+  data: Awaited<ReturnType<typeof loadAndRenderCityData>>,
+) {
+  if (!map.value) return;
+
+  const locations: { lat: number; lng: number }[] = [];
+
+  // AI : Always include city center
+  locations.push({ lat: city.lat, lng: city.lng });
+
+  if (data) {
+    const { overlays, projects } = data;
+
+    // AI : Add standalone projects
+    if (projects) {
+      locations.push(
+        ...projects
+          .filter(
+            (p): p is typeof p & { lat: number; lng: number } =>
+              typeof p.lat === "number" && typeof p.lng === "number",
+          )
+          .map((p) => ({ lat: p.lat, lng: p.lng })),
+      );
+    }
+
+    // AI : Add overlay corners
+    if (overlays) {
+      for (const o of overlays) {
+        if (Array.isArray(o.corners)) {
+          locations.push(
+            ...o.corners.filter(
+              (c: any) => c && typeof c.lat === "number" && typeof c.lng === "number",
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  const bounds = calculateBoundsFromLocations(locations);
+
+  // AI : Identify if we have significant content spread
+  const hasContent = (data?.projects?.length ?? 0) > 0 || (data?.overlays?.length ?? 0) > 0;
+
+  // AI : Check if we have valid bounds (location count > 1 or spread)
+  // AI : calculateBoundsFromLocations returns null if 0 locations
+  if (bounds && hasContent) {
+    mobileAwareFlyToBounds(bounds, {
+      animate: true,
+      duration: 1.5,
+      maxZoom: 15,
+      padding: [50, 50],
+    });
+  } else {
+    // AI : Fallback for empty cities: Default zoom to center
+    if (map.value.getZoom() < 14) {
+      mobileAwareFlyTo([city.lat, city.lng], 14, { duration: 1.5 });
+    } else {
+      mobileAwareFlyTo([city.lat, city.lng], map.value.getZoom(), { duration: 0.5 });
+    }
+  }
+}
+
+/**
+ * AI : Activate a city (select, load data, and smart zoom)
+ * AI : Extracted to be used by both marker clicks and HelpButton
+ */
+export async function activateCity(city: CityWithProjects) {
+  const mapStore = useMapStore();
+  const overlayStore = useOverlayStore();
+
+  // AI : Check for unsaved overlays before loading city
+  const hasUnsavedOverlays = Object.values(overlayStore.overlays).some(
+    (overlay) => overlay.isModified === true,
+  );
+
+  if (hasUnsavedOverlays) {
+    const isSwitchingCity = mapStore.selectedCity?.id !== city.id;
+    const message = isSwitchingCity
+      ? t("navigation.unsavedOverlaysSwitchCity")
+      : t("navigation.unsavedOverlaysReloadCity");
+
+    // eslint-disable-next-line no-alert
+    const confirmed = confirm(message);
+    if (!confirmed) return;
+  }
+
+  // AI : Update selected city in store
+  // AI : Note: We can't easily reset opacities here without access to the private layer
+  // AI : But updateCityMarkerOpacities will be triggered by the watcher on mapStore.selectedCity
+  mapStore.setSelectedCity({
+    id: city.id,
+    name: city.name,
+    nameLocal: city.nameLocal,
+    countryCode: city.countryCode,
+  });
+
+  // AI : Ensure we're using the correct satellite layer for this country
+  await checkAndSwitchSatelliteLayer(city.countryCode);
+
+  // AI : Request scroll to city in adjacent panels
+  requestScrollTo("city", city.id);
+
+  // AI : Load city data before flight animation
+  const result = await loadAndRenderCityData(city.id, true);
+
+  // AI : Smart zoom logic
+  smartZoomToCity(city, result);
+}
+
+/**
  * AI : Create a layer group with city markers
  * AI : Handles all city-specific marker creation, event handling, and state management
  */
@@ -178,15 +282,6 @@ async function createCitiesMarkerLayer(cities: CityWithProjects[]) {
 
   const defaultOpacity = MARKER_OPACITY.city.default;
   const hoverOpacity = MARKER_OPACITY.city.hover;
-
-  // AI : Helper to reset all markers to default opacity
-  function resetAllMarkerOpacities() {
-    layer.eachLayer((l) => {
-      if (l instanceof L.Marker) {
-        l.setOpacity(defaultOpacity);
-      }
-    });
-  }
 
   for (const city of cities) {
     // AI : Create marker with blue icon
@@ -233,52 +328,7 @@ async function createCitiesMarkerLayer(cities: CityWithProjects[]) {
     // AI : Click event - load city data
     marker.on("click", async (e) => {
       L.DomEvent.stopPropagation(e);
-
-      const mapStore = useMapStore();
-      const overlayStore = useOverlayStore();
-
-      // AI : Check for unsaved overlays before loading city
-      const hasUnsavedOverlays = Object.values(overlayStore.overlays).some(
-        (overlay) => overlay.isModified === true,
-      );
-
-      if (hasUnsavedOverlays) {
-        const isSwitchingCity = mapStore.selectedCity?.id !== city.id;
-        const message = isSwitchingCity
-          ? t("navigation.unsavedOverlaysSwitchCity")
-          : t("navigation.unsavedOverlaysReloadCity");
-
-        const confirmed = confirm(message);
-        if (!confirmed) return;
-      }
-
-      // AI : Reset all markers and highlight this one
-      resetAllMarkerOpacities();
-      marker.setOpacity(hoverOpacity);
-
-      // AI : Update selected city in store
-      mapStore.setSelectedCity({
-        id: city.id,
-        name: city.name,
-        nameLocal: city.nameLocal,
-        countryCode: city.countryCode,
-      });
-
-      // AI : Ensure we're using the correct satellite layer for this country
-      await checkAndSwitchSatelliteLayer(city.countryCode);
-
-      // AI : Request scroll to city in adjacent panels
-      requestScrollTo("city", city.id);
-
-      // AI : Load city data before flight animation
-      await loadAndRenderCityData(city.id, true);
-
-      // AI : Zoom to city marker
-      if (map.value && map.value.getZoom() < 14) {
-        mobileAwareFlyTo([city.lat, city.lng], 14, { duration: 1.5 });
-      } else if (map.value) {
-        mobileAwareFlyTo([city.lat, city.lng], map.value.getZoom(), { duration: 0.5 });
-      }
+      await activateCity(city);
     });
 
     // AI : Store marker and add to layer
