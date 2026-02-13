@@ -560,7 +560,7 @@ export const changesRouter = router({
       try {
         const baseQuery = db.select().from(changeHistory);
 
-        let whereConditions = [];
+        const whereConditions = [];
         if (input.entityType) {
           whereConditions.push(eq(changeHistory.entityType, input.entityType));
         }

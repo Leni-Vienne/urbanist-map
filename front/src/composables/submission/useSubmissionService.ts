@@ -225,7 +225,7 @@ export function useSubmissionService() {
   function findOriginalOverlay(overlay: OverlayObject): OverlayData | undefined {
     // AI : Find original overlay data from backend cache (must use cache to get corners!)
     // AI : currentCityOverlays doesn't have corners, we need to fetch from the city cache
-    let originalOverlay: OverlayData | undefined;
+    let originalOverlay: OverlayData | undefined = undefined;
 
     // AI : Get cityId from the overlay's project
     const cityId = overlay.project?.cityId;

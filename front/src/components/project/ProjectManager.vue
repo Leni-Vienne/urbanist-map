@@ -133,7 +133,7 @@ async function ensureCityMarkersForProject(
   // AI : (prepareCountryContext already adds markers, so only do this if we didn't switch countries)
   if (!isCountrySwitch) {
     // AI : First add single marker immediately (fast feedback) - mark as unsaved
-    addSingleCityMarker(
+    await addSingleCityMarker(
       {
         id: city.id,
         name: city.name,
@@ -159,7 +159,7 @@ async function ensureCityMarkersForProject(
     const country = projectStore.countries.find((c) => c.code === countryCode);
     const cityExistsInBackend = country?.cities.some((c) => c.id === city.id);
     if (!cityExistsInBackend) {
-      addSingleCityMarker(
+      await addSingleCityMarker(
         {
           id: city.id,
           name: city.name,
