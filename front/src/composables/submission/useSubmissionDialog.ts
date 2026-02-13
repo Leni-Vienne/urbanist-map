@@ -27,6 +27,8 @@ import type {
   Project,
   ProjectForModeration,
   OverlayForModeration,
+  ModifiableField,
+  RemovableChange,
 } from "@/types/index";
 
 // AI : Extended context type for combined overlay+project submissions
@@ -54,11 +56,6 @@ function isSubmissionContextExtended(ctx: unknown): ctx is SubmissionContextExte
       "pendingOverlayModifications" in ctx ||
       "allProjectModifications" in ctx)
   );
-}
-
-// AI : Type predicate for field type
-function isValidFieldType(field: string): field is "caption" | "corners" | "new_overlay" {
-  return field === "caption" || field === "corners" || field === "new_overlay";
 }
 
 // AI : Apply pending modifications to overlay object
@@ -797,7 +794,7 @@ export function useSubmissionDialog() {
 
   // AI : Helper function to reset overlay field to original value
   function resetOverlayField(
-    field: string,
+    field: ModifiableField,
     overlayId: string,
     overlayObject: OverlayObject,
     capturedOriginalCaption: string | null | undefined,
@@ -885,7 +882,7 @@ export function useSubmissionDialog() {
   // AI : Reset a specific overlay field modification
   function resetOverlayFieldModification(
     overlayId: string,
-    field: string,
+    field: ModifiableField,
     overlayObject: OverlayObject,
   ): void {
     // AI : Capture original values BEFORE clearing
@@ -893,15 +890,8 @@ export function useSubmissionDialog() {
     const capturedOriginalCaption = pendingMod?.caption?.original;
     const capturedOriginalCorners = pendingMod?.corners?.original;
 
-    // AI : Validate field type
-    if (!isValidFieldType(field)) {
-      console.warn("Invalid field type:", field);
-      return;
-    }
-
     // AI : Clear the specific field modification
-    const modField = field as "caption" | "corners";
-    const hasRemainingMods = pendingModsStore.clearFieldModification(overlayId, modField);
+    const hasRemainingMods = pendingModsStore.clearFieldModification(overlayId, field);
 
     // AI : Reset the field to its original value
     resetOverlayField(
@@ -923,7 +913,7 @@ export function useSubmissionDialog() {
   }
 
   // AI : Helper function to handle removing an overlay change
-  function handleRemoveOverlayChange(overlayId: string, field: string): void {
+  function handleRemoveOverlayChange(overlayId: string, field: RemovableChange): void {
     const overlayObject = overlayStore.overlays[overlayId];
 
     // AI : Handle removing a NEW overlay completely
@@ -957,7 +947,7 @@ export function useSubmissionDialog() {
   }
 
   // AI : Handle removing a single change from the submission dialog
-  function handleRemoveChange(index: number, field: string, overlayId?: string): void {
+  function handleRemoveChange(index: number, field: RemovableChange, overlayId?: string): void {
     if (!submissionSummary.value) return;
 
     // AI : Remove the change at the specified index from the summary

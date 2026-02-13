@@ -9,6 +9,7 @@ export function useImageErrors() {
 
   function handleImageError(event: Event, id: string) {
     imageErrors.value[id] = true;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
     const target = event.target as HTMLImageElement;
     target.style.display = "none";
   }

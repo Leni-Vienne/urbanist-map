@@ -97,7 +97,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
 
   // AI : Handle local-only project updates (no backend submission)
   function handleLocalOnlyUpdate() {
-    let currentProject =
+    const currentProject =
       projectStore.projects[options.entityId] ?? projectStore.allProjects[options.entityId];
 
     // AI : Check if project exists in userContributions (for projects opened from ContributePanel)
