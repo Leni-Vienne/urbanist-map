@@ -14,3 +14,10 @@ const { L } = globalThis as { L: typeof LeafletTypes };
 
 // AI : Export as default to maintain compatibility with existing imports
 export default L;
+
+// AI : Accept HMR updates to prevent full page reload
+// AI : This is crucial because this shim is imported by many files
+// AI : Without this, any change to files importing Leaflet triggers a full reload
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}

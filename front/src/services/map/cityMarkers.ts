@@ -493,3 +493,8 @@ function addCityMarkersToMapInternal(
     updateCityMarkerOpacities(mapStore.selectedCity.id);
   }
 }
+
+// AI : Accept HMR updates for this module
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}

@@ -614,3 +614,8 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
 
   // AI : Marker tooltip already updated in createSingleMarker - no need to duplicate
 }
+
+// AI : Accept HMR updates for this module
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}

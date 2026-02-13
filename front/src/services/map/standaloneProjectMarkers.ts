@@ -451,3 +451,8 @@ export function closeProjectPopupAndResetMarkers() {
   cleanupProjectInfoTeleportTarget();
   updateStandaloneProjectMarkerOpacities(null); // AI : Reset marker opacities when popup closes
 }
+
+// AI : Accept HMR updates for this module
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}

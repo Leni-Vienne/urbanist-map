@@ -300,3 +300,8 @@ export function createMarker(overlayObject: OverlayObject): void {
   // AI : Update marker tooltip with proper styling
   updateMarkerTooltip(overlayObject);
 }
+
+// AI : Accept HMR updates for this module
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}

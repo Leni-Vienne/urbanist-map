@@ -378,3 +378,8 @@ function initEsriMetadataListener() {
   if (!map.value) return;
   map.value.on("moveend", checkEsriMaxZoom);
 }
+
+// AI : Accept HMR updates for this module
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}
