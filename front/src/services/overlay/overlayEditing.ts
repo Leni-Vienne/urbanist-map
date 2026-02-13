@@ -141,15 +141,15 @@ export function updateOverlayEditingState(): void {
       if (overlay?.overlay) {
         // AI : Find and click the info button to recreate teleport target and reopen popup
         const overlayElement = overlay.overlay.getElement();
-        let infoButton = overlayElement?.parentElement?.querySelector(
+        let infoButton = overlayElement?.parentElement?.querySelector<HTMLElement>(
           ".leaflet-toolbar-icon.pi-ellipsis-v",
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-        ) as HTMLElement;
+        );
 
         if (!infoButton) {
-          const allInfoButtons = document.querySelectorAll(".leaflet-toolbar-icon.pi-ellipsis-v");
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-          infoButton = allInfoButtons[0] as HTMLElement;
+          const allInfoButtons = document.querySelectorAll<HTMLElement>(
+            ".leaflet-toolbar-icon.pi-ellipsis-v",
+          );
+          infoButton = allInfoButtons[0];
         }
 
         if (infoButton) {

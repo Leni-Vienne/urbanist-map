@@ -13,9 +13,7 @@ let mapClickHandler: (() => void) | null = null;
 function updateTeleportTargetPosition() {
   if (!currentMarkerForPopup || !map.value) return;
 
-  const teleportTarget = document.querySelector(
-    "#project-info-popup-teleport-target",
-  ) as HTMLElement;
+  const teleportTarget = document.querySelector<HTMLElement>("#project-info-popup-teleport-target");
   if (!teleportTarget) return;
 
   const markerLatLng = currentMarkerForPopup.getLatLng();
@@ -35,8 +33,7 @@ export function createProjectInfoTeleportTarget(marker: L.Marker | L.CircleMarke
   const markerPoint = map.value.latLngToContainerPoint(markerLatLng);
 
   // AI : Check if teleport target already exists (switching markers)
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-  let teleportTarget = document.querySelector("#project-info-popup-teleport-target") as HTMLElement;
+  let teleportTarget = document.querySelector<HTMLElement>("#project-info-popup-teleport-target");
 
   if (teleportTarget) {
     // AI : Target exists, just update its position for the new marker

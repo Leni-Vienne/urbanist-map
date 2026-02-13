@@ -49,7 +49,7 @@ export async function loadCityProjects(
     });
 
     // AI : Ensure we're using the correct satellite layer for this country
-    checkAndSwitchSatelliteLayer(cityCountryCode);
+    await checkAndSwitchSatelliteLayer(cityCountryCode);
 
     // AI : Only clear state when actually switching cities, not when refreshing
     if (isSwitchingCity) {
