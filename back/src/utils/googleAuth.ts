@@ -15,7 +15,7 @@ export async function verifyGoogleToken(token: string): Promise<{
     });
 
     const payload = ticket.getPayload();
-    if (payload?.sub == null || payload?.email == null || payload.name == null) {
+    if (payload?.sub === undefined || payload?.email === undefined || payload.name === undefined) {
       return null;
     }
 

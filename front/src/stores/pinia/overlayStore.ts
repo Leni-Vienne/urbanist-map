@@ -1,4 +1,4 @@
-import { defineStore } from "pinia";
+import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref, shallowRef } from "vue";
 import type L from "leaflet";
 import type { OverlayObject, OverlayData, LatestContribution } from "@/types/index";
@@ -241,3 +241,8 @@ export const useOverlayStore = defineStore("overlay", () => {
     clearAllState,
   };
 });
+
+// AI : Enable HMR for this store
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useOverlayStore, import.meta.hot));
+}

@@ -65,6 +65,16 @@ This document outlines the granular functional test scenarios required to ensure
   2.  Test "Distort", "Move", "Rotate" toggles.
   3.  **Suggested Position**: Make a change -> Click "View Suggested Position". Verify a "Ghost Overlay" or preview visual appears at the new coordinates.
 
+### 2.4. Popup Persistence During State Updates
+
+- **Scenario**: Info popup remains accessible/open when overlay state updates.
+- **Steps**:
+  1. Select an overlay in Edit mode.
+  2. Open the info popup (click ellipsis/info button).
+  3. Trigger a state update (e.g., switch to View mode and back, or modify overlay).
+  4. **Check**: Info popup reopens or button is still clickable.
+  5. **Regression**: Verify no "Element not found" errors in console (related to `querySelector` fix).
+
 ## 3. Moderation & Admin Workflows
 
 ### 3.1. Contextual Filtering

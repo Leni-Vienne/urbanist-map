@@ -91,6 +91,7 @@
 import { ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import type { SubmissionSummary } from "@/composables/submission/useSubmissionService";
+import type { RemovableChange } from "@/types/index";
 import { handleImageError } from "@/utils/imageErrorHandler";
 
 const { t: $t } = useI18n();
@@ -114,7 +115,7 @@ const emit = defineEmits<{
   "update:visible": [value: boolean];
   confirm: [reason: string];
   cancel: [];
-  "remove-change": [index: number, field: string, overlayId?: string];
+  "remove-change": [index: number, field: RemovableChange, overlayId?: string];
 }>();
 
 // AI : Local visibility state
@@ -147,7 +148,7 @@ function handleConfirm() {
 }
 
 // AI : Handle remove change button click
-function handleRemoveChange(index: number, field: string, overlayId?: string) {
+function handleRemoveChange(index: number, field: RemovableChange, overlayId?: string) {
   emit("remove-change", index, field, overlayId);
 }
 </script>

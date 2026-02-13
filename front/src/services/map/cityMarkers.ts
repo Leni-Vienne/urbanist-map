@@ -92,7 +92,7 @@ function initializeModeWatcher() {
         // AI : CRITICAL FIX: Mode watcher should ALWAYS render all cities, not filter by selectedCountryCode
         // AI : Country filtering should only happen when explicitly navigating to a country (via addCityMarkersForCountry)
         // AI : The mode watcher's job is to refresh city data for the new mode, not to apply country filters
-        addCityMarkersToMapInternal(citiesWithProjects.value);
+        await addCityMarkersToMapInternal(citiesWithProjects.value);
       } catch (error) {
         console.error("Error reloading city markers on mode change:", error);
       }
@@ -172,10 +172,7 @@ export function removeCityMarkers(): void {
  * AI : Create a layer group with city markers
  * AI : Handles all city-specific marker creation, event handling, and state management
  */
-function createCitiesMarkerLayer(cities: CityWithProjects[]): {
-  layer: L.LayerGroup;
-  markers: Map<string, L.Marker>;
-} {
+async function createCitiesMarkerLayer(cities: CityWithProjects[]) {
   const layer = L.layerGroup();
   const markers = new Map<string, L.Marker>();
 
@@ -268,7 +265,7 @@ function createCitiesMarkerLayer(cities: CityWithProjects[]): {
       });
 
       // AI : Ensure we're using the correct satellite layer for this country
-      checkAndSwitchSatelliteLayer(city.countryCode);
+      await checkAndSwitchSatelliteLayer(city.countryCode);
 
       // AI : Request scroll to city in adjacent panels
       requestScrollTo("city", city.id);
@@ -295,7 +292,7 @@ function createCitiesMarkerLayer(cities: CityWithProjects[]): {
 /**
  * AI : Add a single city marker without replacing existing ones
  */
-export function addSingleCityMarker(
+export async function addSingleCityMarker(
   city: {
     id: number;
     name: string;
@@ -305,7 +302,7 @@ export function addSingleCityMarker(
     countryCode: string;
   },
   isUnsaved = false,
-): void {
+) {
   if (!map.value) {
     console.error("Map not initialized when trying to add city marker");
     return;
@@ -326,7 +323,7 @@ export function addSingleCityMarker(
 
   // AI : Create marker using createCitiesMarkerLayer
   const cityData: CityWithProjects = { ...city, projectCount: 0 };
-  const result = createCitiesMarkerLayer([cityData]);
+  const result = await createCitiesMarkerLayer([cityData]);
 
   // AI : Add marker to existing layer
   for (const [cityId, marker] of result.markers) {
@@ -395,7 +392,7 @@ export async function loadAllCityMarkersGlobally(): Promise<CityWithProjects[]> 
       citiesWithProjects.value = citiesData;
 
       // AI : Add all city markers to map (without country filter)
-      addCityMarkersToMapInternal(citiesData);
+      await addCityMarkersToMapInternal(citiesData);
 
       // AI : CRITICAL: Initialize mode watcher so cities re-fetch when mode changes
       // AI : This must be called AFTER initial load to ensure cities with only pending content appear in edit mode
@@ -414,12 +411,12 @@ export async function loadAllCityMarkersGlobally(): Promise<CityWithProjects[]> 
 /**
  * AI : Add city markers for a specific country
  */
-export function addCityMarkersForCountry(cities: CityWithProjects[], countryCode?: string): void {
+export async function addCityMarkersForCountry(cities: CityWithProjects[], countryCode?: string) {
   if (!map.value) {
     console.error("Map not initialized when trying to add city markers for country");
     return;
   }
-  addCityMarkersToMapInternal(cities, countryCode);
+  await addCityMarkersToMapInternal(cities, countryCode);
 }
 
 /**
@@ -428,10 +425,10 @@ export function addCityMarkersForCountry(cities: CityWithProjects[], countryCode
 /**
  * AI : Internal function to add city markers to map
  */
-function addCityMarkersToMapInternal(
+async function addCityMarkersToMapInternal(
   cities: CityWithProjects[],
   explicitCountryCode?: string,
-): void {
+) {
   const cityMarkersStore = useCityMarkersStore();
 
   // AI : Determine country code from explicit parameter or derive from cities
@@ -467,7 +464,7 @@ function addCityMarkersToMapInternal(
 
   // AI : Generate markers using existing logic (but not putting them in a group)
   // AI : createCitiesMarkerLayer returns a LayerGroup we can discard, and a Map of markers we keep
-  const result = createCitiesMarkerLayer(citiesToRender);
+  const result = await createCitiesMarkerLayer(citiesToRender);
   // AI : Clear store first to remove stale cities (that might have been deleted/filtered out)
   // AI : CRITICAL: We need to remove them from the map if they were there!
   const currentMarkers = cityMarkersStore.getAllCityMarkers();
@@ -492,4 +489,9 @@ function addCityMarkersToMapInternal(
   if (mapStore.selectedCity) {
     updateCityMarkerOpacities(mapStore.selectedCity.id);
   }
+}
+
+// AI : Accept HMR updates for this module
+if (import.meta.hot) {
+  import.meta.hot.accept();
 }
