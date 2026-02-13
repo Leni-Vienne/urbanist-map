@@ -362,7 +362,7 @@ async function findOrCreateGoogleUser(googleUser: {
   const { eq } = await import("drizzle-orm");
 
   // AI : SECURE: First check by googleId (not email!)
-  let [existingUser] = await db
+  const [existingUser] = await db
     .select()
     .from(users)
     .where(eq(users.googleId, googleUser.googleId))

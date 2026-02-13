@@ -72,7 +72,7 @@ function canDeleteOverlay(overlayObject: OverlayObject): boolean {
  * AI : Lazy initialization to avoid module load timing issues
  */
 let _infoTool: any = null;
-const getInfoTool = () => {
+function getInfoTool() {
   if (_infoTool) return _infoTool;
 
   _infoTool = L.Toolbar2.Action.extend({
@@ -114,8 +114,8 @@ const getInfoTool = () => {
       }
 
       // AI : Check if currently open using store state and DOM state
-      const teleportTargetExists = !!this.options.subToolbar._container?.querySelector(
-        "#info-popup-teleport-target",
+      const teleportTargetExists = Boolean(
+        this.options.subToolbar._container?.querySelector("#info-popup-teleport-target"),
       );
       const isCurrentlyOpen = overlayStore.showInfoPopup && teleportTargetExists;
 
@@ -192,7 +192,7 @@ const getInfoTool = () => {
   });
 
   return _infoTool;
-};
+}
 
 /**
  * AI : Previous overlay tool - Navigate to previous overlay in project

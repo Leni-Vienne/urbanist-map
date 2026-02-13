@@ -35,6 +35,7 @@ export function createProjectInfoTeleportTarget(marker: L.Marker | L.CircleMarke
   const markerPoint = map.value.latLngToContainerPoint(markerLatLng);
 
   // AI : Check if teleport target already exists (switching markers)
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
   let teleportTarget = document.querySelector("#project-info-popup-teleport-target") as HTMLElement;
 
   if (teleportTarget) {

@@ -228,7 +228,7 @@ async function onProjectSelected(projectId: string) {
   if (!projects.value[projectId]) {
     try {
       // AI : Try multiple sources in order of preference
-      let projectToAdd =
+      const projectToAdd =
         findProjectFromReplacementOverlay(projectId) ??
         findProjectFromCityProjects(projectId) ??
         (await findProjectFromNearbyProjects(projectId));
@@ -418,7 +418,7 @@ async function displayProjectMarkerAndPopup(
       const targetZoom = Math.max(currentZoom, 16);
       map.value.setView([project.lat, project.lng], targetZoom, {
         animate: true,
-        duration: 1.0,
+        duration: 1,
       });
     }
   }

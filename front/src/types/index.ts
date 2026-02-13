@@ -2,6 +2,10 @@ import L from "leaflet";
 import type { RouterOutput } from "@/client";
 import type { DBCountry, DBProject, DBCity, ApprovalStatus } from "../../../back/src/db/schema";
 
+// AI : Type definitions for field modifications in submission dialogs
+export type ModifiableField = "caption" | "corners";
+export type RemovableChange = ModifiableField | "new_overlay";
+
 // AI : Type for marker colors used throughout the application
 export type MarkerColor = "blue" | "green" | "orange" | "red" | "yellow" | "purple" | "grey";
 export type viewModeMarkerColor = "yellow" | "orange" | "grey" | "green";

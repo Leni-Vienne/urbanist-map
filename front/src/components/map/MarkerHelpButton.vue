@@ -107,6 +107,7 @@ function handleClick() {
     // AI : We do this lazily only on click, not constantly
     setTimeout(() => {
       const markerSelector = `[data-city-id="${targetCity.id}"]`;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
       const markerElement = document.querySelector(markerSelector) as HTMLElement;
 
       if (markerElement) {
