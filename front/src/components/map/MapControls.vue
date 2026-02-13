@@ -57,8 +57,8 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
 import { map } from "@/services/core/map";
 import type { viewModeMarkerColor } from "@/types/index";
+import FilterControl from "@/components/map/FilterControl.vue";
 
-//const FilterControl = defineAsyncComponent(() => import("@/components/map/FilterControl.vue"));
 const WelcomeDialog = defineAsyncComponent(() => import("@/components/map/WelcomeDialog.vue"));
 
 const overlayStore = useOverlayStore();
