@@ -1,6 +1,6 @@
 // AI : Unified store for tracking pending overlay modifications
 // AI : Single source of truth for all overlay changes (position, caption) from any UI surface
-import { defineStore } from "pinia";
+import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref, computed } from "vue";
 import type { ApprovalStatus } from "@shared/types";
 
@@ -159,3 +159,8 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
     clearAllModifications,
   };
 });
+
+// AI : Enable HMR for this store
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(usePendingModificationsStore, import.meta.hot));
+}

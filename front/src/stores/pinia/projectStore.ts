@@ -1,4 +1,4 @@
-import { defineStore } from "pinia";
+import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref, computed } from "vue";
 import type {
   Project,
@@ -813,3 +813,8 @@ export const useProjectStore = defineStore("project", () => {
     clearAllState,
   };
 });
+
+// AI : Enable HMR for this store
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useProjectStore, import.meta.hot));
+}

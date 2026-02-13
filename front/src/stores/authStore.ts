@@ -1,4 +1,4 @@
-import { defineStore } from "pinia";
+import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref, computed } from "vue";
 import { trpc } from "@/client";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -422,3 +422,8 @@ export const useAuthStore = defineStore("auth", () => {
     getLastLoginMethod,
   };
 });
+
+// AI : Enable HMR for this store
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useAuthStore, import.meta.hot));
+}

@@ -574,3 +574,8 @@ export function getEditToolsForOverlay(overlayObject: OverlayObject) {
   // AI : Filter out any undefined tools to prevent toolbar errors
   return baseTools.filter((tool) => tool !== undefined);
 }
+
+// AI : Accept HMR updates for this module
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}

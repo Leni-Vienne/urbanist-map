@@ -677,3 +677,8 @@ export function useViewportContentManager() {
 }
 
 // AI : Navigation loading functions moved to useCityDataLoader.ts to break circular dependency
+
+// AI : Accept HMR updates for this module
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}

@@ -1,4 +1,4 @@
-import { defineStore } from "pinia";
+import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
 import type { OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
@@ -156,3 +156,8 @@ export const useMapStore = defineStore("map", () => {
     clearCityStandaloneProjectsCache,
   };
 });
+
+// AI : Enable HMR for this store
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useMapStore, import.meta.hot));
+}
