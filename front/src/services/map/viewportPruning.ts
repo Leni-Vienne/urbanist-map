@@ -263,13 +263,11 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
       if (overlay.marker && !mapInstance.hasLayer(overlay.marker)) {
         overlay.marker.addTo(mapInstance);
       }
-    } else {
+    } else if (overlay.overlay || overlay.marker) {
       // AI : Not visible or not allowed -> Queue for Cleanup
-      if (overlay.overlay || overlay.marker) {
-        destructionQueue.add(id);
-        if (!isDestructionQueueRunning) {
-          processDestructionQueue();
-        }
+      destructionQueue.add(id);
+      if (!isDestructionQueueRunning) {
+        processDestructionQueue();
       }
     }
   }

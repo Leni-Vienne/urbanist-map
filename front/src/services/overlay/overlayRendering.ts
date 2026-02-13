@@ -429,8 +429,8 @@ function setupOverlayMovementTracking(
       // AI : This prevents memory leaks and piling up listeners
       document.removeEventListener("mouseup", onMouseUp);
       document.removeEventListener("touchend", onTouchEnd);
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("touchmove", onTouchMove);
+      document.removeEventListener("mousemove", onMovement);
+      document.removeEventListener("touchmove", onMovement);
 
       if (hasActuallyMoved) {
         updateMarkerPosition(overlayObject);
@@ -456,7 +456,7 @@ function setupOverlayMovementTracking(
       stopTracking();
     }
 
-    function onMouseMove() {
+    function onMovement() {
       if (isManipulating && !hasActuallyMoved) {
         performUpdate();
       }
@@ -464,12 +464,6 @@ function setupOverlayMovementTracking(
 
     function onTouchEnd() {
       stopTracking();
-    }
-
-    function onTouchMove() {
-      if (isManipulating && !hasActuallyMoved) {
-        performUpdate();
-      }
     }
 
     // AI : Start tracking handler - behaves like 'mousedown'/'touchstart'
@@ -481,8 +475,8 @@ function setupOverlayMovementTracking(
       // AI : Add document listeners ONLY when tracking starts
       document.addEventListener("mouseup", onMouseUp);
       document.addEventListener("touchend", onTouchEnd);
-      document.addEventListener("mousemove", onMouseMove);
-      document.addEventListener("touchmove", onTouchMove, { passive: true });
+      document.addEventListener("mousemove", onMovement);
+      document.addEventListener("touchmove", onMovement, { passive: true });
 
       // AI : We don't start the loop here immediately; we wait for the first move event
       // AI : This avoids running the loop just for a click
