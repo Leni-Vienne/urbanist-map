@@ -228,3 +228,8 @@ export function getOverlayBounds(overlay: OverlayData): L.LatLngBounds | null {
 
   return null;
 }
+
+// AI : Accept HMR updates for this module
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}

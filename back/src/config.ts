@@ -2,7 +2,7 @@ import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod'
 
 // AI : Support for both local development and Cloudflare Pages
 // AI : For local development, use Bun's built-in .env support or manual loading
-let env = process.env;
+const env = process.env;
 
 const envSchema = z.object({
   DATABASE_URL: z.url(),

@@ -148,12 +148,6 @@ function onSelect(event: { value: CitySearchResult }) {
   width: 100%;
 }
 
-@media (max-width: 768px) {
-  .city-search-wrapper {
-    /* Remove mobile specific overrides as parent controls layout now */
-  }
-}
-
 .city-search {
   width: 100%;
 }

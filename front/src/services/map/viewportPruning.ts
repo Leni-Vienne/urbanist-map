@@ -73,7 +73,7 @@ function processDestructionQueue() {
     }
 
     destructionQueue.delete(id);
-    processedCount++;
+    processedCount += 1;
     result = iterator.next();
   }
 
@@ -282,4 +282,9 @@ function pruneCityMarkers(mapInstance: L.Map, bounds: L.LatLngBounds, _zoom: num
       marker.remove();
     }
   }
+}
+
+// AI : Accept HMR updates for this module
+if (import.meta.hot) {
+  import.meta.hot.accept();
 }
