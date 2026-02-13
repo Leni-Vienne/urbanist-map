@@ -88,9 +88,11 @@ function processDestructionQueue() {
  * AI : Manage overlay visibility
  */
 function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number) {
-  // AI : overlays are only for high zoom levels
-  if (zoom < MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) return;
+  // AI : Markers start appearing at VIEWPORT_LOAD_THRESHOLD
+  // AI : Images start appearing at MIN_ZOOM_FOR_OVERLAYS
+  if (zoom < MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD) return;
 
+  const showImages = zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
   const overlayStore = useOverlayStore();
 
   // AI : Helper to check visibility and existence
@@ -155,11 +157,15 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
         if (!hasLayer) {
           // AI : Instance exists but Leaflet layer was destroyed -> Recreate
           renderViewModeOverlays([data], true, false);
-        } else if (!isOnMap) {
+        } else if (showImages && !isOnMap) {
+          // AI : Only add image if zoom is sufficient
           existingInstance.overlay!.addTo(mapInstance);
+        } else if (!showImages && isOnMap) {
+          // AI : Remove image if zoom is insufficient but it's currently on map
+          existingInstance.overlay!.remove();
         }
 
-        // AI : Ensure marker
+        // AI : Ensure marker is always added if visible (zoom check passed at top)
         if (existingInstance.marker && !mapInstance.hasLayer(existingInstance.marker)) {
           existingInstance.marker.addTo(mapInstance);
         }
@@ -243,11 +249,17 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
             const leafletCorners = overlay.corners.map((c) => L.latLng(c.lat, c.lng));
             newOverlay.setCorners(leafletCorners);
           }
-          newOverlay.addTo(mapInstance);
+          if (showImages) {
+            newOverlay.addTo(mapInstance);
+          }
         }
-      } else if (!isOnMap) {
+      } else if (showImages && !isOnMap) {
         overlay.overlay!.addTo(mapInstance);
+      } else if (!showImages && isOnMap) {
+        overlay.overlay!.remove();
       }
+
+      // AI : Ensure marker
       if (overlay.marker && !mapInstance.hasLayer(overlay.marker)) {
         overlay.marker.addTo(mapInstance);
       }
