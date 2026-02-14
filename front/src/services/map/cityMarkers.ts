@@ -472,9 +472,6 @@ export async function addCityMarkersForCountry(cities: CityWithProjects[], count
 /**
  * AI : Internal function to add city markers to map
  */
-/**
- * AI : Internal function to add city markers to map
- */
 async function addCityMarkersToMapInternal(
   cities: CityWithProjects[],
   explicitCountryCode?: string,

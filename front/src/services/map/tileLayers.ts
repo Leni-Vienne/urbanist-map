@@ -128,9 +128,6 @@ function createTileLayer(layerType: TileLayerType): L.TileLayer | L.GridLayer {
   return L.tileLayer(config.url, config.options);
 }
 
-/**
- * AI : Switch to a different tile layer (for custom layer control)
- */
 // AI : Timer for fallback removal of old layers
 let fallbackRemovalTimer: ReturnType<typeof setTimeout> | null = null;
 
