@@ -142,16 +142,12 @@ function refreshAllStandaloneMarkers(): void {
     const shouldBeVisible = visibleCompletionStates.value[markerColor];
 
     // AI : Show or hide the marker based on filter
-    if (shouldBeVisible) {
+    if (shouldBeVisible && !standaloneProjectsLayer.hasLayer(marker)) {
       // AI : Add to layer if not already there
-      if (!standaloneProjectsLayer.hasLayer(marker)) {
-        standaloneProjectsLayer.addLayer(marker);
-      }
-    } else {
+      standaloneProjectsLayer.addLayer(marker);
+    } else if (!shouldBeVisible && standaloneProjectsLayer.hasLayer(marker)) {
       // AI : Remove from layer if it's there
-      if (standaloneProjectsLayer.hasLayer(marker)) {
-        standaloneProjectsLayer.removeLayer(marker);
-      }
+      standaloneProjectsLayer.removeLayer(marker);
     }
   }
 }

@@ -46,11 +46,11 @@ export function formatFlexibleDate(
   if (!input) return "";
 
   const { year, month, day, precision } = input;
-  const userLocale = locale || navigator.language || "en-US";
+  const userLocale = locale ?? navigator.language ?? "en-US";
 
   // AI : Create a date object for formatting
   // AI : Use noon to avoid timezone rollover issues with basic dates
-  const date = new Date(year, (month || 1) - 1, day || 1, 12, 0, 0);
+  const date = new Date(year, (month ?? 1) - 1, day ?? 1, 12, 0, 0);
 
   if (precision === "year") {
     return year.toString();

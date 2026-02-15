@@ -128,9 +128,6 @@ function createTileLayer(layerType: TileLayerType): L.TileLayer | L.GridLayer {
   return L.tileLayer(config.url, config.options);
 }
 
-/**
- * AI : Switch to a different tile layer (for custom layer control)
- */
 // AI : Timer for fallback removal of old layers
 let fallbackRemovalTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -269,8 +266,9 @@ async function checkEsriMaxZoom() {
 
   // AI : Round coordinates to cache key (approx 100m precision)
   const cacheKey = `${center.lat.toFixed(3)},${center.lng.toFixed(3)}`;
-  if (maxZoomCache.has(cacheKey)) {
-    applyEsriMaxZoom(maxZoomCache.get(cacheKey)!);
+  const cachedMaxZoom = maxZoomCache.get(cacheKey);
+  if (cachedMaxZoom !== undefined) {
+    applyEsriMaxZoom(cachedMaxZoom);
     return;
   }
 
@@ -297,7 +295,7 @@ function applyEsriMaxZoom(zoomLevel: number) {
     esriConfig.options.maxNativeZoom = zoomLevel;
 
     if (activeTileLayer && map.value) {
-      (activeTileLayer as any).options.maxNativeZoom = zoomLevel;
+      (activeTileLayer.options as any).maxNativeZoom = zoomLevel;
 
       // AI : Force a redraw of the layer to fetch potential high-res tiles?
       // Only if we are currently at a zoom > oldMaxNativeZoom

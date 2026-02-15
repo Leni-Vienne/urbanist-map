@@ -114,19 +114,29 @@ export function expandAccordionForOverlay(
   for (const project of projects) {
     const overlay = project.overlays?.find((o) => o.id === overlayId);
     if (overlay) {
-      // AI : Expand country
-      if (project.countryCode) {
+      let didExpand = false;
+
+      // AI : Expand country (only if not already expanded)
+      if (project.countryCode && !expandedCountries.value.has(project.countryCode)) {
         expandedCountries.value.add(project.countryCode);
+        didExpand = true;
       }
 
-      // AI : Expand city
+      // AI : Expand city (only if not already expanded)
       const cityKey = `${project.countryCode}-${project.cityName}`;
-      expandedCities.value.add(cityKey);
+      if (!expandedCities.value.has(cityKey)) {
+        expandedCities.value.add(cityKey);
+        didExpand = true;
+      }
 
-      // AI : Expand project
-      expandProjectAccordion(project.id);
+      // AI : Expand project (only if not already expanded)
+      if (!activeAccordionPanels.value.includes(project.id)) {
+        activeAccordionPanels.value.push(project.id);
+        didExpand = true;
+      }
 
-      return true;
+      // AI : Return true only if we actually expanded something
+      return didExpand;
     }
   }
 
@@ -157,4 +167,9 @@ export function expandAccordionForProject(
   expandProjectAccordion(project.id);
 
   return true;
+}
+
+// AI : Accept HMR updates for this module
+if (import.meta.hot) {
+  import.meta.hot.accept();
 }
